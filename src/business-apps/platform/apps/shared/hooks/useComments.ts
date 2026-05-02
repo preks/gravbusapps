@@ -13,7 +13,7 @@ import type { Comment, CommentQueryOptions, CreateCommentInput } from '../types/
 
 export interface UseCommentsOptions {
   entityId: string
-  entityType: 'document' | 'note' | 'spreadsheet_app'
+  entityType: 'document' | 'note' | 'spreadsheet_app' | 'whiteboard'
   socket?: Socket | null
   apiService?: {
     createComment: (id: string, comment: CreateCommentInput) => Promise<Comment | null>
@@ -21,7 +21,12 @@ export interface UseCommentsOptions {
     updateComment: (commentId: string, updates: Partial<Comment>) => Promise<Comment | null>
     resolveComment: (commentId: string) => Promise<boolean>
     deleteComment: (commentId: string) => Promise<boolean>
-    replyToComment: (commentId: string, reply: string) => Promise<Comment | null>
+    replyToComment: (
+      commentId: string,
+      reply: string,
+      userName?: string,
+      userAvatar?: string
+    ) => Promise<Comment | null>
   }
   autoRefreshInterval?: number // ms, default 0 (disabled - use WebSocket events instead)
   onCommentCreated?: (comment: Comment) => void
@@ -45,7 +50,7 @@ export interface UseCommentsActions {
   resolveComment: (commentId: string) => Promise<boolean>
   unresolveComment: (commentId: string) => Promise<boolean>
   deleteComment: (commentId: string) => Promise<boolean>
-  replyToComment: (commentId: string, reply: string) => Promise<Comment | null>
+  replyToComment: (commentId: string, reply: string, userName?: string, userAvatar?: string) => Promise<Comment | null>
   clearError: () => void
 }
 
@@ -332,20 +337,17 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
    * Reply to a comment
    */
   const replyToComment = useCallback(
-    async (commentId: string, reply: string): Promise<Comment | null> => {
+    async (commentId: string, reply: string, userName?: string, userAvatar?: string): Promise<Comment | null> => {
       if (!apiService) {
         console.warn('[useComments] Backend API not yet implemented')
         return null
       }
 
       try {
-        const replyComment = await apiService.replyToComment(commentId, reply)
+        const replyComment = await apiService.replyToComment(commentId, reply, userName, userAvatar)
 
         if (replyComment) {
-          setState(prev => ({
-            ...prev,
-            comments: [...prev.comments, replyComment]
-          }))
+          await loadComments({ includeResolved: true, includeReplies: true })
         }
 
         return replyComment
@@ -360,7 +362,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         return null
       }
     },
-    [apiService, onError, t]
+    [apiService, loadComments, onError, t]
   )
 
   /**

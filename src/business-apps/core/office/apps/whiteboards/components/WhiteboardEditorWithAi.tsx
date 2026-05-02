@@ -12,6 +12,9 @@ import { WhiteboardEditor } from './WhiteboardEditor'
 interface WhiteboardEditorWithAiProps extends BusinessAppContextProps {
   whiteboardId: string
   isReadOnly?: boolean
+  canComment?: boolean
+  canManageSharing?: boolean
+  canRename?: boolean
   onBack: () => void
   'data-testid'?: string
 }
@@ -19,6 +22,9 @@ interface WhiteboardEditorWithAiProps extends BusinessAppContextProps {
 export const WhiteboardEditorWithAi: React.FC<WhiteboardEditorWithAiProps> = ({
   whiteboardId,
   isReadOnly = false,
+  canComment = false,
+  canManageSharing = false,
+  canRename = false,
   accessToken,
   userInfo,
   onBack,
@@ -129,6 +135,9 @@ export const WhiteboardEditorWithAi: React.FC<WhiteboardEditorWithAiProps> = ({
         <WhiteboardEditor
           whiteboardId={whiteboardId}
           isReadOnly={isReadOnly}
+          canComment={canComment}
+          canManageSharing={canManageSharing}
+          canRename={canRename}
           accessToken={accessToken}
           userInfo={userInfo}
           onBack={onBack}

@@ -51,6 +51,7 @@ import { PermanentDeleteConfirmDialog } from '@/business-apps/platform/apps/shar
 import translations from './_i18n'
 import { WhiteboardApiService } from './services/WhiteboardApiService'
 import type { WhiteboardSummary } from './types'
+import { getWhiteboardCapabilities } from './utils/whiteboardPermissions'
 
 export interface WhiteboardAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -87,6 +88,34 @@ function formatRelativeTime(dateString: string, t: (k: string, vars?: Record<str
   if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
   if (diffDays < 7) return t('time-days-ago', { count: diffDays })
   return date.toLocaleDateString()
+}
+
+function isOwnedWhiteboard(whiteboard: WhiteboardSummary, currentUserId: string): boolean {
+  if (whiteboard.isOwner === true) {
+    return true
+  }
+
+  if (whiteboard.isShared === true || whiteboard.isOwner === false) {
+    return false
+  }
+
+  if (currentUserId && whiteboard.ownerId === currentUserId) {
+    return true
+  }
+
+  return whiteboard.isOwner === undefined
+}
+
+function isSharedWhiteboard(whiteboard: WhiteboardSummary, currentUserId: string): boolean {
+  if (whiteboard.isShared === true || whiteboard.isOwner === false) {
+    return true
+  }
+
+  if (currentUserId && whiteboard.ownerId === currentUserId) {
+    return false
+  }
+
+  return false
 }
 
 export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
@@ -136,18 +165,18 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
 
   const { favorites, toggleFavorite } = useWhiteboardHubFavorites()
 
-  const includeShared = activeSection === 'shared' || activeSection === 'my-whiteboards'
   const { whiteboards, isLoading, refresh, createWhiteboard, deleteWhiteboard, duplicateWhiteboard, renameWhiteboard } =
     useWhiteboards({
       accessToken,
       search: searchQuery || undefined,
-      includeShared,
+      includeShared: true,
       sortBy,
       sortOrder
     })
 
   const filteredWhiteboards = whiteboards.filter(wb => {
-    if (activeSection === 'shared') return wb.isShared
+    if (activeSection === 'my-whiteboards') return isOwnedWhiteboard(wb, currentUserId)
+    if (activeSection === 'shared') return isSharedWhiteboard(wb, currentUserId)
     if (activeSection === 'favorites') return favorites.has(wb.id)
     return true
   })
@@ -402,6 +431,7 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
   )
 
   const isTrashedWhiteboard = Boolean(currentWhiteboard?.trashedAt)
+  const currentWhiteboardCapabilities = getWhiteboardCapabilities(currentWhiteboard)
   const canRestoreTrashedWhiteboard = Boolean(
     isTrashedWhiteboard && currentWhiteboard?.isOwner !== false && !currentWhiteboard?.spaceId
   )
@@ -476,7 +506,10 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
         <WhiteboardEditorWithAi
           key={`${selectedWhiteboardId}-${currentView}`}
           whiteboardId={selectedWhiteboardId}
-          isReadOnly={isTrashedWhiteboard}
+          isReadOnly={isTrashedWhiteboard || currentWhiteboardCapabilities.isReadonlyCanvas}
+          canComment={currentWhiteboardCapabilities.canComment}
+          canManageSharing={currentWhiteboardCapabilities.canManageSharing}
+          canRename={currentWhiteboardCapabilities.canRename}
           accessToken={accessToken}
           userInfo={userInfo}
           onBack={handleBack}
@@ -903,81 +936,93 @@ const WhiteboardCard: React.FC<WhiteboardCardProps> = ({
   onDelete,
   testId,
   t
-}) => (
-  <Card
-    className="gba:cursor-pointer gba:group gba:relative gba:overflow-hidden gba:transition-all gba:hover:ring-2 gba:hover:ring-primary/20"
-    onClick={onOpen}
-    data-testid={testId}
-  >
-    <div className="gba:aspect-video gba:bg-muted/40 gba:flex gba:items-center gba:justify-center gba:border-b gba:border-border">
-      <PencilSimpleLineIcon className="gba:h-10 gba:w-10 gba:text-muted-foreground/40" />
-    </div>
-    <div className="gba:p-3">
-      <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
-        <div className="gba:min-w-0 gba:flex-1">
-          <h3 className="gba:text-sm gba:font-medium gba:truncate">{whiteboard.title}</h3>
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-            {formatRelativeTime(whiteboard.updatedAt, t)}
-          </p>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-1" onClick={e => e.stopPropagation()}>
-          {whiteboard.isShared && (
-            <Badge variant="outline" className="gba:text-[10px]">
-              {t('whiteboard-shared-badge')}
-            </Badge>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:h-7 gba:w-7 gba:p-0 gba:opacity-0 gba:group-hover:opacity-100"
-                data-testid={`${testId}-menu`}
-              >
-                <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onRename} data-testid={`${testId}-rename`}>
-                <PencilSimpleIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-                {t('whiteboard-rename')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onToggleFavorite}>
-                <StarIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-                {isFavorite ? t('whiteboard-remove-favorite') : t('whiteboard-add-favorite')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onShare}>
-                <ShareNetworkIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-                {t('whiteboard-share')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onManageShares}>
-                <UsersThreeIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-                {t('whiteboard-manage-shares')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDuplicate}>
-                <CopyIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-                {t('whiteboard-duplicate')}
-              </DropdownMenuItem>
-              {whiteboard.isOwner !== false && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={onDelete}
-                    className="gba:text-destructive"
-                    data-testid={`${testId}-delete`}
-                  >
-                    <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-                    {t('whiteboard-delete')}
+}) => {
+  const capabilities = getWhiteboardCapabilities(whiteboard)
+
+  return (
+    <Card
+      className="gba:cursor-pointer gba:group gba:relative gba:overflow-hidden gba:transition-all gba:hover:ring-2 gba:hover:ring-primary/20"
+      onClick={onOpen}
+      data-testid={testId}
+    >
+      <div className="gba:aspect-video gba:bg-muted/40 gba:flex gba:items-center gba:justify-center gba:border-b gba:border-border">
+        <PencilSimpleLineIcon className="gba:h-10 gba:w-10 gba:text-muted-foreground/40" />
+      </div>
+      <div className="gba:p-3">
+        <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
+          <div className="gba:min-w-0 gba:flex-1">
+            <h3 className="gba:text-sm gba:font-medium gba:truncate">{whiteboard.title}</h3>
+            <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+              {formatRelativeTime(whiteboard.updatedAt, t)}
+            </p>
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-1" onClick={e => e.stopPropagation()}>
+            {whiteboard.isShared && (
+              <Badge variant="outline" className="gba:text-[10px]">
+                {t('whiteboard-shared-badge')}
+              </Badge>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:h-7 gba:w-7 gba:p-0 gba:opacity-0 gba:group-hover:opacity-100"
+                  data-testid={`${testId}-menu`}
+                >
+                  <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {capabilities.canRename ? (
+                  <DropdownMenuItem onClick={onRename} data-testid={`${testId}-rename`}>
+                    <PencilSimpleIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                    {t('whiteboard-rename')}
                   </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                ) : null}
+                <DropdownMenuItem onClick={onToggleFavorite}>
+                  <StarIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {isFavorite ? t('whiteboard-remove-favorite') : t('whiteboard-add-favorite')}
+                </DropdownMenuItem>
+                {capabilities.canManageSharing ? (
+                  <>
+                    <DropdownMenuItem onClick={onShare}>
+                      <ShareNetworkIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                      {t('whiteboard-share')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onManageShares}>
+                      <UsersThreeIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                      {t('whiteboard-manage-shares')}
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+                {capabilities.canDuplicate ? (
+                  <DropdownMenuItem onClick={onDuplicate}>
+                    <CopyIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                    {t('whiteboard-duplicate')}
+                  </DropdownMenuItem>
+                ) : null}
+                {capabilities.canDelete ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={onDelete}
+                      className="gba:text-destructive"
+                      data-testid={`${testId}-delete`}
+                    >
+                      <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                      {t('whiteboard-delete')}
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
-    </div>
-  </Card>
-)
+    </Card>
+  )
+}
 
 /* ------------------------------------------------------------------ */
 
@@ -1007,72 +1052,84 @@ const WhiteboardListItem: React.FC<WhiteboardListItemProps> = ({
   onDelete,
   testId,
   t
-}) => (
-  <div
-    className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:rounded-lg gba:border gba:border-border gba:cursor-pointer gba:hover:bg-accent/50 gba:transition-colors gba:group"
-    onClick={onOpen}
-    data-testid={testId}
-  >
-    <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0 gba:flex-1">
-      <div className="gba:h-9 gba:w-9 gba:rounded gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-        <PencilSimpleLineIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+}) => {
+  const capabilities = getWhiteboardCapabilities(whiteboard)
+
+  return (
+    <div
+      className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:rounded-lg gba:border gba:border-border gba:cursor-pointer gba:hover:bg-accent/50 gba:transition-colors gba:group"
+      onClick={onOpen}
+      data-testid={testId}
+    >
+      <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0 gba:flex-1">
+        <div className="gba:h-9 gba:w-9 gba:rounded gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+          <PencilSimpleLineIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+        </div>
+        <div className="gba:min-w-0">
+          <h3 className="gba:text-sm gba:font-medium gba:truncate">{whiteboard.title}</h3>
+          <p className="gba:text-xs gba:text-muted-foreground">{formatRelativeTime(whiteboard.updatedAt, t)}</p>
+        </div>
       </div>
-      <div className="gba:min-w-0">
-        <h3 className="gba:text-sm gba:font-medium gba:truncate">{whiteboard.title}</h3>
-        <p className="gba:text-xs gba:text-muted-foreground">{formatRelativeTime(whiteboard.updatedAt, t)}</p>
-      </div>
-    </div>
-    <div className="gba:flex gba:items-center gba:gap-2" onClick={e => e.stopPropagation()}>
-      {whiteboard.isShared && (
-        <Badge variant="outline" className="gba:text-[10px]">
-          {t('whiteboard-shared-badge')}
-        </Badge>
-      )}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gba:h-7 gba:w-7 gba:p-0 gba:opacity-0 gba:group-hover:opacity-100"
-            data-testid={`${testId}-menu`}
-          >
-            <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={onRename} data-testid={`${testId}-rename`}>
-            <PencilSimpleIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-            {t('whiteboard-rename')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onToggleFavorite}>
-            <StarIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-            {isFavorite ? t('whiteboard-remove-favorite') : t('whiteboard-add-favorite')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onShare}>
-            <ShareNetworkIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-            {t('whiteboard-share')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onManageShares}>
-            <UsersThreeIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-            {t('whiteboard-manage-shares')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onDuplicate}>
-            <CopyIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-            {t('whiteboard-duplicate')}
-          </DropdownMenuItem>
-          {whiteboard.isOwner !== false && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onDelete} className="gba:text-destructive" data-testid={`${testId}-delete`}>
-                <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-                {t('whiteboard-delete')}
+      <div className="gba:flex gba:items-center gba:gap-2" onClick={e => e.stopPropagation()}>
+        {whiteboard.isShared && (
+          <Badge variant="outline" className="gba:text-[10px]">
+            {t('whiteboard-shared-badge')}
+          </Badge>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gba:h-7 gba:w-7 gba:p-0 gba:opacity-0 gba:group-hover:opacity-100"
+              data-testid={`${testId}-menu`}
+            >
+              <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {capabilities.canRename ? (
+              <DropdownMenuItem onClick={onRename} data-testid={`${testId}-rename`}>
+                <PencilSimpleIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                {t('whiteboard-rename')}
               </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            ) : null}
+            <DropdownMenuItem onClick={onToggleFavorite}>
+              <StarIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+              {isFavorite ? t('whiteboard-remove-favorite') : t('whiteboard-add-favorite')}
+            </DropdownMenuItem>
+            {capabilities.canManageSharing ? (
+              <>
+                <DropdownMenuItem onClick={onShare}>
+                  <ShareNetworkIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {t('whiteboard-share')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onManageShares}>
+                  <UsersThreeIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {t('whiteboard-manage-shares')}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {capabilities.canDuplicate ? (
+              <DropdownMenuItem onClick={onDuplicate}>
+                <CopyIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                {t('whiteboard-duplicate')}
+              </DropdownMenuItem>
+            ) : null}
+            {capabilities.canDelete ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onDelete} className="gba:text-destructive" data-testid={`${testId}-delete`}>
+                  <TrashIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {t('whiteboard-delete')}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 export default WhiteboardAppsHub
