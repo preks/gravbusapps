@@ -66,6 +66,13 @@ export interface CommentPanelProps {
   editorMessages?: CommentPanelEditorMessages
   disableCreateComment?: boolean
   disabledCreateMessage?: string
+  /**
+   * Visual layout of the panel.
+   * - `floating` (default): absolutely positioned overlay anchored to the viewport.
+   * - `docked`: in-flow column meant to sit inside a flex row alongside other side panels
+   *   (e.g. the slide editor's Properties panel).
+   */
+  layout?: 'floating' | 'docked'
   'data-testid'?: string
 }
 
@@ -93,8 +100,10 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   editorMessages,
   disableCreateComment = false,
   disabledCreateMessage,
+  layout = 'floating',
   'data-testid': testId = 'comment-panel'
 }) => {
+  const isDocked = layout === 'docked'
   const { t } = useTranslation(sharedTranslations)
   const defaultMessages: Required<CommentPanelMessages> = {
     title: t('comment-panel-title'),
@@ -131,19 +140,23 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
     }
   }
 
-  return (
-    <div
-      className="gba:fixed gba:bottom-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col"
-      style={{
+  const containerClassName = isDocked
+    ? 'gba:h-full gba:w-96 gba:flex-shrink-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col'
+    : 'gba:fixed gba:bottom-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col'
+
+  const containerStyle: React.CSSProperties = isDocked
+    ? {}
+    : {
         top: `${headerHeight}px`,
         right: 16,
         bottom: 32,
         width: 380,
         zIndex: 1000,
         boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.08)'
-      }}
-      data-testid={testId}
-    >
+      }
+
+  return (
+    <div className={containerClassName} style={containerStyle} data-testid={testId}>
       {/* Modern Header */}
       <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:border-b gba:border-border/50 gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent">
         <div className="gba:flex gba:items-center gba:gap-2">

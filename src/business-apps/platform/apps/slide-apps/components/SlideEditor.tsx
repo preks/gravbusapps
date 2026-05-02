@@ -3410,6 +3410,40 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     )
   }
 
+  const commentsPanelOpen = showCommentsPanel && canReadComments
+
+  const renderCommentsPanel = (panelLayout: 'docked' | 'floating') =>
+    commentsPanelOpen ? (
+      <CommentPanel
+        comments={comments.comments}
+        unresolvedCount={comments.unresolvedCount}
+        isLoading={comments.isLoading}
+        onCreateComment={handleCommentCreate}
+        onUpdateComment={async (commentId, content) => {
+          await comments.updateComment(commentId, { content })
+        }}
+        onResolveComment={async commentId => {
+          await comments.resolveComment(commentId)
+        }}
+        onDeleteComment={async commentId => {
+          await comments.deleteComment(commentId)
+        }}
+        onClose={() => {
+          panelCommentAnchorRef.current = null
+          setShowCommentsPanel(false)
+        }}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+        currentUserAvatar={currentUserAvatar}
+        disableCreateComment={!canCreateComments}
+        disabledCreateMessage={t('editor-comments-disabled-view')}
+        onScrollToHighlight={handleScrollToCommentAnchor}
+        onUnhighlight={handleUnhighlightCommentAnchor}
+        layout={panelLayout}
+        data-testid={`${testId}-comments-panel`}
+      />
+    ) : null
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
       {/* Header - matching PagedDocumentEditor style */}
@@ -3661,8 +3695,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         />
       ) : null}
 
-      {/* Property Panel Toggle - only show when panel is hidden */}
-      {!isEditorReadOnly && !showPropertyPanel && (
+      {/* Property Panel Toggle - only show when no right-side panel occupies the slot */}
+      {!isEditorReadOnly && !showPropertyPanel && !commentsPanelOpen && (
         <div className="gba:flex gba:items-center gba:justify-end gba:px-4 gba:py-1 gba:border-b gba:bg-card">
           <Button
             variant="ghost"
@@ -3977,8 +4011,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </div>
           </div>
 
-          {/* Property Panel - Always visible until X button is clicked */}
-          {!isEditorReadOnly && showPropertyPanel && (
+          {/* Property Panel - hidden while Comments occupy the right sidebar slot */}
+          {!isEditorReadOnly && showPropertyPanel && !commentsPanelOpen && (
             <div className="gba:w-72 gba:flex-shrink-0 gba:border-l gba:bg-card gba:overflow-y-auto">
               <div className="gba:p-3 gba:border-b gba:flex gba:items-center gba:justify-between">
                 <h3 className="gba:font-semibold gba:text-sm">{t('editor-properties')}</h3>
@@ -4018,6 +4052,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               />
             </div>
           )}
+
+          {/* Comments Panel - docked alongside Property panel */}
+          {renderCommentsPanel('docked')}
 
           {/* Spell Check Panel */}
           {showSpellCheckPanel && (
@@ -4367,35 +4404,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         />
       )}
 
-      {showCommentsPanel && canReadComments ? (
-        <CommentPanel
-          comments={comments.comments}
-          unresolvedCount={comments.unresolvedCount}
-          isLoading={comments.isLoading}
-          onCreateComment={handleCommentCreate}
-          onUpdateComment={async (commentId, content) => {
-            await comments.updateComment(commentId, { content })
-          }}
-          onResolveComment={async commentId => {
-            await comments.resolveComment(commentId)
-          }}
-          onDeleteComment={async commentId => {
-            await comments.deleteComment(commentId)
-          }}
-          onClose={() => {
-            panelCommentAnchorRef.current = null
-            setShowCommentsPanel(false)
-          }}
-          currentUserId={currentUserId}
-          currentUserName={currentUserName}
-          currentUserAvatar={currentUserAvatar}
-          disableCreateComment={!canCreateComments}
-          disabledCreateMessage={t('editor-comments-disabled-view')}
-          onScrollToHighlight={handleScrollToCommentAnchor}
-          onUnhighlight={handleUnhighlightCommentAnchor}
-          data-testid={`${testId}-comments-panel`}
-        />
-      ) : null}
+      {/* Comments Panel - floating fallback for non-normal editor views (e.g. master view) */}
+      {editorView !== 'normal' ? renderCommentsPanel('floating') : null}
 
       {/* Presenter View */}
       {presenterMode && (
