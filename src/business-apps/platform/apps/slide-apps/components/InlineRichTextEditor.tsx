@@ -13,6 +13,7 @@ export interface InlineRichTextEditorProps {
   onTextChange: (value: string) => void
   onSelectionChange: (range: RichTextSelectionRange | null) => void
   onFinishEditing: () => void
+  selectionToRestore?: RichTextSelectionRange | null
   rehydrateToken?: number
   'data-testid'?: string
 }
@@ -406,6 +407,7 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
   onTextChange,
   onSelectionChange,
   onFinishEditing,
+  selectionToRestore = null,
   rehydrateToken = 0,
   'data-testid': testId = 'inline-rich-text-editor'
 }) => {
@@ -455,13 +457,13 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
     editor.focus()
     const contentLength = liveContentLength(editor)
     const hadStoredRange = lastSelectionRef.current !== null
-    const range = lastSelectionRef.current ?? { start: contentLength, end: contentLength }
+    const range = selectionToRestore ?? lastSelectionRef.current ?? { start: contentLength, end: contentLength }
     lastSelectionRef.current = range
     restoreSelection(range)
-    if (hadStoredRange) {
+    if (selectionToRestore || hadStoredRange) {
       onSelectionChange(range)
     }
-  }, [element.id, onSelectionChange, rehydrateToken, restoreSelection])
+  }, [element.id, onSelectionChange, rehydrateToken, restoreSelection, selectionToRestore])
 
   return (
     <div

@@ -20,8 +20,16 @@ import type {
   TemplateHints
 } from '../types'
 import { migrateLegacyTemplate } from './SlideMetadataService'
-import type { Version, FileLock, LockFileInput } from '../../shared/types/versioning'
+import type {
+  Comment,
+  CommentQueryOptions,
+  CreateCommentInput,
+  FileLock,
+  LockFileInput,
+  Version
+} from '../../shared/types/versioning'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { parseSlideCommentAnchor, serializeSlideCommentAnchor } from '../utils/slideCommentAnchors'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -132,6 +140,35 @@ function mapApiVersionToVersion(versionData: Record<string, unknown>): Version {
     isCheckpoint: !(versionData.isAutoSave as boolean),
     isAutoSave: versionData.isAutoSave as boolean,
     fileSize: (versionData.fileSize as number) || 0
+  }
+}
+
+function mapApiComment(rawComment: Record<string, unknown>, slideId: string): Comment {
+  const anchorPath = rawComment.anchorPath as string | undefined
+  return {
+    id: rawComment.id as string,
+    entityId: slideId,
+    entityType: 'slide',
+    type: rawComment.type as Comment['type'],
+    content: rawComment.content as string,
+    createdBy: rawComment.createdBy as string,
+    createdByName: rawComment.createdByName as string | undefined,
+    createdByAvatar: rawComment.createdByAvatar as string | undefined,
+    createdAt: rawComment.createdAt as string,
+    updatedAt: rawComment.updatedAt as string | undefined,
+    resolvedAt: rawComment.resolvedAt as string | undefined,
+    resolvedBy: rawComment.resolvedBy as string | undefined,
+    selectionStart: rawComment.selectionStart as number | undefined,
+    selectionEnd: rawComment.selectionEnd as number | undefined,
+    selectedText: rawComment.selectedText as string | undefined,
+    anchorPath,
+    slideAnchorData: parseSlideCommentAnchor(anchorPath),
+    cellReference: rawComment.cellReference as string | undefined,
+    sheetId: rawComment.sheetId as string | undefined,
+    parentId: rawComment.parentId as string | undefined,
+    replies: (rawComment.replies as Record<string, unknown>[] | undefined)?.map(reply =>
+      mapApiComment({ ...reply, parentId: reply.parentId ?? rawComment.id }, slideId)
+    )
   }
 }
 
@@ -339,7 +376,7 @@ export const SlidesApiService = {
     }
   },
 
-  async updateSharePermission(slideId: string, shareId: string, permission: string): Promise<boolean> {
+  async updateSharePermission(_slideId: string, shareId: string, permission: string): Promise<boolean> {
     try {
       await apiRequest(`/sharing/${shareId}`, {
         method: 'PATCH',
@@ -351,12 +388,116 @@ export const SlidesApiService = {
     }
   },
 
-  async revokeShareById(slideId: string, shareId: string): Promise<boolean> {
+  async revokeShareById(_slideId: string, shareId: string): Promise<boolean> {
     try {
       await apiRequest(`/sharing/${shareId}`, { method: 'DELETE' })
       return true
     } catch {
       return false
+    }
+  },
+
+  async createComment(slideId: string, input: CreateCommentInput): Promise<Comment | null> {
+    try {
+      const { slideAnchorData, ...restInput } = input
+      const response = await apiRequest<Record<string, unknown>>(`/comments/slide/${slideId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...restInput,
+          ...(slideAnchorData ? { anchorPath: serializeSlideCommentAnchor(slideAnchorData) } : {})
+        })
+      })
+
+      return mapApiComment(response, slideId)
+    } catch {
+      return null
+    }
+  },
+
+  async listComments(slideId: string, options?: CommentQueryOptions): Promise<Comment[]> {
+    try {
+      const params = new URLSearchParams()
+      if (options?.includeResolved) params.set('includeResolved', 'true')
+      if (options?.includeReplies) params.set('includeReplies', 'true')
+      if (options?.type) params.set('type', options.type)
+
+      const queryString = params.toString()
+      const response = await apiRequest<Record<string, unknown>[]>(
+        `/comments/slide/${slideId}${queryString ? `?${queryString}` : ''}`
+      )
+
+      return (response || []).map(comment => mapApiComment(comment, slideId))
+    } catch {
+      return []
+    }
+  },
+
+  async updateComment(commentId: string, updates: Partial<Comment>): Promise<Comment | null> {
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          content: updates.content
+        })
+      })
+
+      const slideId = (response.entityId as string | undefined) ?? updates.entityId
+      if (!slideId) {
+        return null
+      }
+
+      return mapApiComment(response, slideId)
+    } catch {
+      return null
+    }
+  },
+
+  async resolveComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}/resolve`, {
+        method: 'PATCH'
+      })
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  async deleteComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}`, {
+        method: 'DELETE'
+      })
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  async replyToComment(
+    commentId: string,
+    reply: string,
+    userName?: string,
+    userAvatar?: string
+  ): Promise<Comment | null> {
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({
+          content: reply,
+          createdByName: userName,
+          createdByAvatar: userAvatar
+        })
+      })
+
+      const slideId = response.entityId as string | undefined
+      if (!slideId) {
+        return null
+      }
+
+      return mapApiComment(response, slideId)
+    } catch {
+      return null
     }
   },
   // ============ Versions ============

@@ -499,6 +499,7 @@ manage-load-failed = Freigaben konnten nicht geladen werden
 
 # Header Actions
 header-locked = Gesperrt
+header-comments = Kommentare
 header-slide = Folie
 header-version-history = Versionsverlauf
 header-save-checkpoint = Sicherungspunkt speichern
@@ -506,6 +507,7 @@ header-unlock-slide = Folie entsperren
 header-lock-slide = Folie sperren
 header-share = Teilen...
 header-manage-access = Zugriff verwalten...
+editor-comments-disabled-view = Sie können Kommentare ansehen, aber nur Kommentierende und Bearbeitende können neue hinzufügen.
 
 # Generate Presentation
 generate-title = Präsentation generieren

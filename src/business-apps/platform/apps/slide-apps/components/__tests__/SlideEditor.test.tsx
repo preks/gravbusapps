@@ -51,6 +51,20 @@ const speechMatcherMock = {
 const toolbarContextMock = {
   context: { type: 'none' as const }
 }
+const commentsHookMock = {
+  comments: [],
+  unresolvedCount: 0,
+  isLoading: false,
+  error: null,
+  loadComments: jest.fn(),
+  createComment: jest.fn(),
+  updateComment: jest.fn(),
+  resolveComment: jest.fn(),
+  unresolveComment: jest.fn(),
+  deleteComment: jest.fn(),
+  replyToComment: jest.fn(),
+  clearError: jest.fn()
+}
 const slideTransitionMock = {
   previousSlide: null,
   currentTransition: null,
@@ -88,6 +102,7 @@ jest.mock('@newwork/nw-design-system', () => {
     Button: ({ children, ...props }: React.PropsWithChildren<React.ButtonHTMLAttributes<HTMLButtonElement>>) => (
       <button {...props}>{children}</button>
     ),
+    Badge: ({ children }: React.PropsWithChildren) => <span>{children}</span>,
     Dialog: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
     DialogContent: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
     DialogHeader: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
@@ -111,9 +126,21 @@ jest.mock('../SlideCanvas', () => ({
   }: {
     onSelectElements: (ids: Set<string>) => void
     onEditText: (id: string) => void
-    inlineEditing?: { onSelectionChange: (range: { start: number; end: number } | null) => void }
+    inlineEditing?: {
+      editingTextId: string | null
+      selectionToRestore?: { start: number; end: number } | null
+      onSelectionChange: (range: { start: number; end: number } | null) => void
+    }
   }) => (
-    <div data-testid="mock-slide-canvas">
+    <div
+      data-testid="mock-slide-canvas"
+      data-editing-id={inlineEditing?.editingTextId ?? ''}
+      data-selection-to-restore={
+        inlineEditing?.selectionToRestore
+          ? `${inlineEditing.selectionToRestore.start}:${inlineEditing.selectionToRestore.end}`
+          : ''
+      }
+    >
       <button data-testid="mock-select-text" onClick={() => onSelectElements(new Set(['text-1']))}>
         Select text
       </button>
@@ -151,6 +178,45 @@ jest.mock('../../../shared/components/PresenceIndicator', () => ({
 
 jest.mock('../../../shared/components/AutoSaveIndicator', () => ({
   AutoSaveIndicator: () => <div>autosave</div>
+}))
+
+jest.mock('../../../shared/components/CommentPanel', () => ({
+  CommentPanel: ({
+    comments,
+    onCreateComment,
+    onClose,
+    onScrollToHighlight,
+    currentUserName,
+    currentUserAvatar,
+    disableCreateComment,
+    'data-testid': testId = 'comment-panel'
+  }: {
+    comments: Array<{ id: string }>
+    onCreateComment: (content: string, parentId?: string, userName?: string, userAvatar?: string) => Promise<void>
+    onClose: () => void
+    onScrollToHighlight?: (commentId: string) => void
+    currentUserName?: string
+    currentUserAvatar?: string
+    disableCreateComment?: boolean
+    'data-testid'?: string
+  }) => (
+    <div data-testid={testId} data-create-disabled={disableCreateComment ? 'true' : 'false'}>
+      <button
+        data-testid={`${testId}-create`}
+        onClick={() => void onCreateComment('New comment', undefined, currentUserName, currentUserAvatar)}
+      >
+        Create comment
+      </button>
+      <button data-testid={`${testId}-close`} onClick={onClose}>
+        Close comments
+      </button>
+      {comments[0] ? (
+        <button data-testid={`${testId}-jump`} onClick={() => onScrollToHighlight?.(comments[0].id)}>
+          Jump to comment
+        </button>
+      ) : null}
+    </div>
+  )
 }))
 
 jest.mock('../editor/SlideEditorHeaderActions', () => ({
@@ -212,6 +278,13 @@ jest.mock('../AIAssistSettings', () => ({
 
 jest.mock('../../services', () => ({
   SlidesApiService: {
+    setAccessToken: jest.fn(),
+    createComment: jest.fn(),
+    listComments: jest.fn(),
+    updateComment: jest.fn(),
+    resolveComment: jest.fn(),
+    deleteComment: jest.fn(),
+    replyToComment: jest.fn(),
     updateSlide: jest.fn().mockResolvedValue(undefined)
   }
 }))
@@ -222,6 +295,10 @@ jest.mock('../../hooks/useSlideCollaboration', () => ({
     themeId: initialThemeId,
     ...collaborationApiMock
   })
+}))
+
+jest.mock('../../../shared/hooks/useComments', () => ({
+  useComments: () => commentsHookMock
 }))
 
 jest.mock('../../hooks/usePresentationCast', () => ({
@@ -258,7 +335,7 @@ jest.mock('../../hooks/useImageObjectUrls', () => ({
 
 import { SlideEditor } from '../SlideEditor'
 
-function makeSlide(): Slide {
+function makeSlide(overrides: Partial<Slide> = {}): Slide {
   return {
     id: 'deck-1',
     title: 'Test deck',
@@ -298,7 +375,9 @@ function makeSlide(): Slide {
         }
       ],
       themeId: 'default'
-    }
+    },
+    permission: 'owner',
+    ...overrides
   }
 }
 
@@ -309,6 +388,18 @@ describe('SlideEditor workspace deselection', () => {
 
   beforeEach(() => {
     awarenessMock.setLocalStateField.mockClear()
+    commentsHookMock.comments = []
+    commentsHookMock.unresolvedCount = 0
+    commentsHookMock.isLoading = false
+    commentsHookMock.error = null
+    commentsHookMock.loadComments.mockReset()
+    commentsHookMock.createComment.mockReset()
+    commentsHookMock.updateComment.mockReset()
+    commentsHookMock.resolveComment.mockReset()
+    commentsHookMock.unresolveComment.mockReset()
+    commentsHookMock.deleteComment.mockReset()
+    commentsHookMock.replyToComment.mockReset()
+    commentsHookMock.clearError.mockReset()
   })
 
   it('renders existing slide content without crashing during placeholder normalization', () => {
@@ -353,5 +444,138 @@ describe('SlideEditor workspace deselection', () => {
 
     expect(screen.getByTestId('mock-link-dialog')).toHaveAttribute('data-selected-text', 'Editable text')
     expect(screen.getByTestId('mock-link-dialog')).toHaveAttribute('data-initial-url', '')
+  })
+
+  it('creates deck-level comments when nothing on the slide is selected', () => {
+    render(
+      <SlideEditor
+        slideId="deck-1"
+        slide={makeSlide()}
+        onBack={() => {}}
+        accessToken="token"
+        userInfo={{ id: 'user-1', givenName: 'Emir', familyName: 'Salihagic' } as never}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('slide-editor-comments-toggle'))
+    fireEvent.click(screen.getByTestId('slide-editor-comments-panel-create'))
+
+    expect(commentsHookMock.createComment).toHaveBeenCalledWith({
+      type: 'document',
+      slideAnchorData: {
+        kind: 'slide',
+        slideId: 'slide-1'
+      },
+      content: 'New comment',
+      createdByName: 'Emir Salihagic',
+      createdByAvatar: undefined
+    })
+  })
+
+  it('anchors new comments to the selected element when a slide object is selected', () => {
+    render(<SlideEditor slideId="deck-1" slide={makeSlide()} onBack={() => {}} accessToken="token" />)
+
+    fireEvent.click(screen.getByTestId('mock-select-text'))
+    fireEvent.pointerDown(screen.getByTestId('slide-editor-comments-toggle'))
+    fireEvent.click(screen.getByTestId('slide-editor-comments-toggle'))
+    fireEvent.click(screen.getByTestId('slide-editor-comments-panel-create'))
+
+    expect(commentsHookMock.createComment).toHaveBeenCalledWith({
+      type: 'selection',
+      selectedText: 'Editable text',
+      slideAnchorData: {
+        kind: 'element',
+        slideId: 'slide-1',
+        elementIds: ['text-1']
+      },
+      content: 'New comment',
+      createdByName: 'editor-user-fallback',
+      createdByAvatar: undefined
+    })
+  })
+
+  it('anchors new comments to the active text range when text is selected inside an element', () => {
+    render(<SlideEditor slideId="deck-1" slide={makeSlide()} onBack={() => {}} accessToken="token" />)
+
+    fireEvent.click(screen.getByTestId('mock-edit-text'))
+    fireEvent.click(screen.getByTestId('mock-select-range'))
+    fireEvent.pointerDown(screen.getByTestId('slide-editor-comments-toggle'))
+    fireEvent.click(screen.getByTestId('slide-editor-comments-toggle'))
+    fireEvent.click(screen.getByTestId('slide-editor-comments-panel-create'))
+
+    expect(commentsHookMock.createComment).toHaveBeenCalledWith({
+      type: 'selection',
+      selectionStart: 0,
+      selectionEnd: 8,
+      selectedText: 'Editable',
+      slideAnchorData: {
+        kind: 'text-range',
+        slideId: 'slide-1',
+        elementId: 'text-1',
+        start: 0,
+        end: 8,
+        selectedText: 'Editable'
+      },
+      content: 'New comment',
+      createdByName: 'editor-user-fallback',
+      createdByAvatar: undefined
+    })
+  })
+
+  it('navigates to an anchored slide comment from the comments panel', () => {
+    commentsHookMock.comments = [
+      {
+        id: 'comment-1',
+        entityId: 'deck-1',
+        entityType: 'slide',
+        type: 'selection',
+        content: 'Check this text',
+        createdBy: 'user-1',
+        createdAt: '2026-04-29T16:00:00.000Z',
+        selectedText: 'Editable',
+        slideAnchorData: {
+          kind: 'text-range',
+          slideId: 'slide-1',
+          elementId: 'text-1',
+          start: 0,
+          end: 8,
+          selectedText: 'Editable'
+        }
+      }
+    ]
+
+    render(<SlideEditor slideId="deck-1" slide={makeSlide()} onBack={() => {}} accessToken="token" />)
+
+    fireEvent.click(screen.getByTestId('slide-editor-comments-toggle'))
+    fireEvent.click(screen.getByTestId('slide-editor-comments-panel-jump'))
+
+    expect(screen.getByTestId('mock-slide-canvas')).toHaveAttribute('data-editing-id', 'text-1')
+    expect(screen.getByTestId('mock-slide-canvas')).toHaveAttribute('data-selection-to-restore', '0:8')
+  })
+
+  it('keeps comment-only collaborators read-only while still exposing comments', () => {
+    render(
+      <SlideEditor
+        slideId="deck-1"
+        slide={makeSlide({ permission: 'comment' })}
+        onBack={() => {}}
+        accessToken="token"
+      />
+    )
+
+    expect(screen.queryByTestId('mock-show-link-dialog')).not.toBeInTheDocument()
+    expect(screen.getByTestId('slide-editor-comments-toggle')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('slide-editor-comments-toggle'))
+    expect(screen.getByTestId('slide-editor-comments-panel')).toHaveAttribute('data-create-disabled', 'false')
+  })
+
+  it('shows the comments panel in view mode but disables creating comments', () => {
+    render(
+      <SlideEditor slideId="deck-1" slide={makeSlide({ permission: 'view' })} onBack={() => {}} accessToken="token" />
+    )
+
+    fireEvent.click(screen.getByTestId('slide-editor-comments-toggle'))
+    expect(screen.getByTestId('slide-editor-comments-panel')).toHaveAttribute('data-create-disabled', 'true')
   })
 })

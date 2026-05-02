@@ -500,6 +500,7 @@ manage-load-failed = Failed to load shares
 
 # Header Actions
 header-locked = Locked
+header-comments = Comments
 header-slide = Slide
 header-version-history = Version History
 header-save-checkpoint = Save Checkpoint
@@ -507,6 +508,7 @@ header-unlock-slide = Unlock Slide
 header-lock-slide = Lock Slide
 header-share = Share...
 header-manage-access = Manage access...
+editor-comments-disabled-view = You can view comments, but only commenters and editors can add new ones.
 
 # Generate Presentation
 generate-title = Generate Presentation
