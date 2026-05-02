@@ -62,6 +62,25 @@ export interface WhiteboardCommentAnchor {
   elementIds?: string[]
 }
 
+export type SlideCommentAnchor =
+  | {
+      kind: 'slide'
+      slideId: string
+    }
+  | {
+      kind: 'element'
+      slideId: string
+      elementIds: string[]
+    }
+  | {
+      kind: 'text-range'
+      slideId: string
+      elementId: string
+      start: number
+      end: number
+      selectedText?: string
+    }
+
 /**
  * Comment on a document, note, or spreadsheet
  */
@@ -92,6 +111,9 @@ export interface Comment {
   // For whiteboard comments
   anchorData?: WhiteboardCommentAnchor
 
+  // For slide comments
+  slideAnchorData?: SlideCommentAnchor
+
   // Thread support
   parentId?: string
   replies?: Comment[]
@@ -113,6 +135,7 @@ export interface CreateCommentInput {
   cellReference?: string
   sheetId?: string
   anchorData?: WhiteboardCommentAnchor
+  slideAnchorData?: SlideCommentAnchor
 
   // Thread support
   parentId?: string

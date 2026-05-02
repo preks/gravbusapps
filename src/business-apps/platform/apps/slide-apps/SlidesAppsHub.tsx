@@ -785,6 +785,9 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   )
 
   if (shouldRenderEditorView && selectedSlideId && currentSlide) {
+    const isEditorReadOnly =
+      isTrashedSlide || currentSlide.permission === 'view' || currentSlide.permission === 'comment'
+
     return (
       <>
         <SlideEditor
@@ -793,7 +796,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           accessToken={accessToken}
           userInfo={userInfo}
           onBack={handleBack}
-          isReadOnly={isTrashedSlide}
+          isReadOnly={isEditorReadOnly}
           isTrashedSlide={isTrashedSlide}
           initialTemplate={isTrashedSlide ? undefined : (pendingTemplateSlides ?? undefined)}
           onInitialTemplateApplied={handleInitialTemplateApplied}

@@ -211,4 +211,38 @@ describe('useComments', () => {
       ])
     })
   })
+
+  it('accepts slide entities and loads slide comment threads', async () => {
+    const slideComment: Comment = {
+      id: 'comment-1',
+      entityId: 'slide-1',
+      entityType: 'slide',
+      type: 'document',
+      content: 'Deck-level comment',
+      createdBy: 'user-1',
+      createdAt: '2026-04-29T16:00:00.000Z'
+    }
+
+    const apiService = {
+      createComment: jest.fn(),
+      listComments: jest.fn<Promise<Comment[]>, [string, unknown?]>().mockResolvedValue([slideComment]),
+      updateComment: jest.fn(),
+      resolveComment: jest.fn(),
+      deleteComment: jest.fn(),
+      replyToComment: jest.fn()
+    }
+
+    const { result } = renderHook(() =>
+      useComments({
+        entityId: 'slide-1',
+        entityType: 'slide',
+        apiService
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.comments).toEqual([slideComment])
+      expect(result.current.unresolvedCount).toBe(1)
+    })
+  })
 })

@@ -480,6 +480,7 @@ manage-load-failed = Încărcare partajări eșuată
 
 # Header Actions
 header-locked = Blocat
+header-comments = Comentarii
 header-slide = Slide
 header-version-history = Istoric versiuni
 header-save-checkpoint = Salvare checkpoint
@@ -487,6 +488,7 @@ header-unlock-slide = Deblocare slide
 header-lock-slide = Blocare slide
 header-share = Partajare...
 header-manage-access = Gestionare acces...
+editor-comments-disabled-view = Puteți vedea comentariile, dar doar utilizatorii cu drept de comentare sau editare pot adăuga altele noi.
 
 # Generate Presentation
 generate-title = Generare prezentare

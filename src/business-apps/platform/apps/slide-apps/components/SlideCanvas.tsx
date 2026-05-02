@@ -194,6 +194,7 @@ interface InlineEditingProps {
   onTextChange: (value: string) => void
   onSelectionChange: (range: RichTextSelectionRange | null) => void
   onFinishEditing: () => void
+  selectionToRestore?: RichTextSelectionRange | null
   rehydrateToken?: number
   voiceInput?: {
     isListening: boolean
@@ -1461,6 +1462,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                           textareaInitializedRef.current = null
                           inlineEditing.onFinishEditing()
                         }}
+                        selectionToRestore={inlineEditing.selectionToRestore}
                         rehydrateToken={inlineEditing.rehydrateToken}
                         data-testid={`slide-text-editor-${element.id}`}
                       />
@@ -1712,6 +1714,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                             textareaInitializedRef.current = null
                             inlineEditing?.onFinishEditing()
                           }}
+                          selectionToRestore={inlineEditing?.selectionToRestore}
                           rehydrateToken={inlineEditing?.rehydrateToken}
                           data-testid={`slide-shape-text-editor-${se.id}`}
                         />

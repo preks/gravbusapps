@@ -13,7 +13,7 @@ import type { Comment, CommentQueryOptions, CreateCommentInput } from '../types/
 
 export interface UseCommentsOptions {
   entityId: string
-  entityType: 'document' | 'note' | 'spreadsheet_app' | 'whiteboard'
+  entityType: 'document' | 'note' | 'slide' | 'spreadsheet_app' | 'whiteboard'
   socket?: Socket | null
   apiService?: {
     createComment: (id: string, comment: CreateCommentInput) => Promise<Comment | null>
