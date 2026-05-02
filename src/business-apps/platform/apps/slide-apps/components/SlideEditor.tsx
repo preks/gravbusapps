@@ -631,6 +631,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [presentScale, setPresentScale] = useState(1)
 
   const [canvasScale, setCanvasScale] = useState(DEFAULT_CANVAS_SCALE)
+  const [autoFitZoom, setAutoFitZoom] = useState(true)
+  const workspaceRef = useRef<HTMLDivElement>(null)
   const [showImageDialog, setShowImageDialog] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [showVideoDialog, setShowVideoDialog] = useState(false)
@@ -1001,6 +1003,40 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       el.removeAttribute('src')
     }
   }, [slideBackgroundVideoPreviewSrc])
+
+  // Auto-fit zoom: keep the entire slide visible whenever the workspace or
+  // slide size changes, similar to PowerPoint's "Fit to Window" default.
+  // Disabled as soon as the user manually changes the zoom.
+  const slideCanvasWidth = currentSlide?.canvasSize?.width ?? 1280
+  const slideCanvasHeight = currentSlide?.canvasSize?.height ?? 720
+
+  useLayoutEffect(() => {
+    if (!autoFitZoom) return
+    const el = workspaceRef.current
+    if (!el) return
+
+    // Workspace has gba:p-4 md:gba:p-8 (16px/32px). Reserve a bit of breathing room.
+    const FIT_PADDING = 32
+
+    const computeFitScale = () => {
+      const rect = el.getBoundingClientRect()
+      const availableWidth = Math.max(0, rect.width - FIT_PADDING * 2)
+      const availableHeight = Math.max(0, rect.height - FIT_PADDING * 2)
+      if (availableWidth <= 0 || availableHeight <= 0) return
+      const scaleW = availableWidth / slideCanvasWidth
+      const scaleH = availableHeight / slideCanvasHeight
+      const next = Math.min(scaleW, scaleH)
+      const clamped = Math.max(0.1, Math.min(3, next))
+      setCanvasScale(prev => (Math.abs(prev - clamped) < 0.005 ? prev : clamped))
+    }
+
+    computeFitScale()
+
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => computeFitScale())
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [autoFitZoom, slideCanvasWidth, slideCanvasHeight])
 
   // For property panel, use the first selected element when multiple are selected
   const selectedElementId = selectedElementIds.size > 0 ? [...selectedElementIds][0] : null
@@ -3570,16 +3606,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setCanvasScale(Math.max(0.25, canvasScale - 0.1))}
+                  onClick={() => {
+                    setAutoFitZoom(false)
+                    setCanvasScale(Math.max(0.25, canvasScale - 0.1))
+                  }}
                   title={t('editor-zoom-out')}
                   className="gba:h-8 gba:w-8"
                 >
                   <ZoomOut className="gba:w-4 gba:h-4" />
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant={autoFitZoom ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setCanvasScale(DEFAULT_CANVAS_SCALE)}
+                  onClick={() => setAutoFitZoom(prev => !prev)}
+                  title={t('editor-fit-to-window') || 'Fit to window'}
                   className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
                 >
                   {Math.round(canvasScale * 100)}%
@@ -3587,7 +3627,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setCanvasScale(Math.min(1.5, canvasScale + 0.1))}
+                  onClick={() => {
+                    setAutoFitZoom(false)
+                    setCanvasScale(Math.min(1.5, canvasScale + 0.1))
+                  }}
                   title={t('editor-zoom-in')}
                   className="gba:h-8 gba:w-8"
                 >
@@ -3879,6 +3922,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
           {/* Canvas Area */}
           <div
+            ref={workspaceRef}
             className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-4 md:gba:p-8 gba:min-w-0"
             data-testid={`${testId}-canvas-workspace`}
             onMouseDown={handleWorkspaceMouseDown}
