@@ -386,7 +386,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     navigateTo(url)
   }, [])
 
-  const columns = useMemo(() => createAdvancePaymentColumns(), [])
+  const columns = useMemo(() => createAdvancePaymentColumns(tPersonal), [tPersonal])
 
   const openGenerateDocument = useCallback((record: AdvancePayment) => {
     setGenerateDocRecord(record)

@@ -191,3 +191,13 @@ delete-selection-discard-error-draft = Puteți renunța doar la elemente cu stat
 
 # Table lists (no rows)
 table-empty-filtered = Nu sunt date disponibile
+
+# Page shell (PageLayout header and tabs; legacy lowcoder / transl.txt)
+personal-shell-title = Cheltuielile mele
+personal-shell-description = Gestionează-ți cheltuielile personale, urmărește cheltuielile și gestionează avansurile.
+personal-shell-tab-dashboard = Tablou de Bord
+personal-shell-tab-expense-items = Elemente Cheltuială
+personal-shell-tab-expense-plans = Planuri de cheltuieli
+personal-shell-tab-advance-payments = Plăți în avans
+personal-shell-tab-expense-requests = Solicitări Decont
+personal-shell-tab-calendar = Calendar

@@ -326,7 +326,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
         'No expense requests found. Create your first expense request to get started.'
       )
 
-  const columns = useMemo(() => createExpenseRequestColumns(), [])
+  const columns = useMemo(() => createExpenseRequestColumns(tPersonal), [tPersonal])
 
   const { columns: visibleTableColumns } = useTableSetup<ExpenseRequestRow>(
     contextProps,

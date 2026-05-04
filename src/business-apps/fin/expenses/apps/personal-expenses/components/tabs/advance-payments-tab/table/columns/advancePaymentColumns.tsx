@@ -1,7 +1,7 @@
 import type { CellContext, ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
-import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../../../utils'
+import { getAdvancePaymentStatusDisplayT, formatCurrencyDisplay } from '../../../../../utils'
 import type { AdvancePayment } from '../../../../../hooks/useGetAdvancePayments'
 
 export const ADVANCE_PAYMENTS_TABLE_DATA_TEST_ID = 'AdvancePaymentsTable'
@@ -20,15 +20,6 @@ function AdvancePaymentPlanNumberCell({ record }: Readonly<{ record: AdvancePaym
     <div className="gba:text-sm gba:truncate" data-testid="advance-payment-plan-number-cell">
       {record.expensePlan?.code ?? 'N/A'}
     </div>
-  )
-}
-
-function AdvancePaymentStatusCell({ record }: Readonly<{ record: AdvancePayment }>) {
-  const statusConfig = getAdvancePaymentStatusDisplay(record.status)
-  return (
-    <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="advance-payment-status-cell">
-      {statusConfig.label}
-    </Badge>
   )
 }
 
@@ -86,9 +77,6 @@ function renderAdvExpensePlanCell(info: CellContext<AdvancePayment, unknown>) {
 function renderAdvPlanNumberCell(info: CellContext<AdvancePayment, unknown>) {
   return <AdvancePaymentPlanNumberCell record={info.row.original} />
 }
-function renderAdvStatusCell(info: CellContext<AdvancePayment, unknown>) {
-  return <AdvancePaymentStatusCell record={info.row.original} />
-}
 function renderAdvAmountCell(info: CellContext<AdvancePayment, unknown>) {
   return <AdvancePaymentAmountCell record={info.row.original} />
 }
@@ -99,7 +87,19 @@ function renderAdvMethodCell(info: CellContext<AdvancePayment, unknown>) {
   return <AdvancePaymentMethodCell record={info.row.original} />
 }
 
-export function createAdvancePaymentColumns(): ColumnDef<AdvancePayment>[] {
+export function createAdvancePaymentColumns(t: (key: string) => string): ColumnDef<AdvancePayment>[] {
+  function AdvancePaymentStatusCell({ record }: Readonly<{ record: AdvancePayment }>) {
+    const statusConfig = getAdvancePaymentStatusDisplayT(t, record.status)
+    return (
+      <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="advance-payment-status-cell">
+        {statusConfig.label}
+      </Badge>
+    )
+  }
+  function renderAdvStatusCell(info: CellContext<AdvancePayment, unknown>) {
+    return <AdvancePaymentStatusCell record={info.row.original} />
+  }
+
   return [
     {
       id: 'expensePlan',

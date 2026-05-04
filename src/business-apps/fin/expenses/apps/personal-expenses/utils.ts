@@ -5,8 +5,15 @@ export {
   getExpenseItemStatusDisplay,
   getExpenseItemStatusDisplayT,
   getExpensePlanStatusDisplay,
+  getExpensePlanStatusDisplayT,
   getExpenseRequestStatusDisplay,
-  getAdvancePaymentStatusDisplay
+  getExpenseRequestStatusDisplayT,
+  getAdvancePaymentStatusDisplay,
+  getAdvancePaymentStatusDisplayT,
+  getExpenseRequestStatusFilterLabel,
+  getExpensePlanStatusFilterLabel,
+  getAdvancePaymentStatusFilterLabel,
+  statusFilterMainWithOptionalParen
 } from '../../common/utils/statusDisplayUtils'
 
 export { formatCurrencyDisplay } from '../../common/utils/formatCurrency'

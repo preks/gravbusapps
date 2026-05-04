@@ -2,7 +2,7 @@ import type { CellContext, ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
-import { formatCurrencyDisplay, getExpensePlanStatusDisplay } from '../../../../utils'
+import { formatCurrencyDisplay, getExpensePlanStatusDisplayT } from '../../../../utils'
 
 export const EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
 
@@ -36,15 +36,6 @@ function ExpensePlanDateCell({ dateValue, testId }: Readonly<{ dateValue: string
     <div className="gba:text-sm gba:truncate" data-testid={testId}>
       {formatted}
     </div>
-  )
-}
-
-function ExpensePlanStatusCell({ record }: Readonly<{ record: ExpensePlan }>) {
-  const statusConfig = getExpensePlanStatusDisplay(record.status)
-  return (
-    <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="expense-plan-status-cell">
-      {statusConfig.label}
-    </Badge>
   )
 }
 
@@ -87,9 +78,6 @@ function renderStartDateCell(info: CellContext<ExpensePlan, unknown>) {
 function renderEndDateCell(info: CellContext<ExpensePlan, unknown>) {
   return <ExpensePlanDateCell dateValue={info.row.original.endDate} testId="expense-plan-end-date-cell" />
 }
-function renderStatusCell(info: CellContext<ExpensePlan, unknown>) {
-  return <ExpensePlanStatusCell record={info.row.original} />
-}
 function renderReimbursableAmountCell(info: CellContext<ExpensePlan, unknown>) {
   return <ExpensePlanReimbursableAmountCell record={info.row.original} />
 }
@@ -97,7 +85,19 @@ function renderPaidAdvanceCell(info: CellContext<ExpensePlan, unknown>) {
   return <ExpensePlanPaidAdvanceCell record={info.row.original} />
 }
 
-export function createExpensePlanColumns(): ColumnDef<ExpensePlan>[] {
+export function createExpensePlanColumns(t: (key: string) => string): ColumnDef<ExpensePlan>[] {
+  function ExpensePlanStatusCell({ record }: Readonly<{ record: ExpensePlan }>) {
+    const statusConfig = getExpensePlanStatusDisplayT(t, record.status)
+    return (
+      <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="expense-plan-status-cell">
+        {statusConfig.label}
+      </Badge>
+    )
+  }
+  function renderStatusCell(info: CellContext<ExpensePlan, unknown>) {
+    return <ExpensePlanStatusCell record={info.row.original} />
+  }
+
   return [
     {
       id: 'code',

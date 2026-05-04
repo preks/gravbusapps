@@ -171,7 +171,7 @@ expense-items-search-placeholder = Search...
 # create_expense_item.change_expense_item_container.current_currency_label + manager_expense_landing_page.all_currencies (dropdown)
 expense-items-currency-label = Currency
 expense-items-currency-all = All Currencies
-expense-items-sheet-title = Expense Item Details
+ expense-items-sheet-title = Expense Item Details
 expense-items-error-loading-title = Error Loading Expense Items
 expense-items-retry = Retry
 expense-items-user-not-loaded = User information not loaded yet. Please wait a moment and try again.
@@ -203,3 +203,13 @@ delete-selection-discard-error-draft = You can only discard items with status "C
 
 # Table lists (no rows)
 table-empty-filtered = No data available
+
+# Page shell (PageLayout header and tabs; legacy lowcoder / transl.txt)
+personal-shell-title = My Expenses
+personal-shell-description = Manage your personal expenses, track expenses, and manage advance payments.
+personal-shell-tab-dashboard = Dashboard
+personal-shell-tab-expense-items = Expense Items
+personal-shell-tab-expense-plans = Expense Plans
+personal-shell-tab-advance-payments = Advance Payments
+personal-shell-tab-expense-requests = Expense Requests
+personal-shell-tab-calendar = Calendar

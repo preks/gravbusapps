@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { ExpenseFilter } from './useGetExpenseItems'
-import { ExpenseStatus } from '../utils'
+import { ExpenseStatus, statusFilterMainWithOptionalParen } from '../utils'
 import { formatExpenseAmountRangeChipLabel } from '@/business-apps/fin/expenses/common/utils/amountRangeFilterUtils'
 import { CurrencyStat } from './useExpenseCurrencies'
 import personalTranslations from '../_i18n'
@@ -53,18 +53,19 @@ export const useExpenseItemsFilters = (
   const formatStatusName = useCallback(
     (status: string): string => {
       const statusMapping: Record<string, string> = {
-        CREATED: `${t('expense-status-draft')} (${t('expense-status-created')})`,
+        CREATED: statusFilterMainWithOptionalParen(t('expense-status-draft'), t('expense-status-created')),
         ASSIGNED: t('expense-status-assigned'),
-        PENDING: `${t('expense-status-in-approval')} (${t('expense-status-pending')})`,
-        APPROVED: `${t('expense-status-in-transit')} (${t('expense-status-approved')})`,
-        VERIFIED: `${t('expense-status-in-transit')} (${t('expense-status-verified')})`,
-        BOOKED: `${t('expense-status-in-transit')} (${t('expense-status-booked')})`,
-        TRANSFERRED: `${t('expense-status-in-transit')} (${t('expense-status-transferred')})`,
+        PENDING: statusFilterMainWithOptionalParen(t('expense-status-in-approval'), t('expense-status-pending')),
+        APPROVED: statusFilterMainWithOptionalParen(t('expense-status-in-transit'), t('expense-status-approved')),
+        VERIFIED: statusFilterMainWithOptionalParen(t('expense-status-in-transit'), t('expense-status-verified')),
+        BOOKED: statusFilterMainWithOptionalParen(t('expense-status-in-transit'), t('expense-status-booked')),
+        TRANSFERRED: statusFilterMainWithOptionalParen(t('expense-status-in-transit'), t('expense-status-transferred')),
         PAID: t('expense-status-paid'),
-        REJECTED: `${t('expense-status-revision-required')} (${t('expense-status-rejected')})`
+        REJECTED: statusFilterMainWithOptionalParen(t('expense-status-revision-required'), t('expense-status-rejected'))
       }
 
-      return statusMapping[status] || `${status.charAt(0) + status.slice(1).toLowerCase()} (${status})`
+      const formattedFallback = status.charAt(0) + status.slice(1).toLowerCase()
+      return statusMapping[status] || statusFilterMainWithOptionalParen(formattedFallback, status)
     },
     [t]
   )

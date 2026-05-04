@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
-import { Separator, Button, Badge } from '@newwork/nw-design-system'
-import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../../utils'
+import { Separator, Button, Badge, useTranslation } from '@newwork/nw-design-system'
+import { getExpensePlanStatusDisplayT, formatCurrencyDisplay } from '../../../../utils'
+import personalTranslations from '../../../../_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ArrowRightIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -23,19 +24,20 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
   planTypeLabel,
   ...contextProps
 }) => {
+  const { t } = useTranslation(personalTranslations)
   // Call hooks unconditionally before any early returns
   const { printExpensePlan } = useExpensePlanFileService(contextProps)
 
   // Memoize headerRight before early return to ensure hooks are always called in same order
   const headerRight = useMemo(() => {
     if (!selectedItem) return null
-    const statusConfig = getExpensePlanStatusDisplay(selectedItem.status)
+    const statusConfig = getExpensePlanStatusDisplayT(t, selectedItem.status)
     return (
       <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-badge">
         {statusConfig.label}
       </Badge>
     )
-  }, [selectedItem?.status])
+  }, [selectedItem?.status, t])
 
   if (!selectedItem) return null
 

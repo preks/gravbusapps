@@ -1,5 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
-import { getExpenseRequestStatusDisplay } from '../../../../utils'
+import { useTranslation } from '@newwork/nw-design-system'
+import { getExpenseRequestStatusFilterLabel } from '../../../../utils'
+import personalTranslations from '../../../../_i18n'
 import type { ExpenseRequestWhereClause } from '../utils/expenseRequestWhereClause.types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildExpenseRequestWhereConditions } from '../utils/buildExpenseRequestWhereConditions'
@@ -67,6 +69,7 @@ export interface UseExpenseRequestFiltersReturn {
  * Hook to manage filter selection for expense requests
  */
 export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
+  const { t } = useTranslation(personalTranslations)
   // State for search and selected filters
   const [search, setSearch] = useState<string>('')
   const [selectedFilters, setSelectedFilters] = useState<string[]>([])
@@ -79,23 +82,6 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
   // Define these as constants for stable references
   // const TIME_PERIOD_OPTIONS = ['last30days', 'last90days', 'last180days'];
-
-  // Helper function to get status display name with backend status in parentheses only when different
-  const getStatusDisplayName = (status: string): string => {
-    const statusConfig = getExpenseRequestStatusDisplay(status)
-    // Only show backend status in parentheses if the label is different from the status
-    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
-      return statusConfig.label
-    } else {
-      // Format backend status with only first letter uppercase and translate it
-      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
-      const translatedStatus = getTranslationFromI18nKeyAndLabel(
-        `lowcoder:expense_statuses.${status.toLowerCase()}`,
-        formattedStatus
-      )
-      return `${statusConfig.label} (${translatedStatus})`
-    }
-  }
 
   // Helper function to format date range for display
   const formatDateRangeLabel = useCallback((dateRange: [Date | null, Date | null] | null): string => {
@@ -133,7 +119,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
     // Add all status options using the same display names as the filter dropdown
     EXPENSE_REQUEST_FILTER_STATUSES.forEach(status => {
-      labelMap[status] = getStatusDisplayName(status)
+      labelMap[status] = getExpenseRequestStatusFilterLabel(status, t)
     })
 
     // Add date range labels if active
@@ -178,7 +164,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
     return labelMap
   }, [
-    getStatusDisplayName,
+    t,
     formatDateRangeLabel,
     requestDateRange,
     startDateRange,

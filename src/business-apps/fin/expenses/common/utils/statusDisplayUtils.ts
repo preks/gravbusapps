@@ -64,67 +64,73 @@ const STATUS_COLORS: Record<string, StatusBadgeVariant> = {
 
 type StatusKey = keyof typeof ExpenseStatus | 'IN_APPROVAL' | 'VERIFICATION_REQUIRED' | 'Open'
 
-const BASE_STATUS_MAP: Record<StatusKey, { i18nKey: string; fallback: string; defaultType: PillType }> = {
-  IN_APPROVAL: { i18nKey: 'lowcoder:expense_statuses.in_approval', fallback: 'In Approval', defaultType: 'task' },
+type StatusLabelRow = { fluentKey: string; fallback: string; defaultType: PillType }
+
+const BASE_STATUS_MAP: Record<StatusKey, StatusLabelRow> = {
+  IN_APPROVAL: { fluentKey: 'expense-status-in-approval', fallback: 'In Approval', defaultType: 'task' },
   VERIFICATION_REQUIRED: {
-    i18nKey: 'lowcoder:expense_statuses.verification_required',
+    fluentKey: 'expense-status-verification-required',
     fallback: 'Verification Required',
     defaultType: 'waiting'
   },
-  PREPARED: { i18nKey: 'lowcoder:expense_statuses.prepared', fallback: 'Prepared', defaultType: 'draft' },
-  CREATED: { i18nKey: 'lowcoder:expense_statuses.draft', fallback: 'Draft', defaultType: 'draft' },
-  ASSIGNED: { i18nKey: 'lowcoder:expense_statuses.assigned', fallback: 'Assigned', defaultType: 'waiting' },
-  PENDING: { i18nKey: 'lowcoder:expense_statuses.in_approval', fallback: 'In Approval', defaultType: 'task' },
-  APPROVED: { i18nKey: 'lowcoder:expense_statuses.approved', fallback: 'Approved', defaultType: 'completed' },
-  RETURNED: { i18nKey: 'lowcoder:expense_statuses.returned', fallback: 'Returned', defaultType: 'waiting' },
+  PREPARED: { fluentKey: 'expense-status-prepared', fallback: 'Prepared', defaultType: 'draft' },
+  CREATED: { fluentKey: 'expense-status-draft', fallback: 'Draft', defaultType: 'draft' },
+  ASSIGNED: { fluentKey: 'expense-status-assigned', fallback: 'Assigned', defaultType: 'waiting' },
+  PENDING: { fluentKey: 'expense-status-in-approval', fallback: 'In Approval', defaultType: 'task' },
+  APPROVED: { fluentKey: 'expense-status-approved', fallback: 'Approved', defaultType: 'completed' },
+  RETURNED: { fluentKey: 'expense-status-returned', fallback: 'Returned', defaultType: 'waiting' },
   REJECTED: {
-    i18nKey: 'lowcoder:expense_statuses.revision_required',
+    fluentKey: 'expense-status-revision-required',
     fallback: 'Revision Required',
     defaultType: 'error'
   },
-  VERIFIED: { i18nKey: 'lowcoder:expense_statuses.verified', fallback: 'Verified', defaultType: 'waiting' },
-  BOOKED: { i18nKey: 'lowcoder:expense_statuses.booked', fallback: 'Booked', defaultType: 'waiting' },
-  PAID: { i18nKey: 'lowcoder:expense_statuses.paid', fallback: 'Paid', defaultType: 'completed' },
-  CLOSED: { i18nKey: 'lowcoder:expense_statuses.closed', fallback: 'Closed', defaultType: 'completed' },
-  DISCARDED: { i18nKey: 'lowcoder:expense_statuses.discarded', fallback: 'Discarded', defaultType: 'error' },
-  TRANSFERRED: { i18nKey: 'lowcoder:expense_statuses.transferred', fallback: 'Transferred', defaultType: 'completed' },
-  Open: { i18nKey: 'translation:flow_status_open', fallback: 'Open', defaultType: 'draft' }
+  VERIFIED: { fluentKey: 'expense-status-verified', fallback: 'Verified', defaultType: 'waiting' },
+  BOOKED: { fluentKey: 'expense-status-booked', fallback: 'Booked', defaultType: 'waiting' },
+  PAID: { fluentKey: 'expense-status-paid', fallback: 'Paid', defaultType: 'completed' },
+  CLOSED: { fluentKey: 'expense-status-closed', fallback: 'Closed', defaultType: 'completed' },
+  DISCARDED: { fluentKey: 'expense-status-discarded', fallback: 'Discarded', defaultType: 'error' },
+  TRANSFERRED: { fluentKey: 'expense-status-transferred', fallback: 'Transferred', defaultType: 'completed' },
+  Open: { fluentKey: 'expense-status-flow-open', fallback: 'Open', defaultType: 'draft' }
 } as const
 
-type EntityKind = 'item' | 'plan' | 'request' | 'advance'
-
-/** Maps legacy lowcoder i18n keys to personal-expenses Fluent keys (`expense-status-*`). */
-const STATUS_I18N_KEY_TO_FLUENT: Record<string, string> = {
-  'lowcoder:expense_statuses.in_approval': 'expense-status-in-approval',
-  'lowcoder:expense_statuses.verification_required': 'expense-status-verification-required',
-  'lowcoder:expense_statuses.prepared': 'expense-status-prepared',
-  'lowcoder:expense_statuses.draft': 'expense-status-draft',
-  'lowcoder:expense_statuses.assigned': 'expense-status-assigned',
-  'lowcoder:expense_statuses.approved': 'expense-status-approved',
-  'lowcoder:expense_statuses.returned': 'expense-status-returned',
-  'lowcoder:expense_statuses.revision_required': 'expense-status-revision-required',
-  'lowcoder:expense_statuses.verified': 'expense-status-verified',
-  'lowcoder:expense_statuses.booked': 'expense-status-booked',
-  'lowcoder:expense_statuses.paid': 'expense-status-paid',
-  'lowcoder:expense_statuses.closed': 'expense-status-closed',
-  'lowcoder:expense_statuses.discarded': 'expense-status-discarded',
-  'lowcoder:expense_statuses.transferred': 'expense-status-transferred',
-  'lowcoder:expense_statuses.in_transit': 'expense-status-in-transit',
-  'lowcoder:expense_statuses.booking_required': 'expense-status-booking-required',
-  'lowcoder:expense_statuses.transfer_required': 'expense-status-transfer-required',
-  'lowcoder:expense_statuses.payment_required': 'expense-status-payment-required',
-  'translation:flow_status_open': 'expense-status-flow-open'
+/** When `t` is absent, resolve labels via legacy host i18n (lowcoder / translation keys). */
+const LEGACY_I18N_BY_FLUENT_KEY: Record<string, string> = {
+  'expense-status-in-approval': 'lowcoder:expense_statuses.in_approval',
+  'expense-status-verification-required': 'lowcoder:expense_statuses.verification_required',
+  'expense-status-prepared': 'lowcoder:expense_statuses.prepared',
+  'expense-status-draft': 'lowcoder:expense_statuses.draft',
+  'expense-status-assigned': 'lowcoder:expense_statuses.assigned',
+  'expense-status-approved': 'lowcoder:expense_statuses.approved',
+  'expense-status-returned': 'lowcoder:expense_statuses.returned',
+  'expense-status-revision-required': 'lowcoder:expense_statuses.revision_required',
+  'expense-status-verified': 'lowcoder:expense_statuses.verified',
+  'expense-status-booked': 'lowcoder:expense_statuses.booked',
+  'expense-status-paid': 'lowcoder:expense_statuses.paid',
+  'expense-status-closed': 'lowcoder:expense_statuses.closed',
+  'expense-status-discarded': 'lowcoder:expense_statuses.discarded',
+  'expense-status-transferred': 'lowcoder:expense_statuses.transferred',
+  'expense-status-in-transit': 'lowcoder:expense_statuses.in_transit',
+  'expense-status-booking-required': 'lowcoder:expense_statuses.booking_required',
+  'expense-status-transfer-required': 'lowcoder:expense_statuses.transfer_required',
+  'expense-status-payment-required': 'lowcoder:expense_statuses.payment_required',
+  'expense-status-flow-open': 'translation:flow_status_open',
+  'expense-status-pending': 'lowcoder:expense_statuses.pending',
+  'expense-status-created': 'lowcoder:expense_statuses.created',
+  'expense-status-rejected': 'lowcoder:expense_statuses.rejected'
 }
 
-function resolveStatusLabel(i18nKey: string, fallback: string, t?: (key: string) => string): string {
+function resolveStatusLabel(fluentKey: string, fallback: string, t?: (key: string) => string): string {
   if (t) {
-    const fluentKey = STATUS_I18N_KEY_TO_FLUENT[i18nKey]
-    if (fluentKey) {
-      return t(fluentKey)
-    }
+    return t(fluentKey)
   }
-  return getTranslationFromI18nKeyAndLabel(i18nKey, fallback)
+  const legacy = LEGACY_I18N_BY_FLUENT_KEY[fluentKey]
+  if (legacy) {
+    return getTranslationFromI18nKeyAndLabel(legacy, fallback)
+  }
+  return fallback
 }
+
+type EntityKind = 'item' | 'plan' | 'request' | 'advance'
 
 const ENTITY_OVERRIDES: Partial<Record<EntityKind, Partial<Record<StatusKey, PillType>>>> = {
   item: {
@@ -140,24 +146,24 @@ const ENTITY_OVERRIDES: Partial<Record<EntityKind, Partial<Record<StatusKey, Pil
   }
 }
 
-type LabelOverrideMap = Partial<Record<StatusKey, { i18nKey: string; fallback: string }>>
+type LabelOverrideMap = Partial<Record<StatusKey, { fluentKey: string; fallback: string }>>
 
 const ITEM_LABEL_OVERRIDES: LabelOverrideMap = {
-  APPROVED: { i18nKey: 'lowcoder:expense_statuses.in_transit', fallback: 'In Transit' },
-  VERIFIED: { i18nKey: 'lowcoder:expense_statuses.in_transit', fallback: 'In Transit' },
-  BOOKED: { i18nKey: 'lowcoder:expense_statuses.in_transit', fallback: 'In Transit' },
-  TRANSFERRED: { i18nKey: 'lowcoder:expense_statuses.in_transit', fallback: 'In Transit' }
+  APPROVED: { fluentKey: 'expense-status-in-transit', fallback: 'In Transit' },
+  VERIFIED: { fluentKey: 'expense-status-in-transit', fallback: 'In Transit' },
+  BOOKED: { fluentKey: 'expense-status-in-transit', fallback: 'In Transit' },
+  TRANSFERRED: { fluentKey: 'expense-status-in-transit', fallback: 'In Transit' }
 }
 
 const REQUEST_LABEL_OVERRIDES: LabelOverrideMap = {
-  APPROVED: { i18nKey: 'lowcoder:expense_statuses.verification_required', fallback: 'Verification Required' },
-  VERIFIED: { i18nKey: 'lowcoder:expense_statuses.booking_required', fallback: 'Booking Required' },
-  BOOKED: { i18nKey: 'lowcoder:expense_statuses.transfer_required', fallback: 'Transfer Required' }
+  APPROVED: { fluentKey: 'expense-status-verification-required', fallback: 'Verification Required' },
+  VERIFIED: { fluentKey: 'expense-status-booking-required', fallback: 'Booking Required' },
+  BOOKED: { fluentKey: 'expense-status-transfer-required', fallback: 'Transfer Required' }
 }
 
 const ADVANCE_LABEL_OVERRIDES: LabelOverrideMap = {
-  BOOKED: { i18nKey: 'lowcoder:expense_statuses.transfer_required', fallback: 'Transfer Required' },
-  TRANSFERRED: { i18nKey: 'lowcoder:expense_statuses.payment_required', fallback: 'Payment Required' }
+  BOOKED: { fluentKey: 'expense-status-transfer-required', fallback: 'Transfer Required' },
+  TRANSFERRED: { fluentKey: 'expense-status-payment-required', fallback: 'Payment Required' }
 }
 
 const ENTITY_LABEL_OVERRIDES: Partial<Record<EntityKind, LabelOverrideMap>> = {
@@ -185,8 +191,8 @@ export const getEntityStatusDisplay = (
   const overrideType = ENTITY_OVERRIDES[entity]?.[normalized as StatusKey]
   const type = overrideType ?? base.defaultType
   const labelOverride = ENTITY_LABEL_OVERRIDES[entity]?.[normalized as StatusKey]
-  const { i18nKey, fallback } = labelOverride ?? base
-  const label = resolveStatusLabel(i18nKey, fallback, t)
+  const { fluentKey, fallback } = labelOverride ?? base
+  const label = resolveStatusLabel(fluentKey, fallback, t)
   const badgeVariant = STATUS_COLORS[normalized] ?? 'outline'
   return { label, type, badgeVariant }
 }
@@ -194,9 +200,20 @@ export const getEntityStatusDisplay = (
 export const getExpenseItemStatusDisplay = (status: string): StatusDisplayConfig =>
   getEntityStatusDisplay('item', status)
 
-/** Expense item status labels via personal-expenses Fluent (`expense-status-*`), same strings as legacy `transl.txt` / lowcoder. */
 export function getExpenseItemStatusDisplayT(t: (key: string) => string, status: string): StatusDisplayConfig {
   return getEntityStatusDisplay('item', status, t)
+}
+
+export function getExpensePlanStatusDisplayT(t: (key: string) => string, status: string): StatusDisplayConfig {
+  return getEntityStatusDisplay('plan', status, t)
+}
+
+export function getExpenseRequestStatusDisplayT(t: (key: string) => string, status: string): StatusDisplayConfig {
+  return getEntityStatusDisplay('request', status, t)
+}
+
+export function getAdvancePaymentStatusDisplayT(t: (key: string) => string, status: string): StatusDisplayConfig {
+  return getEntityStatusDisplay('advance', status, t)
 }
 
 export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig =>
@@ -208,27 +225,47 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
 export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayConfig =>
   getEntityStatusDisplay('advance', status)
 
-function buildEntityStatusFilterLabel(entity: EntityKind, status: string): string {
-  const statusConfig = getEntityStatusDisplay(entity, status)
+function statusCodeToParenFluentKey(status: string): string {
+  if (status === 'Open') {
+    return 'expense-status-flow-open'
+  }
+  return `expense-status-${status.toLowerCase().replace(/_/g, '-')}`
+}
+
+/** When main and parenthetical status text are the same (e.g. both translate identically), omit the parens. */
+export function statusFilterMainWithOptionalParen(mainLabel: string, parenLabel: string): string {
+  if (mainLabel.trim().toLowerCase() === parenLabel.trim().toLowerCase()) {
+    return mainLabel
+  }
+  return `${mainLabel} (${parenLabel})`
+}
+
+function buildEntityStatusFilterLabel(entity: EntityKind, status: string, t?: (key: string) => string): string {
+  const statusConfig = getEntityStatusDisplay(entity, status, t)
   if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
     return statusConfig.label
   }
   const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
+  if (t) {
+    const parenKey = statusCodeToParenFluentKey(status)
+    const parenLabel = resolveStatusLabel(parenKey, formattedStatus, t)
+    return statusFilterMainWithOptionalParen(statusConfig.label, parenLabel)
+  }
   const translatedStatus = getTranslationFromI18nKeyAndLabel(
     `lowcoder:expense_statuses.${status.toLowerCase()}`,
     formattedStatus
   )
-  return `${statusConfig.label} (${translatedStatus})`
+  return statusFilterMainWithOptionalParen(statusConfig.label, translatedStatus)
 }
 
-export function getExpenseRequestStatusFilterLabel(status: string): string {
-  return buildEntityStatusFilterLabel('request', status)
+export function getExpenseRequestStatusFilterLabel(status: string, t?: (key: string) => string): string {
+  return buildEntityStatusFilterLabel('request', status, t)
 }
 
-export function getAdvancePaymentStatusFilterLabel(status: string): string {
-  return buildEntityStatusFilterLabel('advance', status)
+export function getAdvancePaymentStatusFilterLabel(status: string, t?: (key: string) => string): string {
+  return buildEntityStatusFilterLabel('advance', status, t)
 }
 
-export function getExpensePlanStatusFilterLabel(status: string): string {
-  return buildEntityStatusFilterLabel('plan', status)
+export function getExpensePlanStatusFilterLabel(status: string, t?: (key: string) => string): string {
+  return buildEntityStatusFilterLabel('plan', status, t)
 }

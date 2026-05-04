@@ -191,3 +191,13 @@ delete-selection-discard-error-draft = Sie können nur Posten mit dem Status "Er
 
 # Table lists (no rows)
 table-empty-filtered = Keine Daten verfügbar
+
+# Page shell (PageLayout header and tabs; legacy lowcoder / transl.txt)
+personal-shell-title = Meine Ausgaben
+personal-shell-description = Verwalten Sie Ihre persönlichen Ausgaben, verfolgen Sie Ausgaben und verwalten Sie Vorschüsse.
+personal-shell-tab-dashboard = Dashboard
+personal-shell-tab-expense-items = Spesenposten
+personal-shell-tab-expense-plans = Ausgabenpläne
+personal-shell-tab-advance-payments = Vorauszahlungen
+personal-shell-tab-expense-requests = Spesenabrechnungen
+personal-shell-tab-calendar = Kalender

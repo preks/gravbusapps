@@ -11,7 +11,7 @@ import {
 } from '@newwork/nw-design-system'
 import { EyeIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import { DashboardStats, RecentActivity, RecentActivityKind } from '../types'
-import { getExpenseRequestStatusDisplay, type StatusDisplayConfig } from '../../../../utils'
+import { getExpenseRequestStatusDisplayT, type StatusDisplayConfig } from '../../../../utils'
 import personalTranslations from '../../../../_i18n'
 
 const ACTIVITY_TITLE_KEY: Record<RecentActivityKind, string> = {
@@ -127,7 +127,7 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
                   </div>
                   <div className="gba:col-span-2 gba:flex gba:justify-center">
                     {(() => {
-                      const statusConfig: StatusDisplayConfig = getExpenseRequestStatusDisplay(item.status)
+                      const statusConfig: StatusDisplayConfig = getExpenseRequestStatusDisplayT(t, item.status)
                       return (
                         <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="expense-status-cell">
                           {statusConfig.label}
