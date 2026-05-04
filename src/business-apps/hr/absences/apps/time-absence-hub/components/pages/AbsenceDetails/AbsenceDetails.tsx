@@ -181,6 +181,44 @@ const buildFilteredDescriptionParts = (filters: any): string[] => {
   return parts
 }
 
+interface UIStateConfig {
+  currentDateRange: { startDate?: string; endDate?: string }
+  hasChangedFilters: boolean
+  titleKey: string
+  titleFallback: string
+  description: string
+  breadcrumbKey: string
+  breadcrumbFallback: string
+}
+
+const buildUIState = ({
+  currentDateRange,
+  hasChangedFilters,
+  titleKey,
+  titleFallback,
+  description,
+  breadcrumbKey,
+  breadcrumbFallback
+}: UIStateConfig): CurrentUIState => ({
+  title: getTranslationFromI18nKeyAndLabel(titleKey, titleFallback),
+  description,
+  breadcrumb: getTranslationFromI18nKeyAndLabel(breadcrumbKey, breadcrumbFallback),
+  hasChangedFilters,
+  currentDateRange
+})
+
+const buildDateRangeDescription = (
+  currentDateRange: { startDate?: string; endDate?: string },
+  fallbackKey: string,
+  fallbackValue: string
+): string => {
+  if (currentDateRange.startDate && currentDateRange.endDate) {
+    return `${formatDateForLocale(currentDateRange.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentDateRange.endDate)}`
+  }
+
+  return getTranslationFromI18nKeyAndLabel(fallbackKey, fallbackValue)
+}
+
 const resolveCustomFiltersUIState = (
   currentDateRange: { startDate?: string; endDate?: string },
   hasChangedFilters: boolean,
@@ -218,87 +256,73 @@ const resolveMonthUIState = (
   currentDateRange: { startDate?: string; endDate?: string },
   hasChangedFilters: boolean,
   month: string
-): CurrentUIState => ({
-  title: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.month_absence_details',
-    `${month} Absence Details`
-  ),
-  description:
-    currentDateRange.startDate && currentDateRange.endDate
-      ? `${formatDateForLocale(currentDateRange.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentDateRange.endDate)}`
-      : getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_month',
-          `All absences for ${month}`
-        ),
-  breadcrumb: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.month_details',
-    `${month} Details`
-  ),
-  hasChangedFilters,
-  currentDateRange
-})
+): CurrentUIState =>
+  buildUIState({
+    currentDateRange,
+    hasChangedFilters,
+    titleKey: 'lowcoder:absence_management_hub_backoffice.absence_details.month_absence_details',
+    titleFallback: `${month} Absence Details`,
+    description: buildDateRangeDescription(
+      currentDateRange,
+      'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_month',
+      `All absences for ${month}`
+    ),
+    breadcrumbKey: 'lowcoder:absence_management_hub_backoffice.absence_details.month_details',
+    breadcrumbFallback: `${month} Details`
+  })
 
 const resolveDepartmentUIState = (
   currentDateRange: { startDate?: string; endDate?: string },
   hasChangedFilters: boolean,
   department: string
-): CurrentUIState => ({
-  title: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.department_details',
-    `${department} Department Details`
-  ),
-  description: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_department',
-    `All absences for ${department} department`
-  ),
-  breadcrumb: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.department',
-    `${department} Department`
-  ),
-  hasChangedFilters,
-  currentDateRange
-})
+): CurrentUIState =>
+  buildUIState({
+    currentDateRange,
+    hasChangedFilters,
+    titleKey: 'lowcoder:absence_management_hub_backoffice.absence_details.department_details',
+    titleFallback: `${department} Department Details`,
+    description: getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_department',
+      `All absences for ${department} department`
+    ),
+    breadcrumbKey: 'lowcoder:absence_management_hub_backoffice.absence_details.department',
+    breadcrumbFallback: `${department} Department`
+  })
 
 const resolveStatusUIState = (
   currentDateRange: { startDate?: string; endDate?: string },
   hasChangedFilters: boolean,
   status: string
-): CurrentUIState => ({
-  title: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.status_details',
-    `${status} Status Details`
-  ),
-  description: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.all_status_absences',
-    `All ${status.toLowerCase()} absences`
-  ),
-  breadcrumb: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.status',
-    `${status} Status`
-  ),
-  hasChangedFilters,
-  currentDateRange
-})
+): CurrentUIState =>
+  buildUIState({
+    currentDateRange,
+    hasChangedFilters,
+    titleKey: 'lowcoder:absence_management_hub_backoffice.absence_details.status_details',
+    titleFallback: `${status} Status Details`,
+    description: getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.absence_details.all_status_absences',
+      `All ${status.toLowerCase()} absences`
+    ),
+    breadcrumbKey: 'lowcoder:absence_management_hub_backoffice.absence_details.status',
+    breadcrumbFallback: `${status} Status`
+  })
 
 const resolveDefaultUIState = (
   currentDateRange: { startDate?: string; endDate?: string },
   hasChangedFilters: boolean
-): CurrentUIState => ({
-  title: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.title',
-    'Absence Details'
-  ),
-  description: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.filtered_results',
-    'Filtered absence results'
-  ),
-  breadcrumb: getTranslationFromI18nKeyAndLabel(
-    'lowcoder:absence_management_hub_backoffice.absence_details.filtered_details',
-    'Filtered Details'
-  ),
-  hasChangedFilters,
-  currentDateRange
-})
+): CurrentUIState =>
+  buildUIState({
+    currentDateRange,
+    hasChangedFilters,
+    titleKey: 'lowcoder:absence_management_hub_backoffice.absence_details.title',
+    titleFallback: 'Absence Details',
+    description: getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.absence_details.filtered_results',
+      'Filtered absence results'
+    ),
+    breadcrumbKey: 'lowcoder:absence_management_hub_backoffice.absence_details.filtered_details',
+    breadcrumbFallback: 'Filtered Details'
+  })
 
 const resolveCurrentUIState = ({
   currentFilteredData,

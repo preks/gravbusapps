@@ -4,6 +4,7 @@ import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Respons
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
 import { DashboardData } from '../../../../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { LegendMarker } from '../shared/LegendMarker'
 
 interface OptimizedAbsenceTrendsProps extends BusinessAppContextProps {
   dashboardData: DashboardData
@@ -30,12 +31,6 @@ const MONTH_NAME_MAP: Record<string, string> = {
   Nov: 'November',
   Dec: 'December'
 }
-
-const LegendMarker: React.FC<{ color: string }> = ({ color }) => (
-  <svg width="12" height="12" viewBox="0 0 12 12" className="gba:flex-shrink-0" aria-hidden="true">
-    <circle cx="6" cy="6" r="6" fill={color} />
-  </svg>
-)
 
 const parseMonthClickLabel = (monthLabel: string): { fullMonth: string; yearPart: number } => {
   let monthPart = monthLabel

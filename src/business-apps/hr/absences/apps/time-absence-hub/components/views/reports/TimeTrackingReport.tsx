@@ -1,18 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { Button, Card, CardContent, CardHeader, CardTitle, Spinner } from '@newwork/nw-design-system'
-import { ClockIcon, DownloadIcon } from '@phosphor-icons/react'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { ClockIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import {
-  buildExcelWorkbook,
-  buildFilename,
-  downloadCsvData,
-  downloadExcelWorkbook,
-  formatExportDate,
-  type ExcelColumn
-} from '@/common/utils/excelExportUtils'
+import { formatExportDate } from '@/common/utils/excelExportUtils'
 import { useOrgAttendanceData } from '../../../hooks/useOrgAttendanceData'
 import { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
 import { AttendanceRow, FilteredEmployee } from '../../../queries/OrgAttendanceQueries'
+import { ReportExportActions } from './ReportExportActions'
+import { downloadRowsAsCsv, downloadRowsAsXlsx } from './reportExportUtils'
 
 interface TimeTrackingReportProps {
   accessToken: string
@@ -113,19 +108,12 @@ const FILE_PREFIX = 'time-tracking-report'
 
 const downloadCsv = (rows: ExportRow[], columns: ExportColumn[]): void => {
   const dateColumnKeys = new Set<string>(['date'])
-  downloadCsvData(
-    rows as unknown as Record<string, string>[],
-    columns,
-    buildFilename(FILE_PREFIX, 'csv'),
-    dateColumnKeys
-  )
+  downloadRowsAsCsv(rows as unknown as Record<string, string>[], columns, FILE_PREFIX, dateColumnKeys)
 }
 
 const downloadXlsx = async (rows: ExportRow[], columns: ExportColumn[]): Promise<void> => {
-  const excelColumns: ExcelColumn[] = columns.map(col => ({ header: col.title, key: col.key }))
   const sheetName = tt('sheet_name', 'Time tracking')
-  const workbook = buildExcelWorkbook(sheetName, excelColumns, rows as unknown as Record<string, unknown>[])
-  await downloadExcelWorkbook(workbook, buildFilename(FILE_PREFIX, 'xlsx'))
+  await downloadRowsAsXlsx(rows as unknown as Record<string, unknown>[], columns, FILE_PREFIX, sheetName)
 }
 
 export const TimeTrackingReport: React.FC<TimeTrackingReportProps> = ({
@@ -209,28 +197,16 @@ export const TimeTrackingReport: React.FC<TimeTrackingReportProps> = ({
         <p className="gba:text-xs gba:text-muted-foreground" aria-live="polite">
           {summaryText}
         </p>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCsv}
-            disabled={!isReady || isExporting !== null}
-            data-testid="time-absence-hub-time-tracking-export-csv"
-          >
-            {isExporting === 'csv' ? <Spinner size="sm" /> : <DownloadIcon size={14} />}
-            {tt('export_csv', 'Export CSV')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleXlsx}
-            disabled={!isReady || isExporting !== null}
-            data-testid="time-absence-hub-time-tracking-export-xlsx"
-          >
-            {isExporting === 'xlsx' ? <Spinner size="sm" /> : <DownloadIcon size={14} />}
-            {tt('export_xlsx', 'Export Excel')}
-          </Button>
-        </div>
+        <ReportExportActions
+          isExporting={isExporting}
+          disabled={!isReady || isExporting !== null}
+          onCsv={handleCsv}
+          onXlsx={() => void handleXlsx()}
+          csvLabel={tt('export_csv', 'Export CSV')}
+          xlsxLabel={tt('export_xlsx', 'Export Excel')}
+          csvTestId="time-absence-hub-time-tracking-export-csv"
+          xlsxTestId="time-absence-hub-time-tracking-export-xlsx"
+        />
         {errorMessage && (
           <p className="gba:text-xs gba:text-destructive" role="alert">
             {errorMessage}

@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UseOrgAttendanceDataReturn } from '../../../hooks/useOrgAttendanceData'
 import { aggregateByDimension, EmployeeDimension } from '../../../utils/insightsAggregation'
+import { ChartTooltip } from './shared/ChartTooltip'
 
 interface ComparisonSectionProps {
   attendanceData: UseOrgAttendanceDataReturn
@@ -21,25 +22,6 @@ const buildMetricOptions = (): { id: Metric; label: string }[] => [
   { id: 'overtime', label: tt('metric_overtime', 'Overtime vs deficit hours') },
   { id: 'missing', label: tt('metric_missing', 'Missing logs vs manual corrections') }
 ]
-
-const ChartTooltip: React.FC<{ active?: boolean; payload?: any[]; label?: string }> = ({ active, payload, label }) => {
-  if (!active || !payload || payload.length === 0) {
-    return null
-  }
-  return (
-    <div className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-40">
-      <p className="gba:font-medium gba:mb-2 gba:text-sm">{label}</p>
-      <div className="gba:space-y-1 gba:text-xs">
-        {payload.map(entry => (
-          <p key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
-            <span className="gba:font-medium">{entry.name}:</span>
-            <span>{typeof entry.value === 'number' ? Math.round(entry.value * 10) / 10 : entry.value}</span>
-          </p>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 interface BreakdownChartProps {
   title: string

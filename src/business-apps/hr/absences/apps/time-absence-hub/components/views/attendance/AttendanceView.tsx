@@ -12,6 +12,7 @@ import {
 import { useOrgAttendanceData } from '../../../hooks/useOrgAttendanceData'
 import { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
 import { AttendanceGrid } from './AttendanceGrid'
+import { formatMinutes, toMinutes } from './attendanceUtils'
 import {
   AbsenceCalendarDay,
   AttendanceRow,
@@ -21,19 +22,6 @@ import {
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.attendance.${key}`, fallback)
-
-const toMinutes = (value?: number | null): number => (typeof value === 'number' && Number.isFinite(value) ? value : 0)
-
-const formatMinutes = (minutes?: number | null): string => {
-  if ((!minutes && minutes !== 0) || !Number.isFinite(minutes)) {
-    return '-'
-  }
-  const sign = minutes < 0 ? '-' : ''
-  const abs = Math.abs(minutes)
-  const hours = Math.floor(abs / 60)
-  const mins = abs % 60
-  return `${sign}${hours}h ${String(mins).padStart(2, '0')}m`
-}
 
 const buildExportColumns = (): ExcelColumn[] => [
   { header: tt('column_employee', 'Employee'), key: 'employee' },

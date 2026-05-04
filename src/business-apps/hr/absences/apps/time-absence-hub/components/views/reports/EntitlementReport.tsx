@@ -1,18 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { Button, Card, CardContent, CardHeader, CardTitle, Spinner } from '@newwork/nw-design-system'
-import { CalendarBlankIcon, DownloadIcon } from '@phosphor-icons/react'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { CalendarBlankIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import {
-  buildExcelWorkbook,
-  buildFilename,
-  downloadCsvData,
-  downloadExcelWorkbook,
-  formatExportDate,
-  type ExcelColumn
-} from '@/common/utils/excelExportUtils'
+import { formatExportDate } from '@/common/utils/excelExportUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ORG_ENTITLEMENTS_OVERVIEW, OrgEntitlementRow } from '../../../queries/OrgEntitlementQueries'
 import { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
+import { ReportExportActions } from './ReportExportActions'
+import { downloadRowsAsCsv, downloadRowsAsXlsx } from './reportExportUtils'
 
 interface EntitlementReportProps {
   accessToken: string
@@ -155,19 +150,12 @@ const mapToExportRow = (row: OrgEntitlementRow, today: string): ExportRow => {
 
 const downloadCsv = (rows: ExportRow[], columns: ExportColumn[]): void => {
   const dateColumnKeys = new Set<string>(['validFrom', 'validTo'])
-  downloadCsvData(
-    rows as unknown as Record<string, string>[],
-    columns,
-    buildFilename(FILE_PREFIX, 'csv'),
-    dateColumnKeys
-  )
+  downloadRowsAsCsv(rows as unknown as Record<string, string>[], columns, FILE_PREFIX, dateColumnKeys)
 }
 
 const downloadXlsx = async (rows: ExportRow[], columns: ExportColumn[]): Promise<void> => {
-  const excelColumns: ExcelColumn[] = columns.map(col => ({ header: col.title, key: col.key }))
   const sheetName = tt('sheet_name', 'Entitlements')
-  const workbook = buildExcelWorkbook(sheetName, excelColumns, rows as unknown as Record<string, unknown>[])
-  await downloadExcelWorkbook(workbook, buildFilename(FILE_PREFIX, 'xlsx'))
+  await downloadRowsAsXlsx(rows as unknown as Record<string, unknown>[], columns, FILE_PREFIX, sheetName)
 }
 
 export const EntitlementReport: React.FC<EntitlementReportProps> = ({
@@ -245,28 +233,16 @@ export const EntitlementReport: React.FC<EntitlementReportProps> = ({
             { max: MAX_EXPORT_ROWS }
           )}
         </p>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void runExport('csv')}
-            disabled={isExporting !== null}
-            data-testid="time-absence-hub-entitlement-export-csv"
-          >
-            {isExporting === 'csv' ? <Spinner size="sm" /> : <DownloadIcon size={14} />}
-            {tt('export_csv', 'Export CSV')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void runExport('xlsx')}
-            disabled={isExporting !== null}
-            data-testid="time-absence-hub-entitlement-export-xlsx"
-          >
-            {isExporting === 'xlsx' ? <Spinner size="sm" /> : <DownloadIcon size={14} />}
-            {tt('export_xlsx', 'Export Excel')}
-          </Button>
-        </div>
+        <ReportExportActions
+          isExporting={isExporting}
+          disabled={isExporting !== null}
+          onCsv={() => void runExport('csv')}
+          onXlsx={() => void runExport('xlsx')}
+          csvLabel={tt('export_csv', 'Export CSV')}
+          xlsxLabel={tt('export_xlsx', 'Export Excel')}
+          csvTestId="time-absence-hub-entitlement-export-csv"
+          xlsxTestId="time-absence-hub-entitlement-export-xlsx"
+        />
         {errorMessage && (
           <p className="gba:text-xs gba:text-destructive" role="alert">
             {errorMessage}

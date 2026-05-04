@@ -64,6 +64,21 @@ interface Employee {
   }
 }
 
+const mapEmployeePositionsToEmployees = (employeePositions: any[]): Employee[] =>
+  employeePositions
+    .filter(position => position?.employee?.id)
+    .map(position => ({
+      id: position.employee.id,
+      firstName: position.employee.firstName,
+      lastName: position.employee.lastName,
+      pictureThumbnail: position.employee.pictureThumbnail || '',
+      employeePosition: {
+        organizationalUnit: {
+          name: position.organizationalUnit?.name || 'Unknown Department'
+        }
+      }
+    }))
+
 const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const graphQLClient = useGraphQLClient(accessToken)
   const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
@@ -118,19 +133,7 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
           const employeePositions = combinedResult?.employees || []
           const allAbsences = combinedResult?.absences || []
 
-          employees = employeePositions
-            .filter((position: any) => position?.employee?.id)
-            .map((position: any) => ({
-              id: position.employee.id,
-              firstName: position.employee.firstName,
-              lastName: position.employee.lastName,
-              pictureThumbnail: position.employee.pictureThumbnail || '',
-              employeePosition: {
-                organizationalUnit: {
-                  name: position.organizationalUnit?.name || 'Unknown Department'
-                }
-              }
-            }))
+          employees = mapEmployeePositionsToEmployees(employeePositions)
 
           absences = allAbsences.filter((absence: any) => absence?.employee?.id)
         } else {
@@ -139,19 +142,7 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
           const employeePositions = combinedResult?.employees || []
           const allAbsences = combinedResult?.absences || []
 
-          employees = employeePositions
-            .filter((position: any) => position?.employee?.id)
-            .map((position: any) => ({
-              id: position.employee.id,
-              firstName: position.employee.firstName,
-              lastName: position.employee.lastName,
-              pictureThumbnail: position.employee.pictureThumbnail || '',
-              employeePosition: {
-                organizationalUnit: {
-                  name: position.organizationalUnit?.name || 'Unknown Department'
-                }
-              }
-            }))
+          employees = mapEmployeePositionsToEmployees(employeePositions)
 
           const employeeIdSet = new Set(employees.map(emp => emp.id))
           absences = allAbsences.filter(

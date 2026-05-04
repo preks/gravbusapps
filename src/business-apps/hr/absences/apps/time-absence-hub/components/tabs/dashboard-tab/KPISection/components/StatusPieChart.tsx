@@ -3,6 +3,7 @@ import { Card } from '@newwork/nw-design-system'
 import { PieChart, Pie, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
 import { ChartPieIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { LegendMarker } from '../../shared/LegendMarker'
 
 interface StatusPieChartProps {
   data: any[]
@@ -10,12 +11,6 @@ interface StatusPieChartProps {
   statusColors: { [key: string]: string }
   onPieClick: (data: any) => void
 }
-
-const LegendMarker: React.FC<{ color: string }> = ({ color }) => (
-  <svg width="12" height="12" viewBox="0 0 12 12" className="gba:flex-shrink-0" aria-hidden="true">
-    <circle cx="6" cy="6" r="6" fill={color} />
-  </svg>
-)
 
 interface StatusPieTooltipContentProps {
   active?: boolean

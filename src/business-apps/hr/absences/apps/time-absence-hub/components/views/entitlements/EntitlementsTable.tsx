@@ -4,7 +4,6 @@ import {
   Badge,
   Card,
   CardContent,
-  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -13,10 +12,11 @@ import {
   TableRow
 } from '@newwork/nw-design-system'
 import type { ActionOption } from '@newwork/nw-design-system'
-import { WarningCircleIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { statusVariant } from '@/business-apps/hr/absences/apps/personal-absences/utils/statusUtils'
 import { OrgEntitlementRow } from '../../../queries/OrgEntitlementQueries'
+import { formatEntitlementNumber, getEntitlementEmployeeName, isEntitlementExpiringSoon } from './entitlementUtils'
+import { ErrorStateCard, LoadingStateCard } from '../shared/DataStateCards'
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.entitlements.${key}`, fallback)
@@ -33,40 +33,11 @@ interface EntitlementsTableProps {
   onOpenEmployee: (employeeId: string) => void
 }
 
-const formatNumber = (value?: number | null): string => {
-  if (value === null || value === undefined) {
-    return '-'
-  }
-  return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
-}
-
 const formatDate = (value?: string | null): string => {
   if (!value) {
     return '-'
   }
   return value.slice(0, 10)
-}
-
-const isExpiringSoon = (validTo?: string | null, todayIso?: string): boolean => {
-  if (!validTo || !todayIso) {
-    return false
-  }
-  const today = new Date(todayIso)
-  const end = new Date(validTo)
-  const diffDays = (end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-  return diffDays >= 0 && diffDays <= 30
-}
-
-const getEmployeeName = (row: OrgEntitlementRow): string => {
-  const displayName = row.employee?.displayName?.trim()
-
-  if (displayName) {
-    return displayName
-  }
-
-  const name = `${row.employee?.firstName ?? ''} ${row.employee?.lastName ?? ''}`.trim()
-
-  return name || tt('unknown_employee', 'Unknown employee')
 }
 
 export const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
@@ -79,27 +50,11 @@ export const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
   const todayIso = new Date().toISOString().slice(0, 10)
 
   if (error) {
-    return (
-      <Card>
-        <CardContent className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:py-8 gba:text-center">
-          <WarningCircleIcon size={32} className="gba:text-destructive" />
-          <p className="gba:text-sm gba:text-destructive">{error}</p>
-        </CardContent>
-      </Card>
-    )
+    return <ErrorStateCard message={error} />
   }
 
   if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:py-8">
-          <Spinner />
-          <span className="gba:text-sm gba:text-muted-foreground">
-            {tt('table_loading', 'Loading entitlements...')}
-          </span>
-        </CardContent>
-      </Card>
-    )
+    return <LoadingStateCard message={tt('table_loading', 'Loading entitlements...')} />
   }
 
   if (rows.length === 0) {
@@ -175,13 +130,13 @@ const EntitlementsTableRow: React.FC<EntitlementsTableRowProps> = ({
   onUpdateEntitlement,
   onOpenEmployee
 }) => {
-  const employeeName = getEmployeeName(row)
+  const employeeName = getEntitlementEmployeeName(row, tt('unknown_employee', 'Unknown employee'))
   const department = row.employee?.employeePosition?.organizationalUnit?.name ?? '-'
   const location = row.employee?.employeePosition?.siteLocation?.name ?? '-'
   const typeLabel = row.type?.value ?? '-'
   const isNegative = (row.available ?? 0) < 0
   const expired = Boolean(row.validTo && row.validTo < todayIso)
-  const expiring = isExpiringSoon(row.validTo, todayIso)
+  const expiring = isEntitlementExpiringSoon(row.validTo, todayIso)
   const rowActions = React.useMemo<ActionOption[]>(
     () => [
       {
@@ -230,11 +185,13 @@ const EntitlementsTableRow: React.FC<EntitlementsTableRowProps> = ({
           {typeLabel}
         </span>
       </TableCell>
-      <TableCell className={NUMBER_CELL_CLASS}>{formatNumber(row.total)}</TableCell>
-      <TableCell className={NUMBER_CELL_CLASS}>{formatNumber(row.approved)}</TableCell>
-      <TableCell className={NUMBER_CELL_CLASS}>{formatNumber(row.pending)}</TableCell>
+      <TableCell className={NUMBER_CELL_CLASS}>{formatEntitlementNumber(row.total)}</TableCell>
+      <TableCell className={NUMBER_CELL_CLASS}>{formatEntitlementNumber(row.approved)}</TableCell>
+      <TableCell className={NUMBER_CELL_CLASS}>{formatEntitlementNumber(row.pending)}</TableCell>
       <TableCell className={NUMBER_CELL_CLASS}>
-        <span className={isNegative ? 'gba:text-destructive gba:font-medium' : ''}>{formatNumber(row.available)}</span>
+        <span className={isNegative ? 'gba:text-destructive gba:font-medium' : ''}>
+          {formatEntitlementNumber(row.available)}
+        </span>
       </TableCell>
       <TableCell className="gba:px-3 gba:py-3 gba:text-xs gba:text-muted-foreground">
         <span className="gba:block gba:truncate" title={`${formatDate(row.validFrom)} - ${formatDate(row.validTo)}`}>

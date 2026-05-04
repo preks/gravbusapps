@@ -20,6 +20,7 @@ import {
   computeDailyPresence,
   countAbsenceDaysByDimension
 } from '../../../utils/insightsAggregation'
+import { ChartTooltip } from './shared/ChartTooltip'
 
 interface CombinedHealthSectionProps {
   attendanceData: UseOrgAttendanceDataReturn
@@ -28,25 +29,6 @@ interface CombinedHealthSectionProps {
 const I18N_PREFIX = 'lowcoder:time_absence_hub.insights.combined_health'
 
 const tt = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(`${I18N_PREFIX}.${key}`, fallback)
-
-const ChartTooltip: React.FC<{ active?: boolean; payload?: any[]; label?: string }> = ({ active, payload, label }) => {
-  if (!active || !payload || payload.length === 0) {
-    return null
-  }
-  return (
-    <div className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-40">
-      <p className="gba:font-medium gba:mb-2 gba:text-sm">{label}</p>
-      <div className="gba:space-y-1 gba:text-xs">
-        {payload.map(entry => (
-          <p key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
-            <span className="gba:font-medium">{entry.name}:</span>
-            <span>{typeof entry.value === 'number' ? Math.round(entry.value * 10) / 10 : entry.value}</span>
-          </p>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 interface ChartShellProps {
   title: string

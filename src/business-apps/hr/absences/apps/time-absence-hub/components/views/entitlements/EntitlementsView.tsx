@@ -16,6 +16,7 @@ import { EntitlementHealthFilter, useEntitlementsOverviewData } from '../../../h
 import { openEmployeeTimeTracking } from '../../../utils/hubNavigation'
 import { EntitlementsTable } from './EntitlementsTable'
 import { OrgEntitlementRow } from '../../../queries/OrgEntitlementQueries'
+import { formatEntitlementNumber, getEntitlementEmployeeName, isEntitlementExpiringSoon } from './entitlementUtils'
 
 interface EntitlementsViewProps extends BusinessAppContextProps {
   globalFilters: HubGlobalFilters
@@ -27,35 +28,6 @@ const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.entitlements.${key}`, fallback)
 
 const PAGE_SIZE = 50
-
-const formatNumber = (value?: number | null): string => {
-  if (value === null || value === undefined) {
-    return '-'
-  }
-  return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
-}
-
-const getEmployeeName = (row: OrgEntitlementRow): string => {
-  const displayName = row.employee?.displayName?.trim()
-
-  if (displayName) {
-    return displayName
-  }
-
-  const name = `${row.employee?.firstName ?? ''} ${row.employee?.lastName ?? ''}`.trim()
-
-  return name || tt('unknown_employee', 'Unknown employee')
-}
-
-const isExpiringSoon = (validTo?: string | null, todayIso?: string): boolean => {
-  if (!validTo || !todayIso) {
-    return false
-  }
-  const today = new Date(todayIso)
-  const end = new Date(validTo)
-  const diffDays = (end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-  return diffDays >= 0 && diffDays <= 30
-}
 
 const buildExportColumns = (): ExcelColumn[] => [
   { header: tt('column_employee', 'Employee'), key: 'employee' },
@@ -75,7 +47,7 @@ const buildFlags = (row: OrgEntitlementRow, todayIso: string): string => {
   const flags = []
   const isNegative = (row.available ?? 0) < 0
   const expired = Boolean(row.validTo && row.validTo < todayIso)
-  const expiring = isExpiringSoon(row.validTo, todayIso)
+  const expiring = isEntitlementExpiringSoon(row.validTo, todayIso)
 
   if (isNegative) {
     flags.push(tt('flag_negative', 'Negative'))
@@ -94,14 +66,14 @@ const buildExportRows = (rows: OrgEntitlementRow[]): Record<string, unknown>[] =
   const todayIso = new Date().toISOString().slice(0, 10)
 
   return rows.map(row => ({
-    employee: getEmployeeName(row),
+    employee: getEntitlementEmployeeName(row, tt('unknown_employee', 'Unknown employee')),
     department: row.employee?.employeePosition?.organizationalUnit?.name ?? '-',
     location: row.employee?.employeePosition?.siteLocation?.name ?? '-',
     type: row.type?.value ?? '-',
-    total: formatNumber(row.total),
-    approved: formatNumber(row.approved),
-    pending: formatNumber(row.pending),
-    available: formatNumber(row.available),
+    total: formatEntitlementNumber(row.total),
+    approved: formatEntitlementNumber(row.approved),
+    pending: formatEntitlementNumber(row.pending),
+    available: formatEntitlementNumber(row.available),
     validFrom: formatExportDate(row.validFrom),
     validTo: formatExportDate(row.validTo),
     flags: buildFlags(row, todayIso)

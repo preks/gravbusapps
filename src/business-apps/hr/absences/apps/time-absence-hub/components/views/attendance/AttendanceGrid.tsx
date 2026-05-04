@@ -3,7 +3,6 @@ import {
   Badge,
   Card,
   CardContent,
-  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -11,7 +10,7 @@ import {
   TableHeader,
   TableRow
 } from '@newwork/nw-design-system'
-import { CalendarBlankIcon, ClockIcon, WarningCircleIcon } from '@phosphor-icons/react'
+import { CalendarBlankIcon, ClockIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -21,6 +20,8 @@ import {
   FilteredEmployee,
   PublicHolidayDay
 } from '../../../queries/OrgAttendanceQueries'
+import { formatMinutes, toMinutes } from './attendanceUtils'
+import { ErrorStateCard, LoadingStateCard } from '../shared/DataStateCards'
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.attendance.${key}`, fallback)
@@ -49,21 +50,6 @@ interface GridRow {
   totalDifferenceMinutes: number
   manualOverrideCount: number
   missingLogCount: number
-}
-
-const formatMinutes = (minutes?: number | null): string => {
-  if ((!minutes && minutes !== 0) || !Number.isFinite(minutes)) {
-    return '-'
-  }
-  const sign = minutes < 0 ? '-' : ''
-  const abs = Math.abs(minutes)
-  const hours = Math.floor(abs / 60)
-  const mins = abs % 60
-  return `${sign}${hours}h ${String(mins).padStart(2, '0')}m`
-}
-
-const toMinutes = (value?: number | null): number => {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
 const formatTime = (value?: string | null): string => {
@@ -132,25 +118,11 @@ export const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   )
 
   if (error) {
-    return (
-      <Card>
-        <CardContent className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:py-8 gba:text-center">
-          <WarningCircleIcon size={32} className="gba:text-destructive" />
-          <p className="gba:text-sm gba:text-destructive">{error}</p>
-        </CardContent>
-      </Card>
-    )
+    return <ErrorStateCard message={error} />
   }
 
   if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:py-8">
-          <Spinner />
-          <span className="gba:text-sm gba:text-muted-foreground">{tt('grid_loading', 'Loading attendance...')}</span>
-        </CardContent>
-      </Card>
-    )
+    return <LoadingStateCard message={tt('grid_loading', 'Loading attendance...')} />
   }
 
   if (rows.length === 0) {
