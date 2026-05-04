@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ArrowRight } from '@phosphor-icons/react'
+import { ArrowRightIcon } from '@phosphor-icons/react'
 import type { AgentSkillItem } from '../hooks/useSkillsFromFile'
 import translations from '../_i18n'
 
@@ -54,6 +54,7 @@ export const SuggestedSkillsTable: React.FC<SuggestedSkillsTableProps> = ({
 
   const allSelected = skills.length > 0 && selectedKeys.size === skills.length
   const someSelected = selectedKeys.size > 0 && selectedKeys.size < skills.length
+  const selectAllState = someSelected ? 'indeterminate' : false
 
   const canAddToProfile = useMemo(() => {
     if (selectedKeys.size === 0) return false
@@ -99,7 +100,7 @@ export const SuggestedSkillsTable: React.FC<SuggestedSkillsTableProps> = ({
                 onClick={onAddToProfile}
                 data-testid={`${dataTestId}-add-to-profile-button`}
               >
-                <ArrowRight className="gba:h-4 gba:w-4 gba:mr-1.5" />
+                <ArrowRightIcon className="gba:h-4 gba:w-4 gba:mr-1.5" />
                 {selectedKeys.size > 0
                   ? t('suggested-table-add-to-profile-count', { count: selectedKeys.size })
                   : t('suggested-table-add-to-profile')}
@@ -115,7 +116,7 @@ export const SuggestedSkillsTable: React.FC<SuggestedSkillsTableProps> = ({
           <TableRow>
             <TableHead className="gba:w-10">
               <Checkbox
-                checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                checked={allSelected ? true : selectAllState}
                 onCheckedChange={onToggleSelectAll}
                 data-testid={`${dataTestId}-select-all-checkbox`}
               />

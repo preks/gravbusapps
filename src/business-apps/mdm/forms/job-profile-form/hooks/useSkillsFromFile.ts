@@ -60,10 +60,15 @@ function parseAgentResponse(content: unknown): ParsedAgentResponse {
   const direct = tryParse(trimmed)
   if (direct) return direct
 
-  const match = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/)
-  if (match) {
-    const fromBlock = tryParse(match[1].trim())
-    if (fromBlock) return fromBlock
+  const openIdx = trimmed.indexOf('```')
+  if (openIdx !== -1) {
+    const newlineIdx = trimmed.indexOf('\n', openIdx)
+    const contentStart = newlineIdx !== -1 ? newlineIdx + 1 : openIdx + 3
+    const closeIdx = trimmed.indexOf('```', contentStart)
+    if (closeIdx !== -1) {
+      const fromBlock = tryParse(trimmed.slice(contentStart, closeIdx).trim())
+      if (fromBlock) return fromBlock
+    }
   }
 
   return { skills: [], summary: null, error: null }
@@ -93,12 +98,10 @@ export const useSkillsFromFile = ({ accessToken, onSkillsSuggested }: UseSkillsF
         formData.append('system_params', JSON.stringify({ language }))
         formData.append('user_params', JSON.stringify({ job_title: jobTitle }))
 
+        const fileFromOrigin =
+          (jobDescriptionFile as any).originFileObj instanceof File ? (jobDescriptionFile as any).originFileObj : null
         const rawFile =
-          (jobDescriptionFile as any).file instanceof File
-            ? (jobDescriptionFile as any).file
-            : (jobDescriptionFile as any).originFileObj instanceof File
-              ? (jobDescriptionFile as any).originFileObj
-              : null
+          (jobDescriptionFile as any).file instanceof File ? (jobDescriptionFile as any).file : fileFromOrigin
 
         if (rawFile) {
           formData.append('files', rawFile)
