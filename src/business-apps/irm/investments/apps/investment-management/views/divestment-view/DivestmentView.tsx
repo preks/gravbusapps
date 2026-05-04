@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
-import { CurrencyDollarIcon, TargetIcon, TrendDownIcon } from '@phosphor-icons/react'
+import { CurrencyDollarIcon, SignOutIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -14,12 +14,12 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
   const tabOptions = [
     {
       key: 'planned-exits',
-      icon: <TrendDownIcon />,
+      icon: <SignOutIcon />,
       label: getTranslationFromI18nKeyAndLabel('planned_exits', 'Planned Exits')
     },
     {
       key: 'exit-opportunities',
-      icon: <TargetIcon />,
+      icon: <SignOutIcon />,
       label: getTranslationFromI18nKeyAndLabel('exit_opportunities', 'Exit Opportunities')
     },
     {
@@ -93,14 +93,6 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
 
   return (
     <div data-testid="divestment-relations-tabs" className="gba:h-full gba:flex gba:flex-col">
-      {/* Header */}
-      <div className="gba:mb-6">
-        <div className="gba:mb-4">
-          <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Divestment Management</h1>
-          <p className="gba:text-gray-600">Track and manage planned exits, opportunities, and completed exits</p>
-        </div>
-      </div>
-
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full gba:flex gba:flex-col">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:mb-4">
           {tabOptions.map(option => (

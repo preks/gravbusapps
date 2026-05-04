@@ -72,13 +72,6 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   return (
     <div data-testid="investment-view">
       <div className="gba:mb-6">
-        <div className="gba:mb-4">
-          <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Portfolio</h1>
-          <p className="gba:text-gray-600">Manage and track investment portfolio across asset classes</p>
-        </div>
-      </div>
-
-      <div className="gba:mb-6">
         <InvestmentKPICards {...model.kpis} data-testid={`investment-view-${model.currentSection}-kpis`} />
       </div>
 

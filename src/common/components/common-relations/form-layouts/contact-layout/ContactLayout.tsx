@@ -113,7 +113,11 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
         <ContactDetailsSegment customFields={contactDetailsCustomFields} />
       </FormSection>
       <FormSection title={t('communication-title')} value="communication-channels">
-        <CommunicationSegment customFields={communicationCustomFields} defaultChannelCodes={DEFAULT_CONTACT_CHANNELS} />
+        <CommunicationSegment
+          businessAppContext={businessAppContext}
+          customFields={communicationCustomFields}
+          defaultChannelCodes={DEFAULT_CONTACT_CHANNELS}
+        />
       </FormSection>
       {customSegments.map(segment => (
         <FormSection key={segment.id} title={segment.title} value={segment.id}>

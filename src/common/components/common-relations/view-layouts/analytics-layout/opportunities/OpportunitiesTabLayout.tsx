@@ -106,7 +106,6 @@ export interface OpportunitiesTabLayoutProps {
 // colors local to pie widget
 
 export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
-  title = 'Opportunities Analytics',
   totalOpportunities,
   totalValue,
   winRate,
@@ -274,7 +273,6 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   return (
     <div className="gba:space-y-6" data-testid="opportunities-analytics-tab">
       <div>
-        <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
         {/* Currency Filter for KPIs */}
         {availableCurrencies && availableCurrencies.length > 1 && onKpiCurrencyChange && (
           <div

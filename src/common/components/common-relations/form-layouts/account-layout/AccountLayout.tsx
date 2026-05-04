@@ -146,7 +146,11 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         />
       </FormSection>
       <FormSection title={t('communication-title')} value="communication-channels">
-        <CommunicationSegment customFields={communicationCustomFields} defaultChannelCodes={DEFAULT_ACCOUNT_CHANNELS} />
+        <CommunicationSegment
+          businessAppContext={businessAppContext}
+          customFields={communicationCustomFields}
+          defaultChannelCodes={DEFAULT_ACCOUNT_CHANNELS}
+        />
       </FormSection>
       {customSegments.map(segment => (
         <FormSection key={segment.id} title={segment.title} value={segment.id}>

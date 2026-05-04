@@ -818,7 +818,7 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
             {/* Communication Channels Section */}
             <div className="gba:mt-6">
               <h3 className="gba:text-lg gba:font-semibold gba:mb-4">Contact Information</h3>
-              <CommunicationSegment />
+              <CommunicationSegment businessAppContext={{ accessToken, userInfo, additionalData }} />
             </div>
 
             {/* Address Section */}

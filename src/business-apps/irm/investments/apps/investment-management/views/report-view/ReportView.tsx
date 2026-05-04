@@ -190,14 +190,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   return (
     <div data-testid="analytics-container" className="gba:h-full gba:flex gba:flex-col">
-      {/* Header */}
-      <div className="gba:mb-6">
-        <div className="gba:mb-4">
-          <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Analytics</h1>
-          <p className="gba:text-gray-600">Analyze investment performance and portfolio metrics</p>
-        </div>
-      </div>
-
       <ReportFiltersHeader
         reportFilters={reportFilters}
         selectedCurrencies={selectedCurrencies}

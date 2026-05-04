@@ -219,12 +219,8 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
       className="gba:bg-gradient-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg"
     >
-      {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4">
-          <h3 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('realEstate.investments.title', 'Real Estate Investments Report')}
-          </h3>
           <Badge variant="secondary">
             {kpis?.totalInvestments || 0}{' '}
             {getTranslationFromI18nKeyAndLabel('realEstate.investments.items', 'properties')}

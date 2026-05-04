@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button, Spinner, RecordLayout, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
-import {
-  FileTextIcon,
-  UserIcon,
-  CurrencyDollarIcon,
-  EnvelopeIcon,
-  PhoneIcon,
-  CakeIcon,
-  GlobeIcon
-} from '@phosphor-icons/react'
+import { FolderIcon, UserIcon, TargetIcon, EnvelopeIcon, PhoneIcon, CakeIcon, GlobeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -337,7 +329,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'opportunities',
           label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
-          icon: <CurrencyDollarIcon className="gba:mr-2" />,
+          icon: <TargetIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OpportunityView contactId={contactId} {...props} />
@@ -347,7 +339,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileTextIcon className="gba:mr-2" />,
+          icon: <FolderIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView contactId={contactId} {...props} />

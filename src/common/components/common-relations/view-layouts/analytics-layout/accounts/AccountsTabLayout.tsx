@@ -88,7 +88,6 @@ const calculateTrend = (
 }
 
 export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
-  title = 'Accounts Analytics',
   totalAccounts,
   accountsWithOpportunities,
   avgOpportunitiesPerAccount,
@@ -172,7 +171,6 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   return (
     <div className="gba:space-y-6" data-testid="accounts-analytics-tab">
       <div>
-        <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
         <WidgetGroup widgets={kpis} isLoading={trendLoading} data-testid="accounts-key-metrics" />
       </div>
 

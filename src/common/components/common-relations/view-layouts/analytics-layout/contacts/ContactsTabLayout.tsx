@@ -42,7 +42,6 @@ export interface ContactsTabLayoutProps {
 }
 
 export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
-  title = 'Contacts Analytics',
   totalContacts,
   thisMonth,
   lastMonth,
@@ -151,7 +150,6 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   return (
     <div className="gba:space-y-6" data-testid="contacts-analytics-tab">
       <div>
-        <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
         <WidgetGroup widgets={kpis} isLoading={trendLoading} data-testid="contacts-key-metrics" />
       </div>
 

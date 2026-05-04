@@ -89,21 +89,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
       data-testid={formatDataTestId('AnalyticsView', 'Container')}
       className="gba:bg-gradient-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg"
     >
-      {/* Header */}
-      <div className="gba:mb-6">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('analytics.title', 'Investment Analytics')}
-          </h1>
-        </div>
-        <p className="gba:text-gray-600 gba:mt-2">
-          {getTranslationFromI18nKeyAndLabel(
-            'analytics.description',
-            'Comprehensive analytics and reporting for all investment types'
-          )}
-        </p>
-      </div>
-
       {/* Analytics Tabs */}
       <div className="gba:bg-white gba:rounded-lg gba:shadow-sm">
         <Tabs
