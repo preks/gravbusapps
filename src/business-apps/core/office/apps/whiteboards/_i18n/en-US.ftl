@@ -178,3 +178,5 @@ trash-toast-restored = Whiteboard restored
 trash-toast-restore-failed = Failed to restore whiteboard
 trash-toast-deleted = Whiteboard deleted permanently
 trash-toast-delete-failed = Failed to delete whiteboard permanently
+
+whiteboard-background-color = Background color

@@ -368,6 +368,21 @@ export class SocketIoYjsProvider {
       const tempDoc = new Y.Doc()
       Y.applyUpdate(tempDoc, serverStateBytes)
       const serverSV = Y.encodeStateVector(tempDoc)
+
+      // For whiteboards, never replay a local Y.Doc that has zero elements over
+      // a server snapshot that has elements. That happens after reconnect/resync
+      // when the local doc has been freshly created (or hydrated from an empty
+      // baseline) and would otherwise immediately delete every shape on the
+      // server via a "remove all" diff.
+      if (this.entityType === 'whiteboard') {
+        const serverElementCount = tempDoc.getArray('elements').length
+        const localElementCount = this.ydoc.getArray('elements').length
+        if (serverElementCount > 0 && localElementCount === 0) {
+          tempDoc.destroy()
+          return
+        }
+      }
+
       tempDoc.destroy()
       const localDiff = Y.encodeStateAsUpdate(this.ydoc, serverSV)
       if (localDiff.length > 2) {

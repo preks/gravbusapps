@@ -178,3 +178,5 @@ trash-toast-restored = Whiteboard restaurat
 trash-toast-restore-failed = Restaurarea whiteboard-ului a eșuat
 trash-toast-deleted = Whiteboard șters permanent
 trash-toast-delete-failed = Ștergerea permanentă a whiteboard-ului a eșuat
+
+whiteboard-background-color = Culoare fundal

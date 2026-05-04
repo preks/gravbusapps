@@ -193,6 +193,47 @@ describe('SocketIoYjsProvider', () => {
     serverDoc.destroy()
   })
 
+  it('does not replay an empty local whiteboard diff over a non-empty server snapshot', async () => {
+    const serverDoc = new Y.Doc()
+    const serverElement = new Y.Map<unknown>()
+    serverElement.set('id', 'rect-1')
+    serverElement.set('type', 'rectangle')
+    serverDoc.getArray<Y.Map<unknown>>('elements').push([serverElement])
+
+    const socket = new FakeSocket()
+    socket.syncResponse = {
+      success: true,
+      status: 'ready',
+      state: uint8ArrayToBase64(Y.encodeStateAsUpdate(serverDoc)),
+      awareness: null
+    }
+
+    const ydoc = new Y.Doc()
+    const awareness = new Awareness(ydoc)
+
+    const provider = new SocketIoYjsProvider({
+      socket: socket as never,
+      documentId: 'whiteboard-1',
+      entityType: 'whiteboard',
+      ydoc,
+      awareness,
+      onBeforeFirstSync: async () => undefined
+    })
+
+    provider.start()
+    await waitForCondition(() => provider.isSynced())
+    await flushAsyncWork()
+
+    expect(socket.yjsUpdates).toHaveLength(0)
+    expect(ydoc.getArray<Y.Map<unknown>>('elements')).toHaveLength(1)
+    expect(ydoc.getArray<Y.Map<unknown>>('elements').get(0).get('id')).toBe('rect-1')
+
+    provider.destroy()
+    awareness.destroy()
+    ydoc.destroy()
+    serverDoc.destroy()
+  })
+
   it('does not replay whiteboard bootstrap array inserts after sync', async () => {
     const socket = new FakeSocket()
     const ydoc = new Y.Doc()
