@@ -9,11 +9,26 @@ import 'dayjs/locale/ro'
 import 'dayjs/locale/fr'
 import 'dayjs/locale/es'
 import 'dayjs/locale/it'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import type { TranslateFn } from './utils'
 
 // Extend dayjs with localized format plugin
 dayjs.extend(localizedFormat)
+
+/**
+ * Same pattern as personal expense items (`ExpenseItemExpenseDateCell`): `formatDate(value, 'date.short')`.
+ */
+export function formatExpenseRequestDateShort(value: string | null | undefined, emptyLabel: string): string {
+  if (value == null || (typeof value === 'string' && value.trim() === '')) {
+    return emptyLabel
+  }
+  try {
+    const formatted = formatDate(value, 'date.short')
+    return formatted || emptyLabel
+  } catch {
+    return emptyLabel
+  }
+}
 
 /**
  * Format date using user's locale
@@ -29,20 +44,26 @@ dayjs.extend(localizedFormat)
  */
 export const formatDateLocalized = (
   dateValue: string | Date | null | undefined,
-  t: TranslateFn,
+  _t: TranslateFn,
   format: string = 'L'
 ): string => {
-  if (!dateValue) {
-    return t('common-not-available')
+  if (dateValue === null || dateValue === undefined) {
+    return '-'
+  }
+  if (typeof dateValue === 'string' && dateValue.trim() === '') {
+    return '-'
   }
 
   try {
+    const parsed = dayjs(dateValue)
+    if (!parsed.isValid()) {
+      return '-'
+    }
     const userLocale = getCurrentActiveUserLocale()
     const baseLocale = userLocale?.split('-')[0] || 'en'
-    return dayjs(dateValue).locale(baseLocale).format(format)
-  } catch (error) {
-    console.error('Error formatting date:', error)
-    return t('common-not-available')
+    return parsed.locale(baseLocale).format(format)
+  } catch {
+    return '-'
   }
 }
 

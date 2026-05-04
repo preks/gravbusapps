@@ -16,7 +16,7 @@ import {
 import { Plus, Search, PanelLeftClose, FileText, PenTool, Sparkles, FolderPlus } from 'lucide-react'
 import { NoteTreeQuickAccess, type QuickAccessSection } from './NoteTreeQuickAccess'
 import { SortableNoteTree } from './SortableNoteTree'
-import type { NoteTreeNode } from '../types'
+import type { NoteSummary, NoteTreeNode } from '../types'
 import type { UseNoteTreeDragDropReturn } from '../hooks/useNoteTreeDragDrop'
 import translations from '../_i18n'
 import '../note-editor.css'
@@ -25,6 +25,7 @@ export interface NoteTreeSidebarProps {
   width: number
   isResizing: boolean
   tree: NoteTreeNode[]
+  recentNotes?: NoteSummary[]
   expandedIds: Set<string>
   selectedId: string | null
   isLoadingTree: boolean
@@ -50,6 +51,7 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
   width,
   isResizing,
   tree,
+  recentNotes,
   expandedIds,
   selectedId,
   isLoadingTree,
@@ -73,6 +75,17 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
   const { t } = useTranslation(translations)
 
   const flatRecentNotes = useMemo(() => {
+    if (recentNotes) {
+      return recentNotes
+        .filter(note => note.icon !== '📁')
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .map(note => ({
+          ...note,
+          depth: 0,
+          children: []
+        }))
+    }
+
     const flatten = (nodes: NoteTreeNode[]): NoteTreeNode[] => {
       const result: NoteTreeNode[] = []
       for (const node of nodes) {
@@ -89,7 +102,7 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
       if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     })
-  }, [tree])
+  }, [recentNotes, tree])
 
   return (
     <aside

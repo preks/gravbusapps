@@ -24,8 +24,13 @@ import type {
   Position,
   Size
 } from './slideElements'
-import { gradientToCss, getImageCropStyles, textTransformToCss, textElementStubForShapeInText } from './slideElements'
-import { ensureImportedWebFonts, resolveFontStack } from './fontStack'
+import {
+  gradientToCss,
+  getImageCropStyles,
+  textElementHasVisibleContent,
+  textElementStubForShapeInText
+} from './slideElements'
+import { ensureImportedWebFonts } from './fontStack'
 
 // Webfonts commonly referenced by imported decks (Roboto, Funnel Display,
 // Source Sans Pro, …) are not part of the default browser font set. Loading
@@ -38,6 +43,7 @@ import { SlideChartRenderer } from './SlideChartRenderer'
 import { TextWithLinks } from './TextWithLinks'
 import { RichTextContent } from './RichTextContent'
 import { InlineRichTextEditor } from './InlineRichTextEditor'
+import { getRichTextBoxStyle } from './richTextStyles'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { ShapePointEditor } from './ShapePointEditor'
 import { SlideStaticElementContent } from './SlideStaticElementContent'
@@ -54,6 +60,26 @@ const hexToRgba = (hex: string, alpha: number): string => {
   const g = Number.parseInt(cleanHex.substring(2, 4), 16)
   const b = Number.parseInt(cleanHex.substring(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function renderTextPlaceholder(element: TextElement, isPresenting: boolean) {
+  if (!element.placeholderText || isPresenting) return null
+
+  return (
+    <div
+      style={{
+        ...getRichTextBoxStyle(element),
+        color: hexToRgba(element.color, 0.55),
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        userSelect: 'none',
+        pointerEvents: 'none'
+      }}
+      aria-hidden="true"
+    >
+      {element.placeholderText}
+    </div>
+  )
 }
 
 /**
@@ -168,6 +194,7 @@ interface InlineEditingProps {
   onTextChange: (value: string) => void
   onSelectionChange: (range: RichTextSelectionRange | null) => void
   onFinishEditing: () => void
+  selectionToRestore?: RichTextSelectionRange | null
   rehydrateToken?: number
   voiceInput?: {
     isListening: boolean
@@ -307,7 +334,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     const [multiDragStart, setMultiDragStart] = useState<Map<string, Position>>(new Map())
 
     // Single-click-to-edit: track mousedown origin to detect click vs drag
-    const mouseDownElementRef = useRef<{ id: string; x: number; y: number; type: string } | null>(null)
+    const mouseDownElementRef = useRef<{ id: string; x: number; y: number; type: string; wasSelected: boolean } | null>(
+      null
+    )
     const CLICK_MOVE_THRESHOLD = 4
 
     // Tracks which element's textarea has been initialized (cursor placed at end)
@@ -458,11 +487,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       const target = e.target as HTMLElement
       const isClickOnElement = target.closest('[data-slide-element]')
 
-      // Single-click-to-edit: if mouseDown ref survived (mouse didn't drag), enter text editing
+      // A plain click selects first; a second plain click on the already
+      // selected text/code element enters editing. Double-click still edits
+      // immediately via the element-level handler below.
       const mdRef = mouseDownElementRef.current
       mouseDownElementRef.current = null
 
-      if (mdRef && (mdRef.type === 'text' || mdRef.type === 'code')) {
+      if (mdRef && mdRef.wasSelected && (mdRef.type === 'text' || mdRef.type === 'code')) {
         if (inlineEditing?.editingTextId && inlineEditing.editingTextId !== mdRef.id) {
           textareaInitializedRef.current = null
           inlineEditing.onFinishEditing()
@@ -600,9 +631,17 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       })
       setMultiDragStart(positions)
 
-      // Track mousedown for single-click-to-edit detection (plain click on single element only)
+      // Track mousedown so a follow-up plain click on an already selected text
+      // or code element can enter editing without conflating first-click
+      // selection with edit mode.
       if (!isShiftKey && !isCtrlKey && effectiveSelection.size === 1) {
-        mouseDownElementRef.current = { id: element.id, x: e.clientX, y: e.clientY, type: element.type }
+        mouseDownElementRef.current = {
+          id: element.id,
+          x: e.clientX,
+          y: e.clientY,
+          type: element.type,
+          wasSelected: isSelected
+        }
       } else {
         mouseDownElementRef.current = null
       }
@@ -739,6 +778,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
       (e: MouseEvent) => {
         // Only handle element drag/resize here (marquee is handled inline in handleCanvasMouseDown)
         if (selectedIds.size === 0 || !elementStart) return
+
+        const mouseDownElement = mouseDownElementRef.current
+        if (isDragging && mouseDownElement) {
+          const dx = Math.abs(e.clientX - mouseDownElement.x)
+          const dy = Math.abs(e.clientY - mouseDownElement.y)
+          if (dx < CLICK_MOVE_THRESHOLD && dy < CLICK_MOVE_THRESHOLD) return
+        }
 
         const currentX = e.clientX / scale
         const currentY = e.clientY / scale
@@ -1130,31 +1176,33 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     const renderMoveEdges = (
       elementId: string,
       testIdPrefix: string,
-      onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void
+      onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void,
+      placement: 'centered' | 'outside' = 'centered'
     ) => {
       const edgeThickness = 12 / scale
+      const edgeOffset = placement === 'outside' ? edgeThickness : edgeThickness / 2
       const edgeStyles: Record<'top' | 'right' | 'bottom' | 'left', React.CSSProperties> = {
         top: {
-          top: -edgeThickness / 2,
+          top: -edgeOffset,
           left: 0,
           right: 0,
           height: edgeThickness
         },
         right: {
           top: 0,
-          right: -edgeThickness / 2,
+          right: -edgeOffset,
           bottom: 0,
           width: edgeThickness
         },
         bottom: {
-          bottom: -edgeThickness / 2,
+          bottom: -edgeOffset,
           left: 0,
           right: 0,
           height: edgeThickness
         },
         left: {
           top: 0,
-          left: -edgeThickness / 2,
+          left: -edgeOffset,
           bottom: 0,
           width: edgeThickness
         }
@@ -1179,7 +1227,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     }
 
     const renderInlineEditingMoveEdges = (elementId: string) => {
-      return renderMoveEdges(elementId, 'slide-inline-editor-move-edge')
+      return renderMoveEdges(elementId, 'slide-inline-editor-move-edge', undefined, 'outside')
     }
 
     const renderElement = (element: AnySlideElement) => {
@@ -1414,6 +1462,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                           textareaInitializedRef.current = null
                           inlineEditing.onFinishEditing()
                         }}
+                        selectionToRestore={inlineEditing.selectionToRestore}
                         rehydrateToken={inlineEditing.rehydrateToken}
                         data-testid={`slide-text-editor-${element.id}`}
                       />
@@ -1478,32 +1527,20 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                       </div>
                     </>
                   ) : (
-                    <div
-                      style={{
-                        width: '100%',
-                        fontFamily: resolveFontStack(textEl.fontFamily),
-                        fontSize: textEl.fontSize,
-                        fontWeight: textEl.fontWeight,
-                        fontStyle: textEl.fontStyle,
-                        textDecoration: textEl.textDecoration,
-                        textAlign: textEl.textAlign,
-                        color: textEl.color,
-                        lineHeight: textEl.lineHeight,
-                        letterSpacing: textEl.letterSpacing,
-                        ...textTransformToCss(textEl.textTransform),
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word'
-                      }}
-                    >
-                      {textEl.paragraphs && textEl.paragraphs.length > 0 ? (
-                        <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+                    <div style={getRichTextBoxStyle(textEl)}>
+                      {textElementHasVisibleContent(textEl) ? (
+                        textEl.paragraphs && textEl.paragraphs.length > 0 ? (
+                          <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+                        ) : (
+                          <TextWithLinks
+                            content={textEl.content}
+                            links={textEl.links ?? []}
+                            isPresenting={isPresenting}
+                            onLinkClick={onLinkClick}
+                          />
+                        )
                       ) : (
-                        <TextWithLinks
-                          content={textEl.content}
-                          links={textEl.links ?? []}
-                          isPresenting={isPresenting}
-                          onLinkClick={onLinkClick}
-                        />
+                        renderTextPlaceholder(textEl, isPresenting)
                       )}
                     </div>
                   )}
@@ -1677,6 +1714,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                             textareaInitializedRef.current = null
                             inlineEditing?.onFinishEditing()
                           }}
+                          selectionToRestore={inlineEditing?.selectionToRestore}
                           rehydrateToken={inlineEditing?.rehydrateToken}
                           data-testid={`slide-shape-text-editor-${se.id}`}
                         />
@@ -1684,23 +1722,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     ) : st.paragraphs && st.paragraphs.length > 0 ? (
                       <RichTextContent element={te} paragraphs={st.paragraphs} />
                     ) : (
-                      <div
-                        style={{
-                          width: '100%',
-                          fontFamily: resolveFontStack(te.fontFamily),
-                          fontSize: te.fontSize,
-                          fontWeight: te.fontWeight,
-                          fontStyle: te.fontStyle,
-                          textDecoration: te.textDecoration,
-                          textAlign: te.textAlign,
-                          color: te.color,
-                          lineHeight: te.lineHeight,
-                          letterSpacing: te.letterSpacing,
-                          ...textTransformToCss(te.textTransform),
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word'
-                        }}
-                      >
+                      <div style={getRichTextBoxStyle(te)}>
                         <TextWithLinks
                           content={st.content}
                           links={st.links ?? []}

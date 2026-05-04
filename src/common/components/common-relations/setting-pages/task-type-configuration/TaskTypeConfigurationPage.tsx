@@ -5,11 +5,14 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useUpdateCatalogEntry } from '@/common/data/catalog'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import type { CatalogTranslationEntry } from '../utils/catalogTranslations'
 
 interface TaskType {
   id: string
   code: string
   value: string
+  localeCode?: string
+  translations?: CatalogTranslationEntry[]
   type?: string
 }
 
@@ -68,6 +71,7 @@ export const TaskTypeConfigurationPage: React.FC<TaskTypeConfigurationPageProps>
           limit: 100,
           offset: 0,
           returnTotalRecords: true,
+          includeTranslations: true,
           includeChildCatalogEntries: false
         }
       )
@@ -75,6 +79,8 @@ export const TaskTypeConfigurationPage: React.FC<TaskTypeConfigurationPageProps>
         id: entry.id,
         code: entry.code,
         value: entry.value,
+        localeCode: entry.localeCode,
+        translations: entry.translations,
         type: entry.type
       }))
       setTaskTypes(types)
@@ -96,12 +102,14 @@ export const TaskTypeConfigurationPage: React.FC<TaskTypeConfigurationPageProps>
       try {
         setIsLoadingDetails(true)
         setSaveError(null)
-        const entry = await catalogClient.getCatalogEntryById(typeId)
+        const entry = await catalogClient.readCatalogEntryById(typeId, { includeTranslations: true })
 
         const fullType: TaskTypeWithConfig = {
           id: entry.id,
           code: entry.code,
           value: entry.value,
+          localeCode: entry.localeCode,
+          translations: entry.translations,
           type: entry.type,
           objectValue: entry.objectValue || {}
         }
@@ -146,9 +154,10 @@ export const TaskTypeConfigurationPage: React.FC<TaskTypeConfigurationPageProps>
         id: selectedType.id,
         code: selectedType.code,
         value: selectedType.value,
+        localeCode: selectedType.localeCode,
         type: selectedType.type,
         objectValue: updatedObjectValue,
-        translations: []
+        translations: selectedType.translations || []
       })
 
       // Reload the selected type to show updated values

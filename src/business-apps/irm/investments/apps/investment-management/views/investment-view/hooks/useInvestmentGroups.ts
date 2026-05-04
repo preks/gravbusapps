@@ -2,6 +2,12 @@ import { useState, useEffect, useMemo } from 'react'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { FormFieldsDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
+import type { RequiredSubtypeKey } from '@/business-apps/irm/core/apps/investment-settings/pages/investment-data/types'
+
+export interface InvestmentGroupObjectValue extends FormFieldsDefinition {
+  requiredSubtypeKey?: RequiredSubtypeKey
+  [key: string]: unknown
+}
 
 export interface InvestmentGroup {
   id: string
@@ -9,7 +15,7 @@ export interface InvestmentGroup {
   value: string
   label: string
   tabId: string
-  objectValue?: FormFieldsDefinition | null
+  objectValue?: InvestmentGroupObjectValue | null
 }
 
 export interface InvestmentCatalogEntry {
@@ -21,7 +27,7 @@ export interface InvestmentCatalogEntry {
     id: string
     code?: string
   }
-  objectValue?: FormFieldsDefinition | null
+  objectValue?: InvestmentGroupObjectValue | null
 }
 
 export interface InvestmentListCatalogData {
@@ -30,16 +36,16 @@ export interface InvestmentListCatalogData {
   investmentLiquidFundTypes: InvestmentCatalogEntry[]
 }
 
-const parseFormFieldsDefinition = (objectValue: unknown): FormFieldsDefinition | null => {
+const parseInvestmentGroupObjectValue = (objectValue: unknown): InvestmentGroupObjectValue | null => {
   if (!objectValue) return null
   if (typeof objectValue === 'string') {
     try {
-      return JSON.parse(objectValue) as FormFieldsDefinition
+      return JSON.parse(objectValue) as InvestmentGroupObjectValue
     } catch {
       return null
     }
   }
-  return objectValue as FormFieldsDefinition
+  return objectValue as InvestmentGroupObjectValue
 }
 
 const toInvestmentCatalogEntry = (entry: CatalogEntry): InvestmentCatalogEntry => ({
@@ -53,7 +59,7 @@ const toInvestmentCatalogEntry = (entry: CatalogEntry): InvestmentCatalogEntry =
         code: entry.parentEntry.code
       }
     : undefined,
-  objectValue: parseFormFieldsDefinition(entry.objectValue)
+  objectValue: parseInvestmentGroupObjectValue(entry.objectValue)
 })
 
 /**

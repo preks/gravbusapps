@@ -70,7 +70,6 @@ const EveryFabricInner: React.FC = () => {
   const handleCloseSettings = () => updateUrl({ view: null })
   const handleOpenScheduled = () => updateUrl({ view: 'scheduled' })
   const handleCloseScheduled = () => updateUrl({ view: null })
-
   const handleSelectSession = (id: string) => {
     updateUrl({ view: null })
     selectSession(id)
@@ -89,7 +88,6 @@ const EveryFabricInner: React.FC = () => {
   const showSettings = urlView === 'settings'
   const isScheduledView = displayView === 'scheduled'
   const showScheduled = urlView === 'scheduled'
-
   const renderMain = () => {
     if (isLoadingSession && sessionLoadError) {
       return (
@@ -130,7 +128,28 @@ const EveryFabricInner: React.FC = () => {
             showSettings ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
           }`}
         >
-          {isSettingsView && <SettingsScreen accessToken={accessToken} onBack={handleCloseSettings} />}
+          {isSettingsView && (
+            <SettingsScreen
+              accessToken={accessToken}
+              onBack={handleCloseSettings}
+              onRunTask={agent => {
+                handleCloseSettings()
+                void startSession(`Run task with ${agent.name}: `, {
+                  mode: 'deep',
+                  enable_memory: true,
+                  enable_reflection: undefined,
+                  selectedAgent: {
+                    id: agent.id,
+                    name: agent.name,
+                    display_name: agent.name,
+                    description: agent.description,
+                    domain: agent.specialty ?? agent.domain ?? '',
+                    tags: agent.tags ?? []
+                  }
+                })
+              }}
+            />
+          )}
         </div>
 
         <div

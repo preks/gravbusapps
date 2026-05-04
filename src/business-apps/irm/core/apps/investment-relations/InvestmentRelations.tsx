@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { PageLayout, Button } from '@newwork/nw-design-system'
 import {
-  TrendUpIcon,
-  HouseIcon,
-  ListIcon,
-  UsersThreeIcon,
-  BuildingsIcon,
+  HandshakeIcon,
+  GaugeIcon,
+  DesktopTowerIcon,
+  ActivityIcon,
+  TrayIcon,
   UsersIcon,
-  CurrencyDollarIcon,
-  ChartBarIcon,
-  ChartLineIcon,
-  BellIcon
+  BuildingsIcon,
+  AddressBookTabsIcon,
+  TargetIcon,
+  ChartScatterIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
@@ -44,27 +44,27 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context =
     () => [
       {
         key: 'dashboard',
-        icon: <HouseIcon />,
+        icon: <GaugeIcon />,
         label: 'Dashboard'
       },
       {
         key: 'personal',
-        icon: <ChartLineIcon />,
+        icon: <DesktopTowerIcon />,
         label: 'My Workspace'
       },
       {
         key: 'activities',
-        icon: <BellIcon />,
+        icon: <ActivityIcon />,
         label: 'Activities'
       },
       {
         key: 'tasks',
-        icon: <ListIcon />,
+        icon: <TrayIcon />,
         label: 'Tasks'
       },
       {
         key: 'leads',
-        icon: <UsersThreeIcon />,
+        icon: <UsersIcon />,
         label: 'Leads'
       },
       {
@@ -74,17 +74,17 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context =
       },
       {
         key: 'contacts',
-        icon: <UsersIcon />,
+        icon: <AddressBookTabsIcon />,
         label: 'Contacts'
       },
       {
         key: 'opportunities',
-        icon: <CurrencyDollarIcon />,
+        icon: <TargetIcon />,
         label: 'Opportunities'
       },
       {
         key: 'analytics',
-        icon: <ChartBarIcon />,
+        icon: <ChartScatterIcon />,
         label: 'Analytics'
       }
     ],
@@ -256,7 +256,7 @@ export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context =
   return (
     <div data-testid="investment-relations-app">
       <PageLayout
-        headerIcon={TrendUpIcon}
+        headerIcon={HandshakeIcon}
         headerTitle="Investment Relations"
         headerDescription="Manage investment portfolios, client relationships, and track investment opportunities across asset classes"
         headerContent={

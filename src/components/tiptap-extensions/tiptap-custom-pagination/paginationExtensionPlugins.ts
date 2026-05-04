@@ -14,6 +14,11 @@ import {
 } from './paginationLayoutHelpers'
 import { buildHardBreakDecorations, shouldRebuildHardBreakDecorations } from './paginationHardBreakDecorationController'
 import {
+  buildPageBreakSpacerDecorations,
+  collectPageBreakEntries,
+  shouldRebuildPageBreakSpacerDecorations
+} from './paginationPageBreakDecorationController'
+import {
   clearPaginationOwnedGrowthSuppression,
   consumePaginationHydrationDocChange,
   getPaginationOwnedGrowthSuppressionPageCount,
@@ -60,6 +65,7 @@ export function createPaginationExtensionPlugins(options: {
   paginationKey: PluginKey<DecorationSet>
   hardBreakKey: PluginKey<DecorationSet>
   squareWrapKey: PluginKey<DecorationSet>
+  pageBreakSpacerKey: PluginKey<DecorationSet>
   refreshMeta: string
   refreshAndStabilizeMeta: string
   paginationOwnedDocChangeMeta: string
@@ -642,6 +648,61 @@ export function createPaginationExtensionPlugins(options: {
       props: {
         decorations(state) {
           return options.squareWrapKey.getState(state) ?? DecorationSet.empty
+        }
+      }
+    }),
+    new Plugin({
+      key: options.pageBreakSpacerKey,
+      state: {
+        init: () => DecorationSet.empty,
+        apply(tr, oldValue) {
+          const mountedView = getMountedEditorView(editor)
+          const shouldRebuild = shouldRebuildPageBreakSpacerDecorations(tr)
+          const oldDecorationCount = oldValue.find().length
+          const bootstrapWithPlannedSpacerOffsets = oldDecorationCount === 0
+
+          if (tr.getMeta(options.refreshMeta)) {
+            return buildPageBreakSpacerDecorations(tr.doc, {
+              view: mountedView,
+              bootstrapWithPlannedSpacerOffsets
+            })
+          }
+
+          if (shouldRebuild) {
+            return buildPageBreakSpacerDecorations(tr.doc, {
+              view: mountedView,
+              bootstrapWithPlannedSpacerOffsets
+            })
+          }
+
+          if (tr.docChanged) {
+            return oldValue.map(tr.mapping, tr.doc)
+          }
+
+          return oldValue
+        }
+      },
+      props: {
+        decorations(state) {
+          return options.pageBreakSpacerKey.getState(state) ?? DecorationSet.empty
+        }
+      },
+      view: () => {
+        let lastPageBreakSignature: string | null = null
+        return {
+          update: updatedView => {
+            const signature = collectPageBreakEntries(updatedView.state.doc)
+              .map(entry => entry.pos)
+              .join(',')
+            if (signature === lastPageBreakSignature) {
+              return
+            }
+            lastPageBreakSignature = signature
+            if (signature.length === 0) {
+              return
+            }
+            queuePluginViewRefresh(updatedView, 'page-break-spacer-change')
+          }
         }
       }
     })

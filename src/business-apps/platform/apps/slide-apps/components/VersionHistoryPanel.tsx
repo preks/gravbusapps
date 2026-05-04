@@ -74,6 +74,7 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
   'data-testid': testId = 'version-history-panel'
 }) => {
   const { t } = useTranslation(translations)
+  const resolvedSlideTitle = slideTitle || t('title-untitled-slide')
   const formatDate = createFormatDate(t)
   const [versions, setVersions] = useState<SlideVersion[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -139,7 +140,7 @@ export const VersionHistoryPanel: React.FC<VersionHistoryPanelProps> = ({
             <Clock className="gba:w-5 gba:h-5" />
             {t('version-history-title')}
           </DialogTitle>
-          <DialogDescription>{t('version-description', { title: slideTitle })}</DialogDescription>
+          <DialogDescription>{t('version-description', { title: resolvedSlideTitle })}</DialogDescription>
         </DialogHeader>
 
         <div className="gba:py-4 gba:space-y-4 gba:overflow-y-auto">

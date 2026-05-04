@@ -556,8 +556,8 @@ export function sanitizeDocumentHtmlForEditor(html: string): string {
       FORBID_TAGS: DOCUMENT_EDITOR_FORBIDDEN_TAGS,
       ALLOW_DATA_ATTR: true
     })
-
-    return restoreDataUriImageSources(sanitized).trim() || '<p></p>'
+    const restoredHtml = restoreDataUriImageSources(sanitized).trim() || '<p></p>'
+    return restoredHtml
   } catch {
     return normalizedHtml
   }

@@ -393,11 +393,21 @@ editor-share-tooltip = Partajare
 editor-pin-tooltip = Fixare
 editor-unpin-tooltip = Deblocare
 editor-locked = Blocat
+editor-locked-readonly = Această notă este blocată. Deblocați-o înainte de editare.
+editor-lock-owner-you = dvs.
+editor-lock-owner-unknown = alt utilizator
+editor-lock-status-you = Blocată de dvs.
+editor-lock-status-you-expiry = Blocată de dvs. până la { $time }
+editor-lock-status-other = Blocată de { $name }
+editor-lock-status-other-expiry = Blocată de { $name } până la { $time }
 editor-note-menu = Notă
 editor-version-history = Istoric versiuni
 editor-save-checkpoint = Salvare punct de verificare
 editor-unlock-note = Deblocare notă
+editor-owner-unlock-note = Deblocați ca proprietar
 editor-lock-note = Blocare notă
+editor-lock-failed = Nota nu a putut fi blocată
+editor-unlock-failed = Nota nu a putut fi deblocată
 editor-publish = Publicare…
 editor-duplicate = Duplicare
 editor-export = Exportă
@@ -487,7 +497,7 @@ translation-language-ko = Coreeană
 translation-language-ar = Arabă
 
 # Quick Access
-qa-all-notes = Toate notițele
+qa-all-notes = Notițele mele
 qa-favorites = Favorite
 qa-pinned = Fixate
 qa-shared = Partajate cu mine
@@ -509,6 +519,22 @@ trash-list-item-restored = Notă restaurată
 trash-list-item-restore-failed = Restaurarea notei a eșuat
 trash-list-item-deleted = Notă ștearsă definitiv
 trash-list-item-delete-failed = Ștergerea definitivă a notei a eșuat
+trash-bulk-selected = { $count } selectate
+trash-bulk-restored = { $count } { $count ->
+    [one] notă
+   *[other] note
+  } restaurate
+trash-bulk-deleted = { $count } { $count ->
+    [one] notă
+   *[other] note
+  } șterse definitiv
+trash-delete-dialog-title-single = Șterge definitiv?
+trash-delete-dialog-title-multiple = Șterge { $count } elemente definitiv?
+trash-delete-dialog-description-single = „{ $name }" va fi ștearsă definitiv și nu poate fi restaurată. Această acțiune nu poate fi anulată.
+trash-delete-dialog-description-multiple = { $count } elemente vor fi șterse definitiv și nu pot fi restaurate. Această acțiune nu poate fi anulată.
+trash-delete-dialog-cancel = Anulați
+trash-delete-dialog-confirm = Șterge definitiv
+trash-delete-dialog-deleting = Se șterge...
 trashed-readonly-title = Această notă este în coșul de gunoi
 trashed-readonly-description = „{ $title }” este în coșul de gunoi și se deschide în modul doar-citire până când este restaurată.
 trashed-readonly-owner-note = Pentru a edita din nou această notă, scoateți-o din coșul de gunoi.

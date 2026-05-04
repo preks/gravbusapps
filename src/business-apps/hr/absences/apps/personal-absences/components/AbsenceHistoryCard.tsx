@@ -1,4 +1,5 @@
 import {
+  type ActionOption,
   Card,
   CardContent,
   CardHeader,
@@ -19,10 +20,12 @@ import {
   Badge
 } from '@newwork/nw-design-system'
 import { CaretLeftIcon, CaretRightIcon, WarningCircleIcon } from '@phosphor-icons/react'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { formatDate } from '@/common/utils/windowUtils'
 import { statusVariant } from '../utils/statusUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
+import type { CancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
 
 type TFunction = (key: string) => string
 
@@ -40,6 +43,9 @@ interface AbsenceHistoryCardProps {
   paginatedAbsences: AbsenceRow[]
   totalPages: number
   t: TFunction
+  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot) => Promise<void>
+  cancellingAbsenceId: string | null
+  accessToken?: string
 }
 
 export function AbsenceHistoryCard({
@@ -55,8 +61,22 @@ export function AbsenceHistoryCard({
   filteredAbsences,
   paginatedAbsences,
   totalPages,
-  t
+  t,
+  onCancelAbsence,
+  cancellingAbsenceId,
+  accessToken
 }: Readonly<AbsenceHistoryCardProps>) {
+  const buildActions = (absence: AbsenceRow): ActionOption[] => [
+    {
+      category: t('action'),
+      key: `cancel-absence-${absence.id}`,
+      label: t('cancel-request'),
+      onClick: () => {
+        void onCancelAbsence(absence.employeeAbsence)
+      }
+    }
+  ]
+
   const renderCardContent = () => {
     if (isLoading) {
       return (
@@ -89,6 +109,7 @@ export function AbsenceHistoryCard({
                 <TableHead>{t('duration')}</TableHead>
                 <TableHead>{t('status')}</TableHead>
                 <TableHead>{t('description')}</TableHead>
+                <TableHead className="gba:w-12">{t('action')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -115,6 +136,20 @@ export function AbsenceHistoryCard({
                     <Badge variant={statusVariant(a.originalStatus)}>{a.status}</Badge>
                   </TableCell>
                   <TableCell className="gba:max-w-[200px] gba:truncate">{a.description || '—'}</TableCell>
+                  <TableCell>
+                    {a.originalStatus === 'PENDING' ? (
+                      <AppActionButton
+                        data-testid={`personal-absence-history-actions-${a.id}`}
+                        size="icon"
+                        staticFlowData={buildActions(a)}
+                        prefixDataTestId={`personal-absence-history-action-${a.id}`}
+                        accessToken={accessToken}
+                        emptyStateBehavior="enable"
+                        deferMainContextRequestsUntilClick
+                        disabled={cancellingAbsenceId === a.id}
+                      />
+                    ) : null}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

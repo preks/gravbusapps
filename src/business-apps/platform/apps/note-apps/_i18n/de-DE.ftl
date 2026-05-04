@@ -393,11 +393,21 @@ editor-share-tooltip = Teilen
 editor-pin-tooltip = Anheften
 editor-unpin-tooltip = Loslösen
 editor-locked = Gesperrt
+editor-locked-readonly = Diese Notiz ist gesperrt. Entsperren Sie sie, bevor Sie sie bearbeiten.
+editor-lock-owner-you = Ihnen
+editor-lock-owner-unknown = einem anderen Benutzer
+editor-lock-status-you = Von Ihnen gesperrt
+editor-lock-status-you-expiry = Von Ihnen gesperrt bis { $time }
+editor-lock-status-other = Von { $name } gesperrt
+editor-lock-status-other-expiry = Von { $name } gesperrt bis { $time }
 editor-note-menu = Notiz
 editor-version-history = Versionsverlauf
 editor-save-checkpoint = Checkpoint speichern
 editor-unlock-note = Notiz entsperren
+editor-owner-unlock-note = Als Eigentümer entsperren
 editor-lock-note = Notiz sperren
+editor-lock-failed = Notiz konnte nicht gesperrt werden
+editor-unlock-failed = Notiz konnte nicht entsperrt werden
 editor-publish = Veröffentlichen…
 editor-duplicate = Duplikat
 editor-export = Exportieren
@@ -487,7 +497,7 @@ translation-language-ko = Koreanisch
 translation-language-ar = Arabisch
 
 # Quick Access
-qa-all-notes = Alle Notizen
+qa-all-notes = Meine Notizen
 qa-favorites = Favoriten
 qa-pinned = Angeheftet
 qa-shared = Mit mir geteilt
@@ -509,6 +519,22 @@ trash-list-item-restored = Notiz wiederhergestellt
 trash-list-item-restore-failed = Notiz konnte nicht wiederhergestellt werden
 trash-list-item-deleted = Notiz dauerhaft gelöscht
 trash-list-item-delete-failed = Notiz konnte nicht dauerhaft gelöscht werden
+trash-bulk-selected = { $count } ausgewählt
+trash-bulk-restored = { $count } { $count ->
+    [one] Notiz
+   *[other] Notizen
+  } wiederhergestellt
+trash-bulk-deleted = { $count } { $count ->
+    [one] Notiz
+   *[other] Notizen
+  } endgültig gelöscht
+trash-delete-dialog-title-single = Endgültig löschen?
+trash-delete-dialog-title-multiple = { $count } Elemente endgültig löschen?
+trash-delete-dialog-description-single = „{ $name }" wird endgültig gelöscht und kann nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-description-multiple = { $count } Elemente werden endgültig gelöscht und können nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-cancel = Abbrechen
+trash-delete-dialog-confirm = Endgültig löschen
+trash-delete-dialog-deleting = Wird gelöscht...
 trashed-readonly-title = Diese Notiz befindet sich im Papierkorb
 trashed-readonly-description = „{ $title }“ befindet sich im Papierkorb und wird bis zur Wiederherstellung nur im Ansichtsmodus geöffnet.
 trashed-readonly-owner-note = Um diese Notiz wieder zu bearbeiten, holen Sie sie aus dem Papierkorb.

@@ -217,6 +217,23 @@ export interface RichTextRun {
 }
 
 export type RichParagraphBulletType = 'none' | 'bullet' | 'number'
+export type RichParagraphNumberingStyle =
+  | 'alphaLcParenBoth'
+  | 'alphaLcParenR'
+  | 'alphaLcPeriod'
+  | 'alphaUcParenBoth'
+  | 'alphaUcParenR'
+  | 'alphaUcPeriod'
+  | 'arabicParenBoth'
+  | 'arabicParenR'
+  | 'arabicPeriod'
+  | 'arabicPlain'
+  | 'romanLcParenBoth'
+  | 'romanLcParenR'
+  | 'romanLcPeriod'
+  | 'romanUcParenBoth'
+  | 'romanUcParenR'
+  | 'romanUcPeriod'
 
 export interface RichTextParagraph {
   runs: RichTextRun[]
@@ -224,6 +241,10 @@ export interface RichTextParagraph {
   indentLevel?: number
   bulletType?: RichParagraphBulletType
   bulletChar?: string
+  numberingStyle?: RichParagraphNumberingStyle
+  numberStartAt?: number
+  listLeftMargin?: number
+  listIndent?: number
   lineHeight?: number
   spaceBefore?: number
   spaceAfter?: number
@@ -232,6 +253,7 @@ export interface RichTextParagraph {
 export interface TextElement extends SlideElement {
   type: 'text'
   content: string
+  placeholderText?: string
   /**
    * Rich paragraph/run model populated by the PPTX importer and by the
    * editor when users apply per-run styling. Optional for backwards
@@ -941,6 +963,12 @@ export const createTextElement = (partial?: Partial<TextElement>): TextElement =
   ...partial
 })
 
+export function textElementHasVisibleContent(element: Pick<TextElement, 'content' | 'paragraphs'>): boolean {
+  if ((element.content || '').length > 0) return true
+
+  return Boolean(element.paragraphs?.some(paragraph => paragraph.runs.some(run => run.text.length > 0)))
+}
+
 /**
  * Compute inline styles to render a cropped image to look like PowerPoint
  * does: the visible region defined by <a:srcRect> fills the entire frame.
@@ -1427,7 +1455,7 @@ type StringSelectOption = {
   label: string
 }
 
-export const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 128]
+export const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96]
 
 export const CODE_LANGUAGES = [
   { value: 'javascript', label: 'JavaScript' },
@@ -1467,6 +1495,46 @@ export function getStringSelectOptions(
   return [{ value: trimmedValue, label: trimmedValue }, ...options]
 }
 
+function roundFontSizeForUi(value: number): number {
+  return Number(value.toFixed(2))
+}
+
+function isNearInteger(value: number, tolerance = 0.0001): boolean {
+  return Math.abs(value - Math.round(value)) <= tolerance
+}
+
+function snapLegacyPixelFontSizeToPreset(pointsValue: number, pixelValue: number): number {
+  if (!isNearInteger(pixelValue)) {
+    return pointsValue
+  }
+
+  const nearestPreset = FONT_SIZES.reduce((closest, candidate) => {
+    if (Math.abs(candidate - pointsValue) < Math.abs(closest - pointsValue)) {
+      return candidate
+    }
+
+    return closest
+  }, FONT_SIZES[0])
+
+  return Math.abs(nearestPreset - pointsValue) <= 0.26 ? nearestPreset : pointsValue
+}
+
+export function fontSizePixelsToPoints(fontSize?: number): number | undefined {
+  if (fontSize === undefined || fontSize === null || Number.isNaN(fontSize)) {
+    return undefined
+  }
+
+  return roundFontSizeForUi(snapLegacyPixelFontSizeToPreset(fontSize * 0.75, fontSize))
+}
+
+export function fontSizePointsToPixels(fontSize?: number): number | undefined {
+  if (fontSize === undefined || fontSize === null || Number.isNaN(fontSize)) {
+    return undefined
+  }
+
+  return Number((fontSize / 0.75).toFixed(4))
+}
+
 export function getNumericSelectOptions(options: readonly number[], activeValue?: number): number[] {
   if (activeValue === undefined || activeValue === null || Number.isNaN(activeValue)) {
     return [...options]
@@ -1482,7 +1550,7 @@ export function getFontFamilyOptions(activeFontFamily?: string): StringSelectOpt
 }
 
 export function getFontSizeOptions(activeFontSize?: number): number[] {
-  return getNumericSelectOptions(FONT_SIZES, activeFontSize)
+  return getNumericSelectOptions(FONT_SIZES, fontSizePixelsToPoints(activeFontSize))
 }
 
 export function getCodeLanguageOptions(activeLanguage?: string): StringSelectOption[] {

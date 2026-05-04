@@ -373,11 +373,21 @@ editor-share-tooltip = Share
 editor-pin-tooltip = Pin
 editor-unpin-tooltip = Unpin
 editor-locked = Locked
+editor-locked-readonly = This note is locked. Unlock it before editing.
+editor-lock-owner-you = you
+editor-lock-owner-unknown = another user
+editor-lock-status-you = Locked by you
+editor-lock-status-you-expiry = Locked by you until { $time }
+editor-lock-status-other = Locked by { $name }
+editor-lock-status-other-expiry = Locked by { $name } until { $time }
 editor-note-menu = Note
 editor-version-history = Version History
 editor-save-checkpoint = Save Checkpoint
 editor-unlock-note = Unlock Note
+editor-owner-unlock-note = Unlock as Owner
 editor-lock-note = Lock Note
+editor-lock-failed = Could not lock note
+editor-unlock-failed = Could not unlock note
 editor-publish = Publish...
 editor-duplicate = Duplicate
 editor-export = Export
@@ -467,7 +477,7 @@ translation-language-ko = Korean
 translation-language-ar = Arabic
 
 # Quick Access
-qa-all-notes = All Notes
+qa-all-notes = My Notes
 qa-favorites = Favorites
 qa-pinned = Pinned
 qa-shared = Shared with Me
@@ -489,6 +499,22 @@ trash-list-item-restored = Note restored
 trash-list-item-restore-failed = Failed to restore note
 trash-list-item-deleted = Note deleted permanently
 trash-list-item-delete-failed = Failed to delete note permanently
+trash-bulk-selected = { $count } selected
+trash-bulk-restored = { $count } { $count ->
+    [one] note
+   *[other] notes
+  } restored
+trash-bulk-deleted = { $count } { $count ->
+    [one] note
+   *[other] notes
+  } deleted permanently
+trash-delete-dialog-title-single = Delete permanently?
+trash-delete-dialog-title-multiple = Delete { $count } items permanently?
+trash-delete-dialog-description-single = "{ $name }" will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-description-multiple = { $count } items will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-cancel = Cancel
+trash-delete-dialog-confirm = Delete permanently
+trash-delete-dialog-deleting = Deleting...
 trashed-readonly-title = This note is in trash
 trashed-readonly-description = "{ $title }" is in trash and opens in view-only mode until it is restored.
 trashed-readonly-owner-note = To edit this note again, take it out of trash.

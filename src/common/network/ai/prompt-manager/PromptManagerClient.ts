@@ -1030,12 +1030,40 @@ export class PromptManagerClient extends RestClient {
     workspaceId?: string
     agentType?: string
     division?: string
+    search?: string
+    limit?: number
+    offset?: number
   }): Promise<AgentRegistryEntry[]> {
-    return this.get<AgentRegistryEntry[]>('/agents/registry', { params: params as Record<string, string> })
+    const raw = await this.get<{ data: AgentRegistryEntry[]; paging: Paging } | AgentRegistryEntry[]>(
+      '/agents/registry',
+      { params: params as Record<string, string> }
+    )
+    return Array.isArray(raw) ? raw : raw.data
   }
 
   async getAgentDetail(agentId: string): Promise<AgentRegistryEntry> {
     return this.get<AgentRegistryEntry>(`/agents/registry/${encodeURIComponent(agentId)}`)
+  }
+
+  async getBuiltinSubagents(): Promise<
+    Array<{ id: string; name: string; description: string; categories: string[]; source: string }>
+  > {
+    return this.get('/agents/builtins')
+  }
+
+  async getAgentSkills(agentId: string): Promise<{
+    agent_id: string
+    source: string
+    skills: Array<{ skill_id: string; name: string; description: string; status: string }>
+  }> {
+    return this.get(`/agents/registry/${encodeURIComponent(agentId)}/skills`)
+  }
+
+  async setAgentSkills(
+    agentId: string,
+    skillIds: string[]
+  ): Promise<{ agent_id: string; skill_ids: string[]; count: number }> {
+    return this.put(`/agents/registry/${encodeURIComponent(agentId)}/skills`, { skill_ids: skillIds })
   }
 
   async updateAgentCard(
