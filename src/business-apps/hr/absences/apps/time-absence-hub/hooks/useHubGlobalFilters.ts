@@ -44,10 +44,10 @@ const DEFAULT_FILTERS: HubGlobalFilters = {
 }
 
 const readSearchParams = (): URLSearchParams =>
-  typeof globalThis.location === 'undefined' ? new URLSearchParams() : new URLSearchParams(globalThis.location.search)
+  globalThis.location === undefined ? new URLSearchParams() : new URLSearchParams(globalThis.location.search)
 
 const writeUrl = (mutator: (params: URLSearchParams) => void): void => {
-  if (typeof globalThis.location === 'undefined' || typeof globalThis.history === 'undefined') {
+  if (globalThis.location === undefined || globalThis.history === undefined) {
     return
   }
   const url = new URL(globalThis.location.href)

@@ -249,14 +249,12 @@ const EntitlementsTableRow: React.FC<EntitlementsTableRowProps> = ({
         </div>
       </TableCell>
       <TableCell className="gba:px-1 gba:py-3 gba:text-right">
-        <div onClick={event => event.stopPropagation()}>
-          <ActionButton
-            actions={rowActions}
-            size="icon"
-            emptyStateBehavior="enable"
-            data-testid={`entitlements-actions-${row.id}`}
-          />
-        </div>
+        <ActionButton
+          actions={rowActions}
+          size="icon"
+          emptyStateBehavior="enable"
+          data-testid={`entitlements-actions-${row.id}`}
+        />
       </TableCell>
     </TableRow>
   )

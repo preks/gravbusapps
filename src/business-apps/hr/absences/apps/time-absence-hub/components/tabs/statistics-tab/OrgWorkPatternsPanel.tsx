@@ -5,7 +5,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface OrgWorkPatternsPanelProps {
   absences: any[]
-  accessToken?: string
 }
 
 const getMonthLabel = (index: number): string => {

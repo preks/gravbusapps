@@ -25,10 +25,10 @@ export interface UseTimeAbsenceHubNavigationReturn {
 }
 
 const readSearchParams = (): URLSearchParams =>
-  typeof globalThis.location === 'undefined' ? new URLSearchParams() : new URLSearchParams(globalThis.location.search)
+  globalThis.location === undefined ? new URLSearchParams() : new URLSearchParams(globalThis.location.search)
 
 const writeUrl = (mutator: (params: URLSearchParams) => void, replace: boolean): void => {
-  if (typeof globalThis.location === 'undefined' || typeof globalThis.history === 'undefined') {
+  if (globalThis.location === undefined || globalThis.history === undefined) {
     return
   }
   const url = new URL(globalThis.location.href)
@@ -148,9 +148,8 @@ export const useTimeAbsenceHubNavigation = (): UseTimeAbsenceHubNavigationReturn
 
   const handleTabChange = useCallback(
     (value: string) => {
-      const isHubLevel = isHubView(value)
-      if (isHubLevel) {
-        handleNavigateToView(value as HubView)
+      if (isHubView(value)) {
+        handleNavigateToView(value)
         return
       }
       setActiveTab(value)

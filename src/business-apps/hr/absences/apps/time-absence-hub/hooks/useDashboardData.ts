@@ -61,7 +61,7 @@ export const useDashboardData = ({
     try {
       setData(prev => ({ ...prev, isLoading: true, error: null }))
 
-      await catalogClient.setAccessToken(accessToken)
+      catalogClient.setAccessToken(accessToken)
       const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
 
       const absenceGroupsData = await catalogClient.getCatalogEntriesList(

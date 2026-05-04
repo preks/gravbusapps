@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Card } from '@newwork/nw-design-system'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
+import { PieChart, Pie, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
 import { ChartPieIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -17,12 +17,58 @@ const LegendMarker: React.FC<{ color: string }> = ({ color }) => (
   </svg>
 )
 
+interface StatusPieTooltipContentProps {
+  active?: boolean
+  payload?: Array<{ payload: any }>
+  totalAbsenceCount: number
+}
+
+const StatusPieTooltipContent: React.FC<StatusPieTooltipContentProps> = ({ active, payload, totalAbsenceCount }) => {
+  if (!active || !payload?.length) {
+    return null
+  }
+
+  const entry = payload[0].payload
+  const percent = totalAbsenceCount > 0 ? Math.round((entry.value / totalAbsenceCount) * 100) : 0
+
+  return (
+    <div className="gba:pointer-events-none gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow">
+      <p className="gba:font-medium">{entry.name}</p>
+      <p>
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.count', 'Count')}: {entry.value}{' '}
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.requests', 'requests')}
+      </p>
+      <p>
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'Days')}:{' '}
+        {entry.totalDays}{' '}
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total_days', 'total days')}
+      </p>
+      <p>
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.share', 'Share')}: {percent}%{' '}
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.of_total_requests',
+          'of total requests'
+        )}
+      </p>
+    </div>
+  )
+}
+
 export const StatusPieChart: React.FC<StatusPieChartProps> = ({
   data,
   totalAbsenceCount,
   statusColors,
   onPieClick
 }) => {
+  const pieData = useMemo(
+    () =>
+      data.map(entry => ({
+        ...entry,
+        fill: statusColors[entry.status] ?? 'var(--nw-muted-foreground)'
+      })),
+    [data, statusColors]
+  )
+
   return (
     <Card className="gba:hover:shadow-md gba:transition-shadow gba:p-4" data-testid="status-pie-chart-card">
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
@@ -46,7 +92,7 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={data}
+              data={pieData}
               dataKey="value"
               nameKey="name"
               cx="50%"
@@ -59,52 +105,9 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
               }}
               labelLine={false}
               onClick={onPieClick}
-            >
-              {data.map((entry, index) => (
-                <Cell
-                  key={entry.status ?? entry.name ?? index}
-                  fill={statusColors[entry.status] || 'var(--nw-muted-foreground)'}
-                />
-              ))}
-            </Pie>
+            />
             <RechartsTooltip
-              content={({ active, payload }) => {
-                if (active && payload && payload.length > 0) {
-                  const entry = payload[0].payload
-                  const percent = totalAbsenceCount > 0 ? Math.round((entry.value / totalAbsenceCount) * 100) : 0
-
-                  return (
-                    <div className="gba:pointer-events-none gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow">
-                      <p className="gba:font-medium">{entry.name}</p>
-                      <p>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.count', 'Count')}
-                        : {entry.value}{' '}
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_management_hub_backoffice.requests',
-                          'requests'
-                        )}
-                      </p>
-                      <p>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'Days')}:{' '}
-                        {entry.totalDays}{' '}
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_management_hub_backoffice.total_days',
-                          'total days'
-                        )}
-                      </p>
-                      <p>
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.share', 'Share')}
-                        : {percent}%{' '}
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_management_hub_backoffice.of_total_requests',
-                          'of total requests'
-                        )}
-                      </p>
-                    </div>
-                  )
-                }
-                return null
-              }}
+              content={<StatusPieTooltipContent totalAbsenceCount={totalAbsenceCount} />}
               wrapperStyle={{ pointerEvents: 'none' }}
             />
           </PieChart>
@@ -113,9 +116,9 @@ export const StatusPieChart: React.FC<StatusPieChartProps> = ({
 
       {/* Legend */}
       <div className="gba:flex gba:flex-wrap gba:gap-3 gba:mt-2 gba:justify-center">
-        {data.map(entry => {
+        {pieData.map(entry => {
           const percent = totalAbsenceCount > 0 ? Math.round((Number(entry.value) / totalAbsenceCount) * 100) : 0
-          const color = statusColors[entry.status] || 'var(--nw-muted-foreground)'
+          const color = entry.fill ?? 'var(--nw-muted-foreground)'
 
           return (
             <span key={entry.name} className="gba:flex gba:items-center gba:gap-2">

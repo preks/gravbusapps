@@ -9,7 +9,6 @@ interface DashboardViewProps extends BusinessAppContextProps {
   timeFilter?: TimeFilter
   timeScope?: TimeScope
   derivedDateRange?: { dateFrom: string; dateTo: string } | null
-  onTimeFilterChange?: (filter: TimeFilter) => void
   onMonthClick?: (month: string, year?: number) => void
   onNavigateToDetails?: (filters: AbsenceDetailsFilter) => void
   onNavigateToEntitlements?: () => void
@@ -23,7 +22,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   timeFilter,
   timeScope,
   derivedDateRange,
-  onTimeFilterChange,
   onMonthClick,
   onNavigateToDetails,
   onNavigateToEntitlements,
@@ -38,7 +36,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       timeFilter={timeFilter}
       timeScope={timeScope}
       derivedDateRange={derivedDateRange}
-      onTimeFilterChange={onTimeFilterChange}
       onNavigateToDetails={onNavigateToDetails}
       onNavigateToEntitlements={onNavigateToEntitlements}
       filterAction={filterAction}

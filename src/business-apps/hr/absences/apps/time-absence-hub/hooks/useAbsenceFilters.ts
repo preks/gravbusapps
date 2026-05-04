@@ -42,24 +42,186 @@ export interface UseAbsenceFiltersReturn {
   getFilterGroups: () => any[]
 }
 
+interface ParsedSelectedFilters {
+  statusFilters: string[]
+  groupFilters: string[]
+  departmentFilters: string[]
+  employeeFilters: string[]
+}
+
+const buildInitialSelectedFilters = (
+  initialFilters: UseAbsenceFiltersProps['initialFilters'] | undefined
+): string[] => {
+  const seeds: string[] = []
+
+  if (initialFilters?.status) {
+    seeds.push(`status-${String(initialFilters.status).toUpperCase()}`)
+  }
+  if (initialFilters?.departmentId) {
+    seeds.push(`department-${initialFilters.departmentId}`)
+  }
+  if (initialFilters?.department === 'NO_DEPARTMENT_SPECIAL') {
+    seeds.push('department-no-department')
+  }
+
+  return seeds
+}
+
+const parseDateString = (dateValue: string): { year: number; month: number; day: number } | null => {
+  const [yearRaw, monthRaw, dayRaw] = String(dateValue)
+    .split('-')
+    .map(part => Number.parseInt(part, 10))
+
+  if (Number.isNaN(yearRaw)) {
+    return null
+  }
+
+  return {
+    year: yearRaw,
+    month: monthRaw || 1,
+    day: dayRaw || 1
+  }
+}
+
+const toUtcBoundaryIso = (dateValue: string, endOfDay: boolean): string | null => {
+  const parsed = parseDateString(dateValue)
+  if (!parsed) {
+    return null
+  }
+
+  const hours = endOfDay ? 23 : 0
+  const minutes = endOfDay ? 59 : 0
+  const seconds = endOfDay ? 59 : 0
+  const millis = endOfDay ? 999 : 0
+
+  return new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day, hours, minutes, seconds, millis)).toISOString()
+}
+
+const parseSelectedFilters = (selectedFilters: string[]): ParsedSelectedFilters => {
+  const statusFilters = selectedFilters
+    .filter(filter => filter.startsWith('status-'))
+    .map(filter => filter.replace('status-', ''))
+    .map(value => String(value).toUpperCase())
+  const groupFilters = selectedFilters
+    .filter(filter => filter.startsWith('group-'))
+    .map(filter => filter.replace('group-', ''))
+  const departmentFilters = selectedFilters
+    .filter(filter => filter.startsWith('department-'))
+    .map(filter => filter.replace('department-', ''))
+  const employeeFilters = selectedFilters.filter(
+    filter => !filter.startsWith('status-') && !filter.startsWith('group-') && !filter.startsWith('department-')
+  )
+
+  return { statusFilters, groupFilters, departmentFilters, employeeFilters }
+}
+
+const setEmployeeCondition = (conditions: any, employeeCondition: any): void => {
+  conditions.employee = conditions.employee ? { ...conditions.employee, ...employeeCondition } : employeeCondition
+}
+
+const applySearchConditions = (conditions: any, search: string): void => {
+  const trimmedSearch = search.trim()
+  if (!trimmedSearch) {
+    return
+  }
+
+  conditions._or = [
+    { employee: { firstName: { _ilike: `%${trimmedSearch}%` } } },
+    { employee: { lastName: { _ilike: `%${trimmedSearch}%` } } },
+    { type: { value: { _ilike: `%${trimmedSearch}%` } } },
+    { employee: { employeePosition: { organizationalUnit: { name: { _ilike: `%${trimmedSearch}%` } } } } },
+    { status: { _ilike: `%${trimmedSearch}%` } }
+  ]
+}
+
+const applyStatusFilter = (conditions: any, statusFilters: string[]): void => {
+  if (statusFilters.length > 0) {
+    conditions.status = { _in: statusFilters }
+  }
+}
+
+const applyGroupFilter = (conditions: any, groupFilters: string[]): void => {
+  if (groupFilters.length > 0) {
+    conditions.type = { ...conditions.type, parentEntryId: { _in: groupFilters } }
+  }
+}
+
+const applyDepartmentFilter = (conditions: any, departmentFilters: string[]): void => {
+  if (departmentFilters.length === 0) {
+    return
+  }
+
+  const hasNoDepartmentFilter = departmentFilters.includes('no-department')
+  const regularDepartmentIds = departmentFilters.filter(filter => filter !== 'no-department')
+  let departmentCondition: any
+
+  if (hasNoDepartmentFilter && regularDepartmentIds.length > 0) {
+    departmentCondition = {
+      _or: [{ organizationalUnit: { id: { _in: regularDepartmentIds } } }, { organizationalUnit: { _isNull: true } }]
+    }
+  } else if (hasNoDepartmentFilter) {
+    departmentCondition = { organizationalUnit: { _isNull: true } }
+  } else if (regularDepartmentIds.length > 0) {
+    departmentCondition = { organizationalUnit: { id: { _in: regularDepartmentIds } } }
+  }
+
+  if (departmentCondition) {
+    setEmployeeCondition(conditions, { employeePosition: departmentCondition })
+  }
+}
+
+const applyEmployeeFilter = (conditions: any, employeeFilters: string[]): void => {
+  const employeeIds = employeeFilters.filter(filter => filter.trim() !== '')
+  if (employeeIds.length > 0) {
+    setEmployeeCondition(conditions, { id: { _in: employeeIds } })
+  }
+}
+
+const applyAbsenceDateRangeFilter = (conditions: any, startDate?: string, endDate?: string): void => {
+  const startDateTime = startDate ? toUtcBoundaryIso(startDate, false) : null
+  const endDateTime = endDate ? toUtcBoundaryIso(endDate, true) : null
+
+  if (startDateTime && endDateTime) {
+    conditions.startDate = { _lte: endDateTime }
+    conditions.endDate = { _gte: startDateTime }
+    return
+  }
+
+  if (startDateTime) {
+    conditions.endDate = { _gte: startDateTime }
+    return
+  }
+
+  if (endDateTime) {
+    conditions.startDate = { _lte: endDateTime }
+  }
+}
+
+const applyCreationDateRangeFilter = (conditions: any, startDate?: string, endDate?: string): void => {
+  const startDateTime = startDate ? toUtcBoundaryIso(startDate, false) : null
+  const endDateTime = endDate ? toUtcBoundaryIso(endDate, true) : null
+
+  if (startDateTime && endDateTime) {
+    conditions.createdAt = { _gte: startDateTime, _lte: endDateTime }
+    return
+  }
+
+  if (startDateTime) {
+    conditions.createdAt = { _gte: startDateTime }
+    return
+  }
+
+  if (endDateTime) {
+    conditions.createdAt = { _lte: endDateTime }
+  }
+}
+
 export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFiltersProps): UseAbsenceFiltersReturn => {
   const graphQLClient = useGraphQLClient(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)
 
   const [search, setSearch] = useState('')
-  const [selectedFilters, setSelectedFilters] = useState<string[]>(() => {
-    const seeds: string[] = []
-    if (initialFilters?.status) {
-      seeds.push(`status-${String(initialFilters.status).toUpperCase()}`)
-    }
-    if (initialFilters?.departmentId) {
-      seeds.push(`department-${initialFilters.departmentId}`)
-    }
-    if (initialFilters?.department === 'NO_DEPARTMENT_SPECIAL') {
-      seeds.push('department-no-department')
-    }
-    return seeds
-  })
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(() => buildInitialSelectedFilters(initialFilters))
 
   const [startDate, setStartDate] = useState<string | undefined>(initialFilters?.startDate)
   const [endDate, setEndDate] = useState<string | undefined>(initialFilters?.endDate)
@@ -153,127 +315,15 @@ export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFil
       isDeleted: { _eq: false }
     }
 
-    if (search && search.trim()) {
-      conditions._or = [
-        { employee: { firstName: { _ilike: `%${search.trim()}%` } } },
-        { employee: { lastName: { _ilike: `%${search.trim()}%` } } },
-        { type: { value: { _ilike: `%${search.trim()}%` } } },
-        { employee: { employeePosition: { organizationalUnit: { name: { _ilike: `%${search.trim()}%` } } } } },
-        { status: { _ilike: `%${search.trim()}%` } }
-      ]
-    }
+    const parsedFilters = parseSelectedFilters(selectedFilters)
 
-    const statusFilters = selectedFilters
-      .filter(f => f.startsWith('status-'))
-      .map(f => f.replace('status-', ''))
-      .map(s => String(s).toUpperCase())
-    const groupFilters = selectedFilters.filter(f => f.startsWith('group-')).map(f => f.replace('group-', ''))
-    const departmentFilters = selectedFilters
-      .filter(f => f.startsWith('department-'))
-      .map(f => f.replace('department-', ''))
-    const employeeFilters = selectedFilters.filter(
-      f => !f.startsWith('status-') && !f.startsWith('group-') && !f.startsWith('department-')
-    )
-
-    if (statusFilters.length > 0) {
-      conditions.status = { _in: statusFilters }
-    }
-
-    if (groupFilters.length > 0) {
-      conditions.type = { ...conditions.type, parentEntryId: { _in: groupFilters } }
-    }
-
-    if (departmentFilters.length > 0) {
-      const hasNoDepartmentFilter = departmentFilters.includes('no-department')
-      const regularDepartmentIds = departmentFilters.filter(f => f !== 'no-department')
-
-      let departmentCondition: any = undefined
-
-      if (hasNoDepartmentFilter && regularDepartmentIds.length > 0) {
-        departmentCondition = {
-          _or: [
-            { organizationalUnit: { id: { _in: regularDepartmentIds } } },
-            { organizationalUnit: { _isNull: true } }
-          ]
-        }
-      } else if (hasNoDepartmentFilter) {
-        departmentCondition = { organizationalUnit: { _isNull: true } }
-      } else if (regularDepartmentIds.length > 0) {
-        departmentCondition = { organizationalUnit: { id: { _in: regularDepartmentIds } } }
-      }
-
-      if (departmentCondition) {
-        if (conditions.employee) {
-          conditions.employee = { ...conditions.employee, employeePosition: departmentCondition }
-        } else {
-          conditions.employee = { employeePosition: departmentCondition }
-        }
-      }
-    }
-
-    if (employeeFilters.length > 0) {
-      const employeeIds = employeeFilters.filter(filter => filter && filter.trim() !== '')
-      if (employeeIds.length > 0) {
-        if (conditions.employee) {
-          conditions.employee = { ...conditions.employee, id: { _in: employeeIds } }
-        } else {
-          conditions.employee = { id: { _in: employeeIds } }
-        }
-      }
-    }
-
-    if (startDate || endDate) {
-      if (startDate && endDate) {
-        const [sY, sM, sD] = String(startDate)
-          .split('-')
-          .map(n => parseInt(n, 10))
-        const [eY, eM, eD] = String(endDate)
-          .split('-')
-          .map(n => parseInt(n, 10))
-        const startDateTime = new Date(Date.UTC(sY, (sM || 1) - 1, sD || 1, 0, 0, 0, 0)).toISOString()
-        const endDateTime = new Date(Date.UTC(eY, (eM || 1) - 1, eD || 1, 23, 59, 59, 999)).toISOString()
-        conditions.startDate = { _lte: endDateTime }
-        conditions.endDate = { _gte: startDateTime }
-      } else if (startDate) {
-        const [sY, sM, sD] = String(startDate)
-          .split('-')
-          .map(n => parseInt(n, 10))
-        const startDateTime = new Date(Date.UTC(sY, (sM || 1) - 1, sD || 1, 0, 0, 0, 0)).toISOString()
-        conditions.endDate = { _gte: startDateTime }
-      } else if (endDate) {
-        const [eY, eM, eD] = String(endDate)
-          .split('-')
-          .map(n => parseInt(n, 10))
-        const endDateTime = new Date(Date.UTC(eY, (eM || 1) - 1, eD || 1, 23, 59, 59, 999)).toISOString()
-        conditions.startDate = { _lte: endDateTime }
-      }
-    }
-
-    if (creationStartDate || creationEndDate) {
-      if (creationStartDate && creationEndDate) {
-        const [sY, sM, sD] = String(creationStartDate)
-          .split('-')
-          .map(n => parseInt(n, 10))
-        const [eY, eM, eD] = String(creationEndDate)
-          .split('-')
-          .map(n => parseInt(n, 10))
-        const startDateTime = new Date(Date.UTC(sY, (sM || 1) - 1, sD || 1, 0, 0, 0, 0)).toISOString()
-        const endDateTime = new Date(Date.UTC(eY, (eM || 1) - 1, eD || 1, 23, 59, 59, 999)).toISOString()
-        conditions.createdAt = { _gte: startDateTime, _lte: endDateTime }
-      } else if (creationStartDate) {
-        const [sY, sM, sD] = String(creationStartDate)
-          .split('-')
-          .map(n => parseInt(n, 10))
-        const startDateTime = new Date(Date.UTC(sY, (sM || 1) - 1, sD || 1, 0, 0, 0, 0)).toISOString()
-        conditions.createdAt = { _gte: startDateTime }
-      } else if (creationEndDate) {
-        const [eY, eM, eD] = String(creationEndDate)
-          .split('-')
-          .map(n => parseInt(n, 10))
-        const endDateTime = new Date(Date.UTC(eY, (eM || 1) - 1, eD || 1, 23, 59, 59, 999)).toISOString()
-        conditions.createdAt = { _lte: endDateTime }
-      }
-    }
+    applySearchConditions(conditions, search)
+    applyStatusFilter(conditions, parsedFilters.statusFilters)
+    applyGroupFilter(conditions, parsedFilters.groupFilters)
+    applyDepartmentFilter(conditions, parsedFilters.departmentFilters)
+    applyEmployeeFilter(conditions, parsedFilters.employeeFilters)
+    applyAbsenceDateRangeFilter(conditions, startDate, endDate)
+    applyCreationDateRangeFilter(conditions, creationStartDate, creationEndDate)
 
     return conditions
   }, [search, selectedFilters, startDate, endDate, creationStartDate, creationEndDate])
@@ -336,7 +386,8 @@ export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFil
         }
       }
 
-      const filtered = organizationalUnits.filter(unit => unit.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      const normalizedSearchTerm = searchTerm.toLowerCase()
+      const filtered = organizationalUnits.filter(unit => unit.name?.toLowerCase().includes(normalizedSearchTerm))
 
       const filters = filtered.slice(0, 19).map(unit => ({
         id: `department-${unit.id}`,

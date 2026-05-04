@@ -7,7 +7,7 @@
  * employee population first, then batch attendance reads in chunks of 200 IDs
  * using the same `GET_TEAM_ATTENDANCE_FOR_RANGE` shape used by my-team-time.
  *
- * TODO(B1-followup): replace batched ID query with backend-supported org-wide
+ * Follow-up: replace batched ID query with backend-supported org-wide
  * read once HR admin Hasura role exists.
  */
 

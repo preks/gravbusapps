@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
-import { TabComponentProps } from '../../../types'
-import { DashboardData } from '../../../types'
+import { TabComponentProps, DashboardData } from '../../../types'
 
 import PersonalKeyInsightsSection from '../../../../personal-absences/components/KeyInsightsSection'
 import type { AbsenceListCardAbsence } from '../../../../personal-absences/types/absenceTypes'
@@ -92,7 +91,7 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
       </div>
       {/* Work Patterns and Monthly Patterns side by side (custom panel) */}
       <div className="gba:statisticsSection" data-testid="backoffice-statistics-workpatterns-grid">
-        <OrgWorkPatternsPanel absences={absences} accessToken={undefined} />
+        <OrgWorkPatternsPanel absences={absences} />
       </div>
       {/* Year comparison + Leave Type Distribution side by side */}
       <div
@@ -100,7 +99,7 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
         data-testid="backoffice-statistics-yoy-and-leave-grid"
       >
         <div className="gba:statisticsSection" data-testid="backoffice-statistics-year-comparison">
-          <OrgYearComparisonCard absences={absences} accessToken={undefined} />
+          <OrgYearComparisonCard absences={absences} />
         </div>
         <div className="gba:statisticsSection" data-testid="backoffice-statistics-leave-type-distribution">
           <Card>

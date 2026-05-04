@@ -12,7 +12,7 @@ const toStartIso = (date: string): string => `${date}T00:00:00.000Z`
 const toEndIso = (date: string): string => `${date}T23:59:59.999Z`
 
 const getResolvedDateFilters = (timeFilter: string, dateRange?: DashboardDateRange) => {
-  if (dateRange?.dateFrom && dateRange.dateTo) {
+  if (dateRange?.dateFrom && dateRange?.dateTo) {
     return {
       startDate: toStartIso(dateRange.dateFrom),
       endDate: toEndIso(dateRange.dateTo)
@@ -204,7 +204,7 @@ export const getVacationEntitlementsAggregationsQuery = (
     }`
   }
 
-  if (dateFilters && dateFilters.startDate && dateFilters.endDate) {
+  if (dateFilters?.startDate && dateFilters?.endDate) {
     if (vacationGroupId) {
       entitlementWhere = `{
         _and: [

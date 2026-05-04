@@ -15,10 +15,67 @@ const colorPalette = {
   totalLine: 'var(--nw-foreground)'
 }
 
+const YEAR_IN_MONTH_LABEL_REGEX = /(\w+)\s+(\d{4})/
+const MONTH_NAME_MAP: Record<string, string> = {
+  Jan: 'January',
+  Feb: 'February',
+  Mar: 'March',
+  Apr: 'April',
+  May: 'May',
+  Jun: 'June',
+  Jul: 'July',
+  Aug: 'August',
+  Sep: 'September',
+  Oct: 'October',
+  Nov: 'November',
+  Dec: 'December'
+}
+
 const LegendMarker: React.FC<{ color: string }> = ({ color }) => (
   <svg width="12" height="12" viewBox="0 0 12 12" className="gba:flex-shrink-0" aria-hidden="true">
     <circle cx="6" cy="6" r="6" fill={color} />
   </svg>
+)
+
+const parseMonthClickLabel = (monthLabel: string): { fullMonth: string; yearPart: number } => {
+  let monthPart = monthLabel
+  let yearPart = new Date().getFullYear()
+  const yearMatch = YEAR_IN_MONTH_LABEL_REGEX.exec(monthLabel)
+
+  if (yearMatch) {
+    monthPart = yearMatch[1]
+    yearPart = Number.parseInt(yearMatch[2], 10)
+  }
+
+  return {
+    fullMonth: MONTH_NAME_MAP[monthPart] ?? monthPart,
+    yearPart
+  }
+}
+
+interface AbsenceTrendsLegendContentProps {
+  absenceTypes: string[]
+  getTypeColor: (type: string) => string
+}
+
+const AbsenceTrendsLegendContent: React.FC<AbsenceTrendsLegendContentProps> = ({ absenceTypes, getTypeColor }) => (
+  <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-4 gba:mt-4">
+    {absenceTypes.map(type => (
+      <div key={type} className="gba:flex gba:items-center gba:gap-2">
+        <LegendMarker color={getTypeColor(type)} />
+        <span className="gba:text-sm">{type}</span>
+      </div>
+    ))}
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <LegendMarker color={colorPalette.totalLine} />
+      <span className="gba:text-sm">
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.trend_line_avg_requests',
+          'Trend Line (avg requests per employee)'
+        )}
+      </span>
+    </div>
+  </div>
 )
 
 const getMonthTranslation = (monthName: string): string => {
@@ -348,36 +405,13 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
               data={chartData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
               onClick={data => {
-                if (data && data.activeLabel && onMonthClick) {
-                  const monthLabel = data.activeLabel as string
-
-                  let monthPart = monthLabel
-                  let yearPart = new Date().getFullYear()
-
-                  const yearMatch = monthLabel.match(/(\w+)\s+(\d{4})/)
-                  if (yearMatch) {
-                    monthPart = yearMatch[1]
-                    yearPart = parseInt(yearMatch[2])
-                  }
-
-                  const monthMap: Record<string, string> = {
-                    Jan: 'January',
-                    Feb: 'February',
-                    Mar: 'March',
-                    Apr: 'April',
-                    May: 'May',
-                    Jun: 'June',
-                    Jul: 'July',
-                    Aug: 'August',
-                    Sep: 'September',
-                    Oct: 'October',
-                    Nov: 'November',
-                    Dec: 'December'
-                  }
-
-                  const fullMonth = monthMap[monthPart] || monthPart
-                  onMonthClick(fullMonth, yearPart)
+                const monthLabel = typeof data?.activeLabel === 'string' ? data.activeLabel : null
+                if (!monthLabel || !onMonthClick) {
+                  return
                 }
+
+                const parsedLabel = parseMonthClickLabel(monthLabel)
+                onMonthClick(parsedLabel.fullMonth, parsedLabel.yearPart)
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
@@ -394,27 +428,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
                 }
               />
               <Legend
-                content={() => {
-                  return (
-                    <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-4 gba:mt-4">
-                      {absenceTypes.map(type => (
-                        <div key={type} className="gba:flex gba:items-center gba:gap-2">
-                          <LegendMarker color={getTypeColor(type)} />
-                          <span className="gba:text-sm">{type}</span>
-                        </div>
-                      ))}
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <LegendMarker color={colorPalette.totalLine} />
-                        <span className="gba:text-sm">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:absence_management_hub_backoffice.trend_line_avg_requests',
-                            'Trend Line (avg requests per employee)'
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  )
-                }}
+                content={<AbsenceTrendsLegendContent absenceTypes={absenceTypes} getTypeColor={getTypeColor} />}
               />
 
               {absenceTypes.map((type: string) => (

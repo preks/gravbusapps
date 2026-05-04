@@ -7,6 +7,8 @@ import {
 } from '../queries/absenceQueries'
 import { EnhancedAbsence } from '../types'
 
+type SortOrder = 'ASC' | 'DESC' | ''
+
 // Extracted helper to module scope to avoid recreation on each render
 const extractColorFromObjectValue = (objectValue: any): string => {
   if (!objectValue || typeof objectValue !== 'object') {
@@ -59,13 +61,71 @@ export interface UseAbsenceDataReturn {
   setPageSize: (size: number) => void
 
   sortField: string
-  sortOrder: 'ASC' | 'DESC' | ''
+  sortOrder: SortOrder
   setSortField: (field: string) => void
-  setSortOrder: (order: 'ASC' | 'DESC' | '') => void
+  setSortOrder: (order: SortOrder) => void
 
   fetchAbsences: () => Promise<void>
   handlePaginationChange: (page: number, newPageSize?: number) => void
   handleSort: (field: string) => void
+}
+
+const buildOrderBy = (sortField: string, sortOrder: SortOrder): any[] => {
+  if (!sortField || !sortOrder) {
+    return [{ createdAt: 'DESC' }]
+  }
+
+  const graphqlSortOrder = sortOrder.toUpperCase()
+
+  if (sortField === 'employeeName') {
+    return [{ employee: { firstName: graphqlSortOrder } }, { employee: { lastName: graphqlSortOrder } }]
+  }
+
+  if (sortField === 'groupName') {
+    return [{ type: { value: graphqlSortOrder } }]
+  }
+
+  return [{ [sortField]: graphqlSortOrder }]
+}
+
+const resolveGroupName = (
+  groups: Record<string, string> | undefined,
+  parentEntryId: string | undefined,
+  fallback: string
+): string => {
+  if (!parentEntryId) {
+    return fallback
+  }
+
+  return groups?.[parentEntryId] ?? fallback
+}
+
+const mapEnhancedAbsence = (absence: any, filters: UseAbsenceDataProps['filters']): EnhancedAbsence => {
+  const employee = absence.employee || {}
+  const employeeName =
+    employee.firstName || employee.lastName
+      ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee'
+      : 'Unknown Employee'
+  const parentEntryId = absence.type?.parentEntryId
+
+  return {
+    ...absence,
+    employee: {
+      id: employee.id || '',
+      firstName: employee.firstName || '',
+      lastName: employee.lastName || '',
+      employeePosition: employee.employeePosition || null
+    },
+    employeeName,
+    groupName: resolveGroupName(filters.absenceGroups, parentEntryId, 'Unknown Group'),
+    originalGroupName: resolveGroupName(
+      filters.originalAbsenceGroups,
+      parentEntryId,
+      absence.type?.value || 'Unknown Group'
+    ),
+    typeName: absence.type?.value || 'Unknown Type',
+    color: extractColorFromObjectValue(absence.type?.parentEntry?.objectValue)
+  }
 }
 
 export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenceDataProps): UseAbsenceDataReturn => {
@@ -80,7 +140,7 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
   const [pageSize, setPageSize] = useState(20)
 
   const [sortField, setSortField] = useState('')
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('DESC')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('DESC')
 
   const initialLoadDone = useRef(false)
 
@@ -107,63 +167,20 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
 
       const currentFilters = filtersRef.current
       const conditions: any = currentFilters.buildWhereConditions()
-
-      const orderBy: any[] = []
-      if (sortField && sortOrder) {
-        const graphqlSortOrder = sortOrder.toUpperCase()
-        if (sortField === 'employeeName') {
-          orderBy.push({ employee: { firstName: graphqlSortOrder } })
-          orderBy.push({ employee: { lastName: graphqlSortOrder } })
-        } else if (sortField === 'groupName') {
-          orderBy.push({ type: { value: graphqlSortOrder } })
-        } else {
-          orderBy.push({ [sortField]: graphqlSortOrder })
-        }
-      } else {
-        orderBy.push({ createdAt: 'DESC' })
-      }
+      const orderBy = buildOrderBy(sortField, sortOrder)
 
       const variables: GetEmployeeAbsencesVariables = {
         where: conditions,
         offset: (currentPage - 1) * pageSize,
         limit: pageSize,
-        orderBy: orderBy
+        orderBy
       }
 
       const result = await graphQLClient.request<GetEmployeeAbsencesResponse>(GET_EMPLOYEE_ABSENCES, variables)
 
-      const enhancedAbsences: EnhancedAbsence[] = result.EmployeeAbsence.map((absence: any) => {
-        const employee = absence.employee || {}
-        const employeeName =
-          employee.firstName || employee.lastName
-            ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee'
-            : 'Unknown Employee'
-
-        return {
-          ...absence,
-          employee: {
-            id: employee.id || '',
-            firstName: employee.firstName || '',
-            lastName: employee.lastName || '',
-            employeePosition: employee.employeePosition || null
-          },
-          employeeName,
-          groupName:
-            absence.type?.parentEntryId &&
-            currentFilters.absenceGroups &&
-            currentFilters.absenceGroups[absence.type.parentEntryId]
-              ? currentFilters.absenceGroups[absence.type.parentEntryId]
-              : 'Unknown Group',
-          originalGroupName:
-            absence.type?.parentEntryId &&
-            currentFilters.originalAbsenceGroups &&
-            currentFilters.originalAbsenceGroups[absence.type.parentEntryId]
-              ? currentFilters.originalAbsenceGroups[absence.type.parentEntryId]
-              : absence.type?.value || 'Unknown Group',
-          typeName: absence.type?.value || 'Unknown Type',
-          color: extractColorFromObjectValue(absence.type?.parentEntry?.objectValue)
-        }
-      })
+      const enhancedAbsences: EnhancedAbsence[] = result.EmployeeAbsence.map((absence: any) =>
+        mapEnhancedAbsence(absence, currentFilters)
+      )
 
       setAbsences(enhancedAbsences)
       setTotal(result.EmployeeAbsenceAggregate.aggregate.count)

@@ -37,7 +37,6 @@ const renderHubView = (
           timeFilter={globalFilters.legacyTimeFilter}
           timeScope={globalFilters.filters.timeScope}
           derivedDateRange={globalFilters.derivedDateRange}
-          onTimeFilterChange={filter => globalFilters.setTimeScope(filter)}
           onMonthClick={navigation.handleNavigateToAbsenceDetails}
           onNavigateToDetails={navigation.handleNavigateToAbsenceDetailsWithFilters}
           onNavigateToEntitlements={navigation.handleNavigateToEntitlementsDetails}
@@ -59,8 +58,6 @@ const renderHubView = (
       return (
         <AttendanceView
           {...baseProps}
-          activeSubTab={navigation.activeTab}
-          onSubTabChange={navigation.setActiveTab}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
           filterAction={filterAction}
@@ -72,7 +69,6 @@ const renderHubView = (
           {...baseProps}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
-          onNavigateToEntitlementsDetails={navigation.handleNavigateToEntitlementsDetails}
           filterAction={filterAction}
         />
       )

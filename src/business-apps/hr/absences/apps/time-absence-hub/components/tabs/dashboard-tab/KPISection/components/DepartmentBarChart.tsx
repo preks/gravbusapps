@@ -9,6 +9,57 @@ interface DepartmentBarChartProps {
   onBarClick: (data: any) => void
 }
 
+interface DepartmentTooltipContentProps {
+  active?: boolean
+  payload?: Array<{ payload: any }>
+}
+
+const DepartmentTooltipContent: React.FC<DepartmentTooltipContentProps> = ({ active, payload }) => {
+  if (!active || !payload?.length) {
+    return null
+  }
+
+  const data = payload[0].payload
+
+  return (
+    <div className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-48 gba:select-none">
+      <p className="gba:font-medium gba:mb-2">{data.fullName}</p>
+      <div className="gba:space-y-1 gba:text-sm">
+        <p className="gba:text-info">
+          {data.absences}{' '}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.total_absence_days',
+            'total absence days'
+          )}
+        </p>
+        <p className="gba:text-info">
+          {data.uniqueEmployees}{' '}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.employees', 'employees')}
+        </p>
+        <p className="gba:text-success">
+          {data.avgDaysPerEmployee}{' '}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.avg_days_per_employee',
+            'avg days/employee'
+          )}
+        </p>
+        <p className="gba:text-warning">
+          {data.avgRequestsPerEmployee}{' '}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.avg_requests_per_employee',
+            'avg requests/employee'
+          )}
+        </p>
+        <p className="gba:text-muted-foreground gba:text-xs gba:mt-2">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total', 'Total')}:{' '}
+          {data.totalRequests}{' '}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.requests', 'requests')}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, onBarClick }) => {
   return (
     <Card className="gba:hover:shadow-md gba:transition-shadow gba:p-4" data-testid="department-chart-card">
@@ -35,88 +86,14 @@ export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({ data, on
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="department" angle={-45} textAnchor="end" height={80} fontSize={12} />
             <YAxis fontSize={12} />
-            <RechartsTooltip
-              content={({ active, payload }) => {
-                if (active && payload && payload.length > 0) {
-                  const data = payload[0].payload
-                  return (
-                    <div
-                      className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow gba:min-w-48 gba:cursor-pointer gba:hover:shadow-lg gba:transition-shadow gba:select-none"
-                      onClick={() => onBarClick(data)}
-                      onMouseDown={() => onBarClick(data)}
-                      title={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:absence_management_hub_backoffice.click_to_view_department_details',
-                        'Click to view department details'
-                      )}
-                    >
-                      <p className="gba:font-medium gba:mb-2">{data.fullName}</p>
-                      <div className="gba:space-y-1 gba:text-sm">
-                        <p className="gba:text-info">
-                          {data.absences}{' '}
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:absence_management_hub_backoffice.total_absence_days',
-                            'total absence days'
-                          )}
-                        </p>
-                        <p className="gba:text-info">
-                          {data.uniqueEmployees}{' '}
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:absence_management_hub_backoffice.employees',
-                            'employees'
-                          )}
-                        </p>
-                        <p className="gba:text-success">
-                          {data.avgDaysPerEmployee}{' '}
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:absence_management_hub_backoffice.avg_days_per_employee',
-                            'avg days/employee'
-                          )}
-                        </p>
-                        <p className="gba:text-warning">
-                          {data.avgRequestsPerEmployee}{' '}
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:absence_management_hub_backoffice.avg_requests_per_employee',
-                            'avg requests/employee'
-                          )}
-                        </p>
-                        <p className="gba:text-muted-foreground gba:text-xs gba:mt-2">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:absence_management_hub_backoffice.total',
-                            'Total'
-                          )}
-                          : {data.totalRequests}{' '}
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:absence_management_hub_backoffice.requests',
-                            'requests'
-                          )}
-                        </p>
-                      </div>
-                      <div className="gba:text-xs gba:text-info gba:mt-3 gba:pt-2 gba:border-t gba:text-center">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_management_hub_backoffice.click_to_view_department_details',
-                          'Click to view department details'
-                        )}
-                      </div>
-                    </div>
-                  )
-                }
-                return null
-              }}
-            />
+            <RechartsTooltip content={<DepartmentTooltipContent />} />
 
-            <Bar
-              dataKey="absences"
-              fill="transparent"
-              onClick={data => onBarClick(data)}
-              onMouseDown={data => onBarClick(data)}
-              barSize={40}
-            />
+            <Bar dataKey="absences" fill="transparent" onClick={data => onBarClick(data)} barSize={40} />
 
             <Bar
               dataKey="absences"
               fill="var(--nw-chart-3)"
               onClick={data => onBarClick(data)}
-              onMouseDown={data => onBarClick(data)}
               radius={[2, 2, 0, 0]}
               barSize={24}
             />

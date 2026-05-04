@@ -25,88 +25,102 @@ interface GraphQLRequester {
   request: (query: string, variables?: Record<string, any>) => Promise<any>
 }
 
-export const getOverlapStatusBreakdown = async (
-  client: GraphQLRequester,
-  params: OverlapStatusInput
-): Promise<OverlapStatusResult> => {
-  const { startIso, endIso, departmentId, departmentName, status, departmentIds, includeNoDepartment, employeeIds } =
-    params
+type SupportedStatus = keyof OverlapStatusResult
 
-  const baseAnd: any[] = [
+const IMPOSSIBLE_CLAUSE = { _and: [{ id: { _isNull: true } }, { id: { _isNull: false } }] }
+
+const STATUS_QUERY = `
+  query StatusBreakdown(
+    $whereApproved: EmployeeAbsenceBoolExp!,
+    $wherePending: EmployeeAbsenceBoolExp!,
+    $whereRejected: EmployeeAbsenceBoolExp!,
+    $whereCancelled: EmployeeAbsenceBoolExp!
+  ) {
+    approved: EmployeeAbsenceAggregate(where: $whereApproved) { aggregate { count sum { effectiveDays } } }
+    pending: EmployeeAbsenceAggregate(where: $wherePending) { aggregate { count sum { effectiveDays } } }
+    rejected: EmployeeAbsenceAggregate(where: $whereRejected) { aggregate { count sum { effectiveDays } } }
+    cancelled: EmployeeAbsenceAggregate(where: $whereCancelled) { aggregate { count sum { effectiveDays } } }
+  }
+`
+
+const toStatusAggregateItem = (node: any): StatusAggregateItem => ({
+  count: node?.aggregate?.count ?? 0,
+  totalDays: node?.aggregate?.sum?.effectiveDays ?? 0
+})
+
+const buildBaseOverlapClauses = (params: OverlapStatusInput): any[] => {
+  const { startIso, endIso, departmentId, departmentName, departmentIds, includeNoDepartment, employeeIds } = params
+  const baseClauses: any[] = [
     { isDeleted: { _eq: false } },
     { startDate: { _lte: endIso } },
     { endDate: { _gte: startIso } }
   ]
 
   if (departmentId) {
-    baseAnd.push({ employee: { employeePosition: { organizationalUnit: { id: { _eq: departmentId } } } } })
+    baseClauses.push({ employee: { employeePosition: { organizationalUnit: { id: { _eq: departmentId } } } } })
   } else if (departmentName === 'NO_DEPARTMENT_SPECIAL') {
-    baseAnd.push({ employee: { employeePosition: { organizationalUnit: { _isNull: true } } } })
+    baseClauses.push({ employee: { employeePosition: { organizationalUnit: { _isNull: true } } } })
   } else if (departmentName) {
-    baseAnd.push({ employee: { employeePosition: { organizationalUnit: { name: { _eq: departmentName } } } } })
+    baseClauses.push({ employee: { employeePosition: { organizationalUnit: { name: { _eq: departmentName } } } } })
   }
 
   if ((departmentIds && departmentIds.length > 0) || includeNoDepartment) {
-    const deptOr: any[] = []
+    const departmentOr: any[] = []
+
     if (departmentIds && departmentIds.length > 0) {
-      deptOr.push({ organizationalUnit: { id: { _in: departmentIds } } })
+      departmentOr.push({ organizationalUnit: { id: { _in: departmentIds } } })
     }
     if (includeNoDepartment) {
-      deptOr.push({ organizationalUnit: { _isNull: true } })
+      departmentOr.push({ organizationalUnit: { _isNull: true } })
     }
-    if (deptOr.length > 0) {
-      baseAnd.push({ employee: { employeePosition: { _or: deptOr } } })
+
+    if (departmentOr.length > 0) {
+      baseClauses.push({ employee: { employeePosition: { _or: departmentOr } } })
     }
   }
 
   if (employeeIds && employeeIds.length > 0) {
-    baseAnd.push({ employee: { id: { _in: employeeIds } } })
+    baseClauses.push({ employee: { id: { _in: employeeIds } } })
   }
 
-  const impossibleClause = { _and: [{ id: { _isNull: true } }, { id: { _isNull: false } }] }
-  const whereApproved: any = {
-    _and: [...baseAnd, ...(status && status !== 'APPROVED' ? [impossibleClause] : [{ status: { _eq: 'APPROVED' } }])]
-  }
-  const wherePending: any = {
-    _and: [...baseAnd, ...(status && status !== 'PENDING' ? [impossibleClause] : [{ status: { _eq: 'PENDING' } }])]
-  }
-  const whereRejected: any = {
-    _and: [...baseAnd, ...(status && status !== 'REJECTED' ? [impossibleClause] : [{ status: { _eq: 'REJECTED' } }])]
-  }
-  const whereCancelled: any = {
-    _and: [...baseAnd, ...(status && status !== 'CANCELLED' ? [impossibleClause] : [{ status: { _eq: 'CANCELLED' } }])]
-  }
+  return baseClauses
+}
 
-  const query = `
-    query StatusBreakdown(
-      $whereApproved: EmployeeAbsenceBoolExp!,
-      $wherePending: EmployeeAbsenceBoolExp!,
-      $whereRejected: EmployeeAbsenceBoolExp!,
-      $whereCancelled: EmployeeAbsenceBoolExp!
-    ) {
-      approved: EmployeeAbsenceAggregate(where: $whereApproved) { aggregate { count sum { effectiveDays } } }
-      pending: EmployeeAbsenceAggregate(where: $wherePending) { aggregate { count sum { effectiveDays } } }
-      rejected: EmployeeAbsenceAggregate(where: $whereRejected) { aggregate { count sum { effectiveDays } } }
-      cancelled: EmployeeAbsenceAggregate(where: $whereCancelled) { aggregate { count sum { effectiveDays } } }
-    }
-  `
+const buildStatusWhereClause = (
+  baseClauses: any[],
+  selectedStatus: string | null | undefined,
+  status: SupportedStatus
+) => ({
+  _and: [
+    ...baseClauses,
+    ...(selectedStatus && selectedStatus !== status ? [IMPOSSIBLE_CLAUSE] : [{ status: { _eq: status } }])
+  ]
+})
 
-  const res: any = await client.request(query, {
-    whereApproved,
-    wherePending,
-    whereRejected,
-    whereCancelled
-  })
+const buildStatusWhereVariables = (
+  baseClauses: any[],
+  selectedStatus?: string | null
+): Record<'whereApproved' | 'wherePending' | 'whereRejected' | 'whereCancelled', any> => ({
+  whereApproved: buildStatusWhereClause(baseClauses, selectedStatus, 'APPROVED'),
+  wherePending: buildStatusWhereClause(baseClauses, selectedStatus, 'PENDING'),
+  whereRejected: buildStatusWhereClause(baseClauses, selectedStatus, 'REJECTED'),
+  whereCancelled: buildStatusWhereClause(baseClauses, selectedStatus, 'CANCELLED')
+})
 
-  const toItem = (node: any): StatusAggregateItem => ({
-    count: node?.aggregate?.count ?? 0,
-    totalDays: node?.aggregate?.sum?.effectiveDays ?? 0
-  })
+const toOverlapStatusResult = (response: any): OverlapStatusResult => ({
+  APPROVED: toStatusAggregateItem(response?.approved),
+  PENDING: toStatusAggregateItem(response?.pending),
+  REJECTED: toStatusAggregateItem(response?.rejected),
+  CANCELLED: toStatusAggregateItem(response?.cancelled)
+})
 
-  return {
-    APPROVED: toItem(res?.approved),
-    PENDING: toItem(res?.pending),
-    REJECTED: toItem(res?.rejected),
-    CANCELLED: toItem(res?.cancelled)
-  }
+export const getOverlapStatusBreakdown = async (
+  client: GraphQLRequester,
+  params: OverlapStatusInput
+): Promise<OverlapStatusResult> => {
+  const baseClauses = buildBaseOverlapClauses(params)
+  const statusVariables = buildStatusWhereVariables(baseClauses, params.status)
+  const response: any = await client.request(STATUS_QUERY, statusVariables)
+
+  return toOverlapStatusResult(response)
 }

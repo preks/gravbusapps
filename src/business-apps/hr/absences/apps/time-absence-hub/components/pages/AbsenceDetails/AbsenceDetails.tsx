@@ -150,6 +150,156 @@ const matchesEmployeeSelection = (absence: any, selectedEmployeeIds: string[]): 
   return selectedEmployeeIds.includes(absence.employee?.id)
 }
 
+const getCurrentDateRange = (
+  currentFilteredData: any,
+  startDate?: string,
+  endDate?: string
+): { startDate?: string; endDate?: string } => ({
+  startDate: currentFilteredData?.appliedFilters?.currentDateRange?.startDate || startDate,
+  endDate: currentFilteredData?.appliedFilters?.currentDateRange?.endDate || endDate
+})
+
+const buildFilteredDescriptionParts = (filters: any): string[] => {
+  const parts: string[] = []
+
+  if (filters.currentDateRange?.startDate && filters.currentDateRange?.endDate) {
+    parts.push(
+      `${formatDateForLocale(filters.currentDateRange.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(filters.currentDateRange.endDate)}`
+    )
+  }
+
+  if (filters.search) {
+    parts.push(`"${filters.search}"`)
+  }
+
+  if (filters.selectedFilters?.length > 0) {
+    parts.push(
+      `${filters.selectedFilters.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filters', 'filters')}`
+    )
+  }
+
+  return parts
+}
+
+const resolveCustomFiltersUIState = (
+  currentDateRange: { startDate?: string; endDate?: string },
+  hasChangedFilters: boolean,
+  filters: any
+): CurrentUIState => {
+  const descriptionParts = buildFilteredDescriptionParts(filters)
+  const hasDescriptionParts = descriptionParts.length > 0
+
+  return {
+    title: hasDescriptionParts
+      ? getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.absence_details.filtered_absence_details',
+          'Filtered Absence Details'
+        )
+      : getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.absence_details.title',
+          'Absence Details'
+        ),
+    description: hasDescriptionParts
+      ? descriptionParts.join(' • ')
+      : getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.absence_details.all_absence_results',
+          'All absence results'
+        ),
+    breadcrumb: getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.absence_details.custom_filters',
+      'Custom Filters'
+    ),
+    hasChangedFilters,
+    currentDateRange
+  }
+}
+
+const resolveMonthUIState = (
+  currentDateRange: { startDate?: string; endDate?: string },
+  hasChangedFilters: boolean,
+  month: string
+): CurrentUIState => ({
+  title: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.month_absence_details',
+    `${month} Absence Details`
+  ),
+  description:
+    currentDateRange.startDate && currentDateRange.endDate
+      ? `${formatDateForLocale(currentDateRange.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentDateRange.endDate)}`
+      : getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_month',
+          `All absences for ${month}`
+        ),
+  breadcrumb: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.month_details',
+    `${month} Details`
+  ),
+  hasChangedFilters,
+  currentDateRange
+})
+
+const resolveDepartmentUIState = (
+  currentDateRange: { startDate?: string; endDate?: string },
+  hasChangedFilters: boolean,
+  department: string
+): CurrentUIState => ({
+  title: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.department_details',
+    `${department} Department Details`
+  ),
+  description: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_department',
+    `All absences for ${department} department`
+  ),
+  breadcrumb: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.department',
+    `${department} Department`
+  ),
+  hasChangedFilters,
+  currentDateRange
+})
+
+const resolveStatusUIState = (
+  currentDateRange: { startDate?: string; endDate?: string },
+  hasChangedFilters: boolean,
+  status: string
+): CurrentUIState => ({
+  title: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.status_details',
+    `${status} Status Details`
+  ),
+  description: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.all_status_absences',
+    `All ${status.toLowerCase()} absences`
+  ),
+  breadcrumb: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.status',
+    `${status} Status`
+  ),
+  hasChangedFilters,
+  currentDateRange
+})
+
+const resolveDefaultUIState = (
+  currentDateRange: { startDate?: string; endDate?: string },
+  hasChangedFilters: boolean
+): CurrentUIState => ({
+  title: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.title',
+    'Absence Details'
+  ),
+  description: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.filtered_results',
+    'Filtered absence results'
+  ),
+  breadcrumb: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:absence_management_hub_backoffice.absence_details.filtered_details',
+    'Filtered Details'
+  ),
+  hasChangedFilters,
+  currentDateRange
+})
+
 const resolveCurrentUIState = ({
   currentFilteredData,
   startDate,
@@ -165,134 +315,27 @@ const resolveCurrentUIState = ({
   department?: string
   status?: string
 }): CurrentUIState => {
-  const currentStartDate = currentFilteredData?.appliedFilters?.currentDateRange?.startDate || startDate
-  const currentEndDate = currentFilteredData?.appliedFilters?.currentDateRange?.endDate || endDate
+  const currentDateRange = getCurrentDateRange(currentFilteredData, startDate, endDate)
   const hasChangedFilters =
-    currentFilteredData?.isFiltered || currentStartDate !== startDate || currentEndDate !== endDate
+    currentFilteredData?.isFiltered || currentDateRange.startDate !== startDate || currentDateRange.endDate !== endDate
 
   if (hasChangedFilters && currentFilteredData?.appliedFilters) {
-    const filters = currentFilteredData.appliedFilters
-    const parts: string[] = []
-
-    if (filters.currentDateRange?.startDate && filters.currentDateRange?.endDate) {
-      parts.push(
-        `${formatDateForLocale(filters.currentDateRange.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(filters.currentDateRange.endDate)}`
-      )
-    }
-
-    if (filters.search) {
-      parts.push(`"${filters.search}"`)
-    }
-
-    if (filters.selectedFilters?.length > 0) {
-      parts.push(
-        `${filters.selectedFilters.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.filters', 'filters')}`
-      )
-    }
-
-    return {
-      title:
-        parts.length > 0
-          ? getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.absence_details.filtered_absence_details',
-              'Filtered Absence Details'
-            )
-          : getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.absence_details.title',
-              'Absence Details'
-            ),
-      description:
-        parts.length > 0
-          ? parts.join(' • ')
-          : getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.absence_details.all_absence_results',
-              'All absence results'
-            ),
-      breadcrumb: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.absence_details.custom_filters',
-        'Custom Filters'
-      ),
-      hasChangedFilters,
-      currentDateRange: { startDate: currentStartDate, endDate: currentEndDate }
-    }
+    return resolveCustomFiltersUIState(currentDateRange, hasChangedFilters, currentFilteredData.appliedFilters)
   }
 
   if (month) {
-    return {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.absence_details.month_absence_details',
-        `${month} Absence Details`
-      ),
-      description:
-        currentStartDate && currentEndDate
-          ? `${formatDateForLocale(currentStartDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentEndDate)}`
-          : getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_month',
-              `All absences for ${month}`
-            ),
-      breadcrumb: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.absence_details.month_details',
-        `${month} Details`
-      ),
-      hasChangedFilters,
-      currentDateRange: { startDate: currentStartDate, endDate: currentEndDate }
-    }
+    return resolveMonthUIState(currentDateRange, hasChangedFilters, month)
   }
 
   if (department) {
-    return {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.absence_details.department_details',
-        `${department} Department Details`
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_department',
-        `All absences for ${department} department`
-      ),
-      breadcrumb: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.absence_details.department',
-        `${department} Department`
-      ),
-      hasChangedFilters,
-      currentDateRange: { startDate: currentStartDate, endDate: currentEndDate }
-    }
+    return resolveDepartmentUIState(currentDateRange, hasChangedFilters, department)
   }
 
   if (status) {
-    return {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.absence_details.status_details',
-        `${status} Status Details`
-      ),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.absence_details.all_status_absences',
-        `All ${status.toLowerCase()} absences`
-      ),
-      breadcrumb: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.absence_details.status',
-        `${status} Status`
-      ),
-      hasChangedFilters,
-      currentDateRange: { startDate: currentStartDate, endDate: currentEndDate }
-    }
+    return resolveStatusUIState(currentDateRange, hasChangedFilters, status)
   }
 
-  return {
-    title: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:absence_management_hub_backoffice.absence_details.title',
-      'Absence Details'
-    ),
-    description: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:absence_management_hub_backoffice.absence_details.filtered_results',
-      'Filtered absence results'
-    ),
-    breadcrumb: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:absence_management_hub_backoffice.absence_details.filtered_details',
-      'Filtered Details'
-    ),
-    hasChangedFilters,
-    currentDateRange: { startDate: currentStartDate, endDate: currentEndDate }
-  }
+  return resolveDefaultUIState(currentDateRange, hasChangedFilters)
 }
 
 const resolveDynamicAnalysisSource = ({

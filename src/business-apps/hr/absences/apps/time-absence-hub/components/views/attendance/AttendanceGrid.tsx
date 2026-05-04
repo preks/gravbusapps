@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { CalendarBlankIcon, ClockIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import {
   AbsenceCalendarDay,
@@ -287,20 +287,23 @@ const AttendanceGridRow: React.FC<AttendanceGridRowProps> = ({ row, accessToken 
       </TableCell>
       <TableCell className="gba:px-1 gba:py-3 gba:text-right">
         {accessToken && (
-          <AppActionButton
-            size="icon"
+          <AppAction
+            variant="table-row"
             data-testid={`attendance-grid-actions-${employee.id}`}
-            contextsArray={[FlowContextName.employeeEntity]}
-            externalContextData={{
-              employeeId: employee.id,
-              keycloakUserId: getKeycloakUserId(employee.additionalProperties),
-              managerId: employee.employeePosition?.supervisor?.id,
-              organizationalUnitId: employee.employeePosition?.organizationalUnitId
-            }}
+            contexts={[
+              {
+                context: FlowContextName.employeeEntity,
+                contextData: {
+                  employeeId: employee.id,
+                  keycloakUserId: getKeycloakUserId(employee.additionalProperties),
+                  managerId: employee.employeePosition?.supervisor?.id,
+                  organizationalUnitId: employee.employeePosition?.organizationalUnitId
+                }
+              }
+            ]}
             prefixDataTestId={`attendance-grid-action-${employee.id}`}
             accessToken={accessToken}
-            emptyStateBehavior="enable"
-            deferMainContextRequestsUntilClick
+            emptyState="enable"
           />
         )}
       </TableCell>

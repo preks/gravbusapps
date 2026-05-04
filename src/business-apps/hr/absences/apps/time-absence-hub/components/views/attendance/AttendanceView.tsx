@@ -85,8 +85,6 @@ const buildExportRows = (
   })
 
 interface AttendanceViewProps extends BusinessAppContextProps {
-  activeSubTab?: string
-  onSubTabChange?: (subTab: string) => void
   globalFilters: HubGlobalFilters
   derivedDateRange: { dateFrom: string; dateTo: string } | null
   filterAction?: React.ReactNode
@@ -153,18 +151,18 @@ const AttendanceLimitations: React.FC = () => (
   <Card>
     <CardContent className="gba:flex gba:flex-col gba:gap-1 gba:p-4 gba:text-xs gba:text-muted-foreground">
       <span className="gba:font-medium gba:text-foreground">{tt('scope_notes_title', 'Attendance scope notes')}</span>
-      {/* TODO(B1-followup): replace batched ID query with backend-supported org-wide read once HR admin Hasura role exists */}
+      {/* Follow-up: replace batched ID query with backend-supported org-wide read once HR admin Hasura role exists. */}
       <span>
         {tt('scope_note_batching', 'Data is fetched per-employee in batches of 200 (no org-wide Hasura role yet).')}
       </span>
-      {/* TODO(no-schema): "on break" live indicator — no real-time field in EmployeeAttendance schema */}
+      {/* Schema limitation: "on break" live indicator needs a real-time field in EmployeeAttendance. */}
       <span>
         {tt(
           'scope_note_on_break',
           'Live "on break" status is not available — schema does not expose a real-time break field.'
         )}
       </span>
-      {/* TODO(no-schema): planned start/end times — only plannedTime duration available; late clock-in/early departure markers deferred */}
+      {/* Schema limitation: planned start/end fields are not available, only planned duration. */}
       <span>
         {tt(
           'scope_note_planned_times',

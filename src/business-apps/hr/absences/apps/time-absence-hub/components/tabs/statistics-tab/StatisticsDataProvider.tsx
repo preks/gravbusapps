@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCombinedStatistics, CombinedStatisticsResult } from '../../../utils/getCombinedStatistics'
 import dayjs from 'dayjs'
@@ -32,8 +32,11 @@ export const StatisticsDataProvider: React.FC<StatisticsDataProviderProps> = ({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const currentYear = dayjs().year()
+  const typeNamesKey = JSON.stringify(typeNames)
+  const vacationGroupIdsKey = JSON.stringify(vacationGroupIds)
+  const sickGroupIdsKey = JSON.stringify(sickGroupIds)
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!accessToken || !graphQLClient || vacationGroupIds.length === 0 || sickGroupIds.length === 0) {
       return
     }
@@ -56,23 +59,23 @@ export const StatisticsDataProvider: React.FC<StatisticsDataProviderProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [accessToken, currentYear, graphQLClient, sickGroupIdsKey, typeNamesKey, vacationGroupIdsKey])
 
   useEffect(() => {
     fetchData()
-  }, [
-    accessToken,
-    currentYear,
-    JSON.stringify(typeNames),
-    JSON.stringify(vacationGroupIds),
-    JSON.stringify(sickGroupIds)
-  ])
+  }, [fetchData])
 
-  return (
-    <StatisticsDataContext.Provider value={{ data, isLoading, error, refetch: fetchData }}>
-      {children}
-    </StatisticsDataContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      data,
+      isLoading,
+      error,
+      refetch: fetchData
+    }),
+    [data, error, fetchData, isLoading]
   )
+
+  return <StatisticsDataContext.Provider value={contextValue}>{children}</StatisticsDataContext.Provider>
 }
 
 export const useStatisticsData = (): StatisticsDataContextType => {

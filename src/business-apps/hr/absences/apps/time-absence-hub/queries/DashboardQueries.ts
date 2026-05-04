@@ -11,7 +11,7 @@ export const getDateFilters = (timeFilter: string) => {
         endDate: new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999)).toISOString()
       }
 
-    case 'quarter':
+    case 'quarter': {
       const quarterStartMonth = (currentQuarter - 1) * 3
       const quarterEndMonth = quarterStartMonth + 2
 
@@ -19,6 +19,7 @@ export const getDateFilters = (timeFilter: string) => {
         startDate: new Date(Date.UTC(currentYear, quarterStartMonth, 1, 0, 0, 0, 0)).toISOString(),
         endDate: new Date(Date.UTC(currentYear, quarterEndMonth + 1, 0, 23, 59, 59, 999)).toISOString()
       }
+    }
 
     case 'month':
       return {
@@ -26,12 +27,13 @@ export const getDateFilters = (timeFilter: string) => {
         endDate: new Date(Date.UTC(currentYear, currentMonth + 1, 0, 23, 59, 59, 999)).toISOString()
       }
 
-    case 'everything':
+    case 'everything': {
       const everythingFilters = {
         startDate: '2020-01-01T00:00:00.000Z',
         endDate: new Date(currentYear + 1, 11, 31, 23, 59, 59, 999).toISOString()
       }
       return everythingFilters
+    }
 
     default:
       return null

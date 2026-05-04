@@ -10,7 +10,6 @@ interface DashboardTabProps extends TabComponentProps {
   timeFilter?: TimeFilter
   timeScope?: TimeScope
   derivedDateRange?: { dateFrom: string; dateTo: string } | null
-  onTimeFilterChange?: (filter: TimeFilter) => void
   onNavigateToDetails?: (filters: AbsenceDetailsFilter) => void
   onNavigateToEntitlements?: () => void
   filterAction?: React.ReactNode

@@ -20,7 +20,6 @@ import { OrgEntitlementRow } from '../../../queries/OrgEntitlementQueries'
 interface EntitlementsViewProps extends BusinessAppContextProps {
   globalFilters: HubGlobalFilters
   derivedDateRange: { dateFrom: string; dateTo: string } | null
-  onNavigateToEntitlementsDetails?: () => void
   filterAction?: React.ReactNode
 }
 
