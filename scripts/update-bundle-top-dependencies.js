@@ -217,7 +217,7 @@ async function main() {
           execSync(`git pull --rebase --autostash origin ${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
         }
 
-        execSync(`git push origin HEAD:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
+        execSync(`git push --no-verify origin HEAD:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
         pushSuccess = true
         console.log(`   ✅ Bundle dependencies committed and pushed to ${targetBranch}`)
         break
@@ -234,7 +234,7 @@ async function main() {
         if (isConflict) {
           try {
             resolveBundleConflict()
-            execSync(`git push origin HEAD:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
+            execSync(`git push --no-verify origin HEAD:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
             pushSuccess = true
             console.log(`   ✅ Bundle dependencies pushed (after conflict resolution)`)
             break

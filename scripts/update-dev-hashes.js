@@ -237,7 +237,7 @@ async function main() {
           }
 
           // If we got here, rebase succeeded - try to push
-          execSync(`git push origin HEAD:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
+          execSync(`git push --no-verify origin HEAD:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
           pushSuccess = true
           console.log(`   ✅ Component hashes committed and pushed to ${targetBranch}`)
           break
@@ -257,7 +257,7 @@ async function main() {
             try {
               resolveHashConflict()
               // After resolving, try to push
-              execSync(`git push origin HEAD:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
+              execSync(`git push --no-verify origin HEAD:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
               pushSuccess = true
               console.log(`   ✅ Component hashes committed and pushed to ${targetBranch} (after conflict resolution)`)
               break

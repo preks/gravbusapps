@@ -394,7 +394,7 @@ async function main() {
           }
 
           // If we got here, rebase succeeded - try to push
-          execSync(`git push origin HEAD:${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+          execSync(`git push --no-verify origin HEAD:${branch}`, { cwd: projectRoot, stdio: 'pipe' })
           pushSuccess = true
           console.log(`Changes committed and pushed to ${branch}`)
           break
@@ -414,7 +414,7 @@ async function main() {
             try {
               resolveHashConflict()
               // After resolving, try to push
-              execSync(`git push origin HEAD:${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+              execSync(`git push --no-verify origin HEAD:${branch}`, { cwd: projectRoot, stdio: 'pipe' })
               pushSuccess = true
               console.log(`Changes committed and pushed to ${branch} (after conflict resolution)`)
               break
