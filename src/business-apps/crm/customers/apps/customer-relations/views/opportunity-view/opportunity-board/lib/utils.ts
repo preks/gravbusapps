@@ -7,6 +7,14 @@ export function formatCurrency(value: number): string {
   }).format(value)
 }
 
+export function formatDateShort(date: string | null): string {
+  if (!date) return ''
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
 const stageNameMap: Record<string, string> = {
   NEW_OPPORTUNITY: 'New Opportunity',
   IN_QUALIFICATION: 'In Qualification',

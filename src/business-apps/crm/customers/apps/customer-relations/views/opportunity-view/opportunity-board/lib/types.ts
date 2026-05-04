@@ -11,13 +11,16 @@ export interface Stage {
 export interface Opportunity {
   id: string
   name: string
+  title?: string
   description?: string
   estimatedAmount?: number
+  amount?: number
   winningChance?: number
   stageId?: string
   salesPipelineRef?: string
   salesPipelineStageRef?: string
   closeDate?: string
+  estimatedCloseDate?: string
   status?: string
   account?: {
     id?: string
@@ -27,6 +30,7 @@ export interface Opportunity {
     id?: string
     fullName: string
   }
+  owner?: string
   currency?: string
   createdAt?: string
   updatedAt?: string

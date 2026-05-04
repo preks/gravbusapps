@@ -63,6 +63,7 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
   const [dragOverStage, setDragOverStage] = useState<string | null>(null)
   const [dragOverOpportunity, setDragOverOpportunity] = useState<string | null>(null)
   const [insertPosition, setInsertPosition] = useState<'before' | 'after' | null>(null)
+  const [isQuickEditing, setIsQuickEditing] = useState(false)
 
   // Fetch sales pipelines
   const { pipelines, isLoading: pipelinesLoading } = useSalesPipelines(accessToken)
@@ -262,6 +263,20 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
       <div className="gba:p-4 gba:border-b gba:border-gray-200 gba:dark:border-gray-800">
         <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
           <div className="gba:text-2xl gba:font-semibold">Opportunities Board</div>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <button
+              onClick={() => setIsQuickEditing(prev => !prev)}
+              className={`gba:px-3 gba:py-1.5 gba:rounded gba:text-sm gba:font-medium gba:transition-colors gba:duration-200 ${
+                isQuickEditing
+                  ? 'gba:bg-blue-600 gba:text-white hover:gba:bg-blue-700'
+                  : 'gba:bg-gray-100 gba:text-gray-700 hover:gba:bg-gray-200 gba:dark:bg-gray-800 gba:dark:text-gray-300'
+              }`}
+              data-testid="quick-edit-toggle"
+              title={isQuickEditing ? 'Disable Quick Edit Mode' : 'Enable Quick Edit Mode'}
+            >
+              {isQuickEditing ? 'Quick Edit: On' : 'Quick Edit: Off'}
+            </button>
+          </div>
         </div>
 
         {/* Filters aligned to investment view */}
@@ -376,6 +391,7 @@ export function OpportunityBoard({ accessToken, userInfo, sourceApp }: Opportuni
                 isDragging={activeOpportunity !== null}
                 dragOverOpportunity={dragOverOpportunity}
                 insertPosition={insertPosition}
+                isQuickEditing={isQuickEditing}
               />
             ))
           )}
