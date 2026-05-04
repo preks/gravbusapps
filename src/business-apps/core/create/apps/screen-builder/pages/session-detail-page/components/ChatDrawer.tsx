@@ -395,16 +395,16 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     const pathRegex = /["']?(?:filePath|file_path|path|target_file|targetPath)["']?\s*:\s*"([^"]+)"/
     if (!tool.args) return { displayText, detailText }
 
-    if (tool.tool === 'write_file' || tool.tool === 'read_file') {
+    if (tool.tool === 'file_write' || tool.tool === 'file_read') {
       const pathMatch = pathRegex.exec(tool.args)
       if (pathMatch) {
         detailText = pathMatch[1]
         displayText =
-          tool.tool === 'write_file'
+          tool.tool === 'file_write'
             ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_writing', '✍️ Writing')
             : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_reading', '📖 Reading')
       }
-    } else if (tool.tool === 'propose_change') {
+    } else if (tool.tool === 'file_edit') {
       const fileMatch = pathRegex.exec(tool.args)
       if (fileMatch) {
         detailText = fileMatch[1]

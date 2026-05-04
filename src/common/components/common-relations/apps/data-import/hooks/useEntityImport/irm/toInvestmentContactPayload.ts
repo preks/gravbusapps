@@ -35,7 +35,10 @@ export function toInvestmentContactPayload(entity: Record<string, any>, ownerEmp
     phone: typeof normalized.phone === 'string' ? normalized.phone : phoneFromChannels,
     userId: typeof normalized.userId === 'string' ? normalized.userId : undefined,
     ownerEmployeeId: resolvedOwnerEmployeeId,
-    communicationChannels: sanitizedChannels
+    communicationChannels: sanitizedChannels,
+    // Forward the resolved Account ↔ Contact junction list emitted by the
+    // Flowbot hardcoded import layer (each item is `{ account, contactType }`).
+    accountContacts: Array.isArray(normalized.accountContacts) ? normalized.accountContacts : undefined
   })
 
   return buildInvestmentContactPayload(payloadInput as any).investmentContact

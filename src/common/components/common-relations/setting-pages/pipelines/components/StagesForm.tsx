@@ -330,13 +330,14 @@ const StagesForm: React.FC<StagesFormProps> = ({
       await Promise.all(
         updatedStages.map(async stage => {
           // Fetch current stage data to preserve all fields
-          const currentStage = await catalogClient.getCatalogEntryById(stage.id)
+          const currentStage = await catalogClient.readCatalogEntryById(stage.id, { includeTranslations: true })
 
           const updateData = {
             // Required fields
             id: stage.id,
             code: stage.code,
             value: stage.value,
+            localeCode: currentStage.localeCode,
             type: stage.type || stage.alternativeCode,
             alternativeCode: stage.type || stage.alternativeCode,
             parentEntryId: stage.parentEntryId || currentStage.parentEntryId,
@@ -346,7 +347,8 @@ const StagesForm: React.FC<StagesFormProps> = ({
             additionalValue1: stage.displayOrder.toString().padStart(2, '0'),
             additionalValue2: currentStage.additionalValue2 || undefined,
             additionalValue3: currentStage.additionalValue3 || undefined,
-            objectValue: stage.objectValue || currentStage.objectValue || {}
+            objectValue: stage.objectValue || currentStage.objectValue || {},
+            translations: currentStage.translations || stage.translations || []
           }
 
           return catalogClient.updateCatalogEntry(

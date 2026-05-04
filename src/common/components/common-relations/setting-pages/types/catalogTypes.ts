@@ -2,10 +2,15 @@
  * Shared types for catalog settings pages
  */
 
+import type { CatalogTranslationEntry, CatalogTranslationMap } from '../utils/catalogTranslations'
+
 export interface CatalogItem {
   id: string
   code: string
   value: string
+  localeCode?: string
+  translations?: CatalogTranslationEntry[]
+  valueTranslations?: CatalogTranslationMap
   type?: string
   alternativeCode?: string
   parentEntryId?: string
@@ -18,6 +23,7 @@ export interface CatalogItem {
 export interface CatalogUpsertData {
   code: string
   value: string
+  valueTranslations?: CatalogTranslationMap
   type?: string
   alternativeCode?: string
   additionalValue1?: string

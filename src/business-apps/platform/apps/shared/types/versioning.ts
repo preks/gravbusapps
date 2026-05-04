@@ -54,13 +54,40 @@ export interface VersionDiff {
  */
 export type CommentType = 'document' | 'inline' | 'selection' | 'cell'
 
+export interface WhiteboardCommentAnchor {
+  x: number
+  y: number
+  width: number
+  height: number
+  elementIds?: string[]
+}
+
+export type SlideCommentAnchor =
+  | {
+      kind: 'slide'
+      slideId: string
+    }
+  | {
+      kind: 'element'
+      slideId: string
+      elementIds: string[]
+    }
+  | {
+      kind: 'text-range'
+      slideId: string
+      elementId: string
+      start: number
+      end: number
+      selectedText?: string
+    }
+
 /**
  * Comment on a document, note, or spreadsheet
  */
 export interface Comment {
   id: string
   entityId: string // documentId, noteId, or appId
-  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide'
+  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide' | 'whiteboard'
   type: CommentType
   content: string
   createdBy: string
@@ -80,6 +107,12 @@ export interface Comment {
   // For cell comments (Spreadsheets)
   cellReference?: string // e.g., "A1" or "A1:C3"
   sheetId?: string
+
+  // For whiteboard comments
+  anchorData?: WhiteboardCommentAnchor
+
+  // For slide comments
+  slideAnchorData?: SlideCommentAnchor
 
   // Thread support
   parentId?: string
@@ -101,6 +134,8 @@ export interface CreateCommentInput {
   anchorPath?: string
   cellReference?: string
   sheetId?: string
+  anchorData?: WhiteboardCommentAnchor
+  slideAnchorData?: SlideCommentAnchor
 
   // Thread support
   parentId?: string
@@ -192,7 +227,7 @@ export interface VersionCreatedEvent {
  */
 export interface CommentEvent {
   entityId: string
-  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide'
+  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide' | 'whiteboard'
   comment: Comment
   action: 'created' | 'updated' | 'deleted' | 'resolved' | 'unresolved'
 }

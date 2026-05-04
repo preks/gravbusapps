@@ -27,6 +27,7 @@ import {
 } from '@newwork/nw-design-system'
 import { PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { TranslatableField } from '@/components/translatable-field'
 import { useForm } from 'react-hook-form'
 import type {
   CatalogItem,
@@ -38,6 +39,11 @@ import type {
 } from '../types/catalogTypes'
 import { pluralize } from '@/common/utils/pluralize'
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog'
+import {
+  DEFAULT_CATALOG_LOCALE,
+  DEFAULT_CATALOG_TRANSLATIONS,
+  getCatalogValueTranslations
+} from '../utils/catalogTranslations'
 
 interface CatalogTabProps extends CatalogTabState, CatalogTabHandlers {
   entityName: string
@@ -70,6 +76,7 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
     defaultValues: {
       code: '',
       value: '',
+      valueTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
       type: '',
       displayOrder: 0
     }
@@ -88,7 +95,13 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
   }, [items, search])
 
   const handleAdd = () => {
-    form.reset({ code: '', value: '', type: '', displayOrder: 0 })
+    form.reset({
+      code: '',
+      value: '',
+      valueTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
+      type: '',
+      displayOrder: 0
+    })
     setEditingItem(null)
     setIsModalOpen(true)
   }
@@ -97,6 +110,7 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
     form.reset({
       code: item.code,
       value: item.value,
+      valueTranslations: getCatalogValueTranslations(item),
       type: item.type || '',
       displayOrder: item.displayOrder ?? 0
     })
@@ -212,7 +226,17 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
                     <FormItem>
                       <FormLabel>Value</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid={`${dataTestId}-Value-Input`} />
+                        <TranslatableField
+                          label=""
+                          value={field.value}
+                          onChange={field.onChange}
+                          translations={form.watch('valueTranslations') || DEFAULT_CATALOG_TRANSLATIONS}
+                          onTranslationsChange={valueTranslations =>
+                            form.setValue('valueTranslations', valueTranslations, { shouldDirty: true })
+                          }
+                          defaultLanguage={DEFAULT_CATALOG_LOCALE}
+                          data-testid={`${dataTestId}-Value-Input`}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -37,7 +37,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
   const loadFile = async () => {
     setLoading(true)
     try {
-      const data = await builderClient.executeTool('read_file', { file_path: filePath }, repoId, sessionId)
+      const data = await builderClient.executeTool('file_read', { file_path: filePath }, repoId, sessionId)
 
       setContent(
         data.content || getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_preview.no_content', 'No content')

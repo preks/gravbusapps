@@ -146,7 +146,7 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={val => !val && onClose()}>
-      <DialogContent className="gba:max-w-2xl gba:max-h-[85vh] gba:overflow-y-auto" data-testid={dataTestId}>
+      <DialogContent className="gba:w-full gba:max-w-2xl gba:max-h-screen gba:overflow-y-auto" data-testid={dataTestId}>
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <SparkleIcon weight="fill" className="gba:h-5 gba:w-5 gba:text-primary" />
@@ -194,21 +194,21 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
 
         {state.phase === 'idle' && (
           <Tabs value={activeTab} onValueChange={v => setActiveTab(v as 'template' | 'description')}>
-            <TabsList className="gba:w-full">
+            <TabsList className="gba:grid gba:w-full gba:grid-cols-2">
               <TabsTrigger
                 value="template"
-                className="gba:flex-1 gba:gap-1.5"
+                className="gba:gap-1.5"
+                startIcon={<TreeStructureIcon size={16} />}
                 data-testid={`${dataTestId}-tab-template`}
               >
-                <TreeStructureIcon className="gba:h-4 gba:w-4" />
                 {getTranslationFromI18nKeyAndLabel('document.ai.organize.byTemplate', 'By Template')}
               </TabsTrigger>
               <TabsTrigger
                 value="description"
-                className="gba:flex-1 gba:gap-1.5"
+                className="gba:gap-1.5"
+                startIcon={<TextAaIcon size={16} />}
                 data-testid={`${dataTestId}-tab-description`}
               >
-                <TextAaIcon className="gba:h-4 gba:w-4" />
                 {getTranslationFromI18nKeyAndLabel('document.ai.organize.byDescription', 'By Description')}
               </TabsTrigger>
             </TabsList>

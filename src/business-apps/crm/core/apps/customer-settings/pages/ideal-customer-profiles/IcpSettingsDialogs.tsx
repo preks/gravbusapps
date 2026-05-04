@@ -14,6 +14,12 @@ import {
 } from '@newwork/nw-design-system'
 import customerSettingsI18n from '../../_i18n'
 import { DeleteConfirmationDialog } from '@/common/components/common-relations/setting-pages/components/DeleteConfirmationDialog'
+import { TranslatableField } from '@/components/translatable-field'
+import {
+  DEFAULT_CATALOG_LOCALE,
+  DEFAULT_CATALOG_TRANSLATIONS,
+  type CatalogTranslationMap
+} from '@/common/components/common-relations/setting-pages/utils/catalogTranslations'
 import type { IcpProfileListItem } from './IcpProfileListSidebar'
 
 export interface IcpSettingsDialogsProps {
@@ -22,8 +28,10 @@ export interface IcpSettingsDialogsProps {
   onNewDialogOpenChange: (open: boolean) => void
   newCode: string
   newName: string
+  newNameTranslations: CatalogTranslationMap
   onNewCodeChange: (v: string) => void
   onNewNameChange: (v: string) => void
+  onNewNameTranslationsChange: (translations: CatalogTranslationMap) => void
   creating: boolean
   onCreateSubmit: () => void
   deleteTarget: IcpProfileListItem | null
@@ -38,8 +46,10 @@ export const IcpSettingsDialogs: React.FC<IcpSettingsDialogsProps> = ({
   onNewDialogOpenChange,
   newCode,
   newName,
+  newNameTranslations,
   onNewCodeChange,
   onNewNameChange,
+  onNewNameTranslationsChange,
   creating,
   onCreateSubmit,
   deleteTarget,
@@ -69,10 +79,13 @@ export const IcpSettingsDialogs: React.FC<IcpSettingsDialogsProps> = ({
             </div>
             <div className="gba:space-y-2">
               <Label htmlFor={`${dataTestIdPrefix}-new-name`}>{t('icp-display-name')}</Label>
-              <Input
-                id={`${dataTestIdPrefix}-new-name`}
+              <TranslatableField
+                label=""
                 value={newName}
-                onChange={e => onNewNameChange(e.target.value)}
+                onChange={onNewNameChange}
+                translations={newNameTranslations || DEFAULT_CATALOG_TRANSLATIONS}
+                onTranslationsChange={onNewNameTranslationsChange}
+                defaultLanguage={DEFAULT_CATALOG_LOCALE}
                 data-testid={`${dataTestIdPrefix}-new-name`}
               />
             </div>

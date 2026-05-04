@@ -8,6 +8,7 @@ class FakeSocket {
   connected = true
   private listeners = new Map<string, Set<SocketListener>>()
   bootstrapState?: string
+  yjsUpdates: unknown[] = []
 
   on(event: string, listener: SocketListener) {
     if (!this.listeners.has(event)) {
@@ -33,6 +34,12 @@ class FakeSocket {
 
     if (event === 'yjs_bootstrap') {
       this.bootstrapState = payload.state
+      ack?.({ success: true })
+      return
+    }
+
+    if (event === 'yjs_update') {
+      this.yjsUpdates.push(payload)
       ack?.({ success: true })
       return
     }
@@ -112,6 +119,47 @@ describe('SocketIoYjsProvider', () => {
     expect(provider.isSynced()).toBe(true)
     expect(syncedStates).toEqual([true])
     expect(ydoc.getXmlFragment('default').length).toBeGreaterThan(0)
+
+    provider.destroy()
+    awareness.destroy()
+    ydoc.destroy()
+  })
+
+  it('does not replay whiteboard bootstrap array inserts after sync', async () => {
+    const socket = new FakeSocket()
+    const ydoc = new Y.Doc()
+    const awareness = new Awareness(ydoc)
+
+    const provider = new SocketIoYjsProvider({
+      socket: socket as never,
+      documentId: 'whiteboard-1',
+      entityType: 'whiteboard',
+      ydoc,
+      awareness,
+      onBootstrapRequired: () => {
+        const element = new Y.Map<unknown>()
+        element.set('id', 'rect-1')
+        element.set('type', 'rectangle')
+        ydoc.getArray<Y.Map<unknown>>('elements').push([element])
+      },
+      onBeforeFirstSync: async () => undefined
+    })
+
+    provider.start()
+    await waitForCondition(() => typeof socket.bootstrapState === 'string')
+    await flushAsyncWork()
+
+    socket.fire('yjs_sync_response', {
+      documentId: 'whiteboard-1',
+      entityType: 'whiteboard',
+      state: socket.bootstrapState,
+      awareness: null
+    })
+    await flushAsyncWork()
+
+    expect(provider.isSynced()).toBe(true)
+    expect(socket.yjsUpdates).toHaveLength(0)
+    expect(ydoc.getArray<Y.Map<unknown>>('elements')).toHaveLength(1)
 
     provider.destroy()
     awareness.destroy()

@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react'
+import { act } from '@testing-library/react'
 import { useWhiteboardAiSocket } from './useWhiteboardAiSocket'
 
 jest.mock('@/business-apps/platform/apps/shared/utils/documentServiceUrl', () => ({
@@ -52,5 +53,59 @@ describe('useWhiteboardAiSocket', () => {
       transports: ['websocket', 'polling'],
       tryAllTransports: true
     })
+  })
+
+  it('preserves tool call ids for execution and transcript display', () => {
+    const { result } = renderHook(() =>
+      useWhiteboardAiSocket({
+        whiteboardId: 'whiteboard-1',
+        accessToken: 'token-1'
+      })
+    )
+
+    const receivedToolCalls: Array<{ id?: string; name: string; arguments: string }> = []
+    act(() => {
+      result.current.setOnToolCall(toolCall => {
+        receivedToolCalls.push(toolCall)
+      })
+    })
+
+    act(() => {
+      fakeSocket.listeners.get('tool-call')?.forEach(handler =>
+        handler({
+          id: 'tool-1',
+          name: 'batch_create_elements',
+          arguments: '{"elements":[]}'
+        })
+      )
+      fakeSocket.listeners.get('complete')?.forEach(handler =>
+        handler({
+          assistantText: 'Done',
+          toolCalls: [
+            {
+              id: 'tool-1',
+              name: 'batch_create_elements',
+              arguments: '{"elements":[]}'
+            }
+          ]
+        })
+      )
+    })
+
+    expect(receivedToolCalls).toEqual([
+      {
+        id: 'tool-1',
+        name: 'batch_create_elements',
+        arguments: '{"elements":[]}'
+      }
+    ])
+    expect(result.current.messages[0]?.toolCalls).toEqual([
+      {
+        id: 'tool-1',
+        name: 'batch_create_elements',
+        arguments: '{"elements":[]}',
+        executable: false
+      }
+    ])
   })
 })

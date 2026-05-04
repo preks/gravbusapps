@@ -23,10 +23,17 @@ import {
 import { FileTextIcon, FolderIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { TranslatableField } from '@/components/translatable-field'
 import { useCatalogSettings } from '../hooks/useCatalogSettings'
 import { getCatalogUsageCheckSpecs, useCatalogDeleteAvailability } from '../hooks/useCatalogDeleteAvailability'
 import { type CatalogItem, type DeleteAvailability } from '../types/catalogTypes'
 import { DeleteConfirmationDialog } from '../components/DeleteConfirmationDialog'
+import {
+  DEFAULT_CATALOG_LOCALE,
+  DEFAULT_CATALOG_TRANSLATIONS,
+  getCatalogValueTranslations,
+  type CatalogTranslationMap
+} from '../utils/catalogTranslations'
 
 export interface DocumentSettingsConfig {
   groupCatalog: string
@@ -100,11 +107,13 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
   const [formData, setFormData] = useState<{
     code: string
     value: string
+    valueTranslations: CatalogTranslationMap
     type: string
     displayOrder: number
   }>({
     code: '',
     value: '',
+    valueTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
     type: '',
     displayOrder: 0
   })
@@ -128,6 +137,7 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
       setFormData({
         code: item.code,
         value: item.value,
+        valueTranslations: getCatalogValueTranslations(item),
         type: item.type || '',
         displayOrder: item.displayOrder ?? 0
       })
@@ -135,6 +145,7 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
       setFormData({
         code: '',
         value: '',
+        valueTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
         type: '',
         displayOrder: 0
       })
@@ -148,6 +159,7 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
     setFormData({
       code: '',
       value: '',
+      valueTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
       type: '',
       displayOrder: 0
     })
@@ -161,6 +173,7 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
         await handlers.onUpdate(editingItem.id, {
           code: formData.code,
           value: formData.value,
+          valueTranslations: formData.valueTranslations,
           type: formData.type || undefined,
           displayOrder: formData.displayOrder
         })
@@ -168,6 +181,7 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
         await handlers.onCreate({
           code: formData.code,
           value: formData.value,
+          valueTranslations: formData.valueTranslations,
           type: formData.type || undefined,
           displayOrder: formData.displayOrder,
           ...(dialogMode === 'type' && selectedGroup ? { parentEntryId: selectedGroup.id } : {})
@@ -508,10 +522,13 @@ export const DocumentSettingsLayout: React.FC<DocumentSettingsLayoutProps> = ({
 
             <div className="gba:space-y-2">
               <Label htmlFor="value">Value</Label>
-              <Input
-                id="value"
+              <TranslatableField
+                label=""
                 value={formData.value}
-                onChange={e => setFormData({ ...formData, value: e.target.value })}
+                onChange={value => setFormData(current => ({ ...current, value }))}
+                translations={formData.valueTranslations}
+                onTranslationsChange={valueTranslations => setFormData(current => ({ ...current, valueTranslations }))}
+                defaultLanguage={DEFAULT_CATALOG_LOCALE}
                 data-testid={`${config.dataTestIdPrefix}-${DATA_TEST_ID}-dialog-value`}
               />
             </div>

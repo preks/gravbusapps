@@ -162,6 +162,18 @@ const formatPictureUrl = (url: string | null | undefined): string | null => {
   return `data:image/png;base64,${url}`
 }
 
+const formatLockExpiry = (expiry?: string): string | null => {
+  if (!expiry) return null
+
+  const expiresAt = new Date(expiry)
+  if (Number.isNaN(expiresAt.getTime())) return null
+
+  return expiresAt.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
+}
+
 /**
  * MentionNodeView - Beautiful inline card for entity mentions with drag support
  * Must use NodeViewWrapper as root for ReactNodeViewRenderer
@@ -320,6 +332,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   const noteIdRef = useRef(note.id)
   const titleRef = useRef(title)
+  const canEditNoteRef = useRef(!isReadOnly)
   noteIdRef.current = note.id
   titleRef.current = title
 
@@ -455,7 +468,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       clearTimeout(titleSaveTimeoutRef.current)
       titleSaveTimeoutRef.current = null
     }
-    if (noteIdRef.current && !isReadOnly) {
+    if (noteIdRef.current && canEditNoteRef.current) {
       await NoteApiService.updateNote(noteIdRef.current, {
         title: titleRef.current,
         createVersion: false
@@ -463,7 +476,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }
     yjsProviderRef.current?.flushPendingLocalUpdates()
     await new Promise(resolve => setTimeout(resolve, 75))
-  }, [isReadOnly])
+  }, [])
 
   const noteVersionApi = useMemo(
     () => ({
@@ -505,8 +518,45 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     entityId: note.id,
     entityType: 'note',
     currentUserId: currentUserId || undefined,
-    apiService: NoteApiService
+    apiService: NoteApiService,
+    realtimeSocket: collaborationSocket,
+    blockEditingUntilLockResolved: true
   })
+
+  const isNoteOwner = Boolean(
+    (currentUserId && note.ownerId === currentUserId) || note.permission === 'owner' || note.permission === 'admin'
+  )
+  const hasNoteWritePermission = isNoteOwner || note.permission === 'edit' || note.permission === 'admin'
+  const isNoteLocked = Boolean(fileLock.lock?.isLocked)
+  const isLockedByOtherUser = isNoteLocked && !fileLock.isLockedByMe
+  const canEditNote = !isReadOnly && !isNoteLocked
+  const canUseLockActions = !isReadOnly && !isTrashedNote && hasNoteWritePermission
+  const canAcquireNoteLock = canUseLockActions && !isNoteLocked
+  const canReleaseOwnNoteLock = canUseLockActions && fileLock.isLockedByMe
+  const canOwnerUnlockNote = canUseLockActions && isNoteOwner && isLockedByOtherUser
+
+  canEditNoteRef.current = canEditNote
+
+  const handleAcquireLock = useCallback(async () => {
+    const success = await fileLock.acquireLock()
+    if (!success) {
+      toast.error(t('editor-lock-failed'))
+    }
+  }, [fileLock, t])
+
+  const handleReleaseLock = useCallback(async () => {
+    const success = await fileLock.releaseLock()
+    if (!success) {
+      toast.error(t('editor-unlock-failed'))
+    }
+  }, [fileLock, t])
+
+  const handleOwnerUnlock = useCallback(async () => {
+    const success = await fileLock.forceUnlock()
+    if (!success) {
+      toast.error(t('editor-unlock-failed'))
+    }
+  }, [fileLock, t])
 
   const publishing = usePublishing({
     entityId: note.id,
@@ -752,7 +802,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   useEffect(() => {
     if (!note.id || !currentUserId) return
 
-    const activityType = isReadOnly ? 'viewing' : 'editing'
+    const activityType = canEditNote ? 'editing' : 'viewing'
     const docTitle = title || note.title || t('title-untitled-note')
     const urlSpaceId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
 
@@ -787,12 +837,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       clearInterval(keepAliveInterval)
       emitDocumentActivityEnd(currentUserId, note.id)
     }
-  }, [note.id, note.title, currentUserId, currentUserName, currentUserAvatar, isReadOnly, title])
+  }, [note.id, note.title, currentUserId, currentUserName, currentUserAvatar, canEditNote, title])
 
   // Debounced local save indicator for collaboration-backed body changes
   const scheduleSnapshotSave = useCallback(
     (currentEditor: any) => {
-      if (!note.id || isReadOnly) return
+      if (!note.id || !canEditNote) return
       if (currentEditor !== editorRef.current) return
 
       const scheduledForNoteId = note.id
@@ -808,7 +858,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         onContentSaved?.(scheduledForNoteId)
       }, 1200)
     },
-    [note.id, isReadOnly, onContentSaved]
+    [note.id, canEditNote, onContentSaved]
   )
 
   useEffect(() => {
@@ -1029,16 +1079,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ],
       content: isCollaborationMode ? '<p></p>' : note.content || '<p></p>',
-      // Allow editing even if Yjs sync fails - user should be able to edit their own notes
-      editable: !isReadOnly,
+      editable: canEditNote,
       onUpdate: () => {
         // For notes with Yjs sync, changes are saved via the Yjs provider.
-        if (!isReadOnly) {
+        if (canEditNote) {
           setHasUnsavedChanges(true)
         }
       }
     },
-    [note.id, note.content, ydoc, isReadOnly, mentionSuggestion, isCollaborationMode]
+    [note.id, note.content, ydoc, canEditNote, mentionSuggestion, isCollaborationMode]
   )
 
   useEffect(() => {
@@ -1048,7 +1097,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   // Task-Kanban sync hook
   const { addTaskToKanban, findKanbanBoards } = useTaskKanbanSync({
     editor,
-    enabled: !isReadOnly && !!note.id
+    enabled: canEditNote && !!note.id
   })
 
   // Fetch shared users and combine with collaboration participants for Kanban
@@ -1334,6 +1383,22 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     t
   ])
 
+  const lockedByUserId = fileLock.lock?.lockedBy
+  const resolvedLockOwnerName =
+    fileLock.lock?.lockedByName ||
+    (lockedByUserId
+      ? kanbanParticipants.find(participant => participant.userId === lockedByUserId)?.userName
+      : undefined) ||
+    (fileLock.isLockedByMe ? t('editor-lock-owner-you') : t('editor-lock-owner-unknown'))
+  const lockExpiryLabel = formatLockExpiry(fileLock.lock?.lockExpiry)
+  const lockStatusMessage = fileLock.isLockedByMe
+    ? lockExpiryLabel
+      ? t('editor-lock-status-you-expiry', { time: lockExpiryLabel })
+      : t('editor-lock-status-you')
+    : lockExpiryLabel
+      ? t('editor-lock-status-other-expiry', { name: resolvedLockOwnerName, time: lockExpiryLabel })
+      : t('editor-lock-status-other', { name: resolvedLockOwnerName })
+
   // Sync participants to Kanban extension storage
   useEffect(() => {
     if (!editor) return
@@ -1452,14 +1517,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   }, [editor])
 
-  // Update editable state - allow editing even if Yjs sync fails
+  // Update editable state when lock/read-only status changes.
   useEffect(() => {
     if (!editor) return
-    const shouldBeEditable = !isReadOnly
-    if (editor.isEditable !== shouldBeEditable) {
-      editor.setEditable(shouldBeEditable)
+    if (editor.isEditable !== canEditNote) {
+      editor.setEditable(canEditNote)
     }
-  }, [editor, isReadOnly])
+  }, [editor, canEditNote])
 
   const flushSave = useCallback(() => {
     if (titleSaveTimeoutRef.current) {
@@ -1472,10 +1536,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }
     const id = noteIdRef.current
     const currentTitle = titleRef.current
-    if (!id || isReadOnly) return
+    if (!id || !canEditNoteRef.current) return
     yjsProviderRef.current?.flushPendingLocalUpdates()
     NoteApiService.updateNote(id, { title: currentTitle, createVersion: false }).catch(() => {})
-  }, [isReadOnly])
+  }, [])
 
   const handleBack = useCallback(() => {
     void flushSave()
@@ -1493,7 +1557,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       const id = noteIdRef.current
       const currentTitle = titleRef.current
       yjsProviderRef.current?.flushPendingLocalUpdates()
-      if (id && !isReadOnly) {
+      if (id && canEditNoteRef.current) {
         NoteApiService.updateNote(id, { title: currentTitle, createVersion: false }).catch(() => {})
       }
     }
@@ -1513,7 +1577,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
       const targetNoteId = note.id
       titleSaveTimeoutRef.current = setTimeout(async () => {
-        if (isReadOnly || noteIdRef.current !== targetNoteId) return
+        if (!canEditNoteRef.current || noteIdRef.current !== targetNoteId) return
 
         if (targetNoteId) {
           try {
@@ -1532,7 +1596,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
       }, 1500)
     },
-    [note.id, isReadOnly, onTitleChanged]
+    [note.id, onTitleChanged]
   )
 
   // Handle title keydown - Enter moves to editor
@@ -1563,6 +1627,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   const persistMeta = useCallback(
     async (nextSummary: string | null, nextFlows: NoteActionItemFlow[], nextTranslations: NoteTranslation[]) => {
+      if (!canEditNoteRef.current) return
+
       const sig = buildMetaPersistSig(nextSummary, nextFlows, nextTranslations)
       if (sig === lastMetaPersistSigRef.current) return
 
@@ -1683,6 +1749,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   const handleDeleteTranslation = useCallback(
     (id: string) => {
+      if (!canEditNoteRef.current) {
+        toast.error(t('editor-locked-readonly'))
+        return
+      }
+
       setTranslations(prev => {
         const next = prev.filter(t => t.id !== id)
         void persistMeta(currentSummary, actionItemFlows, next)
@@ -1703,7 +1774,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   // Save
   const handleSave = useCallback(async () => {
-    if (isReadOnly || isSaving || !editor) return
+    if (!canEditNote || isSaving || !editor) return
 
     setIsSaving(true)
     try {
@@ -1717,7 +1788,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     } finally {
       setIsSaving(false)
     }
-  }, [title, editor, flushPendingCollaborationUpdates, onSave, isReadOnly, isSaving])
+  }, [title, editor, flushPendingCollaborationUpdates, onSave, canEditNote, isSaving])
 
   /**
    * Handle stroke completion from hybrid canvas (Apple Pencil handwriting)
@@ -2254,17 +2325,24 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     {t('editor-save-checkpoint')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  {fileLock.isLockedByMe ? (
-                    <DropdownMenuItem onClick={() => fileLock.releaseLock()}>
+                  {canReleaseOwnNoteLock ? (
+                    <DropdownMenuItem onClick={handleReleaseLock} data-testid={`${testId}-unlock-note`}>
                       <UnlockIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                       {t('editor-unlock-note')}
                     </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem onClick={() => fileLock.acquireLock()}>
+                  ) : null}
+                  {canOwnerUnlockNote ? (
+                    <DropdownMenuItem onClick={handleOwnerUnlock} data-testid={`${testId}-owner-unlock-note`}>
+                      <UnlockIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                      {t('editor-owner-unlock-note')}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canAcquireNoteLock ? (
+                    <DropdownMenuItem onClick={handleAcquireLock} data-testid={`${testId}-lock-note`}>
                       <LockIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                       {t('editor-lock-note')}
                     </DropdownMenuItem>
-                  )}
+                  ) : null}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowPublishDialog(true)}>
                     <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -2284,7 +2362,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               </DropdownMenu>
 
               {/* Transform (AI) */}
-              {!isReadOnly && (
+              {canEditNote && (
                 <TransformMenu
                   onTransform={handleTextTransform}
                   isProcessing={isTransforming}
@@ -2302,7 +2380,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       <div className="gba:flex-1 gba:flex gba:overflow-hidden">
         <div className="gba:flex-1 gba:overflow-auto gba:relative">
           {/* Formatting Toolbar -- sticky inside scroll area for frosted glass blur */}
-          {editor && !isReadOnly && (
+          {editor && canEditNote && (
             <div className="gba:sticky gba:top-0 gba:z-[9] gba:bg-sidebar/70 gba:backdrop-blur-md gba:backdrop-saturate-125 gba:px-6 gba:py-1.5 gba:border-b gba:border-sidebar-border/10">
               <div className="gba:max-w-3xl gba:lg:max-w-[48rem] gba:mx-auto gba:flex gba:items-center gba:gap-1 gba:flex-wrap">
                 <TooltipProvider delayDuration={300}>
@@ -2517,6 +2595,29 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           )}
 
           <div className="gba:max-w-3xl gba:lg:max-w-[48rem] gba:mx-auto gba:px-6 gba:sm:px-8 gba:md:px-12 gba:py-8 gba:md:py-12">
+            {isNoteLocked && (
+              <div
+                className="gba:mb-5 gba:flex gba:flex-col gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-muted/40 gba:px-4 gba:py-3 gba:text-sm gba:text-muted-foreground gba:sm:flex-row gba:sm:items-center gba:sm:justify-between"
+                data-testid={`${testId}-lock-status`}
+              >
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <LockIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                  <span>{lockStatusMessage}</span>
+                </div>
+                {(canReleaseOwnNoteLock || canOwnerUnlockNote) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={canReleaseOwnNoteLock ? handleReleaseLock : handleOwnerUnlock}
+                    data-testid={`${testId}-lock-status-unlock`}
+                  >
+                    <UnlockIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+                    {canReleaseOwnNoteLock ? t('editor-unlock-note') : t('editor-owner-unlock-note')}
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Title */}
             <input
               ref={titleInputRef}
@@ -2525,7 +2626,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               onChange={handleTitleChange}
               onKeyDown={handleTitleKeyDown}
               placeholder={t('editor-title-placeholder')}
-              disabled={isReadOnly}
+              disabled={!canEditNote}
               className="gba:w-full gba:text-3xl gba:md:text-4xl gba:font-display gba:font-semibold gba:tracking-tight gba:bg-transparent gba:border-0 gba:outline-none gba:mb-6 gba:text-foreground placeholder:gba:text-muted-foreground/30"
               data-testid="note-editor-title-input"
             />
@@ -2536,6 +2637,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 <SummaryPanel
                   summary={currentSummary}
                   onDismiss={() => {
+                    if (!canEditNoteRef.current) {
+                      toast.error(t('editor-locked-readonly'))
+                      return
+                    }
                     setCurrentSummary(null)
                     void persistMeta(null, actionItemFlows, translations)
                   }}
@@ -2574,11 +2679,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               <EditorContent editor={editor} className="note-editor-content" />
 
               {/* Hybrid Canvas - Automatically captures Apple Pencil input */}
-              {editor && !isReadOnly && (
+              {editor && canEditNote && (
                 <HybridEditorCanvas
                   editorRef={editorContainerRef}
                   onStrokeComplete={handleStrokeComplete}
-                  disabled={isReadOnly}
+                  disabled={!canEditNote}
                   className="gba:z-10"
                 />
               )}

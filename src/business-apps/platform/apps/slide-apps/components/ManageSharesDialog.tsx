@@ -108,6 +108,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   'data-testid': testId = 'manage-shares-dialog'
 }) => {
   const { t } = useTranslation(translations)
+  const resolvedSlideTitle = slideTitle || t('title-untitled-slide')
   const formatRelativeDate = createFormatRelativeDate(t)
   const [shares, setShares] = useState<ShareWithUserInfo[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -260,7 +261,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
             <Users className="gba:w-5 gba:h-5" />
             {t('manage-title')}
           </DialogTitle>
-          <DialogDescription>{t('manage-description', { title: slideTitle })}</DialogDescription>
+          <DialogDescription>{t('manage-description', { title: resolvedSlideTitle })}</DialogDescription>
         </DialogHeader>
 
         <div className="gba:py-2 gba:overflow-y-auto gba:flex-1 gba:-mx-6 gba:px-6">

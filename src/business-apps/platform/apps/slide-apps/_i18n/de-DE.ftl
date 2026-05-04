@@ -370,19 +370,19 @@ editor-placeholder-subtitle = Klicken, um Untertitel hinzuzufügen
 editor-code-placeholder = // Ihr Code hier
 
 # Layout-Platzhalterinhalte
-layout-presentation-title = Präsentationstitel
-layout-section-title = Abschnittstitel
-layout-section-description = Beschreibung oder Kontext für diesen Abschnitt
-layout-key-points = Erster Kernpunkt\nZweiter Kernpunkt\nDritter Kernpunkt
-layout-left-column-points = Linke Spalte Punkt 1\nLinke Spalte Punkt 2\nLinke Spalte Punkt 3
-layout-right-column-points = Rechte Spalte Punkt 1\nRechte Spalte Punkt 2\nRechte Spalte Punkt 3
-layout-strengths = Stärke eins\nStärke zwei\nStärke drei
-layout-main-content-points = Hauptinhalt Punkt 1\nHauptinhalt Punkt 2\nHauptinhalt Punkt 3
-layout-caption-text = Fügen Sie eine Beschriftung oder zusätzlichen Kontext hinzu.
-layout-image-caption = Bildbeschriftung
-layout-image-description = Fügen Sie eine Beschreibung für das links gezeigte Bild hinzu.
-layout-option-a = Option A
-layout-option-b = Option B
+layout-presentation-title = Klicken, um Titel hinzuzufügen
+layout-section-title = Klicken, um Abschnittstitel hinzuzufügen
+layout-section-description = Klicken, um Abschnittsbeschreibung hinzuzufügen
+layout-key-points = Klicken, um Text hinzuzufügen\nKlicken, um Text hinzuzufügen\nKlicken, um Text hinzuzufügen
+layout-left-column-points = Klicken, um Text hinzuzufügen\nKlicken, um Text hinzuzufügen\nKlicken, um Text hinzuzufügen
+layout-right-column-points = Klicken, um Text hinzuzufügen\nKlicken, um Text hinzuzufügen\nKlicken, um Text hinzuzufügen
+layout-strengths = Klicken, um Text hinzuzufügen\nKlicken, um Text hinzuzufügen\nKlicken, um Text hinzuzufügen
+layout-main-content-points = Klicken, um Text hinzuzufügen\nKlicken, um Text hinzuzufügen\nKlicken, um Text hinzuzufügen
+layout-caption-text = Klicken, um Beschriftung oder Begleittext hinzuzufügen
+layout-image-caption = Klicken, um Beschriftung hinzuzufügen
+layout-image-description = Klicken, um Bildbeschreibung hinzuzufügen
+layout-option-a = Klicken, um Überschrift hinzuzufügen
+layout-option-b = Klicken, um Überschrift hinzuzufügen
 layout-image-alt = Klicken, um Bild hinzuzufügen
 layout-name-title-slide = Titelfolie
 layout-name-title-content = Titel und Inhalt
@@ -499,6 +499,7 @@ manage-load-failed = Freigaben konnten nicht geladen werden
 
 # Header Actions
 header-locked = Gesperrt
+header-comments = Kommentare
 header-slide = Folie
 header-version-history = Versionsverlauf
 header-save-checkpoint = Sicherungspunkt speichern
@@ -506,6 +507,7 @@ header-unlock-slide = Folie entsperren
 header-lock-slide = Folie sperren
 header-share = Teilen...
 header-manage-access = Zugriff verwalten...
+editor-comments-disabled-view = Sie können Kommentare ansehen, aber nur Kommentierende und Bearbeitende können neue hinzufügen.
 
 # Generate Presentation
 generate-title = Präsentation generieren

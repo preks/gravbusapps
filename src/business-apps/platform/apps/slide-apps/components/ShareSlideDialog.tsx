@@ -208,6 +208,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
   'data-testid': testId = 'share-slide-dialog'
 }) => {
   const { t } = useTranslation(translations)
+  const resolvedSlideTitle = slideTitle || t('title-untitled-slide')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([])
   const [defaultPermission, setDefaultPermission] = useState<Permission>('view')
@@ -294,7 +295,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
 
       const notificationResult = await sendShareNotification(accessToken, {
         slideId,
-        slideTitle,
+        slideTitle: resolvedSlideTitle,
         recipients: selectedUsers.map(u => ({
           userId: u.userId,
           userName: u.displayName,
@@ -329,7 +330,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
   }, [
     selectedUsers,
     slideId,
-    slideTitle,
+    resolvedSlideTitle,
     currentUserId,
     currentUserName,
     message,
@@ -351,7 +352,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
             {t('share-title')}
           </DialogTitle>
-          <DialogDescription>{t('share-description', { title: slideTitle })}</DialogDescription>
+          <DialogDescription>{t('share-description', { title: resolvedSlideTitle })}</DialogDescription>
         </DialogHeader>
 
         {sentSuccess ? (

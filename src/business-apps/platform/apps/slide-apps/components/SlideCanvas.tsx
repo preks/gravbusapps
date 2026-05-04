@@ -24,7 +24,12 @@ import type {
   Position,
   Size
 } from './slideElements'
-import { gradientToCss, getImageCropStyles, textElementStubForShapeInText } from './slideElements'
+import {
+  gradientToCss,
+  getImageCropStyles,
+  textElementHasVisibleContent,
+  textElementStubForShapeInText
+} from './slideElements'
 import { ensureImportedWebFonts } from './fontStack'
 
 // Webfonts commonly referenced by imported decks (Roboto, Funnel Display,
@@ -55,6 +60,26 @@ const hexToRgba = (hex: string, alpha: number): string => {
   const g = Number.parseInt(cleanHex.substring(2, 4), 16)
   const b = Number.parseInt(cleanHex.substring(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function renderTextPlaceholder(element: TextElement, isPresenting: boolean) {
+  if (!element.placeholderText || isPresenting) return null
+
+  return (
+    <div
+      style={{
+        ...getRichTextBoxStyle(element),
+        color: hexToRgba(element.color, 0.55),
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        userSelect: 'none',
+        pointerEvents: 'none'
+      }}
+      aria-hidden="true"
+    >
+      {element.placeholderText}
+    </div>
+  )
 }
 
 /**
@@ -169,6 +194,7 @@ interface InlineEditingProps {
   onTextChange: (value: string) => void
   onSelectionChange: (range: RichTextSelectionRange | null) => void
   onFinishEditing: () => void
+  selectionToRestore?: RichTextSelectionRange | null
   rehydrateToken?: number
   voiceInput?: {
     isListening: boolean
@@ -753,6 +779,13 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
         // Only handle element drag/resize here (marquee is handled inline in handleCanvasMouseDown)
         if (selectedIds.size === 0 || !elementStart) return
 
+        const mouseDownElement = mouseDownElementRef.current
+        if (isDragging && mouseDownElement) {
+          const dx = Math.abs(e.clientX - mouseDownElement.x)
+          const dy = Math.abs(e.clientY - mouseDownElement.y)
+          if (dx < CLICK_MOVE_THRESHOLD && dy < CLICK_MOVE_THRESHOLD) return
+        }
+
         const currentX = e.clientX / scale
         const currentY = e.clientY / scale
 
@@ -1143,31 +1176,33 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     const renderMoveEdges = (
       elementId: string,
       testIdPrefix: string,
-      onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void
+      onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void,
+      placement: 'centered' | 'outside' = 'centered'
     ) => {
       const edgeThickness = 12 / scale
+      const edgeOffset = placement === 'outside' ? edgeThickness : edgeThickness / 2
       const edgeStyles: Record<'top' | 'right' | 'bottom' | 'left', React.CSSProperties> = {
         top: {
-          top: -edgeThickness / 2,
+          top: -edgeOffset,
           left: 0,
           right: 0,
           height: edgeThickness
         },
         right: {
           top: 0,
-          right: -edgeThickness / 2,
+          right: -edgeOffset,
           bottom: 0,
           width: edgeThickness
         },
         bottom: {
-          bottom: -edgeThickness / 2,
+          bottom: -edgeOffset,
           left: 0,
           right: 0,
           height: edgeThickness
         },
         left: {
           top: 0,
-          left: -edgeThickness / 2,
+          left: -edgeOffset,
           bottom: 0,
           width: edgeThickness
         }
@@ -1192,7 +1227,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     }
 
     const renderInlineEditingMoveEdges = (elementId: string) => {
-      return renderMoveEdges(elementId, 'slide-inline-editor-move-edge')
+      return renderMoveEdges(elementId, 'slide-inline-editor-move-edge', undefined, 'outside')
     }
 
     const renderElement = (element: AnySlideElement) => {
@@ -1427,6 +1462,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                           textareaInitializedRef.current = null
                           inlineEditing.onFinishEditing()
                         }}
+                        selectionToRestore={inlineEditing.selectionToRestore}
                         rehydrateToken={inlineEditing.rehydrateToken}
                         data-testid={`slide-text-editor-${element.id}`}
                       />
@@ -1492,15 +1528,19 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                     </>
                   ) : (
                     <div style={getRichTextBoxStyle(textEl)}>
-                      {textEl.paragraphs && textEl.paragraphs.length > 0 ? (
-                        <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+                      {textElementHasVisibleContent(textEl) ? (
+                        textEl.paragraphs && textEl.paragraphs.length > 0 ? (
+                          <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+                        ) : (
+                          <TextWithLinks
+                            content={textEl.content}
+                            links={textEl.links ?? []}
+                            isPresenting={isPresenting}
+                            onLinkClick={onLinkClick}
+                          />
+                        )
                       ) : (
-                        <TextWithLinks
-                          content={textEl.content}
-                          links={textEl.links ?? []}
-                          isPresenting={isPresenting}
-                          onLinkClick={onLinkClick}
-                        />
+                        renderTextPlaceholder(textEl, isPresenting)
                       )}
                     </div>
                   )}
@@ -1674,6 +1714,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                             textareaInitializedRef.current = null
                             inlineEditing?.onFinishEditing()
                           }}
+                          selectionToRestore={inlineEditing?.selectionToRestore}
                           rehydrateToken={inlineEditing?.rehydrateToken}
                           data-testid={`slide-shape-text-editor-${se.id}`}
                         />

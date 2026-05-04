@@ -223,6 +223,7 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
           limit: 1000,
           offset: 0,
           returnTotalRecords: true,
+          includeTranslations: true,
           includeChildCatalogEntries: true
         }
       )
@@ -286,13 +287,14 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
       await Promise.all(
         updatedConditions.map(async condition => {
           // Fetch current condition data to preserve all fields
-          const currentCondition = await catalogClient.getCatalogEntryById(condition.id)
+          const currentCondition = await catalogClient.readCatalogEntryById(condition.id, { includeTranslations: true })
 
           const updateData = {
             // Required fields
             id: condition.id,
             code: condition.code,
             value: condition.value,
+            localeCode: currentCondition.localeCode,
             alternativeCode: condition.alternativeCode,
             parentEntryId: condition.parentEntryId || currentCondition.parentEntryId,
             displayOrder: condition.displayOrder,
@@ -301,7 +303,8 @@ const ConditionsForm: React.FC<ConditionsFormProps> = ({
             additionalValue1: condition.displayOrder.toString(),
             additionalValue2: currentCondition.additionalValue2 || undefined,
             additionalValue3: currentCondition.additionalValue3 || undefined,
-            objectValue: condition.objectValue || currentCondition.objectValue || {}
+            objectValue: condition.objectValue || currentCondition.objectValue || {},
+            translations: currentCondition.translations || condition.translations || []
           }
 
           return catalogClient.updateCatalogEntry(
