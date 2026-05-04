@@ -5,9 +5,10 @@
  * and a clean, distraction-free writing experience.
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import './note-editor.css'
 import { useEditor, EditorContent } from '@tiptap/react'
+import type { Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -129,6 +130,11 @@ import type { NoteTranslation, TranslationLanguage } from './types/translation'
 import { TextTransformService } from './services/TextTransformService'
 import { useActionItemFlowStatusSync } from './hooks/useActionItemFlowStatusSync'
 import { useActionItemAssigneeEnrichment } from './hooks/useActionItemAssigneeEnrichment'
+import {
+  computePanelCommentAnchor,
+  findInlineCommentSelection,
+  type PanelCommentAnchor
+} from '../shared/utils/commentAnchors'
 import noteAppTranslations from './_i18n'
 
 // Note color mapping (labels via i18n key editor-color-{value})
@@ -154,6 +160,18 @@ const formatPictureUrl = (url: string | null | undefined): string | null => {
   if (url.startsWith('http://') || url.startsWith('https://')) return url
   // Assume base64 if not a URL
   return `data:image/png;base64,${url}`
+}
+
+const formatLockExpiry = (expiry?: string): string | null => {
+  if (!expiry) return null
+
+  const expiresAt = new Date(expiry)
+  if (Number.isNaN(expiresAt.getTime())) return null
+
+  return expiresAt.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
 }
 
 /**
@@ -291,9 +309,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const prevNoteIdRef = useRef(note.id)
   if (prevNoteIdRef.current !== note.id) {
     prevNoteIdRef.current = note.id
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current)
-      autoSaveTimeoutRef.current = null
+    if (titleSaveTimeoutRef.current) {
+      clearTimeout(titleSaveTimeoutRef.current)
+      titleSaveTimeoutRef.current = null
+    }
+    if (contentSavedTimeoutRef.current) {
+      clearTimeout(contentSavedTimeoutRef.current)
+      contentSavedTimeoutRef.current = null
     }
     setTitle(note.title || '')
     setNoteColor(note.color || 'default')
@@ -303,12 +325,14 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   }
 
   const titleInputRef = useRef<HTMLInputElement>(null)
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const contentSavedTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const editorRef = useRef<any>(null)
   const editorContainerRef = useRef<HTMLDivElement>(null)
 
   const noteIdRef = useRef(note.id)
   const titleRef = useRef(title)
+  const canEditNoteRef = useRef(!isReadOnly)
   noteIdRef.current = note.id
   titleRef.current = title
 
@@ -330,17 +354,28 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const lastMetaPersistSigRef = useRef<string>('')
   const metaPersistTimerRef = useRef<NodeJS.Timeout | null>(null)
 
+  const buildMetaPersistSig = useCallback(
+    (summary: string | null, flows: NoteActionItemFlow[], nextTranslations: NoteTranslation[]) =>
+      `${note.id}::${summary ? String(summary).slice(0, 80) : ''}::${flows
+        .map(f => `${f.workflowId}:${f.status}:${f.completedAt || ''}:${f.assigneeAvatarUrl || ''}`)
+        .join('|')}::${nextTranslations.map(t => `${t.id}:${t.targetLanguage}`).join('|')}`,
+    [note.id]
+  )
+
   // Reset metadata when switching notes
   useEffect(() => {
     const meta = (note.contentJson as Record<string, unknown> | undefined) || undefined
-    setCurrentSummary((meta?._summary as string | null | undefined) ?? null)
-    setActionItemFlows((meta?.actionItemFlows as unknown[] as NoteActionItemFlow[] | undefined) || [])
-    setTranslations((meta?._translation as unknown[] as NoteTranslation[] | undefined) || [])
+    const nextSummary = (meta?._summary as string | null | undefined) ?? null
+    const nextFlows = (meta?.actionItemFlows as unknown[] as NoteActionItemFlow[] | undefined) || []
+    const nextTranslations = (meta?._translation as unknown[] as NoteTranslation[] | undefined) || []
+    lastMetaPersistSigRef.current = buildMetaPersistSig(nextSummary, nextFlows, nextTranslations)
+    setCurrentSummary(nextSummary)
+    setActionItemFlows(nextFlows)
+    setTranslations(nextTranslations)
     setActionItemsModalOpen(false)
     setCurrentActionItems([])
     setActionItemsPanelOpen(false)
-    lastMetaPersistSigRef.current = ''
-  }, [note.id])
+  }, [buildMetaPersistSig, note.contentJson, note.id])
 
   // Collaboration state
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -362,7 +397,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const [showComments, setShowComments] = useState(false)
   const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
   const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
-  const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
+  const [pendingSelection, setPendingSelection] = useState<{
+    from: number
+    to: number
+    selectedText: string
+  } | null>(null)
+  const panelCommentAnchorRef = useRef<PanelCommentAnchor | null>(null)
 
   // Task item context menu state - supports multiple positions for batch add
   const [taskContextMenu, setTaskContextMenu] = useState<{
@@ -423,18 +463,54 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   // Enrich participants with avatars
   const [participants, setParticipants] = useState<typeof rawParticipants>([])
 
+  const flushPendingCollaborationUpdates = useCallback(async () => {
+    if (titleSaveTimeoutRef.current) {
+      clearTimeout(titleSaveTimeoutRef.current)
+      titleSaveTimeoutRef.current = null
+    }
+    if (noteIdRef.current && canEditNoteRef.current) {
+      await NoteApiService.updateNote(noteIdRef.current, {
+        title: titleRef.current,
+        createVersion: false
+      }).catch(() => null)
+    }
+    yjsProviderRef.current?.flushPendingLocalUpdates()
+    await new Promise(resolve => setTimeout(resolve, 75))
+  }, [])
+
+  const noteVersionApi = useMemo(
+    () => ({
+      createVersion: async (
+        id: string,
+        options: {
+          content?: string
+          changeDescription?: string
+          isCheckpoint?: boolean
+        }
+      ) => {
+        await flushPendingCollaborationUpdates()
+        return NoteApiService.createVersion(id, options)
+      },
+      listVersions: NoteApiService.listVersions,
+      getVersion: NoteApiService.getVersion,
+      restoreVersion: NoteApiService.restoreVersion,
+      compareVersions: NoteApiService.compareVersions
+    }),
+    [flushPendingCollaborationUpdates]
+  )
+
   // Versioning, Comments, Locking, Publishing hooks
   const versioning = useVersioning({
     entityId: note.id,
     entityType: 'note',
-    apiService: NoteApiService,
-    autoSaveEnabled: !!note.id && !isReadOnly,
-    autoSaveInterval: 30000
+    apiService: noteVersionApi,
+    autoSaveEnabled: false
   })
 
   const comments = useComments({
     entityId: note.id,
     entityType: 'note',
+    socket: collaborationSocket,
     apiService: NoteApiService
   })
 
@@ -442,8 +518,45 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     entityId: note.id,
     entityType: 'note',
     currentUserId: currentUserId || undefined,
-    apiService: NoteApiService
+    apiService: NoteApiService,
+    realtimeSocket: collaborationSocket,
+    blockEditingUntilLockResolved: true
   })
+
+  const isNoteOwner = Boolean(
+    (currentUserId && note.ownerId === currentUserId) || note.permission === 'owner' || note.permission === 'admin'
+  )
+  const hasNoteWritePermission = isNoteOwner || note.permission === 'edit' || note.permission === 'admin'
+  const isNoteLocked = Boolean(fileLock.lock?.isLocked)
+  const isLockedByOtherUser = isNoteLocked && !fileLock.isLockedByMe
+  const canEditNote = !isReadOnly && !isNoteLocked
+  const canUseLockActions = !isReadOnly && !isTrashedNote && hasNoteWritePermission
+  const canAcquireNoteLock = canUseLockActions && !isNoteLocked
+  const canReleaseOwnNoteLock = canUseLockActions && fileLock.isLockedByMe
+  const canOwnerUnlockNote = canUseLockActions && isNoteOwner && isLockedByOtherUser
+
+  canEditNoteRef.current = canEditNote
+
+  const handleAcquireLock = useCallback(async () => {
+    const success = await fileLock.acquireLock()
+    if (!success) {
+      toast.error(t('editor-lock-failed'))
+    }
+  }, [fileLock, t])
+
+  const handleReleaseLock = useCallback(async () => {
+    const success = await fileLock.releaseLock()
+    if (!success) {
+      toast.error(t('editor-unlock-failed'))
+    }
+  }, [fileLock, t])
+
+  const handleOwnerUnlock = useCallback(async () => {
+    const success = await fileLock.forceUnlock()
+    if (!success) {
+      toast.error(t('editor-unlock-failed'))
+    }
+  }, [fileLock, t])
 
   const publishing = usePublishing({
     entityId: note.id,
@@ -510,6 +623,36 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     fetchAvatars()
   }, [rawParticipants, graphqlClient])
 
+  const getEditorReadyPromise = useCallback((): Promise<void> => {
+    return new Promise(resolve => {
+      const deadline = Date.now() + 5000
+      const check = () => {
+        const ed = editorRef.current as { view?: unknown } | null
+        if (ed?.view) {
+          resolve()
+          return
+        }
+        if (Date.now() > deadline) {
+          resolve()
+          return
+        }
+        setTimeout(check, 50)
+      }
+      check()
+    })
+  }, [])
+
+  const forceEditorViewRefresh = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const ed = editorRef.current as { state?: unknown; view?: { updateState?: (state: unknown) => void } } | null
+        if (ed?.view?.updateState && ed.state) {
+          ed.view.updateState(ed.state)
+        }
+      })
+    })
+  }, [])
+
   // Initialize Yjs provider
   useEffect(() => {
     if (!note.id || !collaborationSocket || isTrashedNote) return
@@ -520,7 +663,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       entityType: 'note',
       ydoc,
       awareness,
+      getDocumentSnapshot: () => editorRef.current?.getHTML?.() || note.content || '<p></p>',
+      onBeforeFirstSync: getEditorReadyPromise,
       onSyncedChange: setIsYjsSynced,
+      onRemoteDocumentChange: forceEditorViewRefresh,
+      onRemoteAwarenessChange: forceEditorViewRefresh,
       onBootstrapRequired: async (html: string) => {
         const start = Date.now()
         while (!editorRef.current && Date.now() - start < 5000) {
@@ -550,7 +697,93 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       yjsProviderRef.current = null
       setIsYjsSynced(false)
     }
-  }, [note.id, collaborationSocket, ydoc, awareness, isTrashedNote])
+  }, [note.id, collaborationSocket, ydoc, awareness, getEditorReadyPromise, forceEditorViewRefresh, isTrashedNote])
+
+  useEffect(() => {
+    if (!collaborationSocket || !note.id || isTrashedNote) return
+
+    const handleNoteContentReset = (event: {
+      documentId: string
+      entityType?: 'note'
+      snapshot?: Record<string, unknown>
+    }) => {
+      if (event.documentId !== note.id || event.entityType !== 'note' || !event.snapshot) return
+
+      const snapshot = event.snapshot
+      const snapshotContent = (snapshot.content as string | undefined) || '<p></p>'
+      const snapshotContentJson = (snapshot.contentJson as Record<string, unknown> | undefined) || {}
+      const nextSummary = (snapshotContentJson._summary as string | null | undefined) ?? null
+      const nextFlows = (snapshotContentJson.actionItemFlows as NoteActionItemFlow[] | undefined) || []
+      const nextTranslations = (snapshotContentJson._translation as NoteTranslation[] | undefined) || []
+
+      yjsProviderRef.current?.requestResync()
+      lastMetaPersistSigRef.current = buildMetaPersistSig(nextSummary, nextFlows, nextTranslations)
+      setTitle((snapshot.title as string | undefined) || '')
+      setCurrentSummary(nextSummary)
+      setActionItemFlows(nextFlows)
+      setTranslations(nextTranslations)
+
+      const ed = editorRef.current
+      if (ed) {
+        ed.commands.setContent(snapshotContent, true)
+      }
+    }
+
+    collaborationSocket.on('note_content_reset', handleNoteContentReset)
+    return () => {
+      collaborationSocket.off('note_content_reset', handleNoteContentReset)
+    }
+  }, [buildMetaPersistSig, collaborationSocket, isTrashedNote, note.id])
+
+  useEffect(() => {
+    if (!collaborationSocket || !note.id || isTrashedNote) return
+
+    const handleNoteMetadataUpdated = (event: {
+      documentId: string
+      entityType?: 'note'
+      metadata?: Record<string, unknown>
+    }) => {
+      if (event.documentId !== note.id || event.entityType !== 'note') return
+
+      const metadata = event.metadata || {}
+      const nextSummary = (metadata._summary as string | null | undefined) ?? null
+      const nextFlows = (metadata.actionItemFlows as NoteActionItemFlow[] | undefined) || []
+      const nextTranslations = (metadata._translation as NoteTranslation[] | undefined) || []
+      lastMetaPersistSigRef.current = buildMetaPersistSig(nextSummary, nextFlows, nextTranslations)
+      setCurrentSummary(nextSummary)
+      setActionItemFlows(nextFlows)
+      setTranslations(nextTranslations)
+    }
+
+    collaborationSocket.on('note_metadata_updated', handleNoteMetadataUpdated)
+    return () => {
+      collaborationSocket.off('note_metadata_updated', handleNoteMetadataUpdated)
+    }
+  }, [buildMetaPersistSig, collaborationSocket, isTrashedNote, note.id])
+
+  useEffect(() => {
+    if (!collaborationSocket || !note.id || isTrashedNote) return
+
+    const handleNoteTitleUpdated = (event: { documentId: string; entityType?: 'note'; title?: string }) => {
+      if (event.documentId !== note.id || event.entityType !== 'note') return
+
+      const nextTitle = event.title || ''
+      if (nextTitle === titleRef.current) return
+
+      if (titleSaveTimeoutRef.current) {
+        clearTimeout(titleSaveTimeoutRef.current)
+        titleSaveTimeoutRef.current = null
+      }
+
+      setTitle(nextTitle)
+      onTitleChanged?.(note.id, nextTitle)
+    }
+
+    collaborationSocket.on('note_title_updated', handleNoteTitleUpdated)
+    return () => {
+      collaborationSocket.off('note_title_updated', handleNoteTitleUpdated)
+    }
+  }, [collaborationSocket, isTrashedNote, note.id, onTitleChanged])
 
   // Set awareness state
   useEffect(() => {
@@ -569,7 +802,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   useEffect(() => {
     if (!note.id || !currentUserId) return
 
-    const activityType = isReadOnly ? 'viewing' : 'editing'
+    const activityType = canEditNote ? 'editing' : 'viewing'
     const docTitle = title || note.title || t('title-untitled-note')
     const urlSpaceId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
 
@@ -604,41 +837,28 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       clearInterval(keepAliveInterval)
       emitDocumentActivityEnd(currentUserId, note.id)
     }
-  }, [note.id, note.title, currentUserId, currentUserName, currentUserAvatar, isReadOnly, title])
+  }, [note.id, note.title, currentUserId, currentUserName, currentUserAvatar, canEditNote, title])
 
-  // Debounced snapshot save - works even without Yjs collaboration
+  // Debounced local save indicator for collaboration-backed body changes
   const scheduleSnapshotSave = useCallback(
     (currentEditor: any) => {
-      if (!note.id || isReadOnly) return
+      if (!note.id || !canEditNote) return
       if (currentEditor !== editorRef.current) return
 
       const scheduledForNoteId = note.id
       setHasUnsavedChanges(true)
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current)
+      if (contentSavedTimeoutRef.current) {
+        clearTimeout(contentSavedTimeoutRef.current)
       }
 
-      autoSaveTimeoutRef.current = setTimeout(() => {
+      contentSavedTimeoutRef.current = setTimeout(() => {
         if (noteIdRef.current !== scheduledForNoteId) return
-        const html = currentEditor?.getHTML?.() || ''
-        NoteApiService.updateNote(scheduledForNoteId, {
-          title: titleRef.current,
-          content: html,
-          createVersion: false
-        })
-          .then(() => {
-            if (noteIdRef.current === scheduledForNoteId) {
-              setLastSaved(new Date())
-              setHasUnsavedChanges(false)
-              onContentSaved?.(scheduledForNoteId)
-            }
-          })
-          .catch(error => {
-            console.error('[NoteEditor] Snapshot save failed:', error)
-          })
-      }, 2000)
+        setLastSaved(new Date())
+        setHasUnsavedChanges(false)
+        onContentSaved?.(scheduledForNoteId)
+      }, 1200)
     },
-    [note.id, isReadOnly, onContentSaved]
+    [note.id, canEditNote, onContentSaved]
   )
 
   useEffect(() => {
@@ -749,6 +969,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         CharacterCount,
         InlineCommentExtension.configure({
           onCommentClick: commentId => {
+            setPendingSelection(null)
+            setShowInlineCommentPopover(false)
             setShowComments(true)
             setTimeout(() => {
               const commentElement = document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
@@ -857,18 +1079,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ],
       content: isCollaborationMode ? '<p></p>' : note.content || '<p></p>',
-      // Allow editing even if Yjs sync fails - user should be able to edit their own notes
-      editable: !isReadOnly,
+      editable: canEditNote,
       onUpdate: () => {
-        // For notes with Yjs sync, changes are auto-saved via the Yjs provider
-        // Just mark as having unsaved changes for UI
-        if (!isReadOnly) {
+        // For notes with Yjs sync, changes are saved via the Yjs provider.
+        if (canEditNote) {
           setHasUnsavedChanges(true)
-          versioning.markAsChanged()
         }
       }
     },
-    [note.id, note.content, ydoc, isReadOnly, mentionSuggestion, isCollaborationMode]
+    [note.id, note.content, ydoc, canEditNote, mentionSuggestion, isCollaborationMode]
   )
 
   useEffect(() => {
@@ -878,7 +1097,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   // Task-Kanban sync hook
   const { addTaskToKanban, findKanbanBoards } = useTaskKanbanSync({
     editor,
-    enabled: !isReadOnly && !!note.id
+    enabled: canEditNote && !!note.id
   })
 
   // Fetch shared users and combine with collaboration participants for Kanban
@@ -1164,6 +1383,22 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     t
   ])
 
+  const lockedByUserId = fileLock.lock?.lockedBy
+  const resolvedLockOwnerName =
+    fileLock.lock?.lockedByName ||
+    (lockedByUserId
+      ? kanbanParticipants.find(participant => participant.userId === lockedByUserId)?.userName
+      : undefined) ||
+    (fileLock.isLockedByMe ? t('editor-lock-owner-you') : t('editor-lock-owner-unknown'))
+  const lockExpiryLabel = formatLockExpiry(fileLock.lock?.lockExpiry)
+  const lockStatusMessage = fileLock.isLockedByMe
+    ? lockExpiryLabel
+      ? t('editor-lock-status-you-expiry', { time: lockExpiryLabel })
+      : t('editor-lock-status-you')
+    : lockExpiryLabel
+      ? t('editor-lock-status-other-expiry', { name: resolvedLockOwnerName, time: lockExpiryLabel })
+      : t('editor-lock-status-other', { name: resolvedLockOwnerName })
+
   // Sync participants to Kanban extension storage
   useEffect(() => {
     if (!editor) return
@@ -1180,45 +1415,131 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   }, [editor, kanbanParticipants, kanbanParticipantsDebug])
 
+  const getCurrentCommentSelection = useCallback(() => {
+    const anchor = computePanelCommentAnchor(editor)
+    if (!anchor) return null
+
+    return {
+      from: anchor.from,
+      to: anchor.to,
+      selectedText: anchor.selectedText
+    }
+  }, [editor])
+
+  const isValidPanelCommentAnchor = useCallback((anchor: PanelCommentAnchor | null): anchor is PanelCommentAnchor => {
+    const anchorEditor = anchor?.editor
+    if (!anchor || !anchorEditor || anchorEditor.isDestroyed) return false
+
+    const docSize = anchorEditor.state.doc.content.size
+    return anchor.from < anchor.to && anchor.from >= 0 && anchor.to <= docSize
+  }, [])
+
+  const applyInlineCommentMark = useCallback(
+    (selection: { from: number; to: number }, comment: { id: string; createdAt: string }) => {
+      if (!editor) return
+
+      editor
+        .chain()
+        .focus()
+        .setTextSelection(selection)
+        .setInlineComment({
+          commentId: comment.id,
+          commentType: 'inline',
+          createdBy: currentUserId || '',
+          createdAt: comment.createdAt
+        })
+        .run()
+    },
+    [editor, currentUserId]
+  )
+
   // Handler for inline comment (defined after editor)
   const handleAddInlineComment = useCallback(() => {
     if (!editor) return
 
-    const { from, to } = editor.state.selection
-    if (from === to) return // No selection
+    const selection = getCurrentCommentSelection()
+    if (!selection) return
 
-    const selectedText = editor.state.doc.textBetween(from, to)
     const { view } = editor
-    const coords = view.coordsAtPos(from)
+    const coords = view.coordsAtPos(selection.from)
 
-    setPendingSelection({ from, to, text: selectedText })
+    setPendingSelection(selection)
     setInlineCommentPosition({
       top: coords.top + window.scrollY + 30,
       left: coords.left + window.scrollX
     })
     setShowInlineCommentPopover(true)
-  }, [editor])
+  }, [editor, getCurrentCommentSelection])
 
-  // Update editable state - allow editing even if Yjs sync fails
   useEffect(() => {
     if (!editor) return
-    const shouldBeEditable = !isReadOnly
-    if (editor.isEditable !== shouldBeEditable) {
-      editor.setEditable(shouldBeEditable)
+
+    const syncAnchor = () => {
+      panelCommentAnchorRef.current = computePanelCommentAnchor(editor)
     }
-  }, [editor, isReadOnly])
+
+    const refreshAnchor = ({ transaction }: { transaction: ProseMirrorTransaction }) => {
+      const current = panelCommentAnchorRef.current
+      if (!current) return
+
+      if (transaction.selectionSet) {
+        syncAnchor()
+        return
+      }
+
+      const mappedFrom = transaction.mapping.mapResult(current.from)
+      const mappedTo = transaction.mapping.mapResult(current.to)
+      if (mappedFrom.deleted && mappedTo.deleted) {
+        panelCommentAnchorRef.current = null
+        return
+      }
+
+      const docSize = editor.state.doc.content.size
+      const from = Math.max(0, Math.min(mappedFrom.pos, docSize))
+      const to = Math.max(from, Math.min(mappedTo.pos, docSize))
+      const selectedText = editor.state.doc.textBetween(from, to, '\n', ' ')
+      panelCommentAnchorRef.current = selectedText.trim()
+        ? {
+            editor,
+            from,
+            to,
+            selectedText
+          }
+        : null
+    }
+
+    editor.on('selectionUpdate', syncAnchor)
+    editor.on('transaction', refreshAnchor)
+
+    return () => {
+      editor.off('selectionUpdate', syncAnchor)
+      editor.off('transaction', refreshAnchor)
+    }
+  }, [editor])
+
+  // Update editable state when lock/read-only status changes.
+  useEffect(() => {
+    if (!editor) return
+    if (editor.isEditable !== canEditNote) {
+      editor.setEditable(canEditNote)
+    }
+  }, [editor, canEditNote])
 
   const flushSave = useCallback(() => {
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current)
-      autoSaveTimeoutRef.current = null
+    if (titleSaveTimeoutRef.current) {
+      clearTimeout(titleSaveTimeoutRef.current)
+      titleSaveTimeoutRef.current = null
+    }
+    if (contentSavedTimeoutRef.current) {
+      clearTimeout(contentSavedTimeoutRef.current)
+      contentSavedTimeoutRef.current = null
     }
     const id = noteIdRef.current
     const currentTitle = titleRef.current
-    const html = editorRef.current?.getHTML?.()
-    if (!id || isReadOnly || !html) return
-    NoteApiService.updateNote(id, { title: currentTitle, content: html, createVersion: false }).catch(() => {})
-  }, [isReadOnly])
+    if (!id || !canEditNoteRef.current) return
+    yjsProviderRef.current?.flushPendingLocalUpdates()
+    NoteApiService.updateNote(id, { title: currentTitle, createVersion: false }).catch(() => {})
+  }, [])
 
   const handleBack = useCallback(() => {
     void flushSave()
@@ -1227,14 +1548,17 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   useEffect(() => {
     return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current)
+      if (titleSaveTimeoutRef.current) {
+        clearTimeout(titleSaveTimeoutRef.current)
+      }
+      if (contentSavedTimeoutRef.current) {
+        clearTimeout(contentSavedTimeoutRef.current)
       }
       const id = noteIdRef.current
       const currentTitle = titleRef.current
-      const html = editorRef.current?.getHTML?.()
-      if (id && !isReadOnly && html) {
-        NoteApiService.updateNote(id, { title: currentTitle, content: html, createVersion: false }).catch(() => {})
+      yjsProviderRef.current?.flushPendingLocalUpdates()
+      if (id && canEditNoteRef.current) {
+        NoteApiService.updateNote(id, { title: currentTitle, createVersion: false }).catch(() => {})
       }
     }
   }, [])
@@ -1247,21 +1571,18 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       setHasUnsavedChanges(true)
 
       // Debounced auto-save for title
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current)
+      if (titleSaveTimeoutRef.current) {
+        clearTimeout(titleSaveTimeoutRef.current)
       }
 
       const targetNoteId = note.id
-      autoSaveTimeoutRef.current = setTimeout(async () => {
-        if (isReadOnly || noteIdRef.current !== targetNoteId) return
-
-        const html = editor?.getHTML() || note.content || ''
+      titleSaveTimeoutRef.current = setTimeout(async () => {
+        if (!canEditNoteRef.current || noteIdRef.current !== targetNoteId) return
 
         if (targetNoteId) {
           try {
             await NoteApiService.updateNote(targetNoteId, {
               title: newTitle,
-              content: html,
               createVersion: false
             })
             if (noteIdRef.current === targetNoteId) {
@@ -1275,7 +1596,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
       }, 1500)
     },
-    [editor, note.id, note.content, isReadOnly, onTitleChanged]
+    [note.id, onTitleChanged]
   )
 
   // Handle title keydown - Enter moves to editor
@@ -1306,36 +1627,19 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   const persistMeta = useCallback(
     async (nextSummary: string | null, nextFlows: NoteActionItemFlow[], nextTranslations: NoteTranslation[]) => {
-      const base = ((note.contentJson as Record<string, unknown> | undefined) || {}) as Record<string, unknown>
-      const next: Record<string, unknown> = { ...base }
+      if (!canEditNoteRef.current) return
 
-      if (nextSummary && nextSummary.trim().length > 0) {
-        next._summary = nextSummary
-      } else {
-        delete next._summary
-      }
-
-      if (nextFlows.length > 0) {
-        next.actionItemFlows = nextFlows
-      } else {
-        delete next.actionItemFlows
-      }
-
-      if (nextTranslations.length > 0) {
-        next._translation = nextTranslations
-      } else {
-        delete next._translation
-      }
-
-      const sig = `${note.id}::${next._summary ? String(next._summary).slice(0, 80) : ''}::${nextFlows
-        .map(f => `${f.workflowId}:${f.status}:${f.completedAt || ''}:${f.assigneeAvatarUrl || ''}`)
-        .join('|')}::${nextTranslations.map(t => `${t.id}:${t.targetLanguage}`).join('|')}`
+      const sig = buildMetaPersistSig(nextSummary, nextFlows, nextTranslations)
       if (sig === lastMetaPersistSigRef.current) return
 
       lastMetaPersistSigRef.current = sig
-      await NoteApiService.updateNote(note.id, { contentJson: next })
+      await NoteApiService.updateContentMetadata(note.id, {
+        summary: nextSummary,
+        actionItemFlows: nextFlows,
+        translations: nextTranslations
+      })
     },
-    [note.contentJson, note.id]
+    [buildMetaPersistSig, note.id]
   )
 
   const queuePersistMeta = useCallback(
@@ -1445,6 +1749,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   const handleDeleteTranslation = useCallback(
     (id: string) => {
+      if (!canEditNoteRef.current) {
+        toast.error(t('editor-locked-readonly'))
+        return
+      }
+
       setTranslations(prev => {
         const next = prev.filter(t => t.id !== id)
         void persistMeta(currentSummary, actionItemFlows, next)
@@ -1465,10 +1774,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   // Save
   const handleSave = useCallback(async () => {
-    if (isReadOnly || isSaving || !editor) return
+    if (!canEditNote || isSaving || !editor) return
 
     setIsSaving(true)
     try {
+      await flushPendingCollaborationUpdates()
       const content = editor.getHTML()
       await onSave(title, content)
       setLastSaved(new Date())
@@ -1478,7 +1788,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     } finally {
       setIsSaving(false)
     }
-  }, [title, editor, onSave, isReadOnly, isSaving])
+  }, [title, editor, flushPendingCollaborationUpdates, onSave, canEditNote, isSaving])
 
   /**
    * Handle stroke completion from hybrid canvas (Apple Pencil handwriting)
@@ -1943,7 +2253,24 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setShowComments(!showComments)}
+                      onPointerDown={() => {
+                        if (showComments) return
+                        panelCommentAnchorRef.current = computePanelCommentAnchor(editor)
+                      }}
+                      onClick={() => {
+                        if (showComments) {
+                          setShowComments(false)
+                          panelCommentAnchorRef.current = null
+                          setPendingSelection(null)
+                          return
+                        }
+
+                        if (!panelCommentAnchorRef.current) {
+                          panelCommentAnchorRef.current = computePanelCommentAnchor(editor)
+                        }
+                        setShowInlineCommentPopover(false)
+                        setShowComments(true)
+                      }}
                       data-testid="note-comments-button"
                       className={`gba:h-7 gba:w-7 gba:relative ${showComments ? 'gba:text-primary' : 'gba:text-muted-foreground hover:gba:text-foreground'}`}
                     >
@@ -1998,17 +2325,24 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     {t('editor-save-checkpoint')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  {fileLock.isLockedByMe ? (
-                    <DropdownMenuItem onClick={() => fileLock.releaseLock()}>
+                  {canReleaseOwnNoteLock ? (
+                    <DropdownMenuItem onClick={handleReleaseLock} data-testid={`${testId}-unlock-note`}>
                       <UnlockIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                       {t('editor-unlock-note')}
                     </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem onClick={() => fileLock.acquireLock()}>
+                  ) : null}
+                  {canOwnerUnlockNote ? (
+                    <DropdownMenuItem onClick={handleOwnerUnlock} data-testid={`${testId}-owner-unlock-note`}>
+                      <UnlockIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                      {t('editor-owner-unlock-note')}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canAcquireNoteLock ? (
+                    <DropdownMenuItem onClick={handleAcquireLock} data-testid={`${testId}-lock-note`}>
                       <LockIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                       {t('editor-lock-note')}
                     </DropdownMenuItem>
-                  )}
+                  ) : null}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowPublishDialog(true)}>
                     <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -2028,7 +2362,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               </DropdownMenu>
 
               {/* Transform (AI) */}
-              {!isReadOnly && (
+              {canEditNote && (
                 <TransformMenu
                   onTransform={handleTextTransform}
                   isProcessing={isTransforming}
@@ -2046,7 +2380,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       <div className="gba:flex-1 gba:flex gba:overflow-hidden">
         <div className="gba:flex-1 gba:overflow-auto gba:relative">
           {/* Formatting Toolbar -- sticky inside scroll area for frosted glass blur */}
-          {editor && !isReadOnly && (
+          {editor && canEditNote && (
             <div className="gba:sticky gba:top-0 gba:z-[9] gba:bg-sidebar/70 gba:backdrop-blur-md gba:backdrop-saturate-125 gba:px-6 gba:py-1.5 gba:border-b gba:border-sidebar-border/10">
               <div className="gba:max-w-3xl gba:lg:max-w-[48rem] gba:mx-auto gba:flex gba:items-center gba:gap-1 gba:flex-wrap">
                 <TooltipProvider delayDuration={300}>
@@ -2261,6 +2595,29 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           )}
 
           <div className="gba:max-w-3xl gba:lg:max-w-[48rem] gba:mx-auto gba:px-6 gba:sm:px-8 gba:md:px-12 gba:py-8 gba:md:py-12">
+            {isNoteLocked && (
+              <div
+                className="gba:mb-5 gba:flex gba:flex-col gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-muted/40 gba:px-4 gba:py-3 gba:text-sm gba:text-muted-foreground gba:sm:flex-row gba:sm:items-center gba:sm:justify-between"
+                data-testid={`${testId}-lock-status`}
+              >
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <LockIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                  <span>{lockStatusMessage}</span>
+                </div>
+                {(canReleaseOwnNoteLock || canOwnerUnlockNote) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={canReleaseOwnNoteLock ? handleReleaseLock : handleOwnerUnlock}
+                    data-testid={`${testId}-lock-status-unlock`}
+                  >
+                    <UnlockIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+                    {canReleaseOwnNoteLock ? t('editor-unlock-note') : t('editor-owner-unlock-note')}
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Title */}
             <input
               ref={titleInputRef}
@@ -2269,7 +2626,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               onChange={handleTitleChange}
               onKeyDown={handleTitleKeyDown}
               placeholder={t('editor-title-placeholder')}
-              disabled={isReadOnly}
+              disabled={!canEditNote}
               className="gba:w-full gba:text-3xl gba:md:text-4xl gba:font-display gba:font-semibold gba:tracking-tight gba:bg-transparent gba:border-0 gba:outline-none gba:mb-6 gba:text-foreground placeholder:gba:text-muted-foreground/30"
               data-testid="note-editor-title-input"
             />
@@ -2280,6 +2637,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 <SummaryPanel
                   summary={currentSummary}
                   onDismiss={() => {
+                    if (!canEditNoteRef.current) {
+                      toast.error(t('editor-locked-readonly'))
+                      return
+                    }
                     setCurrentSummary(null)
                     void persistMeta(null, actionItemFlows, translations)
                   }}
@@ -2318,11 +2679,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               <EditorContent editor={editor} className="note-editor-content" />
 
               {/* Hybrid Canvas - Automatically captures Apple Pencil input */}
-              {editor && !isReadOnly && (
+              {editor && canEditNote && (
                 <HybridEditorCanvas
                   editorRef={editorContainerRef}
                   onStrokeComplete={handleStrokeComplete}
-                  disabled={isReadOnly}
+                  disabled={!canEditNote}
                   className="gba:z-10"
                 />
               )}
@@ -2747,8 +3108,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             const success = await versioning.restoreVersion(versionNumber)
 
             if (success && editor && versionData.content) {
+              const restoredContentJson = (versionData.contentJson as Record<string, unknown> | undefined) || {}
               editor.commands.setContent(versionData.content)
               setTitle(versionData.title || '')
+              setCurrentSummary((restoredContentJson._summary as string | null | undefined) ?? null)
+              setActionItemFlows((restoredContentJson.actionItemFlows as NoteActionItemFlow[] | undefined) || [])
+              setTranslations((restoredContentJson._translation as NoteTranslation[] | undefined) || [])
               setHasUnsavedChanges(false)
               setLastSaved(new Date())
 
@@ -2780,6 +3145,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           isOpen={showPublishDialog}
           onClose={() => setShowPublishDialog(false)}
           onPublish={async (publishNotes, createCheckpoint) => {
+            await flushPendingCollaborationUpdates()
             await publishing.publish(publishNotes, createCheckpoint)
           }}
           isPublishing={publishing.isPublishing}
@@ -2794,13 +3160,55 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           unresolvedCount={comments.unresolvedCount}
           isLoading={comments.isLoading}
           onCreateComment={async (content, parentId, userName, userAvatar) => {
+            if (parentId) {
+              await comments.createComment({
+                type: 'document',
+                content,
+                parentId,
+                createdByName: userName,
+                createdByAvatar: userAvatar
+              })
+              return
+            }
+
+            const anchor = panelCommentAnchorRef.current
+            if (isValidPanelCommentAnchor(anchor)) {
+              const anchorEditor = anchor.editor
+              const docSize = anchorEditor.state.doc.content.size
+              const from = Math.max(0, Math.min(anchor.from, docSize))
+              const to = Math.max(from, Math.min(anchor.to, docSize))
+
+              if (to > from) {
+                const anchorSelectedText = anchor.selectedText.trim()
+                const selectedText = anchorSelectedText || anchorEditor.state.doc.textBetween(from, to, '\n', ' ')
+                const comment = await comments.createComment({
+                  type: 'inline',
+                  content,
+                  selectionStart: from,
+                  selectionEnd: to,
+                  selectedText,
+                  createdByName: userName,
+                  createdByAvatar: userAvatar
+                })
+
+                if (comment) {
+                  applyInlineCommentMark({ from, to }, comment)
+                }
+
+                panelCommentAnchorRef.current = null
+                setPendingSelection(null)
+                return
+              }
+            }
+
             await comments.createComment({
-              type: parentId ? 'document' : 'document',
+              type: 'document',
               content,
-              parentId,
               createdByName: userName,
               createdByAvatar: userAvatar
             })
+            panelCommentAnchorRef.current = null
+            setPendingSelection(null)
           }}
           onUpdateComment={async (commentId, content) => {
             await comments.updateComment(commentId, { content })
@@ -2811,55 +3219,38 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           onDeleteComment={async commentId => {
             await comments.deleteComment(commentId)
           }}
-          onClose={() => setShowComments(false)}
+          onClose={() => {
+            setShowComments(false)
+            panelCommentAnchorRef.current = null
+            setPendingSelection(null)
+          }}
           currentUserId={currentUserId || undefined}
           currentUserName={currentUserName || undefined}
           currentUserAvatar={currentUserAvatar || undefined}
           accessToken={accessToken}
           headerHeight={80}
           onUnhighlight={commentId => {
-            if (editor) {
-              const { doc } = editor.state
-              let foundPos: { from: number; to: number } | null = null
+            if (!editor) return
 
-              doc.descendants((node, pos) => {
-                if (node.marks) {
-                  node.marks.forEach(mark => {
-                    if (mark.type.name === 'inlineComment' && mark.attrs.commentId === commentId) {
-                      foundPos = { from: pos, to: pos + node.nodeSize }
-                    }
-                  })
-                }
-              })
+            const comment = comments.comments.find(entry => entry.id === commentId) || null
+            const selection = findInlineCommentSelection(editor, commentId, comment)
+            if (!selection) return
 
-              if (foundPos) {
-                editor.chain().setTextSelection(foundPos).unsetInlineComment().run()
-              }
-            }
+            editor.chain().setTextSelection(selection).unsetInlineComment().run()
           }}
           onScrollToHighlight={commentId => {
-            if (editor) {
-              const { doc } = editor.state
+            if (!editor) return
 
-              doc.descendants((node, pos) => {
-                if (node.marks) {
-                  node.marks.forEach(mark => {
-                    if (mark.type.name === 'inlineComment' && mark.attrs.commentId === commentId) {
-                      editor
-                        .chain()
-                        .setTextSelection({ from: pos, to: pos + node.nodeSize })
-                        .focus()
-                        .run()
+            const comment = comments.comments.find(entry => entry.id === commentId) || null
+            const selection = findInlineCommentSelection(editor, commentId, comment)
+            if (!selection) return
 
-                      setTimeout(() => {
-                        const element = document.querySelector(`[data-comment-id="${commentId}"]`)
-                        element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                      }, 100)
-                    }
-                  })
-                }
-              })
-            }
+            editor.chain().setTextSelection(selection).focus().run()
+
+            setTimeout(() => {
+              const element = document.querySelector(`[data-comment-id="${commentId}"]`)
+              element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }, 100)
           }}
           data-testid="note-comment-panel"
         />
@@ -2877,22 +3268,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             content,
             selectionStart: pendingSelection.from,
             selectionEnd: pendingSelection.to,
-            selectedText: pendingSelection.text,
+            selectedText: pendingSelection.selectedText,
             createdByName: currentUserName || undefined,
             createdByAvatar: currentUserAvatar || undefined
           })
 
           if (comment) {
-            editor
-              .chain()
-              .focus()
-              .setInlineComment({
-                commentId: comment.id,
-                commentType: 'inline',
-                createdBy: currentUserId || '',
-                createdAt: comment.createdAt
-              })
-              .run()
+            applyInlineCommentMark({ from: pendingSelection.from, to: pendingSelection.to }, comment)
           }
 
           setPendingSelection(null)

@@ -14,7 +14,7 @@ import {
   Label,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Link, Trash2, ExternalLink } from 'lucide-react'
+import { ArrowSquareOutIcon, LinkIcon, TrashIcon } from '@phosphor-icons/react'
 import { isValidUrl, sanitizeLinkUrl } from '../utils/linkUtils'
 import translations from '../_i18n'
 
@@ -111,21 +111,26 @@ export const LinkDialog: React.FC<LinkDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-md" data-testid={testId}>
-        <DialogHeader>
-          <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            <Link className="gba:w-5 gba:h-5 gba:text-primary" />
+      <DialogContent className="gba:max-w-md gba:p-0 gba:gap-0 gba:overflow-hidden" data-testid={testId}>
+        <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4">
+          <DialogTitle className="gba:flex gba:items-center gba:gap-2 gba:text-xl gba:font-semibold gba:tracking-tight">
+            <LinkIcon className="gba:h-5 gba:w-5 gba:text-primary" />
             {isEditing ? t('link-edit') || 'Edit Link' : t('link-add') || 'Add Link'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="gba:space-y-4 gba:py-4">
+        <div className="gba:space-y-5 gba:px-6 gba:pb-6">
           {selectedText && (
-            <div className="gba:space-y-1">
-              <Label className="gba:text-sm gba:text-muted-foreground">
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">
                 {t('link-selected-text') || 'Selected text'}
               </Label>
-              <div className="gba:p-2 gba:rounded gba:bg-muted gba:text-sm gba:truncate">{selectedText}</div>
+              <div
+                className="gba:max-h-24 gba:overflow-auto gba:rounded-md gba:border gba:border-border gba:bg-muted/40 gba:px-3 gba:py-2.5 gba:text-sm gba:leading-5 gba:break-words"
+                data-testid={`${testId}-selected-text`}
+              >
+                {selectedText}
+              </div>
             </div>
           )}
 
@@ -147,24 +152,31 @@ export const LinkDialog: React.FC<LinkDialogProps> = ({
           </div>
 
           {previewUrl && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-              <ExternalLink className="gba:w-4 gba:h-4" />
-              <span className="gba:truncate">{t('link-click-to-open') || 'Opens in new tab'}:</span>
-              <span className="gba:truncate gba:text-primary">{previewUrl}</span>
+            <div
+              className="gba:flex gba:items-start gba:gap-2 gba:rounded-md gba:border gba:border-border gba:bg-muted/20 gba:px-3 gba:py-2.5 gba:text-sm"
+              data-testid={`${testId}-preview`}
+            >
+              <ArrowSquareOutIcon className="gba:mt-0.5 gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground" />
+              <div className="gba:min-w-0 gba:flex-1">
+                <p className="gba:text-xs gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
+                  {t('link-click-to-open') || 'Click to open'}
+                </p>
+                <p className="gba:mt-1 gba:break-all gba:text-primary">{previewUrl}</p>
+              </div>
             </div>
           )}
         </div>
 
-        <DialogFooter className="gba:flex gba:justify-between">
-          <div>
+        <DialogFooter className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:border-t gba:bg-muted/30 gba:px-6 gba:py-4">
+          <div className="gba:flex gba:flex-1">
             {isEditing && onRemove && (
               <Button variant="destructive" size="sm" onClick={handleRemove} data-testid={`${testId}-remove-btn`}>
-                <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                <TrashIcon className="gba:mr-1 gba:h-4 gba:w-4" />
                 {t('link-remove') || 'Remove Link'}
               </Button>
             )}
           </div>
-          <div className="gba:flex gba:gap-2">
+          <div className="gba:flex gba:flex-wrap gba:justify-end gba:gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} data-testid={`${testId}-cancel-btn`}>
               {t('link-cancel') || 'Cancel'}
             </Button>

@@ -18,12 +18,12 @@ export type AssistantStreamPartial = Partial<{
 }>
 
 const MUTATION_TOOLS = new Set([
-  'write_file',
+  'file_write',
+  'file_edit',
   'delete_file',
   'screen_build',
   'screen_publish',
   'run_command',
-  'propose_change',
   'create_entity',
   'create_flow_template',
   'create_function',
@@ -115,7 +115,9 @@ function parseDecisionOptions(value: unknown): Array<{
       }
     })
     .filter(
-      (option): option is {
+      (
+        option
+      ): option is {
         id: string
         title: string
         description: string
@@ -351,7 +353,8 @@ async function parseAssistantStream(
           decisionPrompt = {
             ...(decisionPrompt ?? {}),
             options,
-            riskSummary: typeof toolResult?.riskSummary === 'string' ? toolResult.riskSummary : decisionPrompt?.riskSummary,
+            riskSummary:
+              typeof toolResult?.riskSummary === 'string' ? toolResult.riskSummary : decisionPrompt?.riskSummary,
             availableTools: parseDecisionTools(toolResult?.availableTools) ?? decisionPrompt?.availableTools
           }
         }

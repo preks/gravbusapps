@@ -2,6 +2,53 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { DynamicFormConfiguration } from '@/components/dynamic-form/types'
 
+type ValidationTranslator = (key: string, args?: Record<string, unknown>) => string
+
+interface InvestmentValidationMessages {
+  investmentNameRequired: string
+  investmentOwnerRequired: string
+  currencyRequired: string
+  required: (field: string) => string
+  positive: (field: string) => string
+  percentageMin: (field: string) => string
+  percentageMax: (field: string) => string
+}
+
+const translateValidationMessage = (
+  translator: ValidationTranslator | undefined,
+  key: string,
+  defaultValue: string,
+  args?: Record<string, unknown>
+): string => {
+  if (!translator) {
+    return defaultValue
+  }
+
+  return translator(key, { defaultValue, ...(args || {}) }) || defaultValue
+}
+
+const createValidationMessages = (translator?: ValidationTranslator): InvestmentValidationMessages => ({
+  investmentNameRequired: translateValidationMessage(
+    translator,
+    'validation-investment-name-required',
+    'Investment name is required'
+  ),
+  investmentOwnerRequired: translateValidationMessage(
+    translator,
+    'validation-investment-owner-required',
+    'Investment owner is required'
+  ),
+  currencyRequired: translateValidationMessage(translator, 'validation-currency-required', 'Currency is required'),
+  required: field =>
+    translateValidationMessage(translator, 'validation-field-required', `${field} is required`, { field }),
+  positive: field =>
+    translateValidationMessage(translator, 'validation-field-positive', `${field} must be positive`, { field }),
+  percentageMin: field =>
+    translateValidationMessage(translator, 'validation-percentage-min', `${field} must be at least 0%`, { field }),
+  percentageMax: field =>
+    translateValidationMessage(translator, 'validation-percentage-max', `${field} must be at most 100%`, { field })
+})
+
 // Catalog entry schema - accepts either string ID, catalog object, or null (for clearing)
 const catalogEntrySchema = z.union([
   z.string().min(1),
@@ -15,54 +62,73 @@ const catalogEntrySchema = z.union([
   z.null()
 ])
 
-// Base investment form schema - nested structure matching form state
-// NOTE: Form state stores only the leaf InvestmentType ID in investment.investmentTypeId
-const baseInvestmentSchema = z.object({
-  // Main investment object (required)
-  investment: z
-    .object({
-      id: z.string().optional(),
-      version: z.number().optional(),
-      name: z.string().min(1, 'Investment name is required'),
-      ownerEmployeeId: z.string().min(1, 'Investment owner is required'),
-      investmentStatus: catalogEntrySchema.optional(),
-      code: z.string().nullable().optional(),
-      currencyRef: z.string().min(1, 'Currency is required'),
-      investmentAccountId: z.string().nullable().optional(), // Deprecated - use investmentAccounts instead
-      // Investment-Account Junction Table (many-to-many)
-      investmentAccounts: z
-        .array(
-          z
-            .object({
-              id: z.string().optional(),
-              version: z.number().optional(),
-              investmentId: z.string().optional(),
-              investmentAccountId: z.string().optional(),
-              investmentAccountTypeRef: z.string().nullable().optional(),
-              investmentAccountType: catalogEntrySchema.optional(),
-              investmentAccount: z.any().optional() // Nested account object from GraphQL
-            })
-            .catchall(z.any())
-        )
-        .optional(),
-      // Investment type field (leaf InvestmentType ID) - optional for create flow
-      investmentTypeId: z.string().nullable().optional(),
-      // Optional opportunity ID (when creating investment from opportunity)
-      investmentOpportunityId: z.string().nullable().optional(),
-      // Optional company ID
-      companyId: z.string().nullable().optional()
-    })
-    .catchall(z.any()),
+const createRequiredStringRule = (errorMessage: string): z.ZodTypeAny =>
+  z.string({ message: errorMessage }).min(1, errorMessage)
 
-  // Group-specific data (optional - one will be present based on group)
-  equityInvestment: z.any().optional(),
-  realEstateInvestment: z.any().optional(),
-  liquidFundInvestment: z.any().optional(),
+const hasRequiredObjectId = (value: unknown): boolean => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
 
-  // Report-specific fields (for InvestmentReportForm)
-  investmentReportDate: z.string().optional(),
-  investmentReportScope: z.string().optional()
-})
+  const id = (value as { id?: unknown }).id
+  return typeof id === 'string' && id.length > 0
+}
+
+const hasRequiredSelectionValue = (value: unknown): boolean => {
+  if (typeof value === 'string') {
+    return value.length > 0
+  }
+
+  return hasRequiredObjectId(value)
+}
+
+const createBaseInvestmentSchema = (messages: InvestmentValidationMessages) =>
+  z.object({
+    // Main investment object (required)
+    investment: z
+      .object({
+        id: z.string().optional(),
+        version: z.number().optional(),
+        name: createRequiredStringRule(messages.investmentNameRequired),
+        ownerEmployeeId: createRequiredStringRule(messages.investmentOwnerRequired),
+        investmentStatus: catalogEntrySchema.optional(),
+        code: z.string().nullable().optional(),
+        currencyRef: createRequiredStringRule(messages.currencyRequired),
+        investmentAccountId: z.string().nullable().optional(), // Deprecated - use investmentAccounts instead
+        // Investment-Account Junction Table (many-to-many)
+        investmentAccounts: z
+          .array(
+            z
+              .object({
+                id: z.string().optional(),
+                version: z.number().optional(),
+                investmentId: z.string().optional(),
+                investmentAccountId: z.string().optional(),
+                investmentAccountTypeRef: z.string().nullable().optional(),
+                investmentAccountType: catalogEntrySchema.optional(),
+                investmentAccount: z.any().optional() // Nested account object from GraphQL
+              })
+              .catchall(z.any())
+          )
+          .optional(),
+        // Investment type field (leaf InvestmentType ID) - optional for create flow
+        investmentTypeId: z.string().nullable().optional(),
+        // Optional opportunity ID (when creating investment from opportunity)
+        investmentOpportunityId: z.string().nullable().optional(),
+        // Optional company ID
+        companyId: z.string().nullable().optional()
+      })
+      .catchall(z.any()),
+
+    // Group-specific data (optional - one will be present based on group)
+    equityInvestment: z.any().optional(),
+    realEstateInvestment: z.any().optional(),
+    liquidFundInvestment: z.any().optional(),
+
+    // Report-specific fields (for InvestmentReportForm)
+    investmentReportDate: z.string().optional(),
+    investmentReportScope: z.string().optional()
+  })
 
 // Helper function to convert property path to field name for nested structure
 // With nested structure, we use the FULL property path as the field name
@@ -91,17 +157,20 @@ const numberPreprocess = (val: unknown): number | undefined => {
  * Create validation rule for REF_InvestmentRole field (required)
  */
 const createRequiredInvestmentRoleRule = (errorMessage: string): z.ZodTypeAny => {
-  return z
-    .array(
-      z.object({
-        id: z.string().optional(),
-        version: z.number().optional(),
-        investmentRole: catalogEntrySchema,
-        displayOrder: z.number(),
-        isDeleted: z.boolean().optional()
-      })
-    )
-    .min(1, errorMessage)
+  return z.preprocess(
+    val => (Array.isArray(val) ? val : []),
+    z
+      .array(
+        z.object({
+          id: z.string().optional(),
+          version: z.number().optional(),
+          investmentRole: catalogEntrySchema,
+          displayOrder: z.number(),
+          isDeleted: z.boolean().optional()
+        })
+      )
+      .min(1, errorMessage)
+  )
 }
 
 /**
@@ -121,23 +190,23 @@ const createOptionalInvestmentRoleRule = (): z.ZodTypeAny => {
     .optional()
 }
 
+const createRequiredCatalogRule = (errorMessage: string): z.ZodTypeAny =>
+  z.any().refine(hasRequiredSelectionValue, { message: errorMessage })
+
 /**
  * Create validation rule for REF_ field types (required)
  */
-const createRequiredRefRule = (field: { type: string; label: string }): z.ZodTypeAny => {
+const createRequiredRefRule = (
+  field: { type: string; label: string },
+  messages: InvestmentValidationMessages
+): z.ZodTypeAny => {
+  const errorMessage = messages.required(field.label)
   const entityType = field.type.replace('REF_', '')
   if (entityType === 'InvestmentRole') {
-    return createRequiredInvestmentRoleRule(`${field.label} is required`)
+    return createRequiredInvestmentRoleRule(errorMessage)
   }
   // Default: Single reference
-  return z.union([
-    z.string().min(1, `${field.label} is required`),
-    z
-      .object({
-        id: z.string().min(1, `${field.label} is required`)
-      })
-      .catchall(z.any())
-  ])
+  return z.any().refine(hasRequiredSelectionValue, { message: errorMessage })
 }
 
 /**
@@ -159,60 +228,59 @@ const createOptionalRefRule = (): z.ZodTypeAny => {
 /**
  * Create validation rule for required fields
  */
-const createRequiredFieldRule = (field: { type: string; label: string }): z.ZodTypeAny => {
-  const errorMessage = `${field.label} is required`
+const createRequiredFieldRule = (
+  field: { type: string; label: string },
+  messages: InvestmentValidationMessages
+): z.ZodTypeAny => {
+  const errorMessage = messages.required(field.label)
 
   switch (field.type) {
     case 'TEXT':
     case 'TEXTAREA':
-      return z.string().min(1, errorMessage)
+      return createRequiredStringRule(errorMessage)
     case 'AMOUNT':
-      return z.preprocess(
-        numberPreprocess,
-        z.number({ message: errorMessage }).min(0, `${field.label} must be positive`)
-      )
+      return z.preprocess(numberPreprocess, z.number({ message: errorMessage }).min(0, messages.positive(field.label)))
     case 'PERCENTAGE':
       return z.preprocess(
         numberPreprocess,
         z
           .number({ message: errorMessage })
-          .min(0, `${field.label} must be at least 0%`)
-          .max(100, `${field.label} must be at most 100%`)
+          .min(0, messages.percentageMin(field.label))
+          .max(100, messages.percentageMax(field.label))
       )
     case 'NUMBER':
       return z.preprocess(numberPreprocess, z.number({ message: errorMessage }))
     case 'DATE':
     case 'DATETIME':
-      return z.string().min(1, errorMessage)
+      return createRequiredStringRule(errorMessage)
     default:
       if (field.type.startsWith('CATALOG_')) {
-        return catalogEntrySchema.refine(val => val, { message: errorMessage })
+        return createRequiredCatalogRule(errorMessage)
       }
       if (field.type.startsWith('REF_')) {
-        return createRequiredRefRule(field)
+        return createRequiredRefRule(field, messages)
       }
-      return z.string().min(1, errorMessage)
+      return createRequiredStringRule(errorMessage)
   }
 }
 
 /**
  * Create validation rule for optional fields
  */
-const createOptionalFieldRule = (field: { type: string; label: string }): z.ZodTypeAny => {
+const createOptionalFieldRule = (
+  field: { type: string; label: string },
+  messages: InvestmentValidationMessages
+): z.ZodTypeAny => {
   switch (field.type) {
     case 'TEXT':
     case 'TEXTAREA':
       return z.string().optional()
     case 'AMOUNT':
-      return z.preprocess(numberPreprocess, z.number().min(0, `${field.label} must be positive`).optional())
+      return z.preprocess(numberPreprocess, z.number().min(0, messages.positive(field.label)).optional())
     case 'PERCENTAGE':
       return z.preprocess(
         numberPreprocess,
-        z
-          .number()
-          .min(0, `${field.label} must be at least 0%`)
-          .max(100, `${field.label} must be at most 100%`)
-          .optional()
+        z.number().min(0, messages.percentageMin(field.label)).max(100, messages.percentageMax(field.label)).optional()
       )
     case 'NUMBER':
       return z.preprocess(numberPreprocess, z.number().optional())
@@ -273,7 +341,8 @@ const processFormFields = (
   investmentFields: Record<string, z.ZodTypeAny>,
   equityInvestmentFields: Record<string, z.ZodTypeAny>,
   realEstateInvestmentFields: Record<string, z.ZodTypeAny>,
-  liquidFundInvestmentFields: Record<string, z.ZodTypeAny>
+  liquidFundInvestmentFields: Record<string, z.ZodTypeAny>,
+  messages: InvestmentValidationMessages
 ): void => {
   if (!formFieldsDefinition?.formFields) return
 
@@ -286,7 +355,9 @@ const processFormFields = (
 
       if (!fieldPath) continue
 
-      const validationRule = field.required ? createRequiredFieldRule(field) : createOptionalFieldRule(field)
+      const validationRule = field.required
+        ? createRequiredFieldRule(field, messages)
+        : createOptionalFieldRule(field, messages)
       addFieldToParent(
         parentObject,
         fieldPath,
@@ -307,8 +378,11 @@ const buildExtendedSchema = (
   investmentFields: Record<string, z.ZodTypeAny>,
   equityInvestmentFields: Record<string, z.ZodTypeAny>,
   realEstateInvestmentFields: Record<string, z.ZodTypeAny>,
-  liquidFundInvestmentFields: Record<string, z.ZodTypeAny>
+  liquidFundInvestmentFields: Record<string, z.ZodTypeAny>,
+  messages: InvestmentValidationMessages
 ) => {
+  const baseInvestmentSchema = createBaseInvestmentSchema(messages)
+
   return z.object({
     investment: baseInvestmentSchema.shape.investment.extend(investmentFields),
     equityInvestment:
@@ -329,7 +403,11 @@ const buildExtendedSchema = (
   })
 }
 
-export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicFormConfiguration) => {
+export const createDynamicInvestmentSchema = (
+  formFieldsDefinition?: DynamicFormConfiguration,
+  translator?: ValidationTranslator
+) => {
+  const messages = createValidationMessages(translator)
   // Separate dynamic fields by their parent object
   const investmentFields: Record<string, z.ZodTypeAny> = {}
   const equityInvestmentFields: Record<string, z.ZodTypeAny> = {}
@@ -342,7 +420,8 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
       investmentFields,
       equityInvestmentFields,
       realEstateInvestmentFields,
-      liquidFundInvestmentFields
+      liquidFundInvestmentFields,
+      messages
     )
   }
 
@@ -350,15 +429,19 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: DynamicForm
     investmentFields,
     equityInvestmentFields,
     realEstateInvestmentFields,
-    liquidFundInvestmentFields
+    liquidFundInvestmentFields,
+    messages
   )
 }
 
 /**
  * Creates a zodResolver with the dynamic schema
  */
-export const createInvestmentFormResolver = (formFieldsDefinition?: DynamicFormConfiguration) => {
-  const schema = createDynamicInvestmentSchema(formFieldsDefinition)
+export const createInvestmentFormResolver = (
+  formFieldsDefinition?: DynamicFormConfiguration,
+  translator?: ValidationTranslator
+) => {
+  const schema = createDynamicInvestmentSchema(formFieldsDefinition, translator)
 
   // Debug: Uncomment to see schema creation
 

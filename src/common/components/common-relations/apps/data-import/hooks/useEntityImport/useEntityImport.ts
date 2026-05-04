@@ -164,21 +164,16 @@ export function useEntityImport<T = ConvertedEntity>(
         targetField: resolveInitialTargetField(mapping.targetField, adapters)
       }))
 
-      const validTargetFields = new Set(targetFieldValues)
-      const validMappings = resolvedMappings.filter(mapping => {
-        const isValid = validTargetFields.has(mapping.targetField)
-        if (!isValid) {
-          console.warn(
-            `Removing invalid mapping: ${mapping.sourceField} → ${mapping.targetField} (target field not in schema)`
-          )
-        }
-        return isValid
-      })
-
       const targetFieldByValue = new Map(config.targetFields.map(f => [f.value, f] as const))
-      const normalizedMappings = validMappings.map(mapping => {
+      const normalizedMappings = resolvedMappings.map(mapping => {
         const targetField = targetFieldByValue.get(mapping.targetField)
-        if (!targetField) return mapping
+        if (!targetField) {
+          return {
+            ...mapping,
+            transformationType: 'direct' as const,
+            catalogIdentifier: undefined
+          }
+        }
         if (targetField.type === 'catalog') {
           return {
             ...mapping,
@@ -193,16 +188,10 @@ export function useEntityImport<T = ConvertedEntity>(
         }
       })
 
-      const invalidSourceFields = resolvedMappings
-        .filter(m => !validTargetFields.has(m.targetField))
-        .map(m => m.sourceField)
-
-      const updatedUnmappedFields = [...new Set([...agentResult.unmappedSourceFields, ...invalidSourceFields])]
-
       setAgentResponse({
         ...agentResult,
         fieldMappings: normalizedMappings,
-        unmappedSourceFields: updatedUnmappedFields
+        unmappedSourceFields: agentResult.unmappedSourceFields
       })
       setStep('mapping')
     } catch (err) {

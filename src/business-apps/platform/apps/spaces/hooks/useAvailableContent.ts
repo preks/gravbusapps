@@ -12,9 +12,11 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import type { SpaceContentItem } from '../types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetApiBasePath } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import translations from '../_i18n'
 
 const API_URL = getDocumentServiceApiUrl()
+const SPREADSHEET_API_BASE_PATH = getSpreadsheetApiBasePath()
 
 // Get user ID from token (JWT decode)
 const getUserIdFromToken = (token: string): string | null => {
@@ -112,7 +114,7 @@ export function useAvailableContent(
             ...(searchParam && { search: searchParam })
           }),
           fetchAllPaginated('/notes', searchParam ? { search: searchParam } : {}),
-          fetchAllPaginated('/spreadsheets', searchParam ? { search: searchParam } : {})
+          fetchAllPaginated(SPREADSHEET_API_BASE_PATH, searchParam ? { search: searchParam } : {})
         ])
 
         // Check if this request is still the latest

@@ -362,7 +362,7 @@ export { default, TeamOverview } from './TeamOverview'
 
 ### STEP 4: INSTANT VALIDATION (MANDATORY!)
 
-**🚨 AFTER EVERY write_file, CHECK VALIDATION IMMEDIATELY:**
+**🚨 AFTER EVERY file_write, CHECK VALIDATION IMMEDIATELY:**
 
 \`\`\`typescript
 // After writing file, AI MUST check response:
@@ -381,21 +381,21 @@ export { default, TeamOverview } from './TeamOverview'
 \`\`\`
 
 **MANDATORY RULES:**
-1. **ALWAYS check \`validation.passed\`** in write_file response
+1. **ALWAYS check \`validation.passed\`** in file_write response
 2. **If \`validation.passed = false\`**:
    - ❌ STOP immediately - do NOT write next file
    - ✅ Read all \`validation.warnings\`
    - ✅ Fix the errors in the same file
-   - ✅ Use \`write_file\` again with corrections
+   - ✅ Use \`file_write\` again with corrections
    - ✅ Repeat until \`validation.passed = true\`
 3. **ONLY continue to next file when validation passes**
 
 **Example Flow:**
 \`\`\`
-AI: write_file("Component.tsx", "...import MessageCircle...")
+AI: file_write("Component.tsx", "...import MessageCircle...")
 Response: validation.passed = false, warnings: ["Cannot find name 'MessageCircle'"]
 AI: "I see the error. MessageCircle doesn't exist. I'll use ChatCircleDots instead."
-AI: write_file("Component.tsx", "...import ChatCircleDots...")
+AI: file_write("Component.tsx", "...import ChatCircleDots...")
 Response: validation.passed = true ✅
 AI: "Validation passed! Now I'll create the next file..."
 \`\`\`

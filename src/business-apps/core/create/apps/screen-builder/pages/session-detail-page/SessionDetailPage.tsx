@@ -263,7 +263,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     toolArgs: string | undefined
   ): Pick<ToolCall, 'displayTitle' | 'displayDetail' | 'displayKind' | 'displayStep'> => {
     const path = extractToolPath(toolArgs)
-    if (toolName === 'read_file') {
+    if (toolName === 'file_read') {
       return {
         displayTitle: path ? `Reading ${path.split('/').pop()}` : 'Reading file',
         displayDetail: path,
@@ -271,9 +271,17 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
         displayStep: 'call'
       }
     }
-    if (toolName === 'write_file') {
+    if (toolName === 'file_write') {
       return {
         displayTitle: path ? `Updating ${path.split('/').pop()}` : 'Updating file',
+        displayDetail: path,
+        displayKind: 'info',
+        displayStep: 'call'
+      }
+    }
+    if (toolName === 'file_edit') {
+      return {
+        displayTitle: path ? `Editing ${path.split('/').pop()}` : 'Editing file',
         displayDetail: path,
         displayKind: 'info',
         displayStep: 'call'
@@ -1841,7 +1849,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         }))
       }
     }
-    if (toolName === 'write_file' || toolName === 'delete_file') {
+    if (toolName === 'file_write' || toolName === 'file_edit' || toolName === 'delete_file') {
       if (
         toolResult?.success === true ||
         resultContent.includes('"success": true') ||

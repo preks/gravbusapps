@@ -120,7 +120,6 @@ reader-ai-insights-hint = Zum Laden klicken
 reader-ai-insights-loading = Zusammenfassung wird erstellt…
 reader-ai-insights-error = KI-Zusammenfassung konnte nicht geladen werden
 reader-ai-insights-retry = Erneut versuchen
-reader-ai-insights-empty = Für diese Nachricht wurde keine Zusammenfassung oder keine Vorschläge zurückgegeben.
 
 composer-toast-no-recipient = Bitte fügen Sie mindestens einen Empfänger hinzu
 composer-toast-no-account = Bitte wählen Sie ein Konto
@@ -280,8 +279,6 @@ composer-toast-file-size-exceeded = „{ $name }" überschreitet das 10-MB-Limit
 composer-toast-total-size-exceeded = Gesamtgröße der Anhänge überschreitet 25 MB
 composer-toast-file-read-failed = „{ $name }" konnte nicht gelesen werden
 crm-record-activity = Als Aktivität erfassen
-crm-summarizing-thread = Thread wird mit KI zusammengefasst...
-crm-summarizing-email = E-Mail wird mit KI zusammengefasst...
 crm-matches-for = Treffer für
 crm-searching = CRM wird durchsucht...
 crm-no-records = Keine CRM-Datensätze für diese E-Mail-Adresse gefunden
@@ -299,7 +296,6 @@ crm-record-manually = Manuell erfassen (Entität im Formular wählen)
 
 # CRM booking (translated)
 crm-activity-recorded = Aktivität für { $name } erfasst
-crm-activity-recorded-desc = { $subject }
 crm-activity-recorded-failed = Aktivität für { $name } konnte nicht erfasst werden
 crm-entity-account = Konto
 crm-entity-contact = Kontakt
@@ -415,6 +411,13 @@ email-suggestion-create-quick-task-missing-initiator = Ihr Konto konnte nicht er
 email-suggestion-create-quick-task-missing-assignee = Bitte mindestens eine Person auswählen.
 email-suggestion-create-quick-task-hint-no-initiator = Aufgaben benötigen einen angemeldeten Benutzerkontext. Versuchen Sie es erneut, wenn die App geladen ist.
 email-suggestion-create-quick-task-submitting = Wird erstellt…
+email-suggestion-create-link-record-title = CRM-Datensatz verknüpfen (optional)
+email-suggestion-create-link-record-none = Kein Datensatz verknüpfen
+email-suggestion-create-link-record-selected = Ausgewählt
+email-suggestion-create-link-record-select = Auswählen
+email-suggestion-create-link-record-no-matches = Keine Treffer für diese E-Mail
+email-suggestion-create-link-record-show-more = Weitere Optionen
+email-suggestion-create-link-record-search-placeholder = Beliebigen Datensatz suchen
 
 # Pagination/Admin consent additions
 provider-admin-consent-help = Wenn Benutzer „Admin-Genehmigung erforderlich" sehen, kann ein Admin diesen Link öffnen, um die konfigurierten Bereiche im Mandanten zu genehmigen.

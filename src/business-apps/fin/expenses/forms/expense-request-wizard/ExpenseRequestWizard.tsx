@@ -8,6 +8,7 @@ import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProc
 import { EVENTS } from '../../utils/constants'
 import { ICONS } from '../../utils/icons'
 import { useExpenseRequestDateValidation } from './utils/dateValidationUtils'
+import { hasEmployeeOrgchartCostCenter } from '@/business-apps/fin/expenses/common/utils/employeeOrgchartCostCenter'
 
 import { ExpenseRequestWizardProvider, useExpenseRequestWizardContext } from './context/ExpenseRequestWizardContext'
 import { SCREEN_NAMES_ENUM } from './constants/constants'
@@ -91,6 +92,11 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
   const lastTitleSyncRequestIdRef = React.useRef<string | null>(null)
 
   const isTrip = expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes(REQUEST_TYPES.TRIP)
+
+  const missingOrgchartCostCenter = useMemo(
+    () => Boolean(expenseRequestData && !hasEmployeeOrgchartCostCenter(expenseRequestData.EmployeePosition)),
+    [expenseRequestData]
+  )
 
   const handleCancel = useMemo(() => {
     const initialRequest = expenseRequestData?.ExpenseRequestByPk
@@ -758,7 +764,7 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
-                    (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && hasFutureDates)
+                    (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && (hasFutureDates || missingOrgchartCostCenter))
                   }
                   onClick={() => {
                     const isNextScreen =

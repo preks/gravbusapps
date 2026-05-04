@@ -15,10 +15,17 @@ import type {
   TextElement,
   VideoElement
 } from './slideElements'
-import { gradientToCss, getImageCropStyles, textElementStubForShapeInText, textTransformToCss } from './slideElements'
+import {
+  gradientToCss,
+  getImageCropStyles,
+  textElementHasVisibleContent,
+  textElementStubForShapeInText,
+  textTransformToCss
+} from './slideElements'
 import { resolveFontStack } from './fontStack'
 import { SlideChartRenderer } from './SlideChartRenderer'
 import { RichTextContent } from './RichTextContent'
+import { getRichTextBoxStyle } from './richTextStyles'
 import { TextWithLinks } from './TextWithLinks'
 import { tryRenderOfficePresetShape } from './OfficeShapeRenderer'
 import { renderShape as renderSharedShape } from './slideRenderUtils'
@@ -156,6 +163,26 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = Number.parseInt(cleanHex.substring(2, 4), 16)
   const b = Number.parseInt(cleanHex.substring(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function renderTextPlaceholder(element: TextElement, isPresenting: boolean) {
+  if (!element.placeholderText || isPresenting) return null
+
+  return (
+    <div
+      style={{
+        ...getRichTextBoxStyle(element),
+        color: hexToRgba(element.color, 0.55),
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        userSelect: 'none',
+        pointerEvents: 'none'
+      }}
+      aria-hidden="true"
+    >
+      {element.placeholderText}
+    </div>
+  )
 }
 
 function renderShapeBody(element: ShapeElement): React.ReactNode {
@@ -475,32 +502,20 @@ export function SlideStaticElementContent({
           overflow: 'hidden'
         }}
       >
-        <div
-          style={{
-            width: '100%',
-            fontFamily: resolveFontStack(textEl.fontFamily),
-            fontSize: textEl.fontSize,
-            fontWeight: textEl.fontWeight,
-            fontStyle: textEl.fontStyle,
-            textDecoration: textEl.textDecoration,
-            textAlign: textEl.textAlign,
-            color: textEl.color,
-            lineHeight: textEl.lineHeight,
-            letterSpacing: textEl.letterSpacing,
-            ...textTransformToCss(textEl.textTransform),
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word'
-          }}
-        >
-          {textEl.paragraphs && textEl.paragraphs.length > 0 ? (
-            <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+        <div style={getRichTextBoxStyle(textEl)}>
+          {textElementHasVisibleContent(textEl) ? (
+            textEl.paragraphs && textEl.paragraphs.length > 0 ? (
+              <RichTextContent element={textEl} paragraphs={textEl.paragraphs} />
+            ) : (
+              <TextWithLinks
+                content={textEl.content}
+                links={textEl.links ?? []}
+                isPresenting={isPresenting}
+                onLinkClick={onLinkClick}
+              />
+            )
           ) : (
-            <TextWithLinks
-              content={textEl.content}
-              links={textEl.links ?? []}
-              isPresenting={isPresenting}
-              onLinkClick={onLinkClick}
-            />
+            renderTextPlaceholder(textEl, isPresenting)
           )}
         </div>
       </div>

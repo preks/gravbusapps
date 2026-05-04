@@ -247,11 +247,15 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   // Clean up pending persist on unmount
   useEffect(() => {
     return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
       if (persistTimeoutRef.current) {
         clearTimeout(persistTimeoutRef.current)
       }
+      void persistNow()
     }
-  }, [])
+  }, [persistNow])
 
   const { isSyncing: isFlowStatusSyncing, syncNow: syncFlowStatuses } = useActionItemFlowStatusSync({
     accessToken,

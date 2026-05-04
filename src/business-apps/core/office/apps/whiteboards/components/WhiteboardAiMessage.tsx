@@ -1,5 +1,5 @@
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { Bot, Pencil } from 'lucide-react'
+import { PencilSimpleIcon, RobotIcon } from '@phosphor-icons/react'
 import type { WhiteboardAiMessage as AiMessage } from '../hooks/useWhiteboardAiSocket'
 
 interface WhiteboardAiMessageProps {
@@ -44,7 +44,7 @@ export const WhiteboardAiMessage = ({
     <div className="gba:flex gba:gap-2.5 gba:px-4 gba:py-3" data-testid={`${testId}-${message.id}`}>
       <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0 gba:mt-0.5">
         <AvatarFallback className="gba:bg-primary/10 gba:text-primary">
-          <Bot className="gba:h-3.5 gba:w-3.5" />
+          <RobotIcon className="gba:h-3.5 gba:w-3.5" />
         </AvatarFallback>
       </Avatar>
       <div className="gba:max-w-[85%] gba:space-y-2">
@@ -54,12 +54,12 @@ export const WhiteboardAiMessage = ({
 
         {message.toolCalls && message.toolCalls.length > 0 && (
           <div className="gba:flex gba:flex-wrap gba:gap-1.5">
-            {message.toolCalls.map((tc, i) => (
+            {message.toolCalls.map(tc => (
               <span
-                key={i}
+                key={tc.id ?? `${message.id}-${tc.name}-${tc.arguments}`}
                 className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-success-secondary gba:text-success-secondary-foreground"
               >
-                <Pencil className="gba:h-3 gba:w-3" />
+                <PencilSimpleIcon className="gba:h-3 gba:w-3" />
                 {formatToolName(tc.name)}
               </span>
             ))}

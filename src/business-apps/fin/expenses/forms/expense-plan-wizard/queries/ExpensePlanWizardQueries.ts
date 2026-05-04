@@ -157,6 +157,13 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     locality
     addressLine
   }
+  EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
+    id
+    costCenter {
+      id
+      name
+    }
+  }
     }`
 
 export const fetchEmployeeExpenseItems = `query FetchEmployeeExpensePlanItems($employeeId: uuid!, $status: String, $activeUserLocale: String, $limit: Int, $offset: Int, $idsArray: [uuid!], $itemCurrency: String, $titleSearch: String) {
