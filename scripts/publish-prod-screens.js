@@ -731,7 +731,7 @@ async function main() {
         }
 
         execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes })
-        execSync(`git commit -m "chore(ci): update prod component hashes [skip ci]"`, {
+        execSync(`git commit --no-verify -m "chore(ci): update prod component hashes [skip ci]"`, {
           cwd: projectRootDirForHashes
         })
 
@@ -783,7 +783,7 @@ async function main() {
                   abortRebaseIfNeeded()
                   execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
                   try {
-                    execSync(`git commit -m "chore(ci): update prod component hashes [skip ci]"`, {
+                    execSync(`git commit --no-verify -m "chore(ci): update prod component hashes [skip ci]"`, {
                       cwd: projectRootDirForHashes,
                       stdio: 'pipe'
                     })
@@ -836,7 +836,7 @@ async function main() {
           // Commit (if there are changes)
           execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
           try {
-            execSync(`git commit -m "chore(ci): sync prod component hashes to develop [skip ci]"`, {
+            execSync(`git commit --no-verify -m "chore(ci): sync prod component hashes to develop [skip ci]"`, {
               cwd: projectRootDirForHashes,
               stdio: 'pipe'
             })
@@ -877,7 +877,7 @@ async function main() {
               fs.writeFileSync(prodHashFile, finalHashFileContent, 'utf8')
               execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
               try {
-                execSync(`git commit -m "chore(ci): sync prod component hashes to develop [skip ci]"`, {
+                execSync(`git commit --no-verify -m "chore(ci): sync prod component hashes to develop [skip ci]"`, {
                   cwd: projectRootDirForHashes,
                   stdio: 'pipe'
                 })
