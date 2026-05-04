@@ -65,14 +65,14 @@ export const LocationCard: React.FC<LocationCardProps> = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span
-                  className="gba:inline-flex gba:items-center gba:justify-center gba:text-amber-600 dark:gba:text-amber-400 gba:cursor-help"
+                <button
+                  type="button"
+                  className="gba:inline-flex gba:items-center gba:justify-center gba:border-0 gba:bg-transparent gba:p-0 gba:text-amber-600 dark:gba:text-amber-400 gba:cursor-help"
                   data-testid="timeclock-location-address-review-warning"
                   aria-label={warningMessage}
-                  tabIndex={0}
                 >
                   <Icon icon={Warning} className="gba:h-4 gba:w-4" />
-                </span>
+                </button>
               </TooltipTrigger>
               <TooltipContent side="left" className="gba:max-w-[260px]">
                 <p className="gba:text-xs">{warningMessage}</p>

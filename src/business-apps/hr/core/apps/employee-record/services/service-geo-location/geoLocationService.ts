@@ -31,9 +31,52 @@ export interface GeoCoords {
   lng: number
 }
 
+interface EmployeeHomeAddressRecord {
+  id: string
+  version: number
+  addressLine: string[] | null
+  postalCode: string | null
+  locality: string | null
+  type: string | null
+  latitude: number | null
+  longitude: number | null
+  country?: {
+    code?: string | null
+    value?: string | null
+  } | null
+}
+
+interface EmployeeSiteLocationRecord {
+  code: string | null
+  addressLine: string | null
+  countryRef: string | null
+  name: string | null
+  postalCode: string | null
+  regionRef: string | null
+  structureId: string | null
+  latitude: number | null
+  longitude: number | null
+}
+
+interface EmployeeHomeAddressQueryResult {
+  Employee?: Array<{
+    addresses?: EmployeeHomeAddressRecord[]
+  }>
+}
+
+interface EmployeeSiteLocationQueryResult {
+  Employee?: Array<{
+    employeePosition?: {
+      siteLocation?: EmployeeSiteLocationRecord | null
+    } | null
+  }>
+}
+
+type GeoRecordWithCoords = EmployeeHomeAddressRecord | EmployeeSiteLocationRecord
+
 export interface OfficeAndGeoLocationResult {
-  officeLocation: any | null
-  homeAddress: any | null
+  officeLocation: EmployeeSiteLocationRecord | null
+  homeAddress: EmployeeHomeAddressRecord | null
   position?: {
     coords: GeoCoords
     accuracy: number
@@ -131,9 +174,14 @@ export const fetchOfficeAndGeoLocation = async (
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-const fetchHomeAddressRaw = async (graphqlClient: GraphQLClient, employeeId: string): Promise<any | null> => {
+const fetchHomeAddressRaw = async (
+  graphqlClient: GraphQLClient,
+  employeeId: string
+): Promise<EmployeeHomeAddressRecord | null> => {
   try {
-    const result = await graphqlClient.request<any>(GET_EMPLOYEE_HOME_ADDRESS, { employeeId })
+    const result = await graphqlClient.request<EmployeeHomeAddressQueryResult>(GET_EMPLOYEE_HOME_ADDRESS, {
+      employeeId
+    })
     return result?.Employee?.[0]?.addresses?.[0] ?? null
   } catch (e) {
     console.error('Failed to fetch home address', e)
@@ -141,9 +189,14 @@ const fetchHomeAddressRaw = async (graphqlClient: GraphQLClient, employeeId: str
   }
 }
 
-const fetchOfficeRaw = async (graphqlClient: GraphQLClient, employeeId: string): Promise<any | null> => {
+const fetchOfficeRaw = async (
+  graphqlClient: GraphQLClient,
+  employeeId: string
+): Promise<EmployeeSiteLocationRecord | null> => {
   try {
-    const result = await graphqlClient.request<any>(GET_EMPLOYEE_SITE_LOCATION, { employeeId })
+    const result = await graphqlClient.request<EmployeeSiteLocationQueryResult>(GET_EMPLOYEE_SITE_LOCATION, {
+      employeeId
+    })
     return result?.Employee?.[0]?.employeePosition?.siteLocation ?? null
   } catch (e) {
     console.error('Failed to fetch office location', e)
@@ -163,7 +216,7 @@ const fetchOfficeCoords = async (graphqlClient: GraphQLClient, employeeId: strin
  * Returns null when either coordinate is missing or non-finite — partial coords are
  * treated as no coords (no point comparing against a single axis).
  */
-const extractCoords = (record: any | null): GeoCoords | null => {
+const extractCoords = (record: GeoRecordWithCoords | null): GeoCoords | null => {
   if (!record) return null
   const lat = typeof record.latitude === 'number' ? record.latitude : null
   const lng = typeof record.longitude === 'number' ? record.longitude : null

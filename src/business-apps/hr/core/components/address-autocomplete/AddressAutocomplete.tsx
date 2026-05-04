@@ -308,7 +308,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 
     const controller = new AbortController()
     let cancelled = false
-    const timeoutId = window.setTimeout(async () => {
+    const timeoutId = globalThis.setTimeout(async () => {
       const result = await forwardGeocode(queryParts.join(', '), {
         countryBias: countryCode.length === 2 ? countryCode : undefined,
         signal: controller.signal
@@ -323,7 +323,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     return () => {
       cancelled = true
       controller.abort()
-      window.clearTimeout(timeoutId)
+      globalThis.clearTimeout(timeoutId)
     }
     // NOTE: `catalogs.countries` and `fallbackCoords` are intentionally excluded
     // from the dep array. The catalog identity changes on every parent render
