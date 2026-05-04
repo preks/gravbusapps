@@ -736,15 +736,16 @@ async function main() {
         })
 
         // Pull with rebase and push with retry logic
+        const maxPushAttempts = Number(process.env.CI_GIT_PUSH_ATTEMPTS || '8')
         let pushSuccess = false
-        for (let attempt = 1; attempt <= 3; attempt++) {
+        for (let attempt = 1; attempt <= maxPushAttempts; attempt++) {
           try {
             // Check if there's an incomplete rebase from a previous attempt
             if (isRebaseInProgress()) {
-              console.log(`   Attempt ${attempt}/3: Resolving in-progress rebase...`)
+              console.log(`   Attempt ${attempt}/${maxPushAttempts}: Resolving in-progress rebase...`)
               resolveHashConflict()
             } else {
-              console.log(`   Attempt ${attempt}/3: Pulling and rebasing...`)
+              console.log(`   Attempt ${attempt}/${maxPushAttempts}: Pulling and rebasing...`)
               execSync(`git pull --rebase --autostash origin ${targetBranch}`, {
                 cwd: projectRootDirForHashes,
                 stdio: 'pipe'
@@ -752,7 +753,7 @@ async function main() {
             }
 
             // If we got here, rebase succeeded - try to push
-            execSync(`git push origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+            execSync(`git push origin HEAD:${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
             pushSuccess = true
             console.log(`   Prod hashes committed and pushed to ${targetBranch}`)
             break
@@ -772,7 +773,7 @@ async function main() {
               try {
                 resolveHashConflict()
                 // After resolving, try to push
-                execSync(`git push origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+                execSync(`git push origin HEAD:${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
                 pushSuccess = true
                 console.log(`   Prod hashes committed and pushed to ${targetBranch} (after conflict resolution)`)
                 break
@@ -797,8 +798,9 @@ async function main() {
                   throw pushError
                 }
               }
-            } else if (attempt < 3) {
-              console.log(`   Push failed (attempt ${attempt}/3), retrying with rebase...`)
+            } else if (attempt < maxPushAttempts) {
+              console.log(`   Push failed (attempt ${attempt}/${maxPushAttempts}), retrying with rebase...`)
+              console.log(errorOutput)
               abortRebaseIfNeeded()
               await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
             } else {
@@ -868,7 +870,7 @@ async function main() {
           }
 
           let developPushSuccess = false
-          for (let attempt = 1; attempt <= 3; attempt++) {
+          for (let attempt = 1; attempt <= maxPushAttempts; attempt++) {
             try {
               if (isRebaseInProgress()) {
                 resolveHashConflictByOverwriting()
@@ -894,7 +896,7 @@ async function main() {
                 // No changes after rebase is fine
               }
 
-              execSync(`git push origin ${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+              execSync(`git push origin HEAD:${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
               developPushSuccess = true
               console.log(`   Prod hashes committed and pushed to ${developBranch}`)
               break
@@ -912,7 +914,7 @@ async function main() {
               if (isConflict) {
                 try {
                   resolveHashConflictByOverwriting()
-                  execSync(`git push origin ${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+                  execSync(`git push origin HEAD:${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
                   developPushSuccess = true
                   console.log(
                     `   Prod hashes committed and pushed to ${developBranch} (after overwrite conflict resolution)`
@@ -921,7 +923,8 @@ async function main() {
                 } catch {
                   abortRebaseIfNeeded()
                 }
-              } else if (attempt < 3) {
+              } else if (attempt < maxPushAttempts) {
+                console.log(errorOutput)
                 abortRebaseIfNeeded()
                 await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
               } else {
