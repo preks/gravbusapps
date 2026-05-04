@@ -34,6 +34,7 @@ interface KanbanStore {
   ) => Promise<void>
   reorderOpportunities: (stageId: string, reorderedOpportunities: Opportunity[]) => void
   updateOpportunity: (opportunityId: string, updates: Partial<Opportunity>, accessToken: string) => Promise<void>
+  quickUpdateOpportunity: (opportunityId: string, updates: Partial<Opportunity>) => Promise<void>
   deleteOpportunity: (opportunityId: string, accessToken: string) => Promise<void>
   setEditingOpportunity: (opportunityId: string | null) => void
   selectOpportunity: (opportunityId: string | null) => void
@@ -319,6 +320,31 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
       opportunities: state.opportunities.map(opp => (opp.id === opportunityId ? { ...opp, ...updates } : opp)),
       isEditingOpportunity: false,
       editingOpportunityId: null
+    }))
+    return Promise.resolve()
+  },
+
+  quickUpdateOpportunity: async (opportunityId: string, updates: Partial<Opportunity>) => {
+    set(state => ({
+      opportunities: state.opportunities.map(opp => {
+        if (opp.id !== opportunityId) return opp
+        // Normalize quick-edit fields to canonical properties
+        const normalized: Partial<Opportunity> = { ...updates }
+        if (updates.title !== undefined) {
+          normalized.name = updates.title
+        }
+        if (updates.amount !== undefined) {
+          normalized.estimatedAmount = updates.amount
+        }
+        if (updates.estimatedCloseDate !== undefined) {
+          normalized.closeDate = updates.estimatedCloseDate
+        }
+        return { ...opp, ...normalized }
+      }),
+      selectedOpportunity:
+        state.selectedOpportunity?.id === opportunityId
+          ? { ...state.selectedOpportunity, ...updates }
+          : state.selectedOpportunity
     }))
     return Promise.resolve()
   },

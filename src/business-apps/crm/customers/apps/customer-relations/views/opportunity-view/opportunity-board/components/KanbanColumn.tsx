@@ -20,6 +20,7 @@ interface KanbanColumnProps extends BusinessAppContextProps {
   isDragging?: boolean
   dragOverOpportunity?: string | null
   insertPosition?: 'before' | 'after' | null
+  isQuickEditing?: boolean
 }
 
 export function KanbanColumn({
@@ -29,7 +30,8 @@ export function KanbanColumn({
   isDraggedOver = false,
   isDragging = false,
   dragOverOpportunity = null,
-  insertPosition = null
+  insertPosition = null,
+  isQuickEditing = false
 }: KanbanColumnProps) {
   const { setNodeRef } = useDroppable({
     id: stage.id,
@@ -77,7 +79,7 @@ export function KanbanColumn({
                   <div className="gba:h-0.5 gba:bg-blue-400 gba:rounded-full gba:shadow-lg gba:transition-all gba:duration-200 gba:animate-pulse gba:mb-2" />
                 )}
 
-                <OpportunityCard opportunity={opportunity} />
+                <OpportunityCard opportunity={opportunity} isQuickEditing={isQuickEditing} />
 
                 {/* Show insertion indicator after this opportunity */}
                 {dragOverOpportunity === opportunity.id && insertPosition === 'after' && (
