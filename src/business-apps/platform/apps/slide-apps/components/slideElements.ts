@@ -2,6 +2,8 @@
  * Slide Element Types - Define all element types for the slide editor
  */
 
+import type { CSSProperties } from 'react'
+
 export type ElementType =
   | 'text'
   | 'image'
@@ -17,6 +19,7 @@ export type ElementType =
   | 'connector'
   | 'layer'
   | 'metric-card'
+  | 'group'
 
 export type ShapeType =
   | 'rectangle'
@@ -34,6 +37,93 @@ export type ShapeType =
   | 'line'
   | 'callout'
   | 'container'
+  | 'parallelogram'
+  | 'trapezoid'
+  | 'pentagon'
+  | 'octagon'
+  | 'plus'
+  | 'cross'
+  | 'chevron'
+  | 'can'
+  | 'bevel'
+  | 'flowchart-process'
+  | 'flowchart-decision'
+  | 'flowchart-terminator'
+  | 'flowchart-alternate'
+
+/**
+ * High-level shape family classification. Used to group shapes in the insert
+ * palette and to decide which preset-specific property controls to surface.
+ */
+export type ShapeFamily = 'basic' | 'arrow' | 'callout' | 'flowchart' | 'star-banner' | 'line'
+
+/** Map every {@link ShapeType} to its family for UI grouping. */
+export const SHAPE_FAMILY: Record<ShapeType, ShapeFamily> = {
+  rectangle: 'basic',
+  'rounded-rectangle': 'basic',
+  circle: 'basic',
+  ellipse: 'basic',
+  triangle: 'basic',
+  diamond: 'basic',
+  hexagon: 'basic',
+  pentagon: 'basic',
+  octagon: 'basic',
+  parallelogram: 'basic',
+  trapezoid: 'basic',
+  plus: 'basic',
+  cross: 'basic',
+  can: 'basic',
+  bevel: 'basic',
+  container: 'basic',
+  'arrow-right': 'arrow',
+  'arrow-left': 'arrow',
+  'arrow-up': 'arrow',
+  'arrow-down': 'arrow',
+  chevron: 'arrow',
+  star: 'star-banner',
+  callout: 'callout',
+  line: 'line',
+  'flowchart-process': 'flowchart',
+  'flowchart-decision': 'flowchart',
+  'flowchart-terminator': 'flowchart',
+  'flowchart-alternate': 'flowchart'
+}
+
+/**
+ * Native editor → OOXML preset id mapping. When an editor-native shape is
+ * exported, we prefer the OOXML preset that best matches so round-trip to
+ * PowerPoint looks correct. Extend this in lock-step with {@link ShapeType}.
+ */
+export const SHAPE_TYPE_TO_OOXML_PRESET: Record<ShapeType, string | undefined> = {
+  rectangle: 'rect',
+  'rounded-rectangle': 'roundRect',
+  circle: 'ellipse',
+  ellipse: 'ellipse',
+  triangle: 'triangle',
+  diamond: 'diamond',
+  hexagon: 'hexagon',
+  pentagon: 'pentagon',
+  octagon: 'octagon',
+  parallelogram: 'parallelogram',
+  trapezoid: 'trapezoid',
+  plus: 'plus',
+  cross: 'plus',
+  can: 'can',
+  bevel: 'bevel',
+  container: 'rect',
+  'arrow-right': 'rightArrow',
+  'arrow-left': 'leftArrow',
+  'arrow-up': 'upArrow',
+  'arrow-down': 'downArrow',
+  chevron: 'chevron',
+  star: 'star5',
+  callout: 'wedgeRectCallout',
+  line: 'line',
+  'flowchart-process': 'flowChartProcess',
+  'flowchart-decision': 'flowChartDecision',
+  'flowchart-terminator': 'flowChartTerminator',
+  'flowchart-alternate': 'flowChartAlternateProcess'
+}
 
 export interface Position {
   x: number
@@ -75,23 +165,134 @@ export interface TextLink {
   isAutoDetected?: boolean
 }
 
+/**
+ * A styled text run inside a paragraph. Only `text` is required; unset
+ * properties inherit from paragraph defaults and then from the TextElement
+ * box-level style. Keeping the style sparse keeps payloads small.
+ */
+/**
+ * Run-level text case transformation. Mirrors OOXML's `cap` attribute
+ * (`cap="all"` / `cap="small"`) which renders-as-uppercase without mutating
+ * the stored text. CSS `text-transform` handles this cleanly so the underlying
+ * content keeps its original casing for editing / export fidelity.
+ */
+export type RichTextTransform = 'none' | 'uppercase' | 'lowercase' | 'small-caps'
+
+/**
+ * Translate a {@link RichTextTransform} into a CSS style fragment. Kept in
+ * this module so every renderer (canvas, export, thumbnail, rich text)
+ * produces identical markup. `small-caps` is modelled via `font-variant`
+ * because real CSS `text-transform: small-caps` is not a standard value.
+ */
+export function textTransformToCss(transform: RichTextTransform | undefined): CSSProperties {
+  if (!transform || transform === 'none') return {}
+  if (transform === 'small-caps') return { fontVariant: 'small-caps', textTransform: 'lowercase' }
+  return { textTransform: transform }
+}
+
+/** Shared font weight values used across text, shape labels and run-level styling. */
+export type FontWeight = 'normal' | 'bold' | 'light'
+/** Shared italic/regular styles used across text and shape labels. */
+export type FontStyle = 'normal' | 'italic'
+/** Shared text decoration values used across text and shape labels. */
+export type TextDecoration = 'none' | 'underline' | 'line-through'
+/** Horizontal text alignment options honored by all text renderers. */
+export type TextAlign = 'left' | 'center' | 'right'
+/** Justified alignment adds the `justify` value beyond the box-level options. */
+export type ParagraphAlignment = 'left' | 'center' | 'right' | 'justify'
+/** Vertical alignment options for text boxes and shape labels. */
+export type VerticalAlign = 'top' | 'middle' | 'bottom'
+
+export interface RichTextRun {
+  text: string
+  fontFamily?: string
+  fontSize?: number
+  fontWeight?: FontWeight
+  fontStyle?: FontStyle
+  textDecoration?: TextDecoration
+  color?: string
+  backgroundColor?: string
+  hyperlink?: string
+  textTransform?: RichTextTransform
+}
+
+export type RichParagraphBulletType = 'none' | 'bullet' | 'number'
+export type RichParagraphNumberingStyle =
+  | 'alphaLcParenBoth'
+  | 'alphaLcParenR'
+  | 'alphaLcPeriod'
+  | 'alphaUcParenBoth'
+  | 'alphaUcParenR'
+  | 'alphaUcPeriod'
+  | 'arabicParenBoth'
+  | 'arabicParenR'
+  | 'arabicPeriod'
+  | 'arabicPlain'
+  | 'romanLcParenBoth'
+  | 'romanLcParenR'
+  | 'romanLcPeriod'
+  | 'romanUcParenBoth'
+  | 'romanUcParenR'
+  | 'romanUcPeriod'
+
+export interface RichTextParagraph {
+  runs: RichTextRun[]
+  alignment?: ParagraphAlignment
+  indentLevel?: number
+  bulletType?: RichParagraphBulletType
+  bulletChar?: string
+  numberingStyle?: RichParagraphNumberingStyle
+  numberStartAt?: number
+  listLeftMargin?: number
+  listIndent?: number
+  lineHeight?: number
+  spaceBefore?: number
+  spaceAfter?: number
+}
+
 export interface TextElement extends SlideElement {
   type: 'text'
   content: string
+  placeholderText?: string
+  /**
+   * Rich paragraph/run model populated by the PPTX importer and by the
+   * editor when users apply per-run styling. Optional for backwards
+   * compatibility; when absent, renderers fall back to `content` plus the
+   * box-level style fields below.
+   */
+  paragraphs?: RichTextParagraph[]
   links?: TextLink[]
   fontFamily: string
   fontSize: number
-  fontWeight: 'normal' | 'bold' | 'light'
-  fontStyle: 'normal' | 'italic'
-  textDecoration: 'none' | 'underline' | 'line-through'
-  textAlign: 'left' | 'center' | 'right'
-  verticalAlign: 'top' | 'middle' | 'bottom'
+  fontWeight: FontWeight
+  fontStyle: FontStyle
+  textDecoration: TextDecoration
+  textAlign: TextAlign
+  verticalAlign: VerticalAlign
   color: string
   backgroundColor: string
   gradient?: GradientConfig
   lineHeight: number
   letterSpacing: number
   padding: number
+  /**
+   * Box-level text case override. Honored when the element has no
+   * per-run `textTransform` entries. Mirrors the same OOXML `cap`
+   * attribute applied at the text-body or placeholder level.
+   */
+  textTransform?: RichTextTransform
+}
+
+/**
+ * Normalized crop rectangle. Values are fractions 0..1 of the original image
+ * dimensions, matching OOXML's <a:srcRect l/t/r/b> semantics (which store
+ * crops as percentages from each edge in 1000ths).
+ */
+export interface ImageCropRect {
+  left: number
+  top: number
+  right: number
+  bottom: number
 }
 
 export interface ImageElement extends SlideElement {
@@ -103,6 +304,166 @@ export interface ImageElement extends SlideElement {
   borderWidth: number
   borderColor: string
   shadow: boolean
+  /**
+   * Optional crop rectangle imported from PPTX <a:srcRect>. When present, the
+   * renderer should apply it via CSS clip-path + object-position so the visible
+   * region matches the PPTX source. Absent means no crop.
+   */
+  cropRect?: ImageCropRect
+}
+
+/**
+ * In-shape text on a {@link ShapeElement} (PPTX autoshave label or user-edited label).
+ * Mirrors the subset of {@link TextElement} needed to render with {@link RichTextContent}.
+ */
+export interface ShapeInText {
+  content: string
+  paragraphs?: RichTextParagraph[]
+  links?: TextLink[]
+  fontSize: number
+  fontFamily: string
+  fontWeight: 'normal' | 'bold' | 'light'
+  fontStyle: 'normal' | 'italic'
+  textDecoration: 'none' | 'underline' | 'line-through'
+  textAlign: 'left' | 'center' | 'right'
+  verticalAlign: 'top' | 'middle' | 'bottom'
+  color: string
+  lineHeight: number
+  letterSpacing: number
+  textTransform?: RichTextTransform
+  padding: number
+  /**
+   * PowerPoint can let shape text paint outside the geometry when shrink-to-fit
+   * is not active. Imported shapes carry this so renderers can avoid clipping
+   * descenders that PowerPoint visibly shows.
+   */
+  allowOverflow?: boolean
+}
+
+/**
+ * Shape geometry metadata shared by editor-native shapes and shapes imported
+ * from PPTX.
+ *
+ * PowerPoint's shape library contains ~180 "preset" geometries plus a
+ * `custGeom` path language. Collapsing everything to our small {@link ShapeType}
+ * vocabulary makes editing easy but loses fidelity — a block arrow turns
+ * into a rectangle, a cylinder into a rounded rectangle, etc. Keeping this
+ * metadata on every shape lets preset-aware renderers reproduce the Office
+ * look, lets native shapes opt into the same fidelity pipeline, and keeps
+ * round-trip behavior symmetric regardless of how the shape was created.
+ *
+ * When {@link sourceFormat} is `'pptx'` the values were parsed from a source
+ * document; when it is `'native'` the editor produced them locally. Renderers
+ * should treat both the same way.
+ */
+export interface ShapeGeometryMetadata {
+  /**
+   * Where this geometry originated. `'pptx'` means it came from an imported
+   * document; `'native'` means the editor stamped it on at creation time so
+   * the shape can use the same preset pipeline as imported content.
+   */
+  sourceFormat: 'pptx' | 'native'
+  /** ECMA-376 preset id (e.g. `can`, `chevron`, `notchedRightArrow`). */
+  prst?: string
+  /**
+   * Adjustment values from `<a:avLst>` (or set by the editor through the
+   * adjustment UI). Keys follow OOXML naming (`adj`, `adj1`, `adj2` ...) and
+   * values are per-mille ints normalised to the shape bounding box.
+   */
+  adjustments?: Record<string, number>
+  /** Horizontal flip from `<a:xfrm flipH="1">`. */
+  flipH?: boolean
+  /** Vertical flip from `<a:xfrm flipV="1">`. */
+  flipV?: boolean
+  /**
+   * Normalised SVG `d` path for `<a:custGeom>` geometries, expressed inside
+   * the unit box `[0..1, 0..1]`. Preset-aware renderers can scale it to the
+   * shape's current size.
+   */
+  custGeomPath?: string
+}
+
+/**
+ * Legacy name kept as an alias for `ShapeGeometryMetadata` so existing
+ * importer / renderer / export code keeps compiling. New code should prefer
+ * {@link ShapeGeometryMetadata}.
+ */
+export type ShapeImportMetadata = ShapeGeometryMetadata
+
+/**
+ * Optional richer visual effects that can decorate a shape. None of these
+ * are required; renderers that do not understand an effect should ignore it
+ * and fall through to the base fill/stroke pipeline. Effects mirror the
+ * subset of PowerPoint's `a:effectLst` entries that are safe to approximate
+ * with CSS filters.
+ */
+export interface ShapeEffects {
+  /**
+   * Outer glow. `color` is rendered around the shape; `size` is the CSS
+   * blur radius in pixels.
+   */
+  glow?: { color: string; size: number }
+  /** Mirror-style reflection below the shape. `opacity` is 0..1. */
+  reflection?: { opacity: number; distance: number }
+  /** Feathered soft edges. `size` is the CSS blur radius in pixels. */
+  softEdges?: { size: number }
+  /**
+   * Inner shadow approximation. Distinct from the legacy `shadow` boolean
+   * so presets can opt into a richer drop-shadow offset without rewriting
+   * the renderer contract.
+   */
+  innerShadow?: { color: string; size: number; offsetX: number; offsetY: number }
+  /**
+   * Outer drop shadow. Models `a:outerShdw` with the full offset + blur
+   * vocabulary PowerPoint exposes so round-trips do not have to collapse
+   * to the legacy boolean `shadow`.
+   */
+  outerShadow?: { color: string; blur: number; offsetX: number; offsetY: number }
+  /**
+   * Raw `a:blur` effect — applies a Gaussian blur to the entire shape.
+   * Ignored when 0.
+   */
+  blur?: { radius: number }
+}
+
+/**
+ * Picture fill (`a:blipFill`). Points to a data URL (or `blob:` URL) for the
+ * image the shape should be painted with. `stretch` is the default PowerPoint
+ * behavior; set `tile` for `<a:tile/>` fills.
+ */
+export interface PictureFill {
+  kind: 'picture'
+  /** Data URL or object URL resolved from the PPTX rel. */
+  src: string
+  /** `a:stretch` — fill the shape with one copy of the image (default). */
+  stretch?: boolean
+  /** `a:tile` — repeat the image across the shape. */
+  tile?: boolean
+}
+
+/**
+ * Pattern fill (`a:pattFill`). `preset` is the OOXML pattern name (e.g.
+ * `dkHorz`, `lgGrid`, `pct50`) and `fgColor`/`bgColor` are resolved CSS
+ * colors from the theme.
+ */
+export interface PatternFill {
+  kind: 'pattern'
+  /** OOXML pattern preset id. */
+  preset: string
+  fgColor: string
+  bgColor: string
+}
+
+/** Arrowhead size buckets used by both `headEnd` and `tailEnd`. */
+export type ArrowheadSize = 'sm' | 'med' | 'lg'
+/** Arrowhead geometry variants shared by both line ends. */
+export type ArrowheadType = 'none' | 'triangle' | 'stealth' | 'diamond' | 'oval' | 'arrow'
+
+/** Arrowhead spec reused for both ends of a shape's outline. */
+export interface ArrowheadSpec {
+  type: ArrowheadType
+  width?: ArrowheadSize
+  length?: ArrowheadSize
 }
 
 export interface ShapeElement extends SlideElement {
@@ -110,11 +471,121 @@ export interface ShapeElement extends SlideElement {
   shapeType: ShapeType
   fill: string
   gradient?: GradientConfig
+  /** Picture fill from `a:blipFill`. When present, renderers should paint the bitmap instead of the solid fill. */
+  pictureFill?: PictureFill
+  /** Pattern fill from `a:pattFill`. When present, renderers should paint the pattern instead of the solid fill. */
+  patternFill?: PatternFill
   strokeColor: string
   strokeWidth: number
   strokeStyle: 'solid' | 'dashed' | 'dotted'
+  /**
+   * Compound outline (`a:ln cmpd`). Single is the default; `dbl` /
+   * `thickThin` / `thinThick` / `tri` are rendered via a layered parallel
+   * stroke approximation.
+   */
+  lineCompound?: 'sng' | 'dbl' | 'thickThin' | 'thinThick' | 'tri'
+  /** `a:ln cap` — `rnd`/`sq`/`flat`. Maps onto SVG/CSS `stroke-linecap`. */
+  lineCap?: 'rnd' | 'sq' | 'flat'
+  /** `a:miter`/`a:round`/`a:bevel` — maps onto SVG `stroke-linejoin`. */
+  lineJoin?: 'miter' | 'round' | 'bevel'
+  /** Arrowhead at the start of the shape's outline (`a:headEnd`). */
+  lineHeadEnd?: ArrowheadSpec
+  /** Arrowhead at the end of the shape's outline (`a:tailEnd`). */
+  lineTailEnd?: ArrowheadSpec
   cornerRadius: number
   shadow: boolean
+  /**
+   * Text drawn inside the shape (PPTX autoshave, or set in the editor).
+   * The shape's own fill is separate; this is the label only.
+   */
+  shapeText?: ShapeInText
+  /**
+   * Shape geometry metadata shared with imported shapes. Populated for both
+   * PPTX-imported and editor-native shapes so the same preset/adjustment/flip
+   * pipeline runs regardless of origin. `importMeta` is the legacy alias;
+   * new code should prefer {@link geometry}.
+   */
+  geometry?: ShapeGeometryMetadata
+  /**
+   * Legacy alias for {@link geometry}. Retained for backwards-compat
+   * serialization so shape state persisted before the {@link geometry} slot
+   * existed continues to render. New code should write to {@link geometry}
+   * and only touch this field when round-tripping through legacy storage.
+   */
+  importMeta?: ShapeImportMetadata
+  /** Optional visual effects layer (glow / reflection / soft edges). */
+  effects?: ShapeEffects
+  /**
+   * Alt text metadata from `<p:cNvPr descr=… title=…>`. Surfaced in the
+   * property panel and round-tripped on export so accessibility annotations
+   * survive edits.
+   */
+  altText?: { title?: string; description?: string }
+  /**
+   * Shape-level hyperlink (`<a:hlinkClick>` on `<p:cNvPr>`). Stored as a
+   * resolved URL; PPTX round-trip re-registers a relationship on export.
+   */
+  hyperlink?: string
+  /**
+   * Per-capability lock flags from `<a:spLocks …/>`. Maps directly to the
+   * OOXML attributes so we do not lose fidelity — the editor consumes
+   * whichever flags it implements and ignores the rest.
+   */
+  spLocks?: {
+    noGrp?: boolean
+    noSelect?: boolean
+    noRot?: boolean
+    noChangeAspect?: boolean
+    noMove?: boolean
+    noResize?: boolean
+    noEditPoints?: boolean
+    noAdjustHandles?: boolean
+    noChangeArrowheads?: boolean
+    noChangeShapeType?: boolean
+    noTextEdit?: boolean
+  }
+}
+
+/**
+ * Read the active geometry metadata of a shape, preferring the new
+ * {@link ShapeElement.geometry} slot and falling back to the legacy
+ * `importMeta` alias so in-flight documents keep rendering.
+ */
+export function getShapeGeometry(shape: ShapeElement): ShapeGeometryMetadata | undefined {
+  return shape.geometry ?? shape.importMeta
+}
+
+/**
+ * Build a {@link TextElement} stub for rich-text renderers (canvas, export, thumbnail) from
+ * a shape with {@link ShapeInText}.
+ */
+export function textElementStubForShapeInText(element: ShapeElement, text: ShapeInText): TextElement {
+  return {
+    type: 'text',
+    id: `${element.id}-label`,
+    position: element.position,
+    size: element.size,
+    rotation: 0,
+    opacity: 1,
+    locked: true,
+    zIndex: 0,
+    content: text.content,
+    paragraphs: text.paragraphs,
+    links: text.links,
+    fontFamily: text.fontFamily,
+    fontSize: text.fontSize,
+    fontWeight: text.fontWeight,
+    fontStyle: text.fontStyle,
+    textDecoration: text.textDecoration,
+    textAlign: text.textAlign,
+    verticalAlign: text.verticalAlign,
+    color: text.color,
+    backgroundColor: 'transparent',
+    lineHeight: text.lineHeight,
+    letterSpacing: text.letterSpacing,
+    textTransform: text.textTransform,
+    padding: text.padding
+  }
 }
 
 export interface CodeElement extends SlideElement {
@@ -124,11 +595,23 @@ export interface CodeElement extends SlideElement {
   theme: 'dark' | 'light'
   showLineNumbers: boolean
   fontSize: number
+  textColor?: string
+  backgroundColor?: string
+  borderRadius: number
+  borderWidth: number
+  borderColor: string
+  shadow: boolean
+  padding: number
 }
 
 export interface VideoElement extends SlideElement {
   type: 'video'
   src: string
+  sourceUrl?: string
+  embedUrl?: string
+  previewImageUrl?: string
+  videoKind?: 'file' | 'embed'
+  provider?: 'youtube'
   autoplay: boolean
   loop: boolean
   muted: boolean
@@ -137,10 +620,39 @@ export interface VideoElement extends SlideElement {
   shadow: boolean
 }
 
+/**
+ * Richer table cell model used by the importer when per-cell formatting is
+ * available. When the legacy `rows`/`headers` string arrays are populated,
+ * the editor falls back to the coarse grid.
+ */
+export interface TableCell {
+  content: string
+  paragraphs?: RichTextParagraph[]
+  rowSpan?: number
+  colSpan?: number
+  backgroundColor?: string
+  textColor?: string
+  fontSize?: number
+  bold?: boolean
+  italic?: boolean
+  horizontalAlign?: 'left' | 'center' | 'right'
+  verticalAlign?: 'top' | 'middle' | 'bottom'
+  borderColor?: string
+  borderWidth?: number
+}
+
 export interface TableElement extends SlideElement {
   type: 'table'
   headers: string[]
   rows: string[][]
+  /**
+   * Optional richer grid (rows x cols) that carries per-cell formatting and
+   * spans. Populated by the PPTX importer; legacy `headers`/`rows` arrays
+   * remain the source of truth until the table editor consumes this.
+   */
+  cells?: TableCell[][]
+  columnWidths?: number[]
+  rowHeights?: number[]
   headerBackground: string
   headerTextColor: string
   rowBackground: string
@@ -225,6 +737,25 @@ export interface BadgeElement extends SlideElement {
 export type ConnectorLineType = 'straight' | 'curved' | 'elbow'
 export type ConnectorLabelPosition = 'start' | 'middle' | 'end'
 
+/**
+ * Canonical bind points on a shape that a connector endpoint can glue to.
+ * Mirrors PowerPoint's fixed connection-site model: top/right/bottom/left
+ * midpoints plus the center. Free-floating endpoints set no binding and use
+ * absolute `startPoint`/`endPoint` coordinates.
+ */
+export type ConnectorBindSite = 'top' | 'right' | 'bottom' | 'left' | 'center'
+
+/**
+ * Connector binding descriptor. When set on a connector endpoint, the
+ * absolute `startPoint` / `endPoint` becomes an advisory cached value — the
+ * renderer recomputes the actual location from the target element's current
+ * bounds so the connector tracks moves/resizes.
+ */
+export interface ConnectorBinding {
+  elementId: string
+  site: ConnectorBindSite
+}
+
 export interface ConnectorElement extends SlideElement {
   type: 'connector'
   startPoint: Position
@@ -241,6 +772,10 @@ export interface ConnectorElement extends SlideElement {
   labelPosition: ConnectorLabelPosition
   labelColor?: string
   labelFontSize?: number
+  /** Optional binding for the start endpoint. Empty = floating endpoint. */
+  startBinding?: ConnectorBinding
+  /** Optional binding for the end endpoint. Empty = floating endpoint. */
+  endBinding?: ConnectorBinding
 }
 
 export interface LayerElement extends SlideElement {
@@ -279,6 +814,18 @@ export interface MetricCardElement extends SlideElement {
   descriptionFontSize: number
 }
 
+/**
+ * Container for grouped elements. The group's position/size defines the
+ * group's bounding box on the slide; child elements use coordinates relative
+ * to the group origin. Importer currently flattens groups, but this model
+ * enables preservation as the editor gains group support.
+ */
+export interface GroupElement extends SlideElement {
+  type: 'group'
+  children: AnySlideElement[]
+  label?: string
+}
+
 export type AnySlideElement =
   | TextElement
   | ImageElement
@@ -294,6 +841,7 @@ export type AnySlideElement =
   | ConnectorElement
   | LayerElement
   | MetricCardElement
+  | GroupElement
 
 export type SlideTransitionType =
   | 'none'
@@ -333,10 +881,34 @@ export interface SlideBackground {
   overlay?: GradientConfig
   imageUrl?: string
   videoUrl?: string
+  videoPreviewImageUrl?: string
   videoMuted?: boolean
   videoLoop?: boolean
   brandPreset?: 'newwork-dark' | 'newwork-light' | string
 }
+
+/**
+ * Metadata captured from the source PPTX layout/master so the editor can
+ * reason about placeholder fallback, branding, and export round-trip.
+ */
+export interface SlideSourceMetadata {
+  sourceFormat?: 'pptx'
+  placeholderType?: string
+  layoutName?: string
+  masterName?: string
+}
+
+export interface SlideCanvasSize {
+  width: number
+  height: number
+}
+
+/**
+ * Default slide canvas dimensions (16:9 at 96 DPI). Matches PowerPoint's
+ * "Widescreen (16:9)" preset in pixels after EMU → px conversion, which is
+ * also what most of our templates were originally designed against.
+ */
+export const DEFAULT_SLIDE_CANVAS_SIZE: SlideCanvasSize = { width: 1280, height: 720 }
 
 export interface SlideData {
   id: string
@@ -346,6 +918,23 @@ export interface SlideData {
   transition?: SlideTransition
   layoutId?: string
   masterId?: string
+  /**
+   * Optional source metadata captured at import time; ignored by the editor
+   * but used by export to preserve PPTX fidelity on round-trip.
+   */
+  source?: SlideSourceMetadata
+  /**
+   * Original canvas dimensions in pixels. When absent the renderer falls
+   * back to {@link DEFAULT_SLIDE_CANVAS_SIZE}. Imported PPTX decks populate
+   * this from <p:sldSz> so 4:3 / 16:10 / A4 decks render with correct aspect
+   * ratio instead of getting letterboxed into 16:9.
+   */
+  canvasSize?: SlideCanvasSize
+}
+
+/** Convenience: read a slide's canvas size, falling back to the default. */
+export function getSlideCanvasSize(slide: Pick<SlideData, 'canvasSize'>): SlideCanvasSize {
+  return slide.canvasSize ?? DEFAULT_SLIDE_CANVAS_SIZE
 }
 
 // Default element factories
@@ -374,6 +963,51 @@ export const createTextElement = (partial?: Partial<TextElement>): TextElement =
   ...partial
 })
 
+export function textElementHasVisibleContent(element: Pick<TextElement, 'content' | 'paragraphs'>): boolean {
+  if ((element.content || '').length > 0) return true
+
+  return Boolean(element.paragraphs?.some(paragraph => paragraph.runs.some(run => run.text.length > 0)))
+}
+
+/**
+ * Compute inline styles to render a cropped image to look like PowerPoint
+ * does: the visible region defined by <a:srcRect> fills the entire frame.
+ *
+ * Implementation: the image is scaled up so the kept region equals the frame,
+ * then translated so the kept region's top-left corner is at (0,0). Callers
+ * must place the result inside an overflow-hidden, relatively-positioned
+ * container matching the element's bounding box.
+ */
+export function getImageCropStyles(cropRect: ImageCropRect | undefined): {
+  wrapperNeeded: boolean
+  imgStyle: CSSProperties
+} {
+  if (!cropRect) {
+    return { wrapperNeeded: false, imgStyle: {} }
+  }
+
+  const keepW = Math.max(0.001, 1 - cropRect.left - cropRect.right)
+  const keepH = Math.max(0.001, 1 - cropRect.top - cropRect.bottom)
+
+  const widthPct = (1 / keepW) * 100
+  const heightPct = (1 / keepH) * 100
+  const leftPct = -(cropRect.left / keepW) * 100
+  const topPct = -(cropRect.top / keepH) * 100
+
+  return {
+    wrapperNeeded: true,
+    imgStyle: {
+      position: 'absolute',
+      left: `${leftPct}%`,
+      top: `${topPct}%`,
+      width: `${widthPct}%`,
+      height: `${heightPct}%`,
+      maxWidth: 'none',
+      maxHeight: 'none'
+    }
+  }
+}
+
 export const createImageElement = (src: string, partial?: Partial<ImageElement>): ImageElement => ({
   id: `image-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
   type: 'image',
@@ -393,6 +1027,43 @@ export const createImageElement = (src: string, partial?: Partial<ImageElement>)
   ...partial
 })
 
+/**
+ * Default adjustment values for editor-native shapes, expressed in the same
+ * per-mille scale PowerPoint uses. Shapes not listed here have no
+ * user-adjustable parameters and fall back to the renderer's hard-coded
+ * defaults.
+ */
+const DEFAULT_SHAPE_ADJUSTMENTS: Partial<Record<ShapeType, Record<string, number>>> = {
+  'rounded-rectangle': { adj: 16667 },
+  chevron: { adj: 50000 },
+  'arrow-right': { adj1: 50000, adj2: 50000 },
+  'arrow-left': { adj1: 50000, adj2: 50000 },
+  'arrow-up': { adj1: 50000, adj2: 50000 },
+  'arrow-down': { adj1: 50000, adj2: 50000 },
+  parallelogram: { adj: 25000 },
+  trapezoid: { adj: 25000 },
+  pentagon: { adj: 50000 },
+  octagon: { adj: 29289 },
+  plus: { adj: 25000 },
+  cross: { adj: 25000 },
+  bevel: { adj: 12500 },
+  can: { adj: 25000 }
+}
+
+/**
+ * Build the default {@link ShapeGeometryMetadata} for a native shape so it
+ * participates in the same preset/adjustment pipeline as imported shapes.
+ */
+export function defaultGeometryForShape(shapeType: ShapeType): ShapeGeometryMetadata {
+  const prst = SHAPE_TYPE_TO_OOXML_PRESET[shapeType]
+  const adjustments = DEFAULT_SHAPE_ADJUSTMENTS[shapeType]
+  return {
+    sourceFormat: 'native',
+    ...(prst ? { prst } : {}),
+    ...(adjustments ? { adjustments: { ...adjustments } } : {})
+  }
+}
+
 export const createShapeElement = (shapeType: ShapeType, partial?: Partial<ShapeElement>): ShapeElement => ({
   id: `shape-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
   type: 'shape',
@@ -409,8 +1080,50 @@ export const createShapeElement = (shapeType: ShapeType, partial?: Partial<Shape
   strokeStyle: 'solid',
   cornerRadius: shapeType === 'rounded-rectangle' ? 12 : 0,
   shadow: false,
+  geometry: defaultGeometryForShape(shapeType),
   ...partial
 })
+
+/**
+ * Reverse lookup of {@link SHAPE_TYPE_TO_OOXML_PRESET}. Lets us map an OOXML
+ * preset id back to our canonical native `ShapeType` when one exists, so a
+ * preset-only insert (e.g. "star8") still carries a stable shapeType for
+ * legacy code paths that branch on it (selection, property panel, etc.).
+ */
+const OOXML_PRESET_TO_SHAPE_TYPE: Record<string, ShapeType> = (() => {
+  const out: Record<string, ShapeType> = {}
+  for (const key of Object.keys(SHAPE_TYPE_TO_OOXML_PRESET) as ShapeType[]) {
+    const preset = SHAPE_TYPE_TO_OOXML_PRESET[key]
+    if (preset && !out[preset]) out[preset] = key
+  }
+  return out
+})()
+
+/**
+ * Insert a shape by its OOXML preset id even when we do not have a matching
+ * native {@link ShapeType}. The OfficeShapeRenderer will pick up the preset
+ * via `geometry.prst` and draw the real silhouette; the nominal `shapeType`
+ * is set to the closest native fallback (or "rectangle") so the rest of the
+ * editor, which occasionally branches on `shapeType`, stays well-typed.
+ *
+ * This is how the Insert palette surfaces presets like `star8`, `heart`,
+ * `flowChartDocument`, `cloudCallout`, etc. without bloating `ShapeType`.
+ */
+export const createShapeFromPreset = (prst: string, partial?: Partial<ShapeElement>): ShapeElement => {
+  const fallbackType = OOXML_PRESET_TO_SHAPE_TYPE[prst] ?? 'rectangle'
+  const baseGeometry: ShapeGeometryMetadata = {
+    sourceFormat: 'native',
+    prst
+  }
+  return createShapeElement(fallbackType, {
+    ...partial,
+    geometry: {
+      ...baseGeometry,
+      ...(partial?.geometry ?? {}),
+      prst
+    }
+  })
+}
 
 export const createCodeElement = (code: string, partial?: Partial<CodeElement>): CodeElement => ({
   id: `code-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -426,6 +1139,11 @@ export const createCodeElement = (code: string, partial?: Partial<CodeElement>):
   theme: 'dark',
   showLineNumbers: true,
   fontSize: 14,
+  borderRadius: 8,
+  borderWidth: 0,
+  borderColor: '#333333',
+  shadow: false,
+  padding: 16,
   ...partial
 })
 
@@ -439,7 +1157,8 @@ export const createVideoElement = (src: string, partial?: Partial<VideoElement>)
   locked: false,
   zIndex: 1,
   src,
-  autoplay: true,
+  videoKind: 'file',
+  autoplay: false,
   loop: true,
   muted: true,
   objectFit: 'cover',
@@ -624,6 +1343,62 @@ export const createLayerElement = (label: string, partial?: Partial<LayerElement
   ...partial
 })
 
+export const createGroupElement = (children: AnySlideElement[], partial?: Partial<GroupElement>): GroupElement => {
+  const { minX, minY, maxX, maxY } = children.reduce(
+    (acc, child) => ({
+      minX: Math.min(acc.minX, child.position.x),
+      minY: Math.min(acc.minY, child.position.y),
+      maxX: Math.max(acc.maxX, child.position.x + child.size.width),
+      maxY: Math.max(acc.maxY, child.position.y + child.size.height)
+    }),
+    { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+  )
+  const hasChildren = Number.isFinite(minX) && Number.isFinite(minY)
+  return {
+    id: `group-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    type: 'group',
+    position: hasChildren ? { x: minX, y: minY } : { x: 0, y: 0 },
+    size: hasChildren
+      ? { width: Math.max(10, maxX - minX), height: Math.max(10, maxY - minY) }
+      : { width: 200, height: 200 },
+    rotation: 0,
+    opacity: 1,
+    locked: false,
+    zIndex: 1,
+    children,
+    ...partial
+  }
+}
+
+/**
+ * Build a single-run paragraph array from plain text, applying box-level
+ * styling as defaults. Used by migration/export code paths that need rich
+ * paragraphs even when the element only has a legacy `content` string.
+ */
+export const paragraphsFromPlainText = (element: TextElement): RichTextParagraph[] => {
+  if (element.paragraphs && element.paragraphs.length > 0) return element.paragraphs
+  const lines = (element.content || '').split('\n')
+  const alignmentMap: Record<TextElement['textAlign'], RichTextParagraph['alignment']> = {
+    left: 'left',
+    center: 'center',
+    right: 'right'
+  }
+  return lines.map(line => ({
+    runs: [
+      {
+        text: line,
+        fontFamily: element.fontFamily,
+        fontSize: element.fontSize,
+        fontWeight: element.fontWeight,
+        fontStyle: element.fontStyle,
+        textDecoration: element.textDecoration,
+        color: element.color
+      }
+    ],
+    alignment: alignmentMap[element.textAlign]
+  }))
+}
+
 export const createMetricCardElement = (
   value: string,
   label: string,
@@ -675,7 +1450,116 @@ export const FONT_FAMILIES = [
   { value: 'Impact', label: 'Impact' }
 ]
 
-export const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 128]
+type StringSelectOption = {
+  value: string
+  label: string
+}
+
+export const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96]
+
+export const CODE_LANGUAGES = [
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'typescript', label: 'TypeScript' },
+  { value: 'python', label: 'Python' },
+  { value: 'java', label: 'Java' },
+  { value: 'csharp', label: 'C#' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'go', label: 'Go' },
+  { value: 'rust', label: 'Rust' },
+  { value: 'ruby', label: 'Ruby' },
+  { value: 'php', label: 'PHP' },
+  { value: 'swift', label: 'Swift' },
+  { value: 'kotlin', label: 'Kotlin' },
+  { value: 'html', label: 'HTML' },
+  { value: 'css', label: 'CSS' },
+  { value: 'sql', label: 'SQL' },
+  { value: 'bash', label: 'Bash' },
+  { value: 'json', label: 'JSON' },
+  { value: 'yaml', label: 'YAML' },
+  { value: 'xml', label: 'XML' },
+  { value: 'markdown', label: 'Markdown' }
+]
+
+export const CODE_FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24]
+
+export function getStringSelectOptions(
+  options: readonly StringSelectOption[],
+  activeValue?: string
+): StringSelectOption[] {
+  const trimmedValue = activeValue?.trim()
+  if (!trimmedValue) return [...options]
+
+  const alreadyExists = options.some(option => option.value.toLowerCase() === trimmedValue.toLowerCase())
+  if (alreadyExists) return [...options]
+
+  return [{ value: trimmedValue, label: trimmedValue }, ...options]
+}
+
+function roundFontSizeForUi(value: number): number {
+  return Number(value.toFixed(2))
+}
+
+function isNearInteger(value: number, tolerance = 0.0001): boolean {
+  return Math.abs(value - Math.round(value)) <= tolerance
+}
+
+function snapLegacyPixelFontSizeToPreset(pointsValue: number, pixelValue: number): number {
+  if (!isNearInteger(pixelValue)) {
+    return pointsValue
+  }
+
+  const nearestPreset = FONT_SIZES.reduce((closest, candidate) => {
+    if (Math.abs(candidate - pointsValue) < Math.abs(closest - pointsValue)) {
+      return candidate
+    }
+
+    return closest
+  }, FONT_SIZES[0])
+
+  return Math.abs(nearestPreset - pointsValue) <= 0.26 ? nearestPreset : pointsValue
+}
+
+export function fontSizePixelsToPoints(fontSize?: number): number | undefined {
+  if (fontSize === undefined || fontSize === null || Number.isNaN(fontSize)) {
+    return undefined
+  }
+
+  return roundFontSizeForUi(snapLegacyPixelFontSizeToPreset(fontSize * 0.75, fontSize))
+}
+
+export function fontSizePointsToPixels(fontSize?: number): number | undefined {
+  if (fontSize === undefined || fontSize === null || Number.isNaN(fontSize)) {
+    return undefined
+  }
+
+  return Number((fontSize / 0.75).toFixed(4))
+}
+
+export function getNumericSelectOptions(options: readonly number[], activeValue?: number): number[] {
+  if (activeValue === undefined || activeValue === null || Number.isNaN(activeValue)) {
+    return [...options]
+  }
+
+  if (options.includes(activeValue)) return [...options]
+
+  return [activeValue, ...options]
+}
+
+export function getFontFamilyOptions(activeFontFamily?: string): StringSelectOption[] {
+  return getStringSelectOptions(FONT_FAMILIES, activeFontFamily)
+}
+
+export function getFontSizeOptions(activeFontSize?: number): number[] {
+  return getNumericSelectOptions(FONT_SIZES, fontSizePixelsToPoints(activeFontSize))
+}
+
+export function getCodeLanguageOptions(activeLanguage?: string): StringSelectOption[] {
+  return getStringSelectOptions(CODE_LANGUAGES, activeLanguage)
+}
+
+export function getCodeFontSizeOptions(activeFontSize?: number): number[] {
+  return getNumericSelectOptions(CODE_FONT_SIZES, activeFontSize)
+}
 
 // Shape definitions for rendering
 export const SHAPE_DEFINITIONS: Record<ShapeType, { name: string; icon: string }> = {
@@ -693,7 +1577,20 @@ export const SHAPE_DEFINITIONS: Record<ShapeType, { name: string; icon: string }
   hexagon: { name: 'Hexagon', icon: '⬡' },
   line: { name: 'Line', icon: '─' },
   callout: { name: 'Callout', icon: '💬' },
-  container: { name: 'Container', icon: '▢' }
+  container: { name: 'Container', icon: '▢' },
+  parallelogram: { name: 'Parallelogram', icon: '▰' },
+  trapezoid: { name: 'Trapezoid', icon: '◿' },
+  pentagon: { name: 'Pentagon', icon: '⬠' },
+  octagon: { name: 'Octagon', icon: '⯃' },
+  plus: { name: 'Plus', icon: '✚' },
+  cross: { name: 'Cross', icon: '✖' },
+  chevron: { name: 'Chevron', icon: '❯' },
+  can: { name: 'Cylinder', icon: '⌶' },
+  bevel: { name: 'Bevel', icon: '◳' },
+  'flowchart-process': { name: 'Process', icon: '▭' },
+  'flowchart-decision': { name: 'Decision', icon: '◇' },
+  'flowchart-terminator': { name: 'Terminator', icon: '⬭' },
+  'flowchart-alternate': { name: 'Alternate Process', icon: '▢' }
 }
 
 // Preset gradients
@@ -892,6 +1789,41 @@ export const COLOR_PRESETS = [
   '#e9d5ff',
   '#fce7f3'
 ]
+
+/**
+ * Convert GradientConfig to SVG gradient attributes.
+ * CSS gradients don't work in SVG fill — this produces data for
+ * SVG <linearGradient>/<radialGradient> definitions.
+ */
+export function gradientToSvgAttrs(gradient: GradientConfig, viewBox = 100) {
+  const stops = gradient.stops.map(s => ({ offset: `${s.position}%`, stopColor: s.color }))
+
+  if (gradient.type === 'radial') {
+    const angleToPos: Record<number, { cx: string; cy: string }> = {
+      0: { cx: '50%', cy: '0%' },
+      45: { cx: '100%', cy: '0%' },
+      90: { cx: '100%', cy: '50%' },
+      135: { cx: '0%', cy: '0%' },
+      180: { cx: '50%', cy: '100%' },
+      225: { cx: '0%', cy: '100%' },
+      270: { cx: '0%', cy: '50%' },
+      315: { cx: '100%', cy: '100%' }
+    }
+    const pos = angleToPos[gradient.angle] || { cx: '50%', cy: '50%' }
+    return { type: 'radial' as const, stops, cx: pos.cx, cy: pos.cy, r: '70%' }
+  }
+
+  const rad = ((gradient.angle - 90) * Math.PI) / 180
+  const h = viewBox / 2
+  return {
+    type: 'linear' as const,
+    stops,
+    x1: h - Math.cos(rad) * h,
+    y1: h - Math.sin(rad) * h,
+    x2: h + Math.cos(rad) * h,
+    y2: h + Math.sin(rad) * h
+  }
+}
 
 export const gradientToCss = (gradient: GradientConfig): string => {
   const stops = gradient.stops.map(s => `${s.color} ${s.position}%`).join(', ')

@@ -2,13 +2,24 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { FunctionManager } from './FunctionManager'
 
-const createLayoutMock = jest.fn()
 const useFunctionsDataMock = jest.fn()
 const createFunctionsColumnsMock = jest.fn()
 
 jest.mock('@newwork/nw-design-system', () => ({
+  CreateLayout: ({ children, canvasPanel, heroTitle, views, onViewChange, 'data-testid': testId }: any) => (
+    <div data-testid={testId}>
+      <div>{heroTitle}</div>
+      {Array.isArray(views)
+        ? views.map((v: any) => (
+            <button key={v.value} type="button" onClick={() => onViewChange?.(v.value)}>
+              {v.label}
+            </button>
+          ))
+        : null}
+      {canvasPanel || children}
+    </div>
+  ),
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  CreateLayout: (props: any) => createLayoutMock(props),
   DataDisplay: ({ children, primaryAction }: any) => (
     <div data-testid="mock-data-display">
       {primaryAction && typeof primaryAction === 'object' && 'label' in primaryAction ? (
@@ -56,20 +67,17 @@ jest.mock('./components/FunctionEditor', () => ({
 
 describe('FunctionManager', () => {
   beforeEach(() => {
-    createLayoutMock.mockImplementation(({ heroVariant, heroExtra, canvasPanel, 'data-testid': dataTestId }: any) => (
-      <div data-testid="mock-create-layout" data-hero-variant={heroVariant} data-layout-testid={dataTestId}>
-        <div data-testid="mock-create-layout-extra">{heroExtra}</div>
-        <div data-testid="mock-create-layout-canvas">{canvasPanel}</div>
-      </div>
-    ))
-
     useFunctionsDataMock.mockReturnValue({
       data: [],
+      allItems: [],
       total: 0,
+      categoryCounts: { All: 0, General: 0, HR: 0, CRM: 0, Expenses: 0, Office: 0, Service: 0, Custom: 0 },
       loading: false,
       error: null,
       search: '',
       setSearch: jest.fn(),
+      category: 'All',
+      setCategory: jest.fn(),
       pagination: { pageIndex: 0, pageSize: 20 },
       setPagination: jest.fn(),
       visibleColumns: [],
@@ -84,12 +92,11 @@ describe('FunctionManager', () => {
     jest.clearAllMocks()
   })
 
-  it('renders the overview inside CreateLayout overview mode', () => {
+  it('renders the overview with the hero and data display', () => {
     render(<FunctionManager accessToken="token" />)
 
-    expect(screen.getByTestId('mock-create-layout')).toHaveAttribute('data-hero-variant', 'overview')
-    expect(screen.getByTestId('mock-create-layout')).toHaveAttribute('data-layout-testid', 'FunctionManager')
-    expect(screen.queryByTestId('FunctionManager-hero-create')).not.toBeInTheDocument()
+    expect(screen.getByTestId('FunctionManager')).toBeInTheDocument()
+    expect(screen.getAllByText('Functions').length).toBeGreaterThan(0)
     expect(screen.getByTestId('mock-data-display-primary-action')).toHaveTextContent('New Function')
     expect(screen.getByTestId('mock-data-display')).toBeInTheDocument()
     expect(screen.getByTestId('mock-data-table')).toBeInTheDocument()

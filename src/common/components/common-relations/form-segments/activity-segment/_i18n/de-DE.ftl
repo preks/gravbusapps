@@ -11,6 +11,7 @@ activity-description-placeholder = Bitte eingeben...
 activity-owner-label = Eigentümer
 activity-entity-label = Zugehörige Entität
 activity-upload-label = Dokumente anhängen
+activity-attached-documents-label = Angehängte Dokumente
 
 # Common
 please-select = Bitte auswählen...

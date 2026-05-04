@@ -5,8 +5,9 @@
  */
 
 import React, { useState } from 'react'
-import { Button, Textarea } from '@newwork/nw-design-system'
+import { Button, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { Send } from 'lucide-react'
+import sharedTranslations from '../_i18n'
 
 export interface CommentEditorMessages {
   cancel?: string
@@ -28,23 +29,24 @@ export interface CommentEditorProps {
 /**
  * Simple comment editor with textarea
  */
-const DEFAULT_EDITOR_MESSAGES: Required<CommentEditorMessages> = {
-  cancel: 'Cancel',
-  send: 'Send',
-  sending: 'Sending...',
-  sendHint: '⌘+Enter to send'
-}
-
 export const CommentEditor: React.FC<CommentEditorProps> = ({
   initialValue = '',
   onSubmit,
   onCancel,
   isSubmitting = false,
-  placeholder = 'Write a comment...',
+  placeholder,
   messages: messagesProp,
   'data-testid': testId = 'comment-editor'
 }) => {
-  const m = { ...DEFAULT_EDITOR_MESSAGES, ...messagesProp }
+  const { t } = useTranslation(sharedTranslations)
+  const defaultEditorMessages: Required<CommentEditorMessages> = {
+    cancel: t('comment-editor-cancel'),
+    send: t('comment-editor-send'),
+    sending: t('comment-editor-sending'),
+    sendHint: t('comment-editor-send-hint')
+  }
+  const m = { ...defaultEditorMessages, ...messagesProp }
+  const effectivePlaceholder = placeholder || t('comment-editor-placeholder-default')
   const [content, setContent] = useState(initialValue)
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -83,22 +85,22 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
         e.preventDefault()
         void handleSubmit(e)
       }}
-      className="gba:flex gba:flex-col gba:gap-2"
+      className="gba:flex gba:w-full gba:min-w-0 gba:flex-col gba:gap-2"
       data-testid={testId}
     >
       <Textarea
         value={content}
         onChange={e => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder}
+        placeholder={effectivePlaceholder}
         rows={2}
         disabled={isSubmitting}
-        className="gba:resize-none gba:text-sm gba:border-border/50 focus-visible:gba:ring-primary/20 gba:min-h-[56px] gba:max-h-28 gba:overflow-y-auto"
+        className="gba:min-w-0 gba:w-full gba:resize-none gba:text-sm gba:border-border/50 focus-visible:gba:ring-primary/20 gba:min-h-[56px] gba:max-h-28 gba:overflow-y-auto"
         data-testid={`${testId}-textarea`}
       />
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:w-full">
-        <span className="gba:text-xs gba:text-muted-foreground gba:shrink-0">{m.sendHint}</span>
-        <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+      <div className="gba:flex gba:w-full gba:min-w-0 gba:flex-wrap gba:items-center gba:justify-between gba:gap-2">
+        <span className="gba:min-w-0 gba:flex-1 gba:text-xs gba:text-muted-foreground">{m.sendHint}</span>
+        <div className="gba:ml-auto gba:flex gba:max-w-full gba:flex-wrap gba:items-center gba:justify-end gba:gap-2">
           {onCancel && (
             <Button
               type="button"

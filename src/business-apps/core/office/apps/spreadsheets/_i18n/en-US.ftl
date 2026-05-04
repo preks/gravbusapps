@@ -9,6 +9,8 @@ sidebar-brand-subtitle = NEWWORK Apps
 sidebar-new = New
 sidebar-blank-spreadsheet = Blank Spreadsheet
 sidebar-blank-spreadsheet-desc = Start from scratch
+sidebar-generate-ai = Generate with AI
+sidebar-generate-ai-desc = Create spreadsheet with AI
 sidebar-upload-excel = Upload Excel
 sidebar-upload-excel-desc = Import .xlsx or .xls file
 sidebar-home = Home
@@ -40,7 +42,7 @@ sh-parent-label = Every Office
 sh-title = Spreadsheets
 sh-tabs-aria-label = Spreadsheet sections
 sh-tab-my-files = My Spreadsheets
-sh-tab-shared = Shared with me
+sh-tab-shared = Shared
 sh-tab-tasks = My tasks
 sh-tab-recent = Recent
 sh-tab-automations = Automations
@@ -90,7 +92,48 @@ table-rows = Rows
 # Empty states
 spreadsheets-empty-trash-title = No trashed spreadsheets
 spreadsheets-empty-trash-description = Spreadsheets moved to trash will appear here.
+header-selected-count = { $count } selected
+trash-bulk-restore = Restore
+trash-bulk-restoring = Restoring...
+trash-bulk-delete-permanently = Delete permanently
+trash-delete-dialog-title-single = Delete permanently?
+trash-delete-dialog-title-multiple = Delete { $count } items permanently?
+trash-delete-dialog-description-single = "{ $name }" will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-description-multiple = { $count } items will be permanently deleted and cannot be restored. This action cannot be undone.
+trash-delete-dialog-cancel = Cancel
+trash-delete-dialog-confirm = Delete permanently
+trash-delete-dialog-deleting = Deleting...
 rows-label = rows
+app-preview-sheet-count = { $count } { $count ->
+  [one] sheet
+ *[other] sheets
+}
+app-preview-row-count = { $count } { $count ->
+  [one] row
+ *[other] rows
+}
+app-preview-status-draft = Draft
+app-preview-status-file-based = File-based
+app-preview-status-database = Database
+app-preview-status-archived = Archived
+app-preview-manage-sharing = Manage Sharing
+app-preview-promote-database = Promote to Database
+app-preview-owner-tooltip = Owner: { $name }
+app-preview-shared-with-you = Shared with you
+app-preview-shared-by = by { $name }
+app-preview-can-edit = Can edit
+app-preview-view-only = View only
+app-preview-permission-view = view
+app-preview-permission-comment = comment
+app-preview-permission-edit = edit
+app-preview-shared = Shared
+app-preview-shared-with-count = Shared with { $count } { $count ->
+  [one] person
+ *[other] people
+}
+app-preview-more-people = { $count } more people
+app-preview-no-apps-title = No apps yet
+app-preview-no-apps-description = Upload an Excel file to transform it into a powerful business application. AI will analyze your data and suggest the best app structure.
 
 # Empty states
 empty-no-favorites = No favorites yet
@@ -118,6 +161,7 @@ action-delete-spreadsheet = Delete
 
 # Spreadsheet Actions Menu (dropdown under Spreadsheet button)
 menu-spreadsheet = Spreadsheet
+menu-coming-soon = Coming soon
 menu-version-history = Version History
 menu-save-checkpoint = Save Checkpoint
 menu-lock-spreadsheet = Lock Spreadsheet
@@ -130,6 +174,10 @@ menu-manage-columns = Manage Columns
 menu-ai-analytics = AI Analytics
 menu-automations = Automations
 menu-check-collection-responses = Check collection responses
+status-indicator-live = Live
+status-indicator-active-count = { $count } active
+status-indicator-collaboration-live = Real-time collaboration active. Others will appear when they join.
+status-indicator-data-source-connected = Connected to { $name } data source
 menu-settings = Settings
 
 # AI Capability Menu
@@ -213,6 +261,9 @@ sheets-ai-consistency = Consistency: { $score }
 sheets-ai-validity = Validity: { $score }
 sheets-ai-narrative = Narrative
 sheets-ai-anomalies = Anomalies
+sheets-ai-severity-low = low
+sheets-ai-severity-medium = medium
+sheets-ai-severity-high = high
 sheets-ai-no-anomalies = No high-impact anomalies detected.
 sheets-ai-no-analysis = No analysis yet
 sheets-ai-analysis-empty-description = Run AI quality checks and summary narrative.
@@ -225,6 +276,19 @@ sheets-ai-no-review = No review yet
 sheets-ai-review-empty-description = Run smart review to assess sheet quality and highlight improvements.
 sheets-ai-no-insights = No insights yet
 sheets-ai-run-insights = Run AI insights
+ai-default-unknown = Unknown
+ai-default-view-name = Default View
+ai-default-sheet-name = Sheet
+ai-default-purpose = Data storage
+ai-default-view-table-name = Table View
+ai-default-view-table-description = View and edit all data in a table format
+ai-default-view-form-name = Form View
+ai-default-view-form-description = Add and edit records using a form
+ai-default-view-kanban-name = Kanban Board
+ai-default-view-kanban-description = Visualize by { $column }
+ai-default-view-dashboard-name = Dashboard
+ai-default-view-dashboard-description = Visualize key metrics and trends
+ai-analysis-failed = Analysis failed. Please try again or upload a different file.
 slides-load-failed = Failed to load presentations
 slides-select-presentation = Please select a presentation
 slides-chart-export-failed = Could not export chart as image
@@ -346,6 +410,8 @@ link-editor-title-placeholder = Enter link title
 link-editor-url-label = URL
 link-editor-url-placeholder = https://example.com
 link-editor-open-new-tab = Open link in new tab
+link-editor-open-link = Open link
+univer-link-view-response = View Response
 link-editor-save = Save Link
 column-type-edit-column = Edit Column
 column-type-display-label = Display Label
@@ -498,6 +564,7 @@ wizard-loading-spreadsheets = Loading your spreadsheets...
 wizard-select-spreadsheet-template = Select a spreadsheet template...
 wizard-no-other-spreadsheets = No other spreadsheets found
 wizard-search-employees-to-add = Search employees to add...
+wizard-search-employees-input-placeholder = Type to search employees...
 wizard-message-to-recipients-optional = Message to recipients (optional)
 wizard-message-help-excel = Add a personal note that will appear when recipients open their copy.
 wizard-message-help-bulk = Add a note that will appear in the task sent to recipients.
@@ -973,6 +1040,13 @@ dialog-create-name-label = Name
 dialog-create-name-placeholder = My Spreadsheet
 dialog-create-cancel = Cancel
 dialog-create-submit = Create
+dialog-generate-ai-title = Generate with AI
+dialog-generate-ai-description = Describe the spreadsheet you want to create.
+dialog-generate-ai-name-label = Title
+dialog-generate-ai-name-placeholder = Untitled Spreadsheet
+dialog-generate-ai-prompt-label = What should the spreadsheet include?
+dialog-generate-ai-prompt-placeholder = e.g. Create a sales pipeline tracker with account names, owners, stages, forecast amounts, and close dates.
+dialog-generate-ai-submit = Open in EveryAI
 
 # Toasts / Messages
 toast-removed-from-favorites = Removed from favorites
@@ -1022,6 +1096,11 @@ time-minutes-ago = { $count } min ago
 time-hours-ago = { $count } hours ago
 time-yesterday = Yesterday
 time-days-ago = { $count } days ago
+
+# User fallback
+editor-user-fallback = User
+editor-user-unknown = Unknown
+editor-user-id-fallback = User { $id }
 
 # Table - unknown owner
 table-unknown-owner = Unknown
@@ -1157,3 +1236,11 @@ share-dialog-permission-edit = Can Edit
 share-dialog-permission-edit-desc = Can view and edit data
 share-dialog-permission-admin = Admin
 share-dialog-permission-admin-desc = Can view, edit, and manage sharing
+trash-action-restore = Restore
+trash-action-restoring = Restoring...
+trash-action-delete = Delete permanently
+trash-action-deleting = Deleting...
+trash-toast-restored = Spreadsheet restored
+trash-toast-restore-failed = Failed to restore spreadsheet
+trash-toast-deleted = Spreadsheet deleted permanently
+trash-toast-delete-failed = Failed to delete spreadsheet permanently

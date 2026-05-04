@@ -136,6 +136,163 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(applyRemoteCellUpdate).toHaveBeenCalledWith(42, 1, 'typed', 'row-0', { useSenderA1Row: true })
   })
 
+  it('applies style-only cells_changed from another tab of the same user', () => {
+    const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })]
+    const data: Record<string, unknown>[] = [{ _id: 'row-0', ColumnA: 'old' }]
+    const commitLocalSheetData = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+
+    const callbacks = makeCallbacks({
+      getColumns: () => columns,
+      getLocalSheetData: () => data,
+      commitLocalSheetData,
+      applyRemoteCellUpdate
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setCurrentUserId('same-user')
+
+    manager.handleOperation({
+      userId: 'same-user',
+      userName: 'Same User Other Tab',
+      operation: {
+        type: 'cells_changed',
+        data: {
+          sheetId: 'sheet-1',
+          cells: [
+            {
+              rowId: 'row-0',
+              column: 'ColumnA',
+              cellRef: 'A1',
+              univerCell: { s: 'style-1' },
+              univerStyles: {
+                'style-1': { bd: { t: { s: 1, cl: { rgb: '#111111' } } } }
+              }
+            }
+          ]
+        },
+        broadcastOnly: true
+      },
+      version: 2,
+      timestamp: Date.now()
+    })
+
+    expect(commitLocalSheetData).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, undefined, 'row-0', {
+      useSenderA1Row: true,
+      univerCell: { s: 'style-1' },
+      univerStyles: {
+        'style-1': { bd: { t: { s: 1, cl: { rgb: '#111111' } } } }
+      }
+    })
+  })
+
+  it('ignores its own broadcast-only style echo when the client op id matches', () => {
+    const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })]
+    const data: Record<string, unknown>[] = [{ _id: 'row-0', ColumnA: 'old' }]
+    const commitLocalSheetData = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+    const emitOperation = jest.fn()
+
+    const callbacks = makeCallbacks({
+      getColumns: () => columns,
+      getLocalSheetData: () => data,
+      commitLocalSheetData,
+      applyRemoteCellUpdate
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setEmitFunctions(emitOperation, jest.fn())
+    manager.setConnectionState(true, true)
+
+    manager.emitOperation({
+      type: 'cells_changed',
+      data: {
+        sheetId: 'sheet-1',
+        cells: [
+          {
+            rowId: 'row-0',
+            column: 'ColumnA',
+            cellRef: 'A1',
+            univerCell: { s: 'style-self' },
+            univerStyles: { 'style-self': { bl: 1 } }
+          }
+        ]
+      },
+      broadcastOnly: true
+    } as never)
+
+    const sentOperation = emitOperation.mock.calls[0]?.[0]
+    expect(sentOperation?._clientOpId).toEqual(expect.any(String))
+
+    manager.handleOperation({
+      userId: 'u1',
+      userName: 'Sender',
+      operation: sentOperation,
+      version: 4,
+      timestamp: Date.now()
+    })
+
+    expect(commitLocalSheetData).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+  })
+
+  it('defers off-sheet style-only cells_changed until that sheet becomes active', () => {
+    let activeSheetId = 'sheet-1'
+    const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })]
+    const data: Record<string, unknown>[] = [{ _id: 'row-0', ColumnA: 'old' }]
+    const commitLocalSheetData = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+
+    const callbacks = makeCallbacks({
+      getActiveSheetId: () => activeSheetId,
+      getColumns: () => columns,
+      getLocalSheetData: () => data,
+      commitLocalSheetData,
+      applyRemoteCellUpdate
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'cells_changed',
+        data: {
+          sheetId: 'sheet-2',
+          cells: [
+            {
+              rowId: 'row-0',
+              column: 'ColumnA',
+              cellRef: 'A1',
+              univerCell: { s: 'style-2' },
+              univerStyles: {
+                'style-2': { bl: 1 }
+              }
+            }
+          ]
+        },
+        broadcastOnly: true
+      },
+      version: 9,
+      timestamp: Date.now()
+    })
+
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+
+    activeSheetId = 'sheet-2'
+    manager.flushDeferredCellsChangedForSheet('sheet-2')
+
+    expect(commitLocalSheetData).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, undefined, 'row-0', {
+      useSenderA1Row: true,
+      univerCell: { s: 'style-2' },
+      univerStyles: {
+        'style-2': { bl: 1 }
+      }
+    })
+  })
+
   it('handleOperation batch_operations applies persisted set_range changes', () => {
     const columns: SpreadsheetColumn[] = [
       col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 }),

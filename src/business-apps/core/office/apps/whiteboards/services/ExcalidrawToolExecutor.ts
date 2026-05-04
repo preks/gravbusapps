@@ -1,10 +1,15 @@
 import { restoreElements } from '@excalidraw/excalidraw'
 import type { ExcalidrawImperativeAPI, ExcalidrawElement } from '@excalidraw/excalidraw/types'
 import * as Y from 'yjs'
-
-const WB_YJS_ORIGIN = 'nw-whiteboard-local'
+import {
+  WHITEBOARD_LOCAL_YJS_ORIGIN,
+  clearWhiteboardScene,
+  markWhiteboardElementsDeleted,
+  syncWhiteboardElements
+} from './whiteboardYjsScene'
 
 export interface ToolCall {
+  id?: string
   name: string
   arguments: string
 }
@@ -34,10 +39,6 @@ interface CreateElementParams {
   endArrowhead?: string | null
   points?: number[][]
   groupIds?: string[]
-}
-
-function generateId(): string {
-  return `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
 }
 
 function randomSeed(): number {
@@ -120,6 +121,11 @@ export class ExcalidrawToolExecutor {
   private ydoc: Y.Doc
   private yElements: Y.Array<Y.Map<unknown>>
   private yFiles: Y.Map<string>
+  private activeToolCallId: string | null = null
+  private generatedIdCounter = 0
+  private readonly appliedToolCallIds = new Set<string>()
+  private readonly appliedToolCallOrder: string[] = []
+  private readonly maxTrackedToolCalls = 200
 
   constructor(api: ExcalidrawImperativeAPI, ydoc: Y.Doc, yElements: Y.Array<Y.Map<unknown>>, yFiles: Y.Map<string>) {
     this.api = api
@@ -129,6 +135,11 @@ export class ExcalidrawToolExecutor {
   }
 
   execute(toolCall: ToolCall): void {
+    if (toolCall.id && this.appliedToolCallIds.has(toolCall.id)) {
+      console.warn('[ExcalidrawToolExecutor] Ignoring duplicate tool call:', toolCall.id)
+      return
+    }
+
     console.log('[ExcalidrawToolExecutor] Executing:', toolCall.name)
     let args: Record<string, unknown>
     try {
@@ -139,6 +150,8 @@ export class ExcalidrawToolExecutor {
     }
 
     try {
+      this.activeToolCallId = toolCall.id ?? null
+      this.generatedIdCounter = 0
       switch (toolCall.name) {
         case 'batch_create_elements':
           console.log('[ExcalidrawToolExecutor] Creating', (args.elements as unknown[])?.length, 'elements')
@@ -156,9 +169,15 @@ export class ExcalidrawToolExecutor {
         default:
           console.warn('[ExcalidrawToolExecutor] Unknown tool call:', toolCall.name)
       }
+      if (toolCall.id) {
+        this.rememberToolCall(toolCall.id)
+      }
       console.log('[ExcalidrawToolExecutor] Completed:', toolCall.name)
     } catch (error) {
       console.error('[ExcalidrawToolExecutor] Error executing', toolCall.name, error)
+    } finally {
+      this.activeToolCallId = null
+      this.generatedIdCounter = 0
     }
   }
 
@@ -232,18 +251,9 @@ export class ExcalidrawToolExecutor {
     Y.transact(
       this.ydoc,
       () => {
-        this.yElements.delete(0, this.yElements.length)
-        for (const el of normalizedElements) {
-          const yEl = new Y.Map()
-          Object.entries(el).forEach(([k, v]) => {
-            if (v !== undefined && typeof v !== 'function') {
-              yEl.set(k, JSON.parse(JSON.stringify(v)))
-            }
-          })
-          this.yElements.push([yEl])
-        }
+        syncWhiteboardElements(this.yElements, normalizedElements)
       },
-      WB_YJS_ORIGIN
+      WHITEBOARD_LOCAL_YJS_ORIGIN
     )
 
     this.api.updateScene({ elements: normalizedElements as any })
@@ -283,18 +293,9 @@ export class ExcalidrawToolExecutor {
     Y.transact(
       this.ydoc,
       () => {
-        this.yElements.delete(0, this.yElements.length)
-        for (const el of normalizedElements) {
-          const yEl = new Y.Map()
-          Object.entries(el).forEach(([k, v]) => {
-            if (v !== undefined && typeof v !== 'function') {
-              yEl.set(k, JSON.parse(JSON.stringify(v)))
-            }
-          })
-          this.yElements.push([yEl])
-        }
+        syncWhiteboardElements(this.yElements, normalizedElements)
       },
-      WB_YJS_ORIGIN
+      WHITEBOARD_LOCAL_YJS_ORIGIN
     )
 
     this.api.updateScene({ elements: normalizedElements as any })
@@ -319,18 +320,9 @@ export class ExcalidrawToolExecutor {
     Y.transact(
       this.ydoc,
       () => {
-        this.yElements.delete(0, this.yElements.length)
-        for (const el of normalizedElements) {
-          const yEl = new Y.Map()
-          Object.entries(el).forEach(([k, v]) => {
-            if (v !== undefined && typeof v !== 'function') {
-              yEl.set(k, JSON.parse(JSON.stringify(v)))
-            }
-          })
-          this.yElements.push([yEl])
-        }
+        markWhiteboardElementsDeleted(this.yElements, idsToDelete)
       },
-      WB_YJS_ORIGIN
+      WHITEBOARD_LOCAL_YJS_ORIGIN
     )
 
     this.api.updateScene({ elements: normalizedElements as any })
@@ -340,13 +332,38 @@ export class ExcalidrawToolExecutor {
     Y.transact(
       this.ydoc,
       () => {
-        this.yElements.delete(0, this.yElements.length)
-        this.yFiles.forEach((_, id) => this.yFiles.delete(id))
+        clearWhiteboardScene(this.yElements, this.yFiles)
       },
-      WB_YJS_ORIGIN
+      WHITEBOARD_LOCAL_YJS_ORIGIN
     )
 
     this.api.updateScene({ elements: [] })
+  }
+
+  private rememberToolCall(toolCallId: string): void {
+    this.appliedToolCallIds.add(toolCallId)
+    this.appliedToolCallOrder.push(toolCallId)
+    if (this.appliedToolCallOrder.length > this.maxTrackedToolCalls) {
+      const expiredId = this.appliedToolCallOrder.shift()
+      if (expiredId) {
+        this.appliedToolCallIds.delete(expiredId)
+      }
+    }
+  }
+
+  private generateElementId(explicitId?: string, suffix?: string): string {
+    if (explicitId) {
+      return explicitId
+    }
+
+    if (this.activeToolCallId) {
+      const scopedSuffix = suffix ?? 'el'
+      const counter = this.generatedIdCounter
+      this.generatedIdCounter += 1
+      return `${this.activeToolCallId}-${scopedSuffix}-${counter}`
+    }
+
+    return `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
   }
 
   private buildShape(params: CreateElementParams): Record<string, unknown> {
@@ -365,7 +382,7 @@ export class ExcalidrawToolExecutor {
     }
 
     return {
-      id: params.id || generateId(),
+      id: this.generateElementId(params.id, params.type),
       type: params.type,
       x: params.x,
       y: params.y,
@@ -455,7 +472,7 @@ export class ExcalidrawToolExecutor {
     const text = params.text ?? params.label ?? ''
     const bounds = estimateTextBounds(text, fontSize, lineHeight)
     return {
-      id: params.id || generateId(),
+      id: this.generateElementId(params.id, 'text'),
       type: 'text',
       x: params.x,
       y: params.y,
@@ -509,7 +526,7 @@ export class ExcalidrawToolExecutor {
       if (py > maxY) maxY = py
     }
     return {
-      id: params.id || generateId(),
+      id: this.generateElementId(params.id, params.type),
       type: params.type,
       x: params.x,
       y: params.y,

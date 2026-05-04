@@ -1,6 +1,71 @@
 import { z } from 'zod'
 import { DynamicFormConfiguration } from '@/components/dynamic-form/types'
 
+type ValidationTranslator = (key: string, args?: Record<string, unknown>) => string
+
+interface ProspectValidationMessages {
+  investmentNameRequired: string
+  investmentTypeRequired: string
+  required: (field: string) => string
+  positive: (field: string) => string
+  percentageMin: (field: string) => string
+  percentageMax: (field: string) => string
+}
+
+const translateValidationMessage = (
+  translator: ValidationTranslator | undefined,
+  key: string,
+  defaultValue: string,
+  args?: Record<string, unknown>
+): string => {
+  if (!translator) {
+    return defaultValue
+  }
+
+  return translator(key, { defaultValue, ...(args || {}) }) || defaultValue
+}
+
+const createValidationMessages = (translator?: ValidationTranslator): ProspectValidationMessages => ({
+  investmentNameRequired: translateValidationMessage(
+    translator,
+    'validation-investment-name-required',
+    'Investment Name is required'
+  ),
+  investmentTypeRequired: translateValidationMessage(
+    translator,
+    'validation-investment-type-required',
+    'Investment type is required'
+  ),
+  required: field =>
+    translateValidationMessage(translator, 'validation-field-required', `${field} is required`, { field }),
+  positive: field =>
+    translateValidationMessage(translator, 'validation-field-positive', `${field} must be positive`, { field }),
+  percentageMin: field =>
+    translateValidationMessage(translator, 'validation-percentage-min', `${field} must be at least 0%`, { field }),
+  percentageMax: field =>
+    translateValidationMessage(translator, 'validation-percentage-max', `${field} must be at most 100%`, { field })
+})
+
+const createRequiredStringRule = (errorMessage: string): z.ZodTypeAny =>
+  z.string({ message: errorMessage }).min(1, errorMessage)
+
+const hasRequiredObjectId = (value: unknown): boolean => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false
+  }
+
+  const id = (value as { id?: unknown }).id
+  return typeof id === 'string' && id.length > 0
+}
+
+const hasRequiredSelectionValue = (value: unknown): boolean => {
+  if (typeof value === 'string') {
+    return value.length > 0
+  }
+
+  return hasRequiredObjectId(value)
+}
+
 /**
  * Preprocess function for number fields (required)
  * Handles empty strings, null, undefined, and converts valid numbers
@@ -45,9 +110,7 @@ const catalogEntrySchema = z.union([
  * Creates a catalog entry validation rule (required)
  */
 const createRequiredCatalogRule = (errorMessage: string): z.ZodTypeAny => {
-  return catalogEntrySchema.refine(val => val !== null && val !== undefined, {
-    message: errorMessage
-  })
+  return z.any().refine(hasRequiredSelectionValue, { message: errorMessage })
 }
 
 /**
@@ -61,18 +124,7 @@ const createOptionalCatalogRule = (): z.ZodTypeAny => {
  * Creates a reference field validation rule (required)
  */
 const createRequiredReferenceRule = (errorMessage: string): z.ZodTypeAny => {
-  return z
-    .union([
-      z.string().min(1, errorMessage),
-      z
-        .object({
-          id: z.string().min(1, errorMessage)
-        })
-        .catchall(z.any())
-    ])
-    .refine(val => val !== null && val !== undefined, {
-      message: errorMessage
-    })
+  return z.any().refine(hasRequiredSelectionValue, { message: errorMessage })
 }
 
 /**
@@ -94,31 +146,31 @@ const createOptionalReferenceRule = (): z.ZodTypeAny => {
 /**
  * Creates validation rule for required fields
  */
-const createRequiredFieldRule = (field: { type: string; label: string }): z.ZodTypeAny => {
-  const errorMessage = `${field.label} is required`
+const createRequiredFieldRule = (
+  field: { type: string; label: string },
+  messages: ProspectValidationMessages
+): z.ZodTypeAny => {
+  const errorMessage = messages.required(field.label)
 
   switch (field.type) {
     case 'TEXT':
     case 'TEXTAREA':
-      return z.string().min(1, errorMessage)
+      return createRequiredStringRule(errorMessage)
     case 'AMOUNT':
-      return z.preprocess(
-        preprocessNumber,
-        z.number({ message: errorMessage }).min(0, `${field.label} must be positive`)
-      )
+      return z.preprocess(preprocessNumber, z.number({ message: errorMessage }).min(0, messages.positive(field.label)))
     case 'PERCENTAGE':
       return z.preprocess(
         preprocessNumber,
         z
           .number({ message: errorMessage })
-          .min(0, `${field.label} must be at least 0%`)
-          .max(100, `${field.label} must be at most 100%`)
+          .min(0, messages.percentageMin(field.label))
+          .max(100, messages.percentageMax(field.label))
       )
     case 'NUMBER':
       return z.preprocess(preprocessNumber, z.number({ message: errorMessage }))
     case 'DATE':
     case 'DATETIME':
-      return z.string().min(1, errorMessage)
+      return createRequiredStringRule(errorMessage)
     default:
       if (field.type.startsWith('CATALOG_')) {
         return createRequiredCatalogRule(errorMessage)
@@ -126,21 +178,24 @@ const createRequiredFieldRule = (field: { type: string; label: string }): z.ZodT
       if (field.type.startsWith('REF_')) {
         return createRequiredReferenceRule(errorMessage)
       }
-      return z.string().min(1, errorMessage)
+      return createRequiredStringRule(errorMessage)
   }
 }
 
 /**
  * Creates validation rule for optional fields
  */
-const createOptionalFieldRule = (field: { type: string; label: string }): z.ZodTypeAny => {
+const createOptionalFieldRule = (
+  field: { type: string; label: string },
+  messages: ProspectValidationMessages
+): z.ZodTypeAny => {
   switch (field.type) {
     case 'TEXT':
     case 'TEXTAREA':
       return z.string().optional()
     case 'AMOUNT':
       return z
-        .preprocess(preprocessNumberOptional, z.number().min(0, `${field.label} must be positive`).nullable())
+        .preprocess(preprocessNumberOptional, z.number().min(0, messages.positive(field.label)).nullable())
         .optional()
     case 'PERCENTAGE':
       return z
@@ -148,8 +203,8 @@ const createOptionalFieldRule = (field: { type: string; label: string }): z.ZodT
           preprocessNumberOptional,
           z
             .number()
-            .min(0, `${field.label} must be at least 0%`)
-            .max(100, `${field.label} must be at most 100%`)
+            .min(0, messages.percentageMin(field.label))
+            .max(100, messages.percentageMax(field.label))
             .nullable()
         )
         .optional()
@@ -183,8 +238,10 @@ const getPropertyName = (property: string): string => {
  */
 export const createDynamicInvestmentProspectSchema = (
   formFieldsDefinition?: DynamicFormConfiguration | null,
-  existingFields?: Set<string>
+  existingFields?: Set<string>,
+  translator?: ValidationTranslator
 ): Record<string, z.ZodTypeAny> => {
+  const messages = createValidationMessages(translator)
   const dynamicFields: Record<string, z.ZodTypeAny> = {}
 
   if (!formFieldsDefinition?.formFields || formFieldsDefinition.formFields.length === 0) {
@@ -202,7 +259,9 @@ export const createDynamicInvestmentProspectSchema = (
       }
 
       // Build validation rule based on field type and required status
-      const validationRule = field.required ? createRequiredFieldRule(field) : createOptionalFieldRule(field)
+      const validationRule = field.required
+        ? createRequiredFieldRule(field, messages)
+        : createOptionalFieldRule(field, messages)
 
       dynamicFields[fieldName] = validationRule
     }
@@ -216,10 +275,11 @@ export const createDynamicInvestmentProspectSchema = (
  */
 export const createInvestmentProspectFormResolver = (
   baseSchema: z.ZodObject<any>,
-  formFieldsDefinition?: DynamicFormConfiguration | null
+  formFieldsDefinition?: DynamicFormConfiguration | null,
+  translator?: ValidationTranslator
 ) => {
   const existingFields = new Set(Object.keys(baseSchema.shape))
-  const dynamicFields = createDynamicInvestmentProspectSchema(formFieldsDefinition, existingFields)
+  const dynamicFields = createDynamicInvestmentProspectSchema(formFieldsDefinition, existingFields, translator)
 
   const extendedSchema = Object.keys(dynamicFields).length > 0 ? baseSchema.extend(dynamicFields) : baseSchema
 
@@ -231,10 +291,12 @@ export const createInvestmentProspectFormResolver = (
  * Extends leadSchema with investmentTypeId (leaf InvestmentType ID)
  * investmentTypeId is the single source of truth - group/type are derived from it
  */
-export const createInvestmentLeadSchema = (baseLeadSchema: z.ZodObject<any>) => {
+export const createInvestmentLeadSchema = (baseLeadSchema: z.ZodObject<any>, translator?: ValidationTranslator) => {
+  const messages = createValidationMessages(translator)
+
   return baseLeadSchema.extend({
-    investmentName: z.string().min(1, 'Investment Name is required'),
-    investmentTypeId: z.string().min(1, 'Investment type is required')
+    investmentName: createRequiredStringRule(messages.investmentNameRequired),
+    investmentTypeId: createRequiredStringRule(messages.investmentTypeRequired)
   })
 }
 
@@ -243,9 +305,14 @@ export const createInvestmentLeadSchema = (baseLeadSchema: z.ZodObject<any>) => 
  * Extends opportunitySchema with investmentTypeId (leaf InvestmentType ID)
  * investmentTypeId is the single source of truth - group/type are derived from it
  */
-export const createInvestmentOpportunitySchema = (baseOpportunitySchema: z.ZodObject<any>) => {
+export const createInvestmentOpportunitySchema = (
+  baseOpportunitySchema: z.ZodObject<any>,
+  translator?: ValidationTranslator
+) => {
+  const messages = createValidationMessages(translator)
+
   return baseOpportunitySchema.extend({
-    investmentName: z.string().min(1, 'Investment Name is required'),
-    investmentTypeId: z.string().min(1, 'Investment type is required')
+    investmentName: createRequiredStringRule(messages.investmentNameRequired),
+    investmentTypeId: createRequiredStringRule(messages.investmentTypeRequired)
   })
 }

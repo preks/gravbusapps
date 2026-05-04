@@ -15,10 +15,12 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { PlusIcon } from '@phosphor-icons/react'
 import EntitlementsTable from './EntitlementsTable'
+import translations from '../../_i18n'
 
 type UpdateEmployeeEntitlementsFormValues = Record<string, unknown>
 
@@ -27,6 +29,7 @@ interface UpdateEmployeeEntitlementsFormProps {
 }
 
 const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormProps> = ({ onCancel }) => {
+  const { t } = useTranslation(translations)
   const {
     employees,
     selectedEmployeeId,
@@ -36,6 +39,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
     isFixedEmployeeId,
     activeEmployeeId,
     employeeHeaderInfo,
+    employeeHireDate,
     entitlements,
     absenceTypes,
     reload,
@@ -158,9 +162,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
                 }}
               >
                 <PlusIcon className="gba:h-4 gba:w-4" />
-                <span className="gba:ml-2">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
-                </span>
+                <span className="gba:ml-2">{t('entitlements-add-title')}</span>
               </Button>
             </div>
 
@@ -178,18 +180,15 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
                 className="gba:h-screen gba:max-h-screen gba:!rounded-none"
                 data-testid="mileageRuleModal_modalExpenses"
               >
-                <DialogTitle className="gba:sr-only">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:entitlements.update_entitlements',
-                    'Update Entitlements'
-                  )}
-                </DialogTitle>
+                <DialogTitle className="gba:sr-only">{t('entitlements-update-title')}</DialogTitle>
                 <UpdateEntitlementModal
                   isOpen={isModalOpen}
                   onClose={() => setIsModalOpen(false)}
                   selectedLine={null}
                   absenceTypes={absenceTypes}
+                  existingEntitlements={entitlements || []}
                   employeeId={effectiveValue}
+                  employeeHireDate={employeeHireDate}
                   accessToken={accessToken}
                   year={currentYear}
                   employeeHeaderInfo={employeeHeaderInfo}

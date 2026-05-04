@@ -40,6 +40,12 @@ jest.mock('../paginationHardBreakDecorationController', () => ({
   shouldRebuildHardBreakDecorations: jest.fn(() => false)
 }))
 
+jest.mock('../paginationPageBreakDecorationController', () => ({
+  buildPageBreakSpacerDecorations: jest.fn(() => ({ map: jest.fn() })),
+  shouldRebuildPageBreakSpacerDecorations: jest.fn(() => false),
+  collectPageBreakEntries: jest.fn(() => [])
+}))
+
 jest.mock('../paginationRuntimeBookkeeping', () => ({
   clearPaginationOwnedGrowthSuppression: jest.fn(),
   consumePaginationHydrationDocChange: jest.fn(() => false),
@@ -193,6 +199,7 @@ function createHarness() {
     paginationKey: new PluginKey('pagination'),
     hardBreakKey: new PluginKey('hard-break'),
     squareWrapKey: new PluginKey('square-wrap'),
+    pageBreakSpacerKey: new PluginKey('page-break-spacer'),
     refreshMeta: 'REFRESH',
     refreshAndStabilizeMeta: 'REFRESH_AND_STABILIZE',
     paginationOwnedDocChangeMeta: 'PAGINATION_OWNED_DOC_CHANGE_META',
@@ -201,8 +208,12 @@ function createHarness() {
 
   return {
     paginationPlugin: plugins[0],
+    hardBreakPlugin: plugins[1],
+    squareWrapPlugin: plugins[2],
+    pageBreakSpacerPlugin: plugins[3],
     refreshTransaction,
-    updatedView
+    updatedView,
+    plugins
   }
 }
 
@@ -294,5 +305,87 @@ describe('createPaginationExtensionPlugins settled refresh behavior', () => {
     expect(harness.updatedView.dispatch).toHaveBeenCalledWith(harness.refreshTransaction)
     expect(harness.refreshTransaction.metas.get('REFRESH')).toBe(true)
     expect(harness.refreshTransaction.metas.get('REFRESH_AND_STABILIZE')).toBe(true)
+  })
+})
+
+describe('createPaginationExtensionPlugins page break spacer plugin', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    jest.useFakeTimers()
+  })
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers()
+    jest.useRealTimers()
+  })
+
+  it('registers a dedicated page break spacer plugin', () => {
+    const harness = createHarness()
+
+    expect(harness.plugins).toHaveLength(4)
+    expect(harness.pageBreakSpacerPlugin).toBeDefined()
+    const pluginSpec = (harness.pageBreakSpacerPlugin as unknown as { spec: Record<string, unknown> }).spec
+    expect(pluginSpec.state).toBeDefined()
+    expect((pluginSpec.props as { decorations?: unknown }).decorations).toBeDefined()
+  })
+
+  it('rebuilds the spacer decoration set on refresh meta transactions', () => {
+    const { buildPageBreakSpacerDecorations } = jest.requireMock('../paginationPageBreakDecorationController') as {
+      buildPageBreakSpacerDecorations: jest.Mock
+    }
+
+    const harness = createHarness()
+    const refreshTx = createMetaTransaction()
+    refreshTx.setMeta('REFRESH', true)
+
+    const oldValue = {
+      map: jest.fn().mockReturnThis()
+    } as never
+
+    buildPageBreakSpacerDecorations.mockClear()
+    const spacerState = (
+      harness.pageBreakSpacerPlugin as unknown as {
+        spec: { state: { apply: (tr: unknown, old: unknown) => unknown } }
+      }
+    ).spec.state
+    spacerState.apply(refreshTx, oldValue)
+
+    expect(buildPageBreakSpacerDecorations).toHaveBeenCalledTimes(1)
+  })
+
+  it('schedules a refresh when page break positions change', async () => {
+    // `queuePluginViewRefresh` uses `queueMicrotask`, which Jest's modern
+    // fake timers intercept. Switch to real timers for this test so the
+    // microtask actually flushes once we await a resolved promise.
+    jest.useRealTimers()
+
+    const { collectPageBreakEntries } = jest.requireMock('../paginationPageBreakDecorationController') as {
+      collectPageBreakEntries: jest.Mock
+    }
+
+    const harness = createHarness()
+    const spacerSpec = (
+      harness.pageBreakSpacerPlugin as unknown as {
+        spec: { view?: (view: unknown) => { update?: (view: unknown) => void } }
+      }
+    ).spec
+    const pluginView = spacerSpec.view?.(harness.updatedView)
+
+    collectPageBreakEntries.mockReturnValueOnce([])
+    pluginView?.update?.(harness.updatedView)
+
+    const dispatchMock = (harness.updatedView as unknown as { dispatch: jest.Mock }).dispatch
+    dispatchMock.mockClear()
+
+    collectPageBreakEntries.mockReturnValueOnce([{ pos: 10 }])
+    pluginView?.update?.(harness.updatedView)
+
+    await new Promise<void>(resolve => queueMicrotask(resolve))
+
+    expect(dispatchMock).toHaveBeenCalled()
+
+    // Restore fake timers so the shared `afterEach` can flush pending timers
+    // without triggering a "not using fake timers" warning.
+    jest.useFakeTimers()
   })
 })

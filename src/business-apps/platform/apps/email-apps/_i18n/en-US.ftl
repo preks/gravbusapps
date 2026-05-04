@@ -120,7 +120,6 @@ reader-ai-insights-hint = Click to load
 reader-ai-insights-loading = Preparing summary…
 reader-ai-insights-error = Could not load AI summary
 reader-ai-insights-retry = Try again
-reader-ai-insights-empty = No summary or suggestions were returned for this message.
 
 composer-toast-no-recipient = Please add at least one recipient
 composer-toast-no-account = Please select an account
@@ -282,8 +281,6 @@ sig-image-url-prompt = Image URL
 
 # CRM booking
 crm-record-activity = Record as Activity
-crm-summarizing-thread = Summarizing thread with AI...
-crm-summarizing-email = Summarizing email with AI...
 crm-matches-for = Matches for
 crm-searching = Searching CRM...
 crm-no-records = No CRM records found for this email address
@@ -299,7 +296,6 @@ crm-search-loading = Searching...
 crm-no-results = No results for "{ $query }"
 crm-record-manually = Record manually (choose entity in form)
 crm-activity-recorded = Activity recorded for { $name }
-crm-activity-recorded-desc = { $subject }
 crm-activity-recorded-failed = Failed to record activity for { $name }
 crm-entity-account = Account
 crm-entity-contact = Contact
@@ -409,6 +405,13 @@ email-suggestion-create-quick-task-missing-initiator = Your account could not be
 email-suggestion-create-quick-task-missing-assignee = Select at least one assignee.
 email-suggestion-create-quick-task-hint-no-initiator = Tasks need a signed-in user context. Try again after the app finishes loading.
 email-suggestion-create-quick-task-submitting = Creating…
+email-suggestion-create-link-record-title = Link to CRM record (optional)
+email-suggestion-create-link-record-none = Don't link a record
+email-suggestion-create-link-record-selected = Selected
+email-suggestion-create-link-record-select = Select
+email-suggestion-create-link-record-no-matches = No matches for this email
+email-suggestion-create-link-record-show-more = More options
+email-suggestion-create-link-record-search-placeholder = Search any record
 
 # Email thread view
 reader-thread-messages = { $count } message(s) in this conversation

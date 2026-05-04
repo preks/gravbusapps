@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { PageLayout, Toaster } from '@newwork/nw-design-system'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { DataDisplay, PageLayout, Toaster } from '@newwork/nw-design-system'
 import { XIcon } from '@phosphor-icons/react'
+import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FlowExecutionTask } from '@/common/network/flow-metrics/FlowMetricsClient'
 import { ApprovalRequest, ApprovalTabKey } from '../../types'
@@ -36,6 +37,12 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
   const { tabCounts, isLoadingCounts, refreshTabCounts } = useApprovalTabCounts(props)
 
   const currentTabPagination = tabPagination[activeTab]
+  const [localSearchText, setLocalSearchText] = useState(() => currentTabPagination.searchTerm)
+  const debouncedSearch = useDebounce(localSearchText, 300)
+  const activeTabRef = useRef<ApprovalTabKey>(activeTab)
+  activeTabRef.current = activeTab
+  const previousActiveApprovalTab = useRef<ApprovalTabKey>(activeTab)
+
   const currentTab = getTabByKey(activeTab)
 
   const { tasks, totalCount, isLoading, error, refresh } = useFlowExecutionTasks(props, {
@@ -48,6 +55,31 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
   useEffect(() => {
     // no-op; hook already loads on mount
   }, [props.accessToken, props.userInfo?.id, refreshTabCounts])
+
+  useEffect(() => {
+    if (previousActiveApprovalTab.current === activeTab) {
+      return
+    }
+    previousActiveApprovalTab.current = activeTab
+    setLocalSearchText(tabPagination[activeTab].searchTerm)
+  }, [activeTab, tabPagination])
+
+  useEffect(() => {
+    const tab = activeTabRef.current
+    setTabPagination(prev => {
+      if (prev[tab].searchTerm === debouncedSearch) {
+        return prev
+      }
+      return {
+        ...prev,
+        [tab]: {
+          ...prev[tab],
+          searchTerm: debouncedSearch,
+          currentPage: 1
+        }
+      }
+    })
+  }, [debouncedSearch])
 
   useProcessCompletion({
     onSuccess: () => {
@@ -91,6 +123,25 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
 
   const unifiedTask = activeFlowTask ? mapFlowExecutionTaskToUnifiedTask(activeFlowTask) : null
 
+  const approvalListLabel = getTranslationFromI18nKeyAndLabel(
+    'lowcoder:team_expenses_page.dashboard_tab.approval_list',
+    'Pending approvals'
+  )
+  const searchPlaceholder = getTranslationFromI18nKeyAndLabel(
+    'lowcoder:team_expenses_page.dashboard_tab.search_approvals',
+    'Search approvals...'
+  )
+  const tableEmptyMessage = [
+    getTranslationFromI18nKeyAndLabel(
+      'lowcoder:manager_expenses_landing_page.no_pending_approvals',
+      'No pending approval requests found'
+    ),
+    getTranslationFromI18nKeyAndLabel(
+      'lowcoder:manager_expenses_landing_page.all_approvals_processed',
+      'All approval requests have been processed.'
+    )
+  ].join(' ')
+
   return (
     <div data-testid="approvals-page-container">
       <PageLayout
@@ -121,30 +172,50 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
             className={activeFlowTask ? 'gba:w-1/2 gba:min-w-0 gba:overflow-auto gba:px-6' : 'gba:flex-1 gba:px-6'}
             data-testid="approvals-table-panel"
           >
-            <ApprovalTable
+            <DataDisplay
               key={activeTab}
-              {...props}
-              tasks={tasks}
-              totalCount={totalCount}
-              isLoading={isLoading}
-              error={error}
-              currentPage={currentTabPagination.currentPage}
-              setCurrentPage={(page: number) => updateTabPagination({ currentPage: page })}
-              pageSize={currentTabPagination.pageSize}
-              setPageSize={(size: number) => updateTabPagination({ pageSize: size })}
-              selectedTasks={selectedTasks}
-              setSelectedTasks={setSelectedTasks}
-              validationError={validationError}
-              setValidationError={setValidationError}
-              dataTestIdPrefix={`${DATA_TEST_ID_PREFIX}-${activeTab}`}
-              tabKey={activeTab}
-              onApprovalSuccess={() => {
-                refresh()
-                refreshTabCounts()
-              }}
-              onRowClick={handleRowClick}
-              activeTaskId={activeFlowTask?.id ?? null}
-            />
+              titleSections={[
+                {
+                  id: 'approvals-list',
+                  label: approvalListLabel,
+                  metadata: { count: totalCount, isLoading }
+                }
+              ]}
+              currentSection="approvals-list"
+              searchValue={localSearchText}
+              searchPlaceholder={searchPlaceholder}
+              onSearchChange={setLocalSearchText}
+              toolbarDensity="default"
+              enableLiveFiltering
+              data-testid={`${DATA_TEST_ID_PREFIX}-data-display-${activeTab}`}
+            >
+              <div className="gba:min-w-0">
+                <ApprovalTable
+                  key={`${activeTab}-table`}
+                  {...props}
+                  tasks={tasks}
+                  totalCount={totalCount}
+                  isLoading={isLoading}
+                  error={error}
+                  currentPage={currentTabPagination.currentPage}
+                  setCurrentPage={(page: number) => updateTabPagination({ currentPage: page })}
+                  pageSize={currentTabPagination.pageSize}
+                  setPageSize={(size: number) => updateTabPagination({ pageSize: size })}
+                  selectedTasks={selectedTasks}
+                  setSelectedTasks={setSelectedTasks}
+                  validationError={validationError}
+                  setValidationError={setValidationError}
+                  dataTestIdPrefix={`${DATA_TEST_ID_PREFIX}-${activeTab}`}
+                  tabKey={activeTab}
+                  onApprovalSuccess={() => {
+                    refresh()
+                    refreshTabCounts()
+                  }}
+                  onRowClick={handleRowClick}
+                  emptyMessage={tableEmptyMessage}
+                />
+              </div>
+            </DataDisplay>
           </div>
 
           {unifiedTask && (

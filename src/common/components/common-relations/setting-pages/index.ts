@@ -16,6 +16,7 @@ export type { DocumentSettingsConfig, DocumentSettingsLayoutProps } from './docu
 
 // Shared components
 export { CatalogTab } from './components/CatalogTab'
+export { DeleteConfirmationDialog } from './components/DeleteConfirmationDialog'
 
 // Shared types
 export * from './types/catalogTypes'

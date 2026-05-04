@@ -20,8 +20,16 @@ import type {
   TemplateHints
 } from '../types'
 import { migrateLegacyTemplate } from './SlideMetadataService'
-import type { Version, FileLock, LockFileInput } from '../../shared/types/versioning'
+import type {
+  Comment,
+  CommentQueryOptions,
+  CreateCommentInput,
+  FileLock,
+  LockFileInput,
+  Version
+} from '../../shared/types/versioning'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { parseSlideCommentAnchor, serializeSlideCommentAnchor } from '../utils/slideCommentAnchors'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -62,6 +70,17 @@ interface PaginatedResponse<T> {
   page: number
   limit: number
   totalPages: number
+}
+
+export interface SlideImportJob {
+  id: string
+  status: 'queued' | 'processing' | 'completed' | 'failed'
+  progress: number
+  diagnostics: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+  slideId?: string
+  error?: string
 }
 
 function mapPermission(apiPermission: string): SlidePermission {
@@ -110,10 +129,88 @@ function mapApiSlideToSummary(api: Record<string, unknown>): SlideSummary {
   }
 }
 
+function mapApiVersionToVersion(versionData: Record<string, unknown>): Version {
+  return {
+    id: versionData.id as string,
+    version: versionData.versionNumber as number,
+    content: JSON.stringify(versionData.contentSnapshot),
+    createdAt: versionData.createdAt as string,
+    createdBy: versionData.changedBy as string,
+    changeDescription: versionData.changeSummary as string | undefined,
+    isCheckpoint: !(versionData.isAutoSave as boolean),
+    isAutoSave: versionData.isAutoSave as boolean,
+    fileSize: (versionData.fileSize as number) || 0
+  }
+}
+
+function mapApiComment(rawComment: Record<string, unknown>, slideId: string): Comment {
+  const anchorPath = rawComment.anchorPath as string | undefined
+  return {
+    id: rawComment.id as string,
+    entityId: slideId,
+    entityType: 'slide',
+    type: rawComment.type as Comment['type'],
+    content: rawComment.content as string,
+    createdBy: rawComment.createdBy as string,
+    createdByName: rawComment.createdByName as string | undefined,
+    createdByAvatar: rawComment.createdByAvatar as string | undefined,
+    createdAt: rawComment.createdAt as string,
+    updatedAt: rawComment.updatedAt as string | undefined,
+    resolvedAt: rawComment.resolvedAt as string | undefined,
+    resolvedBy: rawComment.resolvedBy as string | undefined,
+    selectionStart: rawComment.selectionStart as number | undefined,
+    selectionEnd: rawComment.selectionEnd as number | undefined,
+    selectedText: rawComment.selectedText as string | undefined,
+    anchorPath,
+    slideAnchorData: parseSlideCommentAnchor(anchorPath),
+    cellReference: rawComment.cellReference as string | undefined,
+    sheetId: rawComment.sheetId as string | undefined,
+    parentId: rawComment.parentId as string | undefined,
+    replies: (rawComment.replies as Record<string, unknown>[] | undefined)?.map(reply =>
+      mapApiComment({ ...reply, parentId: reply.parentId ?? rawComment.id }, slideId)
+    )
+  }
+}
+
 export const SlidesApiService = {
   /** Store the access token in memory for all subsequent API requests. */
   setAccessToken(token: string | null) {
     currentAccessToken = token
+  },
+
+  getDriveFileIdFromUrl(url: string | undefined): string | null {
+    if (!url) return null
+
+    try {
+      const origin = typeof window === 'undefined' ? API_URL : window.location.origin
+      const parsed = new URL(url, origin)
+      const match = parsed.pathname.match(/\/drive\/files\/([^/]+)\/download$/)
+      return match?.[1] ?? null
+    } catch {
+      return null
+    }
+  },
+
+  isProtectedDriveMediaUrl(url: string | undefined): boolean {
+    return this.getDriveFileIdFromUrl(url) !== null
+  },
+
+  async fetchProtectedMediaBlob(url: string): Promise<Blob | null> {
+    const fileId = this.getDriveFileIdFromUrl(url)
+    if (!fileId) return null
+
+    const token = currentAccessToken
+    const origin = typeof window === 'undefined' ? API_URL : window.location.origin
+    const normalizedUrl = new URL(url, origin).toString()
+    const response = await fetch(normalizedUrl, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Protected media fetch failed: ${response.status}`)
+    }
+
+    return response.blob()
   },
 
   async listSlides(options?: {
@@ -173,9 +270,40 @@ export const SlidesApiService = {
     return mapApiSlideToSlide(created)
   },
 
+  async importSlide(payload: {
+    title: string
+    description?: string
+    contentJson: Record<string, unknown>
+    spaceId?: string
+  }): Promise<Slide> {
+    const imported = await apiRequest<Record<string, unknown>>('/slides/import', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+    return mapApiSlideToSlide(imported)
+  },
+
+  async createImportJob(payload: {
+    title: string
+    description?: string
+    contentJson: Record<string, unknown>
+    spaceId?: string
+    sourceFileName?: string
+    sourceType?: string
+  }): Promise<SlideImportJob> {
+    return apiRequest<SlideImportJob>('/slides/import-jobs', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  },
+
+  async getImportJob(jobId: string): Promise<SlideImportJob> {
+    return apiRequest<SlideImportJob>(`/slides/import-jobs/${jobId}`)
+  },
+
   async updateSlide(
     id: string,
-    updates: Partial<Pick<Slide, 'title' | 'description' | 'content' | 'contentJson'>>,
+    updates: Partial<Pick<Slide, 'title' | 'description' | 'content'>>,
     options?: { createVersion?: boolean }
   ): Promise<Slide> {
     const payload: Record<string, unknown> = { ...updates, createVersion: options?.createVersion ?? false }
@@ -185,6 +313,14 @@ export const SlidesApiService = {
     const updated = await apiRequest<Record<string, unknown>>(`/slides/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload)
+    })
+    return mapApiSlideToSlide(updated)
+  },
+
+  async resetSlideYjsState(id: string, contentJson: Record<string, unknown>): Promise<Slide> {
+    const updated = await apiRequest<Record<string, unknown>>(`/slides/${id}/yjs-reset`, {
+      method: 'POST',
+      body: JSON.stringify({ contentJson })
     })
     return mapApiSlideToSlide(updated)
   },
@@ -240,7 +376,7 @@ export const SlidesApiService = {
     }
   },
 
-  async updateSharePermission(slideId: string, shareId: string, permission: string): Promise<boolean> {
+  async updateSharePermission(_slideId: string, shareId: string, permission: string): Promise<boolean> {
     try {
       await apiRequest(`/sharing/${shareId}`, {
         method: 'PATCH',
@@ -252,7 +388,7 @@ export const SlidesApiService = {
     }
   },
 
-  async revokeShareById(slideId: string, shareId: string): Promise<boolean> {
+  async revokeShareById(_slideId: string, shareId: string): Promise<boolean> {
     try {
       await apiRequest(`/sharing/${shareId}`, { method: 'DELETE' })
       return true
@@ -260,7 +396,125 @@ export const SlidesApiService = {
       return false
     }
   },
+
+  async createComment(slideId: string, input: CreateCommentInput): Promise<Comment | null> {
+    try {
+      const { slideAnchorData, ...restInput } = input
+      const response = await apiRequest<Record<string, unknown>>(`/comments/slide/${slideId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...restInput,
+          ...(slideAnchorData ? { anchorPath: serializeSlideCommentAnchor(slideAnchorData) } : {})
+        })
+      })
+
+      return mapApiComment(response, slideId)
+    } catch {
+      return null
+    }
+  },
+
+  async listComments(slideId: string, options?: CommentQueryOptions): Promise<Comment[]> {
+    try {
+      const params = new URLSearchParams()
+      if (options?.includeResolved) params.set('includeResolved', 'true')
+      if (options?.includeReplies) params.set('includeReplies', 'true')
+      if (options?.type) params.set('type', options.type)
+
+      const queryString = params.toString()
+      const response = await apiRequest<Record<string, unknown>[]>(
+        `/comments/slide/${slideId}${queryString ? `?${queryString}` : ''}`
+      )
+
+      return (response || []).map(comment => mapApiComment(comment, slideId))
+    } catch {
+      return []
+    }
+  },
+
+  async updateComment(commentId: string, updates: Partial<Comment>): Promise<Comment | null> {
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          content: updates.content
+        })
+      })
+
+      const slideId = (response.entityId as string | undefined) ?? updates.entityId
+      if (!slideId) {
+        return null
+      }
+
+      return mapApiComment(response, slideId)
+    } catch {
+      return null
+    }
+  },
+
+  async resolveComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}/resolve`, {
+        method: 'PATCH'
+      })
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  async deleteComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}`, {
+        method: 'DELETE'
+      })
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  async replyToComment(
+    commentId: string,
+    reply: string,
+    userName?: string,
+    userAvatar?: string
+  ): Promise<Comment | null> {
+    try {
+      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({
+          content: reply,
+          createdByName: userName,
+          createdByAvatar: userAvatar
+        })
+      })
+
+      const slideId = response.entityId as string | undefined
+      if (!slideId) {
+        return null
+      }
+
+      return mapApiComment(response, slideId)
+    } catch {
+      return null
+    }
+  },
   // ============ Versions ============
+
+  async createCheckpoint(slideId: string, changeDescription?: string): Promise<Version | null> {
+    try {
+      const versionData = await apiRequest<Record<string, unknown>>(`/slides/${slideId}/checkpoint`, {
+        method: 'POST',
+        body: JSON.stringify({ changeDescription })
+      })
+
+      return mapApiVersionToVersion(versionData)
+    } catch (error) {
+      console.error('[SlidesApiService] Failed to create slide checkpoint:', error)
+      return null
+    }
+  },
 
   async createVersion(
     slideId: string,
@@ -271,6 +525,10 @@ export const SlidesApiService = {
     }
   ): Promise<Version | null> {
     try {
+      if (options.isCheckpoint) {
+        return await this.createCheckpoint(slideId, options.changeDescription)
+      }
+
       // Get the current slide if content not provided
       let contentSnapshot: Record<string, unknown>
       if (options.content) {
@@ -308,17 +566,7 @@ export const SlidesApiService = {
         })
       })
 
-      return {
-        id: versionData.id as string,
-        version: versionData.versionNumber as number,
-        content: JSON.stringify(versionData.contentSnapshot),
-        createdAt: versionData.createdAt as string,
-        createdBy: versionData.changedBy as string,
-        changeDescription: versionData.changeSummary as string | undefined,
-        isCheckpoint: !(versionData.isAutoSave as boolean),
-        isAutoSave: versionData.isAutoSave as boolean,
-        fileSize: (versionData.fileSize as number) || 0
-      }
+      return mapApiVersionToVersion(versionData)
     } catch (error) {
       console.error('[SlidesApiService] Failed to create version:', error)
       return null
@@ -571,7 +819,7 @@ export const SlidesApiService = {
         contentJson: {
           slides: contentJson.slides as SlideTemplate['contentJson']['slides'],
           themeId: contentJson.themeId as string,
-          _templateMeta: meta as SlideTemplate['contentJson']['_templateMeta']
+          _templateMeta: meta as unknown as SlideTemplate['contentJson']['_templateMeta']
         },
         createdAt: api.createdAt as string,
         updatedAt: api.updatedAt as string,
@@ -731,14 +979,23 @@ export const SlidesApiService = {
   },
 
   async uploadImageFromBase64(base64DataUrl: string, filename: string): Promise<string> {
-    const token = currentAccessToken
-    const mimeMatch = base64DataUrl.match(/^data:([^;]+);/)
-    const mime = mimeMatch?.[1] || 'image/png'
-    const raw = atob(base64DataUrl.split(',')[1])
+    return this.uploadDataUrl(base64DataUrl, filename, 'image/png')
+  },
+
+  async uploadDataUrl(dataUrl: string, filename: string, fallbackMime = 'application/octet-stream'): Promise<string> {
+    const mimeMatch = dataUrl.match(/^data:([^;]+);/)
+    const mime = mimeMatch?.[1] || fallbackMime
+    const raw = atob(dataUrl.split(',')[1])
     const bytes = new Uint8Array(raw.length)
     for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i)
     const blob = new Blob([bytes], { type: mime })
     const file = new File([blob], filename, { type: mime })
+
+    return this.uploadFile(file)
+  },
+
+  async uploadFile(file: File): Promise<string> {
+    const token = currentAccessToken
 
     const formData = new FormData()
     formData.append('file', file)
@@ -748,7 +1005,7 @@ export const SlidesApiService = {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: formData
     })
-    if (!response.ok) throw new Error(`Image upload failed: ${response.status}`)
+    if (!response.ok) throw new Error(`File upload failed: ${response.status}`)
     const result: { id: string } = await response.json()
     return `${API_URL}/drive/files/${result.id}/download`
   }

@@ -1,8 +1,11 @@
 import React from 'react'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea, Input } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import CountryRegionFields from './CountryRegionFields'
 import AddressLines from './AddressLines'
+import { AddressAutocomplete } from '@/business-apps/hr/core/components/address-autocomplete'
 import { EmployeeDocumentUploadField } from '../../document-sync/EmployeeDocumentUploadField'
 
 interface AddressCommonFieldsProps {
@@ -40,28 +43,47 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
   hasInitialDocumentCandidates,
   onDocumentFilesChange
 }) => {
+  const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
+  const showAddressAutocompleteMap = !isDeleteMode && Boolean(isDevEnabled)
+  // When the autocomplete map is available, lock ALL structured address fields so the
+  // only way to set them is via the autocomplete tools (search pick, pin drag, "Use my
+  // location"). Country is included: the autocomplete search is global (not filtered by
+  // country), so the tool itself determines the country from the picked result. Only
+  // address lines 2-4 remain editable because providers don't return apartment / floor /
+  // door-code data.
+  const isAddressReadonly = showAddressAutocompleteMap
   return (
     <>
+      {showAddressAutocompleteMap && (
+        <AddressAutocomplete
+          form={form}
+          catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
+        />
+      )}
+
       <CountryRegionFields
-        control={form.control as any}
+        control={form.control}
         catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
-        setValue={form.setValue as any}
+        setValue={form.setValue}
         isDeleteMode={isDeleteMode}
         suppressValidation={isSwitchingSelection}
         suspendRegionRender={isSwitchingSelection}
+        countryReadonly={isAddressReadonly}
+        regionReadonly={isAddressReadonly}
       />
 
       <AddressLines
-        control={form.control as any}
+        control={form.control}
         addressLineCount={addressLineCount}
         setAddressLineCount={setAddressLineCount as any}
         addressLinesError={addressLinesError}
         setAddressLinesError={setAddressLinesError}
         getValues={getValues}
+        firstLineReadonly={isAddressReadonly}
       />
 
       <FormField
-        control={form.control as any}
+        control={form.control}
         name={'postalCode' as any}
         rules={{
           validate: (v: any) => {
@@ -103,7 +125,12 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
                 <span className="gba:text-destructive"> *</span>
               </FormLabel>
               <FormControl>
-                <Input {...field} placeholder={placeholder} data-testid="flw_changeEmployeeAddressList_postalCode" />
+                <Input
+                  {...field}
+                  placeholder={placeholder}
+                  readOnly={isAddressReadonly}
+                  data-testid="flw_changeEmployeeAddressList_postalCode"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -112,7 +139,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       />
 
       <FormField
-        control={form.control as any}
+        control={form.control}
         name={'city' as any}
         rules={{
           required: getTranslationFromI18nKeyAndLabel(
@@ -133,6 +160,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
               <Input
                 {...field}
                 placeholder={`${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder', 'Please Enter')} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.city', 'City')}`}
+                readOnly={isAddressReadonly}
                 data-testid="flw_changeEmployeeAddressList_locality"
               />
             </FormControl>
@@ -142,7 +170,7 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
       />
 
       <FormField
-        control={form.control as any}
+        control={form.control}
         name={'comment' as any}
         render={({ field }) => (
           <FormItem>

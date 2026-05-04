@@ -40,7 +40,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onOpenReplace,
   'data-testid': testId = 'editor-toolbar'
 }) => {
-  const { locale } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
   const editorRef = useRef(editor)
   editorRef.current = editor
   const dictationStartRef = useRef<number | null>(null)
@@ -120,6 +120,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         isListening: voiceInput.isListening,
         volume: voiceInput.volume,
         error: voiceInput.error,
+        errorCode: voiceInput.errorCode,
         onStartListening: handleStartListening,
         onStopListening: voiceInput.stopListening
       }
@@ -150,6 +151,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             volume={voiceInput.volume}
             isListening={voiceInput.isListening}
             interimText={voiceInput.interimTranscript}
+            listeningLabel={t('editor-dictate-listening')}
             data-testid="document-toolbar-voice-visualizer"
           />
         </div>

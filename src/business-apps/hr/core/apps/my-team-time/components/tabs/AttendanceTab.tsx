@@ -10,7 +10,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { PiCaretLeft, PiCaretRight } from 'react-icons/pi'
+import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { useTeamAttendance } from '../../hooks/useTeamAttendance'
@@ -26,13 +26,51 @@ import {
 } from '../../utils/timeUtils'
 import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { isSickAbsence, isWorkAbsence } from '../../utils/teamTimeDomain'
 
 type MapTypeFn = (codeOrId: string) => { label?: string; color?: string }
 
-const getStatusColor = (entry: TeamAttendanceEntry | null, absence: TeamAbsenceToday | null): string => {
+const t = (key: string, fallback: string, vars?: Record<string, unknown>) =>
+  getTranslationFromI18nKeyAndLabel(`lowcoder:my_team_time.${key}`, fallback, vars)
+
+const getViewModeLabel = (viewMode: ViewMode): string => {
+  switch (viewMode) {
+    case 'day':
+      return t('view_mode_day', 'Day')
+    case 'week':
+      return t('view_mode_week', 'Week')
+    case 'month':
+      return t('view_mode_month', 'Month')
+  }
+}
+
+const formatDaysLabel = (count: number): string => {
+  const unit = count === 1 ? t('day_unit', 'day') : t('days_unit', 'days')
+  return `${count} ${unit}`
+}
+
+const formatDifferenceLabel = (diffMinutes: number): string => {
+  if (diffMinutes > 0) {
+    return t('overtime_value', '{{value}} overtime', { value: `+${formatMinutes(diffMinutes)}` })
+  }
+
+  if (diffMinutes < 0) {
+    return t('deficit_value', '{{value}} deficit', { value: formatMinutes(diffMinutes) })
+  }
+
+  return t('on_track', 'On track')
+}
+
+const getStatusColor = (
+  entry: TeamAttendanceEntry | null,
+  absence: TeamAbsenceToday | null,
+  holidayLabel: string | undefined,
+  plannedMinutes: number
+): string => {
+  if (holidayLabel) return 'gba:bg-info/10 gba:text-info'
+  if (plannedMinutes === 0) return 'gba:bg-muted gba:text-muted-foreground'
   if (absence) {
-    const typeUpper = (absence.typeRef || '').toUpperCase()
-    if (typeUpper.includes('ILLNESS') || typeUpper.includes('SICK')) return 'gba:bg-destructive/10 gba:text-destructive'
+    if (isSickAbsence(absence)) return 'gba:bg-destructive/10 gba:text-destructive'
     return 'gba:bg-info/10 gba:text-info'
   }
   if (!entry) return 'gba:bg-muted gba:text-muted-foreground'
@@ -44,30 +82,34 @@ const getStatusColor = (entry: TeamAttendanceEntry | null, absence: TeamAbsenceT
 }
 
 const resolveAbsenceLabel = (typeRef: string, mapType: MapTypeFn): string => {
-  if (!typeRef) return 'Leave'
+  if (!typeRef) return t('leave', 'Leave')
   const resolved = mapType(typeRef)
   if (resolved?.label && resolved.label !== typeRef) return resolved.label
   const parts = typeRef.split(':')
   const code = parts[parts.length - 1]
   const mapped = mapType(code)
-  return mapped?.label && mapped.label !== code ? mapped.label : 'Leave'
+  return mapped?.label && mapped.label !== code ? mapped.label : t('leave', 'Leave')
 }
 
 const getEndTimeDisplay = (entry: TeamAttendanceEntry | null): string => {
   if (entry?.endTime) return formatTimeShort(entry.endTime)
-  if (entry?.startTime) return 'Active'
+  if (entry?.startTime) return t('active', 'Active')
   return '—'
 }
 
 const getRowStatus = (
   entry: TeamAttendanceEntry | null,
   absence: TeamAbsenceToday | null,
-  mapType: MapTypeFn
+  mapType: MapTypeFn,
+  holidayLabel: string | undefined,
+  plannedMinutes: number
 ): string => {
+  if (holidayLabel) return holidayLabel
+  if (plannedMinutes === 0) return t('non_working_day', 'Non-working day')
   if (absence) return resolveAbsenceLabel(absence.typeRef, mapType)
-  if (!entry) return 'No data'
-  if (entry.startTime && !entry.endTime) return 'Working'
-  if (entry.endTime) return 'Completed'
+  if (!entry) return t('no_data', 'No data')
+  if (entry.startTime && !entry.endTime) return t('working', 'Working')
+  if (entry.endTime) return t('completed', 'Completed')
   return '—'
 }
 
@@ -101,15 +143,6 @@ interface PeriodSummary {
   diffMinutes: number
 }
 
-interface EmployeeRowProps {
-  member: TeamMember
-  entry: TeamAttendanceEntry | null
-  absence: TeamAbsenceToday | null
-  viewMode: ViewMode
-  mapType: MapTypeFn
-  periodSummary?: PeriodSummary
-}
-
 const PeriodEmployeeRow: React.FC<{ member: TeamMember; periodSummary: PeriodSummary }> = ({
   member,
   periodSummary
@@ -120,9 +153,7 @@ const PeriodEmployeeRow: React.FC<{ member: TeamMember; periodSummary: PeriodSum
   if (diffMinutes < 0) diffColor = 'gba:text-destructive'
   else if (diffMinutes > 0) diffColor = 'gba:text-warning'
 
-  let diffLabel = 'On track'
-  if (diffMinutes > 0) diffLabel = `+${formatMinutes(diffMinutes)} overtime`
-  else if (diffMinutes < 0) diffLabel = `${formatMinutes(diffMinutes)} deficit`
+  const diffLabel = formatDifferenceLabel(diffMinutes)
 
   return (
     <tr className="gba:border-b gba:border-border hover:gba:bg-muted/50 gba:transition-colors">
@@ -131,7 +162,7 @@ const PeriodEmployeeRow: React.FC<{ member: TeamMember; periodSummary: PeriodSum
       <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">
         {daysOff > 0 ? (
           <Badge variant="outline" className="gba:bg-info/10 gba:text-info">
-            {daysOff} {daysOff === 1 ? 'day' : 'days'}
+            {formatDaysLabel(daysOff)}
           </Badge>
         ) : (
           '—'
@@ -150,9 +181,12 @@ const DayEmployeeRow: React.FC<{
   entry: TeamAttendanceEntry | null
   absence: TeamAbsenceToday | null
   mapType: MapTypeFn
-}> = ({ member, entry, absence, mapType }) => {
-  const statusColor = getStatusColor(entry, absence)
-  const status = getRowStatus(entry, absence, mapType)
+  dateKey: string
+  holidayLabel?: string
+}> = ({ member, entry, absence, mapType, dateKey, holidayLabel }) => {
+  const plannedMinutes = getPlannedMinutesForDate(dateKey, member.workingHours)
+  const statusColor = getStatusColor(entry, absence, holidayLabel, plannedMinutes)
+  const status = getRowStatus(entry, absence, mapType, holidayLabel, plannedMinutes)
 
   return (
     <tr className="gba:border-b gba:border-border hover:gba:bg-muted/50 gba:transition-colors">
@@ -163,7 +197,9 @@ const DayEmployeeRow: React.FC<{
       <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">{getEndTimeDisplay(entry)}</td>
       <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">{entry?.breakTime || '—'}</td>
       <td className="gba:py-3 gba:px-4 gba:text-sm gba:font-medium">{entry?.effectiveTime || '—'}</td>
-      <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">{entry?.plannedTime || '—'}</td>
+      <td className="gba:py-3 gba:px-4 gba:text-sm gba:text-muted-foreground">
+        {entry?.plannedTime || (plannedMinutes > 0 ? formatMinutes(plannedMinutes) : '—')}
+      </td>
       <td className="gba:py-3 gba:px-4 gba:text-sm">
         {entry?.differenceTime ? (
           <span
@@ -187,13 +223,6 @@ const DayEmployeeRow: React.FC<{
   )
 }
 
-const EmployeeRow: React.FC<EmployeeRowProps> = ({ member, entry, absence, viewMode, mapType, periodSummary }) => {
-  if (viewMode !== 'day' && periodSummary) {
-    return <PeriodEmployeeRow member={member} periodSummary={periodSummary} />
-  }
-  return <DayEmployeeRow member={member} entry={entry} absence={absence} mapType={mapType} />
-}
-
 export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
   const { members, memberIds, isLoading: membersLoading } = useTeamMembers(props)
   const { mapType } = useAbsenceTypeCatalog(props.accessToken)
@@ -201,6 +230,8 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
     attendance,
     absences,
     absenceNet,
+    holidayDatesByEmployeeId,
+    holidayNamesByEmployeeId,
     currentDate,
     viewMode,
     setViewMode,
@@ -269,6 +300,7 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
     for (const member of members) {
       const memberAttendance = attendance.filter(a => a.employeeId === member.id)
       const memberNetByDay = netByEmployeeAndDay.get(member.id) ?? new Map<string, number>()
+      const holidayDates = holidayDatesByEmployeeId.get(member.id) ?? new Set<string>()
 
       let targetMinutes = 0
       let daysOff = 0
@@ -277,9 +309,23 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
         const dateKey = toLocalDateKey(d)
         const planned = getPlannedMinutesForDate(dateKey, member.workingHours)
         if (planned > 0) {
-          const netFraction = Math.min(memberNetByDay.get(dateKey) ?? 0, 1)
-          daysOff += netFraction
-          targetMinutes += planned * (1 - netFraction)
+          if (holidayDates.has(dateKey)) {
+            d.setDate(d.getDate() + 1)
+            continue
+          }
+
+          const dayAbsences = absences.filter(
+            absence => absence.employeeId === member.id && absence.dayDate === dateKey && absence.status === 'APPROVED'
+          )
+          const nonWorkAbsence = dayAbsences.find(absence => !isWorkAbsence(absence))
+
+          if (nonWorkAbsence) {
+            const netFraction = Math.min(memberNetByDay.get(dateKey) ?? 1, 1)
+            daysOff += netFraction
+            targetMinutes += planned * (1 - netFraction)
+          } else {
+            targetMinutes += planned
+          }
         }
         d.setDate(d.getDate() + 1)
       }
@@ -295,7 +341,7 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
       }
     }
     return result
-  }, [viewMode, dateRange, members, attendance, absenceNet, netByEmployeeAndDay])
+  }, [viewMode, dateRange, members, attendance, absences, holidayDatesByEmployeeId, netByEmployeeAndDay])
 
   const getMemberEntry = (memberId: string): TeamAttendanceEntry | null => {
     if (viewMode === 'day') {
@@ -312,7 +358,7 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
 
   const getMemberAbsence = (memberId: string): TeamAbsenceToday | null => {
     if (viewMode === 'day') {
-      return absences.find(a => a.employeeId === memberId && a.status === 'APPROVED') ?? null
+      return absences.find(a => a.employeeId === memberId && a.dayDate === todayStr && a.status === 'APPROVED') ?? null
     }
     return absences.find(a => a.employeeId === memberId && a.status === 'APPROVED') ?? null
   }
@@ -339,13 +385,15 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
       members,
       getMemberEntry,
       getMemberAbsence,
-      periodSummaries
+      periodSummaries,
+      todayStr,
+      holidayNamesByEmployeeId
     )
   }
 
   return (
     <div className="gba:space-y-4" data-testid="my-team-time-attendance">
-      <Card className="gba:shadow-sm">
+      <Card>
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
             <CardTitle className="gba:text-lg gba:font-semibold">
@@ -357,25 +405,30 @@ export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
                   <button
                     key={mode}
                     onClick={() => setViewMode(mode)}
-                    className={`gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:capitalize gba:transition-colors ${
+                    className={`gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:transition-colors ${
                       viewMode === mode
                         ? 'gba:bg-primary gba:text-primary-foreground'
                         : 'gba:bg-background gba:text-muted-foreground hover:gba:bg-muted'
                     }`}
                   >
-                    {mode}
+                    {getViewModeLabel(mode)}
                   </button>
                 ))}
               </div>
               <div className="gba:flex gba:items-center gba:gap-1">
-                <Button variant="outline" size="sm" onClick={goToPrev}>
-                  <PiCaretLeft />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPrev}
+                  aria-label={t('previous_period', 'Previous period')}
+                >
+                  <CaretLeftIcon className="gba:h-4 gba:w-4" />
                 </Button>
                 <Button variant="outline" size="sm" onClick={goToToday}>
                   {getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.today', 'Today')}
                 </Button>
-                <Button variant="outline" size="sm" onClick={goToNext}>
-                  <PiCaretRight />
+                <Button variant="outline" size="sm" onClick={goToNext} aria-label={t('next_period', 'Next period')}>
+                  <CaretRightIcon className="gba:h-4 gba:w-4" />
                 </Button>
               </div>
             </div>
@@ -396,9 +449,11 @@ function renderAttendanceTableContent(
   members: TeamMember[],
   getMemberEntry: (id: string) => TeamAttendanceEntry | null,
   getMemberAbsence: (id: string) => TeamAbsenceToday | null,
-  periodSummaries: Record<string, PeriodSummary>
+  periodSummaries: Record<string, PeriodSummary>,
+  dateKey: string,
+  holidayNamesByEmployeeId: Map<string, Record<string, string>>
 ): React.ReactNode {
-  const thClass = 'gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase'
+  const thClass = 'gba:py-2.5 gba:px-4 gba:text-xs gba:font-medium gba:text-muted-foreground'
   return (
     <div className="gba:overflow-x-auto">
       <table className="gba:w-full gba:text-left">
@@ -451,17 +506,21 @@ function renderAttendanceTableContent(
           </tr>
         </thead>
         <tbody>
-          {members.map(member => (
-            <EmployeeRow
-              key={member.id}
-              member={member}
-              entry={getMemberEntry(member.id)}
-              absence={getMemberAbsence(member.id)}
-              viewMode={viewMode}
-              mapType={mapType}
-              periodSummary={viewMode === 'day' ? undefined : periodSummaries[member.id]}
-            />
-          ))}
+          {members.map(member =>
+            viewMode === 'day' ? (
+              <DayEmployeeRow
+                key={member.id}
+                member={member}
+                entry={getMemberEntry(member.id)}
+                absence={getMemberAbsence(member.id)}
+                mapType={mapType}
+                dateKey={dateKey}
+                holidayLabel={holidayNamesByEmployeeId.get(member.id)?.[dateKey]}
+              />
+            ) : (
+              <PeriodEmployeeRow key={member.id} member={member} periodSummary={periodSummaries[member.id]} />
+            )
+          )}
         </tbody>
       </table>
     </div>

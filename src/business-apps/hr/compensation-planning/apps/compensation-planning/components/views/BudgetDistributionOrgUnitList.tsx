@@ -27,10 +27,10 @@ export interface BudgetDistributionOrgUnitListProps {
   salaryCostByOrgUnitId: ReadonlyMap<string, number>
   /** Sum of {@link salaryCostByOrgUnitId} — denominator for salary-cost share. */
   totalSalaryCostAcrossOrgUnits: number
-  /** Sum of employee overall performance scores per department (same source as Performance Evaluation). */
-  totalPerformanceScoreByOrgUnitId: ReadonlyMap<string, number>
-  /** Sum of {@link totalPerformanceScoreByOrgUnitId} across departments (performance-weighted denominator). */
-  grandTotalPerformanceScore: number
+  /** **Average** overall performance per department (mean of employees’ scores), or null if none resolved. */
+  averagePerformanceByOrgUnitId: ReadonlyMap<string, number | null>
+  /** Sum of those averages — denominator for "share of weight" in the performance method. */
+  sumOfDepartmentAverageScores: number
   /** Salary increase pool for preview and custom inputs. */
   distributionPool: number | null
   allocationByOrgUnitId: ReadonlyMap<string, number>
@@ -47,6 +47,12 @@ export interface BudgetDistributionOrgUnitListProps {
   performancePartialScores: boolean
   /** When true, render without an outer Card (for split-panel layout next to method list). */
   embedded?: boolean
+  /** Custom mode: sum of raw amount inputs exceeds the salary increase pool. */
+  customAmountRequestExceedsPool?: boolean
+  /** Sum of parsed amount-mode inputs (for alert copy). */
+  customAmountModeRawTotalRequested?: number | null
+  /** Positive euros over the pool. */
+  customOverPoolAmount?: number | null
 }
 
 export function BudgetDistributionOrgUnitList({
@@ -54,8 +60,8 @@ export function BudgetDistributionOrgUnitList({
   headcountByOrgUnitId,
   salaryCostByOrgUnitId,
   totalSalaryCostAcrossOrgUnits,
-  totalPerformanceScoreByOrgUnitId,
-  grandTotalPerformanceScore,
+  averagePerformanceByOrgUnitId,
+  sumOfDepartmentAverageScores,
   distributionPool,
   allocationByOrgUnitId,
   currencyCode,
@@ -69,7 +75,10 @@ export function BudgetDistributionOrgUnitList({
   onCustomModeChange,
   performanceFallbackToHeadcount,
   performancePartialScores,
-  embedded = false
+  embedded = false,
+  customAmountRequestExceedsPool = false,
+  customAmountModeRawTotalRequested = null,
+  customOverPoolAmount = null
 }: Readonly<BudgetDistributionOrgUnitListProps>) {
   const { t } = useTranslation(translations)
   const [departmentSearch, setDepartmentSearch] = useState('')
@@ -186,10 +195,7 @@ export function BudgetDistributionOrgUnitList({
         performanceFallbackToHeadcount={performanceFallbackToHeadcount}
         performancePartialScores={performancePartialScores}
         isSalaryCostMethod={isSalaryCostMethod}
-        isPerformanceMethod={isPerformanceMethod}
         totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
-        grandTotalPerformanceScore={grandTotalPerformanceScore}
-        distributionPool={distributionPool}
         currencyCode={currencyCode}
       />
 
@@ -203,12 +209,11 @@ export function BudgetDistributionOrgUnitList({
           allocationByOrgUnitId={allocationByOrgUnitId}
           headcountByOrgUnitId={headcountByOrgUnitId}
           salaryCostByOrgUnitId={salaryCostByOrgUnitId}
-          totalPerformanceScoreByOrgUnitId={totalPerformanceScoreByOrgUnitId}
+          averagePerformanceByOrgUnitId={averagePerformanceByOrgUnitId}
           totalSalaryCostAcrossOrgUnits={totalSalaryCostAcrossOrgUnits}
-          grandTotalPerformanceScore={grandTotalPerformanceScore}
+          sumOfDepartmentAverageScores={sumOfDepartmentAverageScores}
           distributionPool={distributionPool}
           poolForCustomContext={poolForCustomContext}
-          totalCustomAllocated={totalCustomAllocated}
           customPoolUnallocatedGlobal={customPoolUnallocatedGlobal}
           customBudgetByOrgUnitId={customBudgetByOrgUnitId}
           currencyCode={currencyCode}
@@ -220,6 +225,9 @@ export function BudgetDistributionOrgUnitList({
           departmentTotalPages={departmentTotalPages}
           onDepartmentPrev={goDepartmentPrev}
           onDepartmentNext={goDepartmentNext}
+          customAmountRequestExceedsPool={customAmountRequestExceedsPool}
+          customAmountModeRawTotalRequested={customAmountModeRawTotalRequested}
+          customOverPoolAmount={customOverPoolAmount}
         />
       ) : null}
     </div>

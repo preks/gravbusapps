@@ -151,8 +151,8 @@ mark_as_policy_error = Nu s-a putut marca entry-ul ca politica
 # Policy experts
 policy_experts_error_title = Nu s-au putut încărca experții
 policy_experts_count = { $count } { $count ->
-    [one] Task Expert
-   *[other] Task Experts
+    [one] Agent
+   *[other] Agenți
 }
 policy_experts_empty = Încă nu există experți conectați. Creează unul pentru a operaționaliza această politică.
 

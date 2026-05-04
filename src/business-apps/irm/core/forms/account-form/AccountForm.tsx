@@ -17,6 +17,7 @@ import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { CatalogSelect } from '@/components/catalog-select'
 import { AppActionForm } from '@/components/app-action-form'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { AccountAiEnrichButton } from '@/common/components/common-relations/form-segments/account-ai-enrich'
 
 export const investmentAccountSchema = accountSchema.extend({})
 
@@ -137,6 +138,8 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
         submitButtonText={account?.id ? 'Update Account' : 'Create Account'}
         isSubmitDisabled={loading}
       >
+        {/* AI fill button — only shown when creating a new investment account. */}
+        <AccountAiEnrichButton accessToken={accessToken} accountContext="irm" isEditMode={!!account?.id} />
         {/* Account Layout */}
         <AccountLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}

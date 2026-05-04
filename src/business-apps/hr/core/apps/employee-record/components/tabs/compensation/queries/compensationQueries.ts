@@ -81,7 +81,6 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
       isDeleted
     }
     
-    # Compensation band via employee position and job level
     EmployeePosition(
       where: {
         employeeId: {_eq: $employeeId}
@@ -90,30 +89,23 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
     ) {
       id
       employeeId
-      jobPositionId
+      siteLocationId
       jobPosition {
-        id
         name
-        jobLevelId
-        jobLevel {
-          id
-          name
-          code
-          hierarchyOrder
-          compensationBandId
-          compensationBand {
+        jobFunction {
+          jobFamily {
             id
-            name
-            payGrade
-            minSalary
-            maxSalary
-            currencyRef
-            currency {
+          }
+        }
+        jobProfile {
+          jobFunction {
+            jobFamily {
               id
-              code
-              value
             }
           }
+        }
+        jobLevel {
+          id
         }
       }
     }
@@ -179,6 +171,34 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
       notes
       createdAt
       updatedAt
+    }
+  }
+`
+
+export const GET_COMPENSATION_BAND_POLICY_FOR_EMPLOYEE = /*sql*/ `
+  query GetCompensationBandPolicyForEmployee($jobFamilyId: uuid!, $jobLevelId: uuid!, $geoZoneId: uuid!) {
+    CompensationBandPolicy(
+      where: {
+        jobFamilyId: {_eq: $jobFamilyId}
+        jobLevelId: {_eq: $jobLevelId}
+        geoZoneId: {_eq: $geoZoneId}
+      }
+      orderBy: [{priority: ASC}]
+      limit: 1
+    ) {
+      compensationBand {
+        id
+        name
+        payGrade
+        minSalary
+        maxSalary
+        currencyRef
+        currency {
+          id
+          code
+          value
+        }
+      }
     }
   }
 `

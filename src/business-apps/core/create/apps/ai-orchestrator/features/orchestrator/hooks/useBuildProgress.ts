@@ -4,8 +4,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { BuildLogEntry } from '../components/widgets/BuildConsoleLog'
 import { OrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
+import translations from '../../../_i18n'
 import type {
   BuildJobStatus,
   BuildPlan,
@@ -17,6 +19,7 @@ import type {
   BuildPhase,
   BuildStatus
 } from '../types'
+import { isCompletedBuildStatus } from '../types'
 
 type ComponentUpdateFn = ((id: string, updates: any) => void) | null | undefined
 
@@ -105,10 +108,17 @@ function createInitialTile(type: ComponentType, title: string, description: stri
   }
 }
 
-function createInitialTileState(plan: BuildPlan | null): TileState {
+function createInitialTileState(
+  plan: BuildPlan | null,
+  agentTileLabels?: { title: string; description: string }
+): TileState {
   const tiles: TileState = {
     screen: createInitialTile('screen', 'Screens', 'UI screens and dashboards'),
-    agent: createInitialTile('agent', 'AI Task Experts', 'AI-powered assistants'),
+    agent: createInitialTile(
+      'agent',
+      agentTileLabels?.title ?? 'Agents',
+      agentTileLabels?.description ?? 'AI-powered assistants'
+    ),
     function: createInitialTile('function', 'Functions', 'Serverless tools'),
     flow: createInitialTile('flow', 'Flows', 'Automated workflows'),
     data_model: createInitialTile('data_model', 'Data Models', 'Catalogs and entities')
@@ -480,8 +490,12 @@ function toBuildLogs(eventLedger: BuildProgressEvent[]): BuildLogEntry[] {
     }))
 }
 
-export function deriveProgressState(plan: BuildPlan | null, eventLedger: BuildProgressEvent[]): DerivedProgressState {
-  const tiles = createInitialTileState(plan)
+export function deriveProgressState(
+  plan: BuildPlan | null,
+  eventLedger: BuildProgressEvent[],
+  agentTileLabels?: { title: string; description: string }
+): DerivedProgressState {
+  const tiles = createInitialTileState(plan, agentTileLabels)
   const componentProgress = new Map<string, number>()
   const phaseState = createPhaseTrackingState()
 
@@ -610,12 +624,12 @@ function toTerminalStatusEvent(
   status: BuildJobStatus,
   fallbackErrorMessage: string
 ): BuildProgressEvent | null {
-  if (status.status === 'completed') {
+  if (isCompletedBuildStatus(status.status)) {
     return {
       eventType: 'build_complete',
       jobId,
       timestamp: new Date().toISOString(),
-      status: 'completed',
+      status: status.status,
       message:
         `Build complete: ${status.completedComponents} completed, ` +
         `${status.failedComponents} failed, ${status.skippedComponents || 0} skipped`,
@@ -669,8 +683,16 @@ export function useBuildProgress({
     onBuildCompleteRef.current = onBuildComplete
   }, [onBuildComplete])
 
+  const { t } = useTranslation(translations)
   const totalCount = plan?.components.length || 0
-  const derived = useMemo(() => deriveProgressState(plan, eventLedger), [plan, eventLedger])
+  const agentTileLabels = useMemo(
+    () => ({ title: t('build-tile-agents-title'), description: t('build-tile-agents-description') }),
+    [t]
+  )
+  const derived = useMemo(
+    () => deriveProgressState(plan, eventLedger, agentTileLabels),
+    [plan, eventLedger, agentTileLabels]
+  )
 
   const resetState = useCallback(() => {
     setEventLedger([])

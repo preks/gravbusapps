@@ -4,6 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import type { LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
 
 type TranslationFn = (key: string) => string
+const INTERNAL_CATEGORIES = new Set(['HR', 'CRM', 'Expenses', 'Office', 'Service'])
 
 const formatDateTime = (iso: string | undefined): string => {
   if (!iso) return '—'
@@ -35,6 +36,32 @@ export const createFunctionsColumns = (t: TranslationFn): ColumnDef<LatestFuncti
     header: t('column-name'),
     size: 200,
     cell: ({ row }) => <div className="gba:font-medium">{row.original.name}</div>
+  },
+  {
+    id: 'category',
+    accessorKey: 'category',
+    header: t('column-category'),
+    size: 120,
+    cell: ({ row }) => (
+      <div className="gba:flex gba:items-center gba:gap-1.5">
+        <span className="gba:inline-flex gba:items-center gba:rounded gba:bg-muted gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium gba:text-foreground">
+          {row.original.category || 'General'}
+        </span>
+        {INTERNAL_CATEGORIES.has(row.original.category || 'General') ? (
+          <span className="gba:inline-flex gba:items-center gba:rounded gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+            Internal
+          </span>
+        ) : null}
+      </div>
+    )
+  },
+  {
+    id: 'subcategory',
+    accessorKey: 'subcategory',
+    header: t('column-subcategory'),
+    size: 140,
+    meta: { type: 'text' },
+    cell: ({ row }) => <div className="gba:text-muted-foreground">{row.original.subcategory || '—'}</div>
   },
   {
     id: 'description',
@@ -95,6 +122,8 @@ export const createFunctionsColumns = (t: TranslationFn): ColumnDef<LatestFuncti
 
 export const functionsSortableColumns = [
   { id: 'name', label: 'Name' },
+  { id: 'category', label: 'Category' },
+  { id: 'subcategory', label: 'Subcategory' },
   { id: 'description', label: 'Description' },
   { id: 'agentEnabled', label: 'Agent' },
   { id: 'workflowEnabled', label: 'Workflow' },
@@ -105,6 +134,8 @@ export const functionsSortableColumns = [
 
 export const getDefaultVisibleColumns = (): string[] => [
   'name',
+  'category',
+  'subcategory',
   'description',
   'agentEnabled',
   'workflowEnabled',

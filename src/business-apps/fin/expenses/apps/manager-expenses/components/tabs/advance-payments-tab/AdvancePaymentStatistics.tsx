@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react'
 import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from '../../../hooks/useMainViewAdvancePayments'
 import { WidgetItem } from '@/components/widget-group'
 import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
-import { CurrencyDollarIcon, ClockIcon } from '@phosphor-icons/react'
+import { ClockIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { ExpenseStatus } from '../../../utils'
@@ -72,7 +72,6 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         value: advancePaymentStats.sumAmount
           ? formatCurrencyDisplay(advancePaymentStats.sumAmount, displayCurrency)
           : formatCurrencyDisplay(0, displayCurrency),
-        prefix: <CurrencyDollarIcon size={16} />,
         color: isTotalFilterActive ? 'var(--nw-primary)' : 'var(--nw-success)',
         valueIsString: true,
         description: getTranslationFromI18nKeyAndLabel(

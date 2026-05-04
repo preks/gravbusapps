@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Row, Col, Pagination, Alert } from 'antd'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   getTranslationFromI18nKeyAndLabel,
   formatDate,
   getCatalogValue,
   formatNumberFunction
 } from '@/common/utils/windowUtils'
+import { hasEmployeeOrgchartCostCenter } from '@/business-apps/fin/expenses/common/utils/employeeOrgchartCostCenter'
+import expenseFormsTranslations from '../../_i18n'
 import { useExpenseRequestDateValidation } from '../utils/dateValidationUtils'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
@@ -41,9 +44,12 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
   const { expenseRequestData, employeeRuleId, currentTitle } = useExpenseRequestWizardContext()
   const { hasFutureDates } = useExpenseRequestDateValidation()
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(props.additionalData)
+  const { t: tForms } = useTranslation(expenseFormsTranslations)
   const requestData = expenseRequestData?.ExpenseRequestByPk
   const requestItemData = expenseRequestData?.ExpenseItem
   const expenseItems = noAllowanceItemsFunction(requestItemData)
+  const missingOrgchartCostCenter =
+    Boolean(expenseRequestData) && !hasEmployeeOrgchartCostCenter(expenseRequestData?.EmployeePosition)
 
   const handleSave = useCallback(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
@@ -59,16 +65,20 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
   }, [expenseRequestData, employeeRuleId, currentTitle])
 
   const handleSubmit = useCallback(() => {
-    if (expenseRequestData?.ExpenseRequestByPk) {
-      const logObject = createSummaryScreenLogObject(
-        expenseRequestData.ExpenseRequestByPk,
-        employeeRuleId,
-        currentTitle,
-        expenseRequestData,
-        EVENTS.SUBMIT
-      )
-      dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, logObject)
+    if (!expenseRequestData?.ExpenseRequestByPk) {
+      return
     }
+    if (!hasEmployeeOrgchartCostCenter(expenseRequestData.EmployeePosition)) {
+      return
+    }
+    const logObject = createSummaryScreenLogObject(
+      expenseRequestData.ExpenseRequestByPk,
+      employeeRuleId,
+      currentTitle,
+      expenseRequestData,
+      EVENTS.SUBMIT
+    )
+    dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, logObject)
   }, [expenseRequestData, employeeRuleId, currentTitle])
 
   useEffect(() => {
@@ -319,6 +329,16 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
           </div>
         </div>
         <ExpenseSummary requestData={requestData} />
+        {missingOrgchartCostCenter && (
+          <div className="gba:mt-4 gba:mb-4" data-testid="expense-request-missing-orgchart-cost-center-container">
+            <Alert
+              message={tForms('missing-orgchart-cost-center-wizard-message')}
+              type="error"
+              showIcon
+              data-testid="expense-request-missing-orgchart-cost-center-warning"
+            />
+          </div>
+        )}
         {hasFutureDates && (
           <div className="gba:mt-4 gba:mb-4" data-testid="expense-request-future-dates-container">
             <Alert

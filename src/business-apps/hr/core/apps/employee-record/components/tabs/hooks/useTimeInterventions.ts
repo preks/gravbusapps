@@ -196,7 +196,11 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
 
           if (planned > 0) {
             const entry = entryByDay[key]
-            if (worked === 0) {
+            const hasClockIn = Boolean(entry?.startTime)
+            const hasClockOut = Boolean(entry?.endTime)
+            if (hasClockIn && hasClockOut) {
+              // Day is complete (both clock-in and clock-out) — no intervention needed
+            } else if (worked === 0) {
               itemsAcc.push({
                 date: key,
                 plannedMinutes: planned,
@@ -204,7 +208,7 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
                 reason: 'NO_ATTENDANCE',
                 entry
               })
-            } else if (worked < planned) {
+            } else {
               itemsAcc.push({
                 date: key,
                 plannedMinutes: planned,

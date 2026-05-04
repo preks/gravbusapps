@@ -4,7 +4,7 @@ import { GitBranch, Link2, Sparkles, SplitSquareHorizontal, UserCheck, Zap } fro
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { DesignerMode } from '../../types/studioTypes'
 import type { FlowNodeType } from '@/common/components/flow/flow-viewer'
-import { FlowStepType } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { FlowStepType } from '@/common/data/flow/types/flowTemplate'
 
 const CONTROL_INSERT_OPTIONS: Array<{ type: FlowNodeType; label: string; Icon: React.FC<{ className?: string }> }> = [
   { type: 'decision', label: 'Decision', Icon: GitBranch },

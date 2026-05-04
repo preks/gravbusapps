@@ -269,9 +269,22 @@ export interface GrowthData {
 export interface EmployeeSalaryResponse {
   AllEmployeeSalaries: Array<EmployeeSalary>
   EmployeePosition: Array<{
+    siteLocationId?: string | null
     jobPosition?: {
+      jobFunction?: {
+        jobFamily?: {
+          id?: string | null
+        } | null
+      } | null
+      jobProfile?: {
+        jobFunction?: {
+          jobFamily?: {
+            id?: string | null
+          } | null
+        } | null
+      } | null
       jobLevel?: {
-        compensationBand?: any
+        id?: string | null
       }
     }
   }>

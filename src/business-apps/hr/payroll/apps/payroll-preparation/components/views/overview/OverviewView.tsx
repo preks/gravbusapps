@@ -14,17 +14,15 @@ import {
   CheckCircleIcon,
   WarningIcon,
   XCircleIcon,
-  MinusCircleIcon,
   UsersIcon,
   ArrowsClockwiseIcon,
-  ShieldWarningIcon,
   WarningCircleIcon,
   PlusIcon,
   FolderOpenIcon
 } from '@phosphor-icons/react'
-import type { PayrollSummary, PayrollRun, PayrollEmployee, PayrollRunStatus } from '../../../types/payrollTypes'
+import type { PayrollSummary, PayrollRun, PayrollEmployee } from '../../../types/payrollTypes'
 import { formatDate as formatPlatformDate } from '@/common/utils/windowUtils'
-import { PayrollRunStatusBadge } from '../../shared/StatusBadge'
+import { PayrollRunStatusBadge, getPayrollRunStatusLabel } from '../../shared/StatusBadge'
 
 interface OverviewViewProps {
   activeRun: PayrollRun | null
@@ -38,6 +36,32 @@ interface OverviewViewProps {
 }
 
 type BadgeVariant = 'success' | 'warning' | 'destructive' | 'secondary' | 'outline'
+
+/** One place to tune KPI pictogram size (icon + box). */
+const KPI_ICON_SIZE_PX = 24
+const KPI_ICON_CLASS = 'gba:h-6 gba:w-6 gba:shrink-0'
+const KPI_ICON_BOX_CLASS = 'gba:h-10 gba:w-10'
+
+function KpiGlyph(props: Readonly<{ icon: React.ElementType; weight?: 'fill' | 'duotone' }>) {
+  const { icon: Icon, weight = 'fill' } = props
+  return <Icon size={KPI_ICON_SIZE_PX} weight={weight} className={KPI_ICON_CLASS} aria-hidden />
+}
+
+function kpiIconContainerClass(variant: BadgeVariant): string {
+  switch (variant) {
+    case 'success':
+      return 'gba:bg-success gba:text-success-foreground'
+    case 'warning':
+      return 'gba:bg-warning gba:text-warning-foreground'
+    case 'destructive':
+      return 'gba:bg-destructive gba:text-destructive-foreground'
+    case 'secondary':
+      return 'gba:bg-secondary gba:text-secondary-foreground'
+    case 'outline':
+    default:
+      return 'gba:border gba:border-border gba:bg-muted/50 gba:text-foreground'
+  }
+}
 
 interface KpiCardProps {
   label: string
@@ -54,44 +78,29 @@ interface ReadinessSegmentConfig {
   label: string
 }
 
-const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => (
-  <Card className="gba:p-4">
-    <div className="gba:flex gba:flex-row gba:items-center gba:gap-3">
-      <Badge
-        variant={variant}
-        className="gba:w-10 gba:h-10 gba:shrink-0 gba:rounded-lg gba:flex gba:items-center gba:justify-center"
-      >
-        {icon}
-      </Badge>
-      <div className="gba:min-w-0">
-        <p className="gba:text-xl gba:font-bold gba:text-foreground gba:leading-tight">{value}</p>
-        <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{label}</p>
+const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon, variant }) => {
+  return (
+    <Card className="gba:p-3">
+      <div className="gba:flex gba:flex-row gba:items-center gba:gap-3">
+        <div
+          className={`gba:flex ${KPI_ICON_BOX_CLASS} gba:shrink-0 gba:items-center gba:justify-center gba:rounded-xl ${kpiIconContainerClass(variant)}`}
+          aria-hidden
+        >
+          {icon}
+        </div>
+        <div className="gba:min-w-0">
+          <p className="gba:text-lg gba:font-bold gba:text-foreground gba:leading-tight">{value}</p>
+          <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{label}</p>
+        </div>
       </div>
-    </div>
-  </Card>
-)
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—'
-  const formatted = formatPlatformDate(dateStr, 'date.short')
-  return formatted ?? '—'
+    </Card>
+  )
 }
 
-function getRunStatusLabel(status: PayrollRunStatus, t: (key: string) => string): string {
-  switch (status) {
-    case 'PAYROLL_IN_PROGRESS':
-      return t('status-in-progress')
-    case 'PAYROLL_READY_FOR_REVIEW':
-      return t('status-ready-for-review')
-    case 'PAYROLL_APPROVED_FOR_EXPORT':
-      return t('status-approved')
-    case 'PAYROLL_EXPORTED':
-      return t('status-exported')
-    case 'PAYROLL_CLOSED':
-      return t('status-closed')
-    default:
-      return status
-  }
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const formatted = formatPlatformDate(dateStr, 'date.short')
+  return formatted ?? '-'
 }
 
 function RunsListView({
@@ -168,7 +177,10 @@ function RunsListView({
                   {t(`month-${run.month}`)} {run.year}
                 </TableCell>
                 <TableCell>
-                  <PayrollRunStatusBadge status={run.status} translatedLabel={getRunStatusLabel(run.status, t)} />
+                  <PayrollRunStatusBadge
+                    status={run.status}
+                    translatedLabel={getPayrollRunStatusLabel(run.status, t)}
+                  />
                 </TableCell>
                 <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.cutOffDate)}</TableCell>
                 <TableCell className="gba:text-sm gba:text-muted-foreground">{formatDate(run.paymentDate)}</TableCell>
@@ -185,12 +197,10 @@ function RunsListView({
 function RunDashboardView({
   summary,
   employees,
-  payrollRun,
   t
 }: Readonly<{
   summary: PayrollSummary
   employees: PayrollEmployee[]
-  payrollRun: PayrollRun
   t: (key: string, args?: Record<string, any>) => string
 }>) {
   const employeesWithoutCompany = useMemo(() => employees.filter(e => !e.legalEntityName), [employees])
@@ -199,43 +209,31 @@ function RunDashboardView({
       {
         label: t('summary-total'),
         value: summary.totalEmployees,
-        icon: <UsersIcon size={24} />,
+        icon: <KpiGlyph icon={UsersIcon} />,
         variant: 'outline' as const
       },
       {
         label: t('summary-ready'),
         value: summary.readyCount,
-        icon: <CheckCircleIcon size={24} weight="fill" />,
+        icon: <KpiGlyph icon={CheckCircleIcon} />,
         variant: 'success' as const
       },
       {
         label: t('summary-warning'),
         value: summary.warningCount,
-        icon: <WarningIcon size={24} weight="fill" />,
+        icon: <KpiGlyph icon={WarningIcon} />,
         variant: 'warning' as const
       },
       {
         label: t('summary-blocked'),
         value: summary.blockedCount,
-        icon: <XCircleIcon size={24} weight="fill" />,
-        variant: 'destructive' as const
-      },
-      {
-        label: t('summary-excluded'),
-        value: summary.excludedCount,
-        icon: <MinusCircleIcon size={24} weight="fill" />,
-        variant: 'secondary' as const
-      },
-      {
-        label: t('summary-blockers'),
-        value: summary.openBlockers,
-        icon: <ShieldWarningIcon size={24} weight="fill" />,
+        icon: <XCircleIcon size={KPI_ICON_SIZE_PX} weight="fill" className={KPI_ICON_CLASS} />,
         variant: 'destructive' as const
       },
       {
         label: t('summary-changed'),
         value: summary.changedSinceLastPayroll,
-        icon: <ArrowsClockwiseIcon size={24} />,
+        icon: <KpiGlyph icon={ArrowsClockwiseIcon} />,
         variant: 'outline' as const
       }
     ],
@@ -264,13 +262,6 @@ function RunDashboardView({
         badgeVariant: 'destructive',
         barClassName: 'gba:bg-destructive',
         label: t('summary-blocked')
-      },
-      {
-        key: 'excluded',
-        count: summary.excludedCount,
-        badgeVariant: 'secondary',
-        barClassName: 'gba:bg-muted-foreground/30',
-        label: t('summary-excluded')
       }
     ],
     [summary, t]
@@ -293,7 +284,7 @@ function RunDashboardView({
               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-2">
                 {employeesWithoutCompany.slice(0, 10).map(e => (
                   <Badge key={e.id} variant="outline" className="gba:text-xs">
-                    {e.displayName} ({e.code})
+                    {e.fullName} ({e.code})
                   </Badge>
                 ))}
                 {employeesWithoutCompany.length > 10 && (
@@ -307,23 +298,7 @@ function RunDashboardView({
         </Card>
       )}
 
-      <Card className="gba:p-6">
-        <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
-          <div>
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{payrollRun.legalEntityName}</h3>
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {t(`month-${payrollRun.month}`)} {payrollRun.year} &middot; {payrollRun.country}
-            </p>
-            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-              {t('runs-col-cutoff')}: {formatDate(payrollRun.cutOffDate)} &middot; {t('runs-col-payment')}:{' '}
-              {formatDate(payrollRun.paymentDate)}
-            </p>
-          </div>
-          <PayrollRunStatusBadge status={payrollRun.status} translatedLabel={getRunStatusLabel(payrollRun.status, t)} />
-        </div>
-      </Card>
-
-      <div className="gba:grid gba:grid-cols-4 gba:gap-4" data-testid="payroll-prep-overview-kpi-grid">
+      <div className="gba:grid gba:grid-cols-5 gba:gap-3" data-testid="payroll-prep-overview-kpi-grid">
         {kpiCards.map(card => (
           <KpiCard key={card.label} label={card.label} value={card.value} icon={card.icon} variant={card.variant} />
         ))}
@@ -368,7 +343,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   t
 }) => {
   if (activeRun) {
-    return <RunDashboardView summary={summary} employees={employees} payrollRun={activeRun} t={t} />
+    return <RunDashboardView summary={summary} employees={employees} t={t} />
   }
 
   return (

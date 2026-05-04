@@ -2,6 +2,11 @@ import dayjs from 'dayjs'
 import { ExpenseStatus } from '../../../../utils'
 import type { ExpenseRequestWhereClause, ExpenseRequestWhereFragment } from './expenseRequestWhereClause.types'
 import { EXPENSE_REQUEST_FILTER_STATUSES } from './expenseRequestFilterConstants'
+import {
+  addNestedScalarNumericRangeConditions,
+  addScalarNumericRangeConditions,
+  type ExpenseAmountRangeValue
+} from '@/business-apps/fin/expenses/common/utils/amountRangeFilterUtils'
 
 type DateRangeState = [Date | null, Date | null] | null | undefined
 
@@ -64,7 +69,9 @@ export function buildExpenseRequestWhereConditions(
   startDateRange: DateRangeState,
   endDateRange: DateRangeState,
   requestDateRange: DateRangeState,
-  effectiveDateRange: DateRangeState
+  effectiveDateRange: DateRangeState,
+  reimbursableAmountRange: ExpenseAmountRangeValue = null,
+  advanceTotalAmountRange: ExpenseAmountRangeValue = null
 ): ExpenseRequestWhereClause {
   const conditions: ExpenseRequestWhereFragment[] = []
 
@@ -92,6 +99,18 @@ export function buildExpenseRequestWhereConditions(
   pushFieldDateRangeConditions(conditions, endDateRange, 'endDate')
   pushFieldDateRangeConditions(conditions, requestDateRange, 'requestDate')
   pushEffectiveDateConditions(conditions, effectiveDateRange)
+
+  addScalarNumericRangeConditions(
+    conditions as Record<string, unknown>[],
+    reimbursableAmountRange,
+    'reimbursableAmount'
+  )
+  addNestedScalarNumericRangeConditions(
+    conditions as Record<string, unknown>[],
+    advanceTotalAmountRange,
+    'expensePlan',
+    'advancePaymentTotalAmount'
+  )
 
   return { _and: conditions.length > 0 ? conditions : [{}] }
 }

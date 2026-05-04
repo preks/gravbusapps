@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import { Employee, WorkCommunication } from '../types/employee.types'
+import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
 
 export interface TeamAnniversary {
   id: string
@@ -28,7 +29,6 @@ export interface UseTeamAnniversariesResult {
 interface UseTeamAnniversariesProps {
   accessToken: string
   managerId: string
-  daysAhead?: number // Default 30 days
 }
 
 /**
@@ -37,8 +37,7 @@ interface UseTeamAnniversariesProps {
  */
 export const useTeamAnniversaries = ({
   accessToken,
-  managerId,
-  daysAhead = 30
+  managerId
 }: UseTeamAnniversariesProps): UseTeamAnniversariesResult => {
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<TeamAnniversary[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -104,21 +103,22 @@ export const useTeamAnniversaries = ({
       })
 
       if (response?.Employee) {
+        const employees = filterEmployeesByStartedEmployment(response.Employee)
         const today = dayjs()
 
-        const anniversariesWithCalculations: TeamAnniversary[] = response.Employee.filter(
-          (employee: Employee) => employee.workingCondition?.[0]?.hireDate
-        ) // Only employees with hire dates
+        const anniversariesWithCalculations: TeamAnniversary[] = employees
+          .filter((employee: Employee) => employee.workingCondition?.[0]?.hireDate) // Only employees with hire dates
           .map((employee: Employee) => {
             const hireDate = dayjs(employee.workingCondition?.[0]?.hireDate)
+            if (!hireDate.isValid()) return null
+
             const currentYear = today.year()
+            const currentMonth = today.month()
 
             // Get this year's anniversary
-            let thisYearAnniversary = hireDate.year(currentYear)
-
-            // If anniversary already passed this year, check next year
-            if (thisYearAnniversary.isBefore(today)) {
-              thisYearAnniversary = hireDate.year(currentYear + 1)
+            const thisYearAnniversary = hireDate.year(currentYear)
+            if (thisYearAnniversary.month() !== currentMonth) {
+              return null
             }
 
             const daysUntilAnniversary = thisYearAnniversary.diff(today, 'day')
@@ -147,15 +147,10 @@ export const useTeamAnniversaries = ({
               email: emailComm?.value
             }
           })
-          // Filter to only include anniversaries within the specified range
-          .filter(
-            (anniversary: TeamAnniversary) =>
-              anniversary.daysUntilAnniversary >= 0 &&
-              anniversary.daysUntilAnniversary <= daysAhead &&
-              anniversary.yearsOfService > 0 // Don't include first-year employees
-          )
-          // Sort by days until anniversary
-          .sort((a: TeamAnniversary, b: TeamAnniversary) => a.daysUntilAnniversary - b.daysUntilAnniversary)
+          .filter((anniversary): anniversary is TeamAnniversary => anniversary !== null)
+          .filter((anniversary: TeamAnniversary) => anniversary.yearsOfService > 0) // Don't include first-year employees
+          // Sort by day in current month
+          .sort((a: TeamAnniversary, b: TeamAnniversary) => dayjs(a.hireDate).date() - dayjs(b.hireDate).date())
 
         setUpcomingAnniversaries(anniversariesWithCalculations)
       } else {
@@ -171,7 +166,7 @@ export const useTeamAnniversaries = ({
 
   useEffect(() => {
     fetchTeamAnniversaries()
-  }, [managerId, accessToken, daysAhead])
+  }, [managerId, accessToken])
 
   return {
     upcomingAnniversaries,

@@ -13,7 +13,6 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -23,11 +22,21 @@ import {
 import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { TranslatableField } from '@/components/translatable-field'
 import { usePipelineStageTypes } from '../hooks/usePipelineStageTypes'
 import { FALLBACK_STAGE_TYPE_OPTIONS } from '../utils/pipelineStageTypeVariant'
+import {
+  buildCatalogValueTranslations,
+  DEFAULT_CATALOG_LOCALE,
+  DEFAULT_CATALOG_TRANSLATIONS,
+  getCatalogValueTranslations,
+  getDefaultCatalogValue,
+  type CatalogTranslationMap
+} from '../../utils/catalogTranslations'
 
 interface StageFormData {
   value: string
+  valueTranslations: CatalogTranslationMap
   type: string
 }
 
@@ -52,6 +61,7 @@ const StageForm: React.FC<StageFormProps> = ({
   editingStage,
   pipeline,
   catalogConfig,
+  prefixDataTestId = 'stage-form',
   accessToken
 }) => {
   const [operationLoading, setOperationLoading] = useState(false)
@@ -67,6 +77,7 @@ const StageForm: React.FC<StageFormProps> = ({
   const form = useForm<StageFormData>({
     defaultValues: {
       value: '',
+      valueTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
       type: 'DISCOVERY'
     }
   })
@@ -83,7 +94,8 @@ const StageForm: React.FC<StageFormProps> = ({
 
       const newStageEntry = {
         code: code,
-        value: data.value,
+        value: getDefaultCatalogValue(data.valueTranslations, data.value),
+        localeCode: DEFAULT_CATALOG_LOCALE,
         type: data.type,
         alternativeCode: data.type, // Set alternativeCode as fallback for type
         parentEntryId: pipeline.id,
@@ -92,7 +104,7 @@ const StageForm: React.FC<StageFormProps> = ({
         additionalValue2: undefined,
         additionalValue3: undefined,
         objectValue: {},
-        translations: []
+        translations: buildCatalogValueTranslations(data.valueTranslations, data.value)
       }
 
       await catalogClient.createCatalogEntry(catalogConfig.stageCatalog, catalogConfig.version || 'v1', newStageEntry)
@@ -114,12 +126,13 @@ const StageForm: React.FC<StageFormProps> = ({
       setOperationLoading(true)
 
       // Fetch the current stage data to preserve all fields
-      const currentStage = await catalogClient.getCatalogEntryById(editingStage.id)
+      const currentStage = await catalogClient.readCatalogEntryById(editingStage.id, { includeTranslations: true })
 
       const updateData = {
         id: editingStage.id,
         code: editingStage.code,
-        value: data.value,
+        value: getDefaultCatalogValue(data.valueTranslations, data.value),
+        localeCode: currentStage.localeCode || DEFAULT_CATALOG_LOCALE,
         type: data.type,
         alternativeCode: data.type,
         parentEntryId: editingStage.parentEntryId || currentStage.parentEntryId,
@@ -128,7 +141,8 @@ const StageForm: React.FC<StageFormProps> = ({
           editingStage.displayOrder?.toString().padStart(2, '0') || currentStage.additionalValue1 || '01',
         additionalValue2: currentStage.additionalValue2 || undefined,
         additionalValue3: currentStage.additionalValue3 || undefined,
-        objectValue: editingStage.objectValue || currentStage.objectValue || {}
+        objectValue: editingStage.objectValue || currentStage.objectValue || {},
+        translations: buildCatalogValueTranslations(data.valueTranslations, data.value)
       }
 
       await catalogClient.updateCatalogEntry(
@@ -156,11 +170,13 @@ const StageForm: React.FC<StageFormProps> = ({
       if (editingStage) {
         form.reset({
           value: editingStage.value,
+          valueTranslations: getCatalogValueTranslations(editingStage),
           type: (editingStage.type || editingStage.alternativeCode || effectiveOptions[0]?.value) ?? 'DISCOVERY'
         })
       } else {
         form.reset({
           value: '',
+          valueTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
           type: effectiveOptions[0]?.value ?? 'DISCOVERY'
         })
       }
@@ -184,7 +200,11 @@ const StageForm: React.FC<StageFormProps> = ({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-4">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="gba:space-y-4"
+            data-testid={`${prefixDataTestId}-form`}
+          >
             <FormField
               control={form.control}
               name="value"
@@ -193,7 +213,18 @@ const StageForm: React.FC<StageFormProps> = ({
                 <FormItem>
                   <FormLabel>Stage Name</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Enter stage name..." />
+                    <TranslatableField
+                      label=""
+                      value={field.value}
+                      onChange={field.onChange}
+                      translations={form.watch('valueTranslations') || DEFAULT_CATALOG_TRANSLATIONS}
+                      onTranslationsChange={valueTranslations =>
+                        form.setValue('valueTranslations', valueTranslations, { shouldDirty: true })
+                      }
+                      defaultLanguage={DEFAULT_CATALOG_LOCALE}
+                      placeholder="Enter stage name..."
+                      data-testid={`${prefixDataTestId}-name-input`}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -209,7 +240,7 @@ const StageForm: React.FC<StageFormProps> = ({
                   <FormLabel>Stage Type</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} disabled={stageTypesLoading}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger data-testid={`${prefixDataTestId}-type-select`}>
                         <SelectValue placeholder={stageTypesLoading ? 'Loading...' : 'Select stage type'} />
                       </SelectTrigger>
                     </FormControl>
@@ -227,10 +258,16 @@ const StageForm: React.FC<StageFormProps> = ({
             />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={operationLoading}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={operationLoading}
+                data-testid={`${prefixDataTestId}-cancel-button`}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={operationLoading}>
+              <Button type="submit" disabled={operationLoading} data-testid={`${prefixDataTestId}-submit-button`}>
                 {getSubmitButtonText()}
               </Button>
             </DialogFooter>

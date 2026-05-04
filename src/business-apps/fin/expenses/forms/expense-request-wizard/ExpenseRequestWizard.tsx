@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Typography, Input } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { Spinner } from '@newwork/nw-design-system'
@@ -8,6 +8,7 @@ import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProc
 import { EVENTS } from '../../utils/constants'
 import { ICONS } from '../../utils/icons'
 import { useExpenseRequestDateValidation } from './utils/dateValidationUtils'
+import { hasEmployeeOrgchartCostCenter } from '@/business-apps/fin/expenses/common/utils/employeeOrgchartCostCenter'
 
 import { ExpenseRequestWizardProvider, useExpenseRequestWizardContext } from './context/ExpenseRequestWizardContext'
 import { SCREEN_NAMES_ENUM } from './constants/constants'
@@ -60,6 +61,30 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
   const previousScreenRef = React.useRef<string>(currentScreen)
 
   /**
+   * Intercept com.newwork.process.continue when editing a standalone item embedded in the wizard.
+   * The ExpenseItem form dispatches this event to save the item, but it would also close the
+   * wizard task. By capturing and stopping it during an edit session, we allow the save to
+   * complete while staying inside the wizard, then navigate back to the item list via onClose.
+   */
+  const isEditingStandaloneItem =
+    showExpenseItem && !!expenseItemParams?.psi_taskPayload?.psi_initialParameters?.expenseId
+  const isEditingStandaloneItemRef = useRef(isEditingStandaloneItem)
+  isEditingStandaloneItemRef.current = isEditingStandaloneItem
+
+  useEffect(() => {
+    const interceptProcessContinue = (e: Event) => {
+      if (isEditingStandaloneItemRef.current) {
+        e.stopImmediatePropagation()
+      }
+    }
+
+    window.addEventListener('com.newwork.process.continue', interceptProcessContinue, true)
+    return () => {
+      window.removeEventListener('com.newwork.process.continue', interceptProcessContinue, true)
+    }
+  }, [])
+
+  /**
    * Sync header title from server only when the loaded request changes (by id).
    * This prevents refetches or context updates for the same request from overwriting
    * a title the user has already edited and confirmed (checkmark) before Save.
@@ -67,6 +92,11 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
   const lastTitleSyncRequestIdRef = React.useRef<string | null>(null)
 
   const isTrip = expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes(REQUEST_TYPES.TRIP)
+
+  const missingOrgchartCostCenter = useMemo(
+    () => Boolean(expenseRequestData && !hasEmployeeOrgchartCostCenter(expenseRequestData.EmployeePosition)),
+    [expenseRequestData]
+  )
 
   const handleCancel = useMemo(() => {
     const initialRequest = expenseRequestData?.ExpenseRequestByPk
@@ -734,7 +764,7 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
-                    (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && hasFutureDates)
+                    (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && (hasFutureDates || missingOrgchartCostCenter))
                   }
                   onClick={() => {
                     const isNextScreen =

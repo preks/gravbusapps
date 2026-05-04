@@ -208,6 +208,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
   'data-testid': testId = 'share-slide-dialog'
 }) => {
   const { t } = useTranslation(translations)
+  const resolvedSlideTitle = slideTitle || t('title-untitled-slide')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUsers, setSelectedUsers] = useState<SelectedUser[]>([])
   const [defaultPermission, setDefaultPermission] = useState<Permission>('view')
@@ -294,7 +295,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
 
       const notificationResult = await sendShareNotification(accessToken, {
         slideId,
-        slideTitle,
+        slideTitle: resolvedSlideTitle,
         recipients: selectedUsers.map(u => ({
           userId: u.userId,
           userName: u.displayName,
@@ -329,7 +330,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
   }, [
     selectedUsers,
     slideId,
-    slideTitle,
+    resolvedSlideTitle,
     currentUserId,
     currentUserName,
     message,
@@ -342,13 +343,16 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-lg" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg gba:max-h-[90vh] gba:flex gba:flex-col gba:overflow-hidden"
+        data-testid={testId}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
             {t('share-title')}
           </DialogTitle>
-          <DialogDescription>{t('share-description', { title: slideTitle })}</DialogDescription>
+          <DialogDescription>{t('share-description', { title: resolvedSlideTitle })}</DialogDescription>
         </DialogHeader>
 
         {sentSuccess ? (
@@ -364,7 +368,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
             </p>
           </div>
         ) : (
-          <div className="gba:space-y-6 gba:py-4">
+          <div className="gba:space-y-5 gba:py-2 gba:overflow-y-auto gba:flex-1 gba:-mx-6 gba:px-6">
             {/* Default permission selector */}
             <div className="gba:space-y-2">
               <Label>{t('share-default-permission')}</Label>
@@ -467,8 +471,8 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
                 <Label>{t('share-people-with-access', { count: selectedUsers.length })}</Label>
                 <div className="gba:border gba:rounded-md gba:divide-y gba:max-h-48 gba:overflow-y-auto">
                   {selectedUsers.map(user => (
-                    <div key={user.id} className="gba:flex gba:items-center gba:gap-3 gba:p-3">
-                      <Avatar className="gba:h-8 gba:w-8">
+                    <div key={user.id} className="gba:flex gba:items-center gba:gap-2 gba:p-2">
+                      <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
                         {user.pictureThumbnail && (
                           <AvatarImage
                             src={
@@ -493,7 +497,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
                         value={user.permission}
                         onValueChange={v => updateUserPermission(user.id, v as Permission)}
                       >
-                        <SelectTrigger className="gba:w-32 gba:h-8">
+                        <SelectTrigger size="sm" className="gba:flex-shrink-0">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -520,7 +524,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="gba:h-8 gba:w-8 hover:gba:bg-destructive/10 hover:gba:text-destructive"
+                        className="gba:h-8 gba:w-8 gba:flex-shrink-0 hover:gba:bg-destructive/10 hover:gba:text-destructive"
                         onClick={() => removeUser(user.id)}
                         data-testid={`${testId}-remove-user-${user.id}`}
                       >

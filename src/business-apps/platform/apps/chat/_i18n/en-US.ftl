@@ -191,6 +191,7 @@ chat-continue = Continue
 chat-memberCount = {$count} members selected
 chat-createGroupError = Failed to create group. Please try again.
 chat-groupCreationFailed = Failed to create group. Please try again.
+chat-groupCreationDuplicate = A group chat for this group already exists.
 
 # Dimension Picker
 chat-selectFrom = Select from
@@ -232,7 +233,7 @@ chat-activeCallShort = In Call
 chat-addExpert = Add Expert
 chat-searchExperts = Search experts...
 chat-noExpertsFound = No experts found
-chat-createExpertsHint = Create experts in Task Expert Studio
+chat-createExpertsHint = Create agents in Enterprise Agent Studio
 chat-expertActive = Active
 chat-add = Add
 chat-knowledgeSourceCount = {$count ->
@@ -619,6 +620,7 @@ calendar-sidebar-dimensionViewerAccess = {$count ->
 }
 calendar-sidebar-membersPreview = Members
 calendar-sidebar-calendarExistsInfo = A shared calendar for this group already exists, so the existing calendar was selected.
+calendar-sidebar-calendarExistsError = A shared calendar for this group already exists.
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Schedule Meeting
@@ -640,6 +642,8 @@ calendar-videoCallPlaceholder = Video call link will be generated
 calendar-enterLocation = Enter location
 calendar-removeVideoCall = Remove video call
 calendar-addVideoCall = Add video call
+calendar-createMeetingChat = Create meeting chat
+calendar-createMeetingChatDescription = Create a group chat for updates and discussion about this meeting
 calendar-description = Description
 calendar-descriptionPlaceholder = Add meeting description or agenda...
 calendar-inviteParticipants = Invite Participants

@@ -64,7 +64,7 @@ export const parseUserTaskScreenKey = (screenKey: string): { processName: string
  */
 export const getScreenKeyCategory = (screenKey: string): 'screen' | 'action' | 'task' | null => {
   if (!screenKey?.trim()) return null
-  if (screenKey.startsWith('url_')) return 'screen'
+  if (screenKey.startsWith('url_') || screenKey.startsWith('sys_')) return 'screen'
   if (screenKey.startsWith('tfrm_') || screenKey.startsWith('twin_') || screenKey.startsWith('tpop_')) return 'task'
   if (screenKey.startsWith('frm_') || screenKey.startsWith('win_') || screenKey.startsWith('pop_')) return 'action'
   return null
@@ -79,7 +79,7 @@ export const getScreenKeyCategory = (screenKey: string): 'screen' | 'action' | '
  */
 export const getScreenKeyComponentType = (screenKey: string): 'screen' | 'form' | 'window' | 'popup' | null => {
   if (!screenKey?.trim()) return null
-  if (screenKey.startsWith('url_')) return 'screen'
+  if (screenKey.startsWith('url_') || screenKey.startsWith('sys_')) return 'screen'
   if (screenKey.startsWith('frm_') || screenKey.startsWith('tfrm_')) return 'form'
   if (screenKey.startsWith('win_') || screenKey.startsWith('twin_')) return 'window'
   if (screenKey.startsWith('pop_') || screenKey.startsWith('tpop_')) return 'popup'
@@ -182,6 +182,7 @@ export const normalToKebab = (str: string): string => {
 export const splitCombinedType = (combinedType: string): { builderType: string; screenType: string } => {
   const mapping: Record<string, { builderType: string; screenType: string }> = {
     'native-screen': { builderType: 'NATIVE_SCREEN', screenType: 'SCREEN' },
+    'system-component': { builderType: 'NATIVE_SCREEN', screenType: 'SCREEN' },
     'native-form': { builderType: 'NATIVE_SCREEN', screenType: 'FORM' },
     'native-popup': { builderType: 'NATIVE_SCREEN', screenType: 'POPUP' },
     'native-window': { builderType: 'NATIVE_SCREEN', screenType: 'WINDOW' },

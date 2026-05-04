@@ -1,14 +1,14 @@
-# Task Expert Studio Translations (English)
+# Enterprise Agent Studio Translations (English)
 
 # Page Header
-page-title = AI Task Expert Studio
-page-description = Create AI task experts from prompts and test integrations.
+page-title = Enterprise Agent Studio
+page-description = Create agents from prompts and test integrations.
 
 # Section
-section-label = AI Task Experts
+section-label = Agents
 
 # Actions
-new-task-expert = New AI Task Expert
+new-task-expert = New Enterprise Agent
 view = View
 edit = Edit
 test = Test
@@ -17,13 +17,13 @@ added-to-mesh = Added to Mesh
 already-in-mesh = Already in Mesh
 
 # Tabs
-tab-task-experts = AI Task Experts
+tab-task-experts = Agents
 tab-tools = Settings
 tab-monitoring = Monitoring
 tab-dashboard = Dashboard
 
 # Search
-search-placeholder = Search AI task experts...
+search-placeholder = Search agents...
 
 # Navigation / Common actions
 back = Back
@@ -65,12 +65,31 @@ agent-type-decision = Decision
 badge-public = Public
 
 # Empty State
-empty-message = No AI task experts found. Click 'New AI Task Expert' to create one.
+empty-message = No agents found. Click 'New Enterprise Agent' to create one.
 
 # Editor
-create-task-expert = Create AI Task Expert
-edit-task-expert = Edit AI Task Expert
-view-task-expert = AI Task Expert
+create-task-expert = Create Enterprise Agent
+edit-task-expert = Edit Agent
+view-task-expert = Agent
+
+# Form errors
+form-error-create-failed = Failed to create agent
+form-error-load-failed = Failed to load agents
+form-error-generate-failed = Failed to generate agent
+
+# Test panel
+test-dialog-title = Test Agent
+
+# Tools space
+tools-space-card-description = Manage MCP server connections for agents
+
+# MCP tools panel
+mcp-tools-configure-help-prefix = Choose which actions this agent can call for
+mcp-tools-configure-help-fallback = this MCP server
+
+# Internal tools panel
+internal-tools-step-add-to-agent = Add the function to your agent as a tool
+internal-tools-dialog-description = Pre-built tools for agents to interact with platform data.
 
 # View Mode
 view-edit-button = Configuration

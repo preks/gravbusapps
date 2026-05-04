@@ -1,20 +1,11 @@
-import React, { useState, useEffect, useMemo, useId } from 'react'
+import React, { useState, useMemo, useId } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Alert, Spinner, Combobox, Label } from '@newwork/nw-design-system'
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Alert,
-  Spinner,
-  Combobox,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Label
-} from '@newwork/nw-design-system'
-import { type FolderNode, type InvestmentFolderTemplateEditorProps, InvestmentCatalogType } from './types'
+  type FolderNode,
+  type InvestmentCatalogEntry,
+  type InvestmentFolderTemplateEditorProps,
+  InvestmentCatalogType
+} from './types'
 import { useInvestmentFolderTemplates } from './hooks/useInvestmentFolderTemplates'
 import { FolderTreeEditor } from './components'
 
@@ -26,6 +17,11 @@ const CATALOG_TYPE_LABELS: Record<InvestmentCatalogType, string> = {
   [InvestmentCatalogType.LIQUID_FUND_TYPE]: 'Liquid Fund Types'
 }
 
+interface SelectedTemplateTarget {
+  entry: InvestmentCatalogEntry
+  catalogType: InvestmentCatalogType
+}
+
 // Helper function to get empty text based on loading state and entries
 const getEmptyText = (isLoading: boolean, hasEntries: boolean): string => {
   if (isLoading) return 'Loading...'
@@ -33,44 +29,99 @@ const getEmptyText = (isLoading: boolean, hasEntries: boolean): string => {
   return 'No results'
 }
 
+const toComboboxOption = (entry: InvestmentCatalogEntry) => ({
+  value: entry.id,
+  label: entry.value || entry.code || 'Unknown'
+})
+
 export const InvestmentFolderTemplateEditor: React.FC<InvestmentFolderTemplateEditorProps> = ({
   accessToken,
   onSave,
   prefixDataTestId = DATA_TEST_ID
 }) => {
-  const [catalogType, setCatalogType] = useState<InvestmentCatalogType>(InvestmentCatalogType.GROUP)
-  const [selectedEntryId, setSelectedEntryId] = useState<string>('')
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('')
+  const [selectedTypeId, setSelectedTypeId] = useState<string>('')
+  const [selectedLiquidFundTypeId, setSelectedLiquidFundTypeId] = useState<string>('')
 
   // Generate unique IDs for form labels
-  const catalogTypeId = useId()
-  const entrySelectId = useId()
+  const groupSelectId = useId()
+  const typeSelectId = useId()
+  const liquidFundTypeSelectId = useId()
 
-  const { entries, isLoading, isSaving, error, saveFolderTemplate } = useInvestmentFolderTemplates(
-    accessToken,
-    catalogType
+  const groupTemplates = useInvestmentFolderTemplates(accessToken, InvestmentCatalogType.GROUP)
+  const typeTemplates = useInvestmentFolderTemplates(accessToken, InvestmentCatalogType.TYPE)
+  const liquidFundTypeTemplates = useInvestmentFolderTemplates(accessToken, InvestmentCatalogType.LIQUID_FUND_TYPE)
+
+  const selectedGroup = useMemo(
+    () => groupTemplates.entries.find(entry => entry.id === selectedGroupId) || null,
+    [groupTemplates.entries, selectedGroupId]
   )
 
-  // Find selected entry from entries
-  const selectedEntry = useMemo(() => {
-    return entries.find(e => e.id === selectedEntryId) || null
-  }, [entries, selectedEntryId])
+  const availableTypes = useMemo(
+    () => typeTemplates.entries.filter(entry => entry.parentEntryId === selectedGroupId),
+    [typeTemplates.entries, selectedGroupId]
+  )
 
-  // Transform entries to Combobox options
-  const entryOptions = useMemo(() => {
-    return entries.map(entry => ({
-      value: entry.id,
-      label: entry.value || entry.code || 'Unknown'
-    }))
-  }, [entries])
+  const selectedType = useMemo(
+    () => availableTypes.find(entry => entry.id === selectedTypeId) || null,
+    [availableTypes, selectedTypeId]
+  )
 
-  // Reset selected entry when catalog type changes
-  useEffect(() => {
-    setSelectedEntryId('')
-  }, [catalogType])
+  const availableLiquidFundTypes = useMemo(
+    () => liquidFundTypeTemplates.entries.filter(entry => entry.parentEntryId === selectedTypeId),
+    [liquidFundTypeTemplates.entries, selectedTypeId]
+  )
+
+  const selectedLiquidFundType = useMemo(
+    () => availableLiquidFundTypes.find(entry => entry.id === selectedLiquidFundTypeId) || null,
+    [availableLiquidFundTypes, selectedLiquidFundTypeId]
+  )
+
+  const selectedTarget = useMemo<SelectedTemplateTarget | null>(() => {
+    if (selectedLiquidFundType) {
+      return { entry: selectedLiquidFundType, catalogType: InvestmentCatalogType.LIQUID_FUND_TYPE }
+    }
+    if (selectedType) {
+      return { entry: selectedType, catalogType: InvestmentCatalogType.TYPE }
+    }
+    if (selectedGroup) {
+      return { entry: selectedGroup, catalogType: InvestmentCatalogType.GROUP }
+    }
+    return null
+  }, [selectedGroup, selectedType, selectedLiquidFundType])
+
+  const groupOptions = useMemo(() => groupTemplates.entries.map(toComboboxOption), [groupTemplates.entries])
+  const typeOptions = useMemo(() => availableTypes.map(toComboboxOption), [availableTypes])
+  const liquidFundTypeOptions = useMemo(
+    () => availableLiquidFundTypes.map(toComboboxOption),
+    [availableLiquidFundTypes]
+  )
+
+  const isLoading = groupTemplates.isLoading || typeTemplates.isLoading || liquidFundTypeTemplates.isLoading
+  const isSaving = groupTemplates.isSaving || typeTemplates.isSaving || liquidFundTypeTemplates.isSaving
+  const error = groupTemplates.error || typeTemplates.error || liquidFundTypeTemplates.error
+
+  const handleGroupChange = (value: string | null | undefined) => {
+    setSelectedGroupId(value || '')
+    setSelectedTypeId('')
+    setSelectedLiquidFundTypeId('')
+  }
+
+  const handleTypeChange = (value: string | null | undefined) => {
+    setSelectedTypeId(value || '')
+    setSelectedLiquidFundTypeId('')
+  }
 
   const handleSave = async (newFolders: FolderNode[]) => {
-    if (!selectedEntry) return false
-    const success = await saveFolderTemplate(selectedEntry, newFolders)
+    if (!selectedTarget) return false
+
+    const saveByCatalogType = {
+      [InvestmentCatalogType.GROUP]: groupTemplates.saveFolderTemplate,
+      [InvestmentCatalogType.TYPE]: typeTemplates.saveFolderTemplate,
+      [InvestmentCatalogType.LIQUID_FUND_TYPE]: liquidFundTypeTemplates.saveFolderTemplate
+    }
+
+    const success = await saveByCatalogType[selectedTarget.catalogType](selectedTarget.entry, newFolders)
     if (success) {
       onSave?.()
     }
@@ -78,9 +129,13 @@ export const InvestmentFolderTemplateEditor: React.FC<InvestmentFolderTemplateEd
   }
 
   // Get current folders from selected entry
-  const currentFolders = selectedEntry?.objectValue?.initFolders || []
+  const currentFolders = selectedTarget?.entry.objectValue?.initFolders || []
+  const targetLabel = selectedTarget?.entry.value || selectedTarget?.entry.code || 'selected investment template'
+  const hierarchyLabel = [selectedGroup?.value, selectedType?.value, selectedLiquidFundType?.value]
+    .filter(Boolean)
+    .join(' > ')
 
-  if (error && !selectedEntry) {
+  if (error && !selectedTarget) {
     return (
       <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
         {error}
@@ -90,63 +145,93 @@ export const InvestmentFolderTemplateEditor: React.FC<InvestmentFolderTemplateEd
 
   return (
     <div className="gba:space-y-4" data-testid={prefixDataTestId}>
-      {/* Catalog Type and Entry Selection */}
+      {/* Investment hierarchy selection */}
       <Card>
         <CardHeader className="gba:pb-3">
-          <CardTitle className="gba:text-base">Select Investment to Configure</CardTitle>
+          <CardTitle className="gba:text-base">Select Investment Template Scope</CardTitle>
+          <p className="gba:text-sm gba:text-muted-foreground">
+            Start with an investment group, then optionally narrow the template to a type or liquid fund type.
+          </p>
         </CardHeader>
         <CardContent className="gba:space-y-4">
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+          <div className="gba:grid gba:grid-cols-1 gba:gap-4 lg:gba:grid-cols-3">
             <div>
-              <Label htmlFor={catalogTypeId} className="gba:text-sm gba:font-medium gba:mb-2 gba:block">
-                Catalog Type
-              </Label>
-              <Select value={catalogType} onValueChange={(value: InvestmentCatalogType) => setCatalogType(value)}>
-                <SelectTrigger id={catalogTypeId} data-testid={`${prefixDataTestId}-catalog-type-select`}>
-                  <SelectValue placeholder="Select catalog type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(CATALOG_TYPE_LABELS).map(([type, label]) => (
-                    <SelectItem key={type} value={type}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor={entrySelectId} className="gba:text-sm gba:font-medium gba:mb-2 gba:block">
-                {CATALOG_TYPE_LABELS[catalogType]}
+              <Label htmlFor={groupSelectId} className="gba:text-sm gba:font-medium gba:mb-2 gba:block">
+                Investment Group
               </Label>
               <Combobox
-                id={entrySelectId}
-                options={entryOptions}
-                value={selectedEntryId}
-                onValueChange={value => setSelectedEntryId(value || '')}
-                placeholder={isLoading ? 'Loading...' : 'Search and select...'}
-                searchPlaceholder="Type to search..."
-                emptyText={getEmptyText(isLoading, entries.length > 0)}
-                loading={isLoading}
-                data-testid={`${prefixDataTestId}-entry-select`}
+                id={groupSelectId}
+                options={groupOptions}
+                value={selectedGroupId}
+                onValueChange={handleGroupChange}
+                placeholder={groupTemplates.isLoading ? 'Loading...' : 'Select group...'}
+                searchPlaceholder="Type to search groups..."
+                emptyText={getEmptyText(groupTemplates.isLoading, groupTemplates.entries.length > 0)}
+                loading={groupTemplates.isLoading}
+                data-testid={`${prefixDataTestId}-group-select`}
               />
             </div>
+
+            {selectedGroup && availableTypes.length > 0 && (
+              <div>
+                <Label htmlFor={typeSelectId} className="gba:text-sm gba:font-medium gba:mb-2 gba:block">
+                  Investment Type
+                </Label>
+                <Combobox
+                  id={typeSelectId}
+                  options={typeOptions}
+                  value={selectedTypeId}
+                  onValueChange={handleTypeChange}
+                  placeholder="Optional: select type..."
+                  searchPlaceholder="Type to search types..."
+                  emptyText={getEmptyText(typeTemplates.isLoading, availableTypes.length > 0)}
+                  loading={typeTemplates.isLoading}
+                  data-testid={`${prefixDataTestId}-type-select`}
+                />
+              </div>
+            )}
+
+            {selectedType && availableLiquidFundTypes.length > 0 && (
+              <div>
+                <Label htmlFor={liquidFundTypeSelectId} className="gba:text-sm gba:font-medium gba:mb-2 gba:block">
+                  Liquid Fund Type
+                </Label>
+                <Combobox
+                  id={liquidFundTypeSelectId}
+                  options={liquidFundTypeOptions}
+                  value={selectedLiquidFundTypeId}
+                  onValueChange={value => setSelectedLiquidFundTypeId(value || '')}
+                  placeholder="Optional: select liquid fund type..."
+                  searchPlaceholder="Type to search liquid fund types..."
+                  emptyText={getEmptyText(liquidFundTypeTemplates.isLoading, availableLiquidFundTypes.length > 0)}
+                  loading={liquidFundTypeTemplates.isLoading}
+                  data-testid={`${prefixDataTestId}-liquid-fund-type-select`}
+                />
+              </div>
+            )}
           </div>
+
+          {selectedTarget && (
+            <p className="gba:text-sm gba:text-muted-foreground" data-testid={`${prefixDataTestId}-selected-scope`}>
+              Editing {CATALOG_TYPE_LABELS[selectedTarget.catalogType].slice(0, -1)} template:{' '}
+              {hierarchyLabel || targetLabel}
+            </p>
+          )}
         </CardContent>
       </Card>
 
       {/* Show loading when fetching entries */}
-      {isLoading && !selectedEntry && (
+      {isLoading && !selectedTarget && (
         <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
           <Spinner size="lg" />
         </div>
       )}
 
       {/* Folder Tree Editor */}
-      {selectedEntry && (
+      {selectedTarget && (
         <FolderTreeEditor
           folders={currentFolders}
-          title={`Folder Structure for ${selectedEntry.value}`}
+          title={`Folder Structure for ${hierarchyLabel || targetLabel}`}
           isLoading={false}
           isSaving={isSaving}
           onSave={handleSave}

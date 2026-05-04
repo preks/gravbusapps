@@ -20,6 +20,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getReferenceEntityType } from '@/common/data/customer/utils'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 import { env } from '@/common/env/EnvUtils'
+import { ActivityAssociationsReadOnly } from '@/common/components/common-relations/activity-association'
 import { CrmActivityAssociationFields } from './CrmActivityAssociationFields'
 
 /** Fire-and-forget link of email message to CRM entity in document-service */
@@ -181,31 +182,47 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
 
   const activityRef = useRef(activity)
 
-  const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
-    try {
-      delete data.files
-      delete data._pendingFiles
-      delete data.relatedEntityId
+  const handleSubmit = useCallback(
+    async (data: z.infer<typeof activitySchema>) => {
+      try {
+        delete data.files
+        delete data._pendingFiles
+        delete data.relatedEntityId
 
-      // Build payload (buildPayload will include creator fields from activityData)
-      const { salesActivity } = buildCustomerActivityPayload(data as Partial<CustomerActivity>)
-
-      // Ensure additionalProperties with emailMessageId is included in payload
-      if (data.additionalProperties?.emailMessageId) {
-        salesActivity.additionalProperties = {
-          ...(salesActivity.additionalProperties || {}),
-          emailMessageId: data.additionalProperties.emailMessageId
+        // In update mode, all entity associations + the owner are locked in the UI.
+        // Re-stamp the canonical ids from the loaded activity so the payload always
+        // round-trips the original associations regardless of any transient form
+        // state (avoids accidental clears caused by re-renders / hydration races).
+        const loaded = activityRef.current
+        if (isUpdateMode && loaded) {
+          ;(data as any).accountId = loaded.accountId ?? null
+          ;(data as any).contactId = loaded.contactId ?? null
+          ;(data as any).leadId = loaded.leadId ?? null
+          ;(data as any).opportunityId = loaded.opportunityId ?? null
+          ;(data as any).ownerEmployeeId = loaded.ownerEmployeeId ?? loaded.ownerEmployee?.id ?? null
         }
-      }
 
-      return {
-        salesActivity
+        // Build payload (buildPayload will include creator fields from activityData)
+        const { salesActivity } = buildCustomerActivityPayload(data as Partial<CustomerActivity>)
+
+        // Ensure additionalProperties with emailMessageId is included in payload
+        if (data.additionalProperties?.emailMessageId) {
+          salesActivity.additionalProperties = {
+            ...(salesActivity.additionalProperties || {}),
+            emailMessageId: data.additionalProperties.emailMessageId
+          }
+        }
+
+        return {
+          salesActivity
+        }
+      } catch (error) {
+        console.error('Error submitting activity:', error)
+        throw error
       }
-    } catch (error) {
-      console.error('Error submitting activity:', error)
-      throw error
-    }
-  }, [])
+    },
+    [isUpdateMode]
+  )
 
   const handlePreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -413,13 +430,22 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
             existingDocuments={form.watch('documents') || []}
             onDocumentRemove={handleDocumentRemove}
             loading={activityLoading && isUpdateMode}
+            readOnlyOwner={isUpdateMode}
             data-testid="sales-activity-layout"
             associationFields={
-              <CrmActivityAssociationFields
-                accessToken={accessToken}
-                entitySearchOptions={entities}
-                data-testid="crm-activity-associations"
-              />
+              isUpdateMode ? (
+                <ActivityAssociationsReadOnly
+                  variant="crm"
+                  activity={activity}
+                  data-testid="crm-activity-associations-readonly"
+                />
+              ) : (
+                <CrmActivityAssociationFields
+                  accessToken={accessToken}
+                  entitySearchOptions={entities}
+                  data-testid="crm-activity-associations"
+                />
+              )
             }
           />
         </div>

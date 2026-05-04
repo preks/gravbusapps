@@ -24,10 +24,12 @@ no-salary-record = No salary record
 
 # Compensation Band
 band-title = Compensation Band
+band-short-label = Band
 band-name = Band Name
 band-salary-range = Salary Range
 band-pay-grade = Pay Grade
 band-level = Level
+band-position-label = Position in compensation band
 band-loading = Loading compensation band...
 band-no-band-assigned = No compensation band assigned. Compensation bands are linked through job levels.
 
@@ -539,6 +541,8 @@ add-skill-form-update-level-title = Update skill level
 add-skill-form-search-skills-title = Search Skills
 add-skill-form-search-skill-placeholder = Search skill...
 add-skill-form-selected-skills-label = Select Skill Level
+add-skill-form-skills-to-assign-label = Skills to Assign
+add-skill-form-new-skill-badge = New
 add-skill-form-deactivated-employee-skills-label = Deactivated Employee Skills
 add-skill-form-current-employee-skills-label = Current Employee Skills
 add-skill-form-no-current-skills = No current skills

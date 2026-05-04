@@ -283,7 +283,7 @@ export async function fetchAutomationsForSingleSheet(
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     }),
-    fetch(`${docServiceUrl}/spreadsheets/${app.id}/sheets/${sheetId}`, {
+    fetch(getSpreadsheetApiUrl(docServiceUrl, `/${app.id}/sheets/${sheetId}`), {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     })
@@ -490,7 +490,7 @@ export async function resolveRecipientProfile(
   graphqlClient: ReturnType<typeof useGraphQLClient>,
   recipientId: string
 ): Promise<RecipientProfile> {
-  const fallbackName = recipientId ? `User ${recipientId.slice(0, 8)}` : 'Unknown user'
+  const fallbackName = recipientId ? `#${recipientId.slice(0, 8)}` : ''
   if (!graphqlClient || !recipientId) return { recipientName: fallbackName }
 
   for (const queryFn of [GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID]) {

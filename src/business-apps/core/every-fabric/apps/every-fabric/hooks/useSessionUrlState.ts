@@ -8,6 +8,7 @@ function getSessionIdFromUrl(): string | null {
 
 function getViewFromUrl(): string | null {
   if (typeof globalThis.location === 'undefined') return null
+  if (globalThis.location.pathname.endsWith('/skills')) return 'skills'
   return new URLSearchParams(globalThis.location.search).get('view')
 }
 

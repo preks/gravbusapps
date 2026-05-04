@@ -16,11 +16,11 @@ export function buildExpenseItemDetailsFields(displayItem: ExpenseItem, statusBa
     },
     {
       label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date'),
-      value: displayItem.expenseDate ? formatDate(displayItem.expenseDate, 'date.long') : 'N/A'
+      value: displayItem.expenseDate ? formatDate(displayItem.expenseDate, 'date.short') : 'N/A'
     },
     {
       label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.invoice_date', 'Invoice Date'),
-      value: displayItem.invoiceDate ? formatDate(displayItem.invoiceDate, 'date.long') : 'N/A'
+      value: displayItem.invoiceDate ? formatDate(displayItem.invoiceDate, 'date.short') : 'N/A'
     },
     ...(typeof displayItem.description === 'string' && displayItem.description
       ? [

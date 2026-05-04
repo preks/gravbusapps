@@ -16,16 +16,175 @@ import {
   PencilSimple,
   Check,
   User,
-  Robot
+  Robot,
+  FilePdf
 } from '@phosphor-icons/react'
 import { useUserPreferencesContext } from '../context/UserPreferencesContext'
-import type { BehaviorNote } from '../hooks/useUserPreferences'
+import type { BehaviorNote, UserSelectableLlmModel, UserSelectableLlmProvider } from '../hooks/useUserPreferences'
+import {
+  DeveloperSettings,
+  SettingRow,
+  SettingSegmentedControl,
+  SettingSelect,
+  SettingToggle,
+  type SegmentedControlOption,
+  type SelectOption
+} from './DeveloperSettings'
+import { isDevTenant } from '../utils/tenantEnv'
+
+/**
+ * Choice surfaced in the LLM-provider segmented control. `'default'` is a
+ * UI-only sentinel that maps to `null` on the wire (= "use server default").
+ */
+type LlmProviderChoice = 'default' | UserSelectableLlmProvider
+
+const LLM_PROVIDER_OPTIONS: ReadonlyArray<SegmentedControlOption<LlmProviderChoice>> = [
+  { value: 'default', label: 'Default' },
+  { value: 'azure', label: 'Azure' },
+  { value: 'stackit', label: 'StackIT' },
+  { value: 'groq', label: 'Groq' },
+  { value: 'anthropic', label: 'Anthropic' }
+]
+
+/**
+ * Semantic model "kinds" used internally by the backend to pick a model
+ * for a given use case (see ``_MODEL_KIND_PROVIDER_DEFAULTS`` in
+ * ``flowbot/src/core/constants/config.py``). Surfaced in the UI as a
+ * small badge next to each model so devs know *why* a particular model
+ * would normally be chosen.
+ *
+ * Note: when the user pins a specific model from this picker, `model_kind`
+ * is deliberately ignored -- the pin wins unconditionally. The tags are
+ * purely informational.
+ */
+type ModelKind = 'default' | 'smart' | 'fast' | 'cheap'
+
+const MODEL_KIND_LABEL: Record<ModelKind, string> = {
+  default: 'Default',
+  smart: 'Smart',
+  fast: 'Fast',
+  cheap: 'Cheap'
+}
+
+/**
+ * Mirror of ``_MODEL_KIND_PROVIDER_DEFAULTS`` from the backend config.
+ * The **reverse** lookup (model -> kinds) is what the UI actually needs,
+ * so we build it lazily below.
+ */
+const MODEL_KINDS_BY_PROVIDER: Record<UserSelectableLlmProvider, Record<ModelKind, string>> = {
+  azure: {
+    default: 'gpt-4.1',
+    smart: 'gpt-5',
+    fast: 'gpt-4.1-mini',
+    cheap: 'gpt-4o-mini'
+  },
+  stackit: {
+    default: 'openai/gpt-oss-120b',
+    smart: 'openai/gpt-oss-120b',
+    fast: 'openai/gpt-oss-120b',
+    cheap: 'openai/gpt-oss-20b'
+  },
+  groq: {
+    default: 'openai/gpt-oss-120b',
+    smart: 'openai/gpt-oss-120b',
+    fast: 'openai/gpt-oss-120b',
+    cheap: 'openai/gpt-oss-20b'
+  },
+  anthropic: {
+    default: 'claude-sonnet-4-20250514',
+    smart: 'claude-opus-4-1-20250805',
+    fast: 'claude-sonnet-4-5-20250929',
+    cheap: 'claude-haiku-4-5-20251001'
+  }
+}
+
+const KIND_ORDER: ReadonlyArray<ModelKind> = ['default', 'smart', 'fast', 'cheap']
+
+/** Returns the kinds (in stable order) that a given model fills for a provider. */
+function kindsForModel(provider: UserSelectableLlmProvider, model: string): ModelKind[] {
+  const mapping = MODEL_KINDS_BY_PROVIDER[provider]
+  return KIND_ORDER.filter(kind => mapping[kind] === model)
+}
+
+/** Formats the dropdown option: `model-id — Default · Smart`. */
+function formatModelLabel(provider: UserSelectableLlmProvider, model: string): string {
+  const kinds = kindsForModel(provider, model)
+  if (kinds.length === 0) return model
+  return `${model} — ${kinds.map(k => MODEL_KIND_LABEL[k]).join(' · ')}`
+}
+
+/**
+ * Canonical model ids selectable per provider, kept in sync with the
+ * backend's ``MODELS_BY_PROVIDER`` in ``flowbot/src/core/constants/config.py``
+ * (``AZURE_MODELS`` / ``STACKIT_MODELS`` / ``GROQ_MODELS`` / ``ANTHROPIC_MODELS``).
+ * Adding a model here without adding it there will make the backend silently
+ * fall back to the provider's default (it rejects unknown pairings).
+ *
+ * Labels deliberately use the full canonical model id -- no friendly
+ * renaming -- so the value the backend receives is unambiguous from the
+ * label a developer sees. A kind badge (Default/Smart/Fast/Cheap) is
+ * appended when the model is the provider's pick for that kind.
+ */
+const PROVIDER_MODEL_IDS: Record<UserSelectableLlmProvider, ReadonlyArray<UserSelectableLlmModel>> = {
+  azure: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o', 'gpt-4o-mini', 'o4-mini', 'gpt-5', 'Mistral-Large-3'],
+  stackit: [
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
+    'cortecs/Llama-3.3-70B-Instruct-FP8-Dynamic',
+    'Qwen/Qwen3-VL-235B-A22B-Instruct-FP8',
+    'neuralmagic/Mistral-Nemo-Instruct-2407-FP8',
+    'neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8',
+    'google/gemma-3-27b-it'
+  ],
+  groq: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'],
+  anthropic: [
+    'claude-sonnet-4-20250514',
+    'claude-opus-4-1-20250805',
+    'claude-sonnet-4-5-20250929',
+    'claude-3-7-sonnet-latest',
+    'claude-haiku-4-5-20251001'
+  ]
+}
+
+const MODELS_BY_PROVIDER: Record<UserSelectableLlmProvider, ReadonlyArray<SelectOption<UserSelectableLlmModel>>> = (
+  Object.keys(PROVIDER_MODEL_IDS) as UserSelectableLlmProvider[]
+).reduce(
+  (acc, provider) => {
+    acc[provider] = PROVIDER_MODEL_IDS[provider].map(model => ({
+      value: model,
+      label: formatModelLabel(provider, model)
+    }))
+    return acc
+  },
+  {} as Record<UserSelectableLlmProvider, ReadonlyArray<SelectOption<UserSelectableLlmModel>>>
+)
+
+/**
+ * Canonical default model per provider, mirroring the backend's
+ * ``PROVIDER_DEFAULT_MODEL``. Used when the user switches providers to
+ * reset the pinned model to something guaranteed-valid for the new
+ * provider.
+ */
+const DEFAULT_MODEL_BY_PROVIDER: Record<UserSelectableLlmProvider, UserSelectableLlmModel> = {
+  azure: 'gpt-4.1',
+  stackit: 'openai/gpt-oss-120b',
+  groq: 'openai/gpt-oss-120b',
+  anthropic: 'claude-sonnet-4-20250514'
+}
 
 interface UserPreferencesProps {
   darkMode?: boolean
+  /**
+   * Developer-only callback to export the current chat session as a PDF.
+   * When provided and developer settings are visible, an extra row is
+   * surfaced inside the developer settings card.
+   */
+  onPrintSession?: () => void
+  /** Disable the print-session button (e.g. when the conversation is empty). */
+  canPrintSession?: boolean
 }
 
-export function UserPreferences({ darkMode = false }: UserPreferencesProps) {
+export function UserPreferences({ darkMode = false, onPrintSession, canPrintSession = true }: UserPreferencesProps) {
   const {
     preferences,
     isLoading,
@@ -131,6 +290,75 @@ export function UserPreferences({ darkMode = false }: UserPreferencesProps) {
     setEditingIndex(null)
     setEditingText('')
   }, [])
+
+  // ---- Developer settings ---------------------------------------------------
+  // Only surfaced on dev tenants (newwork-dev). On stage/prod the entire
+  // section -- and therefore the LLM-provider override and chat-cache
+  // toggle -- is hidden, so non-developer users can never opt themselves
+  // into experimental behaviour they don't see.
+  const showDeveloperSettings = isDevTenant()
+  const settings = preferences?.settings ?? {}
+  const chatCacheEnabled = settings.chat_cache_enabled === true
+  const llmProviderChoice: LlmProviderChoice = settings.llm_provider ?? 'default'
+  const settingsDisabled = isLoading || isSaving || preferences === null
+
+  // Model dropdown is only meaningful once a concrete provider has been
+  // pinned -- when on 'default' we hide it so users aren't confused into
+  // thinking the model pick applies.
+  const pinnedProvider: UserSelectableLlmProvider | null = llmProviderChoice === 'default' ? null : llmProviderChoice
+  const modelOptions = pinnedProvider ? MODELS_BY_PROVIDER[pinnedProvider] : []
+  const pinnedModel: UserSelectableLlmModel | null = settings.llm_model ?? null
+  // Fall back to the provider's canonical default in the UI when the stored
+  // model isn't valid for the current provider -- this mirrors what the
+  // backend does when resolving the pin, so the displayed choice always
+  // matches the actual model used.
+  const effectiveModel: UserSelectableLlmModel = pinnedProvider
+    ? pinnedModel && modelOptions.some(opt => opt.value === pinnedModel)
+      ? pinnedModel
+      : DEFAULT_MODEL_BY_PROVIDER[pinnedProvider]
+    : ''
+
+  const handleToggleChatCache = useCallback(
+    async (next: boolean) => {
+      setIsSaving(true)
+      const success = await updatePreferences({
+        settings: { chat_cache_enabled: next }
+      })
+      setIsSaving(false)
+      if (success) refresh()
+    },
+    [updatePreferences, refresh]
+  )
+
+  const handleSelectLlmProvider = useCallback(
+    async (next: LlmProviderChoice) => {
+      // 'default' is the UI sentinel for "no override"; send null on the wire
+      // so the backend clears any previously-pinned provider (and any
+      // dangling pinned model -- the model is meaningless without a
+      // provider and could be invalid for whatever the server picks next).
+      const wireProvider: UserSelectableLlmProvider | null = next === 'default' ? null : next
+      const wireModel: UserSelectableLlmModel | null = wireProvider ? DEFAULT_MODEL_BY_PROVIDER[wireProvider] : null
+      setIsSaving(true)
+      const success = await updatePreferences({
+        settings: { llm_provider: wireProvider, llm_model: wireModel }
+      })
+      setIsSaving(false)
+      if (success) refresh()
+    },
+    [updatePreferences, refresh]
+  )
+
+  const handleSelectLlmModel = useCallback(
+    async (next: UserSelectableLlmModel) => {
+      setIsSaving(true)
+      const success = await updatePreferences({
+        settings: { llm_model: next }
+      })
+      setIsSaving(false)
+      if (success) refresh()
+    },
+    [updatePreferences, refresh]
+  )
 
   if (!isModalOpen) return null
 
@@ -506,6 +734,87 @@ export function UserPreferences({ darkMode = false }: UserPreferencesProps) {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Developer settings — dev tenants only. Always rendered once
+              the initial spinner is gone, even when preferences failed to
+              load: the toggles auto-disable themselves via
+              `settingsDisabled` and the print-session button is purely
+              client-side, so it must remain available when the backend
+              is unreachable. */}
+          {showDeveloperSettings && !(isLoading && !preferences) && (
+            <div className="gba:mt-6">
+              <DeveloperSettings darkMode={darkMode}>
+                <SettingRow
+                  darkMode={darkMode}
+                  label="Cache chat answers"
+                  description="Reuse answers for identical or semantically similar questions to make replies faster and cheaper."
+                  control={
+                    <SettingToggle
+                      darkMode={darkMode}
+                      checked={chatCacheEnabled}
+                      disabled={settingsDisabled}
+                      ariaLabel="Toggle chat answer caching"
+                      onChange={handleToggleChatCache}
+                    />
+                  }
+                />
+                <SettingRow
+                  darkMode={darkMode}
+                  layout="stacked"
+                  label="LLM provider"
+                  description="Pin chats to a specific provider, or leave on Default to use the server's choice."
+                  control={
+                    <SettingSegmentedControl<LlmProviderChoice>
+                      darkMode={darkMode}
+                      value={llmProviderChoice}
+                      options={LLM_PROVIDER_OPTIONS}
+                      disabled={settingsDisabled}
+                      ariaLabel="Select LLM provider"
+                      onChange={handleSelectLlmProvider}
+                    />
+                  }
+                />
+                {pinnedProvider && (
+                  <SettingRow
+                    darkMode={darkMode}
+                    layout="stacked"
+                    label="LLM model"
+                    description="Pick a specific model within the chosen provider's family. Only applies when a provider is pinned."
+                    control={
+                      <SettingSelect<UserSelectableLlmModel>
+                        darkMode={darkMode}
+                        value={effectiveModel}
+                        options={modelOptions}
+                        disabled={settingsDisabled}
+                        ariaLabel="Select LLM model"
+                        onChange={handleSelectLlmModel}
+                      />
+                    }
+                  />
+                )}
+                {onPrintSession && (
+                  <SettingRow
+                    darkMode={darkMode}
+                    label="Print session"
+                    description="Open the current conversation in a print-ready view to save it as a PDF."
+                    control={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onPrintSession}
+                        disabled={!canPrintSession}
+                        aria-label="Print session as PDF"
+                        className="gba:inline-flex gba:items-center gba:gap-2"
+                      >
+                        <FilePdf className="gba:h-4 gba:w-4" />
+                        Save PDF
+                      </Button>
+                    }
+                  />
+                )}
+              </DeveloperSettings>
             </div>
           )}
         </div>

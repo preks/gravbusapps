@@ -1,6 +1,11 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EMPLOYEE_COMPENSATION_DATA } from '../queries/compensationQueries'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import {
+  GET_COMPENSATION_BAND_POLICY_FOR_EMPLOYEE,
+  GET_EMPLOYEE_COMPENSATION_DATA
+} from '../queries/compensationQueries'
 import {
   CompensationData,
   EmployeeBonus,
@@ -15,7 +20,86 @@ import {
   transformBonus,
   transformBenefit
 } from '../utils/compensationTransformers'
-import { formatDate } from '@/common/utils/windowUtils'
+
+interface SiteLocationResult {
+  id: string
+  geo_zone?: string | null
+}
+
+type SiteLocationResponse = SiteLocationResult[] | { data?: SiteLocationResult[] }
+
+interface ActiveStructureResponse {
+  structure?: { structureId?: string }
+}
+
+function formatGraphQLDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function extractSiteLocations(response: SiteLocationResponse): SiteLocationResult[] {
+  if (Array.isArray(response)) {
+    return response
+  }
+  return response.data ?? []
+}
+
+async function resolveActiveStructureId(
+  orgchartClient: ReturnType<typeof useOrgchartClient>,
+  accessToken: string
+): Promise<string | null> {
+  const activeStructureId = getCurrentActiveStructureId()
+  if (activeStructureId) {
+    return activeStructureId
+  }
+
+  return orgchartClient
+    .getStructuresActive<ActiveStructureResponse>(
+      { nodeType: 'cost_center', isPlanningMode: false },
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    .then(response => response.structure?.structureId ?? null)
+    .catch(() => null)
+}
+
+async function resolveGeoZoneId(
+  orgchartClient: ReturnType<typeof useOrgchartClient>,
+  accessToken: string,
+  siteLocationId: string | null | undefined
+): Promise<string | null> {
+  if (!siteLocationId) {
+    return null
+  }
+
+  const structureId = await resolveActiveStructureId(orgchartClient, accessToken)
+  if (!structureId) {
+    return siteLocationId
+  }
+
+  return orgchartClient
+    .getSiteLocations<SiteLocationResponse>(
+      { structureId, limit: 1000, offset: 0 },
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    .then(response => {
+      const siteLocation = extractSiteLocations(response).find(location => location.id === siteLocationId)
+      return siteLocation?.geo_zone?.trim() || siteLocationId
+    })
+    .catch(() => siteLocationId)
+}
+
+function getJobFamilyId(
+  employeePosition: EmployeeSalaryResponse['EmployeePosition'][number] | undefined
+): string | null {
+  return (
+    employeePosition?.jobPosition?.jobFunction?.jobFamily?.id?.trim() ||
+    employeePosition?.jobPosition?.jobProfile?.jobFunction?.jobFamily?.id?.trim() ||
+    null
+  )
+}
 
 /**
  * Hook to fetch and manage current employee compensation data
@@ -53,6 +137,7 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
   const [error, setError] = useState<string | null>(null)
 
   const graphqlClient = useGraphQLClient(accessToken)
+  const orgchartClient = useOrgchartClient(accessToken)
 
   const fetchData = useCallback(async () => {
     // Early validation - skip silently if no employeeId or accessToken
@@ -68,8 +153,8 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
       setLoading(true)
       setError(null)
 
-      // Get today's date in ISO format (YYYY-MM-DD) for server-side filtering
-      const today = formatDate(new Date(), 'date.ISO') || new Date().toISOString().split('T')[0]
+      // Get today's date in GraphQL date format (YYYY-MM-DD) for server-side filtering.
+      const today = formatGraphQLDate(new Date())
 
       // Fetch current compensation data from GraphQL
       // Server-side filtering: APPROVED + started salaries (up to 5 records)
@@ -103,8 +188,29 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
 
       // Extract and transform compensation band
       const employeePosition = result?.EmployeePosition?.[0]
-      const jobLevel = employeePosition?.jobPosition?.jobLevel
-      const compensationBandData = jobLevel?.compensationBand
+      let compensationBandData: any = null
+
+      const jobFamilyId = getJobFamilyId(employeePosition)
+      const jobLevelId = employeePosition?.jobPosition?.jobLevel?.id?.trim() || null
+      const geoZoneId = await resolveGeoZoneId(orgchartClient, accessToken, employeePosition?.siteLocationId)
+
+      if (jobFamilyId && jobLevelId && geoZoneId) {
+        const compensationBandResult = await graphqlClient
+          .request<{ CompensationBandPolicy?: Array<{ compensationBand: any | null }> }>(
+            GET_COMPENSATION_BAND_POLICY_FOR_EMPLOYEE,
+            {
+              jobFamilyId,
+              jobLevelId,
+              geoZoneId
+            }
+          )
+          .catch((error: unknown) => {
+            console.warn('[useCurrentCompensation] Compensation band policy lookup failed.', error)
+            return null
+          })
+
+        compensationBandData = compensationBandResult?.CompensationBandPolicy?.[0]?.compensationBand || null
+      }
       const compensationBand = transformCompensationBand(compensationBandData)
 
       // Transform employee salary to current compensation
@@ -191,7 +297,7 @@ export const useCurrentCompensation = (employeeId: string, accessToken: string) 
     } finally {
       setLoading(false)
     }
-  }, [employeeId, accessToken, graphqlClient])
+  }, [employeeId, accessToken, graphqlClient, orgchartClient])
 
   useEffect(() => {
     fetchData()

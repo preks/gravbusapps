@@ -21,29 +21,13 @@ import {
 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@newwork/nw-design-system'
 import type { SlideTemplateSummary, TemplateCategory } from '../types'
-import type { SlideData, SlideBackground } from './slideElements'
+import type { SlideData, SlideBackground, VideoElement } from './slideElements'
 import { gradientToCss } from './slideElements'
 import translations from '../_i18n'
+import { sanitizeSlideImageUrl } from '../utils/slideMediaUrl'
+import { resolveVideoPreviewUrl } from '../utils/videoElement'
 
-/**
- * Sanitize media URL to prevent XSS attacks.
- * Only allows https, http, data:image, blob, or relative paths.
- */
-const sanitizeMediaUrl = (url: string | undefined): string => {
-  if (!url) return ''
-  const trimmed = url.trim()
-  if (
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('data:image/') ||
-    trimmed.startsWith('blob:') ||
-    trimmed.startsWith('/') ||
-    trimmed.startsWith('./')
-  ) {
-    return trimmed
-  }
-  return ''
-}
+const sanitizeMediaUrl = sanitizeSlideImageUrl
 
 const SLIDE_WIDTH = 1280
 const SLIDE_HEIGHT = 720
@@ -71,7 +55,14 @@ const getBackgroundStyle = (background: SlideBackground): React.CSSProperties =>
         ? { backgroundImage: `url(${background.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
         : {}
     case 'video':
-      return { backgroundColor: '#000000' }
+      return background.videoPreviewImageUrl
+        ? {
+            backgroundImage: `url(${sanitizeMediaUrl(background.videoPreviewImageUrl)})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundColor: '#000000'
+          }
+        : { backgroundColor: '#000000' }
     default:
       return { backgroundColor: background.color || '#ffffff' }
   }
@@ -179,6 +170,13 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
                   {el.type === 'image' && sanitizeMediaUrl((el as any).src) && (
                     <img
                       src={sanitizeMediaUrl((el as any).src)}
+                      alt=""
+                      className="gba:w-full gba:h-full gba:object-cover"
+                    />
+                  )}
+                  {el.type === 'video' && sanitizeMediaUrl(resolveVideoPreviewUrl(el as VideoElement)) && (
+                    <img
+                      src={sanitizeMediaUrl(resolveVideoPreviewUrl(el as VideoElement))}
                       alt=""
                       className="gba:w-full gba:h-full gba:object-cover"
                     />

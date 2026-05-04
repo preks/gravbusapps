@@ -68,6 +68,81 @@ describe('useSpreadsheetAppsHubUrlState', () => {
     expect(setActiveSection).toHaveBeenCalledWith('tasks')
   })
 
+  it('falls back to my-files when URL restores shared while the tab is hidden', () => {
+    const setActiveSection = jest.fn()
+    window.history.pushState({}, '', '/platform/apps/spreadsheet-apps?section=shared')
+
+    renderHook(() =>
+      useSpreadsheetAppsHubUrlState({
+        currentView: 'list',
+        currentAppId: null,
+        isLoadingApps: false,
+        loadAppById: async () => null,
+        setSelectedAppId: () => undefined,
+        setCurrentView: () => undefined,
+        activeSection: 'recent',
+        setActiveSection,
+        showSharedSection: false
+      })
+    )
+
+    expect(setActiveSection).toHaveBeenCalledWith('my-files')
+  })
+
+  it('does not persist shared section in URL when the tab is hidden', () => {
+    const { result } = renderHook(() =>
+      useSpreadsheetAppsHubUrlState({
+        currentView: 'list',
+        currentAppId: null,
+        isLoadingApps: false,
+        loadAppById: async () => null,
+        setSelectedAppId: () => undefined,
+        setCurrentView: () => undefined,
+        activeSection: 'shared',
+        setActiveSection: () => undefined,
+        showSharedSection: false
+      })
+    )
+
+    act(() => {
+      result.current.updateUrl(null)
+    })
+
+    expect(window.location.search).toBe('')
+  })
+
+  it('does not restore the previous URL section after the user switches tabs', () => {
+    const setActiveSection = jest.fn()
+    window.history.pushState({}, '', '/platform/apps/spreadsheet-apps?section=favorites')
+
+    const { rerender } = renderHook(
+      ({ activeSection }) =>
+        useSpreadsheetAppsHubUrlState({
+          currentView: 'list',
+          currentAppId: null,
+          isLoadingApps: false,
+          loadAppById: async () => null,
+          setSelectedAppId: () => undefined,
+          setCurrentView: () => undefined,
+          activeSection,
+          setActiveSection
+        }),
+      {
+        initialProps: {
+          activeSection: 'my-files' as const
+        }
+      }
+    )
+
+    expect(setActiveSection).toHaveBeenCalledWith('favorites')
+
+    setActiveSection.mockClear()
+
+    rerender({ activeSection: 'tasks' })
+
+    expect(setActiveSection).not.toHaveBeenCalled()
+  })
+
   it('loads trashed app previews from URL when trash view is requested', async () => {
     const loadAppById = jest.fn().mockResolvedValue({ id: 'app-1' })
     const setSelectedAppId = jest.fn()

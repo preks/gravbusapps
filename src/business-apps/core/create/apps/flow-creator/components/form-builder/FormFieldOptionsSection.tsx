@@ -1,12 +1,7 @@
 import React from 'react'
 import { Button, Input, Label } from '@newwork/nw-design-system'
 import { Database, List, Plus, X } from 'lucide-react'
-import {
-  InputType,
-  type DataSource,
-  type InputBlock,
-  type InputOption
-} from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { InputType, type DataSource, type InputBlock, type InputOption } from '@/common/data/flow/types/flowTemplate'
 import type { DesignerMode } from '../../types/studioTypes'
 import { CatalogSourceSection } from './CatalogSourceSection'
 import { EntitySourceSection } from './EntitySourceSection'

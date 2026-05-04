@@ -24,10 +24,12 @@ no-salary-record = Nu există înregistrare salarială
 
 # Compensation Band
 band-title = Bandă de compensare
+band-short-label = Bandă
 band-name = Nume bandă
 band-salary-range = Interval salarial
 band-pay-grade = Grad de salarizare
 band-level = Nivel
+band-position-label = Poziția în banda de compensare
 band-loading = Se încarcă banda de compensare...
 band-no-band-assigned = Nicio bandă de compensare atribuită. Benzile de compensare sunt legate prin niveluri de muncă.
 
@@ -532,6 +534,8 @@ add-skill-form-update-level-title = Actualizează nivelul competenței
 add-skill-form-search-skills-title = Caută competențe
 add-skill-form-search-skill-placeholder = Caută competență...
 add-skill-form-selected-skills-label = Selectează nivelul competenței
+add-skill-form-skills-to-assign-label = Competențe de atribuit
+add-skill-form-new-skill-badge = Nou
 add-skill-form-deactivated-employee-skills-label = Competențe dezactivate ale angajatului
 add-skill-form-current-employee-skills-label = Competențele curente ale angajatului
 add-skill-form-no-current-skills = Nicio competență curentă

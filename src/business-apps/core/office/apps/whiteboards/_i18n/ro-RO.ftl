@@ -101,6 +101,26 @@ trashed-readonly-go-home = Mergeți la Whiteboard-uri
 trashed-readonly-restore = Restaurare
 trashed-readonly-restoring = Se restaurează...
 
+header-selected-count = { $count } selectate
+trash-bulk-restore = Restaurează
+trash-bulk-restoring = Se restaurează...
+trash-bulk-delete-permanently = Șterge permanent
+trash-bulk-restored = { $count } { $count ->
+    [one] whiteboard
+   *[other] whiteboard-uri
+  } restaurate
+trash-bulk-deleted = { $count } { $count ->
+    [one] whiteboard
+   *[other] whiteboard-uri
+  } șterse permanent
+trash-delete-dialog-title-single = Ștergi permanent?
+trash-delete-dialog-title-multiple = Ștergi permanent { $count } elemente?
+trash-delete-dialog-description-single = „{ $name }" va fi șters permanent și nu poate fi restaurat. Această acțiune nu poate fi anulată.
+trash-delete-dialog-description-multiple = { $count } elemente vor fi șterse permanent și nu pot fi restaurate. Această acțiune nu poate fi anulată.
+trash-delete-dialog-cancel = Anulează
+trash-delete-dialog-confirm = Șterge permanent
+trash-delete-dialog-deleting = Se șterge...
+
 toast-moved-to-trash = Whiteboard mutat în coș
 toast-move-to-trash-failed = Mutarea whiteboard-ului în coș a eșuat
 toast-restored = Whiteboard restaurat
@@ -109,6 +129,18 @@ toast-rename-failed = Redenumirea whiteboard-ului a eșuat
 toast-duplicated = Whiteboard duplicat
 toast-duplicate-failed = Duplicarea whiteboard-ului a eșuat
 whiteboard-open-failed = Acest whiteboard nu a putut fi deschis
+whiteboard-comments-toggle = Comută comentariile
+whiteboard-comments-add = Adaugă comentariu
+whiteboard-view-readonly-banner = Ai acces doar pentru vizualizare la acest whiteboard.
+whiteboard-comment-readonly-banner = Poți comenta pe acest whiteboard, dar desenarea și AI sunt dezactivate.
+whiteboard-comment-placement = Fă clic pe whiteboard pentru a plasa comentariul
+whiteboard-comment-select-location = Alege mai întâi o poziție pe whiteboard înainte de a crea un comentariu.
+whiteboard-comment-anchor-label = Locația comentariului de pe whiteboard
+whiteboard-comment-panel-disabled = Folosește „Adaugă comentariu” și alege o poziție pe whiteboard pentru a începe un fir nou.
+whiteboard-comment-panel-placeholder = Adaugă un comentariu la locația selectată de pe whiteboard...
+whiteboard-comment-popover-placeholder = Adaugă un comentariu pentru această locație de pe whiteboard...
+whiteboard-comment-create-failed = Comentariul de pe whiteboard nu a putut fi creat.
+whiteboard-comment-reply-failed = Răspunsul nu a putut fi trimis.
 
 time-just-now = Chiar acum
 time-minutes-ago = { $count ->
@@ -138,3 +170,11 @@ whiteboard-ai-placeholder = Descrie ce să desenez...
 whiteboard-ai-attach-image = Atașează imagine
 whiteboard-ai-remove-image = Elimină imaginea
 whiteboard-ai-image-too-large = Imaginea este prea mare. Dimensiunea maximă este 4 MB.
+trash-action-restore = Restaurează
+trash-action-restoring = Se restaurează...
+trash-action-delete = Șterge permanent
+trash-action-deleting = Se șterge...
+trash-toast-restored = Whiteboard restaurat
+trash-toast-restore-failed = Restaurarea whiteboard-ului a eșuat
+trash-toast-deleted = Whiteboard șters permanent
+trash-toast-delete-failed = Ștergerea permanentă a whiteboard-ului a eșuat

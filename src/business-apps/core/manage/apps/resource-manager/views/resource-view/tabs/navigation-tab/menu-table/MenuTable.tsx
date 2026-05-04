@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { DragOverlay } from '@dnd-kit/core'
-import { Button, Badge, Skeleton } from '@newwork/nw-design-system'
+import { Button, Skeleton } from '@newwork/nw-design-system'
 import { CaretDownIcon, CaretRightIcon, PlusIcon } from '@phosphor-icons/react'
 import { createTreeModifier } from './utils/dndModifiers'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 import { parseIconName, EMPTY_ICON_VALUE } from '../../../../../utils/iconUtils'
 import { useEditableState } from '../../../../../hooks/useEditableState'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getEntityType } from './utils/menuItemUtils'
 import { SortableTreeItem } from './components/tree/SortableTreeItem'
 import { TreeItem } from './components/tree/TreeItem'
 import { MenuItemRow } from './components/tree/MenuItem'
@@ -133,7 +132,6 @@ export const MenuTable: React.FC<MenuTableProps> = ({
         icon: item.icon || '',
         rank: item.rank ?? 0,
         resourceUrlId: item.resourceUrlId || item.resourceUrl?.id || '',
-        code: item.code || '',
         level: item.level ?? 0,
         parentId: item.parentId || undefined,
         hubId: item.hubId || undefined,
@@ -230,7 +228,6 @@ export const MenuTable: React.FC<MenuTableProps> = ({
       const isExpanded = treeState.expandedItems.has(itemId)
       const hasChildren = !!(item.children && item.children.length > 0)
       const isHub = item.level === 0
-      const entityType = getEntityType(item)
       const hasEdits = editableState.hasEdits(itemId)
       const isSaving = editableState.state.savingEntryId === itemId && editableState.state.isSaving
       const isDraft = itemId.startsWith('draft:')
@@ -245,10 +242,14 @@ export const MenuTable: React.FC<MenuTableProps> = ({
       const displayName = edits?.name ?? item.name
       const displayIconDB = edits?.icon ?? item.icon ?? EMPTY_ICON_VALUE
       const displayDescription = edits?.description ?? item.description ?? ''
-      const displayCode = edits?.code ?? item.code ?? ''
       const nameTranslated = edits?.nameTranslated ?? item.nameTranslated ?? {}
       const descriptionTranslated = edits?.descriptionTranslated ?? item.descriptionTranslated ?? {}
       const displayIconName = parseIconName(displayIconDB)
+      const comboboxResourceUrlId =
+        (edits?.resourceUrlId as string) ??
+        item.resourceUrlId ??
+        (item as { resourceUrl?: { id: string } }).resourceUrl?.id ??
+        ''
 
       return (
         <div key={itemId} className="gba:border-l gba:border-border" data-testid={`${dataTestId}-menu-item-${itemId}`}>
@@ -258,7 +259,6 @@ export const MenuTable: React.FC<MenuTableProps> = ({
             isExpanded={isExpanded}
             hasChildren={hasChildren}
             isHub={isHub}
-            entityType={entityType}
             hasEdits={hasEdits}
             isSaving={isSaving}
             isDraft={isDraft}
@@ -267,7 +267,6 @@ export const MenuTable: React.FC<MenuTableProps> = ({
             displayName={displayName}
             displayIconDB={displayIconDB}
             displayDescription={displayDescription}
-            displayCode={displayCode}
             nameTranslated={nameTranslated}
             descriptionTranslated={descriptionTranslated}
             displayIconName={displayIconName}
@@ -278,7 +277,8 @@ export const MenuTable: React.FC<MenuTableProps> = ({
             handleDiscardEntry={actions.handleDiscardEntry}
             handleDelete={actions.handleDelete}
             handleDiscard={handleDiscardRow}
-            editableState={editableState}
+            onFieldEdit={editableState.onFieldEdit}
+            comboboxResourceUrlId={comboboxResourceUrlId}
             resourceUrlOptions={resourceUrlOptions}
             onResourceUrlSearch={handleNavigationSearch}
             navigationsLoading={navigationsLoading}
@@ -347,8 +347,10 @@ export const MenuTable: React.FC<MenuTableProps> = ({
 
       return (
         <div key={spaceType} className="gba:mb-4" data-testid={`${dataTestId}-space-${spaceType}`}>
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
+            aria-expanded={isExpanded}
             className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:py-3 gba:px-4 gba:bg-muted gba:rounded-t-md gba:border-b gba:border-border gba:cursor-pointer gba:hover:bg-muted/80 gba:transition-colors"
             onClick={() => treeState.toggleSpaceExpansion(spaceType)}
             onKeyDown={e => {
@@ -373,9 +375,6 @@ export const MenuTable: React.FC<MenuTableProps> = ({
                 <CaretRightIcon className="gba:h-4 gba:w-4" />
               )}
             </Button>
-            <Badge variant="outline" className="gba:text-xs">
-              S
-            </Badge>
             <span className="gba:text-lg gba:font-bold">{spaceLabel}</span>
             <span className="gba:text-sm gba:text-muted-foreground">
               ({items.length} hub{items.length === 1 ? '' : 's'})
@@ -395,7 +394,7 @@ export const MenuTable: React.FC<MenuTableProps> = ({
                 <PlusIcon className="gba:h-4 gba:w-4" />
               </Button>
             )}
-          </button>
+          </div>
           {(isExpanded || isDraggingHubOverSpace) && (
             <div className="gba:border gba:border-t-0 gba:rounded-b-md gba:bg-background">
               {itemsToRender.length === 0 && !isDraggingHubOverSpace ? (

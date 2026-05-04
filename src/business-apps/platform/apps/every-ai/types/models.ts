@@ -98,7 +98,7 @@ export type EntityData = {
   // New enriched fields coming from backend to avoid hardcoded queries
   text_title?: string
   text_human?: string
-  text_full?: string | null
+  text_full?: string | Record<string, unknown> | null
   tool?: string
   flow_proposal?: string
   /** Normalized entity link URL with optional alternateId fragment for redirects */
@@ -463,6 +463,64 @@ export type DocumentStreamErrorOutput = {
   message: string
 }
 
+/**
+ * Cursor-style reasoning step. Emitted by the backend when the agent starts a
+ * tool call (or a tool-internal sub-operation like a GraphQL generate / RAG
+ * lookup). Patched later with a ReasoningStepUpdateOutput when it finishes.
+ * Persists across the final `answer` — users can expand a step after the
+ * turn completes to inspect what actually happened.
+ */
+export type ReasoningStepKind =
+  | 'tool_call'
+  | 'handoff'
+  | 'graphql_generate'
+  | 'graphql_execute'
+  | 'internal_search'
+  | 'rag_lookup'
+  | 'thought'
+
+export type ReasoningStepStatus = 'running' | 'done' | 'error'
+
+export type ReasoningStepOutput = {
+  type: 'reasoning_step'
+  id: string
+  parent_id?: string | null
+  kind: ReasoningStepKind
+  title: string
+  status: ReasoningStepStatus
+  args?: unknown
+  result?: unknown
+  error?: string | null
+  started_at?: number | null
+  ended_at?: number | null
+}
+
+/**
+ * Patch for an existing ReasoningStepOutput (keyed by `id`). The frontend
+ * shallow-merges any non-undefined fields into the previously-appended step.
+ */
+export type ReasoningStepUpdateOutput = {
+  type: 'reasoning_step_update'
+  id: string
+  status?: ReasoningStepStatus
+  args?: unknown
+  result?: unknown
+  error?: string | null
+  ended_at?: number | null
+}
+
+/**
+ * Incremental assistant-message token for token-by-token rendering of the
+ * final answer. `run_id` groups deltas belonging to the same streaming
+ * bubble. The canonical `AnswerOutput` still arrives at turn-end and
+ * replaces the streaming bubble with the structured payload.
+ */
+export type TextDeltaOutput = {
+  type: 'text_delta'
+  delta: string
+  run_id?: string | null
+}
+
 export type OutputItem =
   | AnswerOutput
   | ToolOutput
@@ -473,6 +531,9 @@ export type OutputItem =
   | DocumentStreamChunkOutput
   | DocumentStreamCompleteOutput
   | DocumentStreamErrorOutput
+  | ReasoningStepOutput
+  | ReasoningStepUpdateOutput
+  | TextDeltaOutput
 
 export type ChatOutput = {
   items: OutputItem[]

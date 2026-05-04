@@ -38,11 +38,9 @@ export const JOB_POSITION_QUERY = `
             _or: [
               { name: { _ilike: $search } },
               { jobFunction: { name: { _ilike: $search } } },
-              { jobFunction: { jobFamily: { value: { _ilike: $search } } } },
+              { jobFunction: { jobFamily: { name: { _ilike: $search } } } },
               { jobLevel: { name: { _ilike: $search } } },
               { jobProfile: { name: { _ilike: $search } } },
-              { contractType: { value: { _ilike: $search } } },
-              { employmentType: { value: { _ilike: $search } } },
               { employeePositions: {
                   _or: [
                     { firstName: { _ilike: $search } },
@@ -64,24 +62,29 @@ export const JOB_POSITION_QUERY = `
     ) {
       id
       name
+      version
       activeTo
       jobFunction { 
         id 
         name 
         jobFamily {
-          value
           id
           code
-          catalogId
-          translations {
-            value
-            localeCode
-            id
-          }
+          name
         }
       }
-      jobLevel { id name }
-      jobProfile { id name }
+      jobLevel {
+        id
+        code
+        name
+        hierarchyOrder
+      }
+      jobProfile {
+        id
+        name
+        title
+        code
+      }
       employeePositions {
         employeeId
         firstName
@@ -94,32 +97,14 @@ export const JOB_POSITION_QUERY = `
         pictureThumbnail
       }
       }
-      contractType {
-        value
-        id
-        code
-        catalogId
-        translations {
-          value
-          localeCode
-          id
-        }
-      }
-      employmentType {
-        value
-        id
-        code
-        catalogId
-        translations {
-          value
-          localeCode
-          id
-        }
-      }
       organizationalUnitEmployees {
         organizationalUnit {
           name
           id
+        }
+        siteLocation {
+          code
+          name
         }
       }
     }
@@ -139,11 +124,9 @@ export const JOB_POSITION_QUERY = `
             _or: [
               { name: { _ilike: $search } },
               { jobFunction: { name: { _ilike: $search } } },
-              { jobFunction: { jobFamily: { value: { _ilike: $search } } } },
+              { jobFunction: { jobFamily: { name: { _ilike: $search } } } },
               { jobLevel: { name: { _ilike: $search } } },
               { jobProfile: { name: { _ilike: $search } } },
-              { contractType: { value: { _ilike: $search } } },
-              { employmentType: { value: { _ilike: $search } } },
               { employeePositions: {
                   _or: [
                     { firstName: { _ilike: $search } },

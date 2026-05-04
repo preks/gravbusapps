@@ -24,9 +24,19 @@ import {
 import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { TranslatableField } from '@/components/translatable-field'
+import {
+  buildCatalogValueTranslations,
+  DEFAULT_CATALOG_LOCALE,
+  DEFAULT_CATALOG_TRANSLATIONS,
+  getCatalogValueTranslations,
+  getDefaultCatalogValue,
+  type CatalogTranslationMap
+} from '../../utils/catalogTranslations'
 
 interface ConditionFormData {
   name: string
+  nameTranslations: CatalogTranslationMap
   description: string
   generate_task: boolean
   checked_type: 'Automated' | 'User' | 'Manager' | 'Owner'
@@ -62,6 +72,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
   editingCondition,
   selectedStage,
   catalogConfig,
+  prefixDataTestId = 'condition-form',
   accessToken
 }) => {
   const [operationLoading, setOperationLoading] = useState(false)
@@ -70,6 +81,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
   const form = useForm<ConditionFormData>({
     defaultValues: {
       name: '',
+      nameTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
       description: '',
       generate_task: false,
       checked_type: 'User',
@@ -91,7 +103,8 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
 
       const newConditionEntry = {
         code: code,
-        value: data.name,
+        value: getDefaultCatalogValue(data.nameTranslations, data.name),
+        localeCode: DEFAULT_CATALOG_LOCALE,
         alternativeCode: 'CONDITION',
         parentEntryId: selectedStage.id,
         additionalValue1: newRank.toString(),
@@ -106,7 +119,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
           deadline_duration: data.deadline_duration,
           deadline_duration_measurement_unit_ref: data.deadline_duration_measurement_unit_ref
         },
-        translations: []
+        translations: buildCatalogValueTranslations(data.nameTranslations, data.name)
       }
 
       await catalogClient.createCatalogEntry(
@@ -132,12 +145,15 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
       setOperationLoading(true)
 
       // Fetch the current condition data to preserve all fields
-      const currentCondition = await catalogClient.getCatalogEntryById(editingCondition.id)
+      const currentCondition = await catalogClient.readCatalogEntryById(editingCondition.id, {
+        includeTranslations: true
+      })
 
       const updateData = {
         id: editingCondition.id,
         code: editingCondition.code,
-        value: data.name,
+        value: getDefaultCatalogValue(data.nameTranslations, data.name),
+        localeCode: currentCondition.localeCode || DEFAULT_CATALOG_LOCALE,
         alternativeCode: 'CONDITION',
         parentEntryId: selectedStage.id,
         displayOrder: editingCondition.displayOrder,
@@ -151,7 +167,8 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
           deadline_enabled: data.deadline_enabled,
           deadline_duration: data.deadline_duration,
           deadline_duration_measurement_unit_ref: data.deadline_duration_measurement_unit_ref
-        }
+        },
+        translations: buildCatalogValueTranslations(data.nameTranslations, data.name)
       }
 
       await catalogClient.updateCatalogEntry(
@@ -179,6 +196,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
       if (editingCondition) {
         form.reset({
           name: editingCondition.value,
+          nameTranslations: getCatalogValueTranslations(editingCondition),
           description: editingCondition.objectValue?.description || editingCondition.additionalValue1 || '',
           generate_task: editingCondition.objectValue?.generateTask || false,
           checked_type: editingCondition.objectValue?.check_type || 'User',
@@ -190,6 +208,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
       } else {
         form.reset({
           name: '',
+          nameTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
           description: '',
           generate_task: false,
           checked_type: 'User',
@@ -209,7 +228,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="gba:flex gba:flex-col gba:max-h-[85vh] gba:overflow-hidden">
+      <DialogContent className="gba:flex gba:flex-col gba:max-h-screen gba:overflow-hidden">
         <DialogHeader className="gba:flex-shrink-0">
           <DialogTitle>{editingCondition ? 'Edit Condition' : 'Create New Condition'}</DialogTitle>
           <DialogDescription>
@@ -224,6 +243,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
             <form
               onSubmit={form.handleSubmit(handleSubmit)}
               className="gba:flex gba:h-full gba:min-h-0 gba:flex-1 gba:flex-col gba:overflow-hidden"
+              data-testid={`${prefixDataTestId}-form`}
             >
               <div className="gba:min-h-0 gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:pr-1">
                 {/* Basic Information Section */}
@@ -240,7 +260,18 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                       <FormItem>
                         <FormLabel>Condition Name</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Please Enter..." />
+                          <TranslatableField
+                            label=""
+                            value={field.value}
+                            onChange={field.onChange}
+                            translations={form.watch('nameTranslations') || DEFAULT_CATALOG_TRANSLATIONS}
+                            onTranslationsChange={nameTranslations =>
+                              form.setValue('nameTranslations', nameTranslations, { shouldDirty: true })
+                            }
+                            defaultLanguage={DEFAULT_CATALOG_LOCALE}
+                            placeholder="Please Enter..."
+                            data-testid={`${prefixDataTestId}-name-input`}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -254,7 +285,11 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                       <FormItem>
                         <FormLabel>Description</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="Please Enter..." />
+                          <Input
+                            {...field}
+                            placeholder="Please Enter..."
+                            data-testid={`${prefixDataTestId}-description-input`}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -276,7 +311,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                         <FormLabel>Checked By</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger data-testid={`${prefixDataTestId}-checked-type-select`}>
                               <SelectValue placeholder="Select who checks this condition" />
                             </SelectTrigger>
                           </FormControl>
@@ -299,7 +334,11 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                     render={({ field }) => (
                       <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0">
                         <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid={`${prefixDataTestId}-generate-task-checkbox`}
+                          />
                         </FormControl>
                         <div className="gba:space-y-1 gba:leading-none">
                           <FormLabel>Generate Task</FormLabel>
@@ -317,7 +356,11 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                     render={({ field }) => (
                       <FormItem className="gba:flex gba:flex-row gba:items-start gba:space-x-3 gba:space-y-0">
                         <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid={`${prefixDataTestId}-deadline-enabled-checkbox`}
+                          />
                         </FormControl>
                         <div className="gba:space-y-1 gba:leading-none">
                           <FormLabel>Enable Deadline</FormLabel>
@@ -341,6 +384,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                               type="number"
                               min="1"
                               onChange={e => field.onChange(Number.parseInt(e.target.value) || 1)}
+                              data-testid={`${prefixDataTestId}-deadline-duration-input`}
                             />
                           </FormControl>
                           <FormMessage />
@@ -352,10 +396,16 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
               </div>
 
               <DialogFooter className="gba:flex-shrink-0 gba:pt-4">
-                <Button type="button" variant="outline" onClick={onClose} disabled={operationLoading}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  disabled={operationLoading}
+                  data-testid={`${prefixDataTestId}-cancel-button`}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={operationLoading}>
+                <Button type="submit" disabled={operationLoading} data-testid={`${prefixDataTestId}-submit-button`}>
                   {getSubmitButtonText()}
                 </Button>
               </DialogFooter>

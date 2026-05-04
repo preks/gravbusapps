@@ -76,7 +76,14 @@ export {
 
 // Shared analytics hooks (used by both CRM and IRM)
 export { useActivityHeatmap, type ActivityHeatmapData } from './useActivityHeatmap'
-export { useDealHealthData, type DealHealthData } from './useDealHealthData'
+export {
+  useDealHealthData,
+  type DealHealthData,
+  type DealHealthItem,
+  type DealHealthConfig,
+  type DealHealthXMetric,
+  type DealScoringStrategy
+} from './useDealHealthData'
 export { useLeadsTrendData, type LeadsTrendData } from './useLeadsTrendData'
 export { useRevenueTrends, type RevenueTrendData, type TimeFilter } from './useRevenueTrends'
 export { useTopDeals, type TopDeal } from './useTopDeals'

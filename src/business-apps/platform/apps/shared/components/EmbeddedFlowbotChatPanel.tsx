@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { Button, Spinner } from '@newwork/nw-design-system'
 import { Sparkles, X, Trash2 } from 'lucide-react'
 import { useFlowBot } from '../../every-ai/hooks/useFlowBot'
 import { ConversationRenderer } from '../../every-ai/components/ConversationRenderer'
@@ -47,11 +47,18 @@ export const EmbeddedFlowbotChatPanel: React.FC<EmbeddedFlowbotChatPanelProps> =
     sessionId,
     cancelGeneration,
     cancelledMessageText,
-    clearCancelledMessage
+    clearCancelledMessage,
+    loadMoreHistory,
+    hasMoreHistory,
+    isLoadingMoreHistory
   } = useFlowBot(accessToken, { isActive: true })
 
   const conversationRef = useRef<HTMLDivElement>(null)
   const lastSentInitialPromptRef = useRef<string | null>(null)
+  // Distance-from-bottom captured before prepending older messages; used so
+  // the viewport stays anchored to the currently visible content instead of
+  // jumping back down via the auto-scroll effect below.
+  const preservedDistanceFromBottomRef = useRef<number | null>(null)
 
   useEffect(() => {
     onStateChange?.({ conversation, isLoading, isGenerating })
@@ -67,10 +74,28 @@ export const EmbeddedFlowbotChatPanel: React.FC<EmbeddedFlowbotChatPanelProps> =
     onInitialPromptConsumed?.()
   }, [initialPrompt, isGenerating, sendMessage, onInitialPromptConsumed])
 
-  useEffect(() => {
-    if (!conversationRef.current) return
-    conversationRef.current.scrollTop = conversationRef.current.scrollHeight
+  useLayoutEffect(() => {
+    const el = conversationRef.current
+    if (!el) return
+    if (preservedDistanceFromBottomRef.current !== null) {
+      const distanceFromBottom = preservedDistanceFromBottomRef.current
+      preservedDistanceFromBottomRef.current = null
+      el.scrollTop = Math.max(0, el.scrollHeight - distanceFromBottom)
+      return
+    }
+    el.scrollTop = el.scrollHeight
   }, [conversation, isLoading])
+
+  const handleLoadMoreHistory = useCallback(async () => {
+    const el = conversationRef.current
+    if (el) {
+      preservedDistanceFromBottomRef.current = el.scrollHeight - el.scrollTop
+    }
+    const prependedCount = await loadMoreHistory()
+    if (prependedCount === 0) {
+      preservedDistanceFromBottomRef.current = null
+    }
+  }, [loadMoreHistory])
 
   const hasConversation = useMemo(() => conversation.length > 0, [conversation.length])
 
@@ -121,6 +146,21 @@ export const EmbeddedFlowbotChatPanel: React.FC<EmbeddedFlowbotChatPanelProps> =
           {!hasConversation && (
             <div className="gba:rounded-md gba:border gba:border-dashed gba:border-border gba:p-4 gba:text-sm gba:text-muted-foreground">
               Ask for edits directly here. The assistant uses the same `chat v2` + monolith tools as EveryAI.
+            </div>
+          )}
+
+          {hasMoreHistory && hasConversation && (
+            <div className="gba:flex gba:justify-center gba:pb-2">
+              <Button
+                onClick={handleLoadMoreHistory}
+                variant="ghost"
+                size="sm"
+                disabled={isLoadingMoreHistory}
+                className="gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
+                data-testid="embedded-flowbot-load-more-history"
+              >
+                {isLoadingMoreHistory ? <Spinner size="sm" /> : 'Load older messages'}
+              </Button>
             </div>
           )}
 

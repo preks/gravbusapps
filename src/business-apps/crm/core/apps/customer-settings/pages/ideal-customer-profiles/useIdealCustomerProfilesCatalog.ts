@@ -5,6 +5,14 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { IcpProfileListItem } from './IcpProfileListSidebar'
 import {
+  buildCatalogValueTranslations,
+  DEFAULT_CATALOG_LOCALE,
+  DEFAULT_CATALOG_TRANSLATIONS,
+  getCatalogValueTranslations,
+  getDefaultCatalogValue,
+  type CatalogTranslationMap
+} from '@/common/components/common-relations/setting-pages/utils/catalogTranslations'
+import {
   createEmptyIcpFormState,
   formStateToObjectValue,
   isWeightsTotalOverLimit,
@@ -28,6 +36,9 @@ export function useIdealCustomerProfilesCatalog(
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedEntry, setSelectedEntry] = useState<CatalogEntry | null>(null)
   const [profileName, setProfileName] = useState('')
+  const [profileNameTranslations, setProfileNameTranslations] = useState<CatalogTranslationMap>({
+    ...DEFAULT_CATALOG_TRANSLATIONS
+  })
   const [formState, setFormState] = useState<IcpFormState>(() => createEmptyIcpFormState())
 
   const [listLoading, setListLoading] = useState(true)
@@ -40,6 +51,9 @@ export function useIdealCustomerProfilesCatalog(
   const [newDialogOpen, setNewDialogOpen] = useState(false)
   const [newCode, setNewCode] = useState('')
   const [newName, setNewName] = useState('')
+  const [newNameTranslations, setNewNameTranslations] = useState<CatalogTranslationMap>({
+    ...DEFAULT_CATALOG_TRANSLATIONS
+  })
   const [creating, setCreating] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<IcpProfileListItem | null>(null)
@@ -58,6 +72,7 @@ export function useIdealCustomerProfilesCatalog(
           limit: 200,
           offset: 0,
           returnTotalRecords: true,
+          includeTranslations: true,
           includeChildCatalogEntries: false
         }
       )
@@ -87,6 +102,7 @@ export function useIdealCustomerProfilesCatalog(
     if (!accessToken || !selectedId) {
       setSelectedEntry(null)
       setProfileName('')
+      setProfileNameTranslations({ ...DEFAULT_CATALOG_TRANSLATIONS })
       setFormState(createEmptyIcpFormState())
       return
     }
@@ -97,10 +113,11 @@ export function useIdealCustomerProfilesCatalog(
       try {
         setDetailLoading(true)
         setSaveError(null)
-        const entry = await catalogClient.getCatalogEntryById(selectedId)
+        const entry = await catalogClient.readCatalogEntryById(selectedId, { includeTranslations: true })
         if (cancelled) return
-        setSelectedEntry(entry)
+        setSelectedEntry(entry as CatalogEntry)
         setProfileName(entry.value ?? '')
+        setProfileNameTranslations(getCatalogValueTranslations(entry))
         setFormState(objectValueToFormState(entry.objectValue))
       } catch (e) {
         if (!cancelled) {
@@ -136,31 +153,42 @@ export function useIdealCustomerProfilesCatalog(
       setSaving(true)
       setSaveError(null)
       const objectValue = formStateToObjectValue(formState)
+      const value = getDefaultCatalogValue(profileNameTranslations, profileName)
       await updateCatalogEntry(CATALOG_ID, CATALOG_VERSION, selectedEntry.id, {
         id: selectedEntry.id,
         code: selectedEntry.code,
-        value: profileName,
+        value,
+        localeCode: selectedEntry.localeCode || DEFAULT_CATALOG_LOCALE,
         type: selectedEntry.type,
         objectValue,
-        translations: []
+        translations: buildCatalogValueTranslations(profileNameTranslations, profileName)
       })
       await loadProfiles()
-      const refreshed = await catalogClient.getCatalogEntryById(selectedEntry.id)
-      setSelectedEntry(refreshed)
+      const refreshed = await catalogClient.readCatalogEntryById(selectedEntry.id, { includeTranslations: true })
+      setSelectedEntry(refreshed as CatalogEntry)
       setFormState(objectValueToFormState(refreshed.objectValue))
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save profile')
     } finally {
       setSaving(false)
     }
-  }, [accessToken, catalogClient, formState, loadProfiles, profileName, selectedEntry, updateCatalogEntry])
+  }, [
+    accessToken,
+    catalogClient,
+    formState,
+    loadProfiles,
+    profileName,
+    profileNameTranslations,
+    selectedEntry,
+    updateCatalogEntry
+  ])
 
   const handleCreate = useCallback(async () => {
     if (!accessToken) {
       return
     }
     const code = newCode.trim()
-    const name = newName.trim()
+    const name = getDefaultCatalogValue(newNameTranslations, newName)
     if (!code || !name) {
       return
     }
@@ -169,12 +197,14 @@ export function useIdealCustomerProfilesCatalog(
       const created = await createCatalogEntry(CATALOG_ID, CATALOG_VERSION, {
         code,
         value: name,
+        localeCode: DEFAULT_CATALOG_LOCALE,
         objectValue: {},
-        translations: []
+        translations: buildCatalogValueTranslations(newNameTranslations, newName)
       } as Omit<CatalogEntry, 'id' | 'type'>)
       setNewDialogOpen(false)
       setNewCode('')
       setNewName('')
+      setNewNameTranslations({ ...DEFAULT_CATALOG_TRANSLATIONS })
       await loadProfiles()
       setSelectedId(created.id)
     } catch (e) {
@@ -182,7 +212,7 @@ export function useIdealCustomerProfilesCatalog(
     } finally {
       setCreating(false)
     }
-  }, [accessToken, createCatalogEntry, loadProfiles, newCode, newName])
+  }, [accessToken, createCatalogEntry, loadProfiles, newCode, newName, newNameTranslations])
 
   const confirmDelete = useCallback(async () => {
     if (!accessToken || !deleteTarget) {
@@ -211,6 +241,8 @@ export function useIdealCustomerProfilesCatalog(
     selectedEntry,
     profileName,
     setProfileName,
+    profileNameTranslations,
+    setProfileNameTranslations,
     formState,
     setFormState,
     listLoading,
@@ -226,6 +258,8 @@ export function useIdealCustomerProfilesCatalog(
     setNewCode,
     newName,
     setNewName,
+    newNameTranslations,
+    setNewNameTranslations,
     creating,
     deleteTarget,
     setDeleteTarget,

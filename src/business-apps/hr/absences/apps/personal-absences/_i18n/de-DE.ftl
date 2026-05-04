@@ -9,7 +9,7 @@ absence-request-option-work = Arbeitsbezogene Abwesenheit beantragen
 calendar = Kalender
 back-to-dashboard = Zurück zur Übersicht
 absence-overview = Abwesenheiten
-change-entitlement = Kontingent ändern
+change-entitlement = Ansprüche bearbeiten
 
 # My Balance
 my-balance = Mein Kontostand
@@ -27,6 +27,10 @@ no-upcoming-absences = Keine geplanten Abwesenheiten
 company-holiday = Feiertag
 pending-requests = Offene Anträge
 no-pending-requests = Keine offenen Anträge
+action = Aktion
+cancel-request = Antrag stornieren
+cancel-request-success = Abwesenheitsantrag storniert
+cancel-request-error = Abwesenheitsantrag konnte nicht storniert werden
 
 # My Absence History
 my-absence-history = Meine Abwesenheitshistorie

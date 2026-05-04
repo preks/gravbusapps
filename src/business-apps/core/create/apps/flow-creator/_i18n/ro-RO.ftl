@@ -174,7 +174,7 @@ task-links-url-placeholder = https://exemplu.ro
 task-links-document-url = Referință document (expresie)
 task-links-document-url-placeholder = {{ $steps.step_0.formData.fileField }}
 
-# AI Task Expert parameter mapping
+# Enterprise Agent parameter mapping
 task-input-params = Parametri de intrare
 task-input-params-loading = Se încarcă parametrii...
 task-input-params-empty = Nu au fost găsiți parametri.
@@ -263,8 +263,8 @@ decision-policy-optional-placeholder = Opțional: selectează o politică...
 decision-ai-executor-label = Executor IA
 decision-ai-executor-everyai = EveryAI
 decision-ai-executor-everyai-desc = Folosește instrucțiuni de decizie (cu context de flux) și lasă EveryAI să aleagă ramura potrivită.
-decision-ai-executor-taskexpert = AI Task Expert
-decision-ai-executor-taskexpert-desc = Rulează Task Expert și rutează prin reguli de mapare. Dacă nicio regulă nu se potrivește, un om alege ramura.
+decision-ai-executor-taskexpert = Enterprise Agent
+decision-ai-executor-taskexpert-desc = Rulează agentul și rutează prin reguli de mapare. Dacă nicio regulă nu se potrivește, un om alege ramura.
 decision-ai-type-label = Configurare decizie
 decision-ai-type-policy = Ghidat de politică
 decision-ai-type-policy-desc = Folosiți un document de politică drept ghid pentru decizie.
@@ -282,12 +282,12 @@ decision-human-instructions-label = Mesajul sarcinii fallback
 decision-human-instructions-desc = Obligatoriu. Este afișat când un om trebuie să aleagă ramura. Poți insera context de flux.
 decision-human-instructions-placeholder = ex. IA nu a putut decide. Te rugăm să alegi cea mai potrivită ramură.
 decision-ai-taskexpert-mapping-label = Reguli de mapare
-decision-ai-taskexpert-mapping-desc = Definește reguli care mapează ieșirea Task Expert către o ramură.
-decision-ai-taskexpert-picker-desc = Selectează ce Task Expert trebuie să ruleze pentru această decizie.
-decision-ai-taskexpert-picker-placeholder = Selectează un Task Expert...
-decision-ai-taskexpert-picker-search = Caută Task Experts...
-decision-ai-taskexpert-picker-empty = Nu s-au găsit Task Experts.
-decision-ai-taskexpert-params-desc = Mapează explicit fiecare parametru al promptului la contextul de flux care trebuie trimis către Task Expert-ul selectat.
+decision-ai-taskexpert-mapping-desc = Definește reguli care mapează ieșirea agentului către o ramură.
+decision-ai-taskexpert-picker-desc = Selectează ce agent trebuie să ruleze pentru această decizie.
+decision-ai-taskexpert-picker-placeholder = Selectează un agent...
+decision-ai-taskexpert-picker-search = Caută agenți...
+decision-ai-taskexpert-picker-empty = Nu s-au găsit agenți.
+decision-ai-taskexpert-params-desc = Mapează explicit fiecare parametru al promptului la contextul de flux care trebuie trimis către agentul selectat.
 decision-ai-taskexpert-reasoning-label = Mapare ieșire pentru justificare
 decision-ai-taskexpert-reasoning-desc = Opțional. Selectează câmpul din ieșire care va fi folosit ca justificare pentru fallback-ul uman.
 decision-ai-taskexpert-reasoning-placeholder = Selectează câmpul (opțional)
@@ -332,3 +332,14 @@ validation-orphan-nodes = Noduri orfane detectate
 validation-fork-no-join = Nodul de împărțire nu are un nod de unificare corespunzător
 validation-decision-branches = Decizia trebuie să aibă cel puțin 2 ramuri
 validation-disconnected = Unele noduri nu sunt conectate
+validation-decision-must-select-agent = Decizia "{ $label }" trebuie să selecteze un Enterprise Agent
+validation-decision-unmapped-agent-params = Decizia "{ $label }" trebuie să mapeze toți parametrii agentului înainte de publicare: { $params }
+
+# Add step panel
+add-step-tip-advanced-mode = Comutați la modul Avansat pentru a debloca pașii Function Tasks și Enterprise Agent.
+
+# Task step type selector descriptions
+task-step-type-ai-task-expert-description = Pas prompt Enterprise Agent.
+
+# Decision Enterprise Agent mapping suggestions
+decision-ai-taskexpert-mapping-suggestion-description = Din schema de ieșire a agentului selectat.

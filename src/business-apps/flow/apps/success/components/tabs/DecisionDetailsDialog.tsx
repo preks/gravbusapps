@@ -12,7 +12,7 @@ import {
   TabsTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { LinksRenderer } from '@/business-apps/flow/apps/creator/components/shared/LinksRenderer'
+import { LinksRenderer } from '@/common/components/flow/flow-execution/LinksRenderer'
 import { ReadonlyTemplateFlowCanvas } from '@/common/components/flow/ReadonlyTemplateFlowCanvas'
 import translations from '../../_i18n'
 import type { DecisionLogEntry } from '../../hooks/useDecisionData'

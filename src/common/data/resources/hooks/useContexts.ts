@@ -13,6 +13,7 @@ interface UseContextsResult {
   loadMore: () => Promise<void>
   hasMore: boolean
   reset: () => void
+  removeContext: (id: string) => void
 }
 
 export const useContexts = (context: BusinessAppContextProps, params?: GetContextsParams): UseContextsResult => {
@@ -25,23 +26,12 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
   const paramsRef = useRef(params)
   const hasLoadedRef = useRef(false)
   const currentOffsetRef = useRef(0)
-  const lastSearchSortRef = useRef<string>('')
   const isFetchingRef = useRef(false)
 
   // Update params ref when params change
   useEffect(() => {
     paramsRef.current = params
   }, [params])
-
-  // Check if search/sort params changed (requires reset)
-  useEffect(() => {
-    const searchSortKey = `${params?.searchItem || ''}`
-    if (searchSortKey !== lastSearchSortRef.current) {
-      lastSearchSortRef.current = searchSortKey
-      currentOffsetRef.current = 0
-      setContexts([])
-    }
-  }, [params?.searchItem])
 
   // Helper function to process assignments into contexts map
   const processAssignments = useCallback((assignmentsData: ActionAssignmentDTO[]): Map<string, ContextWithActions> => {
@@ -147,11 +137,6 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch contexts'
         setError(errorMessage)
         console.error('Error fetching contexts:', err)
-
-        if (!append && hasLoadedRef.current) {
-          setContexts([])
-          setTotalCount(0)
-        }
       } finally {
         setIsLoading(false)
         isFetchingRef.current = false
@@ -162,6 +147,10 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
 
   const refetch = useCallback(async () => {
     has401Error.current = false
+    // Wait for any in-flight fetch (e.g. loadMore) to complete so refetch is not silently dropped
+    while (isFetchingRef.current) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
     currentOffsetRef.current = 0
     await fetchContexts(false)
   }, [fetchContexts])
@@ -182,6 +171,12 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
     isFetchingRef.current = false
   }, [])
 
+  const removeContext = useCallback((id: string) => {
+    setContexts(prev => prev.filter(item => item.context.id !== id))
+    setTotalCount(count => Math.max(0, (count ?? 0) - 1))
+    currentOffsetRef.current = Math.max(0, currentOffsetRef.current - 1)
+  }, [])
+
   const hasMore = contexts.length < (totalCount ?? 0)
 
   return {
@@ -192,6 +187,7 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
     refetch,
     loadMore,
     hasMore,
-    reset
+    reset,
+    removeContext
   }
 }

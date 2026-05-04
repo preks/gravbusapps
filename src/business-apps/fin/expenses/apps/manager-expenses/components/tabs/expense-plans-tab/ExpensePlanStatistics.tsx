@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react'
 import { WidgetItem } from '@/components/widget-group'
 import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
-import { CalendarIcon, CurrencyDollarIcon, FileTextIcon } from '@phosphor-icons/react'
+import { CalendarIcon, FileTextIcon } from '@phosphor-icons/react'
 import { CurrencyPrefix } from '../../../common/components/CurrencyPrefix'
 import { ExpenseStatus } from '../../../utils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
@@ -127,7 +127,6 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         value: planStats.sumTotalAmount
           ? formatCurrencyDisplay(planStats.sumTotalAmount, displayCurrency)
           : formatCurrencyDisplay(0, displayCurrency),
-        prefix: <CurrencyDollarIcon size={16} data-testid="expense-plan-stats-total-amount-icon" />,
         color: 'var(--nw-success)',
         valueIsString: true,
 

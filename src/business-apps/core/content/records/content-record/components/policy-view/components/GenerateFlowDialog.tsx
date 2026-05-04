@@ -13,7 +13,7 @@ import { CheckCircle2, FilePlus2, Loader2, RefreshCw, Workflow, XCircle } from '
 import { FlowTemplateClient, type FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import { flowAIClient } from '@/common/network/flows/FlowAIClient'
 import { toFlowSteps, buildPolicyFlowPrompt } from '@/business-apps/core/content/utils/flowAIMappers'
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { toast } from 'sonner'
 import translations from '../../../_i18n'
 
@@ -178,7 +178,7 @@ export const GenerateFlowDialog: React.FC<GenerateFlowDialogProps> = ({
 
   const handleOpenInCreator = () => {
     if (!createdTemplateId) return
-    const url = buildPlatformUrl('/platform/apps/flow/apps/creator', { templateId: createdTemplateId })
+    const url = buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, { flowId: createdTemplateId })
     navigateTo(url)
     onOpenChange(false)
   }

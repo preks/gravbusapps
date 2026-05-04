@@ -38,11 +38,11 @@ policy_counter_flows = Linked Flows: { $count }
 
 policy_action_send_ack = Send for acknowledgement
 policy_action_send_approval = Send for approval
-policy_action_create_expert = Create Task Expert from policy
+policy_action_create_expert = Create Enterprise Agent from policy
 policy_action_generate_flow = Generate Flow from policy
 policy_action_send_ack_short = Send acknowledgement
 policy_action_send_approval_short = Send for approval
-policy_action_create_expert_short = Create Task Expert
+policy_action_create_expert_short = Create Enterprise Agent
 policy_action_generate_flow_short = Generate Flow
 policy_action_ask_everyai = Ask EveryAI
 
@@ -71,7 +71,7 @@ policy_sidebar_signal_approvals = Approvals
 policy_sidebar_actions = Actions
 policy_sidebar_action_ack_desc = Launch an acknowledgement workflow for a selected audience.
 policy_sidebar_action_approval_desc = Send this policy for review and approval by designated approvers.
-policy_sidebar_action_expert_desc = Create a Task Expert using this policy as a knowledge source.
+policy_sidebar_action_expert_desc = Create an agent using this policy as a knowledge source.
 policy_sidebar_action_flow_desc = Generate or link automation Flows derived from this policy.
 policy_sidebar_action_everyai_desc = Ask EveryAI to analyze and suggest improvements.
 policy_sidebar_details = Details
@@ -106,12 +106,12 @@ policy_impact_open_approval_monitoring = Open approval monitoring
 policy_impact_analysis_section = Analysis & Feedback
 
 # Execution tab sections
-policy_execution_experts_section = Linked Task Experts
+policy_execution_experts_section = Linked Agents
 policy_execution_flows_section = Linked Flow Templates
 
 policy_feature_coming_soon = This capability will be enabled soon
 policy_acknowledgements_placeholder = Start an acknowledgement campaign from this policy to track completion and follow-ups.
-policy_experts_placeholder = Create or link Task Experts that use this policy as a knowledge source.
+policy_experts_placeholder = Create or link agents that use this policy as a knowledge source.
 policy_flows_placeholder = Generate or link Flows derived from this policy.
 policy_insights_placeholder = See execution signals and feedback, then create an improved policy version.
 
@@ -151,21 +151,21 @@ mark_as_policy_error = Failed to mark entry as policy
 # Policy experts
 policy_experts_error_title = Failed to load Experts
 policy_experts_count = { $count } { $count ->
-    [one] Task Expert
-   *[other] Task Experts
+    [one] Agent
+   *[other] Agents
 }
 policy_experts_empty = No linked Experts yet. Create one to operationalize this policy.
 
 # Create expert dialog
 cancel = Cancel
-policy_create_expert_dialog_title = Create Task Expert
+policy_create_expert_dialog_title = Create Enterprise Agent
 policy_create_expert_name_label = Name
 policy_create_expert_desc_label = Description
 policy_create_expert_instructions_label = Custom instructions (optional)
 policy_create_expert_instructions_placeholder = Add domain-specific guidance, constraints, or context...
 policy_create_expert_knowledge_label = Knowledge source
 policy_create_expert_submit = Create expert
-policy_create_expert_success = Task Expert created
+policy_create_expert_success = Agent created
 policy_create_expert_error = Failed to create expert
 policy_create_expert_advanced = Open in expert mode for full configuration
 
@@ -254,7 +254,7 @@ policy_activate_success = Policy activated successfully
 policy_activate_error = Failed to activate policy
 
 policy_execution_workflows_section = Approvals & Acknowledgements
-policy_kpi_expert_executions = Task Expert Runs
+policy_kpi_expert_executions = Enterprise Agent Runs
 policy_kpi_flow_executions = Flow Runs
 policy_execution_workflows_desc = Approval and acknowledgement workflows linked to this policy.
 policy_workflows_count = { $count } { $count ->

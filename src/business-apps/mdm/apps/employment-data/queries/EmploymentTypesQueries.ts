@@ -2,10 +2,7 @@ import { CatalogManagerClient } from '@/common/network/catalogs/CatalogManagerCl
 import { EmploymentType } from '../components/tabs'
 import { useCallback } from 'react'
 import { isEmploymentTypeMarkedDeleted } from '../utils/catalogEntryMetadata'
-import {
-  EMPLOYMENT_TYPE_CATALOG,
-  EMPLOYMENT_TYPE_VERSION
-} from '@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes'
+import { EMPLOYMENT_TYPE_CATALOG, EMPLOYMENT_TYPE_VERSION } from '@/business-apps/mdm/apps/employment-data/types'
 
 export const useGetEmploymentTypesData = (catalogClient: CatalogManagerClient, userLocale: string) => {
   const fetchEmploymentTypes = useCallback(async () => {

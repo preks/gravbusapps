@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Checkbox, Label } from '@newwork/nw-design-system'
-import { EventHandlerType, type NotifyHandlerConfig } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { EventHandlerType, type NotifyHandlerConfig } from '@/common/data/flow/types/flowTemplate'
 import { NOTIFY_CHANNEL_OPTIONS } from './eventConstants'
 import { useStudioExpressionSuggestions } from '../../../../hooks/useStudioExpressionSuggestions'
 import { FlowContextExpressionEditor } from '../../../shared/FlowContextExpressionEditor'

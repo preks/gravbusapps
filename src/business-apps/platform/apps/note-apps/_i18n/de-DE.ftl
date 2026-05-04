@@ -4,7 +4,7 @@ nh-title = Notizen
 nh-tabs-aria-label = Notizbereiche
 nh-tab-my-notes = Meine Notizen
 nh-tab-shared = Geteilt
-nh-tab-pinned = Angepinnt
+nh-tab-pinned = Angeheftet
 nh-tab-recent = Zuletzt verwendet
 nh-tab-archived = Papierkorb
 nh-tab-trash = Papierkorb
@@ -54,7 +54,7 @@ empty-archived-description = In den Papierkorb verschobene Notizen erscheinen hi
 notes-empty-trash-title = Keine Notizen im Papierkorb
 notes-empty-trash-description = In den Papierkorb verschobene Notizen erscheinen hier.
 notes-empty-default-title = Noch keine Notizen
-notes-empty-default-description = Erstellen Sie Ihre erste Notiz.
+notes-empty-default-description = Erstellen Sie Ihre erste Notiz, um loszulegen.
 empty-create-note = Notiz erstellen
 loading-message = Wird geladen...
 
@@ -69,7 +69,7 @@ menu-add-favorite = Zu Favoriten hinzufügen
 menu-archive = Löschen
 menu-delete = Löschen
 delete-confirm-title = In den Papierkorb verschieben?
-delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können es innerhalb von 30 Tagen wiederherstellen.
+delete-confirm-single = "{$name}" wird in den Papierkorb verschoben. Sie können die Notiz innerhalb von 30 Tagen wiederherstellen.
 delete-confirm-multi = {$count} Elemente werden in den Papierkorb verschoben. Sie können sie innerhalb von 30 Tagen wiederherstellen.
 delete-confirm-cancel = Abbrechen
 delete-confirm-action = In den Papierkorb verschieben
@@ -129,7 +129,7 @@ folder-create-to-start = Erstellen Sie eine Notiz zum Start
 folder-settings = Einstellungen
 
 # ShareNoteDialog
-share-title = „{ $title }" teilen
+share-title = „{ $title }“ teilen
 share-description = Diese Notiz mit Teammitgliedern teilen. Echtzeit-Zusammenarbeit möglich.
 share-add-people = Personen hinzufügen
 share-search-placeholder = Nach Name oder E-Mail suchen...
@@ -158,14 +158,14 @@ share-add-above = Personen oben hinzufügen zum Teilen
 share-done = Fertig
 share-error-select = Bitte mindestens einen Benutzer auswählen
 share-error-failed = Notiz konnte nicht geteilt werden. Bitte erneut versuchen.
-share-toast-success = „{ $title }" mit { $count } { $count ->
+share-toast-success = „{ $title }“ mit { $count } { $count ->
   [one] Person
  *[other] Personen
 } geteilt!
 
 # ManageSharesDialog
 manage-title = Freigabe verwalten
-manage-description = Verwalten, wer Zugriff auf „{ $title }" hat
+manage-description = Verwalten, wer Zugriff auf „{ $title }“ hat
 manage-retry = Erneut versuchen
 manage-load-failed = Freigabeinformationen konnten nicht geladen werden
 manage-people-tab = Personen ({ $count })
@@ -393,11 +393,21 @@ editor-share-tooltip = Teilen
 editor-pin-tooltip = Anheften
 editor-unpin-tooltip = Loslösen
 editor-locked = Gesperrt
+editor-locked-readonly = Diese Notiz ist gesperrt. Entsperren Sie sie, bevor Sie sie bearbeiten.
+editor-lock-owner-you = Ihnen
+editor-lock-owner-unknown = einem anderen Benutzer
+editor-lock-status-you = Von Ihnen gesperrt
+editor-lock-status-you-expiry = Von Ihnen gesperrt bis { $time }
+editor-lock-status-other = Von { $name } gesperrt
+editor-lock-status-other-expiry = Von { $name } gesperrt bis { $time }
 editor-note-menu = Notiz
 editor-version-history = Versionsverlauf
 editor-save-checkpoint = Checkpoint speichern
 editor-unlock-note = Notiz entsperren
+editor-owner-unlock-note = Als Eigentümer entsperren
 editor-lock-note = Notiz sperren
+editor-lock-failed = Notiz konnte nicht gesperrt werden
+editor-unlock-failed = Notiz konnte nicht entsperrt werden
 editor-publish = Veröffentlichen…
 editor-duplicate = Duplikat
 editor-export = Exportieren
@@ -487,9 +497,9 @@ translation-language-ko = Koreanisch
 translation-language-ar = Arabisch
 
 # Quick Access
-qa-all-notes = Alle Notizen
+qa-all-notes = Meine Notizen
 qa-favorites = Favoriten
-qa-pinned = Angepinnt
+qa-pinned = Angeheftet
 qa-shared = Mit mir geteilt
 qa-recent = Zuletzt verwendet
 qa-archived = Papierkorb
@@ -509,6 +519,22 @@ trash-list-item-restored = Notiz wiederhergestellt
 trash-list-item-restore-failed = Notiz konnte nicht wiederhergestellt werden
 trash-list-item-deleted = Notiz dauerhaft gelöscht
 trash-list-item-delete-failed = Notiz konnte nicht dauerhaft gelöscht werden
+trash-bulk-selected = { $count } ausgewählt
+trash-bulk-restored = { $count } { $count ->
+    [one] Notiz
+   *[other] Notizen
+  } wiederhergestellt
+trash-bulk-deleted = { $count } { $count ->
+    [one] Notiz
+   *[other] Notizen
+  } endgültig gelöscht
+trash-delete-dialog-title-single = Endgültig löschen?
+trash-delete-dialog-title-multiple = { $count } Elemente endgültig löschen?
+trash-delete-dialog-description-single = „{ $name }" wird endgültig gelöscht und kann nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-description-multiple = { $count } Elemente werden endgültig gelöscht und können nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-cancel = Abbrechen
+trash-delete-dialog-confirm = Endgültig löschen
+trash-delete-dialog-deleting = Wird gelöscht...
 trashed-readonly-title = Diese Notiz befindet sich im Papierkorb
 trashed-readonly-description = „{ $title }“ befindet sich im Papierkorb und wird bis zur Wiederherstellung nur im Ansichtsmodus geöffnet.
 trashed-readonly-owner-note = Um diese Notiz wieder zu bearbeiten, holen Sie sie aus dem Papierkorb.
@@ -521,7 +547,7 @@ trashed-readonly-deleting = Wird gelöscht...
 
 # Tree sidebar
 tree-label = Notizen
-tree-empty = Keine Notizen im Baum
+tree-empty = Noch keine Notizen
 tree-drag-hint = Ziehen, um Notizen neu anzuordnen oder zu verschachteln
 tree-drop-inside = Hier hinein ablegen
 tree-drop-after = Danach ablegen

@@ -5,8 +5,11 @@
 
 import type { DocumentFormatting, PageSizeId } from '../types'
 import type {
+  CustomImageAttributes,
   ImageAlignment,
+  ImageAnchorMode,
   ImageBorderDash,
+  ImageDisplayMode,
   ImageWrapMode,
   ImageWrapTextSide
 } from '@/components/tiptap-extensions/tiptap-custom-image/types'
@@ -50,16 +53,125 @@ interface DocxImageBorder {
   borderDash: ImageBorderDash
 }
 
+export type DocxPictureImportSupportStatus = 'imported' | 'available-in-ooxml' | 'unsupported'
+
+export const DOCX_PICTURE_IMPORT_SUPPORT: Record<keyof CustomImageAttributes, DocxPictureImportSupportStatus> = {
+  src: 'imported',
+  alt: 'imported',
+  title: 'imported',
+  originalWidth: 'imported',
+  originalHeight: 'imported',
+  width: 'imported',
+  height: 'imported',
+  widthUnit: 'imported',
+  heightUnit: 'imported',
+  widthPercent: 'unsupported',
+  heightPercent: 'unsupported',
+  widthRelativeTo: 'unsupported',
+  heightRelativeTo: 'unsupported',
+  scaleWidthPercent: 'unsupported',
+  scaleHeightPercent: 'unsupported',
+  rotation: 'imported',
+  cropTop: 'imported',
+  cropRight: 'imported',
+  cropBottom: 'imported',
+  cropLeft: 'imported',
+  align: 'imported',
+  caption: 'unsupported',
+  display: 'imported',
+  wrapMode: 'imported',
+  wrapTextSide: 'imported',
+  anchorMode: 'imported',
+  lockAspectRatio: 'unsupported',
+  distanceTop: 'imported',
+  distanceRight: 'imported',
+  distanceBottom: 'imported',
+  distanceLeft: 'imported',
+  offsetX: 'imported',
+  offsetY: 'imported',
+  allowOverlap: 'imported',
+  zIndex: 'imported',
+  borderVisible: 'imported',
+  borderColor: 'imported',
+  borderWidthPt: 'imported',
+  borderDash: 'imported'
+}
+
 export interface DocxImageLayout {
   wrapMode: ImageWrapMode
   wrapTextSide?: ImageWrapTextSide | null
   align: ImageAlignment
   widthPx: number | null
   heightPx: number | null
+  originalWidthPx?: number | null
+  originalHeightPx?: number | null
+  widthUnit?: 'px' | null
+  heightUnit?: 'px' | null
+  rotation?: number | null
+  cropTop?: number | null
+  cropRight?: number | null
+  cropBottom?: number | null
+  cropLeft?: number | null
+  alt?: string | null
+  title?: string | null
+  anchorMode?: ImageAnchorMode | null
+  display?: ImageDisplayMode | null
+  distanceTop?: number | null
+  distanceRight?: number | null
+  distanceBottom?: number | null
+  distanceLeft?: number | null
+  offsetX?: number | null
+  offsetY?: number | null
+  allowOverlap?: boolean | null
+  zIndex?: number | null
   borderVisible?: boolean
   borderColor?: string | null
   borderWidthPt?: number | null
   borderDash?: ImageBorderDash | null
+}
+
+type DocxImportedTableWidthMode = 'manual' | 'auto-fit-window' | 'auto-fit-content'
+type DocxImportedBorderSide = 'top' | 'right' | 'bottom' | 'left'
+
+interface DocxImportedBorder {
+  style: string | null
+  width: string | null
+  color: string | null
+}
+
+export interface DocxImportedTableCell {
+  colspan: number
+  rowspan: number
+  width: string | null
+  textAlign: string | null
+  verticalAlign: string | null
+  backgroundColor: string | null
+  borderColor: string | null
+  borders: Partial<Record<DocxImportedBorderSide, DocxImportedBorder>>
+}
+
+export interface DocxImportedTableLayout {
+  width: string | null
+  align: string | null
+  widthMode: DocxImportedTableWidthMode | null
+  backgroundColor: string | null
+  borderHidden: boolean
+  borderStyle: string | null
+  borderWidth: string | null
+  borderColor: string | null
+  gridColumnWidths: string[]
+  rows: DocxImportedTableCell[][]
+}
+
+interface DocxImportedWidth {
+  css: string | null
+  isDefaultWindowWidth: boolean
+  isPercent: boolean
+}
+
+interface DocxActiveImportedMerge {
+  cell: DocxImportedTableCell
+  colspan: number
 }
 
 function emuToPx(emu: string | null | undefined): number | null {
@@ -114,6 +226,144 @@ function readExtentPx(container: Element | null): { widthPx: number | null; heig
 
 function halfPointsToPx(halfPoints: number): number {
   return Math.round((halfPoints * 96) / 144)
+}
+
+function formatCssNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100)
+}
+
+function twipsToCssPx(twips: number): string {
+  return `${formatCssNumber(twipsToPx(twips))}px`
+}
+
+function readSchemeColorValue(value: string | null | undefined): string | null {
+  const mappedColor = OOXML_SCHEME_COLOR_MAP[(value ?? '').trim()]
+  return mappedColor ?? null
+}
+
+function readOoxmlHexColor(
+  rawValue: string | null | undefined,
+  schemeValue?: string | null | undefined
+): string | null {
+  const normalized = (rawValue ?? '').trim()
+  if (/^[0-9a-f]{6}$/i.test(normalized)) {
+    return `#${normalized.toUpperCase()}`
+  }
+
+  if (normalized && normalized.toLowerCase() !== 'auto') {
+    return null
+  }
+
+  return readSchemeColorValue(schemeValue)
+}
+
+function readShadingColor(element: Element | null): string | null {
+  if (!element) {
+    return null
+  }
+
+  return (
+    readOoxmlHexColor(readAttributeValue(element, 'fill'), readAttributeValue(element, 'themeFill')) ??
+    readOoxmlHexColor(readAttributeValue(element, 'color'), readAttributeValue(element, 'themeColor'))
+  )
+}
+
+function mapWordBorderStyleToCss(value: string | null | undefined): string | null {
+  switch ((value ?? '').trim().toLowerCase()) {
+    case 'nil':
+    case 'none':
+      return 'none'
+    case 'dashed':
+    case 'dashsmallgap':
+    case 'dashdotstroked':
+    case 'dotdash':
+    case 'dotdotdash':
+      return 'dashed'
+    case 'dotted':
+      return 'dotted'
+    case 'double':
+      return 'double'
+    case 'single':
+    case 'thick':
+    case 'thinthicksmallgap':
+    case 'thickthinsmallgap':
+    default:
+      return 'solid'
+  }
+}
+
+function readWordBorder(borderElement: Element | null): DocxImportedBorder | null {
+  if (!borderElement) {
+    return null
+  }
+
+  const style = mapWordBorderStyleToCss(readAttributeValue(borderElement, 'val'))
+  const size = readNumericAttribute(borderElement, 'sz')
+  const width = size !== null && size > 0 ? `${formatCssNumber(size / 8)}pt` : null
+  const color = readOoxmlHexColor(
+    readAttributeValue(borderElement, 'color'),
+    readAttributeValue(borderElement, 'themeColor')
+  )
+
+  return { style, width, color }
+}
+
+function readWordWidth(element: Element | null): DocxImportedWidth {
+  if (!element) {
+    return { css: null, isDefaultWindowWidth: false, isPercent: false }
+  }
+
+  const width = readNumericAttribute(element, 'w') ?? readNumericAttribute(element, 'val')
+  const type = (readAttributeValue(element, 'type') ?? 'auto').trim().toLowerCase()
+  if (width === null || type === 'auto' || type === 'nil') {
+    return { css: null, isDefaultWindowWidth: false, isPercent: false }
+  }
+
+  if (type === 'pct') {
+    const percent = width / 50
+    return {
+      css: `${formatCssNumber(percent)}%`,
+      isDefaultWindowWidth: width === 5000,
+      isPercent: true
+    }
+  }
+
+  return {
+    css: twipsToCssPx(width),
+    isDefaultWindowWidth: false,
+    isPercent: false
+  }
+}
+
+function normalizeWordAlignment(value: string | null | undefined): string | null {
+  switch ((value ?? '').trim().toLowerCase()) {
+    case 'center':
+      return 'center'
+    case 'right':
+    case 'end':
+      return 'right'
+    case 'both':
+    case 'distribute':
+      return 'justify'
+    case 'left':
+    case 'start':
+      return 'left'
+    default:
+      return null
+  }
+}
+
+function normalizeWordVerticalAlignment(value: string | null | undefined): string | null {
+  switch ((value ?? '').trim().toLowerCase()) {
+    case 'center':
+      return 'middle'
+    case 'bottom':
+      return 'bottom'
+    case 'top':
+      return 'top'
+    default:
+      return null
+  }
 }
 
 function bodyChildElements(root: Element): Element[] {
@@ -238,45 +488,172 @@ function readPictureBorder(drawing: Element): DocxImageBorder {
   }
 }
 
+function readRotationDegrees(drawing: Element): number | null {
+  const picture = descendantsByLocalName(drawing, 'pic')[0]
+  const shapeProps = picture ? firstChildByLocalName(picture, 'spPr') : null
+  const transform = shapeProps ? firstChildByLocalName(shapeProps, 'xfrm') : null
+  const rotation = transform?.getAttribute('rot')
+  if (!rotation) {
+    return null
+  }
+
+  const parsed = Number.parseInt(rotation, 10)
+  if (!Number.isFinite(parsed)) {
+    return null
+  }
+
+  return Math.round((parsed / 60000) * 100) / 100
+}
+
+function readCropRatio(value: string | null | undefined): number | null {
+  const parsed = Number.parseInt(value ?? '', 10)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return null
+  }
+
+  return Math.min(0.95, Math.max(0, parsed / 100000))
+}
+
+function readPictureCrop(drawing: Element): Pick<DocxImageLayout, 'cropTop' | 'cropRight' | 'cropBottom' | 'cropLeft'> {
+  const picture = descendantsByLocalName(drawing, 'pic')[0]
+  const blipFill = picture ? firstChildByLocalName(picture, 'blipFill') : null
+  const srcRect = blipFill ? firstChildByLocalName(blipFill, 'srcRect') : null
+  if (!srcRect) {
+    return {}
+  }
+
+  return {
+    cropTop: readCropRatio(srcRect.getAttribute('t')),
+    cropRight: readCropRatio(srcRect.getAttribute('r')),
+    cropBottom: readCropRatio(srcRect.getAttribute('b')),
+    cropLeft: readCropRatio(srcRect.getAttribute('l'))
+  }
+}
+
+function readDocPrMetadata(container: Element): Pick<DocxImageLayout, 'alt' | 'title'> {
+  const docPr = descendantsByLocalName(container, 'docPr')[0]
+  return {
+    alt: docPr?.getAttribute('descr')?.trim() || null,
+    title: docPr?.getAttribute('title')?.trim() || null
+  }
+}
+
+function readAnchorMode(anchor: Element): ImageAnchorMode {
+  const horizontalRef = readAttributeValue(descendantsByLocalName(anchor, 'positionH')[0] ?? null, 'relativeFrom')
+  const verticalRef = readAttributeValue(descendantsByLocalName(anchor, 'positionV')[0] ?? null, 'relativeFrom')
+  return horizontalRef === 'page' || verticalRef === 'page' ? 'fixed' : 'move-with-text'
+}
+
+function emuToCoordinatePx(value: string | null | undefined): number | null {
+  if (value == null || value === '') {
+    return null
+  }
+
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed)) {
+    return null
+  }
+
+  return Math.round(parsed / PX_TO_EMU)
+}
+
+function readPositionOffsetPx(positionElement: Element | null): number | null {
+  const posOffset = positionElement ? firstChildByLocalName(positionElement, 'posOffset') : null
+  return emuToCoordinatePx(posOffset?.textContent?.trim())
+}
+
+function readDistancePx(anchor: Element, attributeName: 'distT' | 'distR' | 'distB' | 'distL'): number | null {
+  return emuToPx(anchor.getAttribute(attributeName))
+}
+
+function relativeHeightToZIndex(value: string | null | undefined): number | null {
+  const parsed = Number.parseInt(value ?? '', 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null
+  }
+
+  return Math.max(1, Math.min(100, Math.round(parsed / 1000)))
+}
+
+function readAnchorPositioning(
+  anchor: Element
+): Pick<
+  DocxImageLayout,
+  | 'anchorMode'
+  | 'display'
+  | 'distanceTop'
+  | 'distanceRight'
+  | 'distanceBottom'
+  | 'distanceLeft'
+  | 'offsetX'
+  | 'offsetY'
+  | 'allowOverlap'
+  | 'zIndex'
+> {
+  const positionH = descendantsByLocalName(anchor, 'positionH')[0] ?? null
+  const positionV = descendantsByLocalName(anchor, 'positionV')[0] ?? null
+  return {
+    anchorMode: readAnchorMode(anchor),
+    display: 'block',
+    distanceTop: readDistancePx(anchor, 'distT'),
+    distanceRight: readDistancePx(anchor, 'distR'),
+    distanceBottom: readDistancePx(anchor, 'distB'),
+    distanceLeft: readDistancePx(anchor, 'distL'),
+    offsetX: readPositionOffsetPx(positionH),
+    offsetY: readPositionOffsetPx(positionV),
+    allowOverlap: anchor.getAttribute('allowOverlap') === '1',
+    zIndex: relativeHeightToZIndex(anchor.getAttribute('relativeHeight'))
+  }
+}
+
 function resolveAnchorLayout(anchor: Element): DocxImageLayout {
   const align = readHorizontalAlign(anchor)
   const { widthPx, heightPx } = readExtentPx(anchor)
   const behindDoc = anchor.getAttribute('behindDoc') === '1'
+  const baseLayout: Omit<DocxImageLayout, 'wrapMode'> = {
+    align,
+    widthPx,
+    heightPx,
+    originalWidthPx: widthPx,
+    originalHeightPx: heightPx,
+    widthUnit: 'px',
+    heightUnit: 'px',
+    ...readDocPrMetadata(anchor),
+    ...readAnchorPositioning(anchor)
+  }
 
   if (descendantsByLocalName(anchor, 'wrapTopAndBottom').length > 0) {
-    return { wrapMode: 'top-bottom', align, widthPx, heightPx }
+    return { ...baseLayout, wrapMode: 'top-bottom' }
   }
 
   if (descendantsByLocalName(anchor, 'wrapTight').length > 0) {
-    return { wrapMode: 'tight', align, widthPx, heightPx }
+    return { ...baseLayout, wrapMode: 'tight', wrapTextSide: 'bothSides' }
   }
 
   if (descendantsByLocalName(anchor, 'wrapThrough').length > 0) {
-    return { wrapMode: 'through', align, widthPx, heightPx }
+    return { ...baseLayout, wrapMode: 'through', wrapTextSide: 'bothSides' }
   }
 
   const wrapSquare = descendantsByLocalName(anchor, 'wrapSquare')[0]
   if (wrapSquare) {
     const wrapText = wrapSquare.getAttribute('wrapText')
     return {
+      ...baseLayout,
       wrapMode: 'square',
       wrapTextSide: normalizeSquareWrapTextSide(wrapText, align),
-      align,
-      widthPx,
-      heightPx
+      align
     }
   }
 
   if (descendantsByLocalName(anchor, 'wrapNone').length > 0) {
     return {
+      ...baseLayout,
       wrapMode: behindDoc ? 'behind' : 'front',
-      align,
-      widthPx,
-      heightPx
+      align
     }
   }
 
-  return { wrapMode: 'inline', align: 'left', widthPx, heightPx }
+  return { ...baseLayout, wrapMode: 'inline', align: 'left' }
 }
 
 function drawingContainsPicture(drawing: Element): boolean {
@@ -306,16 +683,35 @@ export function parseDocumentXmlForImageLayouts(xml: string): DocxImageLayout[] 
       const inline = descendantsByLocalName(drawing, 'inline')[0]
       const anchor = descendantsByLocalName(drawing, 'anchor')[0]
       const pictureBorder = readPictureBorder(drawing)
+      const pictureCrop = readPictureCrop(drawing)
+      const rotation = readRotationDegrees(drawing)
 
       if (inline) {
         const { widthPx, heightPx } = readExtentPx(inline)
-        layouts.push({ wrapMode: 'inline', align: 'left', widthPx, heightPx, ...pictureBorder })
+        layouts.push({
+          wrapMode: 'inline',
+          align: 'left',
+          widthPx,
+          heightPx,
+          originalWidthPx: widthPx,
+          originalHeightPx: heightPx,
+          widthUnit: 'px',
+          heightUnit: 'px',
+          anchorMode: 'inline',
+          display: 'inline',
+          rotation,
+          ...pictureCrop,
+          ...readDocPrMetadata(inline),
+          ...pictureBorder
+        })
         continue
       }
 
       if (anchor) {
         layouts.push({
           ...resolveAnchorLayout(anchor),
+          rotation,
+          ...pictureCrop,
           ...pictureBorder
         })
         continue
@@ -456,6 +852,164 @@ export function parseDocumentXmlForPageFormatting(xml: string): DocumentFormatti
     }
   } catch {
     return undefined
+  }
+}
+
+function parseDocumentXmlForTableLayouts(xml: string): DocxImportedTableLayout[] {
+  if (!xml || globalThis.DOMParser === undefined) {
+    return []
+  }
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xml, 'application/xml')
+    if (doc.getElementsByTagName('parsererror').length > 0) {
+      return []
+    }
+
+    const layouts: DocxImportedTableLayout[] = []
+    for (const child of bodyChildElements(doc.documentElement)) {
+      if (elementLocalName(child) !== 'tbl') {
+        continue
+      }
+
+      const tableProperties = firstChildByLocalName(child, 'tblPr')
+      const tableBorders = tableProperties ? firstChildByLocalName(tableProperties, 'tblBorders') : null
+      const tableWidthMeta = readWordWidth(tableProperties ? firstChildByLocalName(tableProperties, 'tblW') : null)
+      const gridColumnWidths = descendantsByLocalName(child, 'tblGrid')[0]
+        ? Array.from(descendantsByLocalName(child, 'tblGrid')[0]?.children ?? [])
+            .filter(column => elementLocalName(column) === 'gridCol')
+            .map(column => readNumericAttribute(column, 'w'))
+            .filter((width): width is number => width !== null && width > 0)
+            .map(width => twipsToCssPx(width))
+        : []
+
+      const tableAlignment = normalizeWordAlignment(
+        readAttributeValue(tableProperties ? firstChildByLocalName(tableProperties, 'jc') : null, 'val')
+      )
+      const layoutType = (
+        readAttributeValue(tableProperties ? firstChildByLocalName(tableProperties, 'tblLayout') : null, 'type') ?? ''
+      )
+        .trim()
+        .toLowerCase()
+
+      const widthMode: DocxImportedTableWidthMode | null =
+        layoutType === 'fixed' || gridColumnWidths.length > 0
+          ? 'manual'
+          : tableWidthMeta.isDefaultWindowWidth
+            ? 'auto-fit-window'
+            : null
+
+      const resolvedTableWidth =
+        widthMode === 'manual' && tableWidthMeta.isDefaultWindowWidth && gridColumnWidths.length > 0
+          ? `${gridColumnWidths.reduce((sum, width) => sum + (Number.parseFloat(width) || 0), 0)}px`
+          : tableWidthMeta.css
+
+      const outerBorderSides = (['top', 'right', 'bottom', 'left'] as const)
+        .map(side => readWordBorder(tableBorders ? firstChildByLocalName(tableBorders, side) : null))
+        .filter((border): border is DocxImportedBorder => border !== null)
+      const uniformBorder =
+        outerBorderSides.length === 4 &&
+        outerBorderSides.every(border => JSON.stringify(border) === JSON.stringify(outerBorderSides[0]))
+          ? outerBorderSides[0]
+          : null
+
+      const rows: DocxImportedTableCell[][] = []
+      const activeMerges: Array<DocxActiveImportedMerge | null> = []
+      const rowElements = Array.from(child.children).filter(row => elementLocalName(row) === 'tr')
+
+      for (const rowElement of rowElements) {
+        const rowCells: DocxImportedTableCell[] = []
+        let columnIndex = 0
+
+        for (const tableCell of Array.from(rowElement.children).filter(cell => elementLocalName(cell) === 'tc')) {
+          const cellProperties = firstChildByLocalName(tableCell, 'tcPr')
+          const gridSpan = Math.max(
+            1,
+            readNumericAttribute(cellProperties ? firstChildByLocalName(cellProperties, 'gridSpan') : null, 'val') ?? 1
+          )
+          const verticalMerge = cellProperties ? firstChildByLocalName(cellProperties, 'vMerge') : null
+          const verticalMergeValue = (readAttributeValue(verticalMerge, 'val') ?? '').trim().toLowerCase()
+          const isVerticalMergeContinuation = verticalMerge !== null && verticalMergeValue !== 'restart'
+
+          if (isVerticalMergeContinuation) {
+            const activeMerge = activeMerges[columnIndex]
+            if (activeMerge) {
+              activeMerge.cell.rowspan += 1
+              columnIndex += activeMerge.colspan
+              continue
+            }
+          }
+
+          const cellBorders = cellProperties ? firstChildByLocalName(cellProperties, 'tcBorders') : null
+          const paragraphAlignment =
+            descendantsByLocalName(tableCell, 'p')
+              .map(paragraph => {
+                const paragraphProperties = firstChildByLocalName(paragraph, 'pPr')
+                return paragraphProperties ? firstChildByLocalName(paragraphProperties, 'jc') : null
+              })
+              .find((alignment): alignment is Element => alignment !== null) ?? null
+          const parsedCell: DocxImportedTableCell = {
+            colspan: gridSpan,
+            rowspan: 1,
+            width: readWordWidth(cellProperties ? firstChildByLocalName(cellProperties, 'tcW') : null).css,
+            textAlign: normalizeWordAlignment(readAttributeValue(paragraphAlignment, 'val')),
+            verticalAlign: normalizeWordVerticalAlignment(
+              readAttributeValue(cellProperties ? firstChildByLocalName(cellProperties, 'vAlign') : null, 'val')
+            ),
+            backgroundColor: readShadingColor(cellProperties ? firstChildByLocalName(cellProperties, 'shd') : null),
+            borderColor: null,
+            borders: {}
+          }
+
+          for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+            const border = readWordBorder(cellBorders ? firstChildByLocalName(cellBorders, side) : null)
+            if (border) {
+              parsedCell.borders[side] = border
+            }
+          }
+
+          const borderColors = Object.values(parsedCell.borders)
+            .map(border => border?.color ?? null)
+            .filter((color): color is string => typeof color === 'string')
+          if (borderColors.length > 0 && borderColors.every(color => color === borderColors[0])) {
+            parsedCell.borderColor = borderColors[0]
+          }
+
+          if (verticalMergeValue === 'restart') {
+            for (let offset = 0; offset < gridSpan; offset += 1) {
+              activeMerges[columnIndex + offset] = { cell: parsedCell, colspan: gridSpan }
+            }
+          } else {
+            for (let offset = 0; offset < gridSpan; offset += 1) {
+              activeMerges[columnIndex + offset] = null
+            }
+          }
+
+          rowCells.push(parsedCell)
+          columnIndex += gridSpan
+        }
+
+        rows.push(rowCells)
+      }
+
+      layouts.push({
+        width: resolvedTableWidth,
+        align: tableAlignment,
+        widthMode,
+        backgroundColor: readShadingColor(tableProperties ? firstChildByLocalName(tableProperties, 'shd') : null),
+        borderHidden: uniformBorder?.style === 'none',
+        borderStyle: uniformBorder?.style ?? null,
+        borderWidth: uniformBorder?.width ?? null,
+        borderColor: uniformBorder?.color ?? null,
+        gridColumnWidths,
+        rows
+      })
+    }
+
+    return layouts
+  } catch {
+    return []
   }
 }
 
@@ -600,6 +1154,331 @@ export async function parseDocxPageBreaks(arrayBuffer: ArrayBuffer): Promise<num
   }
 }
 
+/**
+ * Style id we stamp onto injected marker paragraphs during OOXML
+ * preprocessing. Mammoth's style map maps paragraphs with this style id to
+ * `<hr class="page-break">`, which the editor's PageBreak extension then
+ * parses as a `pageBreak` node.
+ */
+export const RM_PAGE_BREAK_STYLE_ID = 'RmPageBreak'
+
+const W_NAMESPACE_URI = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+
+function elementPrefix(element: Element): string {
+  if (typeof element.prefix === 'string' && element.prefix.length > 0) {
+    return element.prefix
+  }
+  const tag = element.tagName
+  const colon = tag.indexOf(':')
+  return colon > 0 ? tag.slice(0, colon) : 'w'
+}
+
+function createMarkerParagraph(doc: XMLDocument, templateParagraph: Element): Element {
+  const namespaceUri = templateParagraph.namespaceURI ?? W_NAMESPACE_URI
+  const prefix = elementPrefix(templateParagraph)
+
+  const markerParagraph = doc.createElementNS(namespaceUri, `${prefix}:p`)
+  const pPr = doc.createElementNS(namespaceUri, `${prefix}:pPr`)
+  const pStyle = doc.createElementNS(namespaceUri, `${prefix}:pStyle`)
+  pStyle.setAttributeNS(namespaceUri, `${prefix}:val`, RM_PAGE_BREAK_STYLE_ID)
+  pPr.appendChild(pStyle)
+  markerParagraph.appendChild(pPr)
+  return markerParagraph
+}
+
+function paragraphVisibleContentLength(paragraph: Element): number {
+  const textNodes = descendantsByLocalName(paragraph, 't')
+  let length = 0
+  for (const textNode of textNodes) {
+    length += (textNode.textContent ?? '').length
+  }
+  if (descendantsByLocalName(paragraph, 'drawing').length > 0) {
+    length += 1
+  }
+  return length
+}
+
+function collectParagraphRunBreaks(paragraph: Element): Element[] {
+  return descendantsByLocalName(paragraph, 'br').filter(
+    breakElement => readAttributeValue(breakElement, 'type')?.trim().toLowerCase() === 'page'
+  )
+}
+
+function findAncestorRun(breakElement: Element, paragraph: Element): Element | null {
+  let current: Element | null = breakElement.parentElement
+  while (current && current !== paragraph) {
+    if (elementLocalName(current) === 'r') {
+      return current
+    }
+    current = current.parentElement
+  }
+  return null
+}
+
+function cloneParagraphShell(paragraph: Element): Element {
+  const shell = paragraph.cloneNode(false) as Element
+  const pPr = firstChildByLocalName(paragraph, 'pPr')
+  if (pPr) {
+    shell.appendChild(pPr.cloneNode(true))
+  }
+  return shell
+}
+
+/**
+ * Splits a `<w:r>` at the given break element, returning the run parts that
+ * should appear in the "before" and "after" halves of a paragraph split.
+ * Each half preserves the original run properties (`<w:rPr>`). Empty halves
+ * (no meaningful children) are returned as `null`.
+ */
+function splitRunAroundBreak(
+  run: Element,
+  breakElement: Element
+): { beforeRun: Element | null; afterRun: Element | null } {
+  const rPr = firstChildByLocalName(run, 'rPr')
+  const beforeRun = run.cloneNode(false) as Element
+  const afterRun = run.cloneNode(false) as Element
+
+  if (rPr) {
+    beforeRun.appendChild(rPr.cloneNode(true))
+    afterRun.appendChild(rPr.cloneNode(true))
+  }
+
+  const childNodes = Array.from(run.childNodes)
+  let passedBreak = false
+  for (const child of childNodes) {
+    if (child === breakElement) {
+      passedBreak = true
+      continue
+    }
+    if (child === rPr) {
+      continue
+    }
+    if (passedBreak) {
+      afterRun.appendChild(child.cloneNode(true))
+    } else {
+      beforeRun.appendChild(child.cloneNode(true))
+    }
+  }
+
+  const beforeHasContent = Array.from(beforeRun.children).some(child => elementLocalName(child) !== 'rPr')
+  const afterHasContent = Array.from(afterRun.children).some(child => elementLocalName(child) !== 'rPr')
+
+  return {
+    beforeRun: beforeHasContent ? beforeRun : null,
+    afterRun: afterHasContent ? afterRun : null
+  }
+}
+
+/**
+ * Splits a paragraph at a single `<w:br w:type="page"/>` into a left / right
+ * pair, preserving `pPr` on both halves. Content inside the run containing
+ * the break is split around the break element so text that should live on
+ * the next page actually crosses the boundary.
+ */
+function splitParagraphAtBreak(paragraph: Element, breakElement: Element): { before: Element; after: Element } {
+  const before = cloneParagraphShell(paragraph)
+  const after = cloneParagraphShell(paragraph)
+
+  const containingRun = findAncestorRun(breakElement, paragraph)
+  const pPr = firstChildByLocalName(paragraph, 'pPr')
+
+  const topLevelChildren = Array.from(paragraph.children).filter(child => child !== pPr)
+
+  if (!containingRun) {
+    for (const child of topLevelChildren) {
+      before.appendChild(child.cloneNode(true))
+    }
+    return { before, after }
+  }
+
+  let passedContainingRun = false
+  for (const child of topLevelChildren) {
+    if (child === containingRun) {
+      passedContainingRun = true
+      const { beforeRun, afterRun } = splitRunAroundBreak(child, breakElement)
+      if (beforeRun) before.appendChild(beforeRun)
+      if (afterRun) after.appendChild(afterRun)
+      continue
+    }
+    if (passedContainingRun) {
+      after.appendChild(child.cloneNode(true))
+    } else {
+      before.appendChild(child.cloneNode(true))
+    }
+  }
+
+  return { before, after }
+}
+
+function sectPrHasNextPageBreak(sectPr: Element): boolean {
+  const typeElement = firstChildByLocalName(sectPr, 'type')
+  const typeValue = readAttributeValue(typeElement, 'val')?.trim().toLowerCase()
+  if (!typeValue) {
+    // Default Word behaviour: a section break with no explicit type is "nextPage".
+    return true
+  }
+  return typeValue === 'nextpage' || typeValue === 'oddpage' || typeValue === 'evenpage'
+}
+
+/**
+ * Transforms the OOXML body so that every manual page break (inline
+ * `<w:br w:type="page"/>`, `<w:pageBreakBefore/>` paragraph property, and
+ * in-paragraph `<w:sectPr>` with a page-breaking section type) becomes its
+ * own `<w:p>` styled with `RmPageBreak`. Downstream mammoth conversion
+ * keeps these marker paragraphs as top-level HTML elements, so they survive
+ * list / blockquote collapsing.
+ *
+ * Returns the original XML unchanged when parsing fails or when no breaks
+ * are detected.
+ */
+export function preprocessDocumentXmlForPageBreaks(xml: string): string {
+  if (!xml || globalThis.DOMParser === undefined || globalThis.XMLSerializer === undefined) {
+    return xml
+  }
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xml, 'application/xml')
+    if (doc.getElementsByTagName('parsererror').length > 0) {
+      return xml
+    }
+
+    const body = descendantsByLocalName(doc.documentElement, 'body')[0]
+    if (!body) {
+      return xml
+    }
+
+    const originalChildren = Array.from(body.children)
+    let mutated = false
+
+    for (const paragraph of originalChildren) {
+      if (elementLocalName(paragraph) !== 'p') continue
+      if (paragraph.parentNode !== body) continue
+
+      const pPr = firstChildByLocalName(paragraph, 'pPr')
+      const pageBreakBefore = pPr ? firstChildByLocalName(pPr, 'pageBreakBefore') : null
+      const sectPr = pPr ? firstChildByLocalName(pPr, 'sectPr') : null
+      const runBreaks = collectParagraphRunBreaks(paragraph)
+
+      // (1) pageBreakBefore paragraph property → emit marker BEFORE and strip property.
+      if (pageBreakBefore) {
+        const marker = createMarkerParagraph(doc, paragraph)
+        paragraph.before(marker)
+        pageBreakBefore.remove()
+        mutated = true
+      }
+
+      // (2) Inline page breaks inside runs. If the paragraph is effectively a
+      // standalone break (no visible content outside the break runs), replace
+      // it with a single marker paragraph. Otherwise split around each break.
+      if (runBreaks.length > 0) {
+        const visibleLength = paragraphVisibleContentLength(paragraph)
+        const nonBreakRunCount = Array.from(paragraph.children).filter(child => {
+          if (elementLocalName(child) !== 'r') return false
+          return !Array.from(child.children).every(grandchild => {
+            const local = elementLocalName(grandchild)
+            return local === 'br' || local === 'rPr'
+          })
+        }).length
+
+        const isStandaloneBreakParagraph = visibleLength === 0 && nonBreakRunCount === 0
+
+        if (isStandaloneBreakParagraph) {
+          const marker = createMarkerParagraph(doc, paragraph)
+          paragraph.before(marker)
+          paragraph.remove()
+          mutated = true
+        } else {
+          // Split paragraph sequentially at each break.
+          let currentParagraph: Element = paragraph
+          for (const breakElement of runBreaks) {
+            // Re-resolve containing run in current paragraph (breakElement
+            // reference is still valid because we cloneNode on the right-hand
+            // halves, never the current left-hand paragraph). The break is
+            // still inside `currentParagraph` on the first iteration; on
+            // subsequent iterations we need to find it in the right-half.
+            if (!currentParagraph.contains(breakElement)) {
+              continue
+            }
+            const { before, after } = splitParagraphAtBreak(currentParagraph, breakElement)
+            const marker = createMarkerParagraph(doc, currentParagraph)
+            currentParagraph.before(before)
+            currentParagraph.before(marker)
+            currentParagraph.before(after)
+            currentParagraph.remove()
+            currentParagraph = after
+          }
+          mutated = true
+        }
+      }
+
+      // (3) Section break with nextPage type at end of paragraph → emit
+      // marker AFTER. Preserve the original sectPr (it carries section-level
+      // properties like page size that mammoth may use).
+      if (sectPr && sectPrHasNextPageBreak(sectPr)) {
+        const marker = createMarkerParagraph(doc, paragraph)
+        const nextSibling = paragraph.nextSibling
+        if (nextSibling) {
+          nextSibling.before(marker)
+        } else {
+          body.appendChild(marker)
+        }
+        mutated = true
+      }
+    }
+
+    if (!mutated) {
+      return xml
+    }
+
+    return new XMLSerializer().serializeToString(doc)
+  } catch {
+    return xml
+  }
+}
+
+/**
+ * Returns a new ArrayBuffer containing the original docx zip with its
+ * `word/document.xml` replaced by the page-break-preprocessed version. If
+ * no changes are required (or preprocessing fails), the original buffer is
+ * returned unchanged.
+ */
+export async function preprocessDocxBufferForPageBreaks(arrayBuffer: ArrayBuffer): Promise<ArrayBuffer> {
+  try {
+    const zip = await JSZipCompat.loadAsync(arrayBuffer)
+    const documentEntry = zip.file('word/document.xml')
+    if (!documentEntry) {
+      return arrayBuffer
+    }
+
+    const originalXml = await documentEntry.async('string')
+    const transformedXml = preprocessDocumentXmlForPageBreaks(originalXml)
+    if (transformedXml === originalXml) {
+      return arrayBuffer
+    }
+
+    zip.file('word/document.xml', transformedXml)
+    return await zip.generateAsync({ type: 'arraybuffer' })
+  } catch {
+    return arrayBuffer
+  }
+}
+
+export async function parseDocxTableLayouts(arrayBuffer: ArrayBuffer): Promise<DocxImportedTableLayout[]> {
+  try {
+    const zip = await JSZipCompat.loadAsync(arrayBuffer)
+    const documentEntry = zip.file('word/document.xml')
+    if (!documentEntry) {
+      return []
+    }
+
+    const xml = await documentEntry.async('string')
+    return parseDocumentXmlForTableLayouts(xml)
+  } catch {
+    return []
+  }
+}
+
 function isImportedFlowBlock(node: Element): node is HTMLElement {
   return node instanceof HTMLElement && !node.hasAttribute('data-page-break')
 }
@@ -643,13 +1522,14 @@ export function enhanceImportedHtmlWithPageBreaks(html: string, pageBreakIndexes
   try {
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
+    const originalFlowBlocks = Array.from(doc.body.children).filter(isImportedFlowBlock)
 
     for (const breakIndex of [...pageBreakIndexes].sort((left, right) => left - right)) {
-      const flowBlocks = Array.from(doc.body.children).filter(isImportedFlowBlock)
-      const target = flowBlocks[breakIndex] ?? null
+      const target = originalFlowBlocks[breakIndex] ?? null
       const pageBreakElement = createImportedPageBreakElement(doc)
+      const targetWasEmptyParagraph = target instanceof HTMLElement && isEmptyParagraphElement(target)
 
-      if (target && isEmptyParagraphElement(target)) {
+      if (targetWasEmptyParagraph) {
         target.replaceWith(pageBreakElement)
         continue
       }
@@ -690,8 +1570,59 @@ function applyLayoutToFigure(figure: HTMLElement, layout: DocxImageLayout): void
   figure.setAttribute('data-image-wrap', layout.wrapMode)
   figure.setAttribute('data-image-align', layout.align)
   figure.setAttribute('data-image-border-visible', String(layout.borderVisible ?? false))
+  if (layout.widthUnit) {
+    figure.setAttribute('data-image-width-unit', layout.widthUnit)
+  }
+  if (layout.heightUnit) {
+    figure.setAttribute('data-image-height-unit', layout.heightUnit)
+  }
+  if (layout.originalWidthPx != null) {
+    figure.setAttribute('data-image-original-width', String(layout.originalWidthPx))
+  }
+  if (layout.originalHeightPx != null) {
+    figure.setAttribute('data-image-original-height', String(layout.originalHeightPx))
+  }
   if (layout.wrapTextSide) {
     figure.setAttribute('data-image-wrap-text-side', layout.wrapTextSide)
+  }
+  if (layout.rotation != null) {
+    figure.setAttribute('data-image-rotation', String(layout.rotation))
+  }
+  if (layout.cropTop != null) {
+    figure.setAttribute('data-image-crop-top', String(layout.cropTop))
+  }
+  if (layout.cropRight != null) {
+    figure.setAttribute('data-image-crop-right', String(layout.cropRight))
+  }
+  if (layout.cropBottom != null) {
+    figure.setAttribute('data-image-crop-bottom', String(layout.cropBottom))
+  }
+  if (layout.cropLeft != null) {
+    figure.setAttribute('data-image-crop-left', String(layout.cropLeft))
+  }
+  if (layout.distanceTop != null) {
+    figure.setAttribute('data-image-distance-top', String(layout.distanceTop))
+  }
+  if (layout.distanceRight != null) {
+    figure.setAttribute('data-image-distance-right', String(layout.distanceRight))
+  }
+  if (layout.distanceBottom != null) {
+    figure.setAttribute('data-image-distance-bottom', String(layout.distanceBottom))
+  }
+  if (layout.distanceLeft != null) {
+    figure.setAttribute('data-image-distance-left', String(layout.distanceLeft))
+  }
+  if (layout.offsetX != null) {
+    figure.setAttribute('data-image-offset-x', String(layout.offsetX))
+  }
+  if (layout.offsetY != null) {
+    figure.setAttribute('data-image-offset-y', String(layout.offsetY))
+  }
+  if (layout.allowOverlap != null) {
+    figure.setAttribute('data-image-allow-overlap', String(layout.allowOverlap))
+  }
+  if (layout.zIndex != null) {
+    figure.setAttribute('data-image-z-index', String(layout.zIndex))
   }
   if (layout.borderColor) {
     figure.setAttribute('data-image-border-color', layout.borderColor)
@@ -702,8 +1633,12 @@ function applyLayoutToFigure(figure: HTMLElement, layout: DocxImageLayout): void
   if (layout.borderDash) {
     figure.setAttribute('data-image-border-dash', layout.borderDash)
   }
-
-  if (layout.wrapMode !== 'inline') {
+  if (layout.anchorMode) {
+    figure.setAttribute('data-image-anchor', layout.anchorMode)
+  }
+  if (layout.display) {
+    figure.setAttribute('data-image-display', layout.display)
+  } else if (layout.wrapMode !== 'inline') {
     figure.setAttribute('data-image-anchor', 'move-with-text')
     figure.setAttribute('data-image-display', 'block')
   }
@@ -741,6 +1676,12 @@ export function enhanceImportedHtmlWithImageLayouts(html: string, layouts: DocxI
       if (layout.heightPx != null) {
         img.setAttribute('height', String(layout.heightPx))
       }
+      if (layout.alt) {
+        img.setAttribute('alt', layout.alt)
+      }
+      if (layout.title) {
+        img.setAttribute('title', layout.title)
+      }
 
       const parent = img.parentElement
       if (parent?.tagName.toLowerCase() === 'p' && parent instanceof HTMLParagraphElement) {
@@ -760,3 +1701,152 @@ export function enhanceImportedHtmlWithImageLayouts(html: string, layouts: DocxI
     return html
   }
 }
+
+function ensureImportedColgroup(table: HTMLTableElement, widths: string[], targetDocument: Document): void {
+  let colgroup = Array.from(table.children).find(child => child.tagName.toLowerCase() === 'colgroup') as
+    | HTMLElement
+    | undefined
+  if (!colgroup) {
+    colgroup = targetDocument.createElement('colgroup')
+    table.insertBefore(colgroup, table.firstChild)
+  }
+
+  colgroup.replaceChildren(
+    ...widths.map(width => {
+      const col = targetDocument.createElement('col')
+      col.style.width = width
+      return col
+    })
+  )
+}
+
+function applyImportedTableCellLayout(cell: HTMLTableCellElement, layout: DocxImportedTableCell): void {
+  if (layout.colspan > 1) {
+    cell.colSpan = layout.colspan
+  }
+  if (layout.rowspan > 1) {
+    cell.rowSpan = layout.rowspan
+  }
+  if (layout.width) {
+    cell.style.width = layout.width
+  }
+  if (layout.textAlign) {
+    cell.setAttribute('data-cell-text-align', layout.textAlign)
+  }
+  if (layout.verticalAlign) {
+    cell.setAttribute('data-cell-vertical-align', layout.verticalAlign)
+  }
+  if (layout.backgroundColor) {
+    cell.setAttribute('data-cell-background', layout.backgroundColor)
+  }
+  if (layout.borderColor) {
+    cell.setAttribute('data-cell-border-color', layout.borderColor)
+  }
+
+  const sideAttrMap: Record<DocxImportedBorderSide, string> = {
+    top: 'top',
+    right: 'right',
+    bottom: 'bottom',
+    left: 'left'
+  }
+
+  for (const side of Object.keys(sideAttrMap) as DocxImportedBorderSide[]) {
+    const border = layout.borders[side]
+    if (!border) {
+      continue
+    }
+
+    if (border.style) {
+      cell.setAttribute(`data-cell-border-${side}-style`, border.style)
+    }
+    if (border.width) {
+      cell.setAttribute(`data-cell-border-${side}-width`, border.width)
+    }
+    if (border.color) {
+      cell.setAttribute(`data-cell-border-${side}-color`, border.color)
+    }
+  }
+}
+
+function applyImportedTableLayout(
+  table: HTMLTableElement,
+  layout: DocxImportedTableLayout,
+  targetDocument: Document
+): void {
+  table.classList.add('document-table')
+
+  if (layout.width) {
+    table.setAttribute('data-table-width', layout.width)
+  }
+  if (layout.align) {
+    table.setAttribute('data-table-align', layout.align)
+  }
+  if (layout.widthMode) {
+    table.setAttribute('data-table-width-mode', layout.widthMode)
+  }
+  if (layout.backgroundColor) {
+    table.setAttribute('data-table-background-color', layout.backgroundColor)
+  }
+  if (layout.borderHidden) {
+    table.setAttribute('data-table-border-hidden', 'true')
+  }
+  if (layout.borderStyle) {
+    table.setAttribute('data-table-border-style', layout.borderStyle)
+  }
+  if (layout.borderWidth) {
+    table.setAttribute('data-table-border-width', layout.borderWidth)
+  }
+  if (layout.borderColor) {
+    table.setAttribute('data-table-border-color', layout.borderColor)
+  }
+  if (layout.gridColumnWidths.length > 0) {
+    ensureImportedColgroup(table, layout.gridColumnWidths, targetDocument)
+  }
+
+  const htmlRows = Array.from(table.rows)
+  for (let rowIndex = 0; rowIndex < Math.min(htmlRows.length, layout.rows.length); rowIndex += 1) {
+    const htmlRow = htmlRows[rowIndex]
+    const importedRow = layout.rows[rowIndex]
+    const htmlCells = Array.from(htmlRow.cells)
+
+    for (let cellIndex = 0; cellIndex < Math.min(htmlCells.length, importedRow.length); cellIndex += 1) {
+      const htmlCell = htmlCells[cellIndex]
+      const importedCell = importedRow[cellIndex]
+      if (!htmlCell || !importedCell) {
+        continue
+      }
+
+      applyImportedTableCellLayout(htmlCell, importedCell)
+    }
+  }
+}
+
+export function enhanceImportedHtmlWithTableLayouts(html: string, layouts: DocxImportedTableLayout[]): string {
+  if (!html || layouts.length === 0 || globalThis.DOMParser === undefined) {
+    return html
+  }
+
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    const tables = Array.from(doc.body.querySelectorAll('table')).filter(
+      (table): table is HTMLTableElement => table instanceof HTMLTableElement
+    )
+
+    for (let index = 0; index < Math.min(tables.length, layouts.length); index += 1) {
+      const table = tables[index]
+      const layout = layouts[index]
+      if (!table || !layout) {
+        continue
+      }
+
+      applyImportedTableLayout(table, layout, doc)
+    }
+
+    return doc.body.innerHTML
+  } catch {
+    return html
+  }
+}
+
+export { parseDocumentXmlForTableLayouts }

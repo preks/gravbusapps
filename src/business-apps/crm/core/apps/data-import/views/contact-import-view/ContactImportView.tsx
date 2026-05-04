@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { EntityImportView } from '@/common/components/common-relations/apps/data-import/components'
+import { CrmEntityImportView } from '@/common/components/common-relations/apps/data-import/components'
 import { customerContactImportConfig } from '@/common/data/customer/types/customerContactImportConfig'
 import translations from './_i18n'
 
@@ -18,13 +18,12 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
   const { t } = useTranslation(translations)
 
   return (
-    <EntityImportView
+    <CrmEntityImportView
       config={customerContactImportConfig}
       headerTitle={t('contact-page-title')}
       headerDescription={t('contact-page-description')}
       entityType={t('contact-entity-type')}
       entityTypeSingular={t('contact-entity-type-singular')}
-      enableCampaignSelection
       onBack={onBack}
       data-testid={testId}
       {...context}

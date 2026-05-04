@@ -6,6 +6,3 @@ export type {
   UseReportFiltersReturn,
   ColumnConfig
 } from './useReportFilters'
-
-// Note: useUniversalInvestmentReportsAnalytics has been removed
-// All report views now use useGetInvestmentReports from @/common/data/investment-report/hooks directly

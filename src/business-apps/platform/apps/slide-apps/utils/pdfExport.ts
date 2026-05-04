@@ -9,8 +9,14 @@ import { buildFilename, triggerDownload } from '@/common/utils/excelExportUtils'
 import type { SlideData } from '../components/slideElements'
 import type { SlideTheme } from '../components/slideThemes'
 
-const SLIDE_WIDTH = 1280
-const SLIDE_HEIGHT = 720
+/**
+ * Fallback export dimensions for decks that lack an explicit canvas size
+ * (e.g. locally-authored slides). PPTX-imported decks override this via
+ * {@link SlideData.canvasSize}, so 4:3 / A4 / custom decks retain their
+ * original aspect ratio during PDF export.
+ */
+const DEFAULT_SLIDE_WIDTH = 1280
+const DEFAULT_SLIDE_HEIGHT = 720
 
 // PDF page dimensions in points (1 inch = 72 points)
 // US Letter landscape: 11" x 8.5" = 792 x 612 points
@@ -62,12 +68,17 @@ function getSlideIndices(options: PdfExportOptions): number[] {
 /**
  * Capture a slide element as a PNG data URL.
  */
-async function captureSlide(slideElement: HTMLElement, quality: PdfQuality): Promise<string> {
+async function captureSlide(
+  slideElement: HTMLElement,
+  quality: PdfQuality,
+  width: number,
+  height: number
+): Promise<string> {
   const scale = QUALITY_SCALE[quality]
 
   const dataUrl = await toPng(slideElement, {
-    width: SLIDE_WIDTH * scale,
-    height: SLIDE_HEIGHT * scale,
+    width: width * scale,
+    height: height * scale,
     pixelRatio: scale,
     cacheBust: true,
     style: {
@@ -242,8 +253,11 @@ export async function exportToPdf(options: PdfExportOptions, renderContainer: HT
       continue
     }
 
-    // Capture slide as image
-    const imageData = await captureSlide(slideElement, quality)
+    // Capture slide as image at the slide's own canvas dimensions so PPTX
+    // imports (4:3, A4, custom) aren't resampled into a 16:9 export.
+    const slideWidth = slide.canvasSize?.width ?? DEFAULT_SLIDE_WIDTH
+    const slideHeight = slide.canvasSize?.height ?? DEFAULT_SLIDE_HEIGHT
+    const imageData = await captureSlide(slideElement, quality, slideWidth, slideHeight)
 
     // Start a new page if needed
     if (slideOnPage === 0 && currentPage > 0) {
@@ -252,7 +266,7 @@ export async function exportToPdf(options: PdfExportOptions, renderContainer: HT
 
     // Add slide image to PDF
     const pos = layout.positions[slideOnPage]
-    const aspectRatio = SLIDE_WIDTH / SLIDE_HEIGHT
+    const aspectRatio = slideWidth / slideHeight
     let imgWidth = layout.width
     let imgHeight = imgWidth / aspectRatio
 

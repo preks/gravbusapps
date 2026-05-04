@@ -85,6 +85,8 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
       }
 
       try {
+        setError(null)
+
         // Prepare the create payload - store dimension info in settings
         const createPayload = {
           name: input.name,
@@ -115,7 +117,28 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
         })
 
         if (!response.ok) {
-          throw new Error(t('error-create-space'))
+          let errorMessage =
+            response.status === 409 && input.dimension ? t('error-create-space-duplicate') : t('error-create-space')
+
+          try {
+            const errorData = await response.json()
+            const backendMessage =
+              typeof errorData?.message === 'string'
+                ? errorData.message
+                : Array.isArray(errorData?.message)
+                  ? errorData.message.join(', ')
+                  : typeof errorData?.error === 'string'
+                    ? errorData.error
+                    : null
+
+            if (response.status !== 409 && backendMessage) {
+              errorMessage = backendMessage
+            }
+          } catch {
+            // fall back to translated defaults
+          }
+
+          throw new Error(errorMessage)
         }
 
         let space = await response.json()

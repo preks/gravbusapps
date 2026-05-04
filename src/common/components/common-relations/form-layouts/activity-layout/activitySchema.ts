@@ -22,7 +22,7 @@ export const activitySchema = z.object({
   title: z.string().min(1, 'Title is required'),
   activityTypeRef: z.string().min(1, 'Activity type is required'),
   occurredAt: z.string().min(1, 'Date is required'),
-  description: z.string().min(1, 'Description is required'),
+  description: z.string().nullable().optional(),
   completedAt: z.string().nullable().optional(),
   source: z.string().nullable().optional(),
 
@@ -32,7 +32,7 @@ export const activitySchema = z.object({
   opportunityId: z.string().nullable().optional(),
   leadId: z.string().nullable().optional(),
   investmentId: z.string().nullable().optional(), // IRM-specific
-  ownerEmployeeId: z.string().nullable().optional(),
+  ownerEmployeeId: z.string().min(1, 'Owner is required'),
 
   // Related entities (full objects for display - not in form values)
   account: z.any().optional(),

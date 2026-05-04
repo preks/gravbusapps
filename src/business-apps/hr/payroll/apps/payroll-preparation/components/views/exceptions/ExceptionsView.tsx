@@ -1,62 +1,72 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Card,
-  Checkbox,
+  DebouncedInput,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
+import {
+  ArrowsClockwiseIcon,
+  WarningCircleIcon,
+  ShieldWarningIcon,
+  InfoIcon,
+  MagnifyingGlassIcon
+} from '@phosphor-icons/react'
 import type { PayrollEmployee, PayrollIssue, IssueCategory, IssueSeverity } from '../../../types/payrollTypes'
+import { payrollIssueCodeTitle } from '../../../utils/payrollIssueCodeLabels'
 import { SeverityBadge } from '../../shared/StatusBadge'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { ExceptionDetailDrawer } from './ExceptionDetailDrawer'
 
 interface ExceptionsViewProps {
   employees: PayrollEmployee[]
   onRefresh: () => Promise<void>
   refreshing: boolean
-  t: (key: string) => string
+  accessToken?: string
+  t: (key: string, values?: Record<string, string | number>) => string
 }
 
 const CATEGORY_KEYS: Record<IssueCategory, string> = {
-  missing_personal_data: 'category-missing-personal-data',
+  missing_contract_data: 'category-missing-contract-data',
   missing_bank_details: 'category-missing-bank-details',
-  missing_contract_salary: 'category-missing-contract-salary',
+  missing_salary_data: 'category-missing-salary-data',
   missing_tax_social: 'category-missing-tax-social',
-  missing_country_specific: 'category-missing-country-specific',
-  missing_approvals: 'category-missing-approvals',
+  missing_contract_master_data: 'category-missing-contract-master-data',
   missing_absence_data: 'category-missing-absence-data',
-  overlapping_absences: 'category-overlapping-absences',
-  retroactive_changes: 'category-retroactive-changes',
+  missing_working_hours: 'category-missing-working-hours',
   pending_final_payroll: 'category-pending-final-payroll',
-  invalid_effective_dates: 'category-invalid-effective-dates'
+  other_exceptions: 'category-other-exceptions'
+}
+
+const SeverityIcon: React.FC<{ severity: IssueSeverity }> = ({ severity }) => {
+  switch (severity) {
+    case 'blocker':
+      return <ShieldWarningIcon size={16} weight="fill" className="gba:text-destructive" />
+    case 'warning':
+      return <WarningCircleIcon size={16} weight="fill" className="gba:text-warning" />
+    case 'info':
+      return <InfoIcon size={16} weight="fill" className="gba:text-primary" />
+  }
 }
 
 interface IssueWithEmployee extends PayrollIssue {
+  employee: PayrollEmployee
   employeeName: string
   employeeCode: string
 }
 
-export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRefresh, refreshing, t }) => {
+const EXCEPTIONS_PAGE_SIZE = 10
+
+export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRefresh, refreshing, accessToken, t }) => {
+  const tWithValues = t as (key: string, values?: Record<string, string | number>) => string
+  const [search, setSearch] = useState('')
   const [severityFilter, setSeverityFilter] = useState<IssueSeverity | 'all'>('all')
   const [categoryFilter, setCategoryFilter] = useState<IssueCategory | 'all'>('all')
-  const [addressedIds, setAddressedIds] = useState<Set<string>>(new Set())
-  const [hideAddressed, setHideAddressed] = useState(false)
-
-  const toggleAddressed = useCallback((issueKey: string) => {
-    setAddressedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(issueKey)) {
-        next.delete(issueKey)
-      } else {
-        next.add(issueKey)
-      }
-      return next
-    })
-  }, [])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedIssue, setSelectedIssue] = useState<IssueWithEmployee | null>(null)
 
   const allIssues = useMemo(() => {
     const issues: IssueWithEmployee[] = []
@@ -65,7 +75,8 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
         if (issue.status !== 'open') continue
         issues.push({
           ...issue,
-          employeeName: `${emp.firstName} ${emp.lastName}`,
+          employee: emp,
+          employeeName: emp.fullName,
           employeeCode: emp.code
         })
       }
@@ -81,11 +92,37 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
     if (categoryFilter !== 'all') {
       result = result.filter(i => i.category === categoryFilter)
     }
-    if (hideAddressed) {
-      result = result.filter(i => !addressedIds.has(`${i.employeeId}-${i.issueCode}`))
+    const query = search.trim().toLowerCase()
+    if (query) {
+      result = result.filter(issue => {
+        const matchesName = issue.employeeName.toLowerCase().includes(query)
+        const matchesCode = issue.employeeCode.toLowerCase().includes(query)
+        return matchesName || matchesCode
+      })
     }
     return result
-  }, [allIssues, severityFilter, categoryFilter, hideAddressed, addressedIds])
+  }, [allIssues, severityFilter, categoryFilter, search, t])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, severityFilter, categoryFilter])
+
+  useEffect(() => {
+    if (filteredIssues.length === 0) {
+      return
+    }
+
+    const maxPage = Math.max(1, Math.ceil(filteredIssues.length / EXCEPTIONS_PAGE_SIZE))
+    if (currentPage > maxPage) {
+      setCurrentPage(maxPage)
+    }
+  }, [currentPage, filteredIssues.length])
+
+  const totalPages = Math.ceil(filteredIssues.length / EXCEPTIONS_PAGE_SIZE)
+  const paginatedIssues = filteredIssues.slice(
+    (currentPage - 1) * EXCEPTIONS_PAGE_SIZE,
+    currentPage * EXCEPTIONS_PAGE_SIZE
+  )
 
   const { blockerCount, warningCount, infoCount, affectedEmployees } = useMemo(() => {
     let blockers = 0
@@ -100,34 +137,6 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
     }
     return { blockerCount: blockers, warningCount: warnings, infoCount: infos, affectedEmployees: employeeIds.size }
   }, [allIssues])
-
-  const handleNavigateForIssue = useCallback((employeeId: string, category: IssueCategory) => {
-    switch (category) {
-      case 'missing_personal_data':
-      case 'missing_bank_details':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'details' }))
-        break
-      case 'missing_contract_salary':
-      case 'missing_tax_social':
-      case 'missing_country_specific':
-      case 'pending_final_payroll':
-      case 'invalid_effective_dates':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'employment' }))
-        break
-      case 'missing_approvals':
-        navigateTo(buildPlatformUrl('/platform/task-manager', { view: 'inbox' }))
-        break
-      case 'missing_absence_data':
-      case 'overlapping_absences':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'absences' }))
-        break
-      case 'retroactive_changes':
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'changeLog' }))
-        break
-      default:
-        navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId, tab: 'hrAdmin', subView: 'details' }))
-    }
-  }, [])
 
   return (
     <div className="gba:space-y-6" data-testid="payroll-prep-exceptions-view">
@@ -159,7 +168,20 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
       </div>
 
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:flex-wrap">
-        <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
+        <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap gba:pl-2 gba:pt-1">
+          <div className="gba:relative gba:flex-1 gba:min-w-[240px] gba:max-w-[360px]">
+            <MagnifyingGlassIcon
+              size={16}
+              className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:text-muted-foreground"
+            />
+            <DebouncedInput
+              value={search}
+              onChange={(value: string | number) => setSearch(String(value))}
+              placeholder={t('filter-search')}
+              className="gba:pl-9"
+              data-testid="payroll-prep-exceptions-search-input"
+            />
+          </div>
           <div className="gba:flex gba:items-center gba:gap-2">
             <span className="gba:text-sm gba:font-medium gba:text-foreground gba:whitespace-nowrap">
               {t('label-severity')}
@@ -204,18 +226,6 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
               </Select>
             </div>
           </div>
-          {addressedIds.size > 0 && (
-            <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-              <Checkbox
-                checked={hideAddressed}
-                onCheckedChange={checked => setHideAddressed(!!checked)}
-                data-testid="payroll-prep-exceptions-hide-addressed-checkbox"
-              />
-              <span className="gba:text-sm gba:text-muted-foreground">
-                {t('exceptions-hide-addressed')} ({addressedIds.size})
-              </span>
-            </label>
-          )}
         </div>
         <Button
           variant="outline"
@@ -231,69 +241,104 @@ export const ExceptionsView: React.FC<ExceptionsViewProps> = ({ employees, onRef
 
       {/* Issues List */}
       <div className="gba:space-y-2">
-        {filteredIssues.length === 0 ? (
+        {paginatedIssues.length === 0 ? (
           <Card
             className="gba:p-8 gba:text-center gba:text-muted-foreground"
             data-testid="payroll-prep-exceptions-empty-state"
           >
-            {allIssues.length === 0
-              ? 'No exceptions found. All employees pass validation.'
-              : 'No issues match the selected filters.'}
+            {allIssues.length === 0 ? t('exceptions-empty') : t('exceptions-no-match')}
           </Card>
         ) : (
-          filteredIssues.map(issue => {
-            const issueKey = `${issue.employeeId}-${issue.issueCode}`
-            const isAddressed = addressedIds.has(issueKey)
+          paginatedIssues.map(issue => {
+            const issueKey = `${issue.employeeId}-${issue.id}-${issue.issueCode}-${issue.createdAt}`
             return (
-              <Card
+              <button
                 key={issueKey}
-                className={`gba:p-4 gba:transition-colors ${isAddressed ? 'gba:opacity-50' : 'gba:hover:bg-muted/50'}`}
+                type="button"
+                className="gba:block gba:w-full gba:text-left"
+                onClick={() => setSelectedIssue(issue)}
+                data-issue-code={issue.issueCode}
                 data-testid={`payroll-prep-exception-card-${issueKey}`}
               >
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <Checkbox
-                    checked={isAddressed}
-                    onCheckedChange={() => toggleAddressed(issueKey)}
-                    aria-label={t('exceptions-mark-addressed')}
-                    className="gba:mt-0.5"
-                    data-testid={`payroll-prep-exception-addressed-checkbox-${issueKey}`}
-                  />
-                  <SeverityIcon severity={issue.severity} />
-                  <button
-                    type="button"
-                    className="gba:flex-1 gba:min-w-0 gba:cursor-pointer gba:text-left"
-                    onClick={() => handleNavigateForIssue(issue.employeeId, issue.category)}
-                    data-testid={`payroll-prep-exception-open-${issueKey}`}
-                  >
-                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:flex-wrap gba:gap-2">
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <span
-                          className={`gba:text-sm gba:font-semibold ${isAddressed ? 'gba:line-through gba:text-muted-foreground' : 'gba:text-foreground'}`}
-                        >
-                          {issue.employeeName}
-                        </span>
-                        <span className="gba:text-xs gba:text-muted-foreground gba:font-mono">
-                          {issue.employeeCode}
-                        </span>
-                      </div>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <span className="gba:text-xs gba:font-mono gba:text-muted-foreground">{issue.issueCode}</span>
-                        <SeverityBadge severity={issue.severity} t={t} />
-                      </div>
+                <Card className="gba:p-4 gba:transition-colors gba:hover:bg-muted/30">
+                  <div className="gba:flex gba:items-start gba:gap-3">
+                    <div className="gba:mt-1">
+                      <SeverityIcon severity={issue.severity} />
                     </div>
-                    <p
-                      className={`gba:text-sm gba:mb-1 ${isAddressed ? 'gba:line-through gba:text-muted-foreground' : 'gba:text-foreground'}`}
-                    >
-                      {issue.message}
-                    </p>
-                    <p className="gba:text-xs gba:text-primary">{issue.recommendedAction}</p>
-                  </button>
-                </div>
-              </Card>
+
+                    <div className="gba:flex-1 gba:min-w-0">
+                      <div className="gba:flex gba:items-center gba:justify-between gba:mb-1 gba:flex-wrap gba:gap-2">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <span className="gba:text-sm gba:font-semibold gba:text-foreground">
+                            {issue.employeeName}
+                          </span>
+                          <span className="gba:text-xs gba:text-muted-foreground gba:font-mono">
+                            {issue.employeeCode}
+                          </span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+                          <span
+                            className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate"
+                            title={issue.issueCode}
+                          >
+                            {payrollIssueCodeTitle(issue.issueCode, t)}
+                          </span>
+                          <SeverityBadge severity={issue.severity} t={t} />
+                        </div>
+                      </div>
+                      <p className="gba:text-sm gba:mb-1 gba:text-foreground">{issue.message}</p>
+                      <p className="gba:text-xs gba:text-primary">{issue.recommendedAction}</p>
+                    </div>
+                  </div>
+                </Card>
+              </button>
             )
           })
         )}
       </div>
+
+      {filteredIssues.length > 0 && (
+        <div className="gba:flex gba:items-center gba:justify-between gba:border-t gba:border-border gba:px-1 gba:pt-2 gba:text-sm gba:text-muted-foreground">
+          <span>
+            {tWithValues('exceptions-pagination-showing', {
+              start: (currentPage - 1) * EXCEPTIONS_PAGE_SIZE + 1,
+              end: Math.min(currentPage * EXCEPTIONS_PAGE_SIZE, filteredIssues.length),
+              total: filteredIssues.length
+            })}
+          </span>
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              data-testid="payroll-prep-exceptions-pagination-prev-button"
+            >
+              {t('grid-pagination-prev')}
+            </Button>
+            <span className="gba:px-3">
+              {currentPage} / {totalPages || 1}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+              disabled={currentPage >= totalPages}
+              data-testid="payroll-prep-exceptions-pagination-next-button"
+            >
+              {t('grid-pagination-next')}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <ExceptionDetailDrawer
+        issue={selectedIssue}
+        employee={selectedIssue?.employee || null}
+        accessToken={accessToken}
+        onClose={() => setSelectedIssue(null)}
+        t={t}
+      />
     </div>
   )
 }

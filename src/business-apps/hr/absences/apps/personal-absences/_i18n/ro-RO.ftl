@@ -27,6 +27,10 @@ no-upcoming-absences = Nu există absențe viitoare
 company-holiday = Sărbătoare legală
 pending-requests = Cereri în așteptare
 no-pending-requests = Nu există cereri în așteptare
+action = Acțiune
+cancel-request = Anulează cererea
+cancel-request-success = Cererea de absență a fost anulată
+cancel-request-error = Cererea de absență nu a putut fi anulată
 
 # My Absence History
 my-absence-history = Istoricul absențelor

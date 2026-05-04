@@ -7,7 +7,7 @@ export interface WhiteboardAiMessage {
   role: 'user' | 'assistant'
   content: string
   imageDataUrl?: string
-  toolCalls?: Array<{ name: string; arguments: string }>
+  toolCalls?: Array<{ id?: string; name: string; arguments: string; executable?: boolean }>
   timestamp: number
 }
 
@@ -50,8 +50,8 @@ export function useWhiteboardAiSocket({ whiteboardId, accessToken, enabled = tru
 
   const socketRef = useRef<Socket | null>(null)
   const streamingContentRef = useRef('')
-  const pendingToolCallsRef = useRef<Array<{ name: string; arguments: string }>>([])
-  const onToolCallRef = useRef<((toolCall: { name: string; arguments: string }) => void) | null>(null)
+  const pendingToolCallsRef = useRef<Array<{ id?: string; name: string; arguments: string; executable?: boolean }>>([])
+  const onToolCallRef = useRef<((toolCall: { id?: string; name: string; arguments: string }) => void) | null>(null)
   const msgIdCounter = useRef(0)
 
   useEffect(() => {
@@ -62,6 +62,7 @@ export function useWhiteboardAiSocket({ whiteboardId, accessToken, enabled = tru
       path: socketPath,
       auth: { token: accessToken },
       transports: ['websocket', 'polling'],
+      tryAllTransports: true,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000
@@ -95,9 +96,9 @@ export function useWhiteboardAiSocket({ whiteboardId, accessToken, enabled = tru
       setStatus(data.status)
     })
 
-    socket.on('tool-call', (data: { name: string; arguments: string }) => {
+    socket.on('tool-call', (data: { id?: string; name: string; arguments: string }) => {
       console.log('[WhiteboardAI] Tool call received:', data.name)
-      pendingToolCallsRef.current.push(data)
+      pendingToolCallsRef.current.push({ ...data, executable: true })
       onToolCallRef.current?.(data)
     })
 
@@ -109,7 +110,7 @@ export function useWhiteboardAiSocket({ whiteboardId, accessToken, enabled = tru
       'complete',
       (data: {
         assistantText: string
-        toolCalls: Array<{ name: string; arguments: string }>
+        toolCalls: Array<{ id?: string; name: string; arguments: string }>
         sessionTitle?: string
       }) => {
         if (data.sessionTitle) setSessionTitle(data.sessionTitle)
@@ -119,7 +120,7 @@ export function useWhiteboardAiSocket({ whiteboardId, accessToken, enabled = tru
           content: data.assistantText || streamingContentRef.current,
           toolCalls:
             data.toolCalls.length > 0
-              ? data.toolCalls
+              ? data.toolCalls.map(toolCall => ({ ...toolCall, executable: false }))
               : pendingToolCallsRef.current.length > 0
                 ? pendingToolCallsRef.current
                 : undefined,
@@ -195,7 +196,7 @@ export function useWhiteboardAiSocket({ whiteboardId, accessToken, enabled = tru
     setSessionTitle(null)
   }, [whiteboardId])
 
-  const setOnToolCall = useCallback((handler: (toolCall: { name: string; arguments: string }) => void) => {
+  const setOnToolCall = useCallback((handler: (toolCall: { id?: string; name: string; arguments: string }) => void) => {
     onToolCallRef.current = handler
   }, [])
 

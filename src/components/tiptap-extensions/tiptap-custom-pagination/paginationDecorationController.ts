@@ -6,6 +6,7 @@ import {
   type AddPagesMeasurementSnapshot,
   type PaginationMeasuredHeights
 } from './paginationPageCountPolicy'
+import { applyForcedPageBoundaryFloor, collectForcedPageBoundarySummary } from './paginationForcedBoundaries'
 import type { HeaderFooterEditorType, PagesOptions, PagesStorage } from './types'
 
 interface PaginationChromeWidgetState {
@@ -38,15 +39,21 @@ export function resolvePaginationChromeWidgetState(options: {
     resetDueToDocChange: false,
     measureHeights: options.measureHeights
   })
-  const storedPageCount =
+  const forcedBoundarySummary = collectForcedPageBoundarySummary(options.view.state?.doc ?? null)
+  const storedPageCount = applyForcedPageBoundaryFloor(
     measurementState.runawayPageGrowthResolution.cappedPageCount === null
       ? options.storage.pageCount
-      : Math.min(options.storage.pageCount, measurementState.runawayPageGrowthResolution.cappedPageCount)
-  const totalPages = resolvePaginationWidgetTotalPages({
-    storedPageCount,
-    measuredPageCount: measurementState.measuredPageCount,
-    growthSuppressionPageCount: options.growthSuppressionPageCount
-  })
+      : Math.min(options.storage.pageCount, measurementState.runawayPageGrowthResolution.cappedPageCount),
+    forcedBoundarySummary
+  )
+  const totalPages = applyForcedPageBoundaryFloor(
+    resolvePaginationWidgetTotalPages({
+      storedPageCount,
+      measuredPageCount: measurementState.measuredPageCount,
+      growthSuppressionPageCount: options.growthSuppressionPageCount
+    }),
+    forcedBoundarySummary
+  )
 
   return {
     measurementState,

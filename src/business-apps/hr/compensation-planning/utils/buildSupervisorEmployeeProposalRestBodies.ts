@@ -1,5 +1,6 @@
 import type { SaveCompensationBudgetPlanEmployeeRestBody } from '../api/saveCompensationBudgetPlan'
 import type { CompensationBudgetPlanEmployeeRestRow } from '../types/compensationBudgetPlanEmployeeRestRow'
+import { roundMoney2 } from './budgetAmountPercentSync'
 
 function submittedAtIso(row: CompensationBudgetPlanEmployeeRestRow): string {
   return row.submittedAt?.trim() ?? ''
@@ -13,6 +14,7 @@ function baseEmployeePayload(
   return {
     id: row.id,
     version: row.version,
+    allocationAmount: row.allocationAmount,
     proposedSalaryIncreaseAmount: row.proposedSalaryIncreaseAmount,
     proposedSalaryIncreasePercent: row.proposedSalaryIncreasePercent,
     proposedNewSalary: row.proposedNewSalary,
@@ -54,6 +56,8 @@ export function buildSupervisorSendBackEmployeeProposalBody(
     compensationBudgetPlanEmployee: {
       ...baseEmployeePayload(row, supervisorEmployeeId),
       budgetPlanStatus: 'BUDGET_PLAN_SENT_BACK',
+      /** Release this line's share of the department `allocation_amount` until the manager resubmits. */
+      allocationAmount: roundMoney2(0),
       reviewNotes: reviewNotes.trim(),
       reviewedByEmployee: supervisorEmployeeId,
       reviewedAt

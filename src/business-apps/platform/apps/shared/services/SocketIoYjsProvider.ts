@@ -18,6 +18,18 @@ type YjsSyncResponseEvent = {
   awareness: string | null
 }
 
+type YjsRoomStatusEvent = {
+  entityType?: YjsEntityType
+  entityId: string
+  status: 'readonly' | 'trashed' | 'error'
+  reason: string
+}
+
+type YjsUpdateAck = {
+  success: boolean
+  error?: string
+}
+
 function uint8ArrayToBase64(value: Uint8Array): string {
   // Avoid stack overflows by chunking.
   let binary = ''
@@ -59,6 +71,7 @@ export interface SocketIoYjsProviderOptions {
   entityType?: YjsEntityType
   ydoc: Y.Doc
   awareness: Awareness
+  getDocumentSnapshot?: () => string | undefined
   onSyncedChange?: (isSynced: boolean) => void
   onBootstrapRequired?: (html: string) => Promise<void> | void
   onReadyStateApplied?: (info: {
@@ -107,6 +120,7 @@ export class SocketIoYjsProvider {
   private onLocalDocumentChange?: () => void
   private onRemoteDocumentChange?: () => void
   private onRemoteAwarenessChange?: () => void
+  private readonly getDocumentSnapshot?: () => string | undefined
   private readonly onBeforeFirstSync?: () => Promise<void>
   private hasWaitedForReady = false
 
@@ -119,6 +133,8 @@ export class SocketIoYjsProvider {
   private localDocFlushTimerId: ReturnType<typeof setTimeout> | null = null
   private isApplyingRemoteDocUpdate = false
   private readonly syncAckTimeoutMs: number
+  private remoteUpdateCount = 0
+  private localUpdateCount = 0
 
   constructor(options: SocketIoYjsProviderOptions) {
     this.socket = options.socket
@@ -126,6 +142,7 @@ export class SocketIoYjsProvider {
     this.entityType = options.entityType || 'document'
     this.ydoc = options.ydoc
     this.awareness = options.awareness
+    this.getDocumentSnapshot = options.getDocumentSnapshot
     this.onSyncedChange = options.onSyncedChange
     this.onBootstrapRequired = options.onBootstrapRequired
     this.onReadyStateApplied = options.onReadyStateApplied
@@ -150,9 +167,11 @@ export class SocketIoYjsProvider {
     this.started = true
 
     this.socket.on('connect', this.handleSocketConnect)
+    this.socket.on('disconnect', this.handleSocketDisconnect)
     this.socket.on('yjs_update', this.handleRemoteYjsUpdate)
     this.socket.on('yjs_awareness_update', this.handleRemoteAwarenessUpdate)
     this.socket.on('yjs_sync_response', this.handleSyncResponseEvent)
+    this.socket.on('yjs_room_status', this.handleRoomStatus)
 
     this.ydoc.on('update', this.handleLocalYjsUpdate)
     this.awareness.on('update', this.handleLocalAwarenessUpdate)
@@ -183,9 +202,11 @@ export class SocketIoYjsProvider {
     this.pendingRemoteDocUpdates = []
 
     this.socket.off('connect', this.handleSocketConnect)
+    this.socket.off('disconnect', this.handleSocketDisconnect)
     this.socket.off('yjs_update', this.handleRemoteYjsUpdate)
     this.socket.off('yjs_awareness_update', this.handleRemoteAwarenessUpdate)
     this.socket.off('yjs_sync_response', this.handleSyncResponseEvent)
+    this.socket.off('yjs_room_status', this.handleRoomStatus)
 
     this.ydoc.off('update', this.handleLocalYjsUpdate)
     this.awareness.off('update', this.handleLocalAwarenessUpdate)
@@ -193,6 +214,19 @@ export class SocketIoYjsProvider {
 
   isSynced() {
     return this.synced
+  }
+
+  flushPendingLocalUpdates() {
+    if (this.localDocFlushTimerId !== null) {
+      clearTimeout(this.localDocFlushTimerId)
+      this.localDocFlushTimerId = null
+    }
+    this.flushLocalDocUpdates()
+  }
+
+  requestResync() {
+    this.setSynced(false)
+    this.triggerSync()
   }
 
   private setSynced(next: boolean) {
@@ -208,11 +242,7 @@ export class SocketIoYjsProvider {
       const buffered = this.pendingLocalDocFlush.splice(0)
       if (buffered.length > 0) {
         const merged = buffered.length === 1 ? buffered[0] : Y.mergeUpdates(buffered)
-        this.socket.emit('yjs_update', {
-          documentId: this.documentId,
-          entityType: this.entityType,
-          update: uint8ArrayToBase64(merged)
-        })
+        this.pendingLocalDocUpdates.push(merged)
       }
       return
     }
@@ -223,7 +253,8 @@ export class SocketIoYjsProvider {
         this.socket.emit('yjs_update', {
           documentId: this.documentId,
           entityType: this.entityType,
-          update: uint8ArrayToBase64(update)
+          update: uint8ArrayToBase64(update),
+          ...(this.entityType === 'note' ? { htmlSnapshot: this.getDocumentSnapshot?.() } : {})
         })
       })
     }
@@ -249,6 +280,11 @@ export class SocketIoYjsProvider {
   private handleSocketConnect = () => {
     if (this.destroyed) return
     this.triggerSync()
+  }
+
+  private readonly handleSocketDisconnect = () => {
+    if (this.destroyed) return
+    this.setSynced(false)
   }
 
   private scheduleSyncRetry(delayMs: number = 1500) {
@@ -298,7 +334,9 @@ export class SocketIoYjsProvider {
 
     if (response.status === 'ready') {
       const fragmentLength = this.applyDocState(response.state)
-      this.queueLocalDiffAfterFullSync(response.state)
+      if (this.shouldQueueLocalDiffAfterFullSync()) {
+        this.queueLocalDiffAfterFullSync(response.state)
+      }
       await this.onReadyStateApplied?.({
         source: 'sync',
         status: response.status,
@@ -384,6 +422,10 @@ export class SocketIoYjsProvider {
     return this.entityType === 'document' || this.entityType === 'note'
   }
 
+  private shouldQueueLocalDiffAfterFullSync(): boolean {
+    return this.requiresDefaultXmlBootstrapGuard()
+  }
+
   private async handleBootstrapInitializer(
     response: Extract<YjsSyncResponse, { success: true; status: 'bootstrap'; role: 'initializer' }>
   ): Promise<boolean> {
@@ -428,7 +470,18 @@ export class SocketIoYjsProvider {
       return true
     }
 
-    this.setSynced(true)
+    if (!this.shouldQueueLocalDiffAfterFullSync()) {
+      this.pendingLocalDocUpdates = []
+    }
+
+    // The server emits a full `yjs_sync_response` after accepting bootstrap.
+    // Wait for that snapshot so the initializer and waiting peers converge on
+    // the same authoritative Y.Doc state before we mark the provider synced.
+    window.setTimeout(() => {
+      if (!this.destroyed && !this.synced) {
+        this.triggerSync()
+      }
+    }, 1500)
     return true
   }
 
@@ -502,7 +555,9 @@ export class SocketIoYjsProvider {
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
       const fragmentLength = this.applyDocState(event.state)
-      this.queueLocalDiffAfterFullSync(event.state)
+      if (this.shouldQueueLocalDiffAfterFullSync()) {
+        this.queueLocalDiffAfterFullSync(event.state)
+      }
       void this.onReadyStateApplied?.({
         source: 'event',
         status: 'ready',
@@ -513,6 +568,20 @@ export class SocketIoYjsProvider {
       }
       this.setSynced(true)
     })
+  }
+
+  private readonly handleRoomStatus = (event: YjsRoomStatusEvent) => {
+    if (this.destroyed) return
+    if (event?.entityId !== this.documentId) return
+    const eventEntityType = event.entityType || 'document'
+    if (eventEntityType !== this.entityType) return
+    console.warn('[SocketIoYjsProvider] Room status changed:', event.status, event.reason)
+    if (event.status === 'readonly' || event.status === 'trashed' || event.status === 'error') {
+      this.setSynced(false)
+    }
+    if (event.status === 'error') {
+      this.scheduleSyncRetry(250)
+    }
   }
 
   private scheduleRemoteDocFlush() {
@@ -543,7 +612,43 @@ export class SocketIoYjsProvider {
     if (updates.length === 0) return
     const merged = updates.length === 1 ? updates[0] : Y.mergeUpdates(updates)
     const updateBase64 = uint8ArrayToBase64(merged)
-    this.socket.emit('yjs_update', { documentId: this.documentId, entityType: this.entityType, update: updateBase64 })
+    const updateNumber = ++this.localUpdateCount
+    if (this.entityType === 'slide') {
+      console.info('[SocketIoYjsProvider] Sending slide Yjs update:', {
+        documentId: this.documentId,
+        updateNumber,
+        updateBytes: merged.length,
+        updateBase64Length: updateBase64.length
+      })
+    }
+    this.socket.timeout(15000).emit(
+      'yjs_update',
+      {
+        documentId: this.documentId,
+        entityType: this.entityType,
+        update: updateBase64,
+        ...(this.entityType === 'note' ? { htmlSnapshot: this.getDocumentSnapshot?.() } : {})
+      },
+      (error: Error | null, response?: YjsUpdateAck) => {
+        if (error) {
+          console.error('[SocketIoYjsProvider] yjs_update ack timeout/error:', {
+            documentId: this.documentId,
+            updateNumber,
+            message: error.message
+          })
+          this.setSynced(false)
+          return
+        }
+        if (!response?.success) {
+          console.error('[SocketIoYjsProvider] yjs_update rejected:', {
+            documentId: this.documentId,
+            updateNumber,
+            error: response?.error || 'unknown'
+          })
+          this.setSynced(false)
+        }
+      }
+    )
   }
 
   private readonly handleRemoteYjsUpdate = (event: {
@@ -557,6 +662,14 @@ export class SocketIoYjsProvider {
     if (eventEntityType !== this.entityType) return
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
+      if (this.entityType === 'slide') {
+        this.remoteUpdateCount += 1
+        console.info('[SocketIoYjsProvider] Received slide Yjs update:', {
+          documentId: this.documentId,
+          updateNumber: this.remoteUpdateCount,
+          updateBase64Length: event.update.length
+        })
+      }
       this.pendingRemoteDocUpdates.push(base64ToUint8Array(event.update))
       this.scheduleRemoteDocFlush()
     })

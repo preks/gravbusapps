@@ -54,7 +54,6 @@ export interface SimpleStatistics {
   unplannedAbsences: number
   unplannedAbsencesDays: number
   absences: any[]
-  yearOverYearData: any[]
 }
 
 export interface SimpleCoverage {

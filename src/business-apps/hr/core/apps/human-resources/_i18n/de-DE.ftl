@@ -144,6 +144,9 @@ hr-analytics-avg-salary = Durchschnittsgehalt
 hr-analytics-average-salary = Durchschnittsgehalt
 hr-analytics-merit-increases = Leistungsbedingte Erhöhungen
 hr-analytics-average-increase = Durchschnittliche Erhöhung
+hr-analytics-equity-health-score-title = Equity-Health-Score
+hr-analytics-equity-health-score-no-data-footer = Keine abgeschlossene Equity-Health-Analyse gefunden
+hr-analytics-equity-health-score-error-footer = Equity-Health-Score konnte nicht geladen werden
 
 # Analytics - Health Insurance
 hr-analytics-health-insurer-distribution = Verteilung der Krankenversicherer

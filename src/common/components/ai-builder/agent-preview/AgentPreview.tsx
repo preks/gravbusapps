@@ -167,7 +167,9 @@ function buildRequestFormData(
     fd.append('model_id', effectiveModelId)
     fd.append('user_content', promptProp.user_content.template ?? '')
     if (promptProp.system_content?.template) fd.append('system_content', promptProp.system_content.template)
-    if (promptProp.tools) fd.append('tools', promptProp.tools)
+    if (promptProp.tools && promptProp.tools.length > 0) {
+      fd.append('tools', promptProp.tools.join(','))
+    }
     if (promptProp.model_settings && Object.keys(promptProp.model_settings).length > 0) {
       fd.append('model_settings', JSON.stringify(promptProp.model_settings))
     }
@@ -628,12 +630,7 @@ const AgentPreviewSingle: React.FC<AgentPreviewSingleProps> = ({
   if (error) return <PreviewError testId={testId} message={error} />
   if (!prompt) return <PreviewEmpty testId={testId} message="No expert data." />
 
-  const toolList = prompt.tools
-    ? prompt.tools
-        .split(',')
-        .map(t => t.trim())
-        .filter(Boolean)
-    : []
+  const toolList = (prompt.tools ?? []).map(t => t.trim()).filter(Boolean)
   const knowledgeSources = prompt.knowledge_sources ?? []
 
   const responseSchema = prompt.response_schema as Record<string, unknown> | undefined

@@ -142,7 +142,7 @@ task-type-information = Information
 task-type-acknowledge = Acknowledge
 task-type-function = Function
 task-type-ai_agent = EveryAI Agent
-task-type-ai_task_expert = AI Task Expert
+task-type-ai_task_expert = Enterprise Agent
 task-kind = Step Kind
 task-kind-user = User Step
 task-kind-system = System Step
@@ -174,7 +174,7 @@ task-links-url-placeholder = https://example.com
 task-links-document-url = Document reference (expression)
 task-links-document-url-placeholder = {{ $steps.step_0.formData.fileField }}
 
-# AI Task Expert parameter mapping
+# Enterprise Agent parameter mapping
 task-input-params = Input parameters
 task-input-params-loading = Loading parameters...
 task-input-params-empty = No parameters found.
@@ -257,8 +257,8 @@ decision-policy-optional-placeholder = Optional: select a policy...
 decision-ai-executor-label = AI executor
 decision-ai-executor-everyai = EveryAI
 decision-ai-executor-everyai-desc = Use a decision instruction (with flow context) and let EveryAI pick the best branch.
-decision-ai-executor-taskexpert = AI Task Expert
-decision-ai-executor-taskexpert-desc = Run the task expert and route via mapping rules. If no rule matches, a human picks the branch.
+decision-ai-executor-taskexpert = Enterprise Agent
+decision-ai-executor-taskexpert-desc = Run the agent and route via mapping rules. If no rule matches, a human picks the branch.
 decision-ai-type-label = Decision setup
 decision-ai-type-policy = Policy-guided
 decision-ai-type-policy-desc = Use a policy document as guidance for the decision.
@@ -276,12 +276,12 @@ decision-human-instructions-label = Fallback task message
 decision-human-instructions-desc = Required. This is shown to the user when a human needs to pick the branch. You can insert flow context.
 decision-human-instructions-placeholder = e.g. The AI could not decide. Please choose the best branch based on the available information.
 decision-ai-taskexpert-mapping-label = Mapping rules
-decision-ai-taskexpert-mapping-desc = Define rules that map the task expert output to a branch.
-decision-ai-taskexpert-picker-desc = Select which task expert should execute for this decision.
-decision-ai-taskexpert-picker-placeholder = Select a task expert...
-decision-ai-taskexpert-picker-search = Search task experts...
-decision-ai-taskexpert-picker-empty = No task experts found.
-decision-ai-taskexpert-params-desc = Map each prompt parameter explicitly to the flow context that should be sent to the selected task expert.
+decision-ai-taskexpert-mapping-desc = Define rules that map the agent output to a branch.
+decision-ai-taskexpert-picker-desc = Select which agent should execute for this decision.
+decision-ai-taskexpert-picker-placeholder = Select an agent...
+decision-ai-taskexpert-picker-search = Search agents...
+decision-ai-taskexpert-picker-empty = No agents found.
+decision-ai-taskexpert-params-desc = Map each prompt parameter explicitly to the flow context that should be sent to the selected agent.
 decision-ai-taskexpert-reasoning-label = Reasoning output mapping
 decision-ai-taskexpert-reasoning-desc = Optional. Select which output field should be used as reasoning for the human fallback.
 decision-ai-taskexpert-reasoning-placeholder = Select output field (optional)
@@ -326,3 +326,14 @@ validation-orphan-nodes = Orphan nodes detected
 validation-fork-no-join = Fork node has no matching join
 validation-decision-branches = Decision must have at least 2 branches
 validation-disconnected = Some nodes are not connected
+validation-decision-must-select-agent = Decision "{ $label }" must select an Enterprise Agent prompt
+validation-decision-unmapped-agent-params = Decision "{ $label }" must map all Enterprise Agent prompt parameters before publish: { $params }
+
+# Add step panel
+add-step-tip-advanced-mode = Switch to Advanced mode to unlock Function Tasks and Enterprise Agent steps.
+
+# Task step type selector descriptions
+task-step-type-ai-task-expert-description = Enterprise Agent prompt step.
+
+# Decision Enterprise Agent mapping suggestions
+decision-ai-taskexpert-mapping-suggestion-description = From the selected agent output schema.

@@ -23,6 +23,7 @@ export interface BudgetSetupPlanTableRow {
   companyId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
+  allocationAmount: number
   companyBudgetStatus: string | null
   salaryBaseline: number | null
   currencyRef: string | null
@@ -34,15 +35,15 @@ export function buildBudgetSetupPlanTableRows(
   selectedCompanyId: string,
   defaultCurrencyCode: string,
   plans: CompensationBudgetPlanListItem[],
-  /** When set, only rows for this compensation cycle are shown. */
+  /** When null, no rows (user must select a cycle). Otherwise only this plan’s row for the company. */
   selectedCompensationPlanId: string | null
 ): BudgetSetupPlanTableRow[] {
+  if (selectedCompensationPlanId == null) {
+    return []
+  }
   return companyBudgetPlanRows
     .filter(companyRow => companyRow.companyId === selectedCompanyId)
-    .filter(
-      companyRow =>
-        selectedCompensationPlanId == null || companyRow.compensationBudgetPlanId === selectedCompensationPlanId
-    )
+    .filter(companyRow => companyRow.compensationBudgetPlanId === selectedCompensationPlanId)
     .map(companyRow => {
       const displayCurrency = formatCurrencyRefForDisplay(companyRow.currencyRef?.trim()) || defaultCurrencyCode
       const budgetPlanLabel = formatBudgetPlanChosenLabel(companyRow.compensationBudgetPlanId, plans)
@@ -54,6 +55,7 @@ export function buildBudgetSetupPlanTableRows(
         companyId: companyRow.companyId,
         salaryBudgetAmount: companyRow.salaryBudgetAmount,
         salaryBudgetPercent: companyRow.salaryBudgetPercent,
+        allocationAmount: companyRow.allocationAmount,
         companyBudgetStatus: companyRow.budgetPlanStatus || null,
         salaryBaseline: companyRow.currentTotalSalaryCost,
         currencyRef: companyRow.currencyRef,

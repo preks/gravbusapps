@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { EntityImportView } from '@/common/components/common-relations/apps/data-import/components'
+import { CrmEntityImportView } from '@/common/components/common-relations/apps/data-import/components'
 import { customerLeadImportConfig } from '@/common/data/customer/types/customerLeadImportConfig'
 import translations from './_i18n'
 
@@ -18,13 +18,12 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
   const { t } = useTranslation(translations)
 
   return (
-    <EntityImportView
+    <CrmEntityImportView
       config={customerLeadImportConfig}
       headerTitle={t('lead-page-title')}
       headerDescription={t('lead-page-description')}
       entityType={t('lead-entity-type')}
       entityTypeSingular={t('lead-entity-type-singular')}
-      enableCampaignSelection
       onBack={onBack}
       data-testid={testId}
       {...context}

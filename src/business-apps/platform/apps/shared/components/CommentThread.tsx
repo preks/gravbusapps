@@ -22,11 +22,26 @@ import type { Comment } from '../types/versioning'
 import { formatDistanceToNow } from 'date-fns'
 import { CommentEditor } from './CommentEditor'
 import sharedTranslations from '../_i18n'
+import { getDateFnsLocale } from '../utils/dateLocale'
+
+function formatCommentRelativeTime(value: string, locale?: string): string {
+  const parsedDate = new Date(value)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value
+  }
+
+  return formatDistanceToNow(parsedDate, { addSuffix: true, locale: getDateFnsLocale(locale) })
+}
 
 /**
  * ReplyItem - Individual reply (avatar comes from backend)
  */
-const ReplyItem: React.FC<{ reply: Comment; userFallback: string }> = ({ reply, userFallback }) => {
+const ReplyItem: React.FC<{ reply: Comment; userFallback: string; locale?: string }> = ({
+  reply,
+  userFallback,
+  locale
+}) => {
   return (
     <div className="gba:flex gba:items-start gba:gap-2.5">
       <Avatar className="gba:h-7 gba:w-7 gba:ring-1 gba:ring-background">
@@ -39,7 +54,7 @@ const ReplyItem: React.FC<{ reply: Comment; userFallback: string }> = ({ reply, 
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
           <span className="gba:font-semibold gba:text-xs">{reply.createdByName || userFallback}</span>
           <span className="gba:text-xs gba:text-muted-foreground">
-            {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
+            {formatCommentRelativeTime(reply.createdAt, locale)}
           </span>
         </div>
         <p className="gba:text-sm gba:leading-relaxed gba:text-foreground/90">{reply.content}</p>
@@ -89,7 +104,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   messages: messagesProp,
   'data-testid': testId = 'comment-thread'
 }) => {
-  const { t } = useTranslation(sharedTranslations)
+  const { t, locale } = useTranslation(sharedTranslations)
   const defaultCommentThreadMessages = {
     reply: t('comment-thread-reply'),
     edit: t('comment-thread-edit'),
@@ -146,7 +161,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
   return (
     <div
-      className="gba:rounded-xl gba:border gba:border-border/50 gba:bg-card/50 gba:p-4 gba:transition-all hover:gba:border-border hover:gba:shadow-sm"
+      className="gba:min-w-0 gba:overflow-hidden gba:rounded-xl gba:border gba:border-border/50 gba:bg-card/50 gba:p-4 gba:transition-all hover:gba:border-border hover:gba:shadow-sm"
       data-testid={`${testId}-${comment.id}`}
     >
       {/* Comment header */}
@@ -164,7 +179,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <span className="gba:font-semibold gba:text-sm">{comment.createdByName || userFallback}</span>
             <span className="gba:text-xs gba:text-muted-foreground">
-              {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+              {formatCommentRelativeTime(comment.createdAt, locale)}
             </span>
             {isResolved && (
               <Badge variant="success" className="gba:text-xs gba:h-5">
@@ -182,7 +197,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
                 className="gba:text-xs gba:font-mono gba:bg-muted/50"
                 data-testid={`${testId}-cell-ref-${comment.id}`}
               >
-                Cell {comment.cellReference}
+                {t('comment-thread-cell-reference', { reference: comment.cellReference })}
               </Badge>
             </div>
           )}
@@ -191,11 +206,11 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           {isInlineComment && comment.selectedText && (
             <button
               onClick={() => onScrollToHighlight?.(comment.id)}
-              className="gba:mb-2 gba:p-2 gba:rounded-md gba:bg-warning/10 gba:border gba:border-warning/20 gba:w-full gba:text-left hover:gba:bg-warning/20 gba:transition-colors gba:cursor-pointer"
+              className="gba:mb-2 gba:w-full gba:min-w-0 gba:rounded-md gba:border gba:border-warning/20 gba:bg-warning/10 gba:p-2 gba:text-left gba:transition-colors hover:gba:bg-warning/20 gba:cursor-pointer"
             >
-              <div className="gba:flex gba:items-start gba:gap-2">
+              <div className="gba:flex gba:min-w-0 gba:items-start gba:gap-2">
                 <Quote className="gba:h-3.5 gba:w-3.5 gba:text-warning gba:mt-0.5 gba:flex-shrink-0" />
-                <p className="gba:text-xs gba:text-foreground/70 gba:italic gba:line-clamp-2">
+                <p className="gba:min-w-0 gba:text-xs gba:text-foreground/70 gba:italic gba:line-clamp-2">
                   "{comment.selectedText}"
                 </p>
               </div>
@@ -261,14 +276,14 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
       {replies.length > 0 && (
         <div className="gba:ml-12 gba:mt-3 gba:space-y-3 gba:border-l-2 gba:border-primary/20 gba:pl-4">
           {replies.map(reply => (
-            <ReplyItem key={reply.id} reply={reply} userFallback={userFallback} />
+            <ReplyItem key={reply.id} reply={reply} userFallback={userFallback} locale={locale} />
           ))}
         </div>
       )}
 
       {/* Reply input */}
       {showReplyInput && !isResolved && (
-        <div className="gba:ml-12 gba:mt-3 gba:pl-4 gba:border-l-2 gba:border-primary/20">
+        <div className="gba:ml-12 gba:mt-3 gba:min-w-0 gba:border-l-2 gba:border-primary/20 gba:pl-4">
           <CommentEditor
             onSubmit={handleReply}
             onCancel={() => setShowReplyInput(false)}

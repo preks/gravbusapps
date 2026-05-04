@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
 import { ArrowRightIcon, PauseCircleIcon, PencilSimpleIcon, XIcon } from '@phosphor-icons/react'
-import { WORKSPACE_CHAT_GUTTER_CLASS, WORKSPACE_CHAT_RAIL_CLASS } from './workspaceLayout.constants'
+import {
+  WORKSPACE_CHAT_GUTTER_CLASS,
+  WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS,
+  WORKSPACE_CHAT_RAIL_CLASS
+} from './workspaceLayout.constants'
 
 // ─── Option parsing ───────────────────────────────────────────────────────────
 // The agent may embed numbered/bulleted options inside the question text, e.g.:
@@ -122,11 +126,25 @@ function useFocusTrap(ref: React.RefObject<HTMLElement | null>, active: boolean)
 export interface ClarificationPromptProps {
   question: string
   isOpen: boolean
+  /**
+   * Mirrors `ConversationPanel.chatOffsetClass` — the resolved right-offset
+   * utility class (regular or preview-width variant) when the right workspace
+   * panel is open, otherwise an empty string. Applied on an **outer** wrapper
+   * around the gutter so it can't collide with the responsive gutter's
+   * `padding-right` in the Tailwind cascade.
+   */
+  chatOffsetClass?: string
   onAnswer: (answer: string) => void
   onDismiss?: () => void
 }
 
-export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ question, isOpen, onAnswer, onDismiss }) => {
+export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
+  question,
+  isOpen,
+  chatOffsetClass = '',
+  onAnswer,
+  onDismiss
+}) => {
   const [freeText, setFreeText] = useState('')
   const [isCustomOpen, setIsCustomOpen] = useState(false)
   const panelRef = useRef<HTMLDialogElement>(null)
@@ -161,10 +179,16 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
 
   return (
     <>
-      {/* Backdrop */}
+      {/*
+        Backdrop + dialog are both `absolute` so they anchor to the same
+        positioning context as the bottom composer (the `relative` wrapper
+        inside WorkspaceLayout) — not the viewport. That keeps the modal's
+        centered rail perfectly aligned with the composer, regardless of the
+        sidebar width.
+      */}
       <div
         aria-hidden="true"
-        className={`gba:fixed gba:inset-0 gba:bg-background/18 gba:z-[55] gba:transition-opacity gba:duration-200 ${
+        className={`gba:absolute gba:inset-0 gba:bg-background/18 gba:z-[55] gba:transition-opacity gba:duration-200 ${
           isOpen ? 'gba:opacity-100 gba:pointer-events-auto' : 'gba:opacity-0 gba:pointer-events-none'
         }`}
         onClick={dismiss}
@@ -176,9 +200,10 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({ questi
         aria-modal="true"
         aria-label="Agent clarification"
         data-testid="fabric-clarification-prompt"
-        className={`gba:fixed gba:inset-x-0 gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:pointer-events-none gba:max-h-none gba:w-full gba:max-w-none gba:border-0 gba:bg-transparent gba:p-0 gba:shadow-none gba:backdrop:bg-transparent gba:transition-all gba:duration-300 gba:ease-out ${
+        className={`gba:absolute gba:inset-x-0 gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:m-0 gba:pointer-events-none gba:max-h-none gba:w-full gba:max-w-none gba:border-0 gba:bg-transparent gba:p-0 gba:shadow-none gba:backdrop:bg-transparent gba:transition-all gba:duration-300 gba:ease-out ${chatOffsetClass} ${WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS} ${
           isOpen ? 'gba:translate-y-0 gba:opacity-100' : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
         }`}
+        data-chat-offset={chatOffsetClass ? 'true' : 'false'}
       >
         <div className={WORKSPACE_CHAT_GUTTER_CLASS}>
           <div className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto gba:pointer-events-auto`}>

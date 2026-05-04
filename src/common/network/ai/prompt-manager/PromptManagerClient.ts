@@ -80,7 +80,7 @@ export interface PromptODM {
   type?: PromptType
   system_content?: PromptContent | null
   user_content: PromptContent
-  tools?: string // comma-separated tool codes
+  tools?: string[]
   toolPolicies?: ToolPolicies
   model: { id: string; collection: string }
   model_settings?: Record<string, unknown>
@@ -1030,12 +1030,40 @@ export class PromptManagerClient extends RestClient {
     workspaceId?: string
     agentType?: string
     division?: string
+    search?: string
+    limit?: number
+    offset?: number
   }): Promise<AgentRegistryEntry[]> {
-    return this.get<AgentRegistryEntry[]>('/agents/registry', { params: params as Record<string, string> })
+    const raw = await this.get<{ data: AgentRegistryEntry[]; paging: Paging } | AgentRegistryEntry[]>(
+      '/agents/registry',
+      { params: params as Record<string, string> }
+    )
+    return Array.isArray(raw) ? raw : raw.data
   }
 
   async getAgentDetail(agentId: string): Promise<AgentRegistryEntry> {
     return this.get<AgentRegistryEntry>(`/agents/registry/${encodeURIComponent(agentId)}`)
+  }
+
+  async getBuiltinSubagents(): Promise<
+    Array<{ id: string; name: string; description: string; categories: string[]; source: string }>
+  > {
+    return this.get('/agents/builtins')
+  }
+
+  async getAgentSkills(agentId: string): Promise<{
+    agent_id: string
+    source: string
+    skills: Array<{ skill_id: string; name: string; description: string; status: string }>
+  }> {
+    return this.get(`/agents/registry/${encodeURIComponent(agentId)}/skills`)
+  }
+
+  async setAgentSkills(
+    agentId: string,
+    skillIds: string[]
+  ): Promise<{ agent_id: string; skill_ids: string[]; count: number }> {
+    return this.put(`/agents/registry/${encodeURIComponent(agentId)}/skills`, { skill_ids: skillIds })
   }
 
   async updateAgentCard(
@@ -1271,6 +1299,57 @@ export class PromptManagerClient extends RestClient {
     )
     return response.data || []
   }
+
+  // --- Scheduled Dispatches ---
+
+  /**
+   * List scheduled task dispatches for the authenticated user.
+   * By default returns only pending/firing dispatches.
+   * Set includeAll=true to fetch all statuses.
+   */
+  async getScheduledDispatches(params?: {
+    status?: DispatchStatus | null
+    includeAll?: boolean
+    limit?: number
+    offset?: number
+  }): Promise<ScheduledDispatchPage> {
+    return this.get<ScheduledDispatchPage>('/scheduled-dispatches', {
+      params: params as Record<string, any>
+    })
+  }
+
+  /**
+   * Cancel a pending scheduled dispatch by its dispatch_id.
+   * Returns void on success (204). Throws on 404 (not found) or 409 (not cancellable).
+   */
+  async cancelScheduledDispatch(dispatchId: string): Promise<void> {
+    await this.delete<void>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}`)
+  }
 }
 
 export const promptManagerClient = new PromptManagerClient()
+
+// --- Scheduled Dispatches ---
+
+export type DispatchStatus = 'pending' | 'firing' | 'fired' | 'cancelled' | 'failed'
+
+export interface ScheduledDispatch {
+  dispatchId: string
+  title: string
+  message: string
+  assigneeUserIds: string[]
+  blinkGroupId: string
+  scheduledAt: string // ISO UTC datetime
+  timezone: string // IANA timezone (display only)
+  status: DispatchStatus
+  createdAt: string
+  firedAt?: string | null
+  workflowIds: string[]
+  retryCount: number
+  error?: string | null
+}
+
+export interface ScheduledDispatchPage {
+  data: ScheduledDispatch[]
+  total: number
+}

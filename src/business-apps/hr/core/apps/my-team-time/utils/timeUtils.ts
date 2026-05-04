@@ -1,3 +1,4 @@
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { WeeklyWorkingHours } from '../types/types'
 
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -90,11 +91,11 @@ export const formatTimeShort = (isoString: string): string => {
 export const getLocationLabel = (location?: string): string => {
   switch (location) {
     case 'IS_NEAR_HOME':
-      return 'Home'
+      return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.location_home', 'Home')
     case 'IS_NEAR_OFFICE':
-      return 'Office'
+      return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.location_office', 'Office')
     case 'IS_OTHER_LOCATION':
-      return 'Remote'
+      return getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.location_remote', 'Remote')
     default:
       return '—'
   }

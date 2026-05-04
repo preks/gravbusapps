@@ -34,6 +34,9 @@ export interface Investment extends BaseEntity {
   forecastedRevenueAmount?: number
   forecastedProfitAmount?: number
   stakePercentage?: number
+  securityQuantity?: number
+  timeWeightedPerformance?: number
+  maturityDate?: string
 
   // Loan Fields
   loanRecipientName?: string
@@ -129,6 +132,9 @@ export const InvestmentFields = {
   forecastedRevenueAmount: 'forecastedRevenueAmount',
   forecastedProfitAmount: 'forecastedProfitAmount',
   stakePercentage: 'stakePercentage',
+  securityQuantity: 'securityQuantity',
+  timeWeightedPerformance: 'timeWeightedPerformance',
+  maturityDate: 'maturityDate',
 
   // Loan Fields
   loanRecipientName: 'loanRecipientName',
@@ -214,6 +220,9 @@ export const InvestmentFormFields = {
   forecastedRevenueAmount: 'forecastedRevenueAmount',
   forecastedProfitAmount: 'forecastedProfitAmount',
   stakePercentage: 'stakePercentage',
+  securityQuantity: 'securityQuantity',
+  timeWeightedPerformance: 'timeWeightedPerformance',
+  maturityDate: 'maturityDate',
 
   // Loan Fields
   loanRecipientName: 'loanRecipientName',
@@ -296,8 +305,17 @@ export const createInvestmentDescriptors = (
   // Investment Core Fields
   { key: 'code', searchPaths: [fields.code], sortPath: fields.code, type: 'text' },
   { key: 'name', searchPaths: [fields.name], sortPath: fields.name, type: 'text' },
-  { key: 'isin', searchPaths: [fields.isin], sortPath: fields.isin, type: 'text' },
+  {
+    key: 'isin',
+    searchPaths: [fields.isin],
+    sortPath: fields.isin,
+    type: 'text',
+    optionSelectPaths: [fields.isin, fields.isin],
+    optionSearchPaths: [fields.isin],
+    optionDistinctOn: [fields.isin]
+  },
   { key: 'acquisitionDate', searchPaths: [fields.acquisitionDate], sortPath: fields.acquisitionDate, type: 'date' },
+  { key: 'planedExit', searchPaths: [fields.planedExit], sortPath: fields.planedExit, type: 'boolean' },
   { key: 'plannedExitDate', searchPaths: [fields.plannedExitDate], sortPath: fields.plannedExitDate, type: 'date' },
   { key: 'exitDate', searchPaths: [fields.exitDate], sortPath: fields.exitDate, type: 'date' },
 
@@ -350,13 +368,29 @@ export const createInvestmentDescriptors = (
     sortPath: fields.stakePercentage,
     type: 'number'
   },
+  {
+    key: 'securityQuantity',
+    searchPaths: [fields.securityQuantity],
+    sortPath: fields.securityQuantity,
+    type: 'number'
+  },
+  {
+    key: 'timeWeightedPerformance',
+    searchPaths: [fields.timeWeightedPerformance],
+    sortPath: fields.timeWeightedPerformance,
+    type: 'number'
+  },
+  { key: 'maturityDate', searchPaths: [fields.maturityDate], sortPath: fields.maturityDate, type: 'date' },
 
   // Loan Fields
   {
     key: 'loanRecipientName',
     searchPaths: [fields.loanRecipientName],
     sortPath: fields.loanRecipientName,
-    type: 'text'
+    type: 'text',
+    optionSelectPaths: [fields.loanRecipientName, fields.loanRecipientName],
+    optionSearchPaths: [fields.loanRecipientName],
+    optionDistinctOn: [fields.loanRecipientName]
   },
   { key: 'loanAmount', searchPaths: [fields.loanAmount], sortPath: fields.loanAmount, type: 'number' },
   {
@@ -397,7 +431,10 @@ export const createInvestmentDescriptors = (
     key: 'fundManagerName',
     searchPaths: [fields.fundManagerName],
     sortPath: fields.fundManagerName,
-    type: 'text'
+    type: 'text',
+    optionSelectPaths: [fields.fundManagerName, fields.fundManagerName],
+    optionSearchPaths: [fields.fundManagerName],
+    optionDistinctOn: [fields.fundManagerName]
   },
   { key: 'irr', searchPaths: [fields.irr], sortPath: fields.irr, type: 'number' },
   { key: 'moic', searchPaths: [fields.moic], sortPath: fields.moic, type: 'number' },
@@ -580,7 +617,9 @@ export const createInvestmentDescriptors = (
   { key: 'plannedExitDateFrom', path: fields.plannedExitDate, kind: 'dateFrom' },
   { key: 'plannedExitDateTo', path: fields.plannedExitDate, kind: 'dateTo' },
   { key: 'exitDateFrom', path: fields.exitDate, kind: 'dateFrom' },
-  { key: 'exitDateTo', path: fields.exitDate, kind: 'dateTo' }
+  { key: 'exitDateTo', path: fields.exitDate, kind: 'dateTo' },
+  { key: 'maturityDateFrom', path: fields.maturityDate, kind: 'dateFrom' },
+  { key: 'maturityDateTo', path: fields.maturityDate, kind: 'dateTo' }
 ]
 
 /**

@@ -404,7 +404,7 @@ export const SpreadsheetApiService = {
   async getTrashedPreview(id: string): Promise<SpreadsheetApp | null> {
     try {
       debugLog('getTrashedPreview', id)
-      const app = await apiRequest<Record<string, unknown>>(`/spreadsheets/${id}/trashed-preview`)
+      const app = await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(`/${id}/trashed-preview`))
       return mapApiAppToSpreadsheetApp(app)
     } catch (error) {
       console.error('Failed to get trashed spreadsheet preview:', error)
@@ -536,6 +536,7 @@ export const SpreadsheetApiService = {
     debugLog('createSheet', appId, sheet)
 
     const payload = {
+      ...(sheet.id ? { id: sheet.id } : {}),
       name: sheet.name || 'New Sheet',
       description: sheet.description,
       columns: sheet.columns || [],

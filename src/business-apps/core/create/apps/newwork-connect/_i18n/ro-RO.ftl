@@ -1,5 +1,5 @@
 connect-page-title = NEWWORK CONNECT
-connect-page-description = Centralizati conexiunile AnyPoint, DataBridge si MCP intr-un singur loc si refolositi-le in Task Experts, tool-uri, functii si importuri.
+connect-page-description = Centralizati conexiunile AnyPoint, DataBridge si MCP intr-un singur loc si refolositi-le in agenți, tool-uri, functii si importuri.
 connect-summary-title = Rezumat conexiuni
 connect-summary-anypoint = AnyPoint: { $count }
 connect-summary-data-bridge = DataBridge: { $count }
@@ -154,7 +154,7 @@ connect-field-jira-api-token-label = Token API Jira
 connect-field-google-maps-api-key-label = Cheie API Google Maps
 connect-consumer-types-label = Unde poate fi folosita aceasta conexiune?
 connect-consumer-mcp-tool = Instrumente MCP (Editor de unelte)
-connect-consumer-task-expert = Experti de sarcini / Agenti AI
+connect-consumer-task-expert = Enterprise Agents
 connect-consumer-function = Functii
 connect-consumer-board-import = Aplicatii Board (Import date)
 connect-consumer-document-import = Aplicatii Documente (Import fisiere)

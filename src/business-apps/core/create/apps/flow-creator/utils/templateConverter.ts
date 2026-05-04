@@ -12,7 +12,7 @@ import type {
   FlowTrigger,
   FlowTriggerType
 } from '@/common/network/flows/FlowTemplateClient'
-import { AssignmentMode } from '@/business-apps/flow/apps/creator/types/flowTemplate'
+import { AssignmentMode } from '@/common/data/flow/types/flowTemplate'
 import type { FlowTags } from '@/business-apps/flow/types'
 import { END_ID, START_ID, normalizeGraph } from './graphStoreUtils'
 import { orderNodesForTemplate } from './studioStepOrder'

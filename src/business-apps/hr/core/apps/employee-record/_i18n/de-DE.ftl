@@ -24,10 +24,12 @@ no-salary-record = Keine Gehaltsaufzeichnung
 
 # Compensation Band
 band-title = Vergütungsstufe
+band-short-label = Stufe
 band-name = Stufenname
 band-salary-range = Gehaltsspanne
 band-pay-grade = Gehaltsstufe
 band-level = Stufe
+band-position-label = Position in der Vergütungsstufe
 band-loading = Vergütungsstufe wird geladen...
 band-no-band-assigned = Keine Vergütungsstufe zugewiesen. Vergütungsstufen sind über Jobstufen verknüpft.
 
@@ -532,6 +534,8 @@ add-skill-form-update-level-title = Skill-Level aktualisieren
 add-skill-form-search-skills-title = Fähigkeiten suchen
 add-skill-form-search-skill-placeholder = Fähigkeit suchen...
 add-skill-form-selected-skills-label = Skill-Level wählen
+add-skill-form-skills-to-assign-label = Zuzuweisende Fähigkeiten
+add-skill-form-new-skill-badge = Neu
 add-skill-form-deactivated-employee-skills-label = Deaktivierte Mitarbeiterfähigkeiten
 add-skill-form-current-employee-skills-label = Aktuelle Mitarbeiterfähigkeiten
 add-skill-form-no-current-skills = Keine aktuellen Fähigkeiten

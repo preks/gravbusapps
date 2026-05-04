@@ -237,6 +237,13 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
                   updatedInv.stakePercentage,
                   formatPercentage
                 )}
+                {renderComparisonField('Quantity', currentInv.securityQuantity, updatedInv.securityQuantity)}
+                {renderComparisonField(
+                  'Time-Weighted Performance',
+                  currentInv.timeWeightedPerformance,
+                  updatedInv.timeWeightedPerformance,
+                  formatPercentage
+                )}
                 {renderComparisonField(
                   'Forecasted Revenue',
                   currentInv.forecastedRevenueAmount,
@@ -330,6 +337,27 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
                               report.investmentReport.totalInvestmentAmount,
                               report.investmentReport.currencyRef
                             )}
+                          </span>
+                        </div>
+                        <div className="gba:flex gba:justify-between">
+                          <span className="gba:text-muted-foreground">Initial Investment:</span>
+                          <span className="gba:text-foreground gba:font-medium">
+                            {formatCurrency(
+                              report.investmentReport.initialInvestmentAmount,
+                              report.investmentReport.currencyRef
+                            )}
+                          </span>
+                        </div>
+                        <div className="gba:flex gba:justify-between">
+                          <span className="gba:text-muted-foreground">Quantity:</span>
+                          <span className="gba:text-foreground gba:font-medium">
+                            {report.investmentReport.securityQuantity ?? 'N/A'}
+                          </span>
+                        </div>
+                        <div className="gba:flex gba:justify-between">
+                          <span className="gba:text-muted-foreground">Time-Weighted Performance:</span>
+                          <span className="gba:text-foreground gba:font-medium">
+                            {formatPercentage(report.investmentReport.timeWeightedPerformance)}
                           </span>
                         </div>
                         {report.realEstateInvestmentReport && (

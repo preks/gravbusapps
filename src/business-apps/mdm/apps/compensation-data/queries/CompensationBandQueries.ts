@@ -1,134 +1,114 @@
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { EMPLOYEES_API_URL } from '@/common/utils/serviceResolver.ts'
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import {
+  CompensationBandMutationPayload,
+  CompensationBandDeletionPayload,
+  GetCompensationBandsResponse
+} from '../utils/CompensationBand.types'
+import {
+  createSearchCondition,
+  createWhereCondition
+} from '@/business-apps/mdm/apps/job-structure-data/utils/searchQueries.ts'
 
-export interface QueryVariablesCompensationBand {
+// ─── Query/Search ────────────────────────────────────────────────────────────
+
+export interface CompensationBandQueryParameters {
   compensationBandId?: string
   offset?: number
   limit?: number
   search?: string
 }
 
-const createSearchCondition = (search?: string, compensationBandId?: string): string => {
-  if (compensationBandId) return ''
-  if (!search) return ''
-  return `
-    _or: [
-      { name: { _ilike: "%${search}%" } }
-    ]
-  `
-}
-
-export const GET_COMPENSATION_BAND_DATA = (variables: QueryVariablesCompensationBand): string => {
-  const { offset, limit, search, compensationBandId } = variables
+function GET_COMPENSATION_BAND_DATA(params: CompensationBandQueryParameters): string {
+  const { offset, limit, search, compensationBandId } = params
 
   const searchCondition = createSearchCondition(search, compensationBandId)
-  const whereCondition = compensationBandId
-    ? `id: { _eq: "${compensationBandId}" }, isDeleted: { _eq: false} `
-    : 'isDeleted: { _eq: false}'
+  const whereCondition = createWhereCondition(compensationBandId)
   const whereClause = `${whereCondition} ${searchCondition}`
 
   return `query getCompensationBandData {
-  compensationBands: CompensationBand(
-    limit: ${limit}
-    offset: ${offset}
-    where: { ${whereClause}}) {
-    id
-    description
-    currency {
+    compensationBands: CompensationBand(
+      orderBy: {name: ASC},
+      limit: ${limit},
+      offset: ${offset},
+      where: { ${whereClause}}) {
       id
-      value
+      name
+      description
+      currencyRef
+      minSalary
+      maxSalary
+      version
     }
-    version
-    currencyRef
-    name
-    nameI18n
-    descriptionI18n
-    payGrade
-    minSalary
-    maxSalary
-  }
-  CompensationBandAggregate(
-    where: { ${whereClause}}
-  ) {
-    aggregate {
-      count
+    CompensationBandAggregate(
+      limit: ${limit},
+      offset: ${offset},
+      where: { ${whereClause}}
+    ) {
+      aggregate {
+        count
+      }
     }
-  }
-}`
+  }`
 }
 
-export type CompensationBandData = {
-  compensationBands?: {
-    id: string
-    description?: string
-    currency?: { id: string; value: string }
-    currencyRef?: string
-    name?: string
-    version?: number
-    payGrade?: number
-    minSalary?: number
-    maxSalary?: number
-    nameI18n?: { [key: string]: string }
-    descriptionI18n?: { [key: string]: string }
-  }[]
-  CompensationBandAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
-  error: {
-    status: number | null
-    message: string | null
-  }
-}
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export type CompensationBand = {
-  id: string
-  description?: string
-  currency?: {
-    id: string
-    value: string
-  }
-  currencyRef?: string
-  name?: string
-  version?: number
-  payGrade?: number
-  minSalary?: number
-  maxSalary?: number
-  nameI18n?: {
-    [key: string]: string
-  }
-  descriptionI18n?: {
-    [key: string]: string
-  }
-}
+export function useCompensationBandQueries(accessToken: string) {
+  const graphQLClient = useGraphQLClient(accessToken)
+  const restClient = useRestClient(EMPLOYEES_API_URL)
 
-export interface GetCompensationBandDataVariables {
-  offset?: number
-  limit?: number
-  search?: string
-  compensationBandId?: string
-}
+  const fetchCompensationBands = useCallback(
+    async (params: CompensationBandQueryParameters = {}): Promise<GetCompensationBandsResponse> => {
+      const query = GET_COMPENSATION_BAND_DATA({
+        limit: params.limit || 300,
+        offset: params.offset || 0,
+        search: params.search,
+        compensationBandId: params.compensationBandId
+      })
 
-export const useGetCompensationBandData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphqlClient(context.accessToken)
+      try {
+        return await graphQLClient.request<GetCompensationBandsResponse>(query)
+      } catch (error) {
+        console.error('Error fetching compensation band data:', error)
+        throw error
+      }
+    },
+    [graphQLClient]
+  )
 
-  const fetchCompensationBandData = async (variables: GetCompensationBandDataVariables = {}) => {
-    const query = GET_COMPENSATION_BAND_DATA({
-      limit: variables.limit || 100,
-      offset: variables.offset || 0,
-      search: variables.search,
-      compensationBandId: variables.compensationBandId
-    })
+  const createCompensationBand = useCallback(
+    async (payload: CompensationBandMutationPayload): Promise<any> => {
+      try {
+        const response = await restClient.post('/saveCompensationBand', payload, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
+        return response.data
+      } catch (error: any) {
+        console.error('Failed to create compensation band:', error)
+        if (error.response?.status === 401) {
+          throw new Error('Authentication failed')
+        } else if (error.response?.status === 400) {
+          throw new Error('Invalid data provided')
+        }
+        throw new Error('Failed to save compensation band')
+      }
+    },
+    [restClient, accessToken]
+  )
 
-    try {
-      const result = await graphqlClient.request<CompensationBandData>(query)
-      return result
-    } catch (error) {
-      console.error('Error fetching compensation band data:', error)
-      throw error
-    }
-  }
+  const updateCompensationBand = createCompensationBand
 
-  return { fetchCompensationBandData }
+  const deleteCompensationBand = useCallback(
+    async (payload: CompensationBandDeletionPayload): Promise<any> => {
+      await restClient.post('/saveCompensationBand', payload, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+    },
+    [restClient, accessToken]
+  )
+
+  return { fetchCompensationBands, createCompensationBand, updateCompensationBand, deleteCompensationBand }
 }

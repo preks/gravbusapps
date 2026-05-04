@@ -27,6 +27,10 @@ no-upcoming-absences = No upcoming absences
 company-holiday = Company Holiday
 pending-requests = Pending Requests
 no-pending-requests = No pending requests
+action = Action
+cancel-request = Cancel Request
+cancel-request-success = Absence request cancelled
+cancel-request-error = Failed to cancel absence request
 
 # My Absence History
 my-absence-history = My Absence History

@@ -437,10 +437,18 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
                       {filteredResults.map(employee => {
                         const isSelected = selectedUsers.some(u => u.userId === employee.userId)
                         return (
-                          <button
+                          <div
                             key={employee.id || employee.userId}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => toggleUser(employee)}
-                            className="gba:w-full gba:p-3 gba:flex gba:items-center gba:gap-3 hover:gba:bg-accent gba:text-left gba:transition-colors"
+                            onKeyDown={event => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                toggleUser(employee)
+                              }
+                            }}
+                            className="gba:w-full gba:p-3 gba:flex gba:items-center gba:gap-3 hover:gba:bg-accent gba:text-left gba:transition-colors focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring focus:gba:ring-offset-2"
                             data-testid={`share-user-option-${employee.userId}`}
                           >
                             <Checkbox checked={isSelected} className="gba:pointer-events-none" />
@@ -460,7 +468,7 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
                                 {employee.organizationalUnitName || employee.jobPositionName || ''}
                               </p>
                             </div>
-                          </button>
+                          </div>
                         )
                       })}
                     </div>

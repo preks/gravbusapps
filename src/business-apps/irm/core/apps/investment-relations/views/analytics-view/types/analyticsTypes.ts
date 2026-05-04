@@ -159,8 +159,6 @@ export interface OpportunitiesAnalytics {
     count: number
     value: number
   }[]
-  winRate: number
-  winRateLastMonthOpportunities: number
   avgDealSize: number
   avgSalesCycle: number
   conversionRate: number
@@ -170,7 +168,6 @@ export interface OpportunitiesAnalytics {
     name: string
     value: number
     stage: string
-    winChance: number
     owner: string
   }[]
 }

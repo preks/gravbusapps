@@ -259,7 +259,10 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-lg" data-testid={testId}>
+      <DialogContent
+        className="gba:max-w-lg gba:max-h-[90vh] gba:flex gba:flex-col gba:overflow-hidden"
+        data-testid={testId}
+      >
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Users className="gba:w-5 gba:h-5 gba:text-primary" />
@@ -268,7 +271,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
           <DialogDescription>{t('manage-shares-description', { title: documentTitle })}</DialogDescription>
         </DialogHeader>
 
-        <div className="gba:py-4">
+        <div className="gba:py-2 gba:overflow-y-auto gba:flex-1 gba:-mx-6 gba:px-6">
           {/* Loading state */}
           {isLoading && (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
@@ -309,13 +312,13 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                 {shares.map(share => (
                   <div
                     key={share.id}
-                    className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:group"
+                    className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:group"
                     data-testid={`${testId}-share-${share.id}`}
                   >
                     {/* Avatar */}
-                    <Avatar className="gba:h-10 gba:w-10">
+                    <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
                       {share.userAvatar && <AvatarImage src={share.userAvatar} alt={share.userName || ''} />}
-                      <AvatarFallback className="gba:text-sm">
+                      <AvatarFallback className="gba:text-xs">
                         {share.userName ? getInitials(share.userName) : '?'}
                       </AvatarFallback>
                     </Avatar>
@@ -327,7 +330,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                           {share.isLoading ? <Spinner size="sm" /> : share.userName || t('manage-shares-loading')}
                         </p>
                       </div>
-                      <p className="gba:text-xs gba:text-muted-foreground">
+                      <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
                         {t('manage-shares-shared-at', { time: formatRelativeDate(share.sharedAt) })}
                       </p>
                     </div>
@@ -338,7 +341,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                       onValueChange={v => handleUpdatePermission(share.id, v as Permission)}
                       disabled={updatingShareId === share.id}
                     >
-                      <SelectTrigger className="gba:w-28 gba:h-8">
+                      <SelectTrigger size="sm" className="gba:flex-shrink-0">
                         {updatingShareId === share.id ? <Spinner size="sm" /> : <SelectValue />}
                       </SelectTrigger>
                       <SelectContent>
@@ -367,7 +370,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="gba:h-8 gba:w-8 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity hover:gba:bg-destructive/10 hover:gba:text-destructive"
+                      className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity hover:gba:bg-destructive/10 hover:gba:text-destructive"
                       onClick={() => handleRemoveShare(share.id, share.userName || t('manage-shares-user-fallback'))}
                       disabled={removingShareId === share.id}
                       data-testid={`${testId}-remove-${share.id}`}

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { FolderSimpleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -7,13 +8,23 @@ import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvest
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { useAppActionData } from '@/common/hooks/useAppActionData'
+
+const FOLDER_UPLOAD_CONTEXTS = [FlowContextName.investmentFolderUpload]
 
 interface InvestmentDocumentsProps {
   investmentId: string
   context: BusinessAppContextProps
+  investmentGroupId?: string
+  investmentGroupCode?: string
 }
 
-const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId, context }) => {
+const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({
+  investmentId,
+  context,
+  investmentGroupId,
+  investmentGroupCode
+}) => {
   // Fetch documents using the generic IRM hook
   const { fetchDocuments } = useGetIrmDocuments('investment', context)
 
@@ -24,6 +35,33 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
     fetchDocuments,
     errorMessage: getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
   })
+
+  const folderUploadActionConfig = useMemo(
+    () => ({
+      contextsArray: FOLDER_UPLOAD_CONTEXTS,
+      externalContextData: { investmentId },
+      accessToken: context.accessToken || '',
+      deferMainContextRequestsUntilClick: false,
+      prefixDataTestId: 'investment-document-upload-folder'
+    }),
+    [investmentId, context.accessToken]
+  )
+
+  const folderUploadActionData = useAppActionData(folderUploadActionConfig, 'UploadFolder')
+
+  const uploadToolbarActions = useMemo(
+    () => [
+      {
+        key: 'upload-folder',
+        label: getTranslationFromI18nKeyAndLabel('document.upload.folder', 'Upload Folder'),
+        icon: <FolderSimpleIcon className="gba:h-4 gba:w-4" />,
+        onClick: () => folderUploadActionData.combinedData[0]?.onClick?.(),
+        variant: 'outline' as const,
+        testId: 'investment-document-upload-folder-button'
+      }
+    ],
+    [folderUploadActionData.combinedData]
+  )
 
   // REST client for document operations (IRM uses Kogito processes)
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
@@ -83,6 +121,17 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      aiOrganizeConfig={{
+        moduleType: 'IRM',
+        entityType: 'INVESTMENT',
+        domain: 'investment',
+        investmentTemplate: {
+          catalogType: 'GROUP',
+          entryId: investmentGroupId,
+          entryCode: investmentGroupCode
+        }
+      }}
+      toolbarActions={uploadToolbarActions}
       data-testid="investment-document-section"
       accessToken={context.accessToken}
       userInfo={context.userInfo}

@@ -1,4 +1,4 @@
-import { useState, useCallback, type FC } from 'react'
+import { useState, useCallback, useEffect, type FC } from 'react'
 import {
   Button,
   Input,
@@ -9,7 +9,15 @@ import {
   SelectContent,
   SelectItem
 } from '@newwork/nw-design-system'
-import { CheckCircleIcon, MagicWandIcon, SparkleIcon, WarningIcon } from '@phosphor-icons/react'
+import {
+  CaretDownIcon,
+  CaretRightIcon,
+  CheckCircleIcon,
+  CheckIcon,
+  MagicWandIcon,
+  SparkleIcon,
+  WarningIcon
+} from '@phosphor-icons/react'
 import type { InputFieldSchema } from '../../types/enterpriseAgent'
 import { EmployeeSearchField } from '../forms/EmployeeSearchField'
 
@@ -22,6 +30,13 @@ interface StructuredInputFormProps {
   onSubmit: (values: Record<string, any>, aiDelegated: string[]) => void
   onCancel?: () => void
   accessToken?: string
+  /**
+   * True when the transcript already contains events that happened after
+   * this form was surfaced — i.e. the user submitted it in a prior turn
+   * and we are re-rendering a completed session. The form should render
+   * as a compact collapsed summary, with the ability to expand for review.
+   */
+  alreadySubmitted?: boolean
 }
 
 interface FieldState {
@@ -68,7 +83,8 @@ export const StructuredInputForm = ({
   allowPartialSubmit,
   onSubmit,
   onCancel,
-  accessToken
+  accessToken,
+  alreadySubmitted = false
 }: StructuredInputFormProps) => {
   // Initialize field state
   const [fieldStates, setFieldStates] = useState<Record<string, FieldState>>(() => {
@@ -85,6 +101,14 @@ export const StructuredInputForm = ({
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hasSubmittedLocally, setHasSubmittedLocally] = useState(false)
+  /** Form is locked (read-only, compact) once submitted locally or when the transcript shows a later event. */
+  const isLocked = hasSubmittedLocally || alreadySubmitted
+  const [compactCollapsed, setCompactCollapsed] = useState(() => alreadySubmitted)
+
+  useEffect(() => {
+    if (hasSubmittedLocally) setCompactCollapsed(true)
+  }, [hasSubmittedLocally])
 
   const updateField = useCallback((fieldId: string, value: any) => {
     setFieldStates(prev => ({
@@ -158,6 +182,7 @@ export const StructuredInputForm = ({
     }
 
     setIsSubmitting(true)
+    setHasSubmittedLocally(true)
 
     const values: Record<string, any> = {}
     const aiDelegated: string[] = []
@@ -173,6 +198,8 @@ export const StructuredInputForm = ({
 
     onSubmit(values, aiDelegated)
   }, [fields, fieldStates, allowPartialSubmit, validate, onSubmit])
+
+  const readOnly = isSubmitting || isLocked
 
   const renderField = (field: InputFieldSchema) => {
     const state = fieldStates[field.field_id]
@@ -199,7 +226,7 @@ export const StructuredInputForm = ({
               size="sm"
               onClick={() => toggleAiDelegation(field.field_id)}
               className="gba:h-8 gba:px-3 gba:gap-1.5"
-              disabled={isSubmitting}
+              disabled={readOnly}
             >
               {state.aiDelegated ? (
                 <>
@@ -223,7 +250,7 @@ export const StructuredInputForm = ({
                 value={state.value || ''}
                 onChange={e => updateField(field.field_id, e.target.value)}
                 placeholder={field.placeholder}
-                disabled={isSubmitting}
+                disabled={readOnly}
                 className={state.error ? 'gba:border-destructive' : ''}
               />
             )}
@@ -234,7 +261,7 @@ export const StructuredInputForm = ({
                 onChange={e => updateField(field.field_id, e.target.value)}
                 placeholder={field.placeholder}
                 rows={4}
-                disabled={isSubmitting}
+                disabled={readOnly}
                 className={`gba:resize-none ${state.error ? 'gba:border-destructive' : ''}`}
               />
             )}
@@ -245,17 +272,13 @@ export const StructuredInputForm = ({
                 value={state.value || ''}
                 onChange={e => updateField(field.field_id, Number.parseFloat(e.target.value))}
                 placeholder={field.placeholder}
-                disabled={isSubmitting}
+                disabled={readOnly}
                 className={state.error ? 'gba:border-destructive' : ''}
               />
             )}
 
             {field.field_type === 'select' && (
-              <Select
-                value={state.value || ''}
-                onValueChange={v => updateField(field.field_id, v)}
-                disabled={isSubmitting}
-              >
+              <Select value={state.value || ''} onValueChange={v => updateField(field.field_id, v)} disabled={readOnly}>
                 <SelectTrigger className={state.error ? 'gba:border-destructive' : ''}>
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
@@ -277,7 +300,7 @@ export const StructuredInputForm = ({
                     opt={opt}
                     fieldId={field.field_id}
                     stateValue={state.value}
-                    isSubmitting={isSubmitting}
+                    isSubmitting={readOnly}
                     updateField={updateField}
                   />
                 ))}
@@ -293,6 +316,7 @@ export const StructuredInputForm = ({
                 placeholder={field.placeholder}
                 required={field.required}
                 accessToken={accessToken}
+                readOnly={readOnly}
               />
             )}
 
@@ -317,50 +341,136 @@ export const StructuredInputForm = ({
 
   const hasAiDelegatedFields = Object.values(fieldStates).some(s => s.aiDelegated)
 
+  const showCompactBar = isLocked && compactCollapsed
+  const showDetailBody = !isLocked || !compactCollapsed
+
+  const summaryLine = buildSummaryLine(fields, fieldStates)
+
+  const shellClass = isLocked
+    ? 'gba:rounded-2xl gba:border gba:border-border/50 gba:bg-muted/25 gba:max-w-3xl gba:shadow-none'
+    : 'gba:rounded-2xl gba:border gba:border-border/80 gba:bg-card/98 gba:backdrop-blur-xl gba:shadow-lg gba:max-w-3xl'
+
+  if (showCompactBar) {
+    return (
+      <div className={shellClass} data-testid={`structured-input-form-${formId}`}>
+        <button
+          type="button"
+          onClick={() => setCompactCollapsed(false)}
+          className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2.5 gba:text-left gba:hover:bg-muted/35 gba:transition-colors gba:rounded-2xl"
+          data-testid={`structured-input-form-${formId}-compact`}
+          aria-expanded={false}
+        >
+          <CheckCircleIcon className="gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground" weight="fill" />
+          <div className="gba:flex-1 gba:min-w-0">
+            <div className="gba:text-[13px] gba:font-semibold gba:text-muted-foreground gba:truncate">{title}</div>
+            {summaryLine && <div className="gba:text-[11px] gba:text-muted-foreground gba:truncate">{summaryLine}</div>}
+          </div>
+          <CheckIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" weight="bold" />
+          <CaretRightIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div
-      className="gba:rounded-2xl gba:border gba:border-border/80 gba:bg-card/98 gba:backdrop-blur-xl gba:shadow-lg gba:max-w-3xl"
-      data-testid={`structured-input-form-${formId}`}
-    >
+    <div className={shellClass} data-testid={`structured-input-form-${formId}`}>
       {/* Header */}
-      <div className="gba:px-5 gba:pt-3 gba:pb-3 gba:border-b gba:border-border/60">
-        <h3 className="gba:text-base gba:font-bold gba:text-foreground gba:mb-1">{title}</h3>
-        <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">{description}</p>
+      <div className="gba:px-5 gba:pt-3 gba:pb-3 gba:border-b gba:border-border/60 gba:flex gba:items-start gba:gap-3">
+        <div className="gba:flex-1 gba:min-w-0">
+          <h3
+            className={`gba:text-base gba:font-bold gba:mb-1 ${
+              isLocked ? 'gba:text-muted-foreground' : 'gba:text-foreground'
+            }`}
+          >
+            {title}
+          </h3>
+          <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">{description}</p>
+        </div>
+        {isLocked && (
+          <button
+            type="button"
+            onClick={() => setCompactCollapsed(true)}
+            className="gba:shrink-0 gba:inline-flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:text-muted-foreground gba:hover:bg-muted/40 gba:transition-colors"
+            aria-label="Collapse submitted form"
+            data-testid={`structured-input-form-${formId}-collapse`}
+          >
+            <CaretDownIcon className="gba:h-4 gba:w-4" />
+          </button>
+        )}
       </div>
 
-      {/* Form fields */}
-      <div className="gba:px-5 gba:py-4 gba:space-y-5 gba:max-h-[70vh] gba:overflow-y-auto">
-        {fields.map(renderField)}
-      </div>
+      {showDetailBody && (
+        <>
+          {/* Form fields */}
+          <div className="gba:px-5 gba:py-4 gba:space-y-5 gba:max-h-[70vh] gba:overflow-y-auto">
+            {fields.map(renderField)}
+          </div>
 
-      {/* Footer with actions */}
-      <div className="gba:px-5 gba:py-3 gba:border-t gba:border-border/60 gba:flex gba:items-center gba:justify-between gba:gap-3">
-        <div className="gba:flex-1">
-          {hasAiDelegatedFields && allowPartialSubmit && (
-            <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
-              <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-primary" weight="fill" />
-              <span>AI will generate {Object.values(fieldStates).filter(s => s.aiDelegated).length} field(s)</span>
-            </p>
+          {/* Footer with actions (hidden once locked; locked forms are read-only review) */}
+          {!isLocked && (
+            <div className="gba:px-5 gba:py-3 gba:border-t gba:border-border/60 gba:flex gba:items-center gba:justify-between gba:gap-3">
+              <div className="gba:flex-1">
+                {hasAiDelegatedFields && allowPartialSubmit && (
+                  <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
+                    <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-primary" weight="fill" />
+                    <span>
+                      AI will generate {Object.values(fieldStates).filter(s => s.aiDelegated).length} field(s)
+                    </span>
+                  </p>
+                )}
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {onCancel && (
+                  <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
+                    Cancel
+                  </Button>
+                )}
+                <Button onClick={handleSubmit} disabled={isSubmitting} className="gba:gap-2">
+                  {hasAiDelegatedFields && allowPartialSubmit ? (
+                    <>
+                      <MagicWandIcon className="gba:h-4 gba:w-4" weight="fill" />
+                      <span>Continue with AI</span>
+                    </>
+                  ) : (
+                    <span>Submit</span>
+                  )}
+                </Button>
+              </div>
+            </div>
           )}
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          {onCancel && (
-            <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-              Cancel
-            </Button>
-          )}
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="gba:gap-2">
-            {hasAiDelegatedFields && allowPartialSubmit ? (
-              <>
-                <MagicWandIcon className="gba:h-4 gba:w-4" weight="fill" />
-                <span>Continue with AI</span>
-              </>
-            ) : (
-              <span>Submit</span>
-            )}
-          </Button>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   )
+}
+
+/**
+ * Builds a short one-line summary of the submitted form for the collapsed
+ * header — picks the first non-empty field value. Employee IDs are opaque
+ * so we just show the field label as a fallback breadcrumb.
+ */
+function buildSummaryLine(fields: InputFieldSchema[], fieldStates: Record<string, FieldState>): string | null {
+  for (const field of fields) {
+    const state = fieldStates[field.field_id]
+    if (!state) continue
+    if (state.aiDelegated) {
+      return `${field.label}: AI-generated`
+    }
+    const value = state.value
+    if (value === undefined || value === null || value === '') continue
+    if (Array.isArray(value)) {
+      if (value.length === 0) continue
+      return `${field.label}: ${value.slice(0, 2).join(', ')}${value.length > 2 ? ` +${value.length - 2}` : ''}`
+    }
+    const str = String(value).trim()
+    if (!str) continue
+    // Employee IDs / opaque ids: show the label only, actual name is still
+    // rendered inside the (expandable) detail view.
+    if (field.field_type === 'employee_search') {
+      return field.label
+    }
+    const truncated = str.length > 64 ? `${str.slice(0, 61)}…` : str
+    return `${field.label}: ${truncated}`
+  }
+  return null
 }

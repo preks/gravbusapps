@@ -67,6 +67,15 @@ interface ChatWithCalendarProps extends BusinessAppContextProps {
   defaultTab?: TabValue
 }
 
+// `renderMode` can be supplied via `additionalData.renderMode` by the platform
+// shell to force a specific layout regardless of the current URL. This lets
+// the shell mount an independent sidepanel instance of ChatWithCalendar even
+// while the same component is rendered as the fullscreen page (e.g. a user
+// has the chat sidepanel open while navigating to /platform/chat). Without
+// this hint both mounts would resolve `isInSidepanel` from `window.location`
+// and end up in the same layout, mirroring each other's URL state.
+type RenderMode = 'sidepanel' | 'fullscreen'
+
 // Presence info type (same as in Chat.tsx)
 interface PresenceInfo {
   state: 'online' | 'offline'
@@ -76,10 +85,15 @@ interface PresenceInfo {
 const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   accessToken,
   userInfo,
+  additionalData,
   prefixDataTestId = 'chat-calendar',
   defaultTab = 'dashboard',
   ...props
 }) => {
+  const renderMode: RenderMode | undefined =
+    additionalData?.renderMode === 'sidepanel' || additionalData?.renderMode === 'fullscreen'
+      ? additionalData.renderMode
+      : undefined
   const { t } = useTranslation(translations)
   const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceInfo>>(new Map())
@@ -187,6 +201,11 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   }, [externalCalendarSourceLabels, rawExternalEvents])
 
   const isInSidepanel = useMemo(() => {
+    // Explicit hint from the host shell wins over URL detection so the
+    // sidepanel mount can stay independent from the fullscreen page mount.
+    if (renderMode === 'sidepanel') return true
+    if (renderMode === 'fullscreen') return false
+
     if (globalThis.window === undefined) return false
 
     let normalizedPath = globalThis.window.location.pathname
@@ -197,7 +216,13 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     if (normalizedPath === '/platform/chat' || normalizedPath === '/platform/apps/chat') return false
 
     return true
-  }, [])
+  }, [renderMode])
+
+  // Only the fullscreen instance owns the URL `?view=` query param. The
+  // sidepanel instance must not read or write it, otherwise both mounts
+  // mirror each other (and closing the sidepanel can leave stale state in
+  // the URL that the page mount picks up).
+  const ownsUrlState = !isInSidepanel
 
   const isNarrowViewport = useMemo(() => {
     if (globalThis.window === undefined) return false
@@ -212,24 +237,15 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
       return null
     }
 
-    if (!isCompactMode) {
-      return 'dashboard'
+    // Sidepanel opens on EveryAI by default (most common entry point from the
+    // shell icon). Dashboard is reserved for the fullscreen EveryOne page and
+    // is never used as a sidepanel default.
+    if (isInSidepanel) {
+      return isChatAIEnabled ? 'everyai' : isTeamChatEnabled ? 'chat' : null
     }
 
-    if (isInSidepanel && isChatAIEnabled) {
-      return 'everyai'
-    }
-
-    if (isTeamChatEnabled) {
-      return 'chat'
-    }
-
-    if (isChatAIEnabled) {
-      return 'reminders'
-    }
-
-    return null
-  }, [isChatAIEnabled, isChatShellBlocked, isCompactMode, isInSidepanel, isTeamChatEnabled])
+    return 'dashboard'
+  }, [isChatAIEnabled, isChatShellBlocked, isInSidepanel, isTeamChatEnabled])
 
   const resolveAllowedTab = useCallback(
     (requestedTab: TabValue): ResolvedTabValue => {
@@ -237,12 +253,17 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         return null
       }
 
+      // Dashboard is only available on the fullscreen EveryOne page. If the
+      // sidepanel asks for it, fall back to its safe default (EveryAI).
       if (requestedTab === 'dashboard') {
-        return isCompactMode ? getSafeDefaultTab() : 'dashboard'
+        return isInSidepanel ? getSafeDefaultTab() : 'dashboard'
       }
 
+      // EveryAI is available wherever the AI feature is enabled, regardless of
+      // sidepanel vs fullscreen — the sidepanel and the page can both surface
+      // EveryAI without duplicating each other thanks to renderMode plumbing.
       if (requestedTab === 'everyai') {
-        return isInSidepanel && isChatAIEnabled ? 'everyai' : getSafeDefaultTab()
+        return isChatAIEnabled ? 'everyai' : getSafeDefaultTab()
       }
 
       if (requestedTab === 'reminders') {
@@ -255,7 +276,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 
       return getSafeDefaultTab()
     },
-    [getSafeDefaultTab, isChatAIEnabled, isChatShellBlocked, isCompactMode, isInSidepanel, isTeamChatEnabled]
+    [getSafeDefaultTab, isChatAIEnabled, isChatShellBlocked, isInSidepanel, isTeamChatEnabled]
   )
 
   const [chatInitState] = useState<{
@@ -275,10 +296,13 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         }
         return { tab: resolveAllowedTab('chat'), pending }
       }
-      // On load with URL params (e.g. ?app=...&view=calendar&meetingId=... on localhost), open on the correct tab immediately
-      const requestedTab = parseTabValue(new URLSearchParams(globalThis.window.location.search).get('view'))
-      if (requestedTab) {
-        return { tab: resolveAllowedTab(requestedTab), pending: null }
+      // Sidepanel mount never reads the URL — the URL is owned by the
+      // fullscreen page mount when both are present.
+      if (ownsUrlState) {
+        const requestedTab = parseTabValue(new URLSearchParams(globalThis.window.location.search).get('view'))
+        if (requestedTab) {
+          return { tab: resolveAllowedTab(requestedTab), pending: null }
+        }
       }
     } catch {
       // ignore
@@ -288,13 +312,17 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   const [activeTab, setActiveTab] = useState<ResolvedTabValue>(chatInitState.tab)
   const pendingOpenWithUser = chatInitState.pending
 
-  const updateTabUrl = useCallback((tab: ResolvedTabValue) => {
-    if (globalThis.window === undefined || !tab) return
+  const updateTabUrl = useCallback(
+    (tab: ResolvedTabValue) => {
+      if (!ownsUrlState) return
+      if (globalThis.window === undefined || !tab) return
 
-    const url = new URL(globalThis.window.location.href)
-    url.searchParams.set('view', tab)
-    globalThis.window.history.replaceState({}, '', url.toString())
-  }, [])
+      const url = new URL(globalThis.window.location.href)
+      url.searchParams.set('view', tab)
+      globalThis.window.history.replaceState({}, '', url.toString())
+    },
+    [ownsUrlState]
+  )
 
   const { setSuffix } = useDevReportScreenKey()
   useEffect(() => {
@@ -337,8 +365,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     navigateTo(url)
   }, [activeTab, getSafeDefaultTab, resolveAllowedTab])
 
-  // Handle URL parameter for initial tab
+  // Handle URL parameter for initial tab (fullscreen / URL-owning mount only)
   useEffect(() => {
+    if (!ownsUrlState) return
     if (pendingOpenWithUser) return
     const requestedTab = parseTabValue(new URLSearchParams(globalThis.window.location.search).get('view'))
 
@@ -353,10 +382,12 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         updateTabUrl(nextTab)
       }
     }
-  }, [activeTab, pendingOpenWithUser, resolveAllowedTab, updateTabUrl])
+  }, [activeTab, ownsUrlState, pendingOpenWithUser, resolveAllowedTab, updateTabUrl])
 
-  // Sync tab from URL on popstate (e.g. user clicks Back to calendar link so calendar + meeting open correctly)
+  // Sync tab from URL on popstate (e.g. user clicks Back to calendar link so calendar + meeting open correctly).
+  // Only the URL-owning fullscreen mount reacts so it doesn't drag the sidepanel into the same tab.
   useEffect(() => {
+    if (!ownsUrlState) return
     const syncTabFromUrl = () => {
       const requestedTab = parseTabValue(new URLSearchParams(globalThis.window.location.search).get('view'))
       if (!requestedTab) return
@@ -370,7 +401,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     }
     globalThis.window.addEventListener('popstate', syncTabFromUrl)
     return () => globalThis.window.removeEventListener('popstate', syncTabFromUrl)
-  }, [resolveAllowedTab, updateTabUrl])
+  }, [ownsUrlState, resolveAllowedTab, updateTabUrl])
 
   useEffect(() => {
     const nextTab = activeTab ? resolveAllowedTab(activeTab) : getSafeDefaultTab()
@@ -381,17 +412,17 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     }
   }, [activeTab, resolveAllowedTab, updateTabUrl])
 
-  // Listen for custom event to open sidebar with specific tab
+  // Listen for custom event to open sidebar with specific tab.
+  // Only the sidepanel mount should react — this event is dispatched by the
+  // platform shell when it opens the sidepanel and is meant to seed THAT
+  // mount's tab, not the unrelated fullscreen page mount.
   useEffect(() => {
+    if (!isInSidepanel) return
     const handleChatSidebarOpened = (event: CustomEvent<{ defaultTab?: TabValue }>) => {
       const tab = event.detail?.defaultTab
       if (tab) {
         const nextTab = resolveAllowedTab(tab)
         setActiveTab(nextTab)
-
-        if (nextTab && nextTab !== tab) {
-          updateTabUrl(nextTab)
-        }
       }
     }
 
@@ -399,17 +430,20 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     return () => {
       globalThis.window.removeEventListener('chatSidebarOpened', handleChatSidebarOpened as EventListener)
     }
-  }, [resolveAllowedTab, updateTabUrl])
+  }, [isInSidepanel, resolveAllowedTab])
 
-  // Listen for custom event to switch to chat
+  // Listen for custom event to switch to chat.
+  // `switchToChat` is dispatched by the platform shell's chat message listener
+  // immediately after it opens the global sidepanel (e.g. when a business app
+  // sends OPEN_CHAT_WITH_USER). It targets the sidepanel mount, so the
+  // fullscreen page mount must NOT react to it — otherwise opening the chat
+  // sidepanel from another page would also yank the unrelated /platform/chat
+  // page mount onto the chat tab.
   useEffect(() => {
+    if (!isInSidepanel) return
     const handleSwitchToChat = () => {
       const nextTab = resolveAllowedTab('chat')
       setActiveTab(nextTab)
-
-      if (nextTab !== 'chat') {
-        updateTabUrl(nextTab)
-      }
     }
 
     globalThis.window.addEventListener('switchToChat', handleSwitchToChat as EventListener)
@@ -417,7 +451,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     return () => {
       globalThis.window.removeEventListener('switchToChat', handleSwitchToChat as EventListener)
     }
-  }, [resolveAllowedTab, updateTabUrl])
+  }, [isInSidepanel, resolveAllowedTab])
 
   // Listen for custom event to switch to calendar
   useEffect(() => {
@@ -492,7 +526,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           className={`gba:flex gba:bg-card gba:overflow-x-auto gba:scrollbar-hide ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
         >
           <TabSwitchList className="gba:overflow-x-auto gba:scrollbar-hide">
-            {!isCompactMode && (
+            {!isInSidepanel && (
               <TabSwitchTrigger
                 value="dashboard"
                 startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
@@ -501,7 +535,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
                 {t('chat-tab-dashboard')}
               </TabSwitchTrigger>
             )}
-            {isInSidepanel && isChatAIEnabled && (
+            {isChatAIEnabled && (
               <TabSwitchTrigger
                 value="everyai"
                 startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
@@ -547,8 +581,10 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           </TabSwitchList>
         </div>
 
-        {/* Use forceMount to keep all tabs mounted for call persistence */}
-        {!isCompactMode && (
+        {/* Use forceMount to keep all tabs mounted for call persistence.
+            Dashboard is only rendered in fullscreen — the sidepanel intentionally
+            omits it so users always land on EveryAI/Chat/Calendar/Reminders there. */}
+        {!isInSidepanel && (
           <TabSwitchContent
             value="dashboard"
             forceMount
@@ -661,7 +697,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           </TabSwitchContent>
         )}
 
-        {isInSidepanel && isChatAIEnabled && (
+        {isChatAIEnabled && (
           <TabSwitchContent
             value="everyai"
             forceMount

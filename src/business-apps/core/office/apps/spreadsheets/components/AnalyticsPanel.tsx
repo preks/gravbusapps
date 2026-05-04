@@ -456,7 +456,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
   getSheetDataFromGrid,
   'data-testid': testId = 'analytics-panel'
 }) {
-  const { t } = useTranslation(translations)
+  const { t, locale } = useTranslation(translations)
   const spreadsheetPromptClient = useSpreadsheetPromptManagerClient(accessToken)
   const memoizedEngineRef = useRef(createAnalyticsMemo())
   const [activeTab, setActiveTab] = useState('charts')
@@ -763,7 +763,8 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = memo(function Analy
     promptClient: spreadsheetPromptClient,
     sheetName,
     columns: columnsForAnalytics,
-    sheetData: analyticsRows
+    sheetData: analyticsRows,
+    locale
   })
 
   const pivotPreviewColumns = useMemo(() => {

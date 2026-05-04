@@ -14,11 +14,13 @@ import { useCompensationPlanningStore } from './useCompensationPlanningStore'
 /** Mirrors `nw_employee.compensation_budget_plan_organizational_unit`; names resolved via `companyOrgUnits`. */
 export interface CompensationBudgetPlanOrganizationalUnitRow {
   id: string
+  version: number
   compensationBudgetPlanId: string
   compensationBudgetPlanCompanyId: string
   organizationalUnitId: string
   salaryBudgetAmount: number
   salaryBudgetPercent: number
+  allocationAmount: number
   bonusBudgetAmount: number
   bonusBudgetPercent: number
   budgetPlanStatus: string
@@ -33,10 +35,12 @@ export interface CompanyBudgetPlanOption {
 
 interface CompensationBudgetPlanOrganizationalUnitGraphqlRow {
   id: string
+  version: unknown
   compensationBudgetPlanCompanyId: string
   organizationalUnitId: string
   salaryBudgetAmount: unknown
   salaryBudgetPercent: unknown
+  allocationAmount?: unknown
   bonusBudgetAmount: unknown
   bonusBudgetPercent: unknown
   budgetPlanStatus: string | null
@@ -79,6 +83,7 @@ function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanComp
     companyId: graphqlUnknownToString(raw.companyId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    allocationAmount: num(raw.allocationAmount),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
     budgetPlanStatus: graphqlUnknownToString(raw.budgetPlanStatus),
@@ -87,6 +92,23 @@ function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanComp
     headcount: num(raw.headcount),
     currencyRef: graphqlUnknownToStringOrNull(raw.currencyRef)
   }
+}
+
+/** Earlier dates first; null/invalid effective dates last (stable for tie-break: label). */
+function comparePlanEffectiveDateAsc(
+  a: { effectiveDate: string | null; label: string },
+  b: { effectiveDate: string | null; label: string }
+): number {
+  const aD = a.effectiveDate
+  const bD = b.effectiveDate
+  if (aD == null && bD == null) {
+    return a.label.localeCompare(b.label)
+  }
+  if (aD == null) return 1
+  if (bD == null) return -1
+  const byDate = aD.localeCompare(bD)
+  if (byDate !== 0) return byDate
+  return a.label.localeCompare(b.label)
 }
 
 function buildCompanyBudgetPlanOptions(
@@ -112,7 +134,14 @@ function buildCompanyBudgetPlanOptions(
     })
   }
 
-  return options
+  return [...options].sort((oa, ob) => {
+    const pa = planById.get(oa.compensationBudgetPlanId)
+    const pb = planById.get(ob.compensationBudgetPlanId)
+    return comparePlanEffectiveDateAsc(
+      { effectiveDate: pa?.effectiveDate ?? null, label: oa.label },
+      { effectiveDate: pb?.effectiveDate ?? null, label: ob.label }
+    )
+  })
 }
 
 function mapGraphqlOrgUnitRow(
@@ -121,11 +150,13 @@ function mapGraphqlOrgUnitRow(
 ): CompensationBudgetPlanOrganizationalUnitRow {
   return {
     id: raw.id,
+    version: num(raw.version),
     compensationBudgetPlanId,
     compensationBudgetPlanCompanyId: raw.compensationBudgetPlanCompanyId,
     organizationalUnitId: raw.organizationalUnitId,
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
     salaryBudgetPercent: num(raw.salaryBudgetPercent),
+    allocationAmount: num(raw.allocationAmount),
     bonusBudgetAmount: num(raw.bonusBudgetAmount),
     bonusBudgetPercent: num(raw.bonusBudgetPercent),
     budgetPlanStatus: raw.budgetPlanStatus ?? '',

@@ -29,11 +29,23 @@ export interface TableViewProps {
   workbookRemountKey?: string
   multiSheetWorkbookMode?: boolean
   onActiveWorksheetChange?: (sheetId: string, sheetName: string) => void
+  onUniverSheetInserted?: (payload: { sheetId: string; sheetName: string; index: number }) => void
+  onUniverSheetRemoved?: (payload: { sheetId: string }) => void
+  onUniverSheetRenamed?: (payload: { sheetId: string; sheetName: string }) => void
+  /**
+   * Multi-sheet context resolver forwarded to `UniverSheetGrid`. When Univer
+   * reports a cell mutation on a non-active sheet this tells the grid which
+   * columns/rows to use to build its rowIndex→rowId mapping.
+   */
+  getSheetContext?: (sheetId: string) => {
+    columns: SpreadsheetColumn[]
+    data: Record<string, unknown>[]
+  } | null
   columns: ColumnDef<Record<string, unknown>>[]
   spreadsheetColumns: SpreadsheetColumn[]
   testId: string
-  onCellChange?: (rowId: string, columnName: string, value: unknown) => void
-  onCellsChange?: (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => void
+  onCellChange?: (rowId: string, columnName: string, value: unknown, sheetId?: string) => void
+  onCellsChange?: (cells: Array<{ rowId: string; columnName: string; value: unknown; sheetId?: string }>) => void
   onSnapshotRequested?: () => Promise<void> | void
   onWorkbookSnapshotLifecycle?: (event: WorkbookSnapshotLifecycleEvent) => void
   onOpenCommentRequest?: () => void
@@ -47,7 +59,7 @@ export interface TableViewProps {
   isEditable?: boolean
   onAddRow?: () => void
   showAddRow?: boolean
-  onDataChange?: (data: Record<string, unknown>[]) => void
+  onDataChange?: (data: Record<string, unknown>[], sheetId?: string) => void
   /** Callback when a new column needs to be auto-created */
   onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
   participants?: DocumentParticipant[]
@@ -72,6 +84,10 @@ export const TableView = memo<TableViewProps>(function TableView({
   workbookRemountKey,
   multiSheetWorkbookMode,
   onActiveWorksheetChange,
+  onUniverSheetInserted,
+  onUniverSheetRemoved,
+  onUniverSheetRenamed,
+  getSheetContext,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   columns,
   spreadsheetColumns,
@@ -158,19 +174,23 @@ export const TableView = memo<TableViewProps>(function TableView({
   const handleCellChange = useCallback(
     (rowId: string, columnId: string, value: unknown) => {
       if (onCellChange) {
-        onCellChange(rowId, columnId, value)
+        onCellChange(rowId, columnId, value, sheet.id)
       }
     },
-    [onCellChange]
+    [onCellChange, sheet.id]
   )
 
   const handleCellsChange = useCallback(
-    (cells: Array<{ rowId: string; columnName: string; value: unknown }>) => {
+    (cells: Array<{ rowId: string; columnName: string; value: unknown; sheetId?: string }>) => {
       if (onCellsChange) {
-        onCellsChange(cells)
+        // UniverSheetGrid now stamps each cell with the Univer-active sheet id
+        // when multi-sheet mode is enabled. Respect that value; only fall back
+        // to the TableView's active-sheet prop when the grid didn't provide one
+        // (single-sheet callers).
+        onCellsChange(cells.map(cell => ({ ...cell, sheetId: cell.sheetId ?? sheet.id })))
       }
     },
-    [onCellsChange]
+    [onCellsChange, sheet.id]
   )
 
   const handleSnapshotRequested = useCallback(() => {
@@ -179,12 +199,12 @@ export const TableView = memo<TableViewProps>(function TableView({
 
   // Handle data change from Univer
   const handleDataChange = useCallback(
-    (newData: Record<string, unknown>[]) => {
+    (newData: Record<string, unknown>[], sourceSheetId?: string) => {
       if (onDataChange) {
-        onDataChange(newData)
+        onDataChange(newData, sourceSheetId ?? sheet.id)
       }
     },
-    [onDataChange]
+    [onDataChange, sheet.id]
   )
 
   return (
@@ -194,6 +214,12 @@ export const TableView = memo<TableViewProps>(function TableView({
       data-testid={testId}
     >
       <UniverSheetGrid
+        // In multi-sheet mode the workbook contains every sheet and switching
+        // tabs is handled inside Univer; remounting on `sheet.id` would throw
+        // away the in-memory workbook and cause a white flash on every switch.
+        // Key off the stable `workbookRemountKey` instead (only changes when
+        // sheets are added/removed) so the single Univer instance persists.
+        key={workbookRemountKey ?? sheet.id}
         ref={gridRef}
         sheet={sheet}
         data={data}
@@ -203,6 +229,10 @@ export const TableView = memo<TableViewProps>(function TableView({
         workbookRemountKey={workbookRemountKey}
         multiSheetWorkbookMode={multiSheetWorkbookMode}
         onActiveWorksheetChange={onActiveWorksheetChange}
+        onUniverSheetInserted={onUniverSheetInserted}
+        onUniverSheetRemoved={onUniverSheetRemoved}
+        onUniverSheetRenamed={onUniverSheetRenamed}
+        getSheetContext={getSheetContext}
         columns={spreadsheetColumns}
         isReadOnly={isReadOnly || false}
         onCellChange={handleCellChange}

@@ -3,6 +3,7 @@ import { Button, PageLayout, Alert, AlertDescription } from '@newwork/nw-design-
 import { CalendarIcon, PlusIcon } from '@phosphor-icons/react'
 import { TaskTemplateTable, TaskTemplateForm } from './components'
 import { TaskTemplateSettingsProps, BaseTaskTemplate, TaskTemplateFormData } from './types'
+import { DeleteConfirmationDialog } from '../components/DeleteConfirmationDialog'
 
 export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
   templates,
@@ -28,6 +29,8 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
 }) => {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<BaseTaskTemplate | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<BaseTaskTemplate | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleAdd = () => {
     setEditingTemplate(null)
@@ -40,8 +43,28 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
   }
 
   const handleDelete = async (id: string) => {
-    if (globalThis.confirm('Are you sure you want to delete this task template?')) {
-      await onDelete(id)
+    const template = templates.find(item => item.id === id)
+    if (!template) {
+      return
+    }
+
+    setDeleteTarget(template)
+  }
+
+  const handleCancelDelete = () => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+
+    try {
+      setIsDeleting(true)
+      await onDelete(deleteTarget.id)
+      handleCancelDelete()
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -124,6 +147,16 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
         templateEntityConfig={templateEntityConfig}
         assigneeTypes={assigneeTypes}
         holidayPolicies={holidayPolicies}
+      />
+
+      <DeleteConfirmationDialog
+        open={!!deleteTarget}
+        itemName={deleteTarget?.name || ''}
+        itemType="Task Template"
+        isDeleting={isDeleting}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        dataTestId={`${prefixDataTestId}-delete-dialog`}
       />
     </PageLayout>
   )

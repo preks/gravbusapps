@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Check, ChevronDown } from 'lucide-react'
+import { CaretDownIcon, CheckIcon } from '@phosphor-icons/react'
 import translations from '../../_i18n'
 import { HomeTabContent } from './HomeTabContent'
 import { InsertTabContent } from './InsertTabContent'
@@ -20,6 +20,7 @@ import { SlideshowTabContent } from './SlideshowTabContent'
 import type { ToolbarContext } from '../../hooks/useToolbarContext'
 import type { AnySlideElement, SlideData } from '../slideElements'
 import type { SlideTheme } from '../slideThemes'
+import type { RichTextFormattingUpdate } from '../../utils/richTextEditing'
 
 export interface SlideToolbarRibbonProps {
   context: ToolbarContext
@@ -41,8 +42,8 @@ export interface SlideToolbarRibbonProps {
   onRedo: () => void
   onCopy: () => void
   onPaste: () => void
-  onAddElement: (element: AnySlideElement) => void
-  onUpdateElement: (id: string, updates: Partial<AnySlideElement>) => void
+  onAddElement: (element: AnySlideElement, options?: { positionMode?: 'center' | 'preserve' }) => void
+  onUpdateElement: (id: string, updates: Partial<AnySlideElement> | RichTextFormattingUpdate) => void
   onShowBackgroundDialog: () => void
   onShowImageDialog: () => void
   onShowVideoDialog: () => void
@@ -63,8 +64,12 @@ export interface SlideToolbarRibbonProps {
   onSaveNow?: () => void
   onExportPptx?: () => void
   onExportPdf?: () => void
-  onRefineSlide?: () => void
-  onGenerateSlides?: () => void
+  onRefineSlide?: (refinedSlide: SlideData) => void
+  onGenerateSlides?: (
+    slides: SlideData[],
+    title: string,
+    matchedTemplate?: { id: string; name: string; themeId?: string }
+  ) => void
   onOpenMasterView?: () => void
   masters?: import('../../types/slideMaster').SlideMaster[]
   onChangeLayout?: (layoutId: string, masterId: string) => void
@@ -135,13 +140,12 @@ export function SlideToolbarRibbon({
       data-testid={testId ? `${testId}-surface` : undefined}
     >
       <section
-        className="gba:flex gba:flex-nowrap gba:items-center gba:bg-background gba:px-4 gba:h-11 gba:overflow-x-auto"
-        style={{ scrollbarWidth: 'none' }}
+        className="gba:flex gba:items-stretch gba:bg-background gba:px-4 gba:min-h-[2.75rem]"
         aria-label={activeTabLabel}
         data-testid={testId ? `${testId}-ribbon-${activeTab}` : undefined}
       >
         <div
-          className="gba:mr-3 gba:flex gba:items-center gba:self-stretch gba:pr-3 gba:border-r gba:border-border/60 gba:shrink-0"
+          className="gba:mr-3 gba:flex gba:items-center gba:pr-3 gba:border-r gba:border-border/60 gba:shrink-0"
           data-testid={testId ? `${testId}-tab-selector` : undefined}
         >
           <DropdownMenu>
@@ -153,7 +157,7 @@ export function SlideToolbarRibbon({
                 data-testid={testId ? `${testId}-tab-trigger` : undefined}
               >
                 {activeTabLabel}
-                <ChevronDown className="gba:h-3 gba:w-3" />
+                <CaretDownIcon className="gba:h-3 gba:w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-64">
@@ -165,7 +169,7 @@ export function SlideToolbarRibbon({
                   className="gba:flex gba:items-start gba:gap-2 gba:py-2"
                 >
                   {activeTab === tab.id ? (
-                    <Check className="gba:mt-0.5 gba:h-4 gba:w-4 gba:shrink-0" />
+                    <CheckIcon className="gba:mt-0.5 gba:h-4 gba:w-4 gba:shrink-0" />
                   ) : (
                     <span className="gba:mt-0.5 gba:w-4 gba:shrink-0" />
                   )}
@@ -179,65 +183,67 @@ export function SlideToolbarRibbon({
           </DropdownMenu>
         </div>
 
-        {activeTab === 'home' && (
-          <HomeTabContent
-            context={context}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            hasClipboardContent={hasClipboardContent}
-            isSynced={isSynced}
-            currentTheme={currentTheme}
-            showSpellCheckPanel={showSpellCheckPanel}
-            spellCheckIssueCount={spellCheckIssueCount}
-            spellCheckIsChecking={spellCheckIsChecking}
-            onUndo={onUndo}
-            onRedo={onRedo}
-            onCopy={onCopy}
-            onPaste={onPaste}
-            onUpdateElement={onUpdateElement}
-            onShowBackgroundDialog={onShowBackgroundDialog}
-            onShowLinkDialog={onShowLinkDialog}
-            onUpdateTheme={onUpdateTheme}
-            onToggleSpellCheck={onToggleSpellCheck}
-            masters={masters}
-            onChangeLayout={onChangeLayout}
-            testId={testId}
-          />
-        )}
-        {activeTab === 'insert' && (
-          <InsertTabContent
-            isSynced={isSynced}
-            slides={slides}
-            currentSlide={currentSlide}
-            accessToken={accessToken}
-            currentTheme={currentTheme}
-            onAddElement={onAddElement}
-            onShowImageDialog={onShowImageDialog}
-            onShowVideoDialog={onShowVideoDialog}
-            onApplyTemplate={onApplyTemplate}
-            onRefineSlide={onRefineSlide}
-            onGenerateSlides={onGenerateSlides}
-            testId={testId}
-          />
-        )}
-        {activeTab === 'slideshow' && (
-          <SlideshowTabContent
-            showNotesPanel={showNotesPanel}
-            isCastConnected={isCastConnected}
-            isCastConnecting={isCastConnecting}
-            onPresent={onPresent || (() => {})}
-            onPresenterView={onPresenterView || (() => {})}
-            onPresentInWindow={onPresentInWindow || (() => {})}
-            onCastToDisplay={onCastToDisplay || (() => {})}
-            onToggleNotes={onToggleNotes || (() => {})}
-            onShowTransitions={onShowTransitions || (() => {})}
-            onSaveNow={onSaveNow || (() => {})}
-            onExportPptx={onExportPptx || (() => {})}
-            onExportPdf={onExportPdf || (() => {})}
-            onOpenMasterView={onOpenMasterView}
-            testId={testId}
-          />
-        )}
+        <div className="gba:flex-1 gba:min-w-0 gba:py-1.5">
+          {activeTab === 'home' && (
+            <HomeTabContent
+              context={context}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              hasClipboardContent={hasClipboardContent}
+              isSynced={isSynced}
+              currentTheme={currentTheme}
+              showSpellCheckPanel={showSpellCheckPanel}
+              spellCheckIssueCount={spellCheckIssueCount}
+              spellCheckIsChecking={spellCheckIsChecking}
+              onUndo={onUndo}
+              onRedo={onRedo}
+              onCopy={onCopy}
+              onPaste={onPaste}
+              onUpdateElement={onUpdateElement}
+              onShowBackgroundDialog={onShowBackgroundDialog}
+              onShowLinkDialog={onShowLinkDialog}
+              onUpdateTheme={onUpdateTheme}
+              onToggleSpellCheck={onToggleSpellCheck}
+              masters={masters}
+              onChangeLayout={onChangeLayout}
+              testId={testId}
+            />
+          )}
+          {activeTab === 'insert' && (
+            <InsertTabContent
+              isSynced={isSynced}
+              slides={slides}
+              currentSlide={currentSlide}
+              accessToken={accessToken}
+              currentTheme={currentTheme}
+              onAddElement={onAddElement}
+              onShowImageDialog={onShowImageDialog}
+              onShowVideoDialog={onShowVideoDialog}
+              onApplyTemplate={onApplyTemplate}
+              onRefineSlide={onRefineSlide}
+              onGenerateSlides={onGenerateSlides}
+              testId={testId}
+            />
+          )}
+          {activeTab === 'slideshow' && (
+            <SlideshowTabContent
+              showNotesPanel={showNotesPanel}
+              isCastConnected={isCastConnected}
+              isCastConnecting={isCastConnecting}
+              onPresent={onPresent || (() => {})}
+              onPresenterView={onPresenterView || (() => {})}
+              onPresentInWindow={onPresentInWindow || (() => {})}
+              onCastToDisplay={onCastToDisplay || (() => {})}
+              onToggleNotes={onToggleNotes || (() => {})}
+              onShowTransitions={onShowTransitions || (() => {})}
+              onSaveNow={onSaveNow || (() => {})}
+              onExportPptx={onExportPptx || (() => {})}
+              onExportPdf={onExportPdf || (() => {})}
+              onOpenMasterView={onOpenMasterView}
+              testId={testId}
+            />
+          )}
+        </div>
       </section>
     </div>
   )

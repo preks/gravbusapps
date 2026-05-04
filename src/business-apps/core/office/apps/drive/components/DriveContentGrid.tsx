@@ -49,7 +49,8 @@ export interface DriveContentGridProps {
   onMoveToFolder?: (targetFolderId: string, refs: Array<{ entityType: string; entityId: string }>) => void
   onAddToMyDrive?: (entityType: string, entityId: string) => void
   onRemoveShortcut?: (shortcutId: string) => void
-  t: (key: string) => string
+  t: (key: string, args?: Record<string, string | number>) => string
+  locale?: string
   'data-testid'?: string
 }
 
@@ -185,14 +186,68 @@ function resolveIconAndColor(item: DriveItem): { Icon: React.ElementType; color:
   }
 }
 
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  const diff = Date.now() - d.getTime()
-  if (diff < 60_000) return 'Just now'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`
-  if (diff < 604_800_000) return `${Math.floor(diff / 86_400_000)}d ago`
-  return d.toLocaleDateString()
+function formatDate(
+  dateStr: string,
+  t: (key: string, args?: Record<string, string | number>) => string,
+  locale?: string
+): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  const effectiveLocale = locale || undefined
+
+  if (diffMins < 1) return t('time-just-now')
+  if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+  if (diffDays === 1) return t('time-yesterday')
+  if (diffDays < 7) return t('time-days-ago-count', { count: diffDays })
+
+  return date.toLocaleDateString(effectiveLocale, {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+  })
+}
+
+function localizeFileTypeLabel(
+  label: string,
+  t: (key: string, args?: Record<string, string | number>) => string
+): string {
+  switch (label) {
+    case 'Document':
+      return t('type-label-document')
+    case 'Note':
+      return t('type-label-note')
+    case 'Spreadsheet':
+      return t('type-label-spreadsheet')
+    case 'Slides':
+      return t('type-label-slides')
+    case 'Whiteboard':
+      return t('type-label-whiteboard')
+    case 'File':
+      return t('type-label-file')
+    case 'Folder':
+      return t('type-label-folder')
+    case 'Image':
+      return t('type-label-image')
+    case 'Video':
+      return t('type-label-video')
+    case 'Audio':
+      return t('type-label-audio')
+    case 'Archive':
+      return t('type-label-archive')
+    case 'Code':
+      return t('type-label-code')
+    case 'Script':
+      return t('type-label-script')
+    case 'Text':
+      return t('type-label-text')
+    default:
+      return label
+  }
 }
 
 function refsFromKeys(keys: Set<string>): Array<{ entityType: string; entityId: string }> {
@@ -224,6 +279,7 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
   onAddToMyDrive,
   onRemoveShortcut,
   t,
+  locale,
   'data-testid': testId = 'drive-content'
 }) => {
   const isTrash = section === 'trash'
@@ -300,7 +356,7 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
         {folders.length > 0 && (
           <div className="gba:mb-6">
             <h3 className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:mb-3">
-              Folders
+              {t('section-folders')}
             </h3>
             <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-5 gba:gap-3">
               {folders.map(folder => {
@@ -335,7 +391,7 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
         {items.length > 0 && (
           <div>
             <h3 className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:mb-3">
-              Files
+              {t('section-files')}
             </h3>
             <div className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-5 gba:gap-3">
               {items.map(item => {
@@ -357,18 +413,18 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
                     </span>
                     <div className="gba:flex gba:items-center gba:gap-1 gba:flex-wrap gba:justify-center">
                       <span className="gba:text-xs gba:text-muted-foreground">
-                        {getFileTypeLabel(item.type, item.mimeType, item.name)}
+                        {localizeFileTypeLabel(getFileTypeLabel(item.type, item.mimeType, item.name), t)}
                       </span>
                       {item.externalSource && (
                         <Badge variant="info" className="gba:text-[9px] gba:px-1.5 gba:py-0 gba:gap-0.5">
                           <CloudDownload className="gba:w-2 gba:h-2" />
-                          Imported
+                          {t('badge-imported')}
                         </Badge>
                       )}
                       {item.isShared && (
                         <Badge variant="secondary" className="gba:text-[9px] gba:px-1.5 gba:py-0 gba:gap-0.5">
                           <Users className="gba:w-2 gba:h-2" />
-                          Shared
+                          {t('shared-folder-badge')}
                         </Badge>
                       )}
                     </div>
@@ -408,18 +464,18 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
               {folder.isShared && (
                 <Badge variant="secondary" className="gba:text-[9px] gba:px-1.5 gba:py-0 gba:gap-0.5 gba:shrink-0">
                   <Users className="gba:w-2 gba:h-2" />
-                  Shared
+                  {t('shared-folder-badge')}
                 </Badge>
               )}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:w-24 gba:text-right gba:hidden gba:sm:block">
-              Folder
+              {t('type-label-folder')}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:w-20 gba:text-right gba:hidden gba:md:block">
               &mdash;
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:w-24 gba:text-right">
-              {formatDate(folder.updatedAt)}
+              {formatDate(folder.updatedAt, t, locale)}
             </span>
             <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end gba:w-48">
               {!isTrash && onRenameFolder && (
@@ -491,24 +547,24 @@ export const DriveContentGrid: React.FC<DriveContentGridProps> = ({
               {item.externalSource && (
                 <Badge variant="info" className="gba:text-[9px] gba:px-1.5 gba:py-0 gba:gap-0.5 gba:shrink-0">
                   <CloudDownload className="gba:w-2 gba:h-2" />
-                  Imported
+                  {t('badge-imported')}
                 </Badge>
               )}
               {item.isShared && (
                 <Badge variant="secondary" className="gba:text-[9px] gba:px-1.5 gba:py-0 gba:gap-0.5 gba:shrink-0">
                   <Users className="gba:w-2 gba:h-2" />
-                  Shared
+                  {t('shared-folder-badge')}
                 </Badge>
               )}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:w-24 gba:text-right gba:hidden gba:sm:block">
-              {getFileTypeLabel(item.type, item.mimeType, item.name)}
+              {localizeFileTypeLabel(getFileTypeLabel(item.type, item.mimeType, item.name), t)}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:w-20 gba:text-right gba:hidden gba:md:block">
               {formatFileSize(item.fileSize)}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:w-24 gba:text-right">
-              {formatDate(item.updatedAt)}
+              {formatDate(item.updatedAt, t, locale)}
             </span>
             <DriveListItemActions
               item={item}
