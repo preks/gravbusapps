@@ -108,6 +108,8 @@ export const IdealCustomerProfilesPage: React.FC<IdealCustomerProfilesPageProps>
               selectedEntry={catalog.selectedEntry}
               profileName={catalog.profileName}
               onProfileNameChange={catalog.setProfileName}
+              profileNameTranslations={catalog.profileNameTranslations}
+              onProfileNameTranslationsChange={catalog.setProfileNameTranslations}
               formState={catalog.formState}
               onFormStateChange={catalog.setFormState}
               saving={catalog.saving}
@@ -124,8 +126,10 @@ export const IdealCustomerProfilesPage: React.FC<IdealCustomerProfilesPageProps>
         onNewDialogOpenChange={catalog.setNewDialogOpen}
         newCode={catalog.newCode}
         newName={catalog.newName}
+        newNameTranslations={catalog.newNameTranslations}
         onNewCodeChange={catalog.setNewCode}
         onNewNameChange={catalog.setNewName}
+        onNewNameTranslationsChange={catalog.setNewNameTranslations}
         creating={catalog.creating}
         onCreateSubmit={() => void catalog.handleCreate()}
         deleteTarget={catalog.deleteTarget}
