@@ -201,7 +201,7 @@ async function main() {
     console.log(`   Target branch: ${targetBranch}`)
 
     execSync(`git add ${bundleFileName}`, { cwd: projectRootDir })
-    execSync(`git commit --no-verify -m "chore(ci): update bundle-top-dependencies [skip ci]"`, {
+    execSync(`git commit --no-verify -m "chore NO-TICKET: update bundle-top-dependencies [skip ci]"`, {
       cwd: projectRootDir
     })
 
@@ -245,7 +245,7 @@ async function main() {
               abortRebaseIfNeeded()
               execSync(`git add ${bundleFileName}`, { cwd: projectRootDir, stdio: 'pipe' })
               try {
-                execSync(`git commit --no-verify -m "chore(ci): update bundle-top-dependencies [skip ci]"`, {
+                execSync(`git commit --no-verify -m "chore NO-TICKET: update bundle-top-dependencies [skip ci]"`, {
                   cwd: projectRootDir,
                   stdio: 'pipe'
                 })
