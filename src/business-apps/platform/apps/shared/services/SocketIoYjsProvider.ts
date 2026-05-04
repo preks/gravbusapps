@@ -423,6 +423,10 @@ export class SocketIoYjsProvider {
   }
 
   private shouldQueueLocalDiffAfterFullSync(): boolean {
+    return this.requiresDefaultXmlBootstrapGuard() || this.entityType === 'whiteboard'
+  }
+
+  private shouldPreservePendingLocalUpdatesAfterBootstrap(): boolean {
     return this.requiresDefaultXmlBootstrapGuard()
   }
 
@@ -470,7 +474,7 @@ export class SocketIoYjsProvider {
       return true
     }
 
-    if (!this.shouldQueueLocalDiffAfterFullSync()) {
+    if (!this.shouldPreservePendingLocalUpdatesAfterBootstrap()) {
       this.pendingLocalDocUpdates = []
     }
 
