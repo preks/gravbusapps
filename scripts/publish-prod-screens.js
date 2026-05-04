@@ -745,7 +745,10 @@ async function main() {
               resolveHashConflict()
             } else {
               console.log(`   Attempt ${attempt}/3: Pulling and rebasing...`)
-              execSync(`git pull --rebase origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+              execSync(`git pull --rebase --autostash origin ${targetBranch}`, {
+                cwd: projectRootDirForHashes,
+                stdio: 'pipe'
+              })
             }
 
             // If we got here, rebase succeeded - try to push
@@ -870,7 +873,10 @@ async function main() {
               if (isRebaseInProgress()) {
                 resolveHashConflictByOverwriting()
               } else {
-                execSync(`git pull --rebase origin ${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+                execSync(`git pull --rebase --autostash origin ${developBranch}`, {
+                  cwd: projectRootDirForHashes,
+                  stdio: 'pipe'
+                })
               }
 
               // Ensure the publish-generated file content wins (even without conflicts)

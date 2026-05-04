@@ -232,7 +232,7 @@ async function main() {
             resolveHashConflict()
           } else {
             console.log(`   🔄 Attempt ${attempt}/3: Pulling and rebasing...`)
-            execSync(`git pull --rebase origin ${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
+            execSync(`git pull --rebase --autostash origin ${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
           }
 
           // If we got here, rebase succeeded - try to push

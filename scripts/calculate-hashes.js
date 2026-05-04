@@ -389,7 +389,7 @@ async function main() {
           } else {
             console.log(`Attempt ${attempt}/3: Pulling and rebasing...`)
             // Capture output to detect conflicts
-            execSync(`git pull --rebase origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+            execSync(`git pull --rebase --autostash origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
           }
 
           // If we got here, rebase succeeded - try to push
