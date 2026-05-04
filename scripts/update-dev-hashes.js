@@ -218,7 +218,9 @@ async function main() {
       }
 
       execSync(`git add ${hashFileName}`, { cwd: projectRootDir })
-      execSync(`git commit --no-verify -m "chore(ci): update component hashes [skip ci]"`, { cwd: projectRootDir })
+      execSync(`git commit --no-verify -m "chore NO-TICKET: update component hashes [skip ci]"`, {
+        cwd: projectRootDir
+      })
 
       // Pull with rebase and push with retry logic
       let pushSuccess = false
@@ -266,7 +268,7 @@ async function main() {
                 abortRebaseIfNeeded()
                 execSync(`git add ${hashFileName}`, { cwd: projectRootDir, stdio: 'pipe' })
                 try {
-                  execSync(`git commit --no-verify -m "chore(ci): update component hashes [skip ci]"`, {
+                  execSync(`git commit --no-verify -m "chore NO-TICKET: update component hashes [skip ci]"`, {
                     cwd: projectRootDir,
                     stdio: 'pipe'
                   })

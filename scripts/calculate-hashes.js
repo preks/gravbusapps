@@ -372,7 +372,7 @@ async function main() {
 
       execSync(`git add ${hashFileName}`, { cwd: projectRoot })
       execSync(
-        `git commit --no-verify -m "chore(ci): update ${args.env} component hashes (manual calculation) [skip ci]"`,
+        `git commit --no-verify -m "chore NO-TICKET: update ${args.env} component hashes (manual calculation) [skip ci]"`,
         {
           cwd: projectRoot
         }
@@ -428,7 +428,7 @@ async function main() {
                 execSync(`git add ${hashFileName}`, { cwd: projectRoot, stdio: 'pipe' })
                 try {
                   execSync(
-                    `git commit --no-verify -m "chore(ci): update ${args.env} component hashes (manual calculation) [skip ci]"`,
+                    `git commit --no-verify -m "chore NO-TICKET: update ${args.env} component hashes (manual calculation) [skip ci]"`,
                     {
                       cwd: projectRoot,
                       stdio: 'pipe'
