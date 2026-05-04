@@ -2,9 +2,9 @@ import React from 'react'
 import type { CellContext, ColumnDef } from '@tanstack/react-table'
 import { Checkbox, Badge } from '@newwork/nw-design-system'
 import { FileTextIcon, ImageIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
-import { formatCurrencyDisplay, getExpenseItemStatusDisplay } from '../../../../utils'
+import { formatCurrencyDisplay, getExpenseItemStatusDisplayT } from '../../../../utils'
 
 export const EXPENSE_ITEMS_TABLE_DATA_TEST_ID_PREFIX = 'ExpenseItemsTable'
 
@@ -72,8 +72,8 @@ function ExpenseItemExpenseDateCell({ record }: Readonly<{ record: ExpenseItem }
   )
 }
 
-function ExpenseItemStatusCell({ record }: Readonly<{ record: ExpenseItem }>) {
-  const statusConf = getExpenseItemStatusDisplay(record.status)
+function ExpenseItemStatusCell({ record, t }: Readonly<{ record: ExpenseItem; t: (key: string) => string }>) {
+  const statusConf = getExpenseItemStatusDisplayT(t, record.status)
   return (
     <Badge variant={statusConf.badgeVariant || 'outline'} data-testid="expense-status-cell">
       {statusConf.label}
@@ -108,9 +108,6 @@ function renderItemTitleCell(info: CellContext<ExpenseItem, unknown>) {
 function renderItemExpenseDateCell(info: CellContext<ExpenseItem, unknown>) {
   return <ExpenseItemExpenseDateCell record={info.row.original} />
 }
-function renderItemStatusCell(info: CellContext<ExpenseItem, unknown>) {
-  return <ExpenseItemStatusCell record={info.row.original} />
-}
 function renderItemAttachmentCell(info: CellContext<ExpenseItem, unknown>) {
   return <ExpenseItemAttachmentCell record={info.row.original} />
 }
@@ -124,6 +121,7 @@ export interface CreateExpenseItemColumnsParams {
   onSelectAll: (checked: boolean) => void
   onRowSelectionChange: (id: string, checked: boolean) => void
   expenseDateLabel: string
+  t: (key: string) => string
 }
 
 export function createExpenseItemColumns({
@@ -131,8 +129,13 @@ export function createExpenseItemColumns({
   selectedRowKeys,
   onSelectAll,
   onRowSelectionChange,
-  expenseDateLabel
+  expenseDateLabel,
+  t
 }: CreateExpenseItemColumnsParams): ColumnDef<ExpenseItem>[] {
+  const renderItemStatusCell = (info: CellContext<ExpenseItem, unknown>) => (
+    <ExpenseItemStatusCell record={info.row.original} t={t} />
+  )
+
   return [
     {
       id: 'selection',
@@ -151,10 +154,7 @@ export function createExpenseItemColumns({
     {
       id: 'title',
       accessorKey: 'title',
-      header: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.expense_request_container.current_title_label',
-        'Title'
-      ),
+      header: t('expense-items-column-title'),
       size: 200,
       cell: renderItemTitleCell
     },
@@ -168,14 +168,14 @@ export function createExpenseItemColumns({
     {
       id: 'status',
       accessorKey: 'status',
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+      header: t('expense-items-column-status'),
       size: 100,
       cell: renderItemStatusCell
     },
     {
       id: 'attachment',
       accessorFn: (row: ExpenseItem) => row.expenseItemFile?.length ?? 0,
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment', 'Attachment'),
+      header: t('expense-items-column-attachment'),
       enableSorting: false,
       size: 80,
       cell: renderItemAttachmentCell
@@ -184,7 +184,7 @@ export function createExpenseItemColumns({
       id: 'reimbursableAmount',
       accessorKey: 'reimbursableAmount',
       sortDescFirst: false,
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount'),
+      header: t('expense-items-column-reimbursable'),
       size: 140,
       meta: { align: 'right' as const },
       cell: renderItemReimbursableAmountCell

@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Separator, Spinner, Alert, AlertDescription, Badge } from '@newwork/nw-design-system'
+import { Separator, Spinner, Alert, AlertDescription, Badge, useTranslation } from '@newwork/nw-design-system'
 import { DotsThreeVerticalIcon } from '@phosphor-icons/react'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { ExpenseItem, useGetExpenseItem } from '../../../../hooks/useGetExpenseItems'
-import { getExpenseItemStatusDisplay } from '../../../../utils'
+import { getExpenseItemStatusDisplayT } from '../../../../utils'
 import { AppAction } from '@/components/app-action'
 import { generateExpenseItemActions } from '../../../../utils/expenseItemActions'
 import { DetailsPanelContent } from '@/business-apps/fin/expenses/common/components/details-panel/DetailsPanelContent'
@@ -12,6 +12,7 @@ import { buildExpenseItemDetailsFields } from './buildExpenseItemDetailsFields'
 import { ExpenseItemAttachmentGrid } from './ExpenseItemAttachmentGrid'
 import { ExpenseItemMediaPreviewDialogs } from './ExpenseItemMediaPreviewDialogs'
 import { useExpenseItemFileAttachments } from './useExpenseItemFileAttachments'
+import personalTranslations from '../../../../_i18n'
 
 export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
   selectedItem: ExpenseItem | null
@@ -19,6 +20,7 @@ export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
 }
 
 export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selectedItem, onClose, ...contextProps }) => {
+  const { t } = useTranslation(personalTranslations)
   const { item: detailedItem, isLoading: isItemLoading, error: itemError, fetchItem } = useGetExpenseItem(contextProps)
 
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -81,14 +83,14 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
   const displayItem = detailedItem || selectedItem
   if (!displayItem) return null
 
-  const statusConfig = getExpenseItemStatusDisplay(displayItem.status)
+  const statusConfig = getExpenseItemStatusDisplayT(t, displayItem.status)
   const statusBadge = (
     <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="expense-item-status-badge">
       {statusConfig.label}
     </Badge>
   )
 
-  const fields = buildExpenseItemDetailsFields(displayItem, statusBadge)
+  const fields = buildExpenseItemDetailsFields(displayItem, statusBadge, t)
 
   const availableActions = generateExpenseItemActions(
     displayItem,
@@ -97,6 +99,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
       accessToken: contextProps.accessToken || '',
       onClose: onClose
     },
+    t,
     { includeDetails: false, includeAssignToRequest: true }
   )
 
@@ -120,7 +123,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
 
       <DetailsPanelContent
         dataTestIdPrefix="expense-item-details"
-        title={typeof displayItem.title === 'string' ? displayItem.title : 'Expense Item Details'}
+        title={typeof displayItem.title === 'string' ? displayItem.title : t('expense-items-sheet-title')}
         subtitle={typeof displayItem.code === 'string' ? displayItem.code : undefined}
         fields={fields}
         showHeader={false}

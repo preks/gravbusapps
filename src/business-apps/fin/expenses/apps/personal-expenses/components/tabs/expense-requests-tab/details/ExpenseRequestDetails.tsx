@@ -1,6 +1,11 @@
 import React, { useMemo } from 'react'
-import { Separator, Button, Badge } from '@newwork/nw-design-system'
-import { formatCurrencyDisplay, generateExpenseRequestActions, getExpenseRequestStatusDisplay } from '../../../../utils'
+import { Separator, Button, Badge, useTranslation } from '@newwork/nw-design-system'
+import {
+  formatCurrencyDisplay,
+  generateExpenseRequestActions,
+  getExpenseRequestStatusDisplayT
+} from '../../../../utils'
+import personalTranslations from '../../../../_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ArrowRightIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -22,19 +27,20 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   requestTypeLabel,
   ...contextProps
 }) => {
+  const { t } = useTranslation(personalTranslations)
   // Call hooks unconditionally before any early returns
   const { printExpenseRequest } = useExpenseRequestFileService(contextProps)
 
   // Memoize headerRight before early return to ensure hooks are always called in same order
   const headerRight = useMemo(() => {
     if (!selectedItem) return null
-    const statusConfig = getExpenseRequestStatusDisplay(selectedItem.status)
+    const statusConfig = getExpenseRequestStatusDisplayT(t, selectedItem.status)
     return (
       <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
         {statusConfig.label}
       </Badge>
     )
-  }, [selectedItem?.status])
+  }, [selectedItem?.status, t])
 
   if (!selectedItem) return null
 

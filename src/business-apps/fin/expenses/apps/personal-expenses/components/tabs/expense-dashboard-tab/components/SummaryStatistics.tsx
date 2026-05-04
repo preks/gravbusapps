@@ -4,9 +4,18 @@ import { WidgetGroup, type WidgetItem } from '@/components/widget-group'
 import { ArrowUpIcon, GlobeIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
 import { calculatePercentChange } from '../utils/formatters'
 import { DashboardStats } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../utils'
 import personalTranslations from '../../../../_i18n'
+
+function getCurrentPeriodExpensesTitle(period: 'monthly' | 'quarterly' | 'yearly', t: (key: string) => string): string {
+  if (period === 'yearly') {
+    return t('dashboard-stat-current-year-expenses')
+  }
+  if (period === 'quarterly') {
+    return t('dashboard-stat-current-quarter-expenses')
+  }
+  return t('dashboard-stat-current-month-expenses')
+}
 
 function getDashboardStatTrendDescription(
   t: (key: string) => string,
@@ -45,7 +54,6 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
   const { t } = useTranslation(personalTranslations)
   const [hoveredWidgetKey, setHoveredWidgetKey] = React.useState<string | null>(null)
 
-  // Provide simple defaults so widgets always show numeric values (0) when stats are missing
   const stats =
     statistics ||
     ({
@@ -79,30 +87,15 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
   const percentChange = calculatePercentChange(currentTotal, previousTotal)
   const isPositiveChange = percentChange >= 0
 
-  // No-trend widgets: value, empty row, footer (personal expenses only; other WidgetGroup usages unchanged)
   const widgets: WidgetItem[] = [
     {
       key: 'current-month-expenses',
-      title:
-        period === 'yearly'
-          ? getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.current_year_expenses',
-              'Current Year Expenses'
-            )
-          : period === 'quarterly'
-            ? getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.current_quarter_expenses',
-                'Current Quarter Expenses'
-              )
-            : getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.current_month_expenses',
-                'Current Month Expenses'
-              ),
+      title: getCurrentPeriodExpensesTitle(period, t),
       value: formatCurrencyDisplay(currentTotal, currencyCode),
       prefix: <CurrencyCircleDollarIcon />,
       color: isPositiveChange ? '#cf1322' : '#3f8600',
       valueIsString: true,
-      description: `${stats.currentMonthExpenses?.count || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`,
+      description: `${stats.currentMonthExpenses?.count || 0} ${t('dashboard-stat-expense-requests-suffix')}`,
       trend: {
         value: `${Math.abs(percentChange).toFixed(1)}%`,
         positive: isPositiveChange,
@@ -111,43 +104,31 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
     },
     {
       key: 'pending-payouts',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payouts', 'Pending Payouts'),
+      title: t('dashboard-stat-pending-payouts'),
       value: formatCurrencyDisplay(stats.pendingPayouts || 0, currencyCode),
       prefix: <CurrencyCircleDollarIcon />,
       color: '#1890ff',
       valueIsString: true,
-      footer: [
-        statistics?.bookedAndPendingCount ?? 0,
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment', 'Awaiting payment')
-      ].join(' '),
+      footer: [statistics?.bookedAndPendingCount ?? 0, t('dashboard-stat-awaiting-payment')].join(' '),
       trend: { hideBadge: true, value: '', description: '\u200B' }
     },
     {
       key: 'upcoming-trips',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.upcoming_trips', 'Upcoming Trips'),
+      title: t('dashboard-stat-upcoming-trips'),
       value: stats.upcomingTrips || 0,
       prefix: <GlobeIcon size={16} />,
       color: '#722ed1',
-      footer: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.planned_business_trips',
-        'Planned business trips'
-      ),
+      footer: t('dashboard-stat-planned-business-trips'),
       trend: { hideBadge: true, value: '', description: '\u200B' }
     },
     {
       key: 'unallocated-expenses',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.unallocated_expenses',
-        'Unallocated Expenses'
-      ),
+      title: t('dashboard-stat-unallocated-expenses'),
       value: stats.pendingItems || 0,
       prefix: <ArrowUpIcon size={16} />,
       color: '#8c8c8c',
       valueIsString: true,
-      footer: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.unlinked_items',
-        'Expense items not linked to a request'
-      ),
+      footer: t('dashboard-stat-unlinked-items'),
       onClick: () => onWidgetClick?.('unallocated-expenses'),
       trend: { hideBadge: true, value: '', description: '\u200B' }
     }
@@ -167,17 +148,13 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
     >
       <WidgetGroup
         widgets={widgets}
-        // Show skeletons while loading; after load, always show cards (with 0s when no data)
         isLoading={isLoading}
         error={error}
         onRetry={onRetry}
         onWidgetClick={onWidgetClick}
         skeletonCount={4}
         useWidgetStructureForLoading={true}
-        emptyText={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.no_statistics_available',
-          'No statistics available.'
-        )}
+        emptyText={t('dashboard-stat-empty')}
         data-testid="dashboard-statistics"
       />
     </div>

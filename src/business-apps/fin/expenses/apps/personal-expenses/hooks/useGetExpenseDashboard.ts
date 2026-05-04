@@ -45,7 +45,8 @@ export interface ExpenseDashboard {
   upcomingTrips: number
   recentActivity: Array<{
     id: string
-    title: string
+    activityKind: 'request-approved' | 'request-returned' | 'plan-approved' | 'plan-returned'
+    relatedTitle?: string
     expenseRequest?: {
       id: string
       title: string
