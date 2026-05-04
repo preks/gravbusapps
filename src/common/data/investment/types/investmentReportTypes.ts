@@ -450,9 +450,13 @@ export const createInvestmentReportDescriptors = (
   // Loan Fields
   {
     key: 'loanRecipientName',
+    path: fields.loanRecipientName,
     searchPaths: [fields.loanRecipientName],
     sortPath: fields.loanRecipientName,
-    type: 'text'
+    optionSelectPaths: [fields.loanRecipientName, fields.loanRecipientName],
+    optionSearchPaths: [fields.loanRecipientName],
+    optionDistinctOn: [fields.loanRecipientName],
+    kind: 'inStrings'
   },
   {
     key: 'loanAmount',
@@ -502,9 +506,13 @@ export const createInvestmentReportDescriptors = (
   },
   {
     key: 'fundManagerName',
+    path: fields.fundManagerName,
     searchPaths: [fields.fundManagerName],
     sortPath: fields.fundManagerName,
-    type: 'text'
+    optionSelectPaths: [fields.fundManagerName, fields.fundManagerName],
+    optionSearchPaths: [fields.fundManagerName],
+    optionDistinctOn: [fields.fundManagerName],
+    kind: 'inStrings'
   },
 
   // Financial Metrics
@@ -755,6 +763,15 @@ export const createInvestmentReportDescriptors = (
     optionSearchPaths: [`${fields.investment}.name`, `${fields.investment}.code`],
     optionDistinctOn: [fields.investmentId],
     kind: 'inIds'
+  },
+  {
+    key: 'isin',
+    path: 'investment.isin',
+    searchPaths: ['investment.isin'],
+    sortPath: 'investment.isin',
+    optionSelectPaths: ['investment.isin', 'investment.isin'],
+    optionSearchPaths: ['investment.isin'],
+    type: 'text'
   },
   {
     key: 'accountIds',
