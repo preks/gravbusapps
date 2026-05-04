@@ -8,7 +8,8 @@ import type {
   AnswerOutput,
   ReasoningStepOutput,
   ReasoningStepUpdateOutput,
-  TextDeltaOutput
+  TextDeltaOutput,
+  NarrationAttachOutput
 } from '../types/models'
 import { getCurrentPageContext } from '../utils/pageContext'
 import { getDefaultSkillsForPage } from '../utils/pageSkills'
@@ -647,7 +648,12 @@ async function saveAgentMessage(sessionId: string, outputs: OutputItem[], access
     // the final text), and bare step-update patches (already folded into
     // their parent `reasoning_step` via the merge logic above).
     const persistableOutputs = outputs.filter(
-      o => o.type !== 'tool' && o.type !== 'loading' && o.type !== 'text_delta' && o.type !== 'reasoning_step_update'
+      o =>
+        o.type !== 'tool' &&
+        o.type !== 'loading' &&
+        o.type !== 'text_delta' &&
+        o.type !== 'reasoning_step_update' &&
+        o.type !== 'narration_attach'
     )
 
     const requestBody = {
@@ -1257,6 +1263,95 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     })
   }, [])
 
+  /**
+   * Reclassify a streaming `answer` bubble as narration of a reasoning
+   * step. Triggered by `narration_attach` events the backend emits when
+   * the model started talking before deciding to call a tool — that text
+   * is "thinking out loud", not the final answer.
+   *
+   * - Locate the streaming bubble whose `__runId` matches `text_item_id`.
+   * - Move its accumulated text into the matching reasoning step's
+   *   `narration` field (appending if narration already had content from
+   *   an earlier attach for the same step).
+   * - Remove the bubble from the chat flow so only the LAST surviving
+   *   bubble (the one with no follow-up tool call) ends up visible as
+   *   the answer.
+   */
+  const applyNarrationAttach = useCallback((event: NarrationAttachOutput) => {
+    const { text_item_id, step_id } = event
+
+    // Keep the persistence ref in sync — we want saved transcripts to
+    // include the narration on the step, not as a stray answer bubble.
+    const ref = currentAgentOutputsRef.current
+    const refBubbleIdx = ref.findIndex(
+      o =>
+        o?.type === 'answer' &&
+        (o as AnswerOutput & { __streaming?: boolean; __runId?: string | null }).__streaming === true &&
+        (o as AnswerOutput & { __runId?: string | null }).__runId === text_item_id
+    )
+    const refBubble = refBubbleIdx >= 0 ? (ref[refBubbleIdx] as AnswerOutput) : null
+    const refBubbleText = refBubble?.displayData?.[0]?.type === 'textBlock' ? refBubble.displayData[0].text : ''
+    if (refBubbleIdx >= 0) {
+      ref.splice(refBubbleIdx, 1)
+    }
+    const refStepIdx = ref.findIndex(o => o?.type === 'reasoning_step' && (o as ReasoningStepOutput).id === step_id)
+    if (refStepIdx >= 0 && refBubbleText) {
+      const existingStep = ref[refStepIdx] as ReasoningStepOutput
+      const existingNarration = existingStep.narration ?? ''
+      ref[refStepIdx] = {
+        ...existingStep,
+        narration: existingNarration ? `${existingNarration}\n\n${refBubbleText}` : refBubbleText
+      }
+    }
+
+    setState(prevState => {
+      const newConversation: ConversationTurn[] = JSON.parse(JSON.stringify(prevState.conversation))
+
+      const lastAgentIdx = newConversation.length - 1
+      if (lastAgentIdx < 0 || newConversation[lastAgentIdx].side !== 'agent') {
+        return prevState
+      }
+      const turn = newConversation[lastAgentIdx]
+      if (turn.side !== 'agent') return prevState
+
+      const outputs = [...(turn.outputs || [])]
+
+      const bubbleIdx = outputs.findIndex(
+        o =>
+          o?.type === 'answer' &&
+          (o as AnswerOutput & { __streaming?: boolean; __runId?: string | null }).__streaming === true &&
+          (o as AnswerOutput & { __runId?: string | null }).__runId === text_item_id
+      )
+      const bubble = bubbleIdx >= 0 ? (outputs[bubbleIdx] as AnswerOutput) : null
+      const bubbleText = bubble?.displayData?.[0]?.type === 'textBlock' ? bubble.displayData[0].text : ''
+
+      if (bubbleIdx >= 0) {
+        outputs.splice(bubbleIdx, 1)
+      }
+
+      const stepIdx = outputs.findIndex(o => o?.type === 'reasoning_step' && (o as ReasoningStepOutput).id === step_id)
+      if (stepIdx >= 0 && bubbleText) {
+        const existingStep = outputs[stepIdx] as ReasoningStepOutput
+        const existingNarration = existingStep.narration ?? ''
+        outputs[stepIdx] = {
+          ...existingStep,
+          narration: existingNarration ? `${existingNarration}\n\n${bubbleText}` : bubbleText
+        }
+      } else if (stepIdx < 0 && bubbleText) {
+        // Step not yet present — extremely unlikely (backend always emits
+        // the step BEFORE the narration_attach), but leaving the bubble
+        // visible is a saner fallback than silently dropping the text.
+        console.warn('[FlowBot] narration_attach received before reasoning_step', step_id, 'restoring bubble')
+        if (bubble) outputs.push(bubble)
+      }
+
+      newConversation[lastAgentIdx] = { ...turn, outputs }
+      const newState = { ...prevState, conversation: newConversation }
+      saveState(newState)
+      return newState
+    })
+  }, [])
+
   useEffect(() => {
     if (!accessToken) return
     if (state.conversation.length > 0) return
@@ -1483,6 +1578,8 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
                   applyReasoningStepEvent(newOutput)
                 } else if (newOutput.type === 'text_delta') {
                   applyTextDelta(newOutput)
+                } else if (newOutput.type === 'narration_attach') {
+                  applyNarrationAttach(newOutput)
                 } else if (newOutput.type === 'answer') {
                   // Final canonical answer — replace the streaming bubble
                   // if one is present; otherwise just append normally.
@@ -1625,6 +1722,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       pruneEphemeralOutputsFromLastAgentTurn,
       applyReasoningStepEvent,
       applyTextDelta,
+      applyNarrationAttach,
       commitFinalAnswer,
       updateSessionId,
       buildCurrentPageContextPayload,
