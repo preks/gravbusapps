@@ -187,6 +187,9 @@ expense-items-attachment-open = Deschideți
 expense-items-attachment-loading-receipt = Se procesează chitanța...
 expense-items-attachment-no-receipt = Nu este atașată nicio chitanță
 
+expense-items-assign-to-request-error = Nu se poate aloca la solicitare
+expense-items-assign-to-request-missing-currency = Lipsesc informațiile despre moneda articolului.
+
 delete-selection-discard-error-draft = Puteți renunța doar la elemente cu statusul "Creat" sau "Atribuit".
 
 # Table lists (no rows)

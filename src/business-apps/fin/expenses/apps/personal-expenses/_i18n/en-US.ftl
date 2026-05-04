@@ -199,6 +199,9 @@ expense-items-attachment-open = Open
 expense-items-attachment-loading-receipt = Processing the receipt...
 expense-items-attachment-no-receipt = No receipt attached
 
+expense-items-assign-to-request-error = Cannot Assign to Request
+expense-items-assign-to-request-missing-currency = Item currency information is missing.
+
 delete-selection-discard-error-draft = You can only discard items with status "Created" or "Assigned".
 
 # Table lists (no rows)

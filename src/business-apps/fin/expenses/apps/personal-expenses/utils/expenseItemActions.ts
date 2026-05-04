@@ -1,4 +1,3 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { notification } from 'antd'
 import { ExpenseItem } from '../hooks/useGetExpenseItems'
@@ -72,7 +71,7 @@ export const generateExpenseItemActions = (
       label: t('expense-items-create-expense-request'),
       onClick: () => {
         context.onClose?.()
-        handleAssignToRequest(item, context)
+        handleAssignToRequest(item, context, t)
       }
     })
   }
@@ -91,14 +90,11 @@ export const generateExpenseItemActions = (
   return actions
 }
 
-const handleAssignToRequest = (item: ExpenseItem, context: ExpenseItemActionContext) => {
+const handleAssignToRequest = (item: ExpenseItem, context: ExpenseItemActionContext, t: (key: string) => string) => {
   if (!item.currency?.code) {
     notification.error({
-      message: getTranslationFromI18nKeyAndLabel('gba.expenseItems.assignToRequestError', 'Cannot Assign to Request'),
-      description: getTranslationFromI18nKeyAndLabel(
-        'gba.expenseItems.missingCurrency',
-        'Item currency information is missing.'
-      ),
+      message: t('expense-items-assign-to-request-error'),
+      description: t('expense-items-assign-to-request-missing-currency'),
       placement: 'bottomRight',
       duration: 5,
       className: 'gba:error-toast'

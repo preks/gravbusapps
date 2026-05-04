@@ -187,6 +187,9 @@ expense-items-attachment-open = Öffnen Sie
 expense-items-attachment-loading-receipt = Bearbeite den Beleg...
 expense-items-attachment-no-receipt = Keine Quittung angehängt
 
+expense-items-assign-to-request-error = Zuordnung zur Ausgabenanfrage nicht möglich
+expense-items-assign-to-request-missing-currency = Für den Posten fehlen Währungsangaben.
+
 delete-selection-discard-error-draft = Sie können nur Posten mit dem Status "Erstellt" oder "Zugewiesen" verwerfen.
 
 # Table lists (no rows)
