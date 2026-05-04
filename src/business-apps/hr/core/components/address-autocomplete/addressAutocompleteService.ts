@@ -201,6 +201,55 @@ export const getAutocompleteSuggestions = async (
 }
 
 /**
+ * Forward-geocode a free-form address string to coordinates using Geoapify's
+ * /search endpoint. Used as a visual fallback for the change-address map: when
+ * an existing address record has no stored latitude/longitude (legacy data
+ * pre-dating the structured Geoapify pick), we approximate its location from
+ * the textual fields so the marker doesn't open at the default Frankfurt
+ * center. The result is intentionally NOT written back to the form — it's a
+ * display-only approximation; the user can confirm by dragging the pin or
+ * picking a suggestion, both of which already write into the form.
+ *
+ * Returns null when geocoding fails, the API key is missing, or the input is
+ * shorter than 3 characters.
+ */
+export const forwardGeocode = async (
+  query: string,
+  options?: { countryBias?: string; lang?: string; signal?: AbortSignal }
+): Promise<{ lat: number; lng: number } | null> => {
+  const apiKey = getApiKey()
+  if (!apiKey) return null
+  const trimmed = (query || '').trim()
+  if (trimmed.length < 3) return null
+
+  const params = new URLSearchParams({
+    text: trimmed,
+    format: 'json',
+    limit: '1',
+    apiKey
+  })
+  if (options?.countryBias) params.set('filter', `countrycode:${options.countryBias.toLowerCase()}`)
+  if (options?.lang) params.set('lang', options.lang)
+
+  try {
+    const response = await fetch(`${GEOAPIFY_BASE}/search?${params.toString()}`, { signal: options?.signal })
+    if (!response.ok) return null
+    const data = (await response.json()) as { results?: GeoapifyProperties[]; features?: GeoapifyFeature[] }
+    const first = extractFeatures(data)[0]
+    if (!first) return null
+    const props = first.properties || {}
+    const lat = typeof props.lat === 'number' ? props.lat : first.geometry?.coordinates?.[1]
+    const lng = typeof props.lon === 'number' ? props.lon : first.geometry?.coordinates?.[0]
+    if (typeof lat !== 'number' || typeof lng !== 'number') return null
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+    return { lat, lng }
+  } catch (err) {
+    if ((err as any)?.name === 'AbortError') return null
+    return null
+  }
+}
+
+/**
  * Reverse-geocode coordinates to an address using Geoapify.
  * Used when the user drags the map pin or clicks "Use my location".
  */
