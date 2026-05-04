@@ -16,7 +16,6 @@ const colorPalette = {
   totalLine: 'var(--nw-foreground)'
 }
 
-const YEAR_IN_MONTH_LABEL_REGEX = /(\w+)\s+(\d{4})/
 const MONTH_NAME_MAP: Record<string, string> = {
   Jan: 'January',
   Feb: 'February',
@@ -35,11 +34,20 @@ const MONTH_NAME_MAP: Record<string, string> = {
 const parseMonthClickLabel = (monthLabel: string): { fullMonth: string; yearPart: number } => {
   let monthPart = monthLabel
   let yearPart = new Date().getFullYear()
-  const yearMatch = YEAR_IN_MONTH_LABEL_REGEX.exec(monthLabel)
+  const labelParts = monthLabel
+    .trim()
+    .split(' ')
+    .filter(part => part.length > 0)
 
-  if (yearMatch) {
-    monthPart = yearMatch[1]
-    yearPart = Number.parseInt(yearMatch[2], 10)
+  if (labelParts.length >= 2) {
+    const [candidateMonth, candidateYear] = labelParts
+    const parsedYear = Number.parseInt(candidateYear, 10)
+    const hasValidYear = candidateYear.length === 4 && Number.isInteger(parsedYear)
+
+    if (hasValidYear) {
+      monthPart = candidateMonth
+      yearPart = parsedYear
+    }
   }
 
   return {
