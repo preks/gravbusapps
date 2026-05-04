@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Create useEmployeeActivities hook that aggregates absences, data changes, and approvals into a timeline",
+    "activeForm": "Creating useEmployeeActivities hook that aggregates absences, data changes, and approvals into a timeline",
+    "status": "completed"
+  },
+  {
+    "content": "Build EmployeeActivitiesOverview component with timeline/list UI",
+    "activeForm": "Building EmployeeActivitiesOverview component with timeline/list UI",
+    "status": "completed"
+  },
+  {
+    "content": "Restore ManagerDashboard.tsx and integrate activity card and view",
+    "activeForm": "Restoring ManagerDashboard.tsx and integrate activity card and view",
+    "status": "completed"
+  },
+  {
+    "content": "Verify imports and types compile correctly",
+    "activeForm": "Verifying imports and types compile correctly",
+    "status": "in_progress"
+  }
+]
