@@ -1,7 +1,16 @@
 import React, { useMemo } from 'react'
-import { Card, CardHeader, CardContent, CardTitle, useTranslation } from '@newwork/nw-design-system'
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend } from '@newwork/nw-design-system'
-import { PieChart, Pie, Cell } from 'recharts'
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+  useTranslation,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend
+} from '@newwork/nw-design-system'
+import { PieChart, Pie } from 'recharts'
 import { DashboardStats } from '../types'
 import personalTranslations from '../../../../_i18n'
 
@@ -98,11 +107,7 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
               innerRadius="60%"
               strokeWidth={2}
               label={renderLabel}
-            >
-              {chartData.map(entry => (
-                <Cell key={`${entry.name}-${entry.value}`} fill={entry.fill} />
-              ))}
-            </Pie>
+            />
             <ChartLegend />
           </PieChart>
         </ChartContainer>

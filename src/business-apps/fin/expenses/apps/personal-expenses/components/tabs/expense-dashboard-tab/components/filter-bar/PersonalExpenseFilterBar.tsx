@@ -13,9 +13,11 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePersonalFilterData } from '@/business-apps/fin/expenses/apps/personal-expenses/hooks/usePersonalFilterData'
 import personalTranslations from '../../../../../_i18n'
 
+type DashboardExpensePeriod = 'monthly' | 'quarterly' | 'yearly'
+
 interface PersonalExpenseFilterBarProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
-  onFiltersChange: (filters: { currency?: string; period: 'monthly' | 'quarterly' | 'yearly' }) => void
-  currentFilters: { currency?: string; period: 'monthly' | 'quarterly' | 'yearly' }
+  onFiltersChange: (filters: { currency?: string; period: DashboardExpensePeriod }) => void
+  currentFilters: { currency?: string; period: DashboardExpensePeriod }
   'data-testid'?: string
 }
 

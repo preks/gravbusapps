@@ -15,11 +15,11 @@ export interface ExpenseItemActionContext {
 export const generateExpenseItemActions = (
   item: ExpenseItem,
   context: ExpenseItemActionContext,
+  t: (key: string) => string,
   options: {
     includeDetails?: boolean
     includeAssignToRequest?: boolean
-  } = {},
-  t: (key: string) => string
+  } = {}
 ) => {
   const { includeDetails = false, includeAssignToRequest = true } = options
 

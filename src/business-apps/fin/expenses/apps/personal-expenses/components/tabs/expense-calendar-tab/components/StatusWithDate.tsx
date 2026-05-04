@@ -16,14 +16,19 @@ export interface StatusWithDateProps {
   value: Dayjs
 }
 
+function getStatusDisplayForType(type: StatusWithDateProps['type'], status: string, t: (key: string) => string) {
+  if (type === 'plan') {
+    return getExpensePlanStatusDisplayT(t, status)
+  }
+  if (type === 'request') {
+    return getExpenseRequestStatusDisplayT(t, status)
+  }
+  return getExpenseItemStatusDisplayT(t, status)
+}
+
 const StatusWithDate: React.FC<StatusWithDateProps> = ({ type, status, value }) => {
   const { t } = useTranslation(personalTranslations)
-  const statusConfig =
-    type === 'plan'
-      ? getExpensePlanStatusDisplayT(t, status)
-      : type === 'request'
-        ? getExpenseRequestStatusDisplayT(t, status)
-        : getExpenseItemStatusDisplayT(t, status)
+  const statusConfig = getStatusDisplayForType(type, status, t)
 
   const label = statusConfig.label
   const dateText = (() => {

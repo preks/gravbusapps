@@ -27,12 +27,10 @@ export function useExpenseItemRowActions({
         <RowActionsWrapper>
           <AppAction
             variant="table-row"
-            customActions={generateExpenseItemActions(
-              record,
-              { employeeId, accessToken },
-              { includeDetails: true, includeAssignToRequest: true },
-              t
-            ).map(action => {
+            customActions={generateExpenseItemActions(record, { employeeId, accessToken }, t, {
+              includeDetails: true,
+              includeAssignToRequest: true
+            }).map(action => {
               if (action.key === 'view-expense-item-details') {
                 return {
                   ...action,

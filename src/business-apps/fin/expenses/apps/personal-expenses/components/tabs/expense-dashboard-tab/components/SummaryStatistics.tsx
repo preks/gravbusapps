@@ -7,6 +7,16 @@ import { DashboardStats } from '../types'
 import { formatCurrencyDisplay } from '../../../../utils'
 import personalTranslations from '../../../../_i18n'
 
+function getCurrentPeriodExpensesTitle(period: 'monthly' | 'quarterly' | 'yearly', t: (key: string) => string): string {
+  if (period === 'yearly') {
+    return t('dashboard-stat-current-year-expenses')
+  }
+  if (period === 'quarterly') {
+    return t('dashboard-stat-current-quarter-expenses')
+  }
+  return t('dashboard-stat-current-month-expenses')
+}
+
 function getDashboardStatTrendDescription(
   t: (key: string) => string,
   isPositiveChange: boolean,
@@ -80,12 +90,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
   const widgets: WidgetItem[] = [
     {
       key: 'current-month-expenses',
-      title:
-        period === 'yearly'
-          ? t('dashboard-stat-current-year-expenses')
-          : period === 'quarterly'
-            ? t('dashboard-stat-current-quarter-expenses')
-            : t('dashboard-stat-current-month-expenses'),
+      title: getCurrentPeriodExpensesTitle(period, t),
       value: formatCurrencyDisplay(currentTotal, currencyCode),
       prefix: <CurrencyCircleDollarIcon />,
       color: isPositiveChange ? '#cf1322' : '#3f8600',

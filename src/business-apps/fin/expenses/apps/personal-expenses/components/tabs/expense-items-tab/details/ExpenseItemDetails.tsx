@@ -99,8 +99,8 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
       accessToken: contextProps.accessToken || '',
       onClose: onClose
     },
-    { includeDetails: false, includeAssignToRequest: true },
-    t
+    t,
+    { includeDetails: false, includeAssignToRequest: true }
   )
 
   return (
