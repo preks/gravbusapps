@@ -1,13 +1,21 @@
-const MONTH_YEAR_PATTERN = /(\w+)\s+(\d{4})/
-
 export const parseMonthAndYear = (monthInput: string, defaultYear: number = new Date().getFullYear()) => {
   let monthName = monthInput
   let actualYear = defaultYear
 
-  const yearMatch = MONTH_YEAR_PATTERN.exec(monthInput)
-  if (yearMatch) {
-    monthName = yearMatch[1]
-    actualYear = Number.parseInt(yearMatch[2], 10)
+  const monthParts = monthInput
+    .trim()
+    .split(' ')
+    .filter(part => part.length > 0)
+
+  if (monthParts.length >= 2) {
+    const [candidateMonth, candidateYear] = monthParts
+    const parsedYear = Number.parseInt(candidateYear, 10)
+    const hasValidYear = candidateYear.length === 4 && Number.isInteger(parsedYear)
+
+    if (hasValidYear) {
+      monthName = candidateMonth
+      actualYear = parsedYear
+    }
   }
 
   // Find month index
