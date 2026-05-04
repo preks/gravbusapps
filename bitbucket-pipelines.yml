@@ -84,8 +84,8 @@ definitions:
 
             echo "OK - ${PROD_HASH_FILE} not changed."
 
-    - step: &install_dependencies
-        name: Install dependencies
+    - step: &detect-changed-screens
+        name: Detect Changed Screens
         runs-on:
           - 'self.hosted'
           - 'do.global.runner.size1'
@@ -96,54 +96,7 @@ definitions:
         caches:
           - npm
         script:
-          - set -e
-          - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
-          - apt-get update && apt-get install gettext -y
-          - npm ci
-          - |
-            # Pre-install native deps (optionalDependency resolution on Linux CI can skip these; see npm/cli#4828)
-            npm install @rollup/rollup-linux-x64-gnu@4.59.0 lightningcss-linux-x64-gnu@1.31.1 @tailwindcss/oxide-linux-x64-gnu@4.2.1 --ignore-scripts=true || true
-          - |
-            # Prune node_modules before it travels as an artifact to downstream steps.
-            # Removes docs, changelogs, tests, examples and source maps - nothing that
-            # the build, Sonar scan or publish steps read at runtime. Cuts the tar/upload
-            # cost on "Build teardown" and the matching download on every consumer step.
-            echo "Pruning node_modules..."
-            SIZE_BEFORE="$(du -sh node_modules 2>/dev/null | cut -f1)"
-            COUNT_BEFORE="$(find node_modules -type f 2>/dev/null | wc -l)"
-
-            find node_modules -type d \( \
-              -name test -o -name tests -o -name __tests__ \
-              -o -name docs -o -name doc \
-              -o -name example -o -name examples \
-              -o -name .github \
-            \) -prune -exec rm -rf {} + 2>/dev/null || true
-
-            find node_modules -type f \( \
-              -name '*.md' -o -name '*.markdown' \
-              -o -name '*.map' \
-              -o -name 'CHANGELOG*' -o -name 'HISTORY*' \
-              -o -name 'AUTHORS*' -o -name 'CONTRIBUTORS*' \
-            \) -delete 2>/dev/null || true
-
-            SIZE_AFTER="$(du -sh node_modules 2>/dev/null | cut -f1)"
-            COUNT_AFTER="$(find node_modules -type f 2>/dev/null | wc -l)"
-            echo "node_modules pruned: ${SIZE_BEFORE} (${COUNT_BEFORE} files) -> ${SIZE_AFTER} (${COUNT_AFTER} files)"
-        artifacts:
-          - node_modules/**
-          - pipeline/scripts/**
-          - envs/**
-
-    - step: &detect-changed-screens
-        name: Detect Changed Screens
-        runs-on:
-          - 'self.hosted'
-          - 'do.global.runner.size1'
-        size: 1x
-        clone:
-          enabled: true
-          depth: full
-        script:
+          - bash scripts/ci-install-dependencies.sh
           - bash scripts/detect-changed-screens.sh
           - |
             echo "Changed screens:"
@@ -160,7 +113,10 @@ definitions:
         clone:
           enabled: true
           depth: full
+        caches:
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - export RC_UPLOAD="true"
           - export BUNDLE_REPORT_IN_PIPELINE="true"
           - bash scripts/build-hash-detect-and-publish-screens.sh
@@ -176,7 +132,10 @@ definitions:
         clone:
           enabled: true
           depth: full
+        caches:
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - |
             if [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Building specified screens: $SCREENS_TO_PUBLISH"
@@ -199,7 +158,10 @@ definitions:
         clone:
           enabled: true
           depth: full
+        caches:
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - node scripts/publish-prod-screens.js
         artifacts:
           - changed-tsx.txt
@@ -214,7 +176,10 @@ definitions:
         clone:
           enabled: true
           depth: full
+        caches:
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - export RC_UPLOAD="true"
           - |
             if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
@@ -242,7 +207,10 @@ definitions:
         clone:
           enabled: true
           depth: full
+        caches:
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - |
             if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
               echo "PUBLISH_ALL_SCREENS=true: Publishing ALL screens to production"
@@ -271,8 +239,9 @@ definitions:
           enabled: true
           depth: full
         caches:
-          - nodecustom
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - node scripts/sync-resource-urls.js
     - step: &sonar_scan
         name: Sonar scan
@@ -312,22 +281,18 @@ pipelines:
   pull-requests:
     "**":
       - step: *check-hash-file-change
-      - step: *install_dependencies
       - parallel:
           - step: *build-screens
           - step: *sonar_scan
 
   branches:
     develop:
-      - step: *install_dependencies
       - step: *publish-changed-screens
 
     hotfix/*:
-      - step: *install_dependencies
       - step: *publish-changed-prod-screens
 
     main:
-      - step: *install_dependencies
       - step: *publish-changed-prod-screens
       - step:
           <<: *sync-resource-urls
@@ -338,8 +303,10 @@ pipelines:
     weekly-snyk-code-fix:
       - step:
           name: Snyk Code Scan & Auto-fix
-          caches:
-            - nodecustom
+          runs-on:
+            - 'self.hosted'
+            - 'do.global.runner.size1'
+          size: 1x
           script:
             - bash scripts/claude/snyk_autofix.sh
 
@@ -347,14 +314,12 @@ pipelines:
       - step: *detect-changed-screens
 
     sonar-scan-main:
-      - step: *install_dependencies
       - step: *sonar_scan_main
 
     build-manual:
       - variables:
           - name: SCREENS_TO_PUBLISH
             default: ""
-      - step: *install_dependencies
       - step: *build-screens
 
     publish-manual:
@@ -366,7 +331,6 @@ pipelines:
             allowed-values:
               - "true"
               - "false"
-      - step: *install_dependencies
       - step: *publish-manual-screens
 
     publish-manual-prod:
@@ -390,7 +354,6 @@ pipelines:
                 echo "publishing to production is restricted to develop or main branches. Current branch: $BITBUCKET_BRANCH"
                 exit 1
               fi
-      - step: *install_dependencies
       - step: *publish-manual-prod-screens
       - step:
           <<: *sync-resource-urls
@@ -415,7 +378,6 @@ pipelines:
             allowed-values:
               - "true"
               - "false"
-      - step: *install_dependencies
       - step:
           name: Calculate screen hashes
           runs-on:
@@ -425,7 +387,10 @@ pipelines:
             enabled: true
             depth: full
           size: 2x
+          caches:
+            - npm
           script:
+            - bash scripts/ci-install-dependencies.sh
             - echo "Calculating hashes for $HASH_ENV environment"
             - |
               ARGS="--env=$HASH_ENV"
@@ -450,7 +415,6 @@ pipelines:
             default: "1"
           - name: CLAUDE_VERBOSE
             default: "false"
-      - step: *install_dependencies
       - step:
           name: Claude Execute (plan.md only)
           runs-on:
@@ -461,8 +425,9 @@ pipelines:
             enabled: true
             depth: full
           caches:
-            - nodecustom
+            - npm
           script:
+            - bash scripts/ci-install-dependencies.sh
             - bash scripts/claude/execute_batch.sh
           artifacts:
             - claude_execute_verbose.log
