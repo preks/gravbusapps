@@ -41,6 +41,8 @@ const buildTimeScopeLabel = (scope: TimeScope): string => {
   }
 }
 
+const getOptionLabelText = (option: ComboboxOption): string => (typeof option.label === 'string' ? option.label : '')
+
 interface HubGlobalFiltersProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -116,7 +118,7 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
       return managerOptions
     }
 
-    return managerOptions.filter(option => String(option.label).toLowerCase().includes(query))
+    return managerOptions.filter(option => getOptionLabelText(option).toLowerCase().includes(query))
   }, [managerOptions, managerQuery])
   const employeeOptions = useMemo<ComboboxOption[]>(
     () =>
@@ -133,7 +135,7 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
       return employeeOptions
     }
 
-    return employeeOptions.filter(option => String(option.label).toLowerCase().includes(query))
+    return employeeOptions.filter(option => getOptionLabelText(option).toLowerCase().includes(query))
   }, [draftFilters.employeeQuery, employeeOptions])
 
   const updateDraft = (next: Partial<HubGlobalFiltersState>) => {

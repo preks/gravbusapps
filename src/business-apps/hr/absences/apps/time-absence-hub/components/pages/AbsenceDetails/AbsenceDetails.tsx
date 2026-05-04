@@ -29,10 +29,41 @@ interface AbsenceDetailsProps extends BusinessAppContextProps {
   status?: string
   department?: string
   departmentId?: string
-  timeFilter?: 'current-year' | 'quarter' | 'month' | 'everything'
   dashboardData: DashboardData
   onNavigateBack: () => void
 }
+
+interface AbsenceTimeFilterWindow extends Window {
+  __ABSENCE_TIME_FILTER__?: string
+}
+
+const getGlobalAbsenceTimeFilter = (): string | null => {
+  if (typeof globalThis.window === 'undefined') {
+    return null
+  }
+
+  const absenceWindow = globalThis.window as AbsenceTimeFilterWindow
+  const value = absenceWindow.__ABSENCE_TIME_FILTER__
+  return typeof value === 'string' ? value : null
+}
+
+const getEffectiveStatusFilters = (selectedStatuses: string[], currentStatus?: string): string[] => {
+  if (selectedStatuses.length > 0) {
+    return selectedStatuses
+  }
+
+  if (!currentStatus) {
+    return []
+  }
+
+  return [currentStatus.toUpperCase()]
+}
+
+const formatShortDateForLocale = (dateStr: string): string =>
+  new Date(dateStr).toLocaleDateString(getCurrentActiveUserLocale(), {
+    month: 'short',
+    day: 'numeric'
+  })
 
 const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   accessToken,
@@ -50,15 +81,17 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
   // Resolve initial date range from provided props or dashboard time filter
   const resolvedStartDate = React.useMemo(() => {
+    const absenceTimeFilter = getGlobalAbsenceTimeFilter()
+
     if (startDate) return startDate
     if (month) return dayjs(month).startOf('month').format('YYYY-MM-DD')
     if (status && !startDate && !endDate) {
       // no-op: will be handled by fallbacks below
     }
-    if (typeof window !== 'undefined' && (window as any).__ABSENCE_TIME_FILTER__ === 'month') {
+    if (absenceTimeFilter === 'month') {
       return dayjs().startOf('month').format('YYYY-MM-DD')
     }
-    if (typeof window !== 'undefined' && (window as any).__ABSENCE_TIME_FILTER__ === 'quarter') {
+    if (absenceTimeFilter === 'quarter') {
       const qStart = dayjs().startOf('quarter')
       return qStart.format('YYYY-MM-DD')
     }
@@ -66,12 +99,14 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   }, [startDate, month, status])
 
   const resolvedEndDate = React.useMemo(() => {
+    const absenceTimeFilter = getGlobalAbsenceTimeFilter()
+
     if (endDate) return endDate
     if (month) return dayjs(month).endOf('month').format('YYYY-MM-DD')
-    if (typeof window !== 'undefined' && (window as any).__ABSENCE_TIME_FILTER__ === 'month') {
+    if (absenceTimeFilter === 'month') {
       return dayjs().endOf('month').format('YYYY-MM-DD')
     }
-    if (typeof window !== 'undefined' && (window as any).__ABSENCE_TIME_FILTER__ === 'quarter') {
+    if (absenceTimeFilter === 'quarter') {
       const qEnd = dayjs().endOf('quarter')
       return qEnd.format('YYYY-MM-DD')
     }
@@ -81,7 +116,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
   // Ensure page starts at the top when navigating from dashboard
   useLayoutEffect(() => {
     try {
-      window.scrollTo({ top: 0, behavior: 'auto' })
+      globalThis.window.scrollTo({ top: 0, behavior: 'auto' })
     } catch {}
   }, [])
 
@@ -152,9 +187,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     // Require table to seed current filters at least once to avoid mismatches until pagination/search changes
     if (!currentFilteredData) return
     const ef = buildEffectiveFilters()
-    const normalizedStatus = status ? String(status).toUpperCase() : null
-    const effectiveStatuses =
-      ef.statuses && ef.statuses.length > 0 ? ef.statuses : normalizedStatus ? [normalizedStatus] : []
+    const effectiveStatuses = getEffectiveStatusFilters(ef.statuses, status)
+    const normalizedStatus = status ? status.toUpperCase() : null
 
     // Determine effective department filtering strategy
     const hasDynamicDept = (ef.departmentIds && ef.departmentIds.length > 0) || ef.includeNoDepartment
@@ -279,6 +313,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     const { startIso: rs, endIso: re } = toUtcDayRangeISO(currentStartDate, currentEndDate)
     const rangeStart = rs ? new Date(rs) : new Date(dayjs(currentStartDate).toISOString())
     const rangeEnd = re ? new Date(re) : new Date(dayjs(currentEndDate).toISOString())
+    const effectiveStatusSet = new Set(getEffectiveStatusFilters(selectedStatuses, status))
 
     // Filter absences using overlap logic AND department/status/employee filters
     const filtered = dashboardData.rawAbsences.filter((absence: any) => {
@@ -291,24 +326,22 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
       // Determine effective department logic: prefer dynamic selections; else navigation prop
       const employeeDepartment = absence.employee?.employeePosition?.organizationalUnit
+      const employeeDepartmentId = employeeDepartment?.id
       if (selectedDeptIds.length > 0 || includeNoDepartment) {
         const deptMatch =
-          (selectedDeptIds.length > 0 && employeeDepartment?.id && selectedDeptIds.includes(employeeDepartment.id)) ||
+          (selectedDeptIds.length > 0 && selectedDeptIds.includes(employeeDepartmentId ?? '')) ||
           (includeNoDepartment && (!employeeDepartment || !employeeDepartment.id))
         if (!deptMatch) return false
       } else if (department) {
         const deptName = employeeDepartment?.name
         if (department === 'NO_DEPARTMENT_SPECIAL') {
           if (deptName && deptName.trim() !== '') return false
-        } else {
-          if (deptName !== department) return false
         }
+
+        if (department !== 'NO_DEPARTMENT_SPECIAL' && deptName !== department) return false
       }
 
       // Apply status filter (dynamic or navigation)
-      const effectiveStatusSet = new Set(
-        selectedStatuses.length > 0 ? selectedStatuses : status ? [String(status).toUpperCase()] : []
-      )
       if (effectiveStatusSet.size > 0 && !effectiveStatusSet.has(String(absence.status || '').toUpperCase()))
         return false
 
@@ -402,9 +435,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     const localTotalRequests =
       typeof currentFilteredData?.total === 'number' ? currentFilteredData.total : filteredAbsences.length
     const localTotalDays = filteredAbsences.reduce((sum: number, a: any) => sum + (Number(a.effectiveDays) || 0), 0)
-    const localUniqueEmployees = Array.from(
-      new Set((filteredAbsences || []).map((a: any) => a?.employee?.id).filter(Boolean))
-    ).length
+    const localUniqueEmployees = new Set((filteredAbsences || []).map((a: any) => a?.employee?.id).filter(Boolean)).size
 
     const totalRequests = serverTotalRequests && serverTotalRequests > 0 ? serverTotalRequests : localTotalRequests
     const totalDays = serverTotalDays && serverTotalDays > 0 ? serverTotalDays : localTotalDays
@@ -424,9 +455,9 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
         REJECTED: serverStatusBreakdown.REJECTED.count,
         CANCELLED: serverStatusBreakdown.CANCELLED.count
       }
-      Object.keys(statusBreakdown).forEach(k => {
-        if (!statusBreakdown[k as keyof typeof statusBreakdown]) {
-          delete statusBreakdown[k as keyof typeof statusBreakdown]
+      Object.entries(statusBreakdown).forEach(([statusKey, count]) => {
+        if (!count) {
+          delete statusBreakdown[statusKey]
         }
       })
     } else {
@@ -509,9 +540,8 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     )
 
     if (hasChangedFilters && currentFilteredData?.appliedFilters) {
-      // User has applied filters - show current filter state
       const filters = currentFilteredData.appliedFilters
-      const parts = []
+      const parts: string[] = []
 
       if (filters.currentDateRange?.startDate && filters.currentDateRange?.endDate) {
         parts.push(
@@ -529,72 +559,74 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
         )
       }
 
-      title =
-        parts.length > 0
-          ? getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.absence_details.filtered_absence_details',
-              'Filtered Absence Details'
-            )
-          : getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.absence_details.title',
-              'Absence Details'
-            )
-      description =
-        parts.length > 0
-          ? parts.join(' • ')
-          : getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.absence_details.all_absence_results',
-              'All absence results'
-            )
+      const hasParts = parts.length > 0
+      title = hasParts
+        ? getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.absence_details.filtered_absence_details',
+            'Filtered Absence Details'
+          )
+        : getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.absence_details.title',
+            'Absence Details'
+          )
+      description = hasParts
+        ? parts.join(' • ')
+        : getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.absence_details.all_absence_results',
+            'All absence results'
+          )
       breadcrumb = getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.absence_details.custom_filters',
         'Custom Filters'
       )
-    } else {
-      // No user filters - show original navigation context
-      if (month) {
-        title = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.absence_details.month_absence_details',
-          `${month} Absence Details`
-        )
-        description =
-          currentStartDate && currentEndDate
-            ? `${formatDateForLocale(currentStartDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentEndDate)}`
-            : getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_month',
-                `All absences for ${month}`
-              )
-        breadcrumb = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.absence_details.month_details',
-          `${month} Details`
-        )
-      } else if (department) {
-        title = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.absence_details.department_details',
-          `${department} Department Details`
-        )
-        description = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_department',
-          `All absences for ${department} department`
-        )
-        breadcrumb = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.absence_details.department',
-          `${department} Department`
-        )
-      } else if (status) {
-        title = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.absence_details.status_details',
-          `${status} Status Details`
-        )
-        description = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.absence_details.all_status_absences',
-          `All ${status.toLowerCase()} absences`
-        )
-        breadcrumb = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.absence_details.status',
-          `${status} Status`
-        )
-      }
+    }
+
+    if (!hasChangedFilters && month) {
+      title = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.month_absence_details',
+        `${month} Absence Details`
+      )
+      description =
+        currentStartDate && currentEndDate
+          ? `${formatDateForLocale(currentStartDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentEndDate)}`
+          : getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_month',
+              `All absences for ${month}`
+            )
+      breadcrumb = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.month_details',
+        `${month} Details`
+      )
+    }
+
+    if (!hasChangedFilters && !month && department) {
+      title = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.department_details',
+        `${department} Department Details`
+      )
+      description = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.all_absences_for_department',
+        `All absences for ${department} department`
+      )
+      breadcrumb = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.department',
+        `${department} Department`
+      )
+    }
+
+    if (!hasChangedFilters && !month && !department && status) {
+      title = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.status_details',
+        `${status} Status Details`
+      )
+      description = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.all_status_absences',
+        `All ${status.toLowerCase()} absences`
+      )
+      breadcrumb = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.status',
+        `${status} Status`
+      )
     }
 
     return {
@@ -613,6 +645,86 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
     // ✅ RESTORED: Add specific currentFilteredData properties to restore live UI updates
     currentFilteredData?.isFiltered,
     JSON.stringify(currentFilteredData?.appliedFilters || {})
+  ])
+
+  const analysisTitle = useMemo(() => {
+    const analysisLabel = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.absence_details.analysis',
+      'Analysis'
+    )
+    const departmentLabel = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.absence_details.department',
+      'Department'
+    )
+
+    if (currentUIState.hasChangedFilters) {
+      if (department) {
+        return `${analysisLabel}: ${department} ${departmentLabel}`
+      }
+
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.date_range_analysis',
+        'Date Range Analysis'
+      )
+    }
+
+    if (month) {
+      return `${analysisLabel}: ${month}`
+    }
+
+    if (department) {
+      return `${analysisLabel}: ${department} ${departmentLabel}`
+    }
+
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.absence_details.absence_analysis',
+      'Absence Analysis'
+    )
+  }, [currentUIState.hasChangedFilters, department, month])
+
+  const analysisDescription = useMemo(() => {
+    if (currentUIState.hasChangedFilters) {
+      if (currentUIState.currentDateRange.startDate && currentUIState.currentDateRange.endDate) {
+        return `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.live_analysis', 'Live Analysis')} • ${formatDateForLocale(currentUIState.currentDateRange.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentUIState.currentDateRange.endDate)}`
+      }
+
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.live_analysis_custom_filters',
+        'Live Analysis • Custom filters applied'
+      )
+    }
+
+    if (month && startDate && endDate) {
+      return `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.drilled_down_trends', 'Drilled down from trends chart')} • ${formatDateForLocale(startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(endDate)}`
+    }
+
+    if (department) {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.drilled_down_department',
+        'Drilled down from department chart'
+      )
+    }
+
+    if (status) {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_management_hub_backoffice.absence_details.drilled_down_status',
+        'Drilled down from status chart'
+      )
+    }
+
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:absence_management_hub_backoffice.absence_details.current_table_analysis',
+      'Current table data analysis'
+    )
+  }, [
+    currentUIState.currentDateRange.endDate,
+    currentUIState.currentDateRange.startDate,
+    currentUIState.hasChangedFilters,
+    month,
+    startDate,
+    endDate,
+    department,
+    status
   ])
 
   // 🚀 CRITICAL: Handle loading state properly - AFTER ALL HOOKS
@@ -698,12 +810,17 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
 
           {/* Breadcrumb */}
           <div className="gba:text-sm gba:text-muted-foreground">
-            <span className="gba:text-info gba:cursor-pointer hover:gba:underline" onClick={onNavigateBack}>
+            <button
+              type="button"
+              className="gba:border-none gba:bg-transparent gba:p-0 gba:text-info hover:gba:underline"
+              onClick={onNavigateBack}
+              data-testid="absence-details-breadcrumb-dashboard-button"
+            >
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.absence_details.absence_dashboard',
                 'Absence Dashboard'
               )}
-            </span>
+            </button>
             <span className="gba:mx-2">/</span>
             <span>{currentUIState.breadcrumb}</span>
           </div>
@@ -715,23 +832,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
         <div className="gba:bg-card gba:border gba:rounded-lg gba:p-4">
           <div className="gba:mb-3">
             <div className="gba:text-foreground gba:font-medium gba:text-base gba:mb-1">
-              {currentUIState.hasChangedFilters
-                ? // User has changed filters - show generic analysis title
-                  department
-                  ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.analysis', 'Analysis')}: ${department} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.department', 'Department')}`
-                  : getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_management_hub_backoffice.absence_details.date_range_analysis',
-                      'Date Range Analysis'
-                    )
-                : // Original navigation context - show specific context
-                  month
-                  ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.analysis', 'Analysis')}: ${month}`
-                  : department
-                    ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.analysis', 'Analysis')}: ${department} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.department', 'Department')}`
-                    : getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:absence_management_hub_backoffice.absence_details.absence_analysis',
-                        'Absence Analysis'
-                      )}
+              {analysisTitle}
               <span className="gba:ml-2 gba:text-xs gba:bg-muted gba:text-foreground gba:px-2 gba:py-1 gba:rounded">
                 {dynamicAnalysis.isFiltered
                   ? getTranslationFromI18nKeyAndLabel(
@@ -745,29 +846,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
               </span>
             </div>
             <div className="gba:text-muted-foreground gba:text-sm">
-              {currentUIState.hasChangedFilters
-                ? currentUIState.currentDateRange.startDate && currentUIState.currentDateRange.endDate
-                  ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.live_analysis', 'Live Analysis')} • ${formatDateForLocale(currentUIState.currentDateRange.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(currentUIState.currentDateRange.endDate)}`
-                  : getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_management_hub_backoffice.absence_details.live_analysis_custom_filters',
-                      'Live Analysis • Custom filters applied'
-                    )
-                : month && startDate && endDate
-                  ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.absence_details.drilled_down_trends', 'Drilled down from trends chart')} • ${formatDateForLocale(startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'to')} ${formatDateForLocale(endDate)}`
-                  : department
-                    ? getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:absence_management_hub_backoffice.absence_details.drilled_down_department',
-                        'Drilled down from department chart'
-                      )
-                    : status
-                      ? getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_management_hub_backoffice.absence_details.drilled_down_status',
-                          'Drilled down from status chart'
-                        )
-                      : getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_management_hub_backoffice.absence_details.current_table_analysis',
-                          'Current table data analysis'
-                        )}
+              {analysisDescription}
               {dynamicAnalysis.isFiltered && (
                 <span className="gba:ml-2">
                   {getTranslationFromI18nKeyAndLabel(
@@ -969,18 +1048,14 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                             {filteredAbsencesForMonth.overlappingInfo.spanningIntoRequests
                               .slice(0, 2)
                               .map((absence: any, index: number) => {
-                                const formatDate = (dateStr: string) =>
-                                  new Date(dateStr).toLocaleDateString(getCurrentActiveUserLocale(), {
-                                    month: 'short',
-                                    day: 'numeric'
-                                  })
                                 const employeeName =
                                   absence.employeeName ||
                                   `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim()
                                 return (
                                   <span key={absence.id || index} className="gba:text-muted-foreground">
                                     {index > 0 && ', '}
-                                    {employeeName} ({formatDate(absence.startDate)}-{formatDate(absence.endDate)})
+                                    {employeeName} ({formatShortDateForLocale(absence.startDate)}-
+                                    {formatShortDateForLocale(absence.endDate)})
                                   </span>
                                 )
                               })}
@@ -1008,18 +1083,14 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                             {filteredAbsencesForMonth.overlappingInfo.spanningOutRequests
                               .slice(0, 2)
                               .map((absence: any, index: number) => {
-                                const formatDate = (dateStr: string) =>
-                                  new Date(dateStr).toLocaleDateString(getCurrentActiveUserLocale(), {
-                                    month: 'short',
-                                    day: 'numeric'
-                                  })
                                 const employeeName =
                                   absence.employeeName ||
                                   `${absence.employee?.firstName || ''} ${absence.employee?.lastName || ''}`.trim()
                                 return (
                                   <span key={absence.id || index} className="gba:text-muted-foreground">
                                     {index > 0 && ', '}
-                                    {employeeName} ({formatDate(absence.startDate)}-{formatDate(absence.endDate)})
+                                    {employeeName} ({formatShortDateForLocale(absence.startDate)}-
+                                    {formatShortDateForLocale(absence.endDate)})
                                   </span>
                                 )
                               })}
@@ -1106,7 +1177,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                         key={status}
                         className="gba:text-muted-foreground gba:bg-muted gba:px-2 gba:py-1 gba:rounded"
                       >
-                        <span className="gba:font-medium">{getAbsenceStatusLabel(status)}:</span> {count as number}
+                        <span className="gba:font-medium">{getAbsenceStatusLabel(status)}:</span> {count}
                       </div>
                     ))}
                   </div>
@@ -1136,7 +1207,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                   <div className="gba:flex gba:flex-wrap gba:gap-2 gba:text-xs">
                     {Object.entries(dynamicAnalysis.departmentBreakdown).map(([dept, count]) => (
                       <div key={dept} className="gba:text-muted-foreground gba:bg-muted gba:px-2 gba:py-1 gba:rounded">
-                        <span className="gba:font-medium">{dept}:</span> {count as number}
+                        <span className="gba:font-medium">{dept}:</span> {count}
                       </div>
                     ))}
                   </div>

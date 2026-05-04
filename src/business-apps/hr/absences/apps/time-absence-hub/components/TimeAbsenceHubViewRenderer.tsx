@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
 import { Button, PageLayout } from '@newwork/nw-design-system'
-import { CalendarBlankIcon, FunnelIcon } from '@phosphor-icons/react'
+import { FunnelIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { MODULE_COLORS } from '@/common/constants/ui'
 import { HUB_VIEW_OPTIONS } from '../constants/viewOptions'
 import { HubView } from '../constants/routes'
 import { UseTimeAbsenceHubNavigationReturn } from '../hooks/useTimeAbsenceHubNavigation'
@@ -19,8 +18,6 @@ interface TimeAbsenceHubViewRendererProps extends BusinessAppContextProps {
   filterOptions: HubFilterOptionsState
   dashboardData: any
 }
-
-const moduleColor = MODULE_COLORS.HR
 
 const renderHubView = (
   view: HubView,
@@ -169,7 +166,6 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
   return (
     <div data-testid="time-absence-hub-container">
       <PageLayout
-        headerIcon={CalendarBlankIcon}
         headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.title', 'Time & Absence Hub')}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           'lowcoder:time_absence_hub.description',
@@ -184,7 +180,6 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
             icon: option.icon
           }))
         }}
-        variant={moduleColor}
         className="gba:min-h-screen"
       >
         <div className="gba:flex gba:flex-col gba:gap-4 gba:p-6">

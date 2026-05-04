@@ -139,7 +139,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           startDate: `${now.getFullYear()}-01-01`,
           endDate: `${now.getFullYear()}-12-31`
         }
-      case 'quarter':
+      case 'quarter': {
         const quarter = Math.floor(now.getMonth() / 3)
         const quarterStart = new Date(now.getFullYear(), quarter * 3, 1)
         const quarterEnd = new Date(now.getFullYear(), (quarter + 1) * 3, 0)
@@ -147,6 +147,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           startDate: quarterStart.toISOString().split('T')[0],
           endDate: quarterEnd.toISOString().split('T')[0]
         }
+      }
       case 'month':
         return {
           startDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
