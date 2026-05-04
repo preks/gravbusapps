@@ -110,10 +110,7 @@ export const fetchOfficeAndGeoLocation = async (
     officeHasCoords: officeCoords !== null
   }
 
-  if (!position) {
-    logCoordComparison({ homeCoords, officeCoords, position: null })
-    return result
-  }
+  if (!position) return result
 
   const thresholdMeters = Math.max(position.accuracy * 2, 100)
   const homeDistanceMeters = homeCoords ? haversineDistanceMeters(position.coords, homeCoords) : undefined
@@ -127,59 +124,7 @@ export const fetchOfficeAndGeoLocation = async (
     isNearOffice: typeof officeDistanceMeters === 'number' && officeDistanceMeters <= thresholdMeters
   }
 
-  logCoordComparison({
-    homeCoords,
-    officeCoords,
-    position,
-    homeDistanceMeters,
-    officeDistanceMeters,
-    thresholdMeters,
-    isNearHome: result.comparisons.isNearHome,
-    isNearOffice: result.comparisons.isNearOffice
-  })
-
   return result
-}
-
-/**
- * Dev-only diagnostic for the clock-in proximity check. Prints the three
- * coordinate sources we just fetched / measured side-by-side along with the
- * computed distances and decision so the comparison is easy to debug from the
- * browser console (no logs in production builds — coords are PII-ish).
- */
-const logCoordComparison = (args: {
-  homeCoords: GeoCoords | null
-  officeCoords: GeoCoords | null
-  position: { coords: GeoCoords; accuracy: number } | null
-  homeDistanceMeters?: number
-  officeDistanceMeters?: number
-  thresholdMeters?: number
-  isNearHome?: boolean
-  isNearOffice?: boolean
-}): void => {
-  if (process.env.NODE_ENV === 'production') return
-  const { homeCoords, officeCoords, position } = args
-  console.groupCollapsed('[geoLocation] clock-in coordinate comparison')
-  console.log('home:  ', homeCoords ?? '(no stored coords)')
-  console.log('office:', officeCoords ?? '(no stored coords)')
-  console.log(
-    'device:',
-    position ? { ...position.coords, accuracyMeters: position.accuracy } : '(geolocation unavailable / denied)'
-  )
-  if (position && (homeCoords || officeCoords)) {
-    console.log('thresholdMeters:', args.thresholdMeters)
-    if (homeCoords) {
-      console.log(
-        `distance home -> device:   ${args.homeDistanceMeters?.toFixed(1)} m  (isNearHome=${args.isNearHome})`
-      )
-    }
-    if (officeCoords) {
-      console.log(
-        `distance office -> device: ${args.officeDistanceMeters?.toFixed(1)} m  (isNearOffice=${args.isNearOffice})`
-      )
-    }
-  }
-  console.groupEnd()
 }
 
 // ---------------------------------------------------------------------------
