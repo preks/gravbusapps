@@ -1026,6 +1026,16 @@ export const NoteApiService = {
     }
   },
 
+  async unresolveComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}/unresolve`, { method: 'PATCH' })
+      return true
+    } catch (error) {
+      console.error('Failed to unresolve comment:', error)
+      return false
+    }
+  },
+
   async deleteComment(commentId: string): Promise<boolean> {
     try {
       await apiRequest(`/comments/${commentId}`, { method: 'DELETE' })

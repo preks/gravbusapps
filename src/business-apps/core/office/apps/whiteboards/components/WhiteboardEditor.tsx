@@ -313,6 +313,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
       updateComment: (commentId: string, updates: Partial<Comment>) =>
         WhiteboardApiService.updateComment(accessToken, commentId, updates),
       resolveComment: (commentId: string) => WhiteboardApiService.resolveComment(accessToken, commentId),
+      unresolveComment: (commentId: string) => WhiteboardApiService.unresolveComment(accessToken, commentId),
       deleteComment: (commentId: string) => WhiteboardApiService.deleteComment(accessToken, commentId),
       replyToComment: (commentId: string, reply: string, userName?: string, userAvatar?: string) =>
         WhiteboardApiService.replyToComment(accessToken, commentId, reply, userName, userAvatar)
@@ -924,6 +925,17 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     [comments]
   )
 
+  const handleUnresolveComment = useCallback(
+    async (commentId: string) => {
+      const ok = await comments.unresolveComment(commentId)
+      if (ok) {
+        setActiveCommentId(commentId)
+      }
+      return ok
+    },
+    [comments]
+  )
+
   const handleDeleteComment = useCallback(
     async (commentId: string) => {
       await comments.deleteComment(commentId)
@@ -1157,6 +1169,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
             await comments.updateComment(commentId, { content })
           }}
           onResolveComment={handleResolveComment}
+          onUnresolveComment={handleUnresolveComment}
           onDeleteComment={handleDeleteComment}
           onClose={() => setCommentsVisible(false)}
           currentUserId={currentUserId}

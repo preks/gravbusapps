@@ -1016,6 +1016,7 @@ shared-comment-resolved = Erledigt
 shared-comment-reply = Antworten
 shared-comment-edit = Bearbeiten
 shared-comment-resolve = Erledigen
+shared-comment-reopen = Wieder öffnen
 shared-comment-delete = Löschen
 shared-comment-confirm-delete = Möchten Sie diesen Kommentar wirklich löschen?
 shared-comment-send = Senden

@@ -20,6 +20,7 @@ export interface UseCommentsOptions {
     listComments: (id: string, options?: CommentQueryOptions) => Promise<Comment[]>
     updateComment: (commentId: string, updates: Partial<Comment>) => Promise<Comment | null>
     resolveComment: (commentId: string) => Promise<boolean>
+    unresolveComment: (commentId: string) => Promise<boolean>
     deleteComment: (commentId: string) => Promise<boolean>
     replyToComment: (
       commentId: string,
@@ -71,6 +72,11 @@ function flattenCommentThreads(comments: Comment[]): Comment[] {
   })
 
   return Array.from(commentsById.values())
+}
+
+const allCommentsQueryOptions: CommentQueryOptions = {
+  includeResolved: true,
+  includeReplies: true
 }
 
 /**
@@ -139,6 +145,10 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
     },
     [entityId, apiService, onError, t]
   )
+
+  const reloadComments = useCallback(async () => {
+    await loadComments(allCommentsQueryOptions)
+  }, [loadComments])
 
   /**
    * Create a new comment
@@ -229,8 +239,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         const success = await apiService.resolveComment(commentId)
 
         if (success) {
-          // Reload comments to get the resolved state from backend
-          await loadComments({ includeResolved: true, includeReplies: true })
+          await reloadComments()
 
           const comment = state.comments.find(c => c.id === commentId)
           if (comment && onCommentResolved) {
@@ -252,7 +261,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         return false
       }
     },
-    [apiService, loadComments, state.comments, onCommentResolved, onError, t]
+    [apiService, reloadComments, state.comments, onCommentResolved, onError, t]
   )
 
   /**
@@ -266,19 +275,13 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
       }
 
       try {
-        // This would need a backend endpoint for unresolving
-        const updated = await apiService.updateComment(commentId, { resolvedAt: undefined })
+        const success = await apiService.unresolveComment(commentId)
 
-        if (updated) {
-          setState(prev => ({
-            ...prev,
-            comments: prev.comments.map(c => (c.id === commentId ? updated : c)),
-            unresolvedCount: prev.unresolvedCount + 1
-          }))
-          return true
+        if (success) {
+          await reloadComments()
         }
 
-        return false
+        return success
       } catch (error) {
         if (onError) {
           onError(
@@ -292,7 +295,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         return false
       }
     },
-    [apiService, onError, t]
+    [apiService, onError, reloadComments, t]
   )
 
   /**
@@ -347,7 +350,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         const replyComment = await apiService.replyToComment(commentId, reply, userName, userAvatar)
 
         if (replyComment) {
-          await loadComments({ includeResolved: true, includeReplies: true })
+          await reloadComments()
         }
 
         return replyComment
@@ -362,7 +365,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
         return null
       }
     },
-    [apiService, loadComments, onError, t]
+    [apiService, onError, reloadComments, t]
   )
 
   /**
@@ -372,20 +375,20 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
     setState(prev => ({ ...prev, error: null }))
   }, [])
 
+  const refreshComments = useCallback(() => {
+    reloadComments().catch(() => undefined)
+  }, [reloadComments])
+
   // Load comments on mount - only if entityId is not empty
   useEffect(() => {
     if (entityId && entityId.trim() !== '' && apiService) {
-      loadComments({ includeResolved: true, includeReplies: true })
+      refreshComments()
     }
-  }, [entityId, apiService, loadComments])
+  }, [entityId, apiService, refreshComments])
 
   useEffect(() => {
     if (!socket || !apiService || !entityId.trim()) {
       return
-    }
-
-    const refreshComments = () => {
-      void loadComments({ includeResolved: true, includeReplies: true })
     }
 
     socket.on('comment:created', refreshComments)
@@ -399,18 +402,18 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
       socket.off('comment:resolved', refreshComments)
       socket.off('comment:deleted', refreshComments)
     }
-  }, [socket, apiService, entityId, loadComments])
+  }, [socket, apiService, entityId, reloadComments])
 
   // Auto-refresh (disabled by default - use WebSocket events for real-time updates)
   useEffect(() => {
     if (!apiService || !autoRefreshInterval || autoRefreshInterval === 0) return
 
     const interval = setInterval(() => {
-      loadComments({ includeResolved: true, includeReplies: true })
+      refreshComments()
     }, autoRefreshInterval)
 
     return () => clearInterval(interval)
-  }, [apiService, autoRefreshInterval, loadComments])
+  }, [apiService, autoRefreshInterval, refreshComments])
 
   return {
     // State

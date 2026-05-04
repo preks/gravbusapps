@@ -394,6 +394,7 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
           onResolveComment={async commentId => {
             await comments.resolveComment(commentId)
           }}
+          onUnresolveComment={commentId => comments.unresolveComment(commentId)}
           onDeleteComment={async commentId => {
             await comments.deleteComment(commentId)
           }}
@@ -413,6 +414,7 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
             reply: t('shared-comment-reply'),
             edit: t('shared-comment-edit'),
             resolve: t('shared-comment-resolve'),
+            reopen: t('shared-comment-reopen'),
             delete: t('shared-comment-delete'),
             resolved: t('shared-comment-resolved'),
             confirmDelete: t('shared-comment-confirm-delete'),
@@ -429,7 +431,6 @@ export const SpreadsheetDialogs: React.FC<SpreadsheetDialogsProps> = ({
           currentUserId={userId}
           currentUserName={currentUserName || t('editor-user-fallback')}
           currentUserAvatar={currentUserAvatar}
-          accessToken={accessToken}
           headerHeight={100}
           data-testid="spreadsheet-comment-panel"
         />

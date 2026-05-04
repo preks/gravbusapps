@@ -88,6 +88,9 @@ export class OfficeNotesClient {
   resolveCommentPatch<T = any>(commentId: string, body?: any, options?: RequestOptions) {
     return this.resolveComment<T>(commentId, body, options)
   }
+  unresolveComment<T = any>(commentId: string, body?: any, options?: RequestOptions) {
+    return this.client.patch<T>(`/comments/${commentId}/unresolve`, body ?? {}, options)
+  }
   deleteComment(commentId: string, options?: RequestOptions) {
     return this.client.delete(`/comments/${commentId}`, options)
   }

@@ -165,6 +165,16 @@ export class OfficeDocumentsClient {
       return this.client.post(`/comments/${commentId}/resolve`, undefined, options)
     }
   }
+  async unresolveComment(commentId: string, options?: RequestOptions) {
+    try {
+      return await this.client.patch(`/comments/${commentId}/unresolve`, undefined, options)
+    } catch (error) {
+      if (!shouldRetryWithLegacyPost(error)) {
+        throw error
+      }
+      return this.client.post(`/comments/${commentId}/unresolve`, undefined, options)
+    }
+  }
   replyToComment<T = any>(commentId: string, body: any, options?: RequestOptions) {
     return this.client.post<T>(`/comments/${commentId}/reply`, body, options)
   }

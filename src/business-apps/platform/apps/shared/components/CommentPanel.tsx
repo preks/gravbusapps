@@ -4,7 +4,7 @@
  * Sidebar panel for displaying and managing comments on documents, notes, and spreadsheets.
  */
 
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Badge, useTranslation } from '@newwork/nw-design-system'
 import { MessageSquare, MessageCircle, CheckCircle, X } from 'lucide-react'
 import type { Comment } from '../types/versioning'
@@ -31,6 +31,7 @@ export interface CommentPanelThreadMessages {
   reply?: string
   edit?: string
   resolve?: string
+  reopen?: string
   delete?: string
   resolved?: string
   confirmDelete?: string
@@ -52,20 +53,31 @@ export interface CommentPanelProps {
   onCreateComment: (content: string, parentId?: string, userName?: string, userAvatar?: string) => Promise<void>
   onUpdateComment: (commentId: string, content: string) => Promise<void>
   onResolveComment: (commentId: string) => Promise<void>
+  /** Return true when reopen succeeded so the panel can switch to the Unresolved tab. */
+  onUnresolveComment: (commentId: string) => Promise<boolean | void>
   onDeleteComment: (commentId: string) => Promise<void>
   onClose: () => void
   currentUserId?: string
   currentUserName?: string
   currentUserAvatar?: string
-  accessToken?: string
   headerHeight?: number
   onUnhighlight?: (commentId: string) => void
   onScrollToHighlight?: (commentId: string) => void
+  activeCommentId?: string | null
   messages?: CommentPanelMessages
   threadMessages?: CommentPanelThreadMessages
   editorMessages?: CommentPanelEditorMessages
   disableCreateComment?: boolean
   disabledCreateMessage?: string
+  canReplyToComments?: boolean
+  canResolveComments?: boolean
+  canEditOwnComments?: boolean
+  canDeleteOwnComments?: boolean
+  /**
+   * Optional resolver to provide a custom anchor label per comment
+   * (e.g. "Slide 1" for slide-anchored comments).
+   */
+  getAnchorLabel?: (comment: Comment) => string | undefined
   /**
    * Visual layout of the panel.
    * - `floating` (default): absolutely positioned overlay anchored to the viewport.
@@ -86,20 +98,26 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   onCreateComment,
   onUpdateComment,
   onResolveComment,
+  onUnresolveComment,
   onDeleteComment,
   onClose,
   currentUserId,
   currentUserName,
   currentUserAvatar,
-  accessToken,
   headerHeight = 64,
   onUnhighlight,
   onScrollToHighlight,
+  activeCommentId,
   messages: messagesProp,
   threadMessages,
   editorMessages,
   disableCreateComment = false,
   disabledCreateMessage,
+  canReplyToComments = true,
+  canResolveComments = true,
+  canEditOwnComments = true,
+  canDeleteOwnComments = true,
+  getAnchorLabel,
   layout = 'floating',
   'data-testid': testId = 'comment-panel'
 }) => {
@@ -124,12 +142,54 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'unresolved' | 'resolved'>('unresolved')
   const [isCreating, setIsCreating] = useState(false)
 
+  const handleUnresolveComment = useCallback(
+    async (commentId: string) => {
+      const ok = await onUnresolveComment(commentId)
+      if (ok === true) {
+        setActiveTab('unresolved')
+      }
+    },
+    [onUnresolveComment]
+  )
+
   const topLevelComments = comments.filter(c => !c.parentId)
   const unresolvedComments = topLevelComments.filter(c => !c.resolvedAt)
   const resolvedComments = topLevelComments.filter(c => !!c.resolvedAt)
   const sortByNewest = (a: Comment, b: Comment) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   const displayComments =
     activeTab === 'unresolved' ? [...unresolvedComments].sort(sortByNewest) : [...resolvedComments].sort(sortByNewest)
+
+  // Only react when the active comment ID actually changes. Re-running on
+  // every `topLevelComments` / `displayComments` reference change would
+  // override the user's own tab switch and snap their scroll position back
+  // to the active comment whenever the parent re-rendered.
+  const lastActiveCommentIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const previousActiveCommentId = lastActiveCommentIdRef.current
+    lastActiveCommentIdRef.current = activeCommentId ?? null
+
+    if (!activeCommentId || activeCommentId === previousActiveCommentId) {
+      return
+    }
+
+    const activeComment = topLevelComments.find(comment => comment.id === activeCommentId)
+    if (!activeComment) {
+      return
+    }
+
+    const nextTab = activeComment.resolvedAt ? 'resolved' : 'unresolved'
+    setActiveTab(currentTab => (currentTab === nextTab ? currentTab : nextTab))
+
+    const frame = globalThis.requestAnimationFrame(() => {
+      const activeThread = document.querySelector<HTMLElement>(`[data-testid="comment-thread-${activeCommentId}"]`)
+      activeThread?.scrollIntoView({ block: 'nearest' })
+    })
+
+    return () => globalThis.cancelAnimationFrame(frame)
+    // Intentionally depends only on activeCommentId. Including topLevelComments
+    // would re-run the effect on every parent re-render and override the
+    // user's tab/scroll interactions.
+  }, [activeCommentId])
 
   const handleCreateComment = async (content: string) => {
     setIsCreating(true)
@@ -139,6 +199,21 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
       setIsCreating(false)
     }
   }
+
+  const showEmptyState = !isLoading && displayComments.length === 0
+  const isUnresolvedTab = activeTab === 'unresolved'
+  const hasTopLevelComments = topLevelComments.length > 0
+  const EmptyStateIcon = isUnresolvedTab ? MessageSquare : CheckCircle
+  const emptyStateTitle = isUnresolvedTab
+    ? hasTopLevelComments
+      ? messages.allCaughtUp
+      : messages.noComments
+    : messages.noResolved
+  const emptyStateHint = isUnresolvedTab
+    ? hasTopLevelComments
+      ? messages.allResolved
+      : messages.noCommentsHint
+    : messages.resolvedHere
 
   const containerClassName = isDocked
     ? 'gba:h-full gba:w-96 gba:flex-shrink-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col'
@@ -230,29 +305,13 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
           <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
             <p className="gba:text-sm gba:text-muted-foreground">{messages.loading}</p>
           </div>
-        ) : displayComments.length === 0 ? (
+        ) : showEmptyState ? (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-6 gba:text-center">
             <div className="gba:w-12 gba:h-12 gba:rounded-xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-3">
-              {activeTab === 'unresolved' ? (
-                <MessageSquare className="gba:h-6 gba:w-6 gba:text-muted-foreground/50" />
-              ) : (
-                <CheckCircle className="gba:h-6 gba:w-6 gba:text-muted-foreground/50" />
-              )}
+              <EmptyStateIcon className="gba:h-6 gba:w-6 gba:text-muted-foreground/50" />
             </div>
-            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
-              {activeTab === 'unresolved'
-                ? topLevelComments.length === 0
-                  ? messages.noComments
-                  : messages.allCaughtUp
-                : messages.noResolved}
-            </p>
-            <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[200px]">
-              {activeTab === 'unresolved'
-                ? topLevelComments.length === 0
-                  ? messages.noCommentsHint
-                  : messages.allResolved
-                : messages.resolvedHere}
-            </p>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">{emptyStateTitle}</p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[200px]">{emptyStateHint}</p>
           </div>
         ) : (
           <div className="gba:space-y-2 gba:py-2">
@@ -264,11 +323,17 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
                 onReply={content => onCreateComment(content, comment.id, currentUserName, currentUserAvatar)}
                 onUpdate={content => onUpdateComment(comment.id, content)}
                 onResolve={() => onResolveComment(comment.id)}
+                onUnresolve={() => handleUnresolveComment(comment.id)}
                 onDelete={() => onDeleteComment(comment.id)}
                 currentUserId={currentUserId}
-                accessToken={accessToken}
                 onUnhighlight={onUnhighlight}
                 onScrollToHighlight={onScrollToHighlight}
+                isActive={comment.id === activeCommentId}
+                canReply={canReplyToComments}
+                canResolve={canResolveComments}
+                canEdit={canEditOwnComments}
+                canDelete={canDeleteOwnComments}
+                anchorLabel={getAnchorLabel?.(comment)}
                 messages={threadMessages}
               />
             ))}

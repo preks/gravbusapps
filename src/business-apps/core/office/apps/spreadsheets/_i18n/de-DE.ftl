@@ -1142,6 +1142,7 @@ shared-comment-placeholder = Kommentar hinzufügen...
 shared-comment-reply = Antworten
 shared-comment-edit = Bearbeiten
 shared-comment-resolve = Erledigen
+shared-comment-reopen = Wieder öffnen
 shared-comment-delete = Löschen
 shared-comment-resolved = Erledigt
 shared-comment-confirm-delete = Möchtest du diesen Kommentar wirklich löschen?

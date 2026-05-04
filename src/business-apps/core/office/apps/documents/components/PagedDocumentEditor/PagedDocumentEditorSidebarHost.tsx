@@ -32,6 +32,7 @@ export interface PagedDocumentEditorSidebarHostProps {
   onCreateComment: ComponentProps<typeof CommentPanel>['onCreateComment']
   onUpdateComment: ComponentProps<typeof CommentPanel>['onUpdateComment']
   onResolveComment: ComponentProps<typeof CommentPanel>['onResolveComment']
+  onUnresolveComment: ComponentProps<typeof CommentPanel>['onUnresolveComment']
   onDeleteComment: ComponentProps<typeof CommentPanel>['onDeleteComment']
   onCloseCommentsSidebar: () => void
   onUnhighlightComment: ComponentProps<typeof CommentPanel>['onUnhighlight']
@@ -95,6 +96,7 @@ export function PagedDocumentEditorSidebarHost({
   onCreateComment,
   onUpdateComment,
   onResolveComment,
+  onUnresolveComment,
   onDeleteComment,
   onCloseCommentsSidebar,
   onUnhighlightComment,
@@ -159,6 +161,7 @@ export function PagedDocumentEditorSidebarHost({
             reply: translate('shared-comment-reply'),
             edit: translate('shared-comment-edit'),
             resolve: translate('shared-comment-resolve'),
+            reopen: translate('shared-comment-reopen'),
             delete: translate('shared-comment-delete'),
             resolved: translate('shared-comment-resolved'),
             confirmDelete: translate('shared-comment-confirm-delete'),
@@ -176,12 +179,12 @@ export function PagedDocumentEditorSidebarHost({
           onCreateComment={onCreateComment}
           onUpdateComment={onUpdateComment}
           onResolveComment={onResolveComment}
+          onUnresolveComment={onUnresolveComment}
           onDeleteComment={onDeleteComment}
           onClose={onCloseCommentsSidebar}
           currentUserId={currentUserId || undefined}
           currentUserName={currentUserName || undefined}
           currentUserAvatar={currentUserAvatar || undefined}
-          accessToken={accessToken}
           headerHeight={headerHeight}
           onUnhighlight={onUnhighlightComment}
           onScrollToHighlight={onScrollToHighlight}

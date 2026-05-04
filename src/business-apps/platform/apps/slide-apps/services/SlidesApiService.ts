@@ -463,6 +463,17 @@ export const SlidesApiService = {
     }
   },
 
+  async unresolveComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}/unresolve`, {
+        method: 'PATCH'
+      })
+      return true
+    } catch {
+      return false
+    }
+  },
+
   async deleteComment(commentId: string): Promise<boolean> {
     try {
       await apiRequest(`/comments/${commentId}`, {

@@ -50,6 +50,7 @@ describe('useComments', () => {
       listComments: jest.fn<Promise<Comment[]>, [string, unknown?]>().mockResolvedValue([parentComment]),
       updateComment: jest.fn(),
       resolveComment: jest.fn(),
+      unresolveComment: jest.fn(),
       deleteComment: jest.fn(),
       replyToComment: jest.fn()
     }
@@ -98,6 +99,7 @@ describe('useComments', () => {
       listComments,
       updateComment: jest.fn(),
       resolveComment: jest.fn(),
+      unresolveComment: jest.fn(),
       deleteComment: jest.fn(),
       replyToComment: jest.fn()
     }
@@ -168,6 +170,7 @@ describe('useComments', () => {
       listComments,
       updateComment: jest.fn(),
       resolveComment: jest.fn(),
+      unresolveComment: jest.fn(),
       deleteComment: jest.fn(),
       replyToComment: jest
         .fn<Promise<Comment | null>, [string, string, string?, string?]>()
@@ -228,6 +231,7 @@ describe('useComments', () => {
       listComments: jest.fn<Promise<Comment[]>, [string, unknown?]>().mockResolvedValue([slideComment]),
       updateComment: jest.fn(),
       resolveComment: jest.fn(),
+      unresolveComment: jest.fn(),
       deleteComment: jest.fn(),
       replyToComment: jest.fn()
     }
@@ -242,6 +246,67 @@ describe('useComments', () => {
 
     await waitFor(() => {
       expect(result.current.comments).toEqual([slideComment])
+      expect(result.current.unresolvedCount).toBe(1)
+    })
+  })
+
+  it('reloads comments after reopening a resolved thread', async () => {
+    const resolvedComment: Comment = {
+      id: 'comment-1',
+      entityId: 'note-1',
+      entityType: 'note',
+      type: 'document',
+      content: 'Resolved comment',
+      createdBy: 'user-1',
+      createdAt: '2026-04-29T16:00:00.000Z',
+      resolvedAt: '2026-04-29T16:05:00.000Z',
+      resolvedBy: 'user-2'
+    }
+    const reopenedComment: Comment = {
+      ...resolvedComment,
+      resolvedAt: undefined,
+      resolvedBy: undefined
+    }
+
+    const listComments = jest
+      .fn<Promise<Comment[]>, [string, unknown?]>()
+      .mockResolvedValueOnce([resolvedComment])
+      .mockResolvedValueOnce([reopenedComment])
+
+    const apiService = {
+      createComment: jest.fn(),
+      listComments,
+      updateComment: jest.fn(),
+      resolveComment: jest.fn(),
+      unresolveComment: jest.fn<Promise<boolean>, [string]>().mockResolvedValue(true),
+      deleteComment: jest.fn(),
+      replyToComment: jest.fn()
+    }
+
+    const { result } = renderHook(() =>
+      useComments({
+        entityId: 'note-1',
+        entityType: 'note',
+        apiService
+      })
+    )
+
+    await waitFor(() => {
+      expect(result.current.comments).toEqual([resolvedComment])
+      expect(result.current.unresolvedCount).toBe(0)
+    })
+
+    await act(async () => {
+      await result.current.unresolveComment('comment-1')
+    })
+
+    await waitFor(() => {
+      expect(apiService.unresolveComment).toHaveBeenCalledWith('comment-1')
+      expect(listComments).toHaveBeenLastCalledWith('note-1', {
+        includeResolved: true,
+        includeReplies: true
+      })
+      expect(result.current.comments).toEqual([reopenedComment])
       expect(result.current.unresolvedCount).toBe(1)
     })
   })

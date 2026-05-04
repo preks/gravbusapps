@@ -3216,6 +3216,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           onResolveComment={async commentId => {
             await comments.resolveComment(commentId)
           }}
+          onUnresolveComment={commentId => comments.unresolveComment(commentId)}
           onDeleteComment={async commentId => {
             await comments.deleteComment(commentId)
           }}
@@ -3227,7 +3228,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           currentUserId={currentUserId || undefined}
           currentUserName={currentUserName || undefined}
           currentUserAvatar={currentUserAvatar || undefined}
-          accessToken={accessToken}
           headerHeight={80}
           onUnhighlight={commentId => {
             if (!editor) return

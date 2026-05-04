@@ -194,8 +194,12 @@ interface InlineEditingProps {
   onTextChange: (value: string) => void
   onSelectionChange: (range: RichTextSelectionRange | null) => void
   onFinishEditing: () => void
+  onCopySelection?: (selection: RichTextSelectionRange, clipboardData: DataTransfer | null) => void
+  onCutSelection?: (selection: RichTextSelectionRange, clipboardData: DataTransfer | null) => void
+  onPasteSelection?: (selection: RichTextSelectionRange | null, clipboardData: DataTransfer | null) => void
   selectionToRestore?: RichTextSelectionRange | null
   rehydrateToken?: number
+  selectionRef?: React.MutableRefObject<RichTextSelectionRange | null>
   voiceInput?: {
     isListening: boolean
     isSupported: boolean
@@ -253,11 +257,6 @@ interface SlideCanvasProps {
   onPointsChange?: (id: string, nextCustGeomPath: string) => void
   /** Called when the user leaves the mode (Esc key or click outside). */
   onExitPointEditing?: () => void
-  /**
-   * Right-click entry point for Edit Points mode on a shape. Same semantics
-   * as the PropertyPanel button; canvas fires this so SlideEditor owns state.
-   */
-  onShapeContextMenu?: (elementId: string) => void
 }
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
@@ -320,8 +319,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     canvasSize,
     editingPointsId,
     onPointsChange,
-    onExitPointEditing,
-    onShapeContextMenu
+    onExitPointEditing
   }) => {
     const canvasRef = useRef<HTMLDivElement>(null)
     const [isDragging, setIsDragging] = useState(false)
@@ -375,6 +373,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     )
 
     const handleCanvasMouseDown = (e: React.MouseEvent) => {
+      // Right-click is reserved for the context menu — never start a marquee
+      // or clear selection from a non-primary button, otherwise opening the
+      // context menu (especially while inline-editing text) would deselect
+      // the active element and exit the editor.
+      if (e.button !== 0) return
+
       // Start marquee selection when clicking on empty canvas area
       // Check if clicking on canvas itself or on background elements (not slide elements)
       const target = e.target as HTMLElement
@@ -469,6 +473,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
     }
 
     const handleCanvasClick = (e: React.MouseEvent) => {
+      // Only the primary button selects/edits — secondary/middle buttons are
+      // reserved for the context menu and must not finish inline editing.
+      if (e.button !== 0) return
+
       // Skip if we just finished a marquee selection (to avoid clearing the selection)
       if (justFinishedMarqueeRef.current) {
         mouseDownElementRef.current = null
@@ -524,6 +532,15 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
 
     const handleElementMouseDown = (e: React.MouseEvent, element: AnySlideElement) => {
       e.stopPropagation()
+
+      // Right-click should never alter selection, drag, or text-editing
+      // state. Without this guard, opening the context menu on a text box
+      // could change the selection (and exit inline editing for the right
+      // element) before the menu was shown.
+      if (e.button !== 0) {
+        onElementClick?.(element.id)
+        return
+      }
 
       // Call onElementClick for presenter view highlighting (works even on locked elements)
       onElementClick?.(element.id)
@@ -1327,14 +1344,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
             tabIndex={element.locked ? -1 : 0}
             aria-label={`${element.type} element`}
             style={wrapperStyle}
-            onContextMenu={e => {
-              if (element.type === 'shape' && onShapeContextMenu) {
-                e.preventDefault()
-                e.stopPropagation()
-                if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
-                if (!element.locked) onShapeContextMenu(element.id)
-              }
-            }}
             onMouseDown={handleWrapperMouseDown}
             onKeyDown={e => {
               if (isKeyboardEventFromTextInput(e.target)) return
@@ -1384,17 +1393,6 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           tabIndex={element.locked ? -1 : 0}
           aria-label={`${element.type} element`}
           style={wrapperStyle}
-          onContextMenu={e => {
-            // Right-click → Edit Points for shapes. Mirrors PowerPoint's
-            // right-click entry point while avoiding a bespoke context-menu
-            // popover — the PropertyPanel remains the discoverable surface.
-            if (element.type === 'shape' && onShapeContextMenu) {
-              e.preventDefault()
-              e.stopPropagation()
-              if (!selectedIds.has(element.id)) onSelectElements(new Set([element.id]))
-              if (!element.locked) onShapeContextMenu(element.id)
-            }
-          }}
           onMouseDown={handleWrapperMouseDown}
           onKeyDown={e => {
             if (isKeyboardEventFromTextInput(e.target)) return
@@ -1462,8 +1460,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                           textareaInitializedRef.current = null
                           inlineEditing.onFinishEditing()
                         }}
+                        onCopySelection={inlineEditing.onCopySelection}
+                        onCutSelection={inlineEditing.onCutSelection}
+                        onPasteSelection={inlineEditing.onPasteSelection}
                         selectionToRestore={inlineEditing.selectionToRestore}
                         rehydrateToken={inlineEditing.rehydrateToken}
+                        selectionRef={inlineEditing.selectionRef}
                         data-testid={`slide-text-editor-${element.id}`}
                       />
                       {/* Inline editing toolbar */}
@@ -1714,8 +1716,12 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
                             textareaInitializedRef.current = null
                             inlineEditing?.onFinishEditing()
                           }}
+                          onCopySelection={inlineEditing?.onCopySelection}
+                          onCutSelection={inlineEditing?.onCutSelection}
+                          onPasteSelection={inlineEditing?.onPasteSelection}
                           selectionToRestore={inlineEditing?.selectionToRestore}
                           rehydrateToken={inlineEditing?.rehydrateToken}
+                          selectionRef={inlineEditing?.selectionRef}
                           data-testid={`slide-shape-text-editor-${se.id}`}
                         />
                       </>
@@ -2451,7 +2457,10 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = React.memo(
           {renderVideoBackground()}
 
           {/* Elements */}
-          {(elements || []).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)).map(element => renderElement(element))}
+          {(elements || [])
+            .filter(element => Boolean(element?.position && element?.size))
+            .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+            .map(element => renderElement(element))}
 
           {/* Marquee Selection Rectangle */}
           {isMarquee && (

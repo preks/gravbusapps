@@ -79,6 +79,8 @@ export type SlideCommentAnchor =
       start: number
       end: number
       selectedText?: string
+      contextBefore?: string
+      contextAfter?: string
     }
 
 /**

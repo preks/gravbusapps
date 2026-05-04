@@ -1016,6 +1016,7 @@ shared-comment-resolved = Rezolvat
 shared-comment-reply = Răspunde
 shared-comment-edit = Editați
 shared-comment-resolve = Rezolvați
+shared-comment-reopen = Redeschideți
 shared-comment-delete = Ștergeți
 shared-comment-confirm-delete = Sunteți sigur că doriți să ștergeți acest comentariu?
 shared-comment-send = Trimite

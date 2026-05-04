@@ -76,6 +76,7 @@ export interface SpreadsheetDialogsSectionProps {
     createComment: (params: any) => Promise<unknown>
     updateComment: (id: string, data: { content: string }) => Promise<unknown>
     resolveComment: (id: string) => Promise<unknown>
+    unresolveComment: (id: string) => Promise<unknown>
     deleteComment: (id: string) => Promise<unknown>
   }
   currentUserId?: string
@@ -276,6 +277,7 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
               reply: t('shared-comment-reply'),
               edit: t('shared-comment-edit'),
               resolve: t('shared-comment-resolve'),
+              reopen: t('shared-comment-reopen'),
               delete: t('shared-comment-delete'),
               resolved: t('shared-comment-resolved'),
               confirmDelete: t('shared-comment-confirm-delete'),
@@ -311,6 +313,11 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
               const ok = await comments.resolveComment(commentId)
               if (!ok) toast.error(t('shared-error-resolve-comment'))
             }}
+            onUnresolveComment={async commentId => {
+              const ok = await comments.unresolveComment(commentId)
+              if (!ok) toast.error(t('shared-error-unresolve-comment'))
+              return ok
+            }}
             onDeleteComment={async commentId => {
               if (onDeleteComment) {
                 await onDeleteComment(commentId)
@@ -322,7 +329,6 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
             currentUserId={currentUserId}
             currentUserName={currentUserName || t('editor-user-fallback')}
             currentUserAvatar={currentUserAvatar || undefined}
-            accessToken={accessToken}
             headerHeight={100}
             onScrollToHighlight={onScrollToHighlight}
             onUnhighlight={onUnhighlight}

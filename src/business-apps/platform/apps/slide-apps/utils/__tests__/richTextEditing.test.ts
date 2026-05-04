@@ -4,10 +4,13 @@ import {
   applyRichTextHyperlink,
   applyRichTextFormatting,
   clearRichTextHyperlink,
+  createRichTextClipboardFragment,
   getRichTextHyperlinkAtSelection,
   getRichTextStyleAtRange,
   getRichTextTextInRange,
   getTextEditDelta,
+  insertRichTextClipboardFragment,
+  parseHtmlToRichTextClipboardFragment,
   replaceRichTextContent,
   resolveRichTextSelectionForLinkAction
 } from '../richTextEditing'
@@ -93,6 +96,63 @@ describe('richTextEditing', () => {
 
     expect(updated.paragraphs?.[0].runs).toEqual([expect.objectContaining({ text: 'Hello world!' })])
     expect(updated.paragraphs?.[0].runs[0].hyperlink).toBeUndefined()
+  })
+
+  it('creates clipboard fragments that preserve run-level formatting', () => {
+    const element = makeTextElement({
+      paragraphs: [
+        {
+          runs: [{ text: 'Hello ' }, { text: 'world', fontWeight: 'bold', hyperlink: 'https://example.com' }]
+        }
+      ]
+    })
+
+    const fragment = createRichTextClipboardFragment(element, { start: 6, end: 11 })
+
+    expect(fragment?.text).toBe('world')
+    expect(fragment?.paragraphs[0].runs).toEqual([
+      expect.objectContaining({ text: 'world', fontWeight: 'bold', hyperlink: 'https://example.com' })
+    ])
+  })
+
+  it('inserts clipboard fragments without flattening formatting', () => {
+    const source = makeTextElement({
+      content: 'Hello world',
+      paragraphs: [
+        {
+          runs: [{ text: 'Hello ' }, { text: 'world', fontStyle: 'italic', hyperlink: 'https://example.com' }]
+        }
+      ]
+    })
+    const target = makeTextElement({
+      content: 'Start ',
+      paragraphs: [{ runs: [{ text: 'Start ' }] }]
+    })
+    const fragment = createRichTextClipboardFragment(source, { start: 6, end: 11 })
+
+    const updated = insertRichTextClipboardFragment(target, { start: 6, end: 6 }, fragment!)
+
+    expect(updated.content).toBe('Start world')
+    expect(updated.paragraphs?.[0].runs).toEqual([
+      expect.objectContaining({ text: 'Start ' }),
+      expect.objectContaining({ text: 'world', fontStyle: 'italic', hyperlink: 'https://example.com' })
+    ])
+  })
+
+  it('parses clipboard html into formatted rich-text fragments', () => {
+    const fragment = parseHtmlToRichTextClipboardFragment(
+      '<p>Hello <strong>bold</strong> <a href="https://example.com">link</a></p><ul><li>Item</li></ul>',
+      makeTextElement()
+    )
+
+    expect(fragment?.text).toBe('Hello bold link\nItem')
+    expect(fragment?.paragraphs[0].runs).toEqual([
+      expect.objectContaining({ text: 'Hello ' }),
+      expect.objectContaining({ text: 'bold', fontWeight: 'bold' }),
+      expect.objectContaining({ text: ' ' }),
+      expect.objectContaining({ text: 'link', hyperlink: 'https://example.com' })
+    ])
+    expect(fragment?.paragraphs[1]).toEqual(expect.objectContaining({ bulletType: 'bullet' }))
   })
 
   it('applies formatting to every run when no text range is active', () => {

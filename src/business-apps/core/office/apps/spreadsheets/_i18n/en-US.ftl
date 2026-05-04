@@ -1142,6 +1142,7 @@ shared-comment-placeholder = Add a comment...
 shared-comment-reply = Reply
 shared-comment-edit = Edit
 shared-comment-resolve = Resolve
+shared-comment-reopen = Reopen
 shared-comment-delete = Delete
 shared-comment-resolved = Resolved
 shared-comment-confirm-delete = Are you sure you want to delete this comment?

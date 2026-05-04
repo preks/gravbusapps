@@ -251,6 +251,15 @@ export const WhiteboardApiService = {
     }
   },
 
+  async unresolveComment(accessToken: string, commentId: string): Promise<boolean> {
+    try {
+      await request(`/comments/${commentId}/unresolve`, accessToken, { method: 'PATCH' })
+      return true
+    } catch {
+      return false
+    }
+  },
+
   async deleteComment(accessToken: string, commentId: string): Promise<boolean> {
     try {
       await request(`/comments/${commentId}`, accessToken, { method: 'DELETE' })

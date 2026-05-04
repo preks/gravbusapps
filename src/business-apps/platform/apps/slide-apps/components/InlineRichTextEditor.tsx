@@ -13,8 +13,15 @@ export interface InlineRichTextEditorProps {
   onTextChange: (value: string) => void
   onSelectionChange: (range: RichTextSelectionRange | null) => void
   onFinishEditing: () => void
+  onCopySelection?: (selection: RichTextSelectionRange, clipboardData: DataTransfer | null) => void
+  onCutSelection?: (selection: RichTextSelectionRange, clipboardData: DataTransfer | null) => void
+  onPasteSelection?: (selection: RichTextSelectionRange | null, clipboardData: DataTransfer | null) => void
   selectionToRestore?: RichTextSelectionRange | null
   rehydrateToken?: number
+  // Mirrors the latest selection synchronously so callers (e.g. the slide
+  // editor's context-menu handler) can read the up-to-date range without
+  // racing React state updates.
+  selectionRef?: React.MutableRefObject<RichTextSelectionRange | null>
   'data-testid'?: string
 }
 
@@ -407,8 +414,12 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
   onTextChange,
   onSelectionChange,
   onFinishEditing,
+  onCopySelection,
+  onCutSelection,
+  onPasteSelection,
   selectionToRestore = null,
   rehydrateToken = 0,
+  selectionRef,
   'data-testid': testId = 'inline-rich-text-editor'
 }) => {
   const editorRef = useRef<HTMLDivElement>(null)
@@ -432,8 +443,11 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
   const emitSelection = useCallback(() => {
     const range = readSelection()
     lastSelectionRef.current = range
+    if (selectionRef) {
+      selectionRef.current = range
+    }
     onSelectionChange(range)
-  }, [onSelectionChange, readSelection])
+  }, [onSelectionChange, readSelection, selectionRef])
 
   const restoreSelection = useCallback((range: RichTextSelectionRange | null) => {
     const editor = editorRef.current
@@ -469,6 +483,8 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
     <div
       ref={editorRef}
       contentEditable
+      role="textbox"
+      aria-multiline="true"
       tabIndex={0}
       suppressContentEditableWarning
       spellCheck
@@ -518,7 +534,60 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
         event.stopPropagation()
         emitSelection()
       }}
-      onMouseDown={event => event.stopPropagation()}
+      onMouseDown={event => {
+        event.stopPropagation()
+        // Right-click should not collapse the selection: re-emit the current
+        // selection synchronously so the slide editor can capture it before
+        // the context menu opens and focus leaves the contenteditable.
+        if (event.button === 2) {
+          emitSelection()
+        }
+      }}
+      onContextMenu={() => {
+        emitSelection()
+      }}
+      onCopy={event => {
+        event.stopPropagation()
+        if (!onCopySelection) {
+          return
+        }
+
+        const selection = readSelection() ?? lastSelectionRef.current
+        if (!selection || selection.start === selection.end) {
+          return
+        }
+
+        event.preventDefault()
+        lastSelectionRef.current = selection
+        onSelectionChange(selection)
+        onCopySelection(selection, event.clipboardData)
+      }}
+      onCut={event => {
+        event.stopPropagation()
+        if (!onCutSelection) {
+          return
+        }
+
+        const selection = readSelection() ?? lastSelectionRef.current
+        if (!selection || selection.start === selection.end) {
+          return
+        }
+
+        event.preventDefault()
+        lastSelectionRef.current = selection
+        onSelectionChange(selection)
+        onCutSelection(selection, event.clipboardData)
+      }}
+      onPaste={event => {
+        event.stopPropagation()
+        if (!onPasteSelection) {
+          return
+        }
+
+        event.preventDefault()
+        const selection = readSelection() ?? lastSelectionRef.current
+        onPasteSelection(selection, event.clipboardData)
+      }}
       style={{
         ...getRichTextBoxStyle(element),
         width: '100%',

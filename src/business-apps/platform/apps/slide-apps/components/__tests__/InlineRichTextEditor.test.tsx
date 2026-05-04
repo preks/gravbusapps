@@ -42,6 +42,20 @@ function setDocumentSelection(range: Range) {
 }
 
 describe('InlineRichTextEditor', () => {
+  it('exposes textbox semantics for the contenteditable editor', () => {
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement()}
+        onTextChange={() => {}}
+        onSelectionChange={() => {}}
+        onFinishEditing={() => {}}
+      />
+    )
+
+    expect(screen.getByTestId('inline-rich-text-editor')).toHaveAttribute('role', 'textbox')
+    expect(screen.getByTestId('inline-rich-text-editor')).toHaveAttribute('aria-multiline', 'true')
+  })
+
   it('keeps Space key events inside the editor', () => {
     const parentKeyDown = jest.fn()
 
@@ -75,6 +89,65 @@ describe('InlineRichTextEditor', () => {
     fireEvent.keyDown(screen.getByTestId('inline-rich-text-editor'), { key: 'Escape' })
 
     expect(onFinishEditing).toHaveBeenCalled()
+  })
+
+  it('routes copy events through the explicit clipboard callback', () => {
+    const onCopySelection = jest.fn()
+
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement()}
+        onTextChange={() => {}}
+        onSelectionChange={() => {}}
+        onFinishEditing={() => {}}
+        onCopySelection={onCopySelection}
+      />
+    )
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    const textNode = editor.querySelector('[data-run-start]')?.firstChild
+    expect(textNode).toBeTruthy()
+
+    const range = document.createRange()
+    range.setStart(textNode as Text, 6)
+    range.setEnd(textNode as Text, 11)
+    setDocumentSelection(range)
+
+    const clipboardData = { setData: jest.fn() } as unknown as DataTransfer
+    fireEvent.copy(editor, { clipboardData })
+
+    expect(onCopySelection).toHaveBeenCalledWith({ start: 6, end: 11 }, clipboardData)
+  })
+
+  it('routes paste events through the explicit clipboard callback instead of native mutation', () => {
+    const onPasteSelection = jest.fn()
+
+    render(
+      <InlineRichTextEditor
+        element={makeTextElement()}
+        onTextChange={() => {}}
+        onSelectionChange={() => {}}
+        onFinishEditing={() => {}}
+        onPasteSelection={onPasteSelection}
+      />
+    )
+
+    const editor = screen.getByTestId('inline-rich-text-editor') as HTMLDivElement
+    const textNode = editor.querySelector('[data-run-start]')?.firstChild
+    expect(textNode).toBeTruthy()
+
+    const range = document.createRange()
+    range.setStart(textNode as Text, 5)
+    range.setEnd(textNode as Text, 5)
+    setDocumentSelection(range)
+
+    const clipboardData = {
+      getData: jest.fn((type: string) => (type === 'text/plain' ? 'pasted text' : ''))
+    } as unknown as DataTransfer
+    fireEvent.paste(editor, { clipboardData })
+
+    expect(onPasteSelection).toHaveBeenCalledWith({ start: 5, end: 5 }, clipboardData)
+    expect(readEditorValue(editor)).toBe('Hello world')
   })
 
   it('renders bullet markers without serializing them back into the text value', () => {

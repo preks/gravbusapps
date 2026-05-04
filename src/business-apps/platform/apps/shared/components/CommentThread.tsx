@@ -17,7 +17,8 @@ import {
   DropdownMenuTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { MoreVertical, Reply, CheckCircle, Trash2, Edit2, User, Quote } from 'lucide-react'
+import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react'
+import { MoreVertical, Reply, CheckCircle, Trash2, Edit2, User, Quote, Square, Layers } from 'lucide-react'
 import type { Comment } from '../types/versioning'
 import { formatDistanceToNow } from 'date-fns'
 import { CommentEditor } from './CommentEditor'
@@ -67,6 +68,7 @@ export interface CommentThreadMessages {
   reply?: string
   edit?: string
   resolve?: string
+  reopen?: string
   delete?: string
   resolved?: string
   confirmDelete?: string
@@ -80,10 +82,22 @@ export interface CommentThreadProps {
   onReply: (content: string) => Promise<void>
   onUpdate: (content: string) => Promise<void>
   onResolve: () => Promise<void>
+  onUnresolve: () => Promise<void>
   onDelete: () => Promise<void>
   currentUserId?: string
   onUnhighlight?: (commentId: string) => void
   onScrollToHighlight?: (commentId: string) => void
+  isActive?: boolean
+  canReply?: boolean
+  canResolve?: boolean
+  canEdit?: boolean
+  canDelete?: boolean
+  /**
+   * When provided, overrides the default anchor label for slide-anchored
+   * comments (e.g. "Slide 1" instead of "Whole slide"/"Object"). For
+   * text-range anchors it is shown alongside the quoted snippet.
+   */
+  anchorLabel?: string
   messages?: CommentThreadMessages
   'data-testid'?: string
 }
@@ -97,10 +111,17 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   onReply,
   onUpdate,
   onResolve,
+  onUnresolve,
   onDelete,
   currentUserId,
   onUnhighlight,
   onScrollToHighlight,
+  isActive = false,
+  canReply = true,
+  canResolve = true,
+  canEdit = true,
+  canDelete = true,
+  anchorLabel,
   messages: messagesProp,
   'data-testid': testId = 'comment-thread'
 }) => {
@@ -109,6 +130,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
     reply: t('comment-thread-reply'),
     edit: t('comment-thread-edit'),
     resolve: t('comment-thread-resolve'),
+    reopen: t('comment-thread-reopen'),
     delete: t('comment-thread-delete'),
     resolved: t('comment-thread-resolved'),
     confirmDelete: t('comment-thread-confirm-delete'),
@@ -122,11 +144,23 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   const [isEditing, setIsEditing] = useState(false)
   const [editContent] = useState(comment.content)
 
-  const isOwnComment = currentUserId && comment.createdBy === currentUserId
+  const isOwnComment = Boolean(currentUserId && comment.createdBy === currentUserId)
   const isResolved = !!comment.resolvedAt
   const isInlineComment = comment.type === 'inline' || comment.type === 'selection'
   const isCellComment = comment.type === 'cell'
   const hasCellReference = isCellComment && comment.cellReference
+  const slideAnchorKind = comment.slideAnchorData?.kind
+  const slideAnchorSelectedText = slideAnchorKind === 'text-range' ? comment.slideAnchorData?.selectedText : undefined
+  const hasSlideAnchor = Boolean(slideAnchorKind)
+  const showSlideWholeAnchor = slideAnchorKind === 'slide'
+  const showSlideElementAnchor = slideAnchorKind === 'element'
+  const showSlideTextAnchor = slideAnchorKind === 'text-range'
+  const canReplyToThread = canReply && !isResolved
+  const canEditThread = canEdit && isOwnComment && !isResolved
+  const canResolveThread = canResolve && !isResolved
+  const canReopenThread = canResolve && isResolved
+  const canDeleteThread = canDelete && isOwnComment
+  const hasActions = canReplyToThread || canEditThread || canResolveThread || canReopenThread || canDeleteThread
 
   const handleResolveAndUnhighlight = async () => {
     await onResolve()
@@ -142,6 +176,10 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
         onUnhighlight(comment.id)
       }
     }
+  }
+
+  const handleReopen = async () => {
+    await onUnresolve()
   }
 
   const handleReply = async (content: string) => {
@@ -161,8 +199,13 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
   return (
     <div
-      className="gba:min-w-0 gba:overflow-hidden gba:rounded-xl gba:border gba:border-border/50 gba:bg-card/50 gba:p-4 gba:transition-all hover:gba:border-border hover:gba:shadow-sm"
+      className={`gba:min-w-0 gba:overflow-hidden gba:rounded-xl gba:border gba:bg-card/50 gba:p-4 gba:transition-all hover:gba:shadow-sm ${
+        isActive
+          ? 'gba:border-primary gba:bg-primary/5 gba:ring-2 gba:ring-primary/15'
+          : 'gba:border-border/50 hover:gba:border-border'
+      }`}
       data-testid={`${testId}-${comment.id}`}
+      data-active={isActive ? 'true' : 'false'}
     >
       {/* Comment header */}
       <div className="gba:flex gba:items-start gba:gap-3 gba:mb-3">
@@ -202,8 +245,60 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
             </div>
           )}
 
-          {/* Inline comment reference */}
-          {isInlineComment && comment.selectedText && (
+          {/* Slide anchor reference */}
+          {showSlideWholeAnchor && (
+            <button
+              type="button"
+              onClick={() => onScrollToHighlight?.(comment.id)}
+              className="gba:mb-2 gba:flex gba:items-center gba:gap-1.5 gba:rounded-md gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-2 gba:py-1 gba:text-left gba:transition-colors hover:gba:bg-primary/10"
+              data-testid={`${testId}-slide-anchor-${comment.id}`}
+            >
+              <Layers className="gba:h-3.5 gba:w-3.5 gba:text-primary" />
+              <span className="gba:text-xs gba:font-medium gba:text-primary">
+                {anchorLabel || t('comment-thread-anchor-whole-slide')}
+              </span>
+            </button>
+          )}
+          {showSlideElementAnchor && (
+            <button
+              type="button"
+              onClick={() => onScrollToHighlight?.(comment.id)}
+              className="gba:mb-2 gba:flex gba:items-center gba:gap-1.5 gba:rounded-md gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-2 gba:py-1 gba:text-left gba:transition-colors hover:gba:bg-primary/10"
+              data-testid={`${testId}-slide-anchor-${comment.id}`}
+            >
+              <Square className="gba:h-3.5 gba:w-3.5 gba:text-primary" />
+              <span className="gba:text-xs gba:font-medium gba:text-primary">
+                {anchorLabel
+                  ? `${anchorLabel} · ${t('comment-thread-anchor-object')}`
+                  : t('comment-thread-anchor-object')}
+              </span>
+            </button>
+          )}
+          {showSlideTextAnchor && (
+            <button
+              type="button"
+              onClick={() => onScrollToHighlight?.(comment.id)}
+              className="gba:mb-2 gba:flex gba:w-full gba:min-w-0 gba:flex-col gba:gap-1.5 gba:text-left"
+              data-testid={`${testId}-slide-anchor-${comment.id}`}
+            >
+              <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:self-start gba:rounded-md gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-2 gba:py-1 gba:transition-colors hover:gba:bg-primary/10">
+                <Quote className="gba:h-3.5 gba:w-3.5 gba:text-primary" />
+                <span className="gba:text-xs gba:font-medium gba:text-primary">
+                  {anchorLabel || t('comment-thread-anchor-text')}
+                </span>
+              </span>
+              {slideAnchorSelectedText && (
+                <span className="gba:min-w-0 gba:rounded-md gba:border gba:border-warning/20 gba:bg-warning/10 gba:px-2 gba:py-1.5">
+                  <span className="gba:block gba:min-w-0 gba:text-xs gba:text-foreground/70 gba:italic gba:line-clamp-2">
+                    "{slideAnchorSelectedText}"
+                  </span>
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Inline comment reference (legacy; suppressed when a slide anchor is present) */}
+          {!hasSlideAnchor && isInlineComment && comment.selectedText && (
             <button
               onClick={() => onScrollToHighlight?.(comment.id)}
               className="gba:mb-2 gba:w-full gba:min-w-0 gba:rounded-md gba:border gba:border-warning/20 gba:bg-warning/10 gba:p-2 gba:text-left gba:transition-colors hover:gba:bg-warning/20 gba:cursor-pointer"
@@ -232,44 +327,52 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
         </div>
 
         {/* Actions menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              data-testid={`comment-menu-${comment.id}`}
-              className="gba:h-7 gba:w-7 gba:p-0 gba:rounded-full hover:gba:bg-muted"
-            >
-              <MoreVertical className="gba:h-4 gba:w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="left" className="gba:w-48" style={{ zIndex: 1100 }}>
-            {!isResolved && (
-              <DropdownMenuItem onClick={() => setShowReplyInput(!showReplyInput)}>
-                <Reply className="gba:h-4 gba:w-4 gba:mr-2" />
-                {messages.reply}
-              </DropdownMenuItem>
-            )}
-            {isOwnComment && !isResolved && (
-              <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                <Edit2 className="gba:h-4 gba:w-4 gba:mr-2" />
-                {messages.edit}
-              </DropdownMenuItem>
-            )}
-            {!isResolved && (
-              <DropdownMenuItem onClick={handleResolveAndUnhighlight}>
-                <CheckCircle className="gba:h-4 gba:w-4 gba:mr-2" />
-                {messages.resolve}
-              </DropdownMenuItem>
-            )}
-            {isOwnComment && (
-              <DropdownMenuItem onClick={handleDeleteAndUnhighlight} className="gba:text-destructive">
-                <Trash2 className="gba:h-4 gba:w-4 gba:mr-2" />
-                {messages.delete}
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {hasActions ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                data-testid={`comment-menu-${comment.id}`}
+                className="gba:h-7 gba:w-7 gba:p-0 gba:rounded-full hover:gba:bg-muted"
+              >
+                <MoreVertical className="gba:h-4 gba:w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="left" className="gba:w-48" style={{ zIndex: 1100 }}>
+              {canReplyToThread && (
+                <DropdownMenuItem onClick={() => setShowReplyInput(!showReplyInput)}>
+                  <Reply className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {messages.reply}
+                </DropdownMenuItem>
+              )}
+              {canEditThread && (
+                <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                  <Edit2 className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {messages.edit}
+                </DropdownMenuItem>
+              )}
+              {canResolveThread && (
+                <DropdownMenuItem onClick={handleResolveAndUnhighlight}>
+                  <CheckCircle className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {messages.resolve}
+                </DropdownMenuItem>
+              )}
+              {canReopenThread && (
+                <DropdownMenuItem onClick={handleReopen} data-testid={`comment-reopen-${comment.id}`}>
+                  <ArrowCounterClockwiseIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {messages.reopen}
+                </DropdownMenuItem>
+              )}
+              {canDeleteThread && (
+                <DropdownMenuItem onClick={handleDeleteAndUnhighlight} className="gba:text-destructive">
+                  <Trash2 className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {messages.delete}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
       {/* Replies */}
@@ -282,7 +385,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
       )}
 
       {/* Reply input */}
-      {showReplyInput && !isResolved && (
+      {showReplyInput && canReplyToThread && (
         <div className="gba:ml-12 gba:mt-3 gba:min-w-0 gba:border-l-2 gba:border-primary/20 gba:pl-4">
           <CommentEditor
             onSubmit={handleReply}

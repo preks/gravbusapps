@@ -110,6 +110,10 @@ export const InlineCommentPopover: React.FC<InlineCommentPopoverProps> = ({
         left: position.left,
         zIndex: 9999
       }}
+      // Marker so editors that listen for "click outside" can recognize this
+      // popover (rendered above the canvas) as an in-editor surface and not
+      // close inline text editing when the user interacts with it.
+      data-slide-comment-popover="true"
       data-testid={testId}
     >
       <Card className="gba:w-80 gba:p-4 gba:border-warning/50 gba:bg-background gba:shadow-2xl">

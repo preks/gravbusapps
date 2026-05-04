@@ -30,7 +30,10 @@ export const SlideStaticSurface: React.FC<SlideStaticSurfaceProps> = ({
   'data-testid': testId
 }) => {
   const sortedElements = useMemo(
-    () => [...(elements || [])].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
+    () =>
+      (elements || [])
+        .filter(element => Boolean(element?.position && element?.size))
+        .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
     [elements]
   )
 
