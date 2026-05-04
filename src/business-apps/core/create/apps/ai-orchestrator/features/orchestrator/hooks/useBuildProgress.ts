@@ -19,6 +19,7 @@ import type {
   BuildPhase,
   BuildStatus
 } from '../types'
+import { isCompletedBuildStatus } from '../types'
 
 type ComponentUpdateFn = ((id: string, updates: any) => void) | null | undefined
 
@@ -623,12 +624,12 @@ function toTerminalStatusEvent(
   status: BuildJobStatus,
   fallbackErrorMessage: string
 ): BuildProgressEvent | null {
-  if (status.status === 'completed') {
+  if (isCompletedBuildStatus(status.status)) {
     return {
       eventType: 'build_complete',
       jobId,
       timestamp: new Date().toISOString(),
-      status: 'completed',
+      status: status.status,
       message:
         `Build complete: ${status.completedComponents} completed, ` +
         `${status.failedComponents} failed, ${status.skippedComponents || 0} skipped`,

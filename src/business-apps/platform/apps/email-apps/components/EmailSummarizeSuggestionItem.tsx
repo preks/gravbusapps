@@ -259,7 +259,8 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
 
   return (
     <li className={itemShellClass} data-testid={`${testId}-item`}>
-      <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+      <p className={itemTitleClass}>{s.title}</p>
+      <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:pb-1">
         <Badge variant="secondary" className="gba:text-xs" data-testid={`${testId}-type`}>
           {typeLabel}
         </Badge>
@@ -280,7 +281,6 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
         )}
         {messageReference}
       </div>
-      <p className={itemTitleClass}>{s.title}</p>
       {s.details ? <p className={metaClass}>{s.details}</p> : null}
       {detailRows.map(row => (
         <p key={`${testId}-${row.key}`} className={metaClass}>
@@ -298,6 +298,8 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
             noSubjectLabel={createActionContext.noSubjectLabel}
             threadId={createActionContext.threadId}
             initiatorUserId={createActionContext.initiatorUserId}
+            activeAccount={createActionContext.activeAccount}
+            employeeId={createActionContext.employeeId}
             variant={variant}
             data-testid={`${testId}-create`}
           />

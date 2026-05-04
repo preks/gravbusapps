@@ -10,6 +10,7 @@ import {
   type TextElement
 } from '../slideElements'
 import {
+  fontSizePixelsToPoints,
   getCodeFontSizeOptions,
   getCodeLanguageOptions,
   getFontFamilyOptions,
@@ -131,6 +132,32 @@ jest.mock('@newwork/nw-design-system', () => {
     Popover: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     PopoverContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     PopoverTrigger: ({ children }: { children?: React.ReactNode; asChild?: boolean }) => <>{children}</>,
+    DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    DropdownMenuContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    DropdownMenuItem: ({
+      children,
+      onClick,
+      onSelect,
+      ...props
+    }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+      onSelect?: () => void
+    }) => (
+      <button
+        type="button"
+        onClick={event => {
+          onClick?.(event)
+          onSelect?.()
+        }}
+        {...props}
+      >
+        {children}
+      </button>
+    ),
+    DropdownMenuTrigger: ({ children }: { children?: React.ReactNode; asChild?: boolean }) => <>{children}</>,
+    TooltipProvider: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Tooltip: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    TooltipTrigger: ({ children }: { children?: React.ReactNode; asChild?: boolean }) => <>{children}</>,
+    TooltipContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     useTranslation: () => ({
       t: (key: string) => (key === 'editor-mixed' ? 'Mixed' : key)
     })
@@ -203,13 +230,18 @@ function makeShapeElement(overrides: Partial<ShapeElement> = {}): ShapeElement {
   })
 }
 
-function renderToolbar(formatting?: ResolvedTextFormattingState) {
+function renderToolbar(
+  formatting?: ResolvedTextFormattingState,
+  props: Partial<React.ComponentProps<typeof TextFormattingTools>> = {}
+) {
   render(
     <TextFormattingTools
       element={makeTextElement()}
       formatting={formatting}
       onUpdateElement={() => {}}
       onShowLinkDialog={() => {}}
+      testId="toolbar"
+      {...props}
     />
   )
 }
@@ -242,12 +274,22 @@ describe('font picker display', () => {
   })
 
   it('adds imported text and code select values to the available options', () => {
-    expect(getFontSizeOptions(29)[0]).toBe(29)
+    expect(getFontSizeOptions(13.333333333333332)).toContain(10)
     expect(getCodeLanguageOptions('mermaid')[0]).toEqual({
       value: 'mermaid',
       label: 'mermaid'
     })
     expect(getCodeFontSizeOptions(22)[0]).toBe(22)
+  })
+
+  it('normalizes legacy integer px text sizes to clean PowerPoint values', () => {
+    expect(fontSizePixelsToPoints(13)).toBe(10)
+    expect(fontSizePixelsToPoints(21)).toBe(16)
+  })
+
+  it('keeps custom pt-derived values when they are not near a standard preset', () => {
+    expect(fontSizePixelsToPoints(21.6)).toBe(16.2)
+    expect(fontSizePixelsToPoints(23)).toBe(17.25)
   })
 
   it('shows an imported font in the toolbar when the selection resolves to that font', () => {
@@ -263,17 +305,15 @@ describe('font picker display', () => {
   })
 
   it('shows an imported font size in the toolbar when the selection resolves to that size', () => {
-    renderToolbar({ fontSize: 29 })
+    renderToolbar({ fontSize: 13.333333333333332 })
 
-    expect(screen.getByText('29')).toBeInTheDocument()
+    expect(screen.getByTestId('toolbar-font-size-input')).toHaveValue('10')
   })
 
   it('shows an imported font size in the property panel when the selection resolves to that size', () => {
-    renderPropertyPanel(makeTextElement(), { fontSize: 29 })
+    renderPropertyPanel(makeTextElement(), { fontSize: 13.333333333333332 })
 
-    const fontSizeSection = screen.getByText('props-font-size').parentElement
-    expect(fontSizeSection).not.toBeNull()
-    expect(within(fontSizeSection as HTMLElement).getByText('29px')).toBeInTheDocument()
+    expect(screen.getByLabelText('props-font-size')).toHaveValue('10')
   })
 
   it('shows imported code language and size values in the property panel', () => {
@@ -305,17 +345,37 @@ describe('font picker display', () => {
   it('keeps the toolbar font-size control empty for mixed selections', () => {
     renderToolbar({ isFontSizeMixed: true })
 
-    expect(screen.queryByText('Mixed')).not.toBeInTheDocument()
-    expect(screen.queryByText('16')).not.toBeInTheDocument()
+    expect(screen.getByTestId('toolbar-font-size-input')).toHaveValue('')
   })
 
   it('keeps the property panel font-size control empty for mixed selections', () => {
     renderPropertyPanel(makeTextElement(), { isFontSizeMixed: true })
 
-    const fontSizeSection = screen.getByText('props-font-size').parentElement
-    expect(fontSizeSection).not.toBeNull()
-    expect(within(fontSizeSection as HTMLElement).queryByText('Mixed')).not.toBeInTheDocument()
-    expect(within(fontSizeSection as HTMLElement).queryByText('16px')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('props-font-size')).toHaveValue('')
+  })
+
+  it('lets users type a custom toolbar font size in pt and converts it for updates', () => {
+    const onUpdateElement = jest.fn()
+
+    renderToolbar(undefined, { onUpdateElement })
+
+    const input = screen.getByTestId('toolbar-font-size-input')
+    fireEvent.change(input, { target: { value: '17' } })
+    fireEvent.blur(input)
+
+    expect(onUpdateElement).toHaveBeenCalledWith('text-1', expect.objectContaining({ fontSize: 22.6667 }))
+  })
+
+  it('lets users type a custom property-panel font size in pt and converts it for updates', () => {
+    const onUpdate = jest.fn()
+
+    renderPropertyPanel(makeTextElement(), undefined, { onUpdate })
+
+    const input = screen.getByLabelText('props-font-size')
+    fireEvent.change(input, { target: { value: '21' } })
+    fireEvent.blur(input)
+
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ fontSize: 28 }))
   })
 
   it('disables destructive and transform actions for locked-only text selections', () => {
@@ -373,5 +433,37 @@ describe('font picker display', () => {
 
     expect(onUpdate).toHaveBeenCalledWith({ fill: 'transparent', gradient: undefined })
     expect(screen.getByText('props-stroke-color')).toBeInTheDocument()
+  })
+
+  it('sends bullet and numbering commands from the toolbar list controls', () => {
+    const onUpdateElement = jest.fn()
+
+    renderToolbar(undefined, {
+      onUpdateElement
+    })
+
+    fireEvent.click(screen.getByTestId('toolbar-list-bullet-25c6'))
+    expect(onUpdateElement).toHaveBeenCalledWith('text-1', { bulletType: 'bullet', bulletChar: '◆' })
+
+    fireEvent.click(screen.getByTestId('toolbar-list-numbering-romanUcPeriod'))
+    expect(onUpdateElement).toHaveBeenCalledWith('text-1', { bulletType: 'number', numberingStyle: 'romanUcPeriod' })
+  })
+
+  it('sends indent and outdent commands from the toolbar list controls', () => {
+    const onUpdateElement = jest.fn()
+
+    renderToolbar(
+      {
+        bulletType: 'bullet',
+        indentLevel: 1
+      },
+      { onUpdateElement }
+    )
+
+    fireEvent.click(screen.getByTestId('toolbar-list-indent'))
+    expect(onUpdateElement).toHaveBeenCalledWith('text-1', { indentLevel: 2 })
+
+    fireEvent.click(screen.getByTestId('toolbar-list-outdent'))
+    expect(onUpdateElement).toHaveBeenCalledWith('text-1', { indentLevel: 0 })
   })
 })

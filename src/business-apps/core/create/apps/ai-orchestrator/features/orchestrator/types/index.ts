@@ -17,6 +17,7 @@ export type {
   DataModelFieldSpec,
   ComponentSpec
 } from './components'
+export { isCompletedBuildStatus } from './components'
 
 // Build domain types
 export type { BuildStatus, BuildPhase, ClarifyingQuestion, BuildAnalysis, UserSummary, BuildPlan } from './build'

@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import type { Socket } from 'socket.io-client'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import { useCollaboration } from '../../shared/hooks/useCollaboration'
@@ -37,6 +38,7 @@ export interface UseSlideCollaborationReturn {
   themeId: string
   masters: SlideMaster[] | undefined
   participants: DocumentParticipant[]
+  collaborationSocket?: Socket
   isSynced: boolean
   isInitialized: boolean
   awareness: Awareness
@@ -857,6 +859,7 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
     themeId,
     masters,
     participants,
+    collaborationSocket,
     isSynced,
     isInitialized,
     awareness,

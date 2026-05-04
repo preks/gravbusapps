@@ -26,6 +26,7 @@ import ExpensePlanItem from '../expense-plan-item'
 import { PLAN_TYPES } from '../expense-plan/constants/constants'
 import { TITLE_MAX_LENGTH } from '../expense-request/constants/constants'
 import { createSummaryScreenLogObject } from './utils/summaryScreenUtils'
+import { hasEmployeeOrgchartCostCenter } from '@/business-apps/fin/expenses/common/utils/employeeOrgchartCostCenter'
 
 const { Title } = Typography
 
@@ -60,6 +61,11 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
   const [isNextLoading, setIsNextLoading] = useState<boolean>(false)
   const previousScreenRef = React.useRef<string>(currentScreen)
   const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes(PLAN_TYPES.TRIP)
+
+  const missingOrgchartCostCenter = useMemo(
+    () => Boolean(expensePlanData && !hasEmployeeOrgchartCostCenter(expensePlanData.EmployeePosition)),
+    [expensePlanData]
+  )
   // Update title and titleValue when expensePlanData changes
   useEffect(() => {
     if (expensePlanData?.ExpensePlanByPk) {
@@ -736,7 +742,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
-                    (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && false) // TODO: Add validation logic
+                    (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && missingOrgchartCostCenter)
                   }
                   onClick={() => {
                     const isNextScreen =

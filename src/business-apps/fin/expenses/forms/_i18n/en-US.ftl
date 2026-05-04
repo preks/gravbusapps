@@ -134,6 +134,12 @@ missing-sap-wizard-title = Missing SAP number
 missing-sap-wizard-description = The SAP code is missing from your profile. Please contact the Accounting Department to provide the missing data before starting a reimbursement request.
 
 # ============================================
+# Orgchart cost center (request & plan wizards — summary submit)
+# ============================================
+
+missing-orgchart-cost-center-wizard-message = Contact HR Backoffice to assign you a cost center in Orgchart.
+
+# ============================================
 # Trip — start vs first destination (request & plan wizards)
 # ============================================
 

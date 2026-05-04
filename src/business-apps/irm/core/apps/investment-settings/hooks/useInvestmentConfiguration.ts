@@ -149,12 +149,17 @@ export const useInvestmentConfiguration = ({
       }
 
       let requiredSubtypeKey: RequiredSubtypeKey = DEFAULT_REQUIRED_SUBTYPE_KEY
+      const groupSubtype = selectedGroup?.objectValue?.requiredSubtypeKey
       const ownSubtype = selectedEntry.objectValue.requiredSubtypeKey
       const parentSubtype = parentEntry?.objectValue?.requiredSubtypeKey
 
-      if (isRequiredSubtypeKey(ownSubtype)) {
+      if (isRequiredSubtypeKey(groupSubtype)) {
+        requiredSubtypeKey = groupSubtype
+      } else if (isRequiredSubtypeKey(ownSubtype)) {
+        // MIGRATION: older saves may have stored this key on type-level entries.
         requiredSubtypeKey = ownSubtype
-      } else if (inheritanceStatus.formFields && isRequiredSubtypeKey(parentSubtype)) {
+      } else if (isRequiredSubtypeKey(parentSubtype)) {
+        // MIGRATION: older liquid-fund type saves may have inherited this from the type entry.
         requiredSubtypeKey = parentSubtype
       } else {
         const inferred = inferRequiredSubtypeKeyFromFormFields(formFields)
