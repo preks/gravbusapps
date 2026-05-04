@@ -20,6 +20,8 @@ import { EnhancedAbsence } from '../../../../types'
 
 const DATA_TEST_ID_PREFIX = 'BackofficeAbsenceList'
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
+const SORTABLE_HEAD_CLASS =
+  'gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted'
 
 interface AbsenceListTableProps {
   absences: EnhancedAbsence[]
@@ -64,6 +66,148 @@ const renderSortIcon = (field: string, sortField: string, sortOrder: 'ASC' | 'DE
 const formatDateForDisplay = (dateStr: string) => {
   return formatDate(dateStr, 'date.short')
 }
+
+const renderDateWithIcon = (dateStr?: string): React.ReactNode => {
+  if (!dateStr) {
+    return '-'
+  }
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <CalendarIcon size={14} className="gba:text-muted-foreground" />
+      <span className="gba:text-sm">{formatDateForDisplay(dateStr)}</span>
+    </div>
+  )
+}
+
+interface SortableHeaderConfig {
+  id: string
+  widthClass: string
+  sortField: string
+  translationKey: string
+  fallbackLabel: string
+}
+
+const SORTABLE_HEADERS: SortableHeaderConfig[] = [
+  {
+    id: 'employee',
+    widthClass: 'gba:w-1/5',
+    sortField: 'employeeName',
+    translationKey: 'lowcoder:absence_table.employee',
+    fallbackLabel: 'Employee'
+  },
+  {
+    id: 'group',
+    widthClass: 'gba:w-1/6',
+    sortField: 'groupName',
+    translationKey: 'lowcoder:absence_table.group',
+    fallbackLabel: 'Group'
+  },
+  {
+    id: 'start-date',
+    widthClass: 'gba:w-1/12',
+    sortField: 'startDate',
+    translationKey: 'lowcoder:absence_table.start_date',
+    fallbackLabel: 'Start Date'
+  },
+  {
+    id: 'end-date',
+    widthClass: 'gba:w-1/12',
+    sortField: 'endDate',
+    translationKey: 'lowcoder:absence_table.end_date',
+    fallbackLabel: 'End Date'
+  },
+  {
+    id: 'status',
+    widthClass: 'gba:w-1/12',
+    sortField: 'status',
+    translationKey: 'lowcoder:expense_request_list.expense_plan_table.status',
+    fallbackLabel: 'Status'
+  },
+  {
+    id: 'days',
+    widthClass: 'gba:w-16',
+    sortField: 'effectiveDays',
+    translationKey: 'lowcoder:absence_table.days',
+    fallbackLabel: 'Days'
+  },
+  {
+    id: 'created-at',
+    widthClass: 'gba:w-1/6',
+    sortField: 'createdAt',
+    translationKey: 'lowcoder:expense_plan_list.expense_plan_table.create_date',
+    fallbackLabel: 'Created At'
+  }
+]
+
+interface RowColumnConfig {
+  id: string
+  testIdSuffix: string
+  cellClassName: string
+  renderCell: (record: EnhancedAbsence) => React.ReactNode
+}
+
+const DEFAULT_ROW_CELL_CLASS = 'gba:py-4 gba:px-6'
+
+const ROW_COLUMNS: RowColumnConfig[] = [
+  {
+    id: 'employee',
+    testIdSuffix: 'employee',
+    cellClassName: DEFAULT_ROW_CELL_CLASS,
+    renderCell: record => (
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <UserIcon size={16} className="gba:text-muted-foreground" />
+        <span className="gba:font-medium gba:text-sm">{getEmployeeName(record)}</span>
+      </div>
+    )
+  },
+  {
+    id: 'group',
+    testIdSuffix: 'group',
+    cellClassName: DEFAULT_ROW_CELL_CLASS,
+    renderCell: record => (
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <span
+          className="gba:h-2 gba:w-2 gba:shrink-0 gba:rounded-full"
+          style={{ backgroundColor: getColorForAbsence(record) }}
+        />
+        <span className="gba:text-sm">{record.groupName}</span>
+      </div>
+    )
+  },
+  {
+    id: 'start-date',
+    testIdSuffix: 'start-date',
+    cellClassName: DEFAULT_ROW_CELL_CLASS,
+    renderCell: record => renderDateWithIcon(record.startDate)
+  },
+  {
+    id: 'end-date',
+    testIdSuffix: 'end-date',
+    cellClassName: DEFAULT_ROW_CELL_CLASS,
+    renderCell: record => renderDateWithIcon(record.endDate)
+  },
+  {
+    id: 'status',
+    testIdSuffix: 'status',
+    cellClassName: DEFAULT_ROW_CELL_CLASS,
+    renderCell: record => (
+      <Badge variant={getStatusBadgeVariant(record.status)}>{getTranslatedStatus(record.status)}</Badge>
+    )
+  },
+  {
+    id: 'days',
+    testIdSuffix: 'days',
+    cellClassName: DEFAULT_ROW_CELL_CLASS,
+    renderCell: record => <span className="gba:text-sm gba:font-medium">{record.effectiveDays || '-'}</span>
+  },
+  {
+    id: 'created',
+    testIdSuffix: 'created',
+    cellClassName: DEFAULT_ROW_CELL_CLASS,
+    renderCell: record => renderDateWithIcon(record.createdAt)
+  }
+]
 
 interface RowsPerPageSelectProps {
   pageSize: number
@@ -174,75 +318,18 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
             <TableHeader>
               <TableRow className="gba:border-b gba:bg-muted">
-                <TableHead
-                  className="gba:w-1/5 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
-                  onClick={() => onSort('employeeName')}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee')}
-                    {renderSortIcon('employeeName', sortField, sortOrder)}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-1/6 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
-                  onClick={() => onSort('groupName')}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.group', 'Group')}
-                    {renderSortIcon('groupName', sortField, sortOrder)}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
-                  onClick={() => onSort('startDate')}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')}
-                    {renderSortIcon('startDate', sortField, sortOrder)}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
-                  onClick={() => onSort('endDate')}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
-                    {renderSortIcon('endDate', sortField, sortOrder)}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
-                  onClick={() => onSort('status')}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_list.expense_plan_table.status',
-                      'Status'
-                    )}
-                    {renderSortIcon('status', sortField, sortOrder)}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-16 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
-                  onClick={() => onSort('effectiveDays')}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.days', 'Days')}
-                    {renderSortIcon('effectiveDays', sortField, sortOrder)}
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="gba:w-1/6 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
-                  onClick={() => onSort('createdAt')}
-                >
-                  <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_plan_list.expense_plan_table.create_date',
-                      'Created At'
-                    )}
-                    {renderSortIcon('createdAt', sortField, sortOrder)}
-                  </div>
-                </TableHead>
+                {SORTABLE_HEADERS.map(header => (
+                  <TableHead
+                    key={header.id}
+                    className={`${header.widthClass} ${SORTABLE_HEAD_CLASS}`}
+                    onClick={() => onSort(header.sortField)}
+                  >
+                    <div className="gba:flex gba:items-center">
+                      {getTranslationFromI18nKeyAndLabel(header.translationKey, header.fallbackLabel)}
+                      {renderSortIcon(header.sortField, sortField, sortOrder)}
+                    </div>
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -257,80 +344,15 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   }}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-employee-cell-${record.id}`}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <UserIcon size={16} className="gba:text-muted-foreground" />
-                        <span className="gba:font-medium gba:text-sm">{getEmployeeName(record)}</span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-group-cell-${record.id}`}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <span
-                        className="gba:h-2 gba:w-2 gba:shrink-0 gba:rounded-full"
-                        style={{ backgroundColor: getColorForAbsence(record) }}
-                      />
-                      <span className="gba:text-sm">{record.groupName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-start-date-cell-${record.id}`}
-                  >
-                    {record.startDate ? (
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <CalendarIcon size={14} className="gba:text-muted-foreground" />
-                        <span className="gba:text-sm">{formatDateForDisplay(record.startDate)}</span>
-                      </div>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-end-date-cell-${record.id}`}
-                  >
-                    {record.endDate ? (
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <CalendarIcon size={14} className="gba:text-muted-foreground" />
-                        <span className="gba:text-sm">{formatDateForDisplay(record.endDate)}</span>
-                      </div>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
-                  >
-                    <Badge variant={getStatusBadgeVariant(record.status)}>{getTranslatedStatus(record.status)}</Badge>
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-days-cell-${record.id}`}
-                  >
-                    <span className="gba:text-sm gba:font-medium">{record.effectiveDays || '-'}</span>
-                  </TableCell>
-                  <TableCell
-                    className="gba:py-4 gba:px-6"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-created-cell-${record.id}`}
-                  >
-                    {record.createdAt ? (
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <CalendarIcon size={14} className="gba:text-muted-foreground" />
-                        <span className="gba:text-sm">{formatDateForDisplay(record.createdAt)}</span>
-                      </div>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
+                  {ROW_COLUMNS.map(column => (
+                    <TableCell
+                      key={`${column.id}-${record.id}`}
+                      className={column.cellClassName}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-${column.testIdSuffix}-cell-${record.id}`}
+                    >
+                      {column.renderCell(record)}
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))}
             </TableBody>
