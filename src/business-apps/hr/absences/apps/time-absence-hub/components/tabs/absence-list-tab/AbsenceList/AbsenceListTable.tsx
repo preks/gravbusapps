@@ -83,7 +83,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
         <CardContent className="gba:flex gba:items-center gba:justify-center gba:py-8">
           <div className="gba:text-center">
             <p className="gba:text-destructive gba:mb-2">{error.message}</p>
-            <Button onClick={() => window.location.reload()}>
+            <Button onClick={() => globalThis.window.location.reload()}>
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.absence_list.retry',
                 'Retry'
@@ -326,7 +326,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                       'Go to first page'
                     )}
                   </span>
-                  «
+                  <span aria-hidden="true">«</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -342,7 +342,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                       'Go to previous page'
                     )}
                   </span>
-                  ‹
+                  <span aria-hidden="true">‹</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -358,7 +358,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                       'Go to next page'
                     )}
                   </span>
-                  ›
+                  <span aria-hidden="true">›</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -374,7 +374,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                       'Go to last page'
                     )}
                   </span>
-                  »
+                  <span aria-hidden="true">»</span>
                 </Button>
               </div>
             </div>

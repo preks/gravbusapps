@@ -153,9 +153,9 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
               }
             }))
 
-          const employeeIds = employees.map(emp => emp.id)
+          const employeeIdSet = new Set(employees.map(emp => emp.id))
           absences = allAbsences.filter(
-            (absence: any) => absence?.employee?.id && employeeIds.includes(absence.employee.id)
+            (absence: any) => absence?.employee?.id && employeeIdSet.has(absence.employee.id)
           )
         }
 

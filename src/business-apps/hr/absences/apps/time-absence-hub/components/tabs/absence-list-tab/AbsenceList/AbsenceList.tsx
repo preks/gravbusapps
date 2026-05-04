@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../../common/utils/windowUtils'
 import { AbsenceListTable } from './AbsenceListTable'
-import { EnhancedAbsence } from '../../../../types'
+import type { EnhancedAbsence } from '../../../../types'
 import { useAbsenceFilters, useAbsenceData } from '../../../../hooks'
 
 interface AbsenceListProps extends BusinessAppContextProps {
@@ -13,7 +13,6 @@ interface AbsenceListProps extends BusinessAppContextProps {
     department?: string
     departmentId?: string
   }
-  preFilteredData?: EnhancedAbsence[]
   headerAction?: React.ReactNode
   onDataChange?: (data: {
     absences: EnhancedAbsence[]

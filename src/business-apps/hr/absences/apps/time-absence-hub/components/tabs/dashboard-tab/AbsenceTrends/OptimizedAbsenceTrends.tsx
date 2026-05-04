@@ -61,16 +61,13 @@ const getMonthTranslation = (monthName: string): string => {
 }
 
 const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTypes, getTypeColor, monthAggMap }) => {
-  if (!(active && payload && payload.length > 0)) return null
+  if (!active || !payload?.length) return null
   const monthData = payload[0].payload
   const serverAgg = monthAggMap?.[String(label)] || null
-  const totalForMonth = serverAgg?.totalRequests != null ? serverAgg.totalRequests : monthData.total || 0
-  const avgReqPerEmp =
-    serverAgg?.avgRequestsPerEmployee != null ? serverAgg.avgRequestsPerEmployee : monthData.trendLine || 0
-  const avgDaysPerReq =
-    serverAgg?.avgDaysPerRequest != null ? serverAgg.avgDaysPerRequest : monthData.avgDurationPerRequest || 0
-  const distinctEmployees =
-    serverAgg?.distinctEmployees != null ? serverAgg.distinctEmployees : monthData.uniqueEmployees || 0
+  const totalForMonth = serverAgg?.totalRequests ?? monthData.total ?? 0
+  const avgReqPerEmp = serverAgg?.avgRequestsPerEmployee ?? monthData.trendLine ?? 0
+  const avgDaysPerReq = serverAgg?.avgDaysPerRequest ?? monthData.avgDurationPerRequest ?? 0
+  const distinctEmployees = serverAgg?.distinctEmployees ?? monthData.uniqueEmployees ?? 0
 
   return (
     <div className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow">
@@ -174,20 +171,20 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
       }
 
       orderedTypes.forEach(type => {
-        chartItem[type] = monthData.typeBreakdown[type] || 0
+        chartItem[type] = monthData.typeBreakdown[type] ?? 0
       })
 
       return chartItem
     })
 
     const trendData = chartItems.map(item => {
-      const avgPerEmployee = item.avgRequestsPerEmployee || 0
+      const avgPerEmployee = item.avgRequestsPerEmployee ?? 0
 
       return {
         ...item,
         trendLine: avgPerEmployee,
-        avgDurationPerRequest: item.avgDurationPerRequest || 0,
-        uniqueEmployees: item.uniqueEmployees || 0
+        avgDurationPerRequest: item.avgDurationPerRequest ?? 0,
+        uniqueEmployees: item.uniqueEmployees ?? 0
       }
     })
 
