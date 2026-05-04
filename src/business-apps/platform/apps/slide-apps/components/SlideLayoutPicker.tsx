@@ -124,7 +124,7 @@ function LayoutElementPreview({ element }: { element: AnySlideElement }) {
           padding: el.padding || 0
         }}
       >
-        {el.content}
+        {el.content || el.placeholderText}
       </div>
     )
   }

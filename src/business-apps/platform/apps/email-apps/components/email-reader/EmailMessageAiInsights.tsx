@@ -10,11 +10,13 @@ import { Loader2 } from 'lucide-react'
 import translations from '../../_i18n'
 import { EmailSummarizeSuggestions } from '../EmailSummarizeSuggestions'
 import { EmailApiService } from '../../services/EmailApiService'
-import type { EmailMessage, EmailSummarizeSuggestion } from '../../types'
+import type { EmailAccount, EmailMessage, EmailSummarizeSuggestion } from '../../types'
 
 interface EmailMessageAiInsightsProps {
   message: EmailMessage
   accessToken: string
+  activeAccount?: EmailAccount | null
+  employeeId?: string
   initiatorUserId?: string
   'data-testid'?: string
 }
@@ -22,6 +24,8 @@ interface EmailMessageAiInsightsProps {
 export const EmailMessageAiInsights: React.FC<EmailMessageAiInsightsProps> = ({
   message,
   accessToken,
+  activeAccount,
+  employeeId,
   initiatorUserId,
   'data-testid': testId = 'email-message-ai-insights'
 }) => {
@@ -132,15 +136,19 @@ export const EmailMessageAiInsights: React.FC<EmailMessageAiInsightsProps> = ({
               message,
               accessToken,
               noSubjectLabel: t('reader-no-subject'),
-              initiatorUserId
+              initiatorUserId,
+              activeAccount,
+              employeeId
+            }}
+            crmRecordingContext={{
+              message,
+              accessToken,
+              activeAccount,
+              employeeId,
+              aiSummary: summary
             }}
             data-testid={`${testId}-suggestions`}
           />
-          {suggestions.length === 0 && (summary ?? '').trim().length === 0 ? (
-            <p className="gba:text-xs gba:text-muted-foreground gba:italic" data-testid={`${testId}-empty`}>
-              {t('reader-ai-insights-empty')}
-            </p>
-          ) : null}
         </div>
       )}
     </div>

@@ -351,19 +351,19 @@ editor-placeholder-subtitle = Apăsați pentru a adăuga subtitlul
 editor-code-placeholder = // Codul dvs. aici
 
 # Conținut substituent pentru layout-uri
-layout-presentation-title = Titlul prezentării
-layout-section-title = Titlul secțiunii
-layout-section-description = Descriere sau context pentru această secțiune
-layout-key-points = Primul punct cheie\nAl doilea punct cheie\nAl treilea punct cheie
-layout-left-column-points = Coloana stângă punct 1\nColoana stângă punct 2\nColoana stângă punct 3
-layout-right-column-points = Coloana dreaptă punct 1\nColoana dreaptă punct 2\nColoana dreaptă punct 3
-layout-strengths = Punct forte unu\nPunct forte doi\nPunct forte trei
-layout-main-content-points = Conținut principal punct 1\nConținut principal punct 2\nConținut principal punct 3
-layout-caption-text = Adăugați o legendă sau context suplimentar pentru conținutul principal.
-layout-image-caption = Legenda imaginii
-layout-image-description = Adăugați o descriere pentru imaginea afișată în stânga.
-layout-option-a = Opțiunea A
-layout-option-b = Opțiunea B
+layout-presentation-title = Apăsați pentru a adăuga titlul
+layout-section-title = Apăsați pentru a adăuga titlul secțiunii
+layout-section-description = Apăsați pentru a adăuga descrierea secțiunii
+layout-key-points = Apăsați pentru a adăuga text\nApăsați pentru a adăuga text\nApăsați pentru a adăuga text
+layout-left-column-points = Apăsați pentru a adăuga text\nApăsați pentru a adăuga text\nApăsați pentru a adăuga text
+layout-right-column-points = Apăsați pentru a adăuga text\nApăsați pentru a adăuga text\nApăsați pentru a adăuga text
+layout-strengths = Apăsați pentru a adăuga text\nApăsați pentru a adăuga text\nApăsați pentru a adăuga text
+layout-main-content-points = Apăsați pentru a adăuga text\nApăsați pentru a adăuga text\nApăsați pentru a adăuga text
+layout-caption-text = Apăsați pentru a adăuga legenda sau textul de suport
+layout-image-caption = Apăsați pentru a adăuga legenda
+layout-image-description = Apăsați pentru a adăuga descrierea imaginii
+layout-option-a = Apăsați pentru a adăuga un titlu
+layout-option-b = Apăsați pentru a adăuga un titlu
 layout-image-alt = Apăsați pentru a adăuga o imagine
 layout-name-title-slide = Diapozitiv cu titlu
 layout-name-title-content = Titlu și conținut
@@ -480,6 +480,7 @@ manage-load-failed = Încărcare partajări eșuată
 
 # Header Actions
 header-locked = Blocat
+header-comments = Comentarii
 header-slide = Slide
 header-version-history = Istoric versiuni
 header-save-checkpoint = Salvare checkpoint
@@ -487,6 +488,7 @@ header-unlock-slide = Deblocare slide
 header-lock-slide = Blocare slide
 header-share = Partajare...
 header-manage-access = Gestionare acces...
+editor-comments-disabled-view = Puteți vedea comentariile, dar doar utilizatorii cu drept de comentare sau editare pot adăuga altele noi.
 
 # Generate Presentation
 generate-title = Generare prezentare

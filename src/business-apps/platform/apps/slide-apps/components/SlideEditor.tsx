@@ -32,7 +32,8 @@ import {
   CopyPlus,
   X,
   PanelRight,
-  Image as ImageIcon
+  Image as ImageIcon,
+  MessageSquare
 } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import { toast } from 'sonner'
@@ -46,6 +47,7 @@ import { PropertyPanel } from './PropertyPanel'
 import { CollaboratorCursors } from './CollaboratorCursors'
 import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
 import { AutoSaveIndicator } from '../../shared/components/AutoSaveIndicator'
+import { CommentPanel } from '../../shared/components/CommentPanel'
 import { SlideEditorHeaderActions } from './editor/SlideEditorHeaderActions'
 import { SLIDE_THEMES, getThemeById } from './slideThemes'
 import { SlideToolbarRibbon } from './toolbar'
@@ -53,6 +55,7 @@ import { useToolbarContext, type ToolbarContext } from '../hooks/useToolbarConte
 import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
 import { clearImageObjectUrlCache } from '../hooks/useImageObjectUrls'
 import { clearResolvedSlideMediaUrlCache } from '../hooks/useResolvedSlideMediaUrl'
+import { useComments } from '../../shared/hooks/useComments'
 import { usePresentationCast, type CastSlideData } from '../hooks/usePresentationCast'
 import { useEffectManager } from '../hooks/useEffectManager'
 import { useSpeechMatcher, type MatchResult, type VideoTriggerResult } from '../hooks/useSpeechMatcher'
@@ -105,8 +108,15 @@ import { useVoiceInput } from '../../shared'
 import { useSlideSpellCheck } from '../hooks/useSlideSpellCheck'
 import { useSlideTransition } from '../hooks/useSlideTransition'
 import type { SlideAnnotation } from '../types/slideSpellCheck'
+import type {
+  Comment,
+  CommentQueryOptions,
+  CreateCommentInput,
+  SlideCommentAnchor
+} from '../../shared/types/versioning'
 import { exportToPptx } from '../utils/exportUtils'
 import { adjustLinksAfterEdit, detectUrls, mergeLinks } from '../utils/linkUtils'
+import { describeSlideCommentTarget } from '../utils/slideCommentAnchors'
 import translations from '../_i18n'
 import {
   alignElements,
@@ -182,12 +192,29 @@ type PendingCaretFormatting = {
   formatting: RichTextFormattingUpdate
 }
 
+type PendingSlideCommentAnchor = Pick<
+  CreateCommentInput,
+  'type' | 'selectionStart' | 'selectionEnd' | 'selectedText' | 'slideAnchorData'
+>
+
+type RestoredCommentSelection = {
+  elementId: string
+  range: RichTextSelectionRange
+}
+
 type ActiveLinkTarget =
   | { id: string; kind: 'text'; mode: 'inline' | 'object'; value: TextElement }
   | { id: string; kind: 'shape'; mode: 'inline'; value: ShapeInText }
 
 function paragraphHasVisibleText(paragraph: RichTextParagraph): boolean {
   return paragraph.runs.some(run => run.text.trim().length > 0)
+}
+
+function sortRichTextSelectionRange(range: RichTextSelectionRange): RichTextSelectionRange {
+  return {
+    start: Math.min(range.start, range.end),
+    end: Math.max(range.start, range.end)
+  }
 }
 
 function shouldRehydrateForListMarkerState(
@@ -312,7 +339,8 @@ function createDefaultSlide(t: (k: string) => string): SlideData {
     elements: [
       createTextElement({
         id: 'title-1',
-        content: t('editor-placeholder-title'),
+        content: '',
+        placeholderText: t('editor-placeholder-title'),
         position: { x: 80, y: 80 },
         size: { width: 1120, height: 100 },
         fontSize: 64,
@@ -322,7 +350,8 @@ function createDefaultSlide(t: (k: string) => string): SlideData {
       }),
       createTextElement({
         id: 'subtitle-1',
-        content: t('editor-placeholder-subtitle'),
+        content: '',
+        placeholderText: t('editor-placeholder-subtitle'),
         position: { x: 80, y: 200 },
         size: { width: 1120, height: 60 },
         fontSize: 32,
@@ -334,22 +363,46 @@ function createDefaultSlide(t: (k: string) => string): SlideData {
   }
 }
 
-function normalizeSlideData(slide: Partial<SlideData> | undefined, fallbackId: string): SlideData {
+function normalizePlaceholderSeed(element: AnySlideElement, placeholderTexts: Set<string>): AnySlideElement {
+  if (element.type !== 'text') return element
+  if (element.placeholderText || !placeholderTexts.has(element.content)) return element
+
+  return {
+    ...element,
+    content: '',
+    paragraphs: undefined,
+    placeholderText: element.content
+  }
+}
+
+function normalizeSlideData(
+  slide: Partial<SlideData> | undefined,
+  fallbackId: string,
+  placeholderTexts: Set<string>
+): SlideData {
   return {
     id: slide?.id || fallbackId,
     notes: slide?.notes || '',
-    elements: Array.isArray(slide?.elements) ? slide.elements : [],
+    elements: Array.isArray(slide?.elements)
+      ? slide.elements.map(element => normalizePlaceholderSeed(element, placeholderTexts))
+      : [],
     background: slide?.background || { type: 'solid', color: '#ffffff' },
     ...(slide?.transition ? { transition: slide.transition } : {})
   }
 }
 
-function normalizeSlidesData(slides: Partial<SlideData>[] | undefined, fallbackSlide: SlideData): SlideData[] {
+function normalizeSlidesData(
+  slides: Partial<SlideData>[] | undefined,
+  fallbackSlide: SlideData,
+  placeholderTexts: Set<string>
+): SlideData[] {
   if (!Array.isArray(slides) || slides.length === 0) {
     return [fallbackSlide]
   }
 
-  return slides.map((slide, index) => normalizeSlideData(slide, slide?.id || `${fallbackSlide.id}-${index}`))
+  return slides.map((slide, index) =>
+    normalizeSlideData(slide, slide?.id || `${fallbackSlide.id}-${index}`, placeholderTexts)
+  )
 }
 
 export const SlideEditor: React.FC<SlideEditorProps> = ({
@@ -367,6 +420,29 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const defaultSlide = useMemo(() => createDefaultSlide(t), [t])
+  const seededPlaceholderTexts = useMemo(
+    () =>
+      new Set(
+        [
+          'editor-placeholder-title',
+          'editor-placeholder-subtitle',
+          'layout-presentation-title',
+          'layout-section-title',
+          'layout-section-description',
+          'layout-key-points',
+          'layout-left-column-points',
+          'layout-right-column-points',
+          'layout-strengths',
+          'layout-main-content-points',
+          'layout-caption-text',
+          'layout-image-caption',
+          'layout-image-description',
+          'layout-option-a',
+          'layout-option-b'
+        ].map(key => t(key).replace(/\\n/g, '\n'))
+      ),
+    [t]
+  )
 
   // Get user info (BusinessAppContext userInfo does NOT provide displayName/pictureThumbnail)
   const currentUserId = userInfo?.id || ''
@@ -377,14 +453,19 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     return full || userInfo?.userName || currentUserId || t('editor-user-fallback')
   }, [currentUserId, userInfo, t])
 
+  useEffect(() => {
+    SlidesApiService.setAccessToken(accessToken || null)
+  }, [accessToken])
+
   const graphqlClient = useGraphQLClient(accessToken || '')
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined)
   const collaborationEnabled = Boolean(slideId) && !isTrashedSlide
 
   // Prepare initial data from slide prop (used for bootstrap initializer / pre-sync rendering).
   const initialSlides = useMemo(
-    () => normalizeSlidesData(slide.contentJson?.slides as SlideData[] | undefined, defaultSlide),
-    [slide.contentJson?.slides, defaultSlide]
+    () =>
+      normalizeSlidesData(slide.contentJson?.slides as SlideData[] | undefined, defaultSlide, seededPlaceholderTexts),
+    [slide.contentJson?.slides, defaultSlide, seededPlaceholderTexts]
   )
   const initialThemeId = useMemo(
     () => (slide.contentJson?.themeId as string | undefined) || SLIDE_THEMES[0].id,
@@ -405,6 +486,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     slides: collaborativeSlides,
     themeId: collaborativeThemeId,
     participants,
+    collaborationSocket,
     isSynced,
     isInitialized,
     awareness,
@@ -535,6 +617,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [showSpellCheckPanel, setShowSpellCheckPanel] = useState(false)
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [activeTextSelection, setActiveTextSelection] = useState<RichTextSelectionRange | null>(null)
+  const [restoredCommentSelection, setRestoredCommentSelection] = useState<RestoredCommentSelection | null>(null)
   const [activeRichTextDraft, setActiveRichTextDraft] = useState<ActiveRichTextDraft | null>(null)
   const [pendingCaretFormatting, setPendingCaretFormatting] = useState<PendingCaretFormatting | null>(null)
   const [richTextEditorRehydrateToken, setRichTextEditorRehydrateToken] = useState(0)
@@ -548,6 +631,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [presentScale, setPresentScale] = useState(1)
 
   const [canvasScale, setCanvasScale] = useState(DEFAULT_CANVAS_SCALE)
+  const [autoFitZoom, setAutoFitZoom] = useState(true)
+  const workspaceRef = useRef<HTMLDivElement>(null)
   const [showImageDialog, setShowImageDialog] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [showVideoDialog, setShowVideoDialog] = useState(false)
@@ -556,6 +641,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [showRenameDialog, setShowRenameDialog] = useState(false)
   const [showLinkDialog, setShowLinkDialog] = useState(false)
   const [showPdfExportDialog, setShowPdfExportDialog] = useState(false)
+  const [showCommentsPanel, setShowCommentsPanel] = useState(false)
   const [showNotesPanel, setShowNotesPanel] = useState(false)
   const [presenterMode, setPresenterMode] = useState(false)
   const [presentationTitle, setPresentationTitle] = useState(slide.title)
@@ -570,6 +656,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const presentationContainerRef = useRef<HTMLDivElement>(null)
   const thumbnailRefs = useRef<(HTMLDivElement | null)[]>([])
   const canvasContainerRef = useRef<HTMLDivElement>(null)
+  const panelCommentAnchorRef = useRef<PendingSlideCommentAnchor | null>(null)
+  const pendingCommentNavigationRef = useRef<SlideCommentAnchor | null>(null)
 
   // Voice input state
   const voiceBaseContentRef = useRef<string>('')
@@ -704,8 +792,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Always render from collaboration state (it is seeded immediately from initial content).
   const slides = useMemo(() => {
-    return normalizeSlidesData(collaborativeSlides, defaultSlide)
-  }, [collaborativeSlides, defaultSlide])
+    return normalizeSlidesData(collaborativeSlides, defaultSlide, seededPlaceholderTexts)
+  }, [collaborativeSlides, defaultSlide, seededPlaceholderTexts])
 
   const currentSlideIndex = useMemo(() => {
     const index = slides.findIndex(s => s.id === currentSlideId)
@@ -878,7 +966,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const currentSlideRaw = slides[currentSlideIndex] || defaultSlide
-  const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id)
+  const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id, seededPlaceholderTexts)
 
   /** Allowed preview URL only (no DOMPurify). Actual `src` is set in layout effect so SAST does not flag `src={state}`. */
   const slideBackgroundVideoPreviewSrc = useMemo(() => {
@@ -916,6 +1004,40 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   }, [slideBackgroundVideoPreviewSrc])
 
+  // Auto-fit zoom: keep the entire slide visible whenever the workspace or
+  // slide size changes, similar to PowerPoint's "Fit to Window" default.
+  // Disabled as soon as the user manually changes the zoom.
+  const slideCanvasWidth = currentSlide?.canvasSize?.width ?? 1280
+  const slideCanvasHeight = currentSlide?.canvasSize?.height ?? 720
+
+  useLayoutEffect(() => {
+    if (!autoFitZoom) return
+    const el = workspaceRef.current
+    if (!el) return
+
+    // Workspace has gba:p-4 md:gba:p-8 (16px/32px). Reserve a bit of breathing room.
+    const FIT_PADDING = 32
+
+    const computeFitScale = () => {
+      const rect = el.getBoundingClientRect()
+      const availableWidth = Math.max(0, rect.width - FIT_PADDING * 2)
+      const availableHeight = Math.max(0, rect.height - FIT_PADDING * 2)
+      if (availableWidth <= 0 || availableHeight <= 0) return
+      const scaleW = availableWidth / slideCanvasWidth
+      const scaleH = availableHeight / slideCanvasHeight
+      const next = Math.min(scaleW, scaleH)
+      const clamped = Math.max(0.1, Math.min(3, next))
+      setCanvasScale(prev => (Math.abs(prev - clamped) < 0.005 ? prev : clamped))
+    }
+
+    computeFitScale()
+
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => computeFitScale())
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [autoFitZoom, slideCanvasWidth, slideCanvasHeight])
+
   // For property panel, use the first selected element when multiple are selected
   const selectedElementId = selectedElementIds.size > 0 ? [...selectedElementIds][0] : null
   const selectedElement = currentSlide.elements.find(e => e.id === selectedElementId) || null
@@ -952,6 +1074,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       storePendingCaretFormatting(null)
       setEditingTextId(null)
       setActiveTextSelection(null)
+      setRestoredCommentSelection(null)
     }
     if (editingPointsId && !currentElementIds.has(editingPointsId)) {
       setEditingPointsId(null)
@@ -1177,9 +1300,16 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   }, [editorIsSynced, lastSaveTime])
 
+  const slidePermission = slide.permission ?? 'view'
+  const hasEditPermission = slidePermission === 'edit' || slidePermission === 'owner' || slidePermission === 'admin'
+  const canReadComments = Boolean(slideId && accessToken) && !isTrashedSlide
+  const canCreateComments = canReadComments && slidePermission !== 'view'
+  const isEditorReadOnly = isReadOnly || !hasEditPermission
+  const canEdit = !isEditorReadOnly && editorIsSynced && editorIsInitialized
+
   const handleSave = useCallback(
     async (silent = false) => {
-      if (isReadOnly) return
+      if (isEditorReadOnly) return
       if (!silent) setIsSaving(true)
       try {
         if (!editorIsSynced || !editorIsInitialized) {
@@ -1195,10 +1325,107 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         if (!silent) setIsSaving(false)
       }
     },
-    [editorIsInitialized, editorIsSynced, flushPendingUpdates, isReadOnly, t]
+    [editorIsInitialized, editorIsSynced, flushPendingUpdates, isEditorReadOnly, t]
   )
 
-  const canEdit = !isReadOnly && editorIsSynced && editorIsInitialized
+  const commentApiService = useMemo(() => {
+    if (!canReadComments) {
+      return undefined
+    }
+
+    return {
+      createComment: (id: string, input: CreateCommentInput) => SlidesApiService.createComment(id, input),
+      listComments: (id: string, options?: CommentQueryOptions) => SlidesApiService.listComments(id, options),
+      updateComment: (commentId: string, updates: Partial<Comment>) =>
+        SlidesApiService.updateComment(commentId, updates),
+      resolveComment: (commentId: string) => SlidesApiService.resolveComment(commentId),
+      deleteComment: (commentId: string) => SlidesApiService.deleteComment(commentId),
+      replyToComment: (commentId: string, reply: string, userName?: string, userAvatar?: string) =>
+        SlidesApiService.replyToComment(commentId, reply, userName, userAvatar)
+    }
+  }, [canReadComments])
+
+  const comments = useComments({
+    entityId: slideId,
+    entityType: 'slide',
+    socket: commentApiService ? collaborationSocket : null,
+    apiService: commentApiService,
+    t
+  })
+
+  const createSlideCommentAnchor = useCallback((): PendingSlideCommentAnchor => {
+    if (editingTextId && activeEditingTextElement) {
+      const sortedSelection = activeTextSelection ? sortRichTextSelectionRange(activeTextSelection) : null
+      const hasExpandedSelection = !!sortedSelection && sortedSelection.start !== sortedSelection.end
+      const selectedText = hasExpandedSelection
+        ? getRichTextTextInRange(activeEditingTextElement, sortedSelection).trim()
+        : ''
+
+      if (hasExpandedSelection && selectedText) {
+        return {
+          type: 'selection',
+          selectionStart: sortedSelection.start,
+          selectionEnd: sortedSelection.end,
+          selectedText,
+          slideAnchorData: {
+            kind: 'text-range',
+            slideId: currentSlide.id,
+            elementId: editingTextId,
+            start: sortedSelection.start,
+            end: sortedSelection.end,
+            selectedText
+          }
+        }
+      }
+    }
+
+    const elementIds = (editingTextId ? [editingTextId] : [...selectedElementIds]).filter(elementId =>
+      currentSlide.elements.some(element => element.id === elementId)
+    )
+
+    if (elementIds.length > 0) {
+      return {
+        type: 'selection',
+        selectedText: describeSlideCommentTarget(currentSlide, elementIds),
+        slideAnchorData: {
+          kind: 'element',
+          slideId: currentSlide.id,
+          elementIds
+        }
+      }
+    }
+
+    return {
+      type: 'document',
+      slideAnchorData: {
+        kind: 'slide',
+        slideId: currentSlide.id
+      }
+    }
+  }, [activeEditingTextElement, activeTextSelection, currentSlide, editingTextId, selectedElementIds])
+
+  const syncPanelCommentAnchor = useCallback(() => {
+    panelCommentAnchorRef.current = createSlideCommentAnchor()
+  }, [createSlideCommentAnchor])
+
+  const handleCommentCreate = useCallback(
+    async (content: string, parentId?: string, userName?: string, userAvatar?: string) => {
+      if (parentId) {
+        await comments.replyToComment(parentId, content, userName, userAvatar)
+        return
+      }
+
+      const anchorInput = panelCommentAnchorRef.current ?? createSlideCommentAnchor()
+      await comments.createComment({
+        ...anchorInput,
+        content,
+        createdByName: userName,
+        createdByAvatar: userAvatar
+      })
+      panelCommentAnchorRef.current = null
+    },
+    [comments, createSlideCommentAnchor]
+  )
 
   // Spell check hook for presentation-wide grammar/spelling checks
   const spellCheck = useSlideSpellCheck(slides, {
@@ -2081,7 +2308,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           elements: [
             createTextElement({
               id: `title-${Date.now()}`,
-              content: t('editor-new-slide'),
+              content: '',
+              placeholderText: t('editor-placeholder-title'),
               position: { x: 80, y: 280 },
               size: { width: 1120, height: 100 },
               fontSize: 64,
@@ -2455,6 +2683,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const handleActiveTextSelectionChange = useCallback(
     (range: RichTextSelectionRange | null) => {
       setActiveTextSelection(range)
+      setRestoredCommentSelection(currentRestore => {
+        if (!currentRestore || currentRestore.elementId !== editingTextIdRef.current || !range) {
+          return currentRestore
+        }
+
+        const nextRange = sortRichTextSelectionRange(range)
+        const restoredRange = sortRichTextSelectionRange(currentRestore.range)
+        const matchesRestoredRange = nextRange.start === restoredRange.start && nextRange.end === restoredRange.end
+
+        return matchesRestoredRange ? null : currentRestore
+      })
 
       const pendingFormatting = pendingCaretFormattingRef.current
       if (!pendingFormatting || pendingFormatting.id !== editingTextIdRef.current) {
@@ -2475,7 +2714,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const handleEditText = useCallback(
-    (id: string) => {
+    (id: string, selectionToRestore?: RichTextSelectionRange | null) => {
       if (!canEdit) return
       const element = currentSlide.elements.find(currentElement => currentElement.id === id)
       if (!element || element.locked) return
@@ -2492,6 +2731,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       editingTextIdRef.current = id
       lastObservedEditingTargetSnapshotRef.current = null
       setActiveTextSelection(null)
+      setRestoredCommentSelection(
+        selectionToRestore
+          ? {
+              elementId: id,
+              range: sortRichTextSelectionRange(selectionToRestore)
+            }
+          : null
+      )
       setEditingTextId(id)
     },
     [canEdit, currentSlide.elements, storeActiveRichTextDraft, storePendingCaretFormatting]
@@ -2514,6 +2761,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     preservePendingCaretFormattingRef.current = false
     setEditingTextId(null)
     setActiveTextSelection(null)
+    setRestoredCommentSelection(null)
   }, [storeActiveRichTextDraft, storePendingCaretFormatting])
 
   const handleSelectElements = useCallback(
@@ -2538,6 +2786,110 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     [awareness, collaborationEnabled, currentSlideIndex, showPropertyPanel]
   )
 
+  const applySlideCommentAnchor = useCallback(
+    (anchor: SlideCommentAnchor) => {
+      if (anchor.slideId !== currentSlide.id) {
+        return
+      }
+
+      const slideIndex = slides.findIndex(slideItem => slideItem.id === anchor.slideId)
+      if (slideIndex >= 0) {
+        setSelectedSlideIndices(new Set([slideIndex]))
+        setSlideSelectionAnchor(slideIndex)
+      }
+
+      if (anchor.kind === 'slide') {
+        if (editingTextIdRef.current) {
+          finishTextEditing()
+        }
+        handleSelectElements(new Set())
+        return
+      }
+
+      if (anchor.kind === 'element') {
+        if (editingTextIdRef.current) {
+          finishTextEditing()
+        }
+
+        handleSelectElements(new Set(anchor.elementIds))
+        return
+      }
+
+      handleSelectElements(new Set([anchor.elementId]))
+      if (canEdit) {
+        handleEditText(anchor.elementId, {
+          start: anchor.start,
+          end: anchor.end
+        })
+        return
+      }
+
+      if (editingTextIdRef.current) {
+        finishTextEditing()
+      }
+    },
+    [canEdit, currentSlide.id, finishTextEditing, handleEditText, handleSelectElements, slides]
+  )
+
+  const handleScrollToCommentAnchor = useCallback(
+    (commentId: string) => {
+      const targetComment = comments.comments.find(comment => comment.id === commentId)
+      const anchor = targetComment?.slideAnchorData
+      if (!anchor) {
+        return
+      }
+
+      const slideIndex = slides.findIndex(slideItem => slideItem.id === anchor.slideId)
+      if (slideIndex < 0) {
+        return
+      }
+
+      setSelectedSlideIndices(new Set([slideIndex]))
+      setSlideSelectionAnchor(slideIndex)
+
+      if (anchor.slideId !== currentSlide.id) {
+        if (editingTextIdRef.current) {
+          finishTextEditing()
+        }
+
+        pendingCommentNavigationRef.current = anchor
+        setCurrentSlideId(anchor.slideId)
+        return
+      }
+
+      pendingCommentNavigationRef.current = null
+      applySlideCommentAnchor(anchor)
+    },
+    [applySlideCommentAnchor, comments.comments, currentSlide.id, finishTextEditing, slides]
+  )
+
+  const handleUnhighlightCommentAnchor = useCallback(
+    (commentId: string) => {
+      const targetComment = comments.comments.find(comment => comment.id === commentId)
+      if (!targetComment?.slideAnchorData) {
+        return
+      }
+
+      if (editingTextIdRef.current) {
+        finishTextEditing()
+      }
+
+      handleSelectElements(new Set())
+      setRestoredCommentSelection(null)
+    },
+    [comments.comments, finishTextEditing, handleSelectElements]
+  )
+
+  useEffect(() => {
+    const pendingAnchor = pendingCommentNavigationRef.current
+    if (!pendingAnchor || pendingAnchor.slideId !== currentSlide.id) {
+      return
+    }
+
+    pendingCommentNavigationRef.current = null
+    applySlideCommentAnchor(pendingAnchor)
+  }, [applySlideCommentAnchor, currentSlide.id])
+
   const handleWorkspaceMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       const target = event.target as HTMLElement
@@ -2560,7 +2912,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Rename presentation
   const handleRename = useCallback(async () => {
-    if (isReadOnly) return
+    if (isEditorReadOnly) return
     if (!newTitle.trim()) {
       toast.error(t('editor-title-empty'))
       return
@@ -2577,13 +2929,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       console.error('[SlideEditor] Rename error:', err)
       toast.error(t('editor-rename-failed'))
     }
-  }, [isReadOnly, slideId, newTitle, slide, onSlideUpdated, t])
+  }, [isEditorReadOnly, slideId, newTitle, slide, onSlideUpdated, t])
 
   const openRenameDialog = useCallback(() => {
-    if (isReadOnly) return
+    if (isEditorReadOnly) return
     setNewTitle(presentationTitle)
     setShowRenameDialog(true)
-  }, [isReadOnly, presentationTitle])
+  }, [isEditorReadOnly, presentationTitle])
 
   const activeLinkSelection = useMemo(() => {
     if (!activeLinkTarget) {
@@ -3094,6 +3446,40 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     )
   }
 
+  const commentsPanelOpen = showCommentsPanel && canReadComments
+
+  const renderCommentsPanel = (panelLayout: 'docked' | 'floating') =>
+    commentsPanelOpen ? (
+      <CommentPanel
+        comments={comments.comments}
+        unresolvedCount={comments.unresolvedCount}
+        isLoading={comments.isLoading}
+        onCreateComment={handleCommentCreate}
+        onUpdateComment={async (commentId, content) => {
+          await comments.updateComment(commentId, { content })
+        }}
+        onResolveComment={async commentId => {
+          await comments.resolveComment(commentId)
+        }}
+        onDeleteComment={async commentId => {
+          await comments.deleteComment(commentId)
+        }}
+        onClose={() => {
+          panelCommentAnchorRef.current = null
+          setShowCommentsPanel(false)
+        }}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+        currentUserAvatar={currentUserAvatar}
+        disableCreateComment={!canCreateComments}
+        disabledCreateMessage={t('editor-comments-disabled-view')}
+        onScrollToHighlight={handleScrollToCommentAnchor}
+        onUnhighlight={handleUnhighlightCommentAnchor}
+        layout={panelLayout}
+        data-testid={`${testId}-comments-panel`}
+      />
+    ) : null
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
       {/* Header - matching PagedDocumentEditor style */}
@@ -3113,7 +3499,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <div className="gba:flex gba:flex-col">
                   <button
                     onClick={openRenameDialog}
-                    disabled={isReadOnly}
+                    disabled={isEditorReadOnly}
                     className="gba:flex gba:items-center gba:gap-2 gba:group gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity gba:text-left"
                     title={t('editor-click-to-rename')}
                   >
@@ -3132,7 +3518,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </div>
 
             {/* Collaboration presence indicator */}
-            {!isReadOnly && participantsWithAvatars.length > 0 && (
+            {!isEditorReadOnly && participantsWithAvatars.length > 0 && (
               <>
                 <Separator orientation="vertical" className="gba:h-6" />
                 <PresenceIndicator participants={participantsWithAvatars} maxVisible={3} size="sm" showLabel={false} />
@@ -3144,7 +3530,47 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
             {/* Right-aligned header controls */}
             <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
-              {!isReadOnly ? (
+              {canReadComments ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onPointerDown={() => {
+                      if (!showCommentsPanel) {
+                        syncPanelCommentAnchor()
+                      }
+                    }}
+                    onClick={() => {
+                      if (showCommentsPanel) {
+                        panelCommentAnchorRef.current = null
+                        setShowCommentsPanel(false)
+                        return
+                      }
+
+                      if (!panelCommentAnchorRef.current) {
+                        syncPanelCommentAnchor()
+                      }
+                      setShowCommentsPanel(true)
+                    }}
+                    data-testid={`${testId}-comments-toggle`}
+                    aria-label={t('header-comments')}
+                    title={t('header-comments')}
+                    className={`gba:h-7 gba:w-7 gba:relative ${
+                      showCommentsPanel ? 'gba:text-primary' : 'gba:text-muted-foreground hover:gba:text-foreground'
+                    }`}
+                  >
+                    <MessageSquare className="gba:w-3.5 gba:h-3.5" />
+                    {comments.unresolvedCount > 0 ? (
+                      <span className="gba:absolute gba:-top-0.5 gba:-right-0.5 gba:flex gba:h-3.5 gba:w-3.5 gba:items-center gba:justify-center gba:rounded-full gba:bg-primary gba:text-[9px] gba:font-medium gba:text-primary-foreground">
+                        {comments.unresolvedCount}
+                      </span>
+                    ) : null}
+                  </Button>
+                  <Separator orientation="vertical" className="gba:h-6" />
+                </>
+              ) : null}
+
+              {!isEditorReadOnly ? (
                 <>
                   <SlideEditorHeaderActions
                     slideId={slideId}
@@ -3180,16 +3606,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setCanvasScale(Math.max(0.25, canvasScale - 0.1))}
+                  onClick={() => {
+                    setAutoFitZoom(false)
+                    setCanvasScale(Math.max(0.25, canvasScale - 0.1))
+                  }}
                   title={t('editor-zoom-out')}
                   className="gba:h-8 gba:w-8"
                 >
                   <ZoomOut className="gba:w-4 gba:h-4" />
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant={autoFitZoom ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setCanvasScale(DEFAULT_CANVAS_SCALE)}
+                  onClick={() => setAutoFitZoom(prev => !prev)}
+                  title={t('editor-fit-to-window') || 'Fit to window'}
                   className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
                 >
                   {Math.round(canvasScale * 100)}%
@@ -3197,7 +3627,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setCanvasScale(Math.min(1.5, canvasScale + 0.1))}
+                  onClick={() => {
+                    setAutoFitZoom(false)
+                    setCanvasScale(Math.min(1.5, canvasScale + 0.1))
+                  }}
                   title={t('editor-zoom-in')}
                   className="gba:h-8 gba:w-8"
                 >
@@ -3244,7 +3677,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       </div>
 
       {/* Ribbon Toolbar */}
-      {!isReadOnly ? (
+      {!isEditorReadOnly ? (
         <SlideToolbarRibbon
           context={effectiveToolbarContext}
           canUndo={canUndo}
@@ -3305,8 +3738,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         />
       ) : null}
 
-      {/* Property Panel Toggle - only show when panel is hidden */}
-      {!isReadOnly && !showPropertyPanel && (
+      {/* Property Panel Toggle - only show when no right-side panel occupies the slot */}
+      {!isEditorReadOnly && !showPropertyPanel && !commentsPanelOpen && (
         <div className="gba:flex gba:items-center gba:justify-end gba:px-4 gba:py-1 gba:border-b gba:bg-card">
           <Button
             variant="ghost"
@@ -3449,7 +3882,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   {selectedSlideIndices.size} {t('editor-slides-selected') || 'slides selected'}
                 </div>
               )}
-              {!isReadOnly ? (
+              {!isEditorReadOnly ? (
                 <>
                   <SlideLayoutPicker
                     masters={masters}
@@ -3489,6 +3922,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
           {/* Canvas Area */}
           <div
+            ref={workspaceRef}
             className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-4 md:gba:p-8 gba:min-w-0"
             data-testid={`${testId}-canvas-workspace`}
             onMouseDown={handleWorkspaceMouseDown}
@@ -3547,6 +3981,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                       }
                       finishTextEditing()
                     },
+                    selectionToRestore:
+                      restoredCommentSelection && restoredCommentSelection.elementId === editingTextId
+                        ? restoredCommentSelection.range
+                        : null,
                     rehydrateToken: richTextEditorRehydrateToken,
                     voiceInput: {
                       isListening: voiceInput.isListening,
@@ -3597,7 +4035,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 selectedElement?.type === 'text' &&
                 !selectedElement.locked &&
                 !editingTextId &&
-                !isReadOnly &&
+                !isEditorReadOnly &&
                 !isPresentMode && (
                   <FloatingTextActions
                     element={selectedElement}
@@ -3617,8 +4055,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </div>
           </div>
 
-          {/* Property Panel - Always visible until X button is clicked */}
-          {!isReadOnly && showPropertyPanel && (
+          {/* Property Panel - hidden while Comments occupy the right sidebar slot */}
+          {!isEditorReadOnly && showPropertyPanel && !commentsPanelOpen && (
             <div className="gba:w-72 gba:flex-shrink-0 gba:border-l gba:bg-card gba:overflow-y-auto">
               <div className="gba:p-3 gba:border-b gba:flex gba:items-center gba:justify-between">
                 <h3 className="gba:font-semibold gba:text-sm">{t('editor-properties')}</h3>
@@ -3658,6 +4096,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               />
             </div>
           )}
+
+          {/* Comments Panel - docked alongside Property panel */}
+          {renderCommentsPanel('docked')}
 
           {/* Spell Check Panel */}
           {showSpellCheckPanel && (
@@ -4006,6 +4447,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           t={t}
         />
       )}
+
+      {/* Comments Panel - floating fallback for non-normal editor views (e.g. master view) */}
+      {editorView !== 'normal' ? renderCommentsPanel('floating') : null}
 
       {/* Presenter View */}
       {presenterMode && (

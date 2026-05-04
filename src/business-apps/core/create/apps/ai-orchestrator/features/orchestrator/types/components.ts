@@ -11,10 +11,15 @@ export type BuildStatus =
   | 'building'
   | 'wiring' // Component wiring phase
   | 'completed'
+  | 'completed_with_warnings'
   | 'error'
   | 'skipped'
   | 'reused' // Existing resource found and reused
   | 'cancelled'
+
+export function isCompletedBuildStatus(status: BuildStatus): boolean {
+  return status === 'completed' || status === 'completed_with_warnings'
+}
 
 // Component types that can be built by the orchestrator
 export type ComponentType = 'screen' | 'agent' | 'function' | 'flow' | 'data_model'

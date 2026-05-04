@@ -334,7 +334,9 @@ export class SocketIoYjsProvider {
 
     if (response.status === 'ready') {
       const fragmentLength = this.applyDocState(response.state)
-      this.queueLocalDiffAfterFullSync(response.state)
+      if (this.shouldQueueLocalDiffAfterFullSync()) {
+        this.queueLocalDiffAfterFullSync(response.state)
+      }
       await this.onReadyStateApplied?.({
         source: 'sync',
         status: response.status,
@@ -420,6 +422,10 @@ export class SocketIoYjsProvider {
     return this.entityType === 'document' || this.entityType === 'note'
   }
 
+  private shouldQueueLocalDiffAfterFullSync(): boolean {
+    return this.requiresDefaultXmlBootstrapGuard()
+  }
+
   private async handleBootstrapInitializer(
     response: Extract<YjsSyncResponse, { success: true; status: 'bootstrap'; role: 'initializer' }>
   ): Promise<boolean> {
@@ -462,6 +468,10 @@ export class SocketIoYjsProvider {
       console.error('[SocketIoYjsProvider] Bootstrap failed:', bootstrapResp.error)
       this.scheduleSyncRetry()
       return true
+    }
+
+    if (!this.shouldQueueLocalDiffAfterFullSync()) {
+      this.pendingLocalDocUpdates = []
     }
 
     // The server emits a full `yjs_sync_response` after accepting bootstrap.
@@ -545,7 +555,9 @@ export class SocketIoYjsProvider {
     void this.waitReadyIfNeeded().then(() => {
       if (this.destroyed) return
       const fragmentLength = this.applyDocState(event.state)
-      this.queueLocalDiffAfterFullSync(event.state)
+      if (this.shouldQueueLocalDiffAfterFullSync()) {
+        this.queueLocalDiffAfterFullSync(event.state)
+      }
       void this.onReadyStateApplied?.({
         source: 'event',
         status: 'ready',

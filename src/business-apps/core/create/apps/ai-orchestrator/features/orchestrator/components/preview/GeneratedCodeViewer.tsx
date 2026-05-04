@@ -117,7 +117,7 @@ export const GeneratedCodeViewer: React.FC<GeneratedCodeViewerProps> = ({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          toolName: 'read_file',
+          toolName: 'file_read',
           args: { file_path: file.path },
           repoId: effectiveRepoId,
           sessionId: effectiveSessionId

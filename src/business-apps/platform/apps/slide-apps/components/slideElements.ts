@@ -253,6 +253,7 @@ export interface RichTextParagraph {
 export interface TextElement extends SlideElement {
   type: 'text'
   content: string
+  placeholderText?: string
   /**
    * Rich paragraph/run model populated by the PPTX importer and by the
    * editor when users apply per-run styling. Optional for backwards
@@ -961,6 +962,12 @@ export const createTextElement = (partial?: Partial<TextElement>): TextElement =
   padding: 8,
   ...partial
 })
+
+export function textElementHasVisibleContent(element: Pick<TextElement, 'content' | 'paragraphs'>): boolean {
+  if ((element.content || '').length > 0) return true
+
+  return Boolean(element.paragraphs?.some(paragraph => paragraph.runs.some(run => run.text.length > 0)))
+}
 
 /**
  * Compute inline styles to render a cropped image to look like PowerPoint
