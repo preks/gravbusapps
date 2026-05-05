@@ -71,6 +71,7 @@ interface Message {
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
+  checkpointCreatedAt?: string
   localOnly?: boolean
 }
 
@@ -642,6 +643,15 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     return hasContent || hasThinking || hasBlocks || hasToolCalls
   }
 
+  const seedPersistedMessageSnapshots = (nextMessages: Message[]) => {
+    const seededSnapshots = new Map<string, string>()
+    nextMessages.forEach(message => {
+      if (!message.messageId || message.localOnly || !isPersistableMessage(message)) return
+      seededSnapshots.set(message.messageId, JSON.stringify(message))
+    })
+    persistedMessageSnapshotsRef.current = seededSnapshots
+  }
+
   const getMessageRichnessScore = (message: Message): number => {
     const contentChars = message.content?.length ?? 0
     const thinkingChars = message.thinkingLog?.length ?? 0
@@ -1143,7 +1153,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
 
   const refreshPreview = async (options?: { force?: boolean }) => {
     if (!sessionId) return
-    if (previewBuildStatus.active) return
+    if (previewBuildStatus.active && !options?.force) return
 
     setPreviewBuildStatus({
       active: true,
@@ -1160,7 +1170,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
         if (event?.type === 'done') {
           setPreviewBuildStatus(prev => ({
             ...prev,
-            active: true,
+            active: false,
             lines: [...prev.lines, 'Reloading preview...'].slice(-6),
             error: null
           }))
@@ -1236,12 +1246,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           if (normalized.updated) {
             builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
           }
-          const seeded = new Map<string, string>()
-          ;(normalized.messages as Message[]).forEach(message => {
-            if (!message.messageId || message.localOnly || !isPersistableMessage(message)) return
-            seeded.set(message.messageId, JSON.stringify(message))
-          })
-          persistedMessageSnapshotsRef.current = seeded
+          seedPersistedMessageSnapshots(normalized.messages as Message[])
           chatPersistenceInitializedRef.current = true
           setMessages(prev =>
             activeStreamReaderRef.current
@@ -1422,12 +1427,15 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
   const confirmRestoreMessage = async () => {
     if (!sessionId || !pendingRestoreMessage?.messageId || !resolvedTargetPath) return
     const restoreTarget = pendingRestoreMessage
-    const restoreMessageId = restoreTarget.messageId
-    if (!restoreMessageId) return
+    const restoreActionMessageId = restoreTarget.messageId
+    if (!restoreActionMessageId) return
+    const historySnapshot = messagesRef.current
+    const targetIndex = historySnapshot.findIndex(item => item.messageId === restoreActionMessageId)
+    const previousAssistant = targetIndex >= 0 ? findPreviousAssistantMessage(historySnapshot, targetIndex) : null
     setShowRestoreDialog(false)
     setPendingRestoreMessage(null)
     setRestoreError(null)
-    setIsRestoringMessageId(restoreMessageId)
+    setIsRestoringMessageId(restoreActionMessageId)
     restoreProgressRef.current = []
     const tempMessageId = createMessageId()
     setMessages(prev => [
@@ -1439,13 +1447,22 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     ])
     try {
       updateRestoreTempMessage(tempMessageId, 'Restoring files and chat')
-      await builderClient.restoreToMessage({
-        repoId: repositoryId,
-        sessionId,
-        targetPath: resolvedTargetPath,
-        messageId: restoreMessageId,
-        restoreChat: true
-      })
+      if (previousAssistant?.messageId) {
+        await builderClient.restoreToMessage({
+          repoId: repositoryId,
+          sessionId,
+          targetPath: resolvedTargetPath,
+          messageId: previousAssistant.messageId,
+          restoreChat: true
+        })
+      } else {
+        await builderClient.restoreToInitial({
+          repoId: repositoryId,
+          sessionId,
+          targetPath: resolvedTargetPath,
+          restoreChat: true
+        })
+      }
       updateRestoreTempMessage(tempMessageId, 'Checking for changes')
       const newCount = await checkForChanges()
       updateRestoreTempMessage(tempMessageId, 'Reloading chat history')
@@ -1455,16 +1472,17 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         if (normalized.updated) {
           builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
         }
-        setMessages(prev => [
-          ...mergeMessagesById(prev, normalized.messages as Message[]).filter(
-            message => message.messageId !== tempMessageId
-          ),
+        const restoredMessages = normalized.messages as Message[]
+        seedPersistedMessageSnapshots(restoredMessages)
+        setMessages([
+          ...restoredMessages,
           buildMessage('assistant', formatRestoreProgress(restoreProgressRef.current), {
             messageId: tempMessageId,
             localOnly: true
           })
         ])
       } else {
+        seedPersistedMessageSnapshots([])
         setMessages([
           buildMessage('assistant', formatRestoreProgress(restoreProgressRef.current), {
             messageId: tempMessageId,
@@ -1477,7 +1495,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       if (publishAfterRestore) {
         await handlePublish()
       }
-      await refreshPreview()
+      await refreshPreview({ force: true })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to restore message'
       removeTempMessage(tempMessageId)
@@ -2018,6 +2036,25 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       await runStreamToEnd(reader, streamState, ctx)
 
       const wasStopped = stopRequestedRef.current
+      if (!wasStopped && streamState.assistantMessageId) {
+        const checkpointCreatedAt = new Date().toISOString()
+        const checkpointMessage = messagesRef.current.find(
+          message => message.messageId === streamState.assistantMessageId
+        )
+        const nextCheckpointMessage = checkpointMessage ? { ...checkpointMessage, checkpointCreatedAt } : null
+        setMessages(prev =>
+          prev.map(message =>
+            message.messageId === streamState.assistantMessageId ? { ...message, checkpointCreatedAt } : message
+          )
+        )
+        if (nextCheckpointMessage?.messageId) {
+          await builderClient.appendChatMessage(repositoryId, sessionId, nextCheckpointMessage)
+          persistedMessageSnapshotsRef.current.set(
+            nextCheckpointMessage.messageId,
+            JSON.stringify(nextCheckpointMessage)
+          )
+        }
+      }
       if (wasStopped) {
         screenBuildUsedRef.current = false
         screenBuildSucceededRef.current = false
@@ -2434,8 +2471,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
             <CardContent className="gba:space-y-4">
               <div className="gba:text-sm gba:text-foreground gba:space-y-2">
                 <p>
-                  You are about to restore to this chat message. Any publish you did after the restore point is still
-                  deployed.
+                  You are about to restore to the state before this prompt. Any publish you did after the restore point
+                  is still deployed.
                 </p>
                 {restoreMessageTimestamp && (
                   <p className="gba:text-xs gba:text-muted-foreground">{restoreMessageTimestamp}</p>
