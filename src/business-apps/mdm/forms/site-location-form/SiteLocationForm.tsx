@@ -2,6 +2,7 @@ import React, { useState, useEffect, Dispatch, SetStateAction, useMemo, useCallb
 import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Combobox } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from 'react-i18next'
+import { useForm, type FieldValues } from 'react-hook-form'
 import {
   SiteLocation,
   SiteLocationCountry,
@@ -11,8 +12,28 @@ import { GeoZone } from '@/business-apps/mdm/apps/organizational-data/types/GeoZ
 import { FormWrapperModal } from '@/components/form-wrapper'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import {
+  AddressAutocomplete,
+  mapGeoapifyToFormValues,
+  type MappedFormValues
+} from '@/business-apps/hr/core/components/address-autocomplete'
 
 const DATA_TEST_ID_PREFIX = 'SiteLocationForm'
+const EMPTY_COUNTRIES: SiteLocationCountry[] = []
+const EMPTY_REGIONS: SiteLocationRegion[] = []
+const noopRefetch = () => {}
+const noopFetchRegions = async () => {}
+const noopGetRegions = () => EMPTY_REGIONS
+
+const areOptionsEqual = (
+  current: Array<{ value: string; label: string; code: string }>,
+  next: Array<{ value: string; label: string; code: string }>
+) =>
+  current.length === next.length &&
+  current.every(
+    (item, index) =>
+      item.value === next[index]?.value && item.label === next[index]?.label && item.code === next[index]?.code
+  )
 
 interface SiteLocationFormProps extends BusinessAppContextProps {
   siteLocation?: SiteLocation
@@ -34,7 +55,7 @@ interface SiteLocationFormProps extends BusinessAppContextProps {
 
 const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
   siteLocation,
-  refetch = () => {},
+  refetch = noopRefetch,
   structureId = '',
   open: _open,
   setOpen,
@@ -44,40 +65,65 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
   onCancel,
   prefixDataTestId,
   accessToken,
-  countries = [],
-  fetchRegionsForCountries = async () => {},
-  getRegionsForCountry = () => [],
+  countries = EMPTY_COUNTRIES,
+  fetchRegionsForCountries = noopFetchRegions,
+  getRegionsForCountry = noopGetRegions,
   geoZones
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { t } = useTranslation('master-data')
   const orgchartClient = useOrgchartClient(accessToken)
-  const [countriesOptions, setCountriesOptions] = useState<Array<{ value: string; label: string; code: string }>>([])
   const [regions, setRegions] = useState<Array<{ value: string; label: string; code: string }>>([])
   const [isLoadingRegions, setIsLoadingRegions] = useState(false)
   const [loading, setLoading] = useState(false)
+  const countriesOptions = useMemo(
+    () =>
+      countries.map(country => ({
+        value: country.id,
+        label: country.value,
+        code: country.code
+      })),
+    [countries]
+  )
+
+  const getCountryId = useCallback(
+    (countryName?: string) => countries.find(country => country.value === countryName)?.id || '',
+    [countries]
+  )
+
+  const getCountryCodeFromId = useCallback(
+    (countryId?: string) => countries.find(country => country.id === countryId)?.code || '',
+    [countries]
+  )
 
   const defaultValues = useMemo(
     () => ({
       code: siteLocation?.code || '',
       name: siteLocation?.name || '',
-      country: siteLocation?.country || '',
-      region: siteLocation?.region || '',
+      country: getCountryId(siteLocation?.country),
+      region: '',
       geoZone: siteLocation?.geoZone || '',
       city: siteLocation?.locality || '',
-      streetAddress: siteLocation?.addressLine?.streetAddress || '',
-      addressLine2: siteLocation?.addressLine?.addressLine2 || '',
-      addressLine3: siteLocation?.addressLine?.addressLine3 || '',
-      postalCode: siteLocation?.postalCode || ''
+      addressLines: [
+        siteLocation?.addressLine?.streetAddress || '',
+        siteLocation?.addressLine?.addressLine2 || '',
+        siteLocation?.addressLine?.addressLine3 || ''
+      ],
+      postalCode: siteLocation?.postalCode || '',
+      latitude: typeof siteLocation?.latitude === 'number' ? siteLocation.latitude : null,
+      longitude: typeof siteLocation?.longitude === 'number' ? siteLocation.longitude : null
     }),
-    [siteLocation]
+    [siteLocation, getCountryId]
   )
+
+  const form = useForm<FieldValues>({ defaultValues, mode: 'onChange' })
+  const selectedCountryId = form.watch('country') as string | undefined
 
   // Load regions when country changes
   const handleCountryChange = useCallback(
     async (countryCode: string) => {
       if (!countryCode) {
-        setRegions([])
+        setRegions(current => (current.length === 0 ? current : []))
         return
       }
 
@@ -85,11 +131,11 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
       const cachedRegions = getRegionsForCountry(countryCode) ?? []
       if (cachedRegions.length > 0) {
         const regionsOptions = cachedRegions.map(region => ({
-          value: region.value,
+          value: region.id,
           label: region.value,
           code: region.code
         }))
-        setRegions(regionsOptions)
+        setRegions(current => (areOptionsEqual(current, regionsOptions) ? current : regionsOptions))
         return
       }
 
@@ -100,11 +146,11 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
         // After fetching, get regions from cache again
         const updatedRegions = getRegionsForCountry(countryCode) ?? []
         const regionsOptions = updatedRegions.map(region => ({
-          value: region.value,
+          value: region.id,
           label: region.value,
           code: region.code
         }))
-        setRegions(regionsOptions)
+        setRegions(current => (areOptionsEqual(current, regionsOptions) ? current : regionsOptions))
       } catch (error) {
         console.error('Error loading regions:', error)
       } finally {
@@ -114,54 +160,78 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
     [getRegionsForCountry, fetchRegionsForCountries]
   )
 
-  // Load countries options from props
   useEffect(() => {
-    if (countries.length > 0) {
-      const countriesOptions = countries.map(country => ({
-        value: country.value,
-        label: country.value,
-        code: country.code
-      }))
-      setCountriesOptions(countriesOptions)
-    }
-  }, [countries])
-
-  useEffect(() => {
-    if (siteLocation?.country && countries.length > 0) {
-      const countryCode = countries.find(country => country.value === siteLocation.country)?.code
+    if (selectedCountryId) {
+      const countryCode = getCountryCodeFromId(selectedCountryId)
       if (countryCode) {
         handleCountryChange(countryCode)
       }
+    } else {
+      setRegions(current => (current.length === 0 ? current : []))
     }
-  }, [siteLocation?.country, countries, handleCountryChange])
+  }, [selectedCountryId, getCountryCodeFromId, handleCountryChange])
+
+  useEffect(() => {
+    if (!_open) return
+    form.reset(defaultValues)
+  }, [_open, defaultValues, form])
+
+  useEffect(() => {
+    if (!siteLocation?.region || regions.length === 0 || form.getValues('region')) return
+    const regionId = regions.find(region => region.label === siteLocation.region)?.value
+    if (regionId) {
+      form.setValue('region', regionId, { shouldDirty: false, shouldValidate: false })
+    }
+  }, [siteLocation?.region, regions, form])
+
+  const resolveMappedAddress = useCallback(
+    async (args: {
+      result: Parameters<typeof mapGeoapifyToFormValues>[0]
+      mapped: MappedFormValues
+    }): Promise<MappedFormValues> => {
+      if (!args.mapped.countryId || args.mapped.regionId) return args.mapped
+
+      const countryCode = getCountryCodeFromId(args.mapped.countryId)
+      if (!countryCode) return args.mapped
+
+      await fetchRegionsForCountries([countryCode])
+      const countryRegions = getRegionsForCountry(countryCode) ?? []
+      const remapped = mapGeoapifyToFormValues(args.result, { countries, regions: countryRegions })
+
+      return { ...args.mapped, regionId: remapped.regionId }
+    },
+    [countries, fetchRegionsForCountries, getCountryCodeFromId, getRegionsForCountry]
+  )
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     try {
       setLoading(true)
-      const regionCode = values.region ? regions.find(region => region.value === values.region)?.code : undefined
-      const countryCode = values.country
-        ? countriesOptions.find(country => country.value === values.country)?.code
-        : undefined
-
+      const addressLines = Array.isArray(values.addressLines) ? values.addressLines : []
+      const streetAddress = String(addressLines[0] || '').trim()
+      const addressLine2 = String(addressLines[1] || '').trim()
+      const addressLine3 = String(addressLines[2] || '').trim()
+      const latitude = typeof values.latitude === 'number' ? values.latitude : null
+      const longitude = typeof values.longitude === 'number' ? values.longitude : null
       const geoZoneId = values.geoZone ? geoZones.find(geoZone => geoZone.name === values.geoZone)?.id : undefined
 
       const siteLocationData = {
         structureId,
         code: values.code,
         name: values.name,
-        ...(values.streetAddress || values.addressLine2 || values.addressLine3
+        ...(streetAddress || addressLine2 || addressLine3
           ? {
               addressLine: {
-                streetAddress: values.streetAddress || '',
-                addressLine2: values.addressLine2 || '',
-                addressLine3: values.addressLine3 || ''
+                streetAddress,
+                addressLine2,
+                addressLine3
               }
             }
           : {}),
         ...(values.postalCode ? { postalCode: values.postalCode } : {}),
         locality: values.city,
-        ...(regionCode ? { region_ref: `CountryRegion:v1:${regionCode}` } : {}),
-        country_ref: countryCode ? `Country:v1:${countryCode}` : undefined,
+        ...(values.region ? { region_ref: values.region } : {}),
+        country_ref: values.country || undefined,
+        ...(latitude !== null && longitude !== null ? { latitude, longitude } : {}),
         geo_zone: geoZoneId ?? ''
       }
 
@@ -212,6 +282,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
       loading={loading}
       dataTestId={dataTestId}
       defaultValues={defaultValues}
+      form={form}
     >
       <div className="gba:space-y-6">
         {/* Code Field */}
@@ -276,6 +347,22 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
           )}
         />
 
+        <AddressAutocomplete
+          form={form}
+          catalogs={{ countries, regions: getRegionsForCountry(getCountryCodeFromId(selectedCountryId)) }}
+          fieldNames={{
+            countryId: 'country',
+            regionId: 'region',
+            addressLines: 'addressLines',
+            postalCode: 'postalCode',
+            city: 'city',
+            latitude: 'latitude',
+            longitude: 'longitude'
+          }}
+          testIdPrefix={`${dataTestId}-address-autocomplete`}
+          resolveMappedAddress={resolveMappedAddress}
+        />
+
         {/* Country Field */}
         <FormField
           name="country"
@@ -288,24 +375,16 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
             <FormItem>
               <FormLabel>{t('forms.siteLocation.fields.country.label', { defaultValue: 'Country' })} *</FormLabel>
               <FormControl>
-                <Combobox
-                  options={countriesOptions}
-                  value={field.value}
-                  onValueChange={value => {
-                    field.onChange(value)
-                    handleCountryChange(countriesOptions.find(country => country.value === value)?.code || '')
-                  }}
+                <Input
+                  name={field.name}
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  value={countriesOptions.find(country => country.value === field.value)?.label || ''}
                   placeholder={t('forms.siteLocation.fields.country.placeholder', {
                     defaultValue: 'Select country'
                   })}
-                  searchPlaceholder={t('forms.siteLocation.fields.country.searchPlaceholder', {
-                    defaultValue: 'Search countries...'
-                  })}
-                  emptyText={t('forms.siteLocation.fields.country.emptyText', {
-                    defaultValue: 'No countries found.'
-                  })}
-                  disabled={countriesOptions.length === 0}
-                  data-testid={`${dataTestId}-country-combobox`}
+                  readOnly
+                  data-testid={`${dataTestId}-country-input`}
                 />
               </FormControl>
               <FormMessage />
@@ -340,7 +419,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
                     emptyText={t('forms.siteLocation.fields.region.emptyText', {
                       defaultValue: 'No regions found.'
                     })}
-                    disabled={isLoadingRegions}
+                    disabled
                     data-testid={`${dataTestId}-region-combobox`}
                   />
                 </FormControl>
@@ -406,6 +485,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
                   placeholder={t('forms.siteLocation.fields.city.placeholder', {
                     defaultValue: 'Enter city'
                   })}
+                  readOnly
                   data-testid={`${dataTestId}-city-input`}
                 />
               </FormControl>
@@ -416,7 +496,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
 
         {/* Street Address Field */}
         <FormField
-          name="streetAddress"
+          name="addressLines.0"
           rules={{
             maxLength: {
               value: 35,
@@ -438,6 +518,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
                   placeholder={t('forms.siteLocation.fields.streetAddress.placeholder', {
                     defaultValue: 'Enter street address'
                   })}
+                  readOnly
                   data-testid={`${dataTestId}-street-address-input`}
                 />
               </FormControl>
@@ -448,7 +529,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
 
         {/* Address Line 2 Field */}
         <FormField
-          name="addressLine2"
+          name="addressLines.1"
           rules={{
             maxLength: {
               value: 35,
@@ -480,7 +561,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
 
         {/* Address Line 3 Field */}
         <FormField
-          name="addressLine3"
+          name="addressLines.2"
           rules={{
             maxLength: {
               value: 35,
@@ -530,6 +611,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
                   placeholder={t('forms.siteLocation.fields.postalCode.placeholder', {
                     defaultValue: 'Enter postal code'
                   })}
+                  readOnly
                   data-testid={`${dataTestId}-postal-code-input`}
                 />
               </FormControl>

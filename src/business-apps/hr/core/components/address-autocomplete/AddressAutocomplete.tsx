@@ -83,6 +83,11 @@ export interface AddressAutocompleteProps {
   catalogs: { countries?: any[]; regions?: any[] }
   /** Override any subset of field names if your form schema differs from the defaults. */
   fieldNames?: Partial<AddressAutocompleteFieldNames>
+  /** Optional hook for consumers that need to load catalog data before applying the mapped values. */
+  resolveMappedAddress?: (args: {
+    result: { components: AddressSuggestion['components']; lat: number; lng: number }
+    mapped: ReturnType<typeof mapGeoapifyToFormValues>
+  }) => Promise<ReturnType<typeof mapGeoapifyToFormValues>> | ReturnType<typeof mapGeoapifyToFormValues>
   /** Height of the map area in pixels. Defaults to 220. */
   mapHeightPx?: number
   /**
@@ -153,6 +158,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   form,
   catalogs,
   fieldNames,
+  resolveMappedAddress,
   mapHeightPx = 220,
   testIdPrefix = 'address-autocomplete'
 }) => {
@@ -252,6 +258,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
       const current = (form.getValues(names.addressLines) as string[]) || []
       const nextLines = [...current]
       nextLines[0] = mapped.line1
+      nextLines[1] = mapped.line2
       form.setValue(names.addressLines, nextLines, { shouldDirty: true, shouldValidate: true })
       form.setValue(names.postalCode, mapped.postalCode, { shouldDirty: true, shouldValidate: true })
       form.setValue(names.city, mapped.city, { shouldDirty: true, shouldValidate: true })
@@ -381,24 +388,31 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   }, [query, form, names])
 
   const handlePickSuggestion = useCallback(
-    (suggestion: AddressSuggestion) => {
-      const mapped = mapGeoapifyToFormValues(suggestion, catalogs)
+    async (suggestion: AddressSuggestion) => {
+      const initialMapped = mapGeoapifyToFormValues(suggestion, catalogs)
+      const mapped = resolveMappedAddress
+        ? await resolveMappedAddress({ result: suggestion, mapped: initialMapped })
+        : initialMapped
       applyAddressToForm(mapped)
       setQuery(suggestion.label)
       setSuggestions([])
       setIsOpen(false)
     },
-    [catalogs, applyAddressToForm]
+    [catalogs, resolveMappedAddress, applyAddressToForm]
   )
 
   const handleReverseForCoords = useCallback(
     async (coords: LatLng) => {
       const result = await reverseGeocode(coords.lat, coords.lng)
-      const mapped = mapGeoapifyToFormValues(result ?? { components: {}, ...coords }, catalogs)
+      const geocodeResult = result ?? { components: {}, ...coords }
+      const initialMapped = mapGeoapifyToFormValues(geocodeResult, catalogs)
+      const mapped = resolveMappedAddress
+        ? await resolveMappedAddress({ result: geocodeResult, mapped: initialMapped })
+        : initialMapped
       applyAddressToForm({ ...mapped, lat: coords.lat, lng: coords.lng })
       if (result?.formattedAddress) setQuery(result.formattedAddress)
     },
-    [catalogs, applyAddressToForm]
+    [catalogs, resolveMappedAddress, applyAddressToForm]
   )
 
   const handleUseMyLocation = useCallback(() => {

@@ -8,6 +8,7 @@ export interface AddressComponents {
   houseNumber?: string
   street?: string
   line1?: string
+  line2?: string
   postalCode?: string
   city?: string
   region?: string
@@ -109,43 +110,52 @@ const extractFeatures = (data: { results?: GeoapifyProperties[]; features?: Geoa
 }
 
 /**
- * Build the first address line from Geoapify properties.
+ * Build the structured street address lines from Geoapify properties.
  *
- * Geoapify's `address_line1` is the provider's preferred display first line. For typical
- * residential addresses it already looks like "12 Main Street". For named buildings/POIs
- * (e.g. "Bloc C5") it contains only the building name and the actual street goes into
- * a separate `street` field. We detect that case and combine them so Address Line 1
- * carries enough info to identify the location ("Bloc C5, Bulevardul Mihail Kogălniceanu 12").
+ * Geoapify's `address_line1` is the provider's preferred display first line. For
+ * named buildings/POIs (e.g. "Bloc C7") it may contain only the building name,
+ * while the actual street and house number are exposed separately. Keep the first
+ * form line as the canonical street+number, and move provider extra text to line 2.
  */
-const buildLine1 = (props: GeoapifyProperties): string | undefined => {
+const buildAddressLines = (props: GeoapifyProperties): { line1?: string; line2?: string } => {
   const street = props.street?.trim()
   const houseNumber = props.housenumber?.trim()
   const addressLine1 = props.address_line1?.trim()
   const streetWithNumber = [street, houseNumber].filter(Boolean).join(' ')
 
-  if (addressLine1 && street) {
-    const alreadyHasStreet = addressLine1.toLowerCase().includes(street.toLowerCase())
-    if (!alreadyHasStreet && streetWithNumber) {
-      return `${addressLine1}, ${streetWithNumber}`
+  if (streetWithNumber) {
+    if (addressLine1 && street) {
+      const alreadyHasStreet = addressLine1.toLowerCase().includes(street.toLowerCase())
+      return {
+        line1: streetWithNumber,
+        line2: alreadyHasStreet ? undefined : addressLine1
+      }
     }
+
+    return { line1: streetWithNumber }
   }
 
-  return addressLine1 || streetWithNumber || undefined
+  return { line1: addressLine1 }
 }
 
-const featureToComponents = (props: GeoapifyProperties): AddressComponents => ({
-  houseNumber: props.housenumber,
-  street: props.street,
-  line1: buildLine1(props),
-  postalCode: props.postcode,
-  city: props.city,
-  region: props.state,
-  regionCode: props.state_code ? props.state_code.toUpperCase() : undefined,
-  county: props.county,
-  countyCode: props.county_code ? props.county_code.toUpperCase() : undefined,
-  countryCode: props.country_code ? props.country_code.toUpperCase() : undefined,
-  countryName: props.country
-})
+const featureToComponents = (props: GeoapifyProperties): AddressComponents => {
+  const { line1, line2 } = buildAddressLines(props)
+
+  return {
+    houseNumber: props.housenumber,
+    street: props.street,
+    line1,
+    line2,
+    postalCode: props.postcode,
+    city: props.city,
+    region: props.state,
+    regionCode: props.state_code ? props.state_code.toUpperCase() : undefined,
+    county: props.county,
+    countyCode: props.county_code ? props.county_code.toUpperCase() : undefined,
+    countryCode: props.country_code ? props.country_code.toUpperCase() : undefined,
+    countryName: props.country
+  }
+}
 
 const featureToSuggestion = (feature: GeoapifyFeature, index: number): AddressSuggestion | null => {
   const props = feature.properties || {}
@@ -350,6 +360,7 @@ export interface MappedFormValues {
   countryId: string | null
   regionId: string | null
   line1: string
+  line2: string
   postalCode: string
   city: string
   lat: number
@@ -377,7 +388,10 @@ export const mapGeoapifyToFormValues = (
 
   let regionId: string | null = null
   if (countryId) {
-    const regions = (catalogs.regions || []).filter((r: any) => r?.additionalValue2 === countryId)
+    const regions = (catalogs.regions || []).filter((r: any) => {
+      const parentCountryId = r?.additionalValue2 || r?.parentEntryId
+      return parentCountryId ? parentCountryId === countryId : true
+    })
     // Try state/region first (covers DE, US); if nothing matches, fall back to county/county_code
     // because providers like Geoapify put Romanian județe under `county`, not `state`.
     regionId =
@@ -413,6 +427,7 @@ export const mapGeoapifyToFormValues = (
     countryId,
     regionId,
     line1: components.line1 || [components.street, components.houseNumber].filter(Boolean).join(' ') || '',
+    line2: components.line2 || '',
     postalCode: components.postalCode || '',
     city: components.city || '',
     lat: result.lat,
