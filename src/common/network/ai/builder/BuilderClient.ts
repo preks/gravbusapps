@@ -1510,8 +1510,7 @@ export class BuilderClient {
     useAgenticMode: boolean = true,
     buildEnabled: boolean = true,
     sessionId?: string,
-    llmProvider: 'claude' | 'openai' = 'claude',
-    customSystemPrompt?: string
+    llmProvider: 'claude' | 'openai' = 'claude'
   ): Promise<ReadableStream> {
     void useAgenticMode
     void buildEnabled
@@ -1553,8 +1552,7 @@ export class BuilderClient {
         repoId,
         sessionId,
         prompt: query,
-        conversationHistory: boundedHistory,
-        customSystemPrompt
+        conversationHistory: boundedHistory
       })
     })
 

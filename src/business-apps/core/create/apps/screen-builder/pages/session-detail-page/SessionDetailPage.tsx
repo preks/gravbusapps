@@ -13,7 +13,6 @@ import {
 import { X, Download, Upload } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import screenDiscoveryConfig from '../../../../../../../../scripts/screen-discovery.config.json'
-import { SYSTEM_PROMPT } from '../../config/systemPrompt'
 import { FileExplorer } from './components/FileExplorer'
 import { FilePreview } from './components/FilePreview'
 import { ChatDrawer } from './components/ChatDrawer'
@@ -2007,8 +2006,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         true,
         buildEnabled,
         sessionId,
-        llmProvider,
-        SYSTEM_PROMPT
+        llmProvider
       )
       const reader = stream.getReader()
       activeStreamReaderRef.current = reader
