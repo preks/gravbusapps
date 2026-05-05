@@ -756,6 +756,48 @@ export const createInvestmentReportDescriptors = (
     kind: 'inIds'
   },
   {
+    key: 'investmentTypeIds',
+    path: 'investment.investmentTypeRef',
+    filterLabel: 'Investment Type',
+    optionSelectPaths: ['investment.investmentType.id', 'investment.investmentType.value'],
+    optionSearchPaths: ['investment.investmentType.value', 'investment.investmentType.code'],
+    kind: 'inIds'
+  },
+  {
+    key: 'ownerEmployeeIds',
+    path: 'investment.ownerEmployeeId',
+    filterLabel: 'Owner',
+    optionSelectPaths: ['investment.ownerEmployee.id', 'investment.ownerEmployee.displayName'],
+    optionSearchPaths: [
+      'investment.ownerEmployee.displayName',
+      'investment.ownerEmployee.firstName',
+      'investment.ownerEmployee.lastName'
+    ],
+    kind: 'inIds'
+  },
+  {
+    key: 'investmentAccountIds',
+    path: 'investment.investmentAccounts.investmentAccountId',
+    filterLabel: 'Account',
+    optionSelectPaths: [
+      'investment.investmentAccounts.investmentAccount.id',
+      'investment.investmentAccounts.investmentAccount.name'
+    ],
+    optionSearchPaths: [
+      'investment.investmentAccounts.investmentAccount.name',
+      'investment.investmentAccounts.investmentAccount.code'
+    ],
+    kind: 'inIds'
+  },
+  {
+    key: 'linkedInvestmentStatusIds',
+    path: 'investment.investmentStatusRef',
+    filterLabel: 'Status',
+    optionSelectPaths: ['investment.investmentStatus.id', 'investment.investmentStatus.value'],
+    optionSearchPaths: ['investment.investmentStatus.value', 'investment.investmentStatus.code'],
+    kind: 'inIds'
+  },
+  {
     key: 'investmentIds',
     path: fields.investmentId,
     filterLabel: 'Investment',

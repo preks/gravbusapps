@@ -233,7 +233,7 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
         const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', {
           investmentId,
           fromView: 'reports',
-          fromSubView: investmentGroup.toLowerCase().replaceAll('_', '-')
+          fromSubView: investmentGroup.toLowerCase().replace(/_/g, '-')
         })
         navigateTo(detailsUrl)
       }

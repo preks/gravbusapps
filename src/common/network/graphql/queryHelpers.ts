@@ -417,26 +417,22 @@ export const transformFilterOptions = (data: any, descriptor: Descriptor): Array
 
   const paths = descriptor.optionSelectPaths
   const firstPath = paths[0] || ''
-  const pathParts = firstPath.split('.')
   const currentLocale = getCurrentActiveUserLocale()
 
-  const getValueAtPath = (source: any, parts: string[]): unknown => {
-    let value = source
-    for (const part of parts) {
-      value = value?.[part]
+  const getValuesAtPath = (source: unknown, parts: string[]): unknown[] => {
+    if (source == null) return []
+    if (parts.length === 0) return [source]
+    if (Array.isArray(source)) {
+      return source.flatMap(item => getValuesAtPath(item, parts))
     }
-    return value
+
+    if (typeof source !== 'object') return []
+
+    const [part, ...rest] = parts
+    return getValuesAtPath((source as Record<string, unknown>)[part], rest)
   }
 
-  const resolveOptionLabel = (
-    source: any,
-    idValue: unknown,
-    fallbackLabelPath: string[],
-    localizedLabelPath: string[]
-  ) => {
-    const fallbackLabel = getValueAtPath(source, fallbackLabelPath)
-    const localizedLabels = localizedLabelPath.length ? getValueAtPath(source, localizedLabelPath) : undefined
-
+  const resolveOptionLabel = (idValue: unknown, fallbackLabel: unknown, localizedLabels: unknown) => {
     if (localizedLabels && typeof localizedLabels === 'object' && !Array.isArray(localizedLabels)) {
       const localizedLabel = (localizedLabels as Record<string, unknown>)[currentLocale]
       if (typeof localizedLabel === 'string' && localizedLabel.trim() !== '') {
@@ -451,63 +447,30 @@ export const transformFilterOptions = (data: any, descriptor: Descriptor): Array
     return String(idValue || '')
   }
 
-  // Auto-detect nested arrays: if first selectPath has 3+ parts, it's nested (e.g., "addresses.country.id")
-  const isNestedArray = pathParts.length > 2
+  const idPath = firstPath.split('.')
+  const labelPath = paths[1]?.split('.') || idPath
+  const localizedLabelPath = paths[2]?.split('.') || []
+  const seen = new Set<string>()
+  const result: Array<{ id: string; label: string }> = []
 
-  if (isNestedArray) {
-    // Handle nested arrays: flatten and make distinct
-    const seen = new Set<string>()
-    const result: Array<{ id: string; label: string }> = []
+  data.forEach((item: any) => {
+    const ids = getValuesAtPath(item, idPath)
+    const labels = getValuesAtPath(item, labelPath)
+    const localizedLabels = localizedLabelPath.length ? getValuesAtPath(item, localizedLabelPath) : []
 
-    // First part is the array key (e.g., "addresses")
-    const arrayKey = pathParts[0]
-    // Remaining parts are the nested path (e.g., ["country", "id"])
-    const nestedIdPath = pathParts.slice(1)
-    // Get label path (e.g., ["country", "value"])
-    const labelPathParts = paths[1]?.split('.') || pathParts
-    const nestedLabelPath = labelPathParts.length > 2 ? labelPathParts.slice(1) : nestedIdPath
-    const localizedLabelPathParts = paths[2]?.split('.') || []
-    const nestedLocalizedLabelPath =
-      localizedLabelPathParts.length > 2 ? localizedLabelPathParts.slice(1) : localizedLabelPathParts
+    ids.forEach((id, index) => {
+      const idStr = String(id || '')
+      if (!idStr.trim() || seen.has(idStr)) return
 
-    data.forEach((item: any) => {
-      const array = item?.[arrayKey]
-      if (!Array.isArray(array)) return
-
-      array.forEach((arrayItem: any) => {
-        const id = getValueAtPath(arrayItem, nestedIdPath)
-        const label = resolveOptionLabel(arrayItem, id, nestedLabelPath, nestedLocalizedLabelPath)
-
-        const idStr = String(id || '')
-        if (idStr && idStr.trim() !== '' && !seen.has(idStr)) {
-          seen.add(idStr)
-          result.push({
-            id: idStr,
-            label
-          })
-        }
+      seen.add(idStr)
+      result.push({
+        id: idStr,
+        label: resolveOptionLabel(id, labels[index] ?? labels[0], localizedLabels[index] ?? localizedLabels[0])
       })
     })
+  })
 
-    return result
-  }
-
-  // Simple path (existing logic)
-  const idPath = pathParts
-  const labelPath = paths[1]?.split('.') || pathParts
-  const localizedLabelPath = paths[2]?.split('.') || []
-
-  return data
-    .map((item: any) => {
-      const id = getValueAtPath(item, idPath)
-      const label = resolveOptionLabel(item, id, labelPath, localizedLabelPath)
-
-      return {
-        id: String(id || ''),
-        label
-      }
-    })
-    .filter(option => option.id && option.id.trim() !== '')
+  return result
 }
 
 /**
