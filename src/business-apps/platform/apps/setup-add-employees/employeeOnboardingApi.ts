@@ -401,5 +401,5 @@ export async function resolveUserIdByEmail(accessToken: string, email: string): 
 export async function setInitialPassword(accessToken: string, userId: string, password: string): Promise<void> {
   const client = new UserManagementClient()
   client.setAccessToken(accessToken)
-  await client.upsertUserPassword(userId, { password })
+  await client.upsertUserPassword(userId, { password, temporary: true })
 }
