@@ -1,6 +1,7 @@
 import type { AssetSummaryData } from '../components/displays/asset-summary'
 import type { TeamAvailabilityData } from '../components/displays/team-availability'
 import type { CrmFunnelData } from '../components/displays/crm-funnel'
+import type { WorkflowAnalyticsData } from '../components/displays/workflow-analytics'
 
 /**
  * AI Assistant Models and Types
@@ -162,6 +163,7 @@ export type ChatReferenceData = {
 
 export type { AssetSummaryData, TeamAvailabilityData }
 export type { CrmFunnelData }
+export type { WorkflowAnalyticsData }
 
 export type ValueFormat = 'currency' | 'percent' | 'number' | 'date' | 'none'
 
@@ -353,6 +355,7 @@ export type DisplayData =
   | NavigationData
   | ReminderData
   | CrmFunnelData
+  | WorkflowAnalyticsData
   | AssetSummaryData
   | TeamAvailabilityData
   | ChatReferenceData

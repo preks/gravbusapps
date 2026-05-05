@@ -33,6 +33,7 @@ import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
 import { RemoteFormDisplay } from './displays/RemoteFormDisplay'
 import { CrmFunnelDisplay } from './displays/crm-funnel'
+import { WorkflowAnalyticsDisplay } from './displays/workflow-analytics'
 import { AssetSummaryDisplay } from './displays/asset-summary'
 import { TeamAvailabilityDisplay } from './displays/team-availability'
 import { FlowbotCalendarDisplay } from './displays/calendar/FlowbotCalendarDisplay'
@@ -901,7 +902,12 @@ export const FileDisplay: React.FC<FileDisplayProps> = ({ data, accessToken }) =
 }
 
 // Display Data Renderer
-function renderDisplayData(item: DisplayData, idx: number, accessToken: string) {
+function renderDisplayData(
+  item: DisplayData,
+  idx: number,
+  accessToken: string,
+  sendMessage?: (message: string) => void
+) {
   switch (item.type) {
     case 'textBlock':
       return <TextBlockDisplay key={idx} data={item} accessToken={accessToken} />
@@ -915,6 +921,8 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       return <CalendarDisplay key={idx} data={item} />
     case 'crmFunnel':
       return <CrmFunnelDisplay key={idx} data={item} />
+    case 'workflowAnalytics':
+      return <WorkflowAnalyticsDisplay key={idx} data={item} onFollowUpClick={sendMessage} />
     case 'assetSummary':
       return <AssetSummaryDisplay key={idx} data={item} />
     case 'teamAvailability':
@@ -972,7 +980,8 @@ export const AnswerOutputRenderer: React.FC<{
   data: AnswerOutput
   accessToken: string
   sessionId?: string
-}> = ({ data, accessToken, sessionId }) => {
+  sendMessage?: (message: string) => void
+}> = ({ data, accessToken, sessionId, sendMessage }) => {
   const [copied, setCopied] = useState(false)
   const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null)
   const [isSendingFeedback, setIsSendingFeedback] = useState(false)
@@ -1012,7 +1021,7 @@ export const AnswerOutputRenderer: React.FC<{
       data-testid="answer-output-renderer"
     >
       {deduplicatedData.map((item, idx) => (
-        <div key={idx}>{renderDisplayData(item, idx, accessToken)}</div>
+        <div key={idx}>{renderDisplayData(item, idx, accessToken, sendMessage)}</div>
       ))}
       <div className="gba:absolute gba:top-full gba:left-0 gba:mt-1 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
         <Button
@@ -1391,7 +1400,14 @@ export const OutputItemRenderer: React.FC<{
 }) => {
   switch (item.type) {
     case 'answer':
-      return <AnswerOutputRenderer data={item} accessToken={accessToken} sessionId={sessionId} />
+      return (
+        <AnswerOutputRenderer
+          data={item}
+          accessToken={accessToken}
+          sessionId={sessionId}
+          sendMessage={sendMessage ? (msg: string) => sendMessage(msg, []) : undefined}
+        />
+      )
     case 'tool':
       return <ToolOutput name={item.name} reason={item.reason} />
     case 'reasoning_step':
