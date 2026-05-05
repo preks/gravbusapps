@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { NoteApiService } from '../services/NoteApiService'
-import type { NoteTreeNode, MoveNoteInput } from '../types'
+import type { NoteTreeNode, MoveNoteInput, NoteColor } from '../types'
 
 export interface UseNoteTreeOptions {
   autoLoad?: boolean
@@ -39,6 +39,7 @@ export interface UseNoteTreeReturn {
   moveNodeOptimistic: (nodeId: string, targetParentId: string | null, position: number) => Promise<boolean>
   removeNodeOptimistic: (nodeId: string) => void
   updateNodeTitleOptimistic: (nodeId: string, title: string) => void
+  updateNodeColorOptimistic: (nodeId: string, color: NoteColor) => void
   bumpNodeTimestamp: (nodeId: string) => void
   findNode: (id: string) => NoteTreeNode | null
   getParentChain: (id: string) => NoteTreeNode[]
@@ -271,6 +272,17 @@ export function useNoteTree(options: UseNoteTreeOptions = {}): UseNoteTreeReturn
     setTree(prev => updateTitle(prev))
   }, [])
 
+  const updateNodeColorOptimistic = useCallback((nodeId: string, color: NoteColor) => {
+    const now = new Date().toISOString()
+    const updateColor = (nodes: NoteTreeNode[]): NoteTreeNode[] =>
+      nodes.map(n => {
+        if (n.id === nodeId) return { ...n, color, updatedAt: now }
+        if (n.children.length > 0) return { ...n, children: updateColor(n.children) }
+        return n
+      })
+    setTree(prev => updateColor(prev))
+  }, [])
+
   const bumpNodeTimestamp = useCallback((nodeId: string) => {
     const now = new Date().toISOString()
     const bump = (nodes: NoteTreeNode[]): NoteTreeNode[] =>
@@ -346,6 +358,7 @@ export function useNoteTree(options: UseNoteTreeOptions = {}): UseNoteTreeReturn
     moveNodeOptimistic,
     removeNodeOptimistic,
     updateNodeTitleOptimistic,
+    updateNodeColorOptimistic,
     bumpNodeTimestamp,
     findNode,
     getParentChain,

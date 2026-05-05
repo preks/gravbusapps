@@ -126,13 +126,10 @@ export const HandwritingCanvas: React.FC<HandwritingCanvasProps> = ({
     requestAnimationFrame(redraw)
   }, [redraw])
 
-  // Load initial strokes
+  // Sync from parent when strokes change (undo/redo, load)
   useEffect(() => {
-    if (initialStrokes.length > 0 && strokes.length === 0) {
-      setStrokes(initialStrokes)
-      requestAnimationFrame(redraw)
-    }
-  }, [initialStrokes, strokes.length, redraw])
+    setStrokes(initialStrokes)
+  }, [initialStrokes])
 
   // Handle pointer down
   const handlePointerDown = useCallback(

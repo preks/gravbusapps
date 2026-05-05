@@ -92,6 +92,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   // State
   const [noteTitle, setNoteTitle] = useState(initialTitle || t('handwriting-untitled'))
   const [strokes, setStrokes] = useState<StrokeData[]>(initialStrokes)
+  const [redoStack, setRedoStack] = useState<StrokeData[]>([])
   const [penColor, setPenColor] = useState('#000000')
   const [penWidth, setPenWidth] = useState(4)
   const [paperStyle, setPaperStyle] = useState<PaperStyle>(initialPaperStyle)
@@ -148,6 +149,10 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   useEffect(() => {
     actionItemFlowsRef.current = actionItemFlows
   }, [actionItemFlows])
+
+  useEffect(() => {
+    setRedoStack([])
+  }, [noteId])
 
   // Show feedback temporarily
   const showFeedback = useCallback((type: 'success' | 'error', message: string) => {
@@ -351,22 +356,70 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
   // Handle strokes change
   const handleStrokesChange = useCallback((newStrokes: StrokeData[]) => {
-    setStrokes(newStrokes)
+    setStrokes(prev => {
+      if (newStrokes.length > prev.length) {
+        setRedoStack([])
+      }
+      return newStrokes
+    })
   }, [])
 
-  // Handle undo
   const handleUndo = useCallback(() => {
-    if (strokes.length > 0) {
-      setStrokes(strokes.slice(0, -1))
-    }
-  }, [strokes])
+    setStrokes(prev => {
+      if (prev.length === 0) return prev
+      const last = prev[prev.length - 1]
+      setRedoStack(r => [...r, last])
+      return prev.slice(0, -1)
+    })
+  }, [])
+
+  const handleRedo = useCallback(() => {
+    setRedoStack(prevRedo => {
+      if (prevRedo.length === 0) return prevRedo
+      const stroke = prevRedo[prevRedo.length - 1]
+      setStrokes(s => [...s, stroke])
+      return prevRedo.slice(0, -1)
+    })
+  }, [])
 
   // Handle clear
   const handleClear = useCallback(() => {
     if (strokes.length > 0 && confirm(t('handwriting-clear-confirm'))) {
       setStrokes([])
+      setRedoStack([])
     }
-  }, [strokes, t])
+  }, [strokes.length, t])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as Node | null
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+      const mod = e.metaKey || e.ctrlKey
+      if (!mod) return
+      if (e.key === 'z' && e.shiftKey) {
+        e.preventDefault()
+        handleRedo()
+        return
+      }
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        handleUndo()
+        return
+      }
+      if (e.key === 'y') {
+        e.preventDefault()
+        handleRedo()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleRedo, handleUndo])
 
   // Handle transform
   const handleTransform = useCallback(
@@ -626,8 +679,10 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         onPenWidthChange={setPenWidth}
         onPaperStyleChange={setPaperStyle}
         onUndo={handleUndo}
+        onRedo={handleRedo}
         onClear={handleClear}
         canUndo={strokes.length > 0}
+        canRedo={redoStack.length > 0}
       />
 
       <div className="gba:flex-1 gba:flex gba:overflow-hidden">
@@ -644,7 +699,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
               height={CANVAS_HEIGHT}
               penColor={penColor}
               penWidth={penWidth}
-              initialStrokes={initialStrokes}
+              initialStrokes={strokes}
               onStrokeComplete={handleStrokeComplete}
               onStrokesChange={handleStrokesChange}
               scrollContainerRef={scrollContainerRef}

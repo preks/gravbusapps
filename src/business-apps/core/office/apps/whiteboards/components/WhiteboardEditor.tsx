@@ -56,6 +56,7 @@ import {
   WHITEBOARD_LOCAL_YJS_ORIGIN,
   WHITEBOARD_SCENE_BOOTSTRAP_ORIGIN,
   dedupeWhiteboardElementRecords,
+  normalizeWhiteboardElementOrder,
   syncWhiteboardAppState,
   syncWhiteboardElements,
   syncWhiteboardFiles
@@ -69,6 +70,8 @@ import {
   getWhiteboardCommentAnchorCenter,
   resolveWhiteboardCommentAnchor
 } from '../utils/whiteboardCommentAnchors'
+import { normalizeWhiteboardLink } from '../utils/normalizeWhiteboardLink'
+import { openInNewTab } from '@/common/utils/navigationUtils'
 
 type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number]
 
@@ -79,6 +82,14 @@ type CommentAnchorSceneElement = {
   width: number
   height: number
   isDeleted?: boolean
+}
+
+type WhiteboardLinkElement = {
+  link?: string | null
+}
+
+type WhiteboardLinkOpenEvent = {
+  preventDefault?: () => void
 }
 
 function normalizeAvatarUrl(raw?: string | null): string | undefined {
@@ -133,8 +144,12 @@ function buildSceneData(
   files: BinaryFiles,
   appState: AppState
 ): Record<string, unknown> {
+  const normalizedElements = normalizeWhiteboardElementOrder(
+    elements.map(el => JSON.parse(JSON.stringify(el)) as Record<string, unknown>)
+  )
+
   return {
-    elements: elements.map(el => JSON.parse(JSON.stringify(el))),
+    elements: normalizedElements,
     files: Object.fromEntries(
       Object.entries(JSON.parse(JSON.stringify(files)) as Record<string, unknown>).sort(([a], [b]) =>
         a.localeCompare(b)
@@ -160,8 +175,8 @@ function serializeSceneDocument(sceneData: Record<string, unknown> | null | unde
 
 function sanitizeSceneElements(elements: Record<string, unknown>[]): SceneElement[] {
   try {
-    const dedupedElements = dedupeWhiteboardElementRecords(elements)
-    return restoreElements(dedupedElements as never, null, {
+    const normalizedElements = normalizeWhiteboardElementOrder(dedupeWhiteboardElementRecords(elements))
+    return restoreElements(normalizedElements as never, null, {
       refreshDimensions: true,
       repairBindings: true
     }) as unknown as SceneElement[]
@@ -383,6 +398,17 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
 
   const handleExcalidrawApi = useCallback((api: ExcalidrawImperativeAPI | null) => {
     setExcalidrawApi(current => (current === api ? current : api))
+  }, [])
+
+  const handleLinkOpen = useCallback((element: WhiteboardLinkElement, event?: WhiteboardLinkOpenEvent) => {
+    const targetLink = normalizeWhiteboardLink(element.link)
+
+    if (!targetLink) {
+      return
+    }
+
+    event?.preventDefault?.()
+    openInNewTab(targetLink)
   }, [])
 
   const initialExcalidrawData = useMemo(
@@ -688,10 +714,17 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
   useEffect(() => {
     if (!excalidrawApi || !isSynced || hasRestoredViewportRef.current) return
 
-    const performInitialFit = () => {
+    const resetInitialViewport = () => {
       if (!excalidrawApi || hasRestoredViewportRef.current) return
-      const elements = excalidrawApi.getSceneElements().filter(el => !el.isDeleted)
       hasRestoredViewportRef.current = true
+      const defaultViewport = {
+        scrollX: 0,
+        scrollY: 0,
+        zoom: 1
+      }
+
+      viewportRef.current = defaultViewport
+      setViewport(defaultViewport)
 
       // Reset undo/redo so the loaded scene is the baseline. Without this, Ctrl+Z can
       // step past the initial state and wipe pre-existing whiteboard content.
@@ -703,43 +736,19 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
         }
       }
 
-      if (elements.length === 0) {
+      requestAnimationFrame(() => {
         excalidrawApi.updateScene({
           appState: {
-            scrollX: 0,
-            scrollY: 0,
-            zoom: { value: 1 as Zoom['value'] }
+            scrollX: defaultViewport.scrollX,
+            scrollY: defaultViewport.scrollY,
+            zoom: { value: defaultViewport.zoom as Zoom['value'] }
           } as Partial<AppState> as AppState
         })
         requestAnimationFrame(clearHistory)
-        return
-      }
-
-      const capZoomToOne = () => {
-        const z = excalidrawApi.getAppState().zoom.value
-        if (z > 1 || !Number.isFinite(z)) {
-          excalidrawApi.updateScene({
-            appState: { zoom: { value: 1 as Zoom['value'] } } as Partial<AppState> as AppState
-          })
-          excalidrawApi.scrollToContent(elements, {
-            fitToViewport: false,
-            animate: false
-          })
-        }
-      }
-      requestAnimationFrame(() => {
-        excalidrawApi.scrollToContent(elements, {
-          fitToViewport: true,
-          viewportZoomFactor: 0.9,
-          animate: false
-        })
-        requestAnimationFrame(capZoomToOne)
       })
-      setTimeout(capZoomToOne, 300)
-      setTimeout(clearHistory, 350)
     }
 
-    const timer = window.setTimeout(performInitialFit, 80)
+    const timer = window.setTimeout(resetInitialViewport, 80)
     return () => window.clearTimeout(timer)
   }, [excalidrawApi, isSynced])
 
@@ -1324,6 +1333,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
             onScrollChange={handleScrollChange}
             langCode={excalidrawLangCode}
             aiEnabled={false}
+            {...({ onLinkOpen: handleLinkOpen } as Record<string, unknown>)}
             UIOptions={{
               canvasActions: {
                 loadScene: false,

@@ -2,6 +2,8 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 
@@ -60,6 +62,9 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   'data-testid': testId = 'note-apps-hub'
 }) => {
   const { t } = useTranslation(translations)
+  /** Catalog key `preview.enabled` (Feature.Preview.Enabled.Key). Hide handwriting UI unless explicitly enabled. */
+  const previewFeatureRaw = useFeature<boolean | string>(Feature.Preview.Enabled.Key)
+  const previewEnabled = previewFeatureRaw === true || previewFeatureRaw === 'true'
 
   // View state
   const [currentView, setCurrentView] = useState<HubView>('list')
@@ -122,7 +127,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     clearCurrentNote,
     refreshNotes,
     shareNote,
-    getSharedUsers
+    getSharedUsers,
+    patchNoteInState
   } = useNotes({ accessToken, userId: currentUserId, translate: t })
 
   const noteTree = useNoteTree({ autoLoad: true, t })
@@ -366,6 +372,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       paperStyle?: PaperStyle
       parentId?: string
     }) => {
+      if (options?.noteType === 'handwriting' && !previewEnabled) {
+        toast.error(t('handwriting-preview-disabled-toast'))
+        return
+      }
       const input: CreateNoteInput = {
         title: '',
         content: '<p></p>',
@@ -389,7 +399,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         noteTree.loadTree()
       }
     },
-    [createNote, loadNote, updateUrl, noteTree]
+    [createNote, loadNote, noteTree, previewEnabled, t, updateUrl]
   )
 
   const handleCreateFolder = useCallback(async () => {
@@ -629,6 +639,11 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   }, [clearCurrentNote, resetLoadAttempt, updateUrl])
 
   const isTrashedNote = Boolean(currentNote?.trashedAt)
+  const canEditCurrentNote = useMemo(() => {
+    if (!currentNote) return false
+    const p = currentNotePermission || 'owner'
+    return p === 'owner' || p === 'edit'
+  }, [currentNote, currentNotePermission])
   const canManageTrashedNote = Boolean(
     isTrashedNote &&
       currentNotePermission === 'owner' &&
@@ -810,6 +825,26 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     [noteTree]
   )
 
+  const handleNoteColorChange = useCallback(
+    (color: NoteColor) => {
+      const id = currentNote?.id
+      if (!id || isTrashedNote || !canEditCurrentNote) return
+      void updateNote(id, { color, createVersion: false })
+      noteTree.updateNodeColorOptimistic(id, color)
+    },
+    [canEditCurrentNote, currentNote?.id, isTrashedNote, noteTree, updateNote]
+  )
+
+  const handleRemoteNoteColor = useCallback(
+    (color: NoteColor) => {
+      const id = currentNote?.id
+      if (!id || isTrashedNote) return
+      patchNoteInState(id, { color })
+      noteTree.updateNodeColorOptimistic(id, color)
+    },
+    [currentNote?.id, isTrashedNote, noteTree, patchNoteInState]
+  )
+
   const breadcrumbs = useMemo(() => {
     if (currentView === 'list' && folderBreadcrumbs.length > 0) {
       return folderBreadcrumbs.map(b => ({
@@ -864,6 +899,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       onSelectNode={handleTreeSelect}
       onToggleExpand={noteTree.toggleExpand}
       onCreateNote={opts => handleCreateNew(opts)}
+      handwritingNotesEnabled={previewEnabled}
       onCreateFolder={handleCreateFolder}
       onDelete={handleDeleteNote}
       onTogglePin={handleTogglePin}
@@ -1035,6 +1071,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             onToggleSidebar={sidebar.toggleCollapsed}
             onTitleChanged={handleTitleChanged}
             onContentSaved={handleContentSaved}
+            onColorChange={!isTrashedNote && canEditCurrentNote ? handleNoteColorChange : undefined}
+            onRemoteNoteColor={!isTrashedNote ? handleRemoteNoteColor : undefined}
             accessToken={accessToken}
             userInfo={userInfo}
             data-testid={`${testId}-editor`}
@@ -1107,6 +1145,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         onClearSelection={handleClearSelection}
         onMoveToFolder={handleMoveToFolder}
         onRenameNote={handleRenameNote}
+        handwritingNotesEnabled={previewEnabled}
       />
 
       {/* Pagination */}

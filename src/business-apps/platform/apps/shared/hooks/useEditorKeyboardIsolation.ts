@@ -9,7 +9,7 @@
 
 import { useEffect, type RefObject } from 'react'
 
-const FORMATTING_KEYS = new Set(['b', 'i', 'u'])
+const FORMATTING_KEYS = new Set(['b', 'i', 'u', 'z', 'y'])
 
 export function useEditorKeyboardIsolation(containerRef: RefObject<HTMLElement | null>): void {
   useEffect(() => {

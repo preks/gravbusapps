@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { Button, useTranslation } from '@newwork/nw-design-system'
-import { Undo2, Trash2 } from 'lucide-react'
+import { Undo2, Redo2, Trash2 } from 'lucide-react'
 import translations from '../../_i18n'
 import type { PaperStyle } from './index'
 
@@ -17,8 +17,10 @@ interface HandwritingToolbarProps {
   onPenWidthChange: (width: number) => void
   onPaperStyleChange: (style: PaperStyle) => void
   onUndo: () => void
+  onRedo: () => void
   onClear: () => void
   canUndo: boolean
+  canRedo: boolean
 }
 
 const PEN_COLORS = [
@@ -50,8 +52,10 @@ export const HandwritingToolbar: React.FC<HandwritingToolbarProps> = ({
   onPenWidthChange,
   onPaperStyleChange,
   onUndo,
+  onRedo,
   onClear,
-  canUndo
+  canUndo,
+  canRedo
 }) => {
   const { t } = useTranslation(translations)
   return (
@@ -122,8 +126,25 @@ export const HandwritingToolbar: React.FC<HandwritingToolbarProps> = ({
 
       {/* Actions */}
       <div className="gba:flex gba:items-center gba:gap-2">
-        <Button variant="ghost" size="sm" onClick={onUndo} disabled={!canUndo} title={t('toolbar-undo')}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title={t('toolbar-undo')}
+          data-testid="handwriting-toolbar-undo"
+        >
           <Undo2 className="gba:w-4 gba:h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title={t('toolbar-redo')}
+          data-testid="handwriting-toolbar-redo"
+        >
+          <Redo2 className="gba:w-4 gba:h-4" />
         </Button>
         <Button variant="ghost" size="sm" onClick={onClear} disabled={!canUndo} title={t('toolbar-clear')}>
           <Trash2 className="gba:w-4 gba:h-4" />

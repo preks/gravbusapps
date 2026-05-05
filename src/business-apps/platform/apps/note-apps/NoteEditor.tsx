@@ -52,6 +52,8 @@ import {
   Pin,
   Copy,
   Download,
+  Undo2,
+  Redo2,
   Bold,
   Italic,
   Underline as UnderlineIcon,
@@ -96,6 +98,7 @@ import { CommentPanel } from '../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../shared/components/InlineCommentPopover'
 import { Drawing } from '../shared/extensions/Drawing'
 import { Kanban, type KanbanData } from '../shared/extensions/Kanban'
+import { KANBAN_DEFAULT_COLUMN_IDS } from '../shared/extensions/kanbanConstants'
 import { useTaskKanbanSync } from './hooks/useTaskKanbanSync'
 import { HybridEditorCanvas } from '../shared/components/HybridEditorCanvas'
 import * as Y from 'yjs'
@@ -268,6 +271,8 @@ export interface NoteEditorProps extends Partial<BusinessAppContextProps> {
   onShare?: () => void
   onDuplicate?: () => void
   onColorChange?: (color: NoteColor) => void
+  /** Applied when another collaborator changes note color (hub should patch list/current note). */
+  onRemoteNoteColor?: (color: NoteColor) => void
   isReadOnly?: boolean
   isTrashedNote?: boolean
   isSidebarCollapsed?: boolean
@@ -288,6 +293,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   onShare,
   onDuplicate,
   onColorChange,
+  onRemoteNoteColor,
   isReadOnly = false,
   isTrashedNote = false,
   isSidebarCollapsed,
@@ -784,6 +790,25 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       collaborationSocket.off('note_title_updated', handleNoteTitleUpdated)
     }
   }, [collaborationSocket, isTrashedNote, note.id, onTitleChanged])
+
+  useEffect(() => {
+    setNoteColor(note.color || 'default')
+  }, [note.color, note.id])
+
+  useEffect(() => {
+    if (!collaborationSocket || !note.id || isTrashedNote) return
+
+    const handleNoteColorUpdated = (event: { documentId: string; entityType?: string; color?: string }) => {
+      if (event.documentId !== note.id || event.entityType !== 'note') return
+      const next = (event.color || 'default') as NoteColor
+      onRemoteNoteColor?.(next)
+    }
+
+    collaborationSocket.on('note_color_updated', handleNoteColorUpdated)
+    return () => {
+      collaborationSocket.off('note_color_updated', handleNoteColorUpdated)
+    }
+  }, [collaborationSocket, isTrashedNote, note.id, onRemoteNoteColor])
 
   // Set awareness state
   useEffect(() => {
@@ -1990,8 +2015,20 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   }, [editor, handleAddInlineComment, findKanbanBoards])
 
   // Handler for adding task(s) to Kanban - supports multiple items
+  const createDefaultKanbanData = useCallback(
+    (kanbanId: string): KanbanData => ({
+      id: kanbanId,
+      columns: [
+        { id: KANBAN_DEFAULT_COLUMN_IDS.todo, title: t('kanban-column-todo'), cards: [] },
+        { id: KANBAN_DEFAULT_COLUMN_IDS.inProgress, title: t('kanban-column-in-progress'), cards: [] },
+        { id: KANBAN_DEFAULT_COLUMN_IDS.done, title: t('kanban-column-done'), cards: [] }
+      ]
+    }),
+    [t]
+  )
+
   const handleAddTaskToKanban = useCallback(
-    (kanbanId: string, columnId: string = 'todo') => {
+    (kanbanId: string, columnId: string = KANBAN_DEFAULT_COLUMN_IDS.todo) => {
       if (!taskContextMenu) return
 
       const positions = taskContextMenu.taskItemPositions
@@ -2034,7 +2071,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     const kanbanId = `kanban-${Date.now()}`
 
     // First, create the Kanban board
-    const inserted = editor.chain().focus().insertKanban({ id: kanbanId }).run()
+    const inserted = editor
+      .chain()
+      .focus()
+      .insertKanban({ id: kanbanId, data: createDefaultKanbanData(kanbanId) })
+      .run()
 
     if (!inserted) {
       console.error('[NoteEditor] Failed to create Kanban')
@@ -2083,7 +2124,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }, 100)
 
     setTaskContextMenu(null)
-  }, [taskContextMenu, editor, addTaskToKanban])
+  }, [taskContextMenu, editor, addTaskToKanban, createDefaultKanbanData])
 
   // Color change handler
   const handleColorChange = useCallback(
@@ -2376,14 +2417,46 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         </div>
       </div>
 
-      {/* Editor Area */}
-      <div className="gba:flex-1 gba:flex gba:overflow-hidden">
-        <div className="gba:flex-1 gba:overflow-auto gba:relative">
+      {/* Editor Area — same as slides/whiteboard: flex row so the comments rail sits on the right */}
+      <div className="gba:flex-1 gba:flex gba:flex-row gba:overflow-hidden gba:min-h-0">
+        <div className="gba:flex-1 gba:min-w-0 gba:overflow-auto gba:relative">
           {/* Formatting Toolbar -- sticky inside scroll area for frosted glass blur */}
           {editor && canEditNote && (
             <div className="gba:sticky gba:top-0 gba:z-[9] gba:bg-sidebar/70 gba:backdrop-blur-md gba:backdrop-saturate-125 gba:px-6 gba:py-1.5 gba:border-b gba:border-sidebar-border/10">
               <div className="gba:max-w-3xl gba:lg:max-w-[48rem] gba:mx-auto gba:flex gba:items-center gba:gap-1 gba:flex-wrap">
                 <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().undo().run()}
+                        disabled={!editor.can().undo()}
+                        data-testid="note-editor-undo"
+                      >
+                        <Undo2 className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-undo')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().redo().run()}
+                        disabled={!editor.can().redo()}
+                        data-testid="note-editor-redo"
+                      >
+                        <Redo2 className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-redo')}</TooltipContent>
+                  </Tooltip>
+
+                  <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -2579,7 +2652,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                         onClick={() => {
                           if (!editor || !isYjsSynced) return
                           const kanbanId = `kanban-${Date.now()}`
-                          editor.chain().focus().insertKanban({ id: kanbanId }).run()
+                          editor
+                            .chain()
+                            .focus()
+                            .insertKanban({ id: kanbanId, data: createDefaultKanbanData(kanbanId) })
+                            .run()
                         }}
                         data-testid="note-editor-insert-kanban"
                         disabled={!isYjsSynced}
@@ -2713,6 +2790,109 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             <ActionItemsList flows={actionItemFlows} data-testid={`${testId}-action-items-list`} />
           </div>
         )}
+
+        {/* Comments — rightmost rail (same ordering idea as slide editor: canvas … then comments) */}
+        {showComments ? (
+          <CommentPanel
+            comments={comments.comments}
+            unresolvedCount={comments.unresolvedCount}
+            isLoading={comments.isLoading}
+            onCreateComment={async (content, parentId, userName, userAvatar) => {
+              if (parentId) {
+                await comments.createComment({
+                  type: 'document',
+                  content,
+                  parentId,
+                  createdByName: userName,
+                  createdByAvatar: userAvatar
+                })
+                return
+              }
+
+              const anchor = panelCommentAnchorRef.current
+              if (isValidPanelCommentAnchor(anchor)) {
+                const anchorEditor = anchor.editor
+                const docSize = anchorEditor.state.doc.content.size
+                const from = Math.max(0, Math.min(anchor.from, docSize))
+                const to = Math.max(from, Math.min(anchor.to, docSize))
+
+                if (to > from) {
+                  const anchorSelectedText = anchor.selectedText.trim()
+                  const selectedText = anchorSelectedText || anchorEditor.state.doc.textBetween(from, to, '\n', ' ')
+                  const comment = await comments.createComment({
+                    type: 'inline',
+                    content,
+                    selectionStart: from,
+                    selectionEnd: to,
+                    selectedText,
+                    createdByName: userName,
+                    createdByAvatar: userAvatar
+                  })
+
+                  if (comment) {
+                    applyInlineCommentMark({ from, to }, comment)
+                  }
+
+                  panelCommentAnchorRef.current = null
+                  setPendingSelection(null)
+                  return
+                }
+              }
+
+              await comments.createComment({
+                type: 'document',
+                content,
+                createdByName: userName,
+                createdByAvatar: userAvatar
+              })
+              panelCommentAnchorRef.current = null
+              setPendingSelection(null)
+            }}
+            onUpdateComment={async (commentId, content) => {
+              await comments.updateComment(commentId, { content })
+            }}
+            onResolveComment={async commentId => {
+              await comments.resolveComment(commentId)
+            }}
+            onUnresolveComment={commentId => comments.unresolveComment(commentId)}
+            onDeleteComment={async commentId => {
+              await comments.deleteComment(commentId)
+            }}
+            onClose={() => {
+              setShowComments(false)
+              panelCommentAnchorRef.current = null
+              setPendingSelection(null)
+            }}
+            currentUserId={currentUserId || undefined}
+            currentUserName={currentUserName || undefined}
+            currentUserAvatar={currentUserAvatar || undefined}
+            onUnhighlight={commentId => {
+              if (!editor) return
+
+              const comment = comments.comments.find(entry => entry.id === commentId) || null
+              const selection = findInlineCommentSelection(editor, commentId, comment)
+              if (!selection) return
+
+              editor.chain().setTextSelection(selection).unsetInlineComment().run()
+            }}
+            onScrollToHighlight={commentId => {
+              if (!editor) return
+
+              const comment = comments.comments.find(entry => entry.id === commentId) || null
+              const selection = findInlineCommentSelection(editor, commentId, comment)
+              if (!selection) return
+
+              editor.chain().setTextSelection(selection).focus().run()
+
+              setTimeout(() => {
+                const element = document.querySelector(`[data-comment-id="${commentId}"]`)
+                element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }, 100)
+            }}
+            layout="docked"
+            data-testid="note-comment-panel"
+          />
+        ) : null}
       </div>
 
       {/* Action Items Panel (iPad/mobile) */}
@@ -3151,108 +3331,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           isPublishing={publishing.isPublishing}
           entityType="note"
           data-testid="note-publish-dialog"
-        />
-      )}
-
-      {showComments && (
-        <CommentPanel
-          comments={comments.comments}
-          unresolvedCount={comments.unresolvedCount}
-          isLoading={comments.isLoading}
-          onCreateComment={async (content, parentId, userName, userAvatar) => {
-            if (parentId) {
-              await comments.createComment({
-                type: 'document',
-                content,
-                parentId,
-                createdByName: userName,
-                createdByAvatar: userAvatar
-              })
-              return
-            }
-
-            const anchor = panelCommentAnchorRef.current
-            if (isValidPanelCommentAnchor(anchor)) {
-              const anchorEditor = anchor.editor
-              const docSize = anchorEditor.state.doc.content.size
-              const from = Math.max(0, Math.min(anchor.from, docSize))
-              const to = Math.max(from, Math.min(anchor.to, docSize))
-
-              if (to > from) {
-                const anchorSelectedText = anchor.selectedText.trim()
-                const selectedText = anchorSelectedText || anchorEditor.state.doc.textBetween(from, to, '\n', ' ')
-                const comment = await comments.createComment({
-                  type: 'inline',
-                  content,
-                  selectionStart: from,
-                  selectionEnd: to,
-                  selectedText,
-                  createdByName: userName,
-                  createdByAvatar: userAvatar
-                })
-
-                if (comment) {
-                  applyInlineCommentMark({ from, to }, comment)
-                }
-
-                panelCommentAnchorRef.current = null
-                setPendingSelection(null)
-                return
-              }
-            }
-
-            await comments.createComment({
-              type: 'document',
-              content,
-              createdByName: userName,
-              createdByAvatar: userAvatar
-            })
-            panelCommentAnchorRef.current = null
-            setPendingSelection(null)
-          }}
-          onUpdateComment={async (commentId, content) => {
-            await comments.updateComment(commentId, { content })
-          }}
-          onResolveComment={async commentId => {
-            await comments.resolveComment(commentId)
-          }}
-          onUnresolveComment={commentId => comments.unresolveComment(commentId)}
-          onDeleteComment={async commentId => {
-            await comments.deleteComment(commentId)
-          }}
-          onClose={() => {
-            setShowComments(false)
-            panelCommentAnchorRef.current = null
-            setPendingSelection(null)
-          }}
-          currentUserId={currentUserId || undefined}
-          currentUserName={currentUserName || undefined}
-          currentUserAvatar={currentUserAvatar || undefined}
-          headerHeight={80}
-          onUnhighlight={commentId => {
-            if (!editor) return
-
-            const comment = comments.comments.find(entry => entry.id === commentId) || null
-            const selection = findInlineCommentSelection(editor, commentId, comment)
-            if (!selection) return
-
-            editor.chain().setTextSelection(selection).unsetInlineComment().run()
-          }}
-          onScrollToHighlight={commentId => {
-            if (!editor) return
-
-            const comment = comments.comments.find(entry => entry.id === commentId) || null
-            const selection = findInlineCommentSelection(editor, commentId, comment)
-            if (!selection) return
-
-            editor.chain().setTextSelection(selection).focus().run()
-
-            setTimeout(() => {
-              const element = document.querySelector(`[data-comment-id="${commentId}"]`)
-              element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            }, 100)
-          }}
-          data-testid="note-comment-panel"
         />
       )}
 

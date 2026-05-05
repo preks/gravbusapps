@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { Editor } from '@tiptap/react'
 import type { KanbanData, KanbanCard } from '../../shared/extensions/Kanban'
+import { KANBAN_DEFAULT_COLUMN_IDS } from '../../shared/extensions/kanbanConstants'
 
 interface UseTaskKanbanSyncOptions {
   editor: Editor | null
@@ -288,10 +289,10 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
         if (prevState && prevState.checked !== currentChecked) {
           if (currentChecked) {
             // Task was checked - move to Done
-            moveKanbanCardToColumn(editor, task.kanbanId, task.kanbanCardId, 'done')
+            moveKanbanCardToColumn(editor, task.kanbanId, task.kanbanCardId, KANBAN_DEFAULT_COLUMN_IDS.done)
           } else {
             // Task was unchecked - move back to To Do
-            moveKanbanCardToColumn(editor, task.kanbanId, task.kanbanCardId, 'todo')
+            moveKanbanCardToColumn(editor, task.kanbanId, task.kanbanCardId, KANBAN_DEFAULT_COLUMN_IDS.todo)
           }
           madeChanges = true
         }

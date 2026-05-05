@@ -2,6 +2,8 @@ import * as Y from 'yjs'
 import {
   dedupeWhiteboardElementRecords,
   markWhiteboardElementsDeleted,
+  normalizeWhiteboardElementOrder,
+  readWhiteboardElements,
   syncWhiteboardAppState,
   syncWhiteboardElements,
   syncWhiteboardFiles
@@ -93,5 +95,40 @@ describe('whiteboardYjsScene', () => {
       { id: 'rect-2', type: 'rectangle', x: 20 },
       { id: 'rect-1', type: 'rectangle', x: 30 }
     ])
+  })
+
+  it('orders frame children before their frame element', () => {
+    expect(
+      normalizeWhiteboardElementOrder([
+        { id: 'frame-1', type: 'frame' },
+        { id: 'rect-1', type: 'rectangle', frameId: 'frame-1' },
+        { id: 'text-1', type: 'text', frameId: 'frame-1' },
+        { id: 'ellipse-1', type: 'ellipse' }
+      ])
+    ).toEqual([
+      { id: 'rect-1', type: 'rectangle', frameId: 'frame-1' },
+      { id: 'text-1', type: 'text', frameId: 'frame-1' },
+      { id: 'frame-1', type: 'frame' },
+      { id: 'ellipse-1', type: 'ellipse' }
+    ])
+  })
+
+  it('writes and reads frame scenes in normalized order', () => {
+    const ydoc = new Y.Doc()
+    const yElements = ydoc.getArray<Y.Map<unknown>>('elements')
+
+    syncWhiteboardElements(yElements, [
+      { id: 'frame-1', type: 'frame' },
+      { id: 'rect-1', type: 'rectangle', frameId: 'frame-1' },
+      { id: 'ellipse-1', type: 'ellipse' }
+    ])
+
+    expect(readWhiteboardElements(yElements)).toEqual([
+      { id: 'rect-1', type: 'rectangle', frameId: 'frame-1' },
+      { id: 'frame-1', type: 'frame' },
+      { id: 'ellipse-1', type: 'ellipse' }
+    ])
+
+    ydoc.destroy()
   })
 })

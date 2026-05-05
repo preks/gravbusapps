@@ -40,6 +40,8 @@ export interface NoteContentHeaderProps {
   onCreateNote: (opts?: { noteType?: 'text' | 'handwriting' }) => void
   onCreateFolder?: () => void
   onRefresh: () => void
+  /** When false, “Handwriting note” is hidden (catalog `preview.enabled` not true). */
+  handwritingNotesEnabled?: boolean
 }
 
 export const NoteContentHeader: React.FC<NoteContentHeaderProps> = ({
@@ -56,7 +58,8 @@ export const NoteContentHeader: React.FC<NoteContentHeaderProps> = ({
   onToggleSidebar,
   onCreateNote,
   onCreateFolder,
-  onRefresh
+  onRefresh,
+  handwritingNotesEnabled = true
 }) => {
   const { t } = useTranslation(translations)
 
@@ -179,13 +182,15 @@ export const NoteContentHeader: React.FC<NoteContentHeaderProps> = ({
                 <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-text-description')}</div>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onCreateNote({ noteType: 'handwriting' })}>
-              <PenTool className="gba:w-4 gba:h-4 gba:mr-2 gba:text-info" />
-              <div>
-                <div className="gba:font-medium gba:text-sm">{t('menu-new-handwriting-title')}</div>
-                <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-handwriting-description')}</div>
-              </div>
-            </DropdownMenuItem>
+            {handwritingNotesEnabled ? (
+              <DropdownMenuItem onClick={() => onCreateNote({ noteType: 'handwriting' })}>
+                <PenTool className="gba:w-4 gba:h-4 gba:mr-2 gba:text-info" />
+                <div>
+                  <div className="gba:font-medium gba:text-sm">{t('menu-new-handwriting-title')}</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-handwriting-description')}</div>
+                </div>
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuSeparator />
             {onCreateFolder && (
               <DropdownMenuItem onClick={onCreateFolder}>

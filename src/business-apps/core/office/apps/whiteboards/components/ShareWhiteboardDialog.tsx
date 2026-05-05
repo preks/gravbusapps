@@ -123,11 +123,11 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
 
   const handleShare = useCallback(async () => {
     if (!accessToken) {
-      setError(t('share-failed'))
+      setError(t('whiteboard-share-dialog-failed'))
       return
     }
     if (selectedUsers.length === 0) {
-      setError(t('share-select-one'))
+      setError(t('whiteboard-share-dialog-select-one'))
       return
     }
 
@@ -150,7 +150,7 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
       }
 
       if (!allSucceeded) {
-        throw new Error(t('share-some-failed'))
+        throw new Error(t('whiteboard-share-dialog-some-failed'))
       }
 
       const notificationResult = await sendWhiteboardShareNotification(accessToken, {
@@ -171,15 +171,15 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
       }
 
       setSentSuccess(true)
-      toast.success(t('share-success-toast'), {
-        description: t('share-success-description', { count: selectedUsers.length })
+      toast.success(t('whiteboard-share-dialog-success-toast'), {
+        description: t('whiteboard-share-dialog-success-description', { count: selectedUsers.length })
       })
       onShareComplete?.()
       window.setTimeout(() => onOpenChange(false), 1500)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t('share-failed')
+      const msg = err instanceof Error ? err.message : t('whiteboard-share-dialog-failed')
       setError(msg)
-      toast.error(t('share-failed'), { description: msg })
+      toast.error(t('whiteboard-share-dialog-failed'), { description: msg })
     } finally {
       setIsSubmitting(false)
     }
@@ -205,9 +205,9 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
-            {t('share-title')}
+            {t('whiteboard-share-dialog-title')}
           </DialogTitle>
-          <DialogDescription>{t('share-description', { title: whiteboardTitle })}</DialogDescription>
+          <DialogDescription>{t('whiteboard-share-dialog-description', { title: whiteboardTitle })}</DialogDescription>
         </DialogHeader>
 
         {sentSuccess ? (
@@ -215,17 +215,17 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
             <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-success/10 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
               <CheckCircle className="gba:w-8 gba:h-8 gba:text-success" />
             </div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('share-success-title')}</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('whiteboard-share-dialog-success-title')}</h3>
             <p className="gba:text-muted-foreground">
               {selectedUsers.length === 1
-                ? t('share-notified-single', { name: selectedUsers[0].displayName })
-                : t('share-notified-multiple', { count: selectedUsers.length })}
+                ? t('whiteboard-share-dialog-notified-single', { name: selectedUsers[0].displayName })
+                : t('whiteboard-share-dialog-notified-multiple', { count: selectedUsers.length })}
             </p>
           </div>
         ) : (
           <div className="gba:space-y-5 gba:py-2 gba:overflow-y-auto gba:flex-1 gba:-mx-6 gba:px-6">
             <div className="gba:space-y-2">
-              <Label>{t('share-default-permission')}</Label>
+              <Label>{t('whiteboard-share-dialog-default-permission')}</Label>
               <Select value={defaultPermission} onValueChange={v => setDefaultPermission(v as Permission)}>
                 <SelectTrigger className="gba:w-full" data-testid={`${testId}-default-permission`}>
                   <SelectValue />
@@ -234,19 +234,19 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
                   <SelectItem value="view">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Eye className="gba:w-4 gba:h-4" />
-                      <span>{t('share-can-view')}</span>
+                      <span>{t('whiteboard-share-dialog-can-view')}</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="comment">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <MessageSquare className="gba:w-4 gba:h-4" />
-                      <span>{t('share-can-comment')}</span>
+                      <span>{t('whiteboard-share-dialog-can-comment')}</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="edit">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Pencil className="gba:w-4 gba:h-4" />
-                      <span>{t('share-can-edit')}</span>
+                      <span>{t('whiteboard-share-dialog-can-edit')}</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -254,11 +254,11 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
             </div>
 
             <div className="gba:space-y-2">
-              <Label>{t('share-add-people')}</Label>
+              <Label>{t('whiteboard-share-dialog-add-people')}</Label>
               <div className="gba:relative">
                 <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                 <Input
-                  placeholder={t('share-search-placeholder')}
+                  placeholder={t('whiteboard-share-dialog-search-placeholder')}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="gba:pl-10"
@@ -311,14 +311,14 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
 
               {searchQuery.length >= 2 && !isSearching && filteredResults.length === 0 && (
                 <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
-                  {t('share-no-results', { query: searchQuery })}
+                  {t('whiteboard-share-dialog-no-results', { query: searchQuery })}
                 </p>
               )}
             </div>
 
             {selectedUsers.length > 0 && (
               <div className="gba:space-y-2">
-                <Label>{t('share-people-with-access', { count: selectedUsers.length })}</Label>
+                <Label>{t('whiteboard-share-dialog-people-with-access', { count: selectedUsers.length })}</Label>
                 <div className="gba:border gba:rounded-md gba:divide-y gba:max-h-48 gba:overflow-y-auto">
                   {selectedUsers.map(user => (
                     <div key={user.id} className="gba:flex gba:items-center gba:gap-2 gba:p-2">
@@ -350,9 +350,9 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="view">{t('share-can-view')}</SelectItem>
-                          <SelectItem value="comment">{t('share-can-comment')}</SelectItem>
-                          <SelectItem value="edit">{t('share-can-edit')}</SelectItem>
+                          <SelectItem value="view">{t('whiteboard-share-dialog-can-view')}</SelectItem>
+                          <SelectItem value="comment">{t('whiteboard-share-dialog-can-comment')}</SelectItem>
+                          <SelectItem value="edit">{t('whiteboard-share-dialog-can-edit')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <Button
@@ -371,10 +371,10 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
             )}
 
             <div className="gba:space-y-2">
-              <Label htmlFor="wb-share-message">{t('share-message-optional')}</Label>
+              <Label htmlFor="wb-share-message">{t('whiteboard-share-dialog-message-optional')}</Label>
               <Textarea
                 id="wb-share-message"
-                placeholder={t('share-message-placeholder')}
+                placeholder={t('whiteboard-share-dialog-message-placeholder')}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 rows={2}
@@ -391,7 +391,7 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
 
             <div className="gba:flex gba:items-start gba:gap-2 gba:p-3 gba:bg-primary/5 gba:rounded-md gba:text-sm">
               <Share2 className="gba:w-4 gba:h-4 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
-              <p className="gba:text-muted-foreground">{t('share-info')}</p>
+              <p className="gba:text-muted-foreground">{t('whiteboard-share-dialog-info')}</p>
             </div>
           </div>
         )}
@@ -404,7 +404,7 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
               disabled={isSubmitting}
               data-testid={`${testId}-cancel`}
             >
-              {t('share-cancel')}
+              {t('whiteboard-share-dialog-cancel')}
             </Button>
             <Button
               onClick={handleShare}
@@ -414,12 +414,12 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
               {isSubmitting ? (
                 <>
                   <Spinner size="sm" className="gba:mr-2" />
-                  {t('share-sharing')}
+                  {t('whiteboard-share-dialog-sharing')}
                 </>
               ) : (
                 <>
                   <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('share-button')}
+                  {t('whiteboard-share-dialog-button')}
                 </>
               )}
             </Button>

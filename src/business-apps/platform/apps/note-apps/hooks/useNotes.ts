@@ -60,6 +60,8 @@ export interface UseNotesReturn {
   // Utilities
   clearCurrentNote: () => void
   refreshNotes: () => Promise<void>
+  /** Merge fields into list + current note without an API call (e.g. collaboration socket). */
+  patchNoteInState: (id: string, patch: Partial<NoteSummary>) => void
 }
 
 export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
@@ -456,6 +458,11 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
     await loadNotes(lastQueryRef.current)
   }, [loadNotes])
 
+  const patchNoteInState = useCallback((id: string, patch: Partial<NoteSummary>) => {
+    setCurrentNote(prev => (prev?.id === id ? { ...prev, ...patch } : prev))
+    setNotes(prev => prev.map(n => (n.id === id ? { ...n, ...patch } : n)))
+  }, [])
+
   // Auto-load on mount
   useEffect(() => {
     if (autoLoad) {
@@ -495,7 +502,8 @@ export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
 
     // Utilities
     clearCurrentNote,
-    refreshNotes
+    refreshNotes,
+    patchNoteInState
   }
 }
 
