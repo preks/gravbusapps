@@ -1,9 +1,6 @@
-import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
+export type ReportSectionKind = 'investmentType' | 'liquidFundType' | 'group'
 
-/**
- * Strategy pattern for determining sub-sections within a report tab
- */
-export type SubSectionStrategy = 'investmentTypes' | 'liquidFundTypes' | 'none'
+const LIQUID_FUND_REQUIRED_SUBTYPE_KEY = 'liquidFundInvestment'
 
 /**
  * Interface for a sub-section within a report tab
@@ -13,173 +10,123 @@ export interface SubSection {
   code: string // Catalog code (e.g., 'VENTURE_CAPITAL')
   value: string // Display value (e.g., 'Venture Capital')
   label: string // Same as value (for consistency)
+  kind: ReportSectionKind
 }
 
-/**
- * Fetch investment types for a specific investment group from the catalog
- *
- * @param groupCode - Investment group code (e.g., 'EQUITY', 'REAL_ESTATE')
- * @param accessToken - User access token
- * @returns Promise<SubSection[]> Array of investment types as sub-sections
- */
-export const fetchInvestmentTypeSubSections = async (groupCode: string, accessToken: string): Promise<SubSection[]> => {
-  if (!accessToken) return []
-
-  // Set access token on the singleton GraphQL client
-  graphQLClient.setAccessToken(accessToken)
-
-  const query = `
-    query GetInvestmentTypes($groupId: String!) {
-      CatalogEntry(
-        where: {
-          catalog: { name: { _eq: "Investment Type" } }
-          parentEntryId: { _eq: $groupId }
-          isDeleted: { _eq: false }
-        }
-        limit: 50
-      ) {
-        id
-        code
-        value
-        additionalValue1
-      }
+const parseObjectValue = (objectValue: unknown): any => {
+  if (!objectValue) return null
+  if (typeof objectValue === 'string') {
+    try {
+      return JSON.parse(objectValue)
+    } catch {
+      return null
     }
-  `
+  }
+  return objectValue
+}
 
-  try {
-    const result = await graphQLClient.request(query, {
-      groupId: `InvestmentGroup:v1:${groupCode}`
-    })
+const getRequiredSubtypeKey = (objectValue: unknown): string => {
+  return parseObjectValue(objectValue)?.requiredSubtypeKey ?? ''
+}
 
-    if (!result?.CatalogEntry) {
-      return []
-    }
+const getTranslatedLabel = (entry: any): string => {
+  return entry?.translations?.[0]?.value || entry?.value || entry?.code || ''
+}
 
-    // Transform and sort by additionalValue1 (display order)
-    const types: SubSection[] = result.CatalogEntry.map((entry: any) => ({
-      id: entry.code.toLowerCase().replaceAll('_', '-'),
-      code: entry.code,
-      value: entry.value,
-      label: entry.value
-    })).sort((a: any, b: any) => {
-      const orderA = Number.parseInt(
-        result.CatalogEntry.find((e: any) => e.code === a.code)?.additionalValue1 || '0',
-        10
-      )
-      const orderB = Number.parseInt(
-        result.CatalogEntry.find((e: any) => e.code === b.code)?.additionalValue1 || '0',
-        10
-      )
-      return orderA - orderB
-    })
+const getSortOrder = (entry: any): number => Number.parseInt(entry?.additionalValue1 || '0', 10)
 
-    return types
-  } catch (err) {
-    console.error(`Error fetching investment types for ${groupCode}:`, err)
-    return []
+const belongsToParent = (entry: any, parent: any): boolean => {
+  return (
+    entry?.parentEntryId === parent?.id ||
+    entry?.parentEntry?.id === parent?.id ||
+    entry?.parentEntry?.code === parent?.code
+  )
+}
+
+const buildSubSection = (entry: any, kind: ReportSectionKind): SubSection | undefined => {
+  const code = entry?.code
+  if (!code) return undefined
+
+  const label = getTranslatedLabel(entry)
+  return {
+    id: code.toLowerCase().replaceAll('_', '-'),
+    code,
+    value: label,
+    label,
+    kind
+  }
+}
+
+const sortCatalogEntries = (a: any, b: any): number => {
+  const orderA = getSortOrder(a)
+  const orderB = getSortOrder(b)
+  if (orderA !== orderB) return orderA - orderB
+  return getTranslatedLabel(a).localeCompare(getTranslatedLabel(b))
+}
+
+export const shouldUseLiquidFundTypeSections = (groupEntry: any, catalogData: any): boolean => {
+  return (
+    getRequiredSubtypeKey(groupEntry?.objectValue) === LIQUID_FUND_REQUIRED_SUBTYPE_KEY &&
+    Boolean(catalogData?.investmentLiquidFundTypes?.length)
+  )
+}
+
+const buildGroupSection = (groupCode: string, groupEntry?: any): SubSection => {
+  const label = getTranslatedLabel(groupEntry) || 'Overview'
+  return {
+    id: 'overview',
+    code: groupCode,
+    value: label,
+    label: label === groupCode ? 'Overview' : label,
+    kind: 'group'
   }
 }
 
 /**
- * Fetch liquid fund sub-sections from the `InvestmentLiquidFundType` catalog.
- *
- * Each catalog entry becomes its own sub-section (Bank Deposits, Fixed-Term
- * Deposits, Pension Funds, Money Market Funds, Bonds, Equity, …). This lets
- * column/filter generation read each section's own `formFields` directly,
- * keeping the model symmetric with how Real Estate's investment-type
- * sub-sections work. Adding a new liquid fund type to the catalog
- * automatically surfaces it here without code changes.
- *
- * @param accessToken - User access token
- * @returns Promise<SubSection[]> Array of liquid fund types as sub-sections
+ * Resolve report sub-sections from catalog data, matching the investment view
+ * cascade: liquid fund subtype entries first when the group requires them,
+ * otherwise investment types, otherwise the group-level overview.
  */
-export const fetchLiquidFundTypeSubSections = async (accessToken: string): Promise<SubSection[]> => {
-  if (!accessToken) return []
+export const resolveReportSubSections = (groupCode: string, catalogData: any): SubSection[] => {
+  const groupEntry = catalogData?.investmentGroups?.find((entry: any) => entry.code === groupCode)
 
-  graphQLClient.setAccessToken(accessToken)
-
-  const query = `
-    query GetLiquidFundTypes {
-      CatalogEntry(
-        where: {
-          catalog: { identifier: { _eq: "InvestmentLiquidFundType" } }
-          isDeleted: { _eq: false }
-        }
-        orderBy: { value: ASC }
-        limit: 50
-      ) {
-        id
-        code
-        value
-        additionalValue1
-      }
-    }
-  `
-
-  try {
-    const result = await graphQLClient.request(query)
-
-    if (!result?.CatalogEntry) {
-      return []
-    }
-
-    const types: SubSection[] = result.CatalogEntry.map((entry: any) => ({
-      id: entry.code.toLowerCase().replaceAll('_', '-'),
-      code: entry.code,
-      value: entry.value,
-      label: entry.value
-    })).sort((a: any, b: any) => {
-      const orderA = Number.parseInt(
-        result.CatalogEntry.find((e: any) => e.code === a.code)?.additionalValue1 || '0',
-        10
-      )
-      const orderB = Number.parseInt(
-        result.CatalogEntry.find((e: any) => e.code === b.code)?.additionalValue1 || '0',
-        10
-      )
-      if (orderA !== orderB) return orderA - orderB
-      return a.label.localeCompare(b.label)
-    })
-
-    return types
-  } catch (err) {
-    console.error('Error fetching liquid fund type sub-sections:', err)
-    return []
+  if (shouldUseLiquidFundTypeSections(groupEntry, catalogData)) {
+    return [...(catalogData.investmentLiquidFundTypes as any[])]
+      .sort(sortCatalogEntries)
+      .map(entry => buildSubSection(entry, 'liquidFundType'))
+      .filter((section): section is SubSection => Boolean(section))
   }
+
+  const investmentTypeEntries = (catalogData?.investmentTypes ?? []).filter((entry: any) =>
+    belongsToParent(entry, groupEntry)
+  )
+
+  if (investmentTypeEntries.length > 0) {
+    return [...investmentTypeEntries]
+      .sort(sortCatalogEntries)
+      .map((entry: any) => buildSubSection(entry, 'investmentType'))
+      .filter((section: SubSection | undefined): section is SubSection => Boolean(section))
+  }
+
+  return [buildGroupSection(groupCode, groupEntry)]
 }
 
-/**
- * Get sub-sections based on strategy
- * Unified interface for determining sub-sections across all investment groups
- *
- * @param strategy - Sub-section strategy to use
- * @param groupCode - Investment group code
- * @param accessToken - User access token
- * @returns Promise<SubSection[]> Array of sub-sections
- */
-export const getSubSectionsForStrategy = async (
-  strategy: SubSectionStrategy,
+export const resolveRecordReportSubSection = (
   groupCode: string,
-  accessToken: string
-): Promise<SubSection[]> => {
-  switch (strategy) {
-    case 'investmentTypes':
-      return fetchInvestmentTypeSubSections(groupCode, accessToken)
+  catalogData: any,
+  investment: any,
+  typeSpecificData: any
+): SubSection => {
+  const groupEntry = catalogData?.investmentGroups?.find((entry: any) => entry.code === groupCode)
 
-    case 'liquidFundTypes':
-      return fetchLiquidFundTypeSubSections(accessToken)
-
-    case 'none':
-      return [
-        {
-          id: 'overview',
-          code: groupCode, // Use actual group code for proper filtering
-          value: 'Overview',
-          label: 'Overview'
-        }
-      ]
-
-    default:
-      return []
+  if (shouldUseLiquidFundTypeSections(groupEntry, catalogData)) {
+    const liquidFundType =
+      typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType ||
+      investment?.liquidFundInvestment?.investmentLiquidFundType
+    const liquidFundSection = buildSubSection(liquidFundType, 'liquidFundType')
+    if (liquidFundSection) return liquidFundSection
   }
+
+  const investmentTypeSection = buildSubSection(investment?.investmentType, 'investmentType')
+  return investmentTypeSection ?? buildGroupSection(groupCode, groupEntry)
 }

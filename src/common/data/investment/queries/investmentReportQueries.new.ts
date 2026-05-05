@@ -412,6 +412,9 @@ const buildLiquidFundInvestmentReportFragment = (fieldSet: Set<string>): string 
         maturityDate
         liquidFundInvestmentId
         interestPaymentFrequencyRef
+        interestPaymentFrequency {
+          ${CATALOG_ENTRY}
+        }
         investmentLiquidFundTypeRef
         investmentLiquidFundType {
           ${CATALOG_ENTRY}

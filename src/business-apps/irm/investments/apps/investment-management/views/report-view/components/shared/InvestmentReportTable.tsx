@@ -11,6 +11,7 @@ import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useInvestmentReportData } from './useInvestmentReportData'
 import { InvestmentReportTableConfig } from './types'
 import { INVESTMENT_REPORT_DESCRIPTORS } from '@/common/data/investment/types/investmentReportTypes'
+import type { ReportSectionKind } from '../../utils/subSectionHelpers'
 
 export interface ExportColumnDef {
   key: string
@@ -22,8 +23,6 @@ export interface ExportColumnDef {
 export interface InvestmentReportExportHelpers {
   fetchAll: () => Promise<any[]>
   totalCount: number
-  /** Optional transformer applied to raw reports before the export formatter runs (e.g. Liquid Fund analytics transformer). */
-  dataTransformer?: (reports: any[]) => any[]
   /** Export-ready column definitions derived from the table's generated columns. */
   exportColumns?: ExportColumnDef[]
 }
@@ -31,16 +30,16 @@ export interface InvestmentReportExportHelpers {
 interface InvestmentReportTableProps extends BusinessAppContextProps {
   'data-testid'?: string
   config: InvestmentReportTableConfig
+  investmentGroup: string
   filters: Record<string, any>
   investmentType: string
+  sectionKind?: ReportSectionKind
   investmentTypeValue: string
   catalogData: any
   visibleColumns?: string[]
   onCurrenciesChange?: (currencies: string[]) => void
   onExportReady?: (helpers: InvestmentReportExportHelpers) => void
   enabled?: boolean
-  dataTransformer?: (reports: any[]) => any[] // For Liquid Funds
-  columnsOverride?: any[] // For Liquid Funds with custom column generation
   hiddenColumnIds?: string[]
   // Sorting props
   sortField?: string
@@ -55,16 +54,16 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
   userInfo,
   'data-testid': dataTestId = 'investment-report-table',
   config,
+  investmentGroup,
   filters,
   investmentType,
+  sectionKind,
   investmentTypeValue,
   catalogData,
   visibleColumns = ['investment', 'date'],
   onCurrenciesChange,
   onExportReady,
   enabled = true,
-  dataTransformer,
-  columnsOverride,
   hiddenColumnIds = DEFAULT_HIDDEN_COLUMN_IDS,
   sortField,
   sortOrder,
@@ -84,34 +83,32 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
     setPage,
     setPageSize
   } = useInvestmentReportData({
-    investmentGroup: config.investmentGroup,
+    investmentGroup,
     filters,
     investmentType,
+    sectionKind,
     accessToken,
     userInfo,
     onCurrenciesChange,
     enabled,
-    dataTransformer,
     sortField,
     sortOrder
   })
 
-  // Generate columns using config or use override (for liquid funds)
+  // Generate columns using the standard report table config.
   const generatedColumns = useMemo(() => {
-    if (columnsOverride) {
-      return columnsOverride
-    }
     return config.columnGenerator({
+      investmentGroup,
       investmentType,
+      sectionKind,
       catalogData,
       accessToken,
       reports: data
     })
-  }, [columnsOverride, config, investmentType, catalogData, accessToken, data])
+  }, [config, investmentGroup, investmentType, sectionKind, catalogData, accessToken, data])
 
   // Derive export-ready column definitions from the generated table columns
   const exportColumns = useMemo(() => {
-    if (columnsOverride) return undefined // Liquid Fund uses rawDynamicColumns instead
     const hiddenColumnSet = new Set(hiddenColumnIds)
     return generatedColumns
       .filter(
@@ -123,14 +120,14 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
         getTextValue: col.getTextValue,
         isDate: col.key === 'date'
       }))
-  }, [generatedColumns, columnsOverride, hiddenColumnIds])
+  }, [generatedColumns, hiddenColumnIds])
 
   // Notify parent of export helpers whenever relevant values change
   useEffect(() => {
     if (onExportReady) {
-      onExportReady({ fetchAll, totalCount, dataTransformer, exportColumns })
+      onExportReady({ fetchAll, totalCount, exportColumns })
     }
-  }, [fetchAll, totalCount, dataTransformer, exportColumns, onExportReady])
+  }, [fetchAll, totalCount, exportColumns, onExportReady])
 
   // Helper to check if a column is sortable
   const isColumnSortable = useCallback((columnKey: string): boolean => {
@@ -236,7 +233,7 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
         const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', {
           investmentId,
           fromView: 'reports',
-          fromSubView: config.fromSubView
+          fromSubView: investmentGroup.toLowerCase().replaceAll('_', '-')
         })
         navigateTo(detailsUrl)
       }
@@ -283,27 +280,15 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
   if (error && !initialLoadDone) {
     const errorMessage = typeof error === 'string' ? error : error?.message || 'Unknown error'
     return (
-      <div
-        className="gba:flex gba:justify-center gba:items-center"
-        style={{ height: 'var(--nw-spacing-64)' }}
-        data-testid={`${dataTestId}-error`}
-      >
+      <div className="gba:flex gba:min-h-64 gba:items-center gba:justify-center" data-testid={`${dataTestId}-error`}>
         <Alert variant="destructive">
           <div className="gba:flex gba:items-center gba:justify-between">
             <div>
-              <div style={{ fontWeight: 'var(--nw-font-weight-medium)' }}>Error Loading Analytics Data</div>
-              <div
-                style={{
-                  fontSize: 'var(--nw-text-sm)',
-                  marginTop: 'var(--nw-spacing-1)',
-                  color: 'var(--nw-color-text-secondary)'
-                }}
-              >
-                {errorMessage}
-              </div>
+              <div className="gba:font-medium">Error Loading Analytics Data</div>
+              <div className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{errorMessage}</div>
             </div>
             <Button variant="outline" size="sm" onClick={refetch}>
-              <ArrowsClockwiseIcon style={{ height: 'var(--nw-spacing-4)', width: 'var(--nw-spacing-4)' }} />
+              <ArrowsClockwiseIcon className="gba:h-4 gba:w-4" />
             </Button>
           </div>
         </Alert>

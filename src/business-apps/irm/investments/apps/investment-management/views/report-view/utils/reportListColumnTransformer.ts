@@ -6,8 +6,9 @@
  * iteration of catalog `FormFieldDefinition` records.
  *
  * CASCADE ORDER (most-specific → least-specific, deduplicated by column ID):
- *   Liquid Fund group:  liquidFundType → parent investmentType → investmentGroup
- *   Other groups:       investmentType → investmentGroup
+ *   liquidFundType section: liquidFundType → parent investmentType → investmentGroup
+ *   investmentType section: investmentType → investmentGroup
+ *   group section:          investmentGroup
  */
 
 import type { FilterConfiguration } from '@newwork/nw-design-system'
@@ -16,12 +17,13 @@ import type { ColumnConfig } from '../hooks/useReportFilters'
 import type { UseFilterGroupsResult } from '@/common/data/common/hooks/useFilterGroups'
 import { INVESTMENT_REPORT_DESCRIPTORS } from '@/common/data/investment/types/investmentReportTypes'
 import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/utils/filterHelpers'
+import type { ReportSectionKind } from './subSectionHelpers'
 
 // ---------------------------------------------------------------------------
 // Internal types
 // ---------------------------------------------------------------------------
 
-interface FormFieldLike {
+export interface FormFieldLike {
   property: string
   label: string
   type: string
@@ -39,8 +41,8 @@ type Filter = FilterGroup['filters'][number]
 /**
  * Report entity prefixes → catalog entity prefixes.
  *
- * Descriptor paths use `equityInvestmentReport.*`, but catalog form-field
- * `property` values use `equityInvestment.*`. This table drives the reverse
+ * Descriptor paths use report subtype relation prefixes, but catalog form-field
+ * `property` values use investment subtype prefixes. This table drives the reverse
  * mapping so we can look up a descriptor by catalog property.
  */
 const REPORT_TO_CATALOG_PREFIX: Array<[string, string]> = [
@@ -75,7 +77,7 @@ const buildDescriptorIndex = (): Map<string, Descriptor> => {
 /**
  * Module-level index — built once, never mutated.
  *
- * Keys are catalog `property` values (e.g. `equityInvestment.marketValue`).
+ * Keys are catalog `property` values.
  * Values are the matching `InvestmentReport` descriptor.
  */
 const REPORT_DESCRIPTOR_BY_CATALOG_PATH = buildDescriptorIndex()
@@ -83,8 +85,6 @@ const REPORT_DESCRIPTOR_BY_CATALOG_PATH = buildDescriptorIndex()
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const LIQUID_FUND_REQUIRED_SUBTYPE_KEY = 'liquidFundInvestment'
 
 const BASE_COLUMN_CONFIG: ColumnConfig[] = [
   { id: 'investment', label: 'Investment', visible: true, disabled: true },
@@ -141,9 +141,12 @@ const dedupeByColumnId = (fieldGroups: FormFieldLike[][]): FormFieldLike[] => {
   return result
 }
 
-const isLiquidFundGroup = (objectValue: unknown): boolean => {
-  const parsed = parseObjectValue(objectValue)
-  return parsed?.requiredSubtypeKey === LIQUID_FUND_REQUIRED_SUBTYPE_KEY
+const isAdditionalPropertiesPath = (propertyPath: string): boolean => {
+  const normalizedPath = propertyPath.replace(
+    /^(investment|equityInvestment|realEstateInvestment|liquidFundInvestment)\./,
+    ''
+  )
+  return normalizedPath === 'additionalProperties' || normalizedPath.startsWith('additionalProperties.')
 }
 
 // ---------------------------------------------------------------------------
@@ -160,14 +163,13 @@ const isLiquidFundGroup = (objectValue: unknown): boolean => {
 export const getAggregatedReportFields = (
   groupCode: string,
   sectionCode: string,
-  catalogData: any
+  catalogData: any,
+  sectionKind: ReportSectionKind = 'investmentType'
 ): FormFieldLike[] => {
   const groupEntry = catalogData?.investmentGroups?.find((e: any) => e.code === groupCode)
   const groupFields = getDisplayFields(groupEntry?.objectValue)
 
-  const liquidFund = isLiquidFundGroup(groupEntry?.objectValue)
-
-  if (liquidFund && sectionCode) {
+  if (sectionKind === 'liquidFundType' && sectionCode) {
     // LEVEL 1: most specific — liquid fund type
     const lfTypeEntry = catalogData?.investmentLiquidFundTypes?.find((e: any) => e.code === sectionCode)
     const lfTypeFields = getDisplayFields(lfTypeEntry?.objectValue)
@@ -179,7 +181,7 @@ export const getAggregatedReportFields = (
     return dedupeByColumnId([lfTypeFields, parentTypeFields, groupFields])
   }
 
-  if (sectionCode && sectionCode !== 'all' && sectionCode !== groupCode) {
+  if (sectionKind === 'investmentType' && sectionCode && sectionCode !== 'all' && sectionCode !== groupCode) {
     // LEVEL 1: most specific — investment type for this section
     const typeEntry = catalogData?.investmentTypes?.find((e: any) => e.code === sectionCode)
     const typeFields = getDisplayFields(typeEntry?.objectValue)
@@ -289,7 +291,7 @@ export interface ReportListConfiguration {
  * list of catalog form fields.
  *
  * @param fields        Result of `getAggregatedReportFields`.
- * @param entityPrefix  Group prefix used for the filter-config ID (e.g. 'equity').
+ * @param entityPrefix  Prefix used for the filter-config ID.
  * @param filterGroups  Live filter-group data from `useFilterGroups`.
  */
 export const buildReportConfigurationFromFields = (
@@ -307,6 +309,10 @@ export const buildReportConfigurationFromFields = (
     // Column picker — always include (no descriptor required)
     const columnId = field.property.replace(/\./g, '_')
     columnConfig.push({ id: columnId, label: field.label, visible: true })
+
+    if (isAdditionalPropertiesPath(field.property)) {
+      continue
+    }
 
     // Descriptor lookup — drives sort + filter
     const descriptor = REPORT_DESCRIPTOR_BY_CATALOG_PATH.get(field.property)
@@ -359,8 +365,9 @@ export const buildReportConfiguration = (
   sectionCode: string,
   entityPrefix: string,
   catalogData: any,
-  filterGroups: UseFilterGroupsResult
+  filterGroups: UseFilterGroupsResult,
+  sectionKind?: ReportSectionKind
 ): ReportListConfiguration => {
-  const fields = getAggregatedReportFields(groupCode, sectionCode, catalogData)
+  const fields = getAggregatedReportFields(groupCode, sectionCode, catalogData, sectionKind)
   return buildReportConfigurationFromFields(fields, entityPrefix, filterGroups)
 }

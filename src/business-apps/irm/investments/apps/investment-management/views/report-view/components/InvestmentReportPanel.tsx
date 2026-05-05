@@ -11,34 +11,6 @@ import type { SubSection } from '../utils/subSectionHelpers'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { INVESTMENT_REPORT_DESCRIPTORS } from '@/common/data/investment/types/investmentReportTypes'
 import { buildReportConfiguration } from '../utils/reportListColumnTransformer'
-import { convertDynamicColumnsToConfig, createLiquidFundStaticColumns } from '../utils/liquidFundColumnConverter'
-import { transformFormFieldsToTableColumns } from '../utils/liquidFundReportColumnTransformer'
-
-// ---------------------------------------------------------------------------
-// Liquid Fund column helpers — the 3-level cascade for columnsOverride
-// (table column defs, separate from the column picker handled by transformer)
-// ---------------------------------------------------------------------------
-
-const getParentTypeColumns = (liquidFundTypeCode: string, catalogData: any): any[] => {
-  const lfTypeEntry = catalogData?.investmentLiquidFundTypes?.find((e: any) => e.code === liquidFundTypeCode)
-  if (!lfTypeEntry?.parentEntryId) return []
-
-  const parentType = catalogData?.investmentTypes?.find((e: any) => e.id === lfTypeEntry.parentEntryId)
-  if (!parentType?.objectValue) return []
-
-  const parsed =
-    typeof parentType.objectValue === 'string' ? JSON.parse(parentType.objectValue) : parentType.objectValue
-  return transformFormFieldsToTableColumns(parsed)
-}
-
-const getGroupLevelColumns = (catalogData: any): any[] => {
-  const groupEntry = catalogData?.investmentGroups?.find((e: any) => e.code === 'LIQUID_FUND')
-  if (!groupEntry?.objectValue) return []
-
-  const parsed =
-    typeof groupEntry.objectValue === 'string' ? JSON.parse(groupEntry.objectValue) : groupEntry.objectValue
-  return transformFormFieldsToTableColumns(parsed)
-}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -54,8 +26,7 @@ const getGroupLevelColumns = (catalogData: any): any[] => {
  *
  * Both the portfolio report view and the investment record's reports tab
  * consume this panel so that catalog-driven filtering, dynamic columns,
- * sorting, search, exports, and the per-group configuration dispatch
- * (`getReportGroupConfiguration`) work identically across both surfaces.
+ * sorting, search, and exports work identically across both surfaces.
  */
 export interface InvestmentReportPanelProps extends BusinessAppContextProps {
   investmentGroup: string
@@ -92,10 +63,8 @@ export interface InvestmentReportPanelProps extends BusinessAppContextProps {
  * Investment Report Panel
  *
  * The unified, group-agnostic rendering surface for filtered investment
- * reports. Driven entirely by `getReportGroupConfiguration(investmentGroup)`
- * and `buildReportConfiguration`, so any group present in the catalog renders
- * consistently with catalog-driven columns, sorting, and filters — no
- * group-specific branching inside this component.
+ * reports. Any group present in the catalog renders consistently with
+ * catalog-driven columns, sorting, and filters.
  */
 export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   investmentGroup,
@@ -125,7 +94,7 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   userInfo,
   dataTestId = 'investment-report-panel'
 }) => {
-  const config = getReportGroupConfiguration(investmentGroup)
+  const config = getReportGroupConfiguration()
 
   // Search state
   const [search, setSearch] = useState<string>(initialSearch ?? '')
@@ -156,12 +125,18 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
     [onSearchChange]
   )
 
+  const activeSection = useMemo(
+    () => sections.find(section => section.code === currentSection),
+    [sections, currentSection]
+  )
+  const sectionKind = activeSection?.kind
+
   // Scope filter dropdown options to the active (group, sub-section) so that
   // selecting an investment can never produce zero rows due to cross-group/type
   // mismatch.
   const filterBaseWhereParts = useMemo(
-    () => buildInvestmentReportBaseWhereParts(investmentGroup, currentSection),
-    [investmentGroup, currentSection]
+    () => buildInvestmentReportBaseWhereParts(investmentGroup, currentSection, sectionKind),
+    [investmentGroup, currentSection, sectionKind]
   )
 
   // Fetch filter options once a sub-section is known.
@@ -179,8 +154,16 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
     sortableColumns,
     filterConfiguration
   } = useMemo(
-    () => buildReportConfiguration(investmentGroup, currentSection, config.entityPrefix, catalogData, filterGroups),
-    [investmentGroup, currentSection, config.entityPrefix, catalogData, filterGroups.filterData]
+    () =>
+      buildReportConfiguration(
+        investmentGroup,
+        currentSection,
+        config.entityPrefix,
+        catalogData,
+        filterGroups,
+        sectionKind
+      ),
+    [investmentGroup, currentSection, config.entityPrefix, catalogData, filterGroups.filterData, sectionKind]
   )
 
   const hiddenColumnIds = useMemo(
@@ -248,40 +231,6 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   )
 
   // ---------------------------------------------------------------------------
-  // Liquid Fund: columnsOverride (actual table column defs, 3-level cascade)
-  // The cascade here is for the rendered CELL columns inside InvestmentReportTable,
-  // separate from the column picker (handled by the transformer above).
-  // ---------------------------------------------------------------------------
-  const rawDynamicColumns = useMemo(() => {
-    if (investmentGroup !== 'LIQUID_FUND') return undefined
-    if (!currentSection) return undefined
-
-    const lfTypeEntry = catalogData?.investmentLiquidFundTypes?.find((e: any) => e.code === currentSection)
-    const parsed =
-      lfTypeEntry?.objectValue &&
-      (typeof lfTypeEntry.objectValue === 'string' ? JSON.parse(lfTypeEntry.objectValue) : lfTypeEntry.objectValue)
-
-    // LEVEL 1: liquid fund type
-    if (parsed?.formFields) {
-      const cols = transformFormFieldsToTableColumns(parsed)
-      if (cols.length > 0) return cols
-    }
-
-    // LEVEL 2: parent investment type
-    const parentCols = getParentTypeColumns(currentSection, catalogData)
-    if (parentCols.length > 0) return parentCols
-
-    // LEVEL 3: investment group
-    const groupCols = getGroupLevelColumns(catalogData)
-    return groupCols.length > 0 ? groupCols : undefined
-  }, [investmentGroup, currentSection, catalogData])
-
-  const columnsOverride = useMemo(() => {
-    if (!rawDynamicColumns) return undefined
-    return [...createLiquidFundStaticColumns(), ...convertDynamicColumnsToConfig(rawDynamicColumns)]
-  }, [rawDynamicColumns])
-
-  // ---------------------------------------------------------------------------
   // Export
   // ---------------------------------------------------------------------------
   const [exportHelpers, setExportHelpers] = useState<InvestmentReportExportHelpers | null>(null)
@@ -304,7 +253,6 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
     exportHelpers,
     groupLabel,
     filenamePrefix: exportPrefix,
-    dynamicColumns: rawDynamicColumns,
     hiddenColumnIds
   })
 
@@ -397,7 +345,7 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   // ---------------------------------------------------------------------------
   if (!localReportFilters.filtersInitialized) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }}>
+      <div className="gba:flex gba:min-h-64 gba:items-center gba:justify-center">
         <Spinner data-testid={`${dataTestId}-loading-spinner`} />
       </div>
     )
@@ -406,8 +354,6 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   const titleSections = showSectionBar
     ? sections.map(section => ({ id: section.code, label: section.label }))
     : undefined
-
-  const activeSection = sections.find(s => s.code === currentSection)
 
   return (
     <div data-testid={dataTestId}>
@@ -433,18 +379,18 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
       >
         <InvestmentReportTable
           config={config.tableConfig}
+          investmentGroup={investmentGroup}
           accessToken={accessToken}
           userInfo={userInfo}
           filters={reportFiltersForTable}
           investmentType={currentSection}
+          sectionKind={sectionKind}
           investmentTypeValue={activeSection?.label || ''}
           catalogData={catalogData}
           visibleColumns={visibleColumns}
           onCurrenciesChange={onCurrenciesUpdate}
           onExportReady={setExportHelpers}
           enabled={enabled}
-          dataTransformer={config.dataTransformer}
-          columnsOverride={columnsOverride}
           hiddenColumnIds={hiddenColumnIds}
           sortField={sortField}
           sortOrder={sortOrder}

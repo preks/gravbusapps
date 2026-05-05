@@ -5,7 +5,7 @@ import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useReportFilters } from './hooks'
 import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { useInvestmentGroups } from '../investment-view/hooks/useInvestmentGroups'
-import { getIconForGroup } from './utils/reportViewHelpers'
+import { getDefaultInvestmentGroupIcon } from './utils/reportViewHelpers'
 import { GenericReportTab } from './components/GenericReportTab'
 import { ReportFiltersHeader } from './components/ReportFiltersHeader'
 
@@ -14,21 +14,16 @@ export interface ReportViewProps extends BusinessAppContextProps {
   onSubTabChange?: (subTab: string) => void
 }
 
-export const ReportView: React.FC<ReportViewProps> = ({
-  accessToken,
-  userInfo,
-  initialSubTab = 'liquid-fund',
-  onSubTabChange
-}) => {
+export const ReportView: React.FC<ReportViewProps> = ({ accessToken, userInfo, initialSubTab, onSubTabChange }) => {
   // Fetch investment groups from catalog dynamically
   const { investmentGroups, isLoading: groupsLoading } = useInvestmentGroups(accessToken || '')
 
   // Normalize active tab against dynamic groups
   const normalizeTab = useCallback(
     (val?: string) => {
-      if (!val) return investmentGroups[0]?.tabId || 'liquid-fund'
+      if (!val) return investmentGroups[0]?.tabId || ''
       const validTabs = investmentGroups.map(g => g.tabId)
-      return validTabs.includes(val) ? val : investmentGroups[0]?.tabId || 'liquid-fund'
+      return validTabs.includes(val) ? val : investmentGroups[0]?.tabId || ''
     },
     [investmentGroups]
   )
@@ -62,7 +57,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     }
   }, [investmentGroups, currenciesByTab])
 
-  // Fetch investment catalog data ONCE for all tabs (shared across Equity, Real Estate, Liquid Fund)
+  // Fetch investment catalog data once for all tabs.
   const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData({ accessToken, userInfo })
   const [catalogData, setCatalogData] = useState<any>(null)
 
@@ -202,15 +197,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
       <Tabs value={activeSubTab} onValueChange={handleTabChange} className="gba:h-full gba:flex gba:flex-col">
         {/* Dynamic TabsList based on catalog groups */}
-        <TabsList
-          className="gba:grid gba:w-full gba:mb-4"
-          style={{ gridTemplateColumns: `repeat(${investmentGroups.length}, 1fr)` }}
-        >
+        <TabsList className="gba:flex gba:w-full gba:mb-4">
           {investmentGroups.map(group => (
             <TabsTrigger
               key={group.tabId}
               value={group.tabId}
-              startIcon={getIconForGroup(group.code)}
+              className="gba:flex-1"
+              startIcon={getDefaultInvestmentGroupIcon()}
               data-testid={`${group.tabId}-analytics-tab`}
             >
               {group.label}
