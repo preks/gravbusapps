@@ -10,6 +10,7 @@ import type {
   ActiveStreamStatusChangedEvent
 } from '../types/activeSession'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
+import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
 
 const INITIAL_BACKOFF_MS = 1_000
 const MAX_BACKOFF_MS = 15_000
@@ -181,6 +182,16 @@ function applySessionEvent(map: SessionMap, event: ActiveStreamSessionEvent): Se
     return map
   }
 
+  if (event.type === 'hitl_requested') {
+    return applyWaitingForHuman(map, sid, existing, {
+      ...event,
+      status: 'waiting_for_human',
+      human_question: event.request?.description || event.request?.title || null,
+      structured_input_request:
+        event.request?.payload && typeof event.request.payload === 'object' ? event.request.payload : null
+    })
+  }
+
   const timestamp = typeof event.timestamp === 'string' ? event.timestamp : existing.updated_at
   const nextSnapshot: ActiveSessionSnapshot = {
     ...existing,
@@ -267,6 +278,7 @@ export interface UseActiveSessionsResult {
  */
 export const useActiveSessions = (accessToken: string): UseActiveSessionsResult => {
   const client = useEnterpriseAgentClient(accessToken)
+  const flowBotRuntime = isFlowBotFabricRuntime()
   const [sessionMap, setSessionMap] = useState<SessionMap>(new Map())
   const [isLoading, setIsLoading] = useState(true)
   const [isLive, setIsLive] = useState(false)
@@ -280,6 +292,12 @@ export const useActiveSessions = (accessToken: string): UseActiveSessionsResult 
   }, [client, accessToken])
 
   const hydrateFromRest = useCallback(async () => {
+    if (flowBotRuntime) {
+      setSessionMap(new Map())
+      setIsLoading(false)
+      setIsLive(false)
+      return
+    }
     try {
       const data = await clientRef.current.getActiveSessions({ limit: 50 })
       setSessionMap(toSessionMap(data.sessions ?? []))
@@ -287,9 +305,15 @@ export const useActiveSessions = (accessToken: string): UseActiveSessionsResult 
     } catch {
       setIsLoading(false)
     }
-  }, [])
+  }, [flowBotRuntime])
 
   useEffect(() => {
+    if (flowBotRuntime) {
+      setSessionMap(new Map())
+      setIsLoading(false)
+      setIsLive(false)
+      return undefined
+    }
     if (!accessToken) {
       setIsLoading(false)
       return undefined
@@ -409,7 +433,7 @@ export const useActiveSessions = (accessToken: string): UseActiveSessionsResult 
       stopFallbackPolling()
       closeSource()
     }
-  }, [accessToken, hydrateFromRest])
+  }, [accessToken, flowBotRuntime, hydrateFromRest])
 
   const activeSessions = useMemo(() => Array.from(sessionMap.values()).sort(sortByUpdatedDesc), [sessionMap])
 

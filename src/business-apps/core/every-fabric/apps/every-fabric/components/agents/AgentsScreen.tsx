@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentCard } from './AgentCard'
+import { CreateAgentModal } from './CreateAgentModal'
 import { SkillAssignmentPicker } from './SkillAssignmentPicker'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
 import type { BuiltinSubagent, FabricAgent } from './agentTypes'
@@ -35,6 +36,19 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
   const [builtinsExpanded, setBuiltinsExpanded] = useState(false)
   const [showLegend, setShowLegend] = useState(false)
   const [configuringAgent, setConfiguringAgent] = useState<FabricAgent | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [archivingAgentId, setArchivingAgentId] = useState<string | null>(null)
+
+  const renderHireAgentButton = () => (
+    <button
+      type="button"
+      onClick={() => setCreateOpen(true)}
+      className="gba:inline-flex gba:h-8 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-md gba:bg-primary gba:px-3 gba:text-sm gba:font-medium gba:text-primary-foreground gba:shadow-sm gba:transition-colors gba:hover:bg-primary/90 gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-2"
+      data-testid="agents-hire-button"
+    >
+      + Create agent
+    </button>
+  )
 
   const loadAgents = useCallback(async () => {
     setIsLoading(true)
@@ -60,6 +74,7 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
         skill_ids: e.skill_ids ?? [],
         skills_count: e.skills_count ?? 0,
         source: e.source ?? 'prompt_odm',
+        status: e.status ?? 'active',
         created_at: e.created_at
       }))
       setAgents(mapped)
@@ -81,6 +96,28 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
     )
     setConfiguringAgent(null)
   }, [])
+
+  const handleArchiveAgent = useCallback(
+    async (agent: FabricAgent) => {
+      const confirmed = window.confirm(
+        `Archive "${agent.name.replace(/_/g, ' ')}"? It will be hidden from agent selection and orchestration, but history is preserved.`
+      )
+      if (!confirmed) return
+
+      setArchivingAgentId(agent.id)
+      setError(null)
+      try {
+        await client.archiveAgent(agent.id)
+        setAgents(prev => prev.filter(a => a.id !== agent.id))
+        if (configuringAgent?.id === agent.id) setConfiguringAgent(null)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to archive agent')
+      } finally {
+        setArchivingAgentId(null)
+      }
+    },
+    [client, configuringAgent?.id]
+  )
 
   const filtered = useMemo(() => {
     if (!search.trim()) return agents
@@ -109,7 +146,17 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="agents-screen">
       <div className={`gba:shrink-0 gba:px-6 gba:lg:px-10 ${embedded ? 'gba:pt-4' : 'gba:pt-8'} gba:pb-4`}>
-        {!embedded && (
+        {embedded ? (
+          <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+            <div>
+              <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Agents</h2>
+              <p className="gba:text-sm gba:text-muted-foreground">
+                Create agents, give them instructions, and attach skills, tools, and company policies.
+              </p>
+            </div>
+            {renderHireAgentButton()}
+          </div>
+        ) : (
           <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
             <div className="gba:flex gba:items-center gba:gap-3">
               <button
@@ -159,13 +206,11 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
                 </p>
               </div>
             </div>
-            <Button size="sm" disabled data-testid="agents-hire-button">
-              + Hire agent
-            </Button>
+            {renderHireAgentButton()}
           </div>
         )}
 
-        <div className={`${embedded ? '' : 'gba:mt-5'} gba:relative gba:max-w-sm`}>
+        <div className="gba:mt-5 gba:relative gba:max-w-sm">
           <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
           <input
             type="text"
@@ -199,7 +244,14 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
 
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-3 gba:gap-4">
             {filtered.map(agent => (
-              <AgentCard key={agent.id} agent={agent} onRunTask={onRunTask} onConfigure={setConfiguringAgent} />
+              <AgentCard
+                key={agent.id}
+                agent={agent}
+                onRunTask={onRunTask}
+                onConfigure={setConfiguringAgent}
+                onArchive={agent => void handleArchiveAgent(agent)}
+                isArchiving={archivingAgentId === agent.id}
+              />
             ))}
           </div>
 
@@ -277,6 +329,15 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
           accessToken={accessToken}
           onClose={() => setConfiguringAgent(null)}
           onSaved={ids => handleSkillsSaved(configuringAgent.id, ids)}
+        />
+      )}
+      {createOpen && (
+        <CreateAgentModal
+          open={createOpen}
+          client={client}
+          accessToken={accessToken}
+          onClose={() => setCreateOpen(false)}
+          onCreated={loadAgents}
         />
       )}
     </div>

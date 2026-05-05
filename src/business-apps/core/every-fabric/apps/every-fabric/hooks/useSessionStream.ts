@@ -3,6 +3,7 @@ import type { ChatMessage } from '../types/enterpriseAgent'
 import { deriveMessagesFromEvents } from '../utils/messageUtils'
 import { useSessionStreamEntry } from './useSessionStreamEntry'
 import { resetSessionStream } from './sessionStreamRegistry'
+import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
 
 /**
  * Subscribes to a session's SSE stream via the shared SessionStreamRegistry.
@@ -35,7 +36,7 @@ export const useSessionStream = (sessionId: string | null, accessToken: string, 
     lastResetKeyRef.current = resetKey
     const [prevSessionId] = previousKey.split(':')
     if (prevSessionId === sessionId) {
-      resetSessionStream(sessionId)
+      resetSessionStream(sessionId, !isFlowBotFabricRuntime())
     }
   }, [sessionId, streamVersion])
 

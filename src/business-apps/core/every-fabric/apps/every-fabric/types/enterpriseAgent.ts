@@ -21,6 +21,12 @@ export interface DeepAgentSession {
   human_question?: string | null
   structured_input_request?: StructuredInputRequestEvent | null
   active_external_connection_ids?: string[]
+  recovery?: {
+    last_recovered_at?: string | null
+    recovery_attempt?: number | null
+    recovery_reason?: string | null
+    used_fallback_checkpointer?: boolean
+  }
 }
 
 export interface StartSessionResponse {
@@ -176,11 +182,28 @@ export interface StructuredInputRequestEvent {
   description: string
   fields: InputFieldSchema[]
   allow_partial_submit: boolean
+  tool_ref?: string
+  request_status?: 'pending' | 'approved' | 'rejected' | 'edited' | 'expired' | 'cancelled' | 'resumed'
   /**
    * Present when `form_id === 'compose_email'` — carries the agent-drafted
    * email payload so the frontend can hydrate the EmailComposerBubble.
    */
   email_draft?: ComposeEmailDraft
+}
+
+export interface HitlRequestedEvent {
+  type: 'hitl_requested'
+  seq: number
+  event_id: string
+  timestamp: string
+  request: {
+    request_id: string
+    type: 'approval' | 'form' | 'email_draft' | 'tool_permission' | 'draft_review' | 'human_question'
+    title: string
+    description?: string | null
+    payload?: Record<string, unknown>
+    status: 'pending' | 'approved' | 'rejected' | 'edited' | 'expired' | 'cancelled'
+  }
 }
 
 export interface ComposeEmailRecipient {
@@ -308,6 +331,30 @@ export interface AgentDecisionEvent {
   metadata?: Record<string, unknown>
 }
 
+export interface EnterpriseRuntimeTraceEvent {
+  type: 'expert_selected' | 'tool_available'
+  seq: number
+  event_id: string
+  timestamp: string
+  expert_id?: string
+  skill_id?: string
+  tool_ref?: string
+  payload?: Record<string, unknown>
+}
+
+export interface CapabilityMissingEvent {
+  type: 'capability_missing'
+  seq: number
+  event_id: string
+  timestamp: string
+  code?: string
+  title?: string
+  message: string
+  suggested_action?: string
+  provider?: string
+  tool_ref?: string
+}
+
 export type AgentStreamEvent =
   | AgentChunkEvent
   | AgentTerminalEvent
@@ -319,11 +366,14 @@ export type AgentStreamEvent =
   | AgentSubagentSpawnedEvent
   | AgentSubagentCompletedEvent
   | AgentArtifactCreatedEvent
+  | HitlRequestedEvent
   | StructuredInputRequestEvent
   | SkillLoadedEvent
   | SkillDetectionSkippedEvent
   | ArtifactPreviewEvent
   | AgentDecisionEvent
+  | EnterpriseRuntimeTraceEvent
+  | CapabilityMissingEvent
 
 export interface ReflectionResult {
   complete: boolean
@@ -389,6 +439,107 @@ export interface EnterpriseSkill {
   rating?: number
   onboarding_steps: string[]
   estimated_setup_time?: string
+  tool_refs?: string[]
+}
+
+// ── Admin Skill Studio types ─────────────────────────────────────────
+
+export interface AdminSkill {
+  skill_id: string
+  name: string
+  description: string
+  status: 'draft' | 'pending_review' | 'approved' | 'archived'
+  version: number
+  tags: string[]
+  category: string | null
+  is_active: boolean
+  created_by: string
+  updated_by: string
+  approved_by: string | null
+  approved_at: string | null
+  created_at: string
+  updated_at: string
+  content: string
+  files: SkillFile[]
+  tools: SkillTool[]
+  available_tools: SkillTool[]
+  tool_refs?: string[]
+  tool_policies?: Record<string, Record<string, unknown>>
+  approval_policy?: {
+    require_approval: boolean
+    approver_roles?: string[]
+    approver_user_ids?: string[]
+    reason?: string
+    expires_after_seconds?: number
+  }
+  safety_level?: string
+  output_contract?: Record<string, unknown>
+}
+
+export interface AdminSkillSummary {
+  skill_id: string
+  name: string
+  description: string
+  status: string
+  version: number
+  tags: string[]
+  category: string | null
+  is_active: boolean
+}
+
+export interface CreateSkillPayload {
+  name: string
+  description: string
+  body?: string
+  tags?: string[]
+  category?: string
+  compatibility?: string
+  tool_refs?: string[]
+  tool_policies?: Record<string, Record<string, unknown>>
+  approval_policy?: AdminSkill['approval_policy']
+  safety_level?: string
+  output_contract?: Record<string, unknown>
+}
+
+export interface UpdateSkillPayload {
+  name: string
+  description: string
+  body?: string
+  tags?: string[]
+  category?: string
+  compatibility?: string
+  tool_refs?: string[]
+  tool_policies?: Record<string, Record<string, unknown>>
+  approval_policy?: AdminSkill['approval_policy']
+  safety_level?: string
+  output_contract?: Record<string, unknown>
+}
+
+export interface SkillFile {
+  path: string
+  mime_type: string | null
+  size: number
+  is_text: boolean
+  updated_at: string | null
+  url?: string | null
+}
+
+export interface ListAdminSkillsResponse {
+  skills: AdminSkillSummary[]
+  total: number
+}
+
+export interface SearchAdminSkillsResponse {
+  skills: AdminSkillSummary[]
+  total: number
+}
+
+export interface SkillTool {
+  id: string
+  name: string
+  description: string
+  function_name: string
+  is_active: boolean
 }
 
 export type ChatMessageType =

@@ -1,9 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { DeepAgentSession } from '../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
+import { useFlowBotFabricClient } from './useFlowBotFabricClient'
+import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
 
 export const useAgentSessions = (accessToken: string) => {
-  const client = useEnterpriseAgentClient(accessToken)
+  const promptManagerClient = useEnterpriseAgentClient(accessToken)
+  const flowBotClient = useFlowBotFabricClient(accessToken)
+  const flowBotRuntime = isFlowBotFabricRuntime()
+  const client = flowBotRuntime ? flowBotClient : promptManagerClient
   const [sessions, setSessions] = useState<DeepAgentSession[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -26,15 +31,19 @@ export const useAgentSessions = (accessToken: string) => {
   )
 
   const fetchSessions = useCallback(async () => {
+    if (flowBotRuntime) {
+      setLoading(false)
+      return
+    }
     try {
-      const data = await client.getSessions({ limit: 50 })
+      const data = await promptManagerClient.getSessions({ limit: 50 })
       setSessions([...data].sort(byUpdatedDesc))
     } catch {
       // silent — empty list shown
     } finally {
       setLoading(false)
     }
-  }, [client, byUpdatedDesc])
+  }, [promptManagerClient, byUpdatedDesc, flowBotRuntime])
 
   useEffect(() => {
     fetchSessions()

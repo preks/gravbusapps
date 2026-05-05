@@ -269,12 +269,21 @@ export const MessageBubble = ({ message, allMessages, onReply, onViewArtifact, a
             allowPartialSubmit={formData.allow_partial_submit}
             accessToken={accessToken}
             alreadySubmitted={alreadySubmitted}
+            toolRef={formData.tool_ref}
+            requestStatus={formData.request_status}
             onSubmit={(values, aiDelegated) => {
               if (onReply) {
                 const structuredPayload = aiDelegated.length > 0 ? { ...values, _ai_should_fill: aiDelegated } : values
                 onReply(undefined, structuredPayload)
               }
             }}
+            onCancel={
+              formData.tool_ref
+                ? () => {
+                    if (onReply) onReply(undefined, { action: 'cancel' })
+                  }
+                : undefined
+            }
           />
         </div>
       )
@@ -316,14 +325,49 @@ export const MessageBubble = ({ message, allMessages, onReply, onViewArtifact, a
     }
 
     case 'error': {
-      const { message: errMsg } = message.content as { message: string }
+      const {
+        message: errMsg,
+        code,
+        retryable
+      } = message.content as {
+        message: string
+        code?: string
+        retryable?: boolean
+      }
+      const needsAuth = code === 'permission_required' || /permission|auth|token|login/i.test(errMsg)
       return (
         <AnimatedMessageWrapper messageId={message.id} className="gba:py-1" data-testid={`msg-${message.id}`}>
           <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-2xl gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:px-5 gba:py-4">
             <WarningCircleIcon className="gba:h-4 gba:w-4 gba:text-destructive gba:shrink-0 gba:mt-0.5" />
             <div>
-              <p className="gba:text-sm gba:font-medium gba:text-destructive gba:mb-0.5">Session failed</p>
+              <p className="gba:text-sm gba:font-medium gba:text-destructive gba:mb-0.5">
+                {needsAuth ? 'Authentication required' : retryable ? 'Provider unavailable' : 'Session failed'}
+              </p>
               <p className="gba:text-sm gba:text-muted-foreground">{errMsg}</p>
+              <div className="gba:mt-3 gba:flex gba:flex-wrap gba:gap-2">
+                {needsAuth && (
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new Event('every-fabric:reauth-requested'))}
+                    className="gba:rounded-md gba:bg-foreground gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:text-background"
+                  >
+                    Re-authenticate
+                  </button>
+                )}
+                {retryable && onReply && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onReply(
+                        'Retry the previous failed provider operation after the user addressed the required action.'
+                      )
+                    }
+                    className="gba:rounded-md gba:border gba:border-border gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:text-foreground"
+                  >
+                    Retry after fixing
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </AnimatedMessageWrapper>

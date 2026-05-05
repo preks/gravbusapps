@@ -17,6 +17,7 @@ export interface FabricAgent {
   skills_count?: number
   source: string
   categories?: string[]
+  status?: string
   created_at: string | null
 }
 

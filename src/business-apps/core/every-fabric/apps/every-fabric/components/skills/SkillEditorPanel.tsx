@@ -47,6 +47,22 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
 
   const attachedTools = useMemo(() => getToolsFromSkillDraft(content), [content])
   const canEditTools = hasYamlFrontmatter(content)
+  const validationMessages = useMemo(() => {
+    const messages: string[] = []
+    if (!canEditTools) messages.push('Add YAML frontmatter before attaching provider tools.')
+    for (const toolRef of attachedTools) {
+      if (!/^[a-z_]+\.[A-Za-z0-9_.-]+(@\d+)?$/.test(toolRef)) {
+        messages.push(`${toolRef} is not a provider-qualified ref.`)
+      }
+      if (
+        /(delete|remove|cancel|revoke|terminate|send|schedule|submit)/i.test(toolRef) &&
+        !/approval_policy|require_approval/i.test(content)
+      ) {
+        messages.push(`${toolRef} looks write/destructive; add an approval policy before saving for production use.`)
+      }
+    }
+    return messages
+  }, [attachedTools, canEditTools, content])
 
   const applyToolSelection = useCallback(
     (names: string[]) => {
@@ -267,6 +283,36 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
                   ))}
                 </div>
               )}
+              <div className="gba:mt-2 gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:p-2.5">
+                <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                  <p className="gba:text-[11px] gba:font-semibold gba:text-foreground">Validation summary</p>
+                  <button
+                    type="button"
+                    className="gba:text-[11px] gba:font-medium gba:text-primary gba:hover:underline"
+                    onClick={() => {
+                      showToast?.(
+                        validationMessages.length === 0
+                          ? 'Skill graph validation passed. Save the skill, attach it to an expert, then run a test task from Agents.'
+                          : `Validation found ${validationMessages.length} issue(s).`,
+                        validationMessages.length === 0 ? 'success' : 'error'
+                      )
+                    }}
+                  >
+                    Test graph
+                  </button>
+                </div>
+                {validationMessages.length === 0 ? (
+                  <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
+                    Tool refs are valid and no obvious approval gaps were detected.
+                  </p>
+                ) : (
+                  <ul className="gba:mt-1 gba:list-disc gba:pl-4 gba:text-[11px] gba:text-amber-700">
+                    {validationMessages.slice(0, 4).map(message => (
+                      <li key={message}>{message}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               {!canEditTools && (
                 <p className="gba:text-[11px] gba:text-muted-foreground gba:mt-1.5">
                   This SKILL.md has no YAML frontmatter. Add a <code className="gba:font-mono">---</code> block at the

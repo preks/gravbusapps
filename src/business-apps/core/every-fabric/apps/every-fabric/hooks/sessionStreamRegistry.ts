@@ -222,6 +222,47 @@ const createEntry = (sessionId: string, accessToken: string): InternalEntry => (
   listeners: new Set()
 })
 
+export const ensureSessionStreamEntry = (sessionId: string, accessToken = ''): void => {
+  if (entries.has(sessionId)) return
+  entries.set(sessionId, createEntry(sessionId, accessToken))
+}
+
+export const appendSessionStreamEvents = (
+  sessionId: string,
+  eventsToAppend: AgentStreamEvent[],
+  accessToken = ''
+): void => {
+  if (eventsToAppend.length === 0) return
+  ensureSessionStreamEntry(sessionId, accessToken)
+  const entry = entries.get(sessionId)
+  if (!entry) return
+
+  let lastSeq = entry.state.lastSeq
+  let terminalReached = entry.state.terminalReached
+  const nextEvents = [...entry.state.events]
+  for (const event of eventsToAppend) {
+    const key = dedupeKey(event)
+    if (entry.seenEventKeys.has(key)) continue
+    entry.seenEventKeys.add(key)
+    nextEvents.push(event)
+    if ('seq' in event && typeof event.seq === 'number' && event.seq > lastSeq) {
+      lastSeq = event.seq
+    }
+    if (event.type === 'terminal') {
+      terminalReached = true
+    }
+  }
+
+  entry.state = {
+    ...entry.state,
+    events: nextEvents,
+    isConnected: !terminalReached,
+    lastSeq,
+    terminalReached
+  }
+  notify(entry)
+}
+
 export const acquireSessionStream = (
   sessionId: string,
   accessToken: string
@@ -267,7 +308,7 @@ export const acquireSessionStream = (
  * one from the current `lastSeq`. Used when the FE knows a new turn has been
  * posted and wants to force the server to replay fresh events.
  */
-export const resetSessionStream = (sessionId: string): void => {
+export const resetSessionStream = (sessionId: string, reconnect = true): void => {
   const entry = entries.get(sessionId)
   if (!entry) return
   // Clear the event buffer on the assumption that the caller will re-read the
@@ -285,7 +326,9 @@ export const resetSessionStream = (sessionId: string): void => {
     clearTimeout(entry.reconnectTimer)
     entry.reconnectTimer = null
   }
-  connect(entry)
+  if (reconnect) {
+    connect(entry)
+  }
   notify(entry)
 }
 

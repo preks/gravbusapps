@@ -3,6 +3,8 @@ import {
   ArrowClockwiseIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
+  ArrowsInIcon,
+  ArrowsOutIcon,
   CaretDownIcon,
   CaretUpIcon,
   PresentationIcon,
@@ -18,10 +20,35 @@ import { DocumentCanvasSurface } from './DocumentCanvasSurface'
 
 const SLIDE_FALLBACK_WIDTH = 400
 
-const GeneratingSpinner: React.FC<{ preview: ArtifactPreview }> = ({ preview }) => {
+interface MaximizeToggleProps {
+  isMaximized: boolean
+  onToggle: () => void
+}
+
+const MaximizeToggle: React.FC<MaximizeToggleProps> = ({ isMaximized, onToggle }) => (
+  <button
+    type="button"
+    onClick={onToggle}
+    className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-md gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/50 gba:transition-colors"
+    aria-label={isMaximized ? 'Collapse preview' : 'Expand preview'}
+    title={isMaximized ? 'Collapse preview' : 'Expand preview'}
+    data-testid="fabric-live-preview-maximize-toggle"
+  >
+    {isMaximized ? (
+      <ArrowsInIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
+    ) : (
+      <ArrowsOutIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
+    )}
+  </button>
+)
+
+const GeneratingSpinner: React.FC<{ preview: ArtifactPreview; headerExtra?: React.ReactNode }> = ({
+  preview,
+  headerExtra
+}) => {
   const label = preview.artifactType === 'slides' ? 'presentation' : preview.artifactType
   return (
-    <PanelCard title="Live Preview" defaultOpen>
+    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:p-6">
         <SpinnerGapIcon className="gba:h-5 gba:w-5 gba:text-primary gba:animate-spin" />
         <p className="gba:text-xs gba:text-muted-foreground gba:text-center">Generating {label}...</p>
@@ -41,7 +68,8 @@ const StreamingSlidesPreview: React.FC<{
   currentSlide: number
   setCurrentSlide: (updater: (i: number) => number) => void
   userOverrideRef: React.MutableRefObject<boolean>
-}> = ({ preview, slides, currentSlide, setCurrentSlide, userOverrideRef }) => {
+  headerExtra?: React.ReactNode
+}> = ({ preview, slides, currentSlide, setCurrentSlide, userOverrideRef, headerExtra }) => {
   const [mainRef, measuredWidth] = useContainerWidth<HTMLDivElement>()
   const containerWidth = measuredWidth ?? SLIDE_FALLBACK_WIDTH
 
@@ -69,7 +97,7 @@ const StreamingSlidesPreview: React.FC<{
   const phaseLabel = phase === 'transforming' ? 'Transforming to visual layout...' : 'Generating content...'
 
   return (
-    <PanelCard title="Live Preview" defaultOpen>
+    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
       <div className="gba:flex gba:flex-col" data-testid="fabric-live-preview-slides-streaming">
         <div ref={mainRef} className="gba:flex gba:items-center gba:justify-center gba:p-3">
           <SlideCanvasMiniPreview
@@ -118,13 +146,15 @@ interface GeneratingSlidesProgressProps {
   currentSlide: number
   setCurrentSlide: (updater: (i: number) => number) => void
   userOverrideRef: React.MutableRefObject<boolean>
+  headerExtra?: React.ReactNode
 }
 
 const GeneratingSlidesProgress: React.FC<GeneratingSlidesProgressProps> = ({
   preview,
   currentSlide,
   setCurrentSlide,
-  userOverrideRef
+  userOverrideRef,
+  headerExtra
 }) => {
   const slideCount = (preview.content?.slideCount as number | undefined) ?? 0
   const phase = (preview.content?.phase as string | undefined) ?? 'generating'
@@ -138,12 +168,13 @@ const GeneratingSlidesProgress: React.FC<GeneratingSlidesProgressProps> = ({
         currentSlide={currentSlide}
         setCurrentSlide={setCurrentSlide}
         userOverrideRef={userOverrideRef}
+        headerExtra={headerExtra}
       />
     )
   }
 
   return (
-    <PanelCard title="Live Preview" defaultOpen>
+    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
       <div
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:p-6"
         data-testid="fabric-live-preview-slides-progress"
@@ -189,9 +220,10 @@ const FRIENDLY_FALLBACK_BODY =
 interface ErrorStateProps {
   preview: ArtifactPreview
   onRetry?: () => void
+  headerExtra?: React.ReactNode
 }
 
-const ErrorState: React.FC<ErrorStateProps> = ({ preview, onRetry }) => {
+const ErrorState: React.FC<ErrorStateProps> = ({ preview, onRetry, headerExtra }) => {
   const [showDetails, setShowDetails] = useState(false)
 
   const headline = FRIENDLY_FALLBACK_HEADLINE[preview.artifactType] ?? "We couldn't finish this"
@@ -203,7 +235,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ preview, onRetry }) => {
   const detail = preview.technicalDetail?.trim() || preview.error?.trim() || ''
 
   return (
-    <PanelCard title="Live Preview" defaultOpen>
+    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
       <div
         className="gba:flex gba:flex-col gba:items-stretch gba:gap-3 gba:p-4"
         data-testid="fabric-live-preview-error"
@@ -266,7 +298,11 @@ const ErrorState: React.FC<ErrorStateProps> = ({ preview, onRetry }) => {
   )
 }
 
-const SlidesPreview: React.FC<{ preview: ArtifactPreview; slides: SlideData[] }> = ({ slides }) => {
+const SlidesPreview: React.FC<{
+  preview: ArtifactPreview
+  slides: SlideData[]
+  headerExtra?: React.ReactNode
+}> = ({ slides, headerExtra }) => {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [mainRef, measuredWidth] = useContainerWidth<HTMLDivElement>()
   const prev = useCallback(() => setCurrentSlide(i => Math.max(0, i - 1)), [])
@@ -276,7 +312,7 @@ const SlidesPreview: React.FC<{ preview: ArtifactPreview; slides: SlideData[] }>
   const containerWidth = measuredWidth ?? SLIDE_FALLBACK_WIDTH
 
   return (
-    <PanelCard title="Live Preview" defaultOpen>
+    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
       <div className="gba:flex gba:flex-col" data-testid="fabric-live-preview-slides">
         <div ref={mainRef} className="gba:flex gba:items-center gba:justify-center gba:p-3">
           <SlideCanvasMiniPreview
@@ -335,6 +371,10 @@ interface LivePreviewCardProps {
   sessionId?: string
   /** Invoked when the user clicks "Try again" on the error state. */
   onRetry?: () => void
+  /** Whether the preview is currently shown in its expanded layout. */
+  isMaximized?: boolean
+  /** Toggles the expanded layout when provided. */
+  onToggleMaximized?: () => void
 }
 
 interface SlideCarouselState {
@@ -343,7 +383,11 @@ interface SlideCarouselState {
   userOverrideRef: React.MutableRefObject<boolean>
 }
 
-function renderGenerating(preview: ArtifactPreview, carousel: SlideCarouselState): React.ReactElement {
+function renderGenerating(
+  preview: ArtifactPreview,
+  carousel: SlideCarouselState,
+  headerExtra?: React.ReactNode
+): React.ReactElement {
   if (preview.artifactType === 'slides') {
     return (
       <GeneratingSlidesProgress
@@ -351,13 +395,14 @@ function renderGenerating(preview: ArtifactPreview, carousel: SlideCarouselState
         currentSlide={carousel.currentSlide}
         setCurrentSlide={carousel.setCurrentSlide}
         userOverrideRef={carousel.userOverrideRef}
+        headerExtra={headerExtra}
       />
     )
   }
   if (preview.artifactType === 'chart' && preview.content?.chartType) {
     return <ChartPreview preview={preview} />
   }
-  return <GeneratingSpinner preview={preview} />
+  return <GeneratingSpinner preview={preview} headerExtra={headerExtra} />
 }
 
 function renderDraftReady(
@@ -381,10 +426,10 @@ function renderDraftReady(
   return null
 }
 
-function renderReady(preview: ArtifactPreview): React.ReactElement | null {
+function renderReady(preview: ArtifactPreview, headerExtra?: React.ReactNode): React.ReactElement | null {
   if (!preview.content) return null
   if (preview.artifactType === 'slides' && Array.isArray(preview.content.slides)) {
-    return <SlidesPreview preview={preview} slides={preview.content.slides as SlideData[]} />
+    return <SlidesPreview preview={preview} slides={preview.content.slides as SlideData[]} headerExtra={headerExtra} />
   }
   if (preview.artifactType === 'chart') {
     return <ChartPreview preview={preview} />
@@ -396,8 +441,13 @@ export const LivePreviewCard: React.FC<LivePreviewCardProps> = ({
   preview,
   accessToken = '',
   sessionId = '',
-  onRetry
+  onRetry,
+  isMaximized = false,
+  onToggleMaximized
 }) => {
+  const maximizeToggle = onToggleMaximized ? (
+    <MaximizeToggle isMaximized={isMaximized} onToggle={onToggleMaximized} />
+  ) : undefined
   // Shared slide carousel index. Kept at the card level so the position
   // survives the streaming → draft_ready → ready status transitions for the
   // same artifact: otherwise the user sees the streaming view auto-advance
@@ -418,7 +468,7 @@ export const LivePreviewCard: React.FC<LivePreviewCardProps> = ({
 
   const updateSlide = useCallback((updater: (i: number) => number) => setCurrentSlide(prev => updater(prev)), [])
 
-  if (preview.status === 'error') return <ErrorState preview={preview} onRetry={onRetry} />
+  if (preview.status === 'error') return <ErrorState preview={preview} onRetry={onRetry} headerExtra={maximizeToggle} />
 
   if (preview.artifactType === 'document' && (isDocumentPreview(preview) || preview.status === 'generating')) {
     // Wrap in PanelCard so the document canvas behaves like the other
@@ -426,7 +476,7 @@ export const LivePreviewCard: React.FC<LivePreviewCardProps> = ({
     // header so the user can access Plan / Decisions / Activity while
     // a long document is still streaming.
     return (
-      <PanelCard title="Live Preview" defaultOpen>
+      <PanelCard title="Live Preview" defaultOpen extra={maximizeToggle}>
         <DocumentCanvasSurface preview={preview} accessToken={accessToken} sessionId={sessionId} />
       </PanelCard>
     )
@@ -435,7 +485,7 @@ export const LivePreviewCard: React.FC<LivePreviewCardProps> = ({
   const carousel: SlideCarouselState = { currentSlide, setCurrentSlide: updateSlide, userOverrideRef }
 
   if (preview.status === 'generating') {
-    return renderGenerating(preview, carousel)
+    return renderGenerating(preview, carousel, maximizeToggle)
   }
 
   if (preview.status === 'draft_ready' && preview.content) {
@@ -443,7 +493,7 @@ export const LivePreviewCard: React.FC<LivePreviewCardProps> = ({
   }
 
   if (preview.status === 'ready') {
-    return renderReady(preview)
+    return renderReady(preview, maximizeToggle)
   }
 
   return null

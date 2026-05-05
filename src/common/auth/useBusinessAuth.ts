@@ -58,6 +58,7 @@ export interface UseBusinessAuthResult {
   login: () => Promise<void>
   logout: () => Promise<void>
   refreshToken: () => Promise<boolean>
+  isTokenExpired: boolean
   isMsOAuthCallback: boolean
 }
 
@@ -67,6 +68,7 @@ export function useBusinessAuth(): UseBusinessAuthResult {
   const [kcInstance, setKcInstance] = useState<Keycloak | null>(null)
   const [accessToken, setAccessToken] = useState<string | undefined>(undefined)
   const [tokenParsed, setTokenParsed] = useState<KeycloakTokenParsed | undefined>(undefined)
+  const isTokenExpired = Boolean(tokenParsed?.exp && tokenParsed.exp * 1000 <= Date.now() + 60_000)
 
   const keycloakConfig = useMemo(
     () => ({
@@ -239,6 +241,15 @@ export function useBusinessAuth(): UseBusinessAuthResult {
     await kcInstance.login({ redirectUri })
   }, [kcInstance])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleReauthRequest = () => {
+      void login()
+    }
+    window.addEventListener('every-fabric:reauth-requested', handleReauthRequest)
+    return () => window.removeEventListener('every-fabric:reauth-requested', handleReauthRequest)
+  }, [login])
+
   const logout = useCallback(async () => {
     try {
       window.localStorage.removeItem(STORAGE_KEY_USER_INFO)
@@ -290,6 +301,7 @@ export function useBusinessAuth(): UseBusinessAuthResult {
     login,
     logout,
     refreshToken,
+    isTokenExpired,
     isMsOAuthCallback
   }
 }

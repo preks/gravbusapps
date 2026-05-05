@@ -6,7 +6,17 @@
 // ─── Artifacts ────────────────────────────────────────────────────────────────
 
 /** Mime-type groups that map to specific renderers */
-export type ArtifactRendererType = 'html' | 'document' | 'slide' | 'diagram' | 'code' | 'markdown' | 'unknown'
+export type ArtifactRendererType =
+  | 'html'
+  | 'document'
+  | 'slide'
+  | 'chart'
+  | 'table'
+  | 'diagram'
+  | 'app-preview'
+  | 'code'
+  | 'markdown'
+  | 'unknown'
 
 /** A file artifact produced by the agent, as returned by the REST API */
 export interface ArtifactFile {
@@ -18,6 +28,8 @@ export interface ArtifactFile {
   size: number
   created_at: string
   modified_at: string
+  provider_tool_ref?: string | null
+  source_metadata?: unknown
   /** Derived client-side: which renderer to use */
   rendererType: ArtifactRendererType
   /** Fully qualified download URL, set by useFabricArtifacts */
@@ -30,6 +42,16 @@ export function resolveRendererType(mimeType?: string | null, filename?: string 
 
   // Slide deck JSON format (compound extension)
   if (safeFilename.endsWith('.slides.json') || safeMimeType === 'application/vnd.newwork.slides+json') return 'slide'
+  if (safeFilename.endsWith('.chart.json') || safeMimeType === 'application/vnd.newwork.chart+json') return 'chart'
+  if (safeFilename.endsWith('.dashboard.json') || safeMimeType === 'application/vnd.newwork.dashboard+json')
+    return 'chart'
+  if (safeFilename.endsWith('.table.json') || safeMimeType === 'application/vnd.newwork.table+json') return 'table'
+  if (safeFilename.endsWith('.diagram.json') || safeMimeType === 'application/vnd.newwork.diagram+json')
+    return 'diagram'
+  if (safeFilename.endsWith('.canvas.tsx') || safeMimeType === 'application/vnd.newwork.app-preview+tsx')
+    return 'app-preview'
+  if (safeFilename.endsWith('.document.json') || safeMimeType === 'application/vnd.newwork.document+json')
+    return 'document'
 
   if (safeMimeType === 'text/html' || safeFilename.endsWith('.html') || safeFilename.endsWith('.htm')) return 'html'
   if (safeMimeType === 'text/markdown' || safeFilename.endsWith('.md')) return 'markdown'

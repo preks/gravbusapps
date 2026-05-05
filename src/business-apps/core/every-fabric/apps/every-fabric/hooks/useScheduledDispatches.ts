@@ -10,6 +10,18 @@ interface UseScheduledDispatchesResult {
   refresh: () => void
   /** Cancel a pending dispatch by id. Returns true on success. */
   cancel: (dispatchId: string) => Promise<boolean>
+  update: (
+    dispatchId: string,
+    body: {
+      scheduledAt?: string
+      timezone?: string
+      recurrence?: Record<string, unknown> | null
+      enabled?: boolean
+      title?: string
+      task?: string
+    }
+  ) => Promise<boolean>
+  retry: (dispatchId: string) => Promise<boolean>
   /** Current status filter applied */
   statusFilter: DispatchStatus | 'all'
   setStatusFilter: (f: DispatchStatus | 'all') => void
@@ -70,5 +82,43 @@ export const useScheduledDispatches = (accessToken: string): UseScheduledDispatc
     [client, refresh]
   )
 
-  return { dispatches, isLoading, error, refresh, cancel, statusFilter, setStatusFilter }
+  const update = useCallback(
+    async (
+      dispatchId: string,
+      body: {
+        scheduledAt?: string
+        timezone?: string
+        recurrence?: Record<string, unknown> | null
+        enabled?: boolean
+        title?: string
+        task?: string
+      }
+    ): Promise<boolean> => {
+      try {
+        await client.updateScheduledDispatch(dispatchId, body)
+        refresh()
+        return true
+      } catch (err) {
+        console.error('[useScheduledDispatches] update failed:', err)
+        return false
+      }
+    },
+    [client, refresh]
+  )
+
+  const retry = useCallback(
+    async (dispatchId: string): Promise<boolean> => {
+      try {
+        await client.retryScheduledDispatch(dispatchId)
+        refresh()
+        return true
+      } catch (err) {
+        console.error('[useScheduledDispatches] retry failed:', err)
+        return false
+      }
+    },
+    [client, refresh]
+  )
+
+  return { dispatches, isLoading, error, refresh, cancel, update, retry, statusFilter, setStatusFilter }
 }

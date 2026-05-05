@@ -64,7 +64,12 @@ export const PlanCard: FC<PlanCardProps> = ({
   )
 
   return (
-    <PanelCard title="Plan" extra={connectionBadge} defaultOpen={!defaultCollapsed}>
+    <PanelCard
+      title="Plan"
+      summary={totalCount > 0 ? `${planLabel} · ${displayPercent}%` : 'Waiting to start'}
+      extra={connectionBadge}
+      defaultOpen={!defaultCollapsed}
+    >
       <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain">
         <div className="gba:px-4 gba:pt-3 gba:pb-1">
           {totalCount > 0 && (

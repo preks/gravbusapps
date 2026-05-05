@@ -2,9 +2,11 @@ import { useEffect, useRef, useSyncExternalStore } from 'react'
 import {
   acquireSessionStream,
   getSessionStreamState,
+  ensureSessionStreamEntry,
   subscribeSessionStream,
   type SessionStreamEntry
 } from './sessionStreamRegistry'
+import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
 
 const EMPTY_STATE: SessionStreamEntry = {
   events: [],
@@ -24,6 +26,10 @@ export const useSessionStreamEntry = (sessionId: string | null, accessToken: str
 
   useEffect(() => {
     if (!sessionId || !accessToken) return
+    if (isFlowBotFabricRuntime()) {
+      ensureSessionStreamEntry(sessionId, accessToken)
+      return
+    }
     const { release } = acquireSessionStream(sessionId, accessToken)
     releaseRef.current = release
     return () => {

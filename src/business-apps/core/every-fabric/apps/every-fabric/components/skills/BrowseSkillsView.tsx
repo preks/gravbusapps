@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowRight,
   Archive,
   CheckCircle,
   File as FileIcon,
@@ -15,8 +14,9 @@ import {
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   draft: { label: 'Draft', className: 'gba:bg-yellow-100 gba:text-yellow-800' },
-  pending_review: { label: 'Pending Review', className: 'gba:bg-orange-100 gba:text-orange-800' },
-  approved: { label: 'Approved', className: 'gba:bg-green-100 gba:text-green-800' },
+  pending_review: { label: 'Draft', className: 'gba:bg-yellow-100 gba:text-yellow-800' },
+  approved: { label: 'Draft', className: 'gba:bg-yellow-100 gba:text-yellow-800' },
+  built_in: { label: 'Built-in', className: 'gba:bg-blue-100 gba:text-blue-800' },
   archived: { label: 'Archived', className: 'gba:bg-gray-100 gba:text-gray-600' }
 }
 
@@ -36,6 +36,7 @@ export type BrowseSkillManifestEntry = {
   has_files?: boolean
   file_count?: number
   tools?: string[]
+  source?: 'admin' | 'runtime_manifest'
 }
 
 export interface BrowseSkillsViewProps {
@@ -280,13 +281,13 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
   )
 
   const handleTransition = useCallback(
-    async (skillId: string, action: 'submit' | 'approve' | 'archive') => {
+    async (skillId: string, action: 'enable' | 'disable' | 'archive') => {
       setTransitioningId(skillId)
       try {
-        const labels = { submit: 'Submitted for review', approve: 'Approved', archive: 'Archived' }
+        const labels = { enable: 'Enabled', disable: 'Disabled', archive: 'Archived' }
         const fns = {
-          submit: () => client.submitSkillForReview(skillId),
-          approve: () => client.approveSkill(skillId),
+          enable: () => client.enableSkill(skillId),
+          disable: () => client.disableSkill(skillId),
           archive: () => client.archiveSkill(skillId)
         }
         await fns[action]()
@@ -354,9 +355,10 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
         <div className="gba:flex gba:flex-col gba:gap-2" data-testid="browse-skills-list">
           {filteredManifest.map(s => {
             const isSelected = selectedSkillId === s.skill_id
+            const isRuntimeOnly = s.source === 'runtime_manifest'
             const bodyClasses = [
               'gba:w-full gba:text-left gba:p-4 gba:flex gba:flex-col gba:gap-2',
-              onEditSkill
+              onEditSkill && !isRuntimeOnly
                 ? 'gba:cursor-pointer gba:hover:bg-muted/30 gba:transition-colors focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-primary/40'
                 : ''
             ].join(' ')
@@ -381,9 +383,13 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                       </span>
                     )
                   })()}
-                  {s.is_active === false && (
+                  {s.is_active === false ? (
                     <span className="gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-red-100 gba:text-red-700">
                       Inactive
+                    </span>
+                  ) : (
+                    <span className="gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-green-100 gba:text-green-800">
+                      Enabled
                     </span>
                   )}
                 </div>
@@ -426,7 +432,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                 data-testid={`browse-skills-card-${s.skill_id}`}
                 data-selected={isSelected ? 'true' : undefined}
               >
-                {onEditSkill ? (
+                {onEditSkill && !isRuntimeOnly ? (
                   <button
                     type="button"
                     className={bodyClasses}
@@ -446,7 +452,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                   // clicks on these controls never bubble into the body button at all.
                 >
                   <div className="gba:flex gba:items-center gba:gap-1">
-                    {s.skill_id !== 'skill-creator' && (
+                    {s.skill_id !== 'skill-creator' && !isRuntimeOnly && (
                       <button
                         type="button"
                         className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted gba:transition-colors"
@@ -464,16 +470,21 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                         )}
                       </button>
                     )}
-                    <button
-                      type="button"
-                      className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted gba:transition-colors"
-                      title={s.has_files ? `Export ${s.skill_id} as zip` : `Download ${s.skill_id} as .md`}
-                      onClick={() => void handleExportSkill(s)}
-                    >
-                      <UploadSimple className="gba:h-3 gba:w-3 gba:rotate-180" />
-                      Export
-                    </button>
-                    {s.skill_id !== 'skill-creator' && (
+                    {!isRuntimeOnly && (
+                      <button
+                        type="button"
+                        className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted gba:transition-colors"
+                        title={s.has_files ? `Export ${s.skill_id} as zip` : `Download ${s.skill_id} as .md`}
+                        onClick={() => void handleExportSkill(s)}
+                      >
+                        <UploadSimple className="gba:h-3 gba:w-3 gba:rotate-180" />
+                        Export
+                      </button>
+                    )}
+                    {isRuntimeOnly && (
+                      <span className="gba:px-2 gba:py-1 gba:text-[11px] gba:text-muted-foreground">Runtime skill</span>
+                    )}
+                    {s.skill_id !== 'skill-creator' && !isRuntimeOnly && (
                       <>
                         {confirmDeleteId === s.skill_id ? (
                           <div className="gba:flex gba:items-center gba:gap-1">
@@ -513,28 +524,26 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                     )}
                   </div>
 
-                  {s.skill_id !== 'skill-creator' && s.status !== 'archived' && (
+                  {s.skill_id !== 'skill-creator' && !isRuntimeOnly && s.status !== 'archived' && (
                     <div className="gba:flex gba:items-center gba:gap-1">
-                      {s.status === 'draft' && (
-                        <button
-                          type="button"
-                          className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:font-medium gba:text-blue-700 gba:bg-blue-50 gba:hover:bg-blue-100 gba:transition-colors"
-                          disabled={transitioningId === s.skill_id}
-                          onClick={() => void handleTransition(s.skill_id, 'submit')}
-                        >
-                          <ArrowRight className="gba:h-3 gba:w-3" />
-                          Submit for Review
-                        </button>
-                      )}
-                      {s.status === 'pending_review' && (
+                      {s.is_active === false ? (
                         <button
                           type="button"
                           className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:font-medium gba:text-green-700 gba:bg-green-50 gba:hover:bg-green-100 gba:transition-colors"
                           disabled={transitioningId === s.skill_id}
-                          onClick={() => void handleTransition(s.skill_id, 'approve')}
+                          onClick={() => void handleTransition(s.skill_id, 'enable')}
                         >
                           <CheckCircle className="gba:h-3 gba:w-3" />
-                          Approve
+                          Enable
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted gba:transition-colors"
+                          disabled={transitioningId === s.skill_id}
+                          onClick={() => void handleTransition(s.skill_id, 'disable')}
+                        >
+                          Disable
                         </button>
                       )}
                       <button

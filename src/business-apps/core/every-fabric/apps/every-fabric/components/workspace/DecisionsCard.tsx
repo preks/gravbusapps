@@ -55,8 +55,14 @@ interface DecisionsCardProps {
 export const DecisionsCard: FC<DecisionsCardProps> = ({ decisions, defaultCollapsed = true }) => {
   const ordered = [...decisions].sort((a, b) => b.seq - a.seq)
 
+  const summary = (() => {
+    if (ordered.length === 0) return 'No branch points yet'
+    const latest = ordered[0]
+    return latest?.title ? latest.title : `${ordered.length} branch ${ordered.length === 1 ? 'point' : 'points'}`
+  })()
+
   return (
-    <PanelCard title="Decisions" badge={decisions.length} defaultOpen={!defaultCollapsed}>
+    <PanelCard title="Decisions" badge={decisions.length} summary={summary} defaultOpen={!defaultCollapsed}>
       <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:py-1">
         {ordered.length === 0 ? (
           <div className="gba:px-4 gba:py-3">

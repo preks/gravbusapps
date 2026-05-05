@@ -9,6 +9,8 @@ interface AgentCardProps {
   agent: FabricAgent
   onRunTask: (agent: FabricAgent) => void
   onConfigure?: (agent: FabricAgent) => void
+  onArchive?: (agent: FabricAgent) => void
+  isArchiving?: boolean
 }
 
 function resolveInitial(name: string): string {
@@ -21,10 +23,17 @@ function formatAgentName(name: string): string {
   return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-export const AgentCard: React.FC<AgentCardProps> = ({ agent, onRunTask, onConfigure }) => {
+export const AgentCard: React.FC<AgentCardProps> = ({
+  agent,
+  onRunTask,
+  onConfigure,
+  onArchive,
+  isArchiving = false
+}) => {
   const displayName = formatAgentName(agent.name)
   const bgColor = agent.color ?? '#6366f1'
   const sourceDisplay = getSourceDisplay(agent.source)
+  const canArchive = agent.source === 'prompt_odm' || agent.source === 'autonomous_agent'
 
   return (
     <div
@@ -123,19 +132,29 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onRunTask, onConfig
       </div>
 
       {/* Action buttons */}
-      <div className="gba:mt-auto gba:flex gba:items-center gba:gap-2 gba:border-t gba:border-border/50 gba:px-4 gba:py-3">
+      <div className="gba:mt-auto gba:grid gba:grid-cols-3 gba:items-center gba:gap-2 gba:border-t gba:border-border/50 gba:px-4 gba:py-3">
         <Button
           variant="outline"
           size="sm"
-          className="gba:flex-1"
+          className="gba:w-full"
           onClick={() => onConfigure?.(agent)}
           data-testid={`agent-configure-${agent.id}`}
         >
           Configure
         </Button>
-        <Button size="sm" className="gba:flex-1" onClick={() => onRunTask(agent)} data-testid={`agent-run-${agent.id}`}>
+        <Button size="sm" className="gba:w-full" onClick={() => onRunTask(agent)} data-testid={`agent-run-${agent.id}`}>
           <PlayIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" />
           Run task
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gba:w-full gba:border-destructive/30 gba:text-destructive gba:hover:bg-destructive/10"
+          disabled={!canArchive || isArchiving}
+          onClick={() => onArchive?.(agent)}
+          data-testid={`agent-archive-${agent.id}`}
+        >
+          {isArchiving ? 'Archiving...' : 'Archive'}
         </Button>
       </div>
     </div>

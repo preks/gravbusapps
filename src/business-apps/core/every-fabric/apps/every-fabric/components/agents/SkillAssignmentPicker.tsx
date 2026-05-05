@@ -11,6 +11,9 @@ interface SkillOption {
   name: string
   description: string
   status: string
+  is_active?: boolean
+  category?: string | null
+  tool_refs?: string[]
 }
 
 interface SkillAssignmentPickerProps {
@@ -37,11 +40,30 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
     setIsLoading(true)
     setError(null)
     try {
-      const [agentSkills, allSkills] = await Promise.all([
+      const [agentSkills, adminSkills, runtimeSkills] = await Promise.all([
         client.getAgentSkills(agent.id),
-        client.get<SkillOption[]>('/admin/skills/', { params: { status: 'approved' } }).catch(() => [] as SkillOption[])
+        client.get<SkillOption[]>('/admin/skills/').catch(() => [] as SkillOption[]),
+        client
+          .get<Array<Omit<SkillOption, 'status' | 'is_active'> & { tool_refs?: string[] }>>('/skills/manifest')
+          .catch(() => [])
       ])
-      setAvailableSkills(Array.isArray(allSkills) ? allSkills : [])
+      const merged = new Map<string, SkillOption>()
+      for (const skill of adminSkills) {
+        merged.set(skill.skill_id, skill)
+      }
+      for (const skill of runtimeSkills) {
+        if (!merged.has(skill.skill_id)) {
+          merged.set(skill.skill_id, { ...skill, status: 'built_in', is_active: true })
+        }
+      }
+      const allSkills = [...merged.values()].sort((a, b) => a.skill_id.localeCompare(b.skill_id))
+      setAvailableSkills(
+        Array.isArray(allSkills)
+          ? allSkills.filter(
+              skill => skill.is_active === true || agentSkills.skills.some(s => s.skill_id === skill.skill_id)
+            )
+          : []
+      )
       setSelectedIds(new Set(agentSkills.skills.map(s => s.skill_id)))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load skill data')
@@ -120,7 +142,7 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
 
           {!isLoading && availableSkills.length === 0 && (
             <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-8">
-              No approved skills available. Create and approve skills first.
+              No enabled skills available. Create a skill and enable it first.
             </p>
           )}
 
@@ -155,6 +177,11 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
                         <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
                           {skill.name || skill.skill_id}
                         </span>
+                        {skill.status === 'built_in' && (
+                          <span className="gba:shrink-0 gba:rounded gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
+                            Built-in
+                          </span>
+                        )}
                       </div>
                       {skill.description && (
                         <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground gba:line-clamp-2">

@@ -5,6 +5,7 @@ import {
   getConnectionId,
   inferProviderIdFromConnection
 } from '@/business-apps/core/create/apps/newwork-connect/components/connectCatalog'
+import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
 
 export interface ExternalConnection {
   connection_id: string
@@ -26,12 +27,19 @@ export interface UseFabricConnectorsReturn {
 
 export const useFabricConnectors = (accessToken: string): UseFabricConnectorsReturn => {
   const client = usePromptManagerClient(accessToken)
+  const flowBotRuntime = isFlowBotFabricRuntime()
   const [availableConnectors, setAvailableConnectors] = useState<ExternalConnection[]>([])
   const [activeConnectionIds, setActiveConnectionIds] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
   const fetchConnectors = useCallback(async () => {
+    if (flowBotRuntime) {
+      setAvailableConnectors([])
+      setError(null)
+      setIsLoading(false)
+      return
+    }
     if (!accessToken) return
 
     setIsLoading(true)
@@ -73,7 +81,7 @@ export const useFabricConnectors = (accessToken: string): UseFabricConnectorsRet
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, client])
+  }, [accessToken, client, flowBotRuntime])
 
   useEffect(() => {
     fetchConnectors().catch(() => undefined)
