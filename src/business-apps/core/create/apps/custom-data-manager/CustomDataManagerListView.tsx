@@ -1,174 +1,202 @@
-import React from 'react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import {
-  PageLayout,
-  Button,
-  Card,
-  CardContent,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Alert,
-  AlertDescription,
-  Badge
-} from '@newwork/nw-design-system'
-import { Database, Plus, Rocket, Sparkles } from 'lucide-react'
-import type { CustomDataDefinition } from './types'
-import { DefinitionsTable, BulkAction } from './components/DefinitionsTable'
+import React, { useState } from 'react'
+import { Button, Card, CardContent, Badge } from '@newwork/nw-design-system'
+import { Database, Plus, Sparkles, FolderOpen } from 'lucide-react'
+import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
+import type { CustomDataNamespace } from './types'
+
+type ListSubView = 'create' | 'namespaces'
 
 interface CustomDataManagerListViewProps {
-  definitions: CustomDataDefinition[]
-  isLoadingDefinitions: boolean
-  definitionsError: string | null
-  entityCount: number
-  promotedCount: number
-  currentNamespace: string
-  availableNamespaces: string[]
-  onChangeNamespace: (namespace: string) => void
+  namespaces: CustomDataNamespace[]
+  onSelectNamespace: (namespace: string) => void
   onOpenCreateNamespace: () => void
-  onOpenAiGenerator: () => void
-  onCreateNew: () => void
-  onSelectDefinition: (definition: CustomDataDefinition) => void
-  onEditDefinition: (definition: CustomDataDefinition) => void
-  onOpenPromote: (definition: CustomDataDefinition) => void
-  onBulkAction: (action: BulkAction) => void
+  onOpenAiGenerator: (namespace?: string) => void
   'data-testid'?: string
 }
 
 export const CustomDataManagerListView: React.FC<CustomDataManagerListViewProps> = ({
-  definitions,
-  isLoadingDefinitions,
-  definitionsError,
-  entityCount,
-  promotedCount,
-  currentNamespace,
-  availableNamespaces,
-  onChangeNamespace,
+  namespaces,
+  onSelectNamespace,
   onOpenCreateNamespace,
   onOpenAiGenerator,
-  onCreateNew,
-  onSelectDefinition,
-  onEditDefinition,
-  onOpenPromote,
-  onBulkAction,
   'data-testid': testId = 'custom-data-manager-list'
 }) => {
-  return (
-    <PageLayout
-      headerIcon={Database}
-      headerTitle={getTranslationFromI18nKeyAndLabel('customData.title', 'Custom Data Manager')}
-      headerDescription="Create and manage custom data schemas"
-      className="gba:min-h-screen"
-    >
-      <div className="gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-6">
-        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-6">
-          <Card>
-            <CardContent className="gba:pt-6">
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <div>
-                  <p className="gba:text-2xl gba:font-bold">{entityCount}</p>
-                  <p className="gba:text-sm gba:text-muted-foreground">Entities</p>
-                </div>
-                <Database className="gba:h-8 gba:w-8 gba:text-secondary" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="gba:pt-6">
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <div>
-                  <p className="gba:text-2xl gba:font-bold">{promotedCount}</p>
-                  <p className="gba:text-sm gba:text-muted-foreground">Promoted</p>
-                </div>
-                <Rocket className="gba:h-8 gba:w-8 gba:text-success" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+  const [subView, setSubView] = useState<ListSubView>('namespaces')
 
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
-          <div className="gba:flex gba:items-center gba:gap-4">
-            <h2 className="gba:text-lg gba:font-semibold">Definitions</h2>
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Select value={currentNamespace} onValueChange={onChangeNamespace}>
-                <SelectTrigger className="gba:w-64" data-testid={`${testId}-namespace-selector`}>
-                  <SelectValue placeholder="Select namespace" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableNamespaces.map(ns => (
-                    <SelectItem key={ns} value={ns}>
-                      {ns}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button variant="outline" onClick={onOpenCreateNamespace} data-testid={`${testId}-create-namespace`}>
-                New namespace
-              </Button>
+  return (
+    <div className="gba:flex gba:flex-col gba:h-full gba:w-full" data-testid={testId}>
+      {/* Hero */}
+      <div className="gba:relative gba:overflow-hidden gba:shrink-0">
+        <PremiumHeroBackground data-testid={`${testId}-hero-bg`} />
+        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:space-hero-overlay" aria-hidden />
+        <div className="gba:relative gba:px-6 gba:py-5">
+          <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+            <div className="gba:flex gba:items-start gba:gap-3">
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-white/15">
+                <Database className="gba:h-5 gba:w-5 gba:text-white" />
+              </div>
+              <div className="gba:flex gba:flex-col gba:gap-0.5">
+                <span className="gba:text-xs gba:font-medium gba:tracking-[0.3em] gba:text-white/60 gba:uppercase">
+                  DATA MODELS
+                </span>
+                <div className="gba:text-xl gba:font-semibold gba:text-white">Custom Data Manager</div>
+                <span className="gba:text-sm gba:text-white/80">Design and manage your custom data schemas</span>
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              tone="inverse"
+              onClick={onOpenCreateNamespace}
+              data-testid={`${testId}-hero-create-ns`}
+              type="button"
+            >
+              <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+              New Namespace
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
+        <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:bg-background">
+          <div
+            className="gba:shrink-0 gba:border-b gba:border-border gba:bg-muted/50 gba:px-4 gba:sm:px-6 gba:lg:px-8"
+            role="tablist"
+            data-testid={`${testId}-tabs`}
+          >
+            <div className="gba:flex gba:gap-1">
+              <TabButton
+                active={subView === 'create'}
+                onClick={() => setSubView('create')}
+                icon={<Sparkles className="gba:h-4 gba:w-4" />}
+                label="Create"
+                testId={`${testId}-tab-create`}
+              />
+              <TabButton
+                active={subView === 'namespaces'}
+                onClick={() => setSubView('namespaces')}
+                icon={<FolderOpen className="gba:h-4 gba:w-4" />}
+                label="Namespaces"
+                testId={`${testId}-tab-namespaces`}
+              />
             </div>
           </div>
-          <div className="gba:flex gba:gap-2">
-            <Button variant="outline" onClick={onOpenAiGenerator} data-testid={`${testId}-ai-generator`}>
-              <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" />
-              Generate with AI
-            </Button>
-            <Button onClick={onCreateNew} data-testid={`${testId}-create-new`}>
-              <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
-              New Definition
-            </Button>
+
+          <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
+            {subView === 'create' ? (
+              <CreateTabContent onOpenAiGenerator={onOpenAiGenerator} testId={testId} />
+            ) : (
+              <NamespacesTabContent namespaces={namespaces} onSelectNamespace={onSelectNamespace} testId={testId} />
+            )}
           </div>
         </div>
-
-        {definitionsError && (
-          <Alert variant="destructive" className="gba:mb-4">
-            <AlertDescription>{definitionsError}</AlertDescription>
-          </Alert>
-        )}
-
-        {definitions.some(d => d.namespace === 'default') && definitions.length > 0 && (
-          <Alert variant="info" className="gba:mb-4" data-testid={`${testId}-namespace-info`}>
-            <AlertDescription>
-              <div className="gba:flex gba:items-start gba:gap-3">
-                <Database className="gba:h-5 gba:w-5 gba:text-info-foreground gba:flex-shrink-0 gba:mt-0.5" />
-                <div>
-                  <p className="gba:font-medium gba:text-info-foreground gba:mb-1">Namespace Support Now Available</p>
-                  <p className="gba:text-sm gba:text-info-secondary-foreground">
-                    Your existing data sources have been migrated to the{' '}
-                    <Badge variant="secondary" className="gba:mx-1">
-                      default
-                    </Badge>{' '}
-                    namespace. You can now organize data sources using namespaces for better isolation. Use the
-                    namespace selector above to filter by namespace, or create new definitions in custom namespaces.
-                  </p>
-                  <ul className="gba:list-disc gba:ml-4 gba:mt-2 gba:text-sm gba:text-info-secondary-foreground gba:space-y-1">
-                    <li>Keys must be unique within a namespace (same key allowed in different namespaces)</li>
-                    <li>
-                      Use reverse domain notation: <code className="gba:text-xs">com.company.department</code>
-                    </li>
-                    <li>Namespaces provide isolation for multi-tenant or multi-project scenarios</li>
-                  </ul>
-                </div>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <Card>
-          <CardContent className="gba:pt-6">
-            <DefinitionsTable
-              definitions={definitions}
-              isLoading={isLoadingDefinitions}
-              onSelect={onSelectDefinition}
-              onEdit={onEditDefinition}
-              onPromote={onOpenPromote}
-              onBulkAction={onBulkAction}
-              data-testid={`${testId}-definitions-table`}
-            />
-          </CardContent>
-        </Card>
       </div>
-    </PageLayout>
+    </div>
   )
 }
+
+const TabButton: React.FC<{
+  active: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
+  testId: string
+}> = ({ active, onClick, icon, label, testId }) => (
+  <button
+    type="button"
+    role="tab"
+    aria-selected={active}
+    className={`gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:text-sm gba:font-medium gba:border-b-2 gba:transition-colors gba:-mb-px ${
+      active
+        ? 'gba:border-primary gba:text-foreground'
+        : 'gba:border-transparent gba:text-muted-foreground gba:hover:text-foreground'
+    }`}
+    onClick={onClick}
+    data-testid={testId}
+  >
+    {icon}
+    {label}
+  </button>
+)
+
+const CreateTabContent: React.FC<{
+  onOpenAiGenerator: (namespace?: string) => void
+  testId: string
+}> = ({ onOpenAiGenerator, testId }) => (
+  <div className="gba:max-w-4xl gba:mx-auto gba:px-6 gba:py-8">
+    <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
+      <Card
+        className="gba:cursor-pointer gba:transition-shadow hover:gba:shadow-md"
+        onClick={() => onOpenAiGenerator()}
+        data-testid={`${testId}-create-ai`}
+      >
+        <CardContent className="gba:pt-6 gba:text-center">
+          <Sparkles className="gba:h-10 gba:w-10 gba:mx-auto gba:text-primary gba:mb-3" />
+          <h3 className="gba:font-semibold gba:mb-1">Create with AI</h3>
+          <p className="gba:text-sm gba:text-muted-foreground">
+            Describe your data structure in natural language and let AI generate the schema.
+          </p>
+        </CardContent>
+      </Card>
+      <Card
+        className="gba:cursor-pointer gba:transition-shadow hover:gba:shadow-md"
+        onClick={() => onOpenAiGenerator()}
+        data-testid={`${testId}-create-scratch`}
+      >
+        <CardContent className="gba:pt-6 gba:text-center">
+          <Database className="gba:h-10 gba:w-10 gba:mx-auto gba:text-muted-foreground gba:mb-3" />
+          <h3 className="gba:font-semibold gba:mb-1">Build from Scratch</h3>
+          <p className="gba:text-sm gba:text-muted-foreground">
+            Manually define your entities, columns, and relationships step by step.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+)
+
+const NamespacesTabContent: React.FC<{
+  namespaces: CustomDataNamespace[]
+  onSelectNamespace: (ns: string) => void
+  testId: string
+}> = ({ namespaces, onSelectNamespace, testId }) => (
+  <div className="gba:max-w-4xl gba:mx-auto gba:px-6 gba:py-6">
+    {namespaces.length === 0 ? (
+      <div className="gba:text-center gba:py-12">
+        <FolderOpen className="gba:h-12 gba:w-12 gba:mx-auto gba:text-muted-foreground gba:mb-3" />
+        <p className="gba:text-muted-foreground">No namespaces yet. Create one to get started.</p>
+      </div>
+    ) : (
+      <div className="gba:space-y-2">
+        {namespaces.map(ns => {
+          return (
+            <Card
+              key={ns.namespace}
+              className="gba:cursor-pointer gba:transition-all hover:gba:shadow-md hover:gba:border-primary/50"
+              onClick={() => onSelectNamespace(ns.namespace)}
+              data-testid={`${testId}-ns-${ns.namespace}`}
+            >
+              <CardContent className="gba:py-4 gba:flex gba:items-center gba:justify-between">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <FolderOpen className="gba:h-5 gba:w-5 gba:text-primary" />
+                  <div>
+                    <p className="gba:font-medium">{ns.display_name || ns.namespace}</p>
+                    {ns.description && <p className="gba:text-xs gba:text-muted-foreground">{ns.description}</p>}
+                    <p className="gba:text-xs gba:text-muted-foreground gba:font-mono gba:mt-0.5">{ns.namespace}</p>
+                  </div>
+                </div>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Badge variant="outline" className="gba:text-xs">
+                    Namespace
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+    )}
+  </div>
+)

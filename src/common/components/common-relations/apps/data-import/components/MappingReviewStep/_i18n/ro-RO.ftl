@@ -21,6 +21,9 @@ unmapped-fields-title = Câmpuri nemapate ({ $count })
 source-field-label = Câmp sursă
 target-field-label = Câmp țintă
 type-label = Tip
+select-field-placeholder = Selectați un câmp
+search-field-placeholder = Căutați câmpuri...
+no-fields-found = Nu s-au găsit câmpuri
 
 # Type Values
 type-catalog = Catalog

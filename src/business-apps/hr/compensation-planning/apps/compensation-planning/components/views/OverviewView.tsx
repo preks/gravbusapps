@@ -9,6 +9,7 @@ export interface OverviewViewProps {
   plansLoading: boolean
   onCreatePlan: () => void
   onEditCompensationPlan: (plan: CompensationBudgetPlanRow) => void
+  onOpenCompensationPlan: (plan: CompensationBudgetPlanRow) => void
 }
 
 function PlansListView({
@@ -16,12 +17,14 @@ function PlansListView({
   plansLoading,
   onCreatePlan,
   onEditCompensationPlan,
+  onOpenCompensationPlan,
   t
 }: Readonly<{
   plans: CompensationBudgetPlanRow[]
   plansLoading: boolean
   onCreatePlan: () => void
   onEditCompensationPlan: (plan: CompensationBudgetPlanRow) => void
+  onOpenCompensationPlan: (plan: CompensationBudgetPlanRow) => void
   t: (key: string) => string
 }>) {
   if (plansLoading && plans.length === 0) {
@@ -57,6 +60,7 @@ function PlansListView({
       plansLoading={plansLoading}
       onCreatePlan={onCreatePlan}
       onEditPlan={onEditCompensationPlan}
+      onOpenPlan={onOpenCompensationPlan}
     />
   )
 }
@@ -65,7 +69,8 @@ export function OverviewView({
   plans,
   plansLoading,
   onCreatePlan,
-  onEditCompensationPlan
+  onEditCompensationPlan,
+  onOpenCompensationPlan
 }: Readonly<OverviewViewProps>) {
   const { t } = useTranslation(translations)
 
@@ -77,6 +82,7 @@ export function OverviewView({
           plansLoading={plansLoading}
           onCreatePlan={onCreatePlan}
           onEditCompensationPlan={onEditCompensationPlan}
+          onOpenCompensationPlan={onOpenCompensationPlan}
           t={t}
         />
       </div>

@@ -9,6 +9,7 @@ import { formatCurrencyRefForDisplay } from '../../utils/displayFormatUtils'
 
 export interface SubmissionsOrgUnitGraphqlRow {
   id: string
+  version: number
   compensationBudgetPlanCompanyId: string
   organizationalUnitId: string
   salaryBudgetAmount: number
@@ -19,10 +20,18 @@ export interface SubmissionsOrgUnitGraphqlRow {
   budgetPlanStatus: string
 }
 
+export interface SubmissionsEmployeeSalaryAdjustmentRow {
+  employeeId: string
+  newAnnualGrossSalary: number
+  requestedPercent: number
+}
+
 /** One row per `compensation_budget_plan_organizational_unit` (joined for display). */
 export interface SubmissionsOrgUnitTableRow {
   /** `compensation_budget_plan_organizational_unit.id` (REST/GraphQL org-unit budget row; pass as plan OU id). */
   id: string
+  /** Optimistic locking — required for REST UPDATE. */
+  version: number
   /** Organizational unit entity id (org chart). */
   organizationalUnitId: string
   organizationalUnitName: string
@@ -32,18 +41,25 @@ export interface SubmissionsOrgUnitTableRow {
   displayCurrency: string
   /** HR slice per department (`salary_budget_amount`), rounded for display. */
   salaryBudgetAmount: number
+  salaryBudgetPercent: number
   /** Employee-level roll-up (`allocation_amount`); empty until distributed to employees. */
   allocationAmount: number
+  bonusBudgetAmount: number
+  bonusBudgetPercent: number
   /**
    * Department salary budget as a share of the parent company salary-increase pool.
    * Display-only — derived from `salary_budget_amount` vs company pool.
    */
   allocationShareOfCompanyPoolPercent: number | null
   budgetPlanStatus: string
+  /** Compensation cycle effective date used by salary adjustment execution. */
+  effectiveDate: string | null
   /** Aggregated annual salary for employees in this org unit (workforce baseline). */
   organizationalUnitCurrentTotalSalary: number
   /** Sum of employee `proposed_new_salary` for this org-unit budget row (GraphQL does not expose OU-level field). */
   proposedNewSalary: number
+  /** Employee-level salary adjustments to execute when the submitted department is selected. */
+  salaryAdjustments: SubmissionsEmployeeSalaryAdjustmentRow[]
 }
 
 export function buildSubmissionsOrgUnitTableRows(
@@ -54,6 +70,7 @@ export function buildSubmissionsOrgUnitTableRows(
   teamOrgUnitNameById: ReadonlyMap<string, string>,
   orgUnitCurrentTotalSalaryById: ReadonlyMap<string, number>,
   proposedNewSalarySumByOrgUnitBudgetRowId: ReadonlyMap<string, number>,
+  salaryAdjustmentsByOrgUnitBudgetRowId: ReadonlyMap<string, SubmissionsEmployeeSalaryAdjustmentRow[]>,
   defaultCurrencyCode: string
 ): SubmissionsOrgUnitTableRow[] {
   return orgRows.map(raw => {
@@ -63,6 +80,10 @@ export function buildSubmissionsOrgUnitTableRows(
     const budgetPlanLabel = companyRow
       ? formatBudgetPlanChosenLabel(companyRow.compensationBudgetPlanId, plans)
       : raw.compensationBudgetPlanCompanyId
+    const effectiveDate =
+      companyRow == null
+        ? null
+        : (plans.find(plan => plan.id === companyRow.compensationBudgetPlanId)?.effectiveDate ?? null)
 
     const ouId = raw.organizationalUnitId
     const nameFromChart = orgUnitNameById.get(ouId)?.trim()
@@ -83,17 +104,23 @@ export function buildSubmissionsOrgUnitTableRows(
 
     return {
       id: raw.id,
+      version: raw.version,
       organizationalUnitId: ouId,
       organizationalUnitName: nameFromChart || nameFromTeam || ouId,
       compensationBudgetPlanCompanyId: raw.compensationBudgetPlanCompanyId,
       budgetPlanLabel,
       displayCurrency,
       salaryBudgetAmount: salaryBudget,
+      salaryBudgetPercent: raw.salaryBudgetPercent,
       allocationAmount: alloc,
+      bonusBudgetAmount: raw.bonusBudgetAmount,
+      bonusBudgetPercent: raw.bonusBudgetPercent,
       allocationShareOfCompanyPoolPercent,
       budgetPlanStatus: raw.budgetPlanStatus ?? '',
+      effectiveDate,
       organizationalUnitCurrentTotalSalary: roundMoney2(orgUnitCurrentTotalSalaryById.get(ouId) ?? 0),
-      proposedNewSalary: roundMoney2(proposedNewSalarySumByOrgUnitBudgetRowId.get(raw.id) ?? 0)
+      proposedNewSalary: roundMoney2(proposedNewSalarySumByOrgUnitBudgetRowId.get(raw.id) ?? 0),
+      salaryAdjustments: salaryAdjustmentsByOrgUnitBudgetRowId.get(raw.id) ?? []
     }
   })
 }

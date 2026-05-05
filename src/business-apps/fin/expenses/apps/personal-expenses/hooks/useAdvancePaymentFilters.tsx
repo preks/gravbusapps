@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo } from 'react'
 import dayjs from 'dayjs'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { ExpenseStatus, getAdvancePaymentStatusDisplay } from '../utils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import { ExpenseStatus, getAdvancePaymentStatusDisplayT, statusFilterMainWithOptionalParen } from '../utils'
+import personalTranslations from '../_i18n'
 import { getTranslatedMonthName } from '../utils/monthTranslationUtils'
 import {
   ADVANCE_PAYMENT_SIDEBAR_FILTER_STATUSES,
@@ -32,18 +33,40 @@ export interface UseAdvancePaymentFiltersReturn {
   filtersVersion: number
 }
 
-// Map of status to display label - using exact same labels as the table
-const STATUS_DISPLAY_MAP: Partial<Record<ExpenseStatus, string>> = {
-  [ExpenseStatus.PREPARED]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
-  [ExpenseStatus.CREATED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.created', 'Created')})`,
-  [ExpenseStatus.PENDING]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`,
-  [ExpenseStatus.APPROVED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')})`,
-  [ExpenseStatus.RETURNED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.returned', 'Returned')})`,
-  [ExpenseStatus.REJECTED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')})`,
-  [ExpenseStatus.VERIFIED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified')})`,
-  [ExpenseStatus.BOOKED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`,
-  [ExpenseStatus.PAID]: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-  [ExpenseStatus.TRANSFERRED]: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`
+function buildAdvancePaymentStatusDisplayMap(t: (key: string) => string): Partial<Record<ExpenseStatus, string>> {
+  return {
+    [ExpenseStatus.PREPARED]: t('expense-status-prepared'),
+    [ExpenseStatus.CREATED]: statusFilterMainWithOptionalParen(t('expense-status-draft'), t('expense-status-created')),
+    [ExpenseStatus.PENDING]: statusFilterMainWithOptionalParen(
+      t('expense-status-in-approval'),
+      t('expense-status-pending')
+    ),
+    [ExpenseStatus.APPROVED]: statusFilterMainWithOptionalParen(
+      t('expense-status-in-transit'),
+      t('expense-status-approved')
+    ),
+    [ExpenseStatus.RETURNED]: statusFilterMainWithOptionalParen(
+      t('expense-status-in-transit'),
+      t('expense-status-returned')
+    ),
+    [ExpenseStatus.REJECTED]: statusFilterMainWithOptionalParen(
+      t('expense-status-revision-required'),
+      t('expense-status-rejected')
+    ),
+    [ExpenseStatus.VERIFIED]: statusFilterMainWithOptionalParen(
+      t('expense-status-in-transit'),
+      t('expense-status-verified')
+    ),
+    [ExpenseStatus.BOOKED]: statusFilterMainWithOptionalParen(
+      t('expense-status-in-transit'),
+      t('expense-status-booked')
+    ),
+    [ExpenseStatus.PAID]: t('expense-status-paid'),
+    [ExpenseStatus.TRANSFERRED]: statusFilterMainWithOptionalParen(
+      t('expense-status-in-transit'),
+      t('expense-status-transferred')
+    )
+  }
 }
 
 /** Matches GET_ADVANCE_PAYMENT_STATISTICS_CONSOLIDATED Current / Approved aggregates */
@@ -54,6 +77,8 @@ const STATISTICS_PENDING_STATUSES: string[] = ['PENDING', 'PREPARED']
 const ADVANCE_PAYMENT_RANGE_FILTER_IDS = new Set<string>(['amountRange', 'advanceRange', 'cardCreatedAtRange'])
 
 export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
+  const { t } = useTranslation(personalTranslations)
+  const statusDisplayMap = useMemo(() => buildAdvancePaymentStatusDisplayMap(t), [t])
   const [searchTerm, setSearchTerm] = useState<string>('')
   // Active prefiltering: Start with PREPARED and PENDING statuses
   const [statusFilter, setStatusFilter] = useState<string[]>([ExpenseStatus.PREPARED, ExpenseStatus.PENDING])
@@ -185,7 +210,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     const map: Record<string, string> = {}
 
     ADVANCE_PAYMENT_SIDEBAR_FILTER_STATUSES.forEach(status => {
-      const displayLabel = STATUS_DISPLAY_MAP[status] || getAdvancePaymentStatusDisplay(status).label
+      const displayLabel = statusDisplayMap[status] || getAdvancePaymentStatusDisplayT(t, status).label
       map[status] = displayLabel
     })
 
@@ -209,7 +234,7 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     }
 
     return map
-  }, [amountRange, advanceRange, cardCreatedAtRange, formatRangeLabel])
+  }, [amountRange, advanceRange, cardCreatedAtRange, formatRangeLabel, statusDisplayMap, t])
 
   // Enhanced setFilters function that properly handles clearing all filters
   const setFilters = useCallback((filters: string[]) => {

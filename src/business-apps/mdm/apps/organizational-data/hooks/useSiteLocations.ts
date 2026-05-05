@@ -109,6 +109,8 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
         region,
         country,
         geoZone,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
         employeeCount: locationData.employees.length,
         costCenterCount: locationData.costCenters.length,
         employees: locationData.employees,

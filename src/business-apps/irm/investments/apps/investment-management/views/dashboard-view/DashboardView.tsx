@@ -1,7 +1,6 @@
 import React from 'react'
 import { Button, Alert, AlertTitle, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { ChartBarIcon, HouseIcon, CurrencyDollarIcon, TrendUpIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentKPICards } from '@/common/components/investment-kpi-cards'
 import { OVERVIEW_KPI_CONFIG } from '@/common/data/investment/kpis'
@@ -88,11 +87,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div data-testid="dashboard-content">
-      {/* Header with Currency Filter */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:m-0">
-          {getTranslationFromI18nKeyAndLabel('dashboard.title', 'Investment Dashboard')}
-        </h1>
+      <div className="gba:flex gba:justify-end gba:items-center gba:mb-6">
         <CurrencyFilter
           value={masterCurrency}
           onChange={setMasterCurrency}

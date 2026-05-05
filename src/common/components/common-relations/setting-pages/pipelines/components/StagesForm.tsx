@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react'
+import { Card, Button, Spinner, Alert, AlertDescription, Badge } from '@newwork/nw-design-system'
 import {
-  Card,
-  Button,
-  Spinner,
-  Alert,
-  AlertDescription,
-  Badge,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from '@newwork/nw-design-system'
-import { Plus, Edit, Trash2, Eye, GripVertical, ArrowRight } from 'lucide-react'
+  ArrowRightIcon,
+  DotsSixVerticalIcon,
+  EyeIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  TrashIcon
+} from '@phosphor-icons/react'
 import {
   DndContext,
   closestCorners,
@@ -34,6 +28,8 @@ import { getPipelineUsageCheckSource } from '../utils/catalogConfig'
 import { usePipelineStageTypes } from '../hooks/usePipelineStageTypes'
 import type { StageTypeBadgeVariant } from '../utils/pipelineStageTypeVariant'
 import StageForm from './StageForm'
+import { DeleteConfirmationDialog } from '../../components/DeleteConfirmationDialog'
+import type { DeleteAvailability } from '../../types/catalogTypes'
 
 interface StagesFormProps extends BusinessAppContextProps {
   pipeline: any
@@ -88,27 +84,27 @@ const DraggableStageCard: React.FC<{
     <Card
       ref={setNodeRef}
       style={style}
-      className={`gba:relative gba:group gba:border-2 gba:border-border gba:hover:border-primary gba:transition-all gba:duration-200 gba:w-72 ${isDragging ? 'gba:opacity-50' : ''}`}
+      className={`gba:relative gba:group gba:border gba:border-border gba:transition-all gba:duration-200 gba:w-72 gba:hover:border-primary/40 gba:hover:shadow-sm ${isDragging ? 'gba:opacity-50' : ''}`}
       data-testid={`${prefixDataTestId}-stage-card-${stage.id}`}
     >
       {/* Action buttons in top right */}
-      <div className="gba:absolute gba:top-2 gba:right-2 gba:flex gba:gap-1 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
+      <div className="gba:absolute gba:top-2 gba:right-2 gba:flex gba:gap-1 gba:z-10">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => onEdit(stage)}
           data-testid={`${prefixDataTestId}-edit-stage-${stage.id}`}
         >
-          <Edit />
+          <PencilSimpleIcon />
         </Button>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => onDelete(stage)}
-          className="gba:text-destructive gba:hover:text-destructive"
+          className="gba:text-destructive hover:gba:text-destructive"
           data-testid={`${prefixDataTestId}-delete-stage-${stage.id}`}
         >
-          <Trash2 />
+          <TrashIcon />
         </Button>
       </div>
 
@@ -117,10 +113,9 @@ const DraggableStageCard: React.FC<{
           <div
             {...attributes}
             {...listeners}
-            className="gba:cursor-grab gba:text-muted-foreground gba:hover:text-foreground gba:p-1 gba:flex-shrink-0 gba:select-none"
-            style={{ touchAction: 'none' }}
+            className="gba:cursor-grab gba:text-muted-foreground hover:gba:text-foreground gba:p-1 gba:flex-shrink-0 gba:select-none gba:touch-none"
           >
-            <GripVertical className="gba:w-4 gba:h-4" />
+            <DotsSixVerticalIcon className="gba:w-4 gba:h-4" />
           </div>
           <div className="gba:flex-1 gba:min-w-0">
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -137,12 +132,9 @@ const DraggableStageCard: React.FC<{
         {/* Conditions Count */}
         <div className="gba:mt-auto">
           <div className="gba:flex gba:items-center gba:justify-between gba:bg-muted gba:rounded-lg gba:p-2">
-            <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-2 gba:h-2 gba:bg-warning gba:rounded-full"></div>
-              <span className="gba:text-xs gba:text-muted-foreground">Conditions</span>
-            </div>
+            <span className="gba:text-xs gba:text-muted-foreground">Conditions</span>
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:font-semibold gba:text-warning">{conditionCount}</span>
+              <span className="gba:text-sm gba:font-semibold gba:text-foreground">{conditionCount}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -150,7 +142,7 @@ const DraggableStageCard: React.FC<{
                 className="gba:h-6 gba:w-6"
                 data-testid={`${prefixDataTestId}-view-conditions-${stage.id}`}
               >
-                <Eye className="gba:w-3 gba:h-3" />
+                <EyeIcon className="gba:w-3 gba:h-3" />
               </Button>
             </div>
           </div>
@@ -178,12 +170,9 @@ const StagesForm: React.FC<StagesFormProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingStage, setEditingStage] = useState<PipelineStageEntry | null>(null)
   const [conditionCounts, setConditionCounts] = useState<Record<string, number>>({})
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [stageToDelete, setStageToDelete] = useState<PipelineStageEntry | null>(null)
-  const [isCannotDeleteDialogOpen, setIsCannotDeleteDialogOpen] = useState(false)
-  const [stageCannotDelete, setStageCannotDelete] = useState<
-    (PipelineStageEntry & { totalOpportunityCount?: number }) | null
-  >(null)
+  const [deleteAvailability, setDeleteAvailability] = useState<DeleteAvailability | undefined>()
+  const [isCheckingDeleteAvailability, setIsCheckingDeleteAvailability] = useState(false)
 
   const catalogClient = useCatalogManagerClient(accessToken)
   const { checkStageUsage } = usePipelineUsageCheck(
@@ -341,13 +330,14 @@ const StagesForm: React.FC<StagesFormProps> = ({
       await Promise.all(
         updatedStages.map(async stage => {
           // Fetch current stage data to preserve all fields
-          const currentStage = await catalogClient.getCatalogEntryById(stage.id)
+          const currentStage = await catalogClient.readCatalogEntryById(stage.id, { includeTranslations: true })
 
           const updateData = {
             // Required fields
             id: stage.id,
             code: stage.code,
             value: stage.value,
+            localeCode: currentStage.localeCode,
             type: stage.type || stage.alternativeCode,
             alternativeCode: stage.type || stage.alternativeCode,
             parentEntryId: stage.parentEntryId || currentStage.parentEntryId,
@@ -357,7 +347,8 @@ const StagesForm: React.FC<StagesFormProps> = ({
             additionalValue1: stage.displayOrder.toString().padStart(2, '0'),
             additionalValue2: currentStage.additionalValue2 || undefined,
             additionalValue3: currentStage.additionalValue3 || undefined,
-            objectValue: stage.objectValue || currentStage.objectValue || {}
+            objectValue: stage.objectValue || currentStage.objectValue || {},
+            translations: currentStage.translations || stage.translations || []
           }
 
           return catalogClient.updateCatalogEntry(
@@ -380,25 +371,31 @@ const StagesForm: React.FC<StagesFormProps> = ({
 
   // Stage management handlers
   const handleDeleteStage = async (stage: PipelineStageEntry) => {
-    // Check usage before proceeding
+    setStageToDelete(stage)
+    setDeleteAvailability(undefined)
+    setIsCheckingDeleteAvailability(true)
+
     const usage = await checkStageUsage(stage.id)
 
     if (usage.isInUse) {
-      // Stage is in use - show "cannot delete" dialog
-      setStageCannotDelete({
-        ...stage,
-        totalOpportunityCount: usage.totalCount
+      setDeleteAvailability({
+        status: 'blocked',
+        reason: usage.verificationFailed
+          ? 'Unable to verify whether this stage can be deleted.'
+          : 'Stage is currently in use.',
+        usages: usage.verificationFailed
+          ? undefined
+          : [{ label: 'opportunities are using this stage', count: usage.totalCount }]
       })
-      setIsCannotDeleteDialogOpen(true)
     } else {
-      // Stage is NOT in use - show delete confirmation
-      setStageToDelete(stage)
-      setIsDeleteConfirmOpen(true)
+      setDeleteAvailability({ status: 'allowed' })
     }
+
+    setIsCheckingDeleteAvailability(false)
   }
 
   const confirmDeleteStage = async () => {
-    if (!stageToDelete) return
+    if (!stageToDelete || deleteAvailability?.status === 'blocked') return
 
     try {
       setOperationLoading(true)
@@ -447,16 +444,22 @@ const StagesForm: React.FC<StagesFormProps> = ({
         stageToDelete.id
       )
 
-      setIsDeleteConfirmOpen(false)
-      setStageToDelete(null)
       await fetchStages()
       onStagesUpdated?.()
+      handleCancelDeleteStage()
     } catch (err) {
       console.error('Error deleting stage:', err)
       setError(err instanceof Error ? err.message : 'Failed to delete stage')
     } finally {
       setOperationLoading(false)
     }
+  }
+
+  const handleCancelDeleteStage = () => {
+    if (operationLoading) return
+    setStageToDelete(null)
+    setDeleteAvailability(undefined)
+    setIsCheckingDeleteAvailability(false)
   }
 
   const openCreateModal = () => {
@@ -477,7 +480,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
 
   if (isLoading) {
     return (
-      <div className="gba:flex gba:justify-center gba:py-8">
+      <div className="gba:flex gba:justify-center gba:py-8" data-testid={`${prefixDataTestId}-loading`}>
         <Spinner size="lg" />
       </div>
     )
@@ -485,10 +488,16 @@ const StagesForm: React.FC<StagesFormProps> = ({
 
   if (error) {
     return (
-      <Alert variant="destructive" className="gba:border-destructive-secondary gba:bg-destructive-secondary">
+      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
         <AlertDescription>
           {error}
-          <Button variant="outline" size="sm" onClick={fetchStages} className="gba:ml-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchStages}
+            className="gba:ml-2"
+            data-testid={`${prefixDataTestId}-retry-button`}
+          >
             Retry
           </Button>
         </AlertDescription>
@@ -506,7 +515,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
             disabled={operationLoading}
             data-testid={`${prefixDataTestId}-add-stage-button`}
           >
-            <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+            <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
             Add Stage
           </Button>
         </div>
@@ -543,7 +552,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
 
                     {index < stages.length - 1 && (
                       <div className="gba:flex gba:items-center gba:px-2 gba:flex-shrink-0 gba:mt-8">
-                        <ArrowRight className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
+                        <ArrowRightIcon className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
                       </div>
                     )}
                   </React.Fragment>
@@ -594,95 +603,30 @@ const StagesForm: React.FC<StagesFormProps> = ({
         accessToken={accessToken}
       />
 
-      {/* Delete Confirmation Dialog - Only shown when NOT in use */}
-      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Stage</DialogTitle>
-            <DialogDescription>Are you sure you want to delete "{stageToDelete?.value}"?</DialogDescription>
-          </DialogHeader>
-          <div className="gba:space-y-4">
-            <div className="gba:p-3 gba:bg-success-secondary gba:rounded-lg gba:border gba:border-success">
-              <span className="gba:block gba:text-success-secondary-foreground gba:font-semibold">
-                ✓ Stage is not currently in use
-              </span>
-              <span className="gba:block gba:mt-1 gba:text-success-secondary-foreground gba:text-sm">
-                This stage can be safely deleted.
-              </span>
-            </div>
-            <div>
-              <span className="gba:block gba:text-warning gba:font-semibold gba:mb-2">
-                This will permanently delete:
-              </span>
-              <ul className="gba:list-disc gba:list-inside gba:space-y-1 gba:text-sm">
-                <li>The stage itself</li>
-                <li>All {conditionCounts[stageToDelete?.id || ''] || 0} conditions</li>
-              </ul>
-              <span className="gba:block gba:mt-2 gba:text-destructive gba:font-semibold">
-                This action cannot be undone.
-              </span>
-            </div>
+      <DeleteConfirmationDialog
+        open={!!stageToDelete}
+        itemName={stageToDelete?.value || ''}
+        itemType="Stage"
+        availability={deleteAvailability}
+        isChecking={isCheckingDeleteAvailability}
+        isDeleting={operationLoading}
+        blockedDescription={`The stage "${stageToDelete?.value || ''}" cannot be deleted because it is currently in use.`}
+        confirmDetails={
+          <div>
+            <span className="gba:block gba:text-foreground gba:font-medium gba:mb-2">This will delete:</span>
+            <ul className="gba:list-disc gba:list-inside gba:space-y-1 gba:text-sm">
+              <li>The stage itself</li>
+              <li>All {conditionCounts[stageToDelete?.id || ''] || 0} conditions</li>
+            </ul>
+            <span className="gba:block gba:mt-2 gba:text-destructive gba:font-semibold">
+              This action cannot be undone.
+            </span>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsDeleteConfirmOpen(false)
-                setStageToDelete(null)
-              }}
-              disabled={operationLoading}
-              data-testid={`${prefixDataTestId}-delete-cancel-button`}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDeleteStage}
-              disabled={operationLoading}
-              data-testid={`${prefixDataTestId}-delete-confirm-button`}
-            >
-              {operationLoading ? 'Deleting...' : 'Delete Stage'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Cannot Delete Dialog - Shown when stage is in use */}
-      <Dialog open={isCannotDeleteDialogOpen} onOpenChange={setIsCannotDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cannot Delete Stage</DialogTitle>
-            <DialogDescription>
-              The stage "{stageCannotDelete?.value}" cannot be deleted because it is currently in use.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="gba:space-y-4">
-            <div className="gba:p-3 gba:bg-destructive-secondary gba:rounded-lg gba:border gba:border-destructive">
-              <span className="gba:block gba:text-destructive-secondary-foreground gba:font-semibold gba:mb-2">
-                ⚠️ Stage is Currently in Use
-              </span>
-              <ul className="gba:list-disc gba:list-inside gba:space-y-1 gba:text-sm gba:text-destructive-secondary-foreground">
-                <li>{stageCannotDelete?.totalOpportunityCount || 0} opportunities are using this stage</li>
-              </ul>
-              <span className="gba:block gba:mt-2 gba:text-destructive-secondary-foreground gba:text-sm">
-                To delete this stage, you must first move or delete all opportunities that reference it.
-              </span>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="default"
-              onClick={() => {
-                setIsCannotDeleteDialogOpen(false)
-                setStageCannotDelete(null)
-              }}
-              data-testid={`${prefixDataTestId}-cannot-delete-confirm-button`}
-            >
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        }
+        onCancel={handleCancelDeleteStage}
+        onConfirm={confirmDeleteStage}
+        dataTestId={`${prefixDataTestId}-delete-dialog`}
+      />
     </>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter'
-import { ExpenseStatus, getExpensePlanStatusDisplay } from '../utils'
+import { ExpenseStatus, getExpensePlanStatusFilterLabel } from '../utils'
 
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -219,30 +219,13 @@ export const useExpensePlanFilters = ({
     [addDateRangeLabel, planDateRange, startDateRange, endDateRange, effectiveDateRange]
   )
 
-  // Helper function to format status display name with brackets (matching personal expenses pattern)
-  const getStatusDisplayName = useCallback((status: string): string => {
-    const statusConfig = getExpensePlanStatusDisplay(status)
-    // Only show backend status in parentheses if the label is different from the status
-    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
-      return statusConfig.label
-    } else {
-      // Format backend status with only first letter uppercase and translate it
-      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
-      const translatedStatus = getTranslationFromI18nKeyAndLabel(
-        `lowcoder:expense_statuses.${status.toLowerCase()}`,
-        formattedStatus
-      )
-      return `${statusConfig.label} (${translatedStatus})`
-    }
-  }, [])
-
   // Memoize filterLabelMap with stable dependencies
   const filterLabelMap = useMemo<Record<string, string>>(() => {
     const map: Record<string, string> = {}
 
     // Add status filter labels
     for (const status of planFilterStatuses) {
-      map[status] = getStatusDisplayName(status)
+      map[status] = getExpensePlanStatusFilterLabel(status)
     }
 
     // Add plan type filter labels
@@ -253,7 +236,7 @@ export const useExpensePlanFilters = ({
     buildDateRangeLabels(map)
 
     return map
-  }, [buildDateRangeLabels, getStatusDisplayName])
+  }, [buildDateRangeLabels])
 
   // Helper to check if date range is active
   const isDateRangeActive = useCallback((range: [Date | null, Date | null] | null): boolean => {

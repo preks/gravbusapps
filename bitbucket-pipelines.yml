@@ -45,11 +45,11 @@ definitions:
       memory: 15360
       type: docker
   caches:
-    nodecustom:
+    npm:
       key:
         files:
           - package-lock.json
-      path: ./node_modules
+      path: ~/.npm
 
   steps:
     - step: &check-hash-file-change
@@ -84,29 +84,6 @@ definitions:
 
             echo "OK - ${PROD_HASH_FILE} not changed."
 
-    - step: &install_dependencies
-        name: Install dependencies
-        runs-on:
-          - 'self.hosted'
-          - 'do.global.runner.size1'
-        size: 1x
-        clone:
-          enabled: true
-          depth: full
-        caches:
-          - nodecustom
-        script:
-          - set -e
-          - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
-          - apt-get update && apt-get install gettext -y
-          - npm install
-          - |
-            # Pre-install native deps (optionalDependency resolution on Linux CI can skip these; see npm/cli#4828)
-            npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu @tailwindcss/oxide-linux-x64-gnu || true
-        artifacts:
-          - pipeline/scripts/**
-          - envs/**
-
     - step: &detect-changed-screens
         name: Detect Changed Screens
         runs-on:
@@ -116,7 +93,10 @@ definitions:
         clone:
           enabled: true
           depth: full
+        caches:
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - bash scripts/detect-changed-screens.sh
           - |
             echo "Changed screens:"
@@ -134,8 +114,9 @@ definitions:
           enabled: true
           depth: full
         caches:
-          - nodecustom
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - export RC_UPLOAD="true"
           - export BUNDLE_REPORT_IN_PIPELINE="true"
           - bash scripts/build-hash-detect-and-publish-screens.sh
@@ -152,8 +133,9 @@ definitions:
           enabled: true
           depth: full
         caches:
-          - nodecustom
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - |
             if [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Building specified screens: $SCREENS_TO_PUBLISH"
@@ -177,8 +159,9 @@ definitions:
           enabled: true
           depth: full
         caches:
-          - nodecustom
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - node scripts/publish-prod-screens.js
         artifacts:
           - changed-tsx.txt
@@ -194,8 +177,9 @@ definitions:
           enabled: true
           depth: full
         caches:
-          - nodecustom
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - export RC_UPLOAD="true"
           - |
             if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
@@ -224,8 +208,9 @@ definitions:
           enabled: true
           depth: full
         caches:
-          - nodecustom
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - |
             if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
               echo "PUBLISH_ALL_SCREENS=true: Publishing ALL screens to production"
@@ -254,8 +239,9 @@ definitions:
           enabled: true
           depth: full
         caches:
-          - nodecustom
+          - npm
         script:
+          - bash scripts/ci-install-dependencies.sh
           - node scripts/sync-resource-urls.js
     - step: &sonar_scan
         name: Sonar scan
@@ -266,8 +252,6 @@ definitions:
         clone:
           enabled: true
           depth: full # SonarCloud scanner needs the full history to assign issues properly
-        caches:
-          - nodecustom
         services:
           - docker-large
         script:
@@ -285,8 +269,6 @@ definitions:
         clone:
           enabled: true
           depth: full # SonarCloud scanner needs the full history to assign issues properly
-        caches:
-          - nodecustom
         services:
           - docker-large
         script:
@@ -299,22 +281,18 @@ pipelines:
   pull-requests:
     "**":
       - step: *check-hash-file-change
-      - step: *install_dependencies
       - parallel:
           - step: *build-screens
           - step: *sonar_scan
 
   branches:
     develop:
-      - step: *install_dependencies
       - step: *publish-changed-screens
 
     hotfix/*:
-      - step: *install_dependencies
       - step: *publish-changed-prod-screens
 
     main:
-      - step: *install_dependencies
       - step: *publish-changed-prod-screens
       - step:
           <<: *sync-resource-urls
@@ -325,8 +303,10 @@ pipelines:
     weekly-snyk-code-fix:
       - step:
           name: Snyk Code Scan & Auto-fix
-          caches:
-            - nodecustom
+          runs-on:
+            - 'self.hosted'
+            - 'do.global.runner.size1'
+          size: 1x
           script:
             - bash scripts/claude/snyk_autofix.sh
 
@@ -334,14 +314,12 @@ pipelines:
       - step: *detect-changed-screens
 
     sonar-scan-main:
-      - step: *install_dependencies
       - step: *sonar_scan_main
 
     build-manual:
       - variables:
           - name: SCREENS_TO_PUBLISH
             default: ""
-      - step: *install_dependencies
       - step: *build-screens
 
     publish-manual:
@@ -353,7 +331,6 @@ pipelines:
             allowed-values:
               - "true"
               - "false"
-      - step: *install_dependencies
       - step: *publish-manual-screens
 
     publish-manual-prod:
@@ -377,7 +354,6 @@ pipelines:
                 echo "publishing to production is restricted to develop or main branches. Current branch: $BITBUCKET_BRANCH"
                 exit 1
               fi
-      - step: *install_dependencies
       - step: *publish-manual-prod-screens
       - step:
           <<: *sync-resource-urls
@@ -402,7 +378,6 @@ pipelines:
             allowed-values:
               - "true"
               - "false"
-      - step: *install_dependencies
       - step:
           name: Calculate screen hashes
           runs-on:
@@ -413,8 +388,9 @@ pipelines:
             depth: full
           size: 2x
           caches:
-            - nodecustom
+            - npm
           script:
+            - bash scripts/ci-install-dependencies.sh
             - echo "Calculating hashes for $HASH_ENV environment"
             - |
               ARGS="--env=$HASH_ENV"
@@ -439,7 +415,6 @@ pipelines:
             default: "1"
           - name: CLAUDE_VERBOSE
             default: "false"
-      - step: *install_dependencies
       - step:
           name: Claude Execute (plan.md only)
           runs-on:
@@ -450,8 +425,9 @@ pipelines:
             enabled: true
             depth: full
           caches:
-            - nodecustom
+            - npm
           script:
+            - bash scripts/ci-install-dependencies.sh
             - bash scripts/claude/execute_batch.sh
           artifacts:
             - claude_execute_verbose.log

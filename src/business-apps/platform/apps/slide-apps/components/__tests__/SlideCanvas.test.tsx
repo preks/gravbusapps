@@ -5,6 +5,10 @@ import { createShapeFromPreset } from '../slideElements'
 import type { CodeElement, ShapeElement, TextElement, VideoElement } from '../slideElements'
 import { createDefaultShapeText } from '../../utils/richTextEditing'
 
+jest.mock('../../hooks/useResolvedSlideMediaUrl', () => ({
+  useResolvedSlideMediaUrl: (url: string | undefined) => url
+}))
+
 void React
 
 function makeTextElement(overrides: Partial<TextElement> = {}): TextElement {
@@ -176,6 +180,120 @@ function dragFrom(source: Element, start: { x: number; y: number }, end: { x: nu
 }
 
 describe('SlideCanvas inline editing drag behavior', () => {
+  it('renders placeholder text for empty text elements outside present mode', () => {
+    render(
+      <SlideCanvas
+        elements={[makeTextElement({ content: '', placeholderText: 'Click to add title' })]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+      />
+    )
+
+    expect(screen.getByText('Click to add title')).toBeTruthy()
+  })
+
+  it('hides placeholder text while presenting', () => {
+    render(
+      <SlideCanvas
+        elements={[makeTextElement({ content: '', placeholderText: 'Click to add title' })]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={() => {}}
+        isPresenting
+      />
+    )
+
+    expect(screen.queryByText('Click to add title')).toBeNull()
+  })
+
+  it('selects a text element on first click without entering edit mode', () => {
+    const onSelectElements = jest.fn()
+    const onEditText = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[makeTextElement()]}
+        selectedIds={new Set()}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={onSelectElements}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={onEditText}
+      />
+    )
+
+    const textElement = document.querySelector('[data-element-id="text-1"]')
+
+    expect(textElement).not.toBeNull()
+
+    fireEvent.mouseDown(textElement as HTMLElement, { clientX: 150, clientY: 150 })
+    fireEvent.click(textElement as HTMLElement, { clientX: 150, clientY: 150 })
+
+    expect(onSelectElements).toHaveBeenCalledWith(new Set(['text-1']))
+    expect(onEditText).not.toHaveBeenCalled()
+  })
+
+  it('enters text editing on click when the text element is already selected', () => {
+    const onEditText = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[makeTextElement()]}
+        selectedIds={new Set(['text-1'])}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={() => {}}
+        onUpdateMultipleElements={() => {}}
+        onEditText={onEditText}
+      />
+    )
+
+    const textElement = document.querySelector('[data-element-id="text-1"]')
+
+    expect(textElement).not.toBeNull()
+
+    fireEvent.mouseDown(textElement as HTMLElement, { clientX: 150, clientY: 150 })
+    fireEvent.click(textElement as HTMLElement, { clientX: 150, clientY: 150 })
+
+    expect(onEditText).toHaveBeenCalledWith('text-1')
+  })
+
+  it('treats tiny pointer movement on a selected text element as a click to edit', () => {
+    const onEditText = jest.fn()
+    const onUpdateElement = jest.fn()
+
+    render(
+      <SlideCanvas
+        elements={[makeTextElement()]}
+        selectedIds={new Set(['text-1'])}
+        background={{ type: 'solid', color: '#ffffff' }}
+        onSelectElements={() => {}}
+        onUpdateElement={onUpdateElement}
+        onUpdateMultipleElements={() => {}}
+        onEditText={onEditText}
+      />
+    )
+
+    const textElement = document.querySelector('[data-element-id="text-1"]')
+
+    expect(textElement).not.toBeNull()
+
+    fireEvent.mouseDown(textElement as HTMLElement, { clientX: 150, clientY: 150 })
+    fireEvent.mouseMove(window, { clientX: 152, clientY: 153 })
+    fireEvent.mouseUp(window, { clientX: 152, clientY: 153 })
+    fireEvent.click(textElement as HTMLElement, { clientX: 152, clientY: 153 })
+
+    expect(onUpdateElement).not.toHaveBeenCalled()
+    expect(onEditText).toHaveBeenCalledWith('text-1')
+  })
+
   it('keeps text editor body interactions inside the inline editor', () => {
     const { editor, onDragStart, onDragEnd, onUpdateElement } = renderInlineEditingCanvas(makeTextElement())
 
@@ -184,6 +302,15 @@ describe('SlideCanvas inline editing drag behavior', () => {
     expect(onDragStart).not.toHaveBeenCalled()
     expect(onUpdateElement).not.toHaveBeenCalled()
     expect(onDragEnd).not.toHaveBeenCalled()
+  })
+
+  it('keeps inline editor move edges outside the editable text surface', () => {
+    const { dragEdge } = renderInlineEditingCanvas(makeTextElement())
+
+    expect(dragEdge).toHaveStyle({
+      top: '-12px',
+      height: '12px'
+    })
   })
 
   it('allows dragging a text element from its inline edit edge', () => {

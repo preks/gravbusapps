@@ -6,11 +6,22 @@ import {
   useDeleteCatalogEntry
 } from '@/common/data/catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  buildCatalogValueTranslations,
+  DEFAULT_CATALOG_LOCALE,
+  getCatalogValueTranslations,
+  getDefaultCatalogValue,
+  type CatalogTranslationEntry,
+  type CatalogTranslationMap
+} from '../utils/catalogTranslations'
 
 export interface CatalogItem {
   id: string
   code: string
   value: string
+  localeCode?: string
+  translations?: CatalogTranslationEntry[]
+  valueTranslations?: CatalogTranslationMap
   type?: string
   alternativeCode?: string
   parentEntryId?: string
@@ -28,6 +39,7 @@ export interface CatalogSettingsState {
   onCreate: (data: {
     code: string
     value: string
+    valueTranslations?: CatalogTranslationMap
     type?: string
     alternativeCode?: string
     parentEntryId?: string
@@ -39,6 +51,7 @@ export interface CatalogSettingsState {
     data: {
       code: string
       value: string
+      valueTranslations?: CatalogTranslationMap
       type?: string
       alternativeCode?: string
       parentEntryId?: string
@@ -83,6 +96,9 @@ export function useCatalogSettings(
         id: entry.id,
         code: entry.code || '',
         value: entry.value || '',
+        localeCode: (entry as any).localeCode,
+        translations: entry.translations,
+        valueTranslations: getCatalogValueTranslations(entry),
         type: entry.type,
         alternativeCode: entry.alternativeCode,
         parentEntryId: entry.parentEntryId,
@@ -107,22 +123,25 @@ export function useCatalogSettings(
     async (data: {
       code: string
       value: string
+      valueTranslations?: CatalogTranslationMap
       type?: string
       alternativeCode?: string
       parentEntryId?: string
       additionalValue1?: string
       displayOrder?: number
     }) => {
+      const value = getDefaultCatalogValue(data.valueTranslations || {}, data.value)
       await createCatalogEntry(catalogIdentifier, 'v1', {
         code: data.code,
-        value: data.value,
+        value,
+        localeCode: DEFAULT_CATALOG_LOCALE,
         type: data.type,
         alternativeCode: data.alternativeCode,
         parentEntryId: data.parentEntryId,
         displayOrder: data.displayOrder,
         additionalValue1: data.additionalValue1,
         objectValue: {},
-        translations: []
+        translations: buildCatalogValueTranslations(data.valueTranslations || {}, data.value)
       } as any)
       await load()
     },
@@ -135,6 +154,7 @@ export function useCatalogSettings(
       data: {
         code: string
         value: string
+        valueTranslations?: CatalogTranslationMap
         type?: string
         alternativeCode?: string
         parentEntryId?: string
@@ -142,17 +162,19 @@ export function useCatalogSettings(
         displayOrder?: number
       }
     ) => {
+      const value = getDefaultCatalogValue(data.valueTranslations || {}, data.value)
       await updateCatalogEntry(catalogIdentifier, 'v1', id, {
         id: id,
         code: data.code,
-        value: data.value,
+        value,
+        localeCode: DEFAULT_CATALOG_LOCALE,
         type: data.type,
         alternativeCode: data.alternativeCode,
         parentEntryId: data.parentEntryId,
         displayOrder: data.displayOrder,
         additionalValue1: data.additionalValue1,
         objectValue: {},
-        translations: []
+        translations: buildCatalogValueTranslations(data.valueTranslations || {}, data.value)
       })
       await load()
     },

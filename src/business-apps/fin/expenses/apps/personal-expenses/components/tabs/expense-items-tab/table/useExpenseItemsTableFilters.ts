@@ -1,5 +1,7 @@
 import { useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { resolveSelectedCurrencyCode, applyCurrencyChange } from '../../../../utils/tableUtils'
+import personalTranslations from '../../../../_i18n'
 import { createExpenseItemFilterConfig } from '../config/expenseItemFilterConfig'
 import {
   applyAmountRangeFromFilters,
@@ -38,13 +40,16 @@ export function useExpenseItemsTableFilters({
   selectedCurrencyRef,
   getFilters
 }: Readonly<UseExpenseItemsTableFiltersParams>) {
+  const { t } = useTranslation(personalTranslations)
+
   const expenseItemsFilterConfig = useMemo(
     () =>
       createExpenseItemFilterConfig({
         filterLabelMap,
-        availableStatuses
+        availableStatuses,
+        t
       }),
-    [filterLabelMap, availableStatuses]
+    [filterLabelMap, availableStatuses, t]
   )
 
   const filtersObject = useMemo(

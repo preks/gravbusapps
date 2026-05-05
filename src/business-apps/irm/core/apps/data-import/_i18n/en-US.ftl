@@ -28,4 +28,8 @@ card-opportunity-button = Start Opportunity Import
 
 # Multi-entry investments card
 card-investments-title = Import Investments
-card-investments-description = Import investments with AI-powered field mapping. Choose your investment group to get started.
+card-investments-description = Import investment data from CSV or Excel files with AI-powered field mapping.
+
+# Multi-entry investment reports card
+card-investment-reports-title = Import Investment Reports
+card-investment-reports-description = Import investment report data from CSV or Excel files with AI-powered field mapping.

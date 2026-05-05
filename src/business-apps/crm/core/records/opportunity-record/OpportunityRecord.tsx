@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import {
   UserIcon,
-  FileTextIcon,
+  FolderIcon,
   StarIcon,
   TrendUpIcon,
   LightbulbIcon,
@@ -564,7 +564,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       {
         value: 'documents',
         label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileTextIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        icon: <FolderIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <div className="gba:col-span-12">
             <DocumentView opportunityId={opportunityId} {...props} />

@@ -1,4 +1,3 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { notification } from 'antd'
 import { ExpenseItem } from '../hooks/useGetExpenseItems'
@@ -16,6 +15,7 @@ export interface ExpenseItemActionContext {
 export const generateExpenseItemActions = (
   item: ExpenseItem,
   context: ExpenseItemActionContext,
+  t: (key: string) => string,
   options: {
     includeDetails?: boolean
     includeAssignToRequest?: boolean
@@ -25,17 +25,13 @@ export const generateExpenseItemActions = (
 
   const actions: any[] = []
 
-  // Update action - available for CREATED status
   if (item.status === 'CREATED' || item.status === 'ASSIGNED' || item.status === 'REJECTED') {
     actions.push({
-      category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+      category: t('expense-items-row-category-actions'),
       key: 'update-expense-item',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_item.change_expense_item_container.update_title_module',
-        'Update Expense Item'
-      ),
+      label: t('expense-items-row-update-item'),
       onClick: () => {
-        context.onClose?.() // Close the sidebar first
+        context.onClose?.()
         startProcess({
           domain: 'employee-expense',
           processName: 'changeExpenseItem',
@@ -49,17 +45,13 @@ export const generateExpenseItemActions = (
     })
   }
 
-  // Delete action - available for CREATED or ASSIGNED status
   if (item.status === 'CREATED' || item.status === 'ASSIGNED') {
     actions.push({
-      category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+      category: t('expense-items-row-category-actions'),
       key: 'delete-expense-item',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:discard_expense_items.discard_expense_items',
-        'Delete Expense Item'
-      ),
+      label: t('expense-items-row-delete-item'),
       onClick: () => {
-        context.onClose?.() // Close the sidebar first
+        context.onClose?.()
         startProcess({
           domain: 'employee-expense',
           processName: 'discardExpenseItems',
@@ -72,34 +64,25 @@ export const generateExpenseItemActions = (
     })
   }
 
-  // Assign to request action - available for CREATED status
   if (includeAssignToRequest && item.status === 'CREATED') {
     actions.push({
-      category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+      category: t('expense-items-row-category-actions'),
       key: 'assign-to-request',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:flows_button.create_expense_request',
-        'Create Expense Request'
-      ),
+      label: t('expense-items-create-expense-request'),
       onClick: () => {
-        context.onClose?.() // Close the sidebar first
-        handleAssignToRequest(item, context)
+        context.onClose?.()
+        handleAssignToRequest(item, context, t)
       }
     })
   }
 
-  // Details action - only include if requested (for table rows)
   if (includeDetails) {
     actions.push({
-      category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations', 'Navigations'),
+      category: t('expense-items-row-category-navigations'),
       key: 'view-expense-item-details',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_item_request_card.view_item_details',
-        'View Item Details'
-      ),
+      label: t('expense-items-row-view-details'),
       onClick: (e?: React.MouseEvent) => {
         e?.stopPropagation()
-        // This will be handled by the parent component
       }
     })
   }
@@ -107,17 +90,11 @@ export const generateExpenseItemActions = (
   return actions
 }
 
-/**
- * Handles the assign to request action with proper error handling
- */
-const handleAssignToRequest = (item: ExpenseItem, context: ExpenseItemActionContext) => {
+const handleAssignToRequest = (item: ExpenseItem, context: ExpenseItemActionContext, t: (key: string) => string) => {
   if (!item.currency?.code) {
     notification.error({
-      message: getTranslationFromI18nKeyAndLabel('gba.expenseItems.assignToRequestError', 'Cannot Assign to Request'),
-      description: getTranslationFromI18nKeyAndLabel(
-        'gba.expenseItems.missingCurrency',
-        'Item currency information is missing.'
-      ),
+      message: t('expense-items-assign-to-request-error'),
+      description: t('expense-items-assign-to-request-missing-currency'),
       placement: 'bottomRight',
       duration: 5,
       className: 'gba:error-toast'

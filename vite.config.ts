@@ -189,7 +189,11 @@ export default defineConfig(({ command, mode }) => {
 
   // Load environment variables using the determined projectRootDir
   const env = loadEnv(mode, projectRootDir, '')
-
+  const localPublicOverrides = Object.fromEntries(
+    ['NEXT_PUBLIC_EVERY_FABRIC_RUNTIME', 'NEXT_PUBLIC_FLOWBOT_ENDPOINT', 'NEXT_PUBLIC_PROMPT_MANAGER_API_URL']
+      .map(key => [key, process.env[key]])
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0)
+  )
   // --- Original logic for TARGET_ENTRY_KEY and TARGET_ENTRY_FILE ---
   // Prefer process.env so CLI / cross-env works (loadEnv only reads .env files).
   const targetEntryKey = process.env.TARGET_ENTRY_KEY || env.TARGET_ENTRY_KEY // e.g., 'irm/detail-screens/LeadDetail'
@@ -437,7 +441,8 @@ if (globalThis.__APP_BUILD_INFO__) {
               return {
                 define: {
                   'process.env': {
-                    ...dotenv.config({ path: '.env' }).parsed
+                    ...dotenv.config({ path: '.env' }).parsed,
+                    ...localPublicOverrides
                   }
                 }
               }
@@ -1109,6 +1114,9 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
         '@/common': resolve(__dirname, 'src/common')
       }
     },
+    server: {
+      allowedHosts: ['6c88-2a02-2f0f-b302-7400-3ded-edbf-6ee4-75e.ngrok-free.app']
+    },
     build: {
       outDir: resolve(projectRootDir, 'dist'),
       // emptyOutDir behavior:
@@ -1184,6 +1192,25 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
           chunkFileNames: shouldHashFilesForDeployment ? `_chunks/[name]-[hash].js` : `_chunks/[name].js`,
           assetFileNames: shouldHashFilesForDeployment ? `assets/[name]-[hash][extname]` : `assets/[name][extname]`,
           exports: 'named' // Address mixed export warnings
+        }
+      }
+    },
+    server: {
+      watch: {
+        ignored: [
+          '**/.every/**',
+          '**/.every-plans/**',
+          '**/.every-search-index/**',
+          '**/.every-todos.json',
+          '**/.sandbox-home/**',
+          '**/.sandbox-tmp/**'
+        ]
+      },
+      proxy: {
+        '/api/v1/admin/skills': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          secure: false
         }
       }
     },

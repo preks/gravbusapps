@@ -84,6 +84,8 @@ export const INVESTMENT_REPORT_QUERY_CONFIGS: Record<string, string[]> = {
     'totalDistributionAmount',
     'fundManagerName',
     'identification',
+    'irr',
+    'moic',
     'businessKey',
     'processInstanceId',
     'synchronizedAt',
@@ -269,6 +271,8 @@ const buildAmountFields = (fieldSet: Set<string>): string[] => {
   addFieldIfPresent(fieldSet, 'timeWeightedPerformance', InvestmentReportFields.timeWeightedPerformance, fields)
   addFieldIfPresent(fieldSet, 'totalCommitmentAmount', InvestmentReportFields.totalCommitmentAmount, fields)
   addFieldIfPresent(fieldSet, 'totalDistributionAmount', InvestmentReportFields.totalDistributionAmount, fields)
+  addFieldIfPresent(fieldSet, 'irr', InvestmentReportFields.irr, fields)
+  addFieldIfPresent(fieldSet, 'moic', InvestmentReportFields.moic, fields)
   return fields
 }
 
@@ -408,6 +412,9 @@ const buildLiquidFundInvestmentReportFragment = (fieldSet: Set<string>): string 
         maturityDate
         liquidFundInvestmentId
         interestPaymentFrequencyRef
+        interestPaymentFrequency {
+          ${CATALOG_ENTRY}
+        }
         investmentLiquidFundTypeRef
         investmentLiquidFundType {
           ${CATALOG_ENTRY}

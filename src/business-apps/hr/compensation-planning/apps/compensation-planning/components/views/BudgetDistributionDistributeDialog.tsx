@@ -305,7 +305,7 @@ export function BudgetDistributionDistributeDialog({
         ) : null}
 
         <ul
-          className="gba:grid gba:max-h-[min(50vh,28rem)] gba:grid-cols-1 gba:content-start gba:gap-2 gba:overflow-y-auto gba:overflow-x-hidden gba:rounded-md gba:border gba:border-border gba:p-2 gba:sm:grid-cols-2"
+          className="gba:max-h-96 gba:overflow-y-auto gba:overflow-x-hidden gba:rounded-md gba:border gba:border-border gba:bg-background gba:divide-y gba:divide-border"
           data-testid="budget-distribution-distribute-department-list"
         >
           {saveableOrgUnits.map(ou => {
@@ -315,7 +315,7 @@ export function BudgetDistributionDistributeDialog({
             return (
               <li
                 key={ou.id}
-                className="gba:flex gba:min-h-0 gba:min-w-0 gba:items-start gba:gap-2 gba:rounded-sm gba:border gba:border-border/70 gba:bg-background gba:px-2.5 gba:py-2"
+                className="gba:flex gba:min-w-0 gba:flex-wrap gba:items-start gba:gap-x-3 gba:gap-y-1 gba:px-3 gba:py-2.5"
               >
                 <Checkbox
                   checked={checked}
@@ -325,20 +325,24 @@ export function BudgetDistributionDistributeDialog({
                   aria-label={t('budget-distribution-distribute-checkbox-aria', { name: ou.name })}
                   data-testid={`budget-distribution-distribute-row-checkbox-${ou.id}`}
                 />
-                <div className="gba:min-w-0 gba:flex-1">
+                <div className="gba:min-w-0 gba:flex-1 gba:basis-64">
                   <p
                     className="gba:break-words gba:text-sm gba:font-medium gba:leading-snug gba:text-foreground"
                     title={ou.name}
                   >
                     {ou.name}
                   </p>
-                  <p className="gba:mt-0.5 gba:text-xs gba:leading-snug gba:text-muted-foreground">
-                    {formatCurrency(roundMoney2(amount), currencyCode)}
-                    {typeof pct === 'number'
-                      ? ` · ${t('budget-distribution-distribute-percent-of-pool', { percent: pct })}`
-                      : ''}
-                  </p>
                 </div>
+                <p className="gba:w-full gba:pl-8 gba:text-xs gba:leading-snug gba:text-muted-foreground sm:gba:w-auto sm:gba:pl-0 sm:gba:text-right">
+                  <span className="gba:font-medium gba:tabular-nums gba:text-foreground">
+                    {formatCurrency(roundMoney2(amount), currencyCode)}
+                  </span>
+                  {typeof pct === 'number' ? (
+                    <span className="gba:ml-2 gba:whitespace-nowrap">
+                      {t('budget-distribution-distribute-percent-of-pool', { percent: pct })}
+                    </span>
+                  ) : null}
+                </p>
               </li>
             )
           })}

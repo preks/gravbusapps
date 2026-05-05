@@ -2,16 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Button, Alert, AlertTitle, AlertDescription, Spinner, PageLayout } from '@newwork/nw-design-system'
 import {
   HandshakeIcon,
-  ChartBarIcon,
-  UsersThreeIcon,
+  GaugeIcon,
+  DesktopTowerIcon,
+  ActivityIcon,
+  TrayIcon,
   BuildingsIcon,
   UsersIcon,
-  CurrencyDollarIcon,
-  ListIcon,
-  MegaphoneIcon,
-  HouseIcon,
-  BriefcaseIcon,
-  BellIcon
+  AddressBookTabsIcon,
+  TargetIcon,
+  ChartScatterIcon,
+  MegaphoneIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { LeadView } from './views/lead-view'
@@ -61,27 +61,27 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <HouseIcon />,
+      icon: <GaugeIcon />,
       label: 'Dashboard'
     },
     {
       key: 'personal',
-      icon: <BriefcaseIcon />,
+      icon: <DesktopTowerIcon />,
       label: 'My Workspace'
     },
     {
       key: 'activities',
-      icon: <BellIcon />,
+      icon: <ActivityIcon />,
       label: 'Activities'
     },
     {
       key: 'tasks',
-      icon: <ListIcon />,
+      icon: <TrayIcon />,
       label: 'Tasks'
     },
     {
       key: 'leads',
-      icon: <UsersThreeIcon />,
+      icon: <UsersIcon />,
       label: 'Leads'
     },
     {
@@ -91,12 +91,12 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
     },
     {
       key: 'contacts',
-      icon: <UsersIcon />,
+      icon: <AddressBookTabsIcon />,
       label: 'Contacts'
     },
     {
       key: 'opportunities',
-      icon: <CurrencyDollarIcon />,
+      icon: <TargetIcon />,
       label: 'Opportunities'
     },
     {
@@ -106,7 +106,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
     },
     {
       key: 'analytics',
-      icon: <ChartBarIcon />,
+      icon: <ChartScatterIcon />,
       label: 'Analytics'
     }
   ]

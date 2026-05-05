@@ -112,6 +112,9 @@ export class OfficeSpreadsheetsClient {
   resolveComment<T = any>(commentId: string, options?: RequestOptions) {
     return this.client.patch<T>(`/comments/${commentId}/resolve`, undefined, options)
   }
+  unresolveComment<T = any>(commentId: string, options?: RequestOptions) {
+    return this.client.patch<T>(`/comments/${commentId}/unresolve`, undefined, options)
+  }
   deleteComment(commentId: string, options?: RequestOptions) {
     return this.client.delete(`/comments/${commentId}`, options)
   }

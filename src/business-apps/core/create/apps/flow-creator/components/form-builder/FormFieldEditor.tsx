@@ -75,11 +75,6 @@ interface FormFieldEditorProps {
   entities?: Array<{ type: string; name: string; fields: string[] }>
   entitiesLoading?: boolean
   entitiesError?: string | null
-  customDataNamespaces?: string[]
-  customDataNamespacesLoading?: boolean
-  customDataKeysByNamespace?: Record<string, string[]>
-  customDataKeysLoadingByNamespace?: Record<string, boolean>
-  fetchCustomDataKeys?: (namespace: string) => Promise<void>
   onChange: (updated: InputBlock) => void
   onRemove: () => void
   onMoveUp: () => void
@@ -102,11 +97,6 @@ export const FormFieldEditor: React.FC<FormFieldEditorProps> = ({
   entities,
   entitiesLoading,
   entitiesError,
-  customDataNamespaces,
-  customDataNamespacesLoading,
-  customDataKeysByNamespace,
-  customDataKeysLoadingByNamespace,
-  fetchCustomDataKeys,
   onChange,
   onRemove,
   onMoveUp,
@@ -274,11 +264,6 @@ export const FormFieldEditor: React.FC<FormFieldEditorProps> = ({
           entities={entities}
           entitiesLoading={entitiesLoading}
           entitiesError={entitiesError}
-          customDataNamespaces={customDataNamespaces}
-          customDataNamespacesLoading={customDataNamespacesLoading}
-          customDataKeysByNamespace={customDataKeysByNamespace}
-          customDataKeysLoadingByNamespace={customDataKeysLoadingByNamespace}
-          fetchCustomDataKeys={fetchCustomDataKeys}
           index={index}
           mode={mode}
           onChange={onChange}

@@ -14,6 +14,7 @@ import {
 } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 import type { DispatchStatus, ScheduledDispatch } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { useScheduledDispatches } from '../../hooks/useScheduledDispatches'
 import { useEmployeeSummaries, type EmployeeSummary } from '../../hooks/useEmployeeSummary'
 import { AssigneeChip } from './AssigneeChip'
@@ -110,14 +111,21 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
 interface DispatchRowProps {
   dispatch: ScheduledDispatch
   onCancel: (id: string) => Promise<boolean>
+  onUpdate: (
+    id: string,
+    body: { enabled?: boolean; scheduledAt?: string; recurrence?: Record<string, unknown> | null }
+  ) => Promise<boolean>
+  onRetry: (id: string) => Promise<boolean>
   summaries: Map<string, EmployeeSummary>
 }
 
-const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, summaries }) => {
+const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, onUpdate, onRetry, summaries }) => {
   const [expanded, setExpanded] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [actioning, setActioning] = useState(false)
 
   const handleCancel = async (e: React.MouseEvent) => {
+    e.preventDefault()
     e.stopPropagation()
     setCancelling(true)
     await onCancel(dispatch.dispatchId)
@@ -128,6 +136,27 @@ const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, summaries
   const assigneeUserIds = dispatch.assigneeUserIds ?? []
   const workflowIds = dispatch.workflowIds ?? []
   const assigneeCount = assigneeUserIds.length
+  const isAgentSession = dispatch.kind === 'agent_session'
+  const isRecurring = Boolean(dispatch.recurrence)
+  const recurrenceLabel = isRecurring
+    ? `${String(dispatch.recurrence?.frequency ?? 'recurring')} every ${String(dispatch.recurrence?.interval ?? dispatch.recurrence?.interval_days ?? 1)}`
+    : null
+
+  const handleToggleEnabled = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setActioning(true)
+    await onUpdate(dispatch.dispatchId, { enabled: dispatch.status !== 'pending' })
+    setActioning(false)
+  }
+
+  const handleRetry = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setActioning(true)
+    await onRetry(dispatch.dispatchId)
+    setActioning(false)
+  }
 
   return (
     <div className="gba:border gba:border-border/60 gba:rounded-xl gba:overflow-hidden">
@@ -141,6 +170,16 @@ const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, summaries
         >
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
             <StatusBadge status={dispatch.status} />
+            {isAgentSession && (
+              <span className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
+                Agent run
+              </span>
+            )}
+            {isRecurring && (
+              <span className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-violet-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-violet-700 dark:gba:bg-violet-950/40 dark:gba:text-violet-300">
+                Recurring
+              </span>
+            )}
             <span className="gba:text-[13px] gba:font-semibold gba:text-foreground gba:truncate">{dispatch.title}</span>
           </div>
           <p className="gba:mt-1 gba:text-[12px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
@@ -148,20 +187,45 @@ const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, summaries
             {scheduledStr}
           </p>
           <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">
-            {assigneeCount} assignee{assigneeCount === 1 ? '' : 's'}
+            {isAgentSession
+              ? 'Durable enterprise-agent session'
+              : `${assigneeCount} assignee${assigneeCount === 1 ? '' : 's'}`}
           </p>
         </button>
         <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
           {dispatch.status === 'pending' && (
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
+              type="button"
               onClick={handleCancel}
               disabled={cancelling}
               className="gba:h-7 gba:px-2 gba:text-[11px] gba:text-destructive gba:hover:text-destructive gba:hover:bg-destructive/10"
             >
               {cancelling ? <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin" /> : 'Cancel'}
-            </Button>
+            </button>
+          )}
+          {isRecurring && (
+            <button
+              type="button"
+              className="gba:inline-flex gba:h-7 gba:items-center gba:justify-center gba:rounded-md gba:px-2 gba:text-[11px] gba:font-medium gba:text-foreground gba:hover:bg-muted/60 gba:disabled:pointer-events-none gba:disabled:opacity-50"
+              onClick={handleToggleEnabled}
+              disabled={actioning}
+            >
+              {actioning ? <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin" /> : null}
+              <span className={actioning ? 'gba:ml-1' : ''}>
+                {dispatch.status === 'pending' ? 'Disable' : 'Enable'}
+              </span>
+            </button>
+          )}
+          {dispatch.status === 'failed' && (
+            <button
+              type="button"
+              className="gba:inline-flex gba:h-7 gba:items-center gba:justify-center gba:rounded-md gba:px-2 gba:text-[11px] gba:font-medium gba:text-foreground gba:hover:bg-muted/60 gba:disabled:pointer-events-none gba:disabled:opacity-50"
+              onClick={handleRetry}
+              disabled={actioning}
+            >
+              {actioning ? <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin" /> : null}
+              <span className={actioning ? 'gba:ml-1' : ''}>Retry</span>
+            </button>
           )}
           <button
             type="button"
@@ -185,20 +249,63 @@ const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, summaries
               Message
             </p>
             <p className="gba:text-[13px] gba:text-foreground gba:whitespace-pre-wrap gba:break-words">
-              {dispatch.message}
+              {dispatch.agentTask || dispatch.message}
             </p>
           </div>
 
-          <div>
-            <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
-              Assignees ({assigneeCount})
-            </p>
-            <div className="gba:flex gba:flex-col gba:gap-1.5">
-              {assigneeUserIds.map(uid => (
-                <AssigneeChip key={uid} userId={uid} summary={summaries.get(uid)} />
-              ))}
+          {!isAgentSession && (
+            <div>
+              <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
+                Assignees ({assigneeCount})
+              </p>
+              <div className="gba:flex gba:flex-col gba:gap-1.5">
+                {assigneeUserIds.map(uid => (
+                  <AssigneeChip key={uid} userId={uid} summary={summaries.get(uid)} />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {dispatch.createdSessionId && (
+            <div>
+              <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
+                Created session
+              </p>
+              <span className="gba:block gba:text-[12px] gba:text-foreground gba:font-mono">
+                {dispatch.createdSessionId}
+              </span>
+            </div>
+          )}
+
+          {recurrenceLabel && (
+            <div>
+              <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
+                Recurrence
+              </p>
+              <p className="gba:text-[12px] gba:text-foreground">
+                {recurrenceLabel} · next run {scheduledStr}
+              </p>
+            </div>
+          )}
+
+          {dispatch.runHistory && dispatch.runHistory.length > 0 && (
+            <div>
+              <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
+                Run history
+              </p>
+              <div className="gba:space-y-1">
+                {dispatch.runHistory.slice(-5).map((run, idx) => (
+                  <p
+                    key={`${run.session_id ?? idx}-${run.triggered_at ?? idx}`}
+                    className="gba:text-[12px] gba:text-foreground"
+                  >
+                    {run.triggered_at ? formatScheduledAt(run.triggered_at) : 'Triggered'} · {run.status ?? 'started'}
+                    {run.session_id ? ` · ${run.session_id}` : ''}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
 
           {workflowIds.length > 0 && (
             <div>
@@ -251,8 +358,18 @@ const SkeletonRow: React.FC = () => (
 // ---------------------------------------------------------------------------
 
 export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps> = ({ accessToken, onBack }) => {
-  const { dispatches, isLoading, error, refresh, cancel, statusFilter, setStatusFilter } =
+  const { dispatches, isLoading, error, refresh, cancel, update, retry, statusFilter, setStatusFilter } =
     useScheduledDispatches(accessToken)
+  const client = usePromptManagerClient(accessToken)
+  const [showCreate, setShowCreate] = useState(false)
+  const [createDraft, setCreateDraft] = useState({
+    title: '',
+    task: '',
+    scheduledAt: '',
+    frequency: 'weekly'
+  })
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   // Collect all unique userIds across all visible dispatches for a single batch GraphQL call
   const allUserIds = useMemo(() => {
@@ -264,6 +381,43 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
   }, [dispatches])
 
   const { summaries } = useEmployeeSummaries(accessToken, allUserIds)
+
+  const createRecurringSchedule = async () => {
+    const task = createDraft.task.trim()
+    if (!task) {
+      setCreateError('Add the task the agent should run.')
+      return
+    }
+    if (!createDraft.scheduledAt) {
+      setCreateError('Choose a future date and time.')
+      return
+    }
+    const scheduledAt = new Date(createDraft.scheduledAt)
+    if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+      setCreateError('Scheduled time must be in the future.')
+      return
+    }
+
+    const title = createDraft.title.trim() || task.slice(0, 80)
+    setCreateError(null)
+    setCreating(true)
+    try {
+      await client.createScheduledAgentSession({
+        title,
+        task,
+        scheduledAt: scheduledAt.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        recurrence: { frequency: createDraft.frequency as 'daily' | 'weekly' | 'monthly', interval: 1 }
+      })
+      setShowCreate(false)
+      setCreateDraft({ title: '', task: '', scheduledAt: '', frequency: 'weekly' })
+      refresh()
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create recurring schedule.')
+    } finally {
+      setCreating(false)
+    }
+  }
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="scheduled-dispatches-screen">
@@ -281,6 +435,9 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
           <CalendarCheckIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
           <h2 className="gba:text-[14px] gba:font-semibold gba:text-foreground gba:truncate">Scheduled Tasks</h2>
         </div>
+        <Button size="sm" variant="secondary" onClick={() => setShowCreate(prev => !prev)}>
+          {showCreate ? 'Close' : 'New recurring'}
+        </Button>
         <button
           type="button"
           onClick={refresh}
@@ -291,6 +448,59 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
           <ArrowsClockwiseIcon className={`gba:h-4 gba:w-4 ${isLoading ? 'gba:animate-spin' : ''}`} />
         </button>
       </div>
+
+      {/* Status filter tabs */}
+      {showCreate && (
+        <div className="gba:border-b gba:border-border/40 gba:p-4 gba:space-y-3 gba:bg-muted/15">
+          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
+            <input
+              value={createDraft.title}
+              onChange={e => setCreateDraft(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="Schedule title"
+              className="gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm"
+            />
+            <input
+              type="datetime-local"
+              value={createDraft.scheduledAt}
+              onChange={e => setCreateDraft(prev => ({ ...prev, scheduledAt: e.target.value }))}
+              className="gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm"
+            />
+          </div>
+          <textarea
+            value={createDraft.task}
+            onChange={e => setCreateDraft(prev => ({ ...prev, task: e.target.value }))}
+            placeholder="Agent task to run on each recurrence"
+            className="gba:min-h-20 gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm"
+          />
+          <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+            <label className="gba:text-xs gba:text-muted-foreground">
+              Frequency
+              <select
+                value={createDraft.frequency}
+                onChange={e => setCreateDraft(prev => ({ ...prev, frequency: e.target.value }))}
+                className="gba:ml-2 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:text-sm gba:text-foreground"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+            <Button
+              size="sm"
+              disabled={creating || !createDraft.task.trim() || !createDraft.scheduledAt}
+              onClick={() => void createRecurringSchedule()}
+              data-testid="scheduled-create-recurring-button"
+            >
+              {creating ? 'Creating…' : 'Create recurring schedule'}
+            </Button>
+          </div>
+          {createError && (
+            <p className="gba:text-xs gba:text-destructive" role="alert">
+              {createError}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Status filter tabs */}
       <div className="gba:flex gba:items-center gba:gap-1 gba:px-4 gba:py-2 gba:border-b gba:border-border/40 gba:shrink-0 gba:overflow-x-auto">
@@ -341,7 +551,14 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
         )}
 
         {dispatches.map(d => (
-          <DispatchRow key={d.dispatchId} dispatch={d} onCancel={cancel} summaries={summaries} />
+          <DispatchRow
+            key={d.dispatchId}
+            dispatch={d}
+            onCancel={cancel}
+            onUpdate={update}
+            onRetry={retry}
+            summaries={summaries}
+          />
         ))}
       </div>
     </div>

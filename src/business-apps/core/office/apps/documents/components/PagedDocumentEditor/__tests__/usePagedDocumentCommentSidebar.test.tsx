@@ -274,6 +274,29 @@ describe('usePagedDocumentCommentSidebar', () => {
     })
   })
 
+  it('delegates reopen actions to the shared comments hook', async () => {
+    const comments = createCommentsStub()
+
+    const { result } = renderHook(() =>
+      usePagedDocumentCommentSidebar({
+        editor: null,
+        activeEditor: null,
+        comments,
+        currentUserId: null,
+        currentUserName: 'Ada',
+        currentUserAvatar: null,
+        rightSidebar: 'comments',
+        setRightSidebar: jest.fn()
+      })
+    )
+
+    await act(async () => {
+      await result.current.handleUnresolveComment('comment-1')
+    })
+
+    expect(comments.unresolveComment).toHaveBeenCalledWith('comment-1')
+  })
+
   it('re-scrolls the highlighted comment after sparse window changes', () => {
     const { editor, chain } = createEditorStub()
     const comments = createCommentsStub({

@@ -53,6 +53,8 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
     monthlyRequiredMinutes,
     isNearHome,
     isNearOffice,
+    homeHasCoords,
+    officeHasCoords,
     updateLocationSelection
   } = useTimeTrackingData({ employeeId, accessToken, workingHours })
 
@@ -115,6 +117,8 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
             locationLabel={locationPrimaryLabel}
             confirmLocationLabel={confirmLocationLabel}
             onOpenLocationModal={() => setIsLocationModalOpen(true)}
+            homeNeedsReview={!homeHasCoords}
+            officeNeedsReview={!officeHasCoords}
           />
         </div>
       </div>

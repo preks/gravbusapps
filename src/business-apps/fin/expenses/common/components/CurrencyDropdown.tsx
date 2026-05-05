@@ -7,6 +7,10 @@ export interface CurrencyDropdownProps {
   selectedCurrency: string | null
   onCurrencyChange: (code: string | null) => void
   testIdPrefix?: string
+  /** When set, used instead of lowcoder `current_currency_label` (e.g. Fluent `expense-items-currency-label`). */
+  currencyLabelText?: string
+  /** When set, used instead of lowcoder `expense_item_list.all_currencies` (e.g. Fluent `expense-items-currency-all`). */
+  allCurrenciesOptionText?: string
 }
 
 const ALL_VALUE = 'ALL'
@@ -15,7 +19,9 @@ export const CurrencyDropdown = React.memo(function CurrencyDropdown({
   availableCurrencies,
   selectedCurrency,
   onCurrencyChange,
-  testIdPrefix = 'expense-plans'
+  testIdPrefix = 'expense-plans',
+  currencyLabelText,
+  allCurrenciesOptionText
 }: CurrencyDropdownProps) {
   if (availableCurrencies.length === 0) return null
 
@@ -28,10 +34,11 @@ export const CurrencyDropdown = React.memo(function CurrencyDropdown({
   return (
     <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${testIdPrefix}-currency-filter`}>
       <Label className="gba:text-sm gba:font-medium gba:shrink-0 gba:whitespace-nowrap">
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-          'Currency'
-        )}
+        {currencyLabelText ??
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+            'Currency'
+          )}
         :
       </Label>
       <Select value={value} onValueChange={handleValueChange}>
@@ -40,7 +47,8 @@ export const CurrencyDropdown = React.memo(function CurrencyDropdown({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL_VALUE}>
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
+            {allCurrenciesOptionText ??
+              getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
           </SelectItem>
           {availableCurrencies.map(code => (
             <SelectItem key={code} value={code}>

@@ -4,16 +4,18 @@ import type {
   CompensationBudgetPlanCompanyRow,
   CompensationBudgetPlanListItem
 } from '../../hooks/useBudgetSetupForCompany'
-import type { BudgetSetupPlanTableRow } from './budgetSetupPlanTableRows'
+import type { BudgetSetupCompanyOption, BudgetSetupPlanTableRow } from './budgetSetupPlanTableRows'
 import { useBudgetSetupPlansTableModel } from './useBudgetSetupPlansTableModel'
 import translations from '../../_i18n'
 
 export interface BudgetSetupPlansTableProps {
   /** Legal entity selected in the app — table shows `compensation_budget_plan_company` for this id only. */
-  companyId: string
+  companyId: string | null
   companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[]
   currencyCode: string
   plans: CompensationBudgetPlanListItem[]
+  companies?: BudgetSetupCompanyOption[]
+  showCompanyColumn?: boolean
   loading: boolean
   error: string | null
   /** Compensation cycle selector — use `CompensationCycleSelector` with `variant="toolbar"` (same layout as `BudgetPlanSelector`). */
@@ -21,6 +23,7 @@ export interface BudgetSetupPlansTableProps {
   /** Primary button in the DataDisplay toolbar (e.g. create plan). */
   toolbarEnd?: React.ReactNode
   onEditRow: (row: BudgetSetupPlanTableRow) => void
+  onOpenDepartmentsBreakdown?: (row: BudgetSetupPlanTableRow) => void
   /** Filters rows to this compensation cycle (toolbar selector). */
   selectedCompensationPlanId: string | null
 }
@@ -30,11 +33,14 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
   companyBudgetPlanRows,
   currencyCode,
   plans,
+  companies = [],
+  showCompanyColumn = false,
   loading,
   error,
   cycleToolbar,
   toolbarEnd,
   onEditRow,
+  onOpenDepartmentsBreakdown,
   selectedCompensationPlanId
 }) => {
   const { t } = useTranslation(translations)
@@ -62,7 +68,9 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
     currencyCode,
     plans,
     onEditRow,
-    selectedCompensationPlanId
+    selectedCompensationPlanId,
+    companies,
+    showCompanyColumn
   )
 
   return (
@@ -119,6 +127,7 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
           showPageNumbers
           maxVisiblePages={7}
           emptyMessage={emptyMessage}
+          onRowClick={onOpenDepartmentsBreakdown}
           data-testid="budget-setup-plans-table"
         />
       </TooltipProvider>

@@ -51,7 +51,6 @@ export const PROTOCOL_REDIRECTS: Record<string, string> = {
   expense_request_trip_time: 'expense_request',
   expense_item_destination: 'expense_request',
   expense_item_file: 'expense_request',
-  expense_item: 'expense_request',
   expense_position: 'expense_request',
   expense_allowance: 'expense_request',
   expense_rule_allowance_code: 'expense_rule',

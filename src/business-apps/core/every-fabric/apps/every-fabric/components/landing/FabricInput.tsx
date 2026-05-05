@@ -135,10 +135,9 @@ export const FabricInput: React.FC<FabricInputProps> = ({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        handleSubmit().catch(() => undefined)
-      }
+      if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
+      e.preventDefault()
+      handleSubmit().catch(() => undefined)
     },
     [handleSubmit]
   )
@@ -212,8 +211,8 @@ export const FabricInput: React.FC<FabricInputProps> = ({
               </button>
             )}
 
-            <span className="gba:ml-auto gba:text-[11px] gba:text-muted-foreground/50">
-              {isSubmitting ? 'Starting session...' : '⌘ Enter to send'}
+            <span className="gba:ml-auto gba:text-[11px] gba:text-muted-foreground/50 gba:text-right gba:max-w-[min(100%,12rem)] gba:leading-snug">
+              {isSubmitting ? 'Starting session...' : 'Enter to send, Shift+Enter for newline'}
             </span>
 
             {/* Send button */}
@@ -299,8 +298,8 @@ export const FabricInput: React.FC<FabricInputProps> = ({
             </button>
           )}
 
-          <span className="gba:ml-auto gba:text-[11px] gba:font-medium gba:tracking-[0.02em] gba:text-muted-foreground/55">
-            ⌘ Enter
+          <span className="gba:ml-auto gba:text-[11px] gba:font-medium gba:tracking-[0.02em] gba:text-muted-foreground/55 gba:text-right gba:max-w-[min(100%,11rem)] gba:leading-snug">
+            Enter to send, Shift+Enter for newline
           </span>
 
           {isRunning && !isReplyMode ? (

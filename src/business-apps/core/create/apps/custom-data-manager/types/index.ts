@@ -19,10 +19,13 @@ export interface InputOption {
   label: string
 }
 
+export type RelationTargetKind = 'CUSTOM_ENTITY' | 'INTERNAL_ENTITY'
+
 export interface InputDataSource {
-  type: 'CATALOG' | 'ENTITY' | 'API'
+  type: 'CATALOG' | 'CUSTOM_ENTITY' | 'API' | 'INTERNAL_ENTITY'
   catalog?: string
   entity?: string
+  namespace?: string
   valueField?: string
   labelField?: string
 }
@@ -38,7 +41,7 @@ export interface ColumnDefinition {
   readOnly?: boolean
 }
 
-export type DefinitionKind = 'ENTITY'
+export type DefinitionKind = 'CUSTOM_ENTITY'
 
 export type PublishState = 'DRAFT' | 'PROMOTED_TRACKED' | 'ERROR'
 
@@ -73,6 +76,40 @@ export interface CustomDataNamespace {
   updated_at: string
 }
 
+export interface InternalEntityFieldDefinition {
+  name: string
+  displayName: string
+  type: string
+  description?: string
+  category?: string
+}
+
+export interface InternalEntityDefinition {
+  type: string
+  displayName: string
+  description: string
+  icon?: string
+  apiEndpoint?: string
+  exampleId?: string
+  fields?: InternalEntityFieldDefinition[]
+}
+
+export interface NamespaceEntityRelationship {
+  relationType: 'ONE_TO_MANY' | 'MANY_TO_MANY'
+  sourceEntity: string
+  sourceKind: 'CUSTOM_ENTITY'
+  targetEntity: string
+  targetKind: 'CUSTOM_ENTITY' | 'INTERNAL_ENTITY'
+  targetNamespace?: string
+  fieldName: string
+}
+
+export interface NamespaceAggregate extends CustomDataNamespace {
+  customEntities: CustomDataDefinition[]
+  internalEntities: InternalEntityDefinition[]
+  entityRelationships: NamespaceEntityRelationship[]
+}
+
 export interface CreateNamespaceDto {
   namespace: string
   display_name?: string
@@ -89,6 +126,7 @@ export interface CreateDefinitionDto {
 }
 
 export interface UpdateDefinitionDto {
+  key?: string
   display_name?: string
   description?: string
   columns_json?: ColumnDefinition[]
@@ -106,6 +144,7 @@ export interface EntityRelationship {
   foreignKeyColumn: string // Column name in child table
   relationshipName?: string // Optional name for Hasura relationship
   cascadeDelete?: boolean // Default: false
+  targetKind?: RelationTargetKind
 }
 
 export interface EntityProposal {
@@ -119,6 +158,74 @@ export interface EntitySchemaProposal {
   entities: EntityProposal[]
   relationships: EntityRelationship[]
   reasoning?: string // AI explanation of the schema design
+}
+
+export interface CustomDataSuggestionConversationMessage {
+  role: 'user' | 'assistant'
+  content: string
+  proposal?: EntitySchemaProposal
+}
+
+export interface CustomDataSuggestionRequest {
+  description: string
+  sessionId?: string
+  conversationHistory?: CustomDataSuggestionConversationMessage[]
+}
+
+export type CustomDataSuggestionStage = 'planning' | 'repairing' | 'preflight_failed' | 'proposal_ready'
+export type CustomDataSuggestionStageStatus = 'running' | 'complete' | 'failed'
+
+export interface CustomDataSuggestionStreamEvent {
+  type: 'started' | 'thinking' | 'stage' | 'response' | 'done' | 'error'
+  content?: string
+  stage?: CustomDataSuggestionStage
+  stageStatus?: CustomDataSuggestionStageStatus
+  stageData?: Record<string, unknown>
+  proposal?: EntitySchemaProposal
+}
+
+export interface CustomDataSuggestionApplyResult {
+  success: boolean
+  namespace: string
+  createdEntityKeys: string[]
+  updatedEntityKeys: string[]
+  deletedEntityKeys: string[]
+  downgradedEntityKeys: string[]
+  proposal: EntitySchemaProposal
+}
+
+export interface NamespacePromotionEntityStatus {
+  entityKey: string
+  definitionId: string
+  deployed: boolean
+  promoted: boolean
+  skipped: boolean
+  tableName?: string
+  error?: string
+}
+
+export interface NamespacePromotionRelationshipStatus {
+  sourceEntity: string
+  targetEntity: string
+  targetKind: 'CUSTOM_ENTITY' | 'INTERNAL_ENTITY'
+  foreignKeyColumn: string
+  created: boolean
+  skipped: boolean
+  error?: string
+}
+
+export interface NamespacePromotionResult {
+  success: boolean
+  namespace: string
+  entityOrder: string[]
+  entities: NamespacePromotionEntityStatus[]
+  relationships: NamespacePromotionRelationshipStatus[]
+  promotedEntityCount: number
+  failedEntityCount: number
+  skippedEntityCount: number
+  createdRelationshipCount: number
+  failedRelationshipCount: number
+  skippedRelationshipCount: number
 }
 
 export interface EntityCreationStatus {
@@ -141,5 +248,11 @@ export interface BatchCreationResult {
   success: boolean
   entities: EntityCreationStatus[]
   relationships: RelationshipCreationStatus[]
+  error?: string
+}
+
+export interface RowMutationResult {
+  success: boolean
+  resultData?: Record<string, unknown>
   error?: string
 }

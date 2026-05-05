@@ -62,6 +62,7 @@ reset-pwd-subtitle = Setează o nouă parolă de autentificare pentru acest anga
 reset-pwd-loading = Se încarcă…
 reset-pwd-hint-email-prefix = Parola se aplică contului pentru:
 reset-pwd-hint-no-email = Nu există email; resetarea poate eșua până există o adresă.
+reset-pwd-self-service-info = Îți actualizezi propria parolă de autentificare. O salvăm ca parola ta obișnuită, astfel că nu vei fi întrebat să alegi alta la următoarea autentificare.
 reset-pwd-action-save = Setează parola
 reset-pwd-action-saving = Se setează parola…
 reset-pwd-msg-saved = Parola a fost actualizată.

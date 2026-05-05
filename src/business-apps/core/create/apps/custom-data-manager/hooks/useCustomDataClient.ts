@@ -1,42 +1,87 @@
 import { useCallback, useMemo } from 'react'
-import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import {
-  CustomDataDefinition,
-  CustomDataNamespace,
-  CreateNamespaceDto,
-  CreateDefinitionDto,
-  UpdateDefinitionDto,
-  EntitySchemaProposal,
-  BatchCreationResult,
-  EntityRelationship
+  type CreateDefinitionDto,
+  type CreateNamespaceDto,
+  type CustomDataSuggestionApplyResult,
+  type CustomDataDefinition,
+  type CustomDataNamespace,
+  type CustomDataSuggestionRequest,
+  type CustomDataSuggestionStreamEvent,
+  type EntitySchemaProposal,
+  type NamespaceAggregate,
+  type NamespacePromotionResult,
+  type RowMutationResult,
+  type UpdateDefinitionDto
 } from '../types'
 
 interface CustomDataClient {
-  // Namespaces
   listNamespaces: () => Promise<CustomDataNamespace[]>
   createNamespace: (dto: CreateNamespaceDto) => Promise<CustomDataNamespace>
-
-  // Definitions
+  getNamespaceAggregate: (namespace: string, context?: string) => Promise<NamespaceAggregate>
   listDefinitions: (namespace?: string) => Promise<CustomDataDefinition[]>
-  getDefinition: (id: string) => Promise<CustomDataDefinition>
+  getDefinition: (namespace: string, entity: string) => Promise<CustomDataDefinition>
   createDefinition: (dto: CreateDefinitionDto) => Promise<CustomDataDefinition>
-  updateDefinition: (id: string, dto: UpdateDefinitionDto) => Promise<CustomDataDefinition>
-  deleteDefinition: (id: string) => Promise<{ success: boolean }>
+  updateDefinition: (namespace: string, entity: string, dto: UpdateDefinitionDto) => Promise<CustomDataDefinition>
+  deleteDefinition: (namespace: string, entity: string) => Promise<void>
+  promoteEntity: (namespace: string, entity: string) => Promise<CustomDataDefinition>
+  promoteNamespace: (namespace: string, updatedBy?: string) => Promise<NamespacePromotionResult>
+  streamCustomEntitySuggestion: (
+    namespace: string,
+    request: CustomDataSuggestionRequest,
+    options: {
+      onEvent: (event: CustomDataSuggestionStreamEvent) => void
+      signal?: AbortSignal
+    }
+  ) => Promise<void>
+  applySuggestedModel: (
+    namespace: string,
+    proposal: EntitySchemaProposal,
+    updatedBy?: string
+  ) => Promise<CustomDataSuggestionApplyResult>
+  createRow: (namespace: string, definitionKey: string, values: Record<string, unknown>) => Promise<RowMutationResult>
+  updateRow: (
+    namespace: string,
+    definitionKey: string,
+    rowId: string,
+    values: Record<string, unknown>
+  ) => Promise<RowMutationResult>
+  deleteRow: (namespace: string, definitionKey: string, rowId: string) => Promise<RowMutationResult>
+}
 
-  // Entity promotion
-  promoteEntity: (definitionId: string) => Promise<CustomDataDefinition>
+type RowMutationResponse = RowMutationResult
 
-  // AI Schema Generation
-  generateSchemaFromNaturalLanguage: (description: string) => Promise<EntitySchemaProposal>
-  createEntitiesFromProposal: (proposal: EntitySchemaProposal, createdBy?: string) => Promise<BatchCreationResult>
-  createRelationship: (relationship: EntityRelationship, createdBy?: string) => Promise<{ success: boolean }>
+function toRowMutationResult(response: RowMutationResponse): RowMutationResult {
+  return {
+    success: Boolean(response.success),
+    resultData: response.resultData,
+    error: response.error
+  }
+}
+
+type ApiRowMutationResponse = {
+  success: boolean
+  resultData?: Record<string, unknown>
+  error?: string
+}
+
+const DEFAULT_NAMESPACE = 'default'
+
+function buildCustomEntityPath(namespace: string, entity?: string): string {
+  const encodedNamespace = encodeURIComponent(namespace)
+
+  if (!entity) {
+    return `/v1/custom-data/namespaces/${encodedNamespace}/custom-entities`
+  }
+
+  return `/v1/custom-data/namespaces/${encodedNamespace}/custom-entities/${encodeURIComponent(entity)}`
 }
 
 /**
  * Hook to create a client for custom-data API calls
  */
 export const useCustomDataClient = (accessToken: string): CustomDataClient => {
-  const baseUrl = CUSTOM_FLOW_ENGINE_API_URL
+  const baseUrl = getFlowEngineApiBaseUrl()
 
   const fetchWithAuth = useCallback(
     async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
@@ -55,65 +100,170 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
         throw new Error(errorData.message || `Request failed: ${response.statusText}`)
       }
 
+      if (response.status === 204) {
+        return undefined as T
+      }
+
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        return undefined as T
+      }
+
       return response.json()
     },
     [baseUrl, accessToken]
   )
 
-  const listDefinitions = useCallback(
-    async (namespace?: string): Promise<CustomDataDefinition[]> => {
-      const params = new URLSearchParams()
-      if (namespace) params.set('namespace', namespace)
-      const queryString = params.toString() ? `?${params.toString()}` : ''
-      return fetchWithAuth<CustomDataDefinition[]>(`/custom-data/definitions${queryString}`)
+  const listNamespaces = useCallback(
+    async (): Promise<CustomDataNamespace[]> => fetchWithAuth<CustomDataNamespace[]>('/v1/custom-data/namespaces'),
+    [fetchWithAuth]
+  )
+
+  const streamCustomEntitySuggestion = useCallback(
+    async (
+      namespace: string,
+      request: CustomDataSuggestionRequest,
+      options: {
+        onEvent: (event: CustomDataSuggestionStreamEvent) => void
+        signal?: AbortSignal
+      }
+    ): Promise<void> => {
+      const response = await fetch(
+        `${baseUrl}/v1/custom-data/namespaces/${encodeURIComponent(namespace)}/custom-entities/suggestions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: JSON.stringify(request),
+          signal: options.signal
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `Request failed: ${response.statusText}`)
+      }
+
+      if (!response.body) {
+        throw new Error('Streaming response body is missing')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      const emitChunk = (chunk: string) => {
+        const trimmedChunk = chunk.trim()
+        if (!trimmedChunk || trimmedChunk.startsWith(':')) {
+          return
+        }
+
+        const dataPayload = trimmedChunk
+          .split('\n')
+          .filter(line => line.startsWith('data:'))
+          .map(line => line.slice(5).trim())
+          .join('\n')
+
+        if (!dataPayload) {
+          return
+        }
+
+        options.onEvent(JSON.parse(dataPayload) as CustomDataSuggestionStreamEvent)
+      }
+
+      while (true) {
+        const { value, done } = await reader.read()
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+
+        const eventChunks = buffer.split('\n\n')
+        buffer = eventChunks.pop() || ''
+
+        for (const chunk of eventChunks) {
+          emitChunk(chunk)
+        }
+
+        if (done) {
+          break
+        }
+      }
+
+      if (buffer.trim()) {
+        emitChunk(buffer)
+      }
+    },
+    [accessToken, baseUrl]
+  )
+
+  const createNamespace = useCallback(
+    async (dto: CreateNamespaceDto): Promise<CustomDataNamespace> =>
+      fetchWithAuth<CustomDataNamespace>('/v1/custom-data/namespaces', {
+        method: 'POST',
+        body: JSON.stringify(dto)
+      }),
+    [fetchWithAuth]
+  )
+
+  const getNamespaceAggregate = useCallback(
+    async (namespace: string, context: string = 'service'): Promise<NamespaceAggregate> => {
+      const query = new URLSearchParams({ context }).toString()
+      return fetchWithAuth<NamespaceAggregate>(`/v1/custom-data/namespaces/${encodeURIComponent(namespace)}?${query}`)
     },
     [fetchWithAuth]
   )
 
-  const listNamespaces = useCallback(async (): Promise<CustomDataNamespace[]> => {
-    return fetchWithAuth<CustomDataNamespace[]>('/custom-data/namespaces')
-  }, [fetchWithAuth])
+  const listDefinitions = useCallback(
+    async (namespace?: string): Promise<CustomDataDefinition[]> => {
+      if (namespace) {
+        return fetchWithAuth<CustomDataDefinition[]>(buildCustomEntityPath(namespace))
+      }
 
-  const createNamespace = useCallback(
-    async (dto: CreateNamespaceDto): Promise<CustomDataNamespace> => {
-      return fetchWithAuth<CustomDataNamespace>('/custom-data/namespaces', {
-        method: 'POST',
-        body: JSON.stringify(dto)
-      })
+      const namespaces = await listNamespaces()
+      const definitionsByNamespace = await Promise.all(
+        namespaces.map(currentNamespace =>
+          fetchWithAuth<CustomDataDefinition[]>(buildCustomEntityPath(currentNamespace.namespace))
+        )
+      )
+
+      return definitionsByNamespace.flat()
     },
-    [fetchWithAuth]
+    [fetchWithAuth, listNamespaces]
   )
 
   const getDefinition = useCallback(
-    async (id: string): Promise<CustomDataDefinition> => {
-      return fetchWithAuth<CustomDataDefinition>(`/custom-data/definitions/${id}`)
-    },
+    async (namespace: string, entity: string): Promise<CustomDataDefinition> =>
+      fetchWithAuth<CustomDataDefinition>(buildCustomEntityPath(namespace, entity)),
     [fetchWithAuth]
   )
 
   const createDefinition = useCallback(
-    async (dto: CreateDefinitionDto): Promise<CustomDataDefinition> => {
-      return fetchWithAuth<CustomDataDefinition>('/custom-data/definitions', {
+    async (dto: CreateDefinitionDto): Promise<CustomDataDefinition> =>
+      fetchWithAuth<CustomDataDefinition>(buildCustomEntityPath(dto.namespace || DEFAULT_NAMESPACE), {
         method: 'POST',
-        body: JSON.stringify(dto)
-      })
-    },
+        body: JSON.stringify({
+          key: dto.key,
+          display_name: dto.display_name,
+          description: dto.description,
+          columns_json: dto.columns_json,
+          created_by: dto.created_by
+        })
+      }),
     [fetchWithAuth]
   )
 
   const updateDefinition = useCallback(
-    async (id: string, dto: UpdateDefinitionDto): Promise<CustomDataDefinition> => {
-      return fetchWithAuth<CustomDataDefinition>(`/custom-data/definitions/${id}`, {
+    async (namespace: string, entity: string, dto: UpdateDefinitionDto): Promise<CustomDataDefinition> =>
+      fetchWithAuth<CustomDataDefinition>(buildCustomEntityPath(namespace, entity), {
         method: 'PATCH',
         body: JSON.stringify(dto)
-      })
-    },
+      }),
     [fetchWithAuth]
   )
 
   const deleteDefinition = useCallback(
-    async (id: string): Promise<{ success: boolean }> => {
-      return fetchWithAuth<{ success: boolean }>(`/custom-data/definitions/${id}`, {
+    async (namespace: string, entity: string): Promise<void> => {
+      await fetchWithAuth<void>(buildCustomEntityPath(namespace, entity), {
         method: 'DELETE'
       })
     },
@@ -121,41 +271,91 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
   )
 
   const promoteEntity = useCallback(
-    async (definitionId: string): Promise<CustomDataDefinition> => {
-      return fetchWithAuth<CustomDataDefinition>('/custom-data/entities/promote', {
-        method: 'POST',
-        body: JSON.stringify({ definitionId })
-      })
+    async (namespace: string, entity: string): Promise<CustomDataDefinition> =>
+      fetchWithAuth<CustomDataDefinition>(`${buildCustomEntityPath(namespace, entity)}/promotions`, {
+        method: 'POST'
+      }),
+    [fetchWithAuth]
+  )
+
+  const promoteNamespace = useCallback(
+    async (namespace: string, updatedBy?: string): Promise<NamespacePromotionResult> =>
+      fetchWithAuth<NamespacePromotionResult>(
+        `/v1/custom-data/namespaces/${encodeURIComponent(namespace)}/promotions`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            ...(updatedBy ? { updated_by: updatedBy } : {})
+          })
+        }
+      ),
+    [fetchWithAuth]
+  )
+
+  const applySuggestedModel = useCallback(
+    async (
+      namespace: string,
+      proposal: EntitySchemaProposal,
+      updatedBy?: string
+    ): Promise<CustomDataSuggestionApplyResult> =>
+      fetchWithAuth<CustomDataSuggestionApplyResult>(
+        `/v1/custom-data/namespaces/${encodeURIComponent(namespace)}/custom-entities/suggestions/apply`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            proposal,
+            ...(updatedBy ? { updated_by: updatedBy } : {})
+          })
+        }
+      ),
+    [fetchWithAuth]
+  )
+
+  const createRow = useCallback(
+    async (namespace: string, definitionKey: string, values: Record<string, unknown>): Promise<RowMutationResult> => {
+      const response = await fetchWithAuth<ApiRowMutationResponse>(
+        `${buildCustomEntityPath(namespace, definitionKey)}/rows`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ values })
+        }
+      )
+
+      return toRowMutationResult(response)
     },
     [fetchWithAuth]
   )
 
-  const generateSchemaFromNaturalLanguage = useCallback(
-    async (description: string): Promise<EntitySchemaProposal> => {
-      return fetchWithAuth<EntitySchemaProposal>('/custom-data/ai/generate-schema', {
-        method: 'POST',
-        body: JSON.stringify({ description })
-      })
+  const updateRow = useCallback(
+    async (
+      namespace: string,
+      definitionKey: string,
+      rowId: string,
+      values: Record<string, unknown>
+    ): Promise<RowMutationResult> => {
+      const response = await fetchWithAuth<ApiRowMutationResponse>(
+        `${buildCustomEntityPath(namespace, definitionKey)}/rows/${encodeURIComponent(rowId)}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ values })
+        }
+      )
+
+      return toRowMutationResult(response)
     },
     [fetchWithAuth]
   )
 
-  const createEntitiesFromProposal = useCallback(
-    async (proposal: EntitySchemaProposal, createdBy?: string): Promise<BatchCreationResult> => {
-      return fetchWithAuth<BatchCreationResult>('/custom-data/ai/create-entities-batch', {
-        method: 'POST',
-        body: JSON.stringify({ proposal, createdBy })
-      })
-    },
-    [fetchWithAuth]
-  )
+  const deleteRow = useCallback(
+    async (namespace: string, definitionKey: string, rowId: string): Promise<RowMutationResult> => {
+      const response = await fetchWithAuth<ApiRowMutationResponse>(
+        `${buildCustomEntityPath(namespace, definitionKey)}/rows/${encodeURIComponent(rowId)}`,
+        {
+          method: 'DELETE'
+        }
+      )
 
-  const createRelationship = useCallback(
-    async (relationship: EntityRelationship, createdBy?: string): Promise<{ success: boolean }> => {
-      return fetchWithAuth<{ success: boolean }>('/custom-data/relationships', {
-        method: 'POST',
-        body: JSON.stringify({ relationship, createdBy })
-      })
+      return toRowMutationResult(response)
     },
     [fetchWithAuth]
   )
@@ -164,28 +364,36 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
     () => ({
       listNamespaces,
       createNamespace,
+      getNamespaceAggregate,
       listDefinitions,
       getDefinition,
       createDefinition,
       updateDefinition,
       deleteDefinition,
       promoteEntity,
-      generateSchemaFromNaturalLanguage,
-      createEntitiesFromProposal,
-      createRelationship
+      promoteNamespace,
+      streamCustomEntitySuggestion,
+      applySuggestedModel,
+      createRow,
+      updateRow,
+      deleteRow
     }),
     [
       listNamespaces,
       createNamespace,
+      getNamespaceAggregate,
       listDefinitions,
       getDefinition,
       createDefinition,
       updateDefinition,
       deleteDefinition,
       promoteEntity,
-      generateSchemaFromNaturalLanguage,
-      createEntitiesFromProposal,
-      createRelationship
+      promoteNamespace,
+      streamCustomEntitySuggestion,
+      applySuggestedModel,
+      createRow,
+      updateRow,
+      deleteRow
     ]
   )
 }

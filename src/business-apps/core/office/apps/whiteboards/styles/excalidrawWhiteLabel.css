@@ -24,9 +24,42 @@
   max-height: none !important;
 }
 
+/* Properties panel: opaque so canvas content doesn't bleed through, and overflow:visible so
+   nested popovers (color picker, font size, etc.) and tooltips are not clipped. The Island
+   itself can grow naturally; if it exceeds viewport we add a single inner scroll wrapper via
+   the design but still allow popovers to escape. */
 .nw-whiteboard-excalidraw .excalidraw .App-menu_top__left > .selected-shape-actions {
-  max-height: min(65vh, calc(100vh - 200px)) !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.nw-whiteboard-excalidraw .excalidraw .App-menu_top__left > .selected-shape-actions > .Island {
+  background: var(--background, #ffffff) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 12px 32px rgba(0, 0, 0, 0.12) !important;
+  max-height: min(80vh, calc(100vh - 120px)) !important;
   overflow-y: auto !important;
+  overflow-x: visible !important;
+}
+
+/* Popovers / dropdowns inside the properties panel must escape the scroll container */
+.nw-whiteboard-excalidraw .excalidraw .picker-container,
+.nw-whiteboard-excalidraw .excalidraw .picker,
+.nw-whiteboard-excalidraw .excalidraw .popover,
+.nw-whiteboard-excalidraw .excalidraw .dropdown-menu-container {
+  z-index: 1000 !important;
+}
+
+/* Do not clip nested overflow inside the panel column where shape buttons (frame, etc.)
+   open a dropdown that should hang below the row */
+.nw-whiteboard-excalidraw .excalidraw .panelColumn,
+.nw-whiteboard-excalidraw .excalidraw .panelColumn fieldset,
+.nw-whiteboard-excalidraw .excalidraw .buttonList,
+.nw-whiteboard-excalidraw .excalidraw .App-menu_top__left {
+  overflow: visible !important;
 }
 
 /* Zen mode would slide this off-screen; keep it visible */
@@ -46,19 +79,42 @@
   pointer-events: auto !important;
 }
 
-/* ── Hide vendor UI ── */
+/* The "extra tools" dropdown (frame, embed, laser, ...) defaults to opening downward.
+   Since our toolbar lives at the bottom of the canvas, flip it to open upward so it is
+   never clipped below the viewport. */
+.nw-whiteboard-excalidraw .excalidraw .shapes-section .App-toolbar__extra-tools-dropdown {
+  top: auto !important;
+  bottom: 100% !important;
+  margin-top: 0 !important;
+  margin-bottom: 0.5rem !important;
+}
 
-.nw-whiteboard-excalidraw .excalidraw .help-icon,
-.nw-whiteboard-excalidraw .excalidraw .footer-center {
+/* ── Hide vendor UI (but keep undo/redo buttons in the footer) ── */
+
+.nw-whiteboard-excalidraw .excalidraw .help-icon {
   display: none !important;
 }
 
+/* Hide vendor links inside the footer-center but keep the rest (undo/redo) visible */
+.nw-whiteboard-excalidraw .excalidraw .footer-center a[href*='excalidraw'],
+.nw-whiteboard-excalidraw .excalidraw .footer-center a[href*='plus.excalidraw'],
 .nw-whiteboard-excalidraw .excalidraw a[href*='excalidraw'],
 .nw-whiteboard-excalidraw .excalidraw a[href*='plus.excalidraw'] {
   display: none !important;
 }
 
+/* Make sure undo/redo island is visible and styled like other floating islands */
+.nw-whiteboard-excalidraw .excalidraw .undo-redo-buttons {
+  display: flex !important;
+}
+
 .nw-whiteboard-excalidraw .nw-wb-hide-vendor {
+  display: none !important;
+}
+
+/* ── Hide the "Embed URL" tool (URL allow-list is not configured) ── */
+.nw-whiteboard-excalidraw .excalidraw [data-testid='toolbar-embeddable'],
+.nw-whiteboard-excalidraw .excalidraw [data-testid='toolbar-embeddable'] + label {
   display: none !important;
 }
 
@@ -112,6 +168,40 @@
 .nw-whiteboard-excalidraw .excalidraw .panelColumn .control-label {
   font-weight: 500 !important;
   letter-spacing: 0.01em !important;
+}
+
+/* ── Font-size segmented control polish (S / M / L / XL) ── */
+
+.nw-whiteboard-excalidraw .excalidraw .buttonList,
+.nw-whiteboard-excalidraw .excalidraw fieldset.buttonList {
+  display: flex !important;
+  gap: 4px !important;
+  align-items: center !important;
+}
+
+.nw-whiteboard-excalidraw .excalidraw .buttonList .ToolIcon,
+.nw-whiteboard-excalidraw .excalidraw .buttonList label.ToolIcon {
+  margin: 0 !important;
+}
+
+.nw-whiteboard-excalidraw .excalidraw .buttonList .ToolIcon__icon {
+  font-family: var(--ui-font) !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  letter-spacing: 0.01em !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--text-primary-color, currentColor) !important;
+}
+
+.nw-whiteboard-excalidraw .excalidraw .buttonList .ToolIcon__icon.ToolIcon__icon--active,
+.nw-whiteboard-excalidraw .excalidraw .buttonList input:checked + .ToolIcon__icon {
+  background-color: var(--color-primary, #4f46e5) !important;
+  color: var(--color-primary-contrast, #ffffff) !important;
 }
 
 /* ── Hide hand-drawn Excalifont from font picker ── */

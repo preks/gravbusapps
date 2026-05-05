@@ -112,6 +112,10 @@ export interface EntityDataSource {
   enabled: boolean
   /** Entity type (e.g., 'Account', 'Lead', 'Contact', 'Opportunity') */
   entityType: string
+  /** Runtime entity kind for datasource resolution */
+  entityKind?: 'CUSTOM_ENTITY' | 'INTERNAL_ENTITY'
+  /** Namespace for CUSTOM_ENTITY resolution */
+  namespace?: string
   /** Display name of the entity type */
   entityDisplayName: string
   /** Icon for the entity type */

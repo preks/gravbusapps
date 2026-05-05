@@ -1,7 +1,7 @@
 /**
  * GraphQL documents for compensation budget plans (Hasura).
  *
- * - **Plan registry** — `LIST_COMPENSATION_BUDGET_PLANS`, `GET_BUDGET_SETUP_PLANS_AND_COMPANY_BUDGET_ROWS` (batched), `GET_COMPENSATION_BUDGET_PLAN_COMPANY`
+ * - **Plan registry** — `LIST_COMPENSATION_BUDGET_PLANS`, `GET_COMPENSATION_BUDGET_PLAN_COMPANY`
  * - **Manager context (single round-trip)** — `GET_MANAGER_COMPENSATION_BUDGET_CONTEXT`
  * - **Company / org-unit / employee rows** — `LIST_COMPENSATION_BUDGET_PLAN_*` variants
  *
@@ -29,50 +29,6 @@ export const LIST_COMPENSATION_BUDGET_PLANS = `
 `
 
 /**
- * Single HTTP round-trip for Budget setup: global plan list plus all `CompensationBudgetPlanCompany` rows for one company.
- * Replaces separate `LIST_COMPENSATION_BUDGET_PLANS` + `LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY` when both are needed.
- */
-export const GET_BUDGET_SETUP_PLANS_AND_COMPANY_BUDGET_ROWS = `
-  query GetBudgetSetupPlansAndCompanyBudgetRows($companyId: uuid!) {
-    CompensationBudgetPlan(
-      where: { isDeleted: { _eq: false } }
-      orderBy: [{ fiscalYear: DESC }, { name: ASC }]
-      limit: 100
-    ) {
-      id
-      version
-      name
-      description
-      fiscalYear
-      startDate
-      endDate
-      effectiveDate
-      budgetPlanStatus
-    }
-    CompensationBudgetPlanCompany(
-      where: { companyId: { _eq: $companyId }, isDeleted: { _eq: false } }
-      orderBy: [{ compensationBudgetPlanId: ASC }, { id: ASC }]
-      limit: 500
-    ) {
-      id
-      version
-      compensationBudgetPlanId
-      companyId
-      salaryBudgetAmount
-      salaryBudgetPercent
-      allocationAmount
-      bonusBudgetAmount
-      bonusBudgetPercent
-      budgetPlanStatus
-      currentTotalSalaryCost
-      distributionMethod
-      headcount
-      currencyRef
-    }
-  }
-`
-
-/**
  * One round-trip for manager salary-budget context: position OU + all plans + all company budget rows for the legal entity.
  * (Org-unit lines still need a second request once `compensationBudgetPlanCompanyId` is chosen client-side.)
  */
@@ -86,13 +42,12 @@ export const GET_MANAGER_COMPENSATION_BUDGET_CONTEXT = `
     }
     compensationBudgetPlans: CompensationBudgetPlan(
       where: { isDeleted: { _eq: false } }
-      orderBy: [{ fiscalYear: DESC }, { name: ASC }]
+      orderBy: [{ effectiveDate: DESC_NULLS_LAST }, { name: ASC }]
       limit: 100
     ) {
       id
       name
       description
-      fiscalYear
       startDate
       endDate
       effectiveDate
@@ -127,6 +82,32 @@ export const LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY = `
     CompensationBudgetPlanCompany(
       where: { companyId: { _eq: $companyId }, isDeleted: { _eq: false } }
       orderBy: [{ compensationBudgetPlanId: ASC }, { id: ASC }]
+      limit: 500
+    ) {
+      id
+      version
+      compensationBudgetPlanId
+      companyId
+      salaryBudgetAmount
+      salaryBudgetPercent
+      allocationAmount
+      bonusBudgetAmount
+      bonusBudgetPercent
+      budgetPlanStatus
+      currentTotalSalaryCost
+      distributionMethod
+      headcount
+      currencyRef
+    }
+  }
+`
+
+/** All company budget rows for one compensation cycle. */
+export const LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_PLAN = `
+  query ListCompensationBudgetPlanCompanyByPlan($planId: uuid!) {
+    CompensationBudgetPlanCompany(
+      where: { compensationBudgetPlanId: { _eq: $planId }, isDeleted: { _eq: false } }
+      orderBy: [{ companyId: ASC }, { id: ASC }]
       limit: 500
     ) {
       id

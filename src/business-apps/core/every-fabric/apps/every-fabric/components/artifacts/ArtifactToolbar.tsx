@@ -9,7 +9,10 @@ const TYPE_ICON: Record<ArtifactRendererType, string> = {
   document: '📄',
   markdown: '📝',
   slide: '📊',
+  chart: '📈',
+  table: '▦',
   diagram: '📐',
+  'app-preview': '🧩',
   code: '💻',
   unknown: '📁'
 }
@@ -19,7 +22,10 @@ const TYPE_LABEL: Record<ArtifactRendererType, string> = {
   document: 'Document',
   markdown: 'Markdown',
   slide: 'Slides',
+  chart: 'Chart',
+  table: 'Table',
   diagram: 'Diagram',
+  'app-preview': 'App Preview',
   code: 'Code',
   unknown: 'File'
 }

@@ -18,8 +18,10 @@ import {
   WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS,
   WORKSPACE_CHAT_RAIL_CLASS,
   WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS,
+  WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_MAXIMIZED_CLASS,
   WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS,
   WORKSPACE_RIGHT_RAIL_AUTO_OPEN_BREAKPOINT_PX,
+  WORKSPACE_RIGHT_RAIL_PREVIEW_MAXIMIZED_WIDTH_CLASS,
   WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_CLASS,
   WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS,
   WORKSPACE_RIGHT_RAIL_WIDTH_CLASS,
@@ -31,14 +33,21 @@ import {
  * small floating right rail, no matter the viewport — it's ambient progress
  * info, not a modal, so we never take over the screen with a backdrop.
  */
-function workspaceRightPanelShellClass(isRightPanelOpen: boolean, hasActivePreview: boolean): string {
+function resolveRightRailWidthClass(hasActivePreview: boolean, isPreviewMaximized: boolean): string {
+  if (hasActivePreview && isPreviewMaximized) return WORKSPACE_RIGHT_RAIL_PREVIEW_MAXIMIZED_WIDTH_CLASS
+  if (hasActivePreview) return WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_CLASS
+  return WORKSPACE_RIGHT_RAIL_WIDTH_CLASS
+}
+
+function workspaceRightPanelShellClass(
+  isRightPanelOpen: boolean,
+  hasActivePreview: boolean,
+  isPreviewMaximized: boolean
+): string {
   const motion = isRightPanelOpen
     ? 'gba:translate-x-0 gba:opacity-100 gba:pointer-events-auto'
     : 'gba:translate-x-[calc(100%+1.5rem)] gba:opacity-0 gba:pointer-events-none'
-  // Widen to the preview-sized rail while a live document/slide canvas is
-  // generating or ready — otherwise the canvas would be squeezed into the
-  // ambient 20–24rem progress rail and be unusable.
-  const width = hasActivePreview ? WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_CLASS : WORKSPACE_RIGHT_RAIL_WIDTH_CLASS
+  const width = resolveRightRailWidthClass(hasActivePreview, isPreviewMaximized)
   return `gba:absolute ${WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS} gba:right-4 sm:gba:right-6 lg:gba:right-8 gba:bottom-6 gba:z-40 ${width} ${motion}`
 }
 
@@ -47,8 +56,9 @@ function workspaceRightPanelShellClass(isRightPanelOpen: boolean, hasActivePrevi
  * (instead of a nested ternary inline) so the dependency on `hasActivePreview`
  * widening the panel — and therefore the chat gutter — is legible.
  */
-function resolveChatOffsetClass(isChatOffset: boolean, hasActivePreview: boolean): string {
+function resolveChatOffsetClass(isChatOffset: boolean, hasActivePreview: boolean, isPreviewMaximized: boolean): string {
   if (!isChatOffset) return ''
+  if (hasActivePreview && isPreviewMaximized) return WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_MAXIMIZED_CLASS
   if (hasActivePreview) return WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS
   return WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS
 }
@@ -127,9 +137,16 @@ export const WorkspaceLayout: React.FC = () => {
   } = useFabricConnectors(accessToken)
 
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(resolveInitialPanelOpen)
+  const [isPreviewMaximized, setIsPreviewMaximized] = useState(false)
   const [dismissedClarificationQuestion, setDismissedClarificationQuestion] = useState<string | null>(null)
   const [dismissedFollowUpMessageId, setDismissedFollowUpMessageId] = useState<string | null>(null)
   const [isConnectorSheetOpen, setIsConnectorSheetOpen] = useState(false)
+
+  // Drop the maximized state when there's no longer an active preview so the
+  // panel doesn't ghost-stay wide once a session ends.
+  useEffect(() => {
+    if (!hasActivePreview && isPreviewMaximized) setIsPreviewMaximized(false)
+  }, [hasActivePreview, isPreviewMaximized])
 
   // Compute session connectors from stored IDs and available connectors
   const sessionConnectors = useMemo(() => {
@@ -211,7 +228,7 @@ export const WorkspaceLayout: React.FC = () => {
   // When a live canvas preview is active the panel widens, so the chat slides
   // further left to match.
   const isChatOffset = isRightPanelOpen
-  const chatOffsetClass = resolveChatOffsetClass(isChatOffset, hasActivePreview)
+  const chatOffsetClass = resolveChatOffsetClass(isChatOffset, hasActivePreview, isPreviewMaximized)
 
   // When the live preview error card's "Try again" is clicked, send a new
   // agent turn asking to regenerate the artifact. We include the original
@@ -271,7 +288,7 @@ export const WorkspaceLayout: React.FC = () => {
           >
             <button
               onClick={() => setIsRightPanelOpen(open => !open)}
-              className="gba:inline-flex gba:items-center gba:justify-center gba:h-10 gba:w-10 gba:rounded-full gba:border gba:border-border/60 gba:bg-background/92 gba:backdrop-blur-md gba:text-foreground gba:hover:bg-background gba:transition-colors"
+              className="gba:inline-flex gba:items-center gba:justify-center gba:h-10 gba:w-10 gba:rounded-full gba:border gba:border-border/55 gba:bg-background/85 gba:backdrop-blur-xl gba:text-foreground gba:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.18)] gba:hover:bg-background gba:hover:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_14px_32px_-12px_rgba(15,23,42,0.22)] gba:transition-all"
               data-testid="fabric-workspace-panel-toggle"
               aria-label={isRightPanelOpen ? 'Close workspace panel' : 'Open workspace panel'}
             >
@@ -366,7 +383,8 @@ export const WorkspaceLayout: React.FC = () => {
           <div
             className={`gba:transition-[transform,opacity,width] gba:duration-300 gba:ease-out gba:min-h-0 gba:overflow-hidden ${workspaceRightPanelShellClass(
               isRightPanelOpen,
-              hasActivePreview
+              hasActivePreview,
+              isPreviewMaximized
             )}`}
           >
             <WorkspaceRightPanel
@@ -386,6 +404,8 @@ export const WorkspaceLayout: React.FC = () => {
               accessToken={accessToken}
               sessionId={session.session_id}
               onRetryPreview={handleRetryPreview}
+              isPreviewMaximized={isPreviewMaximized}
+              onTogglePreviewMaximized={() => setIsPreviewMaximized(value => !value)}
             />
           </div>
         </div>

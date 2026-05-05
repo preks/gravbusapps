@@ -30,9 +30,7 @@ icp-dialog-new-profile-title = Neues Profil
 icp-dialog-new-profile-description = Erstellt ein neues Profil für ICP-Kriterien und die Lead-Bewertung.
 icp-cancel = Abbrechen
 icp-create-profile = Erstellen
-icp-delete-confirm-title = Profil löschen?
 icp-delete-confirm-message = „{ $name }“ wird dauerhaft entfernt.
-icp-delete-action = Löschen
 
 # Criteria form
 icp-criteria-heading = Kriterien

@@ -15,7 +15,7 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import type { CurrencyCatalogOption } from '../../hooks/useCurrencyCatalogOptions'
-import { formatCurrency } from '@/common/utils/numberFormatter'
+import { formatCurrency, formatNumber } from '@/common/utils/numberFormatter'
 import { amountFromPercent, percentFromAmount } from '../../../../utils/budgetAmountPercentSync'
 import type { CreatePlanFormValues } from './budgetSetupCreatePlanSchema'
 
@@ -119,9 +119,12 @@ export interface BudgetSetupCreatePlanCompanyBudgetFieldsProps {
   setValue: UseFormSetValue<CreatePlanFormValues>
   annualSalaryCost: number
   currencyCode: string
+  hasCurrency: boolean
   /** Defaults to [] when omitted (avoids runtime errors if parent forgets to pass). */
   currencyOptions?: CurrencyCatalogOption[]
   loadingCurrencies?: boolean
+  disableCurrency?: boolean
+  currencyMessage?: string | null
   t: (key: string) => string
 }
 
@@ -130,15 +133,20 @@ export const BudgetSetupCreatePlanCompanyBudgetFields = ({
   setValue,
   annualSalaryCost,
   currencyCode,
+  hasCurrency,
   currencyOptions = [],
   loadingCurrencies = false,
+  disableCurrency = false,
+  currencyMessage = null,
   t
 }: Readonly<BudgetSetupCreatePlanCompanyBudgetFieldsProps>) => {
   return (
     <div className="gba:space-y-4" data-testid="budget-setup-create-plan-company-budget-fields">
       <div className="gba:rounded-md gba:border gba:border-border gba:bg-muted/20 gba:p-3 gba:text-sm">
         <span className="gba:text-muted-foreground">{t('budget-setup-create-plan-baseline-readonly')}</span>{' '}
-        <span className="gba:font-medium gba:tabular-nums">{formatCurrency(annualSalaryCost, currencyCode)}</span>
+        <span className="gba:font-medium gba:tabular-nums">
+          {hasCurrency ? formatCurrency(annualSalaryCost, currencyCode) : formatNumber(annualSalaryCost)}
+        </span>
       </div>
 
       <SyncedAmountPercentPair
@@ -163,13 +171,13 @@ export const BudgetSetupCreatePlanCompanyBudgetFields = ({
               {loadingCurrencies ? <Spinner className="gba:h-4 gba:w-4" /> : null}
             </div>
             <Select
-              disabled={loadingCurrencies || currencyOptions.length === 0}
+              disabled={disableCurrency || loadingCurrencies || currencyOptions.length === 0}
               onValueChange={field.onChange}
               value={field.value || undefined}
             >
               <FormControl>
                 <SelectTrigger className="gba:w-full" data-testid="budget-setup-create-plan-currency-ref">
-                  <SelectValue placeholder={t('budget-setup-create-plan-currency-placeholder')} />
+                  <SelectValue />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
@@ -180,6 +188,11 @@ export const BudgetSetupCreatePlanCompanyBudgetFields = ({
                 ))}
               </SelectContent>
             </Select>
+            {currencyMessage ? (
+              <p className="gba:text-sm gba:text-destructive" data-testid="budget-setup-create-plan-currency-message">
+                {currencyMessage}
+              </p>
+            ) : null}
             <FormMessage />
           </FormItem>
         )}

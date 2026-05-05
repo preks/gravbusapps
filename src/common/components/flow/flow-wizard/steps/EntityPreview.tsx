@@ -1,171 +1,168 @@
-import React, { useEffect, useState } from 'react'
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  Badge,
-  Card,
-  CardContent,
-  EmptyState,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow
-} from '@newwork/nw-design-system'
-import { DatabaseIcon, WarningCircleIcon } from '@phosphor-icons/react'
-import { useDatasource, type DataSourceResult } from '@/common/data/flow/hooks/useDatasource'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import React, { useState } from 'react'
+import { Badge, Button, Input } from '@newwork/nw-design-system'
+import { CaretDownIcon, CaretUpIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
+import { useDatasource } from '@/common/data/flow/hooks/useDatasource'
 
 interface EntityPreviewProps {
+  dataSourceType: 'CUSTOM_ENTITY' | 'INTERNAL_ENTITY'
   entityType: string
-  entityId?: string
-  testId?: string
+  namespace?: string
+  accessToken?: string
+  valueField: string
+  labelField: string
+  isExpanded: boolean
+  onToggle: () => void
+  'data-testid'?: string
 }
 
-export const EntityPreview: React.FC<EntityPreviewProps> = ({ entityType, entityId, testId = 'entity-preview' }) => {
-  const { isLoading, error, list } = useDatasource()
-  const [result, setResult] = useState<DataSourceResult | null>(null)
+const getEntityRowKey = (entity: any, valueField: string, labelField: string): string =>
+  String(entity[valueField] ?? entity.id ?? entity.code ?? entity[labelField])
 
-  useEffect(() => {
-    if (!entityType || !entityId) {
-      setResult(null)
-      return
-    }
+export const EntityPreview: React.FC<EntityPreviewProps> = ({
+  dataSourceType,
+  entityType,
+  namespace,
+  accessToken,
+  valueField,
+  labelField,
+  isExpanded,
+  onToggle,
+  'data-testid': testId = 'entity-preview'
+}) => {
+  const { list: listEntities } = useDatasource(accessToken)
+  const [entities, setEntities] = useState<any[]>([])
+  const [search, setSearch] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
 
-    let isActive = true
-
-    const loadEntityPreview = async () => {
-      const nextResult = await list(entityType, {
-        filters: [
-          {
-            field: 'id',
-            operator: 'eq',
-            value: entityId
-          }
-        ],
-        limit: 1,
-        offset: 0
+  const handleSearch = async (searchTerm: string) => {
+    setIsLoading(true)
+    setHasSearched(true)
+    try {
+      const result = await listEntities(entityType, {
+        kind: dataSourceType,
+        namespace,
+        labelField,
+        search: searchTerm,
+        limit: 10
       })
-
-      if (isActive) {
-        setResult(nextResult)
-      }
+      setEntities(result?.entities || [])
+    } catch (error) {
+      console.error('Failed to load entities:', error)
+      setEntities([])
+    } finally {
+      setIsLoading(false)
     }
+  }
 
-    void loadEntityPreview()
-
-    return () => {
-      isActive = false
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      void handleSearch(search)
     }
-  }, [entityId, entityType, list])
-
-  if (!entityType || !entityId) {
-    return (
-      <div data-testid={testId}>
-        <EmptyState
-          title={getTranslationFromI18nKeyAndLabel('flow.creator.selectEntityToPreview', 'Select an entity to preview')}
-        />
-      </div>
-    )
   }
-
-  if (isLoading) {
-    return (
-      <div data-testid={testId}>
-        <Card>
-          <CardContent className="gba:space-y-3 gba:p-4">
-            <Skeleton className="gba:h-5 gba:w-40" />
-            <Skeleton className="gba:h-4 gba:w-full" />
-            <Skeleton className="gba:h-4 gba:w-full" />
-            <Skeleton className="gba:h-4 gba:w-3/4" />
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div data-testid={testId}>
-        <Alert variant="destructive">
-          <WarningCircleIcon className="gba:h-4 gba:w-4" weight="fill" />
-          <AlertTitle>{getTranslationFromI18nKeyAndLabel('flow.creator.previewError', 'Preview Error')}</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
-  if (!result || result.entities.length === 0) {
-    return (
-      <div data-testid={testId}>
-        <EmptyState title={getTranslationFromI18nKeyAndLabel('flow.creator.entityNotFound', 'Entity not found')} />
-      </div>
-    )
-  }
-
-  const entity = result.entities[0]
-  const fields = Object.entries(entity).filter(([key]) => !['id', '_metadata', '_links'].includes(key))
 
   return (
-    <div data-testid={testId}>
-      <Card>
-        <CardContent className="gba:space-y-4 gba:p-4">
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-            <DatabaseIcon className="gba:h-4 gba:w-4" />
-            <span className="gba:font-medium">{entityType}</span>
-            <Badge variant="info">{entityId}</Badge>
+    <div className="gba:space-y-2" data-testid={testId}>
+      <div className="gba:rounded gba:border gba:border-purple-200 gba:bg-purple-50 gba:p-2">
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-xs gba:text-gray-700">Entity connected: {entityType}</span>
+            <Badge variant="outline" className="gba:text-xs gba:bg-green-100 gba:text-green-800 gba:border-green-300">
+              Connected
+            </Badge>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onToggle}
+            className="gba:h-6 gba:px-2 gba:text-xs"
+            data-testid={`${testId}-toggle`}
+          >
+            {isExpanded ? (
+              <>
+                <CaretUpIcon className="gba:mr-1 gba:h-3 gba:w-3" />
+                Hide
+              </>
+            ) : (
+              <>
+                <CaretDownIcon className="gba:mr-1 gba:h-3 gba:w-3" />
+                Preview
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {isExpanded ? (
+        <div className="gba:space-y-2">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Input
+              placeholder={`Search ${entityType}...`}
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              onKeyDown={handleKeyDown}
+              className="gba:flex-1"
+              data-testid={`${testId}-search-input`}
+            />
+            <Button
+              size="sm"
+              onClick={() => void handleSearch(search)}
+              disabled={isLoading}
+              data-testid={`${testId}-search-button`}
+            >
+              <MagnifyingGlassIcon className="gba:mr-1 gba:h-4 gba:w-4" />
+              Search
+            </Button>
           </div>
 
-          <div className="gba:rounded-lg gba:border">
-            <Table>
-              <TableBody>
-                {fields.map(([fieldKey, fieldValue]) => (
-                  <TableRow key={fieldKey}>
-                    <TableCell className="gba:w-[35%] gba:align-top gba:font-medium">
-                      {formatFieldLabel(fieldKey)}
-                    </TableCell>
-                    <TableCell className="gba:align-top">{formatFieldValue(fieldValue)}</TableCell>
-                  </TableRow>
+          {isLoading ? (
+            <div className="gba:p-3 gba:text-center gba:text-xs gba:text-gray-600">Loading entities...</div>
+          ) : null}
+
+          {!isLoading && hasSearched && entities.length > 0 ? (
+            <div className="gba:space-y-1">
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-2">
+                <span className="gba:text-xs gba:font-medium gba:text-gray-700">Preview Results:</span>
+                <span className="gba:text-xs gba:text-gray-500">
+                  {entities.length} {entities.length === 1 ? 'entity' : 'entities'}
+                </span>
+              </div>
+              <div className="gba:max-h-48 gba:overflow-y-auto gba:rounded gba:border gba:bg-white">
+                {entities.map(entity => (
+                  <div
+                    key={getEntityRowKey(entity, valueField, labelField)}
+                    className="gba:flex gba:items-center gba:justify-between gba:border-b gba:p-2 gba:text-xs last:gba:border-b-0 hover:gba:bg-gray-50"
+                  >
+                    <div>
+                      <strong className="gba:text-gray-900">{String(entity[labelField] || '')}</strong>
+                      <span className="gba:ml-2 gba:text-gray-500">
+                        ({valueField}: {String(entity[valueField] || '')})
+                      </span>
+                    </div>
+                    {entity.code && entity.code !== entity[valueField] ? (
+                      <Badge variant="outline" className="gba:text-xs">
+                        {entity.code}
+                      </Badge>
+                    ) : null}
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+              </div>
+            </div>
+          ) : null}
+
+          {!isLoading && hasSearched && entities.length === 0 ? (
+            <div className="gba:p-3 gba:text-center gba:text-xs gba:italic gba:text-gray-500">
+              No entities found{search ? ` for "${search}"` : ''}
+            </div>
+          ) : null}
+
+          {!isLoading && !hasSearched ? (
+            <div className="gba:p-3 gba:text-center gba:text-xs gba:italic gba:text-gray-500">
+              Enter a search term and click Search to preview entities
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
-}
-
-function formatFieldValue(value: any): React.ReactNode {
-  if (value === null || value === undefined) {
-    return <span className="gba:text-muted-foreground">null</span>
-  }
-
-  if (typeof value === 'boolean') {
-    return <Badge variant={value ? 'success' : 'destructive'}>{String(value)}</Badge>
-  }
-
-  if (typeof value === 'object') {
-    return (
-      <pre className="gba:max-h-32 gba:overflow-auto gba:rounded gba:bg-muted gba:p-2 gba:text-xs">
-        {safeJsonStringify(value)}
-      </pre>
-    )
-  }
-
-  return String(value)
-}
-
-function formatFieldLabel(fieldKey: string): string {
-  return fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1)
-}
-
-function safeJsonStringify(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2)
-  } catch {
-    return '[Unserializable value]'
-  }
 }

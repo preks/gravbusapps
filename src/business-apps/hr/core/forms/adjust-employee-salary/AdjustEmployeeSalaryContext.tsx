@@ -25,7 +25,6 @@ import type {
   FormMode,
   CurrencyOption
 } from './types'
-import { formatDate } from '@/common/utils/windowUtils'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 
 interface CurrencyCatalogResponse {
@@ -51,6 +50,14 @@ interface AdjustEmployeeSalaryContextValue {
 }
 
 const AdjustEmployeeSalaryContext = createContext<AdjustEmployeeSalaryContextValue | undefined>(undefined)
+
+function formatGraphQLDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
 
 interface ProviderProps extends BusinessAppContextProps {
   children: React.ReactNode
@@ -82,7 +89,7 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
     setError(null)
     try {
       const empVariables = { idEmployee: employeeId }
-      const today = formatDate(new Date(), 'date.ISO') || new Date().toISOString().split('T')[0]
+      const today = formatGraphQLDate(new Date())
       const empVariablesWithDate = { idEmployee: employeeId, today }
 
       // Fetch all queries in parallel to prevent UI twitch

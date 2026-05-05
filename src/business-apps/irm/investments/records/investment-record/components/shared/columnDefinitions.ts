@@ -1,7 +1,5 @@
 // Investment Report Column Definitions Factory
 import React from 'react'
-import { AppAction } from '@/components/app-action/AppAction'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { findFormFieldsDefinition, formatFieldValue } from '../../utils/investmentHeaderConfig'
 import { getValueByPath } from '@/common/utils/objectUtils'
@@ -18,8 +16,11 @@ export interface ColumnDefinition {
   getTextValue?: (record: any) => string
 }
 
+type ReportColumnField = Pick<FormFieldDefinition, 'type' | 'label' | 'property' | 'report'> &
+  Partial<Pick<FormFieldDefinition, 'required' | 'displayOrder'>>
+
 /** Extracts the raw field value from an InvestmentReport record, mirroring the render path logic. */
-const getRecordFieldValue = (field: FormFieldDefinition, record: any): any => {
+const getRecordFieldValue = (field: ReportColumnField, record: any): any => {
   if (field.property.startsWith('investment.')) {
     const fieldName = field.property.replace('investment.', '')
     return fieldName === 'investmentRole' ? record.investmentRoleReport : getValueByPath(record, fieldName)
@@ -83,8 +84,8 @@ export const createInvestmentReportColumns = (
   investmentTypeCode: string,
   liquidFundTypeCode: string | undefined,
   catalogData: any,
-  accessToken?: string,
-  mainInvestment?: any
+  mainInvestment?: any,
+  resolvedFields?: ReportColumnField[]
 ): ColumnDefinition[] => {
   const columns: ColumnDefinition[] = []
 
@@ -120,19 +121,19 @@ export const createInvestmentReportColumns = (
     }
   })
 
-  const investmentGroup = mainInvestment?.investmentGroup?.code
-  const formFieldsDefinition = findFormFieldsDefinition({
-    investment: mainInvestment,
-    catalogData,
-    investmentTypeCode,
-    liquidFundTypeCode,
-    investmentGroupCode: investmentGroup
-  })
-
   // Get all fields and sort by display order (same as header)
-  const allFields: FormFieldDefinition[] = []
-  if (formFieldsDefinition?.formFields) {
-    formFieldsDefinition.formFields.forEach(group => {
+  const allFields: ReportColumnField[] = resolvedFields ? [...resolvedFields] : []
+  if (!resolvedFields) {
+    const investmentGroup = mainInvestment?.investmentGroup?.code
+    const formFieldsDefinition = findFormFieldsDefinition({
+      investment: mainInvestment,
+      catalogData,
+      investmentTypeCode,
+      liquidFundTypeCode,
+      investmentGroupCode: investmentGroup
+    })
+
+    formFieldsDefinition?.formFields?.forEach(group => {
       allFields.push(...group.fields)
     })
   }
@@ -243,29 +244,6 @@ export const createInvestmentReportColumns = (
       }
     })
   })
-
-  // Add actions column
-  if (accessToken) {
-    columns.push({
-      key: 'actions',
-      title: '', // Empty title as requested
-      render: (record: any) =>
-        React.createElement(AppAction, {
-          variant: 'table-row',
-          contexts: [
-            {
-              context: FlowContextName.investmentReportEntity,
-              contextData: { investmentReportId: record.id }
-            }
-          ],
-          prefixDataTestId: 'investment-reports-update',
-          accessToken: accessToken,
-          lazyLoad: true,
-          onClick: (e: React.MouseEvent) => e.stopPropagation(),
-          'data-testid': `investment-reports-update-button-${record.id}`
-        })
-    })
-  }
 
   return columns
 }

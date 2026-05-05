@@ -8,6 +8,7 @@ export interface AddressComponents {
   houseNumber?: string
   street?: string
   line1?: string
+  line2?: string
   postalCode?: string
   city?: string
   region?: string
@@ -108,19 +109,53 @@ const extractFeatures = (data: { results?: GeoapifyProperties[]; features?: Geoa
   return []
 }
 
-const featureToComponents = (props: GeoapifyProperties): AddressComponents => ({
-  houseNumber: props.housenumber,
-  street: props.street,
-  line1: props.address_line1 || [props.street, props.housenumber].filter(Boolean).join(' ') || undefined,
-  postalCode: props.postcode,
-  city: props.city,
-  region: props.state,
-  regionCode: props.state_code ? props.state_code.toUpperCase() : undefined,
-  county: props.county,
-  countyCode: props.county_code ? props.county_code.toUpperCase() : undefined,
-  countryCode: props.country_code ? props.country_code.toUpperCase() : undefined,
-  countryName: props.country
-})
+/**
+ * Build the structured street address lines from Geoapify properties.
+ *
+ * Geoapify's `address_line1` is the provider's preferred display first line. For
+ * named buildings/POIs (e.g. "Bloc C7") it may contain only the building name,
+ * while the actual street and house number are exposed separately. Keep the first
+ * form line as the canonical street+number, and move provider extra text to line 2.
+ */
+const buildAddressLines = (props: GeoapifyProperties): { line1?: string; line2?: string } => {
+  const street = props.street?.trim()
+  const houseNumber = props.housenumber?.trim()
+  const addressLine1 = props.address_line1?.trim()
+  const streetWithNumber = [street, houseNumber].filter(Boolean).join(' ')
+
+  if (streetWithNumber) {
+    if (addressLine1 && street) {
+      const alreadyHasStreet = addressLine1.toLowerCase().includes(street.toLowerCase())
+      return {
+        line1: streetWithNumber,
+        line2: alreadyHasStreet ? undefined : addressLine1
+      }
+    }
+
+    return { line1: streetWithNumber }
+  }
+
+  return { line1: addressLine1 }
+}
+
+const featureToComponents = (props: GeoapifyProperties): AddressComponents => {
+  const { line1, line2 } = buildAddressLines(props)
+
+  return {
+    houseNumber: props.housenumber,
+    street: props.street,
+    line1,
+    line2,
+    postalCode: props.postcode,
+    city: props.city,
+    region: props.state,
+    regionCode: props.state_code ? props.state_code.toUpperCase() : undefined,
+    county: props.county,
+    countyCode: props.county_code ? props.county_code.toUpperCase() : undefined,
+    countryCode: props.country_code ? props.country_code.toUpperCase() : undefined,
+    countryName: props.country
+  }
+}
 
 const featureToSuggestion = (feature: GeoapifyFeature, index: number): AddressSuggestion | null => {
   const props = feature.properties || {}
@@ -173,6 +208,55 @@ export const getAutocompleteSuggestions = async (
   return rawResults
     .map((feature, idx) => featureToSuggestion(feature, idx))
     .filter((s): s is AddressSuggestion => s !== null)
+}
+
+/**
+ * Forward-geocode a free-form address string to coordinates using Geoapify's
+ * /search endpoint. Used as a visual fallback for the change-address map: when
+ * an existing address record has no stored latitude/longitude (legacy data
+ * pre-dating the structured Geoapify pick), we approximate its location from
+ * the textual fields so the marker doesn't open at the default Frankfurt
+ * center. The result is intentionally NOT written back to the form — it's a
+ * display-only approximation; the user can confirm by dragging the pin or
+ * picking a suggestion, both of which already write into the form.
+ *
+ * Returns null when geocoding fails, the API key is missing, or the input is
+ * shorter than 3 characters.
+ */
+export const forwardGeocode = async (
+  query: string,
+  options?: { countryBias?: string; lang?: string; signal?: AbortSignal }
+): Promise<{ lat: number; lng: number } | null> => {
+  const apiKey = getApiKey()
+  if (!apiKey) return null
+  const trimmed = (query || '').trim()
+  if (trimmed.length < 3) return null
+
+  const params = new URLSearchParams({
+    text: trimmed,
+    format: 'json',
+    limit: '1',
+    apiKey
+  })
+  if (options?.countryBias) params.set('filter', `countrycode:${options.countryBias.toLowerCase()}`)
+  if (options?.lang) params.set('lang', options.lang)
+
+  try {
+    const response = await fetch(`${GEOAPIFY_BASE}/search?${params.toString()}`, { signal: options?.signal })
+    if (!response.ok) return null
+    const data = (await response.json()) as { results?: GeoapifyProperties[]; features?: GeoapifyFeature[] }
+    const first = extractFeatures(data)[0]
+    if (!first) return null
+    const props = first.properties || {}
+    const lat = typeof props.lat === 'number' ? props.lat : first.geometry?.coordinates?.[1]
+    const lng = typeof props.lon === 'number' ? props.lon : first.geometry?.coordinates?.[0]
+    if (typeof lat !== 'number' || typeof lng !== 'number') return null
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+    return { lat, lng }
+  } catch (err) {
+    if ((err as any)?.name === 'AbortError') return null
+    return null
+  }
 }
 
 /**
@@ -276,6 +360,7 @@ export interface MappedFormValues {
   countryId: string | null
   regionId: string | null
   line1: string
+  line2: string
   postalCode: string
   city: string
   lat: number
@@ -303,7 +388,10 @@ export const mapGeoapifyToFormValues = (
 
   let regionId: string | null = null
   if (countryId) {
-    const regions = (catalogs.regions || []).filter((r: any) => r?.additionalValue2 === countryId)
+    const regions = (catalogs.regions || []).filter((r: any) => {
+      const parentCountryId = r?.additionalValue2 || r?.parentEntryId
+      return parentCountryId ? parentCountryId === countryId : true
+    })
     // Try state/region first (covers DE, US); if nothing matches, fall back to county/county_code
     // because providers like Geoapify put Romanian județe under `county`, not `state`.
     regionId =
@@ -339,6 +427,7 @@ export const mapGeoapifyToFormValues = (
     countryId,
     regionId,
     line1: components.line1 || [components.street, components.houseNumber].filter(Boolean).join(' ') || '',
+    line2: components.line2 || '',
     postalCode: components.postalCode || '',
     city: components.city || '',
     lat: result.lat,

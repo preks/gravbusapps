@@ -11,14 +11,7 @@ import {
   IconAvatar,
   HeaderSlot
 } from '@newwork/nw-design-system'
-import {
-  UserIcon,
-  FileTextIcon,
-  LightbulbIcon,
-  StarIcon,
-  CalendarIcon,
-  CurrencyDollarIcon
-} from '@phosphor-icons/react'
+import { UserIcon, FolderIcon, LightbulbIcon, StarIcon, CalendarIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
@@ -1129,7 +1122,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       {
         value: 'documents',
         label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileTextIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
+        icon: <FolderIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <div className="gba:col-span-12">
             <DocumentView opportunityId={opportunityId} context={props} />

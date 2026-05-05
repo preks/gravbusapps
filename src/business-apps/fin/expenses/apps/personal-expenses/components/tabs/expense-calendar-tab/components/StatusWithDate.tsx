@@ -1,13 +1,14 @@
 import React from 'react'
 import type { Dayjs } from 'dayjs'
 import { Tooltip } from 'antd'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
 import { formatDate } from '@/common/utils/windowUtils'
 import {
-  getExpenseItemStatusDisplay,
-  getExpensePlanStatusDisplay,
-  getExpenseRequestStatusDisplay
+  getExpenseItemStatusDisplayT,
+  getExpensePlanStatusDisplayT,
+  getExpenseRequestStatusDisplayT
 } from '../../../../utils'
+import personalTranslations from '../../../../_i18n'
 
 export interface StatusWithDateProps {
   type: 'expense' | 'plan' | 'request'
@@ -15,13 +16,19 @@ export interface StatusWithDateProps {
   value: Dayjs
 }
 
+function getStatusDisplayForType(type: StatusWithDateProps['type'], status: string, t: (key: string) => string) {
+  if (type === 'plan') {
+    return getExpensePlanStatusDisplayT(t, status)
+  }
+  if (type === 'request') {
+    return getExpenseRequestStatusDisplayT(t, status)
+  }
+  return getExpenseItemStatusDisplayT(t, status)
+}
+
 const StatusWithDate: React.FC<StatusWithDateProps> = ({ type, status, value }) => {
-  const statusConfig =
-    type === 'plan'
-      ? getExpensePlanStatusDisplay(status)
-      : type === 'request'
-        ? getExpenseRequestStatusDisplay(status)
-        : getExpenseItemStatusDisplay(status)
+  const { t } = useTranslation(personalTranslations)
+  const statusConfig = getStatusDisplayForType(type, status, t)
 
   const label = statusConfig.label
   const dateText = (() => {

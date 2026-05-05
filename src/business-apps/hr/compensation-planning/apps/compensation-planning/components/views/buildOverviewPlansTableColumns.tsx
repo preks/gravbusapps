@@ -73,13 +73,6 @@ export function buildOverviewPlansTableColumns(
       )
     },
     {
-      id: 'fiscalYear',
-      accessorKey: 'fiscalYear',
-      header: columnHeader(t, 'overview-plans-col-fiscal-year'),
-      meta: LEFT_TEXT_COLUMN_META,
-      cell: ({ row }) => <span className={TABLE_BODY_NUM_CELL}>{row.original.fiscalYear}</span>
-    },
-    {
       id: 'startDate',
       accessorFn: row => sortTimestamp(row.startDate),
       header: columnHeader(t, 'overview-plans-col-start'),
@@ -114,6 +107,7 @@ export function buildOverviewPlansTableColumns(
                 variant="ghost"
                 size="sm"
                 className="gba:h-8 gba:w-8 gba:p-0"
+                onClick={event => event.stopPropagation()}
                 data-testid={`overview-plans-row-actions-${row.original.id}`}
                 aria-label={t('compensation-planning-row-menu-aria-label')}
               >
@@ -122,7 +116,8 @@ export function buildOverviewPlansTableColumns(
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() => {
+                onClick={event => {
+                  event.stopPropagation()
                   onEditPlan(row.original)
                 }}
                 data-testid={`overview-plans-row-edit-${row.original.id}`}
@@ -140,7 +135,6 @@ export function buildOverviewPlansTableColumns(
 export const OVERVIEW_PLANS_VISIBLE_COLUMN_IDS = [
   'name',
   'budgetPlanStatus',
-  'fiscalYear',
   'startDate',
   'endDate',
   'effectiveDate',

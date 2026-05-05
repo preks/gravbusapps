@@ -136,7 +136,7 @@ const ActionsTakenPanel: React.FC<ActionsTakenPanelProps> = ({ actions, expanded
       <div className="gba:pb-3 gba:space-y-1">
         {actions.map((action, index) => (
           <div
-            key={`${action.step}-${action.tool ?? 'none'}`}
+            key={`${index}-${action.step}-${action.tool ?? 'none'}-${action.outcome}`}
             className="gba:flex gba:items-start gba:gap-2 gba:text-sm"
           >
             <span className="gba:text-muted-foreground/50 gba:shrink-0">{index + 1}.</span>

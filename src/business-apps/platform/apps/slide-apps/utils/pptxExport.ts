@@ -27,6 +27,7 @@ import {
   SHAPE_TYPE_TO_OOXML_PRESET
 } from '../components/slideElements'
 import type { SlideTheme } from '../components/slideThemes'
+import { DEFAULT_BULLET_GLYPH, resolveRichTextListGeometry } from './richTextLists'
 import {
   applyCustGeomPostProcessing,
   createCustGeomCollector,
@@ -67,15 +68,31 @@ function pxToPt(px: number): number {
   return px * 0.75
 }
 
-function richParagraphsToPptxRuns(paragraphs: RichTextParagraph[], fallback: TextElement): any[] {
+function bulletCharacterCode(char: string | undefined): string {
+  const glyph = char || DEFAULT_BULLET_GLYPH
+  const codePoint = glyph.codePointAt(0)
+  return codePoint ? codePoint.toString(16).toUpperCase() : '25CF'
+}
+
+export function richParagraphsToPptxRuns(paragraphs: RichTextParagraph[], fallback: TextElement): any[] {
   const runs: any[] = []
   for (let pi = 0; pi < paragraphs.length; pi++) {
     const paragraph = paragraphs[pi]
+    const geometry = resolveRichTextListGeometry(paragraph)
     const bulletOption =
       paragraph.bulletType === 'bullet'
-        ? { code: paragraph.bulletChar || '25CF' }
+        ? {
+            type: 'bullet',
+            characterCode: bulletCharacterCode(paragraph.bulletChar),
+            indent: pxToPt(geometry.markerWidth)
+          }
         : paragraph.bulletType === 'number'
-          ? { type: 'number' }
+          ? {
+              type: 'number',
+              numberType: paragraph.numberingStyle ?? 'arabicPeriod',
+              numberStartAt: paragraph.numberStartAt,
+              indent: pxToPt(geometry.markerWidth)
+            }
           : undefined
     const paragraphAlign = paragraph.alignment === 'justify' ? 'justify' : paragraph.alignment || fallback.textAlign
 

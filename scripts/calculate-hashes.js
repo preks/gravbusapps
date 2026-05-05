@@ -371,26 +371,30 @@ async function main() {
       }
 
       execSync(`git add ${hashFileName}`, { cwd: projectRoot })
-      execSync(`git commit -m "chore(ci): update ${args.env} component hashes (manual calculation) [skip ci]"`, {
-        cwd: projectRoot
-      })
+      execSync(
+        `git commit --no-verify -m "chore NO-TICKET: update ${args.env} component hashes (manual calculation) [skip ci]"`,
+        {
+          cwd: projectRoot
+        }
+      )
 
       // Pull with rebase and push
+      const maxPushAttempts = Number(process.env.CI_GIT_PUSH_ATTEMPTS || '8')
       let pushSuccess = false
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      for (let attempt = 1; attempt <= maxPushAttempts; attempt++) {
         try {
           // Check if there's an incomplete rebase from a previous attempt
           if (isRebaseInProgress()) {
-            console.log(`Attempt ${attempt}/3: Resolving in-progress rebase...`)
+            console.log(`Attempt ${attempt}/${maxPushAttempts}: Resolving in-progress rebase...`)
             resolveHashConflict()
           } else {
-            console.log(`Attempt ${attempt}/3: Pulling and rebasing...`)
+            console.log(`Attempt ${attempt}/${maxPushAttempts}: Pulling and rebasing...`)
             // Capture output to detect conflicts
-            execSync(`git pull --rebase origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+            execSync(`git pull --rebase --autostash origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
           }
 
           // If we got here, rebase succeeded - try to push
-          execSync(`git push origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+          execSync(`git push --no-verify origin HEAD:${branch}`, { cwd: projectRoot, stdio: 'pipe' })
           pushSuccess = true
           console.log(`Changes committed and pushed to ${branch}`)
           break
@@ -410,7 +414,7 @@ async function main() {
             try {
               resolveHashConflict()
               // After resolving, try to push
-              execSync(`git push origin ${branch}`, { cwd: projectRoot, stdio: 'pipe' })
+              execSync(`git push --no-verify origin HEAD:${branch}`, { cwd: projectRoot, stdio: 'pipe' })
               pushSuccess = true
               console.log(`Changes committed and pushed to ${branch} (after conflict resolution)`)
               break
@@ -425,7 +429,7 @@ async function main() {
                 execSync(`git add ${hashFileName}`, { cwd: projectRoot, stdio: 'pipe' })
                 try {
                   execSync(
-                    `git commit -m "chore(ci): update ${args.env} component hashes (manual calculation) [skip ci]"`,
+                    `git commit --no-verify -m "chore NO-TICKET: update ${args.env} component hashes (manual calculation) [skip ci]"`,
                     {
                       cwd: projectRoot,
                       stdio: 'pipe'
@@ -438,8 +442,9 @@ async function main() {
                 throw pushError
               }
             }
-          } else if (attempt < 3) {
-            console.log(`Push failed (attempt ${attempt}/3), retrying...`)
+          } else if (attempt < maxPushAttempts) {
+            console.log(`Push failed (attempt ${attempt}/${maxPushAttempts}), retrying...`)
+            console.log(errorOutput)
             abortRebaseIfNeeded()
             await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
           } else {

@@ -18,9 +18,19 @@ import {
 import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { TranslatableField } from '@/components/translatable-field'
+import {
+  buildCatalogValueTranslations,
+  DEFAULT_CATALOG_LOCALE,
+  DEFAULT_CATALOG_TRANSLATIONS,
+  getCatalogValueTranslations,
+  getDefaultCatalogValue,
+  type CatalogTranslationMap
+} from '../../utils/catalogTranslations'
 
 interface PipelineFormData {
   value: string
+  valueTranslations: CatalogTranslationMap
   description: string
 }
 
@@ -51,6 +61,7 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
   const form = useForm<PipelineFormData>({
     defaultValues: {
       value: '',
+      valueTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
       description: ''
     }
   })
@@ -61,7 +72,8 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
 
       const payload = {
         code: data.value.toUpperCase().replaceAll(/[^A-Z0-9]/g, '_'),
-        value: data.value,
+        value: getDefaultCatalogValue(data.valueTranslations, data.value),
+        localeCode: DEFAULT_CATALOG_LOCALE,
         alternativeCode: null,
         displayOrder: null,
         additionalValue1: null,
@@ -69,7 +81,7 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
         additionalValue3: null,
         objectValue: null,
         parentEntryId: null,
-        translations: []
+        translations: buildCatalogValueTranslations(data.valueTranslations, data.value)
       }
 
       if (data.description) {
@@ -101,14 +113,16 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
         {
           id: editingPipeline.id,
           code: editingPipeline.code,
-          value: data.value,
+          value: getDefaultCatalogValue(data.valueTranslations, data.value),
+          localeCode: editingPipeline.localeCode || DEFAULT_CATALOG_LOCALE,
           alternativeCode: editingPipeline.alternativeCode,
           displayOrder: editingPipeline.displayOrder,
           additionalValue1: data.description || null,
           additionalValue2: editingPipeline.additionalValue2,
           additionalValue3: editingPipeline.additionalValue3,
           objectValue: editingPipeline.objectValue,
-          parentEntryId: editingPipeline.parentEntryId
+          parentEntryId: editingPipeline.parentEntryId,
+          translations: buildCatalogValueTranslations(data.valueTranslations, data.value)
         }
       )
 
@@ -130,11 +144,13 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
       if (editingPipeline) {
         form.reset({
           value: editingPipeline.value,
+          valueTranslations: getCatalogValueTranslations(editingPipeline),
           description: editingPipeline.additionalValue1 || ''
         })
       } else {
         form.reset({
           value: '',
+          valueTranslations: { ...DEFAULT_CATALOG_TRANSLATIONS },
           description: ''
         })
       }
@@ -171,8 +187,15 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
                 <FormItem>
                   <FormLabel>Pipeline Name</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
+                    <TranslatableField
+                      label=""
+                      value={field.value}
+                      onChange={field.onChange}
+                      translations={form.watch('valueTranslations') || DEFAULT_CATALOG_TRANSLATIONS}
+                      onTranslationsChange={valueTranslations =>
+                        form.setValue('valueTranslations', valueTranslations, { shouldDirty: true })
+                      }
+                      defaultLanguage={DEFAULT_CATALOG_LOCALE}
                       placeholder="Enter pipeline name..."
                       data-testid={`${prefixDataTestId}-name-input`}
                     />

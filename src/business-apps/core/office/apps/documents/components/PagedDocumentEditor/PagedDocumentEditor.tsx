@@ -625,6 +625,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             return false
           }
         },
+        unresolveComment: async (commentId: string) => {
+          try {
+            await officeClient.documents.unresolveComment(commentId)
+            return true
+          } catch {
+            return false
+          }
+        },
         deleteComment: async (commentId: string) => {
           try {
             await officeClient.documents.deleteComment(commentId)
@@ -1370,6 +1378,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       handleCreateComment,
       handleUpdateComment,
       handleResolveComment,
+      handleUnresolveComment,
       handleDeleteComment,
       handleUnhighlightComment,
       handleScrollToHighlight
@@ -1945,6 +1954,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onCreateComment={handleCreateComment}
             onUpdateComment={handleUpdateComment}
             onResolveComment={handleResolveComment}
+            onUnresolveComment={handleUnresolveComment}
             onDeleteComment={handleDeleteComment}
             onCloseCommentsSidebar={closeCommentsSidebar}
             onUnhighlightComment={handleUnhighlightComment}

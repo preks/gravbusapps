@@ -5,7 +5,11 @@ import type {
   CompensationBudgetPlanCompanyRow,
   CompensationBudgetPlanListItem
 } from '../../hooks/useBudgetSetupForCompany'
-import { buildBudgetSetupPlanTableRows, type BudgetSetupPlanTableRow } from './budgetSetupPlanTableRows'
+import {
+  buildBudgetSetupPlanTableRows,
+  type BudgetSetupCompanyOption,
+  type BudgetSetupPlanTableRow
+} from './budgetSetupPlanTableRows'
 import {
   BUDGET_SETUP_PLANS_VISIBLE_COLUMN_IDS,
   buildBudgetSetupPlansTableColumns
@@ -43,11 +47,13 @@ function matchesNumberRange(value: number, range: { min?: number; max?: number }
 export function useBudgetSetupPlansTableModel(
   t: TranslateFn,
   companyBudgetPlanRows: CompensationBudgetPlanCompanyRow[],
-  selectedCompanyId: string,
+  selectedCompanyId: string | null,
   currencyCode: string,
   plans: CompensationBudgetPlanListItem[],
   onEditRow: (row: BudgetSetupPlanTableRow) => void,
-  selectedCompensationPlanId: string | null
+  selectedCompensationPlanId: string | null,
+  companies: BudgetSetupCompanyOption[] = [],
+  showCompanyColumn = false
 ) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
@@ -66,9 +72,10 @@ export function useBudgetSetupPlansTableModel(
         selectedCompanyId,
         currencyCode,
         plans,
-        selectedCompensationPlanId
+        selectedCompensationPlanId,
+        companies
       ),
-    [companyBudgetPlanRows, selectedCompanyId, currencyCode, plans, selectedCompensationPlanId]
+    [companyBudgetPlanRows, selectedCompanyId, currencyCode, plans, selectedCompensationPlanId, companies]
   )
 
   const companyBudgetStatusOptions = useMemo(() => {
@@ -100,6 +107,7 @@ export function useBudgetSetupPlansTableModel(
           row.compensationBudgetPlanId.toLowerCase().includes(q) ||
           row.budgetPlanLabel.toLowerCase().includes(q) ||
           row.companyId.toLowerCase().includes(q) ||
+          row.companyLabel.toLowerCase().includes(q) ||
           statusLabel.includes(q) ||
           String(row.salaryBudgetAmount).includes(q) ||
           String(row.salaryBudgetPercent).includes(q) ||
@@ -183,8 +191,14 @@ export function useBudgetSetupPlansTableModel(
   }, [])
 
   const columns = useMemo(
-    () => buildBudgetSetupPlansTableColumns(t, v => formatBudgetPlanStatusLabelForDisplay(v, t), onEditRow),
-    [t, onEditRow]
+    () =>
+      buildBudgetSetupPlansTableColumns(
+        t,
+        v => formatBudgetPlanStatusLabelForDisplay(v, t),
+        onEditRow,
+        showCompanyColumn
+      ),
+    [t, onEditRow, showCompanyColumn]
   )
 
   const visibleTableColumns = useMemo(
@@ -197,6 +211,7 @@ export function useBudgetSetupPlansTableModel(
 
   const sortableColumns = useMemo(
     () => [
+      ...(showCompanyColumn ? [{ id: 'companyLabel', label: t('budget-setup-table-col-company') }] : []),
       { id: 'budgetPlanLabel', label: t('budget-setup-table-col-chosen-budget-plan') },
       { id: 'companyBudgetStatus', label: t('budget-setup-table-col-budget-plan-status') },
       { id: 'salaryBudgetAmount', label: t('budget-setup-table-col-salary-budget-amount') },
@@ -205,7 +220,7 @@ export function useBudgetSetupPlansTableModel(
       { id: 'salaryBaseline', label: t('budget-setup-table-col-salary-baseline') },
       { id: 'actions', label: '' }
     ],
-    [t]
+    [t, showCompanyColumn]
   )
 
   const availableColumnsForDisplay = useMemo(() => sortableColumns, [sortableColumns])

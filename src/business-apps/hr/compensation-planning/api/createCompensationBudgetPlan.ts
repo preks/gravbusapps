@@ -4,7 +4,6 @@ import type { BudgetDistributionMethodApi, BudgetPlanStatusApi } from '../types/
 export interface CompensationBudgetPlanCreatePayload {
   name: string
   description: string
-  fiscalYear: number
   startDate: string | null
   endDate: string | null
   effectiveDate: string | null
@@ -17,7 +16,6 @@ export interface CompensationBudgetPlanUpdatePayload {
   version: number
   name: string
   description: string
-  fiscalYear: number
   startDate: string | null
   endDate: string | null
   effectiveDate: string | null
@@ -32,7 +30,6 @@ export interface CreateCompensationBudgetPlanRestBody {
 export function buildCreateCompensationBudgetPlanRestBody(input: {
   name: string
   description: string | null
-  fiscalYear: number
   budgetPlanStatus: BudgetPlanStatusApi
   startDate: string | null
   endDate: string | null
@@ -42,7 +39,6 @@ export function buildCreateCompensationBudgetPlanRestBody(input: {
     compensationBudgetPlan: {
       name: input.name.trim(),
       description: input.description?.trim() ?? '',
-      fiscalYear: input.fiscalYear,
       startDate: input.startDate,
       endDate: input.endDate,
       effectiveDate: input.effectiveDate,
@@ -57,7 +53,6 @@ export function buildUpdateCompensationBudgetPlanRestBody(input: {
   version: number
   name: string
   description: string | null
-  fiscalYear: number
   startDate: string | null
   endDate: string | null
   effectiveDate: string | null
@@ -68,7 +63,6 @@ export function buildUpdateCompensationBudgetPlanRestBody(input: {
       version: input.version,
       name: input.name.trim(),
       description: input.description?.trim() ?? '',
-      fiscalYear: input.fiscalYear,
       startDate: input.startDate,
       endDate: input.endDate,
       effectiveDate: input.effectiveDate

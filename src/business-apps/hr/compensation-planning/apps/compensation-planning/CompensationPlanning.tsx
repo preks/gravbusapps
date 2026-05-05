@@ -66,6 +66,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     rows: existingPlans,
     loading: plansLoading,
     creating: creatingPlan,
+    refetch: refetchCompensationPlans,
     insertPlan,
     updatePlan
   } = useBudgetPlansTable(accessToken)
@@ -97,6 +98,14 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
     setEditingBudgetPlan(plan)
     setCreatePlanDialogOpen(true)
   }, [])
+
+  const openCompensationCycleBudgetSetup = useCallback(
+    (plan: CompensationBudgetPlanRow) => {
+      selectBudgetPlan(plan.id)
+      setActiveTab('budget-setup')
+    },
+    [selectBudgetPlan, setActiveTab]
+  )
 
   const companySelectorToolbar = (
     <BudgetPlanSelector
@@ -132,21 +141,11 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
   )
 
   const renderTabContent = () => {
-    if (!selectedCompanyId) return null
-
-    const companyName = companies.find(c => c.id === selectedCompanyId)?.name
-
     switch (activeTab) {
       case 'budget-setup':
-        return (
-          <BudgetSetupView
-            accessToken={accessToken}
-            companyId={selectedCompanyId}
-            companyName={companyName}
-            companyToolbar={companySelectorOverviewToolbar}
-          />
-        )
+        return <BudgetSetupView accessToken={accessToken} companies={companies} />
       case 'budget-distribution':
+        if (!selectedCompanyId) return null
         return (
           <BudgetDistributionView
             accessToken={accessToken}
@@ -155,6 +154,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
           />
         )
       case 'submissions':
+        if (!selectedCompanyId) return null
         return (
           <SubmissionsView
             accessToken={accessToken}
@@ -163,6 +163,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
             plansLoading={plansLoading}
             selectedCompensationPlanId={selectedBudgetPlanId}
             onCompensationPlanChange={selectBudgetPlan}
+            onCompensationPlansChanged={refetchCompensationPlans}
             companyToolbar={companySelectorOverviewToolbar}
           />
         )
@@ -174,6 +175,7 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
             plansLoading={plansLoading}
             onCreatePlan={openCreateCompensationCycleDialog}
             onEditCompensationPlan={openEditCompensationCycleDialog}
+            onOpenCompensationPlan={openCompensationCycleBudgetSetup}
           />
         )
     }
@@ -188,13 +190,16 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
       )
     }
 
+    const requiresCompany = activeTab === 'budget-distribution' || activeTab === 'submissions'
+    const shouldAskForCompany = requiresCompany && selectedCompanyId == null
+
     return (
       <div
         className="gba:min-h-[400px] gba:overflow-auto gba:bg-background"
         data-testid="compensation-planning-data-body"
       >
         <div className="gba:space-y-4">
-          {selectedCompanyId == null ? companySelectorToolbar : null}
+          {shouldAskForCompany ? companySelectorToolbar : null}
 
           {!companiesLoading && companies.length === 0 && companiesLoadError ? (
             <p className="gba:text-sm gba:text-destructive" data-testid="compensation-planning-companies-error">
@@ -202,10 +207,10 @@ export const CompensationPlanning: React.FC<BusinessAppContextProps> = context =
             </p>
           ) : null}
 
-          {selectedCompanyId ? (
-            <div className="gba:space-y-4">{renderTabContent()}</div>
-          ) : (
+          {shouldAskForCompany ? (
             <p className="gba:text-sm gba:text-muted-foreground">{t('empty-select-company-hint')}</p>
+          ) : (
+            <div className="gba:space-y-4">{renderTabContent()}</div>
           )}
         </div>
       </div>

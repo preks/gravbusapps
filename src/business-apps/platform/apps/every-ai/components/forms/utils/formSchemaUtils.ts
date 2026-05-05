@@ -74,9 +74,11 @@ export const evaluateDisplayCondition = (condition: any, formData: Record<string
 /**
  * Check if field is a searchable UUID field (for entity selection)
  */
+const SEARCHABLE_DATA_SOURCE_TYPES = new Set(['CUSTOM_ENTITY', 'INTERNAL_ENTITY'])
+
 export const isSearchableUuidField = (fieldName: string, schema: any): boolean => {
   // Flow engine / custom flows: entity picker from schema extension
-  if (schema?.['x-dataSource']?.type === 'ENTITY' && schema?.['x-dataSource']?.entity) {
+  if (SEARCHABLE_DATA_SOURCE_TYPES.has(schema?.['x-dataSource']?.type) && schema?.['x-dataSource']?.entity) {
     return true
   }
 

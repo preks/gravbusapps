@@ -13,10 +13,11 @@ import {
 } from '@newwork/nw-design-system'
 import { PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
-import { CatalogSelect } from '@/components/catalog-select'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CommunicationChannelCode } from '@/common/data/relations/types/relationEnums'
 import { COMMUNICATION_CHANNEL } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
+import CommunicationChannelSelect from './CommunicationChannelSelect'
 
 // Default channel codes for different entity types
 export const DEFAULT_ACCOUNT_CHANNELS = [CommunicationChannelCode.EMAIL, CommunicationChannelCode.PHONE]
@@ -28,6 +29,7 @@ export const DEFAULT_CONTACT_CHANNELS = [
 ]
 
 interface CommunicationSegmentProps {
+  businessAppContext?: BusinessAppContextProps
   customFields?: React.ReactNode
   // Default channel codes to pre-populate when no data exists
   defaultChannelCodes?: string[]
@@ -36,8 +38,9 @@ interface CommunicationSegmentProps {
 // Separate component for each communication channel item
 const CommunicationChannelItem: React.FC<{
   channelIndex: number
+  businessAppContext?: BusinessAppContextProps
   onRemove: () => void
-}> = ({ channelIndex, onRemove }) => {
+}> = ({ channelIndex, businessAppContext, onRemove }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
 
@@ -81,20 +84,18 @@ const CommunicationChannelItem: React.FC<{
           <FormItem>
             <FormControl>
               <InputGroup>
-                {/* CatalogSelect for Communication Channel Type - Left side */}
-                <InputGroupAddon className="gba:min-w-0 gba:flex-shrink-0">
-                  <CatalogSelect
-                    catalogIdentifier={COMMUNICATION_CHANNEL}
-                    variant="select"
+                {/* Communication channel selector - Left side */}
+                <InputGroupAddon className="gba:flex-none gba:self-stretch gba:border-r gba:border-input gba:bg-muted/50">
+                  <CommunicationChannelSelect
+                    accessToken={businessAppContext?.accessToken}
                     value={channelRefField.value || ''}
                     onValueChange={v => {
                       channelRefField.onChange(v || '')
                       form.trigger(`communicationChannels.${channelIndex}.communicationChannelRef`)
                     }}
                     data-testid={`communication-channel-type-${channelIndex}`}
-                    className="gba:w-auto gba:ml-[-5.3px]"
-                    aria-invalid={channelRefFieldState.invalid}
-                    aria-describedby={
+                    invalid={channelRefFieldState.invalid}
+                    describedBy={
                       channelRefFieldState.error ? `communication-channel-ref-error-${channelIndex}` : undefined
                     }
                   />
@@ -155,6 +156,7 @@ const CommunicationChannelItem: React.FC<{
 }
 
 const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({
+  businessAppContext,
   customFields,
   defaultChannelCodes = DEFAULT_CONTACT_CHANNELS
 }) => {
@@ -199,6 +201,7 @@ const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({
         <CommunicationChannelItem
           key={field.id}
           channelIndex={channelIndex}
+          businessAppContext={businessAppContext}
           onRemove={() => handleRemoveChannel(channelIndex)}
         />
       ))}

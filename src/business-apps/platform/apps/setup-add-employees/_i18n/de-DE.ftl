@@ -62,6 +62,7 @@ reset-pwd-subtitle = Neues Anmeldepasswort für diese Person setzen. Ein Passwor
 reset-pwd-loading = Wird geladen…
 reset-pwd-hint-email-prefix = Das Passwort gilt für das Konto mit:
 reset-pwd-hint-no-email = Keine E-Mail hinterlegt; Passwort-Reset findet ggf. kein Benutzerkonto, bis eine E-Mail existiert.
+reset-pwd-self-service-info = Sie ändern Ihr eigenes Anmeldepasswort. Wir speichern es als Ihr gewöhnliches Passwort — beim nächsten Anmelden müssen Sie kein neues vergeben.
 reset-pwd-action-save = Passwort setzen
 reset-pwd-action-saving = Passwort wird gesetzt…
 reset-pwd-msg-saved = Passwort wurde aktualisiert.

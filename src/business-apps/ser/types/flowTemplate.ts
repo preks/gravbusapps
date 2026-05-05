@@ -36,19 +36,18 @@ export interface ValidationRule {
 }
 
 // Data source configuration for dynamic SELECT/MULTISELECT fields
-export type DataSourceType = 'CATALOG' | 'ENTITY' | 'API' | 'CUSTOM_DATA' | 'STATIC'
+export type DataSourceType = 'CATALOG' | 'CUSTOM_ENTITY' | 'API' | 'STATIC' | 'INTERNAL_ENTITY'
 
 export interface DataSourceConfig {
   type: DataSourceType
-  // For ENTITY type - fetches from /api/datasource/:entity
+  // For CUSTOM_ENTITY and INTERNAL_ENTITY types - fetches from /api/datasource/:entity
   entity?: string // Entity type: 'employee', 'costCenter', 'lead', 'account', 'contact', etc.
   // For CATALOG type
   catalog?: string // Catalog identifier
   catalogIdentifier?: string // Alternative catalog identifier (new format)
   version?: string // Catalog version (default: 'v1')
-  // For CUSTOM_DATA type (namespace-scoped)
-  namespace?: string // Registered namespace
-  key?: string // Data source key within namespace
+  // For CUSTOM_ENTITY type
+  namespace?: string // Namespace-scoped custom entity
   // Field mapping
   valueField: string // Field to use as option value (e.g., 'id', 'code')
   labelField: string // Field to use as option label (e.g., 'displayName', 'value')

@@ -266,7 +266,7 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     [props.currencyStats, selectedCurrencyCode, handleCurrencyChange]
   )
 
-  const allColumns = useMemo(() => createExpensePlanColumns(), [])
+  const allColumns = useMemo(() => createExpensePlanColumns(tPersonal), [tPersonal])
 
   const { columns: visibleTableColumns } = useTableSetup<ExpensePlan>(
     tableContextProps,

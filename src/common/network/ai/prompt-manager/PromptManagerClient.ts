@@ -30,6 +30,73 @@ export type PromptType = 'completion' | 'chat'
 export type AgentType = 'flow' | 'everyai' | 'general'
 export type ResponseStyle = 'formal' | 'conversational' | 'technical'
 export type CitationMode = 'always' | 'when_needed' | 'never'
+export type EnterpriseAgentKind = 'enterprise' | 'task_expert' | 'utility'
+export type ProviderKind = 'flowbot' | 'functions' | 'mcp' | 'prompt_manager'
+export type RunStatus =
+  | 'pending'
+  | 'running'
+  | 'waiting_for_user'
+  | 'waiting_for_approver'
+  | 'waiting_for_external_system'
+  | 'scheduled'
+  | 'sleeping'
+  | 'retrying'
+  | 'completed'
+  | 'failed_recoverable'
+  | 'failed_permanent'
+  | 'cancelled'
+
+export interface ApprovalPolicy {
+  require_approval: boolean
+  approver_roles?: string[]
+  approver_user_ids?: string[]
+  reason?: string
+  expires_after_seconds?: number
+}
+
+export interface SkillBinding {
+  skill_id: string
+  tool_refs?: string[]
+  approval_policy?: ApprovalPolicy
+  priority?: number
+  enabled?: boolean
+}
+
+export interface ProviderToolCatalogItem {
+  provider: ProviderKind
+  tool_ref: string
+  name: string
+  description?: string
+  skills?: string[]
+  module?: string
+  input_schema?: Record<string, unknown>
+  output_schema?: Record<string, unknown>
+  capabilities?: {
+    risk_level?: 'read' | 'write' | 'destructive'
+    requires_auth?: boolean
+    supports_hitl?: boolean
+    supports_artifacts?: boolean
+    artifact_kinds?: string[]
+    tags?: string[]
+  }
+  annotations?: Record<string, unknown>
+}
+
+export interface DeepAgentDebugTrace {
+  session_id: string
+  status: string
+  input: string
+  output_preview?: string
+  summary: {
+    trace_events: number
+    debug_steps: number
+    decisions: number
+    tool_events: number
+    has_explicit_tool_rationales: boolean
+  }
+  known_observability_gap?: string
+  steps: Array<Record<string, unknown>>
+}
 
 export interface PromptContent {
   template: string | null
@@ -101,6 +168,16 @@ export interface PromptODM {
   tags?: string[]
   // Agent Mesh fields
   agent_card?: PromptAgentCard | null
+  // Enterprise AI fields
+  agent_kind?: EnterpriseAgentKind
+  skill_ids?: string[]
+  skill_bindings?: SkillBinding[]
+  default_execution_pack_ids?: string[]
+  allowed_tool_provider_refs?: string[]
+  handoff_policy?: Record<string, unknown>
+  visibility?: string
+  runtime_mode?: string
+  approval_policy?: ApprovalPolicy
 }
 
 export interface PromptPage {
@@ -153,6 +230,15 @@ export interface PromptDetails {
   knowledgeSources?: KnowledgeSource[]
   isPublic?: boolean
   tags?: string[]
+  agentKind?: EnterpriseAgentKind
+  skillIds?: string[]
+  skillBindings?: SkillBinding[]
+  defaultExecutionPackIds?: string[]
+  allowedToolProviderRefs?: string[]
+  handoffPolicy?: Record<string, unknown>
+  visibility?: string
+  runtimeMode?: string
+  approvalPolicy?: ApprovalPolicy
 }
 
 export interface PromptPutDetails {
@@ -176,6 +262,15 @@ export interface PromptPutDetails {
   knowledgeSources?: KnowledgeSource[]
   isPublic?: boolean
   tags?: string[]
+  agentKind?: EnterpriseAgentKind
+  skillIds?: string[]
+  skillBindings?: SkillBinding[]
+  defaultExecutionPackIds?: string[]
+  allowedToolProviderRefs?: string[]
+  handoffPolicy?: Record<string, unknown>
+  visibility?: string
+  runtimeMode?: string
+  approvalPolicy?: ApprovalPolicy
 }
 
 export interface PromptPatchDetails {
@@ -199,6 +294,15 @@ export interface PromptPatchDetails {
   knowledgeSources?: KnowledgeSource[] | null
   isPublic?: boolean | null
   tags?: string[] | null
+  agentKind?: EnterpriseAgentKind | null
+  skillIds?: string[] | null
+  skillBindings?: SkillBinding[] | null
+  defaultExecutionPackIds?: string[] | null
+  allowedToolProviderRefs?: string[] | null
+  handoffPolicy?: Record<string, unknown> | null
+  visibility?: string | null
+  runtimeMode?: string | null
+  approvalPolicy?: ApprovalPolicy | null
 }
 
 export interface PromptExecuteResponse<T = unknown> {
@@ -675,6 +779,50 @@ export class PromptManagerClient extends RestClient {
     await this.delete<void>(`/workspaces/${encodeURIComponent(id)}`)
   }
 
+  // --- Enterprise AI contracts / provider tools ---
+  async getEnterpriseAiContracts(): Promise<{
+    providers: ProviderKind[]
+    agentKinds: EnterpriseAgentKind[]
+    runStatuses: RunStatus[]
+    eventTypes: string[]
+    hitlRequestTypes: string[]
+    capabilityErrorCodes: string[]
+  }> {
+    return this.get('/enterprise-ai/contracts')
+  }
+
+  async getFlowBotProviderTools(): Promise<ProviderToolCatalogItem[]> {
+    return this.get<ProviderToolCatalogItem[]>('/enterprise-ai/tools/flowbot')
+  }
+
+  async getFunctionManagerTools(): Promise<ProviderToolCatalogItem[]> {
+    return this.get<ProviderToolCatalogItem[]>('/enterprise-ai/tools/functions')
+  }
+
+  async invokeEnterpriseTool(toolRef: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.post<Record<string, unknown>>('/enterprise-ai/tools/invoke', {
+      tool_ref: toolRef,
+      payload
+    })
+  }
+
+  async getDeepAgentDebugTrace(sessionId: string): Promise<DeepAgentDebugTrace> {
+    return this.get<DeepAgentDebugTrace>(`/deep-agent/sessions/${encodeURIComponent(sessionId)}/debug-trace`)
+  }
+
+  async createScheduledAgentSession(body: {
+    title: string
+    task: string
+    scheduledAt: string
+    timezone?: string
+    workspaceId?: string
+    config?: Record<string, unknown>
+    activeExternalConnectionIds?: string[]
+    recurrence?: { frequency?: 'daily' | 'weekly' | 'monthly'; interval?: number; interval_days?: number } | null
+  }): Promise<ScheduledDispatch> {
+    return this.post<ScheduledDispatch>('/scheduled-dispatches/agent-sessions', body)
+  }
+
   // --- Prompts (Agents) ---
   async getPrompts(params?: {
     workspaceId?: string | null
@@ -1030,12 +1178,44 @@ export class PromptManagerClient extends RestClient {
     workspaceId?: string
     agentType?: string
     division?: string
+    search?: string
+    limit?: number
+    offset?: number
   }): Promise<AgentRegistryEntry[]> {
-    return this.get<AgentRegistryEntry[]>('/agents/registry', { params: params as Record<string, string> })
+    const raw = await this.get<{ data: AgentRegistryEntry[]; paging: Paging } | AgentRegistryEntry[]>(
+      '/agents/registry',
+      { params: params as Record<string, string> }
+    )
+    return Array.isArray(raw) ? raw : raw.data
   }
 
   async getAgentDetail(agentId: string): Promise<AgentRegistryEntry> {
     return this.get<AgentRegistryEntry>(`/agents/registry/${encodeURIComponent(agentId)}`)
+  }
+
+  async getBuiltinSubagents(): Promise<
+    Array<{ id: string; name: string; description: string; categories: string[]; source: string }>
+  > {
+    return this.get('/agents/builtins')
+  }
+
+  async getAgentSkills(agentId: string): Promise<{
+    agent_id: string
+    source: string
+    skills: Array<{ skill_id: string; name: string; description: string; status: string }>
+  }> {
+    return this.get(`/agents/registry/${encodeURIComponent(agentId)}/skills`)
+  }
+
+  async setAgentSkills(
+    agentId: string,
+    skillIds: string[]
+  ): Promise<{ agent_id: string; skill_ids: string[]; count: number }> {
+    return this.put(`/agents/registry/${encodeURIComponent(agentId)}/skills`, { skill_ids: skillIds })
+  }
+
+  async archiveAgent(agentId: string): Promise<{ agent_id: string; source: string; status: string }> {
+    return this.post(`/agents/registry/${encodeURIComponent(agentId)}/archive`, {})
   }
 
   async updateAgentCard(
@@ -1297,6 +1477,24 @@ export class PromptManagerClient extends RestClient {
   async cancelScheduledDispatch(dispatchId: string): Promise<void> {
     await this.delete<void>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}`)
   }
+
+  async updateScheduledDispatch(
+    dispatchId: string,
+    body: {
+      scheduledAt?: string
+      timezone?: string
+      recurrence?: Record<string, unknown> | null
+      enabled?: boolean
+      title?: string
+      task?: string
+    }
+  ): Promise<ScheduledDispatch> {
+    return this.patch<ScheduledDispatch>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}`, body)
+  }
+
+  async retryScheduledDispatch(dispatchId: string): Promise<ScheduledDispatch> {
+    return this.post<ScheduledDispatch>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}/retry`, {})
+  }
 }
 
 export const promptManagerClient = new PromptManagerClient()
@@ -1319,6 +1517,12 @@ export interface ScheduledDispatch {
   workflowIds: string[]
   retryCount: number
   error?: string | null
+  kind?: 'task_notification' | 'agent_session'
+  agentTask?: string | null
+  workspaceId?: string | null
+  createdSessionId?: string | null
+  recurrence?: Record<string, unknown> | null
+  runHistory?: { session_id?: string; triggered_at?: string; scheduled_at?: string; status?: string }[]
 }
 
 export interface ScheduledDispatchPage {

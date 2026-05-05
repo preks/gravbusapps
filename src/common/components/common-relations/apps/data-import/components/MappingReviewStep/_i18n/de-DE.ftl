@@ -21,6 +21,9 @@ unmapped-fields-title = Nicht zugeordnete Felder ({ $count })
 source-field-label = Quellfeld
 target-field-label = Zielfeld
 type-label = Typ
+select-field-placeholder = Feld auswählen
+search-field-placeholder = Felder suchen...
+no-fields-found = Keine Felder gefunden
 
 # Type Values
 type-catalog = Katalog

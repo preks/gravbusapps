@@ -12,7 +12,6 @@ import { useExpenseItemsTableState } from './useExpenseItemsTableState'
 import { useExpenseItemsData } from './useExpenseItemsData'
 import { useExpenseItemsBulkActions } from './useExpenseItemsBulkActions'
 import { useTableSetup } from '../../../../../../common/hooks/useTableSetup'
-import { useEmptyMessage } from '../../../../../../common/hooks/useSharedTabState'
 import { ExpenseItemsPrimaryAction, ExpenseItemsSecondaryActions } from './ExpenseItemsTableActions'
 import { ExpenseItemsTableDisplay } from './ExpenseItemsTableDisplay'
 import { ExpenseItemsTableErrorState } from './ExpenseItemsTableErrorState'
@@ -157,11 +156,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     userInfo: contextProps.userInfo
   })
 
-  const emptyMessage = useEmptyMessage(
-    hasActiveFilters,
-    'lowcoder:personal_expenses.no_expense_items_found',
-    'No expense items found. Create your first expense item to get started.',
-    tPersonal('table-empty-filtered')
+  const emptyMessage = useMemo(
+    () => (hasActiveFilters ? tPersonal('table-empty-filtered') : tPersonal('expense-items-no-rows')),
+    [hasActiveFilters, tPersonal]
   )
 
   const columns = useMemo<ColumnDef<ExpenseItem>[]>(
@@ -171,12 +168,19 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         selectedRowKeys,
         onSelectAll: handleSelectAll,
         onRowSelectionChange: handleRowSelectionChange,
-        expenseDateLabel
+        expenseDateLabel,
+        t: tPersonal
       }),
-    [selectedRowKeys, normalizedItems, handleSelectAll, handleRowSelectionChange, expenseDateLabel]
+    [selectedRowKeys, normalizedItems, handleSelectAll, handleRowSelectionChange, expenseDateLabel, tPersonal]
   )
-  const sortableColumns = useMemo(() => createExpenseItemSortableColumns(expenseDateLabel), [expenseDateLabel])
-  const availableColumns = useMemo(() => createExpenseItemAvailableColumns(expenseDateLabel), [expenseDateLabel])
+  const sortableColumns = useMemo(
+    () => createExpenseItemSortableColumns(expenseDateLabel, tPersonal),
+    [expenseDateLabel, tPersonal]
+  )
+  const availableColumns = useMemo(
+    () => createExpenseItemAvailableColumns(expenseDateLabel, tPersonal),
+    [expenseDateLabel, tPersonal]
+  )
   const {
     columns: visibleTableColumns,
     pagination,

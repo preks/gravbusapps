@@ -121,7 +121,6 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const { fetchCatalogs, fetchCatalogEntries } = useCatalogDiscovery(context)
 
   const { schemas: entitySchemas, isLoading: schemasLoading } = useEntitySchemas({
-    includeFields: true,
     enableCache: false
   })
 
@@ -135,7 +134,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
     })
   }, [entitySchemas, schemasLoading])
 
-  const { list: listEntities } = useDatasource()
+  const { list: listEntities } = useDatasource(context.accessToken)
   const [treeData, setTreeData] = useState<TreeNodeType[]>([])
 
   const { validateExpression } = useExpressionValidator(template, stepIndex, entitySchemas ?? undefined)
@@ -566,7 +565,10 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
       return
     }
 
-    if (node.metadata?.dataSourceType === 'ENTITY' && node.metadata?.dataSourceEntity) {
+    if (
+      (node.metadata?.dataSourceType === 'CUSTOM_ENTITY' || node.metadata?.dataSourceType === 'INTERNAL_ENTITY') &&
+      node.metadata?.dataSourceEntity
+    ) {
       handleEntityDataSourceFieldSelect(node)
       return
     }

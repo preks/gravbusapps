@@ -1,21 +1,25 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { Button, DataDisplay, DataTable, TooltipProvider, useTranslation } from '@newwork/nw-design-system'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
 import translations from '../../_i18n'
 import { useOverviewPlansTableModel } from './useOverviewPlansTableModel'
+
+const EXECUTED_STATUS = 'BUDGET_PLAN_EXECUTED'
 
 export interface OverviewPlansTableProps {
   plans: CompensationBudgetPlanRow[]
   plansLoading: boolean
   onCreatePlan: () => void
   onEditPlan: (plan: CompensationBudgetPlanRow) => void
+  onOpenPlan: (plan: CompensationBudgetPlanRow) => void
 }
 
 export function OverviewPlansTable({
   plans,
   plansLoading,
   onCreatePlan,
-  onEditPlan
+  onEditPlan,
+  onOpenPlan
 }: Readonly<OverviewPlansTableProps>) {
   const { t } = useTranslation(translations)
   const {
@@ -36,6 +40,16 @@ export function OverviewPlansTable({
     availableColumnsForDisplay,
     handlePaginationChange
   } = useOverviewPlansTableModel(t, plans, onEditPlan)
+
+  const handleRowClick = useCallback(
+    (plan: CompensationBudgetPlanRow) => {
+      if (plan.budgetPlanStatus === EXECUTED_STATUS) {
+        return
+      }
+      onOpenPlan(plan)
+    },
+    [onOpenPlan]
+  )
 
   return (
     <div className="gba:space-y-4" data-testid="overview-plans-table-section">
@@ -97,6 +111,7 @@ export function OverviewPlansTable({
             showPageNumbers
             maxVisiblePages={7}
             emptyMessage={emptyMessage}
+            onRowClick={handleRowClick}
             data-testid="overview-plans-table"
           />
         </TooltipProvider>

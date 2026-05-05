@@ -101,6 +101,26 @@ trashed-readonly-go-home = Zu Whiteboards
 trashed-readonly-restore = Wiederherstellen
 trashed-readonly-restoring = Wird wiederhergestellt...
 
+header-selected-count = { $count } ausgewählt
+trash-bulk-restore = Wiederherstellen
+trash-bulk-restoring = Wird wiederhergestellt...
+trash-bulk-delete-permanently = Endgültig löschen
+trash-bulk-restored = { $count } { $count ->
+    [one] Whiteboard
+   *[other] Whiteboards
+  } wiederhergestellt
+trash-bulk-deleted = { $count } { $count ->
+    [one] Whiteboard
+   *[other] Whiteboards
+  } endgültig gelöscht
+trash-delete-dialog-title-single = Endgültig löschen?
+trash-delete-dialog-title-multiple = { $count } Elemente endgültig löschen?
+trash-delete-dialog-description-single = „{ $name }" wird endgültig gelöscht und kann nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-description-multiple = { $count } Elemente werden endgültig gelöscht und können nicht wiederhergestellt werden. Diese Aktion kann nicht rückgängig gemacht werden.
+trash-delete-dialog-cancel = Abbrechen
+trash-delete-dialog-confirm = Endgültig löschen
+trash-delete-dialog-deleting = Wird gelöscht...
+
 toast-moved-to-trash = Whiteboard in den Papierkorb verschoben
 toast-move-to-trash-failed = Whiteboard konnte nicht in den Papierkorb verschoben werden
 toast-restored = Whiteboard wiederhergestellt
@@ -109,6 +129,18 @@ toast-rename-failed = Whiteboard konnte nicht umbenannt werden
 toast-duplicated = Whiteboard dupliziert
 toast-duplicate-failed = Whiteboard konnte nicht dupliziert werden
 whiteboard-open-failed = Dieses Whiteboard konnte nicht geöffnet werden
+whiteboard-comments-toggle = Kommentare ein-/ausblenden
+whiteboard-comments-add = Kommentar hinzufügen
+whiteboard-view-readonly-banner = Sie haben nur Lesezugriff auf dieses Whiteboard.
+whiteboard-comment-readonly-banner = Sie können dieses Whiteboard kommentieren, aber Zeichnen und KI sind deaktiviert.
+whiteboard-comment-placement = Klicken Sie auf das Whiteboard, um Ihren Kommentar zu platzieren
+whiteboard-comment-select-location = Wählen Sie zuerst eine Position auf dem Whiteboard aus, bevor Sie einen Kommentar erstellen.
+whiteboard-comment-anchor-label = Position des Whiteboard-Kommentars
+whiteboard-comment-panel-disabled = Verwenden Sie „Kommentar hinzufügen“ und wählen Sie eine Position auf dem Whiteboard, um einen neuen Thread zu starten.
+whiteboard-comment-panel-placeholder = Fügen Sie einen Kommentar zur ausgewählten Whiteboard-Position hinzu...
+whiteboard-comment-popover-placeholder = Fügen Sie einen Kommentar für diese Whiteboard-Position hinzu...
+whiteboard-comment-create-failed = Der Whiteboard-Kommentar konnte nicht erstellt werden.
+whiteboard-comment-reply-failed = Die Antwort konnte nicht gesendet werden.
 
 time-just-now = Gerade eben
 time-minutes-ago = { $count ->
@@ -138,3 +170,13 @@ whiteboard-ai-placeholder = Beschreiben Sie, was gezeichnet werden soll...
 whiteboard-ai-attach-image = Bild anhängen
 whiteboard-ai-remove-image = Bild entfernen
 whiteboard-ai-image-too-large = Das Bild ist zu groß. Die maximale Größe beträgt 4 MB.
+trash-action-restore = Wiederherstellen
+trash-action-restoring = Wird wiederhergestellt...
+trash-action-delete = Endgültig löschen
+trash-action-deleting = Wird gelöscht...
+trash-toast-restored = Whiteboard wiederhergestellt
+trash-toast-restore-failed = Whiteboard konnte nicht wiederhergestellt werden
+trash-toast-deleted = Whiteboard endgültig gelöscht
+trash-toast-delete-failed = Whiteboard konnte nicht endgültig gelöscht werden
+
+whiteboard-background-color = Hintergrundfarbe

@@ -7,10 +7,7 @@
 //      which automatically falls back to `DEFAULT_REPORT_GROUP_CONFIGURATION`
 //      for any group not explicitly configured (so new investment groups added
 //      to the catalog work here without code changes).
-//   2. Resolving the locked sub-section for this record via the configuration's
-//      `getRecordSection(investment, typeSpecificData)` accessor — the only
-//      group-specific knowledge needed lives in one place
-//      (`reportGroupConfigurations.tsx`).
+//   2. Resolving the locked sub-section for this record from catalog metadata.
 //   3. Rendering `InvestmentReportPanel` with `extraWhereFilters` set to
 //      `{ investmentIds: [investmentId] }`, which `buildWhere` translates to a
 //      `where: { investmentId: { _in: [...] } }` GraphQL clause via the
@@ -29,10 +26,10 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   InvestmentReportPanel,
   ReportFiltersHeader,
-  getReportGroupConfiguration,
   type SubSection,
   useReportFilters
 } from '@/business-apps/irm/investments/apps/investment-management/views/report-view'
+import { resolveRecordReportSubSection } from '@/business-apps/irm/investments/apps/investment-management/views/report-view/utils/subSectionHelpers'
 
 interface InvestmentReportsTabProps extends BusinessAppContextProps {
   /** The investment whose reports we're displaying. */
@@ -53,17 +50,13 @@ interface InvestmentReportsTabProps extends BusinessAppContextProps {
  * "overview" section so the panel always has a valid section to display
  * when the group has no per-type breakdown.
  */
-const resolveRecordSection = (investmentGroup: string, investment: any, typeSpecificData: any): SubSection => {
-  const config = getReportGroupConfiguration(investmentGroup)
-  const resolved = config.getRecordSection?.(investment, typeSpecificData)
-  if (resolved) return resolved
-
-  return {
-    id: 'overview',
-    code: investmentGroup,
-    value: 'Overview',
-    label: 'Overview'
-  }
+const resolveRecordSection = (
+  investmentGroup: string,
+  catalogData: any,
+  investment: any,
+  typeSpecificData: any
+): SubSection => {
+  return resolveRecordReportSubSection(investmentGroup, catalogData, investment, typeSpecificData)
 }
 
 const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
@@ -83,8 +76,8 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
   const groupLabel: string = investment?.investmentGroup?.value || investmentGroup || 'Investment'
 
   const lockedSection = useMemo<SubSection>(
-    () => resolveRecordSection(investmentGroup, investment, typeSpecificData),
-    [investmentGroup, investment, typeSpecificData]
+    () => resolveRecordSection(investmentGroup, catalogData, investment, typeSpecificData),
+    [investmentGroup, catalogData, investment, typeSpecificData]
   )
 
   const extraWhereFilters = useMemo(() => ({ investmentIds: [investmentId] }), [investmentId])
@@ -130,7 +123,7 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
     )
   }, [primaryAction, accessToken, investmentId])
 
-  if (!investmentGroup) {
+  if (!investmentGroup || !catalogData) {
     return (
       <Card data-testid={`${dataTestId}-missing-group`}>
         <CardContent className="gba:p-8 gba:text-center gba:text-muted-foreground">
@@ -163,6 +156,7 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
         accessToken={accessToken}
         userInfo={userInfo}
         primaryAction={resolvedPrimaryAction}
+        hideInvestmentScopeControls
         exportFilenamePrefix={`investment-${investmentId}-reports`}
         dataTestId={dataTestId}
       />

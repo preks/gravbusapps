@@ -92,6 +92,8 @@ export interface UpdateUserPayload {
 
 export interface UpsertPasswordPayload {
   password: string
+  /** If true, user must change password on next login. Omitted or true matches UM default. */
+  temporary?: boolean
 }
 
 export interface ActivateUserPayload {

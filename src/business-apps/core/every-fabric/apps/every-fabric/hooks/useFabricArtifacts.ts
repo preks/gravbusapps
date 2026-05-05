@@ -3,6 +3,7 @@ import type { AgentStreamEvent, WorkspaceDocument } from '../types/enterpriseAge
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
 import { isUserFacingArtifactPath } from '../utils/artifactFilters'
+import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
 
 /**
@@ -21,12 +22,14 @@ export const useFabricArtifacts = (
   session?: { workspace_documents?: WorkspaceDocument[] } | null
 ) => {
   const client = useEnterpriseAgentClient(accessToken)
+  const flowBotRuntime = isFlowBotFabricRuntime()
   const [restArtifacts, setRestArtifacts] = useState<ArtifactFile[]>([])
   const [activeArtifactId, setActiveArtifactId] = useState<string | null>(null)
   const fetchedSessionIdRef = useRef<string | null>(null)
 
   // Fetch artifact list from REST when session completes or when session changes
   const fetchArtifacts = useCallback(async () => {
+    if (flowBotRuntime) return
     if (!sessionId) return
     try {
       const files = await client.listArtifacts(sessionId)
@@ -34,7 +37,7 @@ export const useFabricArtifacts = (
     } catch {
       // Non-critical — SSE-derived artifacts still work
     }
-  }, [sessionId, client])
+  }, [sessionId, client, flowBotRuntime])
 
   // Reset on session change
   useEffect(() => {

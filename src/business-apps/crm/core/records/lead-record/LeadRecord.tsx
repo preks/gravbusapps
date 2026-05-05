@@ -11,7 +11,7 @@ import {
   IconAvatar,
   HeaderSlot
 } from '@newwork/nw-design-system'
-import { UserIcon, FileTextIcon, FlagIcon } from '@phosphor-icons/react'
+import { UserIcon, FolderIcon, FlagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -400,7 +400,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileTextIcon className="gba:mr-2" />,
+          icon: <FolderIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView leadId={leadId} {...props} />

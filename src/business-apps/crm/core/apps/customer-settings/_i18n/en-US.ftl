@@ -30,9 +30,7 @@ icp-dialog-new-profile-title = New profile
 icp-dialog-new-profile-description = Creates a new profile for ICP criteria and lead scoring.
 icp-cancel = Cancel
 icp-create-profile = Create
-icp-delete-confirm-title = Delete profile?
 icp-delete-confirm-message = This permanently removes "{ $name }".
-icp-delete-action = Delete
 
 # Criteria form
 icp-criteria-heading = Criteria

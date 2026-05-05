@@ -404,7 +404,7 @@ export const SpreadsheetApiService = {
   async getTrashedPreview(id: string): Promise<SpreadsheetApp | null> {
     try {
       debugLog('getTrashedPreview', id)
-      const app = await apiRequest<Record<string, unknown>>(`/spreadsheets/${id}/trashed-preview`)
+      const app = await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(`/${id}/trashed-preview`))
       return mapApiAppToSpreadsheetApp(app)
     } catch (error) {
       console.error('Failed to get trashed spreadsheet preview:', error)
@@ -1448,6 +1448,16 @@ export const SpreadsheetApiService = {
       return true
     } catch (error) {
       console.error('Failed to resolve comment:', error)
+      return false
+    }
+  },
+
+  async unresolveComment(commentId: string): Promise<boolean> {
+    try {
+      await apiRequest(`/comments/${commentId}/unresolve`, { method: 'PATCH' })
+      return true
+    } catch (error) {
+      console.error('Failed to unresolve comment:', error)
       return false
     }
   },

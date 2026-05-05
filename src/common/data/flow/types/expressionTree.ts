@@ -63,7 +63,7 @@ export interface TreeNode {
     entityCode?: string
     entityTypeValue?: string
     inputType?: string
-    dataSourceType?: 'CATALOG' | 'ENTITY' | 'API'
+    dataSourceType?: 'CATALOG' | 'CUSTOM_ENTITY' | 'INTERNAL_ENTITY' | 'API'
     dataSourceEntity?: string
     dataSourceCatalog?: string
     labelField?: string

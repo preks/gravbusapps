@@ -20,18 +20,17 @@ import {
   investmentType as INVESTMENT_TYPE_CATALOG,
   investmentLiquidFundType as INVESTMENT_LIQUID_FUND_TYPE_CATALOG
 } from '@/common/data/investment/constants/investmentCatalogs'
-import { getReportGroupConfiguration } from '../../config/reportGroupConfigurations'
+import type { ReportSectionKind } from '../../utils/subSectionHelpers'
 
 export interface UseInvestmentReportDataConfig {
   // Investment group code - any string (dynamically determined from catalog)
   investmentGroup: string
   filters: Record<string, any>
   investmentType?: string
+  sectionKind?: ReportSectionKind
   accessToken: string
   userInfo?: any
   onCurrenciesChange?: (currencies: string[]) => void
-  // Optional: transform reports to different format (for Liquid Funds)
-  dataTransformer?: (reports: any[]) => any[]
   // Optional: enable/disable data fetching
   enabled?: boolean
   // Optional: pagination params
@@ -67,17 +66,21 @@ export interface UseInvestmentReportDataReturn {
  * into `customConditions` (data queries) or serialize them for
  * `useFilterGroups`'s `baseWhereParts` (filter dropdowns).
  *
- * Sub-section path is driven by `subSectionStrategy`:
- * - `'liquidFundTypes'`: `liquidFundInvestmentReport.investmentLiquidFundType.id`
+ * Sub-section path is driven by resolved section kind:
+ * - `'liquidFundType'`: `liquidFundInvestmentReport.investmentLiquidFundType.id`
  *   (Liquid Fund — each sub-section maps 1:1 to an `InvestmentLiquidFundType`
  *   catalog entry).
- * - `'investmentTypes'` / `'none'`: `investment.investmentType.id` (Equity,
- *   Real Estate, and any unknown group).
+ * - `'investmentType'`: `investment.investmentType.id`.
+ * - `'group'`: only the investment group condition is emitted.
  *
  * The synthetic values `'all'` and a section equal to the group code itself
  * (used by `'none'` strategies) intentionally emit only the group condition.
  */
-const buildScopeConditions = (investmentGroup: string, currentSection?: string): Record<string, any>[] => {
+const buildScopeConditions = (
+  investmentGroup: string,
+  currentSection?: string,
+  sectionKind: ReportSectionKind = 'investmentType'
+): Record<string, any>[] => {
   const conditions: Record<string, any>[] = [
     {
       investment: {
@@ -86,10 +89,8 @@ const buildScopeConditions = (investmentGroup: string, currentSection?: string):
     }
   ]
 
-  if (currentSection && currentSection !== investmentGroup && currentSection !== 'all') {
-    const groupConfig = getReportGroupConfiguration(investmentGroup)
-
-    if (groupConfig.subSectionStrategy === 'liquidFundTypes') {
+  if (currentSection && currentSection !== investmentGroup && currentSection !== 'all' && sectionKind !== 'group') {
+    if (sectionKind === 'liquidFundType') {
       conditions.push({
         liquidFundInvestmentReport: {
           investmentLiquidFundType: { id: { _eq: `${INVESTMENT_LIQUID_FUND_TYPE_CATALOG}:${currentSection}` } }
@@ -141,22 +142,27 @@ const serializeWhereObject = (obj: Record<string, any>): string => {
  * top-level keys like `liquidFundInvestmentReport`, violating GraphQL's input
  * object field uniqueness rule).
  */
-export const buildInvestmentReportBaseWhereParts = (investmentGroup: string, currentSection?: string): string[] => {
-  const conditions = buildScopeConditions(investmentGroup, currentSection).map(serializeWhereObject)
+export const buildInvestmentReportBaseWhereParts = (
+  investmentGroup: string,
+  currentSection?: string,
+  sectionKind?: ReportSectionKind
+): string[] => {
+  const conditions = buildScopeConditions(investmentGroup, currentSection, sectionKind).map(serializeWhereObject)
   return [`_and: [${conditions.join(', ')}]`]
 }
 
 /** Builds the GraphQL where clause for investment report queries. */
 export const buildInvestmentReportWhereClause = (
   investmentGroup: string,
-  filters: Record<string, any>
+  filters: Record<string, any>,
+  sectionKind?: ReportSectionKind
 ): Record<string, any> => {
   const activeSection =
     filters.investmentType && filters.investmentType !== 'all' && filters.investmentType !== investmentGroup
       ? (filters.investmentType as string)
       : undefined
 
-  const customConditions = buildScopeConditions(investmentGroup, activeSection)
+  const customConditions = buildScopeConditions(investmentGroup, activeSection, sectionKind)
 
   return buildWhere({
     variables: filters,
@@ -176,9 +182,9 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     investmentGroup,
     filters,
     investmentType,
+    sectionKind,
     accessToken,
     onCurrenciesChange,
-    dataTransformer,
     enabled = true,
     page: externalPage,
     pageSize: externalPageSize,
@@ -237,7 +243,7 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
       const fragment = buildInvestmentReportFragment(INVESTMENT_REPORT_QUERY_CONFIGS.record)
 
       // Build where using the shared helper
-      const whereObj = buildInvestmentReportWhereClause(investmentGroup, filters)
+      const whereObj = buildInvestmentReportWhereClause(investmentGroup, filters, sectionKind)
 
       // Map column IDs to sortable field paths
       // Some columns need mapping (e.g., 'investment' -> 'investment.name')
@@ -250,8 +256,8 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
           return descriptor.sortPath
         }
 
-        // For dynamic catalog fields with underscores (e.g., equityInvestment_marketValue)
-        // Convert to dot notation and map catalog paths to report paths
+        // For dynamic catalog fields with underscores, convert to dot notation
+        // and map catalog paths to report paths.
         if (columnId.includes('_')) {
           const dotNotation = columnId.split('_').join('.')
 
@@ -348,9 +354,7 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
       const fetchedReports = result.InvestmentReport || []
       const total = result.InvestmentReportAggregate?.aggregate?.count || 0
 
-      // Apply optional data transformer (for Liquid Funds)
-      const finalData = dataTransformer ? dataTransformer(fetchedReports) : fetchedReports
-      setData(finalData)
+      setData(fetchedReports)
 
       // Extract unique currency IDs from reports and notify parent
       if (onCurrenciesChangeRef.current) {
@@ -384,12 +388,12 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     enabled,
     investmentGroup,
     investmentType,
+    sectionKind,
     filterKey,
     page,
     pageSize,
     sortField,
-    sortOrder,
-    dataTransformer
+    sortOrder
   ])
 
   // Fetch all reports without pagination — used by the export hook
@@ -397,7 +401,7 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     if (!accessToken) return []
 
     const fragment = buildInvestmentReportFragment(INVESTMENT_REPORT_QUERY_CONFIGS.record)
-    const whereObj = buildInvestmentReportWhereClause(investmentGroup, filters)
+    const whereObj = buildInvestmentReportWhereClause(investmentGroup, filters, sectionKind)
 
     const query = `
       query GetAllInvestmentReportsForExport(
@@ -422,7 +426,7 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     })
 
     return result.InvestmentReport || []
-  }, [accessToken, graphqlClient, investmentGroup, filterKey, totalCount])
+  }, [accessToken, graphqlClient, investmentGroup, sectionKind, filterKey, totalCount])
 
   // Reset to page 1 when filters, investment type, or page size changes
   useEffect(() => {

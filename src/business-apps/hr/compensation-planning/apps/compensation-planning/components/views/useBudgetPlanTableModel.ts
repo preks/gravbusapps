@@ -7,9 +7,7 @@ import { BUDGET_PLAN_TABLE_VISIBLE_COLUMN_IDS, buildBudgetPlanTableColumns } fro
 import { buildBudgetPlanTableFilterConfiguration } from './buildBudgetPlanTableFilterConfiguration'
 import {
   effectiveDateMatchesFilter,
-  fiscalYearMatchesFilterRange,
   parseDateRangeFilterValue,
-  parseFiscalYearRangeFilterValue,
   planPeriodOverlapsFilter
 } from './budgetPlanTableFilterHelpers'
 import { formatBudgetPlanStatusLabelForDisplay } from './budgetSetupDisplayUtils'
@@ -18,7 +16,7 @@ import type { TranslateFn } from './budgetSetupDisplayUtils'
 export function useBudgetPlanTableModel(t: TranslateFn, sourceRows: CompensationBudgetPlanRow[]) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'fiscalYear', desc: true }])
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [...BUDGET_PLAN_TABLE_VISIBLE_COLUMN_IDS])
 
@@ -27,22 +25,8 @@ export function useBudgetPlanTableModel(t: TranslateFn, sourceRows: Compensation
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [effectiveFrom, setEffectiveFrom] = useState<string | null>(null)
   const [effectiveTo, setEffectiveTo] = useState<string | null>(null)
-  const [fiscalYearFilterMin, setFiscalYearFilterMin] = useState<number | null>(null)
-  const [fiscalYearFilterMax, setFiscalYearFilterMax] = useState<number | null>(null)
 
   const formatStatus = useCallback((v: string) => formatBudgetPlanStatusLabelForDisplay(v, t) || v, [t])
-
-  const fiscalYearNumberRangeConfig = useMemo(
-    () => ({
-      mode: 'range' as const,
-      min: 1900,
-      max: 2200,
-      step: 1,
-      placeholderMin: t('budget-plan-filter-fiscal-year-min-placeholder'),
-      placeholderMax: t('budget-plan-filter-fiscal-year-max-placeholder')
-    }),
-    [t]
-  )
 
   const statusFilterOptions = useMemo(
     () =>
@@ -54,8 +38,8 @@ export function useBudgetPlanTableModel(t: TranslateFn, sourceRows: Compensation
   )
 
   const filterConfiguration = useMemo(
-    () => buildBudgetPlanTableFilterConfiguration(t, statusFilterOptions, fiscalYearNumberRangeConfig),
-    [t, statusFilterOptions, fiscalYearNumberRangeConfig]
+    () => buildBudgetPlanTableFilterConfiguration(t, statusFilterOptions),
+    [t, statusFilterOptions]
   )
 
   const filteredRows = useMemo(() => {
@@ -65,12 +49,7 @@ export function useBudgetPlanTableModel(t: TranslateFn, sourceRows: Compensation
       list = list.filter(row => {
         const statusLabel = formatBudgetPlanStatusLabelForDisplay(row.budgetPlanStatus, t).toLowerCase()
         const desc = (row.description ?? '').toLowerCase()
-        return (
-          row.name.toLowerCase().includes(q) ||
-          desc.includes(q) ||
-          statusLabel.includes(q) ||
-          String(row.fiscalYear).includes(q)
-        )
+        return row.name.toLowerCase().includes(q) || desc.includes(q) || statusLabel.includes(q)
       })
     }
 
@@ -87,23 +66,8 @@ export function useBudgetPlanTableModel(t: TranslateFn, sourceRows: Compensation
       list = list.filter(row => effectiveDateMatchesFilter(row, effectiveFrom, effectiveTo))
     }
 
-    if (fiscalYearFilterMin != null || fiscalYearFilterMax != null) {
-      list = list.filter(row => fiscalYearMatchesFilterRange(row.fiscalYear, fiscalYearFilterMin, fiscalYearFilterMax))
-    }
-
     return list
-  }, [
-    sourceRows,
-    debouncedSearch,
-    t,
-    planPeriodFrom,
-    planPeriodTo,
-    selectedStatuses,
-    effectiveFrom,
-    effectiveTo,
-    fiscalYearFilterMin,
-    fiscalYearFilterMax
-  ])
+  }, [sourceRows, debouncedSearch, t, planPeriodFrom, planPeriodTo, selectedStatuses, effectiveFrom, effectiveTo])
 
   const hasActiveFilters = useMemo(
     () =>
@@ -112,19 +76,8 @@ export function useBudgetPlanTableModel(t: TranslateFn, sourceRows: Compensation
       planPeriodTo != null ||
       selectedStatuses.length > 0 ||
       effectiveFrom != null ||
-      effectiveTo != null ||
-      fiscalYearFilterMin != null ||
-      fiscalYearFilterMax != null,
-    [
-      debouncedSearch,
-      planPeriodFrom,
-      planPeriodTo,
-      selectedStatuses.length,
-      effectiveFrom,
-      effectiveTo,
-      fiscalYearFilterMin,
-      fiscalYearFilterMax
-    ]
+      effectiveTo != null,
+    [debouncedSearch, planPeriodFrom, planPeriodTo, selectedStatuses.length, effectiveFrom, effectiveTo]
   )
 
   const emptyMessage = hasActiveFilters ? t('budget-plan-table-empty-filtered') : t('budget-plan-table-empty')
@@ -140,19 +93,8 @@ export function useBudgetPlanTableModel(t: TranslateFn, sourceRows: Compensation
     if (effectiveFrom != null || effectiveTo != null) {
       obj.effectiveDateRange = [effectiveFrom, effectiveTo]
     }
-    if (fiscalYearFilterMin != null || fiscalYearFilterMax != null) {
-      obj.fiscalYearRange = { min: fiscalYearFilterMin, max: fiscalYearFilterMax }
-    }
     return obj
-  }, [
-    planPeriodFrom,
-    planPeriodTo,
-    selectedStatuses,
-    effectiveFrom,
-    effectiveTo,
-    fiscalYearFilterMin,
-    fiscalYearFilterMax
-  ])
+  }, [planPeriodFrom, planPeriodTo, selectedStatuses, effectiveFrom, effectiveTo])
 
   const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
     const planParsed = parseDateRangeFilterValue(filters.planPeriodRange as [unknown, unknown] | null)
@@ -174,17 +116,6 @@ export function useBudgetPlanTableModel(t: TranslateFn, sourceRows: Compensation
       setEffectiveFrom(effParsed.from)
       setEffectiveTo(effParsed.to)
     }
-
-    const fyParsed = parseFiscalYearRangeFilterValue(
-      filters.fiscalYearRange as { min?: number | null; max?: number | null } | undefined
-    )
-    if (fyParsed == null) {
-      setFiscalYearFilterMin(null)
-      setFiscalYearFilterMax(null)
-    } else {
-      setFiscalYearFilterMin(fyParsed.min)
-      setFiscalYearFilterMax(fyParsed.max)
-    }
   }, [])
 
   const columns = useMemo(() => buildBudgetPlanTableColumns(t, formatStatus), [t, formatStatus])
@@ -200,7 +131,6 @@ export function useBudgetPlanTableModel(t: TranslateFn, sourceRows: Compensation
   const sortableColumns = useMemo(
     () => [
       { id: 'name', label: t('budget-plan-table-col-name') },
-      { id: 'fiscalYear', label: t('budget-plan-table-col-fiscal-year') },
       { id: 'budgetPlanStatus', label: t('budget-plan-table-col-status') },
       { id: 'startDate', label: t('budget-plan-table-col-start-date') },
       { id: 'endDate', label: t('budget-plan-table-col-end-date') },
@@ -218,17 +148,7 @@ export function useBudgetPlanTableModel(t: TranslateFn, sourceRows: Compensation
 
   useEffect(() => {
     setPagination(p => ({ ...p, pageIndex: 0 }))
-  }, [
-    debouncedSearch,
-    sorting,
-    planPeriodFrom,
-    planPeriodTo,
-    selectedStatuses,
-    effectiveFrom,
-    effectiveTo,
-    fiscalYearFilterMin,
-    fiscalYearFilterMax
-  ])
+  }, [debouncedSearch, sorting, planPeriodFrom, planPeriodTo, selectedStatuses, effectiveFrom, effectiveTo])
 
   return {
     searchInput,

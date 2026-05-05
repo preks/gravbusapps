@@ -1,9 +1,10 @@
 import { useState, useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ExpenseFilter } from './useGetExpenseItems'
-import { ExpenseStatus } from '../utils'
+import { ExpenseStatus, statusFilterMainWithOptionalParen } from '../utils'
 import { formatExpenseAmountRangeChipLabel } from '@/business-apps/fin/expenses/common/utils/amountRangeFilterUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CurrencyStat } from './useExpenseCurrencies'
+import personalTranslations from '../_i18n'
 
 // Define these as constants for stable references outside the hook
 const OTHER_OPTIONS: string[] = []
@@ -40,6 +41,8 @@ export const useExpenseItemsFilters = (
   availableStatuses: string[] = [],
   initialSelectedFilters: string[] = []
 ): UseExpenseItemsFiltersReturn => {
+  const { t } = useTranslation(personalTranslations)
+
   // State for search and selected filters
   const [search, setSearch] = useState<string>('')
   const [selectedFilters, setSelectedFilters] = useState<string[]>(initialSelectedFilters)
@@ -47,49 +50,47 @@ export const useExpenseItemsFilters = (
   const [amountRange, setAmountRange] = useState<{ min?: number; max?: number } | null>(null)
   const [currencyStats, setCurrencyStats] = useState<CurrencyStat[]>([])
 
-  // Helper function to format status display names using platform translations
-  const formatStatusName = (status: string): string => {
-    // Map status to proper display name using platform translations
-    const statusMapping: Record<string, string> = {
-      CREATED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.created', 'Created')})`,
-      ASSIGNED: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
-      PENDING: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`,
-      APPROVED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')})`,
-      VERIFIED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.verified', 'Verified')})`,
-      BOOKED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booked', 'Booked')})`,
-      TRANSFERRED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred')})`,
-      PAID: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-      REJECTED: `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')})`
-    }
+  const formatStatusName = useCallback(
+    (status: string): string => {
+      const statusMapping: Record<string, string> = {
+        CREATED: statusFilterMainWithOptionalParen(t('expense-status-draft'), t('expense-status-created')),
+        ASSIGNED: t('expense-status-assigned'),
+        PENDING: statusFilterMainWithOptionalParen(t('expense-status-in-approval'), t('expense-status-pending')),
+        APPROVED: statusFilterMainWithOptionalParen(t('expense-status-in-transit'), t('expense-status-approved')),
+        VERIFIED: statusFilterMainWithOptionalParen(t('expense-status-in-transit'), t('expense-status-verified')),
+        BOOKED: statusFilterMainWithOptionalParen(t('expense-status-in-transit'), t('expense-status-booked')),
+        TRANSFERRED: statusFilterMainWithOptionalParen(t('expense-status-in-transit'), t('expense-status-transferred')),
+        PAID: t('expense-status-paid'),
+        REJECTED: statusFilterMainWithOptionalParen(t('expense-status-revision-required'), t('expense-status-rejected'))
+      }
 
-    return statusMapping[status] || `${status.charAt(0) + status.slice(1).toLowerCase()} (${status})`
-  }
+      const formattedFallback = status.charAt(0) + status.slice(1).toLowerCase()
+      return statusMapping[status] || statusFilterMainWithOptionalParen(formattedFallback, status)
+    },
+    [t]
+  )
 
-  // Helper function to format date range for display
-  const formatDateRangeLabel = (dateRange: [Date | null, Date | null] | null): string => {
-    if (!dateRange || (!dateRange[0] && !dateRange[1])) return ''
+  const formatDateRangeLabel = useCallback(
+    (dateRange: [Date | null, Date | null] | null): string => {
+      if (!dateRange || (!dateRange[0] && !dateRange[1])) return ''
 
-    const startDate = dateRange[0]
-    const endDate = dateRange[1]
+      const startDate = dateRange[0]
+      const endDate = dateRange[1]
 
-    if (startDate && endDate) {
-      return `${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })} - ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`
-    } else if (startDate) {
-      return (
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_date', 'From') +
-        ' ' +
-        startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })
-      )
-    } else if (endDate) {
-      return (
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_date', 'To') +
-        ' ' +
-        endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })
-      )
-    }
+      if (startDate && endDate) {
+        return `${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })} - ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`
+      }
+      if (startDate) {
+        return `${t('expense-items-from-date')} ${startDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`
+      }
+      if (endDate) {
+        return `${t('expense-items-to-date')} ${endDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}`
+      }
 
-    return ''
-  }
+      return ''
+    },
+    [t]
+  )
 
   // Get all available statuses or use default ones
   const allStatuses = useMemo(() => {
@@ -115,22 +116,16 @@ export const useExpenseItemsFilters = (
 
     const dateRangeLabel = formatDateRangeLabel(expenseDateRange)
     if (dateRangeLabel) {
-      map['expenseDateRange'] =
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date_label', 'Expense Date:') +
-        ' ' +
-        dateRangeLabel
+      map['expenseDateRange'] = `${t('expense-items-expense-date-label')} ${dateRangeLabel}`
     }
 
-    const amountChip = formatExpenseAmountRangeChipLabel(
-      amountRange,
-      getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range_label', 'Amount Range: ')
-    )
+    const amountChip = formatExpenseAmountRangeChipLabel(amountRange, t('expense-items-amount-range-label'))
     if (amountChip) {
       map['amountRange'] = amountChip
     }
 
     return map
-  }, [expenseDateRange, amountRange, allStatuses, formatStatusName, currencyStats])
+  }, [expenseDateRange, amountRange, allStatuses, formatStatusName, formatDateRangeLabel, currencyStats, t])
 
   // Get all selected filters including amount range when active (exclude date range to prevent duplicate pills)
   const getAllSelectedFilters = useMemo(() => {

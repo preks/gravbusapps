@@ -28,4 +28,8 @@ card-opportunity-button = Pornește importul de oportunități
 
 # Multi-entry investments card
 card-investments-title = Importă investiții
-card-investments-description = Importați investiții cu cartografierea câmpurilor asistată de AI. Alegeți grupul de investiții pentru a începe.
+card-investments-description = Importați date de investiții din fișiere CSV sau Excel cu maparea câmpurilor asistată de AI.
+
+# Multi-entry investment reports card
+card-investment-reports-title = Importă rapoarte de investiții
+card-investment-reports-description = Importați date de raport pentru investiții din fișiere CSV sau Excel cu maparea câmpurilor asistată de AI.

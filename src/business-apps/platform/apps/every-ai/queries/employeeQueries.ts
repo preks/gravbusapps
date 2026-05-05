@@ -574,10 +574,12 @@ const DS_ENTITY: Record<string, EntityType> = {
   investment_opportunity: 'opportunity'
 }
 
+const SEARCHABLE_DATA_SOURCE_TYPES = new Set(['CUSTOM_ENTITY', 'INTERNAL_ENTITY'])
+
 /** Field name heuristics; optional `fieldSchema` supplies `x-dataSource.entity` (e.g. custom flow "New Field" → opportunity). */
 export function getEntityTypeFromFieldName(fieldName: string, fieldSchema?: any): EntityType {
   const ds = fieldSchema?.['x-dataSource']
-  if (ds?.type === 'ENTITY' && typeof ds?.entity === 'string') {
+  if (SEARCHABLE_DATA_SOURCE_TYPES.has(ds?.type) && typeof ds?.entity === 'string') {
     const k = ds.entity
       .trim()
       .replace(/-/g, '_')

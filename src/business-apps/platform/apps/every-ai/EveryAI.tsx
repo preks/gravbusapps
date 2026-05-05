@@ -209,7 +209,16 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       return
     }
 
-    // Find the latest agent turn with an answer (don't wait for isLoading to finish)
+    // Find the latest agent turn with an answer.
+    //
+    // IMPORTANT: We deliberately skip the in-progress streaming bubble
+    // (`__streaming === true`). During streaming, `applyTextDelta` accumulates
+    // the model's raw output tokens into a synthetic `textBlock`. For models
+    // that emit structured JSON (e.g. `{"payload": {"text": "..."}}`), those
+    // raw tokens are NOT the final user-facing text — the backend reshapes
+    // them into a canonical `answer`/`textBlock` only after the full response
+    // arrives (see `commitFinalAnswer`). Speaking the streaming bubble would
+    // therefore feed raw JSON fragments to TTS. Wait for the canonical answer.
     for (let i = conversation.length - 1; i > lastSpokenTurnIndexRef.current; i--) {
       const turn = conversation[i]
       if (turn.side === 'agent') {
@@ -219,8 +228,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           continue
         }
 
-        // Find the answer output
-        const answerOutput = turn.outputs?.find((o: OutputItem): o is AnswerOutput => o.type === 'answer')
+        const answerOutput = turn.outputs?.find(
+          (o: OutputItem): o is AnswerOutput =>
+            o.type === 'answer' && (o as AnswerOutput & { __streaming?: boolean }).__streaming !== true
+        )
         if (answerOutput?.displayData) {
           const textParts: string[] = []
           for (const data of answerOutput.displayData) {

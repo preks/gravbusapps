@@ -731,25 +731,32 @@ async function main() {
         }
 
         execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes })
-        execSync(`git commit -m "chore(ci): update prod component hashes [skip ci]"`, {
+        execSync(`git commit --no-verify -m "chore NO-TICKET: update prod component hashes [skip ci]"`, {
           cwd: projectRootDirForHashes
         })
 
         // Pull with rebase and push with retry logic
+        const maxPushAttempts = Number(process.env.CI_GIT_PUSH_ATTEMPTS || '8')
         let pushSuccess = false
-        for (let attempt = 1; attempt <= 3; attempt++) {
+        for (let attempt = 1; attempt <= maxPushAttempts; attempt++) {
           try {
             // Check if there's an incomplete rebase from a previous attempt
             if (isRebaseInProgress()) {
-              console.log(`   Attempt ${attempt}/3: Resolving in-progress rebase...`)
+              console.log(`   Attempt ${attempt}/${maxPushAttempts}: Resolving in-progress rebase...`)
               resolveHashConflict()
             } else {
-              console.log(`   Attempt ${attempt}/3: Pulling and rebasing...`)
-              execSync(`git pull --rebase origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+              console.log(`   Attempt ${attempt}/${maxPushAttempts}: Pulling and rebasing...`)
+              execSync(`git pull --rebase --autostash origin ${targetBranch}`, {
+                cwd: projectRootDirForHashes,
+                stdio: 'pipe'
+              })
             }
 
             // If we got here, rebase succeeded - try to push
-            execSync(`git push origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+            execSync(`git push --no-verify origin HEAD:${targetBranch}`, {
+              cwd: projectRootDirForHashes,
+              stdio: 'pipe'
+            })
             pushSuccess = true
             console.log(`   Prod hashes committed and pushed to ${targetBranch}`)
             break
@@ -769,7 +776,10 @@ async function main() {
               try {
                 resolveHashConflict()
                 // After resolving, try to push
-                execSync(`git push origin ${targetBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+                execSync(`git push --no-verify origin HEAD:${targetBranch}`, {
+                  cwd: projectRootDirForHashes,
+                  stdio: 'pipe'
+                })
                 pushSuccess = true
                 console.log(`   Prod hashes committed and pushed to ${targetBranch} (after conflict resolution)`)
                 break
@@ -783,7 +793,7 @@ async function main() {
                   abortRebaseIfNeeded()
                   execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
                   try {
-                    execSync(`git commit -m "chore(ci): update prod component hashes [skip ci]"`, {
+                    execSync(`git commit --no-verify -m "chore NO-TICKET: update prod component hashes [skip ci]"`, {
                       cwd: projectRootDirForHashes,
                       stdio: 'pipe'
                     })
@@ -794,8 +804,9 @@ async function main() {
                   throw pushError
                 }
               }
-            } else if (attempt < 3) {
-              console.log(`   Push failed (attempt ${attempt}/3), retrying with rebase...`)
+            } else if (attempt < maxPushAttempts) {
+              console.log(`   Push failed (attempt ${attempt}/${maxPushAttempts}), retrying with rebase...`)
+              console.log(errorOutput)
               abortRebaseIfNeeded()
               await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
             } else {
@@ -836,7 +847,7 @@ async function main() {
           // Commit (if there are changes)
           execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
           try {
-            execSync(`git commit -m "chore(ci): sync prod component hashes to develop [skip ci]"`, {
+            execSync(`git commit --no-verify -m "chore NO-TICKET: sync prod component hashes to develop [skip ci]"`, {
               cwd: projectRootDirForHashes,
               stdio: 'pipe'
             })
@@ -865,27 +876,36 @@ async function main() {
           }
 
           let developPushSuccess = false
-          for (let attempt = 1; attempt <= 3; attempt++) {
+          for (let attempt = 1; attempt <= maxPushAttempts; attempt++) {
             try {
               if (isRebaseInProgress()) {
                 resolveHashConflictByOverwriting()
               } else {
-                execSync(`git pull --rebase origin ${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+                execSync(`git pull --rebase --autostash origin ${developBranch}`, {
+                  cwd: projectRootDirForHashes,
+                  stdio: 'pipe'
+                })
               }
 
               // Ensure the publish-generated file content wins (even without conflicts)
               fs.writeFileSync(prodHashFile, finalHashFileContent, 'utf8')
               execSync(`git add ${hashFileName}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
               try {
-                execSync(`git commit -m "chore(ci): sync prod component hashes to develop [skip ci]"`, {
-                  cwd: projectRootDirForHashes,
-                  stdio: 'pipe'
-                })
+                execSync(
+                  `git commit --no-verify -m "chore NO-TICKET: sync prod component hashes to develop [skip ci]"`,
+                  {
+                    cwd: projectRootDirForHashes,
+                    stdio: 'pipe'
+                  }
+                )
               } catch {
                 // No changes after rebase is fine
               }
 
-              execSync(`git push origin ${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+              execSync(`git push --no-verify origin HEAD:${developBranch}`, {
+                cwd: projectRootDirForHashes,
+                stdio: 'pipe'
+              })
               developPushSuccess = true
               console.log(`   Prod hashes committed and pushed to ${developBranch}`)
               break
@@ -903,7 +923,10 @@ async function main() {
               if (isConflict) {
                 try {
                   resolveHashConflictByOverwriting()
-                  execSync(`git push origin ${developBranch}`, { cwd: projectRootDirForHashes, stdio: 'pipe' })
+                  execSync(`git push --no-verify origin HEAD:${developBranch}`, {
+                    cwd: projectRootDirForHashes,
+                    stdio: 'pipe'
+                  })
                   developPushSuccess = true
                   console.log(
                     `   Prod hashes committed and pushed to ${developBranch} (after overwrite conflict resolution)`
@@ -912,7 +935,8 @@ async function main() {
                 } catch {
                   abortRebaseIfNeeded()
                 }
-              } else if (attempt < 3) {
+              } else if (attempt < maxPushAttempts) {
+                console.log(errorOutput)
                 abortRebaseIfNeeded()
                 await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
               } else {

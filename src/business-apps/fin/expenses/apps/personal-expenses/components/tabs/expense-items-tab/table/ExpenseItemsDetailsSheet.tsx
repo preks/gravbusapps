@@ -1,8 +1,9 @@
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
 import ExpenseItemDetails from '../details/ExpenseItemDetails'
 import { DetailsSheet } from '../../../shared/TableSharedComponents'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useTranslation } from '@newwork/nw-design-system'
+import personalTranslations from '../../../../_i18n'
 
 interface ExpenseItemsDetailsSheetProps {
   selectedItem: ExpenseItem | null
@@ -19,14 +20,13 @@ export function ExpenseItemsDetailsSheet({
   accessToken,
   userInfo
 }: Readonly<ExpenseItemsDetailsSheetProps>) {
+  const { t } = useTranslation(personalTranslations)
+
   return (
     <DetailsSheet
       open={isOpen}
       onOpenChange={onOpenChange}
-      title={
-        selectedItem?.title ||
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details', 'Expense Item Details')
-      }
+      title={selectedItem?.title || t('expense-items-sheet-title')}
       testId="expense-item-details-sheet"
     >
       {selectedItem ? (

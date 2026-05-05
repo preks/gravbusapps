@@ -34,15 +34,17 @@ export async function extractWithRetry(
   enforcedFieldsJson: string | undefined,
   adapters: TargetFieldAdapters,
   repairCsv: 'auto' | 'hard' = 'auto',
-  requiredSubtypeKey?: string | null
+  requiredSubtypeKey?: string | null,
+  additionalPropertiesFields?: readonly string[] | null
 ): Promise<ExtractWithRetryResult> {
   const backendMappings = toBackendMappings(mappings, adapters)
   const backendMappingJson = JSON.stringify({ fieldMappings: backendMappings })
   const uiMappingJson = JSON.stringify({ fieldMappings: mappings })
+  const flowbotEntityType = config.flowbotEntityType ?? config.entityType
 
   try {
     const response = await flowbotClient.extractFromFile(
-      config.entityType,
+      flowbotEntityType,
       file,
       backendMappingJson,
       enforcedFieldsJson,
@@ -51,14 +53,15 @@ export async function extractWithRetry(
       0,
       5000,
       repairCsv,
-      requiredSubtypeKey
+      requiredSubtypeKey,
+      additionalPropertiesFields
     )
     return { records: response.records, usedUiMappings: false, csvQuality: response.csvQuality ?? null }
   } catch (error) {
     if (config.domain === 'investment' && shouldRetryWithUiMappings(error)) {
       console.warn('[Import] extract-from-file targetField mismatch, retrying once with UI-prefixed mappings')
       const response = await flowbotClient.extractFromFile(
-        config.entityType,
+        flowbotEntityType,
         file,
         uiMappingJson,
         enforcedFieldsJson,
@@ -67,7 +70,8 @@ export async function extractWithRetry(
         0,
         5000,
         repairCsv,
-        requiredSubtypeKey
+        requiredSubtypeKey,
+        additionalPropertiesFields
       )
       return { records: response.records, usedUiMappings: true, csvQuality: response.csvQuality ?? null }
     }

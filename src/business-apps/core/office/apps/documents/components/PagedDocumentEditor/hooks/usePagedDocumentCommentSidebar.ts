@@ -35,6 +35,7 @@ export interface UsePagedDocumentCommentSidebarResult {
   handleCreateComment: (content: string, parentId?: string) => Promise<void>
   handleUpdateComment: (commentId: string, content: string) => Promise<void>
   handleResolveComment: (commentId: string) => Promise<void>
+  handleUnresolveComment: (commentId: string) => Promise<void>
   handleDeleteComment: (commentId: string) => Promise<void>
   handleUnhighlightComment: (commentId: string) => void
   handleScrollToHighlight: (commentId: string) => void
@@ -298,6 +299,11 @@ export function usePagedDocumentCommentSidebar({
     [comments]
   )
 
+  const handleUnresolveComment = useCallback(
+    async (commentId: string) => comments.unresolveComment(commentId),
+    [comments]
+  )
+
   const handleDeleteComment = useCallback(
     async (commentId: string) => {
       await comments.deleteComment(commentId)
@@ -386,6 +392,7 @@ export function usePagedDocumentCommentSidebar({
     handleCreateComment,
     handleUpdateComment,
     handleResolveComment,
+    handleUnresolveComment,
     handleDeleteComment,
     handleUnhighlightComment,
     handleScrollToHighlight

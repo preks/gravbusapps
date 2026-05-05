@@ -22,3 +22,19 @@ export type {
   FlowViewerProps,
   FlowCanvasThemeColors
 } from './flow-viewer/types/viewerTypes'
+
+// Data viewer (ERD canvas for entity relationship diagrams)
+export { DataCanvas } from './data-viewer/DataCanvas'
+export { useDataGraph, buildDataGraph } from './data-viewer/hooks/useDataGraph'
+export type { DataGraphEntityInput, DataGraphOptions } from './data-viewer/hooks/useDataGraph'
+export type {
+  DataCanvasProps,
+  DataEntityColumn,
+  DataEntityNodeData,
+  DataInternalEntityField,
+  DataInternalEntitySchema,
+  DataInternalEntityNodeData,
+  DataRelationshipEdgeData,
+  DataGraphNode,
+  DataGraphEdge
+} from './data-viewer/types/dataViewerTypes'

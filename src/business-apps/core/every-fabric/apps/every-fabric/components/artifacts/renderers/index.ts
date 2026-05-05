@@ -4,6 +4,9 @@ import CodeArtifactComponent from './CodeArtifact'
 import DocumentArtifactComponent from './DocumentArtifact'
 import SlideArtifactComponent from './SlideArtifact'
 import DiagramArtifactComponent from './DiagramArtifact'
+import ChartArtifactComponent from './ChartArtifact'
+import TableArtifactComponent from './TableArtifact'
+import AppPreviewArtifactComponent from './AppPreviewArtifact'
 
 export interface RendererProps {
   file: import('../../../types/fabric').ArtifactFile
@@ -24,6 +27,9 @@ export const renderers: Record<ArtifactRendererType, React.ComponentType<Rendere
   markdown: DocumentArtifactComponent,
   document: DocumentArtifactComponent,
   slide: SlideArtifactComponent,
+  chart: ChartArtifactComponent,
+  table: TableArtifactComponent,
   diagram: DiagramArtifactComponent,
+  'app-preview': AppPreviewArtifactComponent,
   unknown: DocumentArtifactComponent
 }

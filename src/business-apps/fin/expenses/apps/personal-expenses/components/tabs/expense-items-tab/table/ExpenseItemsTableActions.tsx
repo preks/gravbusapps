@@ -1,6 +1,6 @@
-import { Button } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CurrencyDropdown } from '../../../../../../common/components/CurrencyDropdown'
+import personalTranslations from '../../../../_i18n'
 
 interface ExpenseItemsPrimaryActionProps {
   onAddExpenseItem: () => void
@@ -16,12 +16,10 @@ interface ExpenseItemsSecondaryActionsProps {
 }
 
 export function ExpenseItemsPrimaryAction({ onAddExpenseItem }: Readonly<ExpenseItemsPrimaryActionProps>) {
+  const { t } = useTranslation(personalTranslations)
   return (
     <Button onClick={onAddExpenseItem} size="sm" variant="default" data-testid="add-expense-item-button" type="button">
-      {getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_calculation_rule_details.calculation_allowance_setup_list.calculation_allowance_setup_modal.btn_add',
-        'Add'
-      )}
+      {t('expense-items-btn-add')}
     </Button>
   )
 }
@@ -34,6 +32,7 @@ export function ExpenseItemsSecondaryActions({
   onCreateExpenseRequest,
   onDeleteSelection
 }: Readonly<ExpenseItemsSecondaryActionsProps>) {
+  const { t } = useTranslation(personalTranslations)
   return (
     <>
       {availableCurrencyCodes.length > 0 && (
@@ -42,6 +41,8 @@ export function ExpenseItemsSecondaryActions({
           selectedCurrency={selectedCurrencyCode === 'ALL' ? null : selectedCurrencyCode}
           onCurrencyChange={onCurrencyChange}
           testIdPrefix="expense-items"
+          currencyLabelText={t('expense-items-currency-label')}
+          allCurrenciesOptionText={t('expense-items-currency-all')}
         />
       )}
       {selectedCount > 0 && (
@@ -52,11 +53,7 @@ export function ExpenseItemsSecondaryActions({
             onClick={onCreateExpenseRequest}
             className="gba:inline-flex gba:items-center gba:gap-2"
           >
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_list.flows_button.create_expense_request',
-              'Create Expense Request'
-            )}{' '}
-            ({selectedCount})
+            {t('expense-items-create-expense-request')} ({selectedCount})
           </Button>
           <Button
             variant="destructive"
@@ -64,8 +61,7 @@ export function ExpenseItemsSecondaryActions({
             onClick={onDeleteSelection}
             className="gba:inline-flex gba:items-center gba:gap-2"
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.delete_selection', 'Delete Selection')} (
-            {selectedCount})
+            {t('expense-items-delete-selection')} ({selectedCount})
           </Button>
         </>
       )}

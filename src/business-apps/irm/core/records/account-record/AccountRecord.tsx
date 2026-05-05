@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button, Spinner, RecordLayout, Badge, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import {
   UsersIcon,
-  TrendUpIcon,
-  FileTextIcon,
+  TargetIcon,
+  FolderIcon,
   BankIcon,
   EnvelopeIcon,
   PhoneIcon,
@@ -232,7 +232,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         {
           value: 'opportunities',
           label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
-          icon: <TrendUpIcon className="gba:mr-2" />,
+          icon: <TargetIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OpportunityView accountId={accountId} context={props} />
@@ -242,7 +242,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileTextIcon className="gba:mr-2" />,
+          icon: <FolderIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView accountId={accountId} context={props} />

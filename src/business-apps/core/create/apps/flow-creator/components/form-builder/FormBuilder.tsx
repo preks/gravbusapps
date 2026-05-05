@@ -180,12 +180,6 @@ interface FormBuilderProps {
   entities?: EntityOption[]
   entitiesLoading?: boolean
   entitiesError?: string | null
-  /** Custom data sources (advanced) */
-  customDataNamespaces?: string[]
-  customDataNamespacesLoading?: boolean
-  customDataKeysByNamespace?: Record<string, string[]>
-  customDataKeysLoadingByNamespace?: Record<string, boolean>
-  fetchCustomDataKeys?: (namespace: string) => Promise<void>
   /** Label shown above the builder */
   title?: string
   /** Description shown below the title */
@@ -208,11 +202,6 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
   entities,
   entitiesLoading,
   entitiesError,
-  customDataNamespaces,
-  customDataNamespacesLoading,
-  customDataKeysByNamespace,
-  customDataKeysLoadingByNamespace,
-  fetchCustomDataKeys,
   title = 'Form Fields',
   description,
   'data-testid': testId = 'form-builder'
@@ -359,11 +348,6 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
             entities={entities}
             entitiesLoading={entitiesLoading}
             entitiesError={entitiesError}
-            customDataNamespaces={customDataNamespaces}
-            customDataNamespacesLoading={customDataNamespacesLoading}
-            customDataKeysByNamespace={customDataKeysByNamespace}
-            customDataKeysLoadingByNamespace={customDataKeysLoadingByNamespace}
-            fetchCustomDataKeys={fetchCustomDataKeys}
             onChange={updated => updateField(index, updated)}
             onRemove={() => removeField(index)}
             onMoveUp={() => moveField(index, index - 1)}

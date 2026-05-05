@@ -9,8 +9,10 @@ import type {
   StartSessionResponse
 } from '../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
+import { useFlowBotFabricClient } from './useFlowBotFabricClient'
 import { useSessionStream } from './useSessionStream'
 import { sessionToMessages } from '../utils/messageUtils'
+import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
 
 export interface ActiveSkillInfo {
   skill_id: string
@@ -49,6 +51,18 @@ interface SessionUiStateCache {
 }
 const MAX_SESSION_UI_CACHE = 16
 const sessionUiStateCache = new Map<string, SessionUiStateCache>()
+
+interface AgentExecutionClient {
+  startSession: (
+    task: string,
+    config?: SessionConfig,
+    activeExternalConnectionIds?: string[],
+    activeEnterpriseSkillId?: string,
+    fallbackSkillId?: string
+  ) => Promise<StartSessionResponse>
+  getSession: (sessionId: string) => Promise<DeepAgentSession>
+  replyToInterrupt: (sessionId: string, message?: string, structuredInput?: Record<string, any>) => Promise<unknown>
+}
 
 const readSessionUiCache = (sessionId: string | null): SessionUiStateCache | null => {
   if (!sessionId) return null
@@ -278,7 +292,9 @@ export const useAgentSession = (
   accessToken: string,
   bootstrapSession?: DeepAgentSession | null
 ) => {
-  const client = useEnterpriseAgentClient(accessToken)
+  const promptManagerClient = useEnterpriseAgentClient(accessToken)
+  const flowBotClient = useFlowBotFabricClient(accessToken)
+  const client: AgentExecutionClient = isFlowBotFabricRuntime() ? flowBotClient : promptManagerClient
   const [streamVersion, setStreamVersion] = useState(0)
   const { messages: streamMessages, events, isConnected } = useSessionStream(sessionId, accessToken, streamVersion)
   const initialCached = readSessionUiCache(sessionId)
@@ -616,7 +632,9 @@ export const useAgentSession = (
 
       try {
         await postInterruptWith409Retry(postInterrupt, fetchSession)
-        setStreamVersion(v => v + 1)
+        if (!isFlowBotFabricRuntime()) {
+          setStreamVersion(v => v + 1)
+        }
         await fetchSession()
         setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticId))
       } catch (error) {

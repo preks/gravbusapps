@@ -1,5 +1,5 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, useTranslation } from '@newwork/nw-design-system'
+import personalTranslations from '../../../../_i18n'
 
 export interface ExpenseItemMediaPreviewDialogsProps {
   previewOpen: boolean
@@ -18,14 +18,14 @@ export function ExpenseItemMediaPreviewDialogs({
   onPdfPreviewOpenChange,
   pdfPreviewUrl
 }: Readonly<ExpenseItemMediaPreviewDialogsProps>) {
+  const { t } = useTranslation(personalTranslations)
+
   return (
     <>
       <Dialog open={previewOpen} onOpenChange={onPreviewOpenChange}>
         <DialogContent className="gba:max-w-6xl gba:max-h-screen" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.imagePreview', 'Image Preview')}
-            </DialogTitle>
+            <DialogTitle>{t('expense-items-media-image-preview')}</DialogTitle>
           </DialogHeader>
           <div className="gba:mt-4 gba:flex gba:justify-center">
             <img
@@ -41,9 +41,7 @@ export function ExpenseItemMediaPreviewDialogs({
       <Dialog open={pdfPreviewOpen} onOpenChange={onPdfPreviewOpenChange}>
         <DialogContent className="gba:max-w-6xl gba:max-h-screen" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.pdfPreview', 'PDF Preview')}
-            </DialogTitle>
+            <DialogTitle>{t('expense-items-media-pdf-preview')}</DialogTitle>
           </DialogHeader>
           <div className="gba:mt-4">
             <iframe

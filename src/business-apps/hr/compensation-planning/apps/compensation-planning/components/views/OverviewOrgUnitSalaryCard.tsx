@@ -6,7 +6,6 @@ import { BudgetDistributionDepartmentsPagination } from './BudgetDistributionDep
 import { useDepartmentPagination } from './useDepartmentPagination'
 import translations from '../../_i18n'
 
-/** Departments | annual salary (amount + % of total) | bonuses (amount + % of total). */
 const OVERVIEW_ORG_UNIT_SALARY_ROW_GRID_CLASS =
   'gba:grid gba:grid-cols-[minmax(11rem,2.5fr)_minmax(8rem,1.1fr)_minmax(8rem,1.1fr)] gba:items-start gba:gap-x-4 gba:gap-y-1'
 
@@ -28,7 +27,7 @@ export interface OverviewOrgUnitSalaryCardProps {
 
 function formatShareOfTotal(part: number, total: number): string {
   if (total <= 0 || !Number.isFinite(part) || !Number.isFinite(total)) {
-    return '—'
+    return '-'
   }
   return `${((100 * part) / total).toFixed(1)}%`
 }
@@ -49,10 +48,10 @@ export const OverviewOrgUnitSalaryCard: React.FC<OverviewOrgUnitSalaryCardProps>
     if (!q) {
       return rows
     }
-    return rows.filter(r => r.orgUnitName.toLowerCase().includes(q))
+    return rows.filter(row => row.orgUnitName.toLowerCase().includes(q))
   }, [rows, debouncedSearch])
 
-  const filteredRowsWithId = useMemo(() => filteredRows.map(r => ({ ...r, id: r.orgUnitId })), [filteredRows])
+  const filteredRowsWithId = useMemo(() => filteredRows.map(row => ({ ...row, id: row.orgUnitId })), [filteredRows])
 
   const {
     pagedItems: pagedRows,
@@ -64,15 +63,14 @@ export const OverviewOrgUnitSalaryCard: React.FC<OverviewOrgUnitSalaryCardProps>
   } = useDepartmentPagination(filteredRowsWithId)
 
   const goPrev = useCallback(() => {
-    setPageIndex(p => Math.max(0, p - 1))
+    setPageIndex(page => Math.max(0, page - 1))
   }, [setPageIndex])
 
   const goNext = useCallback(() => {
-    setPageIndex(p => Math.min(totalPages - 1, p + 1))
+    setPageIndex(page => Math.min(totalPages - 1, page + 1))
   }, [setPageIndex, totalPages])
 
   const showSearchEmpty = rows.length > 0 && filteredRows.length === 0 && debouncedSearch.trim().length > 0
-
   const showTable = rows.length > 0 && !showSearchEmpty
 
   return (

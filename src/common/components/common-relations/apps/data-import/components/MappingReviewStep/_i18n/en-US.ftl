@@ -21,6 +21,9 @@ unmapped-fields-title = Unmapped Fields ({ $count })
 source-field-label = Source Field
 target-field-label = Target Field
 type-label = Type
+select-field-placeholder = Select a field
+search-field-placeholder = Search fields...
+no-fields-found = No fields found
 
 # Type Values
 type-catalog = Catalog

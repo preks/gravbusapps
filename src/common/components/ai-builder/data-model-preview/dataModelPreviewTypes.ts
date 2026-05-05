@@ -6,6 +6,10 @@ export interface DataModelPreviewColumn {
   type: string
   required?: boolean
   options?: { value: string; label: string }[]
+  dataSource?: {
+    type: string
+    entity?: string
+  }
 }
 
 export interface DataModelPreviewDefinition {

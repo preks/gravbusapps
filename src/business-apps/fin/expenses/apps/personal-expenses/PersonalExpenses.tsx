@@ -1,9 +1,9 @@
 import React, { useState, useEffect, ReactNode, useCallback } from 'react'
-import { PageLayout } from '@newwork/nw-design-system'
+import { PageLayout, useTranslation } from '@newwork/nw-design-system'
 import { WalletIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { MODULE_COLORS } from '@/common/constants/ui'
+import personalTranslations from './_i18n'
 
 const moduleColor = MODULE_COLORS.FIN
 // Create a global API for tab navigation
@@ -55,6 +55,7 @@ import ExpenseCalendarTab from './components/tabs/expense-calendar-tab'
 export type PersonalExpensesProps = BusinessAppContextProps
 
 const PersonalExpenses: React.FC<PersonalExpensesProps> = props => {
+  const { t } = useTranslation(personalTranslations)
   const [contentHeader, setContentHeader] = useState<ReactNode | null>(null)
   const hostTabParam = typeof props.additionalData?.tab === 'string' ? props.additionalData.tab : undefined
   const contextTab = isValidTab(hostTabParam) ? hostTabParam : null
@@ -173,51 +174,33 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = props => {
     <div data-testid="personal-expenses-container">
       <PageLayout
         headerIcon={WalletIcon}
-        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.my_expenses', 'My Expenses')}
-        headerDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.main_description',
-          'Manage your personal expenses, track expenses, and manage advance payments.'
-        )}
+        headerTitle={t('personal-shell-title')}
+        headerDescription={t('personal-shell-description')}
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
           items: [
             {
               value: 'dashboard',
-              label: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_management_hub_backoffice.dashboard_btn',
-                'Dashboard'
-              )
+              label: t('personal-shell-tab-dashboard')
             },
             {
               value: 'expense-items',
-              label: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_list.flows_button.expense_items',
-                'Expense Items'
-              )
+              label: t('personal-shell-tab-expense-items')
             },
             {
               value: 'expense-plans',
-              label: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-                'Expense Plans'
-              )
+              label: t('personal-shell-tab-expense-plans')
             },
             {
               value: 'advance-payments',
-              label: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:backoffice_expense_landing_page.advance_title',
-                'Advance Payments'
-              )
+              label: t('personal-shell-tab-advance-payments')
             },
             {
               value: 'expense-requests',
-              label: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_list.flows_button.expense_requests',
-                'Expense Requests'
-              )
+              label: t('personal-shell-tab-expense-requests')
             },
-            { value: 'calendar', label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar') }
+            { value: 'calendar', label: t('personal-shell-tab-calendar') }
           ]
         }}
         variant={moduleColor}

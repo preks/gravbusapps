@@ -87,6 +87,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [trashConfirmOpen, setTrashConfirmOpen] = useState(false)
   const [pendingTrashNoteIds, setPendingTrashNoteIds] = useState<string[]>([])
   const [isMovingToTrash, setIsMovingToTrash] = useState(false)
+  const [trashCount, setTrashCount] = useState(0)
 
   // Share dialog
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -202,6 +203,41 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     }
   }, [notes, graphqlClient, ownerInfoMap])
 
+  const loadTrashCount = useCallback(async () => {
+    if (!accessToken || !currentUserId) {
+      setTrashCount(0)
+      return
+    }
+
+    try {
+      DriveApiService.setAccessToken(accessToken)
+      const PAGE_SIZE = 200
+      let page = 1
+      let count = 0
+      let hasMore = true
+
+      while (hasMore) {
+        const result = await DriveApiService.listItems({
+          section: 'trash',
+          type: 'note',
+          limit: PAGE_SIZE,
+          page
+        })
+        count += result.items.filter(item => item.ownerId === currentUserId && !item.spaceId).length
+        hasMore = result.items.length === PAGE_SIZE
+        page += 1
+      }
+
+      setTrashCount(count)
+    } catch (error) {
+      console.error('[NoteAppsHub] Failed to load trash count:', error)
+    }
+  }, [accessToken, currentUserId])
+
+  useEffect(() => {
+    void loadTrashCount()
+  }, [loadTrashCount])
+
   // Categorise notes
   const { myNotes, sharedNotes, pinnedNotes, recentNotes } = useMemo(() => {
     const my: NoteSummary[] = []
@@ -228,14 +264,14 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const isFolder = (n: NoteSummary) => n.icon === '📁'
   const quickAccessCounts = useMemo(
     () => ({
-      'all-notes': myNotes.filter(n => !isFolder(n)).length + sharedNotes.filter(n => !isFolder(n)).length,
+      'all-notes': myNotes.filter(n => !isFolder(n)).length,
       favorites: Array.from(favorites).filter(id => notes.some(n => n.id === id && !isFolder(n))).length,
       pinned: pinnedNotes.filter(n => !isFolder(n)).length,
       shared: sharedNotes.filter(n => !isFolder(n)).length,
       recent: recentNotes.filter(n => !isFolder(n)).length,
-      trash: 0
+      trash: trashCount
     }),
-    [myNotes, sharedNotes, pinnedNotes, recentNotes, favorites, notes]
+    [myNotes, sharedNotes, pinnedNotes, recentNotes, favorites, notes, trashCount]
   )
 
   // Filter + sort notes
@@ -531,11 +567,12 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         pendingTrashNoteIds.forEach(noteId => next.delete(noteId))
         return next
       })
+      await loadTrashCount()
     } finally {
       setIsMovingToTrash(false)
       setPendingTrashNoteIds([])
     }
-  }, [deleteNote, noteTree, pendingTrashNoteIds, selectedNoteId, updateUrl])
+  }, [deleteNote, loadTrashCount, noteTree, pendingTrashNoteIds, selectedNoteId, updateUrl])
 
   const handleTrashConfirmOpenChange = useCallback(
     (open: boolean) => {
@@ -619,6 +656,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       updateUrl(currentNote.id, 'editor', 'my-notes')
       toast.success(t('toast-note-restored'))
       await refreshNotes()
+      await loadTrashCount()
       noteTree.loadTree()
     } catch (error) {
       console.error('[NoteAppsHub] Failed to restore trashed note:', error)
@@ -633,6 +671,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     currentUserId,
     currentNotePermission,
     loadNote,
+    loadTrashCount,
     noteTree,
     refreshNotes,
     t,
@@ -812,6 +851,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       width={sidebar.width}
       isResizing={sidebar.isResizing}
       tree={noteTree.tree}
+      recentNotes={recentNotes}
       expandedIds={noteTree.expandedIds}
       selectedId={noteTree.selectedId}
       isLoadingTree={noteTree.isLoading}
@@ -857,6 +897,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             onOpenItem={item => handleOpenTrashedNote(item.id)}
             onItemsChanged={() => {
               void refreshNotes()
+              void loadTrashCount()
               noteTree.loadTree()
             }}
           />
@@ -926,10 +967,19 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
               }}
               onBack={handleBack}
               onConvertToText={async text => {
-                await updateNote(currentNote.id, {
+                await NoteApiService.resetYjsState(currentNote.id, {
                   title: currentNote.title,
                   content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`,
-                  contentJson: { _noteType: 'text' }
+                  contentJson: {
+                    _noteType: 'text',
+                    ...(contentJson?._summary ? { _summary: contentJson._summary } : {}),
+                    ...(Array.isArray(contentJson?._translation) && contentJson._translation.length > 0
+                      ? { _translation: contentJson._translation }
+                      : {}),
+                    ...(Array.isArray(contentJson?.actionItemFlows) && contentJson.actionItemFlows.length > 0
+                      ? { actionItemFlows: contentJson.actionItemFlows }
+                      : {})
+                  }
                 })
                 loadNote(currentNote.id)
               }}
@@ -972,8 +1022,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           <NoteEditor
             key={currentNote.id}
             note={currentNote}
-            onSave={async (title, content, contentJson) => {
-              await updateNote(currentNote.id, { title, content, contentJson })
+            onSave={async (title, _content, contentJson) => {
+              await updateNote(currentNote.id, { title, contentJson })
             }}
             onBack={handleBack}
             onTogglePin={() => handleTogglePin(currentNote.id)}

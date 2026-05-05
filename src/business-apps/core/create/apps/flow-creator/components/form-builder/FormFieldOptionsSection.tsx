@@ -3,9 +3,9 @@ import { Button, Input, Label } from '@newwork/nw-design-system'
 import { Database, List, Plus, X } from 'lucide-react'
 import { InputType, type DataSource, type InputBlock, type InputOption } from '@/common/data/flow/types/flowTemplate'
 import type { DesignerMode } from '../../types/studioTypes'
+import type { EntityOption } from '../../hooks/useFlowStudioData'
 import { CatalogSourceSection } from './CatalogSourceSection'
 import { EntitySourceSection } from './EntitySourceSection'
-import { CustomDataSourceSection } from './CustomDataSourceSection'
 
 interface CatalogOption {
   identifier: string
@@ -22,14 +22,9 @@ interface FormFieldOptionsSectionProps {
   catalogsHasMore?: boolean
   searchCatalogs?: (query: string) => Promise<void>
   loadMoreCatalogs?: () => Promise<void>
-  entities?: Array<{ type: string; name: string; fields: string[] }>
+  entities?: EntityOption[]
   entitiesLoading?: boolean
   entitiesError?: string | null
-  customDataNamespaces?: string[]
-  customDataNamespacesLoading?: boolean
-  customDataKeysByNamespace?: Record<string, string[]>
-  customDataKeysLoadingByNamespace?: Record<string, boolean>
-  fetchCustomDataKeys?: (namespace: string) => Promise<void>
   index: number
   mode: DesignerMode
   onChange: (updated: InputBlock) => void
@@ -39,7 +34,7 @@ interface FormFieldOptionsSectionProps {
   'data-testid': string
 }
 
-type OptionsSource = 'manual' | 'catalog' | 'entity' | 'custom_data'
+type OptionsSource = 'manual' | 'catalog' | 'entity' | 'internal_entity'
 
 export const FormFieldOptionsSection: React.FC<FormFieldOptionsSectionProps> = ({
   field,
@@ -52,11 +47,6 @@ export const FormFieldOptionsSection: React.FC<FormFieldOptionsSectionProps> = (
   entities,
   entitiesLoading,
   entitiesError,
-  customDataNamespaces,
-  customDataNamespacesLoading,
-  customDataKeysByNamespace,
-  customDataKeysLoadingByNamespace,
-  fetchCustomDataKeys,
   index,
   mode,
   onChange,
@@ -66,27 +56,27 @@ export const FormFieldOptionsSection: React.FC<FormFieldOptionsSectionProps> = (
   'data-testid': testId
 }) => {
   const usesCatalog = field.dataSource?.type === 'CATALOG'
-  const usesEntity = field.dataSource?.type === 'ENTITY'
-  const usesCustomData = field.dataSource?.type === 'CUSTOM_DATA'
+  const usesEntity = field.dataSource?.type === 'CUSTOM_ENTITY'
+  const usesInternalEntity = field.dataSource?.type === 'INTERNAL_ENTITY'
   const canUseCatalog = field.type === InputType.SELECT || field.type === InputType.MULTISELECT
   const canUseExternalSource = canUseCatalog
   const showSourcePicker = canUseExternalSource
 
   const source: OptionsSource = usesCatalog
     ? 'catalog'
-    : usesEntity
-      ? 'entity'
-      : usesCustomData
-        ? 'custom_data'
+    : usesInternalEntity
+      ? 'internal_entity'
+      : usesEntity
+        ? 'entity'
         : 'manual'
 
   const sourceDescription =
     source === 'catalog'
       ? 'Options are loaded from a reference catalog.'
-      : source === 'entity'
-        ? 'Options are loaded from an entity type.'
-        : source === 'custom_data'
-          ? 'Options are loaded from custom data sources.'
+      : source === 'internal_entity'
+        ? 'Options are loaded from an internal platform entity (employee, cost center, etc.).'
+        : source === 'entity'
+          ? 'Options are loaded from a promoted custom entity definition.'
           : 'Options are defined manually in this form.'
 
   const setSource = (next: OptionsSource) => {
@@ -112,26 +102,28 @@ export const FormFieldOptionsSection: React.FC<FormFieldOptionsSectionProps> = (
         ...field,
         options: undefined,
         dataSource: {
-          type: 'ENTITY',
-          entity: field.dataSource?.type === 'ENTITY' ? field.dataSource.entity : '',
+          type: 'CUSTOM_ENTITY',
+          entity: field.dataSource?.type === 'CUSTOM_ENTITY' ? field.dataSource.entity : '',
+          namespace: field.dataSource?.type === 'CUSTOM_ENTITY' ? field.dataSource.namespace : undefined,
           valueField: field.dataSource?.valueField ?? 'id',
           labelField: field.dataSource?.labelField ?? 'displayName'
         } as DataSource
       })
       return
     }
-    // custom_data
-    onChange({
-      ...field,
-      options: undefined,
-      dataSource: {
-        type: 'CUSTOM_DATA',
-        namespace: field.dataSource?.type === 'CUSTOM_DATA' ? field.dataSource.namespace : 'default',
-        key: field.dataSource?.type === 'CUSTOM_DATA' ? field.dataSource.key : '',
-        valueField: field.dataSource?.valueField ?? 'code',
-        labelField: field.dataSource?.labelField ?? 'value'
-      } as DataSource
-    })
+    if (next === 'internal_entity') {
+      onChange({
+        ...field,
+        options: undefined,
+        dataSource: {
+          type: 'INTERNAL_ENTITY',
+          entity: field.dataSource?.type === 'INTERNAL_ENTITY' ? field.dataSource.entity : '',
+          valueField: field.dataSource?.valueField ?? 'id',
+          labelField: field.dataSource?.labelField ?? 'displayName'
+        } as DataSource
+      })
+      return
+    }
   }
 
   return (
@@ -144,12 +136,17 @@ export const FormFieldOptionsSection: React.FC<FormFieldOptionsSectionProps> = (
               [
                 { id: 'manual' as const, Icon: List, title: 'Manual', desc: 'Enter the option list here.' },
                 { id: 'catalog' as const, Icon: Database, title: 'Catalog', desc: 'Use reference data (recommended).' },
-                { id: 'entity' as const, Icon: Database, title: 'Entity', desc: 'Use an entity type as source.' },
                 {
-                  id: 'custom_data' as const,
+                  id: 'entity' as const,
                   Icon: Database,
-                  title: 'Custom data',
-                  desc: 'Use namespace-scoped custom data.'
+                  title: 'Custom entity',
+                  desc: 'Use a promoted custom entity definition as source.'
+                },
+                {
+                  id: 'internal_entity' as const,
+                  Icon: Database,
+                  title: 'Internal Entity',
+                  desc: 'Use platform entity (employee, etc.).'
                 }
               ] satisfies Array<{
                 id: OptionsSource
@@ -202,26 +199,15 @@ export const FormFieldOptionsSection: React.FC<FormFieldOptionsSectionProps> = (
           onChange={onChange}
           testId={testId}
         />
-      ) : source === 'entity' ? (
+      ) : source === 'entity' || source === 'internal_entity' ? (
         <EntitySourceSection
+          key={source}
           field={field}
           entities={entities}
           entitiesLoading={entitiesLoading}
           entitiesError={entitiesError}
           showFieldMapping={mode === 'advanced'}
-          index={index}
-          onChange={onChange}
-          testId={testId}
-        />
-      ) : source === 'custom_data' ? (
-        <CustomDataSourceSection
-          field={field}
-          namespaces={customDataNamespaces}
-          namespacesLoading={customDataNamespacesLoading}
-          keysByNamespace={customDataKeysByNamespace}
-          keysLoadingByNamespace={customDataKeysLoadingByNamespace}
-          fetchKeys={fetchCustomDataKeys}
-          showFieldMapping={mode === 'advanced'}
+          sourceType={source === 'internal_entity' ? 'INTERNAL_ENTITY' : 'CUSTOM_ENTITY'}
           index={index}
           onChange={onChange}
           testId={testId}

@@ -66,6 +66,8 @@ import {
   CHART_TYPES,
   gradientToCss,
   DEFAULT_TRANSITION,
+  fontSizePixelsToPoints,
+  fontSizePointsToPixels,
   getCodeFontSizeOptions,
   getCodeLanguageOptions,
   getFontFamilyOptions,
@@ -73,6 +75,7 @@ import {
   getShapeGeometry
 } from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
+import { SlideFontSizeControl } from './SlideFontSizeControl'
 import { TransitionPreview } from './TransitionPreview'
 import { sanitizeImageSourceUrl } from '@/common/utils/safeUrlUtils'
 import { SlidesApiService } from '../services'
@@ -1344,7 +1347,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             const resolvedFontSize = textFormatting?.isFontSizeMixed
               ? undefined
               : (textFormatting?.fontSize ?? textElement.fontSize)
-            const fontSizeValue = resolvedFontSize === undefined ? '' : String(resolvedFontSize)
+            const resolvedFontSizePoints = fontSizePixelsToPoints(resolvedFontSize)
             const fontFamilyOptions = getFontFamilyOptions(fontFamilyValue)
             const fontSizeOptions = getFontSizeOptions(resolvedFontSize)
             const resolvedTextAlign = textFormatting?.isTextAlignMixed
@@ -1382,18 +1385,20 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 {/* Font Size */}
                 <div>
                   <Label className="gba:text-xs">{t('props-font-size')}</Label>
-                  <Select value={fontSizeValue} onValueChange={value => value && onUpdate({ fontSize: Number(value) })}>
-                    <SelectTrigger className="gba:text-xs">
-                      <SelectValue placeholder={textFormatting?.isFontSizeMixed ? '' : undefined} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {fontSizeOptions.map(size => (
-                        <SelectItem key={size} value={String(size)}>
-                          {size}px
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SlideFontSizeControl
+                    value={resolvedFontSizePoints}
+                    options={fontSizeOptions}
+                    placeholder={textFormatting?.isFontSizeMixed ? '' : undefined}
+                    ariaLabel={t('props-font-size')}
+                    disabled={hasOnlyLockedSelection}
+                    className="gba:w-full"
+                    onCommit={nextFontSizePoints => {
+                      const nextFontSize = fontSizePointsToPixels(nextFontSizePoints)
+                      if (nextFontSize !== undefined) {
+                        onUpdate({ fontSize: nextFontSize })
+                      }
+                    }}
+                  />
                 </div>
 
                 {/* Font Style Buttons */}

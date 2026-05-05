@@ -435,7 +435,6 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = ({
       {showAggregatesBar && (
         <InvestmentListAggregatesBar
           listAggregates={listAggregates}
-          showEquityMetrics={false}
           dataTestIdPrefix="all-investments"
           displayCurrencyCode={displayCurrencyCode}
         />

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowsClockwiseIcon,
   BrainIcon,
@@ -27,6 +27,7 @@ import { DecisionsCard } from './DecisionsCard'
 import { LivePreviewCard } from './LivePreviewCard'
 import { PanelCard } from './PanelCard'
 import { PlanCard } from './PlanCard'
+import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 
 function activityTimestampSortValue(timestamp: string): number {
   const date = parseIsoTimestamp(timestamp)
@@ -74,7 +75,12 @@ const workspaceDocPanelIcon = (type: WorkspaceDocument['type']) => {
 }
 
 const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[] }> = ({ docs }) => (
-  <PanelCard title="Workspace Documents" badge={docs.length} defaultOpen>
+  <PanelCard
+    title="Workspace Documents"
+    badge={docs.length}
+    summary={docs[0]?.title ? `Latest: ${docs[0].title}` : undefined}
+    defaultOpen
+  >
     <div className="gba:py-1">
       {docs.map(doc => (
         <a
@@ -100,7 +106,12 @@ const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) 
   artifacts,
   onView
 }) => (
-  <PanelCard title="Artifacts" badge={artifacts.length} defaultOpen>
+  <PanelCard
+    title="Artifacts"
+    badge={artifacts.length}
+    summary={artifacts[0]?.name ? `Latest: ${artifacts[0].name}` : undefined}
+    defaultOpen
+  >
     <div className="gba:py-1">
       {artifacts.map(file => (
         <div
@@ -263,8 +274,17 @@ const EnterpriseExpertsCard: React.FC<{
 
   if (experts.length === 0) return null
 
+  const expertSummary = (() => {
+    const running = experts.filter(e => e.status === 'running').length
+    const done = experts.filter(e => e.status === 'done').length
+    const failed = experts.filter(e => e.status === 'failed').length
+    if (running) return `${running} running · ${done} done${failed ? ` · ${failed} failed` : ''}`
+    if (failed) return `${done} done · ${failed} failed`
+    return `${done} done`
+  })()
+
   return (
-    <PanelCard title="Enterprise experts" badge={experts.length} defaultOpen>
+    <PanelCard title="Enterprise experts" badge={experts.length} summary={expertSummary} defaultOpen>
       <div className="gba:py-1 gba:space-y-1">
         {experts.map(expert => (
           <div
@@ -333,8 +353,11 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
     [events]
   )
 
+  const latestSummary = sortedEvents[0]?.summary
+  const activitySummary = latestSummary ? `Latest: ${latestSummary}` : undefined
+
   return (
-    <PanelCard title="Activity" badge={events.length} defaultOpen={false}>
+    <PanelCard title="Activity" badge={events.length} summary={activitySummary} defaultOpen={false}>
       <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:py-1">
         {sortedEvents.map(event => {
           const isSubagent = event.type === 'subagent_spawn'
@@ -392,6 +415,208 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
   )
 }
 
+const DebugTraceCard: React.FC<{ sessionId: string; accessToken: string }> = ({ sessionId, accessToken }) => {
+  const [trace, setTrace] = useState<Record<string, any> | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<'all' | 'decisions' | 'tools' | 'hitl' | 'errors' | 'artifacts'>('all')
+
+  useEffect(() => {
+    if (!sessionId) return
+    const base = PROMPT_MANAGER_API_URL.replace(/\/$/, '')
+    fetch(`${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/debug-trace`, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+    })
+      .then(async response => {
+        if (!response.ok) throw new Error(`Debug trace failed: ${response.status}`)
+        return response.json()
+      })
+      .then(setTrace)
+      .catch(err => setError(err instanceof Error ? err.message : String(err)))
+  }, [sessionId, accessToken])
+
+  if (!sessionId) return null
+
+  const steps = Array.isArray(trace?.steps) ? trace.steps : []
+  const interesting = steps.filter(step =>
+    [
+      'decision',
+      'routing_plan',
+      'tool_started',
+      'tool_completed',
+      'tool_result',
+      'nested_tool_completed',
+      'hitl_requested',
+      'capability_missing',
+      'artifact_created',
+      'artifact_preview',
+      'terminal'
+    ].includes(String(step.kind))
+  )
+  const filtered = interesting.filter(step => {
+    if (filter === 'all') return true
+    if (filter === 'decisions') return step.kind === 'decision' || step.kind === 'routing_plan'
+    if (filter === 'tools') return String(step.kind).startsWith('tool_') || step.kind === 'nested_tool_completed'
+    if (filter === 'hitl') return String(step.kind).includes('hitl')
+    if (filter === 'errors') return step.kind === 'capability_missing' || step.status === 'failed'
+    if (filter === 'artifacts') return String(step.kind).includes('artifact')
+    return true
+  })
+
+  const exportTrace = () => {
+    if (!trace) return
+    const blob = new Blob([JSON.stringify(trace, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `debug-trace-${sessionId}.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const debugSummary = (() => {
+    if (!trace) return error ? 'Failed to load trace' : 'Loading trace…'
+    if (interesting.length === 0) return 'No traced steps yet'
+    return `${interesting.length} traced step${interesting.length === 1 ? '' : 's'}`
+  })()
+
+  return (
+    <PanelCard title="Debug Trace" badge={interesting.length} summary={debugSummary} defaultOpen={false}>
+      <div className="gba:max-h-96 gba:overflow-y-auto gba:px-4 gba:py-3 gba:space-y-2">
+        {error && <p className="gba:text-xs gba:text-destructive">{error}</p>}
+        {!trace && !error && <p className="gba:text-xs gba:text-muted-foreground">Loading debug trace...</p>}
+        {trace && (
+          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
+            {(['all', 'decisions', 'tools', 'hitl', 'errors', 'artifacts'] as const).map(value => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setFilter(value)}
+                className={`gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] ${
+                  filter === value ? 'gba:bg-foreground gba:text-background' : 'gba:bg-muted gba:text-muted-foreground'
+                }`}
+              >
+                {value}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={exportTrace}
+              className="gba:ml-auto gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-foreground"
+            >
+              Export
+            </button>
+          </div>
+        )}
+        {trace?.known_observability_gap && (
+          <p className="gba:rounded-md gba:bg-amber-50 gba:px-3 gba:py-2 gba:text-[11px] gba:text-amber-800">
+            {trace.known_observability_gap}
+          </p>
+        )}
+        {filtered.map((step, idx) => {
+          const isRouting = step.kind === 'routing_plan'
+          const isGap = step.kind === 'capability_missing'
+          const experts: Array<{ name?: string; subtask?: string; rationale?: string }> = Array.isArray(step.experts)
+            ? step.experts
+            : []
+          const shortlist: Array<{ kind?: string; name?: string; score?: number; description?: string }> =
+            Array.isArray(step.shortlist) ? step.shortlist : []
+          return (
+            <div
+              key={`${step.seq ?? idx}-${step.kind}`}
+              className={`gba:rounded-lg gba:border gba:p-2 ${
+                isRouting
+                  ? 'gba:border-blue-200 gba:bg-blue-50/50'
+                  : isGap
+                    ? 'gba:border-amber-200 gba:bg-amber-50/50'
+                    : 'gba:border-border/60'
+              }`}
+            >
+              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:text-[11px] gba:text-muted-foreground">
+                <span>#{String(step.seq ?? idx)}</span>
+                <span className="gba:font-semibold gba:text-foreground">{String(step.kind)}</span>
+                {step.mode && <span className="gba:font-mono">mode:{String(step.mode)}</span>}
+                {step.parallelizable && (
+                  <span className="gba:rounded-full gba:bg-blue-100 gba:px-1.5 gba:text-[10px] gba:text-blue-800">
+                    parallel
+                  </span>
+                )}
+                {typeof step.used_llm === 'boolean' && (
+                  <span className="gba:text-[10px] gba:text-muted-foreground/70">
+                    router:{step.used_llm ? 'llm' : 'lexical'}
+                  </span>
+                )}
+                {step.tool && <span className="gba:font-mono">{String(step.tool)}</span>}
+                {step.expert && <span>via {String(step.expert)}</span>}
+                {step.expert_name && <span>via {String(step.expert_name)}</span>}
+                {step.provider_tool_ref && (
+                  <span className="gba:font-mono gba:text-[10px] gba:text-muted-foreground/70">
+                    provider:{String(step.provider_tool_ref)}
+                  </span>
+                )}
+                {step.category && <span>{String(step.category)}</span>}
+                {step.correlation_id && <span className="gba:font-mono">corr:{String(step.correlation_id)}</span>}
+              </div>
+              {(step.reason ||
+                step.rationale ||
+                step.result_preview ||
+                step.output_preview ||
+                step.content_preview) && (
+                <p className="gba:mt-1 gba:line-clamp-4 gba:text-xs gba:text-muted-foreground">
+                  {String(
+                    step.reason || step.rationale || step.result_preview || step.output_preview || step.content_preview
+                  )}
+                </p>
+              )}
+              {isRouting && experts.length > 0 && (
+                <ul className="gba:mt-1 gba:space-y-0.5 gba:text-[11px] gba:text-foreground">
+                  {experts.map((expert, expertIdx) => (
+                    <li key={`${expert.name}-${expertIdx}`} className="gba:font-mono">
+                      → <span className="gba:font-semibold">{expert.name}</span>
+                      {expert.subtask ? (
+                        <span className="gba:font-normal gba:text-muted-foreground"> · {expert.subtask}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {isRouting && shortlist.length > 0 && (
+                <details className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
+                  <summary className="gba:cursor-pointer">Shortlist ({shortlist.length})</summary>
+                  <ul className="gba:mt-1 gba:space-y-0.5">
+                    {shortlist.slice(0, 8).map((item, itemIdx) => (
+                      <li key={`${item.name}-${itemIdx}`} className="gba:font-mono">
+                        [{String(item.kind || '?')}] {String(item.name || 'unknown')}
+                        {typeof item.score === 'number' ? (
+                          <span className="gba:text-[10px] gba:text-muted-foreground/60">
+                            {' '}
+                            · {item.score.toFixed(3)}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {isRouting && Array.isArray(step.required_capabilities) && step.required_capabilities.length > 0 && (
+                <div className="gba:mt-1 gba:flex gba:flex-wrap gba:gap-1">
+                  {step.required_capabilities.map((cap: string, capIdx: number) => (
+                    <span
+                      key={`${cap}-${capIdx}`}
+                      className="gba:rounded-full gba:bg-muted gba:px-1.5 gba:text-[10px] gba:text-muted-foreground"
+                    >
+                      {cap}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </PanelCard>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface WorkspaceRightPanelProps {
@@ -412,6 +637,10 @@ interface WorkspaceRightPanelProps {
   sessionId?: string
   /** Invoked when the user clicks "Try again" on a preview error card. */
   onRetryPreview?: (preview: ArtifactPreview) => void
+  /** Whether the live-preview canvas is in its maximized layout. */
+  isPreviewMaximized?: boolean
+  /** Toggle handler wired to the expand/collapse button on the preview header. */
+  onTogglePreviewMaximized?: () => void
 }
 
 export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
@@ -430,7 +659,9 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   latestPreview,
   accessToken = '',
   sessionId = '',
-  onRetryPreview
+  onRetryPreview,
+  isPreviewMaximized = false,
+  onTogglePreviewMaximized
 }) => {
   const showPreview =
     !!latestPreview &&
@@ -445,12 +676,14 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
       data-testid="fabric-right-panel"
     >
       {showPreview && (
-        <div>
+        <div className="gba:shrink-0">
           <LivePreviewCard
             preview={latestPreview}
             accessToken={accessToken}
             sessionId={sessionId}
             onRetry={onRetryPreview ? () => onRetryPreview(latestPreview) : undefined}
+            isMaximized={isPreviewMaximized}
+            onToggleMaximized={onTogglePreviewMaximized}
           />
         </div>
       )}
@@ -476,6 +709,8 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
       {workspaceDocs && workspaceDocs.length > 0 && <WorkspaceDocumentsCard docs={workspaceDocs} />}
 
       {activityEvents.length > 0 && <ActivityCard events={activityEvents} />}
+
+      {sessionId && <DebugTraceCard sessionId={sessionId} accessToken={accessToken} />}
     </div>
   )
 }

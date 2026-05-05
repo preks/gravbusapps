@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import type { CatalogTranslationEntry } from '../../utils/catalogTranslations'
 
 // Context-agnostic interfaces
 export interface PipelineEntry {
@@ -10,6 +11,8 @@ export interface PipelineEntry {
   description: string
   stageCount: number
   conditionCount: number
+  localeCode?: string
+  translations?: CatalogTranslationEntry[]
   objectValue?: Record<string, any>
 }
 
@@ -27,6 +30,8 @@ export interface PipelineStageEntry {
   activeFrom?: string | null
   activeTo?: string | null
   description?: string | null
+  localeCode?: string
+  translations?: CatalogTranslationEntry[]
   objectValue?: Record<string, any>
 }
 
@@ -82,6 +87,7 @@ export const usePipelineSettings = (
             limit: 100,
             offset: 0,
             returnTotalRecords: true,
+            includeTranslations: true,
             includeChildCatalogEntries: false
           }
         ),
@@ -94,6 +100,7 @@ export const usePipelineSettings = (
             limit: 1000,
             offset: 0,
             returnTotalRecords: true,
+            includeTranslations: true,
             includeChildCatalogEntries: true
           }
         ),
@@ -108,6 +115,7 @@ export const usePipelineSettings = (
                 limit: 1000,
                 offset: 0,
                 returnTotalRecords: true,
+                includeTranslations: true,
                 includeChildCatalogEntries: true
               }
             )
@@ -148,6 +156,8 @@ export const usePipelineSettings = (
           description: entry.additionalValue1 || '',
           stageCount: stageCountMap.get(entry.id) || 0,
           conditionCount: conditionCountMap.get(entry.id) || 0,
+          localeCode: entry.localeCode,
+          translations: entry.translations,
           objectValue: entry.objectValue as Record<string, any>
         }))
         .sort((a, b) => a.value.localeCompare(b.value))
@@ -169,6 +179,8 @@ export const usePipelineSettings = (
           activeFrom: entry.activeFrom || null,
           activeTo: entry.activeTo || null,
           description: entry.description || null,
+          localeCode: entry.localeCode,
+          translations: entry.translations,
           objectValue: entry.objectValue as Record<string, any>
         }))
         .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))

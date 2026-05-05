@@ -82,7 +82,6 @@ export interface LeadsTabLayoutProps {
 }
 
 export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
-  title = 'Leads Analytics',
   moduleColor = 'default',
   totalLeads,
   conversionRate,
@@ -213,7 +212,6 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   return (
     <div className="gba:space-y-6" data-testid="leads-analytics-tab">
       <div>
-        <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
         <WidgetGroup widgets={keyMetricsWidgets} isLoading={trendLoading} data-testid="leads-key-metrics" />
       </div>
 

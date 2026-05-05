@@ -1,8 +1,15 @@
 import { useCallback } from 'react'
 import type { UploadFile } from 'antd/es/upload/interface'
-import { Card, Spinner, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
+import {
+  Card,
+  Spinner,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { ImageIcon, FilePdfIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { truncateFileName, formatFileSize } from '@/common/utils/fileUtils'
 import {
   getExpenseItemFileExtension,
@@ -10,6 +17,7 @@ import {
   isExpenseItemPdfFile,
   renderExpenseItemFileIcon
 } from './expenseItemAttachmentFileTypes'
+import personalTranslations from '../../../../_i18n'
 
 const THUMB_CLASS = 'gba:rounded-md gba:shadow gba:w-24 gba:h-24'
 
@@ -26,6 +34,8 @@ export function ExpenseItemAttachmentGrid({
   onImagePreview,
   onPdfPreview
 }: Readonly<ExpenseItemAttachmentGridProps>) {
+  const { t } = useTranslation(personalTranslations)
+
   const renderFilePreview = useCallback(
     (fileUrl: string, fileName: string, fileType: string, ext: string, idx: number) => {
       if (isExpenseItemImageFile(fileType, ext)) {
@@ -65,12 +75,12 @@ export function ExpenseItemAttachmentGrid({
               window.open(fileUrl, '_blank')
             }}
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.open', 'Open')}
+            {t('expense-items-attachment-open')}
           </a>
         </div>
       )
     },
-    [onImagePreview, onPdfPreview]
+    [onImagePreview, onPdfPreview, t]
   )
 
   if (fileLoading) {
@@ -81,9 +91,7 @@ export function ExpenseItemAttachmentGrid({
       >
         <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
           <Spinner />
-          <p className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.loadingReceipt', 'Loading receipt...')}
-          </p>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('expense-items-attachment-loading-receipt')}</p>
         </div>
       </Card>
     )
@@ -142,9 +150,7 @@ export function ExpenseItemAttachmentGrid({
     >
       <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
         <ImageIcon size={48} className="gba:text-muted-foreground" />
-        <p className="gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_receipt_attached', 'No receipt attached')}
-        </p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('expense-items-attachment-no-receipt')}</p>
       </div>
     </Card>
   )

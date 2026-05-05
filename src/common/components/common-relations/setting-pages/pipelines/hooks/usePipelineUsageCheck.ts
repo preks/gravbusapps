@@ -3,6 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 export interface UsageCheckResult {
   isInUse: boolean
   totalCount: number
+  verificationFailed?: boolean
 }
 
 export const usePipelineUsageCheck = (accessToken: string, sourceApp: 'CRM' | 'IRM' = 'CRM') => {
@@ -11,13 +12,23 @@ export const usePipelineUsageCheck = (accessToken: string, sourceApp: 'CRM' | 'I
   const opportunityTable = sourceApp === 'CRM' ? 'Opportunity' : 'InvestmentOpportunity'
   const pipelineRefField = sourceApp === 'CRM' ? 'salesPipelineRef' : 'opportunityPipelineRef'
   const stageRefField = sourceApp === 'CRM' ? 'salesPipelineStageRef' : 'opportunityPipelineStageRef'
+  const getVerificationFailedResult = (): UsageCheckResult => ({
+    isInUse: true,
+    totalCount: 0,
+    verificationFailed: true
+  })
 
   const checkPipelineUsage = async (pipelineId: string): Promise<UsageCheckResult> => {
+    if (!accessToken) {
+      return getVerificationFailedResult()
+    }
+
     try {
       const query = `
         query CheckPipelineUsage($pipelineId: String!) {
           totalCount: ${opportunityTable}Aggregate(
             where: {
+              isDeleted: { _eq: false }
               ${pipelineRefField}: { _eq: $pipelineId }
             }
           ) {
@@ -40,17 +51,21 @@ export const usePipelineUsageCheck = (accessToken: string, sourceApp: 'CRM' | 'I
       }
     } catch (error) {
       console.error('Error checking pipeline usage:', error)
-      // If query fails, assume it's NOT in use to allow deletion attempts
-      return { isInUse: false, totalCount: 0 }
+      return getVerificationFailedResult()
     }
   }
 
   const checkStageUsage = async (stageId: string): Promise<UsageCheckResult> => {
+    if (!accessToken) {
+      return getVerificationFailedResult()
+    }
+
     try {
       const query = `
         query CheckStageUsage($stageId: String!) {
           totalCount: ${opportunityTable}Aggregate(
             where: {
+              isDeleted: { _eq: false }
               ${stageRefField}: { _eq: $stageId }
             }
           ) {
@@ -73,8 +88,7 @@ export const usePipelineUsageCheck = (accessToken: string, sourceApp: 'CRM' | 'I
       }
     } catch (error) {
       console.error('Error checking stage usage:', error)
-      // If query fails, assume it's NOT in use to allow deletion attempts
-      return { isInUse: false, totalCount: 0 }
+      return getVerificationFailedResult()
     }
   }
 

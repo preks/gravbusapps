@@ -5,9 +5,9 @@ import {
   ChartBarIcon,
   FolderIcon,
   FileTextIcon,
-  TrendUpIcon,
+  ChartScatterIcon,
   GridFourIcon,
-  TrendDownIcon
+  SignOutIcon
 } from '@phosphor-icons/react'
 import { InvestmentDocuments } from '../components/InvestmentDocuments'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -54,7 +54,7 @@ export const createInvestmentTabsConfig = (
     tabs.push({
       value: 'analytics',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.analytics', 'Analytics'),
-      icon: <TrendUpIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
+      icon: <ChartScatterIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
         <div className="gba:col-span-12">
           <AnalyticsComponent
@@ -84,7 +84,7 @@ export const createInvestmentTabsConfig = (
   tabs.push({
     value: 'divestments',
     label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.divestments', 'Divestments'),
-    icon: <TrendDownIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
+    icon: <SignOutIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
     content: (
       <div className="gba:col-span-12">
         <DivestmentsTab investmentId={investmentId} {...props} />

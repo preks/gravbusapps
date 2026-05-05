@@ -1,5 +1,6 @@
 // Shared types for Investment Report Tables
 import React from 'react'
+import type { ReportSectionKind } from '../../utils/subSectionHelpers'
 
 /**
  * Column configuration for investment report tables
@@ -14,26 +15,18 @@ export interface ColumnConfig {
 
 /**
  * Configuration interface for customizing the shared investment report table component
- * Accepts any investment group code (e.g., 'EQUITY', 'REAL_ESTATE', 'LIQUID_FUND', 'PRIVATE_EQUITY', etc.)
  */
 export interface InvestmentReportTableConfig {
-  // Investment group identifier (any string - dynamically determined from catalog)
-  investmentGroup: string
-
-  // Display configuration
-  icon?: React.ComponentType<any> // ChartPieIcon, BuildingsIcon, or undefined
-
   emptyStateMessage: {
     title: (investmentTypeValue: string) => string
     description: (investmentTypeValue: string) => string
   }
 
-  // Navigation (any string identifier for the sub-view)
-  fromSubView: string
-
   // Column generation
   columnGenerator: (params: {
+    investmentGroup: string
     investmentType: string
+    sectionKind?: ReportSectionKind
     catalogData: any
     accessToken?: string
     reports?: any[]

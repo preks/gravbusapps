@@ -41,11 +41,10 @@ export interface InputOption {
 }
 
 export interface DataSource {
-  type: 'CATALOG' | 'ENTITY' | 'API' | 'CUSTOM_DATA'
+  type: 'CATALOG' | 'CUSTOM_ENTITY' | 'API' | 'INTERNAL_ENTITY'
   catalog?: string
   entity?: string
   namespace?: string
-  key?: string
   valueField?: string
   labelField?: string
 }

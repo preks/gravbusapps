@@ -3,9 +3,13 @@ export interface ExpenseType {
   amount: number
 }
 
+export type RecentActivityKind = 'request-approved' | 'request-returned' | 'plan-approved' | 'plan-returned'
+
 export interface RecentActivity {
   id: string | number
-  title: string
+  activityKind: RecentActivityKind
+  /** Optional expense request/plan title shown after the translated prefix */
+  relatedTitle?: string
   status: string
   updatedAt: string
   totalAmount?: number

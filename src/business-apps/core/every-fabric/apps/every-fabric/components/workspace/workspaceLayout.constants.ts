@@ -31,7 +31,7 @@ export const WORKSPACE_TOP_CONTROLS_OFFSET_CLASS = 'gba:top-4 sm:gba:top-5 lg:gb
  * `WORKSPACE_RIGHT_RAIL_WIDTH_CLASS` plus the panel's right gutter.
  */
 export const WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS =
-  'gba:pr-[calc(20rem+2rem)] xl:gba:pr-[calc(22rem+2.5rem)] 2xl:gba:pr-[calc(24rem+2.5rem)]'
+  'gba:pr-[calc(22rem+2rem)] xl:gba:pr-[calc(24rem+2.5rem)] 2xl:gba:pr-[calc(26rem+2.5rem)]'
 
 /**
  * Wide variant used when the right panel is showing a live document/slide
@@ -39,7 +39,16 @@ export const WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS =
  * panel's right gutter so the chat rail doesn't slide under the canvas.
  */
 export const WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS =
-  'gba:pr-[calc(32rem+2rem)] 2xl:gba:pr-[calc(38rem+2.5rem)]'
+  'gba:pr-[calc(38rem+2rem)] xl:gba:pr-[calc(44rem+2.5rem)] 2xl:gba:pr-[calc(52rem+2.5rem)]'
+
+/**
+ * Maximum-width variant used when the user explicitly expands the live preview
+ * to take over most of the workspace. Chat rail collapses to its minimum so
+ * the canvas can breathe. We still leave ~30rem on the left so the chat
+ * doesn't disappear.
+ */
+export const WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_MAXIMIZED_CLASS =
+  'gba:pr-[calc(60rem+2rem)] xl:gba:pr-[calc(72rem+2.5rem)] 2xl:gba:pr-[calc(84rem+2.5rem)]'
 
 /** Smooth slide when the panel toggles so chat + composer + modal move as one unit. */
 export const WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS = 'gba:transition-[padding] gba:duration-300 gba:ease-out'
@@ -64,11 +73,20 @@ export const WORKSPACE_RIGHT_RAIL_TOP_OFFSET_CLASS = 'gba:top-20 lg:gba:top-24'
  */
 export const WORKSPACE_RIGHT_RAIL_AUTO_OPEN_BREAKPOINT_PX = 1280
 
-export const WORKSPACE_RIGHT_RAIL_WIDTH_CLASS = 'gba:w-[min(20rem,calc(100%-2rem))] xl:gba:w-[22rem] 2xl:gba:w-[24rem]'
+export const WORKSPACE_RIGHT_RAIL_WIDTH_CLASS = 'gba:w-[min(22rem,calc(100%-2rem))] xl:gba:w-[24rem] 2xl:gba:w-[26rem]'
 
-export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_CLASS = 'gba:w-[min(32rem,calc(100%-2rem))] 2xl:gba:w-[38rem]'
+export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_CLASS =
+  'gba:w-[min(38rem,calc(100%-2rem))] xl:gba:w-[44rem] 2xl:gba:w-[52rem]'
+
+/**
+ * Maximised live preview width — used when the user clicks the expand button
+ * on a live canvas. The panel takes most of the viewport so document/slide
+ * content is fully readable, while the chat collapses to a minimum lane.
+ */
+export const WORKSPACE_RIGHT_RAIL_PREVIEW_MAXIMIZED_WIDTH_CLASS =
+  'gba:w-[min(60rem,calc(100%-2rem))] xl:gba:w-[72rem] 2xl:gba:w-[84rem]'
 
 /** Pixel widths for desktop flex-flow right panel (must match CSS classes above) */
-export const WORKSPACE_RIGHT_RAIL_DEFAULT_WIDTH_PX = 320
-export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_PX = 512
-export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_2XL_PX = 608
+export const WORKSPACE_RIGHT_RAIL_DEFAULT_WIDTH_PX = 352
+export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_PX = 608
+export const WORKSPACE_RIGHT_RAIL_PREVIEW_WIDTH_2XL_PX = 832

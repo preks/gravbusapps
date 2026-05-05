@@ -1,39 +1,77 @@
 import React, { useCallback, useLayoutEffect, useRef } from 'react'
-import type { RichTextParagraph, RichTextRun, TextElement } from './slideElements'
-import { textTransformToCss } from './slideElements'
-import { resolveFontStack } from './fontStack'
-import { normalizeRichTextParagraphs, type RichTextSelectionRange } from '../utils/richTextEditing'
+import type { TextElement } from './slideElements'
+import { getTextEditDelta, normalizeRichTextParagraphs, type RichTextSelectionRange } from '../utils/richTextEditing'
+import {
+  getRichTextBoxStyle,
+  getRichTextParagraphMarker,
+  getRichTextParagraphStyle,
+  getRichTextRunStyle
+} from './richTextStyles'
 
 export interface InlineRichTextEditorProps {
   element: TextElement
   onTextChange: (value: string) => void
   onSelectionChange: (range: RichTextSelectionRange | null) => void
   onFinishEditing: () => void
+  onCopySelection?: (selection: RichTextSelectionRange, clipboardData: DataTransfer | null) => void
+  onCutSelection?: (selection: RichTextSelectionRange, clipboardData: DataTransfer | null) => void
+  onPasteSelection?: (selection: RichTextSelectionRange | null, clipboardData: DataTransfer | null) => void
+  selectionToRestore?: RichTextSelectionRange | null
   rehydrateToken?: number
+  // Mirrors the latest selection synchronously so callers (e.g. the slide
+  // editor's context-menu handler) can read the up-to-date range without
+  // racing React state updates.
+  selectionRef?: React.MutableRefObject<RichTextSelectionRange | null>
   'data-testid'?: string
-}
-
-function runStyle(run: RichTextRun, element: TextElement): React.CSSProperties {
-  return {
-    fontFamily: resolveFontStack(run.fontFamily || element.fontFamily),
-    fontSize: run.fontSize || element.fontSize,
-    fontWeight: run.fontWeight || element.fontWeight,
-    fontStyle: run.fontStyle || element.fontStyle,
-    textDecoration: run.textDecoration || element.textDecoration,
-    color: run.color || element.color,
-    backgroundColor: run.backgroundColor,
-    ...textTransformToCss(run.textTransform ?? element.textTransform)
-  }
-}
-
-function alignmentToTextAlign(alignment: RichTextParagraph['alignment'], fallback: TextElement['textAlign']) {
-  if (alignment === 'justify') return 'justify'
-  return alignment ?? fallback
 }
 
 function normalizeEditorText(text: string | null | undefined): string {
   if (!text) return ''
   return text.replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n')
+}
+
+function sortSelectionRange(range: RichTextSelectionRange): RichTextSelectionRange {
+  return {
+    start: Math.min(range.start, range.end),
+    end: Math.max(range.start, range.end)
+  }
+}
+
+function getSelectionRangeAfterInput(previousContent: string, nextContent: string): RichTextSelectionRange {
+  const editDelta = getTextEditDelta(previousContent, nextContent)
+  const caretOffset = editDelta.start + editDelta.insertedLength
+
+  return { start: caretOffset, end: caretOffset }
+}
+
+function serializeEditorNode(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return normalizeEditorText(node.textContent)
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return ''
+
+  const element = node as HTMLElement
+  if (element.dataset.editorBullet === 'true') return ''
+  if (element.dataset.editorPlaceholder === 'true') return ''
+  if (element.tagName === 'BR') return '\n'
+
+  return Array.from(element.childNodes)
+    .map(child => serializeEditorNode(child))
+    .join('')
+}
+
+function serializeEditorText(container: HTMLElement): string {
+  const topLevelNodes = Array.from(container.childNodes).filter(node => {
+    if (node.nodeType !== Node.TEXT_NODE) return true
+    return normalizeEditorText(node.textContent).length > 0
+  })
+
+  if (topLevelNodes.length === 0) {
+    return normalizeEditorText(container.innerText ?? container.textContent)
+  }
+
+  return topLevelNodes.map(node => normalizeEditorText(serializeEditorNode(node))).join('\n')
 }
 
 function runBoundsFromElement(element: HTMLElement): { start: number; end: number } | null {
@@ -48,6 +86,78 @@ function paragraphBoundsFromElement(element: HTMLElement): { start: number; end:
   const end = Number(element.dataset.paragraphEnd)
   if (!Number.isFinite(start) || !Number.isFinite(end)) return null
   return { start, end }
+}
+
+function textLengthWithinEditorNode(node: Node): number {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return normalizeEditorText(node.textContent).length
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) return 0
+
+  const element = node as HTMLElement
+  if (element.dataset.editorBullet === 'true') return 0
+  if (element.dataset.editorPlaceholder === 'true') return 0
+  if (element.tagName === 'BR') return 0
+
+  return Array.from(element.childNodes).reduce((total, child) => total + textLengthWithinEditorNode(child), 0)
+}
+
+function textOffsetWithinParagraph(
+  paragraphElement: HTMLElement,
+  targetNode: Node,
+  targetOffset: number
+): { found: boolean; offset: number } {
+  if (paragraphElement === targetNode) {
+    return {
+      found: true,
+      offset: Array.from(paragraphElement.childNodes)
+        .slice(0, Math.min(targetOffset, paragraphElement.childNodes.length))
+        .reduce((total, child) => total + textLengthWithinEditorNode(child), 0)
+    }
+  }
+
+  let accumulatedOffset = 0
+
+  for (const child of Array.from(paragraphElement.childNodes)) {
+    if (child === targetNode) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        return {
+          found: true,
+          offset: accumulatedOffset + Math.min(targetOffset, normalizeEditorText(child.textContent).length)
+        }
+      }
+
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const element = child as HTMLElement
+        if (element.dataset.editorBullet === 'true') {
+          return { found: true, offset: accumulatedOffset }
+        }
+        if (element.dataset.editorPlaceholder === 'true' || element.tagName === 'BR') {
+          return { found: true, offset: accumulatedOffset }
+        }
+        return {
+          found: true,
+          offset:
+            accumulatedOffset +
+            Array.from(element.childNodes)
+              .slice(0, Math.min(targetOffset, element.childNodes.length))
+              .reduce((total, nestedChild) => total + textLengthWithinEditorNode(nestedChild), 0)
+        }
+      }
+    }
+
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      const nestedResult = textOffsetWithinParagraph(child as HTMLElement, targetNode, targetOffset)
+      if (nestedResult.found) {
+        return { found: true, offset: accumulatedOffset + nestedResult.offset }
+      }
+    }
+
+    accumulatedOffset += textLengthWithinEditorNode(child)
+  }
+
+  return { found: false, offset: accumulatedOffset }
 }
 
 function nodeStartOffset(node: Node | null): number | null {
@@ -95,9 +205,23 @@ function nodeEndOffset(node: Node | null): number | null {
 
 function textOffsetFromBoundary(container: HTMLElement, node: Node, offset: number): number {
   if (node.nodeType === Node.TEXT_NODE) {
+    const paragraphElement = node.parentElement?.closest<HTMLElement>('[data-paragraph-start]')
+    const paragraphBounds = paragraphElement ? paragraphBoundsFromElement(paragraphElement) : null
+    if (paragraphElement && paragraphBounds) {
+      const localOffset = textOffsetWithinParagraph(paragraphElement, node, offset)
+      if (localOffset.found) {
+        return paragraphBounds.start + localOffset.offset
+      }
+    }
+
     const runElement = node.parentElement?.closest<HTMLElement>('[data-run-start]')
     const bounds = runElement ? runBoundsFromElement(runElement) : null
-    return bounds ? bounds.start + Math.min(offset, bounds.end - bounds.start) : 0
+    if (bounds) {
+      const liveTextLength = normalizeEditorText(node.textContent).length
+      return bounds.start + Math.min(offset, Math.max(bounds.end - bounds.start, liveTextLength))
+    }
+
+    return 0
   }
 
   if (node.nodeType !== Node.ELEMENT_NODE) return 0
@@ -109,12 +233,21 @@ function textOffsetFromBoundary(container: HTMLElement, node: Node, offset: numb
 
   const paragraphBounds = paragraphBoundsFromElement(element)
   if (paragraphBounds) {
-    if (offset <= 0) return paragraphBounds.start
-    if (offset >= element.childNodes.length) return paragraphBounds.end
-    const child = element.childNodes[Math.min(offset, element.childNodes.length - 1)]
-    const childStart = nodeStartOffset(child)
-    if (childStart !== null) return childStart
-    return paragraphBounds.end
+    const localOffset = textOffsetWithinParagraph(element, element, offset)
+    if (localOffset.found) {
+      return paragraphBounds.start + localOffset.offset
+    }
+
+    return offset <= 0 ? paragraphBounds.start : paragraphBounds.end
+  }
+
+  const parentParagraph = element.closest<HTMLElement>('[data-paragraph-start]')
+  const parentParagraphBounds = parentParagraph ? paragraphBoundsFromElement(parentParagraph) : null
+  if (parentParagraph && parentParagraphBounds) {
+    const localOffset = textOffsetWithinParagraph(parentParagraph, element, offset)
+    if (localOffset.found) {
+      return parentParagraphBounds.start + localOffset.offset
+    }
   }
 
   if (element === container) {
@@ -142,9 +275,12 @@ function textOffsetFromBoundary(container: HTMLElement, node: Node, offset: numb
 
 function liveContentLength(container: HTMLElement): number {
   const paragraphs = Array.from(container.querySelectorAll<HTMLElement>('[data-paragraph-end]'))
-  const lastParagraph = paragraphs[paragraphs.length - 1]
-  const paragraphBounds = lastParagraph ? paragraphBoundsFromElement(lastParagraph) : null
-  if (paragraphBounds) return paragraphBounds.end
+  if (paragraphs.length > 0) {
+    return paragraphs.reduce((total, paragraph, index) => {
+      const lineBreakLength = index === 0 ? 0 : 1
+      return total + lineBreakLength + textLengthWithinEditorNode(paragraph)
+    }, 0)
+  }
 
   const runs = Array.from(container.querySelectorAll<HTMLElement>('[data-run-end]'))
   const lastRun = runs[runs.length - 1]
@@ -170,6 +306,19 @@ function findTextNodeAtOffset(container: HTMLElement, offset: number): { node: N
   if (lastRun && lastBounds) {
     return { node: lastRun.firstChild ?? lastRun, offset: lastBounds.end - lastBounds.start }
   }
+
+  const paragraphs = Array.from(container.querySelectorAll<HTMLElement>('[data-paragraph-start]'))
+  for (const paragraphElement of paragraphs) {
+    const bounds = paragraphBoundsFromElement(paragraphElement)
+    if (!bounds) continue
+    if (offset >= bounds.start && offset <= bounds.end) {
+      return {
+        node: paragraphElement,
+        offset: paragraphElement.childNodes.length > 0 ? paragraphElement.childNodes.length : 0
+      }
+    }
+  }
+
   return { node: container, offset: 0 }
 }
 
@@ -189,6 +338,7 @@ function styleObjectToCssText(style: React.CSSProperties): string {
 function buildEditorMarkup(editor: HTMLDivElement, element: TextElement) {
   const paragraphs = normalizeRichTextParagraphs(element)
   const fragment = document.createDocumentFragment()
+  const numberedCounters = new Map<number, number>()
   let cursor = 0
 
   paragraphs.forEach(paragraph => {
@@ -200,16 +350,38 @@ function buildEditorMarkup(editor: HTMLDivElement, element: TextElement) {
     const paragraphElement = document.createElement('div')
     paragraphElement.dataset.paragraphStart = String(paragraphStart)
     paragraphElement.dataset.paragraphEnd = String(paragraphStart + paragraphLength)
-    paragraphElement.setAttribute(
-      'style',
-      styleObjectToCssText({
-        minHeight: element.fontSize * element.lineHeight,
-        textAlign: alignmentToTextAlign(paragraph.alignment, element.textAlign),
-        lineHeight: paragraph.lineHeight ?? element.lineHeight,
-        marginTop: paragraph.spaceBefore,
-        marginBottom: paragraph.spaceAfter
-      })
-    )
+    const marker = getRichTextParagraphMarker(paragraph, numberedCounters)
+    paragraphElement.setAttribute('style', styleObjectToCssText(getRichTextParagraphStyle(paragraph, element, marker)))
+
+    let runParent: HTMLElement = paragraphElement
+    if (marker) {
+      const bulletElement = document.createElement('span')
+      bulletElement.dataset.editorBullet = 'true'
+      bulletElement.setAttribute('contenteditable', 'false')
+      bulletElement.setAttribute(
+        'style',
+        styleObjectToCssText({
+          color: element.color,
+          flexShrink: 0,
+          width: marker.width,
+          display: 'inline-flex',
+          justifyContent: 'flex-end',
+          userSelect: 'none'
+        })
+      )
+      bulletElement.textContent = marker.label
+      paragraphElement.append(bulletElement)
+
+      const contentElement = document.createElement('span')
+      contentElement.setAttribute(
+        'style',
+        styleObjectToCssText({
+          flex: 1
+        })
+      )
+      paragraphElement.append(contentElement)
+      runParent = contentElement
+    }
 
     paragraph.runs.forEach(run => {
       const start = runCursor
@@ -219,10 +391,17 @@ function buildEditorMarkup(editor: HTMLDivElement, element: TextElement) {
       const runElement = document.createElement('span')
       runElement.dataset.runStart = String(start)
       runElement.dataset.runEnd = String(end)
-      runElement.setAttribute('style', styleObjectToCssText(runStyle(run, element)))
+      runElement.setAttribute('style', styleObjectToCssText(getRichTextRunStyle(run, element)))
       runElement.textContent = run.text
-      paragraphElement.append(runElement)
+      runParent.append(runElement)
     })
+
+    const hasTextContent = paragraph.runs.some(run => run.text.length > 0)
+    if (!hasTextContent) {
+      const placeholder = document.createElement('br')
+      placeholder.dataset.editorPlaceholder = 'true'
+      runParent.append(placeholder)
+    }
 
     fragment.append(paragraphElement)
   })
@@ -235,7 +414,12 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
   onTextChange,
   onSelectionChange,
   onFinishEditing,
+  onCopySelection,
+  onCutSelection,
+  onPasteSelection,
+  selectionToRestore = null,
   rehydrateToken = 0,
+  selectionRef,
   'data-testid': testId = 'inline-rich-text-editor'
 }) => {
   const editorRef = useRef<HTMLDivElement>(null)
@@ -259,8 +443,11 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
   const emitSelection = useCallback(() => {
     const range = readSelection()
     lastSelectionRef.current = range
+    if (selectionRef) {
+      selectionRef.current = range
+    }
     onSelectionChange(range)
-  }, [onSelectionChange, readSelection])
+  }, [onSelectionChange, readSelection, selectionRef])
 
   const restoreSelection = useCallback((range: RichTextSelectionRange | null) => {
     const editor = editorRef.current
@@ -283,24 +470,30 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
     buildEditorMarkup(editor, latestElementRef.current)
     editor.focus()
     const contentLength = liveContentLength(editor)
-    const range = lastSelectionRef.current ?? { start: contentLength, end: contentLength }
+    const hadStoredRange = lastSelectionRef.current !== null
+    const range = selectionToRestore ?? lastSelectionRef.current ?? { start: contentLength, end: contentLength }
     lastSelectionRef.current = range
     restoreSelection(range)
-    onSelectionChange(range)
-  }, [element.id, onSelectionChange, rehydrateToken, restoreSelection])
+    if (selectionToRestore || hadStoredRange) {
+      onSelectionChange(range)
+    }
+  }, [element.id, onSelectionChange, rehydrateToken, restoreSelection, selectionToRestore])
 
   return (
     <div
       ref={editorRef}
       contentEditable
+      role="textbox"
+      aria-multiline="true"
       tabIndex={0}
       suppressContentEditableWarning
       spellCheck
       data-testid={testId}
       onInput={event => {
         const target = event.currentTarget as HTMLElement
-        const value = normalizeEditorText(target.innerText ?? target.textContent)
-        const range = readSelection()
+        const previousValue = latestElementRef.current.content
+        const value = serializeEditorText(target)
+        const range = value === previousValue ? readSelection() : getSelectionRangeAfterInput(previousValue, value)
         lastSelectionRef.current = range
         onTextChange(value)
         onSelectionChange(range)
@@ -310,6 +503,28 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
         if (event.key === 'Escape') {
           event.preventDefault()
           onFinishEditing()
+          return
+        }
+
+        if (event.key === 'Enter' && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
+          event.preventDefault()
+
+          const editor = editorRef.current
+          const contentLength = editor ? liveContentLength(editor) : latestElementRef.current.content.length
+          const rawRange = readSelection() ??
+            lastSelectionRef.current ?? {
+              start: contentLength,
+              end: contentLength
+            }
+          const range = sortSelectionRange(rawRange)
+          const currentValue = latestElementRef.current.content
+          const nextValue = `${currentValue.slice(0, range.start)}\n${currentValue.slice(range.end)}`
+          const nextCaret = range.start + 1
+          const nextRange = { start: nextCaret, end: nextCaret }
+
+          lastSelectionRef.current = nextRange
+          onTextChange(nextValue)
+          onSelectionChange(nextRange)
         }
       }}
       onKeyUp={emitSelection}
@@ -319,13 +534,65 @@ export const InlineRichTextEditor: React.FC<InlineRichTextEditorProps> = ({
         event.stopPropagation()
         emitSelection()
       }}
-      onMouseDown={event => event.stopPropagation()}
+      onMouseDown={event => {
+        event.stopPropagation()
+        // Right-click should not collapse the selection: re-emit the current
+        // selection synchronously so the slide editor can capture it before
+        // the context menu opens and focus leaves the contenteditable.
+        if (event.button === 2) {
+          emitSelection()
+        }
+      }}
+      onContextMenu={() => {
+        emitSelection()
+      }}
+      onCopy={event => {
+        event.stopPropagation()
+        if (!onCopySelection) {
+          return
+        }
+
+        const selection = readSelection() ?? lastSelectionRef.current
+        if (!selection || selection.start === selection.end) {
+          return
+        }
+
+        event.preventDefault()
+        lastSelectionRef.current = selection
+        onSelectionChange(selection)
+        onCopySelection(selection, event.clipboardData)
+      }}
+      onCut={event => {
+        event.stopPropagation()
+        if (!onCutSelection) {
+          return
+        }
+
+        const selection = readSelection() ?? lastSelectionRef.current
+        if (!selection || selection.start === selection.end) {
+          return
+        }
+
+        event.preventDefault()
+        lastSelectionRef.current = selection
+        onSelectionChange(selection)
+        onCutSelection(selection, event.clipboardData)
+      }}
+      onPaste={event => {
+        event.stopPropagation()
+        if (!onPasteSelection) {
+          return
+        }
+
+        event.preventDefault()
+        const selection = readSelection() ?? lastSelectionRef.current
+        onPasteSelection(selection, event.clipboardData)
+      }}
       style={{
+        ...getRichTextBoxStyle(element),
         width: '100%',
         height: '100%',
         outline: 'none',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
         overflow: 'auto',
         cursor: 'text'
       }}

@@ -176,6 +176,7 @@ async function main() {
   }
 
   const targetBranch = 'develop'
+  const maxPushAttempts = Number(process.env.CI_GIT_PUSH_ATTEMPTS || '8')
 
   let currentBranch = ''
   try {
@@ -201,20 +202,22 @@ async function main() {
     console.log(`   Target branch: ${targetBranch}`)
 
     execSync(`git add ${bundleFileName}`, { cwd: projectRootDir })
-    execSync(`git commit -m "chore(ci): update bundle-top-dependencies [skip ci]"`, { cwd: projectRootDir })
+    execSync(`git commit --no-verify -m "chore NO-TICKET: update bundle-top-dependencies [skip ci]"`, {
+      cwd: projectRootDir
+    })
 
     let pushSuccess = false
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= maxPushAttempts; attempt++) {
       try {
         if (isRebaseInProgress()) {
-          console.log(`   🔄 Attempt ${attempt}/3: Resolving in-progress rebase...`)
+          console.log(`   🔄 Attempt ${attempt}/${maxPushAttempts}: Resolving in-progress rebase...`)
           resolveBundleConflict()
         } else {
-          console.log(`   🔄 Attempt ${attempt}/3: Pulling and rebasing...`)
-          execSync(`git pull --rebase origin ${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
+          console.log(`   🔄 Attempt ${attempt}/${maxPushAttempts}: Pulling and rebasing...`)
+          execSync(`git pull --rebase --autostash origin ${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
         }
 
-        execSync(`git push origin ${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
+        execSync(`git push --no-verify origin HEAD:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
         pushSuccess = true
         console.log(`   ✅ Bundle dependencies committed and pushed to ${targetBranch}`)
         break
@@ -231,7 +234,7 @@ async function main() {
         if (isConflict) {
           try {
             resolveBundleConflict()
-            execSync(`git push origin ${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
+            execSync(`git push --no-verify origin HEAD:${targetBranch}`, { cwd: projectRootDir, stdio: 'pipe' })
             pushSuccess = true
             console.log(`   ✅ Bundle dependencies pushed (after conflict resolution)`)
             break
@@ -243,7 +246,7 @@ async function main() {
               abortRebaseIfNeeded()
               execSync(`git add ${bundleFileName}`, { cwd: projectRootDir, stdio: 'pipe' })
               try {
-                execSync(`git commit -m "chore(ci): update bundle-top-dependencies [skip ci]"`, {
+                execSync(`git commit --no-verify -m "chore NO-TICKET: update bundle-top-dependencies [skip ci]"`, {
                   cwd: projectRootDir,
                   stdio: 'pipe'
                 })
@@ -254,8 +257,9 @@ async function main() {
               throw pushError
             }
           }
-        } else if (attempt < 3) {
-          console.log(`   🔄 Push failed (attempt ${attempt}/3), retrying...`)
+        } else if (attempt < maxPushAttempts) {
+          console.log(`   🔄 Push failed (attempt ${attempt}/${maxPushAttempts}), retrying...`)
+          console.log(errorOutput)
           abortRebaseIfNeeded()
           await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
         } else {

@@ -283,7 +283,7 @@ export async function fetchAutomationsForSingleSheet(
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     }),
-    fetch(`${docServiceUrl}/spreadsheets/${app.id}/sheets/${sheetId}`, {
+    fetch(getSpreadsheetApiUrl(docServiceUrl, `/${app.id}/sheets/${sheetId}`), {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
     })

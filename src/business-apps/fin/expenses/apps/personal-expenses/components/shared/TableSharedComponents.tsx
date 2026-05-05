@@ -1,6 +1,14 @@
 import React from 'react'
-import { Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
+import personalTranslations from '../../_i18n'
 import type { CurrencyStat } from '../../utils/tableUtils'
 
 export { DetailsSheet } from '../../../../common/components/details-panel/DetailsSheet'
@@ -25,24 +33,18 @@ export const CurrencyDropdown = React.memo(function CurrencyDropdown({
   onCurrencyChange,
   testIdPrefix
 }: CurrencyDropdownProps) {
+  const { t } = useTranslation(personalTranslations)
+
   if (currencyStats.length === 0) return null
   return (
     <div className="gba:flex gba:items-center gba:gap-2" key="currency-dropdown">
-      <Label className="gba:font-medium gba:shrink-0">
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-          'Currency'
-        )}
-        :
-      </Label>
+      <Label className="gba:font-medium gba:shrink-0">{t('expense-items-currency-label')}:</Label>
       <Select value={selectedCurrencyCode} onValueChange={onCurrencyChange}>
         <SelectTrigger className="gba:w-[140px]" data-testid={`${testIdPrefix}-currency-select`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.all_currencies', 'All')}
-          </SelectItem>
+          <SelectItem value="ALL">{t('expense-items-currency-all')}</SelectItem>
           {currencyStats.map(cs => (
             <SelectItem key={cs.ref} value={cs.code}>
               {cs.code}

@@ -99,7 +99,20 @@ const DAY_LABELS = Array.from({ length: 7 }, (_, index) =>
   new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(new Date(2024, 0, index + 1))
 )
 
-const formatShortDayCount = (count: number): string => t('days_short', '{{count}}d', { count })
+const formatShortDayCount = (count: number): string => {
+  const normalizedCount = Number.isInteger(count) ? String(count) : count.toFixed(1).replace(/\.0$/, '')
+  const template = t('days_short', '{{count}}d', { count: normalizedCount })
+
+  if (template.includes('{{count}}')) {
+    return template.replace(/\{\{count\}\}/g, normalizedCount)
+  }
+
+  if (template.includes('{count}')) {
+    return template.replace(/\{count\}/g, normalizedCount)
+  }
+
+  return template
+}
 
 const getUniqueAbsencesByEmployee = (absences: TeamAbsenceToday[]): TeamAbsenceToday[] => {
   return Array.from(new Map(absences.map(absence => [absence.employeeId, absence])).values())

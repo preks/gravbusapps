@@ -1263,6 +1263,14 @@ export const ReasoningStepDisplay: React.FC<{
           className="gba:flex gba:flex-col gba:gap-2 gba:pl-6 gba:pr-2 gba:py-2 gba:border-l gba:border-border/60"
           data-testid="reasoning-step-body"
         >
+          {step.narration && (
+            <div
+              className="gba:text-xs gba:italic gba:text-muted-foreground gba:whitespace-pre-wrap gba:break-words"
+              data-testid="reasoning-step-narration"
+            >
+              {step.narration}
+            </div>
+          )}
           <ReasoningSection title="Input" payload={step.args} kind={step.kind} />
           <ReasoningSection title="Output" payload={step.result} kind={step.kind} />
           {step.error && (
@@ -1395,6 +1403,10 @@ export const OutputItemRenderer: React.FC<{
       return null
     case 'text_delta':
       // Deltas are folded into a streaming `answer` bubble by the hook.
+      return null
+    case 'narration_attach':
+      // Pure dispatch event: the hook moves the streaming bubble's text
+      // into the matching reasoning step's `narration`. Nothing to render.
       return null
     case 'document_stream_start':
       return <DocumentStreamStartDisplay data={item} />

@@ -1,57 +1,49 @@
 import type { ReactNode } from 'react'
-import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
+import { formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../utils'
 import type { DetailsPanelField } from '@/business-apps/fin/expenses/common/components/details-panel/DetailsPanelContent'
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
 
-export function buildExpenseItemDetailsFields(displayItem: ExpenseItem, statusBadge: ReactNode): DetailsPanelField[] {
+export function buildExpenseItemDetailsFields(
+  displayItem: ExpenseItem,
+  statusBadge: ReactNode,
+  t: (key: string) => string
+): DetailsPanelField[] {
   return [
     {
-      label: getTranslationFromI18nKeyAndLabel('common.code', 'Code'),
+      label: t('expense-items-details-field-code'),
       value: typeof displayItem.code === 'string' ? displayItem.code : 'N/A'
     },
     {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+      label: t('expense-items-details-field-status'),
       value: statusBadge
     },
     {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_date', 'Expense Date'),
+      label: t('expense-items-details-field-expense-date'),
       value: displayItem.expenseDate ? formatDate(displayItem.expenseDate, 'date.short') : 'N/A'
     },
     {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.invoice_date', 'Invoice Date'),
+      label: t('expense-items-details-field-invoice-date'),
       value: displayItem.invoiceDate ? formatDate(displayItem.invoiceDate, 'date.short') : 'N/A'
     },
     ...(typeof displayItem.description === 'string' && displayItem.description
       ? [
           {
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_item.change_expense_item_container.current_description_label',
-              'Description'
-            ),
+            label: t('expense-items-details-field-description'),
             value: displayItem.description
           }
         ]
       : []),
     {
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_item.change_expense_item_container.current_e_class_label',
-        'Expense Class'
-      ),
+      label: t('expense-items-details-field-expense-class'),
       value: displayItem.expenseClass?.value ? getCatalogValue(displayItem.expenseClass) : 'N/A'
     },
     {
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-        'Cost Center'
-      ),
+      label: t('expense-items-details-field-cost-center'),
       value: displayItem.costCenter?.name ? String(displayItem.costCenter.name) : 'N/A'
     },
     {
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:travel_region_rule.travel_region_rule_details_list.amount',
-        'Amount'
-      ),
+      label: t('expense-items-details-field-amount'),
       value: formatCurrencyDisplay(displayItem.reimbursableAmount, displayItem.currency?.code)
     }
   ]

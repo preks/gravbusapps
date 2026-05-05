@@ -27,7 +27,6 @@ export interface CompensationBudgetPlanRow {
 export interface InsertBudgetPlanInput {
   name: string
   description: string | null
-  fiscalYear: number
   budgetPlanStatus: BudgetPlanStatusApi
   startDate: string | null
   endDate: string | null
@@ -39,7 +38,6 @@ export interface UpdateBudgetPlanInput {
   version: number
   name: string
   description: string | null
-  fiscalYear: number
   startDate: string | null
   endDate: string | null
   effectiveDate: string | null
@@ -112,7 +110,6 @@ export function useBudgetPlansTable(accessToken: string) {
         const built = buildCreateCompensationBudgetPlanRestBody({
           name: input.name,
           description: input.description?.trim() ? input.description.trim() : null,
-          fiscalYear: input.fiscalYear,
           budgetPlanStatus: input.budgetPlanStatus,
           startDate: input.startDate,
           endDate: input.endDate,
@@ -152,7 +149,6 @@ export function useBudgetPlansTable(accessToken: string) {
           version: input.version,
           name: input.name,
           description: input.description?.trim() ? input.description.trim() : null,
-          fiscalYear: input.fiscalYear,
           startDate: input.startDate,
           endDate: input.endDate,
           effectiveDate: input.effectiveDate

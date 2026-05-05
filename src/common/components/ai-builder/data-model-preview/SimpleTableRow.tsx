@@ -41,22 +41,50 @@ export const SimpleTableRow: React.FC<SimpleTableRowProps> = ({
 }) => {
   return (
     <tr className="gba:border-b gba:border-border hover:gba:bg-muted/30">
-      {columns.map(col => (
-        <td key={col.name} className="gba:px-3 gba:py-2 gba:align-middle">
-          <div className="gba:w-full gba:overflow-hidden">
-            {isEditing ? (
-              <CellInput
-                col={col}
-                value={editValues[col.name] ?? (col.type === 'CHECKBOX' ? false : '')}
-                onChange={val => onCellChange(col.name, val)}
-                disabled={saving}
-              />
-            ) : (
-              <span className="gba:block gba:truncate">{formatValue(row[col.name], col.type)}</span>
-            )}
-          </div>
-        </td>
-      ))}
+      {columns.map(col => {
+        const isInternalEntity = col.dataSource?.type === 'INTERNAL_ENTITY'
+        let displayValue: string | undefined
+        if (!isEditing && isInternalEntity) {
+          const nestedKey = col.name.replace(/Id$/, '').replace(/_id$/, '') || col.name
+          const resolvedKey = nestedKey === col.name ? `${col.name}Ref` : nestedKey
+          const nested = row[resolvedKey]
+          if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+            const entity = nested as Record<string, unknown>
+            displayValue =
+              (entity.displayName as string) || (entity.code as string) || (entity.id as string) || undefined
+          } else if (Array.isArray(nested)) {
+            displayValue = nested
+              .map(v => {
+                if (v && typeof v === 'object') {
+                  return (
+                    (v as Record<string, unknown>).displayName ||
+                    (v as Record<string, unknown>).code ||
+                    (v as Record<string, unknown>).id
+                  )
+                }
+                return String(v)
+              })
+              .filter(Boolean)
+              .join(', ')
+          }
+        }
+        return (
+          <td key={col.name} className="gba:px-3 gba:py-2 gba:align-middle">
+            <div className="gba:w-full gba:overflow-hidden">
+              {isEditing ? (
+                <CellInput
+                  col={col}
+                  value={editValues[col.name] ?? (col.type === 'CHECKBOX' ? false : '')}
+                  onChange={val => onCellChange(col.name, val)}
+                  disabled={saving}
+                />
+              ) : (
+                <span className="gba:block gba:truncate">{displayValue ?? formatValue(row[col.name], col.type)}</span>
+              )}
+            </div>
+          </td>
+        )
+      })}
       <td className="gba:px-2 gba:py-2 gba:align-middle" style={{ width: '120px' }}>
         <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end gba:shrink-0">
           {isEditing ? (

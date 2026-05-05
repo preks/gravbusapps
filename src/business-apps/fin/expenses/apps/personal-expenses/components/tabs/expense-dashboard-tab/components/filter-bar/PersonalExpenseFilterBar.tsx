@@ -1,13 +1,23 @@
 import React from 'react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Button } from '@newwork/nw-design-system'
-import { X } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Button,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { XIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePersonalFilterData } from '@/business-apps/fin/expenses/apps/personal-expenses/hooks/usePersonalFilterData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import personalTranslations from '../../../../../_i18n'
+
+type DashboardExpensePeriod = 'monthly' | 'quarterly' | 'yearly'
 
 interface PersonalExpenseFilterBarProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
-  onFiltersChange: (filters: { currency?: string; period: 'monthly' | 'quarterly' | 'yearly' }) => void
-  currentFilters: { currency?: string; period: 'monthly' | 'quarterly' | 'yearly' }
+  onFiltersChange: (filters: { currency?: string; period: DashboardExpensePeriod }) => void
+  currentFilters: { currency?: string; period: DashboardExpensePeriod }
   'data-testid'?: string
 }
 
@@ -18,12 +28,12 @@ const PersonalExpenseFilterBar: React.FC<PersonalExpenseFilterBarProps> = ({
   currentFilters,
   'data-testid': dataTestId = 'personal-expense-filter-bar'
 }) => {
+  const { t } = useTranslation(personalTranslations)
   const { currencies, loading, mostUsedCurrency } = usePersonalFilterData({
     accessToken,
     userInfo
   } as BusinessAppContextProps)
 
-  // Initialize defaults: most used currency and monthly period
   React.useEffect(() => {
     if (!loading) {
       const next = { ...currentFilters }
@@ -41,12 +51,13 @@ const PersonalExpenseFilterBar: React.FC<PersonalExpenseFilterBarProps> = ({
       }
     }
   }, [loading, mostUsedCurrency, onFiltersChange, currentFilters])
+
   const handleChange = (key: 'currency' | 'period', value: string) => {
     onFiltersChange({ ...currentFilters, [key]: value })
   }
 
   const clear = (key: 'currency' | 'period') => {
-    const cleared = { ...currentFilters } as any
+    const cleared = { ...currentFilters } as { currency?: string; period: 'monthly' | 'quarterly' | 'yearly' }
     if (key === 'currency') cleared.currency = undefined
     if (key === 'period') cleared.period = 'monthly'
     onFiltersChange(cleared)
@@ -57,7 +68,6 @@ const PersonalExpenseFilterBar: React.FC<PersonalExpenseFilterBarProps> = ({
       className="gba:flex gba:items-center gba:gap-4 gba:py-4 gba:px-6 gba:bg-gray-50 gba:border-b gba:border-gray-200"
       data-testid={dataTestId}
     >
-      {/* Currency */}
       <div className="gba:relative gba:flex gba:items-center">
         <Select
           value={currentFilters.currency || ''}
@@ -67,9 +77,7 @@ const PersonalExpenseFilterBar: React.FC<PersonalExpenseFilterBarProps> = ({
         >
           <SelectTrigger className="gba:w-[140px] gba:border-gray-300">
             <SelectValue
-              placeholder={
-                loading ? 'Loading...' : getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency')
-              }
+              placeholder={loading ? t('dashboard-filter-loading') : t('dashboard-filter-currency-placeholder')}
             />
           </SelectTrigger>
           <SelectContent>
@@ -88,12 +96,11 @@ const PersonalExpenseFilterBar: React.FC<PersonalExpenseFilterBarProps> = ({
             className="gba:ml-1 gba:p-1 gba:h-6 gba:w-6 gba:min-w-0"
             data-testid="clear-currency-filter"
           >
-            <X className="gba:h-3 gba:w-3" />
+            <XIcon className="gba:h-3 gba:w-3" />
           </Button>
         )}
       </div>
 
-      {/* Period */}
       <div className="gba:relative gba:flex gba:items-center">
         <Select
           value={currentFilters.period}
@@ -102,21 +109,12 @@ const PersonalExpenseFilterBar: React.FC<PersonalExpenseFilterBarProps> = ({
           data-testid="period-filter-select"
         >
           <SelectTrigger className="gba:w-[140px] gba:border-gray-300">
-            <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:cards.period', 'Period')} />
+            <SelectValue placeholder={t('dashboard-filter-period-placeholder')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="monthly">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly', 'Monthly')}
-            </SelectItem>
-            <SelectItem value="quarterly">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:cards.quartely', 'Quarterly')}
-            </SelectItem>
-            <SelectItem value="yearly">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule_details.mileage_rule_list.mileage_expense_module.rule_period_yearly',
-                'Yearly'
-              )}
-            </SelectItem>
+            <SelectItem value="monthly">{t('dashboard-filter-period-monthly')}</SelectItem>
+            <SelectItem value="quarterly">{t('dashboard-filter-period-quarterly')}</SelectItem>
+            <SelectItem value="yearly">{t('dashboard-filter-period-yearly')}</SelectItem>
           </SelectContent>
         </Select>
         {currentFilters.period !== 'monthly' && (
@@ -127,7 +125,7 @@ const PersonalExpenseFilterBar: React.FC<PersonalExpenseFilterBarProps> = ({
             className="gba:ml-1 gba:p-1 gba:h-6 gba:w-6 gba:min-w-0"
             data-testid="clear-period-filter"
           >
-            <X className="gba:h-3 gba:w-3" />
+            <XIcon className="gba:h-3 gba:w-3" />
           </Button>
         )}
       </div>

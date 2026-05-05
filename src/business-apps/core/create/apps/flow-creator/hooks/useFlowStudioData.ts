@@ -17,7 +17,11 @@ import { GET_CATALOGS } from '@/common/data/catalog/queries/catalogQueries'
 import type { BaseCatalog, CatalogResponse } from '@/common/data/catalog/types/catalogTypes'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import type { GetCatalogsResponse } from '@/common/types/CatalogTypes'
-import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
+import {
+  fetchCustomEntityOptions,
+  fetchInternalEntityOptions,
+  type DiscoveredEntityOption
+} from '@/common/utils/entityDiscovery'
 import { extractPromptParameters } from '../utils/promptParameterUtils'
 
 export interface CatalogOption {
@@ -27,11 +31,7 @@ export interface CatalogOption {
   entryCount: number
 }
 
-export interface EntityOption {
-  type: string
-  name: string
-  fields: string[]
-}
+export type EntityOption = DiscoveredEntityOption
 
 export interface FlowStudioData {
   /** All prompts/agents from Prompt Manager */
@@ -59,13 +59,6 @@ export interface FlowStudioData {
   entities: EntityOption[]
   entitiesLoading: boolean
   entitiesError: string | null
-
-  /** Custom data (namespace-scoped) data sources (advanced) */
-  customDataNamespaces: string[]
-  customDataNamespacesLoading: boolean
-  customDataKeysByNamespace: Record<string, string[]>
-  customDataKeysLoadingByNamespace: Record<string, boolean>
-  fetchCustomDataKeys: (namespace: string) => Promise<void>
 
   /** Load versions for a specific agent */
   loadAgentVersions: (agentId: string) => Promise<PromptODM[]>
@@ -273,25 +266,23 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
 
   useEffect(() => {
     const fetchEntities = async () => {
+      if (!accessToken) {
+        setEntities([])
+        setEntitiesLoading(false)
+        return
+      }
+
       setEntitiesLoading(true)
       setEntitiesError(null)
       try {
-        const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/entities?includeFields=true`)
-        if (!response.ok) throw new Error(`Entities request failed: ${response.status} ${response.statusText}`)
-        const data = await response.json()
-        const list = Object.values((data && data.entities) || {}) as any[]
+        const [customEntities, internalEntities] = await Promise.all([
+          fetchCustomEntityOptions(accessToken),
+          fetchInternalEntityOptions({ accessToken, includeFields: true })
+        ])
         setEntities(
-          list
-            .map(e => {
-              const type = String(e?.type || e?.entity || e?.entityType || '')
-              const name = String(e?.name || e?.displayName || type)
-              const rawFields = Array.isArray(e?.fields) ? e.fields : []
-              const fields = rawFields.map((f: any) => String(f?.name || f?.field || f)).filter(Boolean)
-              fields.sort((a: string, b: string) => a.localeCompare(b))
-              return { type, name, fields }
-            })
-            .filter(e => e.type)
-            .sort((a, b) => String(a.name || a.type).localeCompare(String(b.name || b.type)))
+          [...customEntities, ...internalEntities].sort((left, right) =>
+            String(left.name || left.type).localeCompare(String(right.name || right.type))
+          )
         )
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load entities'
@@ -303,70 +294,7 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
       }
     }
     fetchEntities()
-  }, [])
-
-  // --- Custom data (Flow Engine) ---
-  const [customDataNamespaces, setCustomDataNamespaces] = useState<string[]>([])
-  const [customDataNamespacesLoading, setCustomDataNamespacesLoading] = useState(false)
-  const [customDataKeysByNamespace, setCustomDataKeysByNamespace] = useState<Record<string, string[]>>({})
-  const [customDataKeysLoadingByNamespace, setCustomDataKeysLoadingByNamespace] = useState<Record<string, boolean>>({})
-
-  useEffect(() => {
-    const fetchNamespaces = async () => {
-      if (!accessToken) return
-      setCustomDataNamespacesLoading(true)
-      try {
-        const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/custom-data/namespaces`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        if (!response.ok) throw new Error(`Custom data namespaces failed: ${response.status} ${response.statusText}`)
-        const data = await response.json()
-        const list = Array.isArray(data) ? data : []
-        setCustomDataNamespaces(list.map((n: any) => String(n.namespace)).filter(Boolean))
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load custom data namespaces'
-        console.error('Custom data namespaces fetch failed:', message)
-        setCustomDataNamespaces([])
-      } finally {
-        setCustomDataNamespacesLoading(false)
-      }
-    }
-    fetchNamespaces()
   }, [accessToken])
-
-  const fetchCustomDataKeys = useCallback(
-    async (namespace: string) => {
-      const ns = String(namespace || '').trim() || 'default'
-      if (!accessToken) return
-      if (customDataKeysByNamespace[ns]) return
-      if (customDataKeysLoadingByNamespace[ns]) return
-
-      setCustomDataKeysLoadingByNamespace(prev => ({ ...prev, [ns]: true }))
-      try {
-        const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/custom-data-sources/schema`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            'x-schema-namespace': ns
-          }
-        })
-        if (!response.ok) throw new Error(`Custom data schema failed: ${response.status} ${response.statusText}`)
-        const data = await response.json()
-        const keys = Object.keys((data && data.dataSources) || {})
-        setCustomDataKeysByNamespace(prev => ({ ...prev, [ns]: keys }))
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load custom data keys'
-        console.error('Custom data keys fetch failed:', message)
-        setCustomDataKeysByNamespace(prev => ({ ...prev, [ns]: [] }))
-      } finally {
-        setCustomDataKeysLoadingByNamespace(prev => ({ ...prev, [ns]: false }))
-      }
-    },
-    [accessToken, customDataKeysByNamespace, customDataKeysLoadingByNamespace]
-  )
 
   return useMemo(
     () => ({
@@ -388,11 +316,6 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
       entities,
       entitiesLoading,
       entitiesError,
-      customDataNamespaces,
-      customDataNamespacesLoading,
-      customDataKeysByNamespace,
-      customDataKeysLoadingByNamespace,
-      fetchCustomDataKeys,
       loadAgentVersions,
       loadAgentParameters,
       loadFunctionVersions
@@ -416,11 +339,6 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
       entities,
       entitiesLoading,
       entitiesError,
-      customDataNamespaces,
-      customDataNamespacesLoading,
-      customDataKeysByNamespace,
-      customDataKeysLoadingByNamespace,
-      fetchCustomDataKeys,
       loadAgentVersions,
       loadAgentParameters,
       loadFunctionVersions

@@ -7,6 +7,20 @@ type GraphQLResponse<T> = {
   errors?: unknown
 }
 
+type OrderDirection = 'ASC' | 'ASC_NULLS_FIRST' | 'ASC_NULLS_LAST' | 'DESC' | 'DESC_NULLS_FIRST' | 'DESC_NULLS_LAST'
+
+function toPascalCaseEntityKey(input: string): string {
+  const value = String(input || '').trim()
+  if (!value) return 'Entity'
+  const parts = value
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  const output = parts.map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join('')
+  return output && /^[A-Za-z]/.test(output) ? output : `Entity${output}`
+}
+
 export class CustomDataGraphQLClient {
   private endpoint: string
   private headers: Record<string, string> = {}
@@ -128,6 +142,79 @@ export class CustomDataGraphQLClient {
     }
 
     return errorMessages.join('; ')
+  }
+
+  /**
+   * Build a list query with optional where/orderBy args for custom data entities.
+   * The backend supports Hasura-like where BoolExp and per-entity OrderBy inputs.
+   */
+  async queryList<T = Record<string, unknown>[]>(
+    entityKey: string,
+    fields: string[],
+    options?: {
+      where?: Record<string, unknown>
+      orderBy?: Array<Record<string, OrderDirection>>
+      limit?: number
+      offset?: number
+    }
+  ): Promise<T> {
+    const typeName = toPascalCaseEntityKey(entityKey)
+    const listField = typeName
+    const fieldStr = fields.join('\n      ')
+
+    const args: string[] = []
+    const variables: Record<string, unknown> = {}
+    const variableDefinitions: string[] = []
+
+    if (options?.limit != null) {
+      args.push(`limit: ${options.limit}`)
+    }
+    if (options?.offset != null) {
+      args.push(`offset: ${options.offset}`)
+    }
+    if (options?.where) {
+      args.push('where: $where')
+      variables.where = options.where
+      variableDefinitions.push(`$where: ${typeName}BoolExp`)
+    }
+    if (options?.orderBy) {
+      args.push('orderBy: $orderBy')
+      variables.orderBy = options.orderBy
+      variableDefinitions.push(`$orderBy: [${typeName}OrderBy!]`)
+    }
+
+    const argStr = args.length > 0 ? `(${args.join(', ')})` : ''
+    const variableStr = variableDefinitions.length > 0 ? `(${variableDefinitions.join(', ')})` : ''
+    const query = `query List${typeName}${variableStr} { ${listField}${argStr} {\n      ${fieldStr}\n    } }`
+
+    const result = await this.request<Record<string, T>>(
+      query,
+      Object.keys(variables).length > 0 ? variables : undefined
+    )
+    return result[listField] as T
+  }
+
+  async queryByPk<T = Record<string, unknown>>(entityKey: string, id: string, fields: string[]): Promise<T | null> {
+    const typeName = toPascalCaseEntityKey(entityKey)
+    const rootField = `${typeName}ByPk`
+    const fieldStr = fields.join('\n      ')
+    const query = `query ${rootField}($id: ID!) { ${rootField}(id: $id) {\n      ${fieldStr}\n    } }`
+    const result = await this.request<Record<string, T | null>>(query, { id })
+
+    return result[rootField] ?? null
+  }
+
+  async queryAggregate<T = { aggregate: { count: number } }>(
+    entityKey: string,
+    options?: { where?: Record<string, unknown> }
+  ): Promise<T> {
+    const typeName = toPascalCaseEntityKey(entityKey)
+    const rootField = `${typeName}Aggregate`
+    const hasWhere = Boolean(options?.where)
+    const query = `query ${rootField}${hasWhere ? `($where: ${typeName}BoolExp)` : ''} { ${rootField}${hasWhere ? '(where: $where)' : ''} {\n      aggregate {\n        count\n      }\n    } }`
+    const result = await this.request<Record<string, T>>(query, hasWhere ? { where: options?.where } : undefined)
+
+    return result[rootField]
   }
 
   /**

@@ -37,13 +37,19 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       fallbackSkillId?: string
     ) => {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+      const selectedSkillIds = [
+        activeEnterpriseSkillId,
+        fallbackSkillId,
+        config?.selectedEnterpriseSkill?.skill_id
+      ].filter((value): value is string => Boolean(value))
+      const selectedToolRefs = Array.from(new Set(config?.selectedEnterpriseSkill?.tool_refs ?? []))
       return client.post<StartSessionResponse>('/deep-agent/sessions', {
         task,
         config,
         timezone,
         active_external_connection_ids: activeExternalConnectionIds,
-        active_enterprise_skill_id: activeEnterpriseSkillId,
-        fallback_skill_id: fallbackSkillId
+        skill_ids: selectedSkillIds,
+        tool_refs: selectedToolRefs
       })
     },
     [client]
@@ -171,31 +177,53 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
-  const listEnterpriseSkills = useCallback(
-    () =>
-      client.get<import('../types/enterpriseAgent').EnterpriseSkill[]>('/enterprise-skills', {
-        params: { is_active: 'true' }
-      }),
-    [client]
-  )
+  const listEnterpriseSkills = useCallback(async () => {
+    const rows = await client.get<
+      Array<{
+        skill_id: string
+        name: string
+        description: string
+        category?: string | null
+        tags?: string[]
+        tool_refs?: string[]
+      }>
+    >('/skills/manifest')
+    return rows.map(row => ({
+      id: row.skill_id,
+      skill_id: row.skill_id,
+      name: row.name,
+      category: row.category ?? 'General',
+      description: row.description,
+      version: '1',
+      is_active: true,
+      publisher: 'Every Fabric',
+      install_count: 0,
+      onboarding_steps: row.tags ?? [],
+      tool_refs: row.tool_refs ?? []
+    }))
+  }, [client])
 
   const getSkillDetails = useCallback(
-    (skillId: string) =>
-      client.get<import('../types/enterpriseAgent').EnterpriseSkill>(`/enterprise-skills/${skillId}`),
+    (skillId: string) => client.get<import('../types/enterpriseAgent').EnterpriseSkill>(`/skills/${skillId}`),
     [client]
   )
 
-  const installSkill = useCallback(
-    (skillId: string) =>
-      client.post<{ success: boolean; skill_id: string }>(`/enterprise-skills/${skillId}/install`, {}),
-    [client]
-  )
+  const installSkill = useCallback(async (skillId: string) => ({ success: true, skill_id: skillId }), [])
 
   /** List all artifact files created during a session */
   const listArtifacts = useCallback(
     async (sessionId: string): Promise<ArtifactFile[]> => {
       const raw = await client.get<
-        { name: string; path: string; mime_type: string; size: number; created_at: string; modified_at: string }[]
+        {
+          name: string
+          path: string
+          mime_type: string
+          size: number
+          created_at: string
+          modified_at: string
+          provider_tool_ref?: string | null
+          source_metadata?: unknown
+        }[]
       >(`/deep-agent/sessions/${sessionId}/artifacts`)
       const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
       return raw.map(f => ({
@@ -207,6 +235,8 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         size: f.size ?? 0,
         created_at: f.created_at ?? new Date().toISOString(),
         modified_at: f.modified_at ?? f.created_at ?? new Date().toISOString(),
+        provider_tool_ref: f.provider_tool_ref ?? null,
+        source_metadata: f.source_metadata,
         rendererType: resolveRendererType(f.mime_type, f.name),
         downloadUrl: `${base}/deep-agent/sessions/${sessionId}/artifacts/${encodeURIComponent(f.path || f.name)}`
       }))
@@ -228,6 +258,181 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  // ── Admin Skills API ───────────────────────────────────────────────────────
+
+  const enc = encodeURIComponent
+
+  const getSkillsManifest = useCallback(async () => {
+    const [adminSkills, runtimeSkills] = await Promise.all([
+      client
+        .get<
+          {
+            skill_id: string
+            name: string
+            description: string
+            status: string
+            is_active: boolean
+            file_count: number
+            tool_refs?: string[]
+          }[]
+        >('/admin/skills/')
+        .catch(() => []),
+      client
+        .get<
+          {
+            skill_id: string
+            name: string
+            description: string
+            category?: string | null
+            tags?: string[]
+            tool_refs?: string[]
+            has_files?: boolean
+          }[]
+        >('/skills/manifest')
+        .catch(() => [])
+    ])
+
+    const merged = new Map<
+      string,
+      {
+        skill_id: string
+        name: string
+        description: string
+        status: string
+        is_active: boolean
+        file_count: number
+        has_files?: boolean
+        tools?: string[]
+        source?: 'admin' | 'runtime_manifest'
+      }
+    >()
+
+    for (const skill of adminSkills) {
+      merged.set(skill.skill_id, {
+        ...skill,
+        tools: skill.tool_refs ?? [],
+        source: 'admin'
+      })
+    }
+
+    for (const skill of runtimeSkills) {
+      const existing = merged.get(skill.skill_id)
+      if (existing) {
+        merged.set(skill.skill_id, {
+          ...existing,
+          tools: Array.from(new Set([...(existing.tools ?? []), ...(skill.tool_refs ?? [])]))
+        })
+      } else {
+        merged.set(skill.skill_id, {
+          skill_id: skill.skill_id,
+          name: skill.name,
+          description: skill.description,
+          status: 'built_in',
+          is_active: true,
+          file_count: 0,
+          has_files: skill.has_files,
+          tools: skill.tool_refs ?? [],
+          source: 'runtime_manifest'
+        })
+      }
+    }
+
+    return { skills: [...merged.values()].sort((a, b) => a.skill_id.localeCompare(b.skill_id)) }
+  }, [client])
+
+  const createSkillFromForm = useCallback(
+    (payload: { name: string; description: string; body: string }) =>
+      client.post<{ skill_id: string }>('/admin/skills/', payload),
+    [client]
+  )
+
+  const uploadSkillFile = useCallback(
+    async (file: File): Promise<{ skill_id: string }> => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return client.post<{ skill_id: string }>('/admin/skills/upload', formData)
+    },
+    [client]
+  )
+
+  const saveSkillRaw = useCallback(
+    (skillId: string, content: string) =>
+      client.patch<{ skill_id: string; name: string; description: string; content: string }>(
+        `/admin/skills/${enc(skillId)}`,
+        { content }
+      ),
+    [client]
+  )
+
+  const getSkill = useCallback(
+    (skillId: string) =>
+      client.get<{ skill_id: string; name: string; description: string; content: string; status: string }>(
+        `/admin/skills/${enc(skillId)}`
+      ),
+    [client]
+  )
+
+  const deleteSkill = useCallback((skillId: string) => client.delete(`/admin/skills/${enc(skillId)}`), [client])
+
+  const uploadSkillFiles = useCallback(
+    async (skillId: string, files: File[]) => {
+      const results: { path: string; mime_type: string; size: number }[] = []
+      for (const f of files) {
+        const fd = new FormData()
+        fd.append('file', f)
+        const res = await client.post<{ path: string; size: number }>(
+          `/admin/skills/${enc(skillId)}/files/upload`,
+          fd,
+          { params: { path: f.name } }
+        )
+        results.push({ path: res.path, mime_type: f.type || 'application/octet-stream', size: res.size })
+      }
+      return results
+    },
+    [client]
+  )
+
+  const listSkillFiles = useCallback(
+    (skillId: string) =>
+      client.get<{ path: string; mime_type: string; size: number }[]>(`/admin/skills/${enc(skillId)}/files`),
+    [client]
+  )
+
+  const deleteSkillFile = useCallback(
+    (skillId: string, filename: string) => client.delete(`/admin/skills/${enc(skillId)}/files/${enc(filename)}`),
+    [client]
+  )
+
+  const exportSkillBundle = useCallback(
+    (skillId: string) => client.get<Blob>(`/admin/skills/${enc(skillId)}/export`, { responseType: ResponseType.BLOB }),
+    [client]
+  )
+
+  const submitSkillForReview = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/submit`, {}),
+    [client]
+  )
+
+  const approveSkill = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/approve`, {}),
+    [client]
+  )
+
+  const archiveSkill = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/archive`, {}),
+    [client]
+  )
+
+  const enableSkill = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/enable`, {}),
+    [client]
+  )
+
+  const disableSkill = useCallback(
+    (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/disable`, {}),
+    [client]
+  )
+
   return useMemo(
     () => ({
       startSession,
@@ -246,7 +451,22 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       installSkill,
       listArtifacts,
       getArtifactUrl,
-      getArtifactContent
+      getArtifactContent,
+      getSkillsManifest,
+      createSkillFromForm,
+      uploadSkillFile,
+      saveSkillRaw,
+      getSkill,
+      deleteSkill,
+      uploadSkillFiles,
+      listSkillFiles,
+      deleteSkillFile,
+      exportSkillBundle,
+      submitSkillForReview,
+      approveSkill,
+      archiveSkill,
+      enableSkill,
+      disableSkill
     }),
     [
       startSession,
@@ -265,7 +485,22 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       installSkill,
       listArtifacts,
       getArtifactUrl,
-      getArtifactContent
+      getArtifactContent,
+      getSkillsManifest,
+      createSkillFromForm,
+      uploadSkillFile,
+      saveSkillRaw,
+      getSkill,
+      deleteSkill,
+      uploadSkillFiles,
+      listSkillFiles,
+      deleteSkillFile,
+      exportSkillBundle,
+      submitSkillForReview,
+      approveSkill,
+      archiveSkill,
+      enableSkill,
+      disableSkill
     ]
   )
 }

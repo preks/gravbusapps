@@ -3,48 +3,83 @@ import { NW_FUNNEL_DISPLAY_FONT_FAMILY, patchFontsFromContainer } from '../utils
 import { Excalidraw, MainMenu, exportToBlob, exportToSvg, restoreElements } from '@excalidraw/excalidraw'
 import '@excalidraw/excalidraw/index.css'
 import '../styles/excalidrawWhiteLabel.css'
-import type {
-  AppState,
-  BinaryFiles,
-  ExcalidrawImperativeAPI,
-  ExcalidrawElement,
-  Zoom
-} from '@excalidraw/excalidraw/types'
+import type { AppState, BinaryFiles, ExcalidrawImperativeAPI, Zoom } from '@excalidraw/excalidraw/types'
 import { useCurrentUserPicture } from '@/business-apps/platform/apps/every-ai/hooks/useCurrentUserPicture'
 import { installExcalidrawWhiteLabelDomPatches } from '../utils/excalidrawWhiteLabelDom'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
+import { toast } from 'sonner'
 import {
   AiButton,
+  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  useLocale,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ArrowLeftIcon, CaretDownIcon, DownloadSimpleIcon, ImageIcon, ShareNetworkIcon } from '@phosphor-icons/react'
+import {
+  ArrowLeftIcon,
+  CaretDownIcon,
+  ChatCenteredTextIcon,
+  DownloadSimpleIcon,
+  ImageIcon,
+  PaintBucketIcon,
+  ShareNetworkIcon
+} from '@phosphor-icons/react'
+import { MessageSquare } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { CommentPanel } from '@/business-apps/platform/apps/shared/components/CommentPanel'
+import { InlineCommentPopover } from '@/business-apps/platform/apps/shared/components/InlineCommentPopover'
+import { useComments } from '@/business-apps/platform/apps/shared/hooks/useComments'
+import type {
+  Comment,
+  CommentQueryOptions,
+  CreateCommentInput,
+  WhiteboardCommentAnchor
+} from '@/business-apps/platform/apps/shared/types/versioning'
 import { useCollaboration } from '@/business-apps/platform/apps/shared/hooks/useCollaboration'
 import { SocketIoYjsProvider } from '@/business-apps/platform/apps/shared/services/SocketIoYjsProvider'
 import { PresenceIndicator } from '@/business-apps/platform/apps/shared/components/PresenceIndicator'
 import { WhiteboardCollaboratorCursors } from './WhiteboardCollaboratorCursors'
+import { WhiteboardCommentPins } from './WhiteboardCommentPins'
 import { ShareWhiteboardDialog } from './ShareWhiteboardDialog'
-import { RenameWhiteboardDialog } from './RenameWhiteboardDialog'
 import { WhiteboardApiService } from '../services'
+import {
+  WHITEBOARD_LOCAL_YJS_ORIGIN,
+  WHITEBOARD_SCENE_BOOTSTRAP_ORIGIN,
+  dedupeWhiteboardElementRecords,
+  syncWhiteboardAppState,
+  syncWhiteboardElements,
+  syncWhiteboardFiles
+} from '../services/whiteboardYjsScene'
 import translations from '../_i18n'
 import type { WhiteboardSummary } from '../types'
 import type { DocumentParticipant } from '@/business-apps/platform/apps/shared/services/CollaborationClient'
+import {
+  createWhiteboardCommentAnchorFromElements,
+  createWhiteboardCommentAnchorFromViewportPoint,
+  getWhiteboardCommentAnchorCenter,
+  resolveWhiteboardCommentAnchor
+} from '../utils/whiteboardCommentAnchors'
 
-/** Yjs transaction origin for local Excalidraw edits — observer ignores these to avoid feedback loops. */
-const WB_YJS_ORIGIN = 'nw-whiteboard-local'
-const WB_SCENE_BOOTSTRAP_ORIGIN = 'nw-whiteboard-scene-bootstrap'
+type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number]
+
+type CommentAnchorSceneElement = {
+  id?: string
+  x: number
+  y: number
+  width: number
+  height: number
+  isDeleted?: boolean
+}
 
 function normalizeAvatarUrl(raw?: string | null): string | undefined {
   if (!raw) return undefined
@@ -72,6 +107,21 @@ function base64ToUint8Array(value: string): Uint8Array {
 
 const VIEWPORT_KEYS = new Set(['scrollX', 'scrollY', 'zoom'])
 
+const WHITEBOARD_BACKGROUND_COLORS = [
+  '#ffffff',
+  '#f8fafc',
+  '#f1f5f9',
+  '#fef3c7',
+  '#fde68a',
+  '#fecaca',
+  '#fca5a5',
+  '#bbf7d0',
+  '#86efac',
+  '#bfdbfe',
+  '#93c5fd',
+  '#e9d5ff'
+]
+
 function serializeAppState(appState: AppState): Record<string, unknown> {
   return {
     viewBackgroundColor: appState.viewBackgroundColor
@@ -79,7 +129,7 @@ function serializeAppState(appState: AppState): Record<string, unknown> {
 }
 
 function buildSceneData(
-  elements: readonly ExcalidrawElement[],
+  elements: readonly SceneElement[],
   files: BinaryFiles,
   appState: AppState
 ): Record<string, unknown> {
@@ -98,28 +148,50 @@ function serializeSceneDocument(sceneData: Record<string, unknown> | null | unde
   const elements = Array.isArray(sceneData?.elements) ? sceneData.elements : []
   const files =
     sceneData?.files && typeof sceneData.files === 'object' ? (sceneData.files as Record<string, unknown>) : {}
+  const appState =
+    sceneData?.appState && typeof sceneData.appState === 'object' ? (sceneData.appState as Record<string, unknown>) : {}
 
   return JSON.stringify({
     elements,
-    files: Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b)))
+    files: Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))),
+    appState: Object.fromEntries(Object.entries(appState).sort(([a], [b]) => a.localeCompare(b)))
   })
 }
 
-function sanitizeSceneElements(elements: Record<string, unknown>[]): ExcalidrawElement[] {
+function sanitizeSceneElements(elements: Record<string, unknown>[]): SceneElement[] {
   try {
-    return restoreElements(elements as never, null, {
+    const dedupedElements = dedupeWhiteboardElementRecords(elements)
+    return restoreElements(dedupedElements as never, null, {
       refreshDimensions: true,
       repairBindings: true
-    }) as unknown as ExcalidrawElement[]
+    }) as unknown as SceneElement[]
   } catch (error) {
     console.error('Failed to restore scene elements:', error)
     return []
   }
 }
 
+function snapshotCommentAnchorElements(elements: readonly SceneElement[]): CommentAnchorSceneElement[] {
+  return elements.map(element => ({
+    id: element.id,
+    x: element.x,
+    y: element.y,
+    width: element.width,
+    height: element.height,
+    isDeleted: element.isDeleted
+  }))
+}
+
+function serializeCommentAnchorElements(elements: readonly CommentAnchorSceneElement[]): string {
+  return JSON.stringify(elements)
+}
+
 interface WhiteboardEditorProps extends BusinessAppContextProps {
   whiteboardId: string
   isReadOnly?: boolean
+  canComment?: boolean
+  canManageSharing?: boolean
+  canRename?: boolean
   onBack: () => void
   onAiReady?: (
     api: ExcalidrawImperativeAPI,
@@ -135,6 +207,8 @@ interface WhiteboardEditorProps extends BusinessAppContextProps {
 export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
   whiteboardId,
   isReadOnly = false,
+  canComment = false,
+  canManageSharing = false,
   accessToken,
   userInfo,
   onBack,
@@ -144,25 +218,49 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
   'data-testid': testId = 'whiteboard-editor'
 }) => {
   const { t } = useTranslation(translations)
+  const { locale } = useLocale()
+  const excalidrawLangCode = useMemo(() => {
+    if (!locale) return 'en'
+    if (/^de/i.test(locale)) return 'de-DE'
+    if (/^ro/i.test(locale)) return 'ro-RO'
+    if (/^en/i.test(locale)) return 'en'
+    return locale
+  }, [locale])
   const [excalidrawApi, setExcalidrawApi] = useState<ExcalidrawImperativeAPI | null>(null)
   const [whiteboard, setWhiteboard] = useState<WhiteboardSummary | null>(null)
   const [hasLoadedWhiteboard, setHasLoadedWhiteboard] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
-  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
+  const [isRenamingTitle, setIsRenamingTitle] = useState(false)
+  const [draftTitle, setDraftTitle] = useState('')
+  const [isRenameSaving, setIsRenameSaving] = useState(false)
+  const renameInputRef = useRef<HTMLInputElement | null>(null)
+  const isRenamingTitleRef = useRef(false)
+  const [bgColorPopoverOpen, setBgColorPopoverOpen] = useState(false)
   const [isSynced, setIsSynced] = useState(false)
   const [participantAvatarMap, setParticipantAvatarMap] = useState<Record<string, string>>({})
+  const [commentsVisible, setCommentsVisible] = useState(false)
+  const [commentPopoverPosition, setCommentPopoverPosition] = useState<{ top: number; left: number } | null>(null)
+  const [commentContextMenu, setCommentContextMenu] = useState<{
+    top: number
+    left: number
+    anchor: WhiteboardCommentAnchor
+  } | null>(null)
+  const [pendingCommentAnchor, setPendingCommentAnchor] = useState<WhiteboardCommentAnchor | null>(null)
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
+  const [commentAnchorVersion, setCommentAnchorVersion] = useState(0)
   const providerRef = useRef<SocketIoYjsProvider | null>(null)
   const excalidrawShellRef = useRef<HTMLDivElement | null>(null)
-  const viewportRef = useRef({ scrollX: 0, scrollY: 0, zoom: 1 })
+  const sceneElementsForCommentsRef = useRef<readonly CommentAnchorSceneElement[]>([])
+  const sceneElementsForCommentsSignatureRef = useRef('')
+  const sceneElementsForCommentsFrameRef = useRef<number | null>(null)
+  const [viewport, setViewport] = useState({ scrollX: 0, scrollY: 0, zoom: 1 })
+  const viewportRef = useRef(viewport)
   const isRemoteUpdateRef = useRef(false)
   const hasHydratedCanvasRef = useRef(false)
   const hasPersistedSnapshotRef = useRef(false)
   const hasRestoredViewportRef = useRef(false)
   const hasSeededFromSceneDataRef = useRef(false)
   const lastAppliedRemoteSceneRef = useRef<string | null>(null)
-  const sceneSaveTimeoutRef = useRef<number | null>(null)
-  const lastSavedSceneRef = useRef<string | null>(null)
-  const pendingSaveRef = useRef<Record<string, unknown> | null>(null)
   const initialSceneDataRef = useRef<Record<string, unknown> | undefined>(undefined)
 
   const { pictureThumbnail: pictureFromGraphql } = useCurrentUserPicture(
@@ -181,10 +279,12 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
 
   const ydoc = useMemo(() => new Y.Doc(), [whiteboardId])
   const awareness = useMemo(() => new Awareness(ydoc), [ydoc])
-  const yElements = useMemo(() => ydoc.getArray('elements'), [ydoc])
+  const yElements = useMemo(() => ydoc.getArray<Y.Map<unknown>>('elements'), [ydoc])
   const yFiles = useMemo(() => ydoc.getMap<string>('files'), [ydoc])
   const yAppState = useMemo(() => ydoc.getMap<unknown>('appState'), [ydoc])
-  const isTrashedWhiteboard = isReadOnly || Boolean(whiteboard?.trashedAt)
+  const isActuallyTrashed = Boolean(whiteboard?.trashedAt)
+  const isReadonlyCanvas = isReadOnly || isActuallyTrashed
+  const commentsEnabled = canComment && !isActuallyTrashed && !!accessToken
 
   useEffect(() => {
     if (excalidrawApi && onAiReady) {
@@ -202,16 +302,12 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     hasSeededFromSceneDataRef.current = false
     lastAppliedRemoteSceneRef.current = null
     initialSceneDataRef.current = undefined
-    lastSavedSceneRef.current = null
     WhiteboardApiService.getTrashedPreview(accessToken, whiteboardId)
       .then(loadedWhiteboard => {
         setWhiteboard(loadedWhiteboard)
         initialSceneDataRef.current = loadedWhiteboard.sceneData as Record<string, unknown> | undefined
         hasPersistedSnapshotRef.current = Boolean(
           (loadedWhiteboard.contentJson as Record<string, unknown> | undefined)?.yjsStateBase64
-        )
-        lastSavedSceneRef.current = serializeSceneDocument(
-          (loadedWhiteboard.sceneData as Record<string, unknown> | undefined) || null
         )
       })
       .catch(err => console.error('Failed to load whiteboard:', err.message))
@@ -234,51 +330,80 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
   const { participants, socket: collaborationSocket } = useCollaboration({
     entityType: 'whiteboard',
     entityId: whiteboardId,
-    enabled: !!whiteboardId && hasLoadedWhiteboard && !isTrashedWhiteboard,
+    enabled: !!whiteboardId && hasLoadedWhiteboard && !isActuallyTrashed,
     accessToken
   })
 
-  const scheduleSceneSave = useCallback(
-    (sceneData: Record<string, unknown>) => {
-      if (!accessToken || !whiteboardId || isTrashedWhiteboard) return
+  const commentApiService = useMemo(() => {
+    if (!accessToken || !commentsEnabled) {
+      return undefined
+    }
 
-      const nextSerialized = serializeSceneDocument(sceneData)
-      if (lastSavedSceneRef.current === nextSerialized) return
+    return {
+      createComment: (id: string, input: CreateCommentInput) =>
+        WhiteboardApiService.createComment(accessToken, id, input),
+      listComments: (id: string, options?: CommentQueryOptions) =>
+        WhiteboardApiService.listComments(accessToken, id, options),
+      updateComment: (commentId: string, updates: Partial<Comment>) =>
+        WhiteboardApiService.updateComment(accessToken, commentId, updates),
+      resolveComment: (commentId: string) => WhiteboardApiService.resolveComment(accessToken, commentId),
+      unresolveComment: (commentId: string) => WhiteboardApiService.unresolveComment(accessToken, commentId),
+      deleteComment: (commentId: string) => WhiteboardApiService.deleteComment(accessToken, commentId),
+      replyToComment: (commentId: string, reply: string, userName?: string, userAvatar?: string) =>
+        WhiteboardApiService.replyToComment(accessToken, commentId, reply, userName, userAvatar)
+    }
+  }, [accessToken, commentsEnabled])
 
-      pendingSaveRef.current = sceneData
+  const comments = useComments({
+    entityId: whiteboardId,
+    entityType: 'whiteboard',
+    socket: commentsEnabled ? collaborationSocket : null,
+    apiService: commentApiService,
+    t
+  })
 
-      if (sceneSaveTimeoutRef.current) {
-        window.clearTimeout(sceneSaveTimeoutRef.current)
+  const updateCommentAnchorElements = useCallback((elements: readonly SceneElement[]) => {
+    const snapshot = snapshotCommentAnchorElements(elements)
+    const signature = serializeCommentAnchorElements(snapshot)
+    if (signature === sceneElementsForCommentsSignatureRef.current) {
+      return
+    }
+
+    sceneElementsForCommentsRef.current = snapshot
+    sceneElementsForCommentsSignatureRef.current = signature
+    if (sceneElementsForCommentsFrameRef.current !== null) {
+      return
+    }
+
+    sceneElementsForCommentsFrameRef.current = requestAnimationFrame(() => {
+      sceneElementsForCommentsFrameRef.current = null
+      setCommentAnchorVersion(version => version + 1)
+    })
+  }, [])
+
+  const handleExcalidrawApi = useCallback((api: ExcalidrawImperativeAPI | null) => {
+    setExcalidrawApi(current => (current === api ? current : api))
+  }, [])
+
+  const initialExcalidrawData = useMemo(
+    () => ({
+      appState: {
+        currentItemRoughness: 0,
+        currentItemFontFamily: NW_FUNNEL_DISPLAY_FONT_FAMILY,
+        viewModeEnabled: isReadonlyCanvas
       }
-
-      sceneSaveTimeoutRef.current = window.setTimeout(() => {
-        pendingSaveRef.current = null
-        WhiteboardApiService.update(accessToken, whiteboardId, { sceneData })
-          .then(updatedWhiteboard => {
-            initialSceneDataRef.current = sceneData
-            lastSavedSceneRef.current = nextSerialized
-            setWhiteboard(updated => ({ ...(updated || updatedWhiteboard), sceneData }))
-          })
-          .catch(err => {
-            console.error('Failed to persist whiteboard scene:', err.message)
-          })
-      }, 800)
-    },
-    [accessToken, isTrashedWhiteboard, whiteboardId]
+    }),
+    [isReadonlyCanvas]
   )
 
-  const flushPendingSave = useCallback(() => {
-    if (sceneSaveTimeoutRef.current) {
-      window.clearTimeout(sceneSaveTimeoutRef.current)
-      sceneSaveTimeoutRef.current = null
+  useEffect(() => {
+    return () => {
+      if (sceneElementsForCommentsFrameRef.current !== null) {
+        cancelAnimationFrame(sceneElementsForCommentsFrameRef.current)
+        sceneElementsForCommentsFrameRef.current = null
+      }
     }
-    const sceneData = pendingSaveRef.current
-    if (!sceneData || !accessToken || !whiteboardId || isTrashedWhiteboard) return
-    pendingSaveRef.current = null
-    WhiteboardApiService.update(accessToken, whiteboardId, { sceneData }).catch(err => {
-      console.error('Failed to flush whiteboard save:', err.message)
-    })
-  }, [accessToken, isTrashedWhiteboard, whiteboardId])
+  }, [])
 
   useEffect(() => {
     if (participants.length === 0) {
@@ -364,23 +489,18 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
 
         Y.transact(ydoc, () => {
           if (hasNoElements && Array.isArray(sceneData.elements)) {
-            const els = sceneData.elements as Record<string, unknown>[]
-            els.forEach((el: Record<string, unknown>) => {
-              const yEl = new Y.Map()
-              Object.entries(el).forEach(([k, v]) => yEl.set(k, v))
-              yElements.push([yEl])
-            })
+            syncWhiteboardElements(yElements, sceneData.elements as Record<string, unknown>[])
           }
           if (hasNoFiles && sceneData.files && typeof sceneData.files === 'object') {
-            const filesObj = sceneData.files as Record<string, unknown>
-            for (const [id, file] of Object.entries(filesObj)) {
-              yFiles.set(id, JSON.stringify(file))
-            }
+            syncWhiteboardFiles(yFiles, sceneData.files as Record<string, unknown>)
           }
           if (hasNoAppState && sceneData.appState && typeof sceneData.appState === 'object') {
-            for (const [key, value] of Object.entries(sceneData.appState as Record<string, unknown>)) {
-              if (!VIEWPORT_KEYS.has(key)) yAppState.set(key, value)
-            }
+            syncWhiteboardAppState(
+              yAppState,
+              Object.fromEntries(
+                Object.entries(sceneData.appState as Record<string, unknown>).filter(([key]) => !VIEWPORT_KEYS.has(key))
+              )
+            )
           }
         })
       }
@@ -390,22 +510,11 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     provider.start()
 
     return () => {
-      flushPendingSave()
       provider.destroy()
       providerRef.current = null
       setIsSynced(false)
     }
-  }, [
-    whiteboardId,
-    collaborationSocket,
-    hasLoadedWhiteboard,
-    ydoc,
-    awareness,
-    yElements,
-    yFiles,
-    yAppState,
-    flushPendingSave
-  ])
+  }, [whiteboardId, collaborationSocket, hasLoadedWhiteboard, ydoc, awareness, yElements, yFiles, yAppState])
 
   useEffect(() => {
     const sceneData = initialSceneDataRef.current
@@ -416,35 +525,24 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
       ydoc,
       () => {
         if (Array.isArray(sceneData.elements)) {
-          const els = sceneData.elements as Record<string, unknown>[]
-          els.forEach(el => {
-            const yEl = new Y.Map()
-            Object.entries(el).forEach(([k, v]) => yEl.set(k, v))
-            yElements.push([yEl])
-          })
+          syncWhiteboardElements(yElements, sceneData.elements as Record<string, unknown>[])
         }
         if (sceneData.files && typeof sceneData.files === 'object') {
-          const filesObj = sceneData.files as Record<string, unknown>
-          for (const [id, file] of Object.entries(filesObj)) {
-            yFiles.set(id, JSON.stringify(file))
-          }
+          syncWhiteboardFiles(yFiles, sceneData.files as Record<string, unknown>)
         }
         if (sceneData.appState && typeof sceneData.appState === 'object') {
-          for (const [key, value] of Object.entries(sceneData.appState as Record<string, unknown>)) {
-            if (!VIEWPORT_KEYS.has(key)) yAppState.set(key, value)
-          }
+          syncWhiteboardAppState(
+            yAppState,
+            Object.fromEntries(
+              Object.entries(sceneData.appState as Record<string, unknown>).filter(([key]) => !VIEWPORT_KEYS.has(key))
+            )
+          )
         }
       },
-      WB_SCENE_BOOTSTRAP_ORIGIN
+      WHITEBOARD_SCENE_BOOTSTRAP_ORIGIN
     )
     hasSeededFromSceneDataRef.current = true
   }, [isSynced, ydoc, yElements, yFiles, yAppState])
-
-  useEffect(() => {
-    const onBeforeUnload = () => flushPendingSave()
-    window.addEventListener('beforeunload', onBeforeUnload)
-    return () => window.removeEventListener('beforeunload', onBeforeUnload)
-  }, [flushPendingSave])
 
   useEffect(() => {
     const el = excalidrawShellRef.current
@@ -488,6 +586,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           rawElements.push(el)
         })
         const elements = sanitizeSceneElements(rawElements)
+        updateCommentAnchorElements(elements)
         const rawAppState =
           yAppState.size > 0
             ? (Object.fromEntries(yAppState.entries()) as Record<string, unknown>)
@@ -501,7 +600,7 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
               return copy as Partial<AppState>
             })()
           : undefined
-        excalidrawApi.updateScene(appState ? { elements, appState } : { elements })
+        excalidrawApi.updateScene(appState ? { elements, appState: appState as AppState } : { elements })
 
         const fileRecords: any[] = []
         const filesForScene: Record<string, unknown> = {}
@@ -524,30 +623,6 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
         if (fileRecords.length > 0) {
           excalidrawApi.addFiles(fileRecords)
         }
-        if (!hasRestoredViewportRef.current && elements.length > 0) {
-          hasRestoredViewportRef.current = true
-          const capZoomToOne = () => {
-            const z = excalidrawApi.getAppState().zoom.value
-            if (z > 1 || !Number.isFinite(z)) {
-              excalidrawApi.updateScene({
-                appState: { zoom: { value: 1 as Zoom['value'] } }
-              })
-              excalidrawApi.scrollToContent(elements, {
-                fitToViewport: false,
-                animate: false
-              })
-            }
-          }
-          requestAnimationFrame(() => {
-            excalidrawApi.scrollToContent(elements, {
-              fitToViewport: true,
-              viewportZoomFactor: 0.9,
-              animate: false
-            })
-            requestAnimationFrame(capZoomToOne)
-          })
-          setTimeout(capZoomToOne, 300)
-        }
         if (
           elements.length > 0 ||
           fileRecords.length > 0 ||
@@ -563,25 +638,27 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     }
 
     const handleYjsChange = (_events: unknown, transaction: Y.Transaction) => {
-      if (transaction.origin === WB_YJS_ORIGIN) return
+      if (transaction.origin === WHITEBOARD_LOCAL_YJS_ORIGIN) return
       pushYjsToCanvas()
     }
 
     yElements.observeDeep(handleYjsChange)
+    yAppState.observeDeep(handleYjsChange)
     if (yElements.length > 0 || yFiles.size > 0) {
       pushYjsToCanvas()
     }
 
     return () => {
       yElements.unobserveDeep(handleYjsChange)
+      yAppState.unobserveDeep(handleYjsChange)
     }
-  }, [excalidrawApi, yElements, yFiles, yAppState])
+  }, [excalidrawApi, updateCommentAnchorElements, yElements, yFiles, yAppState])
 
   useEffect(() => {
     if (!excalidrawApi) return
 
     const pushFilesOnly = (_event: unknown, transaction: Y.Transaction) => {
-      if (transaction.origin === WB_YJS_ORIGIN) return
+      if (transaction.origin === WHITEBOARD_LOCAL_YJS_ORIGIN) return
       if (isRemoteUpdateRef.current) return
       const fileRecords: any[] = []
       yFiles.forEach(json => {
@@ -608,9 +685,68 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     }
   }, [excalidrawApi, yFiles])
 
+  useEffect(() => {
+    if (!excalidrawApi || !isSynced || hasRestoredViewportRef.current) return
+
+    const performInitialFit = () => {
+      if (!excalidrawApi || hasRestoredViewportRef.current) return
+      const elements = excalidrawApi.getSceneElements().filter(el => !el.isDeleted)
+      hasRestoredViewportRef.current = true
+
+      // Reset undo/redo so the loaded scene is the baseline. Without this, Ctrl+Z can
+      // step past the initial state and wipe pre-existing whiteboard content.
+      const clearHistory = () => {
+        try {
+          ;(excalidrawApi as unknown as { history?: { clear?: () => void } }).history?.clear?.()
+        } catch {
+          /* no-op */
+        }
+      }
+
+      if (elements.length === 0) {
+        excalidrawApi.updateScene({
+          appState: {
+            scrollX: 0,
+            scrollY: 0,
+            zoom: { value: 1 as Zoom['value'] }
+          } as Partial<AppState> as AppState
+        })
+        requestAnimationFrame(clearHistory)
+        return
+      }
+
+      const capZoomToOne = () => {
+        const z = excalidrawApi.getAppState().zoom.value
+        if (z > 1 || !Number.isFinite(z)) {
+          excalidrawApi.updateScene({
+            appState: { zoom: { value: 1 as Zoom['value'] } } as Partial<AppState> as AppState
+          })
+          excalidrawApi.scrollToContent(elements, {
+            fitToViewport: false,
+            animate: false
+          })
+        }
+      }
+      requestAnimationFrame(() => {
+        excalidrawApi.scrollToContent(elements, {
+          fitToViewport: true,
+          viewportZoomFactor: 0.9,
+          animate: false
+        })
+        requestAnimationFrame(capZoomToOne)
+      })
+      setTimeout(capZoomToOne, 300)
+      setTimeout(clearHistory, 350)
+    }
+
+    const timer = window.setTimeout(performInitialFit, 80)
+    return () => window.clearTimeout(timer)
+  }, [excalidrawApi, isSynced])
+
   const handleChange = useCallback(
-    (elements: readonly ExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
-      if (isRemoteUpdateRef.current || isTrashedWhiteboard) return
+    (elements: readonly SceneElement[], appState: AppState, files: BinaryFiles) => {
+      updateCommentAnchorElements(elements)
+      if (isRemoteUpdateRef.current || isReadonlyCanvas) return
 
       const hasLocalContent = elements.length > 0 || Object.keys(files).length > 0
       const hasPersistedBaseline = hasSceneContent(initialSceneDataRef.current) || hasPersistedSnapshotRef.current
@@ -627,52 +763,279 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
       Y.transact(
         ydoc,
         () => {
-          yElements.delete(0, yElements.length)
-          elements.forEach(el => {
-            const yEl = new Y.Map()
-            Object.entries(el).forEach(([k, v]) => {
-              if (v !== undefined && typeof v !== 'function') {
-                yEl.set(k, JSON.parse(JSON.stringify(v)))
-              }
-            })
-            yElements.push([yEl])
-          })
-
-          const ids = new Set(Object.keys(files))
-          yFiles.forEach((_, id) => {
-            if (!ids.has(id)) yFiles.delete(id)
-          })
-          for (const [id, file] of Object.entries(files)) {
-            yFiles.set(id, JSON.stringify(file))
-          }
+          syncWhiteboardElements(yElements, elements as unknown as Record<string, unknown>[])
+          syncWhiteboardFiles(yFiles, files as unknown as Record<string, unknown>)
           const persistedAppState = serializeAppState(appState)
-          yAppState.clear()
-          for (const [key, value] of Object.entries(persistedAppState)) {
-            yAppState.set(key, value)
-          }
+          syncWhiteboardAppState(yAppState, persistedAppState)
         },
-        WB_YJS_ORIGIN
+        WHITEBOARD_LOCAL_YJS_ORIGIN
       )
-
-      scheduleSceneSave(sceneData)
     },
-    [ydoc, yElements, yFiles, yAppState, isSynced, isTrashedWhiteboard, scheduleSceneSave]
+    [ydoc, yElements, yFiles, yAppState, isSynced, isReadonlyCanvas, updateCommentAnchorElements]
   )
 
   const handlePointerUpdate = useCallback(
     (payload: { pointer: { x: number; y: number; tool: 'pointer' | 'laser' }; button: 'down' | 'up' }) => {
-      if (!isSynced || isTrashedWhiteboard) return
+      if (!isSynced || isActuallyTrashed) return
       awareness.setLocalStateField('cursor', {
         x: payload.pointer.x,
         y: payload.pointer.y
       })
     },
-    [isSynced, isTrashedWhiteboard, awareness]
+    [isSynced, isActuallyTrashed, awareness]
   )
 
   const handleScrollChange = useCallback((scrollX: number, scrollY: number, zoomObj: Zoom) => {
-    viewportRef.current = { scrollX, scrollY, zoom: zoomObj.value }
+    const nextViewport = { scrollX, scrollY, zoom: zoomObj.value }
+    viewportRef.current = nextViewport
+    setViewport(nextViewport)
   }, [])
+
+  useEffect(() => {
+    const shell = excalidrawShellRef.current
+    if (!shell || !excalidrawApi) return
+
+    const handleWheel = (event: WheelEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return
+      event.preventDefault()
+      event.stopPropagation()
+      const appState = excalidrawApi.getAppState()
+      const currentZoom = appState.zoom.value || 1
+      const factor = Math.exp(-event.deltaY * 0.0015)
+      const nextZoom = Math.min(30, Math.max(0.1, currentZoom * factor))
+      excalidrawApi.updateScene({
+        appState: {
+          zoom: { value: nextZoom as Zoom['value'] }
+        } as Partial<AppState> as AppState
+      })
+    }
+
+    shell.addEventListener('wheel', handleWheel, { passive: false, capture: true })
+    return () => {
+      shell.removeEventListener('wheel', handleWheel, { capture: true } as EventListenerOptions)
+    }
+  }, [excalidrawApi])
+
+  useEffect(() => {
+    setCommentsVisible(false)
+    setCommentPopoverPosition(null)
+    setCommentContextMenu(null)
+    setPendingCommentAnchor(null)
+    setActiveCommentId(null)
+  }, [whiteboardId])
+
+  useEffect(() => {
+    if (commentsEnabled) {
+      return
+    }
+
+    setCommentsVisible(false)
+    setCommentPopoverPosition(null)
+    setCommentContextMenu(null)
+    setPendingCommentAnchor(null)
+    setActiveCommentId(null)
+  }, [commentsEnabled])
+
+  const openCommentPopover = useCallback((anchor: WhiteboardCommentAnchor, top: number, left: number) => {
+    setPendingCommentAnchor(anchor)
+    setCommentPopoverPosition({ top, left })
+    setCommentContextMenu(null)
+    setCommentsVisible(true)
+  }, [])
+
+  const handleCanvasContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!commentsEnabled || !excalidrawShellRef.current) {
+        return
+      }
+
+      const bounds = excalidrawShellRef.current.getBoundingClientRect()
+      const viewportX = event.clientX - bounds.left
+      const viewportY = event.clientY - bounds.top
+      const selectedElementIds = excalidrawApi?.getAppState().selectedElementIds ?? {}
+      const selectedElements = excalidrawApi
+        ?.getSceneElements()
+        .filter(element => !element.isDeleted && Boolean(selectedElementIds[element.id]))
+      const selectionAnchor =
+        selectedElements && selectedElements.length > 0
+          ? createWhiteboardCommentAnchorFromElements(selectedElements)
+          : null
+      const anchor =
+        selectionAnchor ?? createWhiteboardCommentAnchorFromViewportPoint(viewportX, viewportY, viewportRef.current)
+
+      setCommentContextMenu({
+        top: event.clientY,
+        left: event.clientX,
+        anchor
+      })
+    },
+    [commentsEnabled, excalidrawApi]
+  )
+
+  const handleContextMenuAddComment = useCallback(() => {
+    if (!commentContextMenu) {
+      return
+    }
+
+    openCommentPopover(commentContextMenu.anchor, commentContextMenu.top + 8, commentContextMenu.left + 8)
+    setCommentContextMenu(null)
+  }, [commentContextMenu, openCommentPopover])
+
+  useEffect(() => {
+    if (!commentContextMenu || !commentsEnabled) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const contextMenu = excalidrawShellRef.current?.querySelector('.context-menu')
+      if (!contextMenu || contextMenu.querySelector('[data-whiteboard-add-comment="true"]')) {
+        return
+      }
+
+      const separator = document.createElement('hr')
+      separator.className = 'context-menu-item-separator'
+      separator.dataset.whiteboardAddComment = 'true'
+
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'context-menu-item'
+      button.dataset.whiteboardAddComment = 'true'
+
+      const label = document.createElement('div')
+      label.className = 'context-menu-item__label'
+      label.textContent = t('whiteboard-comments-add')
+      button.append(label)
+
+      button.addEventListener('click', event => {
+        event.preventDefault()
+        event.stopPropagation()
+        handleContextMenuAddComment()
+      })
+
+      contextMenu.append(separator, button)
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [commentContextMenu, commentsEnabled, handleContextMenuAddComment, t])
+
+  const closeCommentPopover = useCallback(() => {
+    setCommentPopoverPosition(null)
+    setPendingCommentAnchor(null)
+  }, [])
+
+  const jumpToCommentAnchor = useCallback(
+    (commentId: string) => {
+      const comment = comments.comments.find(item => item.id === commentId)
+      if (!comment?.anchorData || !excalidrawApi || !excalidrawShellRef.current) {
+        return
+      }
+
+      const zoom = excalidrawApi.getAppState().zoom.value
+      const shell = excalidrawShellRef.current.getBoundingClientRect()
+      const resolvedAnchor = resolveWhiteboardCommentAnchor(comment.anchorData, sceneElementsForCommentsRef.current)
+      const center = getWhiteboardCommentAnchorCenter(resolvedAnchor)
+      const scrollX = shell.width / (2 * zoom) - center.x
+      const scrollY = shell.height / (2 * zoom) - center.y
+
+      viewportRef.current = {
+        scrollX,
+        scrollY,
+        zoom
+      }
+      setViewport(viewportRef.current)
+
+      excalidrawApi.updateScene({
+        appState: {
+          scrollX,
+          scrollY
+        }
+      })
+
+      setActiveCommentId(commentId)
+      setCommentsVisible(true)
+      requestAnimationFrame(() => {
+        const thread = document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
+        if (thread instanceof HTMLElement) {
+          thread.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+        }
+      })
+    },
+    [comments.comments, excalidrawApi]
+  )
+
+  const handleCreateWhiteboardComment = useCallback(
+    async (content: string) => {
+      if (!pendingCommentAnchor) {
+        toast.error(t('whiteboard-comment-select-location'))
+        return
+      }
+
+      const created = await comments.createComment({
+        type: 'selection',
+        content,
+        selectedText: t('whiteboard-comment-anchor-label'),
+        anchorData: pendingCommentAnchor,
+        createdByName: currentUserName,
+        createdByAvatar: currentUserAvatar
+      })
+
+      if (created) {
+        setActiveCommentId(created.id)
+      } else {
+        toast.error(t('whiteboard-comment-create-failed'))
+      }
+
+      closeCommentPopover()
+    },
+    [closeCommentPopover, comments, currentUserAvatar, currentUserName, pendingCommentAnchor, t]
+  )
+
+  const handleCommentThreadCreate = useCallback(
+    async (content: string, parentId?: string, userName?: string, userAvatar?: string) => {
+      if (!parentId) {
+        toast.error(t('whiteboard-comment-panel-disabled'))
+        return
+      }
+
+      const reply = await comments.replyToComment(parentId, content, userName, userAvatar)
+      if (!reply) {
+        toast.error(t('whiteboard-comment-reply-failed'))
+        return
+      }
+
+      setActiveCommentId(parentId)
+    },
+    [comments, t]
+  )
+
+  const handleResolveComment = useCallback(
+    async (commentId: string) => {
+      await comments.resolveComment(commentId)
+      setActiveCommentId(current => (current === commentId ? null : current))
+    },
+    [comments]
+  )
+
+  const handleUnresolveComment = useCallback(
+    async (commentId: string) => {
+      const ok = await comments.unresolveComment(commentId)
+      if (ok) {
+        setActiveCommentId(commentId)
+      }
+      return ok
+    },
+    [comments]
+  )
+
+  const handleDeleteComment = useCallback(
+    async (commentId: string) => {
+      await comments.deleteComment(commentId)
+      setActiveCommentId(current => (current === commentId ? null : current))
+    },
+    [comments]
+  )
 
   const handleExportPng = useCallback(async () => {
     if (!excalidrawApi) return
@@ -708,14 +1071,85 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
     URL.revokeObjectURL(url)
   }, [excalidrawApi, whiteboard])
 
+  const canEditTitle = !isReadonlyCanvas
   const handleEditorRename = useCallback(
     async (newTitle: string) => {
-      if (!accessToken || !whiteboardId || isTrashedWhiteboard) return
+      if (!accessToken || !whiteboardId || isActuallyTrashed || !canEditTitle) return
       const updated = await WhiteboardApiService.update(accessToken, whiteboardId, { title: newTitle })
       setWhiteboard(prev => (prev ? { ...prev, title: updated?.title ?? newTitle } : prev))
     },
-    [accessToken, isTrashedWhiteboard, whiteboardId]
+    [accessToken, canEditTitle, isActuallyTrashed, whiteboardId]
   )
+
+  useEffect(() => {
+    if (!collaborationSocket) return
+    const handleTitleUpdated = (payload: { documentId: string; title?: string; userId?: string }) => {
+      if (payload.documentId !== whiteboardId) return
+      if (payload.userId && payload.userId === currentUserId) return
+      const nextTitle = payload.title ?? ''
+      setWhiteboard(prev => (prev ? { ...prev, title: nextTitle } : prev))
+      if (!isRenamingTitleRef.current) {
+        setDraftTitle(nextTitle)
+      }
+    }
+    collaborationSocket.on('whiteboard_title_updated', handleTitleUpdated)
+    return () => {
+      collaborationSocket.off('whiteboard_title_updated', handleTitleUpdated)
+    }
+  }, [collaborationSocket, whiteboardId, currentUserId])
+
+  const beginRenameTitle = useCallback(() => {
+    if (!canEditTitle || isRenameSaving) return
+    setDraftTitle(whiteboard?.title ?? '')
+    setIsRenamingTitle(true)
+  }, [canEditTitle, isRenameSaving, whiteboard?.title])
+
+  const cancelRenameTitle = useCallback(() => {
+    setDraftTitle(whiteboard?.title ?? '')
+    setIsRenamingTitle(false)
+  }, [whiteboard?.title])
+
+  const commitRenameTitle = useCallback(async () => {
+    if (!isRenamingTitle || isRenameSaving) return
+    const trimmed = draftTitle.trim()
+    const current = whiteboard?.title ?? ''
+    if (!trimmed || trimmed === current) {
+      setDraftTitle(current)
+      setIsRenamingTitle(false)
+      return
+    }
+    setIsRenameSaving(true)
+    try {
+      await handleEditorRename(trimmed)
+      setIsRenamingTitle(false)
+    } catch (error) {
+      console.error('Failed to rename whiteboard:', error)
+    } finally {
+      setIsRenameSaving(false)
+    }
+  }, [draftTitle, handleEditorRename, isRenameSaving, isRenamingTitle, whiteboard?.title])
+
+  useEffect(() => {
+    isRenamingTitleRef.current = isRenamingTitle
+    if (isRenamingTitle) {
+      const id = window.setTimeout(() => {
+        renameInputRef.current?.focus()
+        renameInputRef.current?.select()
+      }, 0)
+      return () => window.clearTimeout(id)
+    }
+    return undefined
+  }, [isRenamingTitle])
+
+  const handleBackgroundColorChange = useCallback(
+    (color: string) => {
+      if (!excalidrawApi || isReadonlyCanvas) return
+      excalidrawApi.updateScene({ appState: { viewBackgroundColor: color } as Partial<AppState> as AppState })
+      setBgColorPopoverOpen(false)
+    },
+    [excalidrawApi, isReadonlyCanvas]
+  )
+  const sceneElementsForComments = sceneElementsForCommentsRef.current
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:w-full" data-testid={testId}>
@@ -725,19 +1159,45 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           <Button variant="ghost" size="sm" onClick={onBack} data-testid={`${testId}-back`}>
             <ArrowLeftIcon className="gba:h-4 gba:w-4" />
           </Button>
-          <button
-            type="button"
-            className="gba:text-lg gba:font-semibold gba:truncate gba:max-w-md gba:hover:underline gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left"
-            onClick={() => {
-              if (!isTrashedWhiteboard) {
-                setRenameDialogOpen(true)
-              }
-            }}
-            disabled={isTrashedWhiteboard}
-            data-testid={`${testId}-title`}
-          >
-            {whiteboard?.title || t('whiteboard-untitled')}
-          </button>
+          {isRenamingTitle ? (
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={draftTitle}
+              onChange={event => setDraftTitle(event.target.value)}
+              onBlur={() => {
+                void commitRenameTitle()
+              }}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  ;(event.currentTarget as HTMLInputElement).blur()
+                  return
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  cancelRenameTitle()
+                }
+              }}
+              disabled={isRenameSaving}
+              className="gba:w-full gba:max-w-[320px] gba:h-8 gba:px-2 gba:text-lg gba:font-semibold gba:text-foreground gba:border gba:border-input gba:rounded-md gba:bg-background focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring"
+              placeholder={t('whiteboard-rename-placeholder')}
+              data-testid={`${testId}-title-input`}
+            />
+          ) : canEditTitle ? (
+            <button
+              type="button"
+              className="gba:text-lg gba:font-semibold gba:truncate gba:max-w-md gba:hover:underline gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0 gba:text-left"
+              onClick={beginRenameTitle}
+              data-testid={`${testId}-title`}
+            >
+              {whiteboard?.title || t('whiteboard-untitled')}
+            </button>
+          ) : (
+            <span className="gba:text-lg gba:font-semibold gba:truncate gba:max-w-md" data-testid={`${testId}-title`}>
+              {whiteboard?.title || t('whiteboard-untitled')}
+            </span>
+          )}
           {isSynced && <span className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-success" />}
         </div>
 
@@ -745,107 +1205,191 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
           {presenceParticipants.length > 0 && (
             <PresenceIndicator participants={presenceParticipants} data-testid={`${testId}-presence`} />
           )}
-          <TooltipProvider>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gba:gap-1.5" data-testid={`${testId}-whiteboard-menu`}>
-                  {t('whiteboard-menu-label')}
-                  <CaretDownIcon className="gba:h-3 gba:w-3 gba:opacity-60" />
+          {!isReadonlyCanvas && excalidrawApi ? (
+            <Popover open={bgColorPopoverOpen} onOpenChange={setBgColorPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label={t('whiteboard-background-color')}
+                  title={t('whiteboard-background-color')}
+                  data-testid={`${testId}-background-color`}
+                >
+                  <PaintBucketIcon className="gba:h-4 gba:w-4" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="gba:w-52">
-                <DropdownMenuItem onClick={handleExportPng} data-testid={`${testId}-export-png`}>
-                  <ImageIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('whiteboard-export-png')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportSvg} data-testid={`${testId}-export-svg`}>
-                  <DownloadSimpleIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('whiteboard-export-svg')}
-                </DropdownMenuItem>
-                {!isTrashedWhiteboard ? (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setShareDialogOpen(true)} data-testid={`${testId}-share`}>
-                      <ShareNetworkIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                      {t('whiteboard-share')}
-                    </DropdownMenuItem>
-                  </>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {onToggleAiChat && !isTrashedWhiteboard ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <AiButton
-                    variant={aiChatVisible ? 'default' : 'outline'}
-                    size="sm"
-                    active={aiChatVisible}
-                    onClick={onToggleAiChat}
-                    data-testid={`${testId}-ai-toggle`}
-                  >
-                    AI
-                  </AiButton>
-                </TooltipTrigger>
-                <TooltipContent>{t('whiteboard-ai-toggle')}</TooltipContent>
-              </Tooltip>
-            ) : null}
-          </TooltipProvider>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="gba:w-auto gba:p-2">
+                <div className="gba:grid gba:grid-cols-6 gba:gap-2">
+                  {WHITEBOARD_BACKGROUND_COLORS.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => handleBackgroundColorChange(color)}
+                      className="gba:h-7 gba:w-7 gba:rounded-md gba:border gba:border-input gba:transition-transform gba:hover:scale-110"
+                      style={{ backgroundColor: color }}
+                      aria-label={color}
+                      data-testid={`${testId}-background-color-${color}`}
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gba:gap-1.5" data-testid={`${testId}-whiteboard-menu`}>
+                {t('whiteboard-menu-label')}
+                <CaretDownIcon className="gba:h-3 gba:w-3 gba:opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="gba:w-52">
+              <DropdownMenuItem onClick={handleExportPng} data-testid={`${testId}-export-png`}>
+                <ImageIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                {t('whiteboard-export-png')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportSvg} data-testid={`${testId}-export-svg`}>
+                <DownloadSimpleIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                {t('whiteboard-export-svg')}
+              </DropdownMenuItem>
+              {!isActuallyTrashed && canManageSharing ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShareDialogOpen(true)} data-testid={`${testId}-share`}>
+                    <ShareNetworkIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('whiteboard-share')}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {commentsEnabled ? (
+            <Button
+              variant={commentsVisible ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCommentsVisible(current => !current)}
+              aria-label={t('whiteboard-comments-toggle')}
+              title={t('whiteboard-comments-toggle')}
+              data-testid={`${testId}-comments-toggle`}
+            >
+              <MessageSquare className="gba:h-4 gba:w-4" />
+              {comments.unresolvedCount > 0 ? (
+                <Badge variant="warning" className="gba:ml-1 gba:h-4 gba:px-1 gba:py-0 gba:text-xs">
+                  {comments.unresolvedCount}
+                </Badge>
+              ) : null}
+            </Button>
+          ) : null}
+          {onToggleAiChat && !isReadonlyCanvas ? (
+            <AiButton
+              variant={aiChatVisible ? 'default' : 'outline'}
+              size="sm"
+              active={aiChatVisible}
+              onClick={onToggleAiChat}
+              aria-label={t('whiteboard-ai-toggle')}
+              title={t('whiteboard-ai-toggle')}
+              data-testid={`${testId}-ai-toggle`}
+            >
+              AI
+            </AiButton>
+          ) : null}
         </div>
       </div>
 
-      {/* Canvas */}
-      <div
-        ref={excalidrawShellRef}
-        className="gba:flex-1 gba:relative gba:overflow-visible nw-whiteboard-excalidraw"
-        style={{ minHeight: 0 }}
-      >
-        <Excalidraw
-          excalidrawAPI={api => setExcalidrawApi(api)}
-          initialData={{
-            appState: {
-              currentItemRoughness: 0,
-              currentItemFontFamily: NW_FUNNEL_DISPLAY_FONT_FAMILY,
-              viewModeEnabled: isTrashedWhiteboard
-            }
-          }}
-          viewModeEnabled={isTrashedWhiteboard}
-          onChange={handleChange}
-          onPointerUpdate={handlePointerUpdate}
-          onScrollChange={handleScrollChange}
-          aiEnabled={false}
-          UIOptions={{
-            canvasActions: {
-              loadScene: false,
-              export: false,
-              saveAsImage: false
-            }
-          }}
-          theme="light"
+      {!isActuallyTrashed && isReadonlyCanvas ? (
+        <div
+          className="gba:flex gba:items-center gba:gap-2 gba:border-b gba:border-warning/30 gba:bg-warning/10 gba:px-4 gba:py-2 gba:text-sm gba:text-foreground"
+          data-testid={`${testId}-readonly-banner`}
         >
-          <MainMenu>
-            <MainMenu.DefaultItems.ToggleTheme />
-            <MainMenu.DefaultItems.ChangeCanvasBackground />
-            {!isTrashedWhiteboard ? <MainMenu.DefaultItems.ClearCanvas /> : null}
-          </MainMenu>
-        </Excalidraw>
-        {isSynced && (
-          <WhiteboardCollaboratorCursors
-            awareness={awareness}
-            currentUserId={currentUserId}
-            participants={presenceParticipants}
-            viewport={viewportRef.current}
-            data-testid={`${testId}-cursors`}
-          />
-        )}
-      </div>
+          <ChatCenteredTextIcon className="gba:h-4 gba:w-4 gba:text-warning" />
+          <span>
+            {commentsEnabled ? t('whiteboard-comment-readonly-banner') : t('whiteboard-view-readonly-banner')}
+          </span>
+        </div>
+      ) : null}
 
-      <RenameWhiteboardDialog
-        open={renameDialogOpen}
-        onOpenChange={setRenameDialogOpen}
-        currentTitle={whiteboard?.title || ''}
-        onRename={handleEditorRename}
-        data-testid={`${testId}-rename-dialog`}
-      />
+      {/* Canvas + docked comments panel row */}
+      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:w-full">
+        <div
+          ref={excalidrawShellRef}
+          className="gba:flex-1 gba:relative gba:overflow-visible nw-whiteboard-excalidraw"
+          style={{ minHeight: 0 }}
+          onContextMenu={handleCanvasContextMenu}
+        >
+          <Excalidraw
+            excalidrawAPI={handleExcalidrawApi}
+            initialData={initialExcalidrawData}
+            viewModeEnabled={isReadonlyCanvas}
+            onChange={handleChange}
+            onPointerUpdate={handlePointerUpdate}
+            onScrollChange={handleScrollChange}
+            langCode={excalidrawLangCode}
+            aiEnabled={false}
+            UIOptions={{
+              canvasActions: {
+                loadScene: false,
+                export: false,
+                saveAsImage: false
+              }
+            }}
+            theme="light"
+          >
+            <MainMenu>
+              <MainMenu.DefaultItems.ToggleTheme />
+              {!isActuallyTrashed && !isReadonlyCanvas ? <MainMenu.DefaultItems.ClearCanvas /> : null}
+            </MainMenu>
+          </Excalidraw>
+          {commentsEnabled ? (
+            <WhiteboardCommentPins
+              key={commentAnchorVersion}
+              comments={comments.comments}
+              viewport={viewport}
+              sceneElements={sceneElementsForComments}
+              activeCommentId={activeCommentId}
+              onSelectComment={jumpToCommentAnchor}
+              data-testid={`${testId}-comment-pins`}
+            />
+          ) : null}
+          {isSynced && (
+            <WhiteboardCollaboratorCursors
+              awareness={awareness}
+              currentUserId={currentUserId}
+              participants={presenceParticipants}
+              viewport={viewport}
+              data-testid={`${testId}-cursors`}
+            />
+          )}
+        </div>
+
+        {commentsEnabled && commentsVisible ? (
+          <CommentPanel
+            comments={comments.comments}
+            unresolvedCount={comments.unresolvedCount}
+            isLoading={comments.isLoading}
+            onCreateComment={handleCommentThreadCreate}
+            onUpdateComment={async (commentId, content) => {
+              await comments.updateComment(commentId, { content })
+            }}
+            onResolveComment={handleResolveComment}
+            onUnresolveComment={handleUnresolveComment}
+            onDeleteComment={handleDeleteComment}
+            onClose={() => setCommentsVisible(false)}
+            currentUserId={currentUserId}
+            currentUserName={currentUserName}
+            currentUserAvatar={currentUserAvatar}
+            onUnhighlight={commentId => {
+              setActiveCommentId(current => (current === commentId ? null : current))
+            }}
+            onScrollToHighlight={jumpToCommentAnchor}
+            disableCreateComment
+            disabledCreateMessage={t('whiteboard-comment-panel-disabled')}
+            layout="docked"
+            messages={{
+              addPlaceholder: t('whiteboard-comment-panel-placeholder')
+            }}
+            data-testid={`${testId}-comments-panel`}
+          />
+        ) : null}
+      </div>
 
       <ShareWhiteboardDialog
         open={shareDialogOpen}
@@ -856,6 +1400,21 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
         currentUserName={currentUserName}
         accessToken={accessToken}
         data-testid={`${testId}-share-dialog`}
+      />
+
+      <InlineCommentPopover
+        isOpen={!!commentPopoverPosition && !!pendingCommentAnchor}
+        position={commentPopoverPosition}
+        onSubmit={content => {
+          void handleCreateWhiteboardComment(content)
+        }}
+        onClose={closeCommentPopover}
+        messages={{
+          addComment: t('whiteboard-comments-add'),
+          placeholder: t('whiteboard-comment-popover-placeholder'),
+          comment: t('whiteboard-comments-add')
+        }}
+        data-testid={`${testId}-comment-popover`}
       />
     </div>
   )

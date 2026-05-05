@@ -21,6 +21,7 @@ import translations from './_i18n'
 import leafletControlStylesFallback from './styles/leaflet-controls-fallback.css?inline'
 import {
   AddressSuggestion,
+  forwardGeocode,
   getAutocompleteSuggestions,
   getMapTileUrl,
   mapGeoapifyToFormValues,
@@ -82,6 +83,11 @@ export interface AddressAutocompleteProps {
   catalogs: { countries?: any[]; regions?: any[] }
   /** Override any subset of field names if your form schema differs from the defaults. */
   fieldNames?: Partial<AddressAutocompleteFieldNames>
+  /** Optional hook for consumers that need to load catalog data before applying the mapped values. */
+  resolveMappedAddress?: (args: {
+    result: { components: AddressSuggestion['components']; lat: number; lng: number }
+    mapped: ReturnType<typeof mapGeoapifyToFormValues>
+  }) => Promise<ReturnType<typeof mapGeoapifyToFormValues>> | ReturnType<typeof mapGeoapifyToFormValues>
   /** Height of the map area in pixels. Defaults to 220. */
   mapHeightPx?: number
   /**
@@ -99,7 +105,7 @@ interface LatLng {
 const DEFAULT_CENTER: LatLng = { lat: 50.1109, lng: 8.6821 } // Frankfurt — neutral EU default
 const DEFAULT_ZOOM = 13
 const FOCUSED_ZOOM = 16
-const DEBOUNCE_MS = 300
+const DEBOUNCE_MS = 1200
 
 const FlyToMarker: React.FC<{ center: LatLng | null; zoom: number }> = ({ center, zoom }) => {
   const map = useMap()
@@ -152,6 +158,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   form,
   catalogs,
   fieldNames,
+  resolveMappedAddress,
   mapHeightPx = 220,
   testIdPrefix = 'address-autocomplete'
 }) => {
@@ -178,11 +185,30 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 
   const lat = form.watch(names.latitude) as number | null | undefined
   const lng = form.watch(names.longitude) as number | null | undefined
+  // Free-form address fields used to compute the visual fallback marker when the
+  // selected address has no stored lat/lng.
+  const watchedAddressLines = form.watch(names.addressLines) as string[] | undefined
+  const watchedPostalCode = form.watch(names.postalCode) as string | null | undefined
+  const watchedCity = form.watch(names.city) as string | null | undefined
+  const watchedCountryId = form.watch(names.countryId) as string | null | undefined
 
-  const markerPosition: LatLng | null =
+  // Approximated coords derived from the textual address fields. Used only when
+  // the form's lat/lng are missing, so the user sees a sensible map view instead
+  // of the default Frankfurt center. Never written back to the form (display-only).
+  const [fallbackCoords, setFallbackCoords] = useState<LatLng | null>(null)
+  // Remembers the last address signature we attempted to forward-geocode so we
+  // don't re-fire the request on every render or unrelated form change.
+  const fallbackAttemptedFor = useRef<string | null>(null)
+
+  const formCoords: LatLng | null =
     typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng)
       ? { lat, lng }
       : null
+
+  // Real form coords always win over the approximation: the moment the user
+  // picks a suggestion, drags the pin, or "Use my location" succeeds, lat/lng
+  // are filled and we render that authoritative point instead of the fallback.
+  const markerPosition: LatLng | null = formCoords ?? fallbackCoords
 
   const tile = useMemo(() => getMapTileUrl(), [])
 
@@ -232,6 +258,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
       const current = (form.getValues(names.addressLines) as string[]) || []
       const nextLines = [...current]
       nextLines[0] = mapped.line1
+      nextLines[1] = mapped.line2
       form.setValue(names.addressLines, nextLines, { shouldDirty: true, shouldValidate: true })
       form.setValue(names.postalCode, mapped.postalCode, { shouldDirty: true, shouldValidate: true })
       form.setValue(names.city, mapped.city, { shouldDirty: true, shouldValidate: true })
@@ -245,6 +272,73 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     },
     [form, names]
   )
+
+  // ---------------------------------------------------------------------------
+  // Fallback marker effect — approximate the location from textual fields when
+  // the selected address has no stored lat/lng (legacy records pre-Geoapify).
+  // The result is stored in local state only and never written back to the
+  // form so submit semantics stay clean: the user must explicitly pick a
+  // suggestion or drag the pin to commit a real coordinate.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (formCoords) {
+      // Real coords already on the form — nothing to approximate.
+      // Clearing the fallback prevents a stale approximation from "shadowing"
+      // the form coords if the user switches between addresses with and
+      // without stored coords inside the same component instance.
+      if (fallbackCoords) setFallbackCoords(null)
+      return
+    }
+
+    const line1 = (watchedAddressLines?.[0] ?? '').trim()
+    const cityStr = (watchedCity ?? '').trim()
+    const postalStr = (watchedPostalCode ?? '').trim()
+    const countryEntry = (catalogs.countries ?? []).find((c: any) => String(c?.id) === String(watchedCountryId))
+    const countryName = String(countryEntry?.value ?? '').trim()
+    const countryCode =
+      String(watchedCountryId ?? '')
+        .split(':')
+        .pop() ?? ''
+
+    // Need at least two of the textual parts to make a meaningful query.
+    // Country + city is the minimum that produces a recognisable approximation.
+    const queryParts = [line1, cityStr, postalStr, countryName].filter(Boolean)
+    if (queryParts.length < 2) {
+      if (fallbackCoords) setFallbackCoords(null)
+      fallbackAttemptedFor.current = null
+      return
+    }
+
+    const signature = queryParts.join('|')
+    if (fallbackAttemptedFor.current === signature) return
+    fallbackAttemptedFor.current = signature
+
+    const controller = new AbortController()
+    let cancelled = false
+    const timeoutId = globalThis.setTimeout(async () => {
+      const result = await forwardGeocode(queryParts.join(', '), {
+        countryBias: countryCode.length === 2 ? countryCode : undefined,
+        signal: controller.signal
+      })
+      if (cancelled) return
+      // null means geocoding failed — leave whatever fallback we had (or none)
+      // alone so we don't blank a previously-good approximation due to a
+      // transient network blip.
+      if (result) setFallbackCoords(result)
+    }, 350)
+
+    return () => {
+      cancelled = true
+      controller.abort()
+      globalThis.clearTimeout(timeoutId)
+    }
+    // NOTE: `catalogs.countries` and `fallbackCoords` are intentionally excluded
+    // from the dep array. The catalog identity changes on every parent render
+    // but the lookup result is keyed on `watchedCountryId`, and reading
+    // `fallbackCoords` only happens to decide whether to clear it (a cheap
+    // setState equality check). Including either would re-fire the geocode on
+    // every unrelated render.
+  }, [formCoords, watchedAddressLines, watchedCity, watchedPostalCode, watchedCountryId])
 
   useEffect(() => {
     if (suppressNextSearchRef.current) {
@@ -275,10 +369,13 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           signal: controller.signal
         })
         setSuggestions(results)
-        setIsOpen(results.length > 0)
+        // Always open the dropdown so the user gets feedback. When `results` is empty
+        // the dropdown renders the localized "no results" message instead of suggestions.
+        setIsOpen(true)
       } catch (err) {
         if ((err as any)?.name !== 'AbortError') {
           setSuggestions([])
+          setIsOpen(true)
         }
       } finally {
         setIsSearching(false)
@@ -291,24 +388,31 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   }, [query, form, names])
 
   const handlePickSuggestion = useCallback(
-    (suggestion: AddressSuggestion) => {
-      const mapped = mapGeoapifyToFormValues(suggestion, catalogs)
+    async (suggestion: AddressSuggestion) => {
+      const initialMapped = mapGeoapifyToFormValues(suggestion, catalogs)
+      const mapped = resolveMappedAddress
+        ? await resolveMappedAddress({ result: suggestion, mapped: initialMapped })
+        : initialMapped
       applyAddressToForm(mapped)
       setQuery(suggestion.label)
       setSuggestions([])
       setIsOpen(false)
     },
-    [catalogs, applyAddressToForm]
+    [catalogs, resolveMappedAddress, applyAddressToForm]
   )
 
   const handleReverseForCoords = useCallback(
     async (coords: LatLng) => {
       const result = await reverseGeocode(coords.lat, coords.lng)
-      const mapped = mapGeoapifyToFormValues(result ?? { components: {}, ...coords }, catalogs)
+      const geocodeResult = result ?? { components: {}, ...coords }
+      const initialMapped = mapGeoapifyToFormValues(geocodeResult, catalogs)
+      const mapped = resolveMappedAddress
+        ? await resolveMappedAddress({ result: geocodeResult, mapped: initialMapped })
+        : initialMapped
       applyAddressToForm({ ...mapped, lat: coords.lat, lng: coords.lng })
       if (result?.formattedAddress) setQuery(result.formattedAddress)
     },
-    [catalogs, applyAddressToForm]
+    [catalogs, resolveMappedAddress, applyAddressToForm]
   )
 
   const handleUseMyLocation = useCallback(() => {

@@ -2,6 +2,7 @@ import { env } from '@/common/env/EnvUtils'
 import { ORGCHART_API_URL } from '@/common/utils/serviceResolver'
 import { UserManagementClient } from '@/common/network/users/UserManagementClient'
 import type { GetUsersResponse, User } from '@/common/network/users/types'
+import { decodeAccessTokenSub } from '@/common/utils/decodeJwtSub'
 
 function orgchartApiRoot(): string {
   return ORGCHART_API_URL.replace(/\/$/, '')
@@ -399,7 +400,31 @@ export async function resolveUserIdByEmail(accessToken: string, email: string): 
 }
 
 export async function setInitialPassword(accessToken: string, userId: string, password: string): Promise<void> {
+  const actorUserId = decodeAccessTokenSub(accessToken)
+  const selfReset = Boolean(actorUserId && actorUserId === userId)
+  const temporary = !selfReset
+
+  if (temporary) {
+    console.info(
+      '[UserManagement]',
+      JSON.stringify({
+        message: 'Password reset (user will pick a new password at next sign-in)',
+        actorUserId: actorUserId ?? '(unknown)',
+        targetUserId: userId
+      })
+    )
+  } else {
+    console.info(
+      '[UserManagement]',
+      JSON.stringify({
+        message: 'Password change for your own account (saved as your regular password)',
+        actorUserId: actorUserId ?? '(unknown)',
+        targetUserId: userId
+      })
+    )
+  }
+
   const client = new UserManagementClient()
   client.setAccessToken(accessToken)
-  await client.upsertUserPassword(userId, { password })
+  await client.upsertUserPassword(userId, { password, temporary })
 }

@@ -2,8 +2,8 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { type UseReportFiltersReturn } from '../hooks'
-import { getReportGroupConfiguration } from '../config/reportGroupConfigurations'
-import { getSubSectionsForStrategy, type SubSection } from '../utils/subSectionHelpers'
+import { useReportViewPreferences } from '../hooks/useReportViewPreferences'
+import { resolveReportSubSections, type SubSection } from '../utils/subSectionHelpers'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -14,7 +14,7 @@ import { InvestmentReportPanel } from './InvestmentReportPanel'
  * Props for GenericReportTab component
  */
 interface GenericReportTabProps extends BusinessAppContextProps {
-  /** Investment group code (e.g., 'EQUITY', 'REAL_ESTATE', 'LIQUID_FUND') */
+  /** Investment group catalog code. */
   investmentGroup: string
   /** Display label for the group */
   groupLabel: string
@@ -34,7 +34,7 @@ interface GenericReportTabProps extends BusinessAppContextProps {
  * Generic Report Tab Component
  *
  * Orchestrates the portfolio-level report view for a single investment group:
- *   1. Discovers sub-sections via the group's `subSectionStrategy`.
+ *   1. Discovers sub-sections from catalog hierarchy.
  *   2. Syncs the current sub-section to the URL.
  *   3. Delegates the rendering of the toolbar + filtered table to
  *      {@link InvestmentReportPanel}, which contains the truly group-agnostic
@@ -55,53 +55,43 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
   userInfo,
   dataTestId = 'generic-report-tab'
 }) => {
-  const config = getReportGroupConfiguration(investmentGroup)
-
-  // Sub-section discovery (strategy is per-group)
+  // Sub-section discovery (strategy is derived from the catalog)
   const [currentSection, setCurrentSection] = useState<string>('')
   const [subSections, setSubSections] = useState<SubSection[]>([])
   const [subSectionsLoading, setSubSectionsLoading] = useState(true)
 
   useEffect(() => {
-    const loadSubSections = async () => {
-      if (!accessToken) {
-        setSubSectionsLoading(false)
-        return
-      }
-
+    if (!catalogData) {
       setSubSectionsLoading(true)
-      try {
-        let sections = await getSubSectionsForStrategy(config.subSectionStrategy, investmentGroup, accessToken)
-
-        // Auto-fallback: if a group declares 'investmentTypes' but has none in
-        // catalog (fields live at the group level), fall back to a single
-        // synthetic 'overview' section so the panel still renders.
-        if (sections.length === 0 && config.subSectionStrategy === 'investmentTypes') {
-          sections = await getSubSectionsForStrategy('none', investmentGroup, accessToken)
-        }
-
-        setSubSections(sections)
-
-        if (sections.length > 0 && !currentSection) {
-          const urlParams = new URLSearchParams(globalThis.location.search)
-          const investmentTypeFromUrl = urlParams.get('investmentType')
-
-          if (investmentTypeFromUrl && sections.some(s => s.code === investmentTypeFromUrl)) {
-            setCurrentSection(investmentTypeFromUrl)
-          } else {
-            setCurrentSection(sections[0].code)
-          }
-        }
-      } catch (error) {
-        console.error(`Error loading sub-sections for ${investmentGroup}:`, error)
-        setSubSections([])
-      } finally {
-        setSubSectionsLoading(false)
-      }
+      setSubSections([])
+      setCurrentSection('')
+      return
     }
 
-    loadSubSections()
-  }, [config.subSectionStrategy, investmentGroup, accessToken])
+    setSubSectionsLoading(true)
+    try {
+      const sections = resolveReportSubSections(investmentGroup, catalogData)
+      setSubSections(sections)
+      setCurrentSection(previousSection => {
+        if (sections.length === 0) return ''
+        if (previousSection && sections.some(section => section.code === previousSection)) return previousSection
+
+        const urlParams = new URLSearchParams(globalThis.location.search)
+        const investmentTypeFromUrl = urlParams.get('investmentType')
+        if (investmentTypeFromUrl && sections.some(section => section.code === investmentTypeFromUrl)) {
+          return investmentTypeFromUrl
+        }
+
+        return sections[0].code
+      })
+    } catch (error) {
+      console.error(`Error loading sub-sections for ${investmentGroup}:`, error)
+      setSubSections([])
+      setCurrentSection('')
+    } finally {
+      setSubSectionsLoading(false)
+    }
+  }, [investmentGroup, catalogData])
 
   // URL sync — keeps the active sub-section reflected in `?investmentType=...`
   const updateUrl = useCallback((investmentType: string) => {
@@ -133,6 +123,37 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
     [updateUrl]
   )
 
+  const [searchBySection, setSearchBySection] = useState<Record<string, string>>({})
+  const handleSearchChange = useCallback(
+    (search: string) => {
+      setSearchBySection(prev => ({ ...prev, [currentSection]: search }))
+    },
+    [currentSection]
+  )
+
+  const { preferencesBySection, savePreferencePatch } = useReportViewPreferences(investmentGroup, subSections)
+
+  const handleSortingChange = useCallback(
+    (sorting: Array<{ id: string; desc: boolean }>) => {
+      savePreferencePatch(currentSection, { sorting })
+    },
+    [currentSection, savePreferencePatch]
+  )
+
+  const handleFiltersChange = useCallback(
+    (filters: Record<string, any>) => {
+      savePreferencePatch(currentSection, { filters })
+    },
+    [currentSection, savePreferencePatch]
+  )
+
+  const handleVisibleColumnsChange = useCallback(
+    (visibleColumns: string[]) => {
+      savePreferencePatch(currentSection, { visibleColumns })
+    },
+    [currentSection, savePreferencePatch]
+  )
+
   // Browser back/forward navigation support
   useEffect(() => {
     const handlePopState = () => {
@@ -150,7 +171,7 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
   // Loading / empty states
   if (subSectionsLoading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }}>
+      <div className="gba:flex gba:min-h-64 gba:items-center gba:justify-center">
         <Spinner data-testid={`${dataTestId}-loading-spinner`} />
       </div>
     )
@@ -158,7 +179,7 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
 
   if (subSections.length === 0) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center" style={{ height: 'var(--nw-spacing-64)' }}>
+      <div className="gba:flex gba:min-h-64 gba:items-center gba:justify-center">
         <div className="gba:text-center gba:text-muted-foreground">No report categories found for {groupLabel}</div>
       </div>
     )
@@ -166,12 +187,21 @@ export const GenericReportTab: React.FC<GenericReportTabProps> = ({
 
   return (
     <InvestmentReportPanel
+      key={currentSection}
       investmentGroup={investmentGroup}
       groupLabel={groupLabel}
       sections={subSections}
       currentSection={currentSection}
       onSectionChange={handleSectionChange}
       showSectionBar
+      initialSearch={searchBySection[currentSection]}
+      onSearchChange={handleSearchChange}
+      initialSorting={preferencesBySection[currentSection]?.sorting ?? null}
+      onSortingChange={handleSortingChange}
+      initialFilters={preferencesBySection[currentSection]?.filters ?? {}}
+      onFiltersChange={handleFiltersChange}
+      initialVisibleColumns={preferencesBySection[currentSection]?.visibleColumns ?? null}
+      onVisibleColumnsChange={handleVisibleColumnsChange}
       reportFilters={reportFilters}
       catalogData={catalogData}
       enabled={enabled}

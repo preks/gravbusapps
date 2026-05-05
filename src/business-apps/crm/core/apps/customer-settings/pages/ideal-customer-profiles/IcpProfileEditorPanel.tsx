@@ -2,6 +2,12 @@ import React from 'react'
 import { Button, EmptyState, Input, Label, Spinner, useTranslation } from '@newwork/nw-design-system'
 import customerSettingsI18n from '../../_i18n'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
+import { TranslatableField } from '@/components/translatable-field'
+import {
+  DEFAULT_CATALOG_LOCALE,
+  DEFAULT_CATALOG_TRANSLATIONS,
+  type CatalogTranslationMap
+} from '@/common/components/common-relations/setting-pages/utils/catalogTranslations'
 import { IcpCriteriaForm } from './IcpCriteriaForm'
 import { isWeightsTotalOverLimit, type IcpFormState } from './icpFormState'
 
@@ -12,6 +18,8 @@ export interface IcpProfileEditorPanelProps {
   selectedEntry: CatalogEntry | null
   profileName: string
   onProfileNameChange: (name: string) => void
+  profileNameTranslations: CatalogTranslationMap
+  onProfileNameTranslationsChange: (translations: CatalogTranslationMap) => void
   formState: IcpFormState
   onFormStateChange: (next: IcpFormState) => void
   saving: boolean
@@ -26,6 +34,8 @@ export const IcpProfileEditorPanel: React.FC<IcpProfileEditorPanelProps> = ({
   selectedEntry,
   profileName,
   onProfileNameChange,
+  profileNameTranslations,
+  onProfileNameTranslationsChange,
   formState,
   onFormStateChange,
   saving,
@@ -67,10 +77,13 @@ export const IcpProfileEditorPanel: React.FC<IcpProfileEditorPanelProps> = ({
           </div>
           <div className="gba:space-y-2">
             <Label htmlFor={`${dataTestIdPrefix}-name`}>{t('icp-display-name')}</Label>
-            <Input
-              id={`${dataTestIdPrefix}-name`}
+            <TranslatableField
+              label=""
               value={profileName}
-              onChange={e => onProfileNameChange(e.target.value)}
+              onChange={onProfileNameChange}
+              translations={profileNameTranslations || DEFAULT_CATALOG_TRANSLATIONS}
+              onTranslationsChange={onProfileNameTranslationsChange}
+              defaultLanguage={DEFAULT_CATALOG_LOCALE}
               data-testid={`${dataTestIdPrefix}-name`}
             />
           </div>

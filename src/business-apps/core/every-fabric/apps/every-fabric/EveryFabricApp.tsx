@@ -70,7 +70,6 @@ const EveryFabricInner: React.FC = () => {
   const handleCloseSettings = () => updateUrl({ view: null })
   const handleOpenScheduled = () => updateUrl({ view: 'scheduled' })
   const handleCloseScheduled = () => updateUrl({ view: null })
-
   const handleSelectSession = (id: string) => {
     updateUrl({ view: null })
     selectSession(id)
@@ -89,7 +88,6 @@ const EveryFabricInner: React.FC = () => {
   const showSettings = urlView === 'settings'
   const isScheduledView = displayView === 'scheduled'
   const showScheduled = urlView === 'scheduled'
-
   const renderMain = () => {
     if (isLoadingSession && sessionLoadError) {
       return (
@@ -129,14 +127,37 @@ const EveryFabricInner: React.FC = () => {
           className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
             showSettings ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
           }`}
+          style={{ pointerEvents: showSettings ? 'auto' : 'none', zIndex: showSettings ? 30 : 0 }}
         >
-          {isSettingsView && <SettingsScreen accessToken={accessToken} onBack={handleCloseSettings} />}
+          {isSettingsView && (
+            <SettingsScreen
+              accessToken={accessToken}
+              onBack={handleCloseSettings}
+              onRunTask={agent => {
+                handleCloseSettings()
+                void startSession(`Run task with ${agent.name}: `, {
+                  mode: 'deep',
+                  enable_memory: true,
+                  enable_reflection: undefined,
+                  selectedAgent: {
+                    id: agent.id,
+                    name: agent.name,
+                    display_name: agent.name,
+                    description: agent.description,
+                    domain: agent.specialty ?? agent.domain ?? '',
+                    tags: agent.tags ?? []
+                  }
+                })
+              }}
+            />
+          )}
         </div>
 
         <div
           className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
             showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
           }`}
+          style={{ pointerEvents: showScheduled ? 'auto' : 'none', zIndex: showScheduled ? 30 : 0 }}
         >
           {isScheduledView && <ScheduledDispatchesScreen accessToken={accessToken} onBack={handleCloseScheduled} />}
         </div>
@@ -145,6 +166,10 @@ const EveryFabricInner: React.FC = () => {
           className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
             !showSettings && !showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
           }`}
+          style={{
+            pointerEvents: !showSettings && !showScheduled ? 'auto' : 'none',
+            zIndex: !showSettings && !showScheduled ? 20 : 0
+          }}
         >
           {session ? <WorkspaceLayout /> : <LandingScreen accessToken={accessToken} onStartSession={startSession} />}
         </div>

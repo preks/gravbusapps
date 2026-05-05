@@ -1,8 +1,11 @@
 import { useState, useMemo, useCallback } from 'react'
-import { ExpenseStatus } from '../utils'
+import { useTranslation } from '@newwork/nw-design-system'
+import { ExpenseStatus, getExpensePlanStatusFilterLabel } from '../utils'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useDebounce } from '@/common/hooks/useDebounce'
+import personalTranslations from '../_i18n'
+import { expensePlanAvailableStatuses } from '../components/tabs/expense-plans-tab/config/expensePlanAvailableStatuses'
 import {
   addScalarNumericRangeConditions,
   formatExpenseAmountRangeChipLabel,
@@ -19,6 +22,7 @@ const PLAN_VIRTUAL_RANGE_FILTER_IDS = [
 ] as const
 
 export const useExpensePlanFilters = () => {
+  const { t } = useTranslation(personalTranslations)
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 200) // Reduced from 300ms for faster search response
   const [selectedFilters, setSelectedFilters] = useState<string[]>([])
@@ -223,15 +227,9 @@ export const useExpensePlanFilters = () => {
   const filterLabelMap = useMemo<Record<string, string>>(() => {
     const map: Record<string, string> = {}
 
-    map[ExpenseStatus.CREATED] =
-      `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.created', 'Created')})`
-    map[ExpenseStatus.ASSIGNED] = getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned')
-    map[ExpenseStatus.PENDING] =
-      `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')})`
-    map[ExpenseStatus.APPROVED] = getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')
-    map[ExpenseStatus.REJECTED] =
-      `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required')} (${getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')})`
-    map[ExpenseStatus.CLOSED] = getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed')
+    expensePlanAvailableStatuses.forEach(status => {
+      map[status] = getExpensePlanStatusFilterLabel(status, t)
+    })
     map['planType:EXPENSES'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
     map['planType:TRIP'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
 
@@ -280,6 +278,7 @@ export const useExpensePlanFilters = () => {
     // Currency filters are injected at table level; here we just preserve any provided labels
     return map
   }, [
+    t,
     formatDateRangeLabel,
     planDateRange,
     startDateRange,

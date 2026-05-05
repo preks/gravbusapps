@@ -11,11 +11,7 @@ import {
   CardContent,
   Button,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Combobox,
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
@@ -26,6 +22,23 @@ import {
   TargetFieldDefinition
 } from '@/common/components/common-relations/apps/data-import/types'
 import translations from './MappingReviewStep/_i18n'
+
+function humanizeFieldPath(fieldPath: string): string {
+  const parts = fieldPath.split('.')
+  const lastPart = parts[parts.length - 1]
+  const label = lastPart
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, c => c.toUpperCase())
+    .trim()
+  if (parts.length > 1) {
+    const parent = parts[0]
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, c => c.toUpperCase())
+      .trim()
+    return `${label} (${parent})`
+  }
+  return label
+}
 
 export interface MappingReviewStepProps {
   agentResponse: ImportAnalyzerResponse
@@ -99,12 +112,26 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
               <h3 className="gba:text-sm gba:font-semibold gba:mb-2">{t('mapped-fields-title')}</h3>
               <div className="gba:space-y-3">
                 {mappings.map((mapping, index) => {
-                  // Available target fields = all config fields NOT already used by other rows,
-                  // plus the current row's own selection so it stays visible.
                   const usedByOtherRows = new Set(mappings.filter((_, i) => i !== index).map(m => m.targetField))
-                  const availableTargetFields = targetFieldsConfig
+                  const configFieldValues = new Set(targetFieldsConfig.map(tf => tf.value))
+
+                  const backendOnlyFields: TargetFieldDefinition[] = mappings
+                    .filter(m => m.targetField && !configFieldValues.has(m.targetField))
+                    .map(m => ({
+                      value: m.targetField,
+                      label: humanizeFieldPath(m.targetField),
+                      type: 'direct' as const
+                    }))
+                    .filter((tf, i, arr) => arr.findIndex(x => x.value === tf.value) === i)
+
+                  const allTargetFields = [...targetFieldsConfig, ...backendOnlyFields]
+                  const availableTargetFields = allTargetFields
                     .filter(tf => !usedByOtherRows.has(tf.value) || tf.value === mapping.targetField)
                     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+                  const targetFieldOptions = availableTargetFields.map(tf => ({
+                    value: tf.value,
+                    label: tf.label
+                  }))
 
                   return (
                     <div
@@ -123,21 +150,16 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
 
                       <div className="gba:flex-1">
                         <Label className="gba:text-xs gba:text-muted-foreground">{t('target-field-label')}</Label>
-                        <Select
-                          value={mapping.targetField || undefined}
-                          onValueChange={value => onUpdateTargetFromUnmapped(index, value)}
-                        >
-                          <SelectTrigger className="gba:w-full">
-                            <SelectValue placeholder="Select a field" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableTargetFields.map(tf => (
-                              <SelectItem key={tf.value} value={tf.value}>
-                                {tf.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          className="gba:w-full"
+                          value={mapping.targetField || ''}
+                          onValueChange={value => onUpdateTargetFromUnmapped(index, value || '')}
+                          options={targetFieldOptions}
+                          placeholder={t('select-field-placeholder')}
+                          searchPlaceholder={t('search-field-placeholder')}
+                          emptyText={t('no-fields-found')}
+                          data-testid={`${testId}-target-field-${index}`}
+                        />
                       </div>
 
                       <div className="gba:w-20">

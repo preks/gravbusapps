@@ -122,10 +122,14 @@ export function useEntityImport<T = ConvertedEntity>(
 
   useEffect(() => {
     if (accessToken) {
-      aiServiceRef.current = new ImportAnalyzer(accessToken, config.entityType, config.domain)
+      aiServiceRef.current = new ImportAnalyzer(
+        accessToken,
+        config.flowbotEntityType ?? config.entityType,
+        config.domain
+      )
       flowbotClient.setAccessToken(accessToken)
     }
-  }, [accessToken, config.entityType, config.domain])
+  }, [accessToken, config.entityType, config.flowbotEntityType, config.domain])
 
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const graphQLClient = useGraphQLClient(accessToken)
@@ -164,21 +168,16 @@ export function useEntityImport<T = ConvertedEntity>(
         targetField: resolveInitialTargetField(mapping.targetField, adapters)
       }))
 
-      const validTargetFields = new Set(targetFieldValues)
-      const validMappings = resolvedMappings.filter(mapping => {
-        const isValid = validTargetFields.has(mapping.targetField)
-        if (!isValid) {
-          console.warn(
-            `Removing invalid mapping: ${mapping.sourceField} → ${mapping.targetField} (target field not in schema)`
-          )
-        }
-        return isValid
-      })
-
       const targetFieldByValue = new Map(config.targetFields.map(f => [f.value, f] as const))
-      const normalizedMappings = validMappings.map(mapping => {
+      const normalizedMappings = resolvedMappings.map(mapping => {
         const targetField = targetFieldByValue.get(mapping.targetField)
-        if (!targetField) return mapping
+        if (!targetField) {
+          return {
+            ...mapping,
+            transformationType: 'direct' as const,
+            catalogIdentifier: undefined
+          }
+        }
         if (targetField.type === 'catalog') {
           return {
             ...mapping,
@@ -193,16 +192,10 @@ export function useEntityImport<T = ConvertedEntity>(
         }
       })
 
-      const invalidSourceFields = resolvedMappings
-        .filter(m => !validTargetFields.has(m.targetField))
-        .map(m => m.sourceField)
-
-      const updatedUnmappedFields = [...new Set([...agentResult.unmappedSourceFields, ...invalidSourceFields])]
-
       setAgentResponse({
         ...agentResult,
         fieldMappings: normalizedMappings,
-        unmappedSourceFields: updatedUnmappedFields
+        unmappedSourceFields: agentResult.unmappedSourceFields
       })
       setStep('mapping')
     } catch (err) {
@@ -264,7 +257,8 @@ export function useEntityImport<T = ConvertedEntity>(
           enforcedFieldsJson,
           adapters,
           'auto',
-          analyzerContext?.requiredSubtypeKey
+          analyzerContext?.requiredSubtypeKey,
+          analyzerContext?.additionalPropertiesFields
         )
 
         const responseRecords = usedUiMappings ? records : restoreUiTargetFieldNames(records, adapters)
@@ -328,7 +322,8 @@ export function useEntityImport<T = ConvertedEntity>(
         enforcedFieldsJson,
         adapters,
         'hard',
-        analyzerContext?.requiredSubtypeKey
+        analyzerContext?.requiredSubtypeKey,
+        analyzerContext?.additionalPropertiesFields
       )
 
       const responseRecords = usedUiMappings ? records : restoreUiTargetFieldNames(records, adapters)

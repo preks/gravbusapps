@@ -1,30 +1,36 @@
 import React, { useMemo } from 'react'
-import { Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-system'
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend } from '@newwork/nw-design-system'
-import { PieChart, Pie, Cell } from 'recharts'
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+  useTranslation,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend
+} from '@newwork/nw-design-system'
+import { PieChart, Pie } from 'recharts'
 import { DashboardStats } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import personalTranslations from '../../../../_i18n'
 
 interface ExpenseDistributionProps {
   stats: DashboardStats | undefined
-  chartView: string | number
+  period: 'monthly' | 'quarterly' | 'yearly'
 }
 
 const CHART_COLORS = ['#1890FF', '#2FC25B', '#FACC14', '#223273', '#8543E0', '#13C2C2', '#3436C7', '#F04864']
 
-export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats, chartView }) => {
-  const getExpensesByType = () => {
-    // Get translated period labels for comparison
-    const quarterlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly', 'Quarterly')
-    const yearlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly', 'Yearly')
-    const monthlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly', 'Monthly')
+export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats, period }) => {
+  const { t } = useTranslation(personalTranslations)
 
-    switch (chartView) {
-      case quarterlyLabel:
+  const getExpensesByType = () => {
+    switch (period) {
+      case 'quarterly':
         return stats?.expensesByTypeQuarter || {}
-      case yearlyLabel:
+      case 'yearly':
         return stats?.expensesByTypeYear || {}
-      case monthlyLabel:
+      case 'monthly':
       default:
         return stats?.expensesByTypeMonth || {}
     }
@@ -32,7 +38,6 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
 
   const expensesByType = getExpensesByType()
 
-  // Transform data for chart
   const chartData = useMemo(() => {
     const data = Object.entries(expensesByType)
       .map(([type, amount], index) => ({
@@ -42,7 +47,6 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
       }))
       .sort((a, b) => b.value - a.value)
 
-    // Calculate total and add percentages
     const total = data.reduce((sum, item) => sum + item.value, 0)
     return data.map(item => ({
       ...item,
@@ -50,12 +54,10 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
     }))
   }, [expensesByType])
 
-  // Custom label function for pie chart
-  const renderLabel = (entry: any) => {
+  const renderLabel = (entry: { percentage: string }) => {
     return `${entry.percentage}%`
   }
 
-  // Create chart configuration
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string; color: string }> = {}
     chartData.forEach((item, index) => {
@@ -71,21 +73,11 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
     return (
       <Card data-testid="expense-distribution-card-empty">
         <CardHeader>
-          <CardTitle>
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.expense_distribution',
-              'Expense Distribution'
-            )}
-          </CardTitle>
+          <CardTitle>{t('dashboard-expense-distribution-title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="gba:text-center gba:py-8 gba:text-gray-500">
-            <p>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.no_expense_data_available',
-                'No expense data available'
-              )}
-            </p>
+            <p>{t('dashboard-expense-distribution-empty')}</p>
           </div>
         </CardContent>
       </Card>
@@ -95,9 +87,7 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
   return (
     <Card data-testid="expense-distribution-card">
       <CardHeader>
-        <CardTitle>
-          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_distribution', 'Expense Distribution')}
-        </CardTitle>
+        <CardTitle>{t('dashboard-expense-distribution-title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer
@@ -117,11 +107,7 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
               innerRadius="60%"
               strokeWidth={2}
               label={renderLabel}
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.fill} />
-              ))}
-            </Pie>
+            />
             <ChartLegend />
           </PieChart>
         </ChartContainer>

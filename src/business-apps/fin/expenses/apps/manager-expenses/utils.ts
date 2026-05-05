@@ -9,7 +9,8 @@ export {
   getAdvancePaymentStatusDisplay,
   getExpenseRequestStatusFilterLabel,
   getAdvancePaymentStatusFilterLabel,
-  getExpensePlanStatusFilterLabel
+  getExpensePlanStatusFilterLabel,
+  statusFilterMainWithOptionalParen
 } from '../../common/utils/statusDisplayUtils'
 
 export { formatCurrencyDisplay } from '../../common/utils/formatCurrency'

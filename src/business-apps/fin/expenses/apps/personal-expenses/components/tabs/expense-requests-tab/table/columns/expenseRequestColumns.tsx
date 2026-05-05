@@ -1,7 +1,7 @@
 import type { CellContext, ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrencyDisplay, getExpenseRequestStatusDisplay } from '../../../../../utils'
+import { formatCurrencyDisplay, getExpenseRequestStatusDisplayT } from '../../../../../utils'
 
 export const EXPENSE_REQUESTS_TABLE_DATA_TEST_ID = 'expense-requests'
 
@@ -73,15 +73,15 @@ function renderReqReimbursableCell(info: CellContext<ExpenseRequestRow, unknown>
 function renderReqAdvanceCell(info: CellContext<ExpenseRequestRow, unknown>) {
   return <ExpenseRequestAdvanceCell record={info.row.original} />
 }
-function ExpenseRequestStatusCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
-  const statusConfig = getExpenseRequestStatusDisplay(record.status || '')
-  return <Badge variant={statusConfig.badgeVariant ?? 'outline'}>{statusConfig.label}</Badge>
-}
-function renderReqStatusCell(info: CellContext<ExpenseRequestRow, unknown>) {
-  return <ExpenseRequestStatusCell record={info.row.original} />
-}
+export function createExpenseRequestColumns(t: (key: string) => string): ColumnDef<ExpenseRequestRow>[] {
+  function ExpenseRequestStatusCell({ record }: Readonly<{ record: ExpenseRequestRow }>) {
+    const statusConfig = getExpenseRequestStatusDisplayT(t, record.status || '')
+    return <Badge variant={statusConfig.badgeVariant ?? 'outline'}>{statusConfig.label}</Badge>
+  }
+  function renderReqStatusCell(info: CellContext<ExpenseRequestRow, unknown>) {
+    return <ExpenseRequestStatusCell record={info.row.original} />
+  }
 
-export function createExpenseRequestColumns(): ColumnDef<ExpenseRequestRow>[] {
   return [
     {
       id: 'code',

@@ -30,6 +30,8 @@ interface StructuredInputFormProps {
   onSubmit: (values: Record<string, any>, aiDelegated: string[]) => void
   onCancel?: () => void
   accessToken?: string
+  toolRef?: string
+  requestStatus?: 'pending' | 'approved' | 'rejected' | 'edited' | 'expired' | 'cancelled' | 'resumed'
   /**
    * True when the transcript already contains events that happened after
    * this form was surfaced — i.e. the user submitted it in a prior turn
@@ -84,6 +86,8 @@ export const StructuredInputForm = ({
   onSubmit,
   onCancel,
   accessToken,
+  toolRef,
+  requestStatus,
   alreadySubmitted = false
 }: StructuredInputFormProps) => {
   // Initialize field state
@@ -365,6 +369,11 @@ export const StructuredInputForm = ({
             <div className="gba:text-[13px] gba:font-semibold gba:text-muted-foreground gba:truncate">{title}</div>
             {summaryLine && <div className="gba:text-[11px] gba:text-muted-foreground gba:truncate">{summaryLine}</div>}
           </div>
+          {requestStatus && requestStatus !== 'pending' && (
+            <span className="gba:text-[11px] gba:font-medium gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted gba:text-muted-foreground">
+              {requestStatus}
+            </span>
+          )}
           <CheckIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" weight="bold" />
           <CaretRightIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
         </button>
@@ -385,6 +394,18 @@ export const StructuredInputForm = ({
             {title}
           </h3>
           <p className="gba:text-sm gba:text-muted-foreground gba:leading-relaxed">{description}</p>
+          <div className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-2">
+            {toolRef && (
+              <span className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+                {toolRef}
+              </span>
+            )}
+            {requestStatus && requestStatus !== 'pending' && (
+              <span className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+                {requestStatus}
+              </span>
+            )}
+          </div>
         </div>
         {isLocked && (
           <button

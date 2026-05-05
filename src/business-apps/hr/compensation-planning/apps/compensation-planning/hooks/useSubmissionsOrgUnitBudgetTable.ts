@@ -13,6 +13,7 @@ import type { TeamMemberCompensationData } from '../../../types/compensationPlan
 import type { CompensationBudgetPlanCompanyRow, CompensationBudgetPlanListItem } from './useBudgetSetupForCompany'
 import {
   buildSubmissionsOrgUnitTableRows,
+  type SubmissionsEmployeeSalaryAdjustmentRow,
   type SubmissionsOrgUnitGraphqlRow,
   type SubmissionsOrgUnitTableRow
 } from '../components/views/submissionsOrgUnitTableRows'
@@ -68,6 +69,7 @@ function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanComp
 function mapOrgUnitRow(raw: Record<string, unknown>): SubmissionsOrgUnitGraphqlRow {
   return {
     id: graphqlUnknownToString(raw.id),
+    version: num(raw.version),
     compensationBudgetPlanCompanyId: graphqlUnknownToString(raw.compensationBudgetPlanCompanyId),
     organizationalUnitId: graphqlUnknownToString(raw.organizationalUnitId),
     salaryBudgetAmount: num(raw.salaryBudgetAmount),
@@ -88,6 +90,25 @@ function buildProposedNewSalarySumByOrgUnitBudgetRowId(employees: Record<string,
     }
     const pn = num(e.proposedNewSalary)
     map.set(rowId, (map.get(rowId) ?? 0) + pn)
+  }
+  return map
+}
+
+function buildSalaryAdjustmentsByOrgUnitBudgetRowId(
+  employees: Record<string, unknown>[]
+): Map<string, SubmissionsEmployeeSalaryAdjustmentRow[]> {
+  const map = new Map<string, SubmissionsEmployeeSalaryAdjustmentRow[]>()
+  for (const e of employees) {
+    const rowId = graphqlUnknownToString(e.compensationBudgetPlanOrganizationalUnitId)
+    const employeeId = graphqlUnknownToString(e.employeeId)
+    const newAnnualGrossSalary = num(e.proposedNewSalary)
+    const requestedPercent = num(e.proposedSalaryIncreasePercent)
+    if (rowId === '' || employeeId === '' || newAnnualGrossSalary <= 0) {
+      continue
+    }
+    const existing = map.get(rowId) ?? []
+    existing.push({ employeeId, newAnnualGrossSalary, requestedPercent })
+    map.set(rowId, existing)
   }
   return map
 }
@@ -113,6 +134,9 @@ export function useSubmissionsOrgUnitBudgetTable(
   const [orgRows, setOrgRows] = useState<SubmissionsOrgUnitGraphqlRow[]>([])
   const [proposedNewSalarySumByOrgUnitBudgetRowId, setProposedNewSalarySumByOrgUnitBudgetRowId] = useState<
     Map<string, number>
+  >(() => new Map())
+  const [salaryAdjustmentsByOrgUnitBudgetRowId, setSalaryAdjustmentsByOrgUnitBudgetRowId] = useState<
+    Map<string, SubmissionsEmployeeSalaryAdjustmentRow[]>
   >(() => new Map())
   const [companyRowById, setCompanyRowById] = useState<Map<string, CompensationBudgetPlanCompanyRow>>(() => new Map())
   const [plans, setPlans] = useState<CompensationBudgetPlanListItem[]>([])
@@ -170,6 +194,7 @@ export function useSubmissionsOrgUnitBudgetTable(
         teamOrgUnitNameById,
         orgUnitCurrentTotalSalaryById,
         proposedNewSalarySumByOrgUnitBudgetRowId,
+        salaryAdjustmentsByOrgUnitBudgetRowId,
         defaultCurrencyCode
       ),
     [
@@ -180,6 +205,7 @@ export function useSubmissionsOrgUnitBudgetTable(
       orgUnitNameById,
       plans,
       proposedNewSalarySumByOrgUnitBudgetRowId,
+      salaryAdjustmentsByOrgUnitBudgetRowId,
       teamOrgUnitNameById
     ]
   )
@@ -188,6 +214,7 @@ export function useSubmissionsOrgUnitBudgetTable(
     if (!accessToken || !companyId) {
       setOrgRows([])
       setProposedNewSalarySumByOrgUnitBudgetRowId(new Map())
+      setSalaryAdjustmentsByOrgUnitBudgetRowId(new Map())
       setCompanyRowById(new Map())
       setPlans([])
       setError(null)
@@ -201,6 +228,7 @@ export function useSubmissionsOrgUnitBudgetTable(
         if (companyIdRef.current === companyIdForRequest) {
           setOrgRows([])
           setProposedNewSalarySumByOrgUnitBudgetRowId(new Map())
+          setSalaryAdjustmentsByOrgUnitBudgetRowId(new Map())
           setCompanyRowById(new Map())
           setPlans([])
           setError(null)
@@ -242,6 +270,7 @@ export function useSubmissionsOrgUnitBudgetTable(
 
       const orgUnitBudgetRowIds = orgRaw.map(r => graphqlUnknownToString(r.id)).filter(id => id !== '')
       let proposedSumByRowId = new Map<string, number>()
+      let salaryAdjustmentsByRowId = new Map<string, SubmissionsEmployeeSalaryAdjustmentRow[]>()
       if (orgUnitBudgetRowIds.length > 0) {
         const empResult = await graphqlClient.request<{
           CompensationBudgetPlanEmployee: Record<string, unknown>[]
@@ -252,11 +281,15 @@ export function useSubmissionsOrgUnitBudgetTable(
         proposedSumByRowId = buildProposedNewSalarySumByOrgUnitBudgetRowId(
           empResult.CompensationBudgetPlanEmployee ?? []
         )
+        salaryAdjustmentsByRowId = buildSalaryAdjustmentsByOrgUnitBudgetRowId(
+          empResult.CompensationBudgetPlanEmployee ?? []
+        )
       }
 
       setPlans(nextPlans)
       setCompanyRowById(nextCompanyRowById)
       setProposedNewSalarySumByOrgUnitBudgetRowId(proposedSumByRowId)
+      setSalaryAdjustmentsByOrgUnitBudgetRowId(salaryAdjustmentsByRowId)
       setOrgRows(orgRaw.map(mapOrgUnitRow))
     } catch (err) {
       logBudgetGraphqlFailure('SubmissionsOrgUnitBudgetTable', err)
@@ -264,6 +297,7 @@ export function useSubmissionsOrgUnitBudgetTable(
       setError(message)
       setOrgRows([])
       setProposedNewSalarySumByOrgUnitBudgetRowId(new Map())
+      setSalaryAdjustmentsByOrgUnitBudgetRowId(new Map())
       setCompanyRowById(new Map())
       setPlans([])
     } finally {

@@ -32,7 +32,8 @@ import {
   CopyPlus,
   X,
   PanelRight,
-  Image as ImageIcon
+  Image as ImageIcon,
+  MessageSquare
 } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import { toast } from 'sonner'
@@ -41,11 +42,14 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { Slide as SlideType } from '../types'
 import { SlidesApiService } from '../services'
 import { SlideCanvas } from './SlideCanvas'
+import { SlideContextMenu } from './SlideContextMenu'
 import { SlideThumbnail } from './SlideThumbnail'
 import { PropertyPanel } from './PropertyPanel'
 import { CollaboratorCursors } from './CollaboratorCursors'
 import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
 import { AutoSaveIndicator } from '../../shared/components/AutoSaveIndicator'
+import { CommentPanel } from '../../shared/components/CommentPanel'
+import { InlineCommentPopover } from '../../shared/components/InlineCommentPopover'
 import { SlideEditorHeaderActions } from './editor/SlideEditorHeaderActions'
 import { SLIDE_THEMES, getThemeById } from './slideThemes'
 import { SlideToolbarRibbon } from './toolbar'
@@ -53,6 +57,7 @@ import { useToolbarContext, type ToolbarContext } from '../hooks/useToolbarConte
 import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
 import { clearImageObjectUrlCache } from '../hooks/useImageObjectUrls'
 import { clearResolvedSlideMediaUrlCache } from '../hooks/useResolvedSlideMediaUrl'
+import { useComments } from '../../shared/hooks/useComments'
 import { usePresentationCast, type CastSlideData } from '../hooks/usePresentationCast'
 import { useEffectManager } from '../hooks/useEffectManager'
 import { useSpeechMatcher, type MatchResult, type VideoTriggerResult } from '../hooks/useSpeechMatcher'
@@ -66,6 +71,7 @@ import {
   type SlideTransition,
   type TextElement,
   type TextLink,
+  type RichTextParagraph,
   type ShapeElement,
   type ShapeInText,
   type GroupElement,
@@ -88,7 +94,7 @@ import type { SlideMaster } from '../types/slideMaster'
 import {
   getEffectiveMasters,
   cloneLayoutToSlide,
-  findLayoutById,
+  resolveLayoutForNewSlide,
   ensureTextFits,
   recolorSlidesForTheme
 } from '../data/defaultSlideMaster'
@@ -101,11 +107,23 @@ import { PresenterView } from './PresenterView'
 import { SlideTransitionPlayer } from './SlideTransitionPlayer'
 import { SpellCheckPanel } from './SpellCheckPanel'
 import { useVoiceInput } from '../../shared'
+import { useSlideContextMenu } from '../hooks/useSlideContextMenu'
 import { useSlideSpellCheck } from '../hooks/useSlideSpellCheck'
 import { useSlideTransition } from '../hooks/useSlideTransition'
 import type { SlideAnnotation } from '../types/slideSpellCheck'
+import type {
+  Comment,
+  CommentQueryOptions,
+  CreateCommentInput,
+  SlideCommentAnchor
+} from '../../shared/types/versioning'
 import { exportToPptx } from '../utils/exportUtils'
-import { adjustLinksAfterEdit, detectUrls, mergeLinks, createLink } from '../utils/linkUtils'
+import { adjustLinksAfterEdit, detectUrls, mergeLinks } from '../utils/linkUtils'
+import {
+  createSlideCommentTextContext,
+  describeSlideCommentTarget,
+  resolveSlideCommentAnchor
+} from '../utils/slideCommentAnchors'
 import translations from '../_i18n'
 import {
   alignElements,
@@ -129,14 +147,26 @@ import {
 } from '../utils/videoImport'
 import {
   applyCaretFormattingToInsertedText,
+  applyRichTextHyperlink,
   applyRichTextFormatting,
+  clearRichTextHyperlink,
+  createPlainTextRichTextClipboardFragment,
+  createRichTextClipboardFragment,
   createDefaultShapeText,
   getCharacterRichTextFormattingUpdate,
+  getRichTextHyperlinkAtSelection,
+  normalizeRichTextParagraphs,
+  getRichTextTextInRange,
   getTextEditDelta,
   getRichTextStyleAtRange,
   hasCharacterRichTextFormattingUpdate,
+  insertRichTextClipboardFragment,
   isRichTextFormattingUpdate,
+  parseHtmlToRichTextClipboardFragment,
   replaceRichTextContent,
+  resolveRichTextSelectionForLinkAction,
+  serializeRichTextClipboardFragmentToHtml,
+  type RichTextClipboardFragment,
   type RichTextFormattingUpdate,
   type RichTextSelectionRange
 } from '../utils/richTextEditing'
@@ -173,6 +203,116 @@ type ActiveRichTextDraft =
 type PendingCaretFormatting = {
   id: string
   formatting: RichTextFormattingUpdate
+}
+
+type PendingSlideCommentAnchor = Pick<
+  CreateCommentInput,
+  'type' | 'selectionStart' | 'selectionEnd' | 'selectedText' | 'slideAnchorData'
+>
+
+type RestoredCommentSelection = {
+  elementId: string
+  range: RichTextSelectionRange
+}
+
+type InlineContextMenuSelectionSnapshot = {
+  elementId: string
+  range: RichTextSelectionRange
+}
+
+type ClipboardTextPayload = {
+  text: string
+  html?: string
+  fragment?: RichTextClipboardFragment
+}
+
+type SlideClipboardState =
+  | { type: 'element'; data: AnySlideElement }
+  | { type: 'elements'; data: AnySlideElement[] }
+  | { type: 'slide'; data: SlideData }
+  | { type: 'text'; data: ClipboardTextPayload }
+
+type ActiveLinkTarget =
+  | { id: string; kind: 'text'; mode: 'inline' | 'object'; value: TextElement }
+  | { id: string; kind: 'shape'; mode: 'inline'; value: ShapeInText }
+
+function paragraphHasVisibleText(paragraph: RichTextParagraph): boolean {
+  return paragraph.runs.some(run => run.text.trim().length > 0)
+}
+
+function sortRichTextSelectionRange(range: RichTextSelectionRange): RichTextSelectionRange {
+  return {
+    start: Math.min(range.start, range.end),
+    end: Math.max(range.start, range.end)
+  }
+}
+
+function shouldRehydrateForListMarkerState(
+  previous: Pick<
+    TextElement | ShapeInText,
+    | 'content'
+    | 'paragraphs'
+    | 'fontFamily'
+    | 'fontSize'
+    | 'fontWeight'
+    | 'fontStyle'
+    | 'textDecoration'
+    | 'textAlign'
+    | 'color'
+    | 'lineHeight'
+    | 'textTransform'
+  >,
+  next: Pick<
+    TextElement | ShapeInText,
+    | 'content'
+    | 'paragraphs'
+    | 'fontFamily'
+    | 'fontSize'
+    | 'fontWeight'
+    | 'fontStyle'
+    | 'textDecoration'
+    | 'textAlign'
+    | 'color'
+    | 'lineHeight'
+    | 'textTransform'
+  >
+): boolean {
+  const previousParagraphs = normalizeRichTextParagraphs(previous)
+  const nextParagraphs = normalizeRichTextParagraphs(next)
+
+  if (previousParagraphs.length !== nextParagraphs.length) {
+    return true
+  }
+
+  return previousParagraphs.some((paragraph, index) => {
+    const nextParagraph = nextParagraphs[index]
+    const previousBulletType = paragraph.bulletType ?? 'none'
+    const nextBulletType = nextParagraph.bulletType ?? 'none'
+
+    if (previousBulletType !== nextBulletType) {
+      return true
+    }
+
+    const previousMarkerVisible = previousBulletType !== 'none' && paragraphHasVisibleText(paragraph)
+    const nextMarkerVisible = nextBulletType !== 'none' && paragraphHasVisibleText(nextParagraph)
+
+    if (previousMarkerVisible !== nextMarkerVisible) {
+      return true
+    }
+
+    if (!nextMarkerVisible) {
+      return false
+    }
+
+    return (
+      paragraph.bulletChar !== nextParagraph.bulletChar ||
+      paragraph.numberingStyle !== nextParagraph.numberingStyle ||
+      paragraph.numberStartAt !== nextParagraph.numberStartAt ||
+      paragraph.indentLevel !== nextParagraph.indentLevel ||
+      paragraph.listLeftMargin !== nextParagraph.listLeftMargin ||
+      paragraph.listIndent !== nextParagraph.listIndent
+    )
+  })
 }
 
 function createActiveRichTextDraft(element: AnySlideElement): ActiveRichTextDraft | null {
@@ -229,7 +369,8 @@ function createDefaultSlide(t: (k: string) => string): SlideData {
     elements: [
       createTextElement({
         id: 'title-1',
-        content: t('editor-placeholder-title'),
+        content: '',
+        placeholderText: t('editor-placeholder-title'),
         position: { x: 80, y: 80 },
         size: { width: 1120, height: 100 },
         fontSize: 64,
@@ -239,7 +380,8 @@ function createDefaultSlide(t: (k: string) => string): SlideData {
       }),
       createTextElement({
         id: 'subtitle-1',
-        content: t('editor-placeholder-subtitle'),
+        content: '',
+        placeholderText: t('editor-placeholder-subtitle'),
         position: { x: 80, y: 200 },
         size: { width: 1120, height: 60 },
         fontSize: 32,
@@ -251,22 +393,46 @@ function createDefaultSlide(t: (k: string) => string): SlideData {
   }
 }
 
-function normalizeSlideData(slide: Partial<SlideData> | undefined, fallbackId: string): SlideData {
+function normalizePlaceholderSeed(element: AnySlideElement, placeholderTexts: Set<string>): AnySlideElement {
+  if (element.type !== 'text') return element
+  if (element.placeholderText || !placeholderTexts.has(element.content)) return element
+
+  return {
+    ...element,
+    content: '',
+    paragraphs: undefined,
+    placeholderText: element.content
+  }
+}
+
+function normalizeSlideData(
+  slide: Partial<SlideData> | undefined,
+  fallbackId: string,
+  placeholderTexts: Set<string>
+): SlideData {
   return {
     id: slide?.id || fallbackId,
     notes: slide?.notes || '',
-    elements: Array.isArray(slide?.elements) ? slide.elements : [],
+    elements: Array.isArray(slide?.elements)
+      ? slide.elements.map(element => normalizePlaceholderSeed(element, placeholderTexts))
+      : [],
     background: slide?.background || { type: 'solid', color: '#ffffff' },
     ...(slide?.transition ? { transition: slide.transition } : {})
   }
 }
 
-function normalizeSlidesData(slides: Partial<SlideData>[] | undefined, fallbackSlide: SlideData): SlideData[] {
+function normalizeSlidesData(
+  slides: Partial<SlideData>[] | undefined,
+  fallbackSlide: SlideData,
+  placeholderTexts: Set<string>
+): SlideData[] {
   if (!Array.isArray(slides) || slides.length === 0) {
     return [fallbackSlide]
   }
 
-  return slides.map((slide, index) => normalizeSlideData(slide, slide?.id || `${fallbackSlide.id}-${index}`))
+  return slides.map((slide, index) =>
+    normalizeSlideData(slide, slide?.id || `${fallbackSlide.id}-${index}`, placeholderTexts)
+  )
 }
 
 export const SlideEditor: React.FC<SlideEditorProps> = ({
@@ -284,6 +450,29 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const defaultSlide = useMemo(() => createDefaultSlide(t), [t])
+  const seededPlaceholderTexts = useMemo(
+    () =>
+      new Set(
+        [
+          'editor-placeholder-title',
+          'editor-placeholder-subtitle',
+          'layout-presentation-title',
+          'layout-section-title',
+          'layout-section-description',
+          'layout-key-points',
+          'layout-left-column-points',
+          'layout-right-column-points',
+          'layout-strengths',
+          'layout-main-content-points',
+          'layout-caption-text',
+          'layout-image-caption',
+          'layout-image-description',
+          'layout-option-a',
+          'layout-option-b'
+        ].map(key => t(key).replace(/\\n/g, '\n'))
+      ),
+    [t]
+  )
 
   // Get user info (BusinessAppContext userInfo does NOT provide displayName/pictureThumbnail)
   const currentUserId = userInfo?.id || ''
@@ -294,14 +483,19 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     return full || userInfo?.userName || currentUserId || t('editor-user-fallback')
   }, [currentUserId, userInfo, t])
 
+  useEffect(() => {
+    SlidesApiService.setAccessToken(accessToken || null)
+  }, [accessToken])
+
   const graphqlClient = useGraphQLClient(accessToken || '')
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined)
   const collaborationEnabled = Boolean(slideId) && !isTrashedSlide
 
   // Prepare initial data from slide prop (used for bootstrap initializer / pre-sync rendering).
   const initialSlides = useMemo(
-    () => normalizeSlidesData(slide.contentJson?.slides as SlideData[] | undefined, defaultSlide),
-    [slide.contentJson?.slides, defaultSlide]
+    () =>
+      normalizeSlidesData(slide.contentJson?.slides as SlideData[] | undefined, defaultSlide, seededPlaceholderTexts),
+    [slide.contentJson?.slides, defaultSlide, seededPlaceholderTexts]
   )
   const initialThemeId = useMemo(
     () => (slide.contentJson?.themeId as string | undefined) || SLIDE_THEMES[0].id,
@@ -322,6 +516,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     slides: collaborativeSlides,
     themeId: collaborativeThemeId,
     participants,
+    collaborationSocket,
     isSynced,
     isInitialized,
     awareness,
@@ -452,6 +647,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [showSpellCheckPanel, setShowSpellCheckPanel] = useState(false)
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [activeTextSelection, setActiveTextSelection] = useState<RichTextSelectionRange | null>(null)
+  const [restoredCommentSelection, setRestoredCommentSelection] = useState<RestoredCommentSelection | null>(null)
   const [activeRichTextDraft, setActiveRichTextDraft] = useState<ActiveRichTextDraft | null>(null)
   const [pendingCaretFormatting, setPendingCaretFormatting] = useState<PendingCaretFormatting | null>(null)
   const [richTextEditorRehydrateToken, setRichTextEditorRehydrateToken] = useState(0)
@@ -465,6 +661,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [presentScale, setPresentScale] = useState(1)
 
   const [canvasScale, setCanvasScale] = useState(DEFAULT_CANVAS_SCALE)
+  const [autoFitZoom, setAutoFitZoom] = useState(true)
+  const workspaceRef = useRef<HTMLDivElement>(null)
   const [showImageDialog, setShowImageDialog] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [showVideoDialog, setShowVideoDialog] = useState(false)
@@ -473,6 +671,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const [showRenameDialog, setShowRenameDialog] = useState(false)
   const [showLinkDialog, setShowLinkDialog] = useState(false)
   const [showPdfExportDialog, setShowPdfExportDialog] = useState(false)
+  const [showCommentsPanel, setShowCommentsPanel] = useState(false)
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null)
+  const [commentPopover, setCommentPopover] = useState<{
+    open: boolean
+    position: { top: number; left: number } | null
+  }>({ open: false, position: null })
   const [showNotesPanel, setShowNotesPanel] = useState(false)
   const [presenterMode, setPresenterMode] = useState(false)
   const [presentationTitle, setPresentationTitle] = useState(slide.title)
@@ -487,10 +691,27 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const presentationContainerRef = useRef<HTMLDivElement>(null)
   const thumbnailRefs = useRef<(HTMLDivElement | null)[]>([])
   const canvasContainerRef = useRef<HTMLDivElement>(null)
+  const panelCommentAnchorRef = useRef<PendingSlideCommentAnchor | null>(null)
+  const pendingCommentNavigationRef = useRef<SlideCommentAnchor | null>(null)
 
   // Voice input state
   const voiceBaseContentRef = useRef<string>('')
   const editingTextIdRef = useRef<string | null>(null)
+  const inlineContextMenuSelectionRef = useRef<InlineContextMenuSelectionSnapshot | null>(null)
+  // Mirrors the live inline-rich-text-editor selection synchronously so the
+  // context-menu handler can capture the user's text selection even if React
+  // has not yet flushed the matching `setActiveTextSelection` update.
+  const liveInlineSelectionRef = useRef<RichTextSelectionRange | null>(null)
+  const lastContextMenuPositionRef = useRef<{ top: number; left: number } | null>(null)
+  const contextMenuActionSelectionRef = useRef<{
+    selectedElements: AnySlideElement[]
+    selectionIds: string[]
+    singleElement: AnySlideElement | null
+  }>({
+    selectedElements: [],
+    selectionIds: [],
+    singleElement: null
+  })
   const lastProcessedTranscriptRef = useRef<string>('')
   const currentEditingContentRef = useRef<string>('')
   const activeRichTextDraftRef = useRef<ActiveRichTextDraft | null>(null)
@@ -511,12 +732,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const pendingHistoryRef = useRef(false)
 
   // Clipboard for copy/paste (supports both elements and slides)
-  const [clipboard, setClipboard] = useState<
-    | { type: 'element'; data: AnySlideElement }
-    | { type: 'elements'; data: AnySlideElement[] }
-    | { type: 'slide'; data: SlideData }
-    | null
-  >(null)
+  const [clipboard, setClipboard] = useState<SlideClipboardState | null>(null)
 
   // Track if we've received initial connection ack
   const hasReceivedConnectionAck = useRef(false)
@@ -621,8 +837,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Always render from collaboration state (it is seeded immediately from initial content).
   const slides = useMemo(() => {
-    return normalizeSlidesData(collaborativeSlides, defaultSlide)
-  }, [collaborativeSlides, defaultSlide])
+    return normalizeSlidesData(collaborativeSlides, defaultSlide, seededPlaceholderTexts)
+  }, [collaborativeSlides, defaultSlide, seededPlaceholderTexts])
 
   const currentSlideIndex = useMemo(() => {
     const index = slides.findIndex(s => s.id === currentSlideId)
@@ -795,7 +1011,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const currentSlideRaw = slides[currentSlideIndex] || defaultSlide
-  const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id)
+  const currentSlide = normalizeSlideData(currentSlideRaw, defaultSlide.id, seededPlaceholderTexts)
 
   /** Allowed preview URL only (no DOMPurify). Actual `src` is set in layout effect so SAST does not flag `src={state}`. */
   const slideBackgroundVideoPreviewSrc = useMemo(() => {
@@ -833,6 +1049,40 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   }, [slideBackgroundVideoPreviewSrc])
 
+  // Auto-fit zoom: keep the entire slide visible whenever the workspace or
+  // slide size changes, similar to PowerPoint's "Fit to Window" default.
+  // Disabled as soon as the user manually changes the zoom.
+  const slideCanvasWidth = currentSlide?.canvasSize?.width ?? 1280
+  const slideCanvasHeight = currentSlide?.canvasSize?.height ?? 720
+
+  useLayoutEffect(() => {
+    if (!autoFitZoom) return
+    const el = workspaceRef.current
+    if (!el) return
+
+    // Workspace has gba:p-4 md:gba:p-8 (16px/32px). Reserve a bit of breathing room.
+    const FIT_PADDING = 32
+
+    const computeFitScale = () => {
+      const rect = el.getBoundingClientRect()
+      const availableWidth = Math.max(0, rect.width - FIT_PADDING * 2)
+      const availableHeight = Math.max(0, rect.height - FIT_PADDING * 2)
+      if (availableWidth <= 0 || availableHeight <= 0) return
+      const scaleW = availableWidth / slideCanvasWidth
+      const scaleH = availableHeight / slideCanvasHeight
+      const next = Math.min(scaleW, scaleH)
+      const clamped = Math.max(0.1, Math.min(3, next))
+      setCanvasScale(prev => (Math.abs(prev - clamped) < 0.005 ? prev : clamped))
+    }
+
+    computeFitScale()
+
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => computeFitScale())
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [autoFitZoom, slideCanvasWidth, slideCanvasHeight])
+
   // For property panel, use the first selected element when multiple are selected
   const selectedElementId = selectedElementIds.size > 0 ? [...selectedElementIds][0] : null
   const selectedElement = currentSlide.elements.find(e => e.id === selectedElementId) || null
@@ -869,6 +1119,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       storePendingCaretFormatting(null)
       setEditingTextId(null)
       setActiveTextSelection(null)
+      setRestoredCommentSelection(null)
     }
     if (editingPointsId && !currentElementIds.has(editingPointsId)) {
       setEditingPointsId(null)
@@ -906,6 +1157,77 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           : null),
     [activeRichTextDraft, activeEditingTarget, editingTextId]
   )
+
+  const activeEditingRichTextSource = useMemo<TextElement | ShapeInText | null>(() => {
+    if (!activeEditingTarget) {
+      return null
+    }
+
+    if (activeRichTextDraft?.id === editingTextId) {
+      return activeRichTextDraft.element
+    }
+
+    if (activeEditingTarget.type === 'text') {
+      return activeEditingTarget
+    }
+
+    if (activeEditingTarget.type === 'shape') {
+      return activeEditingTarget.shapeText ?? createDefaultShapeText()
+    }
+
+    return null
+  }, [activeEditingTarget, activeRichTextDraft, editingTextId])
+
+  const selectedTextObjectLinkTarget = useMemo(
+    () => (!editingTextId && selectedElement?.type === 'text' ? selectedElement : null),
+    [editingTextId, selectedElement]
+  )
+
+  const activeLinkTarget = useMemo<ActiveLinkTarget | null>(() => {
+    if (!activeEditingTarget) {
+      return selectedTextObjectLinkTarget
+        ? {
+            id: selectedTextObjectLinkTarget.id,
+            kind: 'text',
+            mode: 'object',
+            value: selectedTextObjectLinkTarget
+          }
+        : null
+    }
+
+    if (activeEditingTarget.type === 'text') {
+      return {
+        id: activeEditingTarget.id,
+        kind: 'text',
+        mode: 'inline',
+        value:
+          activeRichTextDraft?.id === activeEditingTarget.id && activeRichTextDraft?.kind === 'text'
+            ? activeRichTextDraft.element
+            : activeEditingTarget
+      }
+    }
+
+    if (activeEditingTarget.type === 'shape') {
+      return {
+        id: activeEditingTarget.id,
+        kind: 'shape',
+        mode: 'inline',
+        value:
+          activeRichTextDraft?.id === activeEditingTarget.id && activeRichTextDraft?.kind === 'shape'
+            ? activeRichTextDraft.element
+            : (activeEditingTarget.shapeText ?? createDefaultShapeText())
+      }
+    }
+
+    return selectedTextObjectLinkTarget
+      ? {
+          id: selectedTextObjectLinkTarget.id,
+          kind: 'text',
+          mode: 'object',
+          value: selectedTextObjectLinkTarget
+        }
+      : null
+  }, [activeEditingTarget, activeRichTextDraft, selectedTextObjectLinkTarget])
 
   const activeEditingDraftSnapshot = useMemo(
     () => serializeEditingDraftValue(activeRichTextDraft?.id === editingTextId ? activeRichTextDraft : null),
@@ -1043,9 +1365,19 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
   }, [editorIsSynced, lastSaveTime])
 
+  const slidePermission = slide.permission ?? 'view'
+  const hasEditPermission = slidePermission === 'edit' || slidePermission === 'owner' || slidePermission === 'admin'
+  const canReadComments = Boolean(slideId && accessToken) && !isTrashedSlide
+  const canCreateComments = canReadComments && slidePermission !== 'view'
+  const isEditorReadOnly = isReadOnly || !hasEditPermission
+  const canEdit = !isEditorReadOnly && editorIsSynced && editorIsInitialized
+  const handleCommentsError = useCallback((error: Error) => {
+    toast.error(error.message)
+  }, [])
+
   const handleSave = useCallback(
     async (silent = false) => {
-      if (isReadOnly) return
+      if (isEditorReadOnly) return
       if (!silent) setIsSaving(true)
       try {
         if (!editorIsSynced || !editorIsInitialized) {
@@ -1061,10 +1393,250 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         if (!silent) setIsSaving(false)
       }
     },
-    [editorIsInitialized, editorIsSynced, flushPendingUpdates, isReadOnly, t]
+    [editorIsInitialized, editorIsSynced, flushPendingUpdates, isEditorReadOnly, t]
   )
 
-  const canEdit = !isReadOnly && editorIsSynced && editorIsInitialized
+  const commentApiService = useMemo(() => {
+    if (!canReadComments) {
+      return undefined
+    }
+
+    return {
+      createComment: (id: string, input: CreateCommentInput) => SlidesApiService.createComment(id, input),
+      listComments: (id: string, options?: CommentQueryOptions) => SlidesApiService.listComments(id, options),
+      updateComment: (commentId: string, updates: Partial<Comment>) =>
+        SlidesApiService.updateComment(commentId, updates),
+      resolveComment: (commentId: string) => SlidesApiService.resolveComment(commentId),
+      unresolveComment: (commentId: string) => SlidesApiService.unresolveComment(commentId),
+      deleteComment: (commentId: string) => SlidesApiService.deleteComment(commentId),
+      replyToComment: (commentId: string, reply: string, userName?: string, userAvatar?: string) =>
+        SlidesApiService.replyToComment(commentId, reply, userName, userAvatar)
+    }
+  }, [canReadComments])
+
+  const comments = useComments({
+    entityId: slideId,
+    entityType: 'slide',
+    socket: commentApiService ? collaborationSocket : null,
+    apiService: commentApiService,
+    autoRefreshInterval: commentApiService && !collaborationSocket ? 30000 : 0,
+    onError: handleCommentsError,
+    t
+  })
+
+  const createSlideCommentAnchor = useCallback((): PendingSlideCommentAnchor => {
+    if (editingTextId && activeEditingTextElement) {
+      const sortedSelection = activeTextSelection ? sortRichTextSelectionRange(activeTextSelection) : null
+      const hasExpandedSelection = !!sortedSelection && sortedSelection.start !== sortedSelection.end
+      const selectedText = hasExpandedSelection
+        ? getRichTextTextInRange(activeEditingTextElement, sortedSelection).trim()
+        : ''
+      const selectedTextContext =
+        hasExpandedSelection && sortedSelection
+          ? createSlideCommentTextContext(activeEditingTextElement.content ?? '', sortedSelection)
+          : {}
+
+      if (hasExpandedSelection && selectedText) {
+        return {
+          type: 'selection',
+          selectionStart: sortedSelection.start,
+          selectionEnd: sortedSelection.end,
+          selectedText,
+          slideAnchorData: {
+            kind: 'text-range',
+            slideId: currentSlide.id,
+            elementId: editingTextId,
+            start: sortedSelection.start,
+            end: sortedSelection.end,
+            selectedText,
+            ...selectedTextContext
+          }
+        }
+      }
+    }
+
+    const elementIds = (editingTextId ? [editingTextId] : [...selectedElementIds]).filter(elementId =>
+      currentSlide.elements.some(element => element.id === elementId)
+    )
+
+    if (elementIds.length > 0) {
+      return {
+        type: 'selection',
+        selectedText: describeSlideCommentTarget(currentSlide, elementIds),
+        slideAnchorData: {
+          kind: 'element',
+          slideId: currentSlide.id,
+          elementIds
+        }
+      }
+    }
+
+    return {
+      type: 'document',
+      slideAnchorData: {
+        kind: 'slide',
+        slideId: currentSlide.id
+      }
+    }
+  }, [activeEditingTextElement, activeTextSelection, currentSlide, editingTextId, selectedElementIds])
+
+  const syncPanelCommentAnchor = useCallback(() => {
+    panelCommentAnchorRef.current = createSlideCommentAnchor()
+  }, [createSlideCommentAnchor])
+
+  const openCommentsPanel = useCallback(() => {
+    syncPanelCommentAnchor()
+    setActiveCommentId(null)
+    setShowCommentsPanel(true)
+  }, [syncPanelCommentAnchor])
+
+  // Builds an anchor using the synchronous context-menu selection snapshot
+  // (instead of the async React selection state, which may have just been
+  // updated by `handleContextMenuCapture`). Falls back to text-range when
+  // inline-editing text and to the whole slide when nothing is targeted.
+  const createContextMenuCommentAnchor = useCallback((): PendingSlideCommentAnchor => {
+    // Read the editing target from the ref (rather than React state) so we
+    // honor the inline-text path even if the menu fires while a state update
+    // is still pending.
+    const activeEditingId = editingTextIdRef.current
+    const activeEditingElement = activeEditingId
+      ? (currentSlide.elements.find(element => element.id === activeEditingId && element.type === 'text') as
+          | TextElement
+          | undefined)
+      : undefined
+    if (activeEditingId && activeEditingElement) {
+      // Prefer the snapshot taken when the context menu opened, then the live
+      // editor selection (refreshed synchronously on right-click), and fall
+      // back to React state. The live selection often survives the moment
+      // when focus moves into the menu.
+      const snapshotRange =
+        inlineContextMenuSelectionRef.current?.elementId === activeEditingId
+          ? inlineContextMenuSelectionRef.current.range
+          : null
+      const liveRange = liveInlineSelectionRef.current
+      const sourceRange = snapshotRange ?? liveRange ?? activeTextSelection
+      const sortedSelection = sourceRange ? sortRichTextSelectionRange(sourceRange) : null
+      const hasExpandedSelection = !!sortedSelection && sortedSelection.start !== sortedSelection.end
+      const selectedText = hasExpandedSelection
+        ? getRichTextTextInRange(activeEditingElement, sortedSelection).trim()
+        : ''
+      const selectedTextContext =
+        hasExpandedSelection && sortedSelection
+          ? createSlideCommentTextContext(activeEditingElement.content ?? '', sortedSelection)
+          : {}
+
+      if (hasExpandedSelection && selectedText) {
+        return {
+          type: 'selection',
+          selectionStart: sortedSelection.start,
+          selectionEnd: sortedSelection.end,
+          selectedText,
+          slideAnchorData: {
+            kind: 'text-range',
+            slideId: currentSlide.id,
+            elementId: activeEditingId,
+            start: sortedSelection.start,
+            end: sortedSelection.end,
+            selectedText,
+            ...selectedTextContext
+          }
+        }
+      }
+    }
+
+    const snapshotIds = contextMenuActionSelectionRef.current.selectionIds.filter(elementId =>
+      currentSlide.elements.some(element => element.id === elementId)
+    )
+    let candidateElementIds = snapshotIds
+    if (candidateElementIds.length === 0) {
+      candidateElementIds = activeEditingId ? [activeEditingId] : [...selectedElementIds]
+    }
+
+    const elementIds = candidateElementIds.filter(elementId =>
+      currentSlide.elements.some(element => element.id === elementId)
+    )
+
+    if (elementIds.length > 0) {
+      return {
+        type: 'selection',
+        selectedText: describeSlideCommentTarget(currentSlide, elementIds),
+        slideAnchorData: {
+          kind: 'element',
+          slideId: currentSlide.id,
+          elementIds
+        }
+      }
+    }
+
+    return {
+      type: 'document',
+      slideAnchorData: {
+        kind: 'slide',
+        slideId: currentSlide.id
+      }
+    }
+  }, [activeTextSelection, currentSlide, selectedElementIds])
+
+  // Opens the inline comment composer (Docs/PowerPoint-style) anchored to the
+  // last context-menu position. Captures the slide selection state so the
+  // resulting comment is attached to the right element/text-range/slide.
+  const openCommentPopover = useCallback(() => {
+    panelCommentAnchorRef.current = createContextMenuCommentAnchor()
+    const fallbackPosition = { top: window.innerHeight / 2, left: window.innerWidth / 2 }
+    const position = lastContextMenuPositionRef.current ?? fallbackPosition
+    setCommentPopover({ open: true, position })
+  }, [createContextMenuCommentAnchor])
+
+  const closeCommentPopover = useCallback(() => {
+    panelCommentAnchorRef.current = null
+    setCommentPopover({ open: false, position: null })
+  }, [])
+
+  const submitCommentPopover = useCallback(
+    async (content: string) => {
+      const trimmed = content.trim()
+      if (!trimmed) {
+        return
+      }
+      try {
+        const anchorInput = panelCommentAnchorRef.current ?? createSlideCommentAnchor()
+        await comments.createComment({
+          ...anchorInput,
+          content: trimmed,
+          createdByName: currentUserName,
+          createdByAvatar: currentUserAvatar
+        })
+        panelCommentAnchorRef.current = null
+      } finally {
+        setCommentPopover({ open: false, position: null })
+      }
+    },
+    [comments, createSlideCommentAnchor, currentUserName, currentUserAvatar]
+  )
+
+  const openFormatOptions = useCallback(() => {
+    setShowCommentsPanel(false)
+    setShowPropertyPanel(true)
+  }, [])
+
+  const handleCommentCreate = useCallback(
+    async (content: string, parentId?: string, userName?: string, userAvatar?: string) => {
+      if (parentId) {
+        await comments.replyToComment(parentId, content, userName, userAvatar)
+        return
+      }
+
+      const anchorInput = panelCommentAnchorRef.current ?? createSlideCommentAnchor()
+      await comments.createComment({
+        ...anchorInput,
+        content,
+        createdByName: userName,
+        createdByAvatar: userAvatar
+      })
+      panelCommentAnchorRef.current = null
+    },
+    [comments, createSlideCommentAnchor]
+  )
 
   // Spell check hook for presentation-wide grammar/spelling checks
   const spellCheck = useSlideSpellCheck(slides, {
@@ -1225,6 +1797,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
       const oldValue = currentEditingContentRef.current
       const editDelta = getTextEditDelta(oldValue, newValue)
+      const shouldRehydrateForParagraphStructure = oldValue.split('\n').length !== newValue.split('\n').length
       currentEditingContentRef.current = newValue
 
       if (currentElement.type === 'code') {
@@ -1247,12 +1820,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           pendingFormatting,
           editDelta
         )
+        const shouldRehydrateForListMarkers = shouldRehydrateForListMarkerState(shapeDraft, nextShapeText)
         storeActiveRichTextDraft({ id, kind: 'shape', element: nextShapeText })
         updateElement(id, { shapeText: nextShapeText } as Partial<ShapeElement>)
         if (pendingFormatting && editDelta.insertedLength > 0) {
           preservePendingCaretFormattingRef.current = true
         }
-        if (rehydrate) {
+        if (rehydrate || shouldRehydrateForParagraphStructure || shouldRehydrateForListMarkers) {
           bumpRichTextEditorRehydrateToken()
         }
         return
@@ -1285,6 +1859,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         ),
         ...(updatedLinks !== undefined && { links: updatedLinks })
       }
+      const shouldRehydrateForListMarkers = shouldRehydrateForListMarkerState(textDraft, nextTextDraft)
 
       storeActiveRichTextDraft({ id, kind: 'text', element: nextTextDraft })
       updateElement(id, nextTextDraft)
@@ -1292,7 +1867,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         preservePendingCaretFormattingRef.current = true
       }
 
-      if (rehydrate) {
+      if (rehydrate || shouldRehydrateForParagraphStructure || shouldRehydrateForListMarkers) {
         bumpRichTextEditorRehydrateToken()
       }
     },
@@ -1336,10 +1911,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const applyTextFormattingUpdates = useCallback(
     (
       element: AnySlideElement,
-      updates: Partial<AnySlideElement>,
+      updates: Partial<AnySlideElement> | RichTextFormattingUpdate,
       selection?: RichTextSelectionRange | null
     ): Partial<AnySlideElement> => {
-      if (element.type !== 'text' || !isRichTextFormattingUpdate(updates as Partial<TextElement>)) return updates
+      if (element.type !== 'text' || !isRichTextFormattingUpdate(updates as Partial<TextElement>)) {
+        return updates as Partial<AnySlideElement>
+      }
 
       return applyRichTextFormatting(
         element,
@@ -1352,7 +1929,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Applies updates to all selected elements (for toolbar and property panel multi-select)
   const updateSelectedElements = useCallback(
-    (triggerId: string, updates: Partial<AnySlideElement>) => {
+    (triggerId: string, updates: Partial<AnySlideElement> | RichTextFormattingUpdate) => {
       if (!canEdit) return
       if (selectedElementIds.size > 1) {
         if (unlockedSelectedElements.length === 0) return
@@ -1379,7 +1956,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const handleToolbarUpdateElement = useCallback(
-    (id: string, updates: Partial<AnySlideElement>) => {
+    (id: string, updates: Partial<AnySlideElement> | RichTextFormattingUpdate) => {
       const activeElement = currentSlide.elements.find(element => element.id === editingTextId)
       const isActiveTextUpdate =
         !!activeElement &&
@@ -1392,8 +1969,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         return
       }
 
-      const selection =
-        activeTextSelection && activeTextSelection.end > activeTextSelection.start ? activeTextSelection : null
+      const selection = activeTextSelection ?? null
       const hasCollapsedSelection = !!activeTextSelection && activeTextSelection.start === activeTextSelection.end
       const characterUpdates = getCharacterRichTextFormattingUpdate(updates as RichTextFormattingUpdate)
       const hasCharacterUpdates = hasCharacterRichTextFormattingUpdate(characterUpdates as Partial<TextElement>)
@@ -1574,6 +2150,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     toast.success(t('editor-element-deleted'))
   }, [currentSlide.elements, selectedElementIds, unlockedSelectedElements, updateSlide, t])
 
+  const deleteContextMenuSelection = useCallback(() => {
+    const { selectedElements, selectionIds } = contextMenuActionSelectionRef.current
+    const unlockedContextMenuElements = selectedElements.filter(element => !element.locked)
+    if (unlockedContextMenuElements.length === 0) return
+
+    const deletableIds = new Set(unlockedContextMenuElements.map(element => element.id))
+    updateSlide({ elements: currentSlide.elements.filter(element => !deletableIds.has(element.id)) })
+    setSelectedElementIds(new Set(selectionIds.filter(id => !deletableIds.has(id))))
+    toast.success(t('editor-element-deleted'))
+  }, [currentSlide.elements, updateSlide, t])
+
   const duplicateElement = useCallback(() => {
     if (unlockedSelectedElements.length === 0) return
     const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
@@ -1596,29 +2183,142 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     toast.success(t('editor-element-duplicated'))
   }, [unlockedSelectedElements, currentSlide.elements, updateSlide, t])
 
+  const duplicateContextMenuSelection = useCallback(() => {
+    const { selectedElements } = contextMenuActionSelectionRef.current
+    const unlockedContextMenuElements = selectedElements.filter(element => !element.locked)
+    if (unlockedContextMenuElements.length === 0) return
+
+    const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
+    const newElements: AnySlideElement[] = []
+    const newIds: string[] = []
+
+    unlockedContextMenuElements.forEach((el, idx) => {
+      const copy = {
+        ...el,
+        id: `${el.type}-${Date.now()}-${idx}`,
+        position: { x: el.position.x + 20, y: el.position.y + 20 },
+        zIndex: maxZIndex + 1 + idx
+      }
+      newElements.push(copy)
+      newIds.push(copy.id)
+    })
+
+    updateSlide({ elements: [...currentSlide.elements, ...newElements] })
+    setSelectedElementIds(new Set(newIds))
+    toast.success(t('editor-element-duplicated'))
+  }, [currentSlide.elements, updateSlide, t])
+
+  const lockContextMenuSelection = useCallback(() => {
+    if (!canEdit) return
+    const elementsToLock = contextMenuActionSelectionRef.current.selectedElements.filter(element => !element.locked)
+    if (elementsToLock.length === 0) return
+    updateMultipleElements(elementsToLock.map(element => ({ id: element.id, updates: { locked: true } })))
+  }, [canEdit, updateMultipleElements])
+
+  const unlockContextMenuSelection = useCallback(() => {
+    if (!canEdit) return
+    const elementsToUnlock = contextMenuActionSelectionRef.current.selectedElements.filter(element => element.locked)
+    if (elementsToUnlock.length === 0) return
+    updateMultipleElements(elementsToUnlock.map(element => ({ id: element.id, updates: { locked: false } })))
+  }, [canEdit, updateMultipleElements])
+
+  const reorderSingleElementZIndex = useCallback(
+    (elementId: string, direction: 'front' | 'back' | 'forward' | 'backward') => {
+      const orderedElements = currentSlide.elements
+        .map((element, index) => ({ element, index }))
+        .sort((left, right) => {
+          const zIndexDelta = (left.element.zIndex ?? 0) - (right.element.zIndex ?? 0)
+
+          if (zIndexDelta !== 0) {
+            return zIndexDelta
+          }
+
+          return left.index - right.index
+        })
+
+      const targetIndex = orderedElements.findIndex(entry => entry.element.id === elementId)
+      if (targetIndex === -1) {
+        return
+      }
+
+      const maxIndex = orderedElements.length - 1
+      const nextIndexByDirection: Record<typeof direction, number> = {
+        front: maxIndex,
+        back: 0,
+        forward: Math.min(targetIndex + 1, maxIndex),
+        backward: Math.max(targetIndex - 1, 0)
+      }
+      const nextIndex = nextIndexByDirection[direction]
+
+      if (nextIndex === targetIndex) {
+        return
+      }
+
+      const reorderedEntries = [...orderedElements]
+      const [targetEntry] = reorderedEntries.splice(targetIndex, 1)
+
+      if (!targetEntry) {
+        return
+      }
+
+      reorderedEntries.splice(nextIndex, 0, targetEntry)
+
+      const reorderedElements = reorderedEntries.map((entry, index) => ({
+        ...entry.element,
+        zIndex: index + 1
+      }))
+      const hasChanged = reorderedElements.some((element, index) => {
+        const currentElement = currentSlide.elements[index]
+
+        return currentElement?.id !== element.id || currentElement?.zIndex !== element.zIndex
+      })
+
+      if (hasChanged) {
+        updateSlide({ elements: reorderedElements })
+      }
+    },
+    [currentSlide.elements, updateSlide]
+  )
+
   const bringForward = useCallback(() => {
     if (!selectedElementId || selectedElement?.locked) return
-    const elements = [...currentSlide.elements].sort((a, b) => a.zIndex - b.zIndex)
-    const idx = elements.findIndex(e => e.id === selectedElementId)
-    if (idx < elements.length - 1) {
-      const current = elements[idx]
-      const next = elements[idx + 1]
-      updateElement(selectedElementId, { zIndex: next.zIndex })
-      updateElement(next.id, { zIndex: current.zIndex })
-    }
-  }, [selectedElement, selectedElementId, currentSlide.elements, updateElement])
+
+    reorderSingleElementZIndex(selectedElementId, 'forward')
+  }, [selectedElement, selectedElementId, reorderSingleElementZIndex])
+
+  const bringForwardContextMenuSelection = useCallback(() => {
+    const targetElement = contextMenuActionSelectionRef.current.singleElement
+    if (!targetElement || targetElement.locked) return
+
+    reorderSingleElementZIndex(targetElement.id, 'forward')
+  }, [reorderSingleElementZIndex])
 
   const sendBackward = useCallback(() => {
     if (!selectedElementId || selectedElement?.locked) return
-    const elements = [...currentSlide.elements].sort((a, b) => a.zIndex - b.zIndex)
-    const idx = elements.findIndex(e => e.id === selectedElementId)
-    if (idx > 0) {
-      const current = elements[idx]
-      const prev = elements[idx - 1]
-      updateElement(selectedElementId, { zIndex: prev.zIndex })
-      updateElement(prev.id, { zIndex: current.zIndex })
-    }
-  }, [selectedElement, selectedElementId, currentSlide.elements, updateElement])
+
+    reorderSingleElementZIndex(selectedElementId, 'backward')
+  }, [selectedElement, selectedElementId, reorderSingleElementZIndex])
+
+  const sendBackwardContextMenuSelection = useCallback(() => {
+    const targetElement = contextMenuActionSelectionRef.current.singleElement
+    if (!targetElement || targetElement.locked) return
+
+    reorderSingleElementZIndex(targetElement.id, 'backward')
+  }, [reorderSingleElementZIndex])
+
+  const bringToFrontContextMenuSelection = useCallback(() => {
+    const targetElement = contextMenuActionSelectionRef.current.singleElement
+    if (!targetElement || targetElement.locked) return
+
+    reorderSingleElementZIndex(targetElement.id, 'front')
+  }, [reorderSingleElementZIndex])
+
+  const sendToBackContextMenuSelection = useCallback(() => {
+    const targetElement = contextMenuActionSelectionRef.current.singleElement
+    if (!targetElement || targetElement.locked) return
+
+    reorderSingleElementZIndex(targetElement.id, 'back')
+  }, [reorderSingleElementZIndex])
 
   /**
    * Align the current multi-selection along the requested axis. Delegates to
@@ -1652,6 +2352,33 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     [canEdit, unlockedSelectedElements, currentSlide, updateMultipleElements]
   )
 
+  const alignContextMenuSelection = useCallback(
+    (axis: AlignAxis) => {
+      if (!canEdit) return
+      const items = contextMenuActionSelectionRef.current.selectedElements.filter(element => !element.locked)
+      if (items.length === 0) return
+      const { width, height } = getSlideCanvasSize(currentSlide)
+      const canvasBounds: ElementBounds = {
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: height,
+        width,
+        height,
+        centerX: width / 2,
+        centerY: height / 2
+      }
+      const positions = alignElements(items, axis, canvasBounds)
+      if (positions.size === 0) return
+      const updates = Array.from(positions.entries()).map(([id, position]) => ({
+        id,
+        updates: { position } as Partial<AnySlideElement>
+      }))
+      updateMultipleElements(updates)
+    },
+    [canEdit, currentSlide, updateMultipleElements]
+  )
+
   /** Distribute three-or-more selected elements evenly along an axis. */
   const distributeSelection = useCallback(
     (axis: DistributeAxis) => {
@@ -1667,6 +2394,22 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       updateMultipleElements(updates)
     },
     [canEdit, unlockedSelectedElements, updateMultipleElements]
+  )
+
+  const distributeContextMenuSelection = useCallback(
+    (axis: DistributeAxis) => {
+      if (!canEdit) return
+      const items = contextMenuActionSelectionRef.current.selectedElements.filter(element => !element.locked)
+      if (items.length < 3) return
+      const positions = distributeElements(items, axis)
+      if (positions.size === 0) return
+      const updates = Array.from(positions.entries()).map(([id, position]) => ({
+        id,
+        updates: { position } as Partial<AnySlideElement>
+      }))
+      updateMultipleElements(updates)
+    },
+    [canEdit, updateMultipleElements]
   )
 
   /**
@@ -1691,6 +2434,25 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     [canEdit, unlockedSelectedElements, updateMultipleElements]
   )
 
+  const flipContextMenuSelection = useCallback(
+    (axis: 'horizontal' | 'vertical') => {
+      if (!canEdit) return
+      const items = contextMenuActionSelectionRef.current.selectedElements.filter(
+        el => !el.locked && el.type === 'shape'
+      ) as ShapeElement[]
+      if (items.length === 0) return
+      const updates = items.map(shape => {
+        const flipped = flipShape(shape, axis)
+        return {
+          id: shape.id,
+          updates: { geometry: flipped.geometry, importMeta: flipped.importMeta } as Partial<AnySlideElement>
+        }
+      })
+      updateMultipleElements(updates)
+    },
+    [canEdit, updateMultipleElements]
+  )
+
   /**
    * Wrap the current multi-selection in a new group element. Children are
    * moved into group-relative coordinates so the group behaves as a single
@@ -1710,6 +2472,23 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     toast.success(t('editor-elements-grouped'))
   }, [canEdit, unlockedSelectedElements, currentSlide.elements, updateSlide, t])
 
+  const groupContextMenuSelection = useCallback(() => {
+    if (!canEdit) return
+    const unlockedContextMenuElements = contextMenuActionSelectionRef.current.selectedElements.filter(
+      element => !element.locked
+    )
+    if (unlockedContextMenuElements.length < 2) return
+    const group = groupElements(unlockedContextMenuElements)
+    if (!group) return
+    const groupedIds = new Set(unlockedContextMenuElements.map(element => element.id))
+    const remaining = currentSlide.elements.filter(el => !groupedIds.has(el.id))
+    const maxZIndex = Math.max(0, ...currentSlide.elements.map(e => e.zIndex ?? 0))
+    const groupElement = { ...group, zIndex: maxZIndex + 1 }
+    updateSlide({ elements: [...remaining, groupElement] })
+    setSelectedElementIds(new Set([groupElement.id]))
+    toast.success(t('editor-elements-grouped'))
+  }, [canEdit, currentSlide.elements, updateSlide, t])
+
   /** Explode the currently-selected group(s) back into individual children. */
   const ungroupSelection = useCallback(() => {
     if (!canEdit) return
@@ -1723,6 +2502,21 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     setSelectedElementIds(newIds)
     toast.success(t('editor-elements-ungrouped'))
   }, [canEdit, unlockedSelectedElements, currentSlide.elements, updateSlide, t])
+
+  const ungroupContextMenuSelection = useCallback(() => {
+    if (!canEdit) return
+    const groups = contextMenuActionSelectionRef.current.selectedElements.filter(
+      el => !el.locked && el.type === 'group'
+    ) as GroupElement[]
+    if (groups.length === 0) return
+    const groupIds = new Set(groups.map(g => g.id))
+    const nonGroups = currentSlide.elements.filter(el => !groupIds.has(el.id))
+    const children = groups.flatMap(group => ungroupElement(group))
+    const newIds = new Set(children.map(child => child.id))
+    updateSlide({ elements: [...nonGroups, ...children] })
+    setSelectedElementIds(newIds)
+    toast.success(t('editor-elements-ungrouped'))
+  }, [canEdit, currentSlide.elements, updateSlide, t])
 
   // Drag-and-drop image handlers for canvas
   const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
@@ -1833,24 +2627,83 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     toast.success(t('editor-redo') || 'Redo')
   }, [historyIndex, history, updateCollaborativeSlides, t])
 
+  const copyElementsToClipboard = useCallback(
+    (elementsToCopy: AnySlideElement[]) => {
+      if (elementsToCopy.length === 0) {
+        return false
+      }
+
+      if (elementsToCopy.length === 1) {
+        setClipboard({ type: 'element', data: JSON.parse(JSON.stringify(elementsToCopy[0])) })
+        toast.success(t('editor-element-copied') || 'Element copied')
+        return true
+      }
+
+      setClipboard({ type: 'elements', data: JSON.parse(JSON.stringify(elementsToCopy)) })
+      toast.success(t('editor-elements-copied') || `${elementsToCopy.length} elements copied`)
+      return true
+    },
+    [t]
+  )
+
+  const copySlideToClipboard = useCallback(() => {
+    setClipboard({ type: 'slide', data: JSON.parse(JSON.stringify(currentSlide)) })
+    toast.success(t('editor-slide-copied') || 'Slide copied')
+  }, [currentSlide, t])
+
+  const createTextElementFromClipboardPayload = useCallback(
+    (payload: ClipboardTextPayload) => {
+      const canvasW = currentSlide?.canvasSize?.width ?? 1280
+      const canvasH = currentSlide?.canvasSize?.height ?? 720
+      const maxTextWidth = Math.max(220, canvasW - 40)
+
+      const nextElement = createTextElement({
+        content: payload.text,
+        position: {
+          x: Math.max(0, Math.min(100, canvasW - maxTextWidth)),
+          y: Math.max(0, Math.min(100, canvasH - 60))
+        },
+        size: {
+          width: Math.min(maxTextWidth, Math.max(220, payload.text.length * 12)),
+          height: 60
+        }
+      })
+
+      if (!payload.fragment) {
+        return replaceRichTextContent(nextElement, payload.text)
+      }
+
+      return {
+        ...nextElement,
+        content: payload.fragment.text,
+        paragraphs: payload.fragment.paragraphs
+      }
+    },
+    [currentSlide]
+  )
+
   // Copy element(s) or slide to clipboard
   const copyElement = useCallback(() => {
-    if (selectedElements.length > 0) {
-      if (selectedElements.length === 1) {
-        // Copy single element
-        setClipboard({ type: 'element', data: JSON.parse(JSON.stringify(selectedElements[0])) })
-        toast.success(t('editor-element-copied') || 'Element copied')
-      } else {
-        // Copy multiple elements
-        setClipboard({ type: 'elements', data: JSON.parse(JSON.stringify(selectedElements)) })
-        toast.success(t('editor-elements-copied') || `${selectedElements.length} elements copied`)
-      }
-    } else {
-      // Copy current slide
-      setClipboard({ type: 'slide', data: JSON.parse(JSON.stringify(currentSlide)) })
-      toast.success(t('editor-slide-copied') || 'Slide copied')
+    if (copyElementsToClipboard(selectedElements)) {
+      return
     }
-  }, [selectedElements, currentSlide, t])
+
+    copySlideToClipboard()
+  }, [copyElementsToClipboard, copySlideToClipboard, selectedElements])
+
+  const cutSelection = useCallback(() => {
+    if (!canEdit || unlockedSelectedElements.length === 0) return
+
+    if (unlockedSelectedElements.length === 1) {
+      setClipboard({ type: 'element', data: JSON.parse(JSON.stringify(unlockedSelectedElements[0])) })
+    } else {
+      setClipboard({ type: 'elements', data: JSON.parse(JSON.stringify(unlockedSelectedElements)) })
+    }
+
+    const deletableIds = new Set(unlockedSelectedElements.map(element => element.id))
+    updateSlide({ elements: currentSlide.elements.filter(element => !deletableIds.has(element.id)) })
+    setSelectedElementIds(new Set([...selectedElementIds].filter(id => !deletableIds.has(id))))
+  }, [canEdit, currentSlide.elements, selectedElementIds, unlockedSelectedElements, updateSlide])
 
   // Paste element(s) or slide from clipboard
   const pasteElement = useCallback(() => {
@@ -1915,8 +2768,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       setCurrentSlideId(newSlide.id)
       setSelectedElementIds(new Set())
       toast.success(t('editor-slide-pasted') || 'Slide pasted')
+    } else if (clipboard.type === 'text') {
+      addElement(createTextElementFromClipboardPayload(clipboard.data), { positionMode: 'preserve' })
+      toast.success(t('editor-element-pasted') || 'Element pasted')
     }
-  }, [clipboard, addElement, currentSlide, updateSlide, isSynced, addCollaborativeSlideAfterId, t])
+  }, [
+    clipboard,
+    addElement,
+    createTextElementFromClipboardPayload,
+    currentSlide,
+    updateSlide,
+    isSynced,
+    addCollaborativeSlideAfterId,
+    t
+  ])
 
   // Check if can undo/redo
   const canUndo = historyIndex > 0
@@ -1925,8 +2790,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   // Slide management - use collaborative methods
   const addSlideWithLayout = useCallback(
     (layoutId: string) => {
-      const effectiveMasters = getEffectiveMasters(masters, currentTheme, t)
-      const found = findLayoutById(effectiveMasters, layoutId)
+      const found = resolveLayoutForNewSlide(masters, currentTheme, layoutId, t)
 
       let newSlide: SlideData
       if (found) {
@@ -1944,7 +2808,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           elements: [
             createTextElement({
               id: `title-${Date.now()}`,
-              content: t('editor-new-slide'),
+              content: '',
+              placeholderText: t('editor-placeholder-title'),
               position: { x: 80, y: 280 },
               size: { width: 1120, height: 100 },
               fontSize: 64,
@@ -1970,8 +2835,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const handleChangeLayout = useCallback(
     (layoutId: string) => {
-      const effectiveMasters = getEffectiveMasters(masters, currentTheme, t)
-      const found = findLayoutById(effectiveMasters, layoutId)
+      const found = resolveLayoutForNewSlide(masters, currentTheme, layoutId, t)
       if (!found) return
 
       const slide = slides[currentSlideIndex]
@@ -2319,6 +3183,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   const handleActiveTextSelectionChange = useCallback(
     (range: RichTextSelectionRange | null) => {
       setActiveTextSelection(range)
+      setRestoredCommentSelection(currentRestore => {
+        if (!currentRestore || currentRestore.elementId !== editingTextIdRef.current || !range) {
+          return currentRestore
+        }
+
+        const nextRange = sortRichTextSelectionRange(range)
+        const restoredRange = sortRichTextSelectionRange(currentRestore.range)
+        const matchesRestoredRange = nextRange.start === restoredRange.start && nextRange.end === restoredRange.end
+
+        return matchesRestoredRange ? null : currentRestore
+      })
 
       const pendingFormatting = pendingCaretFormattingRef.current
       if (!pendingFormatting || pendingFormatting.id !== editingTextIdRef.current) {
@@ -2339,7 +3214,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   )
 
   const handleEditText = useCallback(
-    (id: string) => {
+    (id: string, selectionToRestore?: RichTextSelectionRange | null) => {
       if (!canEdit) return
       const element = currentSlide.elements.find(currentElement => currentElement.id === id)
       if (!element || element.locked) return
@@ -2356,6 +3231,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       editingTextIdRef.current = id
       lastObservedEditingTargetSnapshotRef.current = null
       setActiveTextSelection(null)
+      setRestoredCommentSelection(
+        selectionToRestore
+          ? {
+              elementId: id,
+              range: sortRichTextSelectionRange(selectionToRestore)
+            }
+          : null
+      )
       setEditingTextId(id)
     },
     [canEdit, currentSlide.elements, storeActiveRichTextDraft, storePendingCaretFormatting]
@@ -2372,12 +3255,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   const finishTextEditing = useCallback(() => {
     editingTextIdRef.current = null
+    inlineContextMenuSelectionRef.current = null
     lastObservedEditingTargetSnapshotRef.current = null
     storeActiveRichTextDraft(null)
     storePendingCaretFormatting(null)
     preservePendingCaretFormattingRef.current = false
     setEditingTextId(null)
     setActiveTextSelection(null)
+    setRestoredCommentSelection(null)
   }, [storeActiveRichTextDraft, storePendingCaretFormatting])
 
   const handleSelectElements = useCallback(
@@ -2402,13 +3287,237 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     [awareness, collaborationEnabled, currentSlideIndex, showPropertyPanel]
   )
 
+  const { contextMenuState, handleContextMenuCapture } = useSlideContextMenu({
+    elements: currentSlide.elements,
+    selectedIds: selectedElementIds,
+    canEdit,
+    hasClipboardContent: clipboard !== null,
+    onSelectElements: handleSelectElements
+  })
+
+  contextMenuActionSelectionRef.current = {
+    selectedElements: contextMenuState.selectedElements,
+    selectionIds: contextMenuState.selectionIds,
+    singleElement: contextMenuState.singleElement
+  }
+
+  const handleSlideContextMenuCapture = useCallback(
+    (event: React.MouseEvent<HTMLElement>) => {
+      // Prefer the live editor selection (updated synchronously on mousedown
+      // and contextmenu inside the inline rich-text editor) over the React
+      // state, which can still be the previous value when the user
+      // right-clicks immediately after dragging a selection.
+      const activeEditingId = editingTextIdRef.current
+      const liveRange = liveInlineSelectionRef.current
+      const fallbackRange = activeTextSelection
+      const capturedRange = liveRange ?? fallbackRange
+
+      if (activeEditingId && capturedRange) {
+        inlineContextMenuSelectionRef.current = {
+          elementId: activeEditingId,
+          range: sortRichTextSelectionRange(capturedRange)
+        }
+      } else {
+        inlineContextMenuSelectionRef.current = null
+      }
+
+      // Remember where the user right-clicked so we can anchor the inline
+      // comment popover (PowerPoint/Docs-style) at the same spot when they
+      // pick "New comment" from the menu.
+      lastContextMenuPositionRef.current = { top: event.clientY, left: event.clientX }
+
+      handleContextMenuCapture(event)
+    },
+    [activeTextSelection, handleContextMenuCapture]
+  )
+
+  const copyContextMenuSelection = useCallback(() => {
+    if (copyElementsToClipboard(contextMenuState.selectedElements)) {
+      return
+    }
+
+    copySlideToClipboard()
+  }, [contextMenuState.selectedElements, copyElementsToClipboard, copySlideToClipboard])
+
+  const cutContextMenuSelection = useCallback(() => {
+    if (!canEdit) return
+
+    const unlockedContextMenuElements = contextMenuState.selectedElements.filter(element => !element.locked)
+    if (unlockedContextMenuElements.length === 0) return
+
+    copyElementsToClipboard(unlockedContextMenuElements)
+    const deletableIds = new Set(unlockedContextMenuElements.map(element => element.id))
+    updateSlide({ elements: currentSlide.elements.filter(element => !deletableIds.has(element.id)) })
+    setSelectedElementIds(new Set(contextMenuState.selectionIds.filter(id => !deletableIds.has(id))))
+  }, [
+    canEdit,
+    contextMenuState.selectedElements,
+    contextMenuState.selectionIds,
+    copyElementsToClipboard,
+    currentSlide.elements,
+    updateSlide
+  ])
+
+  const applySlideCommentAnchor = useCallback(
+    (anchor: SlideCommentAnchor) => {
+      const resolvedAnchor = resolveSlideCommentAnchor(anchor, currentSlide)
+      if (!resolvedAnchor) {
+        return
+      }
+
+      const slideIndex = slides.findIndex(slideItem => slideItem.id === resolvedAnchor.slideId)
+      if (slideIndex >= 0) {
+        setSelectedSlideIndices(new Set([slideIndex]))
+        setSlideSelectionAnchor(slideIndex)
+      }
+
+      if (resolvedAnchor.kind === 'slide') {
+        if (editingTextIdRef.current) {
+          finishTextEditing()
+        }
+        handleSelectElements(new Set())
+        return
+      }
+
+      if (resolvedAnchor.kind === 'element') {
+        if (editingTextIdRef.current) {
+          finishTextEditing()
+        }
+
+        handleSelectElements(new Set(resolvedAnchor.elementIds))
+        return
+      }
+
+      handleSelectElements(new Set([resolvedAnchor.elementId]))
+      if (canEdit) {
+        handleEditText(resolvedAnchor.elementId, {
+          start: resolvedAnchor.start,
+          end: resolvedAnchor.end
+        })
+        return
+      }
+
+      if (editingTextIdRef.current) {
+        finishTextEditing()
+      }
+    },
+    [canEdit, currentSlide.id, finishTextEditing, handleEditText, handleSelectElements, slides]
+  )
+
+  const handleScrollToCommentAnchor = useCallback(
+    (commentId: string) => {
+      const targetComment = comments.comments.find(comment => comment.id === commentId)
+      const anchor = targetComment?.slideAnchorData
+      if (!anchor) {
+        return
+      }
+
+      setActiveCommentId(commentId)
+
+      const slideIndex = slides.findIndex(slideItem => slideItem.id === anchor.slideId)
+      if (slideIndex < 0) {
+        return
+      }
+
+      setSelectedSlideIndices(new Set([slideIndex]))
+      setSlideSelectionAnchor(slideIndex)
+
+      if (anchor.slideId !== currentSlide.id) {
+        if (editingTextIdRef.current) {
+          finishTextEditing()
+        }
+
+        pendingCommentNavigationRef.current = anchor
+        setCurrentSlideId(anchor.slideId)
+        return
+      }
+
+      pendingCommentNavigationRef.current = null
+      applySlideCommentAnchor(anchor)
+    },
+    [applySlideCommentAnchor, comments.comments, currentSlide.id, finishTextEditing, slides]
+  )
+
+  const handleUnhighlightCommentAnchor = useCallback(
+    (commentId: string) => {
+      const targetComment = comments.comments.find(comment => comment.id === commentId)
+      if (!targetComment?.slideAnchorData) {
+        setActiveCommentId(currentCommentId => (currentCommentId === commentId ? null : currentCommentId))
+        return
+      }
+
+      if (editingTextIdRef.current) {
+        finishTextEditing()
+      }
+
+      handleSelectElements(new Set())
+      setRestoredCommentSelection(null)
+      setActiveCommentId(currentCommentId => (currentCommentId === commentId ? null : currentCommentId))
+    },
+    [comments.comments, finishTextEditing, handleSelectElements]
+  )
+
+  const handleSelectCanvasComment = useCallback(
+    (commentId: string) => {
+      setShowCommentsPanel(true)
+      handleScrollToCommentAnchor(commentId)
+    },
+    [handleScrollToCommentAnchor]
+  )
+
+  const slideIdToIndex = useMemo(() => {
+    const map = new Map<string, number>()
+    slides.forEach((slide, index) => map.set(slide.id, index))
+    return map
+  }, [slides])
+
+  const getCommentAnchorLabel = useCallback(
+    (comment: Comment): string | undefined => {
+      const slideId = comment.slideAnchorData?.slideId
+      if (!slideId) {
+        return undefined
+      }
+      const index = slideIdToIndex.get(slideId)
+      if (index === undefined) {
+        return undefined
+      }
+      return t('comment-anchor-slide-number', { number: index + 1 })
+    },
+    [slideIdToIndex, t]
+  )
+
+  useEffect(() => {
+    const pendingAnchor = pendingCommentNavigationRef.current
+    if (!pendingAnchor || pendingAnchor.slideId !== currentSlide.id) {
+      return
+    }
+
+    pendingCommentNavigationRef.current = null
+    applySlideCommentAnchor(pendingAnchor)
+  }, [applySlideCommentAnchor, currentSlide.id])
+
   const handleWorkspaceMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
+      // Ignore non-primary buttons so right-click (used for the context menu)
+      // never finishes inline text editing or clears the selection.
+      if (event.button !== 0) return
+
       const target = event.target as HTMLElement
       const canvasElement = canvasContainerRef.current
 
       if (canvasElement?.contains(target)) return
       if (target.closest(`[data-testid="${testId}-floating-text-actions"]`)) return
+
+      // Radix renders its context menu, popovers, dropdowns and dialogs into
+      // portals at document.body. Their React events still bubble here, but
+      // the DOM target is outside the canvas — without this guard, clicking
+      // a context-menu item (e.g. "New comment") while inline-editing would
+      // be treated as "clicked outside the text box" and exit the editor
+      // before the menu action runs.
+      const isPortalTarget = !!target.closest(
+        '[data-radix-popper-content-wrapper], [role="menu"], [role="menuitem"], [role="dialog"], [data-slide-comment-popover]'
+      )
+      if (isPortalTarget) return
 
       if (editingTextId) {
         if (voiceInput.isListening) {
@@ -2424,7 +3533,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Rename presentation
   const handleRename = useCallback(async () => {
-    if (isReadOnly) return
+    if (isEditorReadOnly) return
     if (!newTitle.trim()) {
       toast.error(t('editor-title-empty'))
       return
@@ -2441,41 +3550,553 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       console.error('[SlideEditor] Rename error:', err)
       toast.error(t('editor-rename-failed'))
     }
-  }, [isReadOnly, slideId, newTitle, slide, onSlideUpdated, t])
+  }, [isEditorReadOnly, slideId, newTitle, slide, onSlideUpdated, t])
 
   const openRenameDialog = useCallback(() => {
-    if (isReadOnly) return
+    if (isEditorReadOnly) return
     setNewTitle(presentationTitle)
     setShowRenameDialog(true)
-  }, [isReadOnly, presentationTitle])
+  }, [isEditorReadOnly, presentationTitle])
 
-  const getExistingLinkUrl = useCallback((): string | undefined => {
-    if (!selectedElement || selectedElement.type !== 'text') return undefined
-    const textElement: TextElement = selectedElement
-    const links = textElement.links || []
-    if (links.length > 0) {
-      return links[0].url
+  const activeLinkSelection = useMemo(() => {
+    if (!activeLinkTarget) {
+      return null
     }
-    return undefined
-  }, [selectedElement])
+
+    if (activeLinkTarget.mode === 'object') {
+      return activeLinkTarget.value.content.length > 0 ? { start: 0, end: activeLinkTarget.value.content.length } : null
+    }
+
+    return resolveRichTextSelectionForLinkAction(activeLinkTarget.value, activeTextSelection)
+  }, [activeLinkTarget, activeTextSelection])
+
+  const activeLinkUrl = useMemo(
+    () => (activeLinkTarget ? getRichTextHyperlinkAtSelection(activeLinkTarget.value, activeTextSelection) : undefined),
+    [activeLinkTarget, activeTextSelection]
+  )
+
+  const activeLinkSelectedText = useMemo(
+    () => (activeLinkTarget ? getRichTextTextInRange(activeLinkTarget.value, activeLinkSelection) : ''),
+    [activeLinkSelection, activeLinkTarget]
+  )
+  const hasExpandedInlineTextSelection =
+    !!editingTextId && !!activeTextSelection && activeTextSelection.start !== activeTextSelection.end
+
+  const handleShowLinkDialog = useCallback(() => {
+    if (!activeLinkTarget || !activeLinkSelection) {
+      toast.error(t('link-select-text-first') || 'Select text before adding a link')
+      return
+    }
+
+    setShowLinkDialog(true)
+  }, [activeLinkSelection, activeLinkTarget, t])
+
+  const getEffectiveInlineSelection = useCallback(
+    (selectionOverride?: RichTextSelectionRange | null) => {
+      if (selectionOverride) {
+        return sortRichTextSelectionRange(selectionOverride)
+      }
+
+      if (activeTextSelection) {
+        return sortRichTextSelectionRange(activeTextSelection)
+      }
+
+      if (inlineContextMenuSelectionRef.current?.elementId === editingTextId) {
+        return inlineContextMenuSelectionRef.current.range
+      }
+
+      return null
+    },
+    [activeTextSelection, editingTextId]
+  )
+
+  const buildInlineClipboardTextPayload = useCallback(
+    (selectionOverride?: RichTextSelectionRange | null): ClipboardTextPayload | null => {
+      if (!activeEditingRichTextSource) {
+        return null
+      }
+
+      const selection = getEffectiveInlineSelection(selectionOverride)
+      if (!selection || selection.start === selection.end) {
+        return null
+      }
+
+      const fragment = createRichTextClipboardFragment(activeEditingRichTextSource, selection)
+      if (!fragment) {
+        return null
+      }
+
+      return {
+        text: fragment.text,
+        html: serializeRichTextClipboardFragmentToHtml(fragment),
+        fragment
+      }
+    },
+    [activeEditingRichTextSource, getEffectiveInlineSelection]
+  )
+
+  const writeClipboardTextPayload = useCallback(
+    async (payload: ClipboardTextPayload, clipboardData?: DataTransfer | null) => {
+      if (clipboardData) {
+        clipboardData.setData('text/plain', payload.text)
+        if (payload.html) {
+          clipboardData.setData('text/html', payload.html)
+        }
+        return
+      }
+
+      if (payload.html && navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/plain': new Blob([payload.text], { type: 'text/plain' }),
+              'text/html': new Blob([payload.html], { type: 'text/html' })
+            })
+          ])
+          return
+        } catch {
+          // Fall back to plain text below when the richer clipboard API is unavailable.
+        }
+      }
+
+      await navigator.clipboard.writeText(payload.text)
+    },
+    []
+  )
+
+  const resolveClipboardTextPayload = useCallback(
+    (source: TextElement | ShapeInText, text: string, html?: string): ClipboardTextPayload | null => {
+      const normalizedHtml = html?.trim() ? html : undefined
+      if (normalizedHtml) {
+        const fragment = parseHtmlToRichTextClipboardFragment(normalizedHtml, source)
+        if (fragment && fragment.text.length > 0) {
+          return {
+            text: fragment.text,
+            html: normalizedHtml,
+            fragment
+          }
+        }
+      }
+
+      if (!text) {
+        return null
+      }
+
+      const fragment = createPlainTextRichTextClipboardFragment(source, text)
+      return {
+        text: fragment.text,
+        fragment
+      }
+    },
+    []
+  )
+
+  const readSystemClipboardTextPayload = useCallback(
+    async (source: TextElement | ShapeInText): Promise<ClipboardTextPayload | null> => {
+      if (navigator.clipboard?.read) {
+        try {
+          const items = await navigator.clipboard.read()
+          for (const item of items) {
+            const htmlType = item.types.find(type => type === 'text/html')
+            const textType = item.types.find(type => type === 'text/plain')
+            if (!htmlType && !textType) {
+              continue
+            }
+
+            const html = htmlType ? await (await item.getType(htmlType)).text() : ''
+            const text = textType ? await (await item.getType(textType)).text() : ''
+            const payload = resolveClipboardTextPayload(source, text, html)
+            if (payload) {
+              return payload
+            }
+          }
+        } catch {
+          // Clipboard permissions vary by browser. Fall back to plain text below.
+        }
+      }
+
+      try {
+        const text = await navigator.clipboard.readText()
+        return resolveClipboardTextPayload(source, text)
+      } catch {
+        return null
+      }
+    },
+    [resolveClipboardTextPayload]
+  )
+
+  const applyEditingRichTextFragment = useCallback(
+    (selection: RichTextSelectionRange | null | undefined, fragment: RichTextClipboardFragment) => {
+      if (!editingTextId || !activeEditingTarget || !activeEditingRichTextSource) {
+        return false
+      }
+
+      const effectiveSelection = selection
+        ? sortRichTextSelectionRange(selection)
+        : {
+            start: currentEditingContentRef.current.length,
+            end: currentEditingContentRef.current.length
+          }
+      const nextSelection = {
+        start: effectiveSelection.start + fragment.text.length,
+        end: effectiveSelection.start + fragment.text.length
+      }
+
+      storePendingCaretFormatting(null)
+      preservePendingCaretFormattingRef.current = false
+
+      if (activeEditingTarget.type === 'text') {
+        const nextTextDraft = insertRichTextClipboardFragment(
+          activeEditingRichTextSource as TextElement,
+          effectiveSelection,
+          fragment
+        )
+        currentEditingContentRef.current = nextTextDraft.content
+        storeActiveRichTextDraft({ id: editingTextId, kind: 'text', element: nextTextDraft })
+        updateElement(editingTextId, nextTextDraft as Partial<AnySlideElement>)
+      } else {
+        const nextShapeText = insertRichTextClipboardFragment(
+          activeEditingRichTextSource as ShapeInText,
+          effectiveSelection,
+          fragment
+        )
+        currentEditingContentRef.current = nextShapeText.content
+        storeActiveRichTextDraft({ id: editingTextId, kind: 'shape', element: nextShapeText })
+        updateElement(editingTextId, { shapeText: nextShapeText } as Partial<ShapeElement>)
+      }
+
+      setRestoredCommentSelection({ elementId: editingTextId, range: nextSelection })
+      setActiveTextSelection(nextSelection)
+      bumpRichTextEditorRehydrateToken()
+      return true
+    },
+    [
+      activeEditingRichTextSource,
+      activeEditingTarget,
+      bumpRichTextEditorRehydrateToken,
+      editingTextId,
+      storeActiveRichTextDraft,
+      storePendingCaretFormatting,
+      updateElement
+    ]
+  )
+
+  const copyInlineTextSelection = useCallback(
+    async (selectionOverride?: RichTextSelectionRange | null, clipboardData?: DataTransfer | null) => {
+      const payload = buildInlineClipboardTextPayload(selectionOverride)
+      if (!payload) {
+        return
+      }
+
+      setClipboard({ type: 'text', data: payload })
+
+      try {
+        await writeClipboardTextPayload(payload, clipboardData)
+      } catch {
+        // The in-app clipboard remains the source of truth for slide-level paste behavior.
+      }
+    },
+    [buildInlineClipboardTextPayload, writeClipboardTextPayload]
+  )
+
+  const cutInlineTextSelection = useCallback(
+    async (selectionOverride?: RichTextSelectionRange | null, clipboardData?: DataTransfer | null) => {
+      if (!editingTextId || !activeEditingTextElement) {
+        return
+      }
+
+      const selection = getEffectiveInlineSelection(selectionOverride)
+      if (!selection || selection.start === selection.end) {
+        return
+      }
+
+      const payload = buildInlineClipboardTextPayload(selection)
+      if (!payload) {
+        return
+      }
+
+      const nextContent =
+        currentEditingContentRef.current.slice(0, selection.start) +
+        currentEditingContentRef.current.slice(selection.end)
+      const nextSelection = { start: selection.start, end: selection.start }
+
+      setClipboard({ type: 'text', data: payload })
+      setRestoredCommentSelection({ elementId: editingTextId, range: nextSelection })
+      setActiveTextSelection(nextSelection)
+      applyEditingTextValue(editingTextId, nextContent, true)
+
+      try {
+        await writeClipboardTextPayload(payload, clipboardData)
+      } catch {
+        // The in-app clipboard remains available even when browser clipboard writes fail.
+      }
+    },
+    [
+      activeEditingTextElement,
+      applyEditingTextValue,
+      buildInlineClipboardTextPayload,
+      editingTextId,
+      getEffectiveInlineSelection,
+      writeClipboardTextPayload
+    ]
+  )
+
+  const pasteInlineTextSelection = useCallback(
+    async (selectionOverride?: RichTextSelectionRange | null, clipboardData?: DataTransfer | null) => {
+      if (!editingTextId || !activeEditingRichTextSource) {
+        return
+      }
+
+      let payload: ClipboardTextPayload | null = null
+      if (clipboardData) {
+        payload = resolveClipboardTextPayload(
+          activeEditingRichTextSource,
+          clipboardData.getData('text/plain'),
+          clipboardData.getData('text/html')
+        )
+      }
+
+      if (!payload && clipboard?.type === 'text') {
+        payload = clipboard.data
+      }
+
+      payload ??= await readSystemClipboardTextPayload(activeEditingRichTextSource)
+
+      if (!payload) {
+        return
+      }
+
+      const selection = getEffectiveInlineSelection(selectionOverride) ?? {
+        start: currentEditingContentRef.current.length,
+        end: currentEditingContentRef.current.length
+      }
+      const fragment =
+        payload.fragment ?? createPlainTextRichTextClipboardFragment(activeEditingRichTextSource, payload.text)
+
+      setClipboard({ type: 'text', data: { ...payload, fragment } })
+      applyEditingRichTextFragment(selection, fragment)
+    },
+    [
+      activeEditingRichTextSource,
+      applyEditingRichTextFragment,
+      clipboard,
+      editingTextId,
+      getEffectiveInlineSelection,
+      readSystemClipboardTextPayload,
+      resolveClipboardTextPayload
+    ]
+  )
+
+  const pasteImageFromSystemClipboard = useCallback(async () => {
+    if (!navigator.clipboard?.read) {
+      return false
+    }
+
+    try {
+      const items = await navigator.clipboard.read()
+      for (const item of items) {
+        const imageType = item.types.find(type => type.startsWith('image/'))
+        if (!imageType) {
+          continue
+        }
+
+        const blob = await item.getType(imageType)
+        const extension = imageType.split('/')[1] || 'png'
+        const pastedFile = new File([blob], `pasted-image-${Date.now()}.${extension}`, { type: imageType })
+        await addUploadedImageElement(pastedFile, { size: { width: 400, height: 300 } })
+        toast.success(t('editor-image-pasted'))
+        return true
+      }
+    } catch {
+      return false
+    }
+
+    return false
+  }, [addUploadedImageElement, t])
+
+  const pasteCanvasClipboard = useCallback(async () => {
+    if (await pasteImageFromSystemClipboard()) {
+      return
+    }
+
+    if (clipboard?.type === 'element' || clipboard?.type === 'elements' || clipboard?.type === 'slide') {
+      pasteElement()
+      return
+    }
+
+    if (clipboard?.type === 'text') {
+      pasteElement()
+      return
+    }
+
+    const payload = await readSystemClipboardTextPayload(createTextElement({ content: '' }))
+    if (!payload) {
+      pasteElement()
+      return
+    }
+
+    setClipboard({ type: 'text', data: payload })
+    addElement(createTextElementFromClipboardPayload(payload), { positionMode: 'preserve' })
+    toast.success(t('editor-element-pasted') || 'Element pasted')
+  }, [
+    addElement,
+    clipboard,
+    createTextElementFromClipboardPayload,
+    pasteElement,
+    pasteImageFromSystemClipboard,
+    readSystemClipboardTextPayload,
+    t
+  ])
+
+  const ignorePromiseRejection = useCallback((promise: Promise<unknown>) => {
+    promise.catch(() => undefined)
+  }, [])
+
+  const copyCurrentSelection = useCallback(() => {
+    if (editingTextId) {
+      ignorePromiseRejection(copyInlineTextSelection())
+      return
+    }
+
+    copyElement()
+  }, [copyElement, copyInlineTextSelection, editingTextId, ignorePromiseRejection])
+
+  const cutCurrentSelection = useCallback(() => {
+    if (editingTextId) {
+      ignorePromiseRejection(cutInlineTextSelection())
+      return
+    }
+
+    cutSelection()
+  }, [cutInlineTextSelection, cutSelection, editingTextId, ignorePromiseRejection])
+
+  const pasteCurrentClipboard = useCallback(() => {
+    if (editingTextId) {
+      ignorePromiseRejection(pasteInlineTextSelection())
+      return
+    }
+
+    ignorePromiseRejection(pasteCanvasClipboard())
+  }, [editingTextId, ignorePromiseRejection, pasteCanvasClipboard, pasteInlineTextSelection])
+
+  const slideContextMenuActions = useMemo(
+    () => ({
+      onCopy: copyContextMenuSelection,
+      onCut: cutContextMenuSelection,
+      onPaste: pasteCurrentClipboard,
+      onCopyTextSelection: () => {
+        ignorePromiseRejection(copyInlineTextSelection())
+      },
+      onCutTextSelection: () => {
+        ignorePromiseRejection(cutInlineTextSelection())
+      },
+      onPasteTextSelection: () => {
+        ignorePromiseRejection(pasteInlineTextSelection())
+      },
+      onDuplicate: duplicateContextMenuSelection,
+      onDelete: deleteContextMenuSelection,
+      onEditText: () => {
+        if (contextMenuState.singleElement) {
+          handleEditText(contextMenuState.singleElement.id)
+        }
+      },
+      onEditPoints: () => {
+        if (contextMenuState.singleElement) {
+          setEditingPointsId(contextMenuState.singleElement.id)
+        }
+      },
+      onBringToFront: bringToFrontContextMenuSelection,
+      onBringForward: bringForwardContextMenuSelection,
+      onSendToBack: sendToBackContextMenuSelection,
+      onSendBackward: sendBackwardContextMenuSelection,
+      onAlign: alignContextMenuSelection,
+      onDistribute: distributeContextMenuSelection,
+      onFlip: flipContextMenuSelection,
+      onGroup: groupContextMenuSelection,
+      onUngroup: ungroupContextMenuSelection,
+      onLockSelection: lockContextMenuSelection,
+      onUnlockSelection: unlockContextMenuSelection,
+      onShowFormatOptions: openFormatOptions,
+      onOpenCommentPanel: openCommentPopover,
+      onShowLinkDialog: handleShowLinkDialog,
+      onShowSpellCheck: () => setShowSpellCheckPanel(true)
+    }),
+    [
+      alignContextMenuSelection,
+      bringToFrontContextMenuSelection,
+      bringForwardContextMenuSelection,
+      copyInlineTextSelection,
+      copyContextMenuSelection,
+      cutContextMenuSelection,
+      cutInlineTextSelection,
+      deleteContextMenuSelection,
+      distributeContextMenuSelection,
+      duplicateContextMenuSelection,
+      flipContextMenuSelection,
+      groupContextMenuSelection,
+      handleEditText,
+      handleShowLinkDialog,
+      ignorePromiseRejection,
+      lockContextMenuSelection,
+      openCommentPopover,
+      openFormatOptions,
+      pasteCurrentClipboard,
+      pasteInlineTextSelection,
+      contextMenuState.singleElement,
+      sendToBackContextMenuSelection,
+      sendBackwardContextMenuSelection,
+      setEditingPointsId,
+      ungroupContextMenuSelection,
+      unlockContextMenuSelection
+    ]
+  )
 
   const handleSaveLink = useCallback(
     (url: string) => {
-      if (!selectedElement || selectedElement.type !== 'text') return
+      if (!activeLinkTarget || !activeLinkSelection) {
+        return
+      }
 
-      const textElement: TextElement = selectedElement
-      const content = textElement.content
+      if (activeLinkTarget.kind === 'text') {
+        const nextTextDraft = applyRichTextHyperlink(activeLinkTarget.value, activeLinkSelection, url)
+        if (activeLinkTarget.mode === 'inline') {
+          storeActiveRichTextDraft({ id: activeLinkTarget.id, kind: 'text', element: nextTextDraft })
+        }
+        updateElement(activeLinkTarget.id, nextTextDraft as Partial<AnySlideElement>)
+      } else {
+        const nextShapeText = applyRichTextHyperlink(activeLinkTarget.value, activeLinkSelection, url)
+        storeActiveRichTextDraft({ id: activeLinkTarget.id, kind: 'shape', element: nextShapeText })
+        updateElement(activeLinkTarget.id, { shapeText: nextShapeText } as Partial<ShapeElement>)
+      }
 
-      const newLink = createLink(0, content.length, url)
-      updateElement(selectedElement.id, { links: [newLink] })
+      if (activeLinkTarget.mode === 'inline') {
+        bumpRichTextEditorRehydrateToken()
+      }
     },
-    [selectedElement, updateElement]
+    [activeLinkSelection, activeLinkTarget, bumpRichTextEditorRehydrateToken, storeActiveRichTextDraft, updateElement]
   )
 
   const handleRemoveLink = useCallback(() => {
-    if (!selectedElement || selectedElement.type !== 'text') return
-    updateElement(selectedElement.id, { links: [] })
-  }, [selectedElement, updateElement])
+    if (!activeLinkTarget || !activeLinkSelection) {
+      return
+    }
+
+    if (activeLinkTarget.kind === 'text') {
+      const nextTextDraft = clearRichTextHyperlink(activeLinkTarget.value, activeLinkSelection)
+      if (activeLinkTarget.mode === 'inline') {
+        storeActiveRichTextDraft({ id: activeLinkTarget.id, kind: 'text', element: nextTextDraft })
+      }
+      updateElement(activeLinkTarget.id, nextTextDraft as Partial<AnySlideElement>)
+    } else {
+      const nextShapeText = clearRichTextHyperlink(activeLinkTarget.value, activeLinkSelection)
+      storeActiveRichTextDraft({ id: activeLinkTarget.id, kind: 'shape', element: nextShapeText })
+      updateElement(activeLinkTarget.id, { shapeText: nextShapeText } as Partial<ShapeElement>)
+    }
+
+    if (activeLinkTarget.mode === 'inline') {
+      bumpRichTextEditorRehydrateToken()
+    }
+  }, [activeLinkSelection, activeLinkTarget, bumpRichTextEditorRehydrateToken, storeActiveRichTextDraft, updateElement])
 
   // Export to PowerPoint
   const handleExportToPptx = useCallback(async () => {
@@ -2640,39 +4261,31 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         }
       }
 
-      // Copy: Ctrl+C
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInputFocused) {
+      // New comment: Ctrl/Cmd+Shift+M. Keep this aligned with the menu hint.
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'm' || e.key === 'M') && canCreateComments) {
         e.preventDefault()
-        copyElement()
+        openCommentsPanel()
         return
       }
 
-      // Paste: Ctrl+V (check for clipboard images first, then fall back to element paste)
+      // Copy: Ctrl+C
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isInputFocused) {
+        e.preventDefault()
+        copyCurrentSelection()
+        return
+      }
+
+      // Cut: Ctrl+X
+      if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !isInputFocused) {
+        e.preventDefault()
+        cutCurrentSelection()
+        return
+      }
+
+      // Paste: Ctrl+V (image > object clipboard > text/html).
       if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isInputFocused) {
         e.preventDefault()
-
-        // Try to paste image from clipboard
-        navigator.clipboard
-          .read()
-          .then(async items => {
-            for (const item of items) {
-              const imageType = item.types.find(type => type.startsWith('image/'))
-              if (imageType) {
-                const blob = await item.getType(imageType)
-                const extension = imageType.split('/')[1] || 'png'
-                const pastedFile = new File([blob], `pasted-image-${Date.now()}.${extension}`, { type: imageType })
-                await addUploadedImageElement(pastedFile, { size: { width: 400, height: 300 } })
-                toast.success(t('editor-image-pasted'))
-                return
-              }
-            }
-            // No image found in clipboard, fall back to element paste
-            pasteElement()
-          })
-          .catch(() => {
-            // Clipboard API not available or denied, fall back to element paste
-            pasteElement()
-          })
+        pasteCurrentClipboard()
         return
       }
 
@@ -2758,12 +4371,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     deleteSlide,
     undo,
     redo,
-    copyElement,
-    pasteElement,
-    addUploadedImageElement,
+    copyCurrentSelection,
+    cutCurrentSelection,
+    pasteCurrentClipboard,
     showNotesPanel,
     groupSelection,
     ungroupSelection,
+    canCreateComments,
+    openCommentsPanel,
     t
   ])
 
@@ -2774,6 +4389,55 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       thumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
   }, [currentSlideIndex])
+
+  const handleSelectSlideThumbnail = useCallback(
+    (index: number, modifierKeys?: { additive?: boolean; range?: boolean }) => {
+      const isCtrlKey = modifierKeys?.additive ?? false
+      const isShiftKey = modifierKeys?.range ?? false
+
+      if (isShiftKey && slideSelectionAnchor !== null) {
+        const start = Math.min(slideSelectionAnchor, index)
+        const end = Math.max(slideSelectionAnchor, index)
+        const rangeIndices = new Set<number>()
+        for (let selectedIndex = start; selectedIndex <= end; selectedIndex++) {
+          rangeIndices.add(selectedIndex)
+        }
+
+        if (isCtrlKey) {
+          setSelectedSlideIndices(prev => new Set([...prev, ...rangeIndices]))
+        } else {
+          setSelectedSlideIndices(rangeIndices)
+        }
+        setCurrentSlideIndex(index)
+      } else if (isCtrlKey) {
+        setSelectedSlideIndices(prev => {
+          const newSet = new Set(prev)
+          if (newSet.has(index)) {
+            if (newSet.size > 1) {
+              newSet.delete(index)
+              if (index === currentSlideIndex) {
+                setCurrentSlideIndex(Math.min(...newSet))
+              }
+            }
+          } else {
+            newSet.add(index)
+          }
+          return newSet
+        })
+        setSlideSelectionAnchor(index)
+        if (!selectedSlideIndices.has(index)) {
+          setCurrentSlideIndex(index)
+        }
+      } else {
+        setCurrentSlideIndex(index)
+        setSelectedSlideIndices(new Set([index]))
+        setSlideSelectionAnchor(index)
+      }
+
+      setSelectedElementIds(new Set())
+    },
+    [currentSlideIndex, selectedSlideIndices, slideSelectionAnchor]
+  )
 
   // Present Mode (true fullscreen)
   if (isPresentMode) {
@@ -2908,8 +4572,63 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     )
   }
 
+  const commentsPanelOpen = showCommentsPanel && canReadComments
+
+  const renderCommentsPanel = (panelLayout: 'docked' | 'floating') =>
+    commentsPanelOpen ? (
+      <CommentPanel
+        comments={comments.comments}
+        unresolvedCount={comments.unresolvedCount}
+        isLoading={comments.isLoading}
+        onCreateComment={handleCommentCreate}
+        onUpdateComment={async (commentId, content) => {
+          await comments.updateComment(commentId, { content })
+        }}
+        onResolveComment={async commentId => {
+          await comments.resolveComment(commentId)
+          handleUnhighlightCommentAnchor(commentId)
+        }}
+        onUnresolveComment={commentId => comments.unresolveComment(commentId)}
+        onDeleteComment={async commentId => {
+          await comments.deleteComment(commentId)
+          handleUnhighlightCommentAnchor(commentId)
+        }}
+        onClose={() => {
+          panelCommentAnchorRef.current = null
+          if (activeCommentId) {
+            handleUnhighlightCommentAnchor(activeCommentId)
+          } else {
+            setActiveCommentId(null)
+          }
+          setShowCommentsPanel(false)
+        }}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+        currentUserAvatar={currentUserAvatar}
+        disableCreateComment={!canCreateComments}
+        disabledCreateMessage={t('editor-comments-disabled-view')}
+        onScrollToHighlight={handleScrollToCommentAnchor}
+        onUnhighlight={handleUnhighlightCommentAnchor}
+        activeCommentId={activeCommentId}
+        canReplyToComments={canCreateComments}
+        canResolveComments={canCreateComments}
+        canEditOwnComments={canCreateComments}
+        canDeleteOwnComments={canCreateComments}
+        getAnchorLabel={getCommentAnchorLabel}
+        layout={panelLayout}
+        data-testid={`${testId}-comments-panel`}
+      />
+    ) : null
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+      <InlineCommentPopover
+        isOpen={commentPopover.open && canCreateComments}
+        position={commentPopover.position}
+        onSubmit={submitCommentPopover}
+        onClose={closeCommentPopover}
+        data-testid={`${testId}-comment-popover`}
+      />
       {/* Header - matching PagedDocumentEditor style */}
       <div className="gba:border-b gba:bg-card gba:shadow-sm">
         <div className="gba:px-4 gba:py-3">
@@ -2927,7 +4646,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <div className="gba:flex gba:flex-col">
                   <button
                     onClick={openRenameDialog}
-                    disabled={isReadOnly}
+                    disabled={isEditorReadOnly}
                     className="gba:flex gba:items-center gba:gap-2 gba:group gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity gba:text-left"
                     title={t('editor-click-to-rename')}
                   >
@@ -2946,7 +4665,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </div>
 
             {/* Collaboration presence indicator */}
-            {!isReadOnly && participantsWithAvatars.length > 0 && (
+            {!isEditorReadOnly && participantsWithAvatars.length > 0 && (
               <>
                 <Separator orientation="vertical" className="gba:h-6" />
                 <PresenceIndicator participants={participantsWithAvatars} maxVisible={3} size="sm" showLabel={false} />
@@ -2958,7 +4677,52 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
             {/* Right-aligned header controls */}
             <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
-              {!isReadOnly ? (
+              {canReadComments ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onPointerDown={() => {
+                      if (!showCommentsPanel) {
+                        syncPanelCommentAnchor()
+                      }
+                    }}
+                    onClick={() => {
+                      if (showCommentsPanel) {
+                        panelCommentAnchorRef.current = null
+                        if (activeCommentId) {
+                          handleUnhighlightCommentAnchor(activeCommentId)
+                        } else {
+                          setActiveCommentId(null)
+                        }
+                        setShowCommentsPanel(false)
+                        return
+                      }
+
+                      if (!panelCommentAnchorRef.current) {
+                        syncPanelCommentAnchor()
+                      }
+                      setShowCommentsPanel(true)
+                    }}
+                    data-testid={`${testId}-comments-toggle`}
+                    aria-label={t('header-comments')}
+                    title={t('header-comments')}
+                    className={`gba:h-7 gba:w-7 gba:relative ${
+                      showCommentsPanel ? 'gba:text-primary' : 'gba:text-muted-foreground hover:gba:text-foreground'
+                    }`}
+                  >
+                    <MessageSquare className="gba:w-3.5 gba:h-3.5" />
+                    {comments.unresolvedCount > 0 ? (
+                      <span className="gba:absolute gba:-top-0.5 gba:-right-0.5 gba:flex gba:h-3.5 gba:w-3.5 gba:items-center gba:justify-center gba:rounded-full gba:bg-primary gba:text-[9px] gba:font-medium gba:text-primary-foreground">
+                        {comments.unresolvedCount}
+                      </span>
+                    ) : null}
+                  </Button>
+                  <Separator orientation="vertical" className="gba:h-6" />
+                </>
+              ) : null}
+
+              {!isEditorReadOnly ? (
                 <>
                   <SlideEditorHeaderActions
                     slideId={slideId}
@@ -2994,16 +4758,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setCanvasScale(Math.max(0.25, canvasScale - 0.1))}
+                  onClick={() => {
+                    setAutoFitZoom(false)
+                    setCanvasScale(Math.max(0.25, canvasScale - 0.1))
+                  }}
                   title={t('editor-zoom-out')}
                   className="gba:h-8 gba:w-8"
                 >
                   <ZoomOut className="gba:w-4 gba:h-4" />
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant={autoFitZoom ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setCanvasScale(DEFAULT_CANVAS_SCALE)}
+                  onClick={() => setAutoFitZoom(prev => !prev)}
+                  title={t('editor-fit-to-window') || 'Fit to window'}
                   className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
                 >
                   {Math.round(canvasScale * 100)}%
@@ -3011,7 +4779,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setCanvasScale(Math.min(1.5, canvasScale + 0.1))}
+                  onClick={() => {
+                    setAutoFitZoom(false)
+                    setCanvasScale(Math.min(1.5, canvasScale + 0.1))
+                  }}
                   title={t('editor-zoom-in')}
                   className="gba:h-8 gba:w-8"
                 >
@@ -3058,7 +4829,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       </div>
 
       {/* Ribbon Toolbar */}
-      {!isReadOnly ? (
+      {!isEditorReadOnly ? (
         <SlideToolbarRibbon
           context={effectiveToolbarContext}
           canUndo={canUndo}
@@ -3077,14 +4848,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           accessToken={accessToken}
           onUndo={undo}
           onRedo={redo}
-          onCopy={copyElement}
-          onPaste={pasteElement}
+          onCopy={copyCurrentSelection}
+          onPaste={pasteCurrentClipboard}
           onAddElement={addElement}
           onUpdateElement={handleToolbarUpdateElement}
           onShowBackgroundDialog={() => setShowBackgroundDialog(true)}
           onShowImageDialog={() => setShowImageDialog(true)}
           onShowVideoDialog={() => setShowVideoDialog(true)}
-          onShowLinkDialog={() => setShowLinkDialog(true)}
+          onShowLinkDialog={handleShowLinkDialog}
           onUpdateTheme={handleUpdateTheme}
           onToggleSpellCheck={() => {
             if (!showSpellCheckPanel) {
@@ -3119,8 +4890,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         />
       ) : null}
 
-      {/* Property Panel Toggle - only show when panel is hidden */}
-      {!isReadOnly && !showPropertyPanel && (
+      {/* Property Panel Toggle - only show when no right-side panel occupies the slot */}
+      {!isEditorReadOnly && !showPropertyPanel && !commentsPanelOpen && (
         <div className="gba:flex gba:items-center gba:justify-end gba:px-4 gba:py-1 gba:border-b gba:bg-card">
           <Button
             variant="ghost"
@@ -3157,6 +4928,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             <div className="gba:flex-1 gba:overflow-y-auto gba:p-2 gba:space-y-2">
               {slides.map((s, idx) => {
                 const isDraggedOver = dragOverIndex === idx && draggedSlideIndex !== idx
+                const slideUnresolvedComments = canReadComments
+                  ? comments.comments.filter(c => !c.parentId && !c.resolvedAt && c.slideAnchorData?.slideId === s.id)
+                  : []
+                const slideCommentCount = slideUnresolvedComments.length
+                const firstSlideCommentId = slideUnresolvedComments[0]?.id
 
                 return (
                   <div
@@ -3164,6 +4940,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     ref={el => {
                       thumbnailRefs.current[idx] = el
                     }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={t('spell-check-slide', { number: idx + 1 }) || `Slide ${idx + 1}`}
+                    aria-pressed={selectedSlideIndices.has(idx)}
+                    data-testid={`${testId}-thumbnail-${idx}`}
                     draggable
                     onDragStart={e => {
                       setDraggedSlideIndex(idx)
@@ -3193,54 +4974,23 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                       setDragOverIndex(null)
                     }}
                     onClick={e => {
-                      const isCtrlKey = e.ctrlKey || e.metaKey
-                      const isShiftKey = e.shiftKey
-
-                      if (isShiftKey && slideSelectionAnchor !== null) {
-                        // Shift+click: Select range
-                        const start = Math.min(slideSelectionAnchor, idx)
-                        const end = Math.max(slideSelectionAnchor, idx)
-                        const rangeIndices = new Set<number>()
-                        for (let i = start; i <= end; i++) {
-                          rangeIndices.add(i)
-                        }
-                        if (isCtrlKey) {
-                          // Ctrl+Shift: Add range to existing selection
-                          setSelectedSlideIndices(prev => new Set([...prev, ...rangeIndices]))
-                        } else {
-                          setSelectedSlideIndices(rangeIndices)
-                        }
-                        setCurrentSlideIndex(idx)
-                      } else if (isCtrlKey) {
-                        // Ctrl+click: Toggle individual selection
-                        setSelectedSlideIndices(prev => {
-                          const newSet = new Set(prev)
-                          if (newSet.has(idx)) {
-                            if (newSet.size > 1) {
-                              newSet.delete(idx)
-                              // If deleting current, move to another selected
-                              if (idx === currentSlideIndex) {
-                                setCurrentSlideIndex(Math.min(...newSet))
-                              }
-                            }
-                          } else {
-                            newSet.add(idx)
-                          }
-                          return newSet
-                        })
-                        setSlideSelectionAnchor(idx)
-                        if (!selectedSlideIndices.has(idx)) {
-                          setCurrentSlideIndex(idx)
-                        }
-                      } else {
-                        // Regular click: Select only this slide
-                        setCurrentSlideIndex(idx)
-                        setSelectedSlideIndices(new Set([idx]))
-                        setSlideSelectionAnchor(idx)
-                      }
-                      setSelectedElementIds(new Set())
+                      handleSelectSlideThumbnail(idx, {
+                        additive: e.ctrlKey || e.metaKey,
+                        range: e.shiftKey
+                      })
                     }}
-                    className={`gba:rounded-lg gba:cursor-grab gba:transition-all gba:border-2 gba:overflow-hidden gba:bg-card ${
+                    onKeyDown={e => {
+                      if (e.key !== 'Enter' && e.key !== ' ') {
+                        return
+                      }
+
+                      e.preventDefault()
+                      handleSelectSlideThumbnail(idx, {
+                        additive: e.ctrlKey || e.metaKey,
+                        range: e.shiftKey
+                      })
+                    }}
+                    className={`gba:relative gba:rounded-lg gba:cursor-grab gba:transition-all gba:border-2 gba:overflow-hidden gba:bg-card ${
                       idx === currentSlideIndex
                         ? 'gba:border-primary gba:shadow-md'
                         : selectedSlideIndices.has(idx)
@@ -3251,6 +5001,24 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     }`}
                   >
                     <SlideThumbnail slide={s} index={idx} />
+                    {slideCommentCount > 0 && firstSlideCommentId ? (
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation()
+                          handleSelectCanvasComment(firstSlideCommentId)
+                        }}
+                        title={t('comment-pin-open-thread')}
+                        aria-label={t('comment-pin-open-thread')}
+                        className="gba:absolute gba:top-1 gba:left-1 gba:flex gba:h-5 gba:min-w-5 gba:items-center gba:justify-center gba:gap-0.5 gba:rounded-full gba:border gba:border-border gba:bg-background gba:px-1 gba:text-foreground gba:shadow-sm gba:transition-colors hover:gba:border-primary hover:gba:text-primary"
+                        data-testid={`${testId}-thumbnail-comment-badge-${idx}`}
+                      >
+                        <MessageSquare className="gba:h-3 gba:w-3" />
+                        {slideCommentCount > 1 ? (
+                          <span className="gba:text-[10px] gba:font-medium gba:leading-none">{slideCommentCount}</span>
+                        ) : null}
+                      </button>
+                    ) : null}
                   </div>
                 )
               })}
@@ -3263,7 +5031,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   {selectedSlideIndices.size} {t('editor-slides-selected') || 'slides selected'}
                 </div>
               )}
-              {!isReadOnly ? (
+              {!isEditorReadOnly ? (
                 <>
                   <SlideLayoutPicker
                     masters={masters}
@@ -3303,115 +5071,146 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
           {/* Canvas Area */}
           <div
+            ref={workspaceRef}
             className="gba:flex-1 gba:bg-muted/30 gba:overflow-auto gba:p-4 md:gba:p-8 gba:min-w-0"
             data-testid={`${testId}-canvas-workspace`}
             onMouseDown={handleWorkspaceMouseDown}
           >
             <div className="gba:inline-flex gba:justify-center gba:min-w-full">
-              <div
-                ref={canvasContainerRef}
-                role="application"
-                aria-label={t('editor-canvas-aria-label')}
-                className="gba:shadow-2xl gba:rounded-lg gba:overflow-hidden gba:relative gba:flex-shrink-0"
-                style={{
-                  width: (currentSlide?.canvasSize?.width ?? 1280) * canvasScale,
-                  height: (currentSlide?.canvasSize?.height ?? 720) * canvasScale
-                }}
-                onDragOver={handleCanvasDragOver}
-                onDrop={handleCanvasDrop}
-                onMouseMove={e => {
-                  if (collaborationEnabled && awareness) {
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    const x = (e.clientX - rect.left) / canvasScale
-                    const y = (e.clientY - rect.top) / canvasScale
-                    awareness.setLocalStateField('cursor', {
-                      x,
-                      y,
-                      slideIndex: currentSlideIndex
-                    })
-                  }
-                }}
-                onMouseLeave={() => {
-                  if (collaborationEnabled && awareness) {
-                    awareness.setLocalStateField('cursor', null)
-                  }
-                }}
+              <SlideContextMenu
+                contextMenuState={contextMenuState}
+                onContextMenuCapture={handleSlideContextMenuCapture}
+                actions={slideContextMenuActions}
+                disabled={isPresentMode}
+                canCreateComments={canCreateComments}
+                isInlineTextEditing={!!editingTextId}
+                hasExpandedTextSelection={hasExpandedInlineTextSelection}
+                canInsertLink={!!activeLinkTarget && !!activeLinkSelection}
+                data-testid={`${testId}-context-menu`}
               >
-                <SlideCanvas
-                  key={currentSlide.id || currentSlideIndex}
-                  elements={currentSlide.elements}
-                  selectedIds={selectedElementIds}
-                  background={currentSlide.background}
-                  onSelectElements={handleSelectElements}
-                  onUpdateElement={updateElement}
-                  onUpdateMultipleElements={updateMultipleElements}
-                  onEditText={handleEditText}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  scale={canvasScale}
-                  canvasSize={currentSlide.canvasSize}
-                  inlineEditing={{
-                    editingTextId,
-                    editorElement: activeEditingTextElement,
-                    onTextChange: handleTextChange,
-                    onSelectionChange: handleActiveTextSelectionChange,
-                    onFinishEditing: () => {
-                      if (voiceInput.isListening) {
-                        voiceInput.stopListening()
-                      }
-                      finishTextEditing()
-                    },
-                    rehydrateToken: richTextEditorRehydrateToken,
-                    voiceInput: {
-                      isListening: voiceInput.isListening,
-                      isSupported: voiceInput.isSupported,
-                      volume: voiceInput.volume,
-                      error: voiceInput.error,
-                      interimTranscript: voiceInput.interimTranscript,
-                      startListening: () => {
-                        // Capture current content as base for voice input
-                        voiceBaseContentRef.current = currentEditingContentRef.current
-                        lastProcessedTranscriptRef.current = ''
-                        voiceInput.startListening()
-                      },
-                      stopListening: voiceInput.stopListening
+                <div
+                  ref={canvasContainerRef}
+                  role="application"
+                  aria-label={t('editor-canvas-aria-label')}
+                  className="gba:shadow-2xl gba:rounded-lg gba:overflow-hidden gba:relative gba:flex-shrink-0"
+                  style={{
+                    width: (currentSlide?.canvasSize?.width ?? 1280) * canvasScale,
+                    height: (currentSlide?.canvasSize?.height ?? 720) * canvasScale
+                  }}
+                  onDragOver={handleCanvasDragOver}
+                  onDrop={handleCanvasDrop}
+                  onMouseMove={e => {
+                    if (collaborationEnabled && awareness) {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      const x = (e.clientX - rect.left) / canvasScale
+                      const y = (e.clientY - rect.top) / canvasScale
+                      awareness.setLocalStateField('cursor', {
+                        x,
+                        y,
+                        slideIndex: currentSlideIndex
+                      })
                     }
                   }}
-                  editingPointsId={editingPointsId}
-                  onPointsChange={(id, nextCustGeomPath) => {
-                    const el = currentSlide.elements.find(e => e.id === id)
-                    if (!el || el.type !== 'shape') return
-                    const shapeEl: ShapeElement = el
-                    const prevGeometry = getShapeGeometry(shapeEl)
-                    const nextGeometry: ShapeGeometryMetadata = prevGeometry
-                      ? { ...prevGeometry, custGeomPath: nextCustGeomPath }
-                      : { sourceFormat: 'native', custGeomPath: nextCustGeomPath }
-                    const updates: Partial<ShapeElement> = { geometry: nextGeometry }
-                    if (prevGeometry?.sourceFormat === 'pptx') updates.importMeta = nextGeometry
-                    updateElement(id, updates as Partial<AnySlideElement>)
+                  onMouseLeave={() => {
+                    if (collaborationEnabled && awareness) {
+                      awareness.setLocalStateField('cursor', null)
+                    }
                   }}
-                  onExitPointEditing={() => setEditingPointsId(null)}
-                  onShapeContextMenu={id => setEditingPointsId(id)}
-                />
-
-                {/* Collaborator cursors overlay */}
-                {collaborationEnabled && isInitialized && (
-                  <CollaboratorCursors
-                    awareness={awareness}
-                    currentSlideIndex={currentSlideIndex}
-                    canvasScale={canvasScale}
-                    currentUserId={currentUserId}
-                    data-testid={`${testId}-collaborator-cursors`}
+                >
+                  <SlideCanvas
+                    key={currentSlide.id || currentSlideIndex}
+                    elements={currentSlide.elements}
+                    selectedIds={selectedElementIds}
+                    background={currentSlide.background}
+                    onSelectElements={handleSelectElements}
+                    onUpdateElement={updateElement}
+                    onUpdateMultipleElements={updateMultipleElements}
+                    onEditText={handleEditText}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    scale={canvasScale}
+                    canvasSize={currentSlide.canvasSize}
+                    inlineEditing={{
+                      editingTextId,
+                      editorElement: activeEditingTextElement,
+                      onTextChange: handleTextChange,
+                      onSelectionChange: handleActiveTextSelectionChange,
+                      onCopySelection: (selection, clipboardData) => {
+                        ignorePromiseRejection(copyInlineTextSelection(selection, clipboardData))
+                      },
+                      onCutSelection: (selection, clipboardData) => {
+                        ignorePromiseRejection(cutInlineTextSelection(selection, clipboardData))
+                      },
+                      onPasteSelection: (selection, clipboardData) => {
+                        ignorePromiseRejection(pasteInlineTextSelection(selection, clipboardData))
+                      },
+                      onFinishEditing: () => {
+                        if (voiceInput.isListening) {
+                          voiceInput.stopListening()
+                        }
+                        finishTextEditing()
+                      },
+                      selectionToRestore:
+                        restoredCommentSelection && restoredCommentSelection.elementId === editingTextId
+                          ? restoredCommentSelection.range
+                          : null,
+                      rehydrateToken: richTextEditorRehydrateToken,
+                      selectionRef: liveInlineSelectionRef,
+                      voiceInput: {
+                        isListening: voiceInput.isListening,
+                        isSupported: voiceInput.isSupported,
+                        volume: voiceInput.volume,
+                        error: voiceInput.error,
+                        interimTranscript: voiceInput.interimTranscript,
+                        startListening: () => {
+                          // Capture current content as base for voice input
+                          voiceBaseContentRef.current = currentEditingContentRef.current
+                          lastProcessedTranscriptRef.current = ''
+                          voiceInput.startListening()
+                        },
+                        stopListening: voiceInput.stopListening
+                      }
+                    }}
+                    editingPointsId={editingPointsId}
+                    onPointsChange={(id, nextCustGeomPath) => {
+                      const el = currentSlide.elements.find(e => e.id === id)
+                      if (!el || el.type !== 'shape') return
+                      const shapeEl: ShapeElement = el
+                      const prevGeometry = getShapeGeometry(shapeEl)
+                      const nextGeometry: ShapeGeometryMetadata = prevGeometry
+                        ? { ...prevGeometry, custGeomPath: nextCustGeomPath }
+                        : { sourceFormat: 'native', custGeomPath: nextCustGeomPath }
+                      const updates: Partial<ShapeElement> = { geometry: nextGeometry }
+                      if (prevGeometry?.sourceFormat === 'pptx') updates.importMeta = nextGeometry
+                      updateElement(id, updates as Partial<AnySlideElement>)
+                    }}
+                    onExitPointEditing={() => setEditingPointsId(null)}
                   />
-                )}
-              </div>
+
+                  {/* Comment indicators are intentionally omitted from the slide
+                      canvas to keep it clean (PowerPoint behavior). Comments are
+                      surfaced in the comments panel and via the right-rail
+                      thumbnail badges. */}
+
+                  {/* Collaborator cursors overlay */}
+                  {collaborationEnabled && isInitialized && (
+                    <CollaboratorCursors
+                      awareness={awareness}
+                      currentSlideIndex={currentSlideIndex}
+                      canvasScale={canvasScale}
+                      currentUserId={currentUserId}
+                      data-testid={`${testId}-collaborator-cursors`}
+                    />
+                  )}
+                </div>
+              </SlideContextMenu>
 
               {/* Floating Text Actions - outside canvas container to avoid overflow clipping */}
               {selectedElementIds.size === 1 &&
                 selectedElement?.type === 'text' &&
                 !selectedElement.locked &&
                 !editingTextId &&
-                !isReadOnly &&
+                !isEditorReadOnly &&
                 !isPresentMode && (
                   <FloatingTextActions
                     element={selectedElement}
@@ -3431,8 +5230,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </div>
           </div>
 
-          {/* Property Panel - Always visible until X button is clicked */}
-          {!isReadOnly && showPropertyPanel && (
+          {/* Property Panel - hidden while Comments occupy the right sidebar slot */}
+          {!isEditorReadOnly && showPropertyPanel && !commentsPanelOpen && (
             <div className="gba:w-72 gba:flex-shrink-0 gba:border-l gba:bg-card gba:overflow-y-auto">
               <div className="gba:p-3 gba:border-b gba:flex gba:items-center gba:justify-between">
                 <h3 className="gba:font-semibold gba:text-sm">{t('editor-properties')}</h3>
@@ -3472,6 +5271,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               />
             </div>
           )}
+
+          {/* Comments Panel - docked alongside Property panel */}
+          {renderCommentsPanel('docked')}
 
           {/* Spell Check Panel */}
           {showSpellCheckPanel && (
@@ -3821,6 +5623,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         />
       )}
 
+      {/* Comments Panel - floating fallback for non-normal editor views (e.g. master view) */}
+      {editorView !== 'normal' ? renderCommentsPanel('floating') : null}
+
       {/* Presenter View */}
       {presenterMode && (
         <PresenterView
@@ -3855,10 +5660,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       <LinkDialog
         open={showLinkDialog}
         onOpenChange={setShowLinkDialog}
-        selectedText={selectedElement?.type === 'text' ? selectedElement.content : ''}
-        initialUrl={getExistingLinkUrl()}
+        selectedText={activeLinkSelectedText}
+        initialUrl={activeLinkUrl}
         onSave={handleSaveLink}
-        onRemove={getExistingLinkUrl() ? handleRemoveLink : undefined}
+        onRemove={activeLinkUrl ? handleRemoveLink : undefined}
       />
     </div>
   )

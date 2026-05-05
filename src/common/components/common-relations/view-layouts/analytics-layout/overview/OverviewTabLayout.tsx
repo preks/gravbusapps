@@ -97,7 +97,6 @@ export interface OverviewTabLayoutProps {
 }
 
 export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
-  title = 'CRM Overview',
   counts,
   conversionMetrics,
   trendData,
@@ -130,7 +129,6 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   return (
     <div className="gba:space-y-6" data-testid="overview-analytics-tab">
       <div>
-        <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
         <OverviewMetricsWidgets
           counts={counts}
           conversionMetrics={conversionMetrics}

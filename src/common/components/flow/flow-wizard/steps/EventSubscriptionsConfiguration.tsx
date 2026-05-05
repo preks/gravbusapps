@@ -15,7 +15,7 @@ import {
   SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
-import translations from '@/business-apps/flow/apps/creator/_i18n'
+import translations from '@/business-apps/core/create/apps/flow-creator/_i18n'
 import { Bell, Bot, ChevronDown, ChevronUp, Code, Plus, Trash2, Zap } from 'lucide-react'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'

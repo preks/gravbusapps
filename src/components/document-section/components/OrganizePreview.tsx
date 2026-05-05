@@ -37,10 +37,10 @@ function renderTemplateTree(nodes: TemplateTreeNode[]): React.ReactNode {
   return (
     <ul className="gba:list-none gba:p-0 gba:m-0">
       {nodes.map(node => (
-        <li key={node.path} className="gba:mt-1 first:gba:mt-0">
-          <div className="gba:flex gba:items-center gba:gap-2 gba:py-1.5 gba:text-sm gba:pl-1">
+        <li key={node.path} className="gba:mt-1 gba:min-w-0 first:gba:mt-0">
+          <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2 gba:py-1.5 gba:text-sm gba:pl-1">
             <FolderIcon weight="fill" className="gba:h-4 gba:w-4 gba:text-warning gba:shrink-0" />
-            <span className="gba:font-medium">{node.name}</span>
+            <span className="gba:min-w-0 gba:flex-1 gba:truncate gba:font-medium">{node.name}</span>
           </div>
           {node.children.length > 0 && <div className="gba:pl-4">{renderTemplateTree(node.children)}</div>}
         </li>
@@ -99,17 +99,17 @@ export const OrganizePreview: React.FC<OrganizePreviewProps> = ({
                 return (
                   <div
                     key={decision.document_id}
-                    className="gba:flex gba:items-center gba:gap-2 gba:rounded-md gba:border gba:p-2 gba:text-sm"
+                    className="gba:flex gba:min-w-0 gba:items-center gba:gap-2 gba:rounded-md gba:border gba:p-2 gba:text-sm"
                     data-testid={`${dataTestId}-decision-${decision.document_id}`}
                   >
                     <FileIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
-                    <span className="gba:truncate gba:flex-1 gba:font-medium">
+                    <span className="gba:min-w-0 gba:flex-1 gba:truncate gba:font-medium">
                       {docNameMap.get(decision.document_id) || decision.document_id}
                     </span>
                     <ArrowRightIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-                    <span className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:shrink-0">
+                    <span className="gba:flex gba:min-w-0 gba:flex-1 gba:items-center gba:gap-1 gba:text-muted-foreground">
                       <FolderIcon weight="fill" className="gba:h-3.5 gba:w-3.5 gba:text-warning" />
-                      {decision.target_folder_path}
+                      <span className="gba:min-w-0 gba:truncate">{decision.target_folder_path}</span>
                     </span>
                     <Badge variant={badge.variant} className="gba:shrink-0 gba:text-xs">
                       {badge.label}

@@ -11,7 +11,7 @@ import {
   IconAvatar,
   HeaderSlot
 } from '@newwork/nw-design-system'
-import { UsersIcon, FileTextIcon, AddressBookIcon, FlagIcon } from '@phosphor-icons/react'
+import { UsersIcon, FolderIcon, AddressBookIcon, FlagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
@@ -740,7 +740,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       {
         value: 'documents',
         label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileTextIcon />,
+        icon: <FolderIcon />,
         content: (
           <div className="gba:col-span-12">
             <LeadDocuments leadId={leadId} context={props} />

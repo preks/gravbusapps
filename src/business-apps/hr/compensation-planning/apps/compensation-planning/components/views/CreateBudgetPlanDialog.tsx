@@ -87,7 +87,6 @@ export const CreateBudgetPlanDialog: React.FC<CreateBudgetPlanDialogProps> = ({
     defaultValues: {
       name: '',
       description: '',
-      fiscalYear: new Date().getFullYear(),
       startDate: '',
       endDate: '',
       effectiveDate: ''
@@ -100,7 +99,6 @@ export const CreateBudgetPlanDialog: React.FC<CreateBudgetPlanDialogProps> = ({
       form.reset({
         name: editingPlan.name,
         description: editingPlan.description ?? '',
-        fiscalYear: editingPlan.fiscalYear,
         startDate: isoToDateInput(editingPlan.startDate),
         endDate: isoToDateInput(editingPlan.endDate),
         effectiveDate: isoToDateInput(editingPlan.effectiveDate)
@@ -110,7 +108,6 @@ export const CreateBudgetPlanDialog: React.FC<CreateBudgetPlanDialogProps> = ({
     form.reset({
       name: '',
       description: '',
-      fiscalYear: new Date().getFullYear(),
       startDate: '',
       endDate: '',
       effectiveDate: ''
@@ -124,7 +121,6 @@ export const CreateBudgetPlanDialog: React.FC<CreateBudgetPlanDialogProps> = ({
         version: editingPlan.version,
         name: values.name.trim(),
         description: values.description?.trim() ? values.description.trim() : null,
-        fiscalYear: values.fiscalYear,
         startDate: emptyDateToNull(values.startDate),
         endDate: emptyDateToNull(values.endDate),
         effectiveDate: emptyDateToNull(values.effectiveDate)
@@ -139,7 +135,6 @@ export const CreateBudgetPlanDialog: React.FC<CreateBudgetPlanDialogProps> = ({
     const input: InsertBudgetPlanInput = {
       name: values.name.trim(),
       description: values.description?.trim() ? values.description.trim() : null,
-      fiscalYear: values.fiscalYear,
       budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_APPROVED,
       startDate: emptyDateToNull(values.startDate),
       endDate: emptyDateToNull(values.endDate),
@@ -185,26 +180,6 @@ export const CreateBudgetPlanDialog: React.FC<CreateBudgetPlanDialogProps> = ({
                   <FormLabel>{t('budget-plan-form-description')}</FormLabel>
                   <FormControl>
                     <Textarea {...field} autoComplete="off" rows={4} data-testid="budget-plan-form-description-input" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="fiscalYear"
-              render={({ field }) => (
-                <FormItem className="gba:min-w-0">
-                  <FormLabel>{t('budget-plan-form-fiscal-year')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="number"
-                      min={1900}
-                      max={2200}
-                      className="gba:w-full"
-                      data-testid="budget-plan-form-fiscal-year-input"
-                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

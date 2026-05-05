@@ -456,6 +456,37 @@ export function eventToMessage(
       }
     }
 
+    case 'hitl_requested': {
+      const payload = event.request.payload ?? {}
+      const fields = Array.isArray(payload.fields) ? payload.fields : null
+      if (fields) {
+        return {
+          id: event.event_id,
+          type: 'structured_input_request',
+          timestamp: event.timestamp,
+          content: {
+            type: 'structured_input_request',
+            seq: event.seq,
+            event_id: event.event_id,
+            timestamp: event.timestamp,
+            form_id: String(payload.form_id ?? event.request.request_id),
+            title: event.request.title,
+            description: event.request.description ?? '',
+            fields,
+            allow_partial_submit: Boolean(payload.allow_partial_submit),
+            tool_ref: typeof payload.tool_ref === 'string' ? payload.tool_ref : undefined,
+            request_status: event.request.status === 'pending' ? undefined : event.request.status
+          }
+        }
+      }
+      return {
+        id: event.event_id,
+        type: 'human_interrupt',
+        timestamp: event.timestamp,
+        content: { question: event.request.description || event.request.title }
+      }
+    }
+
     case 'terminal':
       return terminalEventToChatMessage(event, stepCompletions)
 
@@ -466,6 +497,14 @@ export function eventToMessage(
         timestamp: new Date().toISOString(),
         content: { message: event.message }
       }
+
+    case 'capability_missing':
+      // Capability-gap signals are surfaced in the debug trace and the
+      // expert delegation card; the main agent is expected to fall back
+      // to direct tools and produce a final answer. We deliberately do
+      // NOT emit a top-level error chat message here — it would render
+      // as a "Session failed" banner even when the session completes.
+      return null
 
     default:
       return null
