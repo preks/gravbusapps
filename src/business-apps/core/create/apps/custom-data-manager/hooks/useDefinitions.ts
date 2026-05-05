@@ -11,9 +11,9 @@ interface UseDefinitionsResult {
   // Actions
   refetch: () => Promise<void>
   createDefinition: (dto: CreateDefinitionDto) => Promise<CustomDataDefinition>
-  updateDefinition: (id: string, dto: UpdateDefinitionDto) => Promise<CustomDataDefinition>
+  updateDefinition: (definition: CustomDataDefinition, dto: UpdateDefinitionDto) => Promise<CustomDataDefinition>
   selectDefinition: (definition: CustomDataDefinition | null) => void
-  loadDefinition: (id: string) => Promise<CustomDataDefinition | null>
+  loadDefinition: (namespace: string, entity: string) => Promise<CustomDataDefinition | null>
 }
 
 /**
@@ -59,10 +59,10 @@ export const useDefinitions = (accessToken: string, namespace?: string): UseDefi
   )
 
   const updateDefinition = useCallback(
-    async (id: string, dto: UpdateDefinitionDto): Promise<CustomDataDefinition> => {
-      const updated = await client.updateDefinition(id, dto)
-      setDefinitions(prev => prev.map(d => (d.id === id ? updated : d)))
-      if (selectedDefinition?.id === id) {
+    async (definition: CustomDataDefinition, dto: UpdateDefinitionDto): Promise<CustomDataDefinition> => {
+      const updated = await client.updateDefinition(definition.namespace, definition.key, dto)
+      setDefinitions(prev => prev.map(current => (current.id === definition.id ? updated : current)))
+      if (selectedDefinition?.id === definition.id) {
         setSelectedDefinition(updated)
       }
       return updated
@@ -75,9 +75,9 @@ export const useDefinitions = (accessToken: string, namespace?: string): UseDefi
   }, [])
 
   const loadDefinition = useCallback(
-    async (id: string): Promise<CustomDataDefinition | null> => {
+    async (namespace: string, entity: string): Promise<CustomDataDefinition | null> => {
       try {
-        const definition = await client.getDefinition(id)
+        const definition = await client.getDefinition(namespace, entity)
         setSelectedDefinition(definition)
         return definition
       } catch (err) {

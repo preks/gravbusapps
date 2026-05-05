@@ -1,46 +1,54 @@
 import { CustomDataMutationClient } from './CustomDataMutationClient'
 
 describe('CustomDataMutationClient', () => {
-  it('retries createRow with original values when normalized payload returns unknown column', async () => {
+  it('posts createRow to the canonical v1 rows endpoint', async () => {
     const client = new CustomDataMutationClient({ namespace: 'draft_ns' })
     const postMock = jest
       .spyOn(client as any, 'post')
-      .mockRejectedValueOnce(new Error("Unknown column 'serialNumber'"))
-      .mockResolvedValueOnce({ workflowId: 'wf-1', success: true })
+      .mockResolvedValueOnce({ success: true, resultData: { id: 'row-1' } })
 
     const result = await client.createRow({
       definitionKey: 'Asset',
       values: { serial_number: 'SN-001' }
     })
 
-    expect(result).toEqual({ workflowId: 'wf-1', success: true })
+    expect(result).toEqual({ success: true, resultData: { id: 'row-1' } })
     expect(postMock).toHaveBeenNthCalledWith(
       1,
-      '/custom-data/flows/row-create',
-      expect.objectContaining({
-        values: { serialNumber: 'SN-001' }
-      })
-    )
-    expect(postMock).toHaveBeenNthCalledWith(
-      2,
-      '/custom-data/flows/row-create',
+      '/v1/custom-data/namespaces/draft_ns/custom-entities/Asset/rows',
       expect.objectContaining({
         values: { serial_number: 'SN-001' }
       })
     )
   })
 
-  it('does not retry when keys are already canonical', async () => {
+  it('patches updateRow to the canonical v1 row endpoint', async () => {
     const client = new CustomDataMutationClient({ namespace: 'draft_ns' })
-    const postMock = jest.spyOn(client as any, 'post').mockRejectedValue(new Error("Unknown column 'serialNumber'"))
+    const patchMock = jest.spyOn(client as any, 'patch').mockResolvedValueOnce({ success: true })
 
-    await expect(
-      client.createRow({
-        definitionKey: 'Asset',
+    await client.updateRow({
+      definitionKey: 'Asset',
+      rowId: 'row-1',
+      values: { serialNumber: 'SN-001' }
+    })
+
+    expect(patchMock).toHaveBeenCalledWith(
+      '/v1/custom-data/namespaces/draft_ns/custom-entities/Asset/rows/row-1',
+      expect.objectContaining({
         values: { serialNumber: 'SN-001' }
       })
-    ).rejects.toThrow('Provided fields: serialNumber')
+    )
+  })
 
-    expect(postMock).toHaveBeenCalledTimes(1)
+  it('deletes rows through the canonical v1 row endpoint', async () => {
+    const client = new CustomDataMutationClient({ namespace: 'draft_ns' })
+    const deleteMock = jest.spyOn(client as any, 'delete').mockResolvedValueOnce({ success: true })
+
+    await client.deleteRow({
+      definitionKey: 'Asset',
+      rowId: 'row-1'
+    })
+
+    expect(deleteMock).toHaveBeenCalledWith('/v1/custom-data/namespaces/draft_ns/custom-entities/Asset/rows/row-1')
   })
 })

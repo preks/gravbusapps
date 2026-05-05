@@ -1,317 +1,317 @@
 import React, { useState, useCallback, useEffect } from 'react'
+import { CreateLayout, Tabs, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { Database, Terminal, GitBranch } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 import { useDefinitions } from './hooks/useDefinitions'
 import { useNamespaces } from './hooks/useNamespaces'
+import { useNamespaceAggregate } from './hooks/useNamespaceAggregate'
 import { useCustomDataClient } from './hooks/useCustomDataClient'
-import { BulkAction } from './components/DefinitionsTable'
-import { DefinitionForm } from './components/DefinitionForm'
 import { PromoteDialog } from './components/PromoteDialog'
-import { BulkActionDialog } from './components/BulkActionDialog'
-import { AiSchemaGeneratorDialog } from './components/AiSchemaGeneratorDialog'
+import { PromoteNamespaceDialog } from './components/PromoteNamespaceDialog'
 import { CreateNamespaceDialog } from './components/CreateNamespaceDialog'
-import { CustomDataManagerDetailView } from './CustomDataManagerDetailView'
 import { CustomDataManagerListView } from './CustomDataManagerListView'
-import {
+import { EntityRelationCanvas } from './components/canvas/EntityRelationCanvas'
+import { EntityDetailPanel } from './components/EntityDetailPanel'
+import { CustomDataChatPanel } from './components/CustomDataChatPanel'
+import { GraphiQLPanel } from './components/GraphiQLPanel'
+import { InternalEntityInfoPanel } from './components/InternalEntityInfoPanel'
+import { RelationshipInfoPanel, type SelectedRelationshipData } from './components/RelationshipInfoPanel'
+import type { DataInternalEntityNodeData as InternalEntityNodeData } from '@/common/components/flow/data-viewer'
+import { createInitialColumns, stripColumnUiIds } from './utils/columnUiIds'
+import { buildUniqueDefinitionKey } from './utils/definitionFormUtils'
+import type {
   CustomDataDefinition,
-  CreateDefinitionDto,
-  UpdateDefinitionDto,
+  CustomDataSuggestionApplyResult,
+  CustomDataSuggestionRequest,
+  CustomDataSuggestionStreamEvent,
   EntitySchemaProposal,
-  BatchCreationResult,
-  EntityRelationship
+  UpdateDefinitionDto
 } from './types'
+
+type View = 'list' | 'canvas'
+type CanvasMode = 'graph' | 'graphql'
 
 interface CustomDataManagerProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-/**
- * Custom Data Manager App
- * Manages custom data definitions (entities)
- */
 export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
   accessToken,
   'data-testid': testId = 'custom-data-manager'
 }) => {
   const client = useCustomDataClient(accessToken)
-
-  // Namespace state
-  const [currentNamespace, setCurrentNamespace] = useState<string>('default')
+  const [view, setView] = useState<View>('list')
+  const [canvasMode, setCanvasMode] = useState<CanvasMode>('graph')
+  const [selectedNamespace, setSelectedNamespace] = useState<string>('default')
   const [isCreateNamespaceOpen, setIsCreateNamespaceOpen] = useState(false)
+  const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false)
 
   const { namespaces, createNamespace: createNamespaceApi } = useNamespaces(accessToken)
-  const availableNamespaces = namespaces.length > 0 ? namespaces.map(n => n.namespace) : ['default']
+  const allNamespaces = namespaces.length > 0 ? namespaces : [{ namespace: 'default', created_at: '', updated_at: '' }]
 
-  // Definitions state
-  const {
-    definitions,
-    isLoading: isLoadingDefinitions,
-    error: definitionsError,
-    selectedDefinition,
-    selectDefinition,
-    createDefinition,
-    updateDefinition,
-    refetch: refetchDefinitions
-  } = useDefinitions(accessToken, currentNamespace)
+  const { definitions, createDefinition, updateDefinition, refetch: refetchDefinitions } = useDefinitions(accessToken)
+  const { aggregate: selectedNamespaceAggregate, refetch: refetchNamespaceAggregate } = useNamespaceAggregate(
+    accessToken,
+    selectedNamespace
+  )
 
-  // Ensure current namespace stays valid when registry updates
-  useEffect(() => {
-    if (!availableNamespaces || availableNamespaces.length === 0) return
-    if (!availableNamespaces.includes(currentNamespace)) {
-      setCurrentNamespace(availableNamespaces.includes('default') ? 'default' : availableNamespaces[0])
-    }
-  }, [availableNamespaces, currentNamespace])
-
-  // Dialog states
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingDefinition, setEditingDefinition] = useState<CustomDataDefinition | null>(null)
+  const [selectedEntity, setSelectedEntity] = useState<CustomDataDefinition | null>(null)
+  const [selectedInternalEntity, setSelectedInternalEntity] = useState<InternalEntityNodeData | null>(null)
+  const [selectedRelationship, setSelectedRelationship] = useState<SelectedRelationshipData | null>(null)
   const [promoteDefinition, setPromoteDefinition] = useState<CustomDataDefinition | null>(null)
-  const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false)
+  const [isPromoteNamespaceOpen, setIsPromoteNamespaceOpen] = useState(false)
 
-  // Bulk action state
-  const [bulkAction, setBulkAction] = useState<BulkAction | null>(null)
-
-  // Detail view tab
-  const [detailTab, setDetailTab] = useState<'schema' | 'relationships' | 'settings'>('schema')
-
-  // Reset detail tab when selected definition changes
   useEffect(() => {
-    if (selectedDefinition) {
-      setDetailTab('schema')
-    }
-  }, [selectedDefinition?.id])
+    setSelectedEntity(null)
+    setSelectedInternalEntity(null)
+    setSelectedRelationship(null)
+  }, [selectedNamespace])
 
-  // Handlers
-  const handleCreateNew = useCallback(() => {
-    setEditingDefinition(null)
-    setIsFormOpen(true)
+  const handleSelectNamespace = useCallback((ns: string) => {
+    setSelectedNamespace(ns)
+    setView('canvas')
   }, [])
 
-  const handleEdit = useCallback((definition: CustomDataDefinition) => {
-    setEditingDefinition(definition)
-    setIsFormOpen(true)
+  const handleBackToList = useCallback(() => {
+    setView('list')
+    setSelectedEntity(null)
   }, [])
 
-  const handleSaveDefinition = useCallback(
-    async (dto: CreateDefinitionDto | UpdateDefinitionDto, id?: string) => {
-      if (id) {
-        await updateDefinition(id, dto as UpdateDefinitionDto)
-      } else {
-        await createDefinition(dto as CreateDefinitionDto)
-      }
+  const handleSelectEntity = useCallback((def: CustomDataDefinition | null) => {
+    setSelectedEntity(def)
+    setSelectedInternalEntity(null)
+    setSelectedRelationship(null)
+  }, [])
+
+  const handleSelectInternalEntity = useCallback((data: InternalEntityNodeData) => {
+    setSelectedInternalEntity(data)
+    setSelectedEntity(null)
+    setSelectedRelationship(null)
+  }, [])
+
+  const handleSelectRelationship = useCallback((data: SelectedRelationshipData) => {
+    setSelectedRelationship(data)
+    setSelectedEntity(null)
+    setSelectedInternalEntity(null)
+  }, [])
+
+  const handleAddEntity = useCallback(async () => {
+    const existingKeysInNamespace = definitions
+      .filter(definition => (definition.namespace || 'default') === selectedNamespace)
+      .map(definition => definition.key)
+    const generatedDefinitionKey = buildUniqueDefinitionKey('New Entity', existingKeysInNamespace)
+    try {
+      const created = await createDefinition({
+        namespace: selectedNamespace,
+        key: generatedDefinitionKey,
+        kind: 'CUSTOM_ENTITY',
+        display_name: 'New Entity',
+        columns_json: stripColumnUiIds(createInitialColumns())
+      })
       await refetchDefinitions()
+      await refetchNamespaceAggregate()
+      setSelectedEntity(created)
+      setSelectedInternalEntity(null)
+    } catch (err) {
+      console.error('Failed to create entity:', err)
+    }
+  }, [createDefinition, definitions, refetchDefinitions, refetchNamespaceAggregate, selectedNamespace])
+
+  const handleSaveEntity = useCallback(
+    async (dto: UpdateDefinitionDto, definition: CustomDataDefinition) => {
+      const updatedDefinition = await updateDefinition(definition, dto)
+      await refetchDefinitions()
+      await refetchNamespaceAggregate()
+      setSelectedEntity(updatedDefinition)
     },
-    [createDefinition, updateDefinition, refetchDefinitions]
+    [updateDefinition, refetchDefinitions, refetchNamespaceAggregate]
   )
 
   const handleCreateNamespace = useCallback(
     async (dto: { namespace: string; display_name?: string; description?: string }) => {
       const created = await createNamespaceApi(dto)
-      setCurrentNamespace(created.namespace)
-      // definitions hook will refetch due to namespace change, but do an explicit refetch for safety
-      await refetchDefinitions()
+      setSelectedNamespace(created.namespace)
+      setView('canvas')
     },
-    [createNamespaceApi, refetchDefinitions]
+    [createNamespaceApi]
   )
 
   const handlePromote = useCallback(
-    async (definitionId: string) => {
-      const promoted = await client.promoteEntity(definitionId)
+    async (definition: CustomDataDefinition) => {
+      const promoted = await client.promoteEntity(definition.namespace, definition.key)
       await refetchDefinitions()
-      if (selectedDefinition?.id === definitionId) {
-        selectDefinition(promoted)
-      }
+      await refetchNamespaceAggregate()
+      if (selectedEntity?.id === definition.id) setSelectedEntity(promoted)
       return promoted
     },
-    [client, refetchDefinitions, selectedDefinition, selectDefinition]
+    [client, refetchDefinitions, refetchNamespaceAggregate, selectedEntity]
   )
 
-  const handleBack = useCallback(() => {
-    selectDefinition(null)
-    setDetailTab('schema')
-  }, [selectDefinition])
+  const handlePromoteNamespace = useCallback(async () => {
+    const result = await client.promoteNamespace(selectedNamespace)
+    await refetchDefinitions()
+    await refetchNamespaceAggregate()
+    setSelectedEntity(null)
+    setSelectedInternalEntity(null)
+    setSelectedRelationship(null)
+    return result
+  }, [client, refetchDefinitions, refetchNamespaceAggregate, selectedNamespace])
 
-  // Bulk action handler
-  const handleBulkAction = useCallback((action: BulkAction) => {
-    setBulkAction(action)
-  }, [])
-
-  // AI Schema Generator handlers
   const handleAiGenerate = useCallback(
-    async (description: string): Promise<EntitySchemaProposal> => {
-      return await client.generateSchemaFromNaturalLanguage(description)
-    },
-    [client]
+    (
+      request: CustomDataSuggestionRequest,
+      options: {
+        onEvent: (event: CustomDataSuggestionStreamEvent) => void
+        signal?: AbortSignal
+      }
+    ): Promise<void> => client.streamCustomEntitySuggestion(selectedNamespace, request, options),
+    [client, selectedNamespace]
   )
-
   const handleAiCreate = useCallback(
-    async (proposal: EntitySchemaProposal): Promise<BatchCreationResult> => {
-      const result = await client.createEntitiesFromProposal(proposal)
-      return result
-    },
-    [client]
+    (proposal: EntitySchemaProposal): Promise<CustomDataSuggestionApplyResult> =>
+      client.applySuggestedModel(selectedNamespace, proposal),
+    [client, selectedNamespace]
   )
-
   const handleAiSuccess = useCallback(() => {
-    refetchDefinitions()
-  }, [refetchDefinitions])
+    void refetchDefinitions()
+    void refetchNamespaceAggregate()
+    setSelectedEntity(null)
+    setSelectedInternalEntity(null)
+    setSelectedRelationship(null)
+  }, [refetchDefinitions, refetchNamespaceAggregate])
 
-  // Relationship handler
-  const handleCreateRelationship = useCallback(
-    async (relationship: EntityRelationship) => {
-      await client.createRelationship(relationship)
-      await refetchDefinitions()
-    },
-    [client, refetchDefinitions]
-  )
-
-  // Execute bulk promote
-  const executeBulkPromote = useCallback(async () => {
-    if (bulkAction?.type !== 'promote') return
-
-    const results: { success: CustomDataDefinition[]; failed: string[] } = { success: [], failed: [] }
-
-    for (const def of bulkAction.definitions) {
-      try {
-        const promoted = await client.promoteEntity(def.id)
-        results.success.push(promoted)
-      } catch (err) {
-        results.failed.push(def.display_name || def.key)
-        console.error(`Failed to promote ${def.key}:`, err)
-      }
+  const handleOpenAiGenerator = useCallback(() => {
+    if (view === 'list') {
+      setView('canvas')
     }
+    setChatPanelCollapsed(false)
+  }, [view])
 
-    await refetchDefinitions()
-    setBulkAction(null)
-    return results
-  }, [bulkAction, client, refetchDefinitions])
-
-  // Execute bulk delete
-  const executeBulkDelete = useCallback(async () => {
-    if (bulkAction?.type !== 'delete') return
-
-    const results: { success: string[]; failed: string[] } = { success: [], failed: [] }
-
-    for (const def of bulkAction.definitions) {
-      try {
-        await client.deleteDefinition(def.id)
-        results.success.push(def.display_name || def.key)
-      } catch (err) {
-        results.failed.push(def.display_name || def.key)
-        console.error(`Failed to delete ${def.key}:`, err)
-      }
-    }
-
-    await refetchDefinitions()
-    setBulkAction(null)
-    return results
-  }, [bulkAction, client, refetchDefinitions])
-
-  // Execute bulk export
-  const executeBulkExport = useCallback(() => {
-    if (bulkAction?.type !== 'export') return
-
-    // Export definitions as JSON
-    const exportData = bulkAction.definitions.map(def => ({
-      key: def.key,
-      kind: def.kind,
-      display_name: def.display_name,
-      description: def.description,
-      columns_json: def.columns_json,
-      publish_state: def.publish_state
-    }))
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `custom-data-definitions-${new Date().toISOString().split('T')[0]}.json`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-
-    setBulkAction(null)
-  }, [bulkAction])
-
-  // Stats
-  const entityCount = definitions.filter(d => d.kind === 'ENTITY').length
-  const promotedCount = definitions.filter(d => d.publish_state === 'PROMOTED_TRACKED').length
+  const nsInfo = selectedNamespaceAggregate ?? allNamespaces.find(n => n.namespace === selectedNamespace)
+  const namespaceEntities = selectedNamespaceAggregate?.customEntities ?? []
 
   return (
-    <div data-testid={testId} className="gba:min-h-screen gba:bg-background">
-      {selectedDefinition ? (
-        <CustomDataManagerDetailView
-          definition={selectedDefinition}
-          definitions={definitions}
-          detailTab={detailTab}
-          onChangeTab={setDetailTab}
-          onBack={handleBack}
-          onEdit={() => handleEdit(selectedDefinition)}
-          onOpenPromote={() => setPromoteDefinition(selectedDefinition)}
-          onCreateRelationship={handleCreateRelationship}
-          data-testid={`${testId}-detail`}
+    <div data-testid={testId} className="gba:h-full gba:w-full gba:flex gba:flex-col gba:bg-background">
+      {view === 'canvas' ? (
+        <CreateLayout
+          heroVariant="editor"
+          heroIcon={<Database className="gba:w-5 gba:h-5 gba:text-white" />}
+          heroTitle={nsInfo?.display_name || selectedNamespace}
+          heroSubtitle={nsInfo?.description || `Namespace: ${selectedNamespace}`}
+          onBack={handleBackToList}
+          heroBackLabel="Back to Namespaces"
+          chatPanel={
+            <CustomDataChatPanel
+              onGenerate={handleAiGenerate}
+              onCreate={handleAiCreate}
+              onSuccess={handleAiSuccess}
+              onClose={() => setChatPanelCollapsed(true)}
+              data-testid={`${testId}-chat`}
+            />
+          }
+          canvasPanel={
+            <div className="gba:relative gba:h-full gba:w-full gba:flex gba:flex-col">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:border-b gba:border-border gba:bg-background/80 gba:backdrop-blur-sm gba:shrink-0 gba:z-10">
+                <Tabs value={canvasMode} onValueChange={v => setCanvasMode(v as CanvasMode)}>
+                  <TabsList>
+                    <TabsTrigger value="graph" startIcon={<GitBranch className="gba:h-3.5 gba:w-3.5" />}>
+                      ERD
+                    </TabsTrigger>
+                    <TabsTrigger value="graphql" startIcon={<Terminal className="gba:h-3.5 gba:w-3.5" />}>
+                      GraphQL
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+              <div className="gba:flex-1 gba:min-h-0 gba:relative">
+                {canvasMode === 'graph' ? (
+                  <EntityRelationCanvas
+                    definitions={namespaceEntities}
+                    namespaceAggregate={selectedNamespaceAggregate}
+                    selectedEntity={selectedEntity}
+                    onSelectEntity={handleSelectEntity}
+                    onSelectInternalEntity={handleSelectInternalEntity}
+                    onSelectRelationship={handleSelectRelationship}
+                    onAddEntity={handleAddEntity}
+                    onPromoteNamespace={() => setIsPromoteNamespaceOpen(true)}
+                    rightPanel={
+                      selectedEntity ? (
+                        <EntityDetailPanel
+                          definition={selectedEntity}
+                          allDefinitions={definitions}
+                          accessToken={accessToken}
+                          onClose={() => setSelectedEntity(null)}
+                          onSave={(dto, definition) => handleSaveEntity(dto, definition)}
+                          onOpenPromote={() => setPromoteDefinition(selectedEntity)}
+                          onCreateRow={client.createRow}
+                          onUpdateRow={client.updateRow}
+                          onDeleteRow={client.deleteRow}
+                          data-testid={`${testId}-detail-panel`}
+                        />
+                      ) : selectedInternalEntity ? (
+                        <InternalEntityInfoPanel
+                          data={selectedInternalEntity}
+                          onClose={() => setSelectedInternalEntity(null)}
+                          data-testid={`${testId}-internal-panel`}
+                        />
+                      ) : selectedRelationship ? (
+                        <RelationshipInfoPanel
+                          data={selectedRelationship}
+                          onClose={() => setSelectedRelationship(null)}
+                          onNavigateToSource={() => {
+                            const def = namespaceEntities.find(d => d.key === selectedRelationship.sourceEntityKey)
+                            if (def) handleSelectEntity(def)
+                          }}
+                          onNavigateToTarget={() => {
+                            const def = namespaceEntities.find(d => d.key === selectedRelationship.targetEntityKey)
+                            if (def) handleSelectEntity(def)
+                          }}
+                          data-testid={`${testId}-relationship-panel`}
+                        />
+                      ) : undefined
+                    }
+                    data-testid={`${testId}-canvas`}
+                  />
+                ) : (
+                  <GraphiQLPanel
+                    accessToken={accessToken}
+                    namespace={selectedNamespace}
+                    data-testid={`${testId}-graphql`}
+                  />
+                )}
+              </div>
+            </div>
+          }
+          chatPanelCollapsed={chatPanelCollapsed}
+          onChatPanelCollapseChange={setChatPanelCollapsed}
+          data-testid={`${testId}-layout`}
         />
       ) : (
         <CustomDataManagerListView
-          definitions={definitions}
-          isLoadingDefinitions={isLoadingDefinitions}
-          definitionsError={definitionsError}
-          entityCount={entityCount}
-          promotedCount={promotedCount}
-          currentNamespace={currentNamespace}
-          availableNamespaces={availableNamespaces}
-          onChangeNamespace={setCurrentNamespace}
+          namespaces={allNamespaces}
+          onSelectNamespace={handleSelectNamespace}
           onOpenCreateNamespace={() => setIsCreateNamespaceOpen(true)}
-          onOpenAiGenerator={() => setIsAiGeneratorOpen(true)}
-          onCreateNew={handleCreateNew}
-          onSelectDefinition={selectDefinition}
-          onEditDefinition={handleEdit}
-          onOpenPromote={def => setPromoteDefinition(def)}
-          onBulkAction={handleBulkAction}
+          onOpenAiGenerator={handleOpenAiGenerator}
           data-testid={`${testId}-list`}
         />
       )}
-
-      {/* Dialogs */}
-      <DefinitionForm
-        open={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false)
-          setEditingDefinition(null)
-        }}
-        definition={editingDefinition}
-        availableNamespaces={availableNamespaces}
-        onOpenCreateNamespace={() => setIsCreateNamespaceOpen(true)}
-        onSave={handleSaveDefinition}
-        data-testid={`${testId}-definition-form`}
-      />
 
       <PromoteDialog
         open={!!promoteDefinition}
         onClose={() => setPromoteDefinition(null)}
         definition={promoteDefinition}
-        onPromote={handlePromote}
+        onPromote={definition => handlePromote(definition)}
         data-testid={`${testId}-promote-dialog`}
       />
 
-      <BulkActionDialog
-        open={!!bulkAction}
-        onClose={() => setBulkAction(null)}
-        action={bulkAction}
-        onConfirmPromote={executeBulkPromote}
-        onConfirmDelete={executeBulkDelete}
-        onConfirmExport={executeBulkExport}
-        data-testid={`${testId}-bulk-action-dialog`}
-      />
-
-      <AiSchemaGeneratorDialog
-        open={isAiGeneratorOpen}
-        onClose={() => setIsAiGeneratorOpen(false)}
-        onSuccess={handleAiSuccess}
-        onGenerate={handleAiGenerate}
-        onCreate={handleAiCreate}
-        data-testid={`${testId}-ai-generator-dialog`}
+      <PromoteNamespaceDialog
+        open={isPromoteNamespaceOpen}
+        onClose={() => setIsPromoteNamespaceOpen(false)}
+        namespace={selectedNamespace}
+        entityCount={namespaceEntities.length}
+        onPromote={handlePromoteNamespace}
+        data-testid={`${testId}-promote-namespace-dialog`}
       />
 
       <CreateNamespaceDialog

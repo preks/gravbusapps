@@ -47,7 +47,7 @@ export interface AutomationFormSelectFieldConfigProps {
 
 async function fetchAvailableEntities(accessToken: string): Promise<AvailableEntity[]> {
   const base = getFlowEngineApiBaseUrl()
-  const url = `${base}/entities?includeFields=true`
+  const url = `${base}/v1/custom-data/internal-entities?context=service`
   const response = await fetch(url, {
     method: 'GET',
     headers: {

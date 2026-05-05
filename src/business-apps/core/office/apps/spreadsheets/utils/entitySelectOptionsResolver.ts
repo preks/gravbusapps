@@ -147,6 +147,15 @@ export async function fetchBulkCollectionEntitySelectOptions(
     const base = getFlowEngineApiBaseUrl()
     const params = new URLSearchParams()
     params.set('limit', String(limit))
+    if (config.entityKind) {
+      params.set('kind', config.entityKind)
+    }
+    if (config.namespace) {
+      params.set('namespace', config.namespace)
+    }
+    if (config.labelField) {
+      params.set('labelField', config.labelField)
+    }
 
     const filters = buildApiFilters(config.filters, userId)
     if (filters.length > 0) {

@@ -21,7 +21,9 @@ export interface FlowDataSourceSelectProps {
 
 const normalizeDataSource = (ds: InputDataSource): DataSourceConfig | undefined => {
   const type = String(ds.type || '').toUpperCase()
-  if (type !== 'ENTITY' && type !== 'CATALOG' && type !== 'CUSTOM_DATA') return undefined
+  if (type !== 'CUSTOM_ENTITY' && type !== 'CATALOG' && type !== 'INTERNAL_ENTITY') {
+    return undefined
+  }
 
   const dsAny = ds as any
   const catalogIdentifier = dsAny.catalogIdentifier
@@ -32,7 +34,6 @@ const normalizeDataSource = (ds: InputDataSource): DataSourceConfig | undefined 
     catalog: ds.catalog,
     catalogIdentifier: typeof catalogIdentifier === 'string' ? catalogIdentifier : ds.catalog,
     namespace: ds.namespace,
-    key: ds.key,
     valueField: ds.valueField || 'id',
     labelField: ds.labelField || 'displayName'
   }
@@ -69,7 +70,10 @@ export const FlowDataSourceSelect: React.FC<FlowDataSourceSelectProps> = ({
 
   const isDisabled = Boolean(disabled) || !normalized || !accessToken
   const effectiveSearchPlaceholder =
-    searchPlaceholder || (normalized?.type === 'ENTITY' ? `Search ${normalized.entity || 'options'}...` : 'Search...')
+    searchPlaceholder ||
+    (normalized?.type === 'CUSTOM_ENTITY' || normalized?.type === 'INTERNAL_ENTITY'
+      ? `Search ${normalized.entity || 'options'}...`
+      : 'Search...')
 
   const emptyText = isLoading
     ? 'Loading...'

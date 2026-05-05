@@ -51,42 +51,22 @@ interface DataSourceApiResponse {
   }
 }
 
-// Custom data sources API response format
-interface CustomDataSourceApiResponse {
-  data: Array<Record<string, any>>
-  meta: {
-    namespace: string
-    key: string
-    total: number
-    hasMore: boolean
-    limit: number
-    offset: number
-  }
-}
-
 /**
  * Check if dataSource configuration is valid for fetching
  */
 const isValidDataSource = (dataSource: DataSourceConfig | undefined): boolean => {
   if (!dataSource) return false
 
-  // Must be ENTITY or CATALOG type
-  if (dataSource.type !== 'ENTITY' && dataSource.type !== 'CATALOG' && dataSource.type !== 'CUSTOM_DATA') {
+  if (dataSource.type !== 'CUSTOM_ENTITY' && dataSource.type !== 'CATALOG' && dataSource.type !== 'INTERNAL_ENTITY') {
     return false
   }
 
-  // ENTITY type requires entity field
-  if (dataSource.type === 'ENTITY' && !dataSource.entity) {
+  if ((dataSource.type === 'CUSTOM_ENTITY' || dataSource.type === 'INTERNAL_ENTITY') && !dataSource.entity) {
     return false
   }
 
   // CATALOG type requires catalog or catalogIdentifier field
   if (dataSource.type === 'CATALOG' && !dataSource.catalog && !dataSource.catalogIdentifier) {
-    return false
-  }
-
-  // CUSTOM_DATA type requires namespace + key
-  if (dataSource.type === 'CUSTOM_DATA' && (!dataSource.namespace || !dataSource.key)) {
     return false
   }
 
@@ -96,7 +76,7 @@ const isValidDataSource = (dataSource: DataSourceConfig | undefined): boolean =>
 /**
  * useDataSource Hook
  * Fetches options from custom-flow-engine datasource endpoint
- * Only fetches when dataSource is valid (ENTITY with entity, or CATALOG with catalog)
+ * Only fetches when dataSource is valid (CUSTOM_ENTITY with entity, or CATALOG with catalog)
  */
 export const useDataSource = (
   dataSource: DataSourceConfig | undefined,
@@ -128,37 +108,31 @@ export const useDataSource = (
       let entityType: string | undefined
 
       switch (dataSource.type) {
-        case 'ENTITY':
+        case 'CUSTOM_ENTITY':
+        case 'INTERNAL_ENTITY':
           entityType = dataSource.entity
           break
         case 'CATALOG':
           entityType = dataSource.catalog || dataSource.catalogIdentifier
           break
-        case 'CUSTOM_DATA':
-          entityType = undefined
-          break
         default:
           return null
       }
 
-      // CUSTOM_DATA uses a dedicated endpoint
-      if (dataSource.type === 'CUSTOM_DATA') {
-        const ns = dataSource.namespace
-        const key = dataSource.key
-        if (!ns || !key) return null
-
-        const url = new URL(`${apiBase}/custom-data-sources/query/${encodeURIComponent(key)}`)
-        url.searchParams.set('limit', String(limit))
-        url.searchParams.set('offset', String(currentOffset))
-        // search is not supported by the current backend query provider; ignore for now.
-        return url.toString()
-      }
-
       if (!entityType) return null
 
-      const url = new URL(`${apiBase}/datasource/${entityType.toLowerCase()}`)
+      const url = new URL(`${apiBase}/datasource/${encodeURIComponent(entityType)}`)
       url.searchParams.set('limit', String(limit))
       url.searchParams.set('offset', String(currentOffset))
+      if (dataSource.type === 'CUSTOM_ENTITY' || dataSource.type === 'INTERNAL_ENTITY') {
+        url.searchParams.set('kind', dataSource.type)
+      }
+      if (dataSource.type === 'CUSTOM_ENTITY' && dataSource.namespace) {
+        url.searchParams.set('namespace', dataSource.namespace)
+      }
+      if ((dataSource.type === 'CUSTOM_ENTITY' || dataSource.type === 'INTERNAL_ENTITY') && dataSource.labelField) {
+        url.searchParams.set('labelField', dataSource.labelField)
+      }
 
       if (search.trim()) {
         url.searchParams.set('search', search.trim())
@@ -220,17 +194,11 @@ export const useDataSource = (
       setError(null)
 
       try {
-        const extraHeaders: Record<string, string> = {}
-        if (dataSource?.type === 'CUSTOM_DATA' && dataSource.namespace) {
-          extraHeaders['x-schema-namespace'] = dataSource.namespace
-        }
-
         const response = await fetch(url, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            ...extraHeaders
+            'Content-Type': 'application/json'
           },
           signal: abortControllerRef.current.signal
         })
@@ -241,10 +209,7 @@ export const useDataSource = (
 
         const raw = await response.json()
 
-        // Support both response shapes:
-        // - /api/datasource/:entityType => { entities, meta }
-        // - /api/custom-data-sources/query/:key => { data, meta }
-        const entities = (raw as DataSourceApiResponse)?.entities ?? (raw as CustomDataSourceApiResponse)?.data ?? []
+        const entities = (raw as DataSourceApiResponse)?.entities ?? []
 
         const newOptions = transformToOptions(entities)
 

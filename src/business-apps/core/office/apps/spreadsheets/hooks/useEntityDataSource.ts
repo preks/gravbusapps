@@ -190,7 +190,7 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
 
     try {
       const apiUrl = getApiUrl()
-      const url = `${apiUrl}/entities?includeFields=true`
+      const url = `${apiUrl}/v1/custom-data/internal-entities?context=service`
 
       const response = await fetch(url, {
         method: 'GET',
@@ -321,6 +321,12 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
         if (dataSource.limit > 0) {
           params.set('limit', String(dataSource.limit))
         }
+        if (dataSource.entityKind) {
+          params.set('kind', dataSource.entityKind)
+        }
+        if (dataSource.namespace) {
+          params.set('namespace', dataSource.namespace)
+        }
 
         // Filters
         const filters = buildApiFilters(dataSource.filters, userId)
@@ -334,7 +340,7 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
         }
 
         const queryString = params.toString()
-        const url = `${apiUrl}/datasource/${dataSource.entityType}${queryString ? `?${queryString}` : ''}`
+        const url = `${apiUrl}/datasource/${encodeURIComponent(dataSource.entityType)}${queryString ? `?${queryString}` : ''}`
 
         const response = await fetch(url, {
           method: 'GET',

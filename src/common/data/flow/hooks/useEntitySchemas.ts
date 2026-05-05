@@ -102,12 +102,39 @@ export interface EntitySchemasResponse {
   }
 }
 
+type EntitySchemasApiResponse =
+  | { schemas?: Record<string, EntitySchema>; entities?: Record<string, EntitySchema> }
+  | EntitySchema[]
+
+function buildSchemaRecord(response: EntitySchemasApiResponse): Record<string, EntitySchema> | null {
+  if (Array.isArray(response)) {
+    return response.reduce<Record<string, EntitySchema>>((schemaRecord, schema) => {
+      const type = String(schema?.type || '')
+        .trim()
+        .toLowerCase()
+      if (type) {
+        schemaRecord[type] = schema
+      }
+
+      return schemaRecord
+    }, {})
+  }
+
+  if ('schemas' in response && response.schemas) {
+    return response.schemas
+  }
+
+  if ('entities' in response && response.entities) {
+    return response.entities
+  }
+
+  return null
+}
+
 /**
  * Hook options
  */
 export interface UseEntitySchemasOptions {
-  includeFields?: boolean
-  category?: string
   enableCache?: boolean
 }
 
@@ -217,7 +244,7 @@ export const clearEntitySchemasCache = (): void => {
  * Hook to fetch and cache entity schemas
  */
 export const useEntitySchemas = (options: UseEntitySchemasOptions = {}): UseEntitySchemasResult => {
-  const { includeFields = true, category, enableCache = true } = options
+  const { enableCache = true } = options
 
   const [schemas, setSchemas] = useState<Record<string, EntitySchema> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -248,15 +275,7 @@ export const useEntitySchemas = (options: UseEntitySchemasOptions = {}): UseEnti
         }
       }
 
-      const params = new URLSearchParams()
-      if (includeFields !== undefined) {
-        params.set('includeFields', String(includeFields))
-      }
-      if (category) {
-        params.set('category', category)
-      }
-
-      const url = `${CUSTOM_FLOW_ENGINE_API_URL}/entities?${params}`
+      const url = `${CUSTOM_FLOW_ENGINE_API_URL}/v1/custom-data/internal-entities`
       console.debug('Fetching entity schemas', { url })
 
       const response = await fetch(url, {
@@ -270,24 +289,23 @@ export const useEntitySchemas = (options: UseEntitySchemasOptions = {}): UseEnti
         throw new Error(`Failed to fetch entity schemas: ${response.status} ${response.statusText}`)
       }
 
-      const data: EntitySchemasResponse = await response.json()
-      const nextSchemas = data.schemas || data.entities
-
-      if (!nextSchemas) {
+      const data: EntitySchemasApiResponse = await response.json()
+      const schemas = buildSchemaRecord(data)
+      if (!schemas) {
         throw new Error('Invalid response: missing entities/schemas')
       }
 
       console.log('Entity schemas fetched successfully:', {
-        count: data.meta.count,
-        types: data.meta.types || Object.keys(nextSchemas)
+        count: Object.keys(schemas).length,
+        types: Object.keys(schemas)
       })
 
       if (enableCache) {
-        setMemoryCachedSchemas(nextSchemas)
-        setCachedSchemas(nextSchemas)
+        setMemoryCachedSchemas(schemas)
+        setCachedSchemas(schemas)
       }
 
-      setSchemas(nextSchemas)
+      setSchemas(schemas)
     } catch (error) {
       const errorObject = error instanceof Error ? error : new Error('Unknown error')
       console.error('Failed to fetch entity schemas:', errorObject)
@@ -304,7 +322,7 @@ export const useEntitySchemas = (options: UseEntitySchemasOptions = {}): UseEnti
     } finally {
       setIsLoading(false)
     }
-  }, [category, enableCache, includeFields])
+  }, [enableCache])
 
   /**
    * Fetch on mount and when options change

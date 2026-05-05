@@ -15,10 +15,12 @@ import {
   TabsTrigger,
   TabsContent
 } from '@newwork/nw-design-system'
-import { Database, Plus, RefreshCw, LayoutList, Table2 } from 'lucide-react'
+import { Database, Plus, RefreshCw, LayoutList, Table2, GitBranch } from 'lucide-react'
 import { PreviewHeaderCard } from '../preview-header'
 import { CustomDataGraphQLClient } from '@/common/network/custom-data/CustomDataGraphQLClient'
 import { CustomDataMutationClient } from '@/common/network/custom-data/CustomDataMutationClient'
+import { DataCanvas, useDataGraph, type DataGraphEntityInput } from '@/common/components/flow/data-viewer'
+import { fetchInternalEntityOptions } from '@/common/utils/entityDiscovery'
 import type { DataModelPreviewColumn, DataModelPreviewDefinition } from './dataModelPreviewTypes'
 import { enrichColumnsWithSchemaTypes } from './typeMapping'
 import type { RowValues } from './DataModelPreviewCells'
@@ -74,6 +76,7 @@ export const DataModelPreview: React.FC<DataModelPreviewProps> = ({
   'data-testid': testId = 'data-model-preview'
 }) => {
   if (items && items.length > 0) {
+    const allDefs = items.map(i => i.definition)
     return (
       <PreviewTemplate items={items} data-testid={testId}>
         {selectedId => {
@@ -82,6 +85,7 @@ export const DataModelPreview: React.FC<DataModelPreviewProps> = ({
             <DataModelPreviewSingle
               key={active.id}
               definition={active.definition}
+              allDefinitions={allDefs}
               onCreateRow={active.onCreateRow}
               onUpdateRow={active.onUpdateRow}
               onDeleteRow={active.onDeleteRow}
@@ -108,6 +112,7 @@ export const DataModelPreview: React.FC<DataModelPreviewProps> = ({
 
 interface DataModelPreviewSingleProps {
   definition: DataModelPreviewDefinition
+  allDefinitions?: DataModelPreviewDefinition[]
   onCreateRow?: (values: Record<string, unknown>) => Promise<void>
   onUpdateRow?: (rowId: string, values: Record<string, unknown>) => Promise<void>
   onDeleteRow?: (rowId: string) => Promise<void>
@@ -162,8 +167,13 @@ function formatReadValue(value: unknown, type: string): string {
   return typeof value === 'string' ? value : JSON.stringify(value)
 }
 
-/** Reference columns map to scalar fields only in GraphQL. */
 const SCALAR_COLUMN_TYPES = new Set(['TEXT', 'NUMBER', 'DATE', 'DATETIME', 'CHECKBOX', 'SELECT'])
+const INTERNAL_ENTITY_FALLBACK_FIELDS = ['id', 'code', 'displayName', 'type', 'description']
+
+function deriveNestedFieldName(columnName: string): string {
+  const stripped = columnName.replace(/Id$/, '').replace(/_id$/, '')
+  return stripped === columnName ? `${columnName}Ref` : stripped
+}
 
 function toStableRowKey(row: Record<string, unknown>, index: number): string {
   const id = row.id
@@ -218,49 +228,66 @@ function toPascalCaseEntityKey(input: string): string {
   return out && /^[A-Za-z]/.test(out) ? out : `Entity${out}`
 }
 
-function toCamelCaseEntityKey(input: string): string {
-  const pascal = toPascalCaseEntityKey(input)
-  return pascal.charAt(0).toLowerCase() + pascal.slice(1)
-}
-
-function toGraphqlSafeEntityBase(input: string): string {
-  const value = String(input || '').trim()
-  if (!value) return 'entity'
-  const safe = value.replace(/\W/g, '_')
-  if (!safe) return 'entity'
-  return /^[_A-Za-z]/.test(safe) ? safe : `_${safe}`
-}
-
-function buildEntityQueryNames(entityKey: string): { listPrimary: string; listCandidates: string[]; typeName: string } {
-  const primaryBase = toCamelCaseEntityKey(entityKey)
-  const rawBase = toGraphqlSafeEntityBase(entityKey)
-  const rawLowerBase = rawBase.charAt(0).toLowerCase() + rawBase.slice(1)
-  const bases = Array.from(new Set([primaryBase, rawBase, rawLowerBase].filter(Boolean)))
-
+function buildEntityQueryNames(entityKey: string): { listPrimary: string; typeName: string } {
+  const typeName = toPascalCaseEntityKey(entityKey)
   return {
-    listPrimary: `${primaryBase}List`,
-    listCandidates: bases.map(base => `${base}List`),
-    typeName: toPascalCaseEntityKey(entityKey)
+    listPrimary: typeName,
+    typeName
   }
 }
 
 function buildListQuery(
   key: string,
-  columns: DataModelPreviewColumn[]
-): { query: string; listFieldCandidates: string[] } {
+  columns: DataModelPreviewColumn[],
+  internalEntityFieldsByType: Record<string, string[]>
+): { query: string; listFieldName: string; internalEntityFields: string[] } {
   const queryNames = buildEntityQueryNames(key)
   const scalarFields = columns.filter(c => SCALAR_COLUMN_TYPES.has(c.type)).map(c => c.name)
-  const fields = ['id', ...scalarFields].join('\n      ')
+  const fieldLines: string[] = ['id', ...scalarFields]
+
+  const internalEntityFields: string[] = []
+  for (const col of columns) {
+    if (col.dataSource?.type === 'INTERNAL_ENTITY') {
+      const nestedName = deriveNestedFieldName(col.name)
+      const internalEntityType = String(col.dataSource.entity || '').trim()
+      const preferredFields = internalEntityFieldsByType[internalEntityType] ?? []
+      const selectedFields = INTERNAL_ENTITY_FALLBACK_FIELDS.filter(field => preferredFields.includes(field))
+      const fragmentFields = (selectedFields.length > 0 ? selectedFields : INTERNAL_ENTITY_FALLBACK_FIELDS).join(
+        '\n      '
+      )
+      fieldLines.push(`${nestedName} {\n      ${fragmentFields}\n    }`)
+      internalEntityFields.push(nestedName)
+    }
+  }
+
+  const fields = fieldLines.join('\n      ')
   return {
     query: `{ ${queryNames.listPrimary} {\n      ${fields}\n    } }`,
-    listFieldCandidates: queryNames.listCandidates
+    listFieldName: queryNames.listPrimary,
+    internalEntityFields
   }
 }
 
-type DataModelTab = 'structure' | 'data'
+type DataModelTab = 'structure' | 'data' | 'diagram'
+
+function definitionToGraphInput(def: DataModelPreviewDefinition, index: number): DataGraphEntityInput {
+  return {
+    id: def.key || `entity-${index}`,
+    key: def.key,
+    displayName: def.display_name,
+    columns: (def.columns ?? []).map(col => ({
+      name: col.name,
+      type: col.type,
+      label: col.label,
+      required: col.required,
+      dataSource: col.dataSource ? { type: col.dataSource.type, entity: col.dataSource.entity } : undefined
+    }))
+  }
+}
 
 const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
   definition,
+  allDefinitions,
   onCreateRow,
   onUpdateRow,
   onDeleteRow,
@@ -280,15 +307,34 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
   const [editingValues, setEditingValues] = useState<RowValues>({})
   const [existingSaving, setExistingSaving] = useState(false)
   const [existingError, setExistingError] = useState<string | null>(null)
+  const [internalEntityFieldsByType, setInternalEntityFieldsByType] = useState<Record<string, string[]>>({})
 
   const isCatalog = definition.modelType === 'catalog'
   const entityQueryNames = useMemo(() => buildEntityQueryNames(definition.key), [definition.key])
-  const scalarFieldNames = useMemo(
-    () => columns.filter(c => SCALAR_COLUMN_TYPES.has(c.type)).map(c => c.name),
+  const columnSignature = useMemo(
+    () =>
+      JSON.stringify(
+        columns.map(column => ({
+          name: column.name,
+          type: column.type,
+          dataSourceType: column.dataSource?.type ?? '',
+          dataSourceEntity: column.dataSource?.entity ?? ''
+        }))
+      ),
     [columns]
   )
-  const scalarFieldSignature = useMemo(() => scalarFieldNames.join('|'), [scalarFieldNames])
-  const listQueryConfig = useMemo(() => buildListQuery(definition.key, columns), [definition.key, scalarFieldSignature])
+  const internalEntityFieldSignature = useMemo(
+    () =>
+      Object.entries(internalEntityFieldsByType)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([entityType, fields]) => `${entityType}:${fields.join(',')}`)
+        .join('|'),
+    [internalEntityFieldsByType]
+  )
+  const listQueryConfig = useMemo(
+    () => buildListQuery(definition.key, columns, internalEntityFieldsByType),
+    [definition.key, columnSignature, internalEntityFieldSignature]
+  )
 
   const graphqlClient = useMemo(
     () =>
@@ -301,6 +347,26 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
       accessToken && !isCatalog ? new CustomDataMutationClient({ accessToken, namespace: definition.namespace }) : null,
     [accessToken, isCatalog, definition.namespace]
   )
+
+  useEffect(() => {
+    if (!accessToken || isCatalog) {
+      setInternalEntityFieldsByType({})
+      return
+    }
+
+    fetchInternalEntityOptions({ accessToken, includeFields: true })
+      .then(entities => {
+        setInternalEntityFieldsByType(
+          entities.reduce<Record<string, string[]>>((fieldMap, entity) => {
+            fieldMap[entity.type] = entity.fields
+            return fieldMap
+          }, {})
+        )
+      })
+      .catch(() => {
+        setInternalEntityFieldsByType({})
+      })
+  }, [accessToken, isCatalog])
 
   const fetchSchemaTypes = useCallback(async () => {
     if (!graphqlClient) return
@@ -329,12 +395,9 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
       }
       setFetchError(null)
       try {
-        const { query, listFieldCandidates } = listQueryConfig
+        const { query, listFieldName } = listQueryConfig
         const data = await graphqlClient.request<Record<string, Record<string, unknown>[]>>(query)
-        const listRows =
-          listFieldCandidates
-            .map(field => data[field])
-            .find((rows): rows is Record<string, unknown>[] => Array.isArray(rows)) || []
+        const listRows = Array.isArray(data[listFieldName]) ? data[listFieldName] : []
         setExistingRows(listRows)
       } catch (e) {
         setFetchError(e instanceof Error ? e.message : 'Failed to load records')
@@ -540,7 +603,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
         data-testid={`${testId}-tabs`}
       >
         <TabsList
-          className="gba:w-full gba:grid gba:grid-cols-2 gba:shrink-0 gba:h-11 gba:p-1 gba:bg-muted gba:rounded-lg gba:items-stretch"
+          className="gba:w-full gba:grid gba:grid-cols-3 gba:shrink-0 gba:h-11 gba:p-1 gba:bg-muted gba:rounded-lg gba:items-stretch"
           data-testid={`${testId}-tabs-list`}
         >
           <TabsTrigger
@@ -561,6 +624,16 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
             <span className="gba:inline-flex gba:items-center gba:gap-1.5">
               <Table2 className="gba:h-3.5 gba:w-3.5 gba:shrink-0" />
               <span>Data</span>
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="diagram"
+            className="gba:inline-flex gba:items-center gba:justify-center gba:gap-1.5 gba:h-full gba:min-h-0 gba:py-0 gba:rounded-md"
+            data-testid={`${testId}-tab-diagram`}
+          >
+            <span className="gba:inline-flex gba:items-center gba:gap-1.5">
+              <GitBranch className="gba:h-3.5 gba:w-3.5 gba:shrink-0" />
+              <span>Diagram</span>
             </span>
           </TabsTrigger>
         </TabsList>
@@ -750,7 +823,36 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="diagram" className="gba:mt-0 gba:flex-1 gba:min-h-0" data-testid={`${testId}-diagram`}>
+          <DataModelDiagram
+            definition={definition}
+            allDefinitions={allDefinitions}
+            testId={`${testId}-diagram-canvas`}
+          />
+        </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+const DataModelDiagram: React.FC<{
+  definition: DataModelPreviewDefinition
+  allDefinitions?: DataModelPreviewDefinition[]
+  testId: string
+}> = ({ definition, allDefinitions, testId }) => {
+  const graphEntities = useMemo<DataGraphEntityInput[]>(() => {
+    const defs = allDefinitions && allDefinitions.length > 1 ? allDefinitions : [definition]
+    return defs.map((def, i) => definitionToGraphInput(def, i))
+  }, [definition, allDefinitions])
+
+  const { nodes, edges } = useDataGraph(graphEntities)
+
+  return (
+    <Card className="gba:border-border gba:overflow-hidden">
+      <CardContent className="gba:p-0" style={{ height: 400 }}>
+        <DataCanvas nodes={nodes} edges={edges} showMiniMap={false} nodesDraggable data-testid={testId} />
+      </CardContent>
+    </Card>
   )
 }

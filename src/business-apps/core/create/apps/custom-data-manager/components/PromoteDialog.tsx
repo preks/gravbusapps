@@ -12,14 +12,14 @@ import {
   Badge,
   Spinner
 } from '@newwork/nw-design-system'
-import { Rocket, Database, Check, AlertTriangle, ArrowRight, Table2 } from 'lucide-react'
+import { Rocket, Database, Check, AlertTriangle, ArrowRight, Table2, RefreshCw } from 'lucide-react'
 import { CustomDataDefinition } from '../types'
 
 interface PromoteDialogProps {
   open: boolean
   onClose: () => void
   definition: CustomDataDefinition | null
-  onPromote: (definitionId: string) => Promise<CustomDataDefinition>
+  onPromote: (definition: CustomDataDefinition) => Promise<CustomDataDefinition>
   'data-testid'?: string
 }
 
@@ -45,7 +45,7 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
     setError(null)
 
     try {
-      const promoted = await onPromote(definition.id)
+      const promoted = await onPromote(definition)
       setSuccess(promoted)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to promote entity')
@@ -70,12 +70,16 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
       <DialogContent className="gba:max-w-md" data-testid={testId}>
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            <Rocket className="gba:h-5 gba:w-5 gba:text-primary" />
-            {isAlreadyPromoted ? 'Entity Status' : 'Promote Entity'}
+            {isAlreadyPromoted ? (
+              <RefreshCw className="gba:h-5 gba:w-5 gba:text-primary" />
+            ) : (
+              <Rocket className="gba:h-5 gba:w-5 gba:text-primary" />
+            )}
+            {isAlreadyPromoted ? 'Re-deploy Entity' : 'Promote Entity'}
           </DialogTitle>
           <DialogDescription>
             {isAlreadyPromoted
-              ? 'This entity has been promoted to a native PostgreSQL table'
+              ? 'Apply schema changes to the existing PostgreSQL table'
               : 'Deploy this entity as a native PostgreSQL table'}
           </DialogDescription>
         </DialogHeader>
@@ -127,9 +131,11 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
             <Alert className="gba:bg-success-secondary gba:border-success">
               <Check className="gba:h-4 gba:w-4 gba:text-success" />
               <AlertDescription className="gba:text-success-secondary-foreground">
-                <p className="gba:font-medium">Entity promoted successfully!</p>
+                <p className="gba:font-medium">
+                  {isAlreadyPromoted ? 'Schema re-deployed successfully!' : 'Entity promoted successfully!'}
+                </p>
                 <p className="gba:text-xs gba:mt-1">
-                  Table created: <span className="gba:font-mono">{success.deploy_state?.tableName}</span>
+                  Table: <span className="gba:font-mono">{success.deploy_state?.tableName}</span>
                 </p>
               </AlertDescription>
             </Alert>
@@ -143,10 +149,9 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
             </Alert>
           )}
 
-          {/* Promotion Info */}
-          {!isAlreadyPromoted && !success && (
+          {/* Promotion / Re-deploy Info */}
+          {!success && (
             <div className="gba:space-y-3">
-              {/* Visual transformation */}
               <div className="gba:flex gba:items-center gba:justify-center gba:gap-3 gba:py-4">
                 <div className="gba:text-center">
                   <Database className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-1 gba:text-muted-foreground" />
@@ -159,24 +164,36 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
                 </div>
               </div>
 
-              {/* What happens */}
               <div className="gba:text-xs gba:text-muted-foreground gba:space-y-1">
-                <p className="gba:font-medium">What happens when you promote:</p>
+                <p className="gba:font-medium">
+                  {isAlreadyPromoted ? 'What happens when you re-deploy:' : 'What happens when you promote:'}
+                </p>
                 <ul className="gba:list-disc gba:list-inside gba:space-y-1 gba:ml-2">
-                  <li>A native PostgreSQL table will be created</li>
+                  {isAlreadyPromoted ? (
+                    <>
+                      <li>New columns will be added to the existing table</li>
+                      <li>Existing columns and data remain untouched</li>
+                      <li>Hasura tracking will be refreshed</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>A native PostgreSQL table will be created</li>
+                      <li>Column types will be mapped to SQL types</li>
+                    </>
+                  )}
                   <li>
                     Table name: <span className="gba:font-mono">{tableName}</span>
                   </li>
                   <li>The table will be tracked in Hasura for GraphQL access</li>
-                  <li>Column types will be mapped to SQL types</li>
                 </ul>
               </div>
 
-              {/* Warning */}
               <Alert>
                 <AlertTriangle className="gba:h-4 gba:w-4 gba:text-warning" />
                 <AlertDescription className="gba:text-xs">
-                  This action cannot be undone. The entity key will be permanent.
+                  {isAlreadyPromoted
+                    ? 'Existing data will not be affected. Only additive changes (new columns) are applied.'
+                    : 'This action cannot be undone. The entity key will be permanent.'}
                 </AlertDescription>
               </Alert>
             </div>
@@ -187,12 +204,17 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
           <Button variant="outline" onClick={handleClose}>
             {success ? 'Close' : 'Cancel'}
           </Button>
-          {!isAlreadyPromoted && !success && (
+          {!success && (
             <Button onClick={handlePromote} disabled={isPromoting} data-testid={`${testId}-confirm`}>
               {isPromoting ? (
                 <>
                   <Spinner size="sm" className="gba:mr-2" />
-                  Promoting...
+                  {isAlreadyPromoted ? 'Re-deploying...' : 'Promoting...'}
+                </>
+              ) : isAlreadyPromoted ? (
+                <>
+                  <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
+                  Re-deploy
                 </>
               ) : (
                 <>

@@ -35,6 +35,9 @@ export interface FilterInput {
 }
 
 export interface DataSourceOptions {
+  kind?: 'CUSTOM_ENTITY' | 'INTERNAL_ENTITY'
+  namespace?: string
+  labelField?: string
   search?: string
   limit?: number
   offset?: number
@@ -57,7 +60,7 @@ export interface DataSourceResult {
   }
 }
 
-export const useDatasource = () => {
+export const useDatasource = (accessToken?: string) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -75,6 +78,9 @@ export const useDatasource = () => {
         if (options.search) params.set('search', options.search)
         if (options.limit !== undefined) params.set('limit', String(options.limit))
         if (options.offset !== undefined) params.set('offset', String(options.offset))
+        if (options.kind) params.set('kind', options.kind)
+        if (options.namespace) params.set('namespace', options.namespace)
+        if (options.labelField) params.set('labelField', options.labelField)
         if (options.filters && options.filters.length > 0) {
           params.set('filters', JSON.stringify(options.filters))
         }
@@ -83,11 +89,12 @@ export const useDatasource = () => {
         }
 
         const queryString = params.toString()
-        const url = `${apiUrl}/datasource/${entityType}${queryString ? `?${queryString}` : ''}`
+        const url = `${apiUrl}/datasource/${encodeURIComponent(entityType)}${queryString ? `?${queryString}` : ''}`
         const response = await fetch(url, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
           }
         })
 
@@ -106,7 +113,7 @@ export const useDatasource = () => {
         setIsLoading(false)
       }
     },
-    [getApiUrl]
+    [accessToken, getApiUrl]
   )
 
   return { isLoading, error, list }

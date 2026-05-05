@@ -77,11 +77,13 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
 
   // Bulk action helpers
   const promotableCount = useMemo(() => {
-    return selectedDefinitions.filter(d => d.kind === 'ENTITY' && d.publish_state !== 'PROMOTED_TRACKED').length
+    return selectedDefinitions.filter(d => d.kind === 'CUSTOM_ENTITY' && d.publish_state !== 'PROMOTED_TRACKED').length
   }, [selectedDefinitions])
 
   const handleBulkPromote = useCallback(() => {
-    const promotable = selectedDefinitions.filter(d => d.kind === 'ENTITY' && d.publish_state !== 'PROMOTED_TRACKED')
+    const promotable = selectedDefinitions.filter(
+      d => d.kind === 'CUSTOM_ENTITY' && d.publish_state !== 'PROMOTED_TRACKED'
+    )
     if (promotable.length > 0 && onBulkAction) {
       onBulkAction({ type: 'promote', definitions: promotable })
     }
@@ -269,7 +271,7 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
                       >
                         <Edit2 className="gba:h-4 gba:w-4" />
                       </Button>
-                      {definition.kind === 'ENTITY' && definition.publish_state !== 'PROMOTED_TRACKED' && (
+                      {definition.kind === 'CUSTOM_ENTITY' && definition.publish_state !== 'PROMOTED_TRACKED' && (
                         <Button
                           variant="ghost"
                           size="icon"

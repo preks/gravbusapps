@@ -1,51 +1,28 @@
 import {
-  type CustomDataFlowMutationResponse,
+  type CustomDataRowMutationResponse,
   type CustomDataRowCreateParams,
   type CustomDataRowDeleteParams,
   type CustomDataRowUpdateParams
 } from '@/common/network/custom-data/CustomDataMutationClient'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { RestClient } from '@/common/network/rest/RestClient'
-import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 type GraphQLResponse<T> = {
   data?: T
   errors?: unknown
 }
 
-function normalizeValueKeys(values: Record<string, unknown>): Record<string, unknown> {
-  const normalizedValues: Record<string, unknown> = {}
+function buildRowPath(namespace: string, definitionKey: string, rowId?: string): string {
+  const basePath =
+    `/v1/custom-data/namespaces/${encodeURIComponent(namespace)}` +
+    `/custom-entities/${encodeURIComponent(definitionKey)}/rows`
 
-  for (const [key, value] of Object.entries(values)) {
-    const normalizedKey = normalizeValueKey(key)
-
-    if (normalizedKey !== key && process.env.NODE_ENV !== 'production') {
-      console.warn(
-        `[CustomFlowEngineDataClient] Field key "${key}" was automatically normalized to "${normalizedKey}". ` +
-          'AI-generated code should use camelCase field names to match entity schema.'
-      )
-    }
-
-    normalizedValues[normalizedKey] = value
+  if (!rowId) {
+    return basePath
   }
 
-  return normalizedValues
-}
-
-function normalizeValueKey(key: string): string {
-  const parts = key.split(/[_\-\s]+/)
-
-  return parts
-    .map((part, index) => {
-      const cleanedPart = part.replace(/[^a-zA-Z0-9]/g, '')
-      if (!cleanedPart) return ''
-      if (index === 0) {
-        return cleanedPart.charAt(0).toLowerCase() + cleanedPart.slice(1)
-      }
-
-      return cleanedPart.charAt(0).toUpperCase() + cleanedPart.slice(1)
-    })
-    .join('')
+  return `${basePath}/${encodeURIComponent(rowId)}`
 }
 
 export class CustomFlowEngineDataClient extends RestClient {
@@ -63,7 +40,7 @@ export class CustomFlowEngineDataClient extends RestClient {
   }
 
   constructor() {
-    super(CUSTOM_FLOW_ENGINE_API_URL, {})
+    super(getFlowEngineApiBaseUrl(), {})
   }
 
   setAccessToken(accessToken: string) {
@@ -170,104 +147,22 @@ export class CustomFlowEngineDataClient extends RestClient {
     }
   }
 
-  async createRow(params: CustomDataRowCreateParams): Promise<CustomDataFlowMutationResponse> {
+  async createRow(params: CustomDataRowCreateParams): Promise<CustomDataRowMutationResponse> {
     const namespace = (params.namespace ?? this.namespace) || 'default'
-    const normalizedValues = normalizeValueKeys(params.values)
-
-    try {
-      return await this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-create', {
-        namespace,
-        definitionKey: params.definitionKey,
-        values: normalizedValues,
-        initiator: params.initiator,
-        timeoutMs: params.timeoutMs
-      })
-    } catch (error: any) {
-      if (this.shouldRetryWithOriginalValues(error, params.values, normalizedValues)) {
-        return this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-create', {
-          namespace,
-          definitionKey: params.definitionKey,
-          values: params.values,
-          initiator: params.initiator,
-          timeoutMs: params.timeoutMs
-        })
-      }
-
-      if (error?.message?.includes('Unknown column')) {
-        throw new Error(this.enhanceUnknownColumnError(error.message, params.values, params.definitionKey))
-      }
-
-      throw error
-    }
-  }
-
-  async updateRow(params: CustomDataRowUpdateParams): Promise<CustomDataFlowMutationResponse> {
-    const namespace = (params.namespace ?? this.namespace) || 'default'
-    const normalizedValues = normalizeValueKeys(params.values)
-
-    try {
-      return await this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-update', {
-        namespace,
-        definitionKey: params.definitionKey,
-        rowId: params.rowId,
-        values: normalizedValues,
-        initiator: params.initiator,
-        timeoutMs: params.timeoutMs
-      })
-    } catch (error: any) {
-      if (this.shouldRetryWithOriginalValues(error, params.values, normalizedValues)) {
-        return this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-update', {
-          namespace,
-          definitionKey: params.definitionKey,
-          rowId: params.rowId,
-          values: params.values,
-          initiator: params.initiator,
-          timeoutMs: params.timeoutMs
-        })
-      }
-
-      if (error?.message?.includes('Unknown column')) {
-        throw new Error(this.enhanceUnknownColumnError(error.message, params.values, params.definitionKey))
-      }
-
-      throw error
-    }
-  }
-
-  async deleteRow(params: CustomDataRowDeleteParams): Promise<CustomDataFlowMutationResponse> {
-    const namespace = (params.namespace ?? this.namespace) || 'default'
-
-    return this.post<CustomDataFlowMutationResponse>('/custom-data/flows/row-delete', {
-      namespace,
-      definitionKey: params.definitionKey,
-      rowId: params.rowId,
-      initiator: params.initiator,
-      timeoutMs: params.timeoutMs
+    return this.post<CustomDataRowMutationResponse>(buildRowPath(namespace, params.definitionKey), {
+      values: params.values
     })
   }
 
-  private enhanceUnknownColumnError(originalError: string, values: Record<string, unknown>, entityKey: string): string {
-    const providedFieldList = Object.keys(values).join(', ')
-
-    return (
-      `${originalError}\n\n` +
-      `Provided fields: ${providedFieldList}\n` +
-      `This usually means the screen code uses field names that do not match the entity schema.\n` +
-      `The entity "${entityKey}" expects camelCase field names.`
-    )
+  async updateRow(params: CustomDataRowUpdateParams): Promise<CustomDataRowMutationResponse> {
+    const namespace = (params.namespace ?? this.namespace) || 'default'
+    return this.patch<CustomDataRowMutationResponse>(buildRowPath(namespace, params.definitionKey, params.rowId), {
+      values: params.values
+    })
   }
 
-  private shouldRetryWithOriginalValues(
-    error: any,
-    originalValues: Record<string, unknown>,
-    normalizedValues: Record<string, unknown>
-  ): boolean {
-    if (!error?.message?.includes('Unknown column')) return false
-
-    const originalKeys = Object.keys(originalValues)
-    const normalizedKeys = Object.keys(normalizedValues)
-    if (originalKeys.length !== normalizedKeys.length) return true
-
-    return originalKeys.some(key => normalizeValueKey(key) !== key)
+  async deleteRow(params: CustomDataRowDeleteParams): Promise<CustomDataRowMutationResponse> {
+    const namespace = (params.namespace ?? this.namespace) || 'default'
+    return this.delete<CustomDataRowMutationResponse>(buildRowPath(namespace, params.definitionKey, params.rowId))
   }
 }

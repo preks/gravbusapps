@@ -12,6 +12,8 @@ import type { EntityFilterGroup, EntitySortConfig } from './entityDataSource'
  */
 export interface BulkCollectionEntitySelectConfig {
   entityType: string
+  entityKind?: 'CUSTOM_ENTITY' | 'INTERNAL_ENTITY'
+  namespace?: string
   entityDisplayName: string
   valueField: string
   labelField: string

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -28,14 +28,21 @@ import { Save, Database, Eye, Settings } from 'lucide-react'
 import { CustomDataDefinition, CreateDefinitionDto, UpdateDefinitionDto } from '../types'
 import { ColumnEditor } from './ColumnEditor'
 import { SchemaPreview } from './SchemaPreview'
-import { sanitizeDefinitionKey, validateDefinitionForm } from '../utils/definitionFormUtils'
+import {
+  buildUniqueDefinitionKey,
+  prepareColumnsForPersistence,
+  prepareColumnsForEditing,
+  validateDefinitionForm
+} from '../utils/definitionFormUtils'
 import { createInitialColumns, ensureColumnUiIds, stripColumnUiIds, UiColumnDefinition } from '../utils/columnUiIds'
 
 interface DefinitionFormProps {
   open: boolean
   onClose: () => void
   definition?: CustomDataDefinition | null
+  allDefinitions?: CustomDataDefinition[]
   onSave: (dto: CreateDefinitionDto | UpdateDefinitionDto, id?: string) => Promise<void>
+  accessToken: string
   availableNamespaces?: string[]
   onOpenCreateNamespace?: () => void
   'data-testid'?: string
@@ -49,21 +56,21 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
   open,
   onClose,
   definition,
+  allDefinitions,
   onSave,
+  accessToken,
   availableNamespaces,
   onOpenCreateNamespace,
   'data-testid': testId = 'definition-form'
 }) => {
   const isEdit = !!definition
+  const isPromoted = definition?.publish_state === 'PROMOTED_TRACKED'
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('general')
 
-  const keyInputRef = useRef<HTMLInputElement | null>(null)
-
   // Form state
   const [namespace, setNamespace] = useState('default')
-  const [key, setKey] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [description, setDescription] = useState('')
   const [columns, setColumns] = useState<UiColumnDefinition[]>([])
@@ -72,14 +79,12 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
   useEffect(() => {
     if (definition) {
       setNamespace(definition.namespace || 'default')
-      setKey(definition.key)
       setDisplayName(definition.display_name || '')
       setDescription(definition.description || '')
-      setColumns(ensureColumnUiIds(definition.columns_json || []))
+      setColumns(ensureColumnUiIds(prepareColumnsForEditing(definition.columns_json || [])))
     } else {
       // Reset form for new definition
       setNamespace('default')
-      setKey('')
       setDisplayName('')
       setDescription('')
       setColumns(createInitialColumns())
@@ -88,31 +93,30 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
     setError(null)
   }, [definition, open])
 
-  const handleKeyChange = (value: string) => {
-    // Keep raw input while typing to avoid focus/cursor issues; normalize on blur/submit.
-    setKey(value)
-    // Workaround: some dialog/input combinations can drop focus on controlled updates.
-    // Re-focus on next frame if needed.
-    requestAnimationFrame(() => {
-      if (keyInputRef.current && document.activeElement !== keyInputRef.current) {
-        keyInputRef.current.focus()
-      }
+  const effectiveNamespace = isEdit ? definition?.namespace || namespace : namespace
+  const siblingKeysInNamespace = (allDefinitions ?? [])
+    .filter(existingDefinition => {
+      const existingNamespace = existingDefinition.namespace || 'default'
+      return existingNamespace === effectiveNamespace && existingDefinition.id !== definition?.id
     })
-  }
-
-  const handleKeyBlur = () => {
-    setKey(prev => sanitizeDefinitionKey(prev))
-  }
+    .map(existingDefinition => existingDefinition.key)
+  const generatedKeyPreview = buildUniqueDefinitionKey(displayName, siblingKeysInNamespace, definition?.key)
 
   const handleSubmit = async () => {
-    const normalizedKey = sanitizeDefinitionKey(key)
-    if (normalizedKey !== key) {
-      setKey(normalizedKey)
-    }
-
-    const validationError = validateDefinitionForm({ key: normalizedKey, columns })
+    const normalizedDisplayName = String(displayName || '').trim()
+    const validationError = validateDefinitionForm({ displayName: normalizedDisplayName, columns })
     if (validationError) {
       setError(validationError)
+      return
+    }
+
+    const generatedDefinitionKey = buildUniqueDefinitionKey(
+      normalizedDisplayName,
+      siblingKeysInNamespace,
+      definition?.key
+    )
+    if (!generatedDefinitionKey) {
+      setError('Display name must generate a valid key')
       return
     }
 
@@ -120,21 +124,23 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
     setError(null)
 
     try {
+      const persistedColumns = stripColumnUiIds(prepareColumnsForPersistence(columns))
       if (isEdit) {
         const dto: UpdateDefinitionDto = {
-          display_name: displayName || undefined,
+          ...(isPromoted ? {} : { key: generatedDefinitionKey }),
+          display_name: normalizedDisplayName || undefined,
           description: description || undefined,
-          columns_json: columns
+          columns_json: persistedColumns
         }
         await onSave(dto, definition.id)
       } else {
         const dto: CreateDefinitionDto = {
           namespace,
-          key: normalizedKey,
-          kind: 'ENTITY',
-          display_name: displayName || undefined,
+          key: generatedDefinitionKey,
+          kind: 'CUSTOM_ENTITY',
+          display_name: normalizedDisplayName || undefined,
           description: description || undefined,
-          columns_json: stripColumnUiIds(columns)
+          columns_json: persistedColumns
         }
         await onSave(dto)
       }
@@ -221,25 +227,16 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
               </div>
 
               <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                {/* Key */}
+                {/* Generated Key */}
                 <div className="gba:space-y-2">
-                  <Label htmlFor={`${testId}-key`}>
-                    Key <span className="gba:text-destructive">*</span>
-                  </Label>
-                  <Input
-                    ref={keyInputRef}
-                    id={`${testId}-key`}
-                    value={key}
-                    onChange={e => handleKeyChange(e.target.value)}
-                    onBlur={handleKeyBlur}
-                    placeholder="my_data_table"
-                    disabled={isEdit}
-                    className="gba:font-mono"
-                    data-testid={`${testId}-key`}
-                  />
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    Unique within namespace (cannot be changed after creation)
-                  </p>
+                  <Label>Generated Key</Label>
+                  <div
+                    className="gba:flex gba:min-h-10 gba:items-center gba:rounded-md gba:border gba:bg-muted/30 gba:px-3 gba:font-mono gba:text-sm"
+                    data-testid={`${testId}-key-preview`}
+                  >
+                    {generatedKeyPreview || '-'}
+                  </div>
+                  <p className="gba:text-xs gba:text-muted-foreground">Generated automatically from the display name</p>
                 </div>
 
                 {/* Type */}
@@ -255,7 +252,9 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
 
               {/* Display Name */}
               <div className="gba:space-y-2">
-                <Label htmlFor={`${testId}-display-name`}>Display Name</Label>
+                <Label htmlFor={`${testId}-display-name`}>
+                  Display Name <span className="gba:text-destructive">*</span>
+                </Label>
                 <Input
                   id={`${testId}-display-name`}
                   value={displayName}
@@ -283,7 +282,19 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
 
             {/* Columns Tab */}
             <TabsContent value="columns" className="gba:mt-0">
-              <ColumnEditor columns={columns} onChange={setColumns} data-testid={`${testId}-column-editor`} />
+              <ColumnEditor
+                columns={columns}
+                onChange={setColumns}
+                accessToken={accessToken}
+                currentNamespace={namespace}
+                availableNamespaces={availableNamespaces}
+                customEntityOptions={(allDefinitions ?? []).map(d => ({
+                  namespace: d.namespace || 'default',
+                  key: d.key,
+                  displayName: d.display_name
+                }))}
+                data-testid={`${testId}-column-editor`}
+              />
             </TabsContent>
 
             {/* Preview Tab */}

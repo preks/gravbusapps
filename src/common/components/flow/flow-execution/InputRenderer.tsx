@@ -362,13 +362,17 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({
           </TooltipProvider>
         )}
         {/* Show entity indicator if dataSource is present */}
-        {input.dataSource?.type === 'ENTITY' && (
+        {(input.dataSource?.type === 'CUSTOM_ENTITY' || input.dataSource?.type === 'INTERNAL_ENTITY') && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge
                   variant="secondary"
-                  className="gba:text-xs gba:bg-purple-100 gba:text-purple-800 gba:flex gba:items-center gba:gap-1"
+                  className={`gba:text-xs gba:flex gba:items-center gba:gap-1 ${
+                    input.dataSource.type === 'INTERNAL_ENTITY'
+                      ? 'gba:bg-amber-100 gba:text-amber-800'
+                      : 'gba:bg-purple-100 gba:text-purple-800'
+                  }`}
                 >
                   <Database className="gba:h-3 gba:w-3" />
                   {input.dataSource.entity}
@@ -376,7 +380,8 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p className="gba:text-xs">
-                  Options from <strong>{input.dataSource.entity}</strong> entities
+                  Options from <strong>{input.dataSource.entity}</strong>{' '}
+                  {input.dataSource.type === 'INTERNAL_ENTITY' ? 'internal entities' : 'entities'}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -394,8 +399,13 @@ const MultiSelectInput: React.FC<MultiSelectInputProps> = ({
       {/* Warning if no options available */}
       {!input._resolveError && input.dataSource && (!input.options || input.options.length === 0) && (
         <div className="gba:mb-2 gba:p-2 gba:bg-warning-secondary gba:border gba:border-warning gba:rounded gba:text-xs gba:text-warning-secondary-foreground">
-          No options available from {input.dataSource.type === 'ENTITY' ? 'entity' : 'catalog'}:{' '}
-          <strong>{input.dataSource.entity || input.dataSource.catalog}</strong>
+          No options available from{' '}
+          {input.dataSource.type === 'CUSTOM_ENTITY'
+            ? 'entity'
+            : input.dataSource.type === 'INTERNAL_ENTITY'
+              ? 'internal entity'
+              : 'catalog'}
+          : <strong>{input.dataSource.entity || input.dataSource.catalog}</strong>
         </div>
       )}
 
@@ -741,7 +751,7 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
                 </TooltipProvider>
               )}
               {/* Show entity indicator if dataSource is present */}
-              {input.dataSource?.type === 'ENTITY' && (
+              {input.dataSource?.type === 'CUSTOM_ENTITY' && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -773,7 +783,7 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
             {/* Warning if no options available */}
             {!input._resolveError && input.dataSource && (!input.options || input.options.length === 0) && (
               <div className="gba:mb-2 gba:p-2 gba:bg-warning-secondary gba:border gba:border-warning gba:rounded gba:text-xs gba:text-warning-secondary-foreground">
-                No options available from {input.dataSource.type === 'ENTITY' ? 'entity' : 'catalog'}:{' '}
+                No options available from {input.dataSource.type === 'CUSTOM_ENTITY' ? 'entity' : 'catalog'}:{' '}
                 <strong>{input.dataSource.entity || input.dataSource.catalog}</strong>
               </div>
             )}

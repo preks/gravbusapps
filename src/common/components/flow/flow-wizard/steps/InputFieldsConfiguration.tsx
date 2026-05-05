@@ -29,7 +29,11 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpressionInput } from '@/common/components/flow/flow-expression/ExpressionInput'
 import { useCatalogDiscovery } from '@/common/data/flow/hooks/useCatalogDiscovery'
 import type { FlowTemplate } from '@/common/data/flow/types/flowTemplate'
-import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
+import {
+  fetchCustomEntityOptions,
+  fetchInternalEntityOptions,
+  type DiscoveredEntityOption
+} from '@/common/utils/entityDiscovery'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
 import { EntityPreview } from './EntityPreview'
@@ -45,6 +49,44 @@ interface InputFieldsConfigurationProps {
 
 interface InputFieldsTriggerProps {
   step: any
+}
+
+type ConfiguredEntityDataSource = {
+  type?: 'CUSTOM_ENTITY' | 'INTERNAL_ENTITY' | 'CATALOG'
+  entity?: string
+  namespace?: string
+}
+
+const getEntitySelectionValue = (entity: DiscoveredEntityOption): string =>
+  entity.kind === 'CUSTOM_ENTITY' ? `${entity.namespace || 'default'}:${entity.type}` : entity.type
+
+const getConfiguredEntitySelectionValue = (dataSource: ConfiguredEntityDataSource | undefined): string | undefined => {
+  if (!dataSource?.entity) {
+    return undefined
+  }
+
+  return dataSource.type === 'CUSTOM_ENTITY' ? `${dataSource.namespace || 'default'}:${dataSource.entity}` : dataSource.entity
+}
+
+const findMatchingEntityOption = (
+  entities: DiscoveredEntityOption[],
+  dataSource: ConfiguredEntityDataSource | undefined
+): DiscoveredEntityOption | undefined => {
+  if (!dataSource?.entity || (dataSource.type !== 'CUSTOM_ENTITY' && dataSource.type !== 'INTERNAL_ENTITY')) {
+    return undefined
+  }
+
+  return entities.find(entity => {
+    if (entity.kind !== dataSource.type || entity.type !== dataSource.entity) {
+      return false
+    }
+
+    if (dataSource.type !== 'CUSTOM_ENTITY') {
+      return true
+    }
+
+    return (entity.namespace || 'default') === (dataSource.namespace || 'default')
+  })
 }
 
 export const InputFieldsTrigger: React.FC<InputFieldsTriggerProps> = ({ step }) => {
@@ -88,17 +130,13 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
   const catalogDiscovery = context ? useCatalogDiscovery(context) : null
   const [catalogs, setCatalogs] = useState<any[]>([])
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(false)
-  const [availableEntities, setAvailableEntities] = useState<any[]>([])
+  const [availableEntities, setAvailableEntities] = useState<DiscoveredEntityOption[]>([])
   const [isLoadingEntities, setIsLoadingEntities] = useState(false)
-  const [customDataNamespaces, setCustomDataNamespaces] = useState<string[]>([])
-  const [customDataKeysByNamespace, setCustomDataKeysByNamespace] = useState<Record<string, string[]>>({})
-  const [isLoadingCustomDataKeys, setIsLoadingCustomDataKeys] = useState<Record<string, boolean>>({})
   const [catalogPreviewCounts, setCatalogPreviewCounts] = useState<Record<string, number>>({})
   const [expandedCatalogPreviews, setExpandedCatalogPreviews] = useState<Record<string, boolean>>({})
   const [expandedEntityPreviews, setExpandedEntityPreviews] = useState<Record<string, boolean>>({})
   const hasFetchedCatalogs = useRef(false)
   const hasFetchedEntities = useRef(false)
-  const hasFetchedNamespaces = useRef(false)
 
   useEffect(() => {
     if (!catalogDiscovery || !context?.accessToken) {
@@ -127,18 +165,23 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
   }, [catalogDiscovery, context?.accessToken])
 
   useEffect(() => {
+    if (!context?.accessToken) {
+      hasFetchedEntities.current = false
+      setAvailableEntities([])
+      return
+    }
+
     if (hasFetchedEntities.current) return
 
     const loadEntities = async () => {
       setIsLoadingEntities(true)
       hasFetchedEntities.current = true
       try {
-        const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/entities?includeFields=true`)
-        if (!response.ok) {
-          throw new Error(`Failed to fetch entities: ${response.statusText}`)
-        }
-        const data = await response.json()
-        setAvailableEntities(Object.values(data.entities || {}))
+        const [customEntities, internalEntities] = await Promise.all([
+          fetchCustomEntityOptions(context.accessToken),
+          fetchInternalEntityOptions({ accessToken: context.accessToken, includeFields: true })
+        ])
+        setAvailableEntities([...customEntities, ...internalEntities])
       } catch (error) {
         console.error('Failed to fetch entities:', error)
         setAvailableEntities([])
@@ -148,72 +191,7 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
     }
 
     loadEntities()
-  }, [])
-
-  useEffect(() => {
-    if (!context?.accessToken) {
-      hasFetchedNamespaces.current = false
-      setCustomDataNamespaces([])
-      return
-    }
-
-    if (hasFetchedNamespaces.current) return
-
-    const loadNamespaces = async () => {
-      hasFetchedNamespaces.current = true
-      try {
-        const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/custom-data/namespaces`, {
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        if (!response.ok) {
-          throw new Error(`Failed to fetch custom data namespaces: ${response.statusText}`)
-        }
-        const data = await response.json()
-        const list = Array.isArray(data) ? data : []
-        setCustomDataNamespaces(list.map((item: any) => String(item.namespace)).filter(Boolean))
-      } catch (error) {
-        console.error('Failed to fetch custom data namespaces:', error)
-        setCustomDataNamespaces([])
-      }
-    }
-
-    loadNamespaces()
   }, [context?.accessToken])
-
-  const fetchCustomDataKeys = useCallback(
-    async (namespace: string) => {
-      const safeNamespace = String(namespace || '').trim() || 'default'
-      if (!context?.accessToken || isLoadingCustomDataKeys[safeNamespace] || customDataKeysByNamespace[safeNamespace]) {
-        return
-      }
-
-      setIsLoadingCustomDataKeys(previous => ({ ...previous, [safeNamespace]: true }))
-      try {
-        const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/custom-data-sources/schema`, {
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`,
-            'Content-Type': 'application/json',
-            'x-schema-namespace': safeNamespace
-          }
-        })
-        if (!response.ok) {
-          throw new Error(`Failed to fetch custom data schema: ${response.statusText}`)
-        }
-        const data = await response.json()
-        const keys = Object.keys((data && data.dataSources) || {})
-        setCustomDataKeysByNamespace(previous => ({ ...previous, [safeNamespace]: keys }))
-      } catch (error) {
-        console.error('Failed to fetch custom data sources schema:', error)
-        setCustomDataKeysByNamespace(previous => ({ ...previous, [safeNamespace]: [] }))
-      } finally {
-        setIsLoadingCustomDataKeys(previous => ({ ...previous, [safeNamespace]: false }))
-      }
-    },
-    [context?.accessToken, customDataKeysByNamespace, isLoadingCustomDataKeys]
-  )
 
   const fetchCatalogCount = useCallback(
     async (inputIndex: number, catalogId: string) => {
@@ -318,15 +296,12 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
     setDraggedIndex(null)
   }
 
-  const getEntitySchema = (entityType: string) =>
-    availableEntities.find((entity: any) => entity.type === entityType || entity.name === entityType)
-
   const validateEntityDataSource = useCallback(
     (input: any): { errors: string[]; warnings: string[] } => {
       const errors: string[] = []
       const warnings: string[] = []
 
-      if (input.dataSource?.type !== 'ENTITY') {
+      if (input.dataSource?.type !== 'CUSTOM_ENTITY' && input.dataSource?.type !== 'INTERNAL_ENTITY') {
         return { errors, warnings }
       }
 
@@ -334,8 +309,8 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
       if (!input.dataSource.valueField) errors.push('Value field is required')
       if (!input.dataSource.labelField) errors.push('Label field is required')
 
-      const entitySchema = getEntitySchema(input.dataSource.entity)
-      const fieldNames = entitySchema?.fields?.map((field: any) => field.name) || []
+      const entitySchema = findMatchingEntityOption(availableEntities, input.dataSource)
+      const fieldNames = entitySchema?.fields || []
 
       if (input.dataSource.valueField && fieldNames.length > 0 && !fieldNames.includes(input.dataSource.valueField)) {
         warnings.push(`Field "${input.dataSource.valueField}" not found in entity schema`)
@@ -368,10 +343,9 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
           const isSelectLike = selectLikeTypes.includes(input.type)
           const entityValidation = validateEntityDataSource(input)
           const catalogPreviewKey = `${index}-${input.dataSource?.catalog || ''}`
-          const entityPreviewKey = `${index}-${input.dataSource?.entity || ''}`
-          const entitySchema = getEntitySchema(input.dataSource?.entity)
-          const entityFieldNames = entitySchema?.fields?.map((field: any) => field.name) || []
-          const customNamespace = input.dataSource?.namespace || 'default'
+          const entityPreviewKey = `${index}-${input.dataSource?.namespace || 'default'}-${input.dataSource?.entity || ''}`
+          const entitySchema = findMatchingEntityOption(availableEntities, input.dataSource)
+          const entityFieldNames = entitySchema?.fields || []
 
           return (
             <div
@@ -551,11 +525,11 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
                       Catalog
                     </Button>
                     <Button
-                      variant={input.dataSource?.type === 'ENTITY' ? 'default' : 'outline'}
+                      variant={input.dataSource?.type === 'CUSTOM_ENTITY' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => {
                         const newInputs = [...inputs]
-                        if (input.dataSource?.type === 'ENTITY') {
+                        if (input.dataSource?.type === 'CUSTOM_ENTITY') {
                           const updatedInput = { ...newInputs[index] }
                           delete updatedInput.dataSource
                           newInputs[index] = updatedInput
@@ -563,7 +537,7 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
                           newInputs[index] = {
                             ...newInputs[index],
                             dataSource: {
-                              type: 'ENTITY',
+                              type: 'CUSTOM_ENTITY',
                               entity: '',
                               valueField: 'id',
                               labelField: 'displayName'
@@ -574,17 +548,14 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
                         handleUpdateInputs(newInputs)
                       }}
                     >
-                      Entity
+                      Custom Entity
                     </Button>
                     <Button
-                      variant={input.dataSource?.type === 'CUSTOM_DATA' ? 'default' : 'outline'}
+                      variant={input.dataSource?.type === 'INTERNAL_ENTITY' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => {
-                        const defaultNamespace = customDataNamespaces.includes('default')
-                          ? 'default'
-                          : customDataNamespaces[0] || 'default'
                         const newInputs = [...inputs]
-                        if (input.dataSource?.type === 'CUSTOM_DATA') {
+                        if (input.dataSource?.type === 'INTERNAL_ENTITY') {
                           const updatedInput = { ...newInputs[index] }
                           delete updatedInput.dataSource
                           newInputs[index] = updatedInput
@@ -592,20 +563,18 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
                           newInputs[index] = {
                             ...newInputs[index],
                             dataSource: {
-                              type: 'CUSTOM_DATA',
-                              namespace: defaultNamespace,
-                              key: '',
+                              type: 'INTERNAL_ENTITY',
+                              entity: '',
                               valueField: 'id',
-                              labelField: 'id'
+                              labelField: 'displayName'
                             }
                           }
                           delete newInputs[index].options
-                          fetchCustomDataKeys(defaultNamespace)
                         }
                         handleUpdateInputs(newInputs)
                       }}
                     >
-                      Custom Data
+                      Internal Entity
                     </Button>
                   </div>
 
@@ -701,23 +670,32 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
                     </div>
                   )}
 
-                  {input.dataSource?.type === 'ENTITY' && (
+                  {(input.dataSource?.type === 'CUSTOM_ENTITY' || input.dataSource?.type === 'INTERNAL_ENTITY') && (
                     <div className="gba:space-y-2 gba:border gba:border-purple-200 gba:bg-purple-50 gba:rounded gba:p-3">
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <Database className="gba:h-4 gba:w-4 gba:text-purple-600" />
-                        <span className="gba:text-sm gba:font-medium">Entity Source</span>
+                        <span className="gba:text-sm gba:font-medium">
+                          {input.dataSource.type === 'INTERNAL_ENTITY' ? 'Internal Entity Source' : 'Custom Entity Source'}
+                        </span>
                         {isLoadingEntities && <Badge variant="secondary">Loading</Badge>}
                       </div>
 
                       <Select
-                        value={input.dataSource.entity || undefined}
+                        value={getConfiguredEntitySelectionValue(input.dataSource)}
                         onValueChange={value => {
+                          const selectedEntity = availableEntities.find(
+                            entity => entity.kind === input.dataSource?.type && getEntitySelectionValue(entity) === value
+                          )
                           const newInputs = [...inputs]
                           newInputs[index] = {
                             ...newInputs[index],
                             dataSource: {
                               ...newInputs[index].dataSource,
-                              entity: value
+                              entity: selectedEntity?.type || '',
+                              namespace:
+                                input.dataSource?.type === 'CUSTOM_ENTITY'
+                                  ? selectedEntity?.namespace || 'default'
+                                  : undefined
                             }
                           }
                           handleUpdateInputs(newInputs)
@@ -725,14 +703,16 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
                         data-testid={`${testId}-entity-${index}`}
                       >
                         <SelectTrigger className="gba:w-full">
-                          <SelectValue placeholder="Select entity" />
+                          <SelectValue placeholder={isLoadingEntities ? 'Loading entities' : 'Select entity'} />
                         </SelectTrigger>
                         <SelectContent>
-                          {availableEntities.map((entity: any) => (
-                            <SelectItem key={entity.type || entity.name} value={entity.type || entity.name}>
-                              {entity.displayName || entity.name || entity.type}
-                            </SelectItem>
-                          ))}
+                          {availableEntities
+                            .filter(entity => entity.kind === input.dataSource?.type)
+                            .map(entity => (
+                              <SelectItem key={getEntitySelectionValue(entity)} value={getEntitySelectionValue(entity)}>
+                                {entity.name}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
 
@@ -827,115 +807,22 @@ export const InputFieldsContent: React.FC<InputFieldsConfigurationProps> = ({
 
                       {expandedEntityPreviews[entityPreviewKey] && input.dataSource.entity && (
                         <EntityPreview
+                          dataSourceType={input.dataSource.type}
                           entityType={input.dataSource.entity}
-                          testId={`${testId}-entity-preview-${index}`}
+                          namespace={input.dataSource.namespace}
+                          accessToken={context?.accessToken}
+                          valueField={input.dataSource.valueField || 'id'}
+                          labelField={input.dataSource.labelField || 'displayName'}
+                          isExpanded={expandedEntityPreviews[entityPreviewKey] || false}
+                          onToggle={() =>
+                            setExpandedEntityPreviews(previous => ({
+                              ...previous,
+                              [entityPreviewKey]: !previous[entityPreviewKey]
+                            }))
+                          }
+                          data-testid={`${testId}-entity-preview-${index}`}
                         />
                       )}
-                    </div>
-                  )}
-
-                  {input.dataSource?.type === 'CUSTOM_DATA' && (
-                    <div className="gba:space-y-2 gba:border gba:border-green-200 gba:bg-green-50 gba:rounded gba:p-3">
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Database className="gba:h-4 gba:w-4 gba:text-green-600" />
-                        <span className="gba:text-sm gba:font-medium">Custom Data Source</span>
-                      </div>
-
-                      <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-                        <Select
-                          value={input.dataSource.namespace || undefined}
-                          onValueChange={value => {
-                            const newInputs = [...inputs]
-                            newInputs[index] = {
-                              ...newInputs[index],
-                              dataSource: {
-                                ...newInputs[index].dataSource,
-                                namespace: value,
-                                key: ''
-                              }
-                            }
-                            handleUpdateInputs(newInputs)
-                            fetchCustomDataKeys(value)
-                          }}
-                        >
-                          <SelectTrigger className="gba:w-full">
-                            <SelectValue placeholder="Namespace" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {customDataNamespaces.map(namespace => (
-                              <SelectItem key={namespace} value={namespace}>
-                                {namespace}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={input.dataSource.key || undefined}
-                          onValueChange={value => {
-                            const newInputs = [...inputs]
-                            newInputs[index] = {
-                              ...newInputs[index],
-                              dataSource: {
-                                ...newInputs[index].dataSource,
-                                key: value
-                              }
-                            }
-                            handleUpdateInputs(newInputs)
-                          }}
-                          disabled={isLoadingCustomDataKeys[customNamespace] === true}
-                        >
-                          <SelectTrigger className="gba:w-full">
-                            <SelectValue
-                              placeholder={
-                                isLoadingCustomDataKeys[customNamespace] === true
-                                  ? 'Loading data source keys...'
-                                  : 'Data source key'
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(customDataKeysByNamespace[customNamespace] || []).map(key => (
-                              <SelectItem key={key} value={key}>
-                                {key}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-                        <Input
-                          value={input.dataSource.valueField || ''}
-                          onChange={event => {
-                            const newInputs = [...inputs]
-                            newInputs[index] = {
-                              ...newInputs[index],
-                              dataSource: {
-                                ...newInputs[index].dataSource,
-                                valueField: event.target.value
-                              }
-                            }
-                            handleUpdateInputs(newInputs)
-                          }}
-                          placeholder="Value field"
-                        />
-                        <Input
-                          value={input.dataSource.labelField || ''}
-                          onChange={event => {
-                            const newInputs = [...inputs]
-                            newInputs[index] = {
-                              ...newInputs[index],
-                              dataSource: {
-                                ...newInputs[index].dataSource,
-                                labelField: event.target.value
-                              }
-                            }
-                            handleUpdateInputs(newInputs)
-                          }}
-                          placeholder="Label field"
-                        />
-                      </div>
                     </div>
                   )}
 

@@ -836,7 +836,7 @@ Please try again in a few moments, or proceed with submitting your request.`)
                               id={field.name}
                               value={formData[field.name] || ''}
                               onChange={value => handleFieldChange(field.name, value)}
-                              dataSource={field.dataSource?.type === 'ENTITY' ? field.dataSource : undefined}
+                              dataSource={field.dataSource}
                               accessToken={contextProps.accessToken}
                               placeholder={field.placeholder || `Search ${field.label}...`}
                               required={field.required}
@@ -946,7 +946,7 @@ Please try again in a few moments, or proceed with submitting your request.`)
                               id={field.name}
                               value={Array.isArray(formData[field.name]) ? formData[field.name] : []}
                               onChange={values => handleFieldChange(field.name, values)}
-                              dataSource={field.dataSource?.type === 'ENTITY' ? field.dataSource : undefined}
+                              dataSource={field.dataSource}
                               accessToken={contextProps.accessToken}
                               placeholder={field.placeholder || `Search ${field.label}...`}
                               required={field.required}

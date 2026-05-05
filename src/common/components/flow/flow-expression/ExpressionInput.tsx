@@ -107,8 +107,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
   )
 
   const { schemas: entitySchemas } = useEntitySchemas({
-    includeFields: false,
-    enableCache: true
+    enableCache: false
   })
 
   const [validationState, setValidationState] = useState<ValidationState>(null)
