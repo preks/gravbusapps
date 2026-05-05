@@ -47,6 +47,7 @@ const STATUS_META = { align: 'left' as const, type: 'text' as const }
 const COL = {
   chosenPlan: { size: 260, minSize: 220 },
   status: { size: 180, minSize: 160 },
+  company: { size: 240, minSize: 200 },
   salaryAmount: { size: 280, minSize: 260 },
   salaryPercent: { size: 220, minSize: 200 },
   allocationAmount: { size: 280, minSize: 260 },
@@ -56,9 +57,25 @@ const COL = {
 export function buildBudgetSetupPlansTableColumns(
   t: TranslateFn,
   formatBudgetPlanStatus: (value: string | null | undefined) => string,
-  onEditRow: (row: BudgetSetupPlanTableRow) => void
+  onEditRow: (row: BudgetSetupPlanTableRow) => void,
+  showCompanyColumn = false
 ): ColumnDef<BudgetSetupPlanTableRow>[] {
+  const companyColumn: ColumnDef<BudgetSetupPlanTableRow>[] = showCompanyColumn
+    ? [
+        {
+          id: 'companyLabel',
+          accessorKey: 'companyLabel',
+          header: budgetSetupColumnHeader(t, 'budget-setup-table-col-company'),
+          size: COL.company.size,
+          minSize: COL.company.minSize,
+          meta: { type: 'text' },
+          cell: ({ row }) => <span className={TABLE_BODY_LEFT}>{row.original.companyLabel}</span>
+        }
+      ]
+    : []
+
   return [
+    ...companyColumn,
     {
       id: 'budgetPlanLabel',
       accessorKey: 'budgetPlanLabel',
@@ -159,6 +176,7 @@ export function buildBudgetSetupPlansTableColumns(
                 variant="ghost"
                 size="sm"
                 className="gba:h-8 gba:w-8 gba:p-0"
+                onClick={event => event.stopPropagation()}
                 data-testid={`budget-setup-row-actions-${row.original.id}`}
                 aria-label={t('compensation-planning-row-menu-aria-label')}
               >
@@ -167,7 +185,8 @@ export function buildBudgetSetupPlansTableColumns(
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() => {
+                onClick={event => {
+                  event.stopPropagation()
                   onEditRow(row.original)
                 }}
                 data-testid={`budget-setup-row-edit-${row.original.id}`}
@@ -183,6 +202,7 @@ export function buildBudgetSetupPlansTableColumns(
 }
 
 export const BUDGET_SETUP_PLANS_VISIBLE_COLUMN_IDS = [
+  'companyLabel',
   'budgetPlanLabel',
   'companyBudgetStatus',
   'salaryBudgetAmount',

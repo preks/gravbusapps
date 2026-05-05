@@ -35,7 +35,6 @@ export function buildCreateBudgetPlanFormSchema(
     .object({
       name: z.string().min(1, t('budget-plan-form-name-required')),
       description: z.string().optional(),
-      fiscalYear: z.coerce.number().int().min(1900).max(2200),
       startDate: z.string().optional(),
       endDate: z.string().optional(),
       effectiveDate: z.string().optional()

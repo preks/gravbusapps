@@ -15,7 +15,6 @@ export function useOverviewPlansTableModel(
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
-  const [selectedFiscalYearIds, setSelectedFiscalYearIds] = useState<string[]>([])
   const [startDateFrom, setStartDateFrom] = useState<string | null>(null)
   const [startDateTo, setStartDateTo] = useState<string | null>(null)
   const [endDateFrom, setEndDateFrom] = useState<string | null>(null)
@@ -38,18 +37,7 @@ export function useOverviewPlansTableModel(
       .map(id => ({ id, label: formatBudgetPlanStatusLabelForDisplay(id, t) || id }))
   }, [plans, t])
 
-  const fiscalYearOptions = useMemo(() => {
-    const years = new Set<number>()
-    for (const p of plans) {
-      years.add(p.fiscalYear)
-    }
-    return [...years].sort((a, b) => b - a).map(y => ({ id: String(y), label: String(y) }))
-  }, [plans])
-
-  const filterConfiguration = useMemo(
-    () => buildOverviewPlansFilterConfiguration(t, statusOptions, fiscalYearOptions),
-    [t, statusOptions, fiscalYearOptions]
-  )
+  const filterConfiguration = useMemo(() => buildOverviewPlansFilterConfiguration(t, statusOptions), [t, statusOptions])
 
   const filteredRows = useMemo(() => {
     let list = [...plans]
@@ -63,7 +51,6 @@ export function useOverviewPlansTableModel(
           plan.name.toLowerCase().includes(q) ||
           desc.includes(q) ||
           statusLabel.includes(q) ||
-          String(plan.fiscalYear).includes(q) ||
           (plan.startDate ?? '').toLowerCase().includes(q) ||
           (plan.endDate ?? '').toLowerCase().includes(q) ||
           (plan.effectiveDate ?? '').toLowerCase().includes(q)
@@ -74,11 +61,6 @@ export function useOverviewPlansTableModel(
     if (selectedStatuses.length > 0) {
       const set = new Set(selectedStatuses)
       list = list.filter(plan => set.has(plan.budgetPlanStatus))
-    }
-
-    if (selectedFiscalYearIds.length > 0) {
-      const yearSet = new Set(selectedFiscalYearIds.map(id => Number.parseInt(id, 10)).filter(n => !Number.isNaN(n)))
-      list = list.filter(plan => yearSet.has(plan.fiscalYear))
     }
 
     if (startDateFrom != null || startDateTo != null) {
@@ -100,7 +82,6 @@ export function useOverviewPlansTableModel(
     plans,
     debouncedSearch,
     selectedStatuses,
-    selectedFiscalYearIds,
     startDateFrom,
     startDateTo,
     endDateFrom,
@@ -114,7 +95,6 @@ export function useOverviewPlansTableModel(
     () =>
       debouncedSearch.trim() !== '' ||
       selectedStatuses.length > 0 ||
-      selectedFiscalYearIds.length > 0 ||
       startDateFrom != null ||
       startDateTo != null ||
       endDateFrom != null ||
@@ -124,7 +104,6 @@ export function useOverviewPlansTableModel(
     [
       debouncedSearch,
       selectedStatuses,
-      selectedFiscalYearIds,
       startDateFrom,
       startDateTo,
       endDateFrom,
@@ -141,9 +120,6 @@ export function useOverviewPlansTableModel(
     if (selectedStatuses.length > 0) {
       obj.budgetPlanStatuses = selectedStatuses
     }
-    if (selectedFiscalYearIds.length > 0) {
-      obj.fiscalYears = selectedFiscalYearIds
-    }
     if (startDateFrom != null || startDateTo != null) {
       obj.startDateRange = [startDateFrom, startDateTo]
     }
@@ -154,22 +130,11 @@ export function useOverviewPlansTableModel(
       obj.effectiveDateRange = [effectiveDateFrom, effectiveDateTo]
     }
     return obj
-  }, [
-    selectedStatuses,
-    selectedFiscalYearIds,
-    startDateFrom,
-    startDateTo,
-    endDateFrom,
-    endDateTo,
-    effectiveDateFrom,
-    effectiveDateTo
-  ])
+  }, [selectedStatuses, startDateFrom, startDateTo, endDateFrom, endDateTo, effectiveDateFrom, effectiveDateTo])
 
   const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
     const statuses = (filters.budgetPlanStatuses as string[] | undefined) ?? []
     setSelectedStatuses(statuses)
-    const years = (filters.fiscalYears as string[] | undefined) ?? []
-    setSelectedFiscalYearIds(years)
 
     const startParsed = parseDateRangeFilterValue(filters.startDateRange as [unknown, unknown] | null)
     if (startParsed == null) {
@@ -213,7 +178,6 @@ export function useOverviewPlansTableModel(
     () => [
       { id: 'name', label: t('overview-plans-col-name') },
       { id: 'budgetPlanStatus', label: t('overview-plans-col-status') },
-      { id: 'fiscalYear', label: t('overview-plans-col-fiscal-year') },
       { id: 'startDate', label: t('overview-plans-col-start') },
       { id: 'endDate', label: t('overview-plans-col-end') },
       { id: 'effectiveDate', label: t('overview-plans-col-effective') },
@@ -233,7 +197,6 @@ export function useOverviewPlansTableModel(
   }, [
     debouncedSearch,
     selectedStatuses,
-    selectedFiscalYearIds,
     startDateFrom,
     startDateTo,
     endDateFrom,

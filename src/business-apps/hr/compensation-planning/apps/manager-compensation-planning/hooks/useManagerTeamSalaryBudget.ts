@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type {
-  CompensationBudgetPlanCompanyRow,
-  CompensationBudgetPlanListItem
-} from '../../compensation-planning/hooks/useBudgetSetupForCompany'
+import type { CompensationBudgetPlanCompanyRow } from '../../compensation-planning/hooks/useBudgetSetupForCompany'
 import {
   GET_MANAGER_COMPENSATION_BUDGET_CONTEXT,
   LIST_COMPENSATION_BUDGET_PLAN_ORGANIZATIONAL_UNIT_BY_COMPANY_BUDGET
@@ -18,6 +15,16 @@ interface CompanyBudgetPlanOption {
   label: string
 }
 
+interface ManagerCompensationBudgetPlanListItem {
+  id: string
+  name: string
+  description: string | null
+  startDate: string | null
+  endDate: string | null
+  effectiveDate: string | null
+  budgetPlanStatus: string
+}
+
 function num(v: unknown): number {
   if (typeof v === 'number' && !Number.isNaN(v)) {
     return v
@@ -27,13 +34,12 @@ function num(v: unknown): number {
 }
 
 function fillPlanListItem(
-  p: Partial<CompensationBudgetPlanListItem> & { id: string; name?: string }
-): CompensationBudgetPlanListItem {
+  p: Partial<ManagerCompensationBudgetPlanListItem> & { id: string; name?: string }
+): ManagerCompensationBudgetPlanListItem {
   return {
     id: p.id,
     name: p.name ?? '',
     description: p.description ?? null,
-    fiscalYear: typeof p.fiscalYear === 'number' && !Number.isNaN(p.fiscalYear) ? p.fiscalYear : 0,
     startDate: p.startDate ?? null,
     endDate: p.endDate ?? null,
     effectiveDate: p.effectiveDate ?? null,
@@ -41,14 +47,13 @@ function fillPlanListItem(
   }
 }
 
-function sortPlans(list: CompensationBudgetPlanListItem[]): CompensationBudgetPlanListItem[] {
-  return [...list].sort((a, b) => {
-    const fy = (b.fiscalYear ?? 0) - (a.fiscalYear ?? 0)
-    if (fy !== 0) {
-      return fy
-    }
-    return a.name.localeCompare(b.name)
-  })
+function sortPlans(list: ManagerCompensationBudgetPlanListItem[]): ManagerCompensationBudgetPlanListItem[] {
+  return [...list].sort((a, b) =>
+    comparePlanEffectiveDateAsc(
+      { effectiveDate: a.effectiveDate, label: a.name },
+      { effectiveDate: b.effectiveDate, label: b.name }
+    )
+  )
 }
 
 function mapCompanyRow(raw: Record<string, unknown>): CompensationBudgetPlanCompanyRow {
@@ -95,7 +100,7 @@ function comparePlanEffectiveDateAsc(
 
 function buildCompanyBudgetPlanOptions(
   companyRows: CompensationBudgetPlanCompanyRow[],
-  plans: CompensationBudgetPlanListItem[]
+  plans: ManagerCompensationBudgetPlanListItem[]
 ): CompanyBudgetPlanOption[] {
   const planById = new Map(plans.map(p => [p.id, p]))
   const usedLabels = new Set<string>()
@@ -106,7 +111,7 @@ function buildCompanyBudgetPlanOptions(
     if (!plan) {
       continue
     }
-    let label = `${plan.name} (${plan.fiscalYear})`
+    let label = plan.name
     if (usedLabels.has(label)) {
       label = `${label} · ${row.id.slice(0, 8)}`
     }
@@ -130,7 +135,7 @@ function buildCompanyBudgetPlanOptions(
 
 function pickLatestCompanyBudgetRowId(
   options: CompanyBudgetPlanOption[],
-  planById: Map<string, CompensationBudgetPlanListItem>
+  planById: Map<string, ManagerCompensationBudgetPlanListItem>
 ): string | null {
   if (options.length === 0) {
     return null
@@ -149,7 +154,7 @@ function pickLatestCompanyBudgetRowId(
 /** One row per compensation cycle that has a company budget for this legal entity. */
 function buildCompensationPlanChoices(
   options: CompanyBudgetPlanOption[],
-  planById: Map<string, CompensationBudgetPlanListItem>
+  planById: Map<string, ManagerCompensationBudgetPlanListItem>
 ): { id: string; name: string }[] {
   const byPlanId = new Map<string, { id: string; name: string }>()
   for (const opt of options) {
@@ -158,7 +163,7 @@ function buildCompensationPlanChoices(
       continue
     }
     if (!byPlanId.has(plan.id)) {
-      byPlanId.set(plan.id, { id: plan.id, name: `${plan.name} (${plan.fiscalYear})` })
+      byPlanId.set(plan.id, { id: plan.id, name: plan.name })
     }
   }
   return [...byPlanId.values()].sort((a, b) => {
@@ -173,7 +178,7 @@ function buildCompensationPlanChoices(
 
 function pickCompanyBudgetRowIdForPlan(
   options: CompanyBudgetPlanOption[],
-  planById: Map<string, CompensationBudgetPlanListItem>,
+  planById: Map<string, ManagerCompensationBudgetPlanListItem>,
   preferredCompensationPlanId: string | null
 ): string | null {
   if (options.length === 0) {
@@ -241,7 +246,7 @@ function sumAllocationAmountForRelevantOrgUnits(
 
 interface ManagerBudgetContextResponse {
   managerEmployeePosition: Array<{ organizationalUnitId: string | null } | null> | null
-  compensationBudgetPlans: CompensationBudgetPlanListItem[] | null
+  compensationBudgetPlans: ManagerCompensationBudgetPlanListItem[] | null
   compensationBudgetPlanCompanies: Record<string, unknown>[] | null
 }
 

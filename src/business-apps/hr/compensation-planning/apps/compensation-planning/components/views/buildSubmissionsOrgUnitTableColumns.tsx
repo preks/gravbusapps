@@ -1,4 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
+import { Checkbox } from '@newwork/nw-design-system'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
 import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
@@ -11,6 +12,7 @@ const TABLE_HEADER_RIGHT = `${TABLE_HEADER_CLASS} gba:block gba:w-full gba:text-
 const TABLE_BODY = 'gba:text-sm gba:font-normal gba:text-foreground gba:leading-normal'
 const TABLE_BODY_NUM = `${TABLE_BODY} gba:tabular-nums`
 const TABLE_BODY_NUM_RIGHT = `${TABLE_BODY_NUM} gba:block gba:w-full gba:text-right`
+const SUBMITTED_STATUS = 'BUDGET_PLAN_SUBMITTED'
 
 function submissionsColumnHeader(t: TranslateFn, messageKey: string, align: 'left' | 'right' = 'left') {
   return function SubmissionsColumnHeaderLabel() {
@@ -30,20 +32,65 @@ function formatAllocationSharePercentCell(value: number | null): string {
 const STATUS_META = { align: 'left' as const, type: 'text' as const }
 
 const COL = {
-  orgUnit: { size: 220, minSize: 180 },
-  plan: { size: 260, minSize: 220 },
-  status: { size: 180, minSize: 160 },
-  money: { size: 200, minSize: 180 },
-  percent: { size: 160, minSize: 140 },
-  proposedNewSalary: { size: 200, minSize: 180 },
-  ouCurrentSalary: { size: 200, minSize: 180 }
+  selection: { size: 48, minSize: 44 },
+  orgUnit: { size: 190, minSize: 160 },
+  plan: { size: 180, minSize: 150 },
+  status: { size: 140, minSize: 120 },
+  money: { size: 160, minSize: 140 },
+  percent: { size: 130, minSize: 110 },
+  proposedNewSalary: { size: 170, minSize: 145 },
+  ouCurrentSalary: { size: 170, minSize: 145 }
 } as const
+
+export interface SubmissionsOrgUnitSelectionParams {
+  selectedIds: ReadonlySet<string>
+  busy: boolean
+  selectableRowIds: ReadonlySet<string>
+  onToggleRow: (id: string, checked: boolean) => void
+  t: TranslateFn
+}
+
+function buildSelectionColumn(selection: SubmissionsOrgUnitSelectionParams): ColumnDef<SubmissionsOrgUnitTableRow> {
+  const { selectedIds, busy, selectableRowIds, onToggleRow, t: translate } = selection
+
+  return {
+    id: 'selection',
+    size: COL.selection.size,
+    minSize: COL.selection.minSize,
+    enableSorting: false,
+    meta: { align: 'left', type: 'text' },
+    header: () => <span className="gba:sr-only">{translate('submissions-select-row-header')}</span>,
+    cell: ({ row }) => {
+      const r = row.original
+      const canSelect = selectableRowIds.has(r.id) && r.budgetPlanStatus === SUBMITTED_STATUS
+      if (!canSelect) {
+        return null
+      }
+      return (
+        <div
+          className="gba:flex gba:items-center"
+          onClick={event => event.stopPropagation()}
+          data-testid={`submissions-row-selection-${r.id}`}
+        >
+          <Checkbox
+            checked={selectedIds.has(r.id)}
+            disabled={busy}
+            onCheckedChange={checked => onToggleRow(r.id, checked === true)}
+            aria-label={translate('submissions-select-row-aria', { name: r.organizationalUnitName })}
+            data-testid={`submissions-row-select-${r.id}`}
+          />
+        </div>
+      )
+    }
+  }
+}
 
 export function buildSubmissionsOrgUnitTableColumns(
   t: TranslateFn,
-  formatBudgetPlanStatus: (value: string | null | undefined) => string
+  formatBudgetPlanStatus: (value: string | null | undefined) => string,
+  selection?: SubmissionsOrgUnitSelectionParams
 ): ColumnDef<SubmissionsOrgUnitTableRow>[] {
-  return [
+  const columns: ColumnDef<SubmissionsOrgUnitTableRow>[] = [
     {
       id: 'organizationalUnitName',
       accessorKey: 'organizationalUnitName',
@@ -173,6 +220,12 @@ export function buildSubmissionsOrgUnitTableColumns(
       }
     }
   ]
+
+  if (selection) {
+    return [buildSelectionColumn(selection), ...columns]
+  }
+
+  return columns
 }
 
 export const SUBMISSIONS_ORG_UNIT_TABLE_VISIBLE_COLUMN_IDS = [

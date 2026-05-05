@@ -25,13 +25,6 @@ export function buildBudgetPlanTableColumns(
       minSize: 140
     },
     {
-      id: 'fiscalYear',
-      accessorKey: 'fiscalYear',
-      header: t('budget-plan-table-col-fiscal-year'),
-      meta: { align: 'right', type: 'number' },
-      cell: ({ row }) => <span className="gba:text-sm gba:tabular-nums">{String(row.original.fiscalYear)}</span>
-    },
-    {
       id: 'budgetPlanStatus',
       accessorKey: 'budgetPlanStatus',
       header: t('budget-plan-table-col-status'),
@@ -78,7 +71,6 @@ export function buildBudgetPlanTableColumns(
 
 export const BUDGET_PLAN_TABLE_VISIBLE_COLUMN_IDS = [
   'name',
-  'fiscalYear',
   'budgetPlanStatus',
   'startDate',
   'endDate',

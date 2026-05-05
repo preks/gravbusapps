@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
@@ -8,16 +8,12 @@ import {
   type SaveCompensationBudgetPlanCompanyRowInput
 } from '../../../api/saveCompensationBudgetPlan'
 import {
-  GET_BUDGET_SETUP_PLANS_AND_COMPANY_BUDGET_ROWS,
+  LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY,
+  LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_PLAN,
   LIST_COMPENSATION_BUDGET_PLANS
 } from '../../../queries/budgetPlanQueries'
 import { logBudgetGraphqlFailure } from '../../../utils/budgetPlanGraphqlDebug'
-import type { BudgetType } from '../../../types/compensationPlanningTypes'
 import { roundMoney2 } from '../../../utils/budgetAmountPercentSync'
-import {
-  DEFAULT_BUDGET_DISTRIBUTION_METHOD,
-  DEFAULT_BUDGET_PLAN_STATUS_APPROVED
-} from '../../../types/budgetPlanGraphqlEnums'
 import { useCompensationPlanningStore } from './useCompensationPlanningStore'
 
 /** Mirrors GraphQL `CompensationBudgetPlan` (DB: fiscal_year, start_date, …). */
@@ -64,14 +60,6 @@ export interface CreateBudgetPlanInput {
   }
 }
 
-export interface SaveCompanyBudgetInput {
-  salaryBudgetType: BudgetType
-  salaryBudgetValue: number
-  headcount: number
-  currentTotalSalaryCost: number
-  currencyRef?: string | null
-}
-
 function fillPlanListItem(
   p: Partial<CompensationBudgetPlanListItem> & { id: string; name?: string }
 ): CompensationBudgetPlanListItem {
@@ -85,27 +73,6 @@ function fillPlanListItem(
     effectiveDate: p.effectiveDate ?? null,
     budgetPlanStatus: p.budgetPlanStatus ?? ''
   }
-}
-
-/**
- * Budget setup / compensation cycle toolbar: only approved plans, ordered by `effectiveDate` ascending
- * (earliest first). Null `effectiveDate` last; then by name.
- */
-function filterApprovedCompensationCyclePlansSorted(
-  list: CompensationBudgetPlanListItem[]
-): CompensationBudgetPlanListItem[] {
-  return list
-    .filter(p => p.budgetPlanStatus === DEFAULT_BUDGET_PLAN_STATUS_APPROVED)
-    .sort((a, b) => {
-      const aD = a.effectiveDate
-      const bD = b.effectiveDate
-      if (aD == null && bD == null) return a.name.localeCompare(b.name)
-      if (aD == null) return 1
-      if (bD == null) return -1
-      const byDate = aD.localeCompare(bD)
-      if (byDate !== 0) return byDate
-      return a.name.localeCompare(b.name)
-    })
 }
 
 function num(v: unknown): number {
@@ -151,15 +118,6 @@ function mapGraphqlCompanyRow(raw: CompensationBudgetPlanCompanyGraphqlRow): Com
   }
 }
 
-function buildCompanyBudgetChanges(input: SaveCompanyBudgetInput) {
-  return {
-    salaryBudgetAmount: input.salaryBudgetType === 'absolute' ? input.salaryBudgetValue : 0,
-    salaryBudgetPercent: input.salaryBudgetType === 'percentage' ? input.salaryBudgetValue : 0,
-    currentTotalSalaryCost: input.currentTotalSalaryCost,
-    ...(input.currencyRef === undefined ? {} : { currencyRef: input.currencyRef })
-  }
-}
-
 /**
  * Keeps `selectedBudgetPlanId` when it still exists in the approved cycle list; clears it when invalid.
  * Does **not** auto-select the first plan — user must pick a compensation cycle to see setup / submissions data.
@@ -175,52 +133,20 @@ function applyCompensationCycleSelectorListAndDefaultSelection(list: Compensatio
   }
 }
 
-export function useBudgetSetupForCompany(accessToken: string, companyId: string | null) {
+export function useBudgetSetupForCompany(accessToken: string) {
   const graphqlClient = useGraphQLClient(accessToken)
   const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
   const { selectedBudgetPlanId, selectBudgetPlan } = useCompensationPlanningStore()
-  /** Avoid applying company budget list responses after the user switched company in the dropdown. */
-  const companyIdRef = useRef(companyId)
-  const previousCompanyIdRef = useRef<string | null>(null)
 
   /** All plans from GraphQL (any status), for table / label resolution. */
   const [plans, setPlans] = useState<CompensationBudgetPlanListItem[]>([])
   const [companyBudgetPlanRows, setCompanyBudgetPlanRows] = useState<CompensationBudgetPlanCompanyRow[]>([])
   const [loadingPlans, setLoadingPlans] = useState(false)
   const [loadingCompanyRowsList, setLoadingCompanyRowsList] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [creatingPlan, setCreatingPlan] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const companyRow = useMemo((): CompensationBudgetPlanCompanyRow | null => {
-    if (!selectedBudgetPlanId) {
-      return null
-    }
-    return companyBudgetPlanRows.find(r => r.compensationBudgetPlanId === selectedBudgetPlanId) ?? null
-  }, [companyBudgetPlanRows, selectedBudgetPlanId])
-
-  const compensationCycleSelectorPlans = useMemo(() => filterApprovedCompensationCyclePlansSorted(plans), [plans])
-
-  useEffect(() => {
-    companyIdRef.current = companyId
-  }, [companyId])
-
-  useEffect(() => {
-    if (companyId == null) {
-      setCompanyBudgetPlanRows([])
-      previousCompanyIdRef.current = null
-      return
-    }
-    if (previousCompanyIdRef.current !== null && previousCompanyIdRef.current !== companyId) {
-      setCompanyBudgetPlanRows([])
-    }
-    previousCompanyIdRef.current = companyId
-  }, [companyId])
-
-  /**
-   * One round-trip when `companyId` is set (plan list + company rows). Plans-only when no company.
-   * Avoids duplicate `GET_COMPENSATION_BUDGET_PLAN_COMPANY` — selected row is derived from the list.
-   */
+  /** Loads all cycles plus the company budget rows for the selected cycle. */
   const fetchBudgetSetupData = useCallback(async () => {
     if (!accessToken) {
       return
@@ -229,44 +155,27 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     setLoadingPlans(true)
     setLoadingCompanyRowsList(true)
     try {
-      if (!companyId) {
-        const result = await graphqlClient.request<{
+      const [plansResult, companyRowsResult] = await Promise.all([
+        graphqlClient.request<{
           CompensationBudgetPlan: CompensationBudgetPlanListItem[]
-        }>(LIST_COMPENSATION_BUDGET_PLANS)
-        const list = (result.CompensationBudgetPlan ?? []).map(fillPlanListItem)
-        setPlans(list)
-        const forCycleSelector = filterApprovedCompensationCyclePlansSorted(list)
-        applyCompensationCycleSelectorListAndDefaultSelection(forCycleSelector)
-        setCompanyBudgetPlanRows([])
-        return
-      }
+        }>(LIST_COMPENSATION_BUDGET_PLANS),
+        selectedBudgetPlanId == null
+          ? Promise.resolve<{ CompensationBudgetPlanCompany: CompensationBudgetPlanCompanyGraphqlRow[] }>({
+              CompensationBudgetPlanCompany: []
+            })
+          : graphqlClient.request<{
+              CompensationBudgetPlanCompany: CompensationBudgetPlanCompanyGraphqlRow[]
+            }>(LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_PLAN, { planId: selectedBudgetPlanId })
+      ])
 
-      const companyIdForRequest = companyId
-      const result = await graphqlClient.request<{
-        CompensationBudgetPlan: CompensationBudgetPlanListItem[]
-        CompensationBudgetPlanCompany: CompensationBudgetPlanCompanyGraphqlRow[]
-      }>(GET_BUDGET_SETUP_PLANS_AND_COMPANY_BUDGET_ROWS, { companyId: companyIdForRequest })
-
-      if (companyIdRef.current !== companyIdForRequest) {
-        return
-      }
-
-      const list = (result.CompensationBudgetPlan ?? []).map(fillPlanListItem)
+      const list = (plansResult.CompensationBudgetPlan ?? []).map(fillPlanListItem)
       setPlans(list)
-      const forCycleSelector = filterApprovedCompensationCyclePlansSorted(list)
-      applyCompensationCycleSelectorListAndDefaultSelection(forCycleSelector)
+      applyCompensationCycleSelectorListAndDefaultSelection(list)
 
-      const next: CompensationBudgetPlanCompanyRow[] = []
-      for (const raw of result.CompensationBudgetPlanCompany ?? []) {
-        const row = mapGraphqlCompanyRow(raw)
-        if (row.companyId !== companyIdForRequest) {
-          continue
-        }
-        next.push(row)
-      }
+      const next = (companyRowsResult.CompensationBudgetPlanCompany ?? []).map(mapGraphqlCompanyRow)
       setCompanyBudgetPlanRows(next)
     } catch (err) {
-      logBudgetGraphqlFailure('GetBudgetSetupPlansAndCompanyBudgetRows', err)
+      logBudgetGraphqlFailure('ListCompensationBudgetPlanCompanyByPlan', err)
       const message = err instanceof Error ? err.message : 'Failed to load budget setup data'
       setError(message)
       setPlans([])
@@ -275,7 +184,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
       setLoadingPlans(false)
       setLoadingCompanyRowsList(false)
     }
-  }, [accessToken, companyId, graphqlClient])
+  }, [accessToken, graphqlClient, selectedBudgetPlanId])
 
   useEffect(() => {
     void fetchBudgetSetupData()
@@ -289,6 +198,16 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
       setError(null)
       try {
         const c = input.companyBudget
+        const existingRows = await graphqlClient.request<{
+          CompensationBudgetPlanCompany: CompensationBudgetPlanCompanyGraphqlRow[]
+        }>(LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_COMPANY, { companyId: c.companyId })
+        const duplicateExists = (existingRows.CompensationBudgetPlanCompany ?? []).some(
+          row => row.compensationBudgetPlanId === c.compensationBudgetPlanId
+        )
+        if (duplicateExists) {
+          setError('This company already has a budget for the selected compensation cycle.')
+          return null
+        }
         const { id, raw } = await saveCompensationBudgetPlanCompany(restClient, accessToken, {
           changeMode: 'INSERT',
           compensationBudgetPlanCompany: {
@@ -321,7 +240,7 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
         setCreatingPlan(false)
       }
     },
-    [accessToken, fetchBudgetSetupData, restClient, selectBudgetPlan]
+    [accessToken, fetchBudgetSetupData, graphqlClient, restClient, selectBudgetPlan]
   )
 
   /** Table / dialog edit: REST `saveCompensationBudgetPlanCompany` with `changeMode: UPDATE`. */
@@ -366,90 +285,17 @@ export function useBudgetSetupForCompany(accessToken: string, companyId: string 
     [accessToken, fetchBudgetSetupData, restClient]
   )
 
-  const saveCompanyBudget = useCallback(
-    async (input: SaveCompanyBudgetInput) => {
-      if (!accessToken || !companyId || !selectedBudgetPlanId) return false
-      setSaving(true)
-      setError(null)
-      try {
-        const changes = buildCompanyBudgetChanges(input)
-
-        if (companyRow) {
-          const salaryBudgetAmount = roundMoney2(changes.salaryBudgetAmount)
-          const salaryBudgetPercent = roundMoney2(changes.salaryBudgetPercent)
-          const currentTotalSalaryCost = roundMoney2(changes.currentTotalSalaryCost)
-          const currencyRef = input.currencyRef === undefined ? companyRow.currencyRef : input.currencyRef
-
-          const rowInput: SaveCompensationBudgetPlanCompanyRowInput = {
-            id: companyRow.id,
-            version: companyRow.version,
-            compensationBudgetPlanId: companyRow.compensationBudgetPlanId,
-            companyId: companyRow.companyId,
-            salaryBudgetAmount,
-            salaryBudgetPercent,
-            allocationAmount: roundMoney2(companyRow.allocationAmount),
-            currentTotalSalaryCost,
-            currencyRef
-          }
-          const body = buildSaveCompensationBudgetPlanCompanyUpdateBody(rowInput)
-          await saveCompensationBudgetPlanCompany(restClient, accessToken, body)
-        } else {
-          const { id, raw } = await saveCompensationBudgetPlanCompany(restClient, accessToken, {
-            changeMode: 'INSERT',
-            compensationBudgetPlanCompany: {
-              compensationBudgetPlan: selectedBudgetPlanId,
-              company: companyId,
-              salaryBudgetAmount: roundMoney2(changes.salaryBudgetAmount),
-              salaryBudgetPercent: roundMoney2(changes.salaryBudgetPercent),
-              allocationAmount: 0,
-              bonusBudgetAmount: 0,
-              bonusBudgetPercent: 0,
-              budgetPlanStatus: DEFAULT_BUDGET_PLAN_STATUS_APPROVED,
-              currentTotalSalaryCost: roundMoney2(input.currentTotalSalaryCost),
-              currencyRef: input.currencyRef ?? null,
-              headcount: input.headcount,
-              distributionMethod: DEFAULT_BUDGET_DISTRIBUTION_METHOD
-            }
-          })
-          if (!id) {
-            console.error('saveCompensationBudgetPlanCompany: missing id in response', raw)
-            setError('Failed to create company budget row: unexpected response from server')
-            return false
-          }
-        }
-        await fetchBudgetSetupData()
-        return true
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to save company budget'
-        console.error('Failed to save compensation budget plan company:', err)
-        setError(message)
-        return false
-      } finally {
-        setSaving(false)
-      }
-    },
-    [accessToken, companyId, companyRow, fetchBudgetSetupData, restClient, selectedBudgetPlanId]
-  )
-
   return {
     plans,
-    /** Toolbar / create dialog: approved cycles only, `effectiveDate` ascending. */
-    compensationCycleSelectorPlans,
     selectedBudgetPlanId,
     selectBudgetPlan,
-    companyRow,
     companyBudgetPlanRows,
     loadingPlans,
-    loadingCompanyRow: loadingCompanyRowsList,
     loadingCompanyRowsList,
-    saving,
     creatingPlan,
     error,
     refetchPlans: fetchBudgetSetupData,
-    refetchCompanyRow: fetchBudgetSetupData,
-    refetchCompanyRowsForCompany: fetchBudgetSetupData,
     createPlan,
-    updateCompanyBudgetRow,
-    saveCompanyBudget
+    updateCompanyBudgetRow
   }
 }

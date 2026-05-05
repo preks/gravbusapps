@@ -17,6 +17,7 @@ function preprocessEmptyOrNumber(min: number, max: number) {
 export function buildCreateBudgetPlanFormSchema(translate: (key: string) => string) {
   return z
     .object({
+      companyId: z.string().min(1, translate('budget-setup-create-plan-company-required')),
       /** Links the company budget row to an existing compensation budget plan (dropdown). */
       compensationBudgetPlanId: z.string().min(1, translate('budget-setup-create-plan-select-plan-required')),
       salaryBudgetAmount: preprocessEmptyOrNumber(-1e12, 1e12),
@@ -48,9 +49,11 @@ export function pickDefaultCompensationBudgetPlanId(
 
 export function getDefaultCreatePlanFormValues(
   compensationBudgetPlanId: string,
-  initialCurrencyRef = ''
+  initialCurrencyRef = '',
+  companyId = ''
 ): CreatePlanFormValues {
   return {
+    companyId,
     compensationBudgetPlanId,
     salaryBudgetAmount: '',
     salaryBudgetPercent: '',
@@ -61,6 +64,7 @@ export function getDefaultCreatePlanFormValues(
 /** Prefill company budget dialog from an existing `compensation_budget_plan_company` row. */
 export function getEditCompanyBudgetFormValuesFromRow(
   row: {
+    companyId: string
     compensationBudgetPlanId: string
     salaryBudgetAmount: number
     salaryBudgetPercent: number
@@ -69,9 +73,10 @@ export function getEditCompanyBudgetFormValuesFromRow(
   fallbackCurrencyRef: string
 ): CreatePlanFormValues {
   return {
+    companyId: row.companyId,
     compensationBudgetPlanId: row.compensationBudgetPlanId,
     salaryBudgetAmount: row.salaryBudgetAmount,
     salaryBudgetPercent: row.salaryBudgetPercent,
-    currencyRef: row.currencyRef?.trim() ? row.currencyRef.trim() : fallbackCurrencyRef
+    currencyRef: fallbackCurrencyRef
   }
 }

@@ -1,19 +1,9 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import type { TranslateFn } from './budgetSetupDisplayUtils'
 
-export interface BudgetPlanFiscalYearRangeFilterConfig {
-  mode: 'range'
-  min: number
-  max: number
-  step: number
-  placeholderMin: string
-  placeholderMax: string
-}
-
 export function buildBudgetPlanTableFilterConfiguration(
   t: TranslateFn,
-  statusOptions: { id: string; label: string }[],
-  fiscalYearNumberRangeConfig: BudgetPlanFiscalYearRangeFilterConfig
+  statusOptions: { id: string; label: string }[]
 ): FilterConfiguration {
   return {
     id: 'budget-plan-table-filters',
@@ -73,21 +63,6 @@ export function buildBudgetPlanTableFilterConfiguration(
               placeholderEnd: t('budget-plan-filter-effective-range-end'),
               showClearButton: true
             }
-          }
-        ]
-      },
-      {
-        id: 'fiscal-year-group',
-        label: t('budget-plan-filter-fiscal-year-group'),
-        collapsible: true,
-        defaultExpanded: true,
-        filters: [
-          {
-            id: 'fiscalYearRange',
-            field: 'fiscalYearRange',
-            label: '',
-            type: 'number',
-            config: fiscalYearNumberRangeConfig
           }
         ]
       }

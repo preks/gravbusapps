@@ -3,6 +3,7 @@ import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import type { SubmissionsOrgUnitTableRow } from './submissionsOrgUnitTableRows'
 import {
+  type SubmissionsOrgUnitSelectionParams,
   SUBMISSIONS_ORG_UNIT_TABLE_VISIBLE_COLUMN_IDS,
   buildSubmissionsOrgUnitTableColumns
 } from './buildSubmissionsOrgUnitTableColumns'
@@ -14,7 +15,8 @@ export function useSubmissionsOrgUnitTableModel(
   t: TranslateFn,
   sourceRows: SubmissionsOrgUnitTableRow[],
   hasCompanyBudgetRows: boolean,
-  compensationPlanSelected = true
+  compensationPlanSelected = true,
+  selection?: SubmissionsOrgUnitSelectionParams
 ) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
@@ -107,12 +109,17 @@ export function useSubmissionsOrgUnitTableModel(
     setSelectedOrgUnitBudgetStatuses(statuses)
   }, [])
 
-  const columns = useMemo(() => buildSubmissionsOrgUnitTableColumns(t, formatStatus), [formatStatus, t])
+  const columns = useMemo(
+    () => buildSubmissionsOrgUnitTableColumns(t, formatStatus, selection),
+    [formatStatus, selection, t]
+  )
 
   const visibleTableColumns = useMemo(
     () =>
-      columns.filter(col =>
-        visibleColumns.includes(String((col as ColumnDef<SubmissionsOrgUnitTableRow> & { id?: string }).id ?? ''))
+      columns.filter(
+        col =>
+          String((col as ColumnDef<SubmissionsOrgUnitTableRow> & { id?: string }).id ?? '') === 'selection' ||
+          visibleColumns.includes(String((col as ColumnDef<SubmissionsOrgUnitTableRow> & { id?: string }).id ?? ''))
       ),
     [columns, visibleColumns]
   )

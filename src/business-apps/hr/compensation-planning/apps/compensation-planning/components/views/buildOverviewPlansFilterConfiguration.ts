@@ -3,8 +3,7 @@ import type { TranslateFn } from './budgetSetupDisplayUtils'
 
 export function buildOverviewPlansFilterConfiguration(
   t: TranslateFn,
-  statusOptions: { id: string; label: string }[],
-  fiscalYearOptions: { id: string; label: string }[]
+  statusOptions: { id: string; label: string }[]
 ): FilterConfiguration {
   return {
     id: 'overview-plans-filters',
@@ -22,21 +21,6 @@ export function buildOverviewPlansFilterConfiguration(
             label: t('overview-plans-table-filter-status-label'),
             type: 'multi-select',
             config: { options: statusOptions }
-          }
-        ]
-      },
-      {
-        id: 'overview-fiscal-year-group',
-        label: t('overview-plans-table-filter-fiscal-year-group'),
-        collapsible: true,
-        defaultExpanded: true,
-        filters: [
-          {
-            id: 'fiscalYears',
-            field: 'fiscalYears',
-            label: t('overview-plans-table-filter-fiscal-year-label'),
-            type: 'multi-select',
-            config: { options: fiscalYearOptions }
           }
         ]
       },
