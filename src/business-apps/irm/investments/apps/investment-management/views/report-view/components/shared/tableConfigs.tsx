@@ -8,6 +8,34 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { createInvestmentReportColumns } from '@/business-apps/irm/investments/records/investment-record/components/shared/columnDefinitions'
 import { InvestmentReportTableConfig, ColumnConfig } from './types'
 
+const createReportActionsRenderer =
+  (
+    getReportId: (row: any) => string | undefined,
+    prefixDataTestId: string
+  ): InvestmentReportTableConfig['actionsRenderer'] =>
+  (row, accessToken) => {
+    const reportId = getReportId(row)
+    if (!reportId) return null
+
+    return (
+      <AppAction
+        variant="table-row"
+        contexts={[
+          {
+            context: FlowContextName.investmentReportEntity,
+            contextData: { investmentReportId: reportId }
+          }
+        ]}
+        prefixDataTestId={prefixDataTestId}
+        accessToken={accessToken}
+        emptyState="enable"
+        lazyLoad
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        data-testid={`${prefixDataTestId}-button-${reportId}`}
+      />
+    )
+  }
+
 /**
  * Factory that builds the standard investment-name column and wires up dynamic
  * catalog columns for a given investment group.  Shared by EQUITY and REAL_ESTATE
@@ -18,7 +46,7 @@ function createStandardColumnGenerator(
   Icon: React.ElementType,
   iconProps: { className?: string; style?: React.CSSProperties }
 ): InvestmentReportTableConfig['columnGenerator'] {
-  return ({ investmentType, catalogData, accessToken }) => {
+  return ({ investmentType, catalogData }) => {
     const staticColumns: ColumnConfig[] = [
       {
         key: 'investment',
@@ -38,7 +66,7 @@ function createStandardColumnGenerator(
 
     if (!catalogData) return staticColumns
 
-    const dynamicColumns = createInvestmentReportColumns(investmentType, undefined, catalogData, accessToken, {
+    const dynamicColumns = createInvestmentReportColumns(investmentType, undefined, catalogData, {
       investmentGroup: { code: investmentGroupCode }
     })
 
@@ -64,6 +92,7 @@ export const EQUITY_TABLE_CONFIG: InvestmentReportTableConfig = {
     className: 'gba:w-4 gba:h-4 gba:shrink-0',
     style: { color: 'var(--nw-color-text-secondary)' }
   }),
+  actionsRenderer: createReportActionsRenderer(row => row.id, 'investment-reports-update'),
   getInvestmentId: row => row.investment?.id,
   getInvestmentName: row => row.investment?.name || 'N/A'
 }
@@ -84,6 +113,7 @@ export const REAL_ESTATE_TABLE_CONFIG: InvestmentReportTableConfig = {
     className: 'gba:shrink-0',
     style: { width: 'var(--nw-spacing-4)', height: 'var(--nw-spacing-4)', color: 'var(--nw-muted-foreground)' }
   }),
+  actionsRenderer: createReportActionsRenderer(row => row.id, 'investment-reports-update'),
   getInvestmentId: row => row.investment?.id,
   getInvestmentName: row => row.investment?.name || 'N/A'
 }
@@ -140,26 +170,7 @@ export const LIQUID_FUND_TABLE_CONFIG: InvestmentReportTableConfig = {
     // GenericReportTab will provide columnsOverride with dynamic catalog-based columns
     return staticColumns
   },
-  actionsRenderer: (row, accessToken) => {
-    if (!row.reportId) return null
-    return (
-      <AppAction
-        variant="table-row"
-        contexts={[
-          {
-            context: FlowContextName.investmentReportEntity,
-            contextData: { investmentReportId: row.reportId }
-          }
-        ]}
-        prefixDataTestId="liquid-fund-reports-update"
-        accessToken={accessToken}
-        emptyState="enable"
-        lazyLoad
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        data-testid={`liquid-fund-reports-update-button-${row.reportId}`}
-      />
-    )
-  },
+  actionsRenderer: createReportActionsRenderer(row => row.reportId, 'liquid-fund-reports-update'),
   getInvestmentId: row => row.investmentId,
   getInvestmentName: row => row.investmentName || 'N/A',
   getReportId: row => row.reportId

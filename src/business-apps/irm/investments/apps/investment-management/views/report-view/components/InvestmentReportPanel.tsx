@@ -80,6 +80,7 @@ export interface InvestmentReportPanelProps extends BusinessAppContextProps {
   showExportButtons?: boolean
   onCurrenciesUpdate?: (currencies: string[]) => void
   exportFilenamePrefix?: string
+  hideInvestmentScopeControls?: boolean
   dataTestId?: string
 }
 
@@ -119,6 +120,7 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   showExportButtons = true,
   onCurrenciesUpdate,
   exportFilenamePrefix,
+  hideInvestmentScopeControls = false,
   accessToken,
   userInfo,
   dataTestId = 'investment-report-panel'
@@ -181,15 +183,45 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
     [investmentGroup, currentSection, config.entityPrefix, catalogData, filterGroups.filterData]
   )
 
+  const hiddenColumnIds = useMemo(
+    () => (hideInvestmentScopeControls ? ['investment'] : []),
+    [hideInvestmentScopeControls]
+  )
+
+  const effectiveColumnConfig = useMemo(
+    () =>
+      hideInvestmentScopeControls
+        ? cascadeColumnConfig.filter(col => !hiddenColumnIds.includes(col.id))
+        : cascadeColumnConfig,
+    [cascadeColumnConfig, hiddenColumnIds, hideInvestmentScopeControls]
+  )
+
+  const effectiveSortableColumns = useMemo(
+    () =>
+      hideInvestmentScopeControls ? sortableColumns.filter(col => !hiddenColumnIds.includes(col.id)) : sortableColumns,
+    [hiddenColumnIds, hideInvestmentScopeControls, sortableColumns]
+  )
+
+  const effectiveFilterConfiguration = useMemo(
+    () =>
+      hideInvestmentScopeControls
+        ? {
+            ...filterConfiguration,
+            groups: filterConfiguration.groups.filter(group => group.id !== 'investmentIds-group')
+          }
+        : filterConfiguration,
+    [filterConfiguration, hideInvestmentScopeControls]
+  )
+
   // Apply cached column visibility so localStorage-saved preferences are
   // honoured on the first render for each section.
   const initialColumnsWithCache = useMemo(() => {
-    if (!cachedVisibleColumns) return cascadeColumnConfig
-    return cascadeColumnConfig.map(col => ({
+    if (!cachedVisibleColumns) return effectiveColumnConfig
+    return effectiveColumnConfig.map(col => ({
       ...col,
       visible: col.disabled ? true : cachedVisibleColumns.includes(col.id)
     }))
-  }, [cascadeColumnConfig, cachedVisibleColumns])
+  }, [effectiveColumnConfig, cachedVisibleColumns])
 
   // Local report filters — only used here for column visibility management.
   const localReportFilters = useReportFilters(initialColumnsWithCache)
@@ -272,7 +304,8 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
     exportHelpers,
     groupLabel,
     filenamePrefix: exportPrefix,
-    dynamicColumns: rawDynamicColumns
+    dynamicColumns: rawDynamicColumns,
+    hiddenColumnIds
   })
 
   // ---------------------------------------------------------------------------
@@ -387,13 +420,13 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
         searchPlaceholder="Search investments..."
         onSearchChange={handleSearchChange}
         filters={selectedFilters}
-        filterConfiguration={filterConfiguration}
+        filterConfiguration={effectiveFilterConfiguration}
         onFilterChange={handleFilterChange}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
         sorting={sorting}
-        sortableColumns={sortableColumns}
+        sortableColumns={effectiveSortableColumns}
         onSortingChange={handleSortingChange}
         primaryAction={composedPrimaryAction}
         toolbarDensity="default"
@@ -412,6 +445,7 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
           enabled={enabled}
           dataTransformer={config.dataTransformer}
           columnsOverride={columnsOverride}
+          hiddenColumnIds={hiddenColumnIds}
           sortField={sortField}
           sortOrder={sortOrder}
           onSortingChange={handleSortingChange}

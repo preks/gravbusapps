@@ -1,7 +1,5 @@
 // Investment Report Column Definitions Factory
 import React from 'react'
-import { AppAction } from '@/components/app-action/AppAction'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { findFormFieldsDefinition, formatFieldValue } from '../../utils/investmentHeaderConfig'
 import { getValueByPath } from '@/common/utils/objectUtils'
@@ -83,7 +81,6 @@ export const createInvestmentReportColumns = (
   investmentTypeCode: string,
   liquidFundTypeCode: string | undefined,
   catalogData: any,
-  accessToken?: string,
   mainInvestment?: any
 ): ColumnDefinition[] => {
   const columns: ColumnDefinition[] = []
@@ -243,29 +240,6 @@ export const createInvestmentReportColumns = (
       }
     })
   })
-
-  // Add actions column
-  if (accessToken) {
-    columns.push({
-      key: 'actions',
-      title: '', // Empty title as requested
-      render: (record: any) =>
-        React.createElement(AppAction, {
-          variant: 'table-row',
-          contexts: [
-            {
-              context: FlowContextName.investmentReportEntity,
-              contextData: { investmentReportId: record.id }
-            }
-          ],
-          prefixDataTestId: 'investment-reports-update',
-          accessToken: accessToken,
-          lazyLoad: true,
-          onClick: (e: React.MouseEvent) => e.stopPropagation(),
-          'data-testid': `investment-reports-update-button-${record.id}`
-        })
-    })
-  }
 
   return columns
 }

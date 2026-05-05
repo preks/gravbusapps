@@ -21,6 +21,7 @@ const FIXED_EXPORT_COLUMNS = [
 ] as const
 
 const FIXED_DATE_COLUMN_KEYS = new Set(['date'])
+const DEFAULT_HIDDEN_COLUMN_IDS: string[] = []
 
 /** Builds the full set of date column keys for CSV escaping (fixed + dynamic DATE/DATETIME columns). */
 const buildDateColumnKeys = (dynamicColumns?: DynamicTableColumn[]): Set<string> => {
@@ -125,11 +126,14 @@ const buildDynamicFormatter = (dynamicColumns: DynamicTableColumn[]) => {
   }
 }
 
-const buildDynamicColumns = (dynamicColumns: DynamicTableColumn[]) =>
-  [
+const buildDynamicColumns = (dynamicColumns: DynamicTableColumn[], hiddenColumnIds: string[] = []) => {
+  const hiddenDynamicKeys = new Set(hiddenColumnIds.includes('investment') ? ['__investment'] : [])
+
+  return [
     ...DYNAMIC_FIXED_COLUMNS.map(c => ({ key: c.key, title: c.title })),
     ...dynamicColumns.map(c => ({ key: c.id, title: c.label }))
-  ] as { key: string; title: string }[]
+  ].filter(column => !hiddenDynamicKeys.has(column.key)) as { key: string; title: string }[]
+}
 
 // ─── Generated columns path (Equity, Real Estate, and other non-Liquid-Fund groups) ──
 
@@ -154,13 +158,15 @@ interface UseInvestmentReportExportOptions {
   filenamePrefix?: string
   /** Dynamic columns from the active table section (e.g. Liquid Fund). When present, replaces fixed columns. */
   dynamicColumns?: DynamicTableColumn[]
+  hiddenColumnIds?: string[]
 }
 
 export function useInvestmentReportExport({
   exportHelpers,
   groupLabel,
   filenamePrefix = 'investment-reports',
-  dynamicColumns
+  dynamicColumns,
+  hiddenColumnIds = DEFAULT_HIDDEN_COLUMN_IDS
 }: UseInvestmentReportExportOptions) {
   const hasDynamic = dynamicColumns && dynamicColumns.length > 0
 
@@ -171,11 +177,11 @@ export function useInvestmentReportExport({
   }, [exportHelpers])
 
   const columns = useMemo(() => {
-    if (hasDynamic) return buildDynamicColumns(dynamicColumns)
+    if (hasDynamic) return buildDynamicColumns(dynamicColumns, hiddenColumnIds)
     const generatedCols = exportHelpers?.exportColumns
     if (generatedCols?.length) return generatedCols.map(c => ({ key: c.key, title: c.title }))
-    return FIXED_EXPORT_COLUMNS
-  }, [hasDynamic, dynamicColumns, exportHelpers])
+    return FIXED_EXPORT_COLUMNS.filter(column => !hiddenColumnIds.includes(column.key))
+  }, [hasDynamic, dynamicColumns, exportHelpers, hiddenColumnIds])
 
   const formatItem = useMemo(() => {
     if (hasDynamic) return buildDynamicFormatter(dynamicColumns)

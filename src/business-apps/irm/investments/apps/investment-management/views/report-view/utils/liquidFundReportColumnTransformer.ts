@@ -10,7 +10,10 @@ const INVESTMENT_REPORT_ROOT_FIELD_MAP: Record<string, string> = {
   'investment.totalInvestmentAmount': 'totalInvestmentAmount',
   'investment.initialInvestmentAmount': 'initialInvestmentAmount',
   'investment.securityQuantity': 'securityQuantity',
-  'investment.timeWeightedPerformance': 'timeWeightedPerformance'
+  'investment.timeWeightedPerformance': 'timeWeightedPerformance',
+  'investment.irr': 'irr',
+  'investment.moic': 'moic',
+  'investment.investmentRole': 'investmentRoleReport'
 }
 
 /**

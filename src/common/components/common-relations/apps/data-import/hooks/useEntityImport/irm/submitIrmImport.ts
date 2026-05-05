@@ -4,7 +4,9 @@
  *      1. Investment batch (`createInvestments`) for investment-group
  *         entity types like `equity-investment`, `real-estate-investment`,
  *         `liquid-fund-investment`
- *      2. Standard entity endpoints under `investment-relations`
+ *      2. Investment report batch (`createInvestmentReports`) for report
+ *         imports scoped by `InvestmentGroup`
+ *      3. Standard entity endpoints under `investment-relations`
  *         (`createInvestmentLeads`, `createInvestmentContacts`,
  *         `createInvestmentAccounts`, `createInvestmentOpportunities`) with a
  *         singular fallback for contacts
@@ -41,6 +43,7 @@ import {
 import { toInvestmentBatchPayload } from './toInvestmentBatchPayload'
 import { toInvestmentContactPayload } from './toInvestmentContactPayload'
 import { toInvestmentOpportunityPayload } from './toInvestmentOpportunityPayload'
+import { toInvestmentReportBatchPayload } from './toInvestmentReportBatchPayload'
 
 const STANDARD_ENTITY_ENDPOINTS = {
   lead: 'Leads',
@@ -105,6 +108,9 @@ function normalizeIrmImportError(error: unknown, entityType: string): string | u
   if (/createinvestmentsmodelinput\.investmentrequests/i.test(base)) {
     return 'Import failed: Java endpoint expects `investmentRequests` payload root.'
   }
+  if (/createinvestmentreportsmodelinput\.investmentreportrequests/i.test(base)) {
+    return 'Import failed: Java endpoint expects `investmentReportRequests` payload root.'
+  }
   if (/error while marshalling process instance/i.test(base) && entityType === 'contact') {
     return 'Import failed: Java marshalling error for Investment Contact payload shape.'
   }
@@ -118,6 +124,25 @@ function normalizeIrmImportError(error: unknown, entityType: string): string | u
   return matchCommunicationChannelError(base, entityType)
 }
 
+function processInvestmentReportResponse(response: any): ImportResult {
+  const hasErrors = response.validationResponse?.errors?.length > 0
+  const createdReports = response.investmentReports || response.investmentReportRequests || []
+
+  return {
+    success: !hasErrors && createdReports.length > 0,
+    successCount: createdReports.length,
+    errorCount: hasErrors ? response.validationResponse.errors.length : 0,
+    errors: hasErrors
+      ? response.validationResponse.errors.map((err: any, idx: number) => ({
+          rowIndex: idx,
+          entityData: {},
+          error: `${err.code || 'ERROR'}: ${err.detail || err.title || 'Unknown error'}`
+        }))
+      : [],
+    createdIds: createdReports.map((report: any) => report.investmentReport?.id || report.id).filter(Boolean)
+  }
+}
+
 export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionStrategy {
   const investmentGroupRefCache = new Map<string, string>()
 
@@ -126,6 +151,8 @@ export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionS
   // opportunity) fall through to the per-entity endpoints.
   const investmentPayloadKey = config.investmentPayloadKey
   const isInvestmentBatchImport = Boolean(investmentPayloadKey)
+  const isInvestmentReportBatchImport =
+    Boolean(config.investmentReportPayloadKey) || /investmentreport$/i.test(config.flowbotEntityType ?? '')
 
   async function submit(entities: Record<string, any>[], ctx: ImportSubmissionContext): Promise<ImportResult> {
     const { restClient, graphQLClient, accessToken, ownerEmployeeId } = ctx
@@ -154,6 +181,15 @@ export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionS
       })
 
       return processInvestmentResponse(response)
+    }
+
+    if (isInvestmentReportBatchImport) {
+      const payload = toInvestmentReportBatchPayload(entities, config)
+      const response = await restClient.post('/investment-relations/createInvestmentReports', payload, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+
+      return processInvestmentReportResponse(response)
     }
 
     if (!isSupportedStandardEntityType(config.entityType)) {

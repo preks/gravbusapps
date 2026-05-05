@@ -842,6 +842,7 @@ export const INVESTMENT_REPORT_DESCRIPTORS = createInvestmentReportDescriptors()
 export const buildInvestmentReportPayload = (report: Partial<InvestmentReport>) => {
   // Build base payload using InvestmentReportFormFields for field mapping
   const basePayload = buildPayload(report, InvestmentReportFormFields)
+  const isReportUpdate = Boolean(report.id)
 
   const result: any = {
     investmentReport: basePayload
@@ -863,16 +864,16 @@ export const buildInvestmentReportPayload = (report: Partial<InvestmentReport>) 
     result.realEstateInvestmentReport = buildPayload(realEstateReport, RealEstateInvestmentReportFormFields)
   }
 
-  // Handle investment roles report separately - investmentRoleReport (form) → investmentRoles (API)
+  // Handle investment roles report separately - investmentRoleReport (form) → investmentRoleReports (API)
   if (report.investmentRoleReport && report.investmentRoleReport.length > 0) {
     const investmentRolesReportPayload = report.investmentRoleReport.map((roleReport: any, index: number) => ({
-      ...(roleReport.id && { id: roleReport.id }),
-      ...(roleReport.version !== undefined && { version: roleReport.version }),
-      investmentRoleRef: roleReport.investmentRole?.id,
+      ...(isReportUpdate && roleReport.id && { id: roleReport.id }),
+      ...(isReportUpdate && roleReport.version !== undefined && { version: roleReport.version }),
+      investmentRoleRef: roleReport.investmentRole?.id ?? roleReport.investmentRoleRef,
       displayOrder: roleReport.displayOrder ?? index,
       ...(roleReport.isDeleted !== undefined && { isDeleted: roleReport.isDeleted })
     }))
-    result.investmentReport.investmentRoles = investmentRolesReportPayload
+    result.investmentReport.investmentRoleReports = investmentRolesReportPayload
   }
 
   return {

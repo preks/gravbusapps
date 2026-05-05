@@ -11,11 +11,7 @@ import {
   CardContent,
   Button,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Combobox,
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
@@ -132,6 +128,10 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
                   const availableTargetFields = allTargetFields
                     .filter(tf => !usedByOtherRows.has(tf.value) || tf.value === mapping.targetField)
                     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+                  const targetFieldOptions = availableTargetFields.map(tf => ({
+                    value: tf.value,
+                    label: tf.label
+                  }))
 
                   return (
                     <div
@@ -150,21 +150,16 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
 
                       <div className="gba:flex-1">
                         <Label className="gba:text-xs gba:text-muted-foreground">{t('target-field-label')}</Label>
-                        <Select
-                          value={mapping.targetField || undefined}
-                          onValueChange={value => onUpdateTargetFromUnmapped(index, value)}
-                        >
-                          <SelectTrigger className="gba:w-full">
-                            <SelectValue placeholder="Select a field" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableTargetFields.map(tf => (
-                              <SelectItem key={tf.value} value={tf.value}>
-                                {tf.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          className="gba:w-full"
+                          value={mapping.targetField || ''}
+                          onValueChange={value => onUpdateTargetFromUnmapped(index, value || '')}
+                          options={targetFieldOptions}
+                          placeholder={t('select-field-placeholder')}
+                          searchPlaceholder={t('search-field-placeholder')}
+                          emptyText={t('no-fields-found')}
+                          data-testid={`${testId}-target-field-${index}`}
+                        />
                       </div>
 
                       <div className="gba:w-20">

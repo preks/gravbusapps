@@ -302,6 +302,7 @@ export class FlowbotClient extends RestClient {
     maxRows: number = 5000,
     repairCsv: 'auto' | 'hard' = 'auto',
     requiredSubtypeKey?: string | null,
+    additionalPropertiesFields?: readonly string[] | null,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
@@ -318,6 +319,9 @@ export class FlowbotClient extends RestClient {
     }
     if (flowbotDomain === 'irm' && requiredSubtypeKey) {
       formData.append('required_subtype_key', requiredSubtypeKey)
+    }
+    if (flowbotDomain === 'irm') {
+      formData.append('additional_properties_fields', JSON.stringify(additionalPropertiesFields ?? []))
     }
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())

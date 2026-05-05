@@ -1,0 +1,1 @@
+export { GenericInvestmentReportImportView } from './GenericInvestmentReportImportView'

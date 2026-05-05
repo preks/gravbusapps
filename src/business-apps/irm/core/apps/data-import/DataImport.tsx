@@ -61,6 +61,10 @@ export const DataImport: React.FC<DataImportProps> = props => {
         investmentsCard: {
           title: t('card-investments-title'),
           description: t('card-investments-description')
+        },
+        investmentReportsCard: {
+          title: t('card-investment-reports-title'),
+          description: t('card-investment-reports-description')
         }
       }),
     [investmentGroups, t]

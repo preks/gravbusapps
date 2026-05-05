@@ -163,6 +163,7 @@ const InvestmentReportsTab: React.FC<InvestmentReportsTabProps> = ({
         accessToken={accessToken}
         userInfo={userInfo}
         primaryAction={resolvedPrimaryAction}
+        hideInvestmentScopeControls
         exportFilenamePrefix={`investment-${investmentId}-reports`}
         dataTestId={dataTestId}
       />

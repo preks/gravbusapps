@@ -122,10 +122,14 @@ export function useEntityImport<T = ConvertedEntity>(
 
   useEffect(() => {
     if (accessToken) {
-      aiServiceRef.current = new ImportAnalyzer(accessToken, config.entityType, config.domain)
+      aiServiceRef.current = new ImportAnalyzer(
+        accessToken,
+        config.flowbotEntityType ?? config.entityType,
+        config.domain
+      )
       flowbotClient.setAccessToken(accessToken)
     }
-  }, [accessToken, config.entityType, config.domain])
+  }, [accessToken, config.entityType, config.flowbotEntityType, config.domain])
 
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const graphQLClient = useGraphQLClient(accessToken)
@@ -253,7 +257,8 @@ export function useEntityImport<T = ConvertedEntity>(
           enforcedFieldsJson,
           adapters,
           'auto',
-          analyzerContext?.requiredSubtypeKey
+          analyzerContext?.requiredSubtypeKey,
+          analyzerContext?.additionalPropertiesFields
         )
 
         const responseRecords = usedUiMappings ? records : restoreUiTargetFieldNames(records, adapters)
@@ -317,7 +322,8 @@ export function useEntityImport<T = ConvertedEntity>(
         enforcedFieldsJson,
         adapters,
         'hard',
-        analyzerContext?.requiredSubtypeKey
+        analyzerContext?.requiredSubtypeKey,
+        analyzerContext?.additionalPropertiesFields
       )
 
       const responseRecords = usedUiMappings ? records : restoreUiTargetFieldNames(records, adapters)

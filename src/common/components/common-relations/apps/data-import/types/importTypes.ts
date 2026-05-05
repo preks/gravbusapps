@@ -99,9 +99,15 @@ export type InvestmentPayloadExtension = (context: {
 // Import configuration for an entity
 export interface ImportConfig {
   entityType: string
+  /**
+   * Optional backend extraction entity type when the UI route key differs
+   * from Flowbot's expected `entity_type` value.
+   */
+  flowbotEntityType?: string
   domain: 'customer' | 'investment' // Domain for endpoint routing
   targetFields: TargetFieldDefinition[]
   investmentPayloadKey?: string
+  investmentReportPayloadKey?: 'equityInvestmentReport' | 'realEstateInvestmentReport' | 'liquidFundInvestmentReport'
   /**
    * Fallback `InvestmentGroup` code (e.g. 'EQUITY') used by
    * `submitIrmImport` only when `investmentGroupRef` is not pre-resolved.

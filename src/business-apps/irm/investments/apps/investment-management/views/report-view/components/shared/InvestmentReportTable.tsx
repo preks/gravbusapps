@@ -41,11 +41,14 @@ interface InvestmentReportTableProps extends BusinessAppContextProps {
   enabled?: boolean
   dataTransformer?: (reports: any[]) => any[] // For Liquid Funds
   columnsOverride?: any[] // For Liquid Funds with custom column generation
+  hiddenColumnIds?: string[]
   // Sorting props
   sortField?: string
   sortOrder?: 'ASC' | 'DESC'
   onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
 }
+
+const DEFAULT_HIDDEN_COLUMN_IDS: string[] = []
 
 export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
   accessToken,
@@ -62,6 +65,7 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
   enabled = true,
   dataTransformer,
   columnsOverride,
+  hiddenColumnIds = DEFAULT_HIDDEN_COLUMN_IDS,
   sortField,
   sortOrder,
   onSortingChange
@@ -108,15 +112,18 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
   // Derive export-ready column definitions from the generated table columns
   const exportColumns = useMemo(() => {
     if (columnsOverride) return undefined // Liquid Fund uses rawDynamicColumns instead
+    const hiddenColumnSet = new Set(hiddenColumnIds)
     return generatedColumns
-      .filter((col: any) => col.key !== 'actions' && typeof col.getTextValue === 'function')
+      .filter(
+        (col: any) => !hiddenColumnSet.has(col.key) && col.key !== 'actions' && typeof col.getTextValue === 'function'
+      )
       .map((col: any) => ({
         key: col.key,
         title: col.title,
         getTextValue: col.getTextValue,
         isDate: col.key === 'date'
       }))
-  }, [generatedColumns, columnsOverride])
+  }, [generatedColumns, columnsOverride, hiddenColumnIds])
 
   // Notify parent of export helpers whenever relevant values change
   useEffect(() => {
@@ -187,7 +194,10 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
   // Convert to DataTable column format
   const columns = useMemo<ColumnDef<any>[]>(() => {
     const visibleSet = new Set(visibleColumns)
-    const visibleGeneratedColumns = generatedColumns.filter(column => visibleSet.has(column.key))
+    const hiddenColumnSet = new Set(hiddenColumnIds)
+    const visibleGeneratedColumns = generatedColumns.filter(
+      column => visibleSet.has(column.key) && !hiddenColumnSet.has(column.key)
+    )
 
     return visibleGeneratedColumns.map(column => {
       // Parse width string (e.g., '200px' -> 200)
@@ -216,7 +226,7 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
         enableSorting: isColumnSortable(column.key) // Only enable sorting if column is sortable
       }
     })
-  }, [generatedColumns, visibleColumns, isColumnSortable])
+  }, [generatedColumns, hiddenColumnIds, visibleColumns, isColumnSortable])
 
   // Handle row click navigation
   const handleRowClick = useCallback(

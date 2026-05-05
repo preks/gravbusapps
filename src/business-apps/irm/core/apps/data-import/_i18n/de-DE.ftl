@@ -28,4 +28,8 @@ card-opportunity-button = Opportunity-Import starten
 
 # Multi-entry investments card
 card-investments-title = Investitionen importieren
-card-investments-description = Importieren Sie Investitionen mit KI-gestützter Feldzuordnung. Wählen Sie Ihre Investitionsgruppe, um zu beginnen.
+card-investments-description = Importieren Sie Investitionsdaten aus CSV- oder Excel-Dateien mit KI-gestützter Feldzuordnung.
+
+# Multi-entry investment reports card
+card-investment-reports-title = Investitionsberichte importieren
+card-investment-reports-description = Importieren Sie Investitionsberichtsdaten aus CSV- oder Excel-Dateien mit KI-gestützter Feldzuordnung.

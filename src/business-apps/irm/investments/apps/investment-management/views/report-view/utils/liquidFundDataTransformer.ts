@@ -26,6 +26,10 @@ export interface AnalyticsRowData {
   stocksQuantity?: number
   securityQuantity?: number
   initialInvestmentAmount?: number
+  totalInvestmentAmount?: number
+  irr?: number
+  moic?: number
+  investmentRoleReport?: any[]
   // Calculated values for the analytics period
   openingBalance: number
   incoming: number
@@ -108,6 +112,9 @@ export function transformReportsToAnalyticsData(reports: InvestmentReport[]): An
         stocksQuantity: report.securityQuantity ?? additionalProps.quantity,
         securityQuantity: report.securityQuantity ?? additionalProps.quantity,
         initialInvestmentAmount: report.initialInvestmentAmount,
+        irr: report.irr,
+        moic: report.moic,
+        investmentRoleReport: report.investmentRoleReport,
 
         // Keep full structures for dynamic column access
         liquidFundReport: liquidFundReport,
