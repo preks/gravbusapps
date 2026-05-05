@@ -64,6 +64,7 @@ reset-pwd-subtitle = Set a new sign-in password for this employee. They should u
 reset-pwd-loading = Loading…
 reset-pwd-hint-email-prefix = Password applies to the account for:
 reset-pwd-hint-no-email = No email is on file; password reset may not resolve a user account until an email exists.
+reset-pwd-self-service-info = You're updating your own sign-in password. We'll save it as your regular password, so you won't be prompted to pick a new one next time you sign in.
 reset-pwd-action-save = Set password
 reset-pwd-action-saving = Setting password…
 reset-pwd-msg-saved = Password was updated.

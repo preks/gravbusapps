@@ -14,6 +14,7 @@ import {
 } from '@newwork/nw-design-system'
 import { getWorkEmailFromCommunication } from '@/common/data/employee/useEmployeeSearch'
 import addEmployeesTranslations from './_i18n'
+import { decodeAccessTokenSub } from '@/common/utils/decodeJwtSub'
 import { fetchEmployeeForEditForm, type EditEmployeeFormBootstrap } from './editEmployeeHasura'
 import { setInitialPassword } from './employeeOnboardingApi'
 import { EmployeePasswordFields } from './EmployeePasswordFields'
@@ -88,6 +89,10 @@ export function ResetEmployeePasswordForm({
     : ''
 
   const hasUserId = Boolean(bootstrap?.employee?.userId?.trim())
+
+  const targetUserIdForSelfCheck = bootstrap?.employee?.userId?.trim()
+  const actorSub = decodeAccessTokenSub(accessToken)
+  const isOwnPasswordReset = Boolean(actorSub && targetUserIdForSelfCheck && actorSub === targetUserIdForSelfCheck)
 
   const onSubmit = useCallback(async () => {
     setError(null)
@@ -171,6 +176,11 @@ export function ResetEmployeePasswordForm({
               t('reset-pwd-hint-no-email')
             )}
           </p>
+          {isOwnPasswordReset ? (
+            <Alert>
+              <AlertDescription>{t('reset-pwd-self-service-info')}</AlertDescription>
+            </Alert>
+          ) : null}
           <EmployeePasswordFields
             idPrefix="reset-employee-pwd"
             newPassword={password}
