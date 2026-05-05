@@ -119,68 +119,135 @@ export const HomeView: React.FC<HomeViewProps> = ({
   )
 
   return (
-    <>
-      {/* Account Section - 1/4 width */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'account-section',
-            component: AccountSection,
-            props: {
-              ...props,
-              accounts:
-                contact?.accountContacts
-                  ?.map(ac => ({
-                    ...ac.account,
-                    contactType: ac.contactType
-                  }))
-                  .filter(Boolean) || [],
-              accountId: contact?.accountContacts?.[0]?.account?.id,
-              recordUrl: contact?.accountContacts?.[0]?.account?.id
-                ? buildPlatformUrl('/platform/crm/account-record', {
-                    accountId: contact.accountContacts[0].account.id,
-                    source: 'customer-relations'
-                  })
-                : undefined,
-              actionButtonProps: {
-                contextsArray: [FlowContextName.customerAccountEntity],
-                externalContextData: {
-                  accountId: contact?.accountContacts?.[0]?.account?.id
+    <div className="gba:col-span-12 gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
+      <div className="gba:flex gba:h-full gba:flex-col gba:gap-4 gba:lg:col-span-6">
+        <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-2">
+          {/* Account Section - 1/4 width */}
+          <SectionWrapper
+            className="gba:min-h-96 gba:max-h-96"
+            sections={[
+              {
+                id: 'account-section',
+                component: AccountSection,
+                props: {
+                  ...props,
+                  accounts:
+                    contact?.accountContacts
+                      ?.map(ac => ({
+                        ...ac.account,
+                        contactType: ac.contactType
+                      }))
+                      .filter(Boolean) || [],
+                  accountId: contact?.accountContacts?.[0]?.account?.id,
+                  recordUrl: contact?.accountContacts?.[0]?.account?.id
+                    ? buildPlatformUrl('/platform/crm/account-record', {
+                        accountId: contact.accountContacts[0].account.id,
+                        source: 'customer-relations'
+                      })
+                    : undefined,
+                  actionButtonProps: {
+                    contextsArray: [FlowContextName.customerAccountEntity],
+                    externalContextData: {
+                      accountId: contact?.accountContacts?.[0]?.account?.id
+                    },
+                    prefixDataTestId: 'contact-account'
+                  }
+                }
+              }
+            ]}
+            data-testid="contact-account-section-wrapper"
+          />
+
+          {/* Contact Section - 1/4 width */}
+          <SectionWrapper
+            className="gba:min-h-96 gba:max-h-96"
+            sections={[
+              {
+                id: 'contact-section',
+                component: ContactSection,
+                props: {
+                  ...props,
+                  contact: contact,
+                  contactId: contact?.id,
+                  actionButtonProps: {
+                    contextsArray: [FlowContextName.customerContactEntity],
+                    externalContextData: { contactId: contact?.id },
+                    prefixDataTestId: 'contact-contact'
+                  }
+                }
+              }
+            ]}
+            data-testid="contact-contact-section-wrapper"
+          />
+        </div>
+
+        {/* Tasks & Approvals - stretches to align with the right column */}
+        <SectionWrapper
+          className="gba:min-h-96 gba:flex-1"
+          sections={[
+            {
+              id: 'tasks-section',
+              component: TaskSection,
+              props: {
+                ...props,
+                contactId,
+                buildReferenceUrl,
+                tasks: tasks,
+                taskActionProps: {
+                  ...taskActionProps,
+                  emptyStateBehavior: 'enable'
                 },
-                prefixDataTestId: 'contact-account'
+                taskEntityActionProps: {
+                  contextsArray: [FlowContextName.customerTaskEntity],
+                  externalContextData: { contactId },
+                  prefixDataTestId: 'contact-task-entity',
+                  emptyStateBehavior: 'enable'
+                },
+                typeCatalog: TASK_TYPE,
+                priorityCatalog: TASK_PRIORITY,
+                buildTaskPayload: buildCustomerTaskPayload,
+                defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+                preSubmit: taskPreSubmit,
+                'data-testid': 'contact-tasks-section'
+              }
+            },
+            {
+              id: 'approvals-section',
+              component: TaskSection,
+              props: {
+                ...props,
+                contactId,
+                buildReferenceUrl,
+                tasks: approvals,
+                taskActionProps: {
+                  ...approvalActionProps,
+                  emptyStateBehavior: 'enable'
+                },
+                taskEntityActionProps: {
+                  contextsArray: [FlowContextName.customerTaskEntity],
+                  externalContextData: { contactId },
+                  prefixDataTestId: 'contact-approval-entity',
+                  emptyStateBehavior: 'enable'
+                },
+                sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approval Tasks'),
+                typeCatalog: TASK_TYPE,
+                priorityCatalog: TASK_PRIORITY,
+                buildTaskPayload: buildCustomerTaskPayload,
+                isApprovalTaskSection: true,
+                approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+                defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+                preSubmit: taskPreSubmit,
+                'data-testid': 'contact-approvals-section'
               }
             }
-          }
-        ]}
-        data-testid="contact-account-section-wrapper"
-      />
+          ]}
+          data-testid="contact-tasks-approvals-section-wrapper"
+        />
+      </div>
 
-      {/* Contact Section - 1/4 width */}
+      {/* Activities & Notes Section - 1/2 width, stretches with left column */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'contact-section',
-            component: ContactSection,
-            props: {
-              ...props,
-              contact: contact,
-              contactId: contact?.id,
-              actionButtonProps: {
-                contextsArray: [FlowContextName.customerContactEntity],
-                externalContextData: { contactId: contact?.id },
-                prefixDataTestId: 'contact-contact'
-              }
-            }
-          }
-        ]}
-        data-testid="contact-contact-section-wrapper"
-      />
-
-      {/* Activities & Notes Section - 1/2 width, spans 2 rows */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2 gba:min-h-196 gba:max-h-196"
+        className="gba:min-h-196 gba:h-full gba:lg:col-span-6"
         sections={[
           {
             id: 'activities-section',
@@ -234,69 +301,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
         ]}
         data-testid="contact-activities-notes-section-wrapper"
       />
-
-      {/* Tasks & Approvals - 1/2 width */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'tasks-section',
-            component: TaskSection,
-            props: {
-              ...props,
-              contactId,
-              buildReferenceUrl,
-              tasks: tasks,
-              taskActionProps: {
-                ...taskActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-task-entity',
-                emptyStateBehavior: 'enable'
-              },
-              typeCatalog: TASK_TYPE,
-              priorityCatalog: TASK_PRIORITY,
-              buildTaskPayload: buildCustomerTaskPayload,
-              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
-              preSubmit: taskPreSubmit,
-              'data-testid': 'contact-tasks-section'
-            }
-          },
-          {
-            id: 'approvals-section',
-            component: TaskSection,
-            props: {
-              ...props,
-              contactId,
-              buildReferenceUrl,
-              tasks: approvals,
-              taskActionProps: {
-                ...approvalActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-approval-entity',
-                emptyStateBehavior: 'enable'
-              },
-              sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approval Tasks'),
-              typeCatalog: TASK_TYPE,
-              priorityCatalog: TASK_PRIORITY,
-              buildTaskPayload: buildCustomerTaskPayload,
-              isApprovalTaskSection: true,
-              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
-              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
-              preSubmit: taskPreSubmit,
-              'data-testid': 'contact-approvals-section'
-            }
-          }
-        ]}
-        data-testid="contact-tasks-approvals-section-wrapper"
-      />
-    </>
+    </div>
   )
 }

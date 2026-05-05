@@ -121,289 +121,327 @@ export const HomeView: React.FC<HomeViewProps> = ({
     [props.userInfo, fileClient, opportunityId]
   )
 
+  const shouldShowStageConditions = useMemo(() => {
+    const hasPipelineAndStage = Boolean(
+      opportunityData?.opportunityPipelineRef && opportunityData?.opportunityPipelineStageRef
+    )
+
+    return hasPipelineAndStage && (stageConditionStatuses ?? []).length > 0
+  }, [opportunityData?.opportunityPipelineRef, opportunityData?.opportunityPipelineStageRef, stageConditionStatuses])
+
+  const renderAccountSection = (className: string) => (
+    <SectionWrapper
+      className={className}
+      sections={[
+        {
+          id: 'account-section',
+          component: AccountSection,
+          props: {
+            ...props,
+            accessToken,
+            accounts:
+              opportunityData?.opportunityAccounts
+                ?.map(junction => ({
+                  ...junction.account,
+                  accountType: junction.accountType
+                }))
+                .filter(Boolean) || [],
+            account: opportunityData?.opportunityAccounts?.[0]
+              ? {
+                  ...opportunityData.opportunityAccounts[0].account,
+                  accountType: opportunityData.opportunityAccounts[0].accountType
+                }
+              : undefined,
+            accountId: opportunityData?.opportunityAccounts?.[0]?.accountId,
+            recordUrl: opportunityData?.opportunityAccounts?.[0]?.accountId
+              ? buildPlatformUrl('/platform/crm/account-record', {
+                  accountId: opportunityData.opportunityAccounts[0].accountId,
+                  source: 'opportunity-relations',
+                  fromEntity: 'opportunities'
+                })
+              : undefined,
+            actionButtonProps: {
+              contextsArray: [FlowContextName.customerAccountEntity],
+              externalContextData: {
+                accountId: opportunityData?.opportunityAccounts?.[0]?.accountId
+              },
+              prefixDataTestId: 'customer-opportunity-account-action'
+            }
+          }
+        }
+      ]}
+      data-testid="opportunity-account-section-wrapper"
+    />
+  )
+
+  const renderContactSection = (className: string) => (
+    <SectionWrapper
+      className={className}
+      sections={[
+        {
+          id: 'contact-section',
+          component: ContactSection,
+          props: {
+            ...props,
+            accessToken,
+            contacts:
+              opportunityData?.opportunityContacts
+                ?.map((oc: any) => ({
+                  ...oc.contact,
+                  jobPosition: oc.contact?.jobTitle,
+                  contactType: oc.contactType
+                }))
+                .filter(Boolean) || [],
+            contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
+            recordUrl: opportunityData?.opportunityContacts?.[0]?.contact?.id
+              ? buildPlatformUrl('/platform/crm/contact-record', {
+                  contactId: opportunityData.opportunityContacts[0].contact.id,
+                  source: 'opportunity-relations',
+                  fromEntity: 'opportunities'
+                })
+              : undefined,
+            actionButtonProps: {
+              contextsArray: [FlowContextName.customerContactEntity],
+              externalContextData: {
+                contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
+                version: opportunityData?.opportunityContacts?.[0]?.contact?.version
+              },
+              prefixDataTestId: 'customer-opportunity-contact-action'
+            }
+          }
+        }
+      ]}
+      data-testid="opportunity-contact-section-wrapper"
+    />
+  )
+
+  const renderConditionSection = () => (
+    <SectionWrapper
+      className="gba:min-h-96 gba:max-h-96 gba:lg:col-span-6"
+      sections={[
+        {
+          id: 'stage-condition-section',
+          component: ConditionSection,
+          props: {
+            ...props,
+            accessToken,
+            opportunity: opportunityData,
+            stageConditionStatuses: stageConditionStatuses || [],
+            stageConditionActionProps: {
+              ...stageConditionActionProps,
+              emptyStateBehavior: 'enable'
+            }
+          }
+        }
+      ]}
+      data-testid="opportunity-stage-condition-section-wrapper"
+    />
+  )
+
+  const renderTasksAndApprovalsSection = (className: string) => (
+    <SectionWrapper
+      className={className}
+      sections={[
+        {
+          id: 'tasks-section',
+          component: TaskSection,
+          props: {
+            ...props,
+            accessToken,
+            opportunityId: opportunityId,
+            buildReferenceUrl,
+            tasks: tasks,
+            taskActionProps: {
+              contextsArray: [FlowContextName.customerTaskCreate],
+              externalContextData: { opportunityId },
+              prefixDataTestId: 'opportunity-tasks',
+              emptyStateBehavior: 'enable'
+            },
+            taskEntityActionProps: {
+              contextsArray: [FlowContextName.customerTaskEntity],
+              externalContextData: { opportunityId },
+              prefixDataTestId: 'opportunity-task-entity',
+              emptyStateBehavior: 'enable'
+            },
+            typeCatalog: TASK_TYPE,
+            priorityCatalog: TASK_PRIORITY,
+            buildTaskPayload: buildCustomerTaskPayload,
+            defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+            preSubmit: taskPreSubmit
+          }
+        },
+        {
+          id: 'approval-tasks-section',
+          component: TaskSection,
+          props: {
+            ...props,
+            accessToken,
+            sectionTitle: 'Approval Tasks',
+            opportunityId: opportunityId,
+            buildReferenceUrl,
+            tasks: approvals,
+            taskEntityActionProps: {
+              contextsArray: [FlowContextName.customerTaskEntity],
+              externalContextData: { opportunityId },
+              prefixDataTestId: 'opportunity-approval-entity',
+              emptyStateBehavior: 'enable'
+            },
+            taskActionProps: {
+              contextsArray: [FlowContextName.customerTaskCreate],
+              externalContextData: {
+                opportunityId,
+                opportunity: opportunityId,
+                typeRef: APPROVAL_TASK_TYPE_REF,
+                salesTask: { opportunity: opportunityId, type: APPROVAL_TASK_TYPE_REF }
+              },
+              prefixDataTestId: 'opportunity-approvals',
+              emptyStateBehavior: 'enable'
+            },
+            typeCatalog: TASK_TYPE,
+            priorityCatalog: TASK_PRIORITY,
+            buildTaskPayload: buildCustomerTaskPayload,
+            isApprovalTaskSection: true,
+            approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+            defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+            preSubmit: taskPreSubmit
+          }
+        }
+      ]}
+      data-testid="opportunity-tasks-approvals-section-wrapper"
+    />
+  )
+
+  const renderActivitiesNotesAndNextStepsSection = (className: string) => (
+    <SectionWrapper
+      className={className}
+      sections={[
+        {
+          id: 'activities-section',
+          component: ActivitySection,
+          props: {
+            ...props,
+            accessToken,
+            opportunityId,
+            activities: activities,
+            activitiesLoading: activitiesLoading,
+            activitiesError: activitiesError,
+            onReloadActivities: loadActivities,
+            activitySectionActionProps: {
+              contextsArray: [FlowContextName.customerActivityCreate],
+              externalContextData: {
+                opportunityId,
+                opportunity: opportunityId,
+                salesActivity: { opportunity: opportunityId },
+                ...(props.userInfo?.employeeDetails?.employeeId && {
+                  ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+                })
+              },
+              prefixDataTestId: 'opportunity-activities',
+              emptyStateBehavior: 'enable'
+            },
+            activityEntityActionProps: {
+              contextsArray: [FlowContextName.customerActivityEntity],
+              externalContextData: { opportunityId },
+              prefixDataTestId: 'opportunity-activity-entity',
+              emptyStateBehavior: 'enable'
+            },
+            activityTypeCatalog: ACTIVITY_TYPE,
+            buildActivityPayload: buildCustomerActivityPayload,
+            alignment: 'right',
+            preSubmit: activityPreSubmit,
+            getRelatedRecordUrl: buildCrmRelatedEntityRecordUrl
+          }
+        },
+        {
+          id: 'notes-section',
+          component: NoteSection as React.ComponentType<any>,
+          props: {
+            ...props,
+            accessToken,
+            opportunityId,
+            notes: regularOpportunityNotes,
+            noteActionProps: {
+              contextsArray: [FlowContextName.customerNoteCreate],
+              externalContextData: { opportunityId },
+              prefixDataTestId: 'opportunity-notes',
+              emptyStateBehavior: 'enable'
+            },
+            noteEntityActionProps: {
+              contextsArray: [FlowContextName.customerNoteEntity],
+              externalContextData: { opportunityId },
+              prefixDataTestId: 'opportunity-note-entity',
+              emptyStateBehavior: 'enable'
+            },
+            buildNotePayload: buildCustomerNotePayload,
+            preSubmit: notePreSubmit
+          }
+        },
+        {
+          id: 'next-steps-section',
+          component: NoteSection as React.ComponentType<any>,
+          props: {
+            ...props,
+            accessToken,
+            opportunityId,
+            sectionTitle: t('notes-next-steps-section-title'),
+            emptyStateTitle: t('notes-next-steps-empty-title'),
+            emptyStateDescription: t('notes-next-steps-empty-description'),
+            quickAddTriggerLabel: t('notes-next-steps-add-quick'),
+            notes: nextStepOpportunityNotes,
+            noteActionProps: {
+              contextsArray: [FlowContextName.customerNoteCreate],
+              externalContextData: {
+                opportunityId,
+                opportunity: opportunityId,
+                crmNote: { opportunity: opportunityId, noteType: 'NEXT_STEP_NOTE' }
+              },
+              prefixDataTestId: 'opportunity-next-steps',
+              emptyStateBehavior: 'enable'
+            },
+            noteEntityActionProps: {
+              contextsArray: [FlowContextName.customerNoteEntity],
+              externalContextData: { opportunityId },
+              prefixDataTestId: 'opportunity-next-step-entity',
+              emptyStateBehavior: 'enable'
+            },
+            buildNotePayload: buildCustomerNextStepNotePayload,
+            preSubmit: notePreSubmit
+          }
+        }
+      ]}
+      data-testid="opportunity-activities-notes-section-wrapper"
+    />
+  )
+
+  if (!shouldShowStageConditions) {
+    return (
+      <div className="gba:col-span-12 gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
+        <div className="gba:flex gba:h-full gba:flex-col gba:gap-4 gba:lg:col-span-6">
+          <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-2">
+            {renderAccountSection('gba:min-h-96 gba:max-h-96')}
+            {renderContactSection('gba:min-h-96 gba:max-h-96')}
+          </div>
+
+          {renderTasksAndApprovalsSection('gba:min-h-96 gba:flex-1')}
+        </div>
+
+        {renderActivitiesNotesAndNextStepsSection('gba:min-h-196 gba:h-full gba:lg:col-span-6')}
+      </div>
+    )
+  }
+
   return (
-    <>
-      {/* Account Information - 1/4 width */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'account-section',
-            component: AccountSection,
-            props: {
-              ...props,
-              accessToken,
-              // Transform junction table to include account type
-              accounts:
-                opportunityData?.opportunityAccounts
-                  ?.map(junction => ({
-                    ...junction.account,
-                    accountType: junction.accountType // Add catalog entry from junction table
-                  }))
-                  .filter(Boolean) || [],
-              account: opportunityData?.opportunityAccounts?.[0]
-                ? {
-                    ...opportunityData.opportunityAccounts[0].account,
-                    accountType: opportunityData.opportunityAccounts[0].accountType
-                  }
-                : undefined,
-              accountId: opportunityData?.opportunityAccounts?.[0]?.accountId,
-              recordUrl: opportunityData?.opportunityAccounts?.[0]?.accountId
-                ? buildPlatformUrl('/platform/crm/account-record', {
-                    accountId: opportunityData.opportunityAccounts[0].accountId,
-                    source: 'opportunity-relations',
-                    fromEntity: 'opportunities'
-                  })
-                : undefined,
-              actionButtonProps: {
-                contextsArray: [FlowContextName.customerAccountEntity],
-                externalContextData: {
-                  accountId: opportunityData?.opportunityAccounts?.[0]?.accountId
-                },
-                prefixDataTestId: 'customer-opportunity-account-action'
-              }
-            }
-          }
-        ]}
-        data-testid="opportunity-account-section-wrapper"
-      />
+    <div className="gba:col-span-12 gba:flex gba:flex-col gba:gap-4">
+      <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:lg:grid-cols-12">
+        {renderAccountSection('gba:min-h-96 gba:max-h-96 gba:lg:col-span-3')}
+        {renderContactSection('gba:min-h-96 gba:max-h-96 gba:lg:col-span-3')}
+        {renderConditionSection()}
+      </div>
 
-      {/* Contact Information - 1/4 width */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'contact-section',
-            component: ContactSection,
-            props: {
-              ...props,
-              accessToken,
-              contacts:
-                opportunityData?.opportunityContacts
-                  ?.map((oc: any) => ({
-                    ...oc.contact,
-                    jobPosition: oc.contact?.jobTitle, // Map CRM jobTitle to jobPosition for ContactSection
-                    contactType: oc.contactType
-                  }))
-                  .filter(Boolean) || [],
-              contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
-              recordUrl: opportunityData?.opportunityContacts?.[0]?.contact?.id
-                ? buildPlatformUrl('/platform/crm/contact-record', {
-                    contactId: opportunityData.opportunityContacts[0].contact.id,
-                    source: 'opportunity-relations',
-                    fromEntity: 'opportunities'
-                  })
-                : undefined,
-              actionButtonProps: {
-                contextsArray: [FlowContextName.customerContactEntity],
-                externalContextData: {
-                  contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
-                  version: opportunityData?.opportunityContacts?.[0]?.contact?.version
-                },
-                prefixDataTestId: 'customer-opportunity-contact-action'
-              }
-            }
-          }
-        ]}
-        data-testid="opportunity-contact-section-wrapper"
-      />
-
-      {/* Stage Condition Card - 2/4 width (half) - matching IRM Lead Investment Section position */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'stage-condition-section',
-            component: ConditionSection,
-            props: {
-              ...props,
-              accessToken,
-              // Data is already mapped by toCustomerOpportunity
-              opportunity: opportunityData,
-              stageConditionStatuses: stageConditionStatuses || [],
-              stageConditionActionProps: {
-                ...stageConditionActionProps,
-                emptyStateBehavior: 'enable'
-              }
-            }
-          }
-        ]}
-        data-testid="opportunity-stage-condition-section-wrapper"
-      />
-
-      {/* Tasks & Approvals - 1/2 width, spans 2 rows - matching IRM Lead layout */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-        sections={[
-          {
-            id: 'tasks-section',
-            component: TaskSection,
-            props: {
-              ...props,
-              accessToken,
-              opportunityId: opportunityId,
-              buildReferenceUrl,
-              tasks: tasks,
-              taskActionProps: {
-                contextsArray: [FlowContextName.customerTaskCreate],
-                externalContextData: { opportunityId },
-                prefixDataTestId: 'opportunity-tasks',
-                emptyStateBehavior: 'enable'
-              },
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { opportunityId },
-                prefixDataTestId: 'opportunity-task-entity',
-                emptyStateBehavior: 'enable'
-              },
-              typeCatalog: TASK_TYPE,
-              priorityCatalog: TASK_PRIORITY,
-              buildTaskPayload: buildCustomerTaskPayload,
-              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
-              preSubmit: taskPreSubmit
-            }
-          },
-          {
-            id: 'approval-tasks-section',
-            component: TaskSection,
-            props: {
-              ...props,
-              accessToken,
-              sectionTitle: 'Approval Tasks',
-              opportunityId: opportunityId,
-              buildReferenceUrl,
-              tasks: approvals,
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { opportunityId },
-                prefixDataTestId: 'opportunity-approval-entity',
-                emptyStateBehavior: 'enable'
-              },
-              taskActionProps: {
-                contextsArray: [FlowContextName.customerTaskCreate],
-                externalContextData: {
-                  opportunityId,
-                  opportunity: opportunityId,
-                  typeRef: APPROVAL_TASK_TYPE_REF,
-                  salesTask: { opportunity: opportunityId, type: APPROVAL_TASK_TYPE_REF }
-                },
-                prefixDataTestId: 'opportunity-approvals',
-                emptyStateBehavior: 'enable'
-              },
-              typeCatalog: TASK_TYPE,
-              priorityCatalog: TASK_PRIORITY,
-              buildTaskPayload: buildCustomerTaskPayload,
-              isApprovalTaskSection: true,
-              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
-              defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
-              preSubmit: taskPreSubmit
-            }
-          }
-        ]}
-        data-testid="opportunity-tasks-approvals-section-wrapper"
-      />
-
-      {/* Activities & Notes - 1/2 width, spans 2 rows - matching IRM Lead layout */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-        sections={[
-          {
-            id: 'activities-section',
-            component: ActivitySection,
-            props: {
-              ...props,
-              accessToken,
-              opportunityId,
-              activities: activities,
-              activitiesLoading: activitiesLoading,
-              activitiesError: activitiesError,
-              onReloadActivities: loadActivities,
-              activitySectionActionProps: {
-                contextsArray: [FlowContextName.customerActivityCreate],
-                externalContextData: {
-                  opportunityId,
-                  opportunity: opportunityId,
-                  salesActivity: { opportunity: opportunityId },
-                  // Set current user as default owner
-                  ...(props.userInfo?.employeeDetails?.employeeId && {
-                    ownerEmployeeId: props.userInfo.employeeDetails.employeeId
-                  })
-                },
-                prefixDataTestId: 'opportunity-activities',
-                emptyStateBehavior: 'enable'
-              },
-              activityEntityActionProps: {
-                contextsArray: [FlowContextName.customerActivityEntity],
-                externalContextData: { opportunityId },
-                prefixDataTestId: 'opportunity-activity-entity',
-                emptyStateBehavior: 'enable'
-              },
-              activityTypeCatalog: ACTIVITY_TYPE,
-              buildActivityPayload: buildCustomerActivityPayload,
-              alignment: 'right',
-              preSubmit: activityPreSubmit,
-              getRelatedRecordUrl: buildCrmRelatedEntityRecordUrl
-            }
-          },
-          {
-            id: 'notes-section',
-            component: NoteSection as React.ComponentType<any>,
-            props: {
-              ...props,
-              accessToken,
-              opportunityId,
-              notes: regularOpportunityNotes,
-              noteActionProps: {
-                contextsArray: [FlowContextName.customerNoteCreate],
-                externalContextData: { opportunityId },
-                prefixDataTestId: 'opportunity-notes',
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.customerNoteEntity],
-                externalContextData: { opportunityId },
-                prefixDataTestId: 'opportunity-note-entity',
-                emptyStateBehavior: 'enable'
-              },
-              buildNotePayload: buildCustomerNotePayload,
-              preSubmit: notePreSubmit
-            }
-          },
-          {
-            id: 'next-steps-section',
-            component: NoteSection as React.ComponentType<any>,
-            props: {
-              ...props,
-              accessToken,
-              opportunityId,
-              sectionTitle: t('notes-next-steps-section-title'),
-              emptyStateTitle: t('notes-next-steps-empty-title'),
-              emptyStateDescription: t('notes-next-steps-empty-description'),
-              quickAddTriggerLabel: t('notes-next-steps-add-quick'),
-              notes: nextStepOpportunityNotes,
-              noteActionProps: {
-                contextsArray: [FlowContextName.customerNoteCreate],
-                externalContextData: {
-                  opportunityId,
-                  opportunity: opportunityId,
-                  crmNote: { opportunity: opportunityId, noteType: 'NEXT_STEP_NOTE' }
-                },
-                prefixDataTestId: 'opportunity-next-steps',
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.customerNoteEntity],
-                externalContextData: { opportunityId },
-                prefixDataTestId: 'opportunity-next-step-entity',
-                emptyStateBehavior: 'enable'
-              },
-              buildNotePayload: buildCustomerNextStepNotePayload,
-              preSubmit: notePreSubmit
-            }
-          }
-        ]}
-        data-testid="opportunity-activities-notes-section-wrapper"
-      />
-    </>
+      <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
+        {renderTasksAndApprovalsSection('gba:min-h-196 gba:h-full gba:lg:col-span-6')}
+        {renderActivitiesNotesAndNextStepsSection('gba:min-h-196 gba:h-full gba:lg:col-span-6')}
+      </div>
+    </div>
   )
 }

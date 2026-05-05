@@ -189,136 +189,209 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
   })
 
   return (
-    <>
-      {/* Account Section - 1/4 width */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'account-section',
-            component: AccountSection,
-            props: {
-              ...context,
-              // Transform junction table to include account type
-              accounts:
-                investment?.investmentAccounts
-                  ?.map(junction => ({
-                    ...junction.investmentAccount,
-                    investmentAccountType: junction.investmentAccountType // Add catalog entry from junction table
-                  }))
-                  .filter(Boolean) || [],
-              account: investment?.investmentAccounts?.[0]
-                ? {
-                    ...investment.investmentAccounts[0].investmentAccount,
-                    investmentAccountType: investment.investmentAccounts[0].investmentAccountType
-                  }
-                : undefined,
-              accountId: investment?.investmentAccounts?.[0]?.investmentAccountId,
-              recordUrl: investment?.investmentAccounts?.[0]?.investmentAccountId
-                ? buildPlatformUrl('/platform/irm/account-record', {
-                    accountId: investment.investmentAccounts[0].investmentAccountId,
-                    source: 'investment-relations',
-                    fromEntity: 'investments'
-                  })
-                : undefined,
-              actionButtonProps: investment?.investmentAccounts?.[0]?.investmentAccountId
-                ? {
-                    contextsArray: [FlowContextName.investmentAccountEntity],
-                    externalContextData: { accountId: investment.investmentAccounts[0].investmentAccountId },
-                    prefixDataTestId: 'investment-record-account-action'
-                  }
-                : undefined
-            }
-          }
-        ]}
-        data-testid="investment-account-section-wrapper"
-      />
+    <div className="gba:col-span-12 gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
+      <div className="gba:flex gba:h-full gba:flex-col gba:gap-4 gba:lg:col-span-6">
+        <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-2">
+          {/* Account Section - 1/4 width */}
+          <SectionWrapper
+            className="gba:min-h-96 gba:max-h-96"
+            sections={[
+              {
+                id: 'account-section',
+                component: AccountSection,
+                props: {
+                  ...context,
+                  // Transform junction table to include account type
+                  accounts:
+                    investment?.investmentAccounts
+                      ?.map(junction => ({
+                        ...junction.investmentAccount,
+                        investmentAccountType: junction.investmentAccountType // Add catalog entry from junction table
+                      }))
+                      .filter(Boolean) || [],
+                  account: investment?.investmentAccounts?.[0]
+                    ? {
+                        ...investment.investmentAccounts[0].investmentAccount,
+                        investmentAccountType: investment.investmentAccounts[0].investmentAccountType
+                      }
+                    : undefined,
+                  accountId: investment?.investmentAccounts?.[0]?.investmentAccountId,
+                  recordUrl: investment?.investmentAccounts?.[0]?.investmentAccountId
+                    ? buildPlatformUrl('/platform/irm/account-record', {
+                        accountId: investment.investmentAccounts[0].investmentAccountId,
+                        source: 'investment-relations',
+                        fromEntity: 'investments'
+                      })
+                    : undefined,
+                  actionButtonProps: investment?.investmentAccounts?.[0]?.investmentAccountId
+                    ? {
+                        contextsArray: [FlowContextName.investmentAccountEntity],
+                        externalContextData: { accountId: investment.investmentAccounts[0].investmentAccountId },
+                        prefixDataTestId: 'investment-record-account-action'
+                      }
+                    : undefined
+                }
+              }
+            ]}
+            data-testid="investment-account-section-wrapper"
+          />
 
-      {/* Contact Section - 1/4 width */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'contact-section',
-            component: ContactSection,
-            props: {
-              ...context,
-              // Flatten contacts from all associated accounts (junction table)
-              // GraphQL field: investmentAccountContact (singular), TypeScript: accountContacts (plural)
-              contacts:
-                investment?.investmentAccounts
-                  ?.flatMap(junction => {
-                    // Try both field names: accountContacts (mapped) or investmentAccountContact (raw GraphQL)
-                    const contactAssociations =
-                      junction.investmentAccount?.accountContacts ||
-                      junction.investmentAccount?.investmentAccountContact ||
-                      []
-                    return contactAssociations.map((iac: any) => ({
-                      ...iac.contact,
-                      contactType: iac.contactType, // From account-contact association
-                      pictureThumbnail: iac.contact?.pictureThumbnail,
-                      communicationChannels: iac.contact?.communicationChannels
-                    }))
-                  })
-                  .filter(Boolean) || [],
-              contactId: (() => {
-                const firstContactAssoc = investment?.investmentAccounts
-                  ?.flatMap(
-                    junction =>
-                      junction.investmentAccount?.accountContacts ||
-                      junction.investmentAccount?.investmentAccountContact ||
-                      []
-                  )
-                  .find(Boolean)
-                return firstContactAssoc?.contact?.id || null
-              })(),
-              recordUrl: (() => {
-                const firstContactAssoc = investment?.investmentAccounts
-                  ?.flatMap(
-                    junction =>
-                      junction.investmentAccount?.accountContacts ||
-                      junction.investmentAccount?.investmentAccountContact ||
-                      []
-                  )
-                  .find(Boolean)
-                const firstContact = firstContactAssoc?.contact
-                return firstContact?.id
-                  ? buildPlatformUrl('/platform/irm/contact-record', {
-                      contactId: firstContact.id,
-                      source: 'investment-relations',
-                      fromEntity: 'investments'
-                    })
-                  : undefined
-              })(),
-              actionButtonProps: (() => {
-                const firstContactAssoc = investment?.investmentAccounts
-                  ?.flatMap(
-                    junction =>
-                      junction.investmentAccount?.accountContacts ||
-                      junction.investmentAccount?.investmentAccountContact ||
-                      []
-                  )
-                  .find(Boolean)
-                const firstContact = firstContactAssoc?.contact
-                return firstContact?.id
-                  ? {
-                      contextsArray: [FlowContextName.investmentContactEntity],
-                      externalContextData: {
-                        contactId: firstContact.id
-                      },
-                      prefixDataTestId: 'investment-record-contact-action'
-                    }
-                  : undefined
-              })()
-            }
-          }
-        ]}
-        data-testid="investment-contact-section-wrapper"
-      />
+          {/* Contact Section - 1/4 width */}
+          <SectionWrapper
+            className="gba:min-h-96 gba:max-h-96"
+            sections={[
+              {
+                id: 'contact-section',
+                component: ContactSection,
+                props: {
+                  ...context,
+                  // Flatten contacts from all associated accounts (junction table)
+                  // GraphQL field: investmentAccountContact (singular), TypeScript: accountContacts (plural)
+                  contacts:
+                    investment?.investmentAccounts
+                      ?.flatMap(junction => {
+                        // Try both field names: accountContacts (mapped) or investmentAccountContact (raw GraphQL)
+                        const contactAssociations =
+                          junction.investmentAccount?.accountContacts ||
+                          junction.investmentAccount?.investmentAccountContact ||
+                          []
+                        return contactAssociations.map((iac: any) => ({
+                          ...iac.contact,
+                          contactType: iac.contactType, // From account-contact association
+                          pictureThumbnail: iac.contact?.pictureThumbnail,
+                          communicationChannels: iac.contact?.communicationChannels
+                        }))
+                      })
+                      .filter(Boolean) || [],
+                  contactId: (() => {
+                    const firstContactAssoc = investment?.investmentAccounts
+                      ?.flatMap(
+                        junction =>
+                          junction.investmentAccount?.accountContacts ||
+                          junction.investmentAccount?.investmentAccountContact ||
+                          []
+                      )
+                      .find(Boolean)
+                    return firstContactAssoc?.contact?.id || null
+                  })(),
+                  recordUrl: (() => {
+                    const firstContactAssoc = investment?.investmentAccounts
+                      ?.flatMap(
+                        junction =>
+                          junction.investmentAccount?.accountContacts ||
+                          junction.investmentAccount?.investmentAccountContact ||
+                          []
+                      )
+                      .find(Boolean)
+                    const firstContact = firstContactAssoc?.contact
+                    return firstContact?.id
+                      ? buildPlatformUrl('/platform/irm/contact-record', {
+                          contactId: firstContact.id,
+                          source: 'investment-relations',
+                          fromEntity: 'investments'
+                        })
+                      : undefined
+                  })(),
+                  actionButtonProps: (() => {
+                    const firstContactAssoc = investment?.investmentAccounts
+                      ?.flatMap(
+                        junction =>
+                          junction.investmentAccount?.accountContacts ||
+                          junction.investmentAccount?.investmentAccountContact ||
+                          []
+                      )
+                      .find(Boolean)
+                    const firstContact = firstContactAssoc?.contact
+                    return firstContact?.id
+                      ? {
+                          contextsArray: [FlowContextName.investmentContactEntity],
+                          externalContextData: {
+                            contactId: firstContact.id
+                          },
+                          prefixDataTestId: 'investment-record-contact-action'
+                        }
+                      : undefined
+                  })()
+                }
+              }
+            ]}
+            data-testid="investment-contact-section-wrapper"
+          />
+        </div>
 
-      {/* Activities & Notes - 1/2 width, spans 2 rows */}
+        {/* Tasks & Approvals - stretches to align with the right column */}
+        <SectionWrapper
+          className="gba:min-h-96 gba:flex-1"
+          sections={[
+            {
+              id: 'tasks-section',
+              component: TaskSection,
+              props: {
+                ...context,
+                investmentId,
+                buildReferenceUrl,
+                tasks: tasks,
+                taskActionProps: {
+                  contextsArray: [FlowContextName.investmentTaskCreate],
+                  externalContextData: { investmentId },
+                  prefixDataTestId: 'investment-task',
+                  emptyStateBehavior: 'enable'
+                },
+                taskEntityActionProps: {
+                  contextsArray: [FlowContextName.investmentTaskEntity],
+                  externalContextData: { investmentId },
+                  prefixDataTestId: 'investment-task-entity',
+                  emptyStateBehavior: 'enable'
+                },
+                typeCatalog: TASK_TYPE,
+                priorityCatalog: TASK_PRIORITY,
+                buildTaskPayload: buildInvestmentTaskPayload,
+                defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                preSubmit: taskPreSubmit
+              }
+            },
+            {
+              id: 'approval-tasks-section',
+              component: TaskSection,
+              props: {
+                ...context,
+                sectionTitle: 'Approval Tasks',
+                investmentId,
+                buildReferenceUrl,
+                tasks: approvals,
+                taskActionProps: {
+                  contextsArray: [FlowContextName.investmentTaskCreate],
+                  externalContextData: {
+                    investmentId,
+                    typeRef: APPROVAL_TASK_TYPE_REF,
+                    investmentTask: { investment: investmentId, type: APPROVAL_TASK_TYPE_REF }
+                  },
+                  prefixDataTestId: 'investment-approval',
+                  emptyStateBehavior: 'enable'
+                },
+                taskEntityActionProps: {
+                  contextsArray: [FlowContextName.investmentTaskEntity],
+                  externalContextData: { investmentId },
+                  prefixDataTestId: 'investment-approval-entity',
+                  emptyStateBehavior: 'enable'
+                },
+                typeCatalog: TASK_TYPE,
+                priorityCatalog: TASK_PRIORITY,
+                buildTaskPayload: buildInvestmentTaskPayload,
+                isApprovalTaskSection: true,
+                approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+                defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                preSubmit: taskPreSubmit
+              }
+            }
+          ]}
+          data-testid="investment-tasks-approvals-section-wrapper"
+        />
+      </div>
+
+      {/* Activities & Notes - 1/2 width, stretches with left column */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2 gba:min-h-196 gba:max-h-196"
+        className="gba:min-h-196 gba:h-full gba:lg:col-span-6"
         sections={[
           {
             id: 'activities-section',
@@ -385,76 +458,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
         ]}
         data-testid="investment-activities-notes-section-wrapper"
       />
-
-      {/* Tasks & Approvals - 1/2 width */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'tasks-section',
-            component: TaskSection,
-            props: {
-              ...context,
-              investmentId,
-              buildReferenceUrl,
-              tasks: tasks,
-              taskActionProps: {
-                contextsArray: [FlowContextName.investmentTaskCreate],
-                externalContextData: { investmentId },
-                prefixDataTestId: 'investment-task',
-                emptyStateBehavior: 'enable'
-              },
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.investmentTaskEntity],
-                externalContextData: { investmentId },
-                prefixDataTestId: 'investment-task-entity',
-                emptyStateBehavior: 'enable'
-              },
-              typeCatalog: TASK_TYPE,
-              priorityCatalog: TASK_PRIORITY,
-              buildTaskPayload: buildInvestmentTaskPayload,
-              defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-              preSubmit: taskPreSubmit
-            }
-          },
-          {
-            id: 'approval-tasks-section',
-            component: TaskSection,
-            props: {
-              ...context,
-              sectionTitle: 'Approval Tasks',
-              investmentId,
-              buildReferenceUrl,
-              tasks: approvals,
-              taskActionProps: {
-                contextsArray: [FlowContextName.investmentTaskCreate],
-                externalContextData: {
-                  investmentId,
-                  typeRef: APPROVAL_TASK_TYPE_REF,
-                  investmentTask: { investment: investmentId, type: APPROVAL_TASK_TYPE_REF }
-                },
-                prefixDataTestId: 'investment-approval',
-                emptyStateBehavior: 'enable'
-              },
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.investmentTaskEntity],
-                externalContextData: { investmentId },
-                prefixDataTestId: 'investment-approval-entity',
-                emptyStateBehavior: 'enable'
-              },
-              typeCatalog: TASK_TYPE,
-              priorityCatalog: TASK_PRIORITY,
-              buildTaskPayload: buildInvestmentTaskPayload,
-              isApprovalTaskSection: true,
-              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
-              defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-              preSubmit: taskPreSubmit
-            }
-          }
-        ]}
-        data-testid="investment-tasks-approvals-section-wrapper"
-      />
-    </>
+    </div>
   )
 }
 
