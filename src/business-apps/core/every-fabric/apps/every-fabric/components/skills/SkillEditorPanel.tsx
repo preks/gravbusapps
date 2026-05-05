@@ -215,12 +215,12 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
         )}
       </div>
 
-      <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:px-4 sm:gba:px-6 gba:py-4 gba:gap-4">
+      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-4 sm:gba:px-6 gba:py-4 gba:space-y-4">
         {loading ? (
           <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-8">Loading…</p>
         ) : (
           <>
-            <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col">
+            <div>
               <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5" htmlFor="skill-editor-content">
                 SKILL.md
               </label>
@@ -229,12 +229,12 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
                 data-testid="skill-editor-textarea"
                 value={content}
                 onChange={e => setContent(e.target.value)}
-                className="gba:w-full gba:flex-1 gba:min-h-[12rem] gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:px-4 gba:py-3 gba:text-sm gba:font-mono gba:leading-relaxed gba:resize-none gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-primary/30"
+                className="gba:w-full gba:min-h-[20rem] gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:px-4 gba:py-3 gba:text-sm gba:font-mono gba:leading-relaxed gba:resize-y gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-primary/30"
                 spellCheck={false}
               />
             </div>
 
-            <div className="gba:shrink-0">
+            <div>
               <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
                 Tools
                 {attachedTools.length > 0 && (
@@ -321,7 +321,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
               )}
             </div>
 
-            <div className="gba:shrink-0">
+            <div>
               <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
                 Attach files to Skill (optional)
                 {files.length > 0 && (

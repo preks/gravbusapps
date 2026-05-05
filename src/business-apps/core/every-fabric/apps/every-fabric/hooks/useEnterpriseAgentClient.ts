@@ -423,6 +423,17 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  const listArchivedSkills = useCallback(
+    async () => {
+      const skills = await client.get<{ skill_id: string; name: string; description: string; status: string }[]>(
+        '/admin/skills/',
+        { params: { include_archived: 'true' } as Record<string, string> }
+      )
+      return skills.filter(s => s.status === 'archived')
+    },
+    [client]
+  )
+
   const enableSkill = useCallback(
     (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/enable`, {}),
     [client]
@@ -465,6 +476,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       submitSkillForReview,
       approveSkill,
       archiveSkill,
+      listArchivedSkills,
       enableSkill,
       disableSkill
     }),
@@ -499,6 +511,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       submitSkillForReview,
       approveSkill,
       archiveSkill,
+      listArchivedSkills,
       enableSkill,
       disableSkill
     ]

@@ -3,15 +3,18 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { BrowseSkillsView } from '../BrowseSkillsView'
 
 const mockGetSkillsManifest = jest.fn()
-const mockDeleteSkill = jest.fn()
+const mockArchiveSkill = jest.fn()
 const mockListSkillFiles = jest.fn()
 
 jest.mock('../../../hooks/useEnterpriseAgentClient', () => {
   // Single stable client object so that React effects keyed on client identity don't cycle.
   const stableClient = {
     getSkillsManifest: (...args: unknown[]) => mockGetSkillsManifest(...args),
-    deleteSkill: (...args: unknown[]) => mockDeleteSkill(...args),
+    archiveSkill: (...args: unknown[]) => mockArchiveSkill(...args),
     listSkillFiles: (...args: unknown[]) => mockListSkillFiles(...args),
+    listArchivedSkills: jest.fn().mockResolvedValue([]),
+    enableSkill: jest.fn().mockResolvedValue({}),
+    disableSkill: jest.fn().mockResolvedValue({}),
     getSkill: jest.fn(),
     saveSkillRaw: jest.fn(),
     uploadSkillFiles: jest.fn(),
@@ -26,7 +29,7 @@ jest.mock('../../../hooks/useEnterpriseAgentClient', () => {
 describe('BrowseSkillsView', () => {
   beforeEach(() => {
     mockGetSkillsManifest.mockReset()
-    mockDeleteSkill.mockReset()
+    mockArchiveSkill.mockReset()
     mockListSkillFiles.mockReset()
   })
 
@@ -94,23 +97,22 @@ describe('BrowseSkillsView', () => {
     expect(screen.getByTestId('browse-skills-card-skl_b')).not.toHaveAttribute('data-selected')
   })
 
-  it('delete asks for confirmation and then calls the client', async () => {
+  it('archive confirms via dialog and then calls the client', async () => {
     mockGetSkillsManifest.mockResolvedValue({
       skills: [{ skill_id: 'skl_a', name: 'Alpha', description: 'Do alpha' }]
     })
-    mockDeleteSkill.mockResolvedValue(undefined)
+    mockArchiveSkill.mockResolvedValue(undefined)
+    jest.spyOn(window, 'confirm').mockReturnValue(true)
 
     render(<BrowseSkillsView accessToken="token" />)
     await waitFor(() => expect(screen.getByTestId('browse-skills-card-skl_a')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByTestId('browse-skills-delete-skl_a'))
-    const confirmBtn = screen.getByTestId('browse-skills-confirm-delete-skl_a')
-
     await act(async () => {
-      fireEvent.click(confirmBtn)
+      fireEvent.click(screen.getByTestId('browse-skills-archive-skl_a'))
     })
 
-    expect(mockDeleteSkill).toHaveBeenCalledWith('skl_a')
+    expect(window.confirm).toHaveBeenCalled()
+    expect(mockArchiveSkill).toHaveBeenCalledWith('skl_a')
     await waitFor(() => expect(screen.queryByTestId('browse-skills-card-skl_a')).not.toBeInTheDocument())
   })
 })
