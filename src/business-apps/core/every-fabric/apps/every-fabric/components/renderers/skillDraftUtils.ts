@@ -636,7 +636,7 @@ function _getFrontmatterBlock(draft: string): { before: string; fm: string; afte
   return { before: '---', fm, after }
 }
 
-/** Returns the tools: list from the YAML frontmatter, or [] if absent or draft has no frontmatter. */
+/** Returns the tools/tool_refs list from the YAML frontmatter, or [] if absent or draft has no frontmatter. */
 export function getToolsFromSkillDraft(draft: string): string[] {
   const parts = _getFrontmatterBlock(draft)
   if (!parts) return []
@@ -644,12 +644,15 @@ export function getToolsFromSkillDraft(draft: string): string[] {
   let inTools = false
   const tools: string[] = []
   for (const line of fmLines) {
-    if (line.trimStart().startsWith('tools:') && !line.trimStart().startsWith('tools: ')) {
+    const trimmed = line.trimStart()
+    if (
+      (trimmed.startsWith('tools:') && !trimmed.startsWith('tools: ')) ||
+      (trimmed.startsWith('tool_refs:') && !trimmed.startsWith('tool_refs: '))
+    ) {
       inTools = true
       continue
     }
     if (inTools) {
-      const trimmed = line.trimStart()
       if (trimmed.startsWith('- ')) {
         tools.push(trimmed.slice(2).trim())
       } else {
@@ -693,17 +696,21 @@ function _setToolsInDraft(parts: { before: string; fm: string; after: string }, 
   const filtered: string[] = []
   let inTools = false
   for (const line of fmLines) {
-    if (line.trimStart().startsWith('tools:') && !line.trimStart().startsWith('tools: ')) {
+    const trimmed = line.trimStart()
+    if (
+      (trimmed.startsWith('tools:') && !trimmed.startsWith('tools: ')) ||
+      (trimmed.startsWith('tool_refs:') && !trimmed.startsWith('tool_refs: '))
+    ) {
       inTools = true
       continue
     }
-    if (inTools && line.trimStart().startsWith('- ')) continue
+    if (inTools && trimmed.startsWith('- ')) continue
     inTools = false
     filtered.push(line)
   }
   let newFm = trimTrailingNewlines(filtered.join('\n')) + '\n'
   if (tools.length > 0) {
-    newFm += `tools:\n${tools.map(t => `  - ${t}`).join('\n')}\n`
+    newFm += `tool_refs:\n${tools.map(t => `  - ${t}`).join('\n')}\n`
   }
   return `---${newFm}---${parts.after}`
 }

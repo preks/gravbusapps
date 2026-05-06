@@ -1218,6 +1218,13 @@ export class PromptManagerClient extends RestClient {
     return this.post(`/agents/registry/${encodeURIComponent(agentId)}/archive`, {})
   }
 
+  async updateAgentDetails(
+    agentId: string,
+    body: { name?: string; description?: string; tags?: string[] }
+  ): Promise<unknown> {
+    return this.patch(`/agents/registry/${encodeURIComponent(agentId)}`, body)
+  }
+
   async updateAgentCard(
     agentId: string,
     body: { division?: string; data_domains?: string[]; capabilities?: string[]; access_policy?: string }

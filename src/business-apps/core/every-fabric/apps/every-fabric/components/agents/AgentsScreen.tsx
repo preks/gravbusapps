@@ -13,8 +13,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentCard } from './AgentCard'
+import { AgentConfigView } from './AgentConfigView'
 import { CreateAgentModal } from './CreateAgentModal'
-import { SkillAssignmentPicker } from './SkillAssignmentPicker'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
 import type { BuiltinSubagent, FabricAgent } from './agentTypes'
 
@@ -94,7 +94,6 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
     setAgents(prev =>
       prev.map(a => (a.id === agentId ? { ...a, skill_ids: updatedSkillIds, skills_count: updatedSkillIds.length } : a))
     )
-    setConfiguringAgent(null)
   }, [])
 
   const handleArchiveAgent = useCallback(
@@ -140,6 +139,23 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
         <SpinnerGapIcon className="gba:h-8 gba:w-8 gba:animate-spin gba:text-muted-foreground" />
         <p className="gba:text-sm gba:text-muted-foreground">Loading agents...</p>
       </div>
+    )
+  }
+
+  if (configuringAgent) {
+    return (
+      <AgentConfigView
+        agent={configuringAgent}
+        accessToken={accessToken}
+        onBack={() => setConfiguringAgent(null)}
+        onSkillsSaved={handleSkillsSaved}
+        onAgentUpdated={(agentId, updates) => {
+          setAgents(prev =>
+            prev.map(a => (a.id === agentId ? { ...a, name: updates.name, description: updates.description, tags: updates.tags } : a))
+          )
+          setConfiguringAgent(prev => prev && prev.id === agentId ? { ...prev, name: updates.name, description: updates.description, tags: updates.tags } : prev)
+        }}
+      />
     )
   }
 
@@ -323,14 +339,6 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
         </div>
       </div>
 
-      {configuringAgent && (
-        <SkillAssignmentPicker
-          agent={configuringAgent}
-          accessToken={accessToken}
-          onClose={() => setConfiguringAgent(null)}
-          onSaved={ids => handleSkillsSaved(configuringAgent.id, ids)}
-        />
-      )}
       {createOpen && (
         <CreateAgentModal
           open={createOpen}
