@@ -50,12 +50,15 @@ export type TimeEntry = {
   holidayLabel?: string
   /** Absence type label (e.g. "Vacation", "Relocation") when day has personal absence */
   absenceLabel?: string
+  /** True when the date is before the employee hire date and should not count toward time obligations */
+  isBeforeHireDate?: boolean
 }
 
 export type SortDirection = 'asc' | 'desc'
 
 export interface UseTimeTrackingDataOptions extends Pick<BusinessAppContextProps, 'accessToken'> {
   employeeId: string
+  hireDate?: string
   workingHours?: {
     sundayHours?: number
     mondayHours?: number
@@ -67,7 +70,12 @@ export interface UseTimeTrackingDataOptions extends Pick<BusinessAppContextProps
   }
 }
 
-export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: UseTimeTrackingDataOptions) => {
+export const useTimeTrackingData = ({
+  employeeId,
+  accessToken,
+  hireDate,
+  workingHours
+}: UseTimeTrackingDataOptions) => {
   const locale = getCurrentActiveUserLocale()
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -175,6 +183,27 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
   const toLocalDateKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+  const hireDateKey = useMemo(() => {
+    if (!hireDate) return undefined
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})/.exec(hireDate)
+    if (dateOnly) return `${dateOnly[1]}-${dateOnly[2]}-${dateOnly[3]}`
+
+    const parsed = new Date(hireDate)
+    if (Number.isNaN(parsed.getTime())) return undefined
+    return toLocalDateKey(parsed)
+  }, [hireDate])
+
+  const isBeforeHireDate = useCallback(
+    (dateKey: string) => Boolean(hireDateKey && dateKey < hireDateKey),
+    [hireDateKey]
+  )
+
+  const getPlannedMinutesForActiveDate = (dateIso: string): number => {
+    const key = toLocalDateKey(new Date(dateIso))
+    if (isBeforeHireDate(key)) return 0
+    return getPlannedMinutesForDate(dateIso)
+  }
 
   const deriveAttendanceStatus = (
     startIso?: string,
@@ -424,7 +453,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       while (cursor <= end) {
         const key = toLocalDateKey(cursor)
         const hasNonWorkAbsence = absenceLabelsByDateMap[key] && !workAbsenceDateSet.has(key)
-        if (!holidayDateSet.has(key) && !hasNonWorkAbsence) {
+        if (!isBeforeHireDate(key) && !holidayDateSet.has(key) && !hasNonWorkAbsence) {
           acc += getPlannedMinutesForDate(cursor.toISOString())
         }
         cursor.setDate(cursor.getDate() + 1)
@@ -470,7 +499,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     for (const r of allRows) {
       const rowDay = String(r.attendanceDate)
       // Exclude today from daily average; consider strictly earlier days
-      if (rowDay < untilDay) {
+      if (rowDay < untilDay && !isBeforeHireDate(rowDay)) {
         const effective = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
         const eff = Math.max(0, effective)
         workedUntilYesterday += eff
@@ -489,11 +518,11 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     // planned minutes for today from working hours
     try {
       const todayIso = new Date().toISOString()
-      setTodaysPlannedMinutes(getPlannedMinutesForDate(todayIso))
+      setTodaysPlannedMinutes(getPlannedMinutesForActiveDate(todayIso))
     } catch {
       setTodaysPlannedMinutes(0)
     }
-  }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale, workingHours])
+  }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale, workingHours, isBeforeHireDate])
 
   useEffect(() => {
     loadFromGraphql().catch(() => setError('Failed to load time entries'))
@@ -503,11 +532,11 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   useEffect(() => {
     try {
       const todayIso = new Date().toISOString()
-      setTodaysPlannedMinutes(getPlannedMinutesForDate(todayIso))
+      setTodaysPlannedMinutes(getPlannedMinutesForActiveDate(todayIso))
     } catch {
       // ignore
     }
-  }, [workingHours])
+  }, [workingHours, hireDateKey])
   const clockIn = useCallback(async () => {
     setError(null)
     setIsSubmitting(true)
@@ -672,12 +701,13 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
 
     const filled: TimeEntry[] = allMonthEntries.map(e => {
       const key = toLocalDateKey(new Date(e.attendanceDateISO))
+      const beforeHireDate = isBeforeHireDate(key)
       const dayType = getDayType(key)
       const holidayLabel = dayType === 'holiday' ? holidayNamesByDate[key] : undefined
       const absenceLabel = dayType !== 'holiday' && absenceLabelsByDate[key] ? absenceLabelsByDate[key] : undefined
 
       let plannedTime: string | undefined
-      if (dayType === 'holiday' || isNonWorkAbsence(key)) {
+      if (beforeHireDate || dayType === 'holiday' || isNonWorkAbsence(key)) {
         plannedTime = minutesToHHMM(0)
       } else {
         const backendPlannedMinutes = parseDurationToMinutes(e.plannedTime)
@@ -686,15 +716,16 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         plannedTime = useComputedPlanned ? minutesToHHMM(getPlannedMinutesForDate(e.attendanceDateISO)) : e.plannedTime
       }
 
-      return { ...e, dayType, holidayLabel, absenceLabel, plannedTime }
+      return { ...e, dayType, holidayLabel, absenceLabel, plannedTime, isBeforeHireDate: beforeHireDate }
     })
     const cursor = new Date(monthStart)
     while (cursor <= monthEnd) {
       const key = toLocalDateKey(cursor)
       if (!existingDates.has(key)) {
+        const beforeHireDate = isBeforeHireDate(key)
         const isHoliday = holidaySet.has(key)
         const plannedMinutes =
-          isHoliday || isNonWorkAbsence(key)
+          beforeHireDate || isHoliday || isNonWorkAbsence(key)
             ? 0
             : getPlannedMinutesForDate(
                 new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 12).toISOString()
@@ -709,7 +740,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           isPlaceholder: true,
           dayType,
           holidayLabel,
-          absenceLabel
+          absenceLabel,
+          isBeforeHireDate: beforeHireDate
         })
       }
       cursor.setDate(cursor.getDate() + 1)
@@ -722,7 +754,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     holidayDates,
     holidayNamesByDate,
     absenceLabelsByDate,
-    workAbsenceDates
+    workAbsenceDates,
+    isBeforeHireDate
   ])
 
   const durationSortKeys = new Set<keyof TimeEntry>([

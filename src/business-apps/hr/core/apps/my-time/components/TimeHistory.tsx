@@ -50,6 +50,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   workingHours
 }) => {
   const locale = getCurrentActiveUserLocale()
+  const employeeHireDate = employee?.workingCondition?.[0]?.hireDate
   const {
     currentMonth,
     prevMonth,
@@ -66,6 +67,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   } = useTimeTrackingData({
     employeeId,
     accessToken,
+    hireDate: employeeHireDate,
     workingHours
   })
 
@@ -82,6 +84,8 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
     let totalEffectiveMin = 0
 
     for (const e of all) {
+      if (e.isBeforeHireDate) continue
+
       const effectiveMin = parseDurationToMinutes(e.effectiveTime)
       const plannedMin = parseDurationToMinutes(e.plannedTime)
       totalPlannedMin += plannedMin

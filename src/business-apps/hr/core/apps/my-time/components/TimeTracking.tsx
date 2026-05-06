@@ -37,6 +37,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
   onNavigateToEveryAI
 }) => {
   const workingHours = useEmployeeWorkingHours(employee)
+  const employeeHireDate = employee?.workingCondition?.[0]?.hireDate
 
   const {
     isClockedIn,
@@ -56,7 +57,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
     homeHasCoords,
     officeHasCoords,
     updateLocationSelection
-  } = useTimeTrackingData({ employeeId, accessToken, workingHours })
+  } = useTimeTrackingData({ employeeId, accessToken, hireDate: employeeHireDate, workingHours })
 
   const [isLocationModalOpen, setIsLocationModalOpen] = React.useState(false)
 
