@@ -135,7 +135,8 @@ export function studioGraphToTemplate(
   name: string,
   description?: string,
   tags?: FlowTags,
-  version?: number
+  version?: number,
+  id?: string
 ): FlowTemplate {
   const orderedNodes = orderNodesForTemplate(nodes, edges)
   const startNode = nodes.find(n => n.type === 'start') ?? nodes.find(n => n.id === START_ID) ?? null
@@ -373,6 +374,7 @@ export function studioGraphToTemplate(
   }
 
   return {
+    ...(id ? { id } : {}),
     type: 'TEMPLATE',
     name,
     description: description || '',

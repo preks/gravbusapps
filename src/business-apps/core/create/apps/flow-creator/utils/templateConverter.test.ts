@@ -96,6 +96,29 @@ function makeJoinNode(id: string, label: string, forkReference: string): StudioN
 }
 
 describe('templateConverter', () => {
+  it('does not include a template id when converting a new flow', () => {
+    const nodes: StudioNode[] = [makeStartNode(), makeEndNode()]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-end', source: START_ID, target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'New Flow', 'desc', {}, 1) as any
+
+    expect(template.id).toBeUndefined()
+  })
+
+  it('preserves the existing template id when converting an existing flow update', () => {
+    const nodes: StudioNode[] = [makeStartNode(), makeEndNode()]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-end', source: START_ID, target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Renamed Flow', 'desc', {}, 2, 'flow_existing_id') as any
+
+    expect(template.id).toBe('flow_existing_id')
+    expect(template.name).toBe('Renamed Flow')
+  })
+
   it('serializes DECISION nodes into template.steps', () => {
     const nodes: StudioNode[] = [
       makeStartNode(),

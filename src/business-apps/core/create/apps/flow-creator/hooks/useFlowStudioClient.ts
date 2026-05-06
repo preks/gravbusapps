@@ -53,7 +53,8 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
         state.templateName,
         state.templateDescription,
         state.templateTags,
-        state.templateVersion
+        state.templateVersion,
+        templateId
       )
 
       if (templateId) {
