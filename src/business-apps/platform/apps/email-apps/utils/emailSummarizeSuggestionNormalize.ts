@@ -35,6 +35,19 @@ function getInteger(v: unknown): number | undefined {
   return parsed
 }
 
+export function normalizeStringList(raw: unknown, max: number): string[] {
+  if (!Array.isArray(raw) || max <= 0) return []
+
+  const out: string[] = []
+  for (const item of raw) {
+    const value = getTrimmedString(item)
+    if (!value) continue
+    out.push(value)
+    if (out.length >= max) break
+  }
+  return out
+}
+
 function normalizeMetadata(raw: unknown): Record<string, string> | undefined {
   const objectValue = asObject(raw)
   if (!objectValue) return undefined
@@ -95,6 +108,20 @@ export function normalizeEmailSummarizeSuggestion(raw: unknown): EmailSummarizeS
   const evidence = getTrimmedString(value.evidence)
   if (evidence) {
     suggestion.evidence = evidence
+  }
+
+  if (typeof value.explicit === 'boolean') {
+    suggestion.explicit = value.explicit
+  }
+
+  const importantDates = normalizeStringList(value.importantDates, 5)
+  if (importantDates.length > 0) {
+    suggestion.importantDates = importantDates
+  }
+
+  const openQuestions = normalizeStringList(value.openQuestions, 5)
+  if (openQuestions.length > 0) {
+    suggestion.openQuestions = openQuestions
   }
 
   const messageIndex = getInteger(value.messageIndex)

@@ -200,6 +200,31 @@ function renderEvidence(
   )
 }
 
+function renderStringListBlock(
+  params: Readonly<{
+    items?: string[]
+    label: string
+    testId: string
+    metaClass: string
+  }>
+): React.ReactNode {
+  const { items, label, testId, metaClass } = params
+  if (!items || items.length === 0) {
+    return null
+  }
+
+  return (
+    <div className={metaClass} data-testid={testId}>
+      <span className="gba:font-medium">{label}:</span>
+      <ul className="gba:mt-1 gba:list-disc gba:space-y-0.5 gba:pl-4">
+        {items.map(item => (
+          <li key={`${testId}-${item}`}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItemProps> = ({
   suggestion: s,
   variant,
@@ -256,6 +281,18 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
     evidenceNeedsTooltip,
     testId
   })
+  const importantDatesBlock = renderStringListBlock({
+    items: s.importantDates,
+    label: t('email-suggestion-important-dates'),
+    testId: `${testId}-important-dates`,
+    metaClass
+  })
+  const openQuestionsBlock = renderStringListBlock({
+    items: s.openQuestions,
+    label: t('email-suggestion-open-questions'),
+    testId: `${testId}-open-questions`,
+    metaClass
+  })
 
   return (
     <li className={itemShellClass} data-testid={`${testId}-item`}>
@@ -267,6 +304,11 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
         {hasTarget ? (
           <Badge variant="outline" className="gba:text-xs gba:font-normal" data-testid={`${testId}-target`}>
             {integrationTargetLabel(target, t)}
+          </Badge>
+        ) : null}
+        {s.explicit !== undefined ? (
+          <Badge variant="outline" className="gba:text-xs gba:font-normal" data-testid={`${testId}-explicit`}>
+            {s.explicit ? t('email-suggestion-explicit') : t('email-suggestion-implicit')}
           </Badge>
         ) : null}
         {showConfidence && s.confidence !== undefined && Number.isFinite(s.confidence) && (
@@ -287,6 +329,8 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
           <span className="gba:font-medium">{row.label}:</span> {row.isDate ? formatCompactDate(row.value) : row.value}
         </p>
       ))}
+      {importantDatesBlock}
+      {openQuestionsBlock}
       {metadataBlock}
       {evidenceBlock}
       {createActionContext ? (

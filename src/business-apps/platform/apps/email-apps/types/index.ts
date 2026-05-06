@@ -118,6 +118,9 @@ export interface EmailSummarizeSuggestion {
   endAt?: string
   confidence?: number
   evidence?: string
+  explicit?: boolean
+  importantDates?: string[]
+  openQuestions?: string[]
   /** Index into chronologically sorted thread messages (oldest first), 0-based; aligns with thread reader order */
   messageIndex?: number
   integrationTarget?: EmailSummarizeIntegrationTarget
