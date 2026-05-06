@@ -7,6 +7,7 @@ import { ToolResultRenderer } from '../renderers/ToolResultRenderer'
 import { ReflectionRenderer } from '../renderers/ReflectionRenderer'
 import { ExpertCallRenderer } from '../renderers/ExpertCallRenderer'
 import { StructuredInputForm } from '../renderers/StructuredInputForm'
+import { ToolPermissionRequest } from '../renderers/ToolPermissionRequest'
 import { EmailComposerBubble } from './EmailComposerBubble'
 import { FinalAnswerRenderer } from '../renderers/FinalAnswerRenderer'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
@@ -246,6 +247,22 @@ export const MessageBubble = ({ message, allMessages, onReply, onViewArtifact, a
               onSubmit={(submission: ComposeEmailSubmission) => {
                 if (onReply) {
                   onReply(undefined, submission as unknown as Record<string, any>)
+                }
+              }}
+            />
+          </div>
+        )
+      }
+      if (formData.form_id === 'tool_permission_request') {
+        const alreadySubmitted = hasAnsweredReply(allMessages, message.id)
+        return (
+          <div className="gba:py-1" data-testid={`msg-${message.id}`}>
+            <ToolPermissionRequest
+              request={formData}
+              alreadySubmitted={alreadySubmitted}
+              onSubmit={payload => {
+                if (onReply) {
+                  onReply(undefined, payload)
                 }
               }}
             />

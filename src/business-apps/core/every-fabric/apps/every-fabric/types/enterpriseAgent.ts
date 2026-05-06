@@ -182,6 +182,8 @@ export interface StructuredInputRequestEvent {
   description: string
   fields: InputFieldSchema[]
   allow_partial_submit: boolean
+  action_requests?: ToolPermissionActionRequest[]
+  review_configs?: ToolPermissionReviewConfig[]
   tool_ref?: string
   request_status?: 'pending' | 'approved' | 'rejected' | 'edited' | 'expired' | 'cancelled' | 'resumed'
   /**
@@ -189,6 +191,23 @@ export interface StructuredInputRequestEvent {
    * email payload so the frontend can hydrate the EmailComposerBubble.
    */
   email_draft?: ComposeEmailDraft
+}
+
+export interface ToolPermissionActionRequest {
+  name?: string
+  args?: Record<string, unknown>
+  arguments?: Record<string, unknown>
+  description?: string
+  canonical_function_name?: string
+  input_schema?: Record<string, unknown>
+  field_options?: Record<string, Array<{ label: string; value: string }>>
+  policy?: Record<string, unknown>
+}
+
+export interface ToolPermissionReviewConfig {
+  action_name: string
+  actionName?: string
+  allowed_decisions: Array<'approve' | 'edit' | 'reject'>
 }
 
 export interface HitlRequestedEvent {

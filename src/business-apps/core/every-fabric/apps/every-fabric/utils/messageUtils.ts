@@ -160,6 +160,10 @@ function toolCallMessageStatus(completed: StepCompletion | undefined): 'failed' 
   return completed.status === 'failed' ? 'failed' : 'done'
 }
 
+function isDefinitionLookupTool(toolName?: string): boolean {
+  return typeof toolName === 'string' && toolName.startsWith('definition:')
+}
+
 type DelegationStatus = 'running' | 'done' | 'failed'
 
 interface ExpertCallContent {
@@ -240,7 +244,8 @@ function terminalCompletedToChatMessage(
   }
   const actionsPerformed = stepCompletions
     ? [...stepCompletions.values()]
-        .filter(s => s.type === 'step_completed')
+        .filter((s): s is AgentStepCompletedEvent => s.type === 'step_completed')
+        .filter(s => !isDefinitionLookupTool(s.name))
         .map(s => ({ step: s.name ?? 'Tool call', tool: s.name, outcome: s.status ?? 'done' }))
     : undefined
   const hasArtifacts = !!event.artifacts && event.artifacts.length > 0
@@ -597,6 +602,7 @@ function stepStartedActivity(
   stepCompletions: Map<string, StepCompletion>
 ): ActivityEvent | null {
   if (isTodoListToolName(e.name)) return null
+  if (isDefinitionLookupTool(e.name)) return null
   const completed = stepCompletions.get(e.step_id)
   const isMemoryTool = MEMORY_TOOLS.has(e.name ?? '')
   const isSkillLoad = e.name === 'skill_load'
@@ -614,8 +620,16 @@ function stepStartedActivity(
   }
 }
 
-function stepCompletedActivity(e: Extract<AgentStreamEvent, { type: 'step_completed' }>): ActivityEvent | null {
+function stepCompletedActivity(
+  e: Extract<AgentStreamEvent, { type: 'step_completed' }>,
+  startedStepIds: Set<string>
+): ActivityEvent | null {
   if (isTodoListToolName(e.name)) return null
+  if (isDefinitionLookupTool(e.name)) return null
+  // The started row already merges completion status and duration through
+  // collectStepCompletions(). Emitting the completion again makes one real
+  // tool call appear as two identical "tool — done" activity rows.
+  if (startedStepIds.has(e.step_id)) return null
   const isMemoryTool = MEMORY_TOOLS.has(e.name ?? '')
   // Memory tools already got a single summary row on start; we omit
   // the result row to keep the feed concise (the duration on the
@@ -668,6 +682,11 @@ function reflectionActivity(events: AgentStreamEvent[]): ActivityEvent | null {
 
 export function deriveActivityFromEvents(events: AgentStreamEvent[]): ActivityEvent[] {
   const stepCompletions = collectStepCompletions(events)
+  const startedStepIds = new Set(
+    events
+      .filter((e): e is Extract<AgentStreamEvent, { type: 'step_started' }> => e.type === 'step_started')
+      .map(e => e.step_id)
+  )
   const activityEvents: ActivityEvent[] = []
 
   for (const e of events) {
@@ -675,7 +694,7 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]): ActivityEv
     if (e.type === 'step_started') {
       row = stepStartedActivity(e, stepCompletions)
     } else if (e.type === 'step_completed') {
-      row = stepCompletedActivity(e)
+      row = stepCompletedActivity(e, startedStepIds)
     } else if (e.type === 'subagent_spawned' || e.type === 'expert_called') {
       row = delegationActivity(e, stepCompletions)
     }

@@ -109,8 +109,9 @@ export interface FabricPlanResult {
 export const useFabricPlan = (session: DeepAgentSession | null, events: AgentStreamEvent[]): FabricPlanResult => {
   const todos = useMemo<TodoItem[]>(() => {
     const streamTodos = extractLatestTodosFromEvents(events)
+    const traceTodos = extractLatestTodosFromEvents((session?.trace ?? []) as AgentStreamEvent[])
     const sessionTodos = session?.todos && session.todos.length > 0 ? session.todos : null
-    return sessionTodos ?? streamTodos ?? []
+    return sessionTodos ?? streamTodos ?? traceTodos ?? []
   }, [session, events])
 
   const taskNodes = useMemo<FabricTaskNode[]>(() => {
