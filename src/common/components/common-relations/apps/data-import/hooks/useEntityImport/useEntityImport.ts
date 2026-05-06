@@ -62,6 +62,7 @@ export interface UseEntityImportReturn<T> {
    * the file format is not CSV, or after `reset`.
    */
   csvQuality: CsvQuality | null
+  extractionWarnings: string[]
   handleFileChange: (file: File | null) => Promise<void>
   analyzeWithAgent: () => Promise<void>
   convertData: (
@@ -104,6 +105,7 @@ export function useEntityImport<T = ConvertedEntity>(
   const [error, setError] = useState<string | null>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [csvQuality, setCsvQuality] = useState<CsvQuality | null>(null)
+  const [extractionWarnings, setExtractionWarnings] = useState<string[]>([])
 
   // Snapshot of the last `convertData` arguments so `retryWithHardRepair`
   // can replay the call without making the user re-pick mappings.
@@ -249,7 +251,8 @@ export function useEntityImport<T = ConvertedEntity>(
         const {
           records,
           usedUiMappings,
-          csvQuality: extractedCsvQuality
+          csvQuality: extractedCsvQuality,
+          warnings: backendWarnings
         } = await extractWithRetry(
           file,
           config,
@@ -277,6 +280,7 @@ export function useEntityImport<T = ConvertedEntity>(
 
         setConvertedEntities(finalEntities as T[])
         setCsvQuality(extractedCsvQuality)
+        setExtractionWarnings(backendWarnings)
         setStep('result')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Conversion failed')
@@ -314,7 +318,8 @@ export function useEntityImport<T = ConvertedEntity>(
       const {
         records,
         usedUiMappings,
-        csvQuality: repairedCsvQuality
+        csvQuality: repairedCsvQuality,
+        warnings: backendWarnings
       } = await extractWithRetry(
         file,
         config,
@@ -338,6 +343,7 @@ export function useEntityImport<T = ConvertedEntity>(
 
       setConvertedEntities(finalEntities as T[])
       setCsvQuality(repairedCsvQuality)
+      setExtractionWarnings(backendWarnings)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Hard repair failed')
     } finally {
@@ -420,6 +426,7 @@ export function useEntityImport<T = ConvertedEntity>(
     setError(null)
     setImportResult(null)
     setCsvQuality(null)
+    setExtractionWarnings([])
     lastConvertArgsRef.current = null
   }, [])
 
@@ -435,6 +442,7 @@ export function useEntityImport<T = ConvertedEntity>(
     error,
     importResult,
     csvQuality,
+    extractionWarnings,
     handleFileChange,
     analyzeWithAgent,
     convertData,

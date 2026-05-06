@@ -108,6 +108,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     error,
     importResult,
     csvQuality,
+    extractionWarnings,
     handleFileChange,
     analyzeWithAgent,
     convertData,
@@ -213,6 +214,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
           isLoading={isLoading}
           importResult={importResult}
           campaignName={campaignName || undefined}
+          extractionWarnings={extractionWarnings}
           csvQuality={csvQuality}
           onHardRepair={retryWithHardRepair}
           onDownloadJSON={downloadJSON}

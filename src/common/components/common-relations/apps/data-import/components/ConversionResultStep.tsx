@@ -37,6 +37,8 @@ export interface ConversionResultStepProps<T = ConvertedEntity> {
   campaignName?: string
   /** CSV structural quality info from the backend (absent for Excel files) */
   csvQuality?: CsvQuality | null
+  /** Warnings from the backend extraction (e.g. unresolved investment names) */
+  extractionWarnings?: string[]
   /** Re-extract the file with hard repair mode */
   onHardRepair?: () => Promise<void>
   onDownloadJSON: () => void
@@ -51,6 +53,7 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
   entityType,
   isLoading,
   campaignName,
+  extractionWarnings,
   csvQuality,
   onHardRepair,
   onDownloadJSON,
@@ -210,6 +213,32 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
                     </div>
                   )}
                 </div>
+
+                {/* Backend Extraction Warnings */}
+                {extractionWarnings && extractionWarnings.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="gba:text-base">{t('extraction-warnings-title')}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="gba:space-y-2">
+                        {extractionWarnings.map((warning, idx) => (
+                          <div
+                            key={`extraction-warning-${idx}`}
+                            className="gba:flex gba:items-start gba:gap-2 gba:text-sm"
+                            data-testid={`${testId}-extraction-warning-${idx}`}
+                          >
+                            <WarningIcon
+                              className="gba:w-4 gba:h-4 gba:text-destructive gba:mt-0.5 gba:flex-shrink-0"
+                              weight="fill"
+                            />
+                            <span>{warning}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Data Quality Warnings */}
                 {dataQuality.warnings.length > 0 && (

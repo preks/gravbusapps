@@ -26,6 +26,9 @@ preview-more-text = ... și încă { $count } { $entityType }
 industry-badge = Industrie
 size-badge = Dimensiune
 
+# Extraction Warnings Section
+extraction-warnings-title = Avertismente de import
+
 # Data Quality Section
 data-quality-warnings-title = Avertismente privind calitatea datelor
 show-less-button = Arată mai puțin

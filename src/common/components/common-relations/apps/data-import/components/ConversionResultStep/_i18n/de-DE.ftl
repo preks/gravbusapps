@@ -26,6 +26,9 @@ preview-more-text = ... und { $count } weitere { $entityType }
 industry-badge = Branche
 size-badge = Größe
 
+# Extraction Warnings Section
+extraction-warnings-title = Import-Warnungen
+
 # Data Quality Section
 data-quality-warnings-title = Datenqualitätswarnungen
 show-less-button = Weniger anzeigen
