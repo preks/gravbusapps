@@ -4,6 +4,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AccountLayout } from '../account-layout'
 import { ContactLayout } from '../contact-layout'
 import { OpportunityLayout } from '../opportunity-layout'
+import type { InlineEntityCreateRenderProps } from '@/common/components/common-relations/popups/inline-entity-create-popup'
 import translations from './_i18n'
 
 export interface LeadConvertAccountStepProps {
@@ -29,8 +30,8 @@ export interface LeadConvertAccountStepProps {
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
   isActive?: boolean
-  // REQUIRED: Must be explicitly set to 'crm' or 'irm' to ensure correct labels
-  accountContext: 'crm' | 'irm'
+  // Render prop for inline contact create popup (optional; typically omitted in wizard context)
+  inlineContactCreate?: (props: InlineEntityCreateRenderProps) => React.ReactNode
 }
 
 export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
@@ -48,7 +49,7 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
   customSegments,
   avatarFileRef,
   isActive = true,
-  accountContext
+  inlineContactCreate
 }) => {
   const { t } = useTranslation(translations)
 
@@ -76,7 +77,7 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
             customSegments={customSegments}
             avatarFileRef={avatarFileRef}
             isStepActive={isActive}
-            accountContext={accountContext}
+            inlineContactCreate={inlineContactCreate}
           />
         )}
       </div>

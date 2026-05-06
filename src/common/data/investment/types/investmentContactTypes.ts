@@ -7,6 +7,7 @@ import {
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 import { filterCommunicationChannels } from '@/common/data/common/utils/entityPayloadHelpers'
+import { splitAccountContactDrafts } from '@/common/data/common/utils/inlineDraftHelpers'
 import type { InvestmentActivity } from './investmentActivityTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
@@ -83,8 +84,16 @@ export const investmentContactFormFields = {
  * @returns Payload object ready for API submission
  */
 export const buildInvestmentContactPayload = (contact: Partial<InvestmentContact>) => {
+  // Keep only existing selected associations under the parent contact. Inline-created drafts
+  // are lifted to top-level `investmentAccounts` by the form submit handler.
+  const { existingAccountContacts } = splitAccountContactDrafts(contact.accountContacts as any[] | undefined)
+  const contactWithExistingAssociations: Partial<InvestmentContact> = {
+    ...contact,
+    accountContacts: existingAccountContacts as InvestmentContact['accountContacts']
+  }
+
   // Build base payload using investmentContactFormFields for field mapping
-  const basePayload = buildPayload(contact, investmentContactFormFields)
+  const basePayload = buildPayload(contactWithExistingAssociations, investmentContactFormFields)
 
   // Filter communication channels
   const filteredChannels = filterCommunicationChannels(basePayload.communicationChannels)

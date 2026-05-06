@@ -10,12 +10,9 @@ account-picture-label = Account Picture
 account-information-segment-prospective = Prospective
 account-type-label = Account Category
 prospect-label = Prospect
-customer-label = Customer
-portfolio-company-label = Portfolio Company
-prospect-description-crm = Potential customer with high engagement
-prospect-description-irm = Potential entry to the portfolio
-customer-description = Active customer with established relationship
-portfolio-description = Active portfolio company with investment holdings
+active-account-label = Active
+prospect-description = Potential account currently being evaluated
+active-description = Active account with an established relationship
 
 # Company Information
 priority-label = Priority
@@ -32,4 +29,3 @@ contacts-placeholder = Search or select contacts...
 # Common
 please-select = Please Select...
 please-enter = Please Enter...
-

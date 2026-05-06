@@ -247,7 +247,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       activityLoading
     },
     {
-      title: 'Investment Relations Overview',
       moduleColor,
       kpiLabels: IRM_KPI_LABELS,
       kpiVisibility: IRM_KPI_VISIBILITY,

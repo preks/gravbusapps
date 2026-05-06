@@ -7,10 +7,14 @@ import { useInvestmentContactsList } from '@/common/data/investment/hooks/useInv
 import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { buildInvestmentAccountPayload } from '@/common/data/investment/types/investmentAccountTypes'
-import { buildFilePath } from '@/common/utils/fileUtils'
+import { buildInvestmentContactPayload } from '@/common/data/investment/types/investmentContactTypes'
+import { buildAccountFormSubmissionPayload } from '@/common/data/common/utils/inlineDraftHelpers'
+import { buildAvatarPreSubmit } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
 import { COMPANY_SIZE, ANNUAL_REVENUE, ACCOUNT_PRIORITY } from '@/common/data/investment/constants/investmentCatalogs'
 import { AccountLayout, accountSchema } from '@/common/components/common-relations/form-layouts/account-layout'
+import { contactSchema } from '@/common/components/common-relations/form-layouts/contact-layout'
+import { createInlineEntityPopupRenderer } from '@/common/components/common-relations/popups/inline-entity-create-popup'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
@@ -19,30 +23,25 @@ import { AppActionForm } from '@/components/app-action-form'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { AccountAiEnrichButton } from '@/common/components/common-relations/form-segments/account-ai-enrich'
 
-export const investmentAccountSchema = accountSchema.extend({})
+export { accountSchema as investmentAccountSchema } from '@/common/components/common-relations/form-layouts/account-layout'
 
 type AccountFormProps = BusinessAppContextProps
 
 export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo, additionalData }) => {
-  // Extract accountId from additionalData
   const accountId = additionalData?.accountId || additionalData?.psi_taskPayload?.psi_initialParameters?.accountId
 
-  // Fetch account data using declarative hook
   const { account, loading, error } = useInvestmentAccount(accessToken || '', accountId)
 
   // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
-  // Contact selection with infinite scroll
   const useContacts = useInvestmentContactsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
-  // File client for avatar upload
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  // Ref to store current file and thumbnail from AvatarUpload (no re-renders)
   const avatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
 
-  const form = useForm<z.infer<typeof investmentAccountSchema>>({
-    resolver: zodResolver(investmentAccountSchema),
-    defaultValues: mapToFormValues(account || {}, investmentAccountSchema) as Partial<InvestmentAccount>,
+  const form = useForm<z.infer<typeof accountSchema>>({
+    resolver: zodResolver(accountSchema),
+    defaultValues: mapToFormValues(account || {}, accountSchema) as Partial<InvestmentAccount>,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -50,24 +49,41 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
   const accountRef = useRef(account)
   useEffect(() => {
     if (accountRef.current?.id !== account?.id) {
-      form.reset(mapToFormValues(account || {}, investmentAccountSchema) as Partial<InvestmentAccount>)
+      form.reset(mapToFormValues(account || {}, accountSchema) as Partial<InvestmentAccount>)
       accountRef.current = account
     }
   }, [account?.id, account, form])
 
-  // Handle form submission - data already matches interface structure exactly
   const handleSubmit = useCallback(async (data: any) => {
     try {
-      const { investmentAccount } = buildInvestmentAccountPayload(data)
-      return {
-        investmentAccount,
-        changeMode: data.id ? 'UPDATE' : 'INSERT'
-      }
+      return buildAccountFormSubmissionPayload({
+        data,
+        accountBuilder: buildInvestmentAccountPayload,
+        contactBuilder: buildInvestmentContactPayload,
+        accountCollectionName: 'investmentAccounts',
+        contactCollectionName: 'investmentContacts'
+      })
     } catch (error) {
       console.error('Error submitting account:', error)
       throw error
     }
   }, [])
+
+  const renderInlineContactCreate = React.useMemo(
+    () =>
+      createInlineEntityPopupRenderer({
+        entity: 'contact',
+        businessAppContext: { accessToken, userInfo, additionalData },
+        formConfig: {
+          schema: contactSchema,
+          fileConfig: {
+            fileEntity: FILE_ENTITY.CONTACT,
+            fileContext: FILE_CONTEXT.PICTURE
+          }
+        }
+      }),
+    [accessToken, userInfo, additionalData]
+  )
 
   // Collect all errors for centralized early return (AFTER all hooks)
   const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
@@ -81,46 +97,22 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
     errors.push({ error: useContacts.error, context: 'Failed to load contacts' })
   }
 
-  // Early return if any errors exist (now safe - all hooks called above)
   if (errors.length > 0) {
     return <ErrorAlert errors={errors} prefixDataTestId="investment-account-form" />
   }
 
-  // Handle form cancellation
   const handleCancel = async () => {
     // AppActionForm handles cancellation via process events
   }
 
-  // Handle pre-submit: Upload avatar file if present
-  const handlePreSubmit = async (formData: any) => {
-    const avatarData = avatarFileRef.current
-
-    if (!avatarData?.file || !avatarData?.thumbnail) {
-      return formData
-    }
-
-    try {
-      const accountId = formData.id || account?.id || null
-      const folderPath = buildFilePath(FILE_ENTITY.ACCOUNT, accountId, FILE_CONTEXT.PICTURE)
-      const pathParams = { accessScope: 'tenant' } as const
-      const queryParams = {
-        appName: APP_NAME,
-        folderPath: folderPath,
-        mimeType: avatarData.file.type
-      }
-
-      const uploadResponse = await fileClient.uploadFile(avatarData.file, pathParams, queryParams)
-
-      return {
-        ...formData,
-        picture: JSON.stringify(uploadResponse.fileInfo),
-        pictureThumbnail: avatarData.thumbnail
-      }
-    } catch (error) {
-      console.error('Failed to upload avatar:', error)
-      throw error
-    }
-  }
+  const handlePreSubmit = buildAvatarPreSubmit(
+    fileClient,
+    avatarFileRef,
+    FILE_ENTITY.ACCOUNT,
+    FILE_CONTEXT.PICTURE,
+    APP_NAME,
+    formData => formData.id || account?.id || null
+  )
 
   const processType = account?.id ? 'update' : 'create'
 
@@ -133,14 +125,12 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
         handlePreSubmit={handlePreSubmit}
         formData={form.getValues()}
         form={form}
-        schema={investmentAccountSchema}
+        schema={accountSchema}
         data-testid={formatDataTestId('investment-account-form', 'Form')}
         submitButtonText={account?.id ? 'Update Account' : 'Create Account'}
         isSubmitDisabled={loading}
       >
-        {/* AI fill button — only shown when creating a new investment account. */}
-        <AccountAiEnrichButton accessToken={accessToken} accountContext="irm" isEditMode={!!account?.id} />
-        {/* Account Layout */}
+        <AccountAiEnrichButton accessToken={accessToken} entityKind="investment_account" isEditMode={!!account?.id} />
         <AccountLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
           accountContacts={account?.accountContacts}
@@ -151,7 +141,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
           accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
           useContacts={useContacts}
           avatarFileRef={avatarFileRef}
-          accountContext="irm"
+          inlineContactCreate={renderInlineContactCreate}
           loading={loading && !!accountId}
         />
       </AppActionForm>

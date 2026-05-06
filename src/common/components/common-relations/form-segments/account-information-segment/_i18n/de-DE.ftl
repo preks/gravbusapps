@@ -10,12 +10,9 @@ account-picture-label = Kontobild
 account-information-segment-prospective = Interessent
 account-type-label = Kontokategorie
 prospect-label = Interessent
-customer-label = Kunde
-portfolio-company-label = Portfoliounternehmen
-prospect-description-crm = Potenzieller Kunde mit hohem Engagement
-prospect-description-irm = Potenzieller Eintrag in das Portfolio
-customer-description = Aktiver Kunde mit etablierter Geschäftsbeziehung
-portfolio-description = Aktives Portfoliounternehmen mit Investitionsbeteiligungen
+active-account-label = Aktiv
+prospect-description = Potenzielles Konto, das derzeit bewertet wird
+active-description = Aktives Konto mit einer etablierten Geschäftsbeziehung
 
 # Company Information
 priority-label = Priorität
@@ -32,4 +29,3 @@ contacts-placeholder = Kontakte suchen oder auswählen...
 # Common
 please-select = Bitte auswählen...
 please-enter = Bitte eingeben...
-

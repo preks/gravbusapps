@@ -12,6 +12,7 @@ import {
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 import { filterCommunicationChannels } from '@/common/data/common/utils/entityPayloadHelpers'
+import { splitAccountContactDrafts } from '@/common/data/common/utils/inlineDraftHelpers'
 import type { CustomerActivity } from './customerActivityTypes'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
@@ -130,8 +131,16 @@ export const customerContactFormFields = {
  * @returns Payload object ready for API submission
  */
 export const buildCustomerContactPayload = (contact: Partial<CustomerContact>) => {
+  // Keep only existing selected associations under the parent contact. Inline-created drafts
+  // are lifted to top-level `accounts` by the form submit handler.
+  const { existingAccountContacts } = splitAccountContactDrafts(contact.accountContacts as any[] | undefined)
+  const contactWithExistingAssociations: Partial<CustomerContact> = {
+    ...contact,
+    accountContacts: existingAccountContacts as CustomerContact['accountContacts']
+  }
+
   // Build base payload using customerContactFormFields for field mapping
-  const basePayload = buildPayload(contact, customerContactFormFields)
+  const basePayload = buildPayload(contactWithExistingAssociations, customerContactFormFields)
 
   // Filter communication channels
   const filteredChannels = filterCommunicationChannels(basePayload.communicationChannels)

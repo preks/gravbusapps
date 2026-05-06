@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react'
+import React, { useMemo, useCallback, useState } from 'react'
 import {
   FormField,
   FormItem,
@@ -11,13 +11,17 @@ import {
   useTranslation,
   AvatarUpload
 } from '@newwork/nw-design-system'
-import { useFormContext } from 'react-hook-form'
+import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { EmployeeSelect } from '@/components/employee-select'
 import { ContactSelect } from '@/common/components/common-relations/selects/contact-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
 import { INDUSTRY_CLASS } from '@/common/constants/commonCatalogs'
+import type {
+  InlineEntityDraft,
+  InlineEntityCreateRenderProps
+} from '@/common/components/common-relations/popups/inline-entity-create-popup'
 import translations from './_i18n'
 
 interface AccountInformationSegmentProps {
@@ -53,9 +57,10 @@ interface AccountInformationSegmentProps {
   // Catalog identifier for account priority (context-specific)
   accountPriorityCatalogIdentifier?: string
 
-  // Context for prospective field label (determines non-prospective label)
-  // REQUIRED: Must be explicitly set to 'crm' or 'irm' to ensure correct labels
-  accountContext: 'crm' | 'irm'
+  // Render prop for the inline contact create/edit popup.
+  // When provided, enables draft-contact creation from the contacts field.
+  // The caller supplies module and businessAppContext; the segment supplies dialog state.
+  inlineContactCreate?: (props: InlineEntityCreateRenderProps) => React.ReactNode
 }
 
 const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
@@ -67,10 +72,73 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   customFields,
   avatarFileRef,
   accountPriorityCatalogIdentifier,
-  accountContext
+  inlineContactCreate
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+
+  // useFieldArray provides typed `append`/`update` mutators for the contacts list, so the
+  // inline-create flow doesn't have to round-trip through `form.setValue` (which loses RHF's
+  // internal field-id bookkeeping for arrays).
+  const accountContactsArray = useFieldArray({ control: form.control, name: 'accountContacts' })
+
+  // Inline-create dialog state for nested contact drafts
+  const [draftDialog, setDraftDialog] = useState<{ open: boolean; editIndex: number | null }>({
+    open: false,
+    editIndex: null
+  })
+
+  const handleOpenCreateDraft = useCallback(() => {
+    setDraftDialog({ open: true, editIndex: null })
+  }, [])
+
+  const handleOpenEditDraft = useCallback((index: number) => {
+    setDraftDialog({ open: true, editIndex: index })
+  }, [])
+
+  const handleDialogOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      setDraftDialog(prev => ({ ...prev, open: true }))
+    } else {
+      setDraftDialog({ open: false, editIndex: null })
+    }
+  }, [])
+
+  const handleDraftConfirm = useCallback(
+    (draft: InlineEntityDraft) => {
+      const draftEntry = {
+        __isDraft: true,
+        __draftId: draft.__draftId,
+        contactType: draft.contactType ?? null,
+        ...('contact' in draft ? { contact: draft.contact } : {})
+      }
+
+      if (draftDialog.editIndex === null) {
+        accountContactsArray.append(draftEntry)
+      } else {
+        const current: any[] = (form.getValues('accountContacts') as any[]) || []
+        const previous = current[draftDialog.editIndex] || {}
+        accountContactsArray.update(draftDialog.editIndex, {
+          ...previous,
+          ...draftEntry,
+          __draftId: previous.__draftId || draft.__draftId
+        })
+      }
+    },
+    [accountContactsArray, draftDialog.editIndex, form]
+  )
+
+  const editDraftDefaults = useMemo(() => {
+    if (draftDialog.editIndex === null) return undefined
+    const entries: any[] = (form.getValues('accountContacts') as any[]) || []
+    return entries[draftDialog.editIndex]?.contact || undefined
+  }, [draftDialog.editIndex, form])
+
+  const editDraftId = useMemo(() => {
+    if (draftDialog.editIndex === null) return undefined
+    const entries: any[] = (form.getValues('accountContacts') as any[]) || []
+    return entries[draftDialog.editIndex]?.__draftId
+  }, [draftDialog.editIndex, form])
 
   // Transform contacts to SelectOption[] internally
   const contactOptions = useMemo<ContactSelectOption[]>(() => {
@@ -129,7 +197,28 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
     pictureThumbnail?: string
     jobPosition?: string
     department?: string
+    __isDraft?: boolean
+    __draftId?: string
+    contact?: Record<string, any>
   } => {
+    // Inline-create draft entries: forward the full embedded contact payload so ContactSelect
+    // can natively render the row with the same layout (avatar / name / job-position /
+    // department / email / phone) as saved contacts. The `contact` blob also carries every
+    // field the user filled in the dialog (custom fields, comm channels, addresses, etc.) so
+    // editing round-trips losslessly.
+    if (ac?.__isDraft) {
+      const c = ac.contact || {}
+      const displayName = c.fullName || `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'New Contact'
+      return {
+        id: ac.__draftId,
+        name: displayName,
+        contactType: ac.contactType || undefined,
+        __isDraft: true,
+        __draftId: ac.__draftId,
+        contact: c
+      }
+    }
+
     const contactId = ac.contactId || ac.contact?.id || ''
 
     // Use nested contact from loaded entity (accountContacts prop) or from useContacts
@@ -163,6 +252,24 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   // Helper function to transform contact value to accountContact format
   const transformContactValueToAccountContact = useCallback(
     (contactValue: any, accountId: string | undefined, existingAccountContacts: any[]) => {
+      // Round-trip drafts: preserve the embedded `contact` payload coming back from
+      // ContactSelect so editing the contact-type (or any other field on the row) doesn't
+      // wipe out the dialog state. Falls back to the existing form-state draft if the
+      // incoming value somehow lost its embedded payload.
+      if (typeof contactValue === 'object' && contactValue?.__isDraft) {
+        const existingDraft = existingAccountContacts.find(
+          (ac: any) => ac?.__isDraft && ac?.__draftId === contactValue.__draftId
+        )
+        const embeddedContact = contactValue.contact ?? existingDraft?.contact
+        return {
+          __isDraft: true,
+          __draftId: contactValue.__draftId,
+          contactType:
+            contactValue.contactType === undefined ? (existingDraft?.contactType ?? null) : contactValue.contactType,
+          ...(embeddedContact ? { contact: embeddedContact } : {})
+        }
+      }
+
       const contactId = typeof contactValue === 'object' ? contactValue.id : contactValue
       const contactType = typeof contactValue === 'object' ? contactValue.contactType : undefined
 
@@ -227,19 +334,12 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
         name="prospective"
         render={({ field }) => {
           // Calculate label and description based on current field value
-          const prospectiveLabel = field.value
-            ? t('prospect-label')
-            : accountContext === 'irm'
-              ? t('portfolio-company-label')
-              : t('customer-label')
+          const nonProspectiveLabel = t('active-account-label')
+          const prospectiveDescription = t('prospect-description')
+          const nonProspectiveDescription = t('active-description')
 
-          const prospectiveDescription = field.value
-            ? accountContext === 'irm'
-              ? t('prospect-description-irm')
-              : t('prospect-description-crm')
-            : accountContext === 'irm'
-              ? t('portfolio-description')
-              : t('customer-description')
+          const prospectiveLabel = field.value ? t('prospect-label') : nonProspectiveLabel
+          const prospectiveDesc = field.value ? prospectiveDescription : nonProspectiveDescription
 
           return (
             <FormItem>
@@ -254,7 +354,7 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
                         {prospectiveLabel}
                       </Badge>
                     </div>
-                    <p className="gba:text-sm gba:text-muted-foreground gba:m-0">{prospectiveDescription}</p>
+                    <p className="gba:text-sm gba:text-muted-foreground gba:m-0">{prospectiveDesc}</p>
                   </div>
                   <FormControl>
                     <Switch
@@ -448,6 +548,8 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
                     accountContacts={field.value || []}
                     dataTestId="account-information-segment-contacts"
                     error={fieldState.error?.message || null}
+                    onCreateNew={inlineContactCreate && businessAppContext ? handleOpenCreateDraft : undefined}
+                    onEditDraft={inlineContactCreate && businessAppContext ? handleOpenEditDraft : undefined}
                   />
                 </FormControl>
                 <FormMessage />
@@ -456,6 +558,15 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
           }}
         />
       )}
+
+      {inlineContactCreate?.({
+        open: draftDialog.open,
+        onOpenChange: handleDialogOpenChange,
+        draftId: editDraftId,
+        defaultValues: editDraftDefaults,
+        onConfirm: handleDraftConfirm,
+        'data-testid': 'account-information-segment-inline-create-contact'
+      })}
     </div>
   )
 }

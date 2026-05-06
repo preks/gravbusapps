@@ -281,7 +281,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       onTopPerformersCurrencyChange: setTopPerformersCurrency
     },
     {
-      title: 'CRM Overview',
       moduleColor,
       kpiCurrency,
       onKpiCurrencyChange: setKpiCurrency,

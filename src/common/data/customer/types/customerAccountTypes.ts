@@ -15,6 +15,7 @@ import {
   filterAddresses,
   addressLineToString
 } from '@/common/data/common/utils/entityPayloadHelpers'
+import { splitAccountContactDrafts } from '@/common/data/common/utils/inlineDraftHelpers'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
 import type { CustomerContact } from './customerContactTypes'
@@ -127,8 +128,16 @@ export const customerAccountFormFields = {
 } as const
 
 export const buildCustomerAccountPayload = (account: Partial<CustomerAccount>) => {
+  // Keep only existing selected associations under the parent account. Inline-created drafts
+  // are lifted to top-level `contacts` by the form submit handler.
+  const { existingAccountContacts } = splitAccountContactDrafts(account.accountContacts as any[] | undefined)
+  const accountWithExistingAssociations: Partial<CustomerAccount> = {
+    ...account,
+    accountContacts: existingAccountContacts as CustomerAccount['accountContacts']
+  }
+
   // Build base payload using customerAccountFormFields for field mapping
-  const basePayload = buildPayload(account, customerAccountFormFields)
+  const basePayload = buildPayload(accountWithExistingAssociations, customerAccountFormFields)
 
   // Filter communication channels
   const filteredChannels = filterCommunicationChannels(basePayload.communicationChannels)

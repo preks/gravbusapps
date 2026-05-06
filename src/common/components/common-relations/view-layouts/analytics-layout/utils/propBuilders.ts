@@ -27,7 +27,7 @@ export interface OverviewDataInput {
 }
 
 export interface OverviewBuilderConfig {
-  title: string
+  title?: string
   moduleColor?: string
   kpiLabels?: any // Accept any label object structure
   kpiVisibility?: any // Accept any visibility object structure
@@ -64,7 +64,7 @@ export interface OverviewBuilderData {
 
 export function buildOverviewProps(data: OverviewBuilderData, config: OverviewBuilderConfig) {
   return {
-    title: config.title,
+    ...(config.title ? { title: config.title } : {}),
     moduleColor: config.moduleColor,
 
     // Core KPI metrics
