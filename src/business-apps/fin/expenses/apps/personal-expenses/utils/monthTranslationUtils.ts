@@ -1,43 +1,24 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+const PERSONAL_EXPENSES_MONTH_KEYS = [
+  'personal-expenses-month-january',
+  'personal-expenses-month-february',
+  'personal-expenses-month-march',
+  'personal-expenses-month-april',
+  'personal-expenses-month-may',
+  'personal-expenses-month-june',
+  'personal-expenses-month-july',
+  'personal-expenses-month-august',
+  'personal-expenses-month-september',
+  'personal-expenses-month-october',
+  'personal-expenses-month-november',
+  'personal-expenses-month-december'
+] as const
 
 /**
- * Gets the translated month name using the absence_report.employee_table pattern
- * @param date - Date object or date string
- * @returns Translated month name
+ * Localized month name for personal-expenses (FTL / useTranslation).
+ * Replaces legacy lowcoder absence_report.employee_table.* keys.
  */
-export const getTranslatedMonthName = (date: string | Date): string => {
-  const monthKeys = [
-    'lowcoder:absence_report.employee_table.january',
-    'lowcoder:absence_report.employee_table.february',
-    'lowcoder:absence_report.employee_table.march',
-    'lowcoder:absence_report.employee_table.april',
-    'lowcoder:absence_report.employee_table.may',
-    'lowcoder:absence_report.employee_table.june',
-    'lowcoder:absence_report.employee_table.july',
-    'lowcoder:absence_report.employee_table.august',
-    'lowcoder:absence_report.employee_table.september',
-    'lowcoder:absence_report.employee_table.october',
-    'lowcoder:absence_report.employee_table.november',
-    'lowcoder:absence_report.employee_table.december'
-  ]
-
-  const monthNames = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December'
-  ]
-
+export function getTranslatedMonthName(date: string | Date, t: (key: string) => string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date
   const monthIndex = dateObj.getMonth()
-
-  return getTranslationFromI18nKeyAndLabel(monthKeys[monthIndex], monthNames[monthIndex])
+  return t(PERSONAL_EXPENSES_MONTH_KEYS[monthIndex])
 }

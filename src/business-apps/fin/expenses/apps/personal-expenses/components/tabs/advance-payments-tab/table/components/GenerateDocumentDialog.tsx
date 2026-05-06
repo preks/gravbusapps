@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GenerateDocumentDialog as OfficeGenerateDocumentDialog } from '@/business-apps/core/office/apps/documents/components'
 import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
@@ -10,6 +11,7 @@ import {
   buildAdvancePaymentDocumentEntityMap,
   type AdvancePaymentApproverContext
 } from '../../utils/advancePaymentDocumentEntityMap'
+import personalTranslations from '../../../../../_i18n'
 
 export interface AdvancePaymentGenerateDocumentDialogProps {
   open: boolean
@@ -24,6 +26,7 @@ export function AdvancePaymentGenerateDocumentDialog({
   accessToken,
   onOpenChange
 }: Readonly<AdvancePaymentGenerateDocumentDialogProps>) {
+  const { t } = useTranslation(personalTranslations)
   const graphqlClient = useGraphQLClient(accessToken)
 
   const [approverData, setApproverData] = useState<AdvancePaymentApproverContext>({})
@@ -202,7 +205,11 @@ export function AdvancePaymentGenerateDocumentDialog({
     return buildAdvancePaymentDocumentEntityMap(record, approverData, supervisorName)
   }, [record, approverData, supervisorName])
 
-  const defaultTitle = record?.expensePlan?.title || record?.expensePlan?.code || record?.code || 'Advance payment'
+  const defaultTitle =
+    record?.expensePlan?.title ||
+    record?.expensePlan?.code ||
+    record?.code ||
+    t('personal-expenses-advance-payment-default-title')
 
   const handleSuccess = async (documentId: string) => {
     if (!accessToken) return
@@ -210,12 +217,12 @@ export function AdvancePaymentGenerateDocumentDialog({
     try {
       const doc = await DocumentApiService.getDocument(documentId, accessToken)
       if (doc?.content != null) {
-        await exportToWord(doc.title || 'Document', doc.content)
-        toast.success('Document downloaded')
+        await exportToWord(doc.title || t('personal-expenses-document-fallback-filename'), doc.content)
+        toast.success(t('personal-expenses-document-downloaded-toast'))
       }
     } catch (err) {
       console.error('Failed to download document:', err)
-      toast.error('Failed to download document')
+      toast.error(t('personal-expenses-document-download-failed-toast'))
     }
   }
 

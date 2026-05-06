@@ -4,11 +4,10 @@ import { startProcess } from '@/common/utils/start-process'
 import personalTranslations from '../../../../_i18n'
 import { useExpensePlanFileService } from '../../../../utils/expensePlanFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { buildDefaultEmptyMessage } from '../../../../utils/tableUtils'
 import { useTableSetup } from '@/business-apps/fin/expenses/common/hooks/useTableSetup'
 import { useVisibleColumns } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
-import { expensePlanAvailableColumns } from '../config/expensePlanAvailableColumns'
-import { expensePlanSortableColumns } from '../config/expensePlanSortableColumns'
+import { createExpensePlanAvailableColumns, EXPENSE_PLAN_TABLE_COLUMN_IDS } from '../config/expensePlanAvailableColumns'
+import { createExpensePlanSortableColumns } from '../config/expensePlanSortableColumns'
 import { createExpensePlanColumns } from './expensePlanColumns'
 import { useExpensePlanRowActions } from './useExpensePlanRowActions'
 import type { ExpensePlansTableDisplayProps } from './ExpensePlansTableDisplay'
@@ -72,6 +71,7 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     selectedFilters: selectedFilters || [],
     filterLabelMap: props.filterLabelMap ?? {},
     availableStatuses,
+    t: tPersonal,
     planDateRange,
     setPlanDateRange,
     effectiveDateRange,
@@ -90,8 +90,10 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     widgetTopDestinationFilterTokens: props.widgetTopDestinationFilterTokens ?? []
   })
 
-  const baseVisibleColumnIds = useMemo(() => expensePlanAvailableColumns.map(c => c.id), [])
-  const [rawVisibleColumns, setRawVisibleColumns] = useState<string[]>(() => [...baseVisibleColumnIds])
+  const availableColumns = useMemo(() => createExpensePlanAvailableColumns(tPersonal), [tPersonal])
+  const sortableColumns = useMemo(() => createExpensePlanSortableColumns(tPersonal), [tPersonal])
+  const baseVisibleColumnIds = useMemo(() => availableColumns.map(c => c.id), [availableColumns])
+  const [rawVisibleColumns, setRawVisibleColumns] = useState<string[]>(() => [...EXPENSE_PLAN_TABLE_COLUMN_IDS])
   const visibleColumnIds = useVisibleColumns(
     rawVisibleColumns,
     baseVisibleColumnIds.map(id => ({ id }))
@@ -243,16 +245,11 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     [onTableChange, sortField, sortOrder]
   )
 
-  const emptyMessage = hasActiveFilters
-    ? tPersonal('table-empty-filtered')
-    : buildDefaultEmptyMessage(
-        'lowcoder:personal_expenses.no_plan_data',
-        'No expense plans found. Create your first expense plan to get started.'
-      )
+  const emptyMessage = hasActiveFilters ? tPersonal('table-empty-filtered') : tPersonal('expense-plans-no-rows')
 
   const primaryAction = useMemo(
-    () => <ExpensePlansPrimaryAction onAddExpensePlan={handleAddExpensePlan} />,
-    [handleAddExpensePlan]
+    () => <ExpensePlansPrimaryAction onAddExpensePlan={handleAddExpensePlan} t={tPersonal} />,
+    [handleAddExpensePlan, tPersonal]
   )
 
   const secondaryActions = useMemo(
@@ -283,7 +280,8 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     accessToken: contextProps.accessToken,
     onPrintPlan: handlePrintPlan,
     onViewExpensePlanDetails: handleViewExpensePlanDetails,
-    onViewExpenseRequestDetails: handleViewExpenseRequestDetails
+    onViewExpenseRequestDetails: handleViewExpenseRequestDetails,
+    t: tPersonal
   })
 
   useEffect(() => {
@@ -320,8 +318,8 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     onFilterChange: handleFilterChangeFromDisplay,
     sorting,
     onSortingChange: handleSortingChange,
-    sortableColumns: expensePlanSortableColumns,
-    availableColumns: expensePlanAvailableColumns,
+    sortableColumns,
+    availableColumns,
     visibleColumnIds,
     onVisibleColumnIdsChange: setRawVisibleColumns,
     primaryAction,
@@ -335,7 +333,9 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     onPaginationChange: handlePaginationChange,
     emptyMessage,
     rowActions,
-    onRowClick: handleSelectItem
+    onRowClick: handleSelectItem,
+    listSectionLabel: tPersonal('expense-plans-list-section-title'),
+    searchPlaceholder: tPersonal('expense-items-search-placeholder')
   }
 
   return {

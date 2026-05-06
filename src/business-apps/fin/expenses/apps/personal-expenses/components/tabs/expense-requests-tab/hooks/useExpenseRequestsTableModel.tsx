@@ -400,6 +400,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       <ExpenseRequestRowActions
         record={row.original}
         accessToken={contextProps.accessToken}
+        t={tPersonal}
         updateRequestActionLabel={updateRequestActionLabel}
         onEdit={handleEditExpenseRequest}
         onPrint={handlePrintRequest}
@@ -408,6 +409,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
     ),
     [
       contextProps.accessToken,
+      tPersonal,
       updateRequestActionLabel,
       handleEditExpenseRequest,
       handlePrintRequest,

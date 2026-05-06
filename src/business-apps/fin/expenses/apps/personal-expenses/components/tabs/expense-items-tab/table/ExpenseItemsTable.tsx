@@ -39,7 +39,15 @@ export interface ExpenseItemsTableProps extends BusinessAppContextProps {
   currenciesInitialized?: boolean
 }
 
-const BASE_VISIBLE_COLUMN_IDS = ['selection', 'title', 'expenseDate', 'status', 'attachment', 'reimbursableAmount']
+const BASE_VISIBLE_COLUMN_IDS = [
+  'selection',
+  'code',
+  'title',
+  'expenseDate',
+  'status',
+  'attachment',
+  'reimbursableAmount'
+]
 
 const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => {
   const {

@@ -58,20 +58,6 @@ const asNumberOrNull = (value: unknown): number | null => {
   return null
 }
 
-const FALLBACK_LABELS: Record<string, string> = {
-  'header-employee': 'Employee',
-  'header-employee-code': 'Employee Code',
-  'header-sap-number': 'SAP Number',
-  'header-start-date': 'Start Date',
-  'header-end-date': 'End Date',
-  'header-creation-date': 'Creation Date',
-  'header-remaining-amount': 'Remaining Amount',
-  'header-total-amount': 'Total Amount',
-  'header-status': 'Status',
-  'detail-code': 'Code',
-  'common-not-available': 'N/A'
-}
-
 export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProps> = ({
   record,
   headerRight,
@@ -87,7 +73,22 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
   accessToken,
   t: tProp
 }) => {
-  const t = tProp ?? ((key: string) => FALLBACK_LABELS[key] ?? key)
+  const label = useMemo(() => {
+    const tr = (ftlKey: string, en: string) => (tProp ? tProp(ftlKey) : en)
+    return {
+      notAvailable: tr('expense-details-value-not-available', 'N/A'),
+      employee: tr('expense-details-label-employee', 'Employee'),
+      employeeCode: tr('expense-details-label-employee-code', 'Employee Code'),
+      sapNumber: tr('expense-details-label-sap-number', 'SAP Number'),
+      startDate: tProp ? tProp('personal-expenses-filter-label-start-date') : 'Start Date',
+      endDate: tProp ? tProp('personal-expenses-filter-label-end-date') : 'End Date',
+      creationDate: tr('expense-details-label-creation-date', 'Creation Date'),
+      remainingAmount: tr('expense-details-label-remaining-amount', 'Remaining Amount'),
+      totalAmount: tr('expense-details-label-total-amount', 'Total Amount'),
+      status: tProp ? tProp('expense-items-column-status') : 'Status',
+      code: tProp ? tProp('expense-items-details-field-code') : 'Code'
+    }
+  }, [tProp])
   const {
     analysis: aiAnalysis,
     loading: aiAnalysisLoading,
@@ -104,35 +105,36 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
   )
 
   const fields: DetailsPanelField[] = useMemo(() => {
-    const na = t('common-not-available')
+    const na = label.notAvailable
     const remainingAmount = asNumberOrNull(record.totalRemainingAmount)
     const remainingValue =
       remainingAmount !== null && remainingAmount > 0 ? formatAmount(remainingAmount, currencyCode) : '-'
     const totalValue = formatAmount(Number(record.totalAmount ?? 0), currencyCode)
 
     const base: DetailsPanelField[] = [
-      ...(record.employee == null ? [] : [{ label: t('header-employee'), value: record.employee || na }]),
+      ...(record.employee == null ? [] : [{ label: label.employee, value: record.employee || na }]),
       ...(record.employeeCode && record.employeeCode !== 'N/A' && record.employeeCode !== undefined
-        ? [{ label: t('header-employee-code'), value: record.employeeCode }]
+        ? [{ label: label.employeeCode, value: record.employeeCode }]
         : []),
-      ...(record.sapNumber == null ? [] : [{ label: t('header-sap-number'), value: record.sapNumber || na }]),
-      { label: t('header-start-date'), value: record.startDate || na },
-      { label: t('header-end-date'), value: record.endDate || na },
-      { label: t('header-creation-date'), value: record.creationDate || na },
-      { label: t('header-remaining-amount'), value: remainingValue },
-      { label: t('header-total-amount'), value: totalValue }
+      ...(record.sapNumber == null ? [] : [{ label: label.sapNumber, value: record.sapNumber || na }]),
+      { label: label.startDate, value: record.startDate || na },
+      { label: label.endDate, value: record.endDate || na },
+      { label: label.creationDate, value: record.creationDate || na },
+      { label: label.remainingAmount, value: remainingValue },
+      { label: label.totalAmount, value: totalValue }
     ]
 
     if (!showHeader) {
       return [
-        ...(record.code ? [{ label: t('detail-code'), value: record.code }] : []),
-        ...(headerRight ? [{ label: t('header-status'), value: headerRight }] : []),
+        ...(record.code ? [{ label: label.code, value: record.code }] : []),
+        ...(headerRight ? [{ label: label.status, value: headerRight }] : []),
         ...(additionalFields || []),
         ...base
       ]
     }
     return [...(additionalFields || []), ...base]
   }, [
+    label,
     record.code,
     record.employee,
     record.employeeCode,
@@ -146,8 +148,7 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
     formatAmount,
     headerRight,
     showHeader,
-    additionalFields,
-    t
+    additionalFields
   ])
 
   const footerWithAiAnalysis = (
@@ -167,8 +168,8 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
   return (
     <DetailsPanelContent
       dataTestIdPrefix={dataTestIdPrefix}
-      title={record.title || t('common-not-available')}
-      subtitle={record.code || t('common-not-available')}
+      title={record.title || label.notAvailable}
+      subtitle={record.code || label.notAvailable}
       headerRight={showHeader ? headerRight : undefined}
       afterHeaderContent={afterHeaderContent}
       fields={fields}

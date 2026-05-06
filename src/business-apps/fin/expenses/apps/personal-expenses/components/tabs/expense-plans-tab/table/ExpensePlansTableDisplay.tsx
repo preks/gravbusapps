@@ -1,7 +1,6 @@
 import { type ReactNode } from 'react'
 import { DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import ExpenseDataTable from '@/business-apps/fin/expenses/common/components/table/ExpenseDataTable'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 import { EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX } from './expensePlanColumns'
@@ -32,6 +31,8 @@ export interface ExpensePlansTableDisplayProps {
   emptyMessage: string
   rowActions: (row: { original: ExpensePlan }) => ReactNode
   onRowClick: (item: ExpensePlan) => void
+  listSectionLabel: string
+  searchPlaceholder: string
 }
 
 export function ExpensePlansTableDisplay({
@@ -59,19 +60,16 @@ export function ExpensePlansTableDisplay({
   onPaginationChange,
   emptyMessage,
   rowActions,
-  onRowClick
+  onRowClick,
+  listSectionLabel,
+  searchPlaceholder
 }: Readonly<ExpensePlansTableDisplayProps>) {
-  const searchPlaceholder = `${getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_list.employee_report_filter.job_search',
-    'Search'
-  )}...`
-
   return (
     <DataDisplay
       titleSections={[
         {
           id: 'list',
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.title', 'My Expense Plans'),
+          label: listSectionLabel,
           metadata: { count: totalCount, isLoading }
         }
       ]}

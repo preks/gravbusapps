@@ -1,4 +1,3 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 
 export interface ExpenseRequestActionContext {
@@ -14,26 +13,23 @@ export interface ExpenseRequestActionContext {
 export const generateExpenseRequestActions = (
   request: any,
   context: ExpenseRequestActionContext,
-  options: {
+  t: (key: string) => string,
+  options?: {
     includeDetails?: boolean
-  } = {}
+  }
 ) => {
-  const { includeDetails = false } = options
+  const { includeDetails = false } = options ?? {}
 
   const actions: any[] = []
 
-  // Update action - CREATED, REJECTED, or PENDING (same logic as ExpenseRequestRowActions)
   if (request.status === 'CREATED' || request.status === 'REJECTED' || request.status === 'PENDING') {
     actions.push({
-      category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+      category: t('expense-items-row-category-actions'),
       key: 'update-expense-request',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_list.modal_list_or_flow_button.update_request_btn',
-        'Update Request'
-      ),
+      label: t('personal-expenses-update-request-action'),
       onClick: (e?: React.MouseEvent) => {
         e?.stopPropagation()
-        context.onClose?.() // Close the sidebar first
+        context.onClose?.()
         startProcess({
           domain: 'employee-expense',
           processName: 'changeExpenseRequest',
@@ -47,18 +43,13 @@ export const generateExpenseRequestActions = (
     })
   }
 
-  // Details action - only include if requested (for table rows)
   if (includeDetails) {
     actions.push({
-      category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations', 'Navigations'),
+      category: t('expense-items-row-category-navigations'),
       key: 'view-expense-request-details',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_request_card.view_request_details',
-        'View Request Details'
-      ),
+      label: t('expense-plans-row-view-request-details'),
       onClick: (e?: React.MouseEvent) => {
         e?.stopPropagation()
-        // This will be handled by the parent component
       }
     })
   }

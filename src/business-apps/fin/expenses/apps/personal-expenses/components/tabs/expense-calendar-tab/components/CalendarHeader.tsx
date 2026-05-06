@@ -2,7 +2,9 @@ import React, { useEffect } from 'react'
 import type { Dayjs } from 'dayjs'
 import { Typography, Space, Button } from 'antd'
 import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
+import personalTranslations from '../../../../_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface CalendarHeaderProps extends BusinessAppContextProps {
@@ -13,12 +15,13 @@ export interface CalendarHeaderProps extends BusinessAppContextProps {
 }
 
 const CalendarHeader: React.FC<CalendarHeaderProps> = ({ value, onChange, currentCalendarValue, setCalendarValue }) => {
+  const { t } = useTranslation(personalTranslations)
   useEffect(() => {
     if (!value.isSame(currentCalendarValue, 'month')) {
       setCalendarValue(value)
     }
   }, [value, currentCalendarValue, setCalendarValue])
-  const currentMonth = getTranslatedMonthName(value.toDate())
+  const currentMonth = getTranslatedMonthName(value.toDate(), t)
   const currentYear = value.format('YYYY')
   return (
     <div

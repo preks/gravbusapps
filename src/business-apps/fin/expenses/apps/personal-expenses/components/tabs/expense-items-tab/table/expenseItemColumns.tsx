@@ -3,6 +3,7 @@ import type { CellContext, ColumnDef } from '@tanstack/react-table'
 import { Checkbox, Badge } from '@newwork/nw-design-system'
 import { FileTextIcon, ImageIcon } from '@phosphor-icons/react'
 import { formatDate } from '@/common/utils/windowUtils'
+import { expenseTableColumnHeader } from '@/business-apps/fin/expenses/common/columns/expenseColumnHelpers'
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
 import { formatCurrencyDisplay, getExpenseItemStatusDisplayT } from '../../../../utils'
 
@@ -154,38 +155,43 @@ export function createExpenseItemColumns({
     {
       id: 'title',
       accessorKey: 'title',
-      header: t('expense-items-column-title'),
+      header: expenseTableColumnHeader(t('expense-items-column-title')),
       size: 200,
+      minSize: 160,
       cell: renderItemTitleCell
     },
     {
       id: 'expenseDate',
       accessorKey: 'expenseDate',
-      header: expenseDateLabel,
-      size: 120,
+      header: expenseTableColumnHeader(expenseDateLabel),
+      size: 128,
+      minSize: 118,
       cell: renderItemExpenseDateCell
     },
     {
       id: 'status',
       accessorKey: 'status',
-      header: t('expense-items-column-status'),
+      header: expenseTableColumnHeader(t('expense-items-column-status')),
       size: 100,
+      minSize: 96,
       cell: renderItemStatusCell
     },
     {
       id: 'attachment',
       accessorFn: (row: ExpenseItem) => row.expenseItemFile?.length ?? 0,
-      header: t('expense-items-column-attachment'),
+      header: expenseTableColumnHeader(t('expense-items-column-attachment')),
       enableSorting: false,
       size: 80,
+      minSize: 72,
       cell: renderItemAttachmentCell
     },
     {
       id: 'reimbursableAmount',
       accessorKey: 'reimbursableAmount',
       sortDescFirst: false,
-      header: t('expense-items-column-reimbursable'),
-      size: 140,
+      header: expenseTableColumnHeader(t('expense-items-column-reimbursable')),
+      size: 148,
+      minSize: 132,
       meta: { align: 'right' as const },
       cell: renderItemReimbursableAmountCell
     }

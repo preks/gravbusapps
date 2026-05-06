@@ -204,3 +204,118 @@ personal-shell-tab-expense-plans = Planuri de cheltuieli
 personal-shell-tab-advance-payments = Plăți în avans
 personal-shell-tab-expense-requests = Solicitări Decont
 personal-shell-tab-calendar = Calendar
+
+# Expense Plans tab (transl.txt ro)
+
+expense-plans-list-section-title = Planurile Mele de Cheltuieli
+expense-plans-no-rows = Nu s-au găsit planuri de cheltuieli. Creează primul plan pentru a începe.
+
+expense-plans-stat-loading = Se încarcă...
+expense-plans-stat-most-frequent = Cel mai frecvent
+expense-plans-stat-no-data-available = Nu există date disponibile
+expense-plans-stat-total-plans-for-month-prefix = Planuri totale pentru
+expense-plans-stat-closed-expense-plans = Planuri de cheltuieli închise
+expense-plans-stat-total-estimated-for-month-prefix = Estimări totale pentru
+expense-plans-stat-estimated-expenses = Cheltuieli Estimate
+expense-plans-stat-pending-approval = Aprobare în așteptare
+expense-plans-stat-requires-action = Necesară acțiune
+expense-plans-stat-top-destination = Destinație principală
+expense-plans-stat-empty = Nu există statistici pentru planurile de cheltuieli.
+
+expense-plans-sheet-plan-title = Detalii privind Planul de Cheltuieli
+expense-plans-sheet-expense-request-title = Detalii Solicitare de Decont
+expense-plans-print-dialog-title = Tipărește plan de cheltuieli
+expense-plans-details-request-type = Tipul Solicitării
+expense-plans-details-view-full-details = Vezi detalii complete
+
+expense-plans-column-plan-number = Numărul Planului
+expense-plans-column-plan-date = Data planului
+expense-plans-column-end-date = Data de Sfârşit
+expense-plans-column-paid-advance = Avans plătit
+
+expense-plans-row-update-plan = Actualizare Plan
+expense-plans-row-print = Printare
+expense-plans-row-request-advance-payment = Solicitǎ Plata în Avans
+expense-plans-row-view-plan-details = Vizualizați detaliile planului
+expense-plans-row-view-request-details = Vizualizați Detaliile Solicitării
+
+expense-plans-primary-add = Adaugă
+
+personal-expenses-label-effective-date = Dată efectivă
+personal-expenses-filter-label-start-date = Data de Început
+personal-expenses-filter-label-end-date = Data de Sfârşit
+personal-expenses-label-plan-type = Tip plan
+personal-expenses-label-expense = Cheltuială
+personal-expenses-label-trip = Călătorie
+personal-expenses-date-placeholder-start = Data de început
+personal-expenses-date-placeholder-end = Data de sfârșit
+expense-plans-filter-top-destination = Destinație principală
+expense-plans-filter-paid-advance = Avans plătit
+expense-plans-filter-min-amount = Sumă minimă
+expense-plans-filter-max-amount = Sumă maximă
+
+expense-plans-chip-prefix-plan-date = Data planului
+expense-plans-chip-prefix-start-date = Data de Început
+expense-plans-chip-prefix-end-date = Data de Sfârşit
+expense-plans-chip-prefix-effective-date = Dată efectivă
+
+personal-expenses-month-january = Ianuarie
+personal-expenses-month-february = Februarie
+personal-expenses-month-march = Martie
+personal-expenses-month-april = Aprilie
+personal-expenses-month-may = Mai
+personal-expenses-month-june = Iunie
+personal-expenses-month-july = Iulie
+personal-expenses-month-august = August
+personal-expenses-month-september = Septembrie
+personal-expenses-month-october = Octombrie
+personal-expenses-month-november = Noiembrie
+personal-expenses-month-december = Decembrie
+
+expense-details-value-not-available = N/A
+expense-details-label-employee = Angajat
+expense-details-label-employee-code = Cod angajat
+expense-details-label-sap-number = Numărul SAP
+expense-details-label-creation-date = Data creării
+expense-details-label-remaining-amount = Suma rămasă
+expense-details-label-total-amount = Suma Totală
+
+personal-expenses-advance-list-title = Plățile mele în avans
+personal-expenses-search-advance-payments = Caută plăți în avans...
+personal-expenses-no-expense-plan = Fără plan de cheltuieli
+personal-expenses-column-expense-plan = Plan de Cheltuieli
+personal-expenses-column-amount = Sumă
+personal-expenses-column-advance-payment = Avans
+personal-expenses-column-payment-method = Metodă de plată
+personal-expenses-payment-direct-deposit = Depunere Directă
+personal-expenses-payment-cash-payment = Plată în Numerar
+personal-expenses-advance-sort-created = Creat la
+personal-expenses-filter-created-in-month = Creat în
+personal-expenses-filter-amount-range-label = Interval sumă
+personal-expenses-filter-advance-range-label = Interval avans
+personal-expenses-filter-min-amount-plain = Sumă minimă
+personal-expenses-filter-max-amount-plain = Sumă maximă
+personal-expenses-filter-min-advance-plain = Avans minim
+personal-expenses-filter-max-advance-plain = Avans maxim
+personal-expenses-add-button = Adaugă
+personal-expenses-view-advance-payment-details = Vizualizează detalii plată în avans
+personal-expenses-advance-payment-details-title = Detalii plată în avans
+personal-expenses-expense-plan-details-title = Detalii plan cheltuieli
+personal-expenses-expense-request-details-title = Detalii cerere cheltuială
+personal-expenses-generate-document = Generează document
+personal-expenses-advance-payment-default-title = Plată în avans
+personal-expenses-document-fallback-filename = Document
+personal-expenses-document-downloaded-toast = Document descărcat
+personal-expenses-document-download-failed-toast = Descărcarea documentului a eșuat
+personal-expenses-from-last-month = față de luna trecută
+personal-expenses-total-payments-for-month = Plăți totale pentru
+personal-expenses-submitted-advance-payments = Plăți în avans trimise
+personal-expenses-total-amount-for-month = Sumă totală pentru
+personal-expenses-across-all-payments = În toate plățile
+personal-expenses-pending-payments-title = Plăți neefectuate
+personal-expenses-awaiting-approval = În așteptarea aprobării
+personal-expenses-approved-payments-title = Plăți aprobate
+personal-expenses-ready-for-processing = Pregătit pentru procesare
+personal-expenses-no-advance-payment-statistics = Nu există statistici pentru plățile în avans.
+personal-expenses-no-advance-payments-found = Nu s-au găsit plăți în avans. Creează prima plată în avans pentru a începe.
+personal-expenses-user-information-not-loaded = Informațiile utilizatorului nu sunt încă încărcate. Vă rugăm să așteptați și să încercați din nou.

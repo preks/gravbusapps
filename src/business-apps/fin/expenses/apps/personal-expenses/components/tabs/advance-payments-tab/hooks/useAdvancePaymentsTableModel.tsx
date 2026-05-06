@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { Button, useTranslation } from '@newwork/nw-design-system'
-import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
 import personalTranslations from '../../../../_i18n'
 import { message } from 'antd'
 import { startProcess } from '@/common/utils/start-process'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useGetAdvancePayments, type AdvancePayment } from '../../../../hooks/useGetAdvancePayments'
 import { useAdvancePaymentCurrencies } from '../../../../hooks/useAdvancePaymentCurrencies'
@@ -14,9 +12,10 @@ import { useVisibleColumns } from '@/business-apps/fin/expenses/common/hooks/use
 import { CurrencyDropdown } from '../../../shared/TableSharedComponents'
 import { createPersonalAdvancePaymentFilterConfig } from '../config/advancePaymentFilterConfig'
 import {
-  advancePaymentAvailableColumns,
+  createAdvancePaymentAvailableColumns,
   advancePaymentDefaultVisibleColumnIds
 } from '../config/advancePaymentAvailableColumns'
+import { createAdvancePaymentSortableColumns } from '../config/advancePaymentSortableColumns'
 import { createAdvancePaymentColumns } from '../table/columns/advancePaymentColumns'
 import { AdvancePaymentRowActions } from '../table/components/AdvancePaymentRowActions'
 import type { AdvancePaymentsDataBodyProps } from '../table/components/AdvancePaymentsDataBody'
@@ -39,7 +38,6 @@ export interface UseAdvancePaymentsTableModelResult {
 }
 
 export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): UseAdvancePaymentsTableModelResult {
-  useTranslation(advancePaymentDetailsTranslations)
   const { t: tPersonal } = useTranslation(personalTranslations)
 
   const contextProps = useMemo(
@@ -85,9 +83,12 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
   const debouncedSearchText = useDebounce(searchText, 200)
 
   const advancePaymentsFilterConfig = useMemo(
-    () => createPersonalAdvancePaymentFilterConfig({ filterLabelMap }),
-    [filterLabelMap]
+    () => createPersonalAdvancePaymentFilterConfig({ filterLabelMap, t: tPersonal }),
+    [filterLabelMap, tPersonal]
   )
+
+  const availableColumns = useMemo(() => createAdvancePaymentAvailableColumns(tPersonal), [tPersonal])
+  const sortableColumns = useMemo(() => createAdvancePaymentSortableColumns(tPersonal), [tPersonal])
 
   const filtersObject = useMemo((): Record<string, unknown> => {
     const statusIds = currentStatusFilter.filter(
@@ -150,7 +151,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
   )
 
   const [rawVisibleColumns, setRawVisibleColumns] = useState<string[]>(() => [...advancePaymentDefaultVisibleColumnIds])
-  const visibleColumnIds = useVisibleColumns(rawVisibleColumns, advancePaymentAvailableColumns)
+  const visibleColumnIds = useVisibleColumns(rawVisibleColumns, availableColumns)
 
   const selectedCurrencyCode = useMemo(
     () => resolveSelectedCurrencyCode(props.selectedFilters || [], currencyStats),
@@ -315,7 +316,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     const employeeId = contextProps.userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
       console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.')
-      message.warning('User information not loaded yet. Please wait a moment and try again.')
+      message.warning(tPersonal('personal-expenses-user-information-not-loaded'))
       return
     }
 
@@ -327,7 +328,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
       },
       builderType: 'NATIVE_SCREEN'
     })
-  }, [contextProps.userInfo?.employeeDetails?.employeeId])
+  }, [contextProps.userInfo?.employeeDetails?.employeeId, tPersonal])
 
   const handleSelectItem = useCallback((item: AdvancePayment) => {
     setSelectedItem(item)
@@ -361,7 +362,22 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     setPageSize(newPagination.pageSize)
   }, [])
 
-  const emptyMessage = tPersonal('table-empty-filtered')
+  const hasActiveFilters = useMemo(
+    () =>
+      Boolean(
+        (debouncedSearchText || '').trim() ||
+          currentAmountRange?.min != null ||
+          currentAmountRange?.max != null ||
+          currentAdvanceRange?.min != null ||
+          currentAdvanceRange?.max != null ||
+          (currentCardCreatedAtRange?.gte && currentCardCreatedAtRange?.lte)
+      ),
+    [debouncedSearchText, currentAmountRange, currentAdvanceRange, currentCardCreatedAtRange]
+  )
+
+  const emptyMessage = hasActiveFilters
+    ? tPersonal('table-empty-filtered')
+    : tPersonal('personal-expenses-no-advance-payments-found')
 
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null)
@@ -398,6 +414,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
       <AdvancePaymentRowActions
         record={row.original}
         accessToken={contextProps.accessToken}
+        t={tPersonal}
         onViewDetails={handleSelectItem}
         onViewExpensePlanDetails={handleViewExpensePlanDetails}
         onViewExpenseRequestDetails={handleViewExpenseRequestDetails}
@@ -406,6 +423,7 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     ),
     [
       contextProps.accessToken,
+      tPersonal,
       handleSelectItem,
       handleViewExpensePlanDetails,
       handleViewExpenseRequestDetails,
@@ -422,13 +440,10 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
         data-testid="add-advance-payment-button"
         type="button"
       >
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.btn_add',
-          'Add'
-        )}
+        {tPersonal('personal-expenses-add-button')}
       </Button>
     ),
-    [handleAddAdvancePayment]
+    [handleAddAdvancePayment, tPersonal]
   )
 
   const secondaryActions = useMemo(
@@ -455,6 +470,10 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
       onFilterChangeFromDisplay: handleFilterChangeFromDisplay,
       sorting,
       onSortingChange: handleSortingChange,
+      sortableColumns,
+      availableColumns,
+      listSectionLabel: tPersonal('personal-expenses-advance-list-title'),
+      searchPlaceholder: tPersonal('personal-expenses-search-advance-payments'),
       primaryAction,
       secondaryActions,
       visibleColumns: visibleColumnIds,
@@ -480,6 +499,9 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     handleFilterChangeFromDisplay,
     sorting,
     handleSortingChange,
+    sortableColumns,
+    availableColumns,
+    tPersonal,
     primaryAction,
     secondaryActions,
     visibleColumnIds,

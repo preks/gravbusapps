@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react'
 import { AppAction } from '@/components/app-action'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 import { RowActionsIcon, RowActionsWrapper } from '../../../shared/TableSharedComponents'
@@ -12,6 +11,7 @@ export interface UseExpensePlanRowActionsParams {
   onPrintPlan: (record: ExpensePlan) => void
   onViewExpensePlanDetails: (record: ExpensePlan) => void
   onViewExpenseRequestDetails: (record: ExpensePlan) => void
+  t: (key: string) => string
 }
 
 function hasExpenseRequest(record: ExpensePlan): boolean {
@@ -27,19 +27,14 @@ export function useExpensePlanRowActions({
   accessToken,
   onPrintPlan,
   onViewExpensePlanDetails,
-  onViewExpenseRequestDetails
+  onViewExpenseRequestDetails,
+  t
 }: Readonly<UseExpensePlanRowActionsParams>) {
   return useCallback(
     (row: { original: ExpensePlan }) => {
       const record = row.original
-      const actionsCategory = getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_list.flows_button.actions',
-        'Actions'
-      )
-      const navigationsCategory = getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_list.flows_button.navigations',
-        'Navigations'
-      )
+      const actionsCategory = t('expense-items-row-category-actions')
+      const navigationsCategory = t('expense-items-row-category-navigations')
 
       const updatePlanAction =
         record.status === 'CREATED' || record.status === 'REJECTED'
@@ -47,10 +42,7 @@ export function useExpensePlanRowActions({
               {
                 category: actionsCategory,
                 key: 'update-plan',
-                label: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_plan_list.expense_plan_flows.update_plan',
-                  'Update Plan'
-                ),
+                label: t('expense-plans-row-update-plan'),
                 onClick: () => {
                   startProcess({
                     domain: 'employee-expense',
@@ -72,10 +64,7 @@ export function useExpensePlanRowActions({
               {
                 category: actionsCategory,
                 key: 'print',
-                label: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_plan_list.expense_plan_flows.print',
-                  'Print'
-                ),
+                label: t('expense-plans-row-print'),
                 onClick: () => onPrintPlan(record)
               }
             ]
@@ -87,10 +76,7 @@ export function useExpensePlanRowActions({
               {
                 category: actionsCategory,
                 key: 'request-advance',
-                label: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label',
-                  'Request Advance Payment'
-                ),
+                label: t('expense-plans-row-request-advance-payment'),
                 onClick: () => {
                   startProcess({
                     domain: 'employee-expense',
@@ -112,10 +98,7 @@ export function useExpensePlanRowActions({
               {
                 category: actionsCategory,
                 key: 'create-expense-request',
-                label: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_list.flows_button.create_expense_request',
-                  'Create Expense Request'
-                ),
+                label: t('expense-items-create-expense-request'),
                 onClick: () => {
                   startProcess({
                     domain: 'employee-expense',
@@ -134,10 +117,7 @@ export function useExpensePlanRowActions({
       const viewPlanDetailsAction = {
         category: navigationsCategory,
         key: 'view-plan-details',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details_btn',
-          'View Plan Details'
-        ),
+        label: t('expense-plans-row-view-plan-details'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onViewExpensePlanDetails(record)
@@ -149,10 +129,7 @@ export function useExpensePlanRowActions({
             {
               category: navigationsCategory,
               key: 'view-request-details',
-              label: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                'View Request Details'
-              ),
+              label: t('expense-plans-row-view-request-details'),
               onClick: (e?: React.MouseEvent) => {
                 e?.stopPropagation()
                 onViewExpenseRequestDetails(record)
@@ -182,6 +159,6 @@ export function useExpensePlanRowActions({
         </RowActionsWrapper>
       )
     },
-    [employeeId, accessToken, onPrintPlan, onViewExpensePlanDetails, onViewExpenseRequestDetails]
+    [employeeId, accessToken, onPrintPlan, onViewExpensePlanDetails, onViewExpenseRequestDetails, t]
   )
 }

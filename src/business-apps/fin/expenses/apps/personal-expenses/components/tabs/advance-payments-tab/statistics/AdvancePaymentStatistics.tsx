@@ -1,11 +1,12 @@
 import React, { useMemo, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetAdvancePaymentStatistics } from '../../../../hooks/useGetAdvancePaymentStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../utils'
 import { kpiHeaderCurrencyLabel } from '../../../../utils/kpiHeaderCurrencyLabel'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
+import personalTranslations from '../../../../_i18n'
 
 interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean
@@ -24,6 +25,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   selectedCurrencyRef = 'Currency:v1:EUR',
   ...contextProps
 }) => {
+  const { t } = useTranslation(personalTranslations)
   // Memoize context props to ensure stable reference
   const stableContextProps = useMemo(
     () => ({
@@ -48,7 +50,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   // Fetching is handled inside the hook; avoid duplicate calls from here
 
   // Calculate current month name
-  const currentMonthName = getTranslatedMonthName(new Date())
+  const currentMonthName = getTranslatedMonthName(new Date(), t)
 
   const currencyCode = useMemo(() => selectedCurrencyRef?.split(':').pop()?.trim() || 'EUR', [selectedCurrencyRef])
 
@@ -75,46 +77,46 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('personal-expenses-from-last-month')
       }
     }
     if (paymentsPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('personal-expenses-from-last-month')
       }
     }
     const sign = paymentsPercentageChange > 0 ? '+' : ''
     return {
       value: `${sign}${paymentsPercentageChange.toFixed(0)}%`,
       positive: paymentsPercentageChange >= 0,
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+      description: t('personal-expenses-from-last-month')
     }
-  }, [paymentsPercentageChange, statistics.currentMonthPayments, statistics.previousMonthPayments])
+  }, [t, paymentsPercentageChange, statistics.currentMonthPayments, statistics.previousMonthPayments])
 
   const amountTrend = useMemo(() => {
     if (statistics.previousMonthAmount === 0 && statistics.currentMonthAmount > 0) {
       return {
         value: '+100%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('personal-expenses-from-last-month')
       }
     }
     if (amountPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('personal-expenses-from-last-month')
       }
     }
     const sign = amountPercentageChange > 0 ? '+' : ''
     return {
       value: `${sign}${amountPercentageChange.toFixed(0)}%`,
       positive: amountPercentageChange >= 0,
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+      description: t('personal-expenses-from-last-month')
     }
-  }, [amountPercentageChange, statistics.currentMonthAmount, statistics.previousMonthAmount])
+  }, [t, amountPercentageChange, statistics.currentMonthAmount, statistics.previousMonthAmount])
 
   // Handle widget clicks (WidgetGroup also calls widget.onClick for card styling; keep no-op there to avoid double-invoke)
   const handleWidgetClick = useCallback(
@@ -137,38 +139,23 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     () => [
       {
         key: 'total-payments',
-        title:
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.total_payments_for_month',
-            'Total Payments for'
-          ) +
-          ' ' +
-          currentMonthName,
+        title: `${t('personal-expenses-total-payments-for-month')} ${currentMonthName}`,
         value: statistics.currentMonthPayments || 0,
         prefix: kpiHeaderCurrencyLabel(currencyCode),
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 6 },
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.submitted_advance_payments',
-          'Submitted advance payments'
-        ),
+        description: t('personal-expenses-submitted-advance-payments'),
         trend: paymentsTrend,
         active: activeWidgetKey === 'total-payments',
         onClick: widgetClickNoop
       },
       {
         key: 'total-amount',
-        title:
-          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_amount_for_month', 'Total Amount for') +
-          ' ' +
-          currentMonthName,
+        title: `${t('personal-expenses-total-amount-for-month')} ${currentMonthName}`,
         value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), currencyCode)}`,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 6 },
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.across_all_payments',
-          'Across all payments'
-        ),
+        description: t('personal-expenses-across-all-payments'),
         trend: amountTrend,
         valueIsString: true,
         active: activeWidgetKey === 'total-amount',
@@ -176,33 +163,30 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       },
       {
         key: 'pending-payments',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payments', 'Pending Payments'),
+        title: t('personal-expenses-pending-payments-title'),
         value: statistics.pendingPayments || 0,
         prefix: kpiHeaderCurrencyLabel(currencyCode),
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 6 },
-        footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_approval', 'Awaiting approval'),
+        footer: t('personal-expenses-awaiting-approval'),
         trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'pending-payments',
         onClick: widgetClickNoop
       },
       {
         key: 'approved-payments',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.approved_payments', 'Approved Payments'),
+        title: t('personal-expenses-approved-payments-title'),
         value: statistics.approvedPayments || 0,
         prefix: kpiHeaderCurrencyLabel(currencyCode),
         color: '#52c41a',
         span: { xs: 24, sm: 12, md: 6 },
-        footer: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.ready_for_processing',
-          'Ready for processing'
-        ),
+        footer: t('personal-expenses-ready-for-processing'),
         trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'approved-payments',
         onClick: widgetClickNoop
       }
     ],
-    [currentMonthName, currencyCode, statistics, paymentsTrend, amountTrend, activeWidgetKey, widgetClickNoop]
+    [t, currentMonthName, currencyCode, statistics, paymentsTrend, amountTrend, activeWidgetKey, widgetClickNoop]
   )
 
   return (
@@ -214,10 +198,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       onWidgetClick={handleWidgetClick}
       skeletonCount={4}
       useWidgetStructureForLoading={true}
-      emptyText={getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.no_advance_payment_statistics_available',
-        'No advance payment statistics available.'
-      )}
+      emptyText={t('personal-expenses-no-advance-payment-statistics')}
       data-testid="advance-payment-statistics"
     />
   )

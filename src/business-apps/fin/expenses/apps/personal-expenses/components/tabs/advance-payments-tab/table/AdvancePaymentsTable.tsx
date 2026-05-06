@@ -1,5 +1,6 @@
 import React from 'react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import personalTranslations from '../../../../_i18n'
 import AdvancePaymentDetails from '../details/AdvancePaymentDetails'
 import ExpensePlanDetails from '../../expense-plans-tab/details/ExpensePlanDetails'
 import ExpenseRequestDetails from '../../expense-requests-tab/details/ExpenseRequestDetails'
@@ -50,6 +51,7 @@ function resolveExpensePlanTypeLabel(selectedExpensePlan: unknown): string | und
 }
 
 const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTableProps>((props, ref) => {
+  const { t } = useTranslation(personalTranslations)
   const model = useAdvancePaymentsTableModel(props)
 
   return (
@@ -59,13 +61,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       <DetailsSheet
         open={!!model.selectedItem}
         onOpenChange={open => !open && model.handleCloseDetails()}
-        title={
-          model.selectedItem?.expensePlan?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.advance_payment_details',
-            'Advance Payment Details'
-          )
-        }
+        title={model.selectedItem?.expensePlan?.title || t('personal-expenses-advance-payment-details-title')}
         testId="advance-payment-details-sheet"
         onClose={model.handleCloseDetails}
       >
@@ -83,10 +79,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         onOpenChange={open => !open && model.handleCloseDetails()}
         title={
           (model.selectedExpensePlan as { title?: string } | null)?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_plan.expense_subtitle_details',
-            'Expense Plan Details'
-          )
+          t('personal-expenses-expense-plan-details-title')
         }
         testId="expense-plan-details-sheet"
         onClose={model.handleCloseDetails}
@@ -107,10 +100,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         onOpenChange={open => !open && model.handleCloseDetails()}
         title={
           (model.selectedExpenseRequest as { title?: string } | null)?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-            'Expense Request Details'
-          )
+          t('personal-expenses-expense-request-details-title')
         }
         testId="expense-request-details-sheet"
         onClose={model.handleCloseDetails}

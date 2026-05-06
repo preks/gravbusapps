@@ -1,6 +1,7 @@
 import type { CellContext, ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
-import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
+import { expenseTableColumnHeader } from '@/business-apps/fin/expenses/common/columns/expenseColumnHelpers'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 import { formatCurrencyDisplay, getExpensePlanStatusDisplayT } from '../../../../utils'
 
@@ -102,57 +103,59 @@ export function createExpensePlanColumns(t: (key: string) => string): ColumnDef<
     {
       id: 'code',
       accessorKey: 'code',
-      header: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
-        'Plan Number'
-      ),
-      size: 120,
+      header: expenseTableColumnHeader(t('expense-plans-column-plan-number')),
+      size: 132,
+      minSize: 120,
+      maxSize: 200,
       cell: renderCodeCell
     },
     {
       id: 'title',
       accessorKey: 'title',
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title'),
+      header: expenseTableColumnHeader(t('expense-items-column-title')),
       size: 200,
+      minSize: 160,
       cell: renderTitleCell
     },
     {
       id: 'planDate',
       accessorKey: 'planDate',
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date'),
-      size: 110,
+      header: expenseTableColumnHeader(t('expense-plans-column-plan-date')),
+      size: 128,
+      minSize: 118,
       sortDescFirst: true,
       cell: renderPlanDateCell
     },
     {
       id: 'startDate',
       accessorKey: 'startDate',
-      header: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_plan_list.expense_plan_table.start_date',
-        'Start Date'
-      ),
-      size: 110,
+      header: expenseTableColumnHeader(t('personal-expenses-filter-label-start-date')),
+      size: 128,
+      minSize: 118,
       cell: renderStartDateCell
     },
     {
       id: 'endDate',
       accessorKey: 'endDate',
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date'),
-      size: 110,
+      header: expenseTableColumnHeader(t('expense-plans-column-end-date')),
+      size: 128,
+      minSize: 118,
       cell: renderEndDateCell
     },
     {
       id: 'status',
       accessorKey: 'status',
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+      header: expenseTableColumnHeader(t('expense-items-column-status')),
       size: 100,
+      minSize: 96,
       cell: renderStatusCell
     },
     {
       id: 'reimbursableAmount',
       accessorKey: 'reimbursableAmount',
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount'),
-      size: 140,
+      header: expenseTableColumnHeader(t('expense-items-column-reimbursable')),
+      size: 148,
+      minSize: 132,
       sortDescFirst: false,
       meta: { align: 'right' as const },
       cell: renderReimbursableAmountCell
@@ -160,11 +163,9 @@ export function createExpensePlanColumns(t: (key: string) => string): ColumnDef<
     {
       id: 'advancePaymentPaidAmount',
       accessorKey: 'advancePaymentPaidAmount',
-      header: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_plan_list.expense_plan_table.paid_advance',
-        'Paid Advance'
-      ),
-      size: 120,
+      header: expenseTableColumnHeader(t('expense-plans-column-paid-advance')),
+      size: 132,
+      minSize: 120,
       sortDescFirst: false,
       meta: { align: 'right' as const },
       cell: renderPaidAdvanceCell

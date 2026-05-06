@@ -1,10 +1,8 @@
 import React from 'react'
 import { DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import ExpenseDataTable from '@/business-apps/fin/expenses/common/components/table/ExpenseDataTable'
-import { advancePaymentAvailableColumns } from '../../config/advancePaymentAvailableColumns'
-import { advancePaymentSortableColumns } from '../../config/advancePaymentSortableColumns'
+import type { ColumnConfig } from '@/business-apps/fin/expenses/common/types/columnTypes'
 import type { AdvancePayment } from '../../../../../hooks/useGetAdvancePayments'
 import { ADVANCE_PAYMENTS_TABLE_DATA_TEST_ID } from '../columns/advancePaymentColumns'
 
@@ -18,6 +16,10 @@ export interface AdvancePaymentsDataBodyProps {
   onFilterChangeFromDisplay: (filters: Record<string, unknown>) => void
   sorting: Array<{ id: string; desc: boolean }>
   onSortingChange: (sorting: Array<{ id: string; desc: boolean }>) => void
+  sortableColumns: ColumnConfig[]
+  availableColumns: ColumnConfig[]
+  listSectionLabel: string
+  searchPlaceholder: string
   primaryAction: React.ReactNode
   secondaryActions: React.ReactNode | undefined
   visibleColumns: string[]
@@ -44,6 +46,10 @@ export function AdvancePaymentsDataBody({
   onFilterChangeFromDisplay,
   sorting,
   onSortingChange,
+  sortableColumns,
+  availableColumns,
+  listSectionLabel,
+  searchPlaceholder,
   primaryAction,
   secondaryActions,
   visibleColumns,
@@ -70,28 +76,23 @@ export function AdvancePaymentsDataBody({
       titleSections={[
         {
           id: 'list',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_lists.my_advance_payments.title',
-            'My Advance Payments'
-          ),
+          label: listSectionLabel,
           metadata: { count: totalCount, isLoading }
         }
       ]}
       currentSection="list"
       searchValue={searchText}
-      searchPlaceholder={
-        getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') + '...'
-      }
+      searchPlaceholder={searchPlaceholder}
       onSearchChange={onSearchChange}
       filters={filtersObject}
       filterConfiguration={advancePaymentsFilterConfig}
       onFilterChange={onFilterChangeFromDisplay}
       sorting={sorting}
-      sortableColumns={advancePaymentSortableColumns}
+      sortableColumns={sortableColumns}
       onSortingChange={onSortingChange}
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
-      availableColumns={advancePaymentAvailableColumns}
+      availableColumns={availableColumns}
       visibleColumns={visibleColumns}
       onVisibleColumnsChange={onVisibleColumnsChange}
       toolbarDensity="default"

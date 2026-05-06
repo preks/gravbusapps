@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetExpenseRequestStatistics } from '../../../../hooks/useGetExpenseRequestStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -6,6 +7,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../utils'
 import { kpiHeaderCurrencyLabel } from '../../../../utils/kpiHeaderCurrencyLabel'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
+import personalTranslations from '../../../../_i18n'
 
 interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean
@@ -43,6 +45,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   currencyInitialized,
   ...contextProps
 }) => {
+  const { t } = useTranslation(personalTranslations)
   const effectiveCurrencyCode = getEffectiveCurrencyCode(currencyCode, selectedCurrencyRef)
 
   // Memoize context props to ensure stable reference
@@ -83,7 +86,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   ])
 
   // Calculate current month name
-  const currentMonthName = getTranslatedMonthName(new Date())
+  const currentMonthName = getTranslatedMonthName(new Date(), t)
 
   // Calculate percentage changes for trend data
   const totalRequestsPercentageChange = useMemo(() => {

@@ -1,10 +1,12 @@
-import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 import React, { useMemo, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { CompassIcon } from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { formatCurrencyDisplay } from '../../../../utils'
 import { kpiHeaderCurrencyLabel } from '../../../../utils/kpiHeaderCurrencyLabel'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
+import personalTranslations from '../../../../_i18n'
 
 interface ExpensePlanStatisticsProps {
   currentMonthTotal: number
@@ -40,11 +42,9 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
   previousMonthClosedPlans = 0,
   currencyCode = 'EUR'
 }) => {
-  // Calculate summary statistics with memoization
-  // All hooks must be called before any early returns to comply with Rules of Hooks
-  const currentMonthName = getTranslatedMonthName(new Date())
+  const { t } = useTranslation(personalTranslations)
+  const currentMonthName = getTranslatedMonthName(new Date(), t)
 
-  // Use closed plans data for total plans widget
   const totalPlans = useMemo(() => currentMonthClosedPlans, [currentMonthClosedPlans])
 
   const percentageChange = useMemo(() => {
@@ -59,25 +59,24 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: 'from last month'
+        description: t('expense-items-stat-from-last-month')
       }
     }
     if (percentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('expense-items-stat-from-last-month')
       }
     }
     const sign = percentageChange > 0 ? '+' : ''
     return {
       value: `${sign}${percentageChange.toFixed(0)}%`,
       positive: percentageChange >= 0,
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+      description: t('expense-items-stat-from-last-month')
     }
-  }, [percentageChange, currentMonthClosedPlans, previousMonthClosedPlans])
+  }, [t, percentageChange, currentMonthClosedPlans, previousMonthClosedPlans])
 
-  // Calculate estimated amount trend
   const estimatedAmountPercentageChange = useMemo(() => {
     if (previousMonthTotal === 0) {
       return currentMonthTotal > 0 ? 100 : 0
@@ -90,38 +89,34 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('expense-items-stat-from-last-month')
       }
     }
     if (estimatedAmountPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('expense-items-stat-from-last-month')
       }
     }
     const sign = estimatedAmountPercentageChange > 0 ? '+' : ''
     return {
       value: `${sign}${estimatedAmountPercentageChange.toFixed(0)}%`,
       positive: estimatedAmountPercentageChange >= 0,
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+      description: t('expense-items-stat-from-last-month')
     }
-  }, [estimatedAmountPercentageChange, currentMonthTotal, previousMonthTotal])
+  }, [t, estimatedAmountPercentageChange, currentMonthTotal, previousMonthTotal])
 
-  // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback(
     (widgetKey: string) => {
-      // Prevent clicking when statistics are still loading
       if (statsLoading) {
         return
       }
 
-      // Prevent clicking destination widget when it's loading
       if (widgetKey === 'top-destinations' && destinationLoading) {
         return
       }
 
-      // Provide immediate visual feedback - let parent component handle all filtering
       if (onWidgetClick) {
         onWidgetClick(widgetKey)
       }
@@ -129,64 +124,47 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
     [onWidgetClick, statsLoading, destinationLoading]
   )
 
-  // Compute destination value and description separately to avoid nested ternary operations
   const destinationValue = useMemo(() => {
     if (destinationLoading) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')
+      return t('expense-plans-stat-loading')
     }
     if (topDestination && topDestination !== 'N/A') {
       return getCatalogValue(topDestination)
     }
     return topDestination
-  }, [destinationLoading, topDestination])
+  }, [destinationLoading, topDestination, t])
 
   const destinationDescription = useMemo(() => {
     if (destinationLoading) {
       return ''
     }
     if (topDestination && topDestination !== 'N/A') {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.most_frequent', 'Most frequent')
+      return t('expense-plans-stat-most-frequent')
     }
-    return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_data_available', 'No data available')
-  }, [destinationLoading, topDestination])
+    return t('expense-plans-stat-no-data-available')
+  }, [destinationLoading, topDestination, t])
 
-  // No-trend widgets: value, empty row, footer (same layout as expense dashboard)
   const widgets: WidgetItem[] = useMemo(
     () => [
       {
         key: 'total-plans',
-        title:
-          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_plans_for_month', 'Total Plans for') +
-          ' ' +
-          currentMonthName,
+        title: `${t('expense-plans-stat-total-plans-for-month-prefix')} ${currentMonthName}`,
         value: totalPlans,
         prefix: kpiHeaderCurrencyLabel(currencyCode),
         color: '#1677ff',
         span: { xs: 24, sm: 12, md: 6 },
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.closed_expense_plans',
-          'Closed expense plans'
-        ),
+        description: t('expense-plans-stat-closed-expense-plans'),
         trend: plansTrend,
         active: activeWidgetKey === 'total-plans',
         onClick: () => handleWidgetClick('total-plans')
       },
       {
         key: 'total-estimated',
-        title:
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.total_estimated_for_month',
-            'Total Estimated for'
-          ) +
-          ' ' +
-          currentMonthName,
+        title: `${t('expense-plans-stat-total-estimated-for-month-prefix')} ${currentMonthName}`,
         value: `${formatCurrencyDisplay(String(totalEstimated ?? '0'), currencyCode)}`,
         color: '#3f8600',
         span: { xs: 24, sm: 12, md: 6 },
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.request_amount_title_text',
-          'Estimated expenses'
-        ),
+        description: t('expense-plans-stat-estimated-expenses'),
         trend: estimatedAmountTrend,
         valueIsString: true,
         active: activeWidgetKey === 'total-estimated',
@@ -194,19 +172,19 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       },
       {
         key: 'pending-approval',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_approval', 'Pending Approval'),
+        title: t('expense-plans-stat-pending-approval'),
         value: pendingApproval,
         prefix: kpiHeaderCurrencyLabel(currencyCode),
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 6 },
-        footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requires_action', 'Requires action'),
+        footer: t('expense-plans-stat-requires-action'),
         trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'pending-approval',
         onClick: () => handleWidgetClick('pending-approval')
       },
       {
         key: 'top-destinations',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination', 'Top Destination'),
+        title: t('expense-plans-stat-top-destination'),
         value: destinationValue,
         prefix: <CompassIcon size={16} />,
         color: '#722ed1',
@@ -216,7 +194,6 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
         trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'top-destinations',
         onClick: () => {
-          // Prevent clicking when loading or when there's no valid destination data
           if (destinationLoading || !topDestination || topDestination === 'N/A') {
             return
           }
@@ -225,6 +202,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       }
     ],
     [
+      t,
       currentMonthName,
       totalPlans,
       totalEstimated,
@@ -250,10 +228,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       onWidgetClick={onWidgetClick}
       skeletonCount={4}
       useWidgetStructureForLoading={true}
-      emptyText={getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.no_expense_plan_statistics_available',
-        'No expense plan statistics available.'
-      )}
+      emptyText={t('expense-plans-stat-empty')}
       data-testid="expense-plan-statistics"
     />
   )
