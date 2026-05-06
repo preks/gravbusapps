@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { QueryType } from '@/common/network/dataset'
 import { useDatasetQuery } from './useDatasetQuery'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 interface HealthInsuranceItem {
   name: string
@@ -45,8 +47,15 @@ const transformHealthInsuranceDistribution = (rows: any[]): HealthInsuranceItem[
  * Returns distribution data, loading state, and any error
  */
 export const useHealthInsuranceDistribution = (accessToken: string): HealthInsuranceDistributionHookResult => {
-  // Memoize empty params to avoid infinite re-renders
-  const params = useMemo(() => ({}), [])
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
+  const structureId = getCurrentActiveStructureId()
+  const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+  const params = useMemo(() => {
+    const queryParams: Record<string, string> = {}
+    queryParams.structureId = structureId || 'null'
+    if (companyIdsParam) queryParams.companyIds = companyIdsParam
+    return queryParams
+  }, [companyIdsParam, structureId])
 
   const {
     data: distribution,

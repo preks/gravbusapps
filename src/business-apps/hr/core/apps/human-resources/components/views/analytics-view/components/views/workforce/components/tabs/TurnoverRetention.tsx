@@ -12,6 +12,7 @@ import { useChartTableSelection } from '../../../../../hooks/useChartTableSelect
 import { HIGHLIGHT_BADGE } from '../../../../shared/AnalyticsDataTable'
 import type { AnalyticsTableData } from '../../../../shared/analyticsTabTypes'
 import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
+import AnalyticsTabLoadingState from '../../../../shared/AnalyticsTabLoadingState'
 import SelectableChartCard from '../../../../shared/SelectableChartCard'
 import AnalyticsTableSection from '../../../../shared/AnalyticsTableSection'
 import { renderPeriodValueCell } from '../../../../shared/analyticsTableRenderers'
@@ -91,6 +92,12 @@ const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
   ]
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
 
+  if (isLoading) {
+    return (
+      <AnalyticsTabLoadingState dataTestId="turnover-retention-loading" message={t('hr-data-filter-loading-data')} />
+    )
+  }
+
   if (error) {
     return (
       <AnalyticsTabErrorCard
@@ -110,7 +117,7 @@ const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
       <TurnoverRetentionStatistics statistics={statistics} isLoading={isLoading} dataTestId="turnover-retention" />
 
       {/* Interactive Charts Section */}
-      <div className="gba:mb-4">
+      <div className="gba:mt-6 gba:mb-4">
         <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
           {t('hr-analytics-turnover-retention-analysis')}
         </h3>

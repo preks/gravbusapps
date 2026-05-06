@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useEmployeeCount } from './useEmployeeCount'
 import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 export interface EmploymentTypeDistribution {
   id: string
@@ -17,6 +18,7 @@ export interface EmploymentTypeDistribution {
  * @param accessToken User access token
  */
 export function useEmploymentTypeDistribution(accessToken: string) {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [distribution, setDistribution] = useState<EmploymentTypeDistribution[]>([])
   // We don't need a separate initialLoading state as we combine all loading states
   const [error, setError] = useState<Error | null>(null)
@@ -38,20 +40,34 @@ export function useEmploymentTypeDistribution(accessToken: string) {
 
   // Fetch employment type distribution data from Dataset
   useEffect(() => {
-    if (countLoading || !datasetClient) return
+    if (countLoading) return
+
+    if (!datasetClient) {
+      setEmploymentTypeDataError(prev =>
+        prev?.message === 'Dataset client is not available' ? prev : new Error('Dataset client is not available')
+      )
+      setEmploymentTypeDataLoading(false)
+      return
+    }
 
     const localeCode = getCurrentActiveUserLocale()
-    const fetchKey = `${accessToken}|${localeCode}|${totalEmployees}`
+    const structureId = getCurrentActiveStructureId()
+    const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+    const fetchKey = `${accessToken}|${localeCode}|${structureId ?? ''}|${companyIdsParam}`
     if (lastFetchKeyRef.current === fetchKey) {
       return
     }
     lastFetchKeyRef.current = fetchKey
 
     setEmploymentTypeDataLoading(true)
+    setEmploymentTypeDataError(null)
 
     let p = staticCache.get(fetchKey)
     if (!p) {
-      p = datasetClient.executeQuery('employmentTypeData', QueryType.DATASET, { localeCode })
+      const params: Record<string, string> = { localeCode }
+      if (structureId) params.structureId = structureId
+      if (companyIdsParam) params.companyIds = companyIdsParam
+      p = datasetClient.executeQuery('employmentTypeData', QueryType.DATASET, params)
       staticCache.set(fetchKey, p)
     }
 
@@ -91,7 +107,7 @@ export function useEmploymentTypeDistribution(accessToken: string) {
       // Fall back to empty distribution data
       setDistribution([])
     })
-  }, [accessToken, countLoading, totalEmployees, t])
+  }, [accessToken, countLoading, datasetClient, t, selectedCompanyIds])
 
   // Combine errors if any occur
   useEffect(() => {

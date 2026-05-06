@@ -1,15 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  Button,
-  Spinner,
-  Card,
-  CardContent,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { Tabs, TabsContent, TabsList, TabsTrigger, Button, useTranslation } from '@newwork/nw-design-system'
 import { TrendUpIcon, ArrowClockwiseIcon, UsersIcon, BriefcaseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import HeadcountTrends from './components/tabs/HeadcountTrends'
@@ -17,91 +7,63 @@ import TurnoverRetention from './components/tabs/TurnoverRetention'
 import Employment from './components/tabs/Employment'
 import { useHeadcountTrendsData } from '../../../hooks/useHeadcountTrendsData'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import AnalyticsTabLoadingState from '../../shared/AnalyticsTabLoadingState'
+
+const WORKFORCE_VALID_TABS = ['headcount-trends', 'turnover-retention', 'employment'] as const
+const WORKFORCE_DEFAULT_TAB = 'headcount-trends'
 
 const Workforce: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(hrTranslations)
-  // Define valid tabs
-  const validTabs = ['headcount-trends', 'turnover-retention', 'employment']
-  const defaultTab = 'headcount-trends'
+  const [activeTab, setActiveTab] = useState<string>(WORKFORCE_DEFAULT_TAB)
 
-  // Get content from URL query parameter or use default
-  const getInitialTab = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const contentFromUrl = urlParams.get('content')
-
-    if (validTabs.includes(contentFromUrl ?? '')) {
-      return contentFromUrl!
-    } else {
-      // No valid content in URL, set default content in URL
-      const url = new URL(window.location.href)
-      url.searchParams.set('content', defaultTab)
-      window.history.replaceState({}, '', url.toString())
-      return defaultTab
-    }
-  }
-
-  const [activeTab, setActiveTab] = useState(getInitialTab)
-
-  const { statistics, isLoading, error, refetch } = useHeadcountTrendsData(context)
+  const { statistics, isLoading, refetch } = useHeadcountTrendsData(context)
 
   const prefixDataTestId = 'Workforce'
 
   // Update URL when content changes
   const handleTabChange = (key: string) => {
     setActiveTab(key)
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.location.href)
     url.searchParams.set('content', key)
-    window.history.pushState({}, '', url.toString())
+    globalThis.history.pushState({}, '', url.toString())
   }
 
   // Handle browser back/forward navigation
   useEffect(() => {
-    const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search)
+    const getTabFromUrl = () => {
+      const urlParams = new URLSearchParams(globalThis.location.search)
       const contentFromUrl = urlParams.get('content')
-      const newTab = validTabs.includes(contentFromUrl ?? '') ? contentFromUrl! : defaultTab
-      setActiveTab(newTab)
+      return WORKFORCE_VALID_TABS.includes(contentFromUrl as (typeof WORKFORCE_VALID_TABS)[number])
+        ? contentFromUrl!
+        : WORKFORCE_DEFAULT_TAB
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
+    const initialTab = getTabFromUrl()
+    setActiveTab(initialTab)
 
-  if (error) {
-    return (
-      <div
-        data-testid={`${prefixDataTestId}-error`}
-        className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-full gba:p-6 gba:rounded-lg"
-      >
-        <Card className="gba:border-destructive-secondary-foreground gba:bg-destructive-secondary-foreground/25">
-          <CardContent className="gba:p-6">
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex-1">
-                <h3 className="gba:text-destructive-secondary gba:font-medium gba:mb-2">
-                  {t('hr-analytics-failed-to-load-workforce')}
-                </h3>
-                <p className="gba:text-destructive-secondary">{error}</p>
-              </div>
-              <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
-                <ArrowClockwiseIcon />
-                {t('common-retry')}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+    if (initialTab === WORKFORCE_DEFAULT_TAB) {
+      const url = new URL(globalThis.location.href)
+      if (url.searchParams.get('content') !== WORKFORCE_DEFAULT_TAB) {
+        url.searchParams.set('content', WORKFORCE_DEFAULT_TAB)
+        globalThis.history.replaceState({}, '', url.toString())
+      }
+    }
+
+    const handlePopState = () => {
+      setActiveTab(getTabFromUrl())
+    }
+
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
+  }, [])
 
   if (isLoading) {
     return (
-      <div
-        data-testid={`${prefixDataTestId}-loading`}
-        className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-full gba:p-6 gba:rounded-lg gba:flex gba:justify-center gba:items-center gba:flex-col"
-      >
-        <Spinner className="gba:w-8 gba:h-8" />
-        <p className="gba:mt-4 gba:text-muted-foreground">{t('hr-analytics-loading-workforce')}</p>
-      </div>
+      <AnalyticsTabLoadingState
+        dataTestId={`${prefixDataTestId}-loading`}
+        message={t('hr-data-filter-loading-data')}
+        className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-full gba:p-6 gba:rounded-lg"
+      />
     )
   }
 

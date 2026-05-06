@@ -6,6 +6,8 @@ hr-employees-filters-organizational-units = Organizational Units
 hr-employees-filters-employment-types = Employment Types
 hr-employees-filters-contract-types = Contract Types
 hr-employees-filters-matrix-teams = Matrix Teams
+hr-employees-filter-sheet-title = Filter employees
+hr-employees-filter-sheet-description = Narrow the employee list by company, organizational unit, employment type, contract type, and matrix team.
 
 # Job Positions - Common
 hr-positions-vacant = Vacant
@@ -19,6 +21,12 @@ hr-positions-not-specified = Not specified
 hr-positions-filters-departments = Departments
 hr-positions-filters-job-functions = Job Functions
 hr-positions-filters-job-profiles = Job Profiles
+hr-positions-filter-sheet-title = Filter job positions
+hr-positions-filter-sheet-description = Narrow the job position list by company, department, job function, and job profile.
+
+# Insights - Filters
+hr-insights-filter-sheet-title = Filter insights
+hr-insights-filter-sheet-description = Narrow the insights by companies.
 
 # Analytics - Performance
 hr-analytics-loading-performance = Loading performance data...
@@ -32,6 +40,23 @@ hr-analytics-entity-company = Company
 hr-analytics-entity-cost-center = Cost Center
 hr-analytics-entity-organizational-unit = Organizational Unit
 hr-analytics-no-data-available = No data available
+
+# Analytics - Filters
+hr-analytics-filter-company-title = Company
+hr-analytics-filter-company-empty = No companies found
+hr-analytics-filter-company-loading = Loading companies...
+hr-analytics-filter-company-error = Failed to load companies
+hr-analytics-filter-company-search-placeholder = Search companies...
+hr-analytics-filter-sheet-title = Filter Analytics
+hr-analytics-filter-sheet-description = Narrow the analytics by companies.
+hr-analytics-filter-no-filters-configured = No filters configured
+hr-analytics-filter-clear-all = Clear all
+hr-analytics-filter-cancel = Cancel
+hr-analytics-filter-apply-filters = Apply filters
+hr-analytics-filter-button = Filters
+hr-analytics-filter-previous = Previous
+hr-analytics-filter-next = Next
+hr-analytics-filter-of = of
 
 # Analytics - Dashboard
 hr-analytics-dashboard-title = HR Analytics Dashboard
@@ -165,6 +190,17 @@ hr-analytics-avg-salary = Average Salary
 hr-analytics-average-salary = Average Salary
 hr-analytics-merit-increases = Merit Increases
 hr-analytics-average-increase = Average increase
+hr-analytics-compression-risk-score = Compression Risk Score
+hr-analytics-total-pay-gap = Total Pay Gap
+hr-analytics-unexplained-pay-gap = Unexplained Pay Gap
+hr-analytics-market-alignment = Market Alignment
+hr-analytics-equity-health-score = Equity Health Score
+hr-analytics-compression-cases-found = { $count } compression cases found
+hr-analytics-employees-analyzed = { $count } employees analyzed
+hr-analytics-comp-ratio-footer = Comp Ratio: { $value }
+hr-analytics-market-comparison-unavailable = Market comparison unavailable
+hr-analytics-equity-health-score-load-error = Failed to load equity health score
+hr-analytics-equity-health-score-no-analysis = No completed equity health analysis found
 hr-analytics-equity-health-score-title = Equity Health Score
 hr-analytics-equity-health-score-no-data-footer = No completed equity health analysis found
 hr-analytics-equity-health-score-error-footer = Unable to load equity health score
@@ -428,6 +464,7 @@ hr-analytics-health-insurance-type-distribution = Health Insurance Type Distribu
 hr-analytics-health-insurance-type-distribution-description = Distribution of employees by health insurance type showing coverage preferences and policy selection patterns
 # Data Filter (generic texts used in HR)
 hr-data-filter-loading = Loading...
+hr-data-filter-loading-data = Loading data...
 hr-data-filter-error = Error loading data
 hr-data-filter-no-data = No data available
 hr-data-filter-error-loading-filters = Error loading filters

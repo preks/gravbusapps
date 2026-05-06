@@ -121,9 +121,7 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
             {t('hr-analytics-gap-rate-by-org')}
           </h3>
-          <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-            {t('hr-analytics-gap-rate-description')}
-          </p>
+          <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">{t('hr-analytics-gap-rate-description')}</p>
         </div>
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
           <Spinner className="gba:w-8 gba:h-8" />
@@ -139,13 +137,9 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
             {t('hr-analytics-gap-rate-by-org')}
           </h3>
-          <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-            {t('hr-analytics-gap-rate-description')}
-          </p>
+          <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">{t('hr-analytics-gap-rate-description')}</p>
         </div>
-        <Alert variant="destructive">
-          {t('hr-analytics-error-message')}
-        </Alert>
+        <Alert variant="destructive">{t('hr-analytics-error-message')}</Alert>
       </Card>
     )
   }
@@ -161,9 +155,7 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
             {t('hr-analytics-position-gaps')}
           </Badge>
         </div>
-        <p className="gba:text-muted-foreground gba:text-sm">
-          {t('hr-analytics-gap-rate-description')}
-        </p>
+        <p className="gba:text-muted-foreground gba:text-sm">{t('hr-analytics-gap-rate-description')}</p>
       </div>
 
       {data.length === 0 ? (
@@ -180,6 +172,7 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
                 margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
                 barSize={20}
                 barGap={2}
+                accessibilityLayer={false}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--nw-color-border)" />
                 <XAxis
@@ -211,12 +204,7 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
                   tickLine={{ stroke: 'var(--nw-color-border)' }}
                 />
                 <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'var(--nw-color-muted)' }} />
-                <Bar
-                  name={t('hr-analytics-gap-rate')}
-                  dataKey="gapRate"
-                  radius={[0, 6, 6, 0]}
-                  animationDuration={1200}
-                >
+                <Bar name={t('hr-analytics-gap-rate')} dataKey="gapRate" radius={[0, 6, 6, 0]} animationDuration={1200}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={getBarColor(entry.gapRate)} />
                   ))}

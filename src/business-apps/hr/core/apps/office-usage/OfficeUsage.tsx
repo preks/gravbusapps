@@ -21,7 +21,11 @@ import { useLivePresence } from './hooks/useLivePresence'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getDateRangeForPreset } from './utils/dateUtils'
 
-const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId = 'office-usage' }) => {
+const OfficeUsage: React.FC<OfficeUsageProps> = ({
+  accessToken,
+  prefixDataTestId = 'office-usage',
+  companyIds = []
+}) => {
   const [activeTab, setActiveTab] = useState<'usage-overview' | 'live-presence'>('usage-overview')
   const [selectedLocationFilter, setSelectedLocationFilter] = useState<string | undefined>(undefined)
 
@@ -37,7 +41,7 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
     isLoading: locationsLoading,
     error: locationsError,
     refetch: refetchLocations
-  } = useSiteLocations(accessToken, structureId)
+  } = useSiteLocations(accessToken, structureId, companyIds)
 
   // Office attendance data
   const {
@@ -45,7 +49,7 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
     isLoading: attendanceLoading,
     error: attendanceError,
     fetchAttendance
-  } = useOfficeAttendance(accessToken, structureId)
+  } = useOfficeAttendance(accessToken, structureId, companyIds)
 
   // KPI attendance (independent, last 30 days, all locations)
   const {
@@ -53,7 +57,7 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
     isLoading: kpiLoading,
     error: kpiError,
     fetchAttendance: fetchKpiAttendance
-  } = useOfficeAttendance(accessToken, structureId)
+  } = useOfficeAttendance(accessToken, structureId, companyIds)
 
   // Live presence data
   const {
@@ -62,7 +66,7 @@ const OfficeUsage: React.FC<OfficeUsageProps> = ({ accessToken, prefixDataTestId
     error: presenceError,
     lastRefresh,
     fetchPresence
-  } = useLivePresence(accessToken, structureId)
+  } = useLivePresence(accessToken, structureId, companyIds)
 
   // Fetch attendance data when filters change
   useEffect(() => {

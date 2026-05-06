@@ -146,7 +146,11 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
           {/* Chart container */}
           <div className="gba:h-96" onMouseLeave={() => setActiveIndex(-1)}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart data-testid={`${prefixDataTestId}-rendered`} onMouseLeave={() => setActiveIndex(-1)}>
+              <PieChart
+                data-testid={`${prefixDataTestId}-rendered`}
+                onMouseLeave={() => setActiveIndex(-1)}
+                accessibilityLayer={false}
+              >
                 <Pie
                   data={chartData}
                   cx="50%"

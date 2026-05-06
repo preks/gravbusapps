@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
 import { useTurnoverRate } from './useTurnoverRate'
 import { useAverageTenure } from './useAverageTenure'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 export interface TurnoverRetentionData {
   turnoverRateOverTime: Array<{
@@ -39,6 +41,7 @@ interface UseTurnoverRetentionDataResponse {
 }
 
 export const useTurnoverRetentionData = (context: BusinessAppContextProps): UseTurnoverRetentionDataResponse => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [data, setData] = useState<TurnoverRetentionData>({
     turnoverRateOverTime: [],
     tenureDistribution: [],
@@ -66,6 +69,10 @@ export const useTurnoverRetentionData = (context: BusinessAppContextProps): UseT
   const { formattedTenure, loading: tenureLoading } = useAverageTenure(context.accessToken)
 
   const queryClient = useQueryExecutionClient(context.accessToken, Services.EMPLOYEE)
+  const lastFetchKeyRef = useRef<string>('')
+  const staticCache =
+    (useTurnoverRetentionData as any).__cache ||
+    ((useTurnoverRetentionData as any).__cache = new Map<string, Promise<any>>())
 
   const calculateStatistics = useCallback(
     (
@@ -102,35 +109,45 @@ export const useTurnoverRetentionData = (context: BusinessAppContextProps): UseT
 
       const formattedStartDate = startDate.toISOString().split('T')[0]
       const formattedEndDate = endDate.toISOString().split('T')[0]
+      const structureId = getCurrentActiveStructureId()
+      const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+      const filterParams: Record<string, string> = {}
+      if (structureId) filterParams.structureId = structureId
+      if (companyIdsParam) filterParams.companyIds = companyIdsParam
+      const fetchKey = `${context.accessToken}|${formattedStartDate}|${formattedEndDate}|${structureId ?? ''}|${companyIdsParam}`
+      if (lastFetchKeyRef.current === fetchKey) {
+        setIsLoading(false)
+        return
+      }
+      lastFetchKeyRef.current = fetchKey
 
-      console.log('[useTurnoverRetentionData] Fetching real data with date range:', {
-        startDate: formattedStartDate,
-        endDate: formattedEndDate
-      })
+      // Execute real queries in parallel with module-level dedupe (prevents duplicate
+      // calls under rapid re-renders / dev double-mount while params are identical).
+      let requestPromise = staticCache.get(fetchKey)
+      if (!requestPromise) {
+        requestPromise = Promise.all([
+          // Monthly turnover rates over time (using NEW real percentage query)
+          queryClient.executeQuery('monthlyTurnoverRatePercentage', QueryType.TIMESERIES, {
+            ...filterParams,
+            startDate: formattedStartDate,
+            endDate: formattedEndDate
+          }),
 
-      // Execute NEW real queries in parallel
-      const [turnoverOverTimeData, tenureDistributionData, retentionByDepartmentData] = await Promise.all([
-        // Monthly turnover rates over time (using NEW real percentage query)
-        queryClient.executeQuery('monthlyTurnoverRatePercentage', QueryType.TIMESERIES, {
-          startDate: formattedStartDate,
-          endDate: formattedEndDate
-        }),
+          // Tenure distribution (using existing query)
+          queryClient.executeQuery('tenureDistribution', QueryType.DATASET, {
+            ...filterParams
+          }),
 
-        // Tenure distribution (using existing query)
-        queryClient.executeQuery('tenureDistribution', QueryType.DATASET, {}),
-
-        // Real retention rates by department (using NEW query)
-        queryClient.executeQuery('retentionRateByDepartment', QueryType.DATASET, {
-          startDate: formattedStartDate,
-          endDate: formattedEndDate
-        })
-      ])
-
-      console.log('[useTurnoverRetentionData] Real API responses:', {
-        turnoverOverTimeData: turnoverOverTimeData.data?.slice(0, 2),
-        tenureDistributionData: tenureDistributionData.data?.slice(0, 2),
-        retentionByDepartmentData: retentionByDepartmentData.data?.slice(0, 2)
-      })
+          // Real retention rates by department (using NEW query)
+          queryClient.executeQuery('retentionRateByDepartment', QueryType.DATASET, {
+            ...filterParams,
+            startDate: formattedStartDate,
+            endDate: formattedEndDate
+          })
+        ])
+        staticCache.set(fetchKey, requestPromise)
+      }
+      const [turnoverOverTimeData, tenureDistributionData, retentionByDepartmentData] = await requestPromise
 
       // Transform turnover data (already in percentage format from new query)
       const transformedTurnoverData =
@@ -165,7 +182,15 @@ export const useTurnoverRetentionData = (context: BusinessAppContextProps): UseT
     } finally {
       setIsLoading(false)
     }
-  }, [queryClient, context.accessToken, calculateStatistics, currentTurnoverRate, formattedTenure])
+  }, [
+    queryClient,
+    context.accessToken,
+    calculateStatistics,
+    currentTurnoverRate,
+    formattedTenure,
+    turnoverChange,
+    selectedCompanyIds
+  ])
 
   useEffect(() => {
     // Only load when GraphQL hooks are done loading

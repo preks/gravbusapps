@@ -1,5 +1,4 @@
 import React, { useMemo, useCallback } from 'react'
-import { Card } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
@@ -115,6 +114,10 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
   }
 
   const renderChartContent = useCallback(() => {
+    if (loading) {
+      return <ChartStateOverlay state="loading" message={t('hr-data-filter-loading')} />
+    }
+
     if (error) {
       return <ChartStateOverlay state="error" message={t('hr-data-filter-error')} />
     }
@@ -125,7 +128,7 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
 
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
+        <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }} accessibilityLayer={false}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="month"
@@ -150,16 +153,7 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
     )
   }, [error, chartData, departments, locale, millionSuffix, t])
 
-  return (
-    <Card
-      className="gba:shadow gba:rounded gba:p-4 gba:mb-6"
-      data-testid="department-salary-stacked-bar-chart"
-      title={t('department-salary-stacked-bar-chart-title')}
-      loading={loading}
-    >
-      <div className="gba:w-full gba:h-80">{renderChartContent()}</div>
-    </Card>
-  )
+  return <div className="gba:w-full gba:h-full">{renderChartContent()}</div>
 }
 
 export default DepartmentSalaryStackedBarChart

@@ -1,7 +1,6 @@
-import { useMemo } from 'react'
 import { QueryType } from '@/common/network/dataset'
 import { useDatasetQuery } from './useDatasetQuery'
-import dayjs from 'dayjs'
+import { useHrAnalyticsStructureDateParams } from './useHrAnalyticsStructureDateParams'
 
 /**
  * Dataset response type for monthly salary by department query
@@ -157,18 +156,12 @@ const transformMonthlySalaryByDepartment = (rows: DatasetRow[]): MonthlyDepartme
  * @returns Object containing monthly department salary data, loading state, error, and refetch function
  */
 export const useMonthlySalaryByDepartment = (accessToken: string, startDate: string, endDate: string) => {
-  const params = useMemo(
-    () => ({
-      startDate: startDate || dayjs().startOf('year').format('YYYY-MM-DD'),
-      endDate: endDate || dayjs().endOf('year').format('YYYY-MM-DD')
-    }),
-    [startDate, endDate]
-  )
+  const params = useHrAnalyticsStructureDateParams(startDate, endDate)
 
   return useDatasetQuery<MonthlyDepartmentSalaryStack>(
     accessToken,
     'monthlySalarybyDepartment',
-    QueryType.DATASET,
+    QueryType.TIMESERIES,
     params,
     transformMonthlySalaryByDepartment,
     'useMonthlySalaryByDepartment'

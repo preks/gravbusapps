@@ -1,12 +1,10 @@
 import React from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { Card, Typography } from 'antd'
+import { ChartStateOverlay } from './ChartStateOverlay'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from './_i18n'
 import { MonthlySalaryForecastData } from '../../../../hooks/useMonthlySalaryForecastEmployee'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-
-const { Title, Text } = Typography
 
 interface SalaryForecastChartProps {
   data: MonthlySalaryForecastData[]
@@ -57,20 +55,15 @@ const SalaryForecastChart: React.FC<SalaryForecastChartProps> = ({ data }) => {
     return `${value.toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 0 })}`
   }
 
-  return (
-    <Card className="gba:w-full gba:mb-6 gba:shadow-sm" data-testid="salary-forecast-chart-container">
-      {/* Header */}
-      <div className="gba:mb-4">
-        <Title level={4} className="gba:m-0 gba:text-foreground">
-          {t('salary-forecast-title')}
-        </Title>
-        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{t('salary-forecast-description')}</Text>
-      </div>
+  if (!data || data.length === 0) {
+    return <ChartStateOverlay state="empty" message={t('hr-data-filter-no-data')} />
+  }
 
-      {/* Chart Content */}
-      <div className="gba:h-96">
+  return (
+    <div className="gba:w-full gba:h-full" data-testid="salary-forecast-chart-container">
+      <div className="gba:h-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+          <LineChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }} accessibilityLayer={false}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
               dataKey="month"
@@ -97,7 +90,7 @@ const SalaryForecastChart: React.FC<SalaryForecastChartProps> = ({ data }) => {
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </Card>
+    </div>
   )
 }
 

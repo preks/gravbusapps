@@ -1,5 +1,4 @@
 import React from 'react'
-import { Typography } from 'antd'
 import { useHealthInsuranceDistribution } from '../../../../../hooks/useHealthInsuranceDistribution'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from '@newwork/nw-design-system'
@@ -10,8 +9,6 @@ import {
   DistributionPieChartView
 } from './distributionChartShared'
 
-const { Title, Text } = Typography
-
 /**
  * Pie chart component for displaying health insurer distribution
  */
@@ -21,28 +18,16 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
   const chartData = buildDistributionChartData(data)
 
   return (
-    <div
-      className="gba:w-full gba:h-full gba:bg-card gba:rounded-lg gba:p-6 gba:shadow-sm gba:border gba:border-border"
-      data-testid="health-insurer-distribution-chart"
-    >
-      {/* Header */}
-      <div className="gba:mb-4">
-        <Title level={4} className="gba:m-0 gba:text-foreground">
-          {t('hr-analytics-health-insurer-distribution')}
-        </Title>
-        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {t('hr-analytics-health-insurer-distribution-description')}
-        </Text>
-      </div>
-
+    <div className="gba:w-full gba:h-full" data-testid="health-insurer-distribution-chart">
       <DistributionChartStateContent
         loading={loading}
         error={error}
         hasData={data.length > 0}
         errorMessage={t('hr-analytics-error-loading')}
         emptyMessage={t('hr-analytics-no-data')}
+        containerClassName="gba:flex gba:justify-center gba:items-center gba:h-full"
       >
-        <DistributionPieChartView chartData={chartData} />
+        <DistributionPieChartView chartData={chartData} className="gba:h-full" />
       </DistributionChartStateContent>
     </div>
   )

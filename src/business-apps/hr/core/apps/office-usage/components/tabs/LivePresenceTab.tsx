@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Alert, AlertTitle, AlertDescription, Button, Spinner, Badge } from '@newwork/nw-design-system'
 import { ArrowsClockwise } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { LivePresenceRecord, SiteLocationCapacity } from '../../types'
 import { LivePresenceCards } from '../live-presence/LivePresenceCards'
 import { PeopleListView } from '../live-presence/PeopleListView'
@@ -91,7 +91,7 @@ export const LivePresenceTab: React.FC<LivePresenceTabProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2">
             <span className="gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:office_usage.as_of', 'As of')}{' '}
-              {lastRefresh.toLocaleTimeString()}
+              {formatDate(lastRefresh, 'date.short', 'HH:mm') || '-'}
             </span>
             <Button variant="ghost" size="sm" onClick={onRefresh} disabled={isLoading} className="gba:h-6 gba:px-2">
               <ArrowsClockwise className="gba:w-4 gba:h-4" />

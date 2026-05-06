@@ -16,9 +16,6 @@ import {
   SectionKpiCards,
   type KpiCardData,
   Icon,
-  Spinner,
-  Card,
-  CardContent,
   Button
 } from '@newwork/nw-design-system'
 import {
@@ -32,6 +29,8 @@ import {
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { exportTableToExcel, exportTableToPdf } from '../../../utils/exportUtils'
 import AnalyticsDataTable from '../../shared/AnalyticsDataTable'
+import AnalyticsTabErrorCard from '../../shared/AnalyticsTabErrorCard'
+import AnalyticsTabLoadingState from '../../shared/AnalyticsTabLoadingState'
 
 interface StructuralAnalysisReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -73,13 +72,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
   // Get content from URL query parameter or use default
   const getInitialTab = (): AnalysisTab => {
     const tabFromUrl = getTabFromUrl()
-    if (tabFromUrl) {
-      return tabFromUrl
-    } else {
-      // No valid content in URL, set default content in URL
-      updateUrlWithTab(defaultTab, true)
-      return defaultTab
-    }
+    return tabFromUrl ?? defaultTab
   }
 
   const [activeTab, setActiveTab] = useState<AnalysisTab>(getInitialTab)
@@ -105,94 +98,75 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [])
 
+  // Ensure URL always has a valid content tab after mount
+  useEffect(() => {
+    if (!getTabFromUrl()) {
+      updateUrlWithTab(defaultTab, true)
+    }
+  }, [])
+
   // Show loading state
   if (isLoading) {
     return (
-      <div
-        data-testid={`${prefixDataTestId}-Loading`}
-        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px] gba:bg-gradient-to-b gba:from-background gba:to-muted gba:rounded-lg gba:flex-col"
-      >
-        <Spinner className="gba:w-8 gba:h-8" />
-        <p className="gba:mt-4 gba:text-muted-foreground">{t('hr-analytics-structural-loading')}</p>
-      </div>
+      <AnalyticsTabLoadingState
+        dataTestId={`${prefixDataTestId}-Loading`}
+        message={t('hr-data-filter-loading-data')}
+        className="gba:min-h-[400px] gba:bg-gradient-to-b gba:from-background gba:to-muted gba:rounded-lg"
+      />
     )
   }
 
-  // Show error state
-  if (error) {
-    return (
-      <div
-        data-testid={`${prefixDataTestId}-Error`}
-        className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-[400px] gba:p-6 gba:rounded-lg"
-      >
-        <Card className="gba:border-destructive-secondary-foreground gba:bg-destructive-secondary-foreground/25">
-          <CardContent className="gba:p-6">
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex-1">
-                <h3 className="gba:text-destructive-secondary gba:font-medium gba:mb-2">
-                  {t('hr-analytics-structural-error-title')}
-                </h3>
-                <p className="gba:text-destructive-secondary">{error}</p>
-              </div>
-              <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
-                <ArrowClockwiseIcon />
-                {t('common-retry')}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  // Show no data state
-  if (!data) {
-    return (
-      <div
-        data-testid={`${prefixDataTestId}-NoData`}
-        className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-[400px] gba:p-6 gba:rounded-lg"
-      >
-        <Card className="gba:border-info-secondary-foreground gba:bg-info-secondary-foreground/25">
-          <CardContent className="gba:p-6">
-            <h3 className="gba:text-info-secondary gba:font-medium gba:mb-2">{t('hr-analytics-no-data-available')}</h3>
-            <p className="gba:text-info-secondary">{t('hr-analytics-structural-no-data-description')}</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const unavailableContent = error ? (
+    <AnalyticsTabErrorCard
+      dataTestId={`${prefixDataTestId}-Error`}
+      message={t('hr-analytics-structural-error-title')}
+      detail={error}
+      retryLabel={t('common-retry')}
+      onRetry={refetch}
+      className="gba:p-0"
+    />
+  ) : (
+    <AnalyticsTabErrorCard
+      dataTestId={`${prefixDataTestId}-NoData`}
+      message={t('hr-analytics-no-data-available')}
+      detail={t('hr-analytics-structural-no-data-description')}
+      retryLabel={t('common-retry')}
+      onRetry={refetch}
+      className="gba:p-0"
+    />
+  )
 
   // Overview Tab Content
-  const renderOverviewTab = () => {
+  const renderOverviewTab = (structuralData: NonNullable<typeof data>) => {
     const statCards: KpiCardData[] = [
       {
         id: 'overview-total-employees',
         title: t('hr-analytics-total-employees'),
-        value: data.structuralStatistics.totalEmployees,
+        value: structuralData.structuralStatistics.totalEmployees,
         footer: t('hr-analytics-structural-health-overview')
       },
       {
         id: 'overview-total-managers',
         title: t('hr-analytics-total-managers'),
-        value: data.structuralStatistics.totalManagers,
+        value: structuralData.structuralStatistics.totalManagers,
         footer: t('hr-analytics-span-of-control-summary')
       },
       {
         id: 'overview-hierarchy-depth',
         title: t('hr-analytics-hierarchy-depth'),
-        value: data.structuralStatistics.hierarchyDepth,
+        value: structuralData.structuralStatistics.hierarchyDepth,
         footer: t('hr-analytics-levels-title')
       },
       {
         id: 'overview-average-span',
         title: t('hr-analytics-avg-span-of-control'),
-        value: data.structuralStatistics.averageSpanOfControl.toFixed(1),
-        footer: `${t('hr-analytics-recommended-span-range')}: ${data.spanOfControlSummary.recommendedSpanMin}-${data.spanOfControlSummary.recommendedSpanMax}`
+        value: structuralData.structuralStatistics.averageSpanOfControl.toFixed(1),
+        footer: `${t('hr-analytics-recommended-span-range')}: ${structuralData.spanOfControlSummary.recommendedSpanMin}-${structuralData.spanOfControlSummary.recommendedSpanMax}`
       },
       {
         id: 'overview-average-chain',
         title: t('hr-analytics-avg-chain-length'),
-        value: data.structuralStatistics.averageReportingChainLength.toFixed(1),
+        value: structuralData.structuralStatistics.averageReportingChainLength.toFixed(1),
         footer: t('hr-analytics-reporting-chain-summary')
       }
     ]
@@ -201,25 +175,25 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     const insightCards = [
       {
         type: 'success' as const,
-        content: `${t('hr-analytics-span-of-control-label')}: ${data.spanOfControlSummary.optimalCount} ${t('hr-analytics-of')} ${data.spanOfControlSummary.totalManagers} ${t('hr-analytics-managers-have-optimal-span')}`
+        content: `${t('hr-analytics-span-of-control-label')}: ${structuralData.spanOfControlSummary.optimalCount} ${t('hr-analytics-of')} ${structuralData.spanOfControlSummary.totalManagers} ${t('hr-analytics-managers-have-optimal-span')}`
       },
-      ...(data.spanOfControlSummary.overBurdenedCount > 0
+      ...(structuralData.spanOfControlSummary.overBurdenedCount > 0
         ? [
             {
               type: 'destructive' as const,
-              content: `${t('hr-analytics-alert')}: ${data.spanOfControlSummary.overBurdenedCount} ${t('hr-analytics-managers-overburdened')}`
+              content: `${t('hr-analytics-alert')}: ${structuralData.spanOfControlSummary.overBurdenedCount} ${t('hr-analytics-managers-overburdened')}`
             }
           ]
         : []),
       {
         type: 'info' as const,
-        content: `${t('hr-analytics-organizational-depth-label')}: ${t('hr-analytics-maximum-hierarchy-depth-is')} ${data.structuralStatistics.hierarchyDepth} ${t('hr-analytics-levels')}`
+        content: `${t('hr-analytics-organizational-depth-label')}: ${t('hr-analytics-maximum-hierarchy-depth-is')} ${structuralData.structuralStatistics.hierarchyDepth} ${t('hr-analytics-levels')}`
       },
-      ...(data.reportingChainSummary.bottlenecks.length > 0
+      ...(structuralData.reportingChainSummary.bottlenecks.length > 0
         ? [
             {
               type: 'warning' as const,
-              content: `${t('hr-analytics-warning')}: ${data.reportingChainSummary.bottlenecks.length} ${t('hr-analytics-management-bottlenecks-identified')}`
+              content: `${t('hr-analytics-warning')}: ${structuralData.reportingChainSummary.bottlenecks.length} ${t('hr-analytics-management-bottlenecks-identified')}`
             }
           ]
         : [])
@@ -284,7 +258,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     columns: Array<{ key: string; header: string }>
   } | null = null
 
-  if (activeTab === 'span-control') {
+  if (data && activeTab === 'span-control') {
     selectedTableConfig = {
       title: t('hr-analytics-span-of-control'),
       testId: 'span-control',
@@ -299,7 +273,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         { key: 'efficiency', header: t('hr-analytics-status') }
       ]
     }
-  } else if (activeTab === 'depth-analysis') {
+  } else if (data && activeTab === 'depth-analysis') {
     selectedTableConfig = {
       title: t('hr-analytics-depth-analysis'),
       testId: 'depth-analysis',
@@ -311,7 +285,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         { key: 'parent', header: t('hr-analytics-parent-organizational-unit') }
       ]
     }
-  } else if (activeTab === 'reporting-chains') {
+  } else if (data && activeTab === 'reporting-chains') {
     selectedTableConfig = {
       title: t('hr-analytics-reporting-chains'),
       testId: 'reporting-chains',
@@ -431,35 +405,51 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         {[
           {
             value: 'overview',
-            content: renderOverviewTab()
+            content: data ? renderOverviewTab(data) : unavailableContent
           },
           {
             value: 'span-control',
-            content: (
+            content: data ? (
               <SpanOfControlChart
                 data={data.spanOfControlData}
                 summary={data.spanOfControlSummary}
                 prefixDataTestId={prefixDataTestId}
               />
+            ) : (
+              unavailableContent
             )
           },
           {
             value: 'depth-analysis',
-            content: <SunburstVisualization data={data.sunburstData} prefixDataTestId={prefixDataTestId} />
+            content: data ? (
+              <SunburstVisualization data={data.sunburstData} prefixDataTestId={prefixDataTestId} />
+            ) : (
+              unavailableContent
+            )
           },
           {
             value: 'reporting-chains',
-            content: (
+            content: data ? (
               <ReportingChainAnalysis
                 chains={data.reportingChainData}
                 summary={data.reportingChainSummary}
                 prefixDataTestId={prefixDataTestId}
               />
+            ) : (
+              unavailableContent
             )
           },
           {
             value: 'organizational-hierarchy',
-            content: <OrganizationalHierarchyReport {...props} />
+            content: data ? (
+              <OrganizationalHierarchyReport
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+                additionalData={props.additionalData}
+              />
+            ) : (
+              unavailableContent
+            )
           }
         ].map(tab => (
           <TabsContent key={tab.value} value={tab.value} className="gba:mt-6">

@@ -23,6 +23,7 @@ import ProbationRateByOrgUnitChart from '../charts/ProbationRateByOrgUnitChart'
 import type { AnalyticsTableData } from '../../../../shared/analyticsTabTypes'
 import { HIGHLIGHT_BADGE } from '../../../../shared/AnalyticsDataTable'
 import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
+import AnalyticsTabLoadingState from '../../../../shared/AnalyticsTabLoadingState'
 import AnalyticsTableSection from '../../../../shared/AnalyticsTableSection'
 import SelectableChartTile from '../../../../shared/SelectableChartTile'
 import { renderPeriodValueCell } from '../../../../shared/analyticsTableRenderers'
@@ -47,7 +48,11 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   } = useEmploymentTypeDistribution(context.accessToken)
 
   // Get contract type distribution data
-  const { distribution: contractTypeDistribution } = useContractTypeDistribution(context.accessToken)
+  const {
+    distribution: contractTypeDistribution,
+    loading: contractTypeLoading,
+    error: contractTypeError
+  } = useContractTypeDistribution(context.accessToken)
 
   // Get FTE to Employee ratio data
   const { totalFte, employeeCount, ratio, loading: fteLoading, error: fteError } = useFteRatio(context.accessToken)
@@ -62,7 +67,11 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   } = useGapRate(context.accessToken)
 
   // Get Gap Rate by Org Unit data
-  const { data: gapRateByOrgUnit } = useGapRateByOrgUnit(context.accessToken)
+  const {
+    data: gapRateByOrgUnit,
+    loading: gapRateByOrgUnitLoading,
+    error: gapRateByOrgUnitError
+  } = useGapRateByOrgUnit(context.accessToken)
 
   // Get Probation Rate data
   const {
@@ -74,7 +83,11 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   } = useProbationRate(context.accessToken)
 
   // Get Probation Rate by Org Unit data
-  const { data: probationRateByOrgUnit } = useProbationRateByOrgUnit(context.accessToken)
+  const {
+    data: probationRateByOrgUnit,
+    loading: probationRateByOrgUnitLoading,
+    error: probationRateByOrgUnitError
+  } = useProbationRateByOrgUnit(context.accessToken)
 
   // Get Average Tenure data
   const { formattedTenure, loading: tenureLoading, error: tenureError } = useAverageTenure(context.accessToken)
@@ -189,8 +202,26 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   ]
 
   // Determine overall loading and error states
-  const isLoading = fteLoading || gapRateLoading || probationRateLoading || tenureLoading
-  const hasError = fteError || gapRateError || probationRateError || tenureError
+  const isLoading =
+    fteLoading ||
+    gapRateLoading ||
+    probationRateLoading ||
+    tenureLoading ||
+    empTypeLoading ||
+    contractTypeLoading ||
+    gapRateByOrgUnitLoading ||
+    probationRateByOrgUnitLoading ||
+    tenureDistributionLoading
+  const firstError =
+    empTypeError ||
+    contractTypeError ||
+    fteError ||
+    gapRateError ||
+    gapRateByOrgUnitError ||
+    probationRateError ||
+    probationRateByOrgUnitError ||
+    tenureError ||
+    tenureDistributionError
 
   // Prepare statistics for SectionKpiCards
   const statistics = {
@@ -208,14 +239,22 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
 
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
 
-  if (hasError) {
+  if (isLoading) {
+    return (
+      <AnalyticsTabLoadingState dataTestId={`${prefixDataTestId}-loading`} message={t('hr-data-filter-loading-data')} />
+    )
+  }
+
+  if (firstError) {
+    const errorDetail = firstError instanceof Error ? firstError.message : String(firstError)
     return (
       <AnalyticsTabErrorCard
         dataTestId={`${prefixDataTestId}-tab`}
         message={t('hr-analytics-employment-error')}
+        detail={errorDetail}
         retryLabel={t('common-retry')}
         onRetry={() => globalThis.location.reload()}
-        variant="centered"
+        variant="row"
       />
     )
   }
@@ -226,7 +265,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       <EmploymentStatistics statistics={statistics} isLoading={isLoading} dataTestId="employment" />
 
       {/* Charts Section */}
-      <div className="gba:mb-4">
+      <div className="gba:mt-6 gba:mb-4">
         <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('hr-analytics-employment-analysis')}</h3>
         <p className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-employment-analysis-description')}</p>
       </div>

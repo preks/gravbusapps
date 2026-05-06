@@ -7,6 +7,7 @@ import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { useAnalyticsTableExport } from '../../../../hooks/useAnalyticsTableExport'
 import { useChartTableSelection } from '../../../../hooks/useChartTableSelection'
 import AnalyticsDataTable, { HIGHLIGHT_BADGE } from '../../../shared/AnalyticsDataTable'
+import { DEMOGRAPHICS_CHART_SURFACE_CLASS } from '../../../shared/analyticsChartSurfaceStyles'
 
 const { Title, Text } = Typography
 
@@ -239,10 +240,10 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
               </CardHeader>
 
               <CardContent>
-                <div className="gba:h-64">
+                <div className={`gba:h-64 ${DEMOGRAPHICS_CHART_SURFACE_CLASS}`}>
                   {config.data.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
+                      <PieChart accessibilityLayer={false}>
                         <Pie
                           data={config.data}
                           cx="50%"
@@ -259,9 +260,9 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value: number | undefined, name: string | undefined) => [
-                            `${value ?? 0} ${t('hr-analytics-employees')}`,
-                            name ?? ''
+                          formatter={(value, name) => [
+                            `${Number(value ?? 0)} ${t('hr-analytics-employees')}`,
+                            String(name ?? '')
                           ]}
                         />
                         <Legend

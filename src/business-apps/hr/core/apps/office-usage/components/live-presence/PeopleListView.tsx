@@ -1,5 +1,16 @@
 import React from 'react'
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, Avatar, Badge } from '@newwork/nw-design-system'
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Badge
+} from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { LivePresenceEmployee } from '../../types'
 
@@ -9,6 +20,19 @@ interface PeopleListViewProps {
 }
 
 export const PeopleListView: React.FC<PeopleListViewProps> = ({ people, prefixDataTestId = 'people-list-view' }) => {
+  const getFallback = (displayName: string): string => {
+    const parts = displayName
+      .split(/\s+/)
+      .map(p => p.trim())
+      .filter(Boolean)
+
+    const first = parts[0]?.[0]
+    const second = parts[1]?.[0]
+
+    const initials = `${first ?? ''}${second ?? ''}`.toUpperCase()
+    return initials || '–'
+  }
+
   if (people.length === 0) {
     return (
       <div className="gba:text-center gba:py-12" data-testid={`${prefixDataTestId}-empty`}>
@@ -39,12 +63,10 @@ export const PeopleListView: React.FC<PeopleListViewProps> = ({ people, prefixDa
             <TableRow key={person.employeeId}>
               <TableCell>
                 <div className="gba:flex gba:items-center gba:gap-3">
-                  <Avatar
-                    src={person.pictureUrl ? `data:image/jpeg;base64,${person.pictureUrl}` : undefined}
-                    alt={person.displayName}
-                    fallback={person.displayName.substring(0, 2).toUpperCase()}
-                    className="gba:w-8 gba:h-8"
-                  />
+                  <Avatar className="gba:w-8 gba:h-8">
+                    {person.pictureUrl && <AvatarImage src={`data:image/jpeg;base64,${person.pictureUrl}`} />}
+                    <AvatarFallback>{getFallback(person.displayName)}</AvatarFallback>
+                  </Avatar>
                   <div>
                     <p className="gba:font-medium gba:text-foreground">{person.displayName}</p>
                     {person.jobTitle && <p className="gba:text-xs gba:text-muted-foreground">{person.jobTitle}</p>}

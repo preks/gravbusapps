@@ -1,9 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import {
+  useQueryExecutionClient,
+  QueryType,
+  Services,
+  type DatasetDTO,
+  type QueryExecutionParams
+} from '@/common/network/dataset'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 export interface DemographicsData {
   genderDistribution: Array<{
@@ -38,9 +45,104 @@ export interface UseDemographicsDataIntegrationResponse {
   refetch: () => void
 }
 
+type DemographicsQueryClient = {
+  executeQuery: (name: string, queryType: QueryType, params?: QueryExecutionParams) => Promise<DatasetDTO>
+}
+
+interface DemographicsFetchPayload {
+  transformedData: DemographicsData
+  totalEmployeesCount: number
+  averageAgeValue: number | null
+  femaleOverride: number | undefined
+  maleOverride: number | undefined
+}
+
+async function fetchDemographicsPayload(
+  queryClient: DemographicsQueryClient,
+  selectedCompanyIds: string[],
+  translate: (key: string) => string
+): Promise<DemographicsFetchPayload> {
+  const structureId = getCurrentActiveStructureId()
+  const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+  const demographicFilterParams: QueryExecutionParams = {}
+  if (structureId) {
+    demographicFilterParams.structureId = structureId
+  }
+  if (companyIdsParam) {
+    demographicFilterParams.companyIds = companyIdsParam
+  }
+
+  const activeLocale = getCurrentActiveUserLocale() || 'en-US'
+  const [totalEmployeeData, averageAgeData, genderData, genderRatioData, ageData, nationalityData] = await Promise.all([
+    queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, {
+      ...demographicFilterParams
+    }),
+    queryClient.executeQuery('employeesAverageAge', QueryType.DATASET, {
+      ...demographicFilterParams
+    }),
+    queryClient.executeQuery('genderDistribution', QueryType.DATASET, {
+      ...demographicFilterParams,
+      localeCode: activeLocale
+    }),
+    queryClient.executeQuery('genderMaleFemaleRatio', QueryType.DATASET, {
+      ...demographicFilterParams
+    }),
+    queryClient.executeQuery('ageDistribution', QueryType.DATASET, {
+      ...demographicFilterParams
+    }),
+    queryClient.executeQuery('nationalityDistribution', QueryType.DATASET, {
+      ...demographicFilterParams,
+      localeCode: activeLocale
+    })
+  ])
+
+  const transformedData: DemographicsData = {
+    genderDistribution: genderData.data.map(item => {
+      const raw = String(item.category || '')
+      const name =
+        raw.trim().toLowerCase() === 'not specified'.toLowerCase() ? translate('hr-analytics-not-specified') : raw
+      return { category: name, value: item.value }
+    }),
+    ageDistribution: ageData.data.map(item => ({
+      category: item.category,
+      value: item.value
+    })),
+    nationalityDistribution: nationalityData.data.map(item => {
+      const raw = String(item.category || '')
+      const name = raw.trim().toLowerCase() === 'unknown'.toLowerCase() ? translate('hr-analytics-not-specified') : raw
+      return { category: name, value: item.value }
+    })
+  }
+
+  const totalEmployeesCount = totalEmployeeData.data.length > 0 ? totalEmployeeData.data[0].value : 0
+  const averageAgeValue =
+    averageAgeData.data && averageAgeData.data.length > 0 ? Number(averageAgeData.data[0].value) || null : null
+
+  let femaleOverride: number | undefined
+  let maleOverride: number | undefined
+  if (Array.isArray(genderRatioData?.data)) {
+    for (const row of genderRatioData.data as Array<{ category: string; value: number }>) {
+      const key = String(row.category ?? '')
+        .trim()
+        .toLowerCase()
+      if (key === 'female') femaleOverride = Number(row.value) || 0
+      if (key === 'male') maleOverride = Number(row.value) || 0
+    }
+  }
+
+  return {
+    transformedData,
+    totalEmployeesCount,
+    averageAgeValue,
+    femaleOverride,
+    maleOverride
+  }
+}
+
 export const useDemographicsDataIntegration = (
   context: BusinessAppContextProps
 ): UseDemographicsDataIntegrationResponse => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [demographicsData, setDemographicsData] = useState<DemographicsData>({
     genderDistribution: [],
     ageDistribution: [],
@@ -130,77 +232,23 @@ export const useDemographicsDataIntegration = (
     setError(null)
 
     try {
-      // Execute all demographic queries in parallel, including the authoritative employee count and average age
-      const activeLocale = getCurrentActiveUserLocale()
-      const [totalEmployeeData, averageAgeData, genderData, genderRatioData, ageData, nationalityData] =
-        await Promise.all([
-          // Total employee count (Query 17) - authoritative source
-          queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, {}),
-
-          // Average employee age (employeesAverageAge) - authoritative source
-          queryClient.executeQuery('employeesAverageAge', QueryType.DATASET, {}),
-
-          // Gender distribution (Query 8)
-          queryClient.executeQuery('genderDistribution', QueryType.DATASET, { localeCode: activeLocale }),
-
-          // Gender male/female ratio (optional dataset)
-          queryClient.executeQuery('genderMaleFemaleRatio', QueryType.DATASET, {}),
-
-          // Age distribution (Query 9)
-          queryClient.executeQuery('ageDistribution', QueryType.DATASET, {}),
-
-          // Nationality distribution (Query 16)
-          queryClient.executeQuery('nationalityDistribution', QueryType.DATASET, { localeCode: activeLocale })
-        ])
-
-      // Transform data for consistent structure
-      const transformedData: DemographicsData = {
-        genderDistribution: genderData.data.map(item => {
-          const raw = String(item.category || '')
-          const name =
-            raw.trim().toLowerCase() === 'not specified'.toLowerCase() ? t('hr-analytics-not-specified') : raw
-          return { category: name, value: item.value }
-        }),
-        ageDistribution: ageData.data.map(item => ({
-          category: item.category,
-          value: item.value
-        })),
-        nationalityDistribution: nationalityData.data.map(item => {
-          const raw = String(item.category || '')
-          const name = raw.trim().toLowerCase() === 'unknown'.toLowerCase() ? t('hr-analytics-not-specified') : raw
-          return { category: name, value: item.value }
-        })
-      }
-
-      // Get the authoritative total employee count
-      const totalEmployeesCount = totalEmployeeData.data.length > 0 ? totalEmployeeData.data[0].value : 0
-      // Get the authoritative average age (expects one row: { value, category })
-      const averageAgeValue =
-        averageAgeData.data && averageAgeData.data.length > 0 ? Number(averageAgeData.data[0].value) || null : null
-
-      // Optional overrides from genderMaleFemaleRatio dataset (use exact, case-insensitive keys)
-      let femaleOverride: number | undefined
-      let maleOverride: number | undefined
-      if (Array.isArray(genderRatioData?.data)) {
-        for (const row of genderRatioData.data as Array<{ category: string; value: number }>) {
-          const key = String(row.category ?? '')
-            .trim()
-            .toLowerCase()
-          if (key === 'female') femaleOverride = Number(row.value) || 0
-          if (key === 'male') maleOverride = Number(row.value) || 0
-        }
-      }
-
-      setDemographicsData(transformedData)
+      const payload = await fetchDemographicsPayload(queryClient, selectedCompanyIds, t)
+      setDemographicsData(payload.transformedData)
       setStatistics(
-        calculateStatistics(transformedData, totalEmployeesCount, averageAgeValue, femaleOverride, maleOverride)
+        calculateStatistics(
+          payload.transformedData,
+          payload.totalEmployeesCount,
+          payload.averageAgeValue,
+          payload.femaleOverride,
+          payload.maleOverride
+        )
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load demographics data')
     } finally {
       setIsLoading(false)
     }
-  }, [queryClient, context.accessToken, calculateStatistics])
+  }, [queryClient, context.accessToken, calculateStatistics, selectedCompanyIds, t])
 
   useEffect(() => {
     if (context.accessToken) {

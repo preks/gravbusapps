@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import dayjs from 'dayjs'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
-import { formatDate } from '@/common/utils/windowUtils'
+import { formatDate, getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 /**
  * GraphQL response type for combined turnover metrics
@@ -14,6 +15,7 @@ type TimeseriesRow = { category?: string; date_category?: string; dateCategory?:
  * - Denominator: average headcount over the period = (start + end) / 2
  */
 export const useTurnoverRate = (accessToken: string) => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   // Define all hooks at the top level to ensure consistent order
   const [rate, setRate] = useState<number>(0)
   const [terminatedCount, setTerminatedCount] = useState<number>(0)
@@ -63,10 +65,13 @@ export const useTurnoverRate = (accessToken: string) => {
       const prevMonthStart = dayjs().subtract(1, 'month').startOf('month').format('YYYY-MM-DD')
       const currMonthEnd = dayjs().endOf('month').format('YYYY-MM-DD')
 
-      const resp = await datasetClient.executeQuery('monthlyTurnoverRatePercentage', QueryType.TIMESERIES, {
-        startDate: prevMonthStart,
-        endDate: currMonthEnd
-      })
+      const structureId = getCurrentActiveStructureId()
+      const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+      const params: Record<string, string | number | boolean> = { startDate: prevMonthStart, endDate: currMonthEnd }
+      if (structureId) params.structureId = structureId
+      if (companyIdsParam) params.companyIds = companyIdsParam
+
+      const resp = await datasetClient.executeQuery('monthlyTurnoverRatePercentage', QueryType.TIMESERIES, params)
 
       const rows = ((resp?.data as TimeseriesRow[]) ?? []).slice().sort((a, b) => {
         const ad = dayjs((a.dateCategory ?? a.date_category) || '').valueOf()
@@ -98,7 +103,7 @@ export const useTurnoverRate = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, datasetClient, getCurrentAndPreviousMonthRanges])
+  }, [accessToken, datasetClient, getCurrentAndPreviousMonthRanges, selectedCompanyIds])
 
   useEffect(() => {
     isMounted.current = true

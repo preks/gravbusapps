@@ -1,11 +1,9 @@
 import React, { useMemo } from 'react'
-import { Card, useTranslation } from '@newwork/nw-design-system'
-import { Typography, Spin, Empty, Result } from 'antd'
+import { useTranslation } from '@newwork/nw-design-system'
+import { Spin, Empty, Result } from 'antd'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { YearlyHireData } from '../../../../../hooks/useHiresPerYear'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Title, Text } = Typography
 
 interface HiresPerYearChartProps {
   data: YearlyHireData[]
@@ -68,121 +66,123 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
     })
   }, [chartData])
 
-  return (
-    <Card className="gba:w-full gba:mb-6 gba:shadow-sm" data-testid="hires-per-year-chart">
-      {/* Header */}
-      <div className="gba:mb-4 gba:ml-4">
-        <Title level={4} className="gba:m-0 gba:text-foreground">
-          {t('hr-analytics-hires-per-year')}
-        </Title>
-        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {t('hr-analytics-hires-per-year-description')}
-        </Text>
+  let chartBody: React.ReactNode
+  if (loading) {
+    chartBody = (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-full" data-testid="hires-chart-loading">
+        <Spin size="large" />
       </div>
+    )
+  } else if (error) {
+    const errorSubTitle = error.toString().includes('CORS') ? 'API access blocked by CORS policy' : error.toString()
+    chartBody = (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-full" data-testid="hires-chart-error">
+        <Result status="warning" title={t('hr-analytics-data-error')} subTitle={errorSubTitle} />
+      </div>
+    )
+  } else if (chartData.length === 0) {
+    chartBody = (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-full" data-testid="hires-chart-empty">
+        <Empty description={t('hr-analytics-no-data')} />
+      </div>
+    )
+  } else {
+    chartBody = (
+      <div className="gba:h-full" data-testid="hires-chart-container">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart
+            data={chartDataWithTrend}
+            margin={{ top: 15, right: 30, left: 20, bottom: 25 }}
+            barSize={24}
+            accessibilityLayer={false}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
+            <XAxis
+              dataKey="year"
+              axisLine={{ stroke: 'var(--nw-border)' }}
+              tickLine={false}
+              tick={{ fill: 'var(--nw-muted-foreground)', fontSize: 12 }}
+              dy={10}
+              label={{
+                value: t('hr-analytics-chart-year'),
+                position: 'insideBottom',
+                offset: -15,
+                fill: 'var(--nw-muted-foreground)',
+                fontSize: 12
+              }}
+            />
+            <YAxis
+              axisLine={{ stroke: 'var(--nw-border)' }}
+              tickLine={false}
+              tick={{ fill: 'var(--nw-muted-foreground)', fontSize: 12 }}
+              width={50}
+              label={{
+                value: t('hr-analytics-chart-hires'),
+                angle: -90,
+                position: 'insideLeft',
+                dy: 40,
+                fill: 'var(--nw-muted-foreground)',
+                fontSize: 12
+              }}
+            />
+            <Tooltip
+              cursor={{ fill: 'var(--nw-muted)' }}
+              contentStyle={{
+                borderRadius: 4,
+                border: '1px solid var(--nw-border)',
+                padding: '8px 12px',
+                backgroundColor: 'var(--nw-card)',
+                color: 'var(--nw-card-foreground)'
+              }}
+              formatter={(value, name) => {
+                const label = name === 'trend' ? t('hr-analytics-trend') : t('hr-analytics-hires')
+                return [`${typeof value === 'number' ? value.toFixed(0) : value}`, label]
+              }}
+              labelStyle={{ fontWeight: 'bold', marginBottom: 5 }}
+            />
+            <Legend
+              wrapperStyle={{
+                paddingTop: 20,
+                fontSize: 12,
+                color: 'var(--nw-muted-foreground)'
+              }}
+              verticalAlign="bottom"
+              height={36}
+            />
+            <Bar
+              dataKey="hires"
+              name={t('hr-analytics-chart-hires')}
+              fill={chartColors[4]}
+              radius={[4, 4, 0, 0]}
+              animationDuration={1500}
+              animationEasing="ease"
+            />
+            <Line
+              type="monotone"
+              dataKey="trend"
+              name={t('hr-analytics-trend')}
+              stroke="var(--nw-foreground)"
+              strokeWidth={2}
+              dot={{ fill: 'var(--nw-foreground)', r: 4 }}
+              activeDot={{
+                fill: 'var(--nw-foreground)',
+                r: 6,
+                stroke: 'var(--nw-card)',
+                strokeWidth: 2
+              }}
+              animationDuration={2000}
+              animationEasing="ease"
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    )
+  }
 
-      {/* Chart Content */}
-      {loading ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="hires-chart-loading">
-          <Spin size="large" />
-        </div>
-      ) : error ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="hires-chart-error">
-          <Result
-            status="warning"
-            title={t('hr-analytics-data-error')}
-            subTitle={error.toString().includes('CORS') ? 'API access blocked by CORS policy' : error.toString()}
-          />
-        </div>
-      ) : chartData.length === 0 ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="hires-chart-empty">
-          <Empty description={t('hr-analytics-no-data')} />
-        </div>
-      ) : (
-        <div className="gba:h-64" data-testid="hires-chart-container">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartDataWithTrend} margin={{ top: 15, right: 30, left: 20, bottom: 25 }} barSize={24}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
-              <XAxis
-                dataKey="year"
-                axisLine={{ stroke: 'var(--nw-border)' }}
-                tickLine={false}
-                tick={{ fill: 'var(--nw-muted-foreground)', fontSize: 12 }}
-                dy={10}
-                label={{
-                  value: t('hr-analytics-chart-year'),
-                  position: 'insideBottom',
-                  offset: -15,
-                  fill: 'var(--nw-muted-foreground)',
-                  fontSize: 12
-                }}
-              />
-              <YAxis
-                axisLine={{ stroke: 'var(--nw-border)' }}
-                tickLine={false}
-                tick={{ fill: 'var(--nw-muted-foreground)', fontSize: 12 }}
-                width={50}
-                label={{
-                  value: t('hr-analytics-chart-hires'),
-                  angle: -90,
-                  position: 'insideLeft',
-                  dy: 40,
-                  fill: 'var(--nw-muted-foreground)',
-                  fontSize: 12
-                }}
-              />
-              <Tooltip
-                cursor={{ fill: 'var(--nw-muted)' }}
-                contentStyle={{
-                  borderRadius: 4,
-                  border: '1px solid var(--nw-border)',
-                  padding: '8px 12px',
-                  backgroundColor: 'var(--nw-card)',
-                  color: 'var(--nw-card-foreground)'
-                }}
-                formatter={(value, name) => {
-                  const label = name === 'trend' ? t('hr-analytics-trend') : t('hr-analytics-hires')
-                  return [`${typeof value === 'number' ? value.toFixed(0) : value}`, label]
-                }}
-                labelStyle={{ fontWeight: 'bold', marginBottom: 5 }}
-              />
-              <Legend
-                wrapperStyle={{
-                  paddingTop: 20,
-                  fontSize: 12,
-                  color: 'var(--nw-muted-foreground)'
-                }}
-                verticalAlign="bottom"
-                height={36}
-              />
-              <Bar
-                dataKey="hires"
-                name={t('hr-analytics-chart-hires')}
-                fill={chartColors[4]}
-                radius={[4, 4, 0, 0]}
-                animationDuration={1500}
-                animationEasing="ease"
-              />
-              <Line
-                type="monotone"
-                dataKey="trend"
-                name={t('hr-analytics-trend')}
-                stroke="var(--nw-foreground)"
-                strokeWidth={2}
-                dot={{ fill: 'var(--nw-foreground)', r: 4 }}
-                activeDot={{
-                  fill: 'var(--nw-foreground)',
-                  r: 6,
-                  stroke: 'var(--nw-card)',
-                  strokeWidth: 2
-                }}
-                animationDuration={2000}
-                animationEasing="ease"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </Card>
+  return (
+    <div className="gba:w-full gba:h-full" data-testid="hires-per-year-chart">
+      {chartBody}
+    </div>
   )
 }
 

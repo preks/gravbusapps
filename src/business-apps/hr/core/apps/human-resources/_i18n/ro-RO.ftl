@@ -6,6 +6,8 @@ hr-employees-filters-organizational-units = Unități organizaționale
 hr-employees-filters-employment-types = Tipuri de angajare
 hr-employees-filters-contract-types = Tipuri de contract
 hr-employees-filters-matrix-teams = Echipe matriceale
+hr-employees-filter-sheet-title = Filtrează angajații
+hr-employees-filter-sheet-description = Restrânge lista de angajați după companie, unitate organizațională, tip de angajare, tip de contract și echipă matriceală.
 
 # Job Positions - Common
 hr-positions-vacant = Vacant
@@ -19,6 +21,12 @@ hr-positions-not-specified = Nespecificat
 hr-positions-filters-departments = Departamente
 hr-positions-filters-job-functions = Funcții
 hr-positions-filters-job-profiles = Profile de post
+hr-positions-filter-sheet-title = Filtrează posturile
+hr-positions-filter-sheet-description = Restrânge lista de posturi după companie, departament, funcție și profil de post.
+
+# Insights - Filters
+hr-insights-filter-sheet-title = Filtrează Insights
+hr-insights-filter-sheet-description = Restrânge insights după companii.
 
 # Analytics - Performance
 hr-analytics-loading-performance = Se încarcă datele de performanță...
@@ -32,6 +40,23 @@ hr-analytics-entity-company = Companie
 hr-analytics-entity-cost-center = Centru de cost
 hr-analytics-entity-organizational-unit = Unitate organizațională
 hr-analytics-no-data-available = Nu sunt disponibile date
+
+# Analytics - Filters
+hr-analytics-filter-company-title = Companie
+hr-analytics-filter-company-empty = Nu au fost găsite companii
+hr-analytics-filter-company-loading = Se încarcă companiile...
+hr-analytics-filter-company-error = Încărcarea companiilor a eșuat
+hr-analytics-filter-company-search-placeholder = Caută companii...
+hr-analytics-filter-sheet-title = Filtrează Analytics
+hr-analytics-filter-sheet-description = Restrânge analizele după companii.
+hr-analytics-filter-no-filters-configured = Nu există filtre configurate
+hr-analytics-filter-clear-all = Șterge toate
+hr-analytics-filter-cancel = Anulează
+hr-analytics-filter-apply-filters = Aplică filtrele
+hr-analytics-filter-button = Filtre
+hr-analytics-filter-previous = Anterior
+hr-analytics-filter-next = Următor
+hr-analytics-filter-of = din
 
 # Analytics - Dashboard
 hr-analytics-dashboard-title = Tablou de bord analiză HR
@@ -252,6 +277,17 @@ hr-analytics-avg-salary = Salariu mediu
 hr-analytics-average-salary = Salariu mediu
 hr-analytics-merit-increases = Creșteri bazate pe performanță
 hr-analytics-average-increase = Creștere medie
+hr-analytics-compression-risk-score = Scor risc de compresie
+hr-analytics-total-pay-gap = Diferență totală de salarizare
+hr-analytics-unexplained-pay-gap = Diferență de salarizare neexplicată
+hr-analytics-market-alignment = Aliniere la piață
+hr-analytics-equity-health-score = Scor sănătate echitate
+hr-analytics-compression-cases-found = { $count } cazuri de compresie găsite
+hr-analytics-employees-analyzed = { $count } angajați analizați
+hr-analytics-comp-ratio-footer = Raport comp.: { $value }
+hr-analytics-market-comparison-unavailable = Comparația cu piața nu este disponibilă
+hr-analytics-equity-health-score-load-error = Încărcarea scorului de sănătate a echității a eșuat
+hr-analytics-equity-health-score-no-analysis = Nu a fost găsită nicio analiză completată a sănătății echității
 hr-analytics-equity-health-score-title = Scor sănătate echitate
 hr-analytics-equity-health-score-no-data-footer = Nu s-a găsit nicio analiză de echitate finalizată
 hr-analytics-equity-health-score-error-footer = Scorul de sănătate echitate nu a putut fi încărcat
@@ -437,6 +473,7 @@ hr-analytics-not-available = N/A
 
 # Data Filter (generic texts used in HR)
 hr-data-filter-loading = Se încarcă...
+hr-data-filter-loading-data = Se încarcă datele...
 hr-data-filter-error = Eroare la încărcarea datelor
 hr-data-filter-no-data = Nu există date disponibile
 hr-data-filter-error-loading-filters = Eroare la încărcarea filtrelor

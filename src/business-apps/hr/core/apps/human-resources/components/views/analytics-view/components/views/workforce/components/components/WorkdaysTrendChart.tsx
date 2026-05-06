@@ -58,7 +58,7 @@ const WorkdaysTrendChart: React.FC<WorkdaysTrendChartProps> = ({ data, isLoading
   return (
     <div data-testid={dataTestId} className="gba:w-full gba:h-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }} accessibilityLayer={false}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-muted)" />
           <XAxis
             dataKey="month"

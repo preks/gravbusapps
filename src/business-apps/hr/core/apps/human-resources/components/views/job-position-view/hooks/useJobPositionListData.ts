@@ -172,6 +172,7 @@ export interface JobPositionListFilters {
   departments?: string[]
   jobProfiles?: string[]
   jobFunctions?: string[]
+  companyIds?: string[]
   vacant?: boolean
   missingJobProfile?: boolean
   sortField?: string
@@ -226,7 +227,17 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [hasMore, setHasMore] = useState(true)
-  const { search, departments, jobProfiles, jobFunctions, vacant, missingJobProfile, sortField, sortOrder } = filters
+  const {
+    search,
+    departments,
+    jobProfiles,
+    jobFunctions,
+    companyIds,
+    vacant,
+    missingJobProfile,
+    sortField,
+    sortOrder
+  } = filters
 
   // Get the structureId from the BusinessAppContext
   const structureId = getCurrentActiveStructureId()
@@ -241,11 +252,77 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
     JSON.stringify(departments),
     JSON.stringify(jobProfiles),
     JSON.stringify(jobFunctions),
+    JSON.stringify(companyIds),
     vacant,
     missingJobProfile,
     sortField,
     sortOrder
   ])
+
+  const buildFilterConditions = useCallback((currentFilters: JobPositionListFilters, todayIso: string) => {
+    const filterConditions: any[] = []
+
+    // Always show only positions still active: activeTo is null or in the future
+    filterConditions.push({
+      _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: todayIso } }]
+    })
+
+    // Handle both departments and organizationalUnits (for backward compatibility)
+    const orgUnits = currentFilters.departments
+    if (orgUnits && orgUnits.length > 0) {
+      filterConditions.push({
+        organizationalUnitEmployees: {
+          organizationalUnit: {
+            id: { _in: orgUnits }
+          }
+        }
+      })
+    }
+
+    const selectedCompanyIds = currentFilters.companyIds
+    if (selectedCompanyIds && selectedCompanyIds.length > 0) {
+      filterConditions.push({
+        organizationalUnitEmployees: {
+          organizationalUnit: {
+            companyId: { _in: selectedCompanyIds }
+          }
+        }
+      })
+    }
+
+    if (currentFilters.jobProfiles && currentFilters.jobProfiles.length > 0) {
+      filterConditions.push({
+        jobProfile: {
+          id: { _in: currentFilters.jobProfiles }
+        }
+      })
+    }
+
+    // Handle missing job profile filter
+    if (currentFilters.missingJobProfile === true) {
+      filterConditions.push({
+        jobProfileId: { _isNull: true }
+      })
+    }
+
+    if (currentFilters.jobFunctions && currentFilters.jobFunctions.length > 0) {
+      filterConditions.push({
+        jobFunction: {
+          id: { _in: currentFilters.jobFunctions }
+        }
+      })
+    }
+
+    return filterConditions
+  }, [])
+
+  const buildOrderBy = useCallback((currentFilters: JobPositionListFilters) => {
+    const orderBy: any = {}
+    if (currentFilters.sortField && currentFilters.sortField.trim() !== '' && currentFilters.sortOrder) {
+      buildSortCondition(currentFilters.sortField, currentFilters.sortOrder, orderBy)
+    }
+    return Object.keys(orderBy).length > 0 ? [orderBy] : [{ name: 'ASC_NULLS_LAST' }]
+  }, [])
 
   /**
    * Loads a specific page of job positions. Used for true pagination.
@@ -275,57 +352,11 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
       // Use provided filters or current filters
       const currentFilters = overrideFilters || filters
 
-      // Build filter object for all filter types
-      const filterConditions: any[] = []
-      // Always show only positions still active: activeTo is null or in the future
       const todayIso = new Date().toISOString()
-      filterConditions.push({
-        _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: todayIso } }]
-      })
-
-      // Handle both departments and organizationalUnits (for backward compatibility)
-      const orgUnits = currentFilters.departments
-      if (orgUnits && orgUnits.length > 0) {
-        filterConditions.push({
-          organizationalUnitEmployees: {
-            organizationalUnit: {
-              id: { _in: orgUnits }
-            }
-          }
-        })
-      }
-
-      if (currentFilters.jobProfiles && currentFilters.jobProfiles.length > 0) {
-        filterConditions.push({
-          jobProfile: {
-            id: { _in: currentFilters.jobProfiles }
-          }
-        })
-      }
-
-      // Handle missing job profile filter
-      if (currentFilters.missingJobProfile === true) {
-        filterConditions.push({
-          jobProfileId: { _isNull: true }
-        })
-      }
-
-      if (currentFilters.jobFunctions && currentFilters.jobFunctions.length > 0) {
-        filterConditions.push({
-          jobFunction: {
-            id: { _in: currentFilters.jobFunctions }
-          }
-        })
-      }
+      const filterConditions = buildFilterConditions(currentFilters, todayIso)
 
       // PERFORMANCE: Use simplified search for initial load if no search term
       const hasActiveSearch = currentFilters.search && currentFilters.search.trim().length > 0
-
-      // Build order by condition (matches AccountList pattern)
-      const orderBy: any = {}
-      if (currentFilters.sortField && currentFilters.sortField.trim() !== '' && currentFilters.sortOrder) {
-        buildSortCondition(currentFilters.sortField, currentFilters.sortOrder, orderBy)
-      }
 
       // Prepare query variables
       const variables: any = {
@@ -336,7 +367,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
         search: hasActiveSearch ? `%${currentFilters.search?.trim()}%` : '%%', // Match all if no search
         // Always provide vacant parameter, but set to undefined to ignore vacancy when filtering by missing job profile
         vacant: currentFilters.missingJobProfile ? undefined : currentFilters.vacant,
-        orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ name: 'ASC_NULLS_LAST' }]
+        orderBy: buildOrderBy(currentFilters)
       }
 
       client

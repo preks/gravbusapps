@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { QueryType } from '@/common/network/dataset'
 import { useDatasetQuery } from './useDatasetQuery'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 interface HealthInsuranceTypeItem {
   name: string
@@ -40,10 +41,17 @@ const transformHealthInsuranceTypeDistribution = (rows: any[]): HealthInsuranceT
  * @returns Object containing the distribution data, loading state, error, and total employee count
  */
 export const useHealthInsuranceTypeDistribution = (accessToken: string) => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
+  const structureId = getCurrentActiveStructureId()
   const localeCode = getCurrentActiveUserLocale() || 'en-US'
+  const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
 
   // Memoize params to avoid recreating object on every render
-  const params = useMemo(() => ({ localeCode }), [localeCode])
+  const params = useMemo(() => {
+    const queryParams: Record<string, string> = { localeCode, structureId: structureId || 'null' }
+    if (companyIdsParam) queryParams.companyIds = companyIdsParam
+    return queryParams
+  }, [companyIdsParam, localeCode, structureId])
 
   const {
     data: distribution,

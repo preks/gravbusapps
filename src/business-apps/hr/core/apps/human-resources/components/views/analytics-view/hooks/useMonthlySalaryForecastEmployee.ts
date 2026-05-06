@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { QueryType } from '@/common/network/dataset'
 import { useDatasetQuery } from './useDatasetQuery'
 import dayjs from 'dayjs'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 /**
  * Monthly salary forecast data structure
@@ -45,14 +47,19 @@ const transformMonthlySalaryForecast = (rows: any[]): MonthlySalaryForecastData[
  * @returns Object containing forecast data, loading state, error, and refetch function
  */
 export const useMonthlySalaryForecastEmployee = (accessToken: string, startDate: string, endDate: string) => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   // Memoize params to avoid recreating object on every render
-  const params = useMemo(
-    () => ({
+  const params = useMemo(() => {
+    const structureId = getCurrentActiveStructureId()
+    const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+    const next: Record<string, string> = {
       startDate: startDate || dayjs().startOf('month').format('YYYY-MM-DD'),
       endDate: endDate || dayjs().endOf('month').add(11, 'month').format('YYYY-MM-DD')
-    }),
-    [startDate, endDate]
-  )
+    }
+    if (structureId) next.structureId = structureId
+    if (companyIdsParam) next.companyIds = companyIdsParam
+    return next
+  }, [startDate, endDate, selectedCompanyIds])
 
   return useDatasetQuery<MonthlySalaryForecastData>(
     accessToken,

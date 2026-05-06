@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { QueryType } from '@/common/network/dataset'
 import { useDatasetQuery } from './useDatasetQuery'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 /**
  * Dataset response type for compensation metrics query
@@ -66,7 +68,15 @@ const transformToCompensationMetrics = (rows: DatasetRow[]): CompensationMetrics
  * @returns Object containing median salary, average salary, average merit increase, employee count, loading state, error, and refetch function
  */
 export const useCompensationMetrics = (accessToken: string) => {
-  const params = useMemo(() => ({}), [])
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
+  const params = useMemo(() => {
+    const structureId = getCurrentActiveStructureId()
+    const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+    const next: Record<string, string | number | boolean> = {}
+    if (structureId) next.structureId = structureId
+    if (companyIdsParam) next.companyIds = companyIdsParam
+    return next
+  }, [selectedCompanyIds])
 
   const { data, loading, error, refetch } = useDatasetQuery<CompensationMetrics>(
     accessToken,

@@ -143,9 +143,7 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
             {t('hr-analytics-probation-rate-description')}
           </p>
         </div>
-        <Alert variant="destructive">
-          {t('hr-analytics-error-message')}
-        </Alert>
+        <Alert variant="destructive">{t('hr-analytics-error-message')}</Alert>
       </Card>
     )
   }
@@ -161,9 +159,7 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
             {t('hr-analytics-probation-status')}
           </Badge>
         </div>
-        <p className="gba:text-muted-foreground gba:text-sm">
-          {t('hr-analytics-probation-rate-description')}
-        </p>
+        <p className="gba:text-muted-foreground gba:text-sm">{t('hr-analytics-probation-rate-description')}</p>
       </div>
 
       {data.length === 0 ? (
@@ -180,6 +176,7 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
                 margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
                 barSize={20}
                 barGap={2}
+                accessibilityLayer={false}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--nw-color-border)" />
                 <XAxis

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import dayjs from 'dayjs'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 /**
  * Interface for year and hire count data
@@ -12,11 +14,24 @@ export interface YearlyHireData {
 
 type TimeseriesRow = { category?: string; date_category?: string; dateCategory?: string; value?: number }
 
+function parseYearlyHiresFromTimeseries(raw: unknown): YearlyHireData[] {
+  const rows: TimeseriesRow[] = Array.isArray(raw) ? (raw as TimeseriesRow[]) : []
+  return rows
+    .map(r => {
+      const d = r.dateCategory ?? r.date_category
+      const year = d ? dayjs(d).year() : Number.NaN
+      return { year, count: Number(r.value ?? 0) }
+    })
+    .filter(p => Number.isFinite(p.year))
+    .sort((a, b) => a.year - b.year)
+}
+
 /**
  * Hook to fetch the number of hires per year for the last 5 years
  * Uses EmployeeWorkingCondition.hireDate to identify hires per year
  */
 export const useHiresPerYear = (accessToken: string) => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [hiresData, setHiresData] = useState<YearlyHireData[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
@@ -42,18 +57,14 @@ export const useHiresPerYear = (accessToken: string) => {
       // Use dataset timeseries 'hiresPerYear' for last 5 years
       const startDate = dayjs().startOf('year').subtract(4, 'year').format('YYYY-MM-DD')
       const endDate = dayjs().endOf('year').format('YYYY-MM-DD')
-      const resp = await datasetClient.executeQuery('hiresPerYear', QueryType.TIMESERIES, { startDate, endDate })
+      const structureId = getCurrentActiveStructureId()
+      const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+      const params: Record<string, string | number | boolean> = { startDate, endDate }
+      if (structureId) params.structureId = structureId
+      if (companyIdsParam) params.companyIds = companyIdsParam
 
-      const raw = resp?.data ?? []
-      const rows: TimeseriesRow[] = Array.isArray(raw) ? (raw as TimeseriesRow[]) : []
-      const series: YearlyHireData[] = rows
-        .map(r => {
-          const d = r.dateCategory ?? r.date_category
-          const year = d ? dayjs(d).year() : Number.NaN
-          return { year, count: Number(r.value ?? 0) }
-        })
-        .filter(p => Number.isFinite(p.year))
-        .sort((a, b) => a.year - b.year)
+      const resp = await datasetClient.executeQuery('hiresPerYear', QueryType.TIMESERIES, params)
+      const series = parseYearlyHiresFromTimeseries(resp?.data ?? [])
 
       if (isMounted.current) {
         setHiresData(series)
@@ -69,7 +80,7 @@ export const useHiresPerYear = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, datasetClient])
+  }, [accessToken, datasetClient, selectedCompanyIds])
 
   useEffect(() => {
     isMounted.current = true

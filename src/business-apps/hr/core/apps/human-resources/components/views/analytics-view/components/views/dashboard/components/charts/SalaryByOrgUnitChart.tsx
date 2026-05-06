@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react'
+import React, { useMemo } from 'react'
 import { Card, useTranslation } from '@newwork/nw-design-system'
 import { Typography, Spin, Empty, Tooltip, Statistic } from 'antd'
 import { InfoIcon, TrendUpIcon, UsersIcon } from '@phosphor-icons/react'
@@ -35,15 +35,9 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
   const chartData = useMemo(() => {
     // Add validation to prevent rendering issues
     const validData = data.filter(
-      item => typeof item.name === 'string' && typeof item.averageSalary === 'number' && !isNaN(item.averageSalary)
+      item =>
+        typeof item.name === 'string' && typeof item.averageSalary === 'number' && !Number.isNaN(item.averageSalary)
     )
-
-    // Log if we filtered out any invalid data
-    if (validData.length !== data.length) {
-      console.warn(
-        `[SalaryByOrgUnitChart] Filtered out ${data.length - validData.length} items with invalid data format`
-      )
-    }
 
     // Sort by average salary in descending order and limit to top 10
     const sortedData = [...validData].sort((a, b) => b.averageSalary - a.averageSalary).slice(0, 10)
@@ -57,11 +51,6 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
       formattedSalary: `$${item.averageSalary.toLocaleString()}`
     }))
   }, [data])
-
-  // Log the data to ensure it's properly formatted
-  useEffect(() => {
-    console.log('[SalaryByOrgUnitChart] Chart data:', chartData)
-  }, [chartData])
 
   // Calculate statistics for the summary cards
   const totalEmployees = useMemo(() => {
@@ -144,6 +133,143 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
     )
   }
 
+  let chartStateContent: React.ReactNode
+  if (loading) {
+    chartStateContent = (
+      <div className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:border">
+        <Spin size="large" data-testid="salary-by-org-unit-chart-loading" />
+        <Text className="gba:text-muted-foreground gba:mt-4">{t('hr-analytics-loading-data')}</Text>
+      </div>
+    )
+  } else if (error) {
+    chartStateContent = (
+      <div className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:p-6 gba:border-destructive">
+        <div className="gba:flex gba:items-center gba:justify-center gba:bg-destructive-secondary gba:w-12 gba:h-12 gba:rounded-full gba:mb-4">
+          <svg
+            className="gba:w-6 gba:h-6 gba:text-destructive"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        <div
+          className="gba:text-destructive gba:text-lg gba:font-medium gba:mb-2 gba:text-center"
+          data-testid="salary-by-org-unit-chart-error"
+        >
+          {t('hr-analytics-error-message')}
+        </div>
+        <Text
+          className="gba:text-muted-foreground gba:text-center gba:max-w-md"
+          data-testid="salary-by-org-unit-chart-error-details"
+        >
+          {error.message}
+        </Text>
+      </div>
+    )
+  } else if (data.length === 0) {
+    chartStateContent = (
+      <div className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:border">
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          imageStyle={{ height: 80 }}
+          description={
+            <div className="gba:flex gba:flex-col gba:items-center">
+              <Text className="gba:text-muted-foreground gba:font-medium">{t('hr-analytics-no-data')}</Text>
+              <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
+                {t('hr-analytics-no-data-description')}
+              </Text>
+            </div>
+          }
+          data-testid="salary-by-org-unit-chart-empty"
+        />
+      </div>
+    )
+  } else if (chartData.length > 0) {
+    chartStateContent = (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={chartData}
+          layout="vertical"
+          margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+          barSize={20}
+          barGap={2}
+          data-testid="salary-by-org-unit-chart-rendered"
+          className="gba:animate-fade-in"
+        >
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--nw-border)" />
+          <XAxis
+            type="number"
+            tickFormatter={formatYAxis}
+            tick={{ fill: 'var(--nw-foreground)', fontSize: 12 }}
+            axisLine={{ stroke: 'var(--nw-border)' }}
+            tickLine={{ stroke: 'var(--nw-border)' }}
+            label={{
+              value: t('hr-analytics-annual-salary'),
+              position: 'insideBottom',
+              offset: -10,
+              style: {
+                textAnchor: 'middle',
+                fill: 'var(--nw-muted-foreground)',
+                fontSize: 12,
+                fontWeight: 500
+              }
+            }}
+          />
+          <YAxis
+            dataKey="orgUnit"
+            type="category"
+            width={120}
+            tickFormatter={formatXAxis}
+            tick={{ fill: 'var(--nw-foreground)', fontSize: 12 }}
+            axisLine={{ stroke: 'var(--nw-border)' }}
+            tickLine={{ stroke: 'var(--nw-border)' }}
+          />
+          <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }} />
+          <Legend
+            verticalAlign="top"
+            align="right"
+            iconType="circle"
+            wrapperStyle={{
+              paddingBottom: 20
+            }}
+          />
+          <Bar
+            name={t('hr-analytics-average-salary')}
+            dataKey="salary"
+            radius={[0, 6, 6, 0]}
+            animationDuration={1200}
+            animationEasing="ease-in-out"
+            isAnimationActive={true}
+          >
+            {chartData.map(entry => (
+              <Cell
+                key={`cell-${entry.orgUnit}`}
+                fill={getBarColor(entry.salary)}
+                stroke="var(--nw-border)"
+                strokeWidth={1}
+              />
+            ))}
+            <LabelList dataKey="salary" position="top" content={renderCustomBarLabel} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    )
+  } else {
+    chartStateContent = (
+      <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:p-6 gba:border">
+        <Text className="gba:text-muted-foreground">{t('hr-analytics-no-data')}</Text>
+      </div>
+    )
+  }
+
   return (
     <Card
       className="gba:shadow-lg gba:rounded-xl gba:mt-4 gba:mb-6 gba:overflow-hidden gba:border-border gba:transition-all gba:duration-300 hover:gba:shadow-xl"
@@ -160,9 +286,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
             >
               {t('hr-analytics-salary-by-org-unit')}
             </Title>
-            <Tooltip
-              title={t('hr-analytics-salary-by-org-unit-tooltip')}
-            >
+            <Tooltip title={t('hr-analytics-salary-by-org-unit-tooltip')}>
               <InfoIcon size={16} className="gba:ml-2 gba:text-muted-foreground" />
             </Tooltip>
           </div>
@@ -206,138 +330,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
           className="gba:w-full gba:min-h-[400px] gba:relative gba:overflow-visible gba:h-[500px]"
           data-testid="salary-by-org-unit-chart-height-container"
         >
-          {loading ? (
-            <div className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:border">
-              <Spin size="large" data-testid="salary-by-org-unit-chart-loading" />
-              <Text className="gba:text-muted-foreground gba:mt-4">
-                {t('hr-analytics-loading-data')}
-              </Text>
-            </div>
-          ) : error ? (
-            <div className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:p-6 gba:border-destructive">
-              <div className="gba:flex gba:items-center gba:justify-center gba:bg-destructive-secondary gba:w-12 gba:h-12 gba:rounded-full gba:mb-4">
-                <svg
-                  className="gba:w-6 gba:h-6 gba:text-destructive"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div
-                className="gba:text-destructive gba:text-lg gba:font-medium gba:mb-2 gba:text-center"
-                data-testid="salary-by-org-unit-chart-error"
-              >
-                {t('hr-analytics-error-message')}
-              </div>
-              <Text
-                className="gba:text-muted-foreground gba:text-center gba:max-w-md"
-                data-testid="salary-by-org-unit-chart-error-details"
-              >
-                {error.message}
-              </Text>
-            </div>
-          ) : data.length === 0 ? (
-            <div className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:border">
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                imageStyle={{ height: 80 }}
-                description={
-                  <div className="gba:flex gba:flex-col gba:items-center">
-                    <Text className="gba:text-muted-foreground gba:font-medium">
-                      {t('hr-analytics-no-data')}
-                    </Text>
-                    <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-                      {t('hr-analytics-no-data-description')}
-                    </Text>
-                  </div>
-                }
-                data-testid="salary-by-org-unit-chart-empty"
-              />
-            </div>
-          ) : chartData && chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                layout="vertical"
-                margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
-                barSize={20}
-                barGap={2}
-                data-testid="salary-by-org-unit-chart-rendered"
-                className="gba:animate-fade-in"
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--nw-border)" />
-                <XAxis
-                  type="number"
-                  tickFormatter={formatYAxis}
-                  tick={{ fill: 'var(--nw-foreground)', fontSize: 12 }}
-                  axisLine={{ stroke: 'var(--nw-border)' }}
-                  tickLine={{ stroke: 'var(--nw-border)' }}
-                  label={{
-                    value: t('hr-analytics-annual-salary'),
-                    position: 'insideBottom',
-                    offset: -10,
-                    style: {
-                      textAnchor: 'middle',
-                      fill: 'var(--nw-muted-foreground)',
-                      fontSize: 12,
-                      fontWeight: 500
-                    }
-                  }}
-                />
-                <YAxis
-                  dataKey="orgUnit"
-                  type="category"
-                  width={120}
-                  tickFormatter={formatXAxis}
-                  tick={{ fill: 'var(--nw-foreground)', fontSize: 12 }}
-                  axisLine={{ stroke: 'var(--nw-border)' }}
-                  tickLine={{ stroke: 'var(--nw-border)' }}
-                />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }} />
-                <Legend
-                  verticalAlign="top"
-                  align="right"
-                  iconType="circle"
-                  wrapperStyle={{
-                    paddingBottom: 20
-                  }}
-                />
-                <Bar
-                  name={t('hr-analytics-average-salary')}
-                  dataKey="salary"
-                  radius={[0, 6, 6, 0]}
-                  animationDuration={1200}
-                  animationEasing="ease-in-out"
-                  isAnimationActive={true}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={getBarColor(entry.salary)}
-                      stroke="var(--nw-border)"
-                      strokeWidth={1}
-                    />
-                  ))}
-                  <LabelList dataKey="salary" position="top" content={renderCustomBarLabel} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            /* Note: This space is intentionally left blank to maintain the else if structure */
-            <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:p-6 gba:border">
-              <Text className="gba:text-muted-foreground">
-                {t('hr-analytics-no-data')}
-              </Text>
-            </div>
-          )}
+          {chartStateContent}
         </div>
 
         {/* Display footnote about showing only top 10 */}

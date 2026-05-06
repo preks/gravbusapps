@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 // Define types for the hook results
 export interface OrgUnitEmployeeData {
@@ -21,6 +23,7 @@ interface UseEmployeesByOrgUnitResult {
  * @returns {UseEmployeesByOrgUnitResult} Object containing data, loading state and any error
  */
 export const useEmployeesByOrgUnit = (accessToken: string): UseEmployeesByOrgUnitResult => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [data, setData] = useState<OrgUnitEmployeeData[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
@@ -36,7 +39,13 @@ export const useEmployeesByOrgUnit = (accessToken: string): UseEmployeesByOrgUni
 
       try {
         setLoading(true)
-        const response = await queryClient.executeQuery('employeesByDepartment', QueryType.DATASET, {})
+        const structureId = getCurrentActiveStructureId()
+        const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+        const params: Record<string, string | number | boolean> = {}
+        if (structureId) params.structureId = structureId
+        if (companyIdsParam) params.companyIds = companyIdsParam
+
+        const response = await queryClient.executeQuery('employeesByDepartment', QueryType.DATASET, params)
 
         const rows: Array<{ category: string; value: number }> = response?.data || []
         const totalEmployees = rows.reduce((sum, r) => sum + (Number(r.value) || 0), 0)
@@ -70,7 +79,7 @@ export const useEmployeesByOrgUnit = (accessToken: string): UseEmployeesByOrgUni
     }
 
     fetchData()
-  }, [accessToken, queryClient])
+  }, [accessToken, queryClient, selectedCompanyIds])
 
   return { data, loading, error }
 }

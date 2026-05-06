@@ -111,11 +111,6 @@ export const HrAnalytics: React.FC<BusinessAppContextProps> = context => {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [viewOptions])
 
-  // Debug logging for development
-  useEffect(() => {
-    console.log(`HR Analytics - Active view: ${activeTab}`)
-  }, [activeTab])
-
   // Clean up section parameter on initial load if current tab doesn't support sections
   useEffect(() => {
     const tabsWithSections = ['workforce', 'structural-analysis', 'forecasting']

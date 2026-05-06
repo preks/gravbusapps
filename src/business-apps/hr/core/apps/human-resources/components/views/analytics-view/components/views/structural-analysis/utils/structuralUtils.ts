@@ -8,8 +8,6 @@ import {
   SunburstNode,
   StructuralStatistics
 } from '../types/structuralTypes'
-import { useTranslation } from '@newwork/nw-design-system'
-import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 // Color schemes for visualizations
 export const chartColors = {
@@ -44,8 +42,10 @@ const REVERSE_GRAY_RAMP = true
 // (processOrganizationalData removed; hierarchy is now built from dataset/edges elsewhere)
 
 // Generate span of control analysis data
-export const generateSpanOfControlAnalysis = (nodes: OrganizationalNode[]): SpanOfControlData[] => {
-  const { t } = useTranslation(hrTranslations)
+export const generateSpanOfControlAnalysis = (
+  nodes: OrganizationalNode[],
+  translate: (key: string) => string = (key: string) => key
+): SpanOfControlData[] => {
   return nodes
     .filter(node => node.directReports > 0) // Only managers
     .map(node => {
@@ -57,13 +57,13 @@ export const generateSpanOfControlAnalysis = (nodes: OrganizationalNode[]): Span
 
       if (directReports >= 3 && directReports <= 7) {
         efficiency = 'Optimal'
-        recommendation = t('hr-analytics-recommendation-optimal')
+        recommendation = translate('hr-analytics-recommendation-optimal')
       } else if (directReports > 7) {
         efficiency = 'Overloaded'
-        recommendation = t('hr-analytics-recommendation-overloaded')
+        recommendation = translate('hr-analytics-recommendation-overloaded')
       } else {
         efficiency = 'Underutilized'
-        recommendation = t('hr-analytics-recommendation-underutilized')
+        recommendation = translate('hr-analytics-recommendation-underutilized')
       }
 
       return {

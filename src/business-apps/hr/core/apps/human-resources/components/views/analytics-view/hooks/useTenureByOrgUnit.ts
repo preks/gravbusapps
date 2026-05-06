@@ -4,6 +4,7 @@ import { useQueryExecutionClient, QueryType, Services } from '@/common/network/d
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 /**
  * Interface for tenure ranges used in the heatmap
@@ -54,6 +55,7 @@ export const tenureRanges: TenureRange[] = [
  * @returns Object containing tenure distribution data, organizational units, tenure ranges, and loading/error states
  */
 export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId?: string) => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [tenureDistribution, setTenureDistribution] = useState<TenureDistributionItem[]>([])
   const [orgUnits, setOrgUnits] = useState<OrganizationalUnit[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -82,8 +84,6 @@ export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId
         setError(null)
       }
 
-      console.log('[useTenureByOrgUnit] Fetching employee tenure data by organizational unit using SQL query')
-
       // Use provided structureId or get current active structure
       const targetStructureId = structureId || getCurrentActiveStructureId()
 
@@ -91,11 +91,11 @@ export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId
         throw new Error('[useTenureByOrgUnit] No structure ID provided or found')
       }
 
-      console.log('[useTenureByOrgUnit] Using structure ID:', targetStructureId)
-
       // Execute the SQL query
+      const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
       const response = await queryClient.executeQuery('tenureDistributionByOrgUnit', QueryType.DATASET, {
-        structureId: targetStructureId
+        structureId: targetStructureId,
+        ...(companyIdsParam ? { companyIds: companyIdsParam } : {})
       })
 
       if (!response || !response.data) {
@@ -103,8 +103,6 @@ export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId
       }
 
       const sqlData = response.data
-      console.log('[useTenureByOrgUnit] SQL query returned', sqlData.length, 'data points')
-
       // Transform SQL response to expected interface
       const distributionData: TenureDistributionItem[] = sqlData.map(item => ({
         orgUnitId: item.category, // Using category as orgUnitId since we don't have separate ID
@@ -139,8 +137,6 @@ export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId
         .slice(0, 50)
         .map(entry => entry[0])
 
-      console.log('[useTenureByOrgUnit] Top org units by employee count:', topOrgUnitIds.slice(0, 5))
-
       // Filter distribution data to only include top org units
       const filteredDistributionData = distributionData.filter(item => topOrgUnitIds.includes(item.orgUnitId))
 
@@ -165,10 +161,6 @@ export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId
         })
       })
 
-      console.log(
-        `[useTenureByOrgUnit] Processed ${completeDistributionData.length} data points across ${filteredOrgUnits.length} organizational units`
-      )
-
       // Update state
       if (isMounted.current) {
         setTenureDistribution(completeDistributionData)
@@ -184,7 +176,7 @@ export const useTenureByOrgUnit = (context: BusinessAppContextProps, structureId
         setLoading(false)
       }
     }
-  }, [context.accessToken, queryClient, structureId])
+  }, [context.accessToken, queryClient, structureId, selectedCompanyIds])
 
   useEffect(() => {
     isMounted.current = true

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Card, Alert, Button, Space, Spin } from 'antd'
+import { Card, Alert, Spin } from 'antd'
 import {
   ArrowsClockwiseIcon,
   UsersIcon,
@@ -23,13 +23,14 @@ import {
 } from 'recharts'
 import { SunburstVisualizationProps } from '../types/hierarchyTypes'
 import { AlternativeViewDatasetRow, ViewMode } from '../hooks/useHierarchyData'
-import { useTranslation, SectionKpiCards, KpiCardData, Icon } from '@newwork/nw-design-system'
+import { useTranslation, SectionKpiCards, KpiCardData, Icon, Button } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import {
   exportTableToExcel,
   exportTableToPdf
 } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/utils/exportUtils'
 import AnalyticsDataTable from '../../../../../shared/AnalyticsDataTable'
+import { STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS } from '../../../../../shared/analyticsChartSurfaceStyles'
 
 export interface RadialBarChartProps extends SunburstVisualizationProps {
   viewMode: ViewMode
@@ -473,7 +474,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         type="error"
         showIcon
         action={
-          <Button size="small" onClick={onRefresh} icon={<ArrowsClockwiseIcon size={16} />}>
+          <Button size="sm" onClick={onRefresh}>
+            <ArrowsClockwiseIcon size={16} className="gba:mr-1" />
             {t('common-retry')}
           </Button>
         }
@@ -492,41 +494,53 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         </div>
 
         {/* View Mode Switcher */}
-        <Space>
-          <div className="gba:flex gba:items-center gba:font-semibold">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <div className="gba:flex gba:items-center gba:font-semibold gba:whitespace-nowrap">
             <EyeIcon size={16} className="gba:mr-2" />
             {t('hr-analytics-view-by')}
           </div>
-          <Space.Compact>
+          <div className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap">
             <Button
-              size="small"
-              type={viewMode === 'location' ? 'primary' : 'default'}
+              variant="outline"
               onClick={() => onViewModeChange('location')}
+              className={
+                viewMode === 'location'
+                  ? 'gba:inline-flex gba:items-center gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 hover:gba:text-primary-foreground'
+                  : 'gba:inline-flex gba:items-center'
+              }
               data-testid="OrganizationalHierarchyReport-RadialBarChart-LocationModeButton"
             >
               <GlobeIcon size={16} className="gba:mr-1" />
               {t('hr-analytics-location')}
             </Button>
             <Button
-              size="small"
-              type={viewMode === 'company' ? 'primary' : 'default'}
+              variant="outline"
               onClick={() => onViewModeChange('company')}
+              className={
+                viewMode === 'company'
+                  ? 'gba:inline-flex gba:items-center gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 hover:gba:text-primary-foreground'
+                  : 'gba:inline-flex gba:items-center'
+              }
               data-testid="OrganizationalHierarchyReport-RadialBarChart-CompanyModeButton"
             >
               <BankIcon size={16} className="gba:mr-1" />
               {t('hr-analytics-company')}
             </Button>
             <Button
-              size="small"
-              type={viewMode === 'costcenter' ? 'primary' : 'default'}
+              variant="outline"
               onClick={() => onViewModeChange('costcenter')}
+              className={
+                viewMode === 'costcenter'
+                  ? 'gba:inline-flex gba:items-center gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 hover:gba:text-primary-foreground'
+                  : 'gba:inline-flex gba:items-center'
+              }
               data-testid="OrganizationalHierarchyReport-RadialBarChart-CostCenterModeButton"
             >
               <CurrencyCircleDollarIcon size={16} className="gba:mr-1" />
               {t('hr-analytics-cost-center')}
             </Button>
-          </Space.Compact>
-        </Space>
+          </div>
+        </div>
       </div>
 
       {/* Statistics Row */}
@@ -534,6 +548,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
 
       {/* Main Chart Visualization */}
       <Card
+        className={STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS}
         title={
           <div className="gba:flex gba:items-center">
             <ChartBarIcon size={16} className="gba:mr-2" />
@@ -549,6 +564,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                   data={alternativeChart.data}
                   layout="vertical"
                   margin={{ top: 16, right: 24, left: 24, bottom: 16 }}
+                  accessibilityLayer={false}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />

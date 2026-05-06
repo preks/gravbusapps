@@ -7,10 +7,14 @@ import { useQueryExecutionClient, QueryType, Services } from '@/common/network/d
 import HeadcountChangesChart from '../HeadcountChangesChart'
 import { useMonthlyHeadcountChanges } from '../../../../../hooks/useMonthlyHeadcountChanges'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
 import { formatMonthPeriod } from '../../../../../utils/valueDisplayUtils'
 import AnalyticsDataTable, { DIFFERENT_BADGE } from '../../../../shared/AnalyticsDataTable'
+import { useHrAnalyticsFilters } from '../../../../../context/HrAnalyticsFiltersContext'
+import SelectableChartCard from '../../../../shared/SelectableChartCard'
+import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
+import AnalyticsTabLoadingState from '../../../../shared/AnalyticsTabLoadingState'
 
 const { Title, Text } = Typography
 
@@ -23,7 +27,12 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
   const { t } = useTranslation(hrTranslations)
   const [exportingTable, setExportingTable] = useState<string | null>(null)
   const currentYear = useMemo(() => new Date().getFullYear(), [])
-  const { data: monthlyChanges, loading: monthlyChangesLoading } = useMonthlyHeadcountChanges(props, currentYear)
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
+  const {
+    data: monthlyChanges,
+    loading: monthlyChangesLoading,
+    error: monthlyChangesError
+  } = useMonthlyHeadcountChanges(props, currentYear)
 
   // Add authoritative employee count hook
   const [totalEmployeeCount, setTotalEmployeeCount] = useState<number>(0)
@@ -35,8 +44,13 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
 
     setIsLoadingEmployeeCount(true)
     try {
+      const structureId = getCurrentActiveStructureId()
+      const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+      const params: Record<string, string> = {}
+      if (structureId) params.structureId = structureId
+      if (companyIdsParam) params.companyIds = companyIdsParam
       // Use the same authoritative source as Demographics and Workforce views
-      const totalEmployeeData = await queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, {})
+      const totalEmployeeData = await queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, params)
       const count = totalEmployeeData.data.length > 0 ? totalEmployeeData.data[0].value : 0
       setTotalEmployeeCount(count)
     } catch (error) {
@@ -45,7 +59,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
     } finally {
       setIsLoadingEmployeeCount(false)
     }
-  }, [queryClient, props.accessToken])
+  }, [queryClient, props.accessToken, selectedCompanyIds])
 
   useEffect(() => {
     if (props.accessToken) {
@@ -197,6 +211,25 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
     return null
   }
 
+  if (monthlyChangesLoading || isLoadingEmployeeCount) {
+    return (
+      <AnalyticsTabLoadingState dataTestId={`${prefixDataTestId}-loading`} message={t('hr-data-filter-loading-data')} />
+    )
+  }
+
+  if (monthlyChangesError) {
+    const errorDetail = monthlyChangesError instanceof Error ? monthlyChangesError.message : String(monthlyChangesError)
+    return (
+      <AnalyticsTabErrorCard
+        dataTestId={`${prefixDataTestId}-error`}
+        message={t('hr-data-filter-error')}
+        detail={errorDetail}
+        retryLabel={t('common-retry')}
+        onRetry={() => globalThis.location.reload()}
+      />
+    )
+  }
+
   const handleExport = async (format: 'excel' | 'pdf') => {
     setExportingTable(`headcount-changes-${format}`)
     try {
@@ -230,7 +263,16 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
 
       {/* Workforce Charts */}
       <div className="gba:space-y-6">
-        <HeadcountChangesChart {...props} />
+        <SelectableChartCard
+          testId="headcount-changes-chart"
+          isSelected={false}
+          onSelect={() => {}}
+          title={t('hr-analytics-headcount-changes-chart')}
+          tag={t('hr-analytics-months', { count: tableData.length })}
+          description={t('hr-analytics-headcount-changes-description')}
+        >
+          <HeadcountChangesChart {...props} />
+        </SelectableChartCard>
         <AnalyticsDataTable
           dataTestId={`${prefixDataTestId}-headcount-changes-table`}
           title={t('hr-analytics-data-table', { title: t('hr-analytics-headcount-changes-chart') })}

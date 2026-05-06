@@ -1,5 +1,4 @@
 import React, { useMemo, useCallback } from 'react'
-import { Card, Typography } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useMonthlySalaryChangesEmployees } from '../../../../hooks/useMonthlySalaryChangesEmployees'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -8,8 +7,6 @@ import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { ChartStateOverlay } from './ChartStateOverlay'
 import dayjs from 'dayjs'
-
-const { Title, Text } = Typography
 
 const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
   const { t } = useTranslation(hrTranslations)
@@ -74,7 +71,7 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
 
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
+        <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }} accessibilityLayer={false}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="month"
@@ -105,22 +102,7 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
     )
   }, [loading, error, chartData, t])
 
-  return (
-    <Card className="gba:w-full gba:mb-6 gba:shadow-sm" data-testid="salary-changes-chart">
-      {/* Header */}
-      <div className="gba:mb-4">
-        <Title level={4} className="gba:m-0 gba:text-foreground">
-          {t('hr-analytics-monthly-salary-changes')}
-        </Title>
-        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {t('hr-analytics-salary-changes-description')}
-        </Text>
-      </div>
-
-      {/* Chart Content */}
-      <div className="gba:h-72">{renderChartContent()}</div>
-    </Card>
-  )
+  return <div className="gba:w-full gba:h-full gba:overflow-hidden">{renderChartContent()}</div>
 }
 
 export default SalaryChangesChart

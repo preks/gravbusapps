@@ -5,6 +5,7 @@ import { UserIcon, SirenIcon } from '@phosphor-icons/react'
 import { ReportingChainData, ReportingChainSummary } from '../types/structuralTypes'
 import { useTranslation, SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS } from '../../../shared/analyticsChartSurfaceStyles'
 
 const { Text } = Typography
 
@@ -166,15 +167,21 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
         <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-chain-length-distribution')}
         </h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={distributionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="chainLength" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="count" fill="var(--nw-chart-1)" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <div className={`gba:border gba:rounded-lg gba:shadow-sm gba:p-4 ${STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS}`}>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={distributionData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              accessibilityLayer={false}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="chainLength" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="count" fill="var(--nw-chart-1)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Bottlenecks Analysis */}

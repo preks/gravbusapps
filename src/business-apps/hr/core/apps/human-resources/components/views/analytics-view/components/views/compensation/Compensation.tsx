@@ -2,7 +2,7 @@ import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { useCompensationAnalysisData } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useCompensationAnalysisData.ts'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatPercentage } from '@/common/utils/numberFormatter'
-import { Card, CardContent, Icon, KpiCardData, SectionKpiCards, useTranslation } from '@newwork/nw-design-system'
+import { Icon, KpiCardData, SectionKpiCards, useTranslation } from '@newwork/nw-design-system'
 import {
   CalendarIcon,
   CurrencyDollarIcon,
@@ -25,13 +25,15 @@ import {
 } from '../../../utils/compensationAnalysisUtils'
 import { HIGHLIGHT_BADGE } from '../../shared/AnalyticsDataTable'
 import AnalyticsTabErrorCard from '../../shared/AnalyticsTabErrorCard'
+import AnalyticsTabLoadingState from '../../shared/AnalyticsTabLoadingState'
 import AnalyticsTableSection from '../../shared/AnalyticsTableSection'
-import EquityHealthGauge from './components/charts/EquityHealthGauge'
+import SelectableChartCard from '../../shared/SelectableChartCard'
 import HealthInsuranceTypeDistributionChart from './components/charts/HealthInsuranceTypeDistributionChart'
 import HealthInsurerDistributionChart from './components/charts/HealthInsurerDistributionChart'
 import PayGapExplanationPieChart from './components/charts/PayGapExplanationPieChart'
 import SalaryByOrgUnitChart from './components/charts/SalaryByOrgUnitChart'
 import YearlyPayrollChart from './components/charts/YearlyPayrollChart'
+import EquityHealthGauge from './components/charts/EquityHealthGauge'
 import CompressionRiskAlertsCard from './components/CompressionRiskAlertsCard'
 
 const { Title, Text } = Typography
@@ -243,9 +245,27 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
 
   const getMarketAlignmentFooter = useCallback(() => {
     return marketBenchmark.data?.companyCompRatioP50
-      ? `Comp Ratio: ${marketBenchmark.data.companyCompRatioP50.toFixed(2)}`
-      : 'Market comparison unavailable'
-  }, [marketBenchmark])
+      ? t('hr-analytics-comp-ratio-footer', { value: marketBenchmark.data.companyCompRatioP50.toFixed(2) })
+      : t('hr-analytics-market-comparison-unavailable')
+  }, [marketBenchmark, t])
+
+  const getEquityHealthScoreValue = useCallback(() => {
+    if (healthScore.loading) return t('hr-data-filter-loading')
+    if (healthScore.error) return 'Error'
+    if (!healthScore.data) return 'N/A'
+    return `${Math.round(healthScore.data.score)}`
+  }, [healthScore, t])
+
+  const getEquityHealthScoreFooter = useCallback(() => {
+    if (healthScore.loading) return ''
+    if (healthScore.error) return t('hr-analytics-equity-health-score-load-error')
+    if (!healthScore.data) return t('hr-analytics-equity-health-score-no-analysis')
+    return healthScore.data.label
+  }, [healthScore, t])
+
+  const getEquityHealthScoreIcon = useCallback(() => {
+    return <Icon icon={ShieldWarningIcon} size="sm" decorative />
+  }, [])
 
   // Create KPI cards data
   const kpiCards: KpiCardData[] = useMemo(
@@ -284,35 +304,45 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       },
       {
         id: 'compression-score',
-        title: 'Compression Risk Score',
+        title: t('hr-analytics-compression-risk-score'),
         value: getCompressionRiskValue(),
         icon: getCompressionRiskIcon(),
         iconColor: 'var(--nw-chart-5)',
-        footer: `${compressionAnalysis.data?.totalCompressionCases || 0} compression cases found`
+        footer: t('hr-analytics-compression-cases-found', {
+          count: compressionAnalysis.data?.totalCompressionCases || 0
+        })
       },
       {
         id: 'total-pay-gap',
-        title: 'Total Pay Gap',
+        title: t('hr-analytics-total-pay-gap'),
         value: getPayGapValue(),
         icon: getPayGapIcon(),
         iconColor: 'var(--nw-chart-6)',
-        footer: `${gapExplanation.data?.totalEmployees || 0} employees analyzed`
+        footer: t('hr-analytics-employees-analyzed', { count: gapExplanation.data?.totalEmployees || 0 })
       },
       {
         id: 'unexplained-pay-gap',
-        title: 'Unexplained Pay Gap',
+        title: t('hr-analytics-unexplained-pay-gap'),
         value: getUnexplainedPayGapValue(),
         icon: getUnexplainedPayGapIcon(),
         iconColor: 'var(--nw-chart-7)',
-        footer: `${gapExplanation.data?.totalEmployees || 0} employees analyzed`
+        footer: t('hr-analytics-employees-analyzed', { count: gapExplanation.data?.totalEmployees || 0 })
       },
       {
         id: 'market-alignment',
-        title: 'Market Alignment',
+        title: t('hr-analytics-market-alignment'),
         value: getMarketAlignmentValue(),
         icon: getMarketAlignmentIcon(),
         iconColor: 'var(--nw-chart-8)',
         footer: getMarketAlignmentFooter()
+      },
+      {
+        id: 'equity-health-score',
+        title: t('hr-analytics-equity-health-score'),
+        value: getEquityHealthScoreValue(),
+        icon: getEquityHealthScoreIcon(),
+        iconColor: 'var(--nw-chart-1)',
+        footer: getEquityHealthScoreFooter()
       }
     ],
     [
@@ -329,9 +359,22 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       getUnexplainedPayGapIcon,
       getMarketAlignmentValue,
       getMarketAlignmentIcon,
-      getMarketAlignmentFooter
+      getMarketAlignmentFooter,
+      getEquityHealthScoreValue,
+      getEquityHealthScoreIcon,
+      getEquityHealthScoreFooter
     ]
   )
+
+  if (loading) {
+    return (
+      <AnalyticsTabLoadingState
+        dataTestId={`${prefixDataTestId}-loading`}
+        message={t('hr-data-filter-loading-data')}
+        className="gba:min-h-[300px]"
+      />
+    )
+  }
 
   if (error) {
     return (
@@ -350,7 +393,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
   return (
     <div
       data-testid={prefixDataTestId}
-      className="gba:flex gba:flex-col gba:gap-6 gba:p-6 gba:bg-muted gba:min-h-full gba:rounded-lg"
+      className="gba:flex gba:flex-col gba:gap-6 gba:p-6 gba:min-h-full gba:rounded-lg"
     >
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
@@ -373,7 +416,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
           <Col span={6}>
             {/* Equity Health Gauge - Overall Score */}
             <EquityHealthGauge
-              score={healthScore.data?.score}
+              score={healthScore.data?.score ?? 0}
               loading={healthScore.loading}
               error={healthScore.error}
             />
@@ -422,60 +465,45 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         <Text className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</Text>
       </div>
 
-      <Card
-        data-testid={`${prefixDataTestId}-salary-by-org-unit-card`}
-        className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
-          selectedChart === 'salary-by-org-unit-chart'
-            ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-            : 'gba:hover:shadow-lg'
-        }`}
-        onClick={() => handleChartClick('salary-by-org-unit-chart')}
+      <SelectableChartCard
+        testId="salary-by-org-unit-chart"
+        isSelected={selectedChart === 'salary-by-org-unit-chart'}
+        onSelect={() => handleChartClick('salary-by-org-unit-chart')}
+        title={chartConfigs[0].title}
+        tag={chartConfigs[0].tag}
+        description={chartConfigs[0].description}
+        selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
       >
-        <CardContent className="gba:p-4">
-          <SalaryByOrgUnitChart data={salaryByOrgUnit} loading={salaryByOrgUnitLoading} error={salaryByOrgUnitError} />
-          {selectedChart === 'salary-by-org-unit-chart' && (
-            <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
-          )}
-        </CardContent>
-      </Card>
+        <SalaryByOrgUnitChart data={salaryByOrgUnit} loading={salaryByOrgUnitLoading} error={salaryByOrgUnitError} />
+      </SelectableChartCard>
 
       <div className="gba:mt-4">
         <Row gutter={16} className="gba:w-full">
           <Col span={12}>
-            <Card
-              data-testid={`${prefixDataTestId}-health-insurer-card`}
-              className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
-                selectedChart === 'health-insurer-chart'
-                  ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-                  : 'gba:hover:shadow-lg'
-              }`}
-              onClick={() => handleChartClick('health-insurer-chart')}
+            <SelectableChartCard
+              testId="health-insurer-chart"
+              isSelected={selectedChart === 'health-insurer-chart'}
+              onSelect={() => handleChartClick('health-insurer-chart')}
+              title={chartConfigs[1].title}
+              tag={chartConfigs[1].tag}
+              description={chartConfigs[1].description}
+              selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
             >
-              <CardContent className="gba:p-4">
-                <HealthInsurerDistributionChart accessToken={accessToken} />
-                {selectedChart === 'health-insurer-chart' && (
-                  <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
-                )}
-              </CardContent>
-            </Card>
+              <HealthInsurerDistributionChart accessToken={accessToken} />
+            </SelectableChartCard>
           </Col>
           <Col span={12}>
-            <Card
-              data-testid={`${prefixDataTestId}-health-insurance-type-card`}
-              className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
-                selectedChart === 'health-insurance-type-chart'
-                  ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-                  : 'gba:hover:shadow-lg'
-              }`}
-              onClick={() => handleChartClick('health-insurance-type-chart')}
+            <SelectableChartCard
+              testId="health-insurance-type-chart"
+              isSelected={selectedChart === 'health-insurance-type-chart'}
+              onSelect={() => handleChartClick('health-insurance-type-chart')}
+              title={chartConfigs[2].title}
+              tag={chartConfigs[2].tag}
+              description={chartConfigs[2].description}
+              selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
             >
-              <CardContent className="gba:p-4">
-                <HealthInsuranceTypeDistributionChart accessToken={accessToken} />
-                {selectedChart === 'health-insurance-type-chart' && (
-                  <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
-                )}
-              </CardContent>
-            </Card>
+              <HealthInsuranceTypeDistributionChart accessToken={accessToken} />
+            </SelectableChartCard>
           </Col>
         </Row>
       </div>
