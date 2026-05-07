@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo } from 'react'
 import {
   Card,
   CardHeader,
@@ -13,10 +13,12 @@ import {
   Spinner,
   Alert
 } from '@newwork/nw-design-system'
-import { PieChart, Pie, Cell } from 'recharts'
+import { PieChart, Pie } from 'recharts'
 import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { isAllCurrencySelection } from '@/common/data/investment/utils/investmentCurrencySelection'
 import { ChartPieSliceIcon, ChartDonutIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
-import { CurrencyFilter } from '../../shared/components'
+import { AnalyticsChartTooltip, CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 import {
   usePortfolioGroupCountDistribution,
@@ -33,23 +35,70 @@ interface PortfolioDistributionChartsProps extends BusinessAppContextProps {
   availableCurrencies: string[]
 }
 
+const getDisplayCurrency = (currency: string) =>
+  isAllCurrencySelection(currency) ? 'EUR' : extractCurrencyCode(currency)
+
+const renderDistributionTooltip = ({
+  active,
+  payload,
+  labelKey,
+  total,
+  metricLabel,
+  valueFormatter
+}: {
+  active?: boolean
+  payload?: Array<{ value?: number; payload?: Record<string, any> }>
+  labelKey: string
+  total: number
+  metricLabel: string
+  valueFormatter: (value: number, item: Record<string, any>) => string
+}) => {
+  if (active && payload?.length) {
+    const data = payload[0]
+    const item = data.payload ?? {}
+    const value = Number(data.value ?? 0)
+    const percentage = total > 0 ? `${((value / total) * 100).toFixed(1)}%` : '0%'
+
+    return (
+      <AnalyticsChartTooltip
+        title={item[labelKey]}
+        metrics={[
+          {
+            label: metricLabel,
+            value: valueFormatter(value, item),
+            color: `var(--color-${item.name})`
+          }
+        ]}
+        metadata={[{ label: 'Share of total', value: percentage }]}
+      />
+    )
+  }
+
+  return null
+}
+
+interface PortfolioDistributionTooltipContentProps {
+  active?: boolean
+  payload?: Array<{ value?: number; payload?: Record<string, any> }>
+  labelKey: string
+  total: number
+  metricLabel: string
+  valueFormatter: (value: number, item: Record<string, any>) => string
+}
+
+const PortfolioDistributionTooltipContent: React.FC<PortfolioDistributionTooltipContentProps> = props =>
+  renderDistributionTooltip(props)
+
 export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsProps> = props => {
   const { masterCurrency, availableCurrencies } = props
 
-  // Currency filters with "All" support for count charts
-  const [groupCountCurrency, setGroupCountCurrency] = useState('All')
-  const [groupAmountCurrency, setGroupAmountCurrency] = useCurrencySync(masterCurrency)
-  const [statusCountCurrency, setStatusCountCurrency] = useState('All')
-  const [statusAmountCurrency, setStatusAmountCurrency] = useCurrencySync(masterCurrency)
-
-  // Sync count currency with master when master changes
-  useEffect(() => {
-    setGroupCountCurrency('All')
-    setStatusCountCurrency('All')
-  }, [masterCurrency])
-
-  // Currency options with "All" for count charts
-  const currencyOptionsWithAll = useMemo(() => ['All', ...availableCurrencies], [availableCurrencies])
+  // Currency filters sync with the overview-level currency selection.
+  const [groupCountCurrency, setGroupCountCurrency] = useCurrencySync(masterCurrency, 'all')
+  const [groupAmountCurrency, setGroupAmountCurrency] = useCurrencySync(masterCurrency, 'all')
+  const [statusCountCurrency, setStatusCountCurrency] = useCurrencySync(masterCurrency, 'all')
+  const [statusAmountCurrency, setStatusAmountCurrency] = useCurrencySync(masterCurrency, 'all')
+  const allOptionLabel = getTranslationFromI18nKeyAndLabel('currency.all', 'All')
+  const formatCurrencyLabel = (currency: string) => (isAllCurrencySelection(currency) ? allOptionLabel : currency)
 
   // Fetch group distribution data using server-side queries
   const {
@@ -100,7 +149,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const groupCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of groupCountData) {
-      const key = item.group.toLowerCase().replaceAll(/\s+/g, '')
+      const key = item.group.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.group }
     }
     return config
@@ -109,7 +158,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const groupAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of groupAmountData) {
-      const key = item.group.toLowerCase().replaceAll(/\s+/g, '')
+      const key = item.group.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.group }
     }
     return config
@@ -118,7 +167,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const statusCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of statusCountData) {
-      const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
+      const key = item.status.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.status }
     }
     return config
@@ -127,7 +176,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const statusAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of statusAmountData) {
-      const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
+      const key = item.status.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.status }
     }
     return config
@@ -136,7 +185,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const currencyCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of currencyCountData) {
-      const key = item.currency.toLowerCase().replaceAll(/\s+/g, '')
+      const key = item.currency.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.currency }
     }
     return config
@@ -145,7 +194,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const currencyAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of currencyAmountData) {
-      const key = item.currency.toLowerCase().replaceAll(/\s+/g, '')
+      const key = item.currency.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.currency }
     }
     return config
@@ -162,16 +211,19 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
                   <CardTitle>Group Distribution by Count</CardTitle>
-                  <CardDescription>Number of investments per investment group ({groupCountCurrency})</CardDescription>
+                  <CardDescription>
+                    Number of investments per investment group ({formatCurrencyLabel(groupCountCurrency)})
+                  </CardDescription>
                 </div>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
                 <CurrencyFilter
-                  currencies={currencyOptionsWithAll}
+                  currencies={availableCurrencies}
                   value={groupCountCurrency}
                   onChange={setGroupCountCurrency}
                   dataTestId="group-count-currency-filter"
                   showLabel={false}
+                  allOptionLabel={allOptionLabel}
                 />
               </div>
             </div>
@@ -205,7 +257,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={groupCountData.map((item: any) => {
-                        const key = item.group.toLowerCase().replaceAll(/\s+/g, '')
+                        const key = item.group.toLowerCase().replace(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -218,35 +270,16 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       outerRadius={80}
                       dataKey="value"
                       nameKey="name"
-                    >
-                      {groupCountData.map((entry: any) => {
-                        const key = entry.group.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
-                      })}
-                    </Pie>
+                    />
                     <ChartTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload?.length) {
-                          const data = payload[0]
-                          const groupKey = data.payload.name
-                          const total = groupCountData.reduce((sum, item) => sum + item.count, 0)
-                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                          return (
-                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: `var(--color-${groupKey})` }}
-                                />
-                                <span className="gba:font-medium">{data.payload.group}</span>
-                              </div>
-                              <div className="gba:text-lg gba:font-semibold">{data.value} investments</div>
-                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
+                      content={
+                        <PortfolioDistributionTooltipContent
+                          labelKey="group"
+                          total={groupCountData.reduce((sum, item) => sum + item.count, 0)}
+                          metricLabel="Investment count"
+                          valueFormatter={value => `${value} investments`}
+                        />
+                      }
                     />
                     <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>
@@ -263,7 +296,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="default" size="md" decorative />
                 <div>
                   <CardTitle>Group Distribution by Total Amount</CardTitle>
-                  <CardDescription>Total amount per group ({groupAmountCurrency})</CardDescription>
+                  <CardDescription>Total amount per group ({formatCurrencyLabel(groupAmountCurrency)})</CardDescription>
                 </div>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
@@ -273,6 +306,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   currencies={availableCurrencies}
                   showLabel={false}
                   dataTestId="group-amount-currency-filter"
+                  allOptionLabel={allOptionLabel}
                 />
               </div>
             </div>
@@ -306,7 +340,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={groupAmountData.map((item: any) => {
-                        const key = item.group.toLowerCase().replaceAll(/\s+/g, '')
+                        const key = item.group.toLowerCase().replace(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -319,43 +353,18 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       outerRadius={80}
                       dataKey="value"
                       nameKey="name"
-                    >
-                      {groupAmountData.map((entry: any) => {
-                        const key = entry.group.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
-                      })}
-                    </Pie>
+                    />
                     <ChartTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload?.length) {
-                          const data = payload[0]
-                          const groupKey = data.payload.name
-                          const total = groupAmountData.reduce((sum, item) => sum + item.totalAmount, 0)
-                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                          return (
-                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: `var(--color-${groupKey})` }}
-                                />
-                                <span className="gba:font-medium">{data.payload.group}</span>
-                              </div>
-                              <div className="gba:text-lg gba:font-semibold">
-                                {formatCurrencyCompact(
-                                  data.value as number,
-                                  extractCurrencyCode(groupAmountCurrency),
-                                  undefined,
-                                  1,
-                                  true
-                                )}
-                              </div>
-                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
+                      content={
+                        <PortfolioDistributionTooltipContent
+                          labelKey="group"
+                          total={groupAmountData.reduce((sum, item) => sum + item.totalAmount, 0)}
+                          metricLabel="Total amount"
+                          valueFormatter={value =>
+                            formatCurrencyCompact(value, getDisplayCurrency(groupAmountCurrency), undefined, 1, true)
+                          }
+                        />
+                      }
                     />
                     <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>
@@ -375,16 +384,19 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                 <IconAvatar icon={ChartDonutIcon} variant="secondary" size="md" decorative />
                 <div>
                   <CardTitle>Status Distribution by Count</CardTitle>
-                  <CardDescription>Number of investments per status ({statusCountCurrency})</CardDescription>
+                  <CardDescription>
+                    Number of investments per status ({formatCurrencyLabel(statusCountCurrency)})
+                  </CardDescription>
                 </div>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
                 <CurrencyFilter
-                  currencies={currencyOptionsWithAll}
+                  currencies={availableCurrencies}
                   value={statusCountCurrency}
                   onChange={setStatusCountCurrency}
                   dataTestId="status-count-currency-filter"
                   showLabel={false}
+                  allOptionLabel={allOptionLabel}
                 />
               </div>
             </div>
@@ -418,7 +430,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={statusCountData.map((item: any) => {
-                        const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
+                        const key = item.status.toLowerCase().replace(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -431,35 +443,16 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       outerRadius={80}
                       dataKey="value"
                       nameKey="name"
-                    >
-                      {statusCountData.map((entry: any) => {
-                        const key = entry.status.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
-                      })}
-                    </Pie>
+                    />
                     <ChartTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload?.length) {
-                          const data = payload[0]
-                          const statusKey = data.payload.name
-                          const total = statusCountData.reduce((sum: number, item: any) => sum + item.count, 0)
-                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                          return (
-                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: `var(--color-${statusKey})` }}
-                                />
-                                <span className="gba:font-medium">{data.payload.status}</span>
-                              </div>
-                              <div className="gba:text-lg gba:font-semibold">{data.value} investments</div>
-                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
+                      content={
+                        <PortfolioDistributionTooltipContent
+                          labelKey="status"
+                          total={statusCountData.reduce((sum: number, item: any) => sum + item.count, 0)}
+                          metricLabel="Investment count"
+                          valueFormatter={value => `${value} investments`}
+                        />
+                      }
                     />
                     <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>
@@ -475,7 +468,9 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Status Distribution by Total Amount ({statusAmountCurrency})</CardTitle>
+                  <CardTitle>
+                    Status Distribution by Total Amount ({formatCurrencyLabel(statusAmountCurrency)})
+                  </CardTitle>
                   <CardDescription>Total invested amount per status</CardDescription>
                 </div>
               </div>
@@ -486,6 +481,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   currencies={availableCurrencies}
                   showLabel={false}
                   dataTestId="status-amount-currency-filter"
+                  allOptionLabel={allOptionLabel}
                 />
               </div>
             </div>
@@ -519,7 +515,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={statusAmountData.map((item: any) => {
-                        const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
+                        const key = item.status.toLowerCase().replace(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -532,43 +528,18 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       outerRadius={80}
                       dataKey="value"
                       nameKey="name"
-                    >
-                      {statusAmountData.map((entry: any) => {
-                        const key = entry.status.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
-                      })}
-                    </Pie>
+                    />
                     <ChartTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload?.length) {
-                          const data = payload[0]
-                          const statusKey = data.payload.name
-                          const total = statusAmountData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
-                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                          return (
-                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: `var(--color-${statusKey})` }}
-                                />
-                                <span className="gba:font-medium">{data.payload.status}</span>
-                              </div>
-                              <div className="gba:text-lg gba:font-semibold">
-                                {formatCurrencyCompact(
-                                  data.value as number,
-                                  extractCurrencyCode(statusAmountCurrency),
-                                  undefined,
-                                  1,
-                                  true
-                                )}
-                              </div>
-                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
+                      content={
+                        <PortfolioDistributionTooltipContent
+                          labelKey="status"
+                          total={statusAmountData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)}
+                          metricLabel="Total amount"
+                          valueFormatter={value =>
+                            formatCurrencyCompact(value, getDisplayCurrency(statusAmountCurrency), undefined, 1, true)
+                          }
+                        />
+                      }
                     />
                     <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>
@@ -623,7 +594,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={currencyCountData.map((item: any) => {
-                        const key = item.currency.toLowerCase().replaceAll(/\s+/g, '')
+                        const key = item.currency.toLowerCase().replace(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -636,35 +607,16 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       outerRadius={80}
                       dataKey="value"
                       nameKey="name"
-                    >
-                      {currencyCountData.map((entry: any) => {
-                        const key = entry.currency.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
-                      })}
-                    </Pie>
+                    />
                     <ChartTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload?.length) {
-                          const data = payload[0]
-                          const currencyKey = data.payload.name
-                          const total = currencyCountData.reduce((sum: number, item: any) => sum + item.count, 0)
-                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                          return (
-                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: `var(--color-${currencyKey})` }}
-                                />
-                                <span className="gba:font-medium">{data.payload.currency}</span>
-                              </div>
-                              <div className="gba:text-lg gba:font-semibold">{data.value} investments</div>
-                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
+                      content={
+                        <PortfolioDistributionTooltipContent
+                          labelKey="currency"
+                          total={currencyCountData.reduce((sum: number, item: any) => sum + item.count, 0)}
+                          metricLabel="Investment count"
+                          valueFormatter={value => `${value} investments`}
+                        />
+                      }
                     />
                     <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>
@@ -716,7 +668,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={currencyAmountData.map((item: any) => {
-                        const key = item.currency.toLowerCase().replaceAll(/\s+/g, '')
+                        const key = item.currency.toLowerCase().replace(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -729,43 +681,18 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       outerRadius={80}
                       dataKey="value"
                       nameKey="name"
-                    >
-                      {currencyAmountData.map((entry: any) => {
-                        const key = entry.currency.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
-                      })}
-                    </Pie>
+                    />
                     <ChartTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload?.length) {
-                          const data = payload[0]
-                          const currencyKey = data.payload.name
-                          const total = currencyAmountData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
-                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                          return (
-                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: `var(--color-${currencyKey})` }}
-                                />
-                                <span className="gba:font-medium">{data.payload.currency}</span>
-                              </div>
-                              <div className="gba:text-lg gba:font-semibold">
-                                {formatCurrencyCompact(
-                                  data.value as number,
-                                  extractCurrencyCode(data.payload.currency),
-                                  undefined,
-                                  1,
-                                  true
-                                )}
-                              </div>
-                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
+                      content={
+                        <PortfolioDistributionTooltipContent
+                          labelKey="currency"
+                          total={currencyAmountData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)}
+                          metricLabel="Total amount"
+                          valueFormatter={(value, item) =>
+                            formatCurrencyCompact(value, extractCurrencyCode(item.currency), undefined, 1, true)
+                          }
+                        />
+                      }
                     />
                     <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>

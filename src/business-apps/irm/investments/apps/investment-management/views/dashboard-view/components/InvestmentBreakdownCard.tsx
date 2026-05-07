@@ -1,9 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, IconAvatar, Badge, Spinner } from '@newwork/nw-design-system'
 import { TrendUpIcon, TrendDownIcon, MinusIcon, type Icon } from '@phosphor-icons/react'
-import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
-import { useCurrencySync } from '../../analytics-view/shared/hooks'
-import { CurrencyFilter } from '../../analytics-view/shared/components'
 import { useInvestmentGroupAggregates, type GroupTypeInfo, type TrendData } from '../hooks/useInvestmentGroupAggregates'
 
 export interface InvestmentGroup {
@@ -17,8 +14,6 @@ interface InvestmentBreakdownCardProps {
   accessToken: string
   moduleColor?: 'ext1' | 'ext2' | 'ext3' | 'ext4' | 'ext5' | 'ext6' | 'ext7' | 'ext8'
   onNavigateToInvestmentType: (investmentType: string) => void
-  masterCurrency: string
-  availableCurrencies: string[]
 }
 
 const renderTrendBadge = (trend: TrendData) => {
@@ -46,25 +41,15 @@ const renderTrendBadge = (trend: TrendData) => {
 
 /**
  * Generic investment breakdown card component.
- * Fetches aggregated data (count, total, type breakdown, trend) server-side
- * for the selected currency — no raw investment records needed.
+ * Fetches aggregated count data server-side — no raw investment records needed.
  */
 const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
   group,
   accessToken,
   moduleColor,
-  onNavigateToInvestmentType,
-  masterCurrency,
-  availableCurrencies
+  onNavigateToInvestmentType
 }) => {
-  const [selectedCurrency, setSelectedCurrency] = useCurrencySync(masterCurrency)
-
-  const { data, isLoading, error } = useInvestmentGroupAggregates(
-    accessToken,
-    group.name,
-    group.types,
-    selectedCurrency
-  )
+  const { data, isLoading, error } = useInvestmentGroupAggregates(accessToken, group.name, group.types)
 
   const handleNavigateClick = () => {
     const subtabMap: Record<string, string> = {
@@ -97,7 +82,7 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
       return (
         <div className="gba:space-y-2">
           <p className="gba:text-sm gba:font-medium gba:text-gray-700">Overview</p>
-          <p className="gba:text-sm gba:text-gray-400 gba:text-center gba:py-4">No investments in {selectedCurrency}</p>
+          <p className="gba:text-sm gba:text-gray-400 gba:text-center gba:py-4">No investments</p>
         </div>
       )
     }
@@ -110,9 +95,7 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
             <div key={subType.value} className="gba:flex gba:justify-between gba:items-center">
               <p className="gba:text-sm gba:text-gray-600">{subType.value}</p>
               <div className="gba:text-right">
-                <p className="gba:text-sm gba:font-medium">
-                  {formatCurrencyCompact(subType.totalAmount, selectedCurrency, undefined, 1, true)}
-                </p>
+                <p className="gba:text-sm gba:font-medium">{subType.count}</p>
                 <p className="gba:text-xs gba:text-gray-500">{subType.percentage.toFixed(1)}%</p>
               </div>
             </div>
@@ -123,11 +106,15 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
 
     return (
       <div className="gba:space-y-2">
-        <p className="gba:text-sm gba:font-medium gba:text-gray-700">Overview</p>
+        <p className="gba:text-sm gba:font-medium gba:text-gray-700">Investment Types</p>
         <div className="gba:flex gba:justify-between gba:items-center">
-          <p className="gba:text-sm gba:text-gray-600">Total Investments</p>
-          <p className="gba:text-sm gba:font-medium">{data.totalCount}</p>
+          <p className="gba:text-sm gba:text-gray-600">All investments</p>
+          <div className="gba:text-right">
+            <p className="gba:text-sm gba:font-medium">{data.totalCount}</p>
+            <p className="gba:text-xs gba:text-gray-500">100.0%</p>
+          </div>
         </div>
+        <p className="gba:text-xs gba:text-gray-500">No investment types configured for this group.</p>
       </div>
     )
   }
@@ -137,8 +124,8 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
       className="gba:h-full"
       data-testid={`investment-breakdown-card-${group.name.toLowerCase().replace(' ', '-')}`}
     >
-      <CardHeader>
-        <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
+      <CardHeader className="gba:pb-2">
+        <div className="gba:flex gba:justify-between gba:items-start">
           <div className="gba:flex gba:items-center gba:gap-3">
             <div
               className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105"
@@ -151,38 +138,19 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
               <CardTitle>
                 <span>{group.name}</span>
               </CardTitle>
-              <p className="gba:text-sm gba:text-gray-600">
-                {isLoading ? '...' : (data?.totalCount ?? 0)} investments in {selectedCurrency}
-              </p>
+              <p className="gba:text-sm gba:text-gray-600">{isLoading ? '...' : (data?.totalCount ?? 0)} investments</p>
             </div>
-          </div>
-          <div className="gba:ml-auto">
-            <CurrencyFilter
-              value={selectedCurrency}
-              onChange={setSelectedCurrency}
-              currencies={availableCurrencies}
-              showLabel={false}
-              dataTestId={`investment-breakdown-currency-filter-${group.name.toLowerCase().replace(' ', '-')}`}
-            />
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="gba:p-6">
+      <CardContent className="gba:px-6 gba:pt-0 gba:pb-6">
         {/* Trend indicator vs 91 days ago (by acquisitionDate) */}
         <div className="gba:mb-4 gba:pb-4 gba:border-b gba:border-gray-200">
           <div className="gba:flex gba:items-center gba:gap-2">
             <p className="gba:text-xs gba:text-gray-500">Last quarter activity</p>
             {!isLoading && data && renderTrendBadge(data.trendData)}
           </div>
-        </div>
-
-        {/* Total Invested */}
-        <div className="gba:mb-4">
-          <p className="gba:text-sm gba:text-gray-600 gba:mb-1">Total Invested</p>
-          <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
-            {isLoading ? '...' : formatCurrencyCompact(data?.totalAmount ?? 0, selectedCurrency, undefined, 1, true)}
-          </p>
         </div>
 
         {/* Investment Types or Overview */}

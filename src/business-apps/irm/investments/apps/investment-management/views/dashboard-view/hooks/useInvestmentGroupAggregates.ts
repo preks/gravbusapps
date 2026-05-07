@@ -4,7 +4,6 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 export interface GroupTypeAggregate {
   value: string
   count: number
-  totalAmount: number
   percentage: number
 }
 
@@ -15,7 +14,6 @@ export interface TrendData {
 
 export interface GroupAggregateData {
   totalCount: number
-  totalAmount: number
   typeBreakdown: GroupTypeAggregate[]
   trendData: TrendData
 }
@@ -28,20 +26,20 @@ export interface GroupTypeInfo {
 // Converts a free-form catalog string into a valid GraphQL alias prefix
 const toAlias = (value: string) => value.replace(/[^a-zA-Z0-9]/g, '_')
 
-const buildQuery = (groupName: string, types: GroupTypeInfo[], currency: string, quarterAgoDate: string): string => {
+const buildQuery = (groupName: string, types: GroupTypeInfo[], quarterAgoDate: string): string => {
   const g = toAlias(groupName)
 
   const typeAliases = types
     .map(
       type => `
-    ${toAlias(type.value)}_amount: InvestmentAggregate(
+    ${toAlias(type.value)}_count: InvestmentAggregate(
       where: {
         isDeleted: { _eq: false }
+        investmentGroup: { value: { _eq: "${groupName}" } }
         investmentType: { value: { _eq: "${type.value}" } }
-        currency: { code: { _eq: "${currency}" } }
       }
     ) {
-      aggregate { count sum { totalInvestmentAmount } }
+      aggregate { count }
     }`
     )
     .join('\n')
@@ -52,21 +50,19 @@ const buildQuery = (groupName: string, types: GroupTypeInfo[], currency: string,
         where: {
           isDeleted: { _eq: false }
           investmentGroup: { value: { _eq: "${groupName}" } }
-          currency: { code: { _eq: "${currency}" } }
         }
       ) {
-        aggregate { count sum { totalInvestmentAmount } }
+        aggregate { count }
       }
 
       ${g}_previous: InvestmentAggregate(
         where: {
           isDeleted: { _eq: false }
           investmentGroup: { value: { _eq: "${groupName}" } }
-          currency: { code: { _eq: "${currency}" } }
           createdAt: { _lte: "${quarterAgoDate}" }
         }
       ) {
-        aggregate { sum { totalInvestmentAmount } }
+        aggregate { count }
       }
 
       ${typeAliases}
@@ -74,14 +70,14 @@ const buildQuery = (groupName: string, types: GroupTypeInfo[], currency: string,
   `
 }
 
-const computeTrend = (currentAmount: number, previousAmount: number): TrendData => {
-  if (previousAmount === 0) {
+const computeTrend = (currentCount: number, previousCount: number): TrendData => {
+  if (previousCount === 0) {
     return {
-      percentage: currentAmount > 0 ? 100 : 0,
-      trend: currentAmount > 0 ? 'up' : 'neutral'
+      percentage: currentCount > 0 ? 100 : 0,
+      trend: currentCount > 0 ? 'up' : 'neutral'
     }
   }
-  const change = ((currentAmount - previousAmount) / previousAmount) * 100
+  const change = ((currentCount - previousCount) / previousCount) * 100
   if (Math.abs(change) < 0.1) return { percentage: 0, trend: 'neutral' }
   return {
     percentage: Math.min(Math.abs(change), 1000),
@@ -89,12 +85,7 @@ const computeTrend = (currentAmount: number, previousAmount: number): TrendData 
   }
 }
 
-export const useInvestmentGroupAggregates = (
-  accessToken: string,
-  groupName: string,
-  types: GroupTypeInfo[],
-  currency: string
-) => {
+export const useInvestmentGroupAggregates = (accessToken: string, groupName: string, types: GroupTypeInfo[]) => {
   const [data, setData] = useState<GroupAggregateData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -105,13 +96,13 @@ export const useInvestmentGroupAggregates = (
   const typesKey = useMemo(() => types.map(t => t.value).join('|'), [types])
 
   const fetchAggregates = useCallback(async () => {
-    if (!accessToken || !groupName || !currency) return
+    if (!accessToken || !groupName) return
 
     const quarterAgo = new Date()
     quarterAgo.setDate(quarterAgo.getDate() - 91)
     const quarterAgoDate = quarterAgo.toISOString().split('T')[0]
 
-    const query = buildQuery(groupName, types, currency, quarterAgoDate)
+    const query = buildQuery(groupName, types, quarterAgoDate)
 
     try {
       setIsLoading(true)
@@ -121,28 +112,24 @@ export const useInvestmentGroupAggregates = (
 
       const g = toAlias(groupName)
       const totalCount: number = result[`${g}_total`]?.aggregate?.count ?? 0
-      const totalAmount: number = result[`${g}_total`]?.aggregate?.sum?.totalInvestmentAmount ?? 0
-      const previousAmount: number = result[`${g}_previous`]?.aggregate?.sum?.totalInvestmentAmount ?? 0
+      const previousCount: number = result[`${g}_previous`]?.aggregate?.count ?? 0
 
       const typeBreakdown: GroupTypeAggregate[] = types
         .map(type => {
-          const alias = `${toAlias(type.value)}_amount`
+          const alias = `${toAlias(type.value)}_count`
           const count: number = result[alias]?.aggregate?.count ?? 0
-          const amount: number = result[alias]?.aggregate?.sum?.totalInvestmentAmount ?? 0
           return {
             value: type.value,
             count,
-            totalAmount: amount,
-            percentage: totalAmount > 0 ? (amount / totalAmount) * 100 : 0
+            percentage: totalCount > 0 ? (count / totalCount) * 100 : 0
           }
         })
         .filter(t => t.count > 0)
 
       setData({
         totalCount,
-        totalAmount,
         typeBreakdown,
-        trendData: computeTrend(totalAmount, previousAmount)
+        trendData: computeTrend(totalCount, previousCount)
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch investment group aggregates'
@@ -151,7 +138,7 @@ export const useInvestmentGroupAggregates = (
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, groupName, typesKey, currency, graphqlClient])
+  }, [accessToken, groupName, typesKey, graphqlClient])
 
   useEffect(() => {
     fetchAggregates()

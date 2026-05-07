@@ -1,42 +1,46 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
-import { ChartBarIcon, DropIcon, HouseIcon, GaugeIcon } from '@phosphor-icons/react'
+import { ChartBarIcon, GaugeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-
-// Import the investment report components
-import EquityInvestmentsReport from './equity-analytics/EquityInvestmentsReport'
-import LiquidFundInvestmentsReport from './liquid-fund-analytics/LiquidFundInvestmentsReport'
-import RealEstateInvestmentsReport from './real-estate-analytics/RealEstateInvestmentsReport'
+import { useInvestmentGroups } from '../investment-view/hooks/useInvestmentGroups'
 import { InvestmentPortfolioOverview } from './overview'
+import { GenericInvestmentGroupAnalyticsReport } from './group-analytics'
+
+const DEFAULT_ANALYTICS_TAB = 'overview'
+const DEFAULT_ANALYTICS_SECTION = 'distribution'
+const VALID_ANALYTICS_SECTIONS = new Set(['distribution', 'timeline', 'performance'])
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
   moduleColor?: string
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState(DEFAULT_ANALYTICS_TAB)
+  const [activeChartTab, setActiveChartTab] = useState(DEFAULT_ANALYTICS_SECTION)
+  const { catalogData, investmentGroups, isLoading: groupsLoading } = useInvestmentGroups(props.accessToken || '')
 
-  // Get initial tab from URL query parameters
-  const getInitialTab = useCallback(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const tabFromUrl = urlParams.get('analyticsTab')
+  const validTabIds = useMemo(
+    () => new Set([DEFAULT_ANALYTICS_TAB, ...investmentGroups.map(group => group.tabId)]),
+    [investmentGroups]
+  )
 
-    // Valid analytics tab values
-    if (tabFromUrl && ['overview', 'equity', 'liquid-funds', 'real-estate'].includes(tabFromUrl)) {
-      return tabFromUrl
-    }
+  const normalizeTab = useCallback(
+    (value?: string | null) => {
+      return value && validTabIds.has(value) ? value : DEFAULT_ANALYTICS_TAB
+    },
+    [validTabIds]
+  )
 
-    // Default to overview
-    return 'overview'
+  const normalizeAnalyticsSection = useCallback((value?: string | null) => {
+    return value && VALID_ANALYTICS_SECTIONS.has(value) ? value : DEFAULT_ANALYTICS_SECTION
   }, [])
 
-  // Update URL when tab changes using safe navigation
-  const updateUrl = useCallback((tab: string) => {
+  const replaceUrlState = useCallback((tab: string, section: string) => {
     try {
-      const currentUrl = new URL(window.location.href)
+      const currentUrl = new URL(globalThis.location.href)
       const params: Record<string, string> = {}
 
       // Preserve existing query parameters
@@ -44,45 +48,98 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
         params[key] = value
       }
 
-      // Update the analytics tab parameter
       params.analyticsTab = tab
+      params.analyticsSection = section
 
-      // Use platform URL builder for safe navigation
       const newUrl = buildPlatformUrl(currentUrl.pathname, params)
 
-      // Use safe history manipulation
-      if (window.history && window.history.replaceState) {
-        window.history.replaceState({}, '', newUrl)
-      }
+      globalThis.history?.replaceState?.({}, '', newUrl)
     } catch (error) {
       console.warn('Failed to update URL in analytics view:', error)
     }
   }, [])
 
+  const getUrlState = useCallback(() => {
+    const urlParams = new URLSearchParams(globalThis.location.search)
+    const rawTab = urlParams.get('analyticsTab')
+    const rawSection = urlParams.get('analyticsSection')
+
+    return {
+      rawSection,
+      rawTab,
+      section: normalizeAnalyticsSection(rawSection),
+      tab: normalizeTab(rawTab)
+    }
+  }, [normalizeAnalyticsSection, normalizeTab])
+
   const handleTabChange = useCallback(
     (value: string) => {
-      setActiveTab(value)
-      updateUrl(value)
+      const normalizedTab = normalizeTab(value)
+      const nextSection = normalizedTab === activeTab ? activeChartTab : DEFAULT_ANALYTICS_SECTION
+
+      setActiveTab(normalizedTab)
+      setActiveChartTab(nextSection)
+      replaceUrlState(normalizedTab, nextSection)
     },
-    [updateUrl]
+    [activeChartTab, activeTab, normalizeTab, replaceUrlState]
   )
 
-  // Initialize tab from URL on mount
+  const handleChartTabChange = useCallback(
+    (value: string) => {
+      const normalizedSection = normalizeAnalyticsSection(value)
+      setActiveChartTab(normalizedSection)
+      replaceUrlState(activeTab, normalizedSection)
+    },
+    [activeTab, normalizeAnalyticsSection, replaceUrlState]
+  )
+
+  const hasInvestmentTypesByGroupId = useMemo(
+    () =>
+      Object.fromEntries(
+        investmentGroups.map(group => [
+          group.id,
+          catalogData.investmentTypes.some(
+            type =>
+              type.parentEntryId === group.id ||
+              type.parentEntry?.id === group.id ||
+              Boolean(group.code && type.parentEntry?.code === group.code)
+          )
+        ])
+      ),
+    [catalogData.investmentTypes, investmentGroups]
+  )
+
+  // Initialize tab and chart section from URL query parameters.
   useEffect(() => {
-    const initialTab = getInitialTab()
-    setActiveTab(initialTab)
-  }, [getInitialTab])
+    if (groupsLoading) return
+
+    const urlState = getUrlState()
+    setActiveTab(urlState.tab)
+    setActiveChartTab(urlState.section)
+
+    if (
+      (urlState.rawTab && urlState.rawTab !== urlState.tab) ||
+      (urlState.rawSection && urlState.rawSection !== urlState.section)
+    ) {
+      replaceUrlState(urlState.tab, urlState.section)
+    }
+  }, [getUrlState, groupsLoading, replaceUrlState])
+
+  useEffect(() => {
+    setActiveTab(tab => normalizeTab(tab))
+  }, [normalizeTab])
 
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const newTab = getInitialTab()
-      setActiveTab(newTab)
+      const urlState = getUrlState()
+      setActiveTab(urlState.tab)
+      setActiveChartTab(urlState.section)
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [getInitialTab])
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
+  }, [getUrlState])
 
   return (
     <div
@@ -97,7 +154,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
           data-testid={formatDataTestId('AnalyticsView', 'AnalyticsTabs')}
           className="gba:w-full"
         >
-          <TabsList className="gba:grid gba:w-full gba:grid-cols-4 gba:p-1">
+          <TabsList className="gba:flex gba:w-full gba:flex-wrap gba:gap-2 gba:p-1">
             <TabsTrigger
               value="overview"
               startIcon={<GaugeIcon />}
@@ -105,27 +162,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
             >
               {getTranslationFromI18nKeyAndLabel('analytics.tabs.overview', 'Overview')}
             </TabsTrigger>
-            <TabsTrigger
-              value="equity"
-              startIcon={<ChartBarIcon />}
-              data-testid={formatDataTestId('AnalyticsView', 'EquityTab')}
-            >
-              {getTranslationFromI18nKeyAndLabel('analytics.tabs.equity', 'Equity Investments')}
-            </TabsTrigger>
-            <TabsTrigger
-              value="liquid-funds"
-              startIcon={<DropIcon />}
-              data-testid={formatDataTestId('AnalyticsView', 'LiquidFundsTab')}
-            >
-              {getTranslationFromI18nKeyAndLabel('analytics.tabs.liquidFunds', 'Liquid Funds')}
-            </TabsTrigger>
-            <TabsTrigger
-              value="real-estate"
-              startIcon={<HouseIcon />}
-              data-testid={formatDataTestId('AnalyticsView', 'RealEstateTab')}
-            >
-              {getTranslationFromI18nKeyAndLabel('analytics.tabs.realEstate', 'Real Estate')}
-            </TabsTrigger>
+            {investmentGroups.map(group => (
+              <TabsTrigger
+                key={group.id}
+                value={group.tabId}
+                startIcon={<ChartBarIcon />}
+                data-testid={formatDataTestId('AnalyticsView', `${group.tabId}-Tab`)}
+              >
+                {group.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent
@@ -136,29 +182,26 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
             <InvestmentPortfolioOverview {...props} prefixDataTestId="AnalyticsView-Overview" />
           </TabsContent>
 
-          <TabsContent
-            value="equity"
-            className="gba:mt-6"
-            data-testid={formatDataTestId('AnalyticsView', 'EquityContent')}
-          >
-            <EquityInvestmentsReport {...props} prefixDataTestId="AnalyticsView-Equity" />
-          </TabsContent>
-
-          <TabsContent
-            value="liquid-funds"
-            className="gba:mt-6"
-            data-testid={formatDataTestId('AnalyticsView', 'LiquidFundsContent')}
-          >
-            <LiquidFundInvestmentsReport {...props} prefixDataTestId="AnalyticsView-LiquidFunds" />
-          </TabsContent>
-
-          <TabsContent
-            value="real-estate"
-            className="gba:mt-6"
-            data-testid={formatDataTestId('AnalyticsView', 'RealEstateContent')}
-          >
-            <RealEstateInvestmentsReport {...props} prefixDataTestId="AnalyticsView-RealEstate" />
-          </TabsContent>
+          {investmentGroups.map(group => (
+            <TabsContent
+              key={group.id}
+              value={group.tabId}
+              className="gba:mt-6"
+              data-testid={formatDataTestId('AnalyticsView', `${group.tabId}-Content`)}
+            >
+              {activeTab === group.tabId && (
+                <GenericInvestmentGroupAnalyticsReport
+                  {...props}
+                  group={group}
+                  activeChartTab={activeChartTab}
+                  hasInvestmentTypes={Boolean(hasInvestmentTypesByGroupId[group.id])}
+                  onChartTabChange={handleChartTabChange}
+                  prefixDataTestId={`AnalyticsView-${group.tabId}`}
+                  isActive
+                />
+              )}
+            </TabsContent>
+          ))}
         </Tabs>
       </div>
     </div>
