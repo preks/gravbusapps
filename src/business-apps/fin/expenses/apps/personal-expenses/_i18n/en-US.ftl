@@ -186,7 +186,7 @@ expense-items-search-placeholder = Search...
 # create_expense_item.change_expense_item_container.current_currency_label + manager_expense_landing_page.all_currencies (dropdown)
 expense-items-currency-label = Currency
 expense-items-currency-all = All Currencies
- expense-items-sheet-title = Expense Item Details
+expense-items-sheet-title = Expense Item Details
 expense-items-error-loading-title = Error Loading Expense Items
 expense-items-retry = Retry
 expense-items-user-not-loaded = User information not loaded yet. Please wait a moment and try again.
