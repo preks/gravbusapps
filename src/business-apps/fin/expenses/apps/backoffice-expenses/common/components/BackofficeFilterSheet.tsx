@@ -152,6 +152,7 @@ export function BackofficeFilterSheet({
         isExpanded={isExpanded}
         onToggle={collapsible ? () => toggleGroup(groupId) : undefined}
         context="filter-sheet"
+        className="gba:[&_label[for*='-option-']]:!h-auto gba:[&_label[for*='-option-']]:!items-start gba:[&_label[for*='-option-']]:!py-2 gba:[&_label[for*='-option-']]:!min-h-10 gba:[&_label[for*='-option-']_[role='checkbox']]:!self-start gba:[&_label[for*='-option-']_[role='checkbox']]:!mt-0.5 gba:[&_label[for*='-option-']_[role='checkbox']]:!translate-y-0 gba:[&_label[for*='-option-']_[data-slot='checkbox']]:!self-start gba:[&_label[for*='-option-']_[data-slot='checkbox']]:!mt-0.5 gba:[&_label[for*='-option-']_[data-slot='checkbox']]:!translate-y-0 gba:[&_label[for*='-option-']_span]:!block gba:[&_label[for*='-option-']_span]:!whitespace-normal gba:[&_label[for*='-option-']_span]:!text-clip gba:[&_label[for*='-option-']_span]:!overflow-visible gba:[&_label[for*='-option-']_span]:![overflow-wrap:anywhere]"
       />
     )
 

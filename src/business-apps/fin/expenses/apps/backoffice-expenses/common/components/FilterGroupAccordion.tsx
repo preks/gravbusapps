@@ -75,7 +75,7 @@ export function FilterGroupAccordion({
         </div>
       </Button>
       {(group.collapsible === false || isExpanded) && (
-        <div id={contentId} className="gba:w-full gba:px-1 gba:pt-1" aria-labelledby={headerId}>
+        <div id={contentId} className="gba:w-full" aria-labelledby={headerId}>
           {children}
         </div>
       )}

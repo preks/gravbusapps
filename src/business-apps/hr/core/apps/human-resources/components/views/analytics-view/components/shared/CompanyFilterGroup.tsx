@@ -85,15 +85,30 @@ export function CompanyFilterGroup({
         <div className="gba:px-3 gba:py-4 gba:text-sm gba:text-muted-foreground">{emptyLabel}</div>
       ) : (
         <div className="gba:py-2">
-          {pagedCompanies.map(company => (
-            <label key={company.id} className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2">
-              <Checkbox
-                checked={selectedIds.includes(company.id)}
-                onCheckedChange={checked => toggleCompanySelection(company.id, checked === true)}
-              />
-              <span>{company.name}</span>
-            </label>
-          ))}
+          {pagedCompanies.map(company =>
+            (() => {
+              const checkboxId = `company-filter-option-${company.id}`
+              return (
+                <label
+                  key={company.id}
+                  htmlFor={checkboxId}
+                  className="gba:flex gba:w-full gba:items-start gba:min-h-10 gba:px-3 gba:py-2 gba:transition-none gba:border gba:border-transparent gba:cursor-pointer gba:select-none gba:hover:bg-accent gba:rounded-sm gba:has-[:focus-visible]:border-ring gba:has-[:focus-visible]:ring-ring/50 gba:has-[:focus-visible]:ring-[3px] gba:has-[:focus-visible]:ring-inset"
+                >
+                  <Checkbox
+                    id={checkboxId}
+                    checked={selectedIds.includes(company.id)}
+                    onCheckedChange={checked => toggleCompanySelection(company.id, checked === true)}
+                    className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:transition-none gba:focus-visible:ring-0 gba:self-start gba:mt-0.5 gba:translate-y-0"
+                  />
+                  <div className="gba:flex gba:items-start gba:justify-between gba:flex-1 gba:min-w-0 gba:ml-3">
+                    <span className="gba:block gba:text-sm gba:font-medium gba:whitespace-normal gba:[overflow-wrap:anywhere]">
+                      {company.name}
+                    </span>
+                  </div>
+                </label>
+              )
+            })()
+          )}
         </div>
       )}
 
