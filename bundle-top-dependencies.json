@@ -24479,15 +24479,15 @@
     ]
   },
   "fin/expenses/apps/backoffice-expenses": {
-    "bitbucketBuildNumber": 11825,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11825/",
-    "chunkJsBytes": 1128070,
+    "bitbucketBuildNumber": 11836,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11836/",
+    "chunkJsBytes": 1128864,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 722940,
-        "gzip": 183271,
+        "rendered": 723745,
+        "gzip": 183430,
         "leaves": [
           {
             "name": "src/business-apps/fin/expenses/apps/backoffice-expenses/hooks/useDashboardStats.ts",
@@ -40234,9 +40234,9 @@
     ]
   },
   "hr/core/apps/assets": {
-    "bitbucketBuildNumber": 11825,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11825/",
-    "chunkJsBytes": 812950,
+    "bitbucketBuildNumber": 11836,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11836/",
+    "chunkJsBytes": 813744,
     "top": [
       {
         "kind": "bucket",
@@ -40313,8 +40313,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 38736,
-        "gzip": 8524,
+        "rendered": 39541,
+        "gzip": 8683,
         "leaves": [
           {
             "name": "src/business-apps/fin/expenses/apps/expense-settings/utils/ExpenseSettingsClient.ts",
@@ -40323,8 +40323,8 @@
           },
           {
             "name": "src/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeFilterSheet.tsx",
-            "rendered": 5334,
-            "gzip": 1548
+            "rendered": 6157,
+            "gzip": 1716
           }
         ]
       },
@@ -41693,9 +41693,9 @@
     ]
   },
   "hr/core/apps/human-resources": {
-    "bitbucketBuildNumber": 11796,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11796/",
-    "chunkJsBytes": 2744076,
+    "bitbucketBuildNumber": 11836,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11836/",
+    "chunkJsBytes": 2745576,
     "top": [
       {
         "kind": "bucket",
@@ -41718,8 +41718,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 904774,
-        "gzip": 217884,
+        "rendered": 905792,
+        "gzip": 218177,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/human-resources/components/views/insights-view/InsightsView.tsx",
@@ -41996,13 +41996,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/fin",
-        "rendered": 12338,
-        "gzip": 3820,
+        "rendered": 13143,
+        "gzip": 3978,
         "leaves": [
           {
             "name": "src/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeFilterSheet.tsx",
-            "rendered": 5434,
-            "gzip": 1551
+            "rendered": 6257,
+            "gzip": 1717
           },
           {
             "name": "src/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeDataDisplay.tsx",
@@ -88156,20 +88156,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11834,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11834/",
-    "chunkJsBytes": 1842286,
+    "bitbucketBuildNumber": 11836,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11836/",
+    "chunkJsBytes": 1842287,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1538763,
-        "gzip": 95400,
+        "gzip": 95404,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1538763,
-            "gzip": 95400
+            "gzip": 95404
           }
         ]
       },
@@ -103948,9 +103948,9 @@
     ]
   },
   "hr/absences/apps/time-absence-hub": {
-    "bitbucketBuildNumber": 11796,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11796/",
-    "chunkJsBytes": 985928,
+    "bitbucketBuildNumber": 11836,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11836/",
+    "chunkJsBytes": 986723,
     "top": [
       {
         "kind": "bucket",
@@ -104106,6 +104106,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/business-apps/fin",
+        "rendered": 12958,
+        "gzip": 3953,
+        "leaves": [
+          {
+            "name": "src/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeFilterSheet.tsx",
+            "rendered": 6157,
+            "gzip": 1713
+          },
+          {
+            "name": "src/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeDataDisplay.tsx",
+            "rendered": 4357,
+            "gzip": 1346
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/components/app-action-form",
         "rendered": 12880,
         "gzip": 3433,
@@ -104119,24 +104137,6 @@
             "name": "src/components/app-action-form/_i18n/de-DE.ftl?raw",
             "rendered": 484,
             "gzip": 255
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/business-apps/fin",
-        "rendered": 12153,
-        "gzip": 3796,
-        "leaves": [
-          {
-            "name": "src/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeFilterSheet.tsx",
-            "rendered": 5334,
-            "gzip": 1547
-          },
-          {
-            "name": "src/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeDataDisplay.tsx",
-            "rendered": 4357,
-            "gzip": 1346
           }
         ]
       },
@@ -104271,7 +104271,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-07T11:41:09.742Z",
+    "generatedAt": "2026-05-07T13:00:07.106Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
