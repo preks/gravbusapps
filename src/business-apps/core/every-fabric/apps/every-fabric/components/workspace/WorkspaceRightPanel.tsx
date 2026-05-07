@@ -20,9 +20,11 @@ import {
 } from '@phosphor-icons/react'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import type { DecisionItem } from '../../hooks/useFabricDecisions'
-import type { ActivityEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
+import { useFabricDelegation, computeDelegationStats } from '../../hooks/useFabricDelegation'
+import type { ActivityEvent, AgentStreamEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
 import type { ArtifactFile, FabricSubAgent, FabricTaskNode } from '../../types/fabric'
 import { parseIsoTimestamp, toolCategoryColor } from '../../utils/renderUtils'
+import { CollaborationPanel } from './collaboration/CollaborationPanel'
 import { DecisionsCard } from './DecisionsCard'
 import { LivePreviewCard } from './LivePreviewCard'
 import { PanelCard } from './PanelCard'
@@ -556,6 +558,13 @@ const DebugTraceCard: React.FC<{ sessionId: string; accessToken: string }> = ({ 
                 {step.category && <span>{String(step.category)}</span>}
                 {step.correlation_id && <span className="gba:font-mono">corr:{String(step.correlation_id)}</span>}
               </div>
+              {(step.timestamp || step.duration_ms !== undefined) && (
+                <p className="gba:mt-1 gba:text-[10px] gba:text-muted-foreground/60">
+                  {step.timestamp ? formatActivityTimestamp(step.timestamp) : ''}
+                  {step.timestamp && step.duration_ms !== undefined ? ' · ' : ''}
+                  {step.duration_ms !== undefined ? `${(step.duration_ms / 1000).toFixed(2)}s` : ''}
+                </p>
+              )}
               {(step.reason ||
                 step.rationale ||
                 step.result_preview ||
@@ -626,6 +635,7 @@ interface WorkspaceRightPanelProps {
   totalCount: number
   progressPercent: number
   activityEvents: ActivityEvent[]
+  agentStreamEvents: AgentStreamEvent[]
   decisions: DecisionItem[]
   artifacts: ArtifactFile[]
   workspaceDocs?: WorkspaceDocument[]
@@ -650,6 +660,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   totalCount,
   progressPercent,
   activityEvents,
+  agentStreamEvents,
   decisions,
   artifacts,
   workspaceDocs,
@@ -663,6 +674,8 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   isPreviewMaximized = false,
   onTogglePreviewMaximized
 }) => {
+  const delegation = useFabricDelegation(agentStreamEvents, { sessionId, accessToken, isStreaming })
+  const delegationStats = useMemo(() => computeDelegationStats(delegation.flatNodes), [delegation.flatNodes])
   const showPreview =
     !!latestPreview &&
     (latestPreview.status === 'generating' ||
@@ -702,7 +715,11 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
 
       {decisions.length > 0 && <DecisionsCard decisions={decisions} defaultCollapsed={showPreview} />}
 
-      <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
+      {delegation.hasMultipleAgents ? (
+        <CollaborationPanel root={delegation.rootNode} stats={delegationStats} defaultCollapsed={showPreview} />
+      ) : (
+        <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
+      )}
 
       {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} onView={onViewArtifact} />}
 

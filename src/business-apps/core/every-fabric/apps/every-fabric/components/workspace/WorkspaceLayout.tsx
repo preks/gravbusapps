@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ChatCircleDotsIcon, LayoutIcon, XIcon } from '@phosphor-icons/react'
+import { ArrowRightIcon, ChatCircleDotsIcon, LayoutIcon, PauseCircleIcon, XIcon } from '@phosphor-icons/react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFabric } from '../../context/FabricContext'
 import type { ChatMessage, SessionConfig } from '../../types/enterpriseAgent'
@@ -99,6 +99,7 @@ export const WorkspaceLayout: React.FC = () => {
   const {
     session,
     messages,
+    events,
     streamingGreeting,
     streamingContent,
     streamingThinking,
@@ -186,6 +187,8 @@ export const WorkspaceLayout: React.FC = () => {
     !!currentClarificationQuestion &&
     !session?.structured_input_request &&
     dismissedClarificationQuestion !== currentClarificationQuestion
+  const canReopenClarification =
+    isWaitingForInput && !!currentClarificationQuestion && !showClarification && !session?.structured_input_request
   /** Keep composer in reply mode while waiting or while interrupt POST is in flight (modal may be dismissed). */
   const composerInterruptQuestion =
     !session?.structured_input_request && currentClarificationQuestion && (isWaitingForInput || isStreaming)
@@ -362,6 +365,23 @@ export const WorkspaceLayout: React.FC = () => {
                   />
                 )}
 
+                {canReopenClarification && (
+                  <div className="gba:pointer-events-auto">
+                    <button
+                      type="button"
+                      onClick={() => setDismissedClarificationQuestion(null)}
+                      className="gba:flex gba:w-full gba:items-center gba:gap-2.5 gba:rounded-[1.25rem] gba:border gba:border-amber-200/80 gba:bg-amber-50/80 gba:px-4 gba:py-2.5 gba:text-left gba:transition-colors gba:hover:bg-amber-100/80"
+                      data-testid="fabric-reopen-clarification"
+                    >
+                      <PauseCircleIcon className="gba:h-4 gba:w-4 gba:text-amber-500 gba:shrink-0" weight="fill" />
+                      <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-amber-900">
+                        Agent is waiting for your input
+                      </span>
+                      <span className="gba:text-xs gba:font-semibold gba:text-amber-700">Show options</span>
+                    </button>
+                  </div>
+                )}
+
                 <div className="gba:pointer-events-auto">
                   <FabricInput
                     variant="workspace"
@@ -394,6 +414,7 @@ export const WorkspaceLayout: React.FC = () => {
               totalCount={totalCount}
               progressPercent={progressPercent}
               activityEvents={activityEvents}
+              agentStreamEvents={events}
               decisions={decisions}
               artifacts={artifacts}
               workspaceDocs={workspaceDocs}

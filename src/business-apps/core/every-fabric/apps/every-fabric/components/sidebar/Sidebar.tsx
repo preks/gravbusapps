@@ -15,7 +15,14 @@ import {
   SIDEBAR_ISLAND_SHELL_CLASS,
   SIDEBAR_WIDTH_TRANSITION_CLASS
 } from './sidebarLayout.constants'
-import { filterActiveByQuery, filterRecentsByQuery, splitSessions } from './sessionGrouping'
+import { SidebarFilterBar } from './SidebarFilterBar'
+import {
+  filterActiveByQuery,
+  filterRecentsByQuery,
+  filterRecentsByStatus,
+  splitSessions,
+  type RecentsStatusFilter
+} from './sessionGrouping'
 
 export interface SidebarProps {
   isCollapsed: boolean
@@ -69,6 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenScheduled
 }) => {
   const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<Set<RecentsStatusFilter> | null>(null)
 
   const { active, recents } = useMemo(
     () => splitSessions(historySessions, activeSessions),
@@ -76,7 +84,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   )
 
   const filteredActive = useMemo(() => filterActiveByQuery(active, query), [active, query])
-  const filteredRecents = useMemo(() => filterRecentsByQuery(recents, query), [recents, query])
+  const filteredRecents = useMemo(() => {
+    const byQuery = filterRecentsByQuery(recents, query)
+    return filterRecentsByStatus(byQuery, statusFilter)
+  }, [recents, query, statusFilter])
 
   const widthClass = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_CLASS : SIDEBAR_EXPANDED_WIDTH_CLASS
 
@@ -93,6 +104,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <SidebarHeader isCollapsed={isCollapsed} onToggleCollapsed={onToggleCollapsed} />
         {showNewSessionCta && <SidebarNewChatButton isCollapsed={isCollapsed} onClick={onNewSession} />}
         <SidebarSearchBar isCollapsed={isCollapsed} query={query} onChange={setQuery} onRequestExpand={onExpand} />
+        {!isCollapsed && <SidebarFilterBar activeFilters={statusFilter} onChange={setStatusFilter} />}
 
         {!isCollapsed && (
           <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:pb-1">
@@ -101,15 +113,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               activeSessionId={activeSessionId}
               onSelect={onSelectSession}
               onStop={onStopSession}
-              forceExpanded={query.trim().length > 0}
+              forceExpanded={query.trim().length > 0 || statusFilter !== null}
             />
             <SidebarRecentsSection
               sessions={filteredRecents}
               activeSessionId={activeSessionId}
               onSelect={onSelectSession}
               onDelete={onDeleteSession}
-              emptyHint={query ? 'No sessions match your search.' : undefined}
-              forceExpanded={query.trim().length > 0}
+              emptyHint={query || statusFilter ? 'No sessions match your search or filters.' : undefined}
+              forceExpanded={query.trim().length > 0 || statusFilter !== null}
             />
           </div>
         )}
@@ -122,7 +134,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onOpenSettings={onOpenSettings}
           onOpenScheduled={onOpenScheduled}
         />
-
       </div>
     </aside>
   )
