@@ -29,6 +29,7 @@ import { env } from '@/common/env/EnvUtils'
 import { buildIrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 
 const mockAccountData = {
+  id: 'acc_mock_1',
   name: 'Acme Corporation',
   legalForm: { value: 'GmbH' },
   industry: { value: 'Technology' },
@@ -41,6 +42,26 @@ const mockAccountData = {
   phone: '+49 30 1234567',
   numberOfEmployees: { value: '120' },
   annualRevenue: { value: '€12,000,000' },
+  addresses: [
+    {
+      id: 'addr_acme_primary',
+      addressType: 'PRIMARY_ADDRESS',
+      addressLine: { lines: ['Main Street 123', 'Building 5'] },
+      locality: 'Berlin',
+      postalCode: '10115',
+      region: { value: 'Berlin' },
+      country: { value: 'Germany' }
+    },
+    {
+      id: 'addr_acme_secondary',
+      addressType: 'SECONDARY_ADDRESS',
+      addressLine: { lines: ['Warehouse Campus 8', 'Gate B'] },
+      locality: 'Potsdam',
+      postalCode: '14467',
+      region: { value: 'Brandenburg' },
+      country: { value: 'Germany' }
+    }
+  ],
   // Company logo - dynamic demo v2.0
   logoUrl: 'https://picsum.photos/40/40?random=1'
 }
@@ -74,6 +95,26 @@ const mockAccounts = [
     phone: '+49 30 1234567',
     numberOfEmployees: { value: '120' },
     annualRevenue: { value: '€12,000,000' },
+    addresses: [
+      {
+        id: 'addr_acc_1_primary',
+        addressType: 'PRIMARY_ADDRESS',
+        addressLine: { lines: ['Main Street 123'] },
+        locality: 'Berlin',
+        postalCode: '10115',
+        region: { value: 'Berlin' },
+        country: { value: 'Germany' }
+      },
+      {
+        id: 'addr_acc_1_secondary',
+        addressType: 'SECONDARY_ADDRESS',
+        addressLine: { lines: ['Logistics Hub 42'] },
+        locality: 'Hamburg',
+        postalCode: '20457',
+        region: { value: 'Hamburg' },
+        country: { value: 'Germany' }
+      }
+    ],
     // Has uploaded logo - shows avatar
     logoUrl: 'https://picsum.photos/40/40?random=2'
   },
@@ -510,7 +551,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                     props: {
                       ...context,
                       accountId: entityIds.accountId,
-                      accountData: mockAccountData,
+                      account: mockAccountData,
                       actionButtonProps: {
                         contextsArray: [FlowContextName.customerAccountEntity],
                         externalContextData: { accountId: entityIds.accountId },

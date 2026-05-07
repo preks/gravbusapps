@@ -12,39 +12,50 @@ import {
   EmptyState
 } from '@newwork/nw-design-system'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { GlobeIcon, UsersIcon, MapPinIcon } from '@phosphor-icons/react'
-import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
+import { GlobeIcon, UsersIcon, MapPinIcon, InfoIcon, BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
+import { getAddressTypeLabel } from '@/common/data/relations/types/relationEnums'
 import { createGetPages } from '../utils'
 import { ContactTypeBadge } from '../shared/ContactTypeBadge'
 
 interface AddressObject {
-  addressLine?: {
-    lines?: string[]
-  }
+  id?: string
+  addressType?: string
+  addressLine?: { lines?: string[] } | string
   postalCode?: string
   locality?: string
+  city?: string
   country?: string
   region?: string
 }
 
+interface DisplayAddress {
+  key: string
+  type?: string
+  value: string
+}
+
+interface InfoItem {
+  icon: React.ComponentType<{ className?: string; title?: string }>
+  title: string
+  value?: any
+  render: (value: any) => React.ReactNode
+  testId?: string
+}
+
 // Helper component to render address lines with reduced nesting
 const AddressLines: React.FC<{ value: string }> = ({ value }) => {
-  const lines = value.split('\n')
-  const firstLine = lines[0] || ''
-  const postalCodeCityLine = lines[1] || ''
+  const lines = value.split('\n').filter(line => line.trim())
 
   return (
     <>
-      {[firstLine, postalCodeCityLine]
-        .filter(line => line.trim())
-        .map((line, index) => (
-          <div key={`address-line-${index}`} className="gba:text-sm gba:leading-snug">
-            {line}
-          </div>
-        ))}
+      {lines.map(line => (
+        <div key={`address-line-${line}`} className="gba:text-sm gba:leading-snug">
+          {line}
+        </div>
+      ))}
     </>
   )
 }
@@ -52,12 +63,111 @@ const AddressLines: React.FC<{ value: string }> = ({ value }) => {
 // Helper component to render full address in tooltip
 const FullAddressTooltip: React.FC<{ value: string }> = ({ value }) => (
   <>
-    {value.split('\n').map((line, index) => (
-      <div key={`tooltip-line-${index}`} className="gba:text-sm gba:leading-snug">
+    {value.split('\n').map(line => (
+      <div key={`tooltip-line-${line}`} className="gba:text-sm gba:leading-snug">
         {line}
       </div>
     ))}
   </>
+)
+
+const normalizeAddress = (addr: any): AddressObject => ({
+  id: addr.id,
+  addressType: addr.addressType,
+  addressLine: addr.addressLine,
+  postalCode: addr.postalCode,
+  locality: addr.locality || addr.city,
+  city: addr.city,
+  country: typeof addr.country === 'string' ? addr.country : addr.country?.value,
+  region: typeof addr.region === 'string' ? addr.region : addr.region?.value
+})
+
+const normalizeAddressLine = (addressLine?: AddressObject['addressLine']) => {
+  if (typeof addressLine === 'string') {
+    return { lines: [addressLine] }
+  }
+
+  if (addressLine?.lines) {
+    return { lines: addressLine.lines }
+  }
+
+  return undefined
+}
+
+const getDisplayAddresses = (account: any, explicitAddress?: AddressObject): DisplayAddress[] => {
+  let addresses: any[] = []
+
+  if (explicitAddress) {
+    addresses = [explicitAddress]
+  } else if (Array.isArray(account?.addresses)) {
+    addresses = account.addresses
+  }
+
+  return addresses
+    .map(normalizeAddress)
+    .map(addr => {
+      const value = formatAddress({
+        addressLine: normalizeAddressLine(addr.addressLine),
+        locality: String(addr.locality || ''),
+        postalCode: String(addr.postalCode || ''),
+        region: String(addr.region || ''),
+        country: String(addr.country || '')
+      })
+
+      return {
+        key:
+          addr.id || [addr.addressType, addr.postalCode, addr.locality, addr.country, value].filter(Boolean).join('-'),
+        type: addr.addressType,
+        value
+      }
+    })
+    .filter(addr => addr.value)
+}
+
+const AddressTypeIndicator: React.FC<{ type?: string }> = ({ type }) => {
+  if (!type) {
+    return null
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <InfoIcon
+            className="gba:mt-0.5 gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:cursor-help gba:text-muted-foreground"
+            data-testid="account-address-type-info"
+          />
+        </TooltipTrigger>
+        <TooltipContent side="top" align="center">
+          <p className="gba:text-sm">{getAddressTypeLabel(type)}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
+const AccountAddresses: React.FC<{ addresses: DisplayAddress[] }> = ({ addresses }) => (
+  <div className="gba:flex gba:flex-col gba:gap-2">
+    {addresses.map(addr => (
+      <div key={addr.key} className="gba:flex gba:items-start gba:gap-1.5">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="gba:flex gba:flex-col gba:cursor-help">
+                <AddressLines value={addr.value} />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="gba:flex gba:flex-col gba:gap-1">
+                <FullAddressTooltip value={addr.value} />
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <AddressTypeIndicator type={addr.type} />
+      </div>
+    ))}
+  </div>
 )
 
 interface AccountSectionProps extends Partial<BusinessAppContextProps> {
@@ -340,26 +450,10 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
             const industryValue =
               account?.industryClass?.value || account?.industryClass || account?.industry?.value || account?.industry
 
-            // Extract address from account.addresses if not provided explicitly
-            const accountAddress =
-              address ||
-              (() => {
-                const addresses = account?.addresses || []
-                const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                const addr = primaryAddress || addresses[0]
-                if (!addr) return undefined
-
-                return {
-                  addressLine: addr.addressLine,
-                  postalCode: addr.postalCode,
-                  locality: addr.locality || addr.city, // CRM uses 'city', IRM uses 'locality'
-                  country: typeof addr.country === 'string' ? addr.country : addr.country?.value,
-                  region: typeof addr.region === 'string' ? addr.region : addr.region?.value
-                }
-              })()
+            const accountAddresses = getDisplayAddresses(account, address)
 
             // Static fields (not from communication channels)
-            const staticInfoItems = [
+            const staticInfoItems: InfoItem[] = [
               {
                 icon: UsersIcon,
                 title: 'Employees',
@@ -404,40 +498,14 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               },
               {
                 icon: MapPinIcon,
-                title: 'Address',
-                value: accountAddress
-                  ? formatAddress({
-                      addressLine: accountAddress.addressLine?.lines
-                        ? { lines: accountAddress.addressLine.lines }
-                        : accountAddress.addressLine,
-                      locality: String(accountAddress.locality || ''),
-                      postalCode: String(accountAddress.postalCode || ''),
-                      region: String(accountAddress.region || ''),
-                      country: String(accountAddress.country || '')
-                    })
-                  : undefined,
-                render: (value: string) =>
-                  value ? (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:flex-col gba:cursor-help">
-                            <AddressLines value={value} />
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <div className="gba:flex gba:flex-col gba:gap-1">
-                            <FullAddressTooltip value={value} />
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : null
+                title: accountAddresses.length > 1 ? 'Addresses' : 'Address',
+                value: accountAddresses.length > 0 ? accountAddresses : undefined,
+                render: (value: DisplayAddress[]) => <AccountAddresses addresses={value} />
               }
             ]
 
             // Combine dynamic communication channels with static fields
-            const allItems = [...communicationChannelItems, ...staticInfoItems]
+            const allItems: InfoItem[] = [...communicationChannelItems, ...staticInfoItems]
 
             // Filter to only show items with actual values
             const itemsWithValues = allItems.filter(item => item.value)
@@ -451,19 +519,21 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               )
             }
 
-            return itemsWithValues.map((item, index) => {
+            return itemsWithValues.map(item => {
               const IconComponent = item.icon
               const content = item.render(item.value)
+              const itemKey = item.testId || `${item.title}-${typeof item.value === 'string' ? item.value : item.title}`
+              const isAddressItem = item.title === 'Address' || item.title === 'Addresses'
 
               return (
                 <div
-                  key={index}
-                  className={`gba:flex gba:gap-2 gba:px-2 gba:py-1 gba:rounded ${item.title === 'Address' ? 'gba:items-start' : 'gba:items-center'}`}
+                  key={itemKey}
+                  className={`gba:flex gba:gap-2 gba:px-2 gba:py-1 gba:rounded ${isAddressItem ? 'gba:items-start' : 'gba:items-center'}`}
                 >
                   <IconComponent className="gba:text-sm gba:text-muted-foreground" title={item.title} />
-                  <span className="gba:text-sm gba:text-muted-foreground" data-testid={item.testId}>
+                  <div className="gba:text-sm gba:text-muted-foreground" data-testid={item.testId}>
                     {content}
-                  </span>
+                  </div>
                 </div>
               )
             })

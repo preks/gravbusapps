@@ -219,9 +219,8 @@ const AccountItem: React.FC<{
         <CatalogSelect
           catalogIdentifier={accountTypeCatalogIdentifier}
           value={value}
-          onValueChange={v => onValueChange(v || '')}
+          onValueChange={v => onValueChange(Array.isArray(v) ? v[0] || '' : v || '')}
           data-testid={formatDataTestId(dataTestId || 'account-segment', `account-type-${accountIndex}`)}
-          placeholder="Select type..."
           disabled={disabled}
         />
       )

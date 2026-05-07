@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
-import { CurrencyDollarIcon, SignOutIcon } from '@phosphor-icons/react'
+import { CurrencyDollarIcon, SignOutIcon, TargetIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -19,7 +19,7 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
     },
     {
       key: 'exit-opportunities',
-      icon: <SignOutIcon />,
+      icon: <TargetIcon />,
       label: getTranslationFromI18nKeyAndLabel('exit_opportunities', 'Exit Opportunities')
     },
     {
