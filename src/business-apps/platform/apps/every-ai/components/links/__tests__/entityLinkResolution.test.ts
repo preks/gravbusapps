@@ -37,9 +37,39 @@ describe('resolveEntityLink', () => {
       expect(resolved?.url).toBe(`/platform/fin/expenses/expense-request-record?expenseRequestId=${id}`)
     })
   })
+
+  describe('service_workflow protocol', () => {
+    it('resolves running instances to Flow Launcher with tab and flowId', () => {
+      const id = 'bed7f6c4-7172-45aa-b952-f97f577a18be'
+      const resolved = resolveEntityLink(`service_workflow://${id}`)
+
+      expect(resolved).not.toBeNull()
+      expect(resolved?.protocol).toBe('service_workflow')
+      expect(resolved?.id).toBe(id)
+      expect(resolved?.url).toBe(`/platform/apps/flow/apps/launcher?tab=my-launches&flowId=${id}`)
+    })
+  })
+
+  describe('workflow_template protocol', () => {
+    it('resolves templates to Flow Studio flows view', () => {
+      const id = 'aaaaaaaa-bbbb-cccc-dddd-111111111111'
+      const resolved = resolveEntityLink(`workflow_template://${id}`)
+
+      expect(resolved).not.toBeNull()
+      expect(resolved?.protocol).toBe('workflow_template')
+      expect(resolved?.id).toBe(id)
+      expect(resolved?.url).toBe(`/platform/create/flow-studio?flowId=${id}#flows`)
+    })
+  })
 })
 
 describe('getEntityUrl', () => {
+  it('returns Flow Launcher URL for service_workflow by id fallback', () => {
+    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    const url = getEntityUrl('service_workflow', id)
+    expect(url).toBe(`/platform/apps/flow/apps/launcher?tab=my-launches&flowId=${id}`)
+  })
+
   it('returns the items-list URL for expense_item', () => {
     const url = getEntityUrl('expense_item', 'item-1234')
     expect(url).toBe('/platform/fin/expenses/personal-expenses?tab=expense-items')

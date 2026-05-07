@@ -96,10 +96,11 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
       }
     }
 
-    const workflowUrl = buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, {
+    const launcherUrl = buildPlatformUrl(Navigation.FLOW_LAUNCHER, {
+      tab: 'my-launches',
       flowId: workflowId
     })
-    navigateTo(`${workflowUrl}#flows`, { forceReload: true })
+    navigateTo(launcherUrl, { forceReload: true })
   }
 
   const title = textTitle || formatWorkflowName(workflowId)

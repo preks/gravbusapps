@@ -85,6 +85,8 @@ export const Navigation = {
   PLATFORM_AI_CHAT: `${NAVIGATION_BASE_PATH}/every-ai`,
   PLATFORM_DEBUGGER: `${NAVIGATION_BASE_PATH}/debugger`,
   PLATFORM_BOARDS: `${NAVIGATION_BASE_PATH}/boards`,
+  /** Flow Launcher: library + my launches (deep-link with `?tab=my-launches&flowId=`). */
+  FLOW_LAUNCHER: `${NAVIGATION_BASE_PATH}/apps/flow/apps/launcher`,
 
   // Office
   OFFICE: `${NAVIGATION_BASE_PATH}/every-office`,
@@ -201,6 +203,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.PLATFORM_AI_CHAT]: 'platform/apps/every-ai',
   [Navigation.PLATFORM_DEBUGGER]: 'platform/apps/debugger',
   [Navigation.PLATFORM_BOARDS]: 'platform/apps/board-apps',
+  [Navigation.FLOW_LAUNCHER]: 'flow/apps/launcher',
 
   // Office
   [Navigation.OFFICE]: 'core/office/apps/office-launcher',

@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentUrlWithUpdatedSearchParams, navigateTo } from '@/common/utils/navigationUtils'
 import { CreateHeroHeader } from '@/business-apps/core/create/components/CreateHeroHeader'
 import { Card, CardContent, Tabs, TabsContent, TabsList, TabsTrigger, Toaster, toast } from '@newwork/nw-design-system'
 import { Play } from 'lucide-react'
@@ -12,15 +13,39 @@ interface FlowLauncherProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
+const parseLauncherTabFromUrl = (): 'library' | 'my-launches' => {
+  if (typeof window === 'undefined') return 'library'
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('tab') === 'my-launches') return 'my-launches'
+  if (params.get('flowId')) return 'my-launches'
+  return 'library'
+}
+
 export const FlowLauncher: React.FC<FlowLauncherProps> = ({
   accessToken,
   userInfo,
   'data-testid': testId = 'flow-launcher'
 }) => {
-  const [activeTab, setActiveTab] = useState<'library' | 'my-launches'>('library')
+  const [activeTab, setActiveTab] = useState<'library' | 'my-launches'>(parseLauncherTabFromUrl)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [launchTemplateId, setLaunchTemplateId] = useState<string | null>(null)
   const [launchOpen, setLaunchOpen] = useState(false)
+
+  useEffect(() => {
+    const onPopState = () => setActiveTab(parseLauncherTabFromUrl())
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  const handleTabChange = (val: string) => {
+    const nextTab = val === 'my-launches' ? 'my-launches' : 'library'
+    setActiveTab(nextTab)
+    if (nextTab === 'library') {
+      navigateTo(getCurrentUrlWithUpdatedSearchParams({ tab: 'library', flowId: null }))
+    } else {
+      navigateTo(getCurrentUrlWithUpdatedSearchParams({ tab: 'my-launches' }))
+    }
+  }
 
   const heroTitle = getTranslationFromI18nKeyAndLabel('flow.launcher.title', 'Flow launcher')
   const heroDescription = getTranslationFromI18nKeyAndLabel(
@@ -70,7 +95,7 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
       <div className="gba:px-6 gba:py-6 gba:flex gba:flex-col gba:gap-4" data-testid={`${testId}-content`}>
         <Card className="gba:bg-background gba:border gba:border-border">
           <CardContent className="gba:p-4 gba:flex gba:flex-col gba:gap-4">
-            <Tabs value={activeTab} onValueChange={val => setActiveTab(val as any)} data-testid={`${testId}-tabs`}>
+            <Tabs value={activeTab} onValueChange={handleTabChange} data-testid={`${testId}-tabs`}>
               <TabsList>
                 <TabsTrigger value="library" data-testid={`${testId}-tab-library`}>
                   Library

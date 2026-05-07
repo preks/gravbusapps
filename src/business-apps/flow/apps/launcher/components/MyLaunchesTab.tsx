@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useReducer, useState } from 'react'
 import {
   Alert,
   Badge,
@@ -19,6 +19,7 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentUrlWithUpdatedSearchParams, navigateTo } from '@/common/utils/navigationUtils'
 import { FlowDetailView } from '@/common/components/flow/flow-detail'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useFlowList, type FlowSummary } from '@/common/data/flow/hooks/useFlowList'
@@ -55,6 +56,11 @@ const formatDateTime = (value?: string): string => {
   return date.toLocaleString()
 }
 
+const readFlowIdFromUrl = (): string | null => {
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get('flowId')
+}
+
 export const MyLaunchesTab: React.FC<MyLaunchesTabProps> = ({
   accessToken,
   userInfo,
@@ -63,8 +69,31 @@ export const MyLaunchesTab: React.FC<MyLaunchesTabProps> = ({
   const userId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>(ALL_STATUSES)
-  const [selectedFlow, setSelectedFlow] = useState<FlowSummary | null>(null)
-  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [urlTick, bumpUrl] = useReducer((n: number) => n + 1, 0)
+
+  useEffect(() => {
+    const onPopState = () => bumpUrl()
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  const detailFlowId = useMemo(() => {
+    void urlTick
+    return readFlowIdFromUrl()
+  }, [urlTick])
+
+  const openFlowDetails = (flowId: string) => {
+    navigateTo(
+      getCurrentUrlWithUpdatedSearchParams({
+        tab: 'my-launches',
+        flowId
+      })
+    )
+  }
+
+  const closeFlowDetails = () => {
+    navigateTo(getCurrentUrlWithUpdatedSearchParams({ flowId: null }))
+  }
 
   const { flows, totalCount, loading, error, refetch } = useFlowList('initiated', userId, accessToken || '', {
     searchTerm: search.trim() ? search.trim() : undefined,
@@ -166,10 +195,7 @@ export const MyLaunchesTab: React.FC<MyLaunchesTabProps> = ({
                 key={flow.flowId}
                 type="button"
                 className="gba:block gba:w-full gba:text-left gba:!cursor-pointer"
-                onClick={() => {
-                  setSelectedFlow(flow)
-                  setDetailsOpen(true)
-                }}
+                onClick={() => openFlowDetails(flow.flowId)}
                 data-testid={`${testId}-flow-${idx}`}
               >
                 <Card className="gba:bg-background gba:border gba:border-border gba:hover:bg-accent/10 gba:transition-colors gba:!cursor-pointer">
@@ -206,10 +232,9 @@ export const MyLaunchesTab: React.FC<MyLaunchesTabProps> = ({
       </CardContent>
 
       <Dialog
-        open={detailsOpen}
+        open={Boolean(detailFlowId)}
         onOpenChange={open => {
-          setDetailsOpen(open)
-          if (!open) setSelectedFlow(null)
+          if (!open) closeFlowDetails()
         }}
       >
         <DialogContent
@@ -217,12 +242,12 @@ export const MyLaunchesTab: React.FC<MyLaunchesTabProps> = ({
           data-testid={`${testId}-details-dialog`}
         >
           <DialogHeader className="gba:sr-only">
-            <DialogTitle>{selectedFlow?.flowName || selectedFlow?.templateName || 'Flow details'}</DialogTitle>
+            <DialogTitle>{detailFlowId ? `Flow ${detailFlowId}` : 'Flow details'}</DialogTitle>
           </DialogHeader>
 
           <div className="gba:h-full gba:overflow-y-auto" data-testid={`${testId}-details-content`}>
-            {selectedFlow ? (
-              <FlowDetailView flowId={selectedFlow.flowId} accessToken={accessToken} showBackButton={false} />
+            {detailFlowId ? (
+              <FlowDetailView flowId={detailFlowId} accessToken={accessToken} showBackButton={false} />
             ) : null}
           </div>
         </DialogContent>
