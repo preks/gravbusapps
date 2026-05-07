@@ -40868,15 +40868,15 @@
     ]
   },
   "hr/core/apps/employee-record": {
-    "bitbucketBuildNumber": 11790,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11790/",
-    "chunkJsBytes": 1427507,
+    "bitbucketBuildNumber": 11824,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11824/",
+    "chunkJsBytes": 1428110,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 1284610,
-        "gzip": 311692,
+        "rendered": 1285126,
+        "gzip": 311784,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/PerformanceTab.tsx",
@@ -40911,13 +40911,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 71189,
-        "gzip": 18575,
+        "rendered": 71317,
+        "gzip": 18585,
         "leaves": [
           {
             "name": "src/common/network/ai/prompt-manager/PromptManagerClient.ts",
-            "rendered": 16803,
-            "gzip": 3495
+            "rendered": 16931,
+            "gzip": 3505
           },
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -88156,20 +88156,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11821,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11821/",
-    "chunkJsBytes": 1842346,
+    "bitbucketBuildNumber": 11824,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11824/",
+    "chunkJsBytes": 1842348,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1538819,
-        "gzip": 95385,
+        "rendered": 1538821,
+        "gzip": 95403,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1538819,
-            "gzip": 95385
+            "rendered": 1538821,
+            "gzip": 95403
           }
         ]
       },
@@ -99766,9 +99766,9 @@
     ]
   },
   "hr/compensation-planning/apps/compensation-planning": {
-    "bitbucketBuildNumber": 11760,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11760/",
-    "chunkJsBytes": 906367,
+    "bitbucketBuildNumber": 11824,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11824/",
+    "chunkJsBytes": 913834,
     "top": [
       {
         "kind": "bucket",
@@ -99791,18 +99791,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 396537,
-        "gzip": 98849,
+        "rendered": 410065,
+        "gzip": 100703,
         "leaves": [
           {
             "name": "src/business-apps/hr/compensation-planning/apps/compensation-planning/_i18n/ro-RO.ftl?raw",
-            "rendered": 29971,
-            "gzip": 6440
+            "rendered": 30869,
+            "gzip": 6556
           },
           {
             "name": "src/business-apps/hr/compensation-planning/apps/compensation-planning/_i18n/de-DE.ftl?raw",
-            "rendered": 29491,
-            "gzip": 6480
+            "rendered": 30410,
+            "gzip": 6621
           }
         ]
       },
@@ -100042,9 +100042,9 @@
     ]
   },
   "hr/compensation-planning/apps/manager-compensation-planning": {
-    "bitbucketBuildNumber": 11760,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11760/",
-    "chunkJsBytes": 883103,
+    "bitbucketBuildNumber": 11824,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11824/",
+    "chunkJsBytes": 889374,
     "top": [
       {
         "kind": "bucket",
@@ -100067,18 +100067,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 356284,
-        "gzip": 94014,
+        "rendered": 366365,
+        "gzip": 95848,
         "leaves": [
           {
             "name": "src/business-apps/hr/compensation-planning/apps/compensation-planning/_i18n/ro-RO.ftl?raw",
-            "rendered": 29973,
-            "gzip": 6443
+            "rendered": 30871,
+            "gzip": 6561
           },
           {
             "name": "src/business-apps/hr/compensation-planning/apps/compensation-planning/_i18n/de-DE.ftl?raw",
-            "rendered": 29493,
-            "gzip": 6484
+            "rendered": 30412,
+            "gzip": 6624
           }
         ]
       },
@@ -104271,7 +104271,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-07T07:22:14.495Z",
+    "generatedAt": "2026-05-07T07:42:59.741Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
