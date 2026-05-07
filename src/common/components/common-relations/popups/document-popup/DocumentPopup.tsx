@@ -182,7 +182,6 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
     file: firstWatchedFile,
     endpoint: aiClassificationEndpoint,
     enabled: enableAIClassification,
-    form,
     isRenameMode,
     watchedFolder
   })
@@ -322,7 +321,6 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
               aiSuggestion={aiClassification.suggestion}
               aiLoading={aiClassification.loading}
               aiError={aiClassification.error}
-              onApplyAiSuggestion={aiClassification.handleApplySuggestion}
               onFilesChange={files => fileUpload.handleFilesChange(files, form)}
               data-testid={formatDataTestId(dataTestId, 'segment')}
             />
