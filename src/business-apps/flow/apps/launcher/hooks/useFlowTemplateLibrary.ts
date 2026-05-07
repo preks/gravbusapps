@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FlowTemplateClient, FlowTriggerType, type FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import { dedupFlowTemplateLibraryItems } from '../components/flowLibraryUtils'
 
 export type FlowTemplateLibraryItem = {
   template: FlowTemplate
@@ -118,7 +119,7 @@ export const useFlowTemplateLibrary = (
   }, [enabled, refetch])
 
   const items = useMemo((): FlowTemplateLibraryItem[] => {
-    return templates
+    const mapped = templates
       .filter((t): t is FlowTemplate & { id: string } => typeof t?.id === 'string' && t.id.trim().length > 0)
       .map(t => {
         const triggers = t.start?.triggers || []
@@ -143,6 +144,7 @@ export const useFlowTemplateLibrary = (
           serviceCategoryIds
         }
       })
+    return dedupFlowTemplateLibraryItems(mapped)
   }, [templates])
 
   const hasNextPage = useMemo(() => {

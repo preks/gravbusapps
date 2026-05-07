@@ -12,9 +12,11 @@ import {
 } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useServicePortalCategories, type CategoryGroup } from '@/business-apps/ser/hooks/useServicePortalCategories'
-import { useFlowTemplateLibrary, type FlowTemplateLibraryItem } from '../hooks/useFlowTemplateLibrary'
+import { useFlowTemplateLibrary } from '../hooks/useFlowTemplateLibrary'
 import { FlowLibraryCategoryTile } from './FlowLibraryCategoryTile'
 import { FlowTemplateLibraryCard } from './FlowTemplateLibraryCard'
+import { computeItemsByCategory } from './flowLibraryUtils'
+
 export interface FlowLibraryTabProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   selectedCategoryId: string | null
   onCategorySelect: (categoryId: string) => void
@@ -22,31 +24,10 @@ export interface FlowLibraryTabProps extends Pick<BusinessAppContextProps, 'acce
   onViewTemplateDetails?: (templateId: string) => void
   'data-testid'?: string
 }
-type ItemsByCategory = {
-  byCategoryId: Map<string, FlowTemplateLibraryItem[]>
-  uncategorized: FlowTemplateLibraryItem[]
-}
+
 const matchesQuery = (value: string | undefined, query: string): boolean => {
   if (!query.trim()) return true
   return (value || '').toLowerCase().includes(query.toLowerCase())
-}
-const computeItemsByCategory = (items: FlowTemplateLibraryItem[], knownCategoryIds: Set<string>): ItemsByCategory => {
-  const byCategoryId = new Map<string, FlowTemplateLibraryItem[]>()
-  const uncategorized: FlowTemplateLibraryItem[] = []
-
-  items.forEach(item => {
-    const matching = item.serviceCategoryIds.filter(id => knownCategoryIds.has(id))
-    if (matching.length === 0) {
-      uncategorized.push(item)
-      return
-    }
-    matching.forEach(id => {
-      const prev = byCategoryId.get(id) || []
-      byCategoryId.set(id, [...prev, item])
-    })
-  })
-
-  return { byCategoryId, uncategorized }
 }
 
 const filterGroupsByQuery = (
