@@ -27,6 +27,7 @@ export interface SubmissionsOrgUnitBudgetTableProps {
   selection?: SubmissionsOrgUnitSelectionParams
   selectedCount?: number
   executingSalaryAdjustments?: boolean
+  canExecuteSalaryAdjustments?: boolean
   salaryAdjustmentMessage?: string | null
   salaryAdjustmentError?: string | null
   onExecuteSalaryAdjustments?: () => void | Promise<void>
@@ -43,6 +44,7 @@ export function SubmissionsOrgUnitBudgetTable({
   selection,
   selectedCount = 0,
   executingSalaryAdjustments = false,
+  canExecuteSalaryAdjustments = true,
   salaryAdjustmentMessage,
   salaryAdjustmentError,
   onExecuteSalaryAdjustments
@@ -74,7 +76,7 @@ export function SubmissionsOrgUnitBudgetTable({
           <Button
             type="button"
             variant="default"
-            disabled={executingSalaryAdjustments}
+            disabled={executingSalaryAdjustments || !canExecuteSalaryAdjustments}
             data-testid="submissions-execute-salary-adjustments"
             onClick={() => {
               Promise.resolve(onExecuteSalaryAdjustments()).catch(() => {})

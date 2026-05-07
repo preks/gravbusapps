@@ -4,8 +4,6 @@ import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
 import translations from '../../_i18n'
 import { useOverviewPlansTableModel } from './useOverviewPlansTableModel'
 
-const EXECUTED_STATUS = 'BUDGET_PLAN_EXECUTED'
-
 export interface OverviewPlansTableProps {
   plans: CompensationBudgetPlanRow[]
   plansLoading: boolean
@@ -43,9 +41,6 @@ export function OverviewPlansTable({
 
   const handleRowClick = useCallback(
     (plan: CompensationBudgetPlanRow) => {
-      if (plan.budgetPlanStatus === EXECUTED_STATUS) {
-        return
-      }
       onOpenPlan(plan)
     },
     [onOpenPlan]

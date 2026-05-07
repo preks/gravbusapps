@@ -4,6 +4,9 @@ loading = Loading team data...
 
 empty-select-company-hint = Your team and budget are scoped to the company linked to your position. We could not determine that company yet. Try refreshing the page, or contact HR if this continues.
 select-compensation-cycle-hint = Select a compensation cycle above to load your team and budget preview.
+selector-org-unit-label = Org unit
+selector-org-unit-placeholder = Select org unit
+selector-org-unit-loading = Loading org units...
 error-companies-load = Could not load the company list. {$message}
 error-performance-cycles-query-title = Performance cycle directory unavailable
 error-performance-cycles-query = Could not load the performance cycle list from the directory. {$message}

@@ -93,6 +93,7 @@ export interface CompensationBudgetPlanCompanyUpdatePayload {
   salaryBudgetAmount: number
   salaryBudgetPercent: number
   allocationAmount: number
+  budgetPlanStatus?: BudgetPlanStatusApi
   currencyRef: string | null
   currentTotalSalaryCost: number
   compensationBudgetPlan: string

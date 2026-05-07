@@ -30,6 +30,7 @@ export interface CompensationBudgetPlanOrganizationalUnitRow {
 export interface CompanyBudgetPlanOption {
   id: string
   compensationBudgetPlanId: string
+  compensationBudgetPlanStatus: string
   label: string
 }
 
@@ -122,7 +123,7 @@ function buildCompanyBudgetPlanOptions(
   for (const row of companyRows) {
     const plan = planById.get(row.compensationBudgetPlanId)
     if (!plan) continue
-    let label = `${plan.name} (${plan.fiscalYear})`
+    let label = plan.name
     if (usedLabels.has(label)) {
       label = `${label} · ${row.id.slice(0, 8)}`
     }
@@ -130,6 +131,7 @@ function buildCompanyBudgetPlanOptions(
     options.push({
       id: row.id,
       compensationBudgetPlanId: row.compensationBudgetPlanId,
+      compensationBudgetPlanStatus: plan.budgetPlanStatus,
       label
     })
   }
@@ -208,7 +210,12 @@ export function useBudgetDistributionOrgUnitBudget(
   companyOrgUnits: CompanyOrganizationalUnit[]
 ) {
   const graphqlClient = useGraphQLClient(accessToken)
-  const { selectedDistributionCompanyBudgetId, setSelectedDistributionCompanyBudgetId } = useCompensationPlanningStore()
+  const {
+    selectedBudgetPlanId,
+    selectBudgetPlan,
+    selectedDistributionCompanyBudgetId,
+    setSelectedDistributionCompanyBudgetId
+  } = useCompensationPlanningStore()
   const companyIdRef = useRef(companyId)
   /** Keeps plan id in sync with company budget row id without depending on React state batching. */
   const compensationBudgetPlanIdByCompanyRowIdRef = useRef<Map<string, string>>(new Map())
@@ -266,10 +273,19 @@ export function useBudgetDistributionOrgUnitBudget(
 
       const optionIds = new Set(options.map(o => o.id))
       const current = useCompensationPlanningStore.getState().selectedDistributionCompanyBudgetId
+      const savedCycleId = useCompensationPlanningStore.getState().selectedBudgetPlanId
+      const currentCycleId = current == null ? null : compensationBudgetPlanIdByCompanyRowIdRef.current.get(current)
+      const preferredFromSavedCycle = savedCycleId
+        ? (options.find(o => o.compensationBudgetPlanId === savedCycleId)?.id ?? null)
+        : null
       if (options.length === 0) {
         useCompensationPlanningStore.getState().setSelectedDistributionCompanyBudgetId(null)
+      } else if (preferredFromSavedCycle != null && currentCycleId !== savedCycleId) {
+        useCompensationPlanningStore.getState().setSelectedDistributionCompanyBudgetId(preferredFromSavedCycle)
       } else if (current == null || !optionIds.has(current)) {
-        useCompensationPlanningStore.getState().setSelectedDistributionCompanyBudgetId(options[0].id)
+        const nextId = options[0].id
+        useCompensationPlanningStore.getState().selectBudgetPlan(options[0].compensationBudgetPlanId)
+        useCompensationPlanningStore.getState().setSelectedDistributionCompanyBudgetId(nextId)
       }
     } catch (err) {
       logBudgetGraphqlFailure('ListCompensationBudgetPlanCompanyByCompany', err)
@@ -280,7 +296,7 @@ export function useBudgetDistributionOrgUnitBudget(
     } finally {
       setLoadingCompanyPlans(false)
     }
-  }, [accessToken, companyId, graphqlClient])
+  }, [accessToken, companyId, graphqlClient, selectedBudgetPlanId])
 
   const fetchOrgUnitRows = useCallback(async () => {
     if (!accessToken || !companyId || !selectedDistributionCompanyBudgetId) {
@@ -347,12 +363,34 @@ export function useBudgetDistributionOrgUnitBudget(
     [companyBudgetRows, selectedDistributionCompanyBudgetId]
   )
 
+  const selectedCompensationCycleStatus = useMemo(
+    () =>
+      companyBudgetPlanOptions.find(option => option.id === selectedDistributionCompanyBudgetId)
+        ?.compensationBudgetPlanStatus ?? null,
+    [companyBudgetPlanOptions, selectedDistributionCompanyBudgetId]
+  )
+
+  const selectDistributionCompanyBudget = useCallback(
+    (id: string | null) => {
+      if (id == null) {
+        selectBudgetPlan(null)
+        setSelectedDistributionCompanyBudgetId(null)
+        return
+      }
+      const planId = compensationBudgetPlanIdByCompanyRowIdRef.current.get(id) ?? null
+      selectBudgetPlan(planId)
+      setSelectedDistributionCompanyBudgetId(id)
+    },
+    [selectBudgetPlan, setSelectedDistributionCompanyBudgetId]
+  )
+
   return {
     companyBudgetPlanOptions,
     companyBudgetRows,
     selectedCompanyBudgetRow,
+    selectedCompensationCycleStatus,
     selectedDistributionCompanyBudgetId,
-    setSelectedDistributionCompanyBudgetId,
+    setSelectedDistributionCompanyBudgetId: selectDistributionCompanyBudget,
     rows: rowsForDisplay,
     loading: loadingCompanyPlans || loadingRows,
     error,

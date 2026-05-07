@@ -17,14 +17,14 @@ export function formatBudgetPlanChosenLabel(planId: string, plans: CompensationB
   if (!plan) {
     return planId
   }
-  return `${plan.name} (${String(plan.fiscalYear)})`
+  return plan.name
 }
 
 /** Table row: fields sourced from `compensation_budget_plan_company`. */
 export interface BudgetSetupPlanTableRow {
   id: string
   compensationBudgetPlanId: string
-  /** Resolved from `plans` for display (name + fiscal year). */
+  /** Resolved from `plans` for display. */
   budgetPlanLabel: string
   companyId: string
   companyLabel: string

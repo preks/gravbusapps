@@ -27,10 +27,10 @@ import { useBudgetDistributionOrgUnitBudget } from '../../hooks/useBudgetDistrib
 import { useCompensationPlanningStore } from '../../hooks/useCompensationPlanningStore'
 import { useBudgetDistributionViewStore } from '../../hooks/budgetDistributionViewStore'
 import { useBudgetDistributionCustomBudgetMaps } from '../../hooks/useBudgetDistributionCustomBudgetMaps'
+import { formatCurrencyRefForDisplay } from '../../utils/displayFormatUtils'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../../api/compensationBudgetRestConfig'
 import { BudgetDistributionDistributeDialog } from './BudgetDistributionDistributeDialog'
 import { BudgetDistributionContextCard } from './BudgetDistributionContextCard'
-import { BudgetDistributionPoolKpiCards } from './BudgetDistributionPoolKpiCards'
 import { BudgetDistributionAllocatedSummaryCard } from './BudgetDistributionAllocatedSummaryCard'
 
 export interface BudgetDistributionViewProps {
@@ -41,6 +41,7 @@ export interface BudgetDistributionViewProps {
 }
 
 const ORG_UNIT_LIST_LIMIT = 500
+const EXECUTED_STATUS = 'BUDGET_PLAN_EXECUTED'
 
 /** Set to `true` to disable changing the distribution method (previous read-only behaviour). */
 const LOCK_DISTRIBUTION_METHOD_SELECTION = false
@@ -86,17 +87,19 @@ export function BudgetDistributionView({
     [teamMembers, scoreByEmployeeId]
   )
 
-  const currencyCode = teamMembers[0]?.currency ?? 'EUR'
-
   const {
     loading: loadingOrgUnitBudgets,
     error: orgUnitBudgetError,
     companyBudgetPlanOptions,
     selectedCompanyBudgetRow,
+    selectedCompensationCycleStatus,
     rows: distributionOrgUnitRows,
     refetchOrgUnitRows,
     refetchCompanyBudgetPlans
   } = useBudgetDistributionOrgUnitBudget(accessToken, companyId, companyOrgUnits)
+
+  const currencyCode =
+    formatCurrencyRefForDisplay(selectedCompanyBudgetRow?.currencyRef) || teamMembers[0]?.currency || 'EUR'
 
   /** Same basis as Overview: org units implied by positions in this company (plus Unassigned when needed). */
   const orgUnitDistributionInputs = useMemo(
@@ -218,6 +221,7 @@ export function BudgetDistributionView({
 
   const hasSelectedCompanyBudget = selectedDistributionCompanyBudgetId != null
   const hasDistributablePool = activeDistributionPool != null && activeDistributionPool > 0
+  const isSelectedCycleExecuted = selectedCompensationCycleStatus === EXECUTED_STATUS
   /** Hide the distribution preview panel when a plan is loaded and there is no remaining increase pool to split. */
   const showDistributionPreviewPanel =
     listLoading || !hasSelectedCompanyBudget || selectedCompanyBudgetRow == null || hasDistributablePool
@@ -225,6 +229,7 @@ export function BudgetDistributionView({
     Boolean(accessToken) &&
     hasSelectedCompanyBudget &&
     selectedCompanyBudgetRow != null &&
+    !isSelectedCycleExecuted &&
     !listLoading &&
     hasDistributablePool
 
@@ -265,48 +270,23 @@ export function BudgetDistributionView({
           <WidgetGroup
             isLoading
             widgets={[]}
-            skeletonCount={2}
-            cardsClassName="gba:sm:grid-cols-2"
+            skeletonCount={3}
+            cardsClassName="gba:md:grid-cols-3"
             data-testid="budget-distribution-kpi-cards-loading"
           />
         )
       }
       return null
     }
-    if (activeDistributionPool == null || activeDistributionPool <= 0) {
-      return (
-        <BudgetDistributionAllocatedSummaryCard
-          salaryBudgetAmount={selectedCompanyBudgetRow.salaryBudgetAmount}
-          allocationAmount={selectedCompanyBudgetRow.allocationAmount}
-          currencyCode={currencyCode}
-          t={t}
-        />
-      )
-    }
     return (
-      <BudgetDistributionPoolKpiCards
-        pool={activeDistributionPool}
-        allocationByOrgUnitId={previewAllocationByOrgUnit}
+      <BudgetDistributionAllocatedSummaryCard
+        salaryBudgetAmount={selectedCompanyBudgetRow.salaryBudgetAmount}
+        allocationAmount={selectedCompanyBudgetRow.allocationAmount}
         currencyCode={currencyCode}
-        selectedMethod={selectedMethod}
-        loading={listLoading}
         t={t}
-        customRequestExceedsPool={customAmountRequestExceedsPool}
-        overPoolAmount={customOverPoolAmount}
       />
     )
-  }, [
-    activeDistributionPool,
-    currencyCode,
-    customAmountRequestExceedsPool,
-    customOverPoolAmount,
-    hasSelectedCompanyBudget,
-    listLoading,
-    previewAllocationByOrgUnit,
-    selectedCompanyBudgetRow,
-    selectedMethod,
-    t
-  ])
+  }, [currencyCode, hasSelectedCompanyBudget, listLoading, selectedCompanyBudgetRow, t])
 
   return (
     <div className="gba:space-y-4" data-testid="budget-distribution-view">
@@ -338,19 +318,21 @@ export function BudgetDistributionView({
 
       {showDistributionPreviewPanel ? (
         <Card className="gba:w-full" data-testid="budget-distribution-method-departments-panel">
-          <CardHeader className="gba:flex gba:flex-row gba:flex-wrap gba:items-center gba:justify-between gba:gap-3 gba:border-b gba:border-border gba:pb-4">
-            <CardTitle className="gba:min-w-0 gba:text-base gba:font-semibold gba:text-foreground">
-              {t('budget-distribution-split-panel-title')}
-            </CardTitle>
-            <Button
-              type="button"
-              className="gba:shrink-0"
-              onClick={() => setDistributeOpen(true)}
-              disabled={!canOpenDistribute}
-              data-testid="budget-distribution-distribute-open"
-            >
-              {t('budget-distribution-distribute-button')}
-            </Button>
+          <CardHeader className="gba:border-b gba:border-border gba:pb-4">
+            <div className="gba:flex gba:w-full gba:items-center gba:justify-between gba:gap-3">
+              <CardTitle className="gba:min-w-0 gba:flex-1 gba:text-base gba:font-semibold gba:text-foreground">
+                {t('budget-distribution-split-panel-title')}
+              </CardTitle>
+              <Button
+                type="button"
+                className="gba:shrink-0"
+                onClick={() => setDistributeOpen(true)}
+                disabled={!canOpenDistribute}
+                data-testid="budget-distribution-distribute-open"
+              >
+                {t('budget-distribution-distribute-button')}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="gba:p-0">
             <div className="gba:flex gba:min-h-0 gba:flex-col gba:md:flex-row gba:md:items-stretch">

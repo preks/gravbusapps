@@ -4,6 +4,9 @@ loading = Teamdaten werden geladen...
 
 empty-select-company-hint = Ihr Team und Budget beziehen sich auf das Unternehmen Ihrer Stelle. Dieses Unternehmen konnte noch nicht ermittelt werden. Aktualisieren Sie die Seite, oder wenden Sie sich an die Personalabteilung, falls das so bleibt.
 select-compensation-cycle-hint = Wählen Sie oben einen Vergütungszyklus, um Ihr Team und die Budgetvorschau zu laden.
+selector-org-unit-label = Organisationseinheit
+selector-org-unit-placeholder = Organisationseinheit auswählen
+selector-org-unit-loading = Organisationseinheiten werden geladen...
 error-companies-load = Die Unternehmensliste konnte nicht geladen werden. {$message}
 error-performance-cycles-query-title = Leistungszyklus-Verzeichnis nicht verfügbar
 error-performance-cycles-query = Die Liste der Leistungszyklen konnte nicht geladen werden. {$message}

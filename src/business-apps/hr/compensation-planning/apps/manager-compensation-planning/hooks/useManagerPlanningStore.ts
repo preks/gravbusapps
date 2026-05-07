@@ -19,6 +19,7 @@ interface ManagerPlanningState {
   sortField: ManagerTeamSortField
   sortDirection: SortDirection
   selectedCompanyId: string | null
+  selectedOrgUnitId: string | null
   sidebarFilterIds: string[]
   /** Annual salary lower bound (inclusive); null = no minimum. */
   filterSalaryMin: number | null
@@ -40,6 +41,7 @@ interface ManagerPlanningState {
   setSearchQuery: (query: string) => void
   setSortFromTable: (field: string, order: 'ASC' | 'DESC' | '') => void
   setSelectedCompanyId: (id: string | null) => void
+  setSelectedOrgUnitId: (id: string | null) => void
   toggleSidebarFilter: (filterId: string, selected: boolean) => void
   /** Replaces all `employee:{id}` entries; keeps other sidebar ids (future use). */
   setEmployeeSidebarFilters: (employeeIds: string[]) => void
@@ -61,6 +63,7 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
   sortField: DEFAULT_SORT_FIELD,
   sortDirection: DEFAULT_SORT_DIR,
   selectedCompanyId: null,
+  selectedOrgUnitId: null,
   sidebarFilterIds: [],
   currentPage: 1,
   pageSize: 10,
@@ -96,6 +99,7 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
     set({
       selectedCompanyId: id,
       selectedCompensationPlanId: null,
+      selectedOrgUnitId: null,
       currentPage: 1,
       sidebarFilterIds: [],
       filterSalaryMin: null,
@@ -107,6 +111,14 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
       sortDirection: DEFAULT_SORT_DIR,
       pageSize: 10,
       distributionMethod: DEFAULT_DISTRIBUTION_METHOD
+    }),
+
+  setSelectedOrgUnitId: id =>
+    set({
+      selectedOrgUnitId: id,
+      currentPage: 1,
+      sidebarFilterIds: [],
+      searchQuery: ''
     }),
 
   toggleSidebarFilter: (filterId, selected) =>
@@ -146,7 +158,7 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
 
   setDistributionMethod: method => set({ distributionMethod: method }),
 
-  setSelectedCompensationPlanId: planId => set({ selectedCompensationPlanId: planId }),
+  setSelectedCompensationPlanId: planId => set({ selectedCompensationPlanId: planId, selectedOrgUnitId: null }),
 
   resetTableUi: () =>
     set({
@@ -158,6 +170,7 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
       filterSalaryMax: null,
       filterLastRaiseFrom: null,
       filterLastRaiseTo: null,
+      selectedOrgUnitId: null,
       currentPage: 1,
       pageSize: 10,
       distributionMethod: DEFAULT_DISTRIBUTION_METHOD

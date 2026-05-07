@@ -13,6 +13,8 @@ import { BudgetSetupCycleOverview } from './BudgetSetupCycleOverview'
 import { OverviewOrgUnitSalaryCard } from './OverviewOrgUnitSalaryCard'
 import translations from '../../_i18n'
 
+const EXECUTED_STATUS = 'BUDGET_PLAN_EXECUTED'
+
 export interface BudgetSetupViewProps {
   accessToken: string
   companies?: BudgetSetupCompanyOption[]
@@ -96,6 +98,9 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
     updateCompanyBudgetRow
   } = useBudgetSetupForCompany(accessToken)
 
+  const selectedPlan = plans.find(plan => plan.id === selectedBudgetPlanId) ?? null
+  const isSelectedCycleExecuted = selectedPlan?.budgetPlanStatus === EXECUTED_STATUS
+
   const handleBudgetSetupDialogOpenChange = useCallback((open: boolean) => {
     setCreatePlanDialogOpen(open)
     if (!open) {
@@ -105,13 +110,16 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
 
   const handleEditCompanyBudgetRow = useCallback(
     (tableRow: BudgetSetupPlanTableRow) => {
+      if (isSelectedCycleExecuted) {
+        return
+      }
       const full = companyBudgetPlanRows.find(r => r.id === tableRow.id)
       if (full) {
         setEditingCompanyRow(full)
         setCreatePlanDialogOpen(true)
       }
     },
-    [companyBudgetPlanRows]
+    [companyBudgetPlanRows, isSelectedCycleExecuted]
   )
 
   const handleUpdateCompanyBudgetFromDialog = useCallback(
@@ -137,8 +145,6 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
     return currencyRef?.split(':').pop()?.trim() || 'EUR'
   }, [companyBudgetPlanRows, selectedCompanyRow])
 
-  const selectedPlan = plans.find(plan => plan.id === selectedBudgetPlanId) ?? null
-
   const tableLoading = loadingPlans || loadingCompanyRowsList
 
   const openDepartmentsBreakdown = useCallback((row: BudgetSetupPlanTableRow) => {
@@ -150,8 +156,11 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
       type="button"
       variant="default"
       className="gba:shrink-0"
-      disabled={creatingPlan}
+      disabled={creatingPlan || isSelectedCycleExecuted}
       onClick={() => {
+        if (isSelectedCycleExecuted) {
+          return
+        }
         setEditingCompanyRow(null)
         setCreatePlanDialogOpen(true)
       }}
@@ -219,6 +228,8 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
             onEditRow={handleEditCompanyBudgetRow}
             onOpenDepartmentsBreakdown={openDepartmentsBreakdown}
             selectedCompensationPlanId={selectedBudgetPlanId}
+            editDisabled={isSelectedCycleExecuted}
+            showCycleColumn={false}
           />
         </>
       )}

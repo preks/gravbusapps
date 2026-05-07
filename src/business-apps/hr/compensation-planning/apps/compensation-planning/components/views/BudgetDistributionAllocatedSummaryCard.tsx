@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { ChartPieSliceIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
+import { ChartPieSliceIcon, CoinsIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
 import { extractCurrencyCode, formatCurrencyString } from '@/common/utils/numberFormatter'
 import { roundMoney2 } from '../../../../utils/budgetAmountPercentSync'
 import { cn } from '@/common/utils/cn'
@@ -55,22 +55,24 @@ export function BudgetDistributionAllocatedSummaryCard({
   currencyCode,
   t
 }: Readonly<BudgetDistributionAllocatedSummaryCardProps>) {
-  const { salaryFormatted, allocationFormatted } = useMemo(() => {
+  const { salaryFormatted, allocationFormatted, remainingFormatted } = useMemo(() => {
     const kpiMoney = {
       currency: extractCurrencyCode(currencyCode),
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }
+    const remainingAmount = roundMoney2(salaryBudgetAmount - allocationAmount)
     return {
       salaryFormatted: formatCurrencyString(roundMoney2(salaryBudgetAmount), kpiMoney),
-      allocationFormatted: formatCurrencyString(roundMoney2(allocationAmount), kpiMoney)
+      allocationFormatted: formatCurrencyString(roundMoney2(allocationAmount), kpiMoney),
+      remainingFormatted: formatCurrencyString(remainingAmount, kpiMoney)
     }
   }, [allocationAmount, currencyCode, salaryBudgetAmount])
 
   return (
     <div className="gba:w-full" data-testid="budget-distribution-allocated-summary-card">
       <div
-        className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2"
+        className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-3"
         data-testid="budget-distribution-allocated-summary-kpis"
       >
         <SummaryStatBlock
@@ -84,6 +86,12 @@ export function BudgetDistributionAllocatedSummaryCard({
           valueFormatted={allocationFormatted}
           subtext={t('budget-distribution-no-pool-summary-allocation-hint')}
           icon={<ChartPieSliceIcon size={20} weight="regular" aria-hidden />}
+        />
+        <SummaryStatBlock
+          label={t('budget-distribution-kpi-remaining-title')}
+          valueFormatted={remainingFormatted}
+          subtext={t('budget-distribution-no-pool-summary-remaining-hint')}
+          icon={<CoinsIcon size={20} weight="regular" aria-hidden />}
         />
       </div>
     </div>

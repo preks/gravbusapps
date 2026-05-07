@@ -37,6 +37,24 @@ interface ActiveStructureResponse {
   structure?: { structureId?: string }
 }
 
+interface OrganizationalUnitRef {
+  id: string
+  name: string
+}
+
+interface OrganizationalUnitEmployeeAssignment {
+  employeeId: string
+  role: string | null
+  managerLevel: string | null
+  isMain: boolean | null
+}
+
+interface OrganizationalUnitRelationshipResult {
+  childId: string
+  parentId: string | null
+  parent: OrganizationalUnitRef | null
+}
+
 interface EmployeePositionResult {
   id: string
   employeeId: string
@@ -44,7 +62,9 @@ interface EmployeePositionResult {
   lastName: string
   hireDate: string | null
   organizationalUnitId: string | null
-  organizationalUnit: { id: string; name: string } | null
+  organizationalUnit:
+    | (OrganizationalUnitRef & { organizationalUnitEmployee?: OrganizationalUnitEmployeeAssignment[] })
+    | null
   siteLocationId: string | null
   supervisorEmployeeId: string | null
   jobPosition: {
@@ -118,6 +138,31 @@ function compensationBandPolicyKey(jobFamilyId: string, jobLevelId: string, geoZ
   return `${jobFamilyId}:${jobLevelId}:${geoZoneId}`
 }
 
+function isManagerOrgUnitAssignment(pos: EmployeePositionResult): boolean {
+  const assignments = pos.organizationalUnit?.organizationalUnitEmployee ?? []
+  return assignments.some(
+    assignment =>
+      assignment.employeeId === pos.employeeId && (assignment.role?.trim().toLowerCase() ?? '') === 'manager'
+  )
+}
+
+function effectiveOrgUnitForPosition(
+  pos: EmployeePositionResult,
+  parentOrgUnitByChildId: ReadonlyMap<string, OrganizationalUnitRef>,
+  resolveManagerOrgUnitToParent: boolean
+): OrganizationalUnitRef | null {
+  if (!resolveManagerOrgUnitToParent || !isManagerOrgUnitAssignment(pos)) {
+    return pos.organizationalUnit
+  }
+
+  const directOrgUnitId = pos.organizationalUnitId?.trim()
+  if (!directOrgUnitId) {
+    return pos.organizationalUnit
+  }
+
+  return parentOrgUnitByChildId.get(directOrgUnitId) ?? pos.organizationalUnit
+}
+
 function compensationBandForPosition(
   pos: EmployeePositionResult,
   bandByFamilyLevelAndGeoZoneId: Map<string, CompensationBandGraphql | null>,
@@ -138,7 +183,9 @@ function buildTeamMemberFromPosition(
   geoZoneBySiteLocationId: Map<string, string>,
   currentSalaryMap: Map<string, SalaryResult>,
   lastRaiseMap: Map<string, { date: string; amount: number | null; percent: number | null }>,
-  bonusTotalMap: Map<string, number>
+  bonusTotalMap: Map<string, number>,
+  parentOrgUnitByChildId: ReadonlyMap<string, OrganizationalUnitRef>,
+  resolveManagerOrgUnitToParent: boolean
 ): TeamMemberCompensationData {
   const salary = currentSalaryMap.get(pos.employeeId)
   const lastRaise = lastRaiseMap.get(pos.employeeId)
@@ -146,6 +193,7 @@ function buildTeamMemberFromPosition(
   const currencyCode = salary?.currency?.code ?? band?.currency?.value ?? 'EUR'
   const bandData = band ? { minSalary: band.minSalary, maxSalary: band.maxSalary, payGrade: band.payGrade } : null
   const currentAnnual = salary?.annualGrossSalary ?? null
+  const effectiveOrgUnit = effectiveOrgUnitForPosition(pos, parentOrgUnitByChildId, resolveManagerOrgUnitToParent)
 
   return {
     employeeId: pos.employeeId,
@@ -156,8 +204,8 @@ function buildTeamMemberFromPosition(
     pictureThumbnail: pos.employee?.pictureThumbnail ?? undefined,
     jobPosition: pos.jobPosition?.name ?? null,
     jobFunction: null,
-    orgUnitName: pos.organizationalUnit?.name ?? null,
-    organizationalUnitId: pos.organizationalUnitId ?? null,
+    orgUnitName: effectiveOrgUnit?.name ?? null,
+    organizationalUnitId: effectiveOrgUnit?.id ?? pos.organizationalUnitId ?? null,
     hireDate: pos.employee?.workingCondition?.hireDate ?? pos.hireDate,
     currentAnnualSalary: currentAnnual,
     currentMonthlySalary: salary?.monthlyGrossSalary ?? null,
@@ -181,6 +229,7 @@ interface UseTeamCompensationDataParams {
   supervisorEmployeeId?: string | null
   supervisorOnly?: boolean
   requirePayrollRelevantContractType?: boolean
+  resolveManagerOrgUnitToParent?: boolean
   enabled?: boolean
 }
 
@@ -245,6 +294,7 @@ export function useTeamCompensationData({
   supervisorEmployeeId,
   supervisorOnly = false,
   requirePayrollRelevantContractType = false,
+  resolveManagerOrgUnitToParent = false,
   enabled = true
 }: UseTeamCompensationDataParams) {
   const [teamMembers, setTeamMembers] = useState<TeamMemberCompensationData[]>([])
@@ -263,7 +313,7 @@ export function useTeamCompensationData({
     }
     if (!accessToken) return
     if (supervisorOnly) {
-      if (!supervisorEmployeeId || !companyId) {
+      if (!supervisorEmployeeId) {
         setTeamMembers([])
         setLoading(false)
         setError(null)
@@ -285,11 +335,15 @@ export function useTeamCompensationData({
       if (supervisorEmployeeId) whereConditions.push({ supervisorEmployeeId: { _eq: supervisorEmployeeId } })
 
       const where = whereConditions.length === 1 ? whereConditions[0] : { _and: whereConditions }
+      const structureId = await resolveActiveStructureId(orgchartClient, accessToken)
+      const relationshipWhere =
+        resolveManagerOrgUnitToParent && structureId ? { structureId: { _eq: structureId } } : { id: { _isNull: true } }
 
       const positionsResult = await graphqlClient
         .request<{
           EmployeePosition: EmployeePositionResult[]
-        }>(GET_COMPENSATION_TEAM_MEMBERS, { where })
+          OrganizationalUnitRelationship: OrganizationalUnitRelationshipResult[]
+        }>(GET_COMPENSATION_TEAM_MEMBERS, { where, relationshipWhere })
         .catch((e: unknown) => {
           const m = e instanceof Error ? e.message : String(e)
           throw new Error(`Team member positions: ${m}`)
@@ -311,7 +365,6 @@ export function useTeamCompensationData({
       const siteLocationIds = [
         ...new Set(positions.map(pos => pos.siteLocationId?.trim()).filter((id): id is string => Boolean(id)))
       ]
-      const structureId = await resolveActiveStructureId(orgchartClient, accessToken)
       const geoZoneBySiteLocationId =
         siteLocationIds.length > 0 && structureId
           ? await orgchartClient
@@ -328,6 +381,12 @@ export function useTeamCompensationData({
                 return new Map<string, string>()
               })
           : new Map<string, string>()
+      const parentOrgUnitByChildId = new Map<string, OrganizationalUnitRef>()
+      for (const relationship of positionsResult.OrganizationalUnitRelationship ?? []) {
+        if (relationship.parent) {
+          parentOrgUnitByChildId.set(relationship.childId, relationship.parent)
+        }
+      }
       const geoZoneIds = [
         ...new Set(
           positions
@@ -395,7 +454,9 @@ export function useTeamCompensationData({
           geoZoneBySiteLocationId,
           currentSalaryMap,
           lastRaiseMap,
-          bonusTotalMap
+          bonusTotalMap,
+          parentOrgUnitByChildId,
+          resolveManagerOrgUnitToParent
         )
       )
 
@@ -415,6 +476,7 @@ export function useTeamCompensationData({
     supervisorEmployeeId,
     supervisorOnly,
     requirePayrollRelevantContractType,
+    resolveManagerOrgUnitToParent,
     enabled,
     graphqlClient,
     orgchartClient

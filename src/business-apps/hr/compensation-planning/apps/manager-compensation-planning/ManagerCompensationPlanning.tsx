@@ -6,6 +6,11 @@ import {
   AlertTitle,
   Button,
   PageLayout,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
@@ -22,6 +27,7 @@ import {
 import { useActiveStructureCompanies } from '../../hooks/useActiveStructureCompanies'
 
 import { CompensationCycleSelector } from '../compensation-planning/components/shared/CompensationCycleSelector'
+import { formatCurrencyRefForDisplay } from '../compensation-planning/utils/displayFormatUtils'
 import compensationPlanningTranslations from '../compensation-planning/_i18n'
 import { useManagerPlanningStore } from './hooks/useManagerPlanningStore'
 
@@ -84,6 +90,8 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     searchQuery,
     selectedCompanyId,
     setSelectedCompanyId,
+    selectedOrgUnitId,
+    setSelectedOrgUnitId,
     selectedCompensationPlanId,
     setSelectedCompensationPlanId,
     sidebarFilterIds,
@@ -185,8 +193,49 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     supervisorOnly: supervisorReview == null,
     /** Aligns with company compensation planning: contract type catalog `payroll_relevant`. */
     requirePayrollRelevantContractType: true,
+    resolveManagerOrgUnitToParent: supervisorReview == null,
     enabled: loadTeamData
   })
+
+  const orgUnitOptions = useMemo(() => {
+    const byId = new Map<string, string>()
+    for (const member of teamMembers) {
+      const id = member.organizationalUnitId?.trim()
+      if (!id) {
+        continue
+      }
+      const label = member.orgUnitName?.trim() || id
+      if (!byId.has(id)) {
+        byId.set(id, label)
+      }
+    }
+    return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [teamMembers])
+
+  useEffect(() => {
+    if (supervisorReview || selectedCompensationPlanId == null) {
+      if (selectedOrgUnitId != null) {
+        setSelectedOrgUnitId(null)
+      }
+      return
+    }
+    if (orgUnitOptions.length === 0) {
+      if (selectedOrgUnitId != null) {
+        setSelectedOrgUnitId(null)
+      }
+      return
+    }
+    if (selectedOrgUnitId == null || !orgUnitOptions.some(option => option.id === selectedOrgUnitId)) {
+      setSelectedOrgUnitId(orgUnitOptions[0].id)
+    }
+  }, [orgUnitOptions, selectedCompensationPlanId, selectedOrgUnitId, setSelectedOrgUnitId, supervisorReview])
+
+  const selectedOrgUnitTeamMembers = useMemo(() => {
+    if (supervisorReview || selectedOrgUnitId == null) {
+      return teamMembers
+    }
+    return teamMembers.filter(member => member.organizationalUnitId === selectedOrgUnitId)
+  }, [selectedOrgUnitId, supervisorReview, teamMembers])
 
   const {
     totalSalaryBudget,
@@ -195,12 +244,13 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     refetch: refetchSalaryBudget,
     planOuRowIdByOrganizationalUnitId,
     managerOrganizationalUnitId,
+    activeCompanyBudgetCurrencyRef,
     compensationPlanChoices
   } = useManagerTeamSalaryBudget({
     accessToken,
     companyId: effectiveCompanyId,
     managerEmployeeId: employeeId,
-    teamMembers,
+    teamMembers: selectedOrgUnitTeamMembers,
     selectedCompensationBudgetPlanId: selectedCompensationPlanId
   })
 
@@ -223,7 +273,11 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     }
   }, [compensationPlanChoices, selectedCompensationPlanId, setSelectedCompensationPlanId])
 
-  const teamCurrencyCode = teamMembers[0]?.currency ?? 'EUR'
+  const teamCurrencyCode =
+    formatCurrencyRefForDisplay(activeCompanyBudgetCurrencyRef) ||
+    selectedOrgUnitTeamMembers[0]?.currency ||
+    teamMembers[0]?.currency ||
+    'EUR'
 
   const supervisorEmployeeDisplayNameById = useMemo(() => {
     const map = new Map<string, string>()
@@ -253,11 +307,18 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
     [teamMembers, scoreByEmployeeId]
   )
 
+  const selectedOrgUnitTeamMembersWithPerformance = useMemo(() => {
+    if (supervisorReview || selectedOrgUnitId == null) {
+      return teamMembersWithPerformance
+    }
+    return teamMembersWithPerformance.filter(member => member.organizationalUnitId === selectedOrgUnitId)
+  }, [selectedOrgUnitId, supervisorReview, teamMembersWithPerformance])
+
   const [proposalsLocked, setProposalsLocked] = useState(false)
 
   useEffect(() => {
     setProposalsLocked(false)
-  }, [selectedCompanyId])
+  }, [selectedCompanyId, selectedCompensationPlanId, selectedOrgUnitId])
 
   const mergeSavedRowIds = useCallback((ids?: Record<string, string>) => {
     if (!ids || Object.keys(ids).length === 0) {
@@ -278,7 +339,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
   }, [refetchSalaryBudget, refetchTeam])
 
   const pipeline = useTeamMembersPipeline({
-    members: teamMembersWithPerformance,
+    members: selectedOrgUnitTeamMembersWithPerformance,
     searchQuery,
     sidebarFilterIds,
     filterSalaryMin,
@@ -380,6 +441,36 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
               onPlanChange={setSelectedCompensationPlanId}
               t={tCompensationPlan}
             />
+            <div className="gba:flex gba:min-w-0 gba:flex-wrap gba:items-center gba:gap-2">
+              <span className="gba:shrink-0 gba:whitespace-nowrap gba:text-sm gba:font-medium gba:text-foreground">
+                {t('selector-org-unit-label')}
+              </span>
+              <Select
+                value={
+                  selectedOrgUnitId != null && orgUnitOptions.some(option => option.id === selectedOrgUnitId)
+                    ? selectedOrgUnitId
+                    : undefined
+                }
+                onValueChange={val => setSelectedOrgUnitId(val || null)}
+                disabled={selectedCompensationPlanId == null || dataLoading || orgUnitOptions.length === 0}
+              >
+                <SelectTrigger
+                  className="gba:!w-max gba:min-w-72 gba:max-w-lg"
+                  data-testid="manager-compensation-org-unit-selector"
+                >
+                  <SelectValue
+                    placeholder={dataLoading ? t('selector-org-unit-loading') : t('selector-org-unit-placeholder')}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgUnitOptions.map(option => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           {salaryBudgetError ? (
             <Alert variant="destructive" data-testid="manager-compensation-salary-budget-error">
@@ -407,7 +498,7 @@ export const ManagerCompensationPlanning: React.FC<BusinessAppContextProps> = co
             </p>
           ) : (
             <TeamCompensationDistributionPanel
-              teamMembers={teamMembersWithPerformance}
+              teamMembers={selectedOrgUnitTeamMembersWithPerformance}
               filteredRows={pipeline.filteredSorted}
               totalFiltered={pipeline.totalFiltered}
               loading={dataLoading || performanceScoresLoading}

@@ -53,7 +53,9 @@ export function useBudgetSetupPlansTableModel(
   onEditRow: (row: BudgetSetupPlanTableRow) => void,
   selectedCompensationPlanId: string | null,
   companies: BudgetSetupCompanyOption[] = [],
-  showCompanyColumn = false
+  showCompanyColumn = false,
+  editDisabled = false,
+  showCycleColumn = true
 ) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
@@ -196,9 +198,11 @@ export function useBudgetSetupPlansTableModel(
         t,
         v => formatBudgetPlanStatusLabelForDisplay(v, t),
         onEditRow,
-        showCompanyColumn
+        showCompanyColumn,
+        editDisabled,
+        showCycleColumn
       ),
-    [t, onEditRow, showCompanyColumn]
+    [t, onEditRow, showCompanyColumn, editDisabled, showCycleColumn]
   )
 
   const visibleTableColumns = useMemo(
@@ -212,7 +216,7 @@ export function useBudgetSetupPlansTableModel(
   const sortableColumns = useMemo(
     () => [
       ...(showCompanyColumn ? [{ id: 'companyLabel', label: t('budget-setup-table-col-company') }] : []),
-      { id: 'budgetPlanLabel', label: t('budget-setup-table-col-chosen-budget-plan') },
+      ...(showCycleColumn ? [{ id: 'budgetPlanLabel', label: t('budget-setup-table-col-chosen-budget-plan') }] : []),
       { id: 'companyBudgetStatus', label: t('budget-setup-table-col-budget-plan-status') },
       { id: 'salaryBudgetAmount', label: t('budget-setup-table-col-salary-budget-amount') },
       { id: 'salaryBudgetPercent', label: t('budget-setup-table-col-salary-budget-percent') },
@@ -220,7 +224,7 @@ export function useBudgetSetupPlansTableModel(
       { id: 'salaryBaseline', label: t('budget-setup-table-col-salary-baseline') },
       { id: 'actions', label: '' }
     ],
-    [t, showCompanyColumn]
+    [t, showCompanyColumn, showCycleColumn]
   )
 
   const availableColumnsForDisplay = useMemo(() => sortableColumns, [sortableColumns])

@@ -10,8 +10,17 @@ import { Employee } from '../../hooks/useEmployeeData'
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
 import { Card, CardContent, Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
-import { BriefcaseIcon, StackIcon, ListNumbersIcon, FunctionIcon, ClockIcon, CalendarCheckIcon, CalendarXIcon, CheckCircleIcon } from '@phosphor-icons/react'
-import { ArrowCircleLeftIcon } from '@phosphor-icons/react'
+import {
+  BriefcaseIcon,
+  StackIcon,
+  ListNumbersIcon,
+  FunctionIcon,
+  ClockIcon,
+  CalendarCheckIcon,
+  CalendarXIcon,
+  CheckCircleIcon,
+  ArrowCircleLeftIcon
+} from '@phosphor-icons/react'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -96,8 +105,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
       visible: false
     }))
   }
-
-  // Map real team members from GraphQL data
 
   // Map real team members from GraphQL data
   const subordinates = useMemo(() => {

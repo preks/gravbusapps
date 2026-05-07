@@ -1,7 +1,10 @@
 import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
 
 export const GET_COMPENSATION_TEAM_MEMBERS = `
-  query GetCompensationTeamMembers($where: EmployeePositionBoolExp!) {
+  query GetCompensationTeamMembers(
+    $where: EmployeePositionBoolExp!
+    $relationshipWhere: OrganizationalUnitRelationshipBoolExp!
+  ) {
     EmployeePosition(where: $where) {
       id
       employeeId
@@ -12,6 +15,12 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
       organizationalUnit {
         id
         name
+        organizationalUnitEmployee(where: { role: { _eq: "Manager" } }) {
+          employeeId
+          role
+          managerLevel
+          isMain
+        }
       }
       siteLocationId
       supervisorEmployeeId
@@ -44,6 +53,14 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
           weeklyHours
           fullTimeEquivalent
         }
+      }
+    }
+    OrganizationalUnitRelationship(where: $relationshipWhere) {
+      childId
+      parentId
+      parent {
+        id
+        name
       }
     }
   }

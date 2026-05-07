@@ -12,7 +12,7 @@ const STATUS_VARIANTS: Record<BudgetPlanStatusApi, BudgetStatusBadgeVariant> = {
   BUDGET_PLAN_APPROVED: 'success',
   BUDGET_PLAN_REJECTED: 'destructive',
   BUDGET_PLAN_SENT_BACK: 'secondary',
-  BUDGET_PLAN_EXECUTED: 'success'
+  BUDGET_PLAN_EXECUTED: 'info'
 }
 
 const STATUS_LABELS: Record<BudgetPlanStatusApi, string> = {
