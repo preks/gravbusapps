@@ -35567,9 +35567,9 @@
     ]
   },
   "flow/apps/launcher": {
-    "bitbucketBuildNumber": 11760,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11760/",
-    "chunkJsBytes": 297495,
+    "bitbucketBuildNumber": 11834,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11834/",
+    "chunkJsBytes": 297819,
     "top": [
       {
         "kind": "bucket",
@@ -35610,8 +35610,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/flow",
-        "rendered": 77903,
-        "gzip": 19932,
+        "rendered": 78773,
+        "gzip": 20303,
         "leaves": [
           {
             "name": "src/business-apps/flow/apps/launcher/components/FlowLaunchSheet.tsx",
@@ -35620,8 +35620,8 @@
           },
           {
             "name": "src/business-apps/flow/apps/launcher/components/FlowLibraryTab.tsx",
-            "rendered": 11178,
-            "gzip": 2400
+            "rendered": 10656,
+            "gzip": 2260
           }
         ]
       },
@@ -88156,20 +88156,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11832,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11832/",
-    "chunkJsBytes": 1842290,
+    "bitbucketBuildNumber": 11834,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11834/",
+    "chunkJsBytes": 1842286,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1538763,
-        "gzip": 95393,
+        "gzip": 95400,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1538763,
-            "gzip": 95393
+            "gzip": 95400
           }
         ]
       },
@@ -104271,7 +104271,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-07T10:27:14.125Z",
+    "generatedAt": "2026-05-07T11:41:09.742Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
