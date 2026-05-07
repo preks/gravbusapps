@@ -1,10 +1,8 @@
 import React from 'react'
 import { DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { ColumnConfig } from '@/business-apps/fin/expenses/common/types/columnTypes'
 import ExpenseDataTable from '@/business-apps/fin/expenses/common/components/table/ExpenseDataTable'
-import { expenseRequestAvailableColumns } from '../../config/expenseRequestAvailableColumns'
-import { expenseRequestSortableColumns } from '../../config/expenseRequestSortableColumns'
 import type { ExpenseRequestRow } from '../columns/expenseRequestColumns'
 import { EXPENSE_REQUESTS_TABLE_DATA_TEST_ID } from '../columns/expenseRequestColumns'
 
@@ -17,8 +15,11 @@ export interface ExpenseRequestsDataBodyProps {
   filtersObject: Record<string, unknown>
   expenseRequestsFilterConfig: FilterConfiguration
   onFilterChange: (filters: Record<string, unknown>) => void
+  listSectionLabel: string
   sorting: Array<{ id: string; desc: boolean }>
   onSortingChange: (sorting: Array<{ id: string; desc: boolean }>) => void
+  sortableColumns: ColumnConfig[]
+  availableColumns: ColumnConfig[]
   primaryAction: React.ReactNode
   secondaryActions: React.ReactNode | undefined
   visibleColumns: string[]
@@ -44,8 +45,11 @@ export function ExpenseRequestsDataBody({
   filtersObject,
   expenseRequestsFilterConfig,
   onFilterChange,
+  listSectionLabel,
   sorting,
   onSortingChange,
+  sortableColumns,
+  availableColumns,
   primaryAction,
   secondaryActions,
   visibleColumns,
@@ -66,10 +70,7 @@ export function ExpenseRequestsDataBody({
       titleSections={[
         {
           id: 'list',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_list.flows_button.expense_requests',
-            'Expense Requests'
-          ),
+          label: listSectionLabel,
           metadata: { count: totalCount, isLoading }
         }
       ]}
@@ -81,11 +82,11 @@ export function ExpenseRequestsDataBody({
       filterConfiguration={expenseRequestsFilterConfig}
       onFilterChange={onFilterChange}
       sorting={sorting}
-      sortableColumns={expenseRequestSortableColumns}
+      sortableColumns={sortableColumns}
       onSortingChange={onSortingChange}
       primaryAction={primaryAction}
       secondaryActions={secondaryActions}
-      availableColumns={expenseRequestAvailableColumns}
+      availableColumns={availableColumns}
       visibleColumns={visibleColumns}
       onVisibleColumnsChange={onVisibleColumnsChange}
       toolbarDensity="default"

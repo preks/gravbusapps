@@ -1,12 +1,15 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export function createDateRangeConfig() {
+export function createDateRangeConfig(t?: (key: string) => string) {
+  const placeholder = t ? t('personal-expenses-date-placeholder-start') : 'Start date'
+  const placeholderEnd = t ? t('personal-expenses-date-placeholder-end') : 'End date'
+
   return {
     dateType: 'date' as const,
     mode: 'range' as const,
-    placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-    placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+    placeholder,
+    placeholderEnd,
     showClearButton: true
   }
 }
@@ -15,11 +18,14 @@ export function createDateRangeFilterGroup(
   id: string,
   field: string,
   i18nKey: string,
-  fallback: string
+  fallback: string,
+  groupInfo?: string,
+  t?: (key: string) => string
 ): FilterConfiguration['groups'][number] {
   return {
     id: `${id}-group`,
     label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
+    ...(groupInfo ? { info: groupInfo } : {}),
     collapsible: true,
     defaultExpanded: false,
     filters: [
@@ -28,7 +34,7 @@ export function createDateRangeFilterGroup(
         field,
         label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
         type: 'date',
-        config: createDateRangeConfig()
+        config: createDateRangeConfig(t)
       }
     ]
   }
@@ -58,23 +64,22 @@ export function createStatusFilterGroup(
 
 /**
  * Expense vs Trip options for multi-select filters; option ids are tab-specific catalog tokens.
+ * Default labels use personal-expenses Fluent keys when the catalog map has no entry.
  */
 export function createExpenseTripMultiSelectOptions(
   filterLabelMap: Record<string, string> | undefined,
   expenseOptionId: string,
-  tripOptionId: string
+  tripOptionId: string,
+  t: (key: string) => string
 ): Array<{ id: string; label: string }> {
   return [
     {
       id: expenseOptionId,
-      label:
-        filterLabelMap?.[expenseOptionId] ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+      label: filterLabelMap?.[expenseOptionId] ?? t('personal-expenses-label-expense')
     },
     {
       id: tripOptionId,
-      label:
-        filterLabelMap?.[tripOptionId] ?? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+      label: filterLabelMap?.[tripOptionId] ?? t('personal-expenses-label-trip')
     }
   ]
 }
@@ -83,8 +88,12 @@ export function createNumberRangeFilterGroup(
   groupId: string,
   field: string,
   i18nKey: string,
-  fallback: string
+  fallback: string,
+  t?: (key: string) => string
 ): FilterConfiguration['groups'][number] {
+  const placeholderMin = t ? t('personal-expenses-filter-min-amount-plain') : 'Min amount'
+  const placeholderMax = t ? t('personal-expenses-filter-max-amount-plain') : 'Max amount'
+
   return {
     id: `${groupId}-group`,
     label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
@@ -101,8 +110,8 @@ export function createNumberRangeFilterGroup(
           min: 0,
           max: 10_000_000,
           step: 0.01,
-          placeholderMin: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount', 'Min Amount'),
-          placeholderMax: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount', 'Max Amount')
+          placeholderMin,
+          placeholderMax
         }
       }
     ]

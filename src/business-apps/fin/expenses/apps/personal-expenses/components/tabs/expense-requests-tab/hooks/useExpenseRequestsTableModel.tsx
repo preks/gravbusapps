@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { Button, useTranslation } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { useExpenseRequestFileService } from '../../../../utils/expenseRequestFileService'
 import { EXPENSE_REQUEST_FILTER_STATUSES } from '../utils/expenseRequestFilterConstants'
@@ -11,8 +10,7 @@ import {
   formatDateRangeForChip,
   applyDateRangeFromFilter,
   resolveSelectedCurrencyCode,
-  applyCurrencyChange,
-  buildDefaultEmptyMessage
+  applyCurrencyChange
 } from '../../../../utils/tableUtils'
 import {
   applyAmountRangeFromFilters,
@@ -22,9 +20,13 @@ import { useTableSetup } from '@/business-apps/fin/expenses/common/hooks/useTabl
 import { useVisibleColumns } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
 import { CurrencyDropdown } from '../../../shared/TableSharedComponents'
 import { createExpenseRequestFilterConfig } from '../config/expenseRequestFilterConfig'
-import { expenseRequestDefaultSort, type ExpenseRequestTableSortOrder } from '../config/expenseRequestSortableColumns'
 import {
-  expenseRequestAvailableColumns,
+  createExpenseRequestSortableColumns,
+  expenseRequestDefaultSort,
+  type ExpenseRequestTableSortOrder
+} from '../config/expenseRequestSortableColumns'
+import {
+  createExpenseRequestAvailableColumns,
   expenseRequestDefaultVisibleColumnIds
 } from '../config/expenseRequestAvailableColumns'
 import { createExpenseRequestColumns, type ExpenseRequestRow } from '../table/columns/expenseRequestColumns'
@@ -113,10 +115,14 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
     () =>
       createExpenseRequestFilterConfig({
         statusOptions: [...EXPENSE_REQUEST_FILTER_STATUSES],
-        filterLabelMap
+        filterLabelMap,
+        t: tPersonal
       }),
-    [filterLabelMap]
+    [filterLabelMap, tPersonal]
   )
+
+  const availableColumns = useMemo(() => createExpenseRequestAvailableColumns(tPersonal), [tPersonal])
+  const sortableColumns = useMemo(() => createExpenseRequestSortableColumns(tPersonal), [tPersonal])
 
   const filtersObject = useMemo((): Record<string, unknown> => {
     const statusIds = (selectedFilters || []).filter(f => EXPENSE_REQUEST_FILTER_STATUSES.includes(f))
@@ -208,7 +214,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
   )
 
   const [rawVisibleColumns, setRawVisibleColumns] = useState<string[]>(() => [...expenseRequestDefaultVisibleColumnIds])
-  const visibleColumnIds = useVisibleColumns(rawVisibleColumns, expenseRequestAvailableColumns)
+  const visibleColumnIds = useVisibleColumns(rawVisibleColumns, availableColumns)
 
   const ignorePageStateUpdate = useCallback(() => {
     void 0
@@ -321,10 +327,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
 
   const emptyMessage = hasActiveFilters
     ? tPersonal('table-empty-filtered')
-    : buildDefaultEmptyMessage(
-        'lowcoder:personal_expenses.no_expense_request_data',
-        'No expense requests found. Create your first expense request to get started.'
-      )
+    : tPersonal('personal-expenses-no-expense-requests-found')
 
   const columns = useMemo(() => createExpenseRequestColumns(tPersonal), [tPersonal])
 
@@ -426,13 +429,10 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
         data-testid="add-expense-request-button"
         type="button"
       >
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.btn_add',
-          'Add'
-        )}
+        {tPersonal('personal-expenses-add-button')}
       </Button>
     ),
-    [onAddExpenseRequest]
+    [onAddExpenseRequest, tPersonal]
   )
 
   const secondaryActions = useMemo(
@@ -448,8 +448,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
     [currencyStats, selectedCurrencyCode, handleCurrencyChange]
   )
 
-  const searchPlaceholderSuffix =
-    getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') + '...'
+  const searchPlaceholderSuffix = tPersonal('expense-items-search-placeholder')
 
   const tableItems = items as ExpenseRequestRow[]
 
@@ -463,8 +462,11 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       filtersObject,
       expenseRequestsFilterConfig,
       onFilterChange: handleFilterChangeFromDisplay,
+      listSectionLabel: tPersonal('expense-requests-list-section-title'),
       sorting,
       onSortingChange: handleSortingChange,
+      sortableColumns,
+      availableColumns,
       primaryAction,
       secondaryActions,
       visibleColumns: visibleColumnIds,
@@ -489,12 +491,14 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       filtersObject,
       expenseRequestsFilterConfig,
       handleFilterChangeFromDisplay,
+      tPersonal,
       sorting,
       handleSortingChange,
+      sortableColumns,
+      availableColumns,
       primaryAction,
       secondaryActions,
       visibleColumnIds,
-      tPersonal,
       tableItems,
       visibleTableColumns,
       error,

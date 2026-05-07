@@ -24,10 +24,11 @@ export interface UseReportFiltersParams {
   t: TranslateFn
 }
 
-function makeDateGroup(id: string, label: string) {
+function makeDateGroup(id: string, label: string, groupInfo?: string) {
   return {
     id,
     label,
+    ...(groupInfo ? { info: groupInfo } : {}),
     collapsible: true,
     defaultExpanded: false,
     filters: [
@@ -149,14 +150,14 @@ export const useReportFilters = (params: UseReportFiltersParams) => {
       return [makeDateGroup('dateRange', t('header-expense-date'))]
     }
     if (selectedReportType === ReportType.ADVANCE_PAYMENT) {
-      return [makeDateGroup('effectiveDateRange', t('filter-effective-date'))]
+      return [makeDateGroup('effectiveDateRange', t('filter-effective-date'), t('filter-effective-date-info'))]
     }
     if (
       selectedReportType === ReportType.EXPENSE_PLAN ||
       selectedReportType === ReportType.EXPENSE_REQUEST ||
       selectedReportType === ReportType.APPROVAL_PAYOUT_CYCLE
     ) {
-      const groups = [makeDateGroup('effectiveDateRange', t('filter-effective-date'))]
+      const groups = [makeDateGroup('effectiveDateRange', t('filter-effective-date'), t('filter-effective-date-info'))]
       if (selectedReportType === ReportType.EXPENSE_PLAN) {
         groups.push(makeDateGroup('planDateRange', t('header-start-date')))
       }

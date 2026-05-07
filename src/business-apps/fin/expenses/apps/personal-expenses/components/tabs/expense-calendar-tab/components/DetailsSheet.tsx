@@ -1,10 +1,10 @@
 import React from 'react'
-import { Sheet, SheetContent, SheetTitle } from '@newwork/nw-design-system'
+import { Sheet, SheetContent, SheetTitle, useTranslation } from '@newwork/nw-design-system'
 import ExpensePlanDetails from '../../expense-plans-tab/details/ExpensePlanDetails'
 import ExpenseRequestDetails from '../../expense-requests-tab/details/ExpenseRequestDetails'
 import ExpenseDetailsShell from '../../../../../../common/components/details-panel/ExpenseDetailsShell'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import personalTranslations from '../../../../_i18n'
 
 export interface DetailsSheetProps extends BusinessAppContextProps {
   open: boolean
@@ -15,12 +15,11 @@ export interface DetailsSheetProps extends BusinessAppContextProps {
 }
 
 const DetailsSheet: React.FC<DetailsSheetProps> = props => {
+  const { t } = useTranslation(personalTranslations)
   const { open, onOpenChange, onClose, selectedPlanForDetails, selectedRequestForDetails, ...context } = props
 
   const headerTitle =
-    selectedPlanForDetails?.title ||
-    selectedRequestForDetails?.title ||
-    getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.details', 'Details')
+    selectedPlanForDetails?.title || selectedRequestForDetails?.title || t('expense-calendar-details-title')
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} data-testid="details-sheet">

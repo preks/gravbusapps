@@ -15,12 +15,16 @@ export interface BackofficeExpenseRequestFilterConfigOptions {
   statusOptions: string[]
   filterLabelMap: Record<string, string>
   departmentOptions: Array<{ id: string; label: string }>
+  effectiveDateGroupInfo?: string
+  t: (key: string) => string
 }
 
 export function createBackofficeExpenseRequestFilterConfig({
   statusOptions,
   filterLabelMap,
-  departmentOptions
+  departmentOptions,
+  effectiveDateGroupInfo,
+  t
 }: BackofficeExpenseRequestFilterConfigOptions): FilterConfiguration {
   const statusFilters = statusOptions.map(id => ({ id, label: filterLabelMap?.[id] ?? id }))
   const requestTypeOptions = [
@@ -43,13 +47,17 @@ export function createBackofficeExpenseRequestFilterConfig({
       'effectiveDate',
       'effectiveDateRange',
       'lowcoder:personal_expenses.effective_date',
-      'Effective Date'
+      'Effective Date',
+      effectiveDateGroupInfo,
+      t
     ),
     createDateRangeFilterGroup(
       'requestDate',
       'requestDateRange',
       'lowcoder:confirm_transfer_advance_payment.request_date_label',
-      'Request Date'
+      'Request Date',
+      undefined,
+      t
     ),
     {
       id: 'department-group',

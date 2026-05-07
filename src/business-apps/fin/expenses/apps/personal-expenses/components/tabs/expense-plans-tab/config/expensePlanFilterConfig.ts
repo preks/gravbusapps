@@ -20,12 +20,14 @@ function buildDateRangeGroup(
   t: (key: string) => string,
   id: string,
   field: string,
-  label: string
+  label: string,
+  groupInfo?: string
 ): FilterConfiguration['groups'][number] {
   const dateConfig = buildDateRangeConfig(t)
   return {
     id: `${id}-group`,
     label,
+    ...(groupInfo ? { info: groupInfo } : {}),
     collapsible: true,
     defaultExpanded: false,
     filters: [
@@ -93,7 +95,13 @@ export function createExpensePlanFilterConfig({
     .map(([id, label]) => ({ id, label }))
 
   const groups: FilterConfiguration['groups'] = [
-    buildDateRangeGroup(t, 'effectiveDate', 'effectiveDateRange', t('personal-expenses-label-effective-date')),
+    buildDateRangeGroup(
+      t,
+      'effectiveDate',
+      'effectiveDateRange',
+      t('personal-expenses-label-effective-date'),
+      t('personal-expenses-effective-date-filter-info')
+    ),
     buildDateRangeGroup(t, 'planDate', 'planDateRange', t('expense-plans-column-plan-date')),
     buildDateRangeGroup(t, 'startDate', 'startDateRange', t('personal-expenses-filter-label-start-date')),
     buildDateRangeGroup(t, 'endDate', 'endDateRange', t('personal-expenses-filter-label-end-date')),

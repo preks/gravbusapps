@@ -14,8 +14,22 @@ filter-expense-plans-description = Wenden Sie Filter an, um die Liste der Spesen
 filter-expense-items-title = Spesenposten filtern
 filter-expense-items-description = Wenden Sie Filter an, um die Liste der Spesenposten einzugrenzen.
 
-# Expense Requests Tab
+# Expense Requests Tab (transl.txt)
 personal-expenses-update-request-action = Anfrage aktualisieren
+expense-requests-list-section-title = Spesenabrechnungen
+expense-requests-column-title = Titel
+expense-requests-column-request-number = Abrechnungsnummer
+personal-expenses-label-request-date = Datum der Anfrage
+expense-requests-filter-request-type = Anfrage Typ
+personal-expenses-submitted-expense-requests = Ausgabenanfragen eingereicht
+personal-expenses-total-requests-for-month = Gesamtanfragen für
+personal-expenses-total-amount-for-month-requests = Gesamtbetrag für
+personal-expenses-across-all-requests = Über alle Anfragen
+expense-requests-stat-reimbursable-widget-title = Erstattungsfähig
+personal-expenses-to-be-reimbursed = Zu erstatten
+personal-expenses-no-expense-request-statistics = Keine Statistiken für Ausgabenanfragen verfügbar.
+personal-expenses-no-expense-requests-found = Keine Ausgabenanfragen gefunden. Erstellen Sie die erste Ausgabenanfrage, um zu beginnen.
+personal-expenses-print-expense-request = Ausgabeanfrage drucken
 
 # Expense dashboard tab (legacy lowcoder / transl.txt)
 
@@ -58,6 +72,7 @@ dashboard-stat-upcoming-trips = Bevorstehende Reisen
 dashboard-stat-planned-business-trips = Geplante Geschäftsreisen
 dashboard-stat-unallocated-expenses = Nicht zugeordnete Ausgaben
 dashboard-stat-unlinked-items = Ausgabenposten, die keiner Anfrage zugeordnet sind
+personal-expenses-back-to-dashboard = Zurück zum Dashboard
 dashboard-stat-empty = Keine Statistiken verfügbar.
 
 dashboard-filter-loading = Wird geladen...
@@ -204,6 +219,130 @@ personal-shell-tab-expense-plans = Ausgabenpläne
 personal-shell-tab-advance-payments = Vorauszahlungen
 personal-shell-tab-expense-requests = Spesenabrechnungen
 personal-shell-tab-calendar = Kalender
+
+# Expense calendar tab (transl.txt)
+expense-calendar-title = Ausgabenkalender
+expense-calendar-filter-plans = Pläne
+expense-calendar-filter-requests = Anfragen
+expense-calendar-loading-data = Daten werden geladen...
+expense-calendar-details-title = Details
+expense-calendar-status-unknown = Unbekannt
+
+# Expense Plans tab (transl.txt de)
+
+expense-plans-list-section-title = Meine Ausgabenpläne
+expense-plans-no-rows = Keine Ausgabenpläne gefunden. Erstellen Sie den ersten Plan, um zu beginnen.
+
+expense-plans-stat-loading = Laden...
+expense-plans-stat-most-frequent = Am häufigsten
+expense-plans-stat-no-data-available = Keine Daten verfügbar
+expense-plans-stat-total-plans-for-month-prefix = Gesamtpläne für
+expense-plans-stat-closed-expense-plans = Geschlossene Ausgabenpläne
+expense-plans-stat-total-estimated-for-month-prefix = Geschätztes Gesamtvolumen für
+expense-plans-stat-estimated-expenses = Geschätzte Ausgaben
+expense-plans-stat-pending-approval = Genehmigung ausstehend
+expense-plans-stat-requires-action = Erfordert Handlung
+expense-plans-stat-top-destination = Top‑Reiseziel
+expense-plans-stat-empty = Keine Statistiken für Ausgabenpläne verfügbar.
+
+expense-plans-sheet-plan-title = Details zum Spesenplan
+expense-plans-sheet-expense-request-title = Details zur Spesenabrechnung
+expense-plans-print-dialog-title = Ausgabenplan drucken
+expense-plans-details-request-type = Anfrage Typ
+expense-plans-details-view-full-details = Vollständige Details anzeigen
+
+expense-plans-column-plan-number = Plannummer
+expense-plans-column-plan-date = Planungsdatum
+expense-plans-column-end-date = Enddatum
+expense-plans-column-paid-advance = Bezahlter Vorschuss
+
+expense-plans-row-update-plan = Plan aktualisieren
+expense-plans-row-print = Drucken
+expense-plans-row-request-advance-payment = Vorschuss beantragen
+expense-plans-row-view-plan-details = Details zum Spesenplan
+expense-plans-row-view-request-details = Details zur Spesenabrechnung anzeigen
+
+expense-plans-primary-add = Hinzufügen
+
+personal-expenses-label-effective-date = Gültigkeitsdatum
+personal-expenses-effective-date-filter-info = Für Typ REISE wird das Startdatum verwendet. Für Typ AUSGABE wird das Ausgabedatum des Postens verwendet.
+personal-expenses-filter-label-start-date = Startdatum
+personal-expenses-filter-label-end-date = Enddatum
+personal-expenses-label-plan-type = Plantyp
+personal-expenses-label-expense = Ausgabe
+personal-expenses-label-trip = Reise
+personal-expenses-date-placeholder-start = Startdatum
+personal-expenses-date-placeholder-end = Enddatum
+expense-plans-filter-top-destination = Top‑Reiseziel
+expense-plans-filter-paid-advance = Bezahlter Vorschuss
+expense-plans-filter-min-amount = Mindestbetrag
+expense-plans-filter-max-amount = Höchstbetrag
+
+expense-plans-chip-prefix-plan-date = Planungsdatum
+expense-plans-chip-prefix-start-date = Startdatum
+expense-plans-chip-prefix-end-date = Enddatum
+expense-plans-chip-prefix-effective-date = Gültigkeitsdatum
+
+personal-expenses-month-january = Januar
+personal-expenses-month-february = Februar
+personal-expenses-month-march = März
+personal-expenses-month-april = April
+personal-expenses-month-may = Mai
+personal-expenses-month-june = Juni
+personal-expenses-month-july = Juli
+personal-expenses-month-august = August
+personal-expenses-month-september = September
+personal-expenses-month-october = Oktober
+personal-expenses-month-november = November
+personal-expenses-month-december = Dezember
+
+expense-details-value-not-available = N/A
+expense-details-label-employee = Mitarbeiter
+expense-details-label-employee-code = Mitarbeitercode
+expense-details-label-sap-number = SAP Nummer
+expense-details-label-creation-date = Erstellungsdatum
+expense-details-label-remaining-amount = Verbleibender Betrag
+expense-details-label-total-amount = Gesamtbetrag
+
+personal-expenses-advance-list-title = Meine Vorschusszahlungen
+personal-expenses-search-advance-payments = Vorschüsse durchsuchen...
+personal-expenses-no-expense-plan = Kein Ausgabenplan
+personal-expenses-column-expense-plan = Ausgabenplan
+personal-expenses-column-amount = Betrag
+personal-expenses-column-advance-payment = Vorschuss
+personal-expenses-column-payment-method = Zahlungsmethode
+personal-expenses-payment-direct-deposit = Überweisung
+personal-expenses-payment-cash-payment = Barzahlung
+personal-expenses-advance-sort-created = Erstellt am
+personal-expenses-filter-created-in-month = Erstellt in
+personal-expenses-filter-amount-range-label = Betragsbereich
+personal-expenses-filter-advance-range-label = Vorschussbereich
+personal-expenses-filter-min-amount-plain = Mindestbetrag
+personal-expenses-filter-max-amount-plain = Höchstbetrag
+personal-expenses-filter-min-advance-plain = Mindestvorschuss
+personal-expenses-filter-max-advance-plain = Höchstvorschuss
+personal-expenses-add-button = Hinzufügen
+personal-expenses-view-advance-payment-details = Vorschussdetails anzeigen
+personal-expenses-advance-payment-details-title = Details Vorschusszahlung
+personal-expenses-expense-plan-details-title = Ausgabenplandetails
+personal-expenses-expense-request-details-title = Details zur Spesenabrechnung
+personal-expenses-generate-document = Dokument erzeugen
+personal-expenses-advance-payment-default-title = Vorschusszahlung
+personal-expenses-document-fallback-filename = Dokument
+personal-expenses-document-downloaded-toast = Dokument heruntergeladen
+personal-expenses-document-download-failed-toast = Dokument konnte nicht heruntergeladen werden
+personal-expenses-from-last-month = im Vergleich zum Vormonat
+personal-expenses-total-payments-for-month = Gesamtzahlungen für
+personal-expenses-submitted-advance-payments = Vorschüsse eingereicht
+personal-expenses-total-amount-for-month = Gesamtbetrag für
+personal-expenses-across-all-payments = Über alle Zahlungen
+personal-expenses-pending-payments-title = Ausstehende Zahlungen
+personal-expenses-awaiting-approval = Genehmigung ausstehend
+personal-expenses-approved-payments-title = Genehmigte Zahlungen
+personal-expenses-ready-for-processing = Zur Verarbeitung bereit
+personal-expenses-no-advance-payment-statistics = Keine Statistiken für Vorschüsse verfügbar.
+personal-expenses-no-advance-payments-found = Keine Vorschüsse gefunden. Erstellen Sie den ersten Vorschuss, um zu beginnen.
+personal-expenses-user-information-not-loaded = Benutzerinformationen nicht geladen. Bitte warten Sie einen Moment und versuchen Sie es erneut.
 
 # Expense Plans tab (transl.txt de)
 

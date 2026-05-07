@@ -1,4 +1,3 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { ColumnConfig } from '../../../../../../common/types/columnTypes'
 
 export type ExpenseRequestTableSortOrder = 'ascend' | 'descend'
@@ -20,57 +19,29 @@ const SORTABLE_COLUMN_IDS: ReadonlySet<string> = new Set([
   'reimbursableAmount'
 ])
 
-function buildExpenseRequestColumns(): ColumnConfig[] {
+function buildExpenseRequestColumns(t: (key: string) => string): ColumnConfig[] {
   return [
-    {
-      id: 'code',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-        'Request Number'
-      )
-    },
-    {
-      id: 'title',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title')
-    },
-    {
-      id: 'requestDate',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:confirm_transfer_advance_payment.request_date_label',
-        'Request Date'
-      )
-    },
-    {
-      id: 'startDate',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')
-    },
-    {
-      id: 'endDate',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
-    },
-    {
-      id: 'status',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-    },
-    {
-      id: 'reimbursableAmount',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
-    },
-    {
-      id: 'advance',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance')
-    }
+    { id: 'code', label: t('expense-requests-column-request-number') },
+    { id: 'title', label: t('expense-requests-column-title') },
+    { id: 'requestDate', label: t('personal-expenses-label-request-date') },
+    { id: 'startDate', label: t('personal-expenses-filter-label-start-date') },
+    { id: 'endDate', label: t('expense-plans-column-end-date') },
+    { id: 'status', label: t('expense-items-column-status') },
+    { id: 'reimbursableAmount', label: t('expense-items-column-reimbursable') },
+    { id: 'advance', label: t('personal-expenses-column-advance-payment') }
   ]
 }
 
-/** Includes visibility-only columns (e.g. advance). */
-export const expenseRequestAvailableColumns: ColumnConfig[] = buildExpenseRequestColumns()
+export function createExpenseRequestAvailableColumns(t: (key: string) => string): ColumnConfig[] {
+  return buildExpenseRequestColumns(t)
+}
 
 /** Toolbar sort dropdown — excludes non-sortable columns. */
-export const expenseRequestSortableColumns: ColumnConfig[] = expenseRequestAvailableColumns.filter(c =>
-  SORTABLE_COLUMN_IDS.has(c.id)
-)
+export function createExpenseRequestSortableColumns(t: (key: string) => string): ColumnConfig[] {
+  return buildExpenseRequestColumns(t).filter(c => SORTABLE_COLUMN_IDS.has(c.id))
+}
 
+/** Includes visibility-only columns (e.g. advance). */
 export const expenseRequestDefaultVisibleColumnIds: string[] = [
   'code',
   'title',

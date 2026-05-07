@@ -47,6 +47,8 @@ filter-request-type-expense = Cheltuială
 filter-request-type-trip = Călătorie
 filter-search-employee = Caută angajat...
 filter-effective-date-info = Pentru tipul CĂLĂTORIE, se folosește data de început. Pentru tipul CHELTUIALĂ, se folosește data elementului de cheltuială.
+personal-expenses-date-placeholder-start = Data de început
+personal-expenses-date-placeholder-end = Data de sfârșit
 filter-report-filters = Filtre Raport
 
 # Filter Chip Labels

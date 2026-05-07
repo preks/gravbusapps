@@ -47,6 +47,8 @@ filter-request-type-expense = Spese
 filter-request-type-trip = Reise
 filter-search-employee = Mitarbeiter suchen...
 filter-effective-date-info = Für den Typ REISE wird das Startdatum verwendet. Für den Typ SPESE wird das Ausgabedatum des Postens verwendet.
+personal-expenses-date-placeholder-start = Startdatum
+personal-expenses-date-placeholder-end = Enddatum
 filter-report-filters = Berichtsfilter
 
 # Filter Chip Labels

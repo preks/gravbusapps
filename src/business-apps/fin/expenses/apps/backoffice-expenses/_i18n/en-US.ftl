@@ -47,6 +47,8 @@ filter-request-type-expense = Expense
 filter-request-type-trip = Trip
 filter-search-employee = Search employee...
 filter-effective-date-info = For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.
+personal-expenses-date-placeholder-start = Start date
+personal-expenses-date-placeholder-end = End date
 filter-report-filters = Report Filters
 
 # Filter Chip Labels

@@ -3,7 +3,6 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetExpenseRequestStatistics } from '../../../../hooks/useGetExpenseRequestStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../utils'
 import { kpiHeaderCurrencyLabel } from '../../../../utils/kpiHeaderCurrencyLabel'
 import { getTranslatedMonthName } from '../../../../utils/monthTranslationUtils'
@@ -109,46 +108,46 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       return {
         value: '+100%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('personal-expenses-from-last-month')
       }
     }
     if (totalRequestsPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('personal-expenses-from-last-month')
       }
     }
     const sign = totalRequestsPercentageChange > 0 ? '+' : ''
     return {
       value: `${sign}${totalRequestsPercentageChange.toFixed(0)}%`,
       positive: totalRequestsPercentageChange >= 0,
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+      description: t('personal-expenses-from-last-month')
     }
-  }, [totalRequestsPercentageChange, statistics.currentMonthTotal, statistics.previousMonthTotal])
+  }, [t, totalRequestsPercentageChange, statistics.currentMonthTotal, statistics.previousMonthTotal])
 
   const totalAmountTrend = useMemo(() => {
     if (statistics.previousMonthAmount === 0 && statistics.currentMonthAmount > 0) {
       return {
         value: '+100%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('personal-expenses-from-last-month')
       }
     }
     if (totalAmountPercentageChange === 0) {
       return {
         value: '0%',
         positive: true,
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+        description: t('personal-expenses-from-last-month')
       }
     }
     const sign = totalAmountPercentageChange > 0 ? '+' : ''
     return {
       value: `${sign}${totalAmountPercentageChange.toFixed(0)}%`,
       positive: totalAmountPercentageChange >= 0,
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_last_month', 'from last month')
+      description: t('personal-expenses-from-last-month')
     }
-  }, [totalAmountPercentageChange, statistics.currentMonthAmount, statistics.previousMonthAmount])
+  }, [t, totalAmountPercentageChange, statistics.currentMonthAmount, statistics.previousMonthAmount])
 
   // Handle widget clicks with immediate visual feedback
   const handleWidgetClick = useCallback(
@@ -167,77 +166,68 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   )
 
   // No-trend widgets: value, empty row, footer (same layout as expense dashboard)
-  const widgets: WidgetItem[] = [
-    {
-      key: 'total-requests',
-      title:
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.total_requests_for_month', `Total Requests for`) +
-        ' ' +
-        currentMonthName,
-      value: statistics.currentMonthTotal,
-      prefix: kpiHeaderCurrencyLabel(effectiveCurrencyCode),
-      color: '#1677ff',
-      span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.submitted_expense_requests',
-        'Submitted expense requests'
-      ),
-      trend: totalRequestsTrend,
-      active: activeWidgetKey === 'total-requests',
-      onClick: () => handleWidgetClick('total-requests')
-    },
-    {
-      key: 'total-amount',
-      title:
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.total_amount_for_month_requests',
-          `Total Amount for`
-        ) +
-        ' ' +
-        currentMonthName,
-      value: formatCurrencyDisplay(statistics.currentMonthAmount || 0, effectiveCurrencyCode),
-      color: '#3f8600',
-      precision: 2,
-      span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.across_all_requests',
-        'Across all requests'
-      ),
-      trend: totalAmountTrend,
-      active: activeWidgetKey === 'total-amount',
-      onClick: () => handleWidgetClick('total-amount')
-    },
-    {
-      key: 'pending-approval',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.expense_plans_tab.pending_approval',
-        'Pending Approval'
-      ),
-      value: statistics.pendingApproval,
-      prefix: kpiHeaderCurrencyLabel(effectiveCurrencyCode),
-      color: '#faad14',
-      span: { xs: 24, sm: 12, md: 6 },
-      footer: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.expense_plans_tab.requires_action',
-        'Requires action'
-      ),
-      trend: { hideBadge: true, value: '', description: '\u200B' },
-      active: activeWidgetKey === 'pending-approval',
-      onClick: () => handleWidgetClick('pending-approval')
-    },
-    {
-      key: 'reimbursable',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable', 'Reimbursable'),
-      value: formatCurrencyDisplay(statistics.reimbursableAmount, effectiveCurrencyCode),
-      color: '#722ed1',
-      precision: 2,
-      span: { xs: 24, sm: 12, md: 6 },
-      footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_be_reimbursed', 'To be reimbursed'),
-      trend: { hideBadge: true, value: '', description: '\u200B' },
-      active: activeWidgetKey === 'reimbursable',
-      onClick: () => handleWidgetClick('reimbursable')
-    }
-  ]
+  const widgets: WidgetItem[] = useMemo(
+    () => [
+      {
+        key: 'total-requests',
+        title: `${t('personal-expenses-total-requests-for-month')} ${currentMonthName}`,
+        value: statistics.currentMonthTotal,
+        prefix: kpiHeaderCurrencyLabel(effectiveCurrencyCode),
+        color: '#1677ff',
+        span: { xs: 24, sm: 12, md: 6 },
+        description: t('personal-expenses-submitted-expense-requests'),
+        trend: totalRequestsTrend,
+        active: activeWidgetKey === 'total-requests',
+        onClick: () => handleWidgetClick('total-requests')
+      },
+      {
+        key: 'total-amount',
+        title: `${t('personal-expenses-total-amount-for-month-requests')} ${currentMonthName}`,
+        value: formatCurrencyDisplay(statistics.currentMonthAmount || 0, effectiveCurrencyCode),
+        color: '#3f8600',
+        precision: 2,
+        span: { xs: 24, sm: 12, md: 6 },
+        description: t('personal-expenses-across-all-requests'),
+        trend: totalAmountTrend,
+        active: activeWidgetKey === 'total-amount',
+        onClick: () => handleWidgetClick('total-amount')
+      },
+      {
+        key: 'pending-approval',
+        title: t('expense-plans-stat-pending-approval'),
+        value: statistics.pendingApproval,
+        prefix: kpiHeaderCurrencyLabel(effectiveCurrencyCode),
+        color: '#faad14',
+        span: { xs: 24, sm: 12, md: 6 },
+        footer: t('expense-plans-stat-requires-action'),
+        trend: { hideBadge: true, value: '', description: '\u200B' },
+        active: activeWidgetKey === 'pending-approval',
+        onClick: () => handleWidgetClick('pending-approval')
+      },
+      {
+        key: 'reimbursable',
+        title: t('expense-requests-stat-reimbursable-widget-title'),
+        value: formatCurrencyDisplay(statistics.reimbursableAmount, effectiveCurrencyCode),
+        color: '#722ed1',
+        precision: 2,
+        span: { xs: 24, sm: 12, md: 6 },
+        footer: t('personal-expenses-to-be-reimbursed'),
+        trend: { hideBadge: true, value: '', description: '\u200B' },
+        active: activeWidgetKey === 'reimbursable',
+        onClick: () => handleWidgetClick('reimbursable')
+      }
+    ],
+    [
+      t,
+      currentMonthName,
+      statistics,
+      effectiveCurrencyCode,
+      totalRequestsTrend,
+      totalAmountTrend,
+      activeWidgetKey,
+      handleWidgetClick
+    ]
+  )
 
   return (
     <WidgetGroup
@@ -248,10 +238,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       onRetry={fetchRequestStatistics}
       skeletonCount={4}
       useWidgetStructureForLoading={true}
-      emptyText={getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.no_expense_request_statistics_available',
-        'No expense request statistics available.'
-      )}
+      emptyText={t('personal-expenses-no-expense-request-statistics')}
       data-testid="expense-request-statistics"
       onWidgetClick={handleWidgetClick}
     />

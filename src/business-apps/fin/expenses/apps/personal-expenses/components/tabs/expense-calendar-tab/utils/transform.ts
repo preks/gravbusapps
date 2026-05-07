@@ -3,7 +3,6 @@ import type { CalendarExpenseItem } from '../types'
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 import type { ExpenseRequest } from '../../../../hooks/useGetExpenseRequests'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const extractCurrency = (code?: string | null): string => {
   if (!code) return 'EUR'
@@ -12,17 +11,17 @@ const extractCurrency = (code?: string | null): string => {
   return last || 'EUR'
 }
 
-export const toCalendarItemFromExpense = (item: ExpenseItem): CalendarExpenseItem => ({
+export const toCalendarItemFromExpense = (item: ExpenseItem, unknownStatusLabel: string): CalendarExpenseItem => ({
   id: item.id,
   title: item.title,
   expenseDate: dayjs(item.expenseDate),
   totalAmount: item.totalAmount,
   currencyCode: extractCurrency(item.currency?.code),
-  status: item.status || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'UNKNOWN'),
+  status: item.status || unknownStatusLabel,
   type: 'expense'
 })
 
-export const toCalendarItemFromPlan = (plan: ExpensePlan): CalendarExpenseItem | null => {
+export const toCalendarItemFromPlan = (plan: ExpensePlan, unknownStatusLabel: string): CalendarExpenseItem | null => {
   if (plan.startDate && plan.endDate) {
     return {
       id: plan.id,
@@ -31,7 +30,7 @@ export const toCalendarItemFromPlan = (plan: ExpensePlan): CalendarExpenseItem |
       endDate: dayjs(plan.endDate),
       totalAmount: plan.totalAmount,
       currencyCode: extractCurrency(plan.currency?.code),
-      status: plan.status || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'UNKNOWN'),
+      status: plan.status || unknownStatusLabel,
       type: 'plan'
     }
   }
@@ -42,14 +41,17 @@ export const toCalendarItemFromPlan = (plan: ExpensePlan): CalendarExpenseItem |
       expenseDate: dayjs(plan.planDate),
       totalAmount: plan.totalAmount,
       currencyCode: extractCurrency(plan.currency?.code),
-      status: plan.status || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'UNKNOWN'),
+      status: plan.status || unknownStatusLabel,
       type: 'plan'
     }
   }
   return null
 }
 
-export const toCalendarItemFromRequest = (request: ExpenseRequest): CalendarExpenseItem | null => {
+export const toCalendarItemFromRequest = (
+  request: ExpenseRequest,
+  unknownStatusLabel: string
+): CalendarExpenseItem | null => {
   if (request.startDate && request.endDate) {
     return {
       id: request.id,
@@ -58,7 +60,7 @@ export const toCalendarItemFromRequest = (request: ExpenseRequest): CalendarExpe
       endDate: dayjs(request.endDate),
       totalAmount: request.totalAmount,
       currencyCode: extractCurrency(request.currency?.code),
-      status: request.status || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'UNKNOWN'),
+      status: request.status || unknownStatusLabel,
       type: 'request'
     }
   }
@@ -69,7 +71,7 @@ export const toCalendarItemFromRequest = (request: ExpenseRequest): CalendarExpe
       expenseDate: dayjs(request.requestDate),
       totalAmount: request.totalAmount,
       currencyCode: extractCurrency(request.currency?.code),
-      status: request.status || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'UNKNOWN'),
+      status: request.status || unknownStatusLabel,
       type: 'request'
     }
   }
