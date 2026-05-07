@@ -9,6 +9,7 @@ import { formatCurrencyCell } from './budgetSetupPlanTableRows'
 import { formatDateOrDash, formatCurrencyRefForDisplay } from '../../utils/displayFormatUtils'
 import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
 import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
+import { formatBudgetPlanStatusLabelForDisplay } from './budgetSetupDisplayUtils'
 
 interface BudgetSetupCycleOverviewProps {
   selectedPlan: CompensationBudgetPlanListItem
@@ -163,7 +164,10 @@ export function BudgetSetupCycleOverview({
             <div className="gba:min-w-0">
               <dt className="gba:text-xs gba:text-muted-foreground">{t('budget-setup-field-plan-status')}</dt>
               <dd className="gba:mt-1">
-                <BudgetPlanStatusBadge status={selectedPlan.budgetPlanStatus as BudgetPlanStatusApi} />
+                <BudgetPlanStatusBadge
+                  status={selectedPlan.budgetPlanStatus as BudgetPlanStatusApi}
+                  label={formatBudgetPlanStatusLabelForDisplay(selectedPlan.budgetPlanStatus, t)}
+                />
               </dd>
             </div>
             <div className="gba:min-w-0">

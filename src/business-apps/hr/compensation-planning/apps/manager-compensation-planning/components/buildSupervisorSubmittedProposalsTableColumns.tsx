@@ -208,7 +208,10 @@ export function buildSupervisorSubmittedProposalsTableColumns(
         if (v) {
           return (
             <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
-              <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
+              <BudgetPlanStatusBadge
+                status={v as BudgetPlanStatusApi}
+                label={formatBudgetPlanStatusLabelForDisplay(v, t)}
+              />
             </div>
           )
         }
