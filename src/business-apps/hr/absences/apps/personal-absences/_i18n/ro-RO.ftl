@@ -29,8 +29,15 @@ pending-requests = Cereri în așteptare
 no-pending-requests = Nu există cereri în așteptare
 action = Acțiune
 cancel-request = Anulează cererea
+request-cancellation = Solicită anularea
 cancel-request-success = Cererea de absență a fost anulată
+request-cancellation-success = Solicitarea de anulare a fost trimisă managerului pentru aprobare
 cancel-request-error = Cererea de absență nu a putut fi anulată
+request-cancellation-dialog-title = Solicită aprobarea anulării
+request-cancellation-dialog-description = O sarcină va fi creată în Everybox pentru managerul tău. Absența aprobată va fi anulată doar după aprobarea managerului.
+request-cancellation-confirm = Trimite solicitarea
+request-cancellation-no-manager = Acest angajat nu are manager alocat. Solicitarea de anulare nu poate fi trimisă.
+cancel = Anulează
 
 # My Absence History
 my-absence-history = Istoricul absențelor

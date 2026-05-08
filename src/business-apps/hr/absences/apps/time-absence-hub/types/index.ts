@@ -1,4 +1,5 @@
 import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
+import type { CancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
 
 export type TimeFilter = 'current-year' | 'quarter' | 'month' | 'everything'
 
@@ -120,6 +121,7 @@ export interface EnhancedAbsence {
   color?: string
   pictureThumbnail?: string
   createdAt?: string
+  cancelSnapshot: CancelEmployeeAbsenceSnapshot
 }
 
 export interface DateFilters {

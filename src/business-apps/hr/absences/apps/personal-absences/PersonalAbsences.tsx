@@ -27,6 +27,7 @@ import {
   cancelEmployeeAbsence,
   type CancelEmployeeAbsenceSnapshot
 } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
+import { isApprovedAbsenceStatus } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 type PersonalAbsencesProps = BusinessAppContextProps & {
   employeeIdOverride?: string
@@ -76,7 +77,8 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
     totalPages,
     refetchEntitlements,
     refetchAbsences,
-    markAbsenceCancelled
+    markAbsenceCancelled,
+    markAbsenceInCancellation
   } = data
   const { effectiveDates, allowWeekendPaintingInFallback } = useAbsenceEffectiveDates(
     client,
@@ -118,17 +120,41 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
       .catch(() => {})
   }, [employee?.id, accessToken, calendarDate, client])
 
-  const handleCancelAbsence = async (employeeAbsence: CancelEmployeeAbsenceSnapshot) => {
+  const handleCancelAbsence = async (employeeAbsence: CancelEmployeeAbsenceSnapshot): Promise<boolean> => {
     setCancellingAbsenceId(employeeAbsence.id)
+    const requiresManagerApproval = isApprovedAbsenceStatus(employeeAbsence.status)
+    const managerId =
+      employee?.employeePosition?.supervisor?.id || employee?.employeePosition?.supervisorEmployeeId || null
+    const payload = {
+      ...employeeAbsence,
+      employeeId: employeeAbsence.employeeId || employee?.id || '',
+      approverId: employeeAbsence.approverId || managerId
+    }
 
     try {
-      await cancelEmployeeAbsence(accessToken, employeeAbsence)
+      if (requiresManagerApproval && !payload.approverId) {
+        toast.error(t('request-cancellation-no-manager'))
+        return false
+      }
+
+      await cancelEmployeeAbsence(accessToken, payload)
+
+      if (requiresManagerApproval) {
+        markAbsenceInCancellation(employeeAbsence.id)
+        toast.success(t('request-cancellation-success'))
+        refetchAbsences()
+        globalThis.setTimeout(refetchAbsences, 3000)
+        return true
+      }
+
       markAbsenceCancelled(employeeAbsence.id)
       toast.success(t('cancel-request-success'))
       globalThis.setTimeout(refetchAbsences, 3000)
+      return true
     } catch (error) {
       const message = error instanceof Error ? error.message : t('cancel-request-error')
       toast.error(message)
+      return false
     } finally {
       setCancellingAbsenceId(null)
     }

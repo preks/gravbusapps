@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Pagination,
   PaginationContent,
@@ -6,7 +6,15 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  IconAvatar
+  IconAvatar,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Button,
+  type ActionOption
 } from '@newwork/nw-design-system'
 import { AbsenceListProps } from '../../../queries/types'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -14,6 +22,7 @@ import {
   getAbsenceStatusBadgeVariant,
   getBadgeVariantBackgroundClass
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 
 const AbsenceList: React.FC<AbsenceListProps> = ({
   absenceList,
@@ -21,8 +30,43 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
   error,
   currentPage,
   setCurrentPage,
-  pageSize
+  pageSize,
+  onRequestCancellation,
+  cancellingAbsenceId,
+  accessToken
 }) => {
+  const [selectedApprovedAbsenceId, setSelectedApprovedAbsenceId] = useState<string | null>(null)
+
+  const selectedApprovedAbsence =
+    selectedApprovedAbsenceId === null
+      ? null
+      : absenceList.find(absence => absence.id === selectedApprovedAbsenceId) || null
+
+  const buildActions = (absenceId: string): ActionOption[] => [
+    {
+      category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_absences.action', 'Action'),
+      key: `request-cancellation-${absenceId}`,
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:personal_absences.request_cancellation',
+        'Request cancellation'
+      ),
+      onClick: () => {
+        setSelectedApprovedAbsenceId(absenceId)
+      }
+    }
+  ]
+
+  const handleConfirmRequestCancellation = async () => {
+    if (!selectedApprovedAbsence || !onRequestCancellation) {
+      return
+    }
+
+    const requestSucceeded = await onRequestCancellation(selectedApprovedAbsence)
+    if (requestSucceeded) {
+      setSelectedApprovedAbsenceId(null)
+    }
+  }
+
   if (loading) {
     return (
       <div
@@ -68,6 +112,20 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                 <IconAvatar icon={absence.icon} variant="decorative" size="md" />
                 <h4 className="gba:text-lg gba:font-medium">{absence.title}</h4>
+                {absence.originalStatus === 'APPROVED' ? (
+                  <div className="gba:ml-auto">
+                    <AppActionButton
+                      data-testid={`employee-record-absence-actions-${absence.id}`}
+                      size="icon"
+                      staticFlowData={buildActions(absence.id)}
+                      prefixDataTestId={`employee-record-absence-action-${absence.id}`}
+                      accessToken={accessToken}
+                      emptyStateBehavior="enable"
+                      deferMainContextRequestsUntilClick
+                      disabled={cancellingAbsenceId === absence.id}
+                    />
+                  </div>
+                ) : null}
               </div>
 
               <div className="gba:absence-details gba:mt-3">
@@ -172,6 +230,54 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
           </div>
         </div>
       )}
+
+      <Dialog
+        open={selectedApprovedAbsence !== null}
+        onOpenChange={open => {
+          if (!open && cancellingAbsenceId !== selectedApprovedAbsence?.id) {
+            setSelectedApprovedAbsenceId(null)
+          }
+        }}
+      >
+        <DialogContent data-testid="employee-record-approved-cancel-dialog">
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_absences.request_cancellation_dialog_title',
+                'Request cancellation approval'
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_absences.request_cancellation_dialog_description',
+                'A task will be created in Everybox for the employee manager. The approved absence will be cancelled only after manager approval.'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedApprovedAbsenceId(null)}
+              disabled={cancellingAbsenceId === selectedApprovedAbsence?.id}
+              data-testid="employee-record-approved-cancel-dialog-cancel-button"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:common.cancel', 'Cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                void handleConfirmRequestCancellation()
+              }}
+              disabled={cancellingAbsenceId === selectedApprovedAbsence?.id}
+              data-testid="employee-record-approved-cancel-dialog-confirm-button"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_absences.request_cancellation_confirm',
+                'Send request'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

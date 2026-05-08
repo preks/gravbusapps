@@ -42,7 +42,7 @@ interface PersonalAbsencesDashboardViewProps {
   embedded?: boolean
   canAddEntitlements?: boolean
   onAddEntitlement?: () => void
-  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot) => Promise<void>
+  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot) => Promise<boolean>
   cancellingAbsenceId: string | null
   accessToken?: string
 }

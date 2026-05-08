@@ -58,6 +58,13 @@ const STATUS_CONFIG_MAP: Record<
     variant: 'offline',
     color: 'var(--nw-offline)',
     type: 'cancelled'
+  },
+  IN_CANCELLATION: {
+    i18nKey: 'lowcoder:absence_statuses.in_cancellation',
+    defaultLabel: 'In Cancellation',
+    variant: 'warning',
+    color: 'var(--nw-warning)',
+    type: 'in-cancellation'
   }
 }
 
@@ -228,7 +235,7 @@ export function getAbsenceStatusDisplay(status?: string): AbsenceStatusConfig {
  * @returns Array of all status configurations with original status values
  */
 export function getAllAbsenceStatusConfigs(): AbsenceStatusConfig[] {
-  const statuses = ['PLANNED', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']
+  const statuses = ['PLANNED', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'IN_CANCELLATION']
   return statuses.map(status => getAbsenceStatusConfig(status))
 }
 

@@ -44,6 +44,10 @@ import { useEmployeeWeeklySchedule } from '../../hooks/useEmployeeWeeklySchedule
 import { useAbsencePrevalidate } from '../../hooks/useAbsencePrevalidate'
 import translations from './_i18n'
 import { AbsenceRequestMenuButton } from './components/AbsenceRequestMenuButton'
+import { cancelEmployeeAbsence } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
+import { isApprovedAbsenceStatus } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import type { AbsenceListCardAbsence } from '../../queries/types'
+import { toast } from 'sonner'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -67,6 +71,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [hasHrBackoffice, setHasHrBackoffice] = useState<boolean>(false)
   const [isFetchingGroups, setIsFetchingGroups] = useState<boolean>(true)
   const [holidayDates, setHolidayDates] = useState<string[]>([])
+  const [cancellingAbsenceId, setCancellingAbsenceId] = useState<string | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
   const A001_TYPE_REF = 'AbsenceType:v1:A001'
   const [annualLeaveOverride, setAnnualLeaveOverride] = useState<{
@@ -346,6 +351,61 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     selectedEndDate?.format('YYYY-MM-DD') ?? null
   )
 
+  const handleRequestCancellation = async (absence: AbsenceListCardAbsence): Promise<boolean> => {
+    setCancellingAbsenceId(absence.id)
+    const requiresManagerApproval = isApprovedAbsenceStatus(absence.originalStatus)
+    const managerId =
+      employee?.employeePosition?.supervisor?.id || employee?.employeePosition?.supervisorEmployeeId || null
+    const payload = {
+      ...absence.employeeAbsence,
+      employeeId: absence.employeeAbsence.employeeId || employee?.id || '',
+      approverId: absence.employeeAbsence.approverId || managerId
+    }
+
+    try {
+      if (requiresManagerApproval && !payload.approverId) {
+        toast.error(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:personal_absences.request_cancellation_no_manager',
+            'No manager is assigned to this employee. Cancellation request cannot be sent.'
+          )
+        )
+        return false
+      }
+
+      await cancelEmployeeAbsence(accessToken, payload)
+      if (requiresManagerApproval) {
+        toast.success(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:personal_absences.request_cancellation_success',
+            'Cancellation request sent to manager for approval'
+          )
+        )
+      } else {
+        toast.success(
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_absences.cancel_request_success', 'Absence cancelled')
+        )
+      }
+      refetch?.()
+      globalThis.setTimeout(() => {
+        void refetch?.()
+      }, 3000)
+      return true
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : getTranslationFromI18nKeyAndLabel(
+              'lowcoder:personal_absences.cancel_request_error',
+              'Failed to request cancellation'
+            )
+      toast.error(message)
+      return false
+    } finally {
+      setCancellingAbsenceId(null)
+    }
+  }
+
   const tabsItems = [
     {
       key: 'calendar',
@@ -389,6 +449,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             setCurrentPage={setCurrentPage}
             pageSize={pageSize}
             setPageSize={setPageSize}
+            onRequestCancellation={handleRequestCancellation}
+            cancellingAbsenceId={cancellingAbsenceId}
+            accessToken={accessToken}
           />
         </div>
       )

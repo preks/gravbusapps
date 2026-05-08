@@ -5,7 +5,8 @@ const STATUS_VARIANT_MAP: Record<string, BadgeStatusVariant> = {
   REJECTED: 'destructive',
   PENDING: 'pending',
   PLANNED: 'warning',
-  CANCELLED: 'outline'
+  CANCELLED: 'outline',
+  IN_CANCELLATION: 'warning'
 }
 
 export const statusVariant = (status: string): BadgeStatusVariant =>

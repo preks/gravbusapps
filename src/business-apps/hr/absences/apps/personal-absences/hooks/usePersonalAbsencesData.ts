@@ -104,6 +104,17 @@ const buildCancelEmployeeAbsenceSnapshot = (absence: any) => ({
   employeeDocument: absence.employeeDocumentId ?? null
 })
 
+const resolveAbsenceStatus = (
+  absenceId: string,
+  backendStatus: string,
+  cancelledIds: Set<string>,
+  inCancellationIds: Set<string>
+): string => {
+  if (cancelledIds.has(absenceId)) return 'CANCELLED'
+  if (inCancellationIds.has(absenceId)) return 'IN_CANCELLATION'
+  return backendStatus
+}
+
 export function usePersonalAbsencesData(accessToken: string | undefined, employeeId: string | undefined) {
   const client = useGraphQLClient(accessToken)
   const rawStructureId = getCurrentActiveStructureId()
@@ -119,6 +130,7 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
   const [refreshTick, setRefreshTick] = useState(0)
   const [workingHours, setWorkingHours] = useState<any>(null)
   const [locallyCancelledAbsenceIds, setLocallyCancelledAbsenceIds] = useState<Set<string>>(() => new Set())
+  const [locallyInCancellationIds, setLocallyInCancellationIds] = useState<Set<string>>(() => new Set())
 
   const { mapType } = useAbsenceTypeCatalog(accessToken)
   const { entitlements: rawSnapshotEntitlements, refetch: refetchSnapshot } = useEntitlementSnapshot(
@@ -281,6 +293,27 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
     )
   }, [])
 
+  const markAbsenceInCancellation = useCallback((absenceId: string) => {
+    setLocallyInCancellationIds(previous => new Set(previous).add(absenceId))
+    setAbsences(previous =>
+      previous.map(absence => {
+        if (absence.id !== absenceId) {
+          return absence
+        }
+
+        return {
+          ...absence,
+          status: getAbsenceStatusLabel('IN_CANCELLATION'),
+          originalStatus: 'IN_CANCELLATION',
+          employeeAbsence: {
+            ...absence.employeeAbsence,
+            status: 'IN_CANCELLATION'
+          }
+        }
+      })
+    )
+  }, [])
+
   const { holidays: publicHolidays } = usePublicHolidays({
     accessToken: accessToken || '',
     employeeId: employeeId || ''
@@ -332,7 +365,12 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
       })
       .then((res: any) => {
         const rows = (res?.EmployeeAbsence || []).map((a: any) => {
-          const originalStatus = locallyCancelledAbsenceIds.has(a.id) ? 'CANCELLED' : a.status || ''
+          const originalStatus = resolveAbsenceStatus(
+            a.id,
+            a.status || '',
+            locallyCancelledAbsenceIds,
+            locallyInCancellationIds
+          )
           const employeeAbsence = buildCancelEmployeeAbsenceSnapshot(a)
 
           return {
@@ -360,7 +398,7 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
       })
       .catch(() => setError('Failed to load absence data.'))
       .finally(() => setLoading(false))
-  }, [employeeId, accessToken, refreshTick, client, locallyCancelledAbsenceIds])
+  }, [employeeId, accessToken, refreshTick, client, locallyCancelledAbsenceIds, locallyInCancellationIds])
 
   const getAbsenceGroupDisplayValue = useCallback((group: any) => {
     const tr = group.translations?.find((t: any) => t.localeCode === getCurrentActiveUserLocale())
@@ -657,6 +695,7 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
     pageSize: PAGE_SIZE,
     refetchEntitlements: refetchSnapshot,
     refetchAbsences,
-    markAbsenceCancelled
+    markAbsenceCancelled,
+    markAbsenceInCancellation
   }
 }

@@ -29,8 +29,15 @@ pending-requests = Pending Requests
 no-pending-requests = No pending requests
 action = Action
 cancel-request = Cancel Request
+request-cancellation = Request Cancellation
 cancel-request-success = Absence request cancelled
+request-cancellation-success = Cancellation request sent to manager for approval
 cancel-request-error = Failed to cancel absence request
+request-cancellation-dialog-title = Request cancellation approval
+request-cancellation-dialog-description = A task will be created in Everybox for your manager. The approved absence will be cancelled only after manager approval.
+request-cancellation-confirm = Send request
+request-cancellation-no-manager = No manager is assigned to this employee. Cancellation request cannot be sent.
+cancel = Cancel
 
 # My Absence History
 my-absence-history = My Absence History

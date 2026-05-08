@@ -29,8 +29,15 @@ pending-requests = Offene Anträge
 no-pending-requests = Keine offenen Anträge
 action = Aktion
 cancel-request = Antrag stornieren
+request-cancellation = Stornierung anfragen
 cancel-request-success = Abwesenheitsantrag storniert
+request-cancellation-success = Stornierungsanfrage zur Freigabe an die Führungskraft gesendet
 cancel-request-error = Abwesenheitsantrag konnte nicht storniert werden
+request-cancellation-dialog-title = Stornierungsfreigabe anfragen
+request-cancellation-dialog-description = Eine Aufgabe wird in Everybox für Ihre Führungskraft erstellt. Die genehmigte Abwesenheit wird erst nach deren Freigabe storniert.
+request-cancellation-confirm = Anfrage senden
+request-cancellation-no-manager = Diesem Mitarbeitenden ist keine Führungskraft zugeordnet. Die Stornierungsanfrage kann nicht gesendet werden.
+cancel = Abbrechen
 
 # My Absence History
 my-absence-history = Meine Abwesenheitshistorie

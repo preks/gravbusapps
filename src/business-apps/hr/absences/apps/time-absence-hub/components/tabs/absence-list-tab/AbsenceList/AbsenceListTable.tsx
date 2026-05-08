@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import {
   Table,
   TableHeader,
@@ -10,13 +10,22 @@ import {
   CardContent,
   Spinner,
   Button,
-  Badge
+  Badge,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  type ActionOption
 } from '@newwork/nw-design-system'
 import { CalendarIcon, UserIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '../../../../../../../../../common/utils/windowUtils'
-import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { getAbsenceStatusLabel, isApprovedAbsenceStatus } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { statusVariant } from '@/business-apps/hr/absences/apps/personal-absences/utils/statusUtils'
+import { AppAction } from '@/components/app-action/AppAction'
 import { EnhancedAbsence } from '../../../../types'
+import { toast } from 'sonner'
 
 const DATA_TEST_ID_PREFIX = 'BackofficeAbsenceList'
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
@@ -34,6 +43,7 @@ interface AbsenceListTableProps {
   sortOrder: 'ASC' | 'DESC' | ''
   onSort: (field: string) => void
   onPaginationChange: (page: number, newPageSize?: number) => void
+  onRequestCancellation?: (absence: EnhancedAbsence) => Promise<void>
   onOpenEmployeeRecord?: (employeeId: string) => void
 }
 
@@ -209,6 +219,8 @@ const ROW_COLUMNS: RowColumnConfig[] = [
   }
 ]
 
+const ACTION_COLUMN_CLASS = 'gba:w-20 gba:py-4 gba:px-6'
+
 interface RowsPerPageSelectProps {
   pageSize: number
   onChange: (nextPageSize: number) => void
@@ -276,12 +288,80 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
   sortOrder,
   onSort,
   onPaginationChange,
+  onRequestCancellation,
   onOpenEmployeeRecord
 }) => {
+  const [selectedForCancellation, setSelectedForCancellation] = useState<EnhancedAbsence | null>(null)
+  const [isSubmittingCancellationRequest, setIsSubmittingCancellationRequest] = useState(false)
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const hasMultiplePages = total > pageSize
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const rangeEnd = Math.min(currentPage * pageSize, total)
+
+  const cancellationActions = useCallback(
+    (absence: EnhancedAbsence): ActionOption[] => [
+      {
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.common.action', 'Action'),
+        key: `request-cancellation-${absence.id}`,
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_absence_hub.absence_list.request_cancellation',
+          'Request cancellation'
+        ),
+        onClick: () => {
+          setSelectedForCancellation(absence)
+        }
+      }
+    ],
+    []
+  )
+
+  const handleConfirmCancellation = useCallback(async () => {
+    if (!selectedForCancellation) {
+      return
+    }
+
+    if (!onRequestCancellation) {
+      toast.error(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_absence_hub.absence_list.request_cancellation_error',
+          'Failed to request cancellation'
+        )
+      )
+      return
+    }
+
+    setIsSubmittingCancellationRequest(true)
+    try {
+      await onRequestCancellation(selectedForCancellation)
+      toast.success(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_absence_hub.absence_list.request_cancellation_success',
+          'Cancellation request sent to the manager for approval'
+        )
+      )
+      setSelectedForCancellation(null)
+    } catch (requestError) {
+      const errorMessage =
+        requestError instanceof Error
+          ? requestError.message
+          : getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_absence_hub.absence_list.request_cancellation_error',
+              'Failed to request cancellation'
+            )
+      toast.error(errorMessage)
+    } finally {
+      setIsSubmittingCancellationRequest(false)
+    }
+  }, [onRequestCancellation, selectedForCancellation])
+
+  const selectedEmployeeName = useMemo(() => {
+    if (!selectedForCancellation) {
+      return ''
+    }
+
+    return getEmployeeName(selectedForCancellation)
+  }, [selectedForCancellation])
 
   if (error) {
     return (
@@ -312,125 +392,212 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
   }
 
   return (
-    <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      <CardContent className="gba:p-0">
-        <div className="gba:overflow-x-auto">
-          <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
-            <TableHeader>
-              <TableRow className="gba:border-b gba:bg-muted">
-                {SORTABLE_HEADERS.map(header => (
-                  <TableHead
-                    key={header.id}
-                    className={`${header.widthClass} ${SORTABLE_HEAD_CLASS}`}
-                    onClick={() => onSort(header.sortField)}
-                  >
-                    <div className="gba:flex gba:items-center">
-                      {getTranslationFromI18nKeyAndLabel(header.translationKey, header.fallbackLabel)}
-                      {renderSortIcon(header.sortField, sortField, sortOrder)}
-                    </div>
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {absences.map(record => (
-                <TableRow
-                  key={record.id}
-                  className="gba:cursor-pointer gba:border-b gba:transition-colors gba:hover:bg-muted"
-                  onClick={() => {
-                    if (record.employee?.id) {
-                      onOpenEmployeeRecord?.(record.employee.id)
-                    }
-                  }}
-                  data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
-                >
-                  {ROW_COLUMNS.map(column => (
-                    <TableCell
-                      key={`${column.id}-${record.id}`}
-                      className={column.cellClassName}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-${column.testIdSuffix}-cell-${record.id}`}
+    <>
+      <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+        <CardContent className="gba:p-0">
+          <div className="gba:overflow-x-auto">
+            <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+              <TableHeader>
+                <TableRow className="gba:border-b gba:bg-muted">
+                  {SORTABLE_HEADERS.map(header => (
+                    <TableHead
+                      key={header.id}
+                      className={`${header.widthClass} ${SORTABLE_HEAD_CLASS}`}
+                      onClick={() => onSort(header.sortField)}
                     >
-                      {column.renderCell(record)}
-                    </TableCell>
+                      <div className="gba:flex gba:items-center">
+                        {getTranslationFromI18nKeyAndLabel(header.translationKey, header.fallbackLabel)}
+                        {renderSortIcon(header.sortField, sortField, sortOrder)}
+                      </div>
+                    </TableHead>
                   ))}
+                  <TableHead className={ACTION_COLUMN_CLASS}>
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.common.action', 'Action')}
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {absences.map(record => (
+                  <TableRow
+                    key={record.id}
+                    className="gba:cursor-pointer gba:border-b gba:transition-colors gba:hover:bg-muted"
+                    onClick={() => {
+                      if (record.employee?.id) {
+                        onOpenEmployeeRecord?.(record.employee.id)
+                      }
+                    }}
+                    data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                  >
+                    {ROW_COLUMNS.map(column => (
+                      <TableCell
+                        key={`${column.id}-${record.id}`}
+                        className={column.cellClassName}
+                        data-testid={`${DATA_TEST_ID_PREFIX}-${column.testIdSuffix}-cell-${record.id}`}
+                      >
+                        {column.renderCell(record)}
+                      </TableCell>
+                    ))}
+                    <TableCell className={ACTION_COLUMN_CLASS}>
+                      {isApprovedAbsenceStatus(record.status) ? (
+                        <div
+                          className="gba:flex gba:items-center gba:justify-end"
+                          role="presentation"
+                          onClick={event => event.stopPropagation()}
+                          onKeyDown={event => event.stopPropagation()}
+                        >
+                          <AppAction
+                            variant="table-row"
+                            customActions={cancellationActions(record)}
+                            emptyState="enable"
+                            deferMainContextRequestsUntilClick
+                            disabled={isSubmittingCancellationRequest && selectedForCancellation?.id === record.id}
+                            data-testid={`${DATA_TEST_ID_PREFIX}-request-cancel-action-${record.id}`}
+                            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-request-cancel-action-${record.id}`}
+                          />
+                        </div>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
-        <div
-          className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
-          data-testid={
-            hasMultiplePages
-              ? `${DATA_TEST_ID_PREFIX}-pagination`
-              : `${DATA_TEST_ID_PREFIX}-pagination-info-single-page`
+          <div
+            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
+            data-testid={
+              hasMultiplePages
+                ? `${DATA_TEST_ID_PREFIX}-pagination`
+                : `${DATA_TEST_ID_PREFIX}-pagination-info-single-page`
+            }
+          >
+            <div
+              className="gba:text-sm gba:text-muted-foreground"
+              data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
+            >
+              {hasMultiplePages
+                ? `${rangeStart}-${rangeEnd} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.absence_list_screen.title', 'absences')}`
+                : `${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'absences')}`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+              <RowsPerPageSelect
+                pageSize={pageSize}
+                onChange={nextPageSize => onPaginationChange(1, nextPageSize)}
+                testId={
+                  hasMultiplePages
+                    ? `${DATA_TEST_ID_PREFIX}-page-size-select`
+                    : `${DATA_TEST_ID_PREFIX}-page-size-select-single`
+                }
+              />
+
+              {hasMultiplePages && (
+                <>
+                  <div
+                    className="gba:flex gba:w-24 gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
+                  >
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalPages}
+                  </div>
+                  <div className="gba:flex gba:items-center gba:space-x-2">
+                    <PaginationIconButton
+                      onClick={() => onPaginationChange(1)}
+                      disabled={currentPage === 1}
+                      testId={`${DATA_TEST_ID_PREFIX}-first-page-button`}
+                      icon="«"
+                      labelKey="lowcoder:absence_management_hub_backoffice.absence_list.go_to_first_page"
+                      fallbackLabel="Go to first page"
+                    />
+                    <PaginationIconButton
+                      onClick={() => onPaginationChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      testId={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
+                      icon="‹"
+                      labelKey="lowcoder:absence_management_hub_backoffice.absence_list.go_to_previous_page"
+                      fallbackLabel="Go to previous page"
+                    />
+                    <PaginationIconButton
+                      onClick={() => onPaginationChange(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                      testId={`${DATA_TEST_ID_PREFIX}-next-page-button`}
+                      icon="›"
+                      labelKey="lowcoder:absence_management_hub_backoffice.absence_list.go_to_next_page"
+                      fallbackLabel="Go to next page"
+                    />
+                    <PaginationIconButton
+                      onClick={() => onPaginationChange(totalPages)}
+                      disabled={currentPage >= totalPages}
+                      testId={`${DATA_TEST_ID_PREFIX}-last-page-button`}
+                      icon="»"
+                      labelKey="lowcoder:absence_management_hub_backoffice.absence_list.go_to_last_page"
+                      fallbackLabel="Go to last page"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={selectedForCancellation !== null}
+        onOpenChange={open => {
+          if (!open && !isSubmittingCancellationRequest) {
+            setSelectedForCancellation(null)
           }
+        }}
+      >
+        <DialogContent
+          className="gba:max-w-md"
+          data-testid={`${DATA_TEST_ID_PREFIX}-request-cancellation-dialog`}
+          onClick={event => event.stopPropagation()}
         >
-          <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
-            {hasMultiplePages
-              ? `${rangeStart}-${rangeEnd} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.absence_list_screen.title', 'absences')}`
-              : `${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'absences')}`}
+          <DialogHeader>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_absence_hub.absence_list.request_cancellation_dialog_title',
+                'Request cancellation approval'
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_absence_hub.absence_list.request_cancellation_dialog_description',
+                'A task will be created in Everybox for the employee manager. The approved absence will be cancelled only after manager approval.'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="gba:text-sm gba:text-muted-foreground">
+            {selectedEmployeeName
+              ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee')}: ${selectedEmployeeName}`
+              : null}
           </div>
-          <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-            <RowsPerPageSelect
-              pageSize={pageSize}
-              onChange={nextPageSize => onPaginationChange(1, nextPageSize)}
-              testId={
-                hasMultiplePages
-                  ? `${DATA_TEST_ID_PREFIX}-page-size-select`
-                  : `${DATA_TEST_ID_PREFIX}-page-size-select-single`
-              }
-            />
-
-            {hasMultiplePages && (
-              <>
-                <div
-                  className="gba:flex gba:w-24 gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
-                >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalPages}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <PaginationIconButton
-                    onClick={() => onPaginationChange(1)}
-                    disabled={currentPage === 1}
-                    testId={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-                    icon="«"
-                    labelKey="lowcoder:absence_management_hub_backoffice.absence_list.go_to_first_page"
-                    fallbackLabel="Go to first page"
-                  />
-                  <PaginationIconButton
-                    onClick={() => onPaginationChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    testId={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-                    icon="‹"
-                    labelKey="lowcoder:absence_management_hub_backoffice.absence_list.go_to_previous_page"
-                    fallbackLabel="Go to previous page"
-                  />
-                  <PaginationIconButton
-                    onClick={() => onPaginationChange(currentPage + 1)}
-                    disabled={currentPage >= totalPages}
-                    testId={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-                    icon="›"
-                    labelKey="lowcoder:absence_management_hub_backoffice.absence_list.go_to_next_page"
-                    fallbackLabel="Go to next page"
-                  />
-                  <PaginationIconButton
-                    onClick={() => onPaginationChange(totalPages)}
-                    disabled={currentPage >= totalPages}
-                    testId={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-                    icon="»"
-                    labelKey="lowcoder:absence_management_hub_backoffice.absence_list.go_to_last_page"
-                    fallbackLabel="Go to last page"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedForCancellation(null)}
+              disabled={isSubmittingCancellationRequest}
+              data-testid={`${DATA_TEST_ID_PREFIX}-request-cancellation-cancel-button`}
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:filters.cancel', 'Cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                handleConfirmCancellation().catch(() => {})
+              }}
+              disabled={isSubmittingCancellationRequest}
+              data-testid={`${DATA_TEST_ID_PREFIX}-request-cancellation-confirm-button`}
+            >
+              {isSubmittingCancellationRequest
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Submitting...')
+                : getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:time_absence_hub.absence_list.request_cancellation_confirm',
+                    'Send request'
+                  )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

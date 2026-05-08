@@ -182,6 +182,7 @@ task-dialog-completing = Completing...
 task-dialog-complete-task = Complete Task
 task-dialog-missing-user-info = Unable to complete task: missing user information.
 task-dialog-lowcoder-screen = Lowcoder Screen
+task-dialog-no-screen-available = No form is configured for this task yet. Please contact your administrator.
 
 # CompletedView Component
 completed-search-placeholder = Search completed tasks...

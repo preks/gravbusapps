@@ -18,10 +18,28 @@ export const GET_EMPLOYEE_ABSENCES = `
     EmployeeAbsence(where: { employee: { id: { _eq: $employeeId } } }) {
       description
       id
+      version
+      businessKey
+      recordState
+      activeTo
+      additionalProperties
+      employeeId
       endDate
       startDate
       status
+      typeRef
+      cutHalfDayStart
+      cutHalfDayEnd
+      calendarDays
       effectiveDays
+      balance
+      reason
+      relative
+      attachment
+      approverId
+      approvalNote
+      substituteEmployeeId
+      employeeDocumentId
       type {
         id
         value   

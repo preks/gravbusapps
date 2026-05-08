@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   type ActionOption,
   Card,
@@ -17,10 +18,16 @@ import {
   TableRow,
   Button,
   Skeleton,
-  Badge
+  Badge,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
 } from '@newwork/nw-design-system'
 import { CaretLeftIcon, CaretRightIcon, WarningCircleIcon } from '@phosphor-icons/react'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { formatDate } from '@/common/utils/windowUtils'
 import { statusVariant } from '../utils/statusUtils'
@@ -43,7 +50,7 @@ interface AbsenceHistoryCardProps {
   paginatedAbsences: AbsenceRow[]
   totalPages: number
   t: TFunction
-  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot) => Promise<void>
+  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot) => Promise<boolean>
   cancellingAbsenceId: string | null
   accessToken?: string
 }
@@ -66,16 +73,38 @@ export function AbsenceHistoryCard({
   cancellingAbsenceId,
   accessToken
 }: Readonly<AbsenceHistoryCardProps>) {
-  const buildActions = (absence: AbsenceRow): ActionOption[] => [
-    {
-      category: t('action'),
-      key: `cancel-absence-${absence.id}`,
-      label: t('cancel-request'),
-      onClick: () => {
-        void onCancelAbsence(absence.employeeAbsence)
+  const [approvedCancellationTarget, setApprovedCancellationTarget] = useState<AbsenceRow | null>(null)
+
+  const buildActions = (absence: AbsenceRow): ActionOption[] => {
+    const isApproved = absence.originalStatus === 'APPROVED'
+
+    return [
+      {
+        category: t('action'),
+        key: `cancel-absence-${absence.id}`,
+        label: isApproved ? t('request-cancellation') : t('cancel-request'),
+        onClick: () => {
+          if (isApproved) {
+            setApprovedCancellationTarget(absence)
+            return
+          }
+
+          void onCancelAbsence(absence.employeeAbsence)
+        }
       }
+    ]
+  }
+
+  const handleApprovedCancellationRequest = async () => {
+    if (!approvedCancellationTarget) {
+      return
     }
-  ]
+
+    const requestSucceeded = await onCancelAbsence(approvedCancellationTarget.employeeAbsence)
+    if (requestSucceeded) {
+      setApprovedCancellationTarget(null)
+    }
+  }
 
   const renderCardContent = () => {
     if (isLoading) {
@@ -137,14 +166,14 @@ export function AbsenceHistoryCard({
                   </TableCell>
                   <TableCell className="gba:max-w-[200px] gba:truncate">{a.description || '—'}</TableCell>
                   <TableCell>
-                    {a.originalStatus === 'PENDING' ? (
-                      <AppActionButton
+                    {a.originalStatus === 'PENDING' || a.originalStatus === 'APPROVED' ? (
+                      <AppAction
                         data-testid={`personal-absence-history-actions-${a.id}`}
-                        size="icon"
-                        staticFlowData={buildActions(a)}
+                        variant="table-row"
+                        customActions={buildActions(a)}
                         prefixDataTestId={`personal-absence-history-action-${a.id}`}
                         accessToken={accessToken}
-                        emptyStateBehavior="enable"
+                        emptyState="enable"
                         deferMainContextRequestsUntilClick
                         disabled={cancellingAbsenceId === a.id}
                       />
@@ -189,53 +218,89 @@ export function AbsenceHistoryCard({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="gba:flex gba:flex-col sm:gba:flex-row sm:gba:items-center sm:gba:justify-between gba:gap-3">
-          <CardTitle className="gba:text-base gba:font-semibold">{t('my-absence-history')}</CardTitle>
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-            <Select
-              value={typeFilter}
-              onValueChange={v => {
-                setTypeFilter(v)
-                setCurrentPage(1)
-              }}
-            >
-              <SelectTrigger className="gba:w-[140px] gba:h-8 gba:text-sm">
-                <SelectValue placeholder={t('all-types')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('all-types')}</SelectItem>
-                {typeOptions.map(typeLabel => (
-                  <SelectItem key={typeLabel} value={typeLabel}>
-                    {typeLabel}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:flex-col sm:gba:flex-row sm:gba:items-center sm:gba:justify-between gba:gap-3">
+            <CardTitle className="gba:text-base gba:font-semibold">{t('my-absence-history')}</CardTitle>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+              <Select
+                value={typeFilter}
+                onValueChange={v => {
+                  setTypeFilter(v)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="gba:w-[140px] gba:h-8 gba:text-sm">
+                  <SelectValue placeholder={t('all-types')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('all-types')}</SelectItem>
+                  {typeOptions.map(typeLabel => (
+                    <SelectItem key={typeLabel} value={typeLabel}>
+                      {typeLabel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Select
-              value={statusFilter}
-              onValueChange={v => {
-                setStatusFilter(v)
-                setCurrentPage(1)
-              }}
-            >
-              <SelectTrigger className="gba:w-[140px] gba:h-8 gba:text-sm">
-                <SelectValue placeholder={t('status-all-placeholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('all')}</SelectItem>
-                <SelectItem value="PENDING">{getAbsenceStatusLabel('PENDING')}</SelectItem>
-                <SelectItem value="APPROVED">{getAbsenceStatusLabel('APPROVED')}</SelectItem>
-                <SelectItem value="REJECTED">{getAbsenceStatusLabel('REJECTED')}</SelectItem>
-                <SelectItem value="CANCELLED">{getAbsenceStatusLabel('CANCELLED')}</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select
+                value={statusFilter}
+                onValueChange={v => {
+                  setStatusFilter(v)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="gba:w-[140px] gba:h-8 gba:text-sm">
+                  <SelectValue placeholder={t('status-all-placeholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('all')}</SelectItem>
+                  <SelectItem value="PENDING">{getAbsenceStatusLabel('PENDING')}</SelectItem>
+                  <SelectItem value="APPROVED">{getAbsenceStatusLabel('APPROVED')}</SelectItem>
+                  <SelectItem value="REJECTED">{getAbsenceStatusLabel('REJECTED')}</SelectItem>
+                  <SelectItem value="CANCELLED">{getAbsenceStatusLabel('CANCELLED')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent>{renderCardContent()}</CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent>{renderCardContent()}</CardContent>
+      </Card>
+      <Dialog
+        open={approvedCancellationTarget !== null}
+        onOpenChange={open => {
+          if (!open && cancellingAbsenceId !== approvedCancellationTarget?.id) {
+            setApprovedCancellationTarget(null)
+          }
+        }}
+      >
+        <DialogContent data-testid="personal-absence-approved-cancel-dialog">
+          <DialogHeader>
+            <DialogTitle>{t('request-cancellation-dialog-title')}</DialogTitle>
+            <DialogDescription>{t('request-cancellation-dialog-description')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setApprovedCancellationTarget(null)}
+              disabled={cancellingAbsenceId === approvedCancellationTarget?.id}
+              data-testid="personal-absence-approved-cancel-dialog-cancel-button"
+            >
+              {t('cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                void handleApprovedCancellationRequest()
+              }}
+              disabled={cancellingAbsenceId === approvedCancellationTarget?.id}
+              data-testid="personal-absence-approved-cancel-dialog-confirm-button"
+            >
+              {t('request-cancellation-confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
