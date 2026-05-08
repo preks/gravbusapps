@@ -7,6 +7,7 @@ import {
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
+  Checkbox,
   type ChartConfig
 } from '@newwork/nw-design-system'
 import { CampaignAnalyticsMetrics, CampaignTimelineAnalysis } from '../../queries/CampaignAnalyticsQueries'
@@ -347,12 +348,10 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
                 className="gba:flex gba:items-center gba:gap-1 gba:cursor-pointer gba:select-none"
                 data-testid={`toggle-${key}-line`}
               >
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={visibleLines[key]}
-                  onChange={() => toggleLineVisibility(key)}
+                  onCheckedChange={() => toggleLineVisibility(key)}
                   className="gba:w-3 gba:h-3"
-                  style={{ accentColor: color }}
                 />
                 <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: color }} />
                 <span className="gba:text-xs gba:text-foreground">{label}</span>

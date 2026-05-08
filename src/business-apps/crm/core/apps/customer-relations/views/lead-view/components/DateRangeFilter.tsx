@@ -1,13 +1,8 @@
 import React, { useCallback } from 'react'
-import { DatePicker } from 'antd'
-import dayjs, { Dayjs } from 'dayjs'
-import weekday from 'dayjs/plugin/weekday'
-import localeData from 'dayjs/plugin/localeData'
+import { DateInput } from '@newwork/nw-design-system'
+import dayjs from 'dayjs'
 
-dayjs.extend(weekday)
-dayjs.extend(localeData)
-
-const { RangePicker } = DatePicker
+type DateInputRangeValue = string | [string | null, string | null] | null
 
 interface DateRangeFilterProps {
   createdAfter?: string
@@ -22,41 +17,40 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
   onDateRangeChange,
   className = ''
 }) => {
-  // Convert string dates to dayjs objects for the DatePicker
-  const dateRange: [Dayjs | null, Dayjs | null] = [
-    createdAfter ? dayjs(createdAfter) : null,
-    createdBefore ? dayjs(createdBefore) : null
+  const dateRange: [string | null, string | null] = [
+    createdAfter ? dayjs(createdAfter).format('YYYY-MM-DD') : null,
+    createdBefore ? dayjs(createdBefore).format('YYYY-MM-DD') : null
   ]
 
   const handleDateRangeChange = useCallback(
-    (dates: [Dayjs | null, Dayjs | null] | null) => {
-      if (!dates) {
-        // Clear the date range
+    (value: DateInputRangeValue) => {
+      if (!value) {
         onDateRangeChange(undefined, undefined)
-      } else {
-        // Convert to ISO strings for the API, allowing partial ranges
-        const startDate = dates[0] ? dates[0].startOf('day').toISOString() : undefined
-        const endDate = dates[1] ? dates[1].endOf('day').toISOString() : undefined
-        onDateRangeChange(startDate, endDate)
+        return
       }
+
+      const dates = Array.isArray(value) ? value : value.split(',')
+      const startDate = dates[0] ? dayjs(dates[0]).startOf('day').toISOString() : undefined
+      const endDate = dates[1] ? dayjs(dates[1]).endOf('day').toISOString() : undefined
+
+      onDateRangeChange(startDate, endDate)
     },
     [onDateRangeChange]
   )
 
   return (
     <div
-      className={`gba:flex gba:items-center gba:gap-2 gba:bg-hsl(var(--background)) gba:p-3 gba:rounded-lg gba:border gba:border-gray-200 gba:shadow-sm ${className}`}
+      className={`gba:flex gba:items-center gba:gap-2 gba:bg-background gba:p-3 gba:rounded-lg gba:border gba:border-border gba:shadow-sm ${className}`}
+      data-testid="lead-date-range-filter"
     >
-      <RangePicker
+      <DateInput
+        mode="range"
         value={dateRange}
         onChange={handleDateRangeChange}
-        placeholder={['Start date', 'End date']}
-        format="MMM DD, YYYY"
-        allowClear
-        allowEmpty={[true, true]}
-        size="small"
-        style={{ width: 240 }}
-        data-testid="lead-date-range-filter"
+        placeholder="Start date"
+        placeholderEnd="End date"
+        showClearButton
+        className="gba:w-60"
       />
     </div>
   )

@@ -5,7 +5,7 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  Input,
+  DateInput,
   Alert,
   Switch
 } from '@newwork/nw-design-system'
@@ -186,14 +186,14 @@ export const InvestmentExitComponent: React.FC<InvestmentExitComponentProps> = (
                   {getTranslationFromI18nKeyAndLabel('investment.exit.label.plannedExitDate', 'Planned Exit Date')}
                 </FormLabel>
                 <FormControl>
-                  <Input
-                    {...field}
+                  <DateInput
                     type="date"
                     placeholder={getTranslationFromI18nKeyAndLabel(
                       'investment.exit.placeholder.selectDate',
                       'Select planned exit date'
                     )}
                     value={field.value || ''}
+                    onChange={value => field.onChange(typeof value === 'string' ? value : '')}
                     data-testid={`${prefixDataTestId}-planned-exit-date-input`}
                   />
                 </FormControl>

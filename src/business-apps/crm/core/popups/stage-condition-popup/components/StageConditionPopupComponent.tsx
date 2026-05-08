@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Button, Alert, AlertDescription, Spinner, Badge } from '@newwork/nw-design-system'
-import { message } from 'antd'
+import { Button, Alert, AlertDescription, Spinner, Badge, toast } from '@newwork/nw-design-system'
 import { useStageConditionPopupContext } from '../context/StageConditionPopupContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -19,12 +18,12 @@ const StageConditionPopupComponent: React.FC = () => {
       try {
         const response = event.detail?.response
         if (response) {
-          message.success('Stage condition updated successfully')
+          toast.success('Stage condition updated successfully')
           setSubmitting(false)
         }
       } catch (err: any) {
         console.error('Error in process completion:', err)
-        message.error(err?.message || 'Failed to update stage condition')
+        toast.error(err?.message || 'Failed to update stage condition')
         setSubmitting(false)
       }
     }
@@ -62,11 +61,10 @@ const StageConditionPopupComponent: React.FC = () => {
         changeMode: 'UPDATE'
       }
 
-      console.log('Submitting payload:', payload)
       dispatchProcessContinueEvent('pse_submit', payload)
     } catch (error) {
       console.error('Error submitting stage condition form:', error)
-      message.error('Failed to submit form')
+      toast.error('Failed to submit form')
       setSubmitting(false)
     }
   }

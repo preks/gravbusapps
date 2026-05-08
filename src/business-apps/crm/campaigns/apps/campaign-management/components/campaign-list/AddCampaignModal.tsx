@@ -7,6 +7,7 @@ import {
   DialogDescription,
   DialogFooter,
   Button,
+  DateInput,
   Form,
   FormField,
   FormItem,
@@ -98,11 +99,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({ isOpen, onClose, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        style={{ maxWidth: 'var(--spacing-128)', width: '100%' }}
-        className="gba:p-0"
-        data-testid="add-campaign-modal"
-      >
+      <DialogContent className="gba:p-0 gba:max-w-lg gba:w-full" data-testid="add-campaign-modal">
         <DialogHeader className="gba:p-6 gba:pb-0">
           <DialogTitle data-testid="add-campaign-modal-title">
             {getTranslationFromI18nKeyAndLabel('campaigns.modal.title', 'Create Campaign')}
@@ -126,7 +123,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({ isOpen, onClose, on
                   <FormItem>
                     <FormLabel data-testid="add-campaign-name-label">
                       {getTranslationFromI18nKeyAndLabel('campaigns.modal.name.label', 'Name')}
-                      <span style={{ color: 'var(--color-danger-500)' }}> *</span>
+                      <span className="gba:text-destructive"> *</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -151,7 +148,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({ isOpen, onClose, on
                   <FormItem>
                     <FormLabel data-testid="add-campaign-type-label">
                       {getTranslationFromI18nKeyAndLabel('campaigns.modal.type.label', 'Type')}
-                      <span style={{ color: 'var(--color-danger-500)' }}> *</span>
+                      <span className="gba:text-destructive"> *</span>
                     </FormLabel>
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value}>
@@ -189,10 +186,15 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({ isOpen, onClose, on
                   <FormItem>
                     <FormLabel data-testid="add-campaign-start-date-label">
                       {getTranslationFromI18nKeyAndLabel('campaigns.modal.startDate.label', 'Start Date')}
-                      <span style={{ color: 'var(--color-danger-500)' }}> *</span>
+                      <span className="gba:text-destructive"> *</span>
                     </FormLabel>
                     <FormControl>
-                      <Input {...field} type="date" data-testid="add-campaign-start-date-input" />
+                      <DateInput
+                        type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(typeof value === 'string' ? value : '')}
+                        data-testid="add-campaign-start-date-input"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -207,10 +209,15 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({ isOpen, onClose, on
                   <FormItem>
                     <FormLabel data-testid="add-campaign-end-date-label">
                       {getTranslationFromI18nKeyAndLabel('campaigns.modal.endDate.label', 'End Date')}
-                      <span style={{ color: 'var(--color-danger-500)' }}> *</span>
+                      <span className="gba:text-destructive"> *</span>
                     </FormLabel>
                     <FormControl>
-                      <Input {...field} type="date" data-testid="add-campaign-end-date-input" />
+                      <DateInput
+                        type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(typeof value === 'string' ? value : '')}
+                        data-testid="add-campaign-end-date-input"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -234,7 +241,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({ isOpen, onClose, on
                           'Enter campaign description'
                         )}
                         data-testid="add-campaign-description-input"
-                        style={{ minHeight: 'var(--spacing-20)' }}
+                        className="gba:min-h-20"
                       />
                     </FormControl>
                     <FormMessage />
