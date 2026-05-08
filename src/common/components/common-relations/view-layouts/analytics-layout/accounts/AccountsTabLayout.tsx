@@ -3,10 +3,7 @@ import { WidgetGroup } from '@/components/widget-group'
 import { BankIcon, CurrencyCircleDollarIcon, UsersIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { AccountLifecycleChart } from './widgets/AccountLifecycleChart'
 import { AccountGrowthAnalysis } from './widgets/AccountGrowthAnalysis'
-import { AccountHealthMatrix } from './widgets/AccountHealthMatrix'
-import { AccountRelationshipInsights } from './widgets/AccountRelationshipInsights'
 // no direct Card usage in this layout; widgets handle their own cards
-import { TopAccountsByRevenue } from './widgets/TopAccountsByRevenue'
 
 export interface AccountsTrendData {
   currentMonthAccounts: number
@@ -22,7 +19,6 @@ export interface AccountsTabLayoutProps {
   totalAccounts: number
   accountsWithOpportunities: number
   avgOpportunitiesPerAccount: number
-  avgRevenuePerAccount?: number // Average revenue per account with won opportunities (aggregate calculation)
   trendData?: AccountsTrendData | null
   trendLoading?: boolean
   accountsOverTime: Array<{
@@ -36,18 +32,6 @@ export interface AccountsTabLayoutProps {
   selectedTimeFilter?: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
   onTimeFilterChange?: (filter: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical') => void
 
-  // Relationship data
-  accountsByIndustry: Array<{ industry: string; count: number; percentage: number }>
-  accountsBySize: Array<{ sizeRange: string; count: number; percentage: number }>
-  topAccounts?: Array<{
-    id: string
-    name: string
-    industry: string
-    opportunityCount?: number
-    wonOpportunities?: number
-    totalValue: number
-  }>
-  topAccountsLoading?: boolean
   monthlyGrowthTrend?: Array<{
     month: string
     date: string
@@ -56,7 +40,6 @@ export interface AccountsTabLayoutProps {
     accountsActive: number
   }>
   growthLoading?: boolean
-  healthLoading?: boolean
   moduleColor?: string
 
   // Currency filter props (only used with topAccounts)
@@ -91,25 +74,15 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   totalAccounts,
   accountsWithOpportunities,
   avgOpportunitiesPerAccount,
-  avgRevenuePerAccount,
   trendData,
   trendLoading = false,
   accountsOverTime,
   accountsOverTimeLoading = false,
   selectedTimeFilter = 'quarter',
   onTimeFilterChange,
-  accountsByIndustry,
-  accountsBySize,
-  topAccounts = [],
-  topAccountsLoading = false,
   monthlyGrowthTrend = [],
   growthLoading = false,
-  healthLoading = false,
-  moduleColor = 'default',
-  selectedCurrency = 'EUR',
-  onCurrencyChange,
-  availableCurrencies = ['EUR', 'USD'],
-  showTopAccounts = true
+  moduleColor = 'default'
 }) => {
   const kpis = [
     {
@@ -177,53 +150,19 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
       <AccountLifecycleChart
         key={`account-lifecycle-${selectedTimeFilter}`}
         data={accountsOverTime}
-        isLoading={accountsOverTimeLoading || growthLoading || healthLoading}
+        isLoading={accountsOverTimeLoading || growthLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange || (() => {})}
         moduleColor={moduleColor}
       />
 
-      <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
-        <AccountGrowthAnalysis
-          data={{
-            totalAccounts,
-            accountsWithOpportunities,
-            avgRevenuePerAccount, // Pass aggregate calculation if available
-            topAccounts, // Legacy fallback
-            monthlyGrowthTrend
-          }}
-          isLoading={growthLoading}
-          moduleColor={moduleColor}
-        />
-        <AccountHealthMatrix
-          data={{
-            totalAccounts,
-            accountsWithOpportunities,
-            avgOpportunitiesPerAccount,
-            topAccounts,
-            accountsByIndustry,
-            accountsBySize
-          }}
-          isLoading={healthLoading}
-          moduleColor={moduleColor}
-        />
-      </div>
-
-      <AccountRelationshipInsights
-        data={{ accountsByIndustry, accountsBySize, totalAccounts, accountsWithOpportunities, accountsOverTime }}
+      <AccountGrowthAnalysis
+        data={{
+          monthlyGrowthTrend
+        }}
+        isLoading={growthLoading}
         moduleColor={moduleColor}
       />
-
-      {showTopAccounts && (
-        <TopAccountsByRevenue
-          topAccounts={topAccounts}
-          isLoading={topAccountsLoading}
-          moduleColor={moduleColor}
-          selectedCurrency={selectedCurrency}
-          onCurrencyChange={onCurrencyChange}
-          availableCurrencies={availableCurrencies}
-        />
-      )}
     </div>
   )
 }

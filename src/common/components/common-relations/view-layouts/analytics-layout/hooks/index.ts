@@ -4,10 +4,7 @@
 export {
   useGenericLeadsStaticData,
   type LeadSourceData,
-  type LeadRatingData,
   type LeadStatusData,
-  type LeadVelocityDataPoint,
-  type LeadOwnerData,
   type LeadCatalogEntry,
   type GenericLeadsStaticData,
   type LeadsEntityConfig
@@ -25,7 +22,6 @@ export {
   type OverviewCounts,
   type OverviewConversionMetrics,
   type OverviewTrendData,
-  type GeographicDataPoint,
   type GenericOverviewData
 } from './useGenericOverviewData'
 
@@ -33,8 +29,6 @@ export {
   useGenericAccountsStaticData,
   type TopAccountData,
   type MonthlyGrowthPoint,
-  type AccountIndustryData,
-  type AccountSizeData,
   type AccountsStaticData,
   type AccountsEntityConfig
 } from './useGenericAccountsStaticData'
@@ -45,8 +39,6 @@ export {
   type AccountsOverTimePoint,
   type AccountsOverTimeConfig
 } from './useGenericAccountsOverTime'
-
-export { useTopAccountsByRevenue } from './useTopAccountsByRevenue'
 
 export {
   useGenericContactsStaticData,
@@ -60,6 +52,12 @@ export {
   type ContactsTimeFilter,
   type ContactsOverTimeConfig
 } from './useGenericContactsOverTime'
+
+export {
+  useGenericContactsByContactType,
+  type ContactsByContactTypeConfig,
+  type ContactsByContactTypeItem
+} from './useGenericContactsByContactType'
 
 export {
   useGenericOpportunitiesStaticData,
@@ -76,15 +74,10 @@ export {
 
 // Shared analytics hooks (used by both CRM and IRM)
 export { useActivityHeatmap, type ActivityHeatmapData } from './useActivityHeatmap'
-export {
-  useDealHealthData,
-  type DealHealthData,
-  type DealHealthItem,
-  type DealHealthConfig,
-  type DealHealthXMetric,
-  type DealScoringStrategy
-} from './useDealHealthData'
 export { useLeadsTrendData, type LeadsTrendData } from './useLeadsTrendData'
+export {
+  useOpportunityStatusDistribution,
+  type OpportunityStatusDistributionItem
+} from './useOpportunityStatusDistribution'
 export { useRevenueTrends, type RevenueTrendData, type TimeFilter } from './useRevenueTrends'
 export { useTopDeals, type TopDeal } from './useTopDeals'
-export { useTopRevenueEarners, type TopRevenueContact } from './useTopRevenueEarners'

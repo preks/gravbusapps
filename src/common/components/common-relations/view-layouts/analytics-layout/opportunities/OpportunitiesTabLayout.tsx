@@ -1,13 +1,13 @@
 import React from 'react'
 import { WidgetGroup } from '@/components/widget-group'
-import { CurrencyCircleDollarIcon, TrophyIcon, ClockIcon, TrendUpIcon, PercentIcon } from '@phosphor-icons/react'
+import { CurrencyCircleDollarIcon, TrophyIcon, TrendUpIcon, PercentIcon } from '@phosphor-icons/react'
 import {
   OpportunityLifecycleChart,
   TimeFilter as OpportunityTimeFilter,
   PipelineItem
 } from './widgets/OpportunityLifecycleChart'
 import { OpportunityVelocityAnalysis } from './widgets/OpportunityVelocityAnalysis'
-import { DealHealthMatrix } from './widgets/DealHealthMatrix'
+import { OpportunityStatusDistribution } from './widgets/OpportunityStatusDistribution'
 import {
   Card,
   CardContent,
@@ -37,6 +37,8 @@ export interface OpportunitiesTrendData {
   actualAvgSalesCycleLastMonth: number
   currentPeriodOpportunities: number
   previousPeriodOpportunities: number
+  currentPeriodWonOpportunities?: number
+  previousPeriodWonOpportunities?: number
   actualConversionRateThisMonth?: number
   actualConversionRateLastMonth?: number
   actualPipelineVelocityLastMonth?: number
@@ -62,10 +64,10 @@ export interface OpportunitiesTabLayoutProps {
   title?: string
   totalOpportunities: number
   totalValue: number
+  wonOpportunities: number
   winRate: number
   avgDealSize: number
   avgSalesCycle: number
-  pipelineVelocity: number
   trendData?: OpportunitiesTrendData | null
   trendLoading?: boolean
   lifecycleData: OpportunityLifecyclePoint[]
@@ -88,8 +90,8 @@ export interface OpportunitiesTabLayoutProps {
     currencyCode?: string
   }>
   topDealsLoading?: boolean
-  velocityData?: { averageDaysInPipeline: number; velocityTrend: any[]; quickWins: any[]; slowMovers: any[] } | null
-  dealHealthData?: { healthDistribution: any; matrixData: any[]; xMetric?: any } | null
+  flowData?: { flowTrend: Array<{ month: string; opportunitiesCreated: number; opportunitiesWon: number }> } | null
+  statusDistributionData?: Array<{ status: 'Open' | 'Won' | 'Lost'; count: number; value: number }>
   moduleColor?: string
 
   // Currency filter props
@@ -108,10 +110,10 @@ export interface OpportunitiesTabLayoutProps {
 export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   totalOpportunities,
   totalValue,
+  wonOpportunities,
   winRate,
   avgDealSize,
   avgSalesCycle,
-  pipelineVelocity: _pipelineVelocity,
   trendData,
   trendLoading = false,
   lifecycleData,
@@ -126,8 +128,8 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   onStagePipelineChange,
   topDeals,
   topDealsLoading = false,
-  velocityData,
-  dealHealthData,
+  flowData,
+  statusDistributionData = [],
   moduleColor = 'default',
   kpiCurrency = 'EUR',
   onKpiCurrencyChange,
@@ -159,6 +161,22 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       ...(trendData && !trendLoading
         ? {
             trend: calculateTrend(totalValue, trendData.previousPeriodPipelineValue || 0, TREND_DESCRIPTION)
+          }
+        : {})
+    },
+    {
+      key: 'won-opportunities',
+      title: 'Won Opportunities',
+      value: wonOpportunities,
+      prefix: <TrophyIcon />,
+      description: 'Opportunities marked as won',
+      ...(trendData && !trendLoading
+        ? {
+            trend: calculateTrend(
+              trendData.currentPeriodWonOpportunities || 0,
+              trendData.previousPeriodWonOpportunities || 0,
+              TREND_DESCRIPTION
+            )
           }
         : {})
     },
@@ -205,7 +223,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     {
       key: 'opportunities-this-period',
       title: 'New This Period',
-      value: trendData?.currentPeriodOpportunities || lifecycleData.reduce((s, i) => s + (i as any).count || 0, 0),
+      value: trendData?.currentPeriodOpportunities || 0,
       prefix: <TrendUpIcon size={16} />,
       description: 'Opportunities created in selected period',
       ...(trendData && !trendLoading
@@ -245,26 +263,6 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
               trendData.actualConversionRateLastMonth || 0,
               TREND_DESCRIPTION
             )
-          }
-        : {})
-    },
-    {
-      key: 'pipeline-velocity',
-      title: 'Pipeline Velocity',
-      value: typeof _pipelineVelocity === 'number' && Number.isFinite(_pipelineVelocity) ? _pipelineVelocity : 0,
-      suffix: ' days',
-      prefix: <ClockIcon size={16} />,
-      description: 'Average time in pipeline',
-      ...(trendData && !trendLoading
-        ? {
-            trend: (() => {
-              const t = calculateTrend(
-                Number(_pipelineVelocity) || 0,
-                Number(trendData.actualPipelineVelocityLastMonth) || 0,
-                TREND_DESCRIPTION
-              )
-              return { ...t, positive: t.positive === undefined ? undefined : !t.positive }
-            })()
           }
         : {})
     }
@@ -310,20 +308,8 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       />
 
       <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
-        <OpportunityVelocityAnalysis
-          data={velocityData || { averageDaysInPipeline: 0, velocityTrend: [], quickWins: [], slowMovers: [] }}
-          moduleColor={moduleColor}
-        />
-        <DealHealthMatrix
-          data={
-            dealHealthData || {
-              healthDistribution: { excellent: 0, healthy: 0, warning: 0, critical: 0 },
-              matrixData: [],
-              xMetric: { dataKey: 'winningChance', label: 'Win Chance', unit: '%' }
-            }
-          }
-          moduleColor={moduleColor}
-        />
+        <OpportunityVelocityAnalysis data={flowData || { flowTrend: [] }} moduleColor={moduleColor} />
+        <OpportunityStatusDistribution data={statusDistributionData} moduleColor={moduleColor} currency={kpiCurrency} />
       </div>
 
       <OpportunitiesByStagePie

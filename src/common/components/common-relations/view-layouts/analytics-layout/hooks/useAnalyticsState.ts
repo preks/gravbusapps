@@ -16,7 +16,6 @@ import type { AnalyticsTabKey } from '../AnalyticsLayout'
 export interface AnalyticsStateConfig {
   defaultCurrency?: string
   defaultTimeFilter?: TimeFilter
-  enableTopPerformersCurrency?: boolean // CRM only
 }
 
 export interface AnalyticsState {
@@ -57,12 +56,10 @@ export interface AnalyticsState {
   setOpportunitiesKpiCurrency: (currency: string) => void
   topDealsCurrency: string
   setTopDealsCurrency: (currency: string) => void
-  topPerformersCurrency?: string
-  setTopPerformersCurrency?: (currency: string) => void
 }
 
 export function useAnalyticsState(config: AnalyticsStateConfig = {}): AnalyticsState {
-  const { defaultCurrency = 'EUR', defaultTimeFilter = 'quarter', enableTopPerformersCurrency = false } = config
+  const { defaultCurrency = 'EUR', defaultTimeFilter = 'quarter' } = config
 
   // ============================================================================
   // TAB MANAGEMENT
@@ -119,19 +116,15 @@ export function useAnalyticsState(config: AnalyticsStateConfig = {}): AnalyticsS
   const [accountsCurrency, setAccountsCurrency] = useState(defaultCurrency)
   const [opportunitiesKpiCurrency, setOpportunitiesKpiCurrency] = useState(defaultCurrency)
   const [topDealsCurrency, setTopDealsCurrency] = useState(defaultCurrency)
-  const [topPerformersCurrency, setTopPerformersCurrency] = useState(defaultCurrency)
 
   // ============================================================================
   // CURRENCY SYNC EFFECTS
   // ============================================================================
 
-  // Sync revenue and top performers currency when master KPI currency changes
+  // Sync revenue currency when master KPI currency changes
   useEffect(() => {
     setRevenueCurrency(kpiCurrency)
-    if (enableTopPerformersCurrency) {
-      setTopPerformersCurrency(kpiCurrency)
-    }
-  }, [kpiCurrency, enableTopPerformersCurrency])
+  }, [kpiCurrency])
 
   // Sync top deals currency when opportunities KPI currency changes
   useEffect(() => {
@@ -179,10 +172,6 @@ export function useAnalyticsState(config: AnalyticsStateConfig = {}): AnalyticsS
     opportunitiesKpiCurrency,
     setOpportunitiesKpiCurrency,
     topDealsCurrency,
-    setTopDealsCurrency,
-    ...(enableTopPerformersCurrency && {
-      topPerformersCurrency,
-      setTopPerformersCurrency
-    })
+    setTopDealsCurrency
   }
 }

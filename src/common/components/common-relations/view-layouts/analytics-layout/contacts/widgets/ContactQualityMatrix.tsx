@@ -9,19 +9,14 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
+  ChartTooltipContent
 } from '@newwork/nw-design-system'
-import { PieChart, Pie, BarChart, XAxis, YAxis, Bar } from 'recharts'
-import { WarningCircleIcon, WarningIcon, InfoIcon } from '@phosphor-icons/react'
+import { BarChart, XAxis, YAxis, Bar } from 'recharts'
 import { CheckCircleIcon } from '@phosphor-icons/react'
 
 export interface ContactQualityData {
-  overallScore: number
-  qualityDistribution: { category: string; count: number; percentage: number }[]
-  completenessMetrics: { metric: string; completed: number; total: number; percentage: number }[]
-  issuesSummary: { missingEmails: number; missingPhones: number; missingAccounts: number; duplicatePotential: number }
+  fieldCompleteness: { field: string; completed: number; missing: number }[]
+  accountCoverage: { category: string; count: number }[]
 }
 
 interface ContactQualityMatrixProps {
@@ -29,44 +24,30 @@ interface ContactQualityMatrixProps {
   moduleColor?: string
 }
 
-const toKey = (value: string): string =>
-  value
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-
 export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({ data, moduleColor = 'default' }) => {
-  const pieChartConfig = useMemo(() => {
-    if (!data.qualityDistribution || data.qualityDistribution.length === 0) return {} as ChartConfig
-    const config: Record<string, { label?: string }> = {}
-    data.qualityDistribution.forEach(item => {
-      const key = toKey(item.category)
-      config[key] = { label: item.category }
-    })
-    return config as ChartConfig
-  }, [data.qualityDistribution])
-
-  const pieChartData = useMemo(() => {
-    if (!data.qualityDistribution || data.qualityDistribution.length === 0) return []
-    return data.qualityDistribution.map(item => {
-      const key = toKey(item.category)
-      return {
-        category: key,
-        contacts: item.count,
-        fill: `var(--color-${key})`
-      }
-    })
-  }, [data.qualityDistribution])
-
-  const barChartConfig = useMemo(
+  const fieldChartConfig = useMemo(
     () =>
       ({
-        percentage: {
-          label: 'Completeness %'
+        completed: {
+          label: 'Completed'
+        },
+        missing: {
+          label: 'Missing'
         }
       }) satisfies ChartConfig,
     []
   )
+
+  const coverageChartConfig = useMemo(
+    () =>
+      ({
+        count: {
+          label: 'Contacts'
+        }
+      }) satisfies ChartConfig,
+    []
+  )
+
   return (
     <Card data-testid="contact-quality-matrix">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
@@ -78,80 +59,34 @@ export const ContactQualityMatrix: React.FC<ContactQualityMatrixProps> = ({ data
           decorative={true}
         />
         <div>
-          <CardTitle>Contact Quality Matrix</CardTitle>
-          <CardDescription>Data quality analysis and completeness metrics</CardDescription>
+          <CardTitle>Contact Completeness Overview</CardTitle>
+          <CardDescription>Backend aggregate counts for contact data completeness</CardDescription>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="gba:text-center gba:mb-6">
-          <div className="gba:text-4xl gba:font-bold gba:text-primary gba:mb-2">{data.overallScore}%</div>
-          <div className="gba:text-lg gba:text-muted-foreground">Overall Data Quality Score</div>
-        </div>
-
-        <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6 gba:mb-6">
+        <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
           <div>
-            <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Quality Distribution</h4>
-            <ChartContainer
-              config={pieChartConfig}
-              className="[&_.recharts-pie-label-text]:fill-foreground gba:mx-auto gba:aspect-square gba:max-h-[200px] gba:pb-0"
-            >
-              <PieChart>
-                <Pie data={pieChartData} cx="50%" cy="50%" outerRadius={75} dataKey="contacts" nameKey="category" />
-                <ChartTooltip content={<ChartTooltipContent hideLabel labelKey="contacts" nameKey="category" />} />
-                <ChartLegend
-                  content={
-                    <ChartLegendContent className="gba:-translate-y-2 gba:flex-wrap gba:gap-2 gba:*:basis-1/4 gba:*:justify-center" />
-                  }
-                />
-              </PieChart>
-            </ChartContainer>
-          </div>
-          <div>
-            <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Data Completeness</h4>
-            <ChartContainer config={barChartConfig} className="gba:w-full gba:h-[200px]">
-              <BarChart data={data.completenessMetrics} layout="vertical">
-                <XAxis type="number" domain={[0, 100]} />
-                <YAxis dataKey="metric" type="category" width={120} />
-                <ChartTooltip content={<ChartTooltipContent formatter={v => [`${v}%`, 'Completeness']} />} />
-                <Bar dataKey="percentage" fill="var(--color-percentage)" />
+            <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Field Completeness</h4>
+            <ChartContainer config={fieldChartConfig} className="gba:w-full gba:h-[260px]">
+              <BarChart data={data.fieldCompleteness} layout="vertical">
+                <XAxis type="number" />
+                <YAxis dataKey="field" type="category" width={120} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="completed" stackId="contacts" fill="var(--color-completed)" />
+                <Bar dataKey="missing" stackId="contacts" fill="var(--color-missing)" />
               </BarChart>
             </ChartContainer>
           </div>
-        </div>
-
-        <div>
-          <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Data Quality Issues</h4>
-          <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-4 gba:gap-4">
-            <div className="gba:p-4 gba:border gba:rounded-lg gba:bg-red-50 gba:border-red-200">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <WarningCircleIcon size={16} className="gba:text-red-600" />
-                <span className="gba:text-sm gba:font-medium gba:text-red-600">Missing Emails</span>
-              </div>
-              <div className="gba:text-2xl gba:font-bold gba:text-red-900">{data.issuesSummary.missingEmails}</div>
-            </div>
-            <div className="gba:p-4 gba:border gba:rounded-lg gba:bg-orange-50 gba:border-orange-200">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <WarningIcon size={16} className="gba:text-orange-600" />
-                <span className="gba:text-sm gba:font-medium gba:text-orange-600">Missing Phones</span>
-              </div>
-              <div className="gba:text-2xl gba:font-bold gba:text-orange-900">{data.issuesSummary.missingPhones}</div>
-            </div>
-            <div className="gba:p-4 gba:border gba:rounded-lg gba:bg-yellow-50 gba:border-yellow-200">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <InfoIcon className="gba:text-yellow-600" />
-                <span className="gba:text-sm gba:font-medium gba:text-yellow-600">Missing Accounts</span>
-              </div>
-              <div className="gba:text-2xl gba:font-bold gba:text-yellow-900">{data.issuesSummary.missingAccounts}</div>
-            </div>
-            <div className="gba:p-4 gba:border gba:rounded-lg gba:bg-purple-50 gba:border-purple-200">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <WarningCircleIcon size={16} className="gba:text-purple-600" />
-                <span className="gba:text-sm gba:font-medium gba:text-purple-600">Potential Duplicates</span>
-              </div>
-              <div className="gba:text-2xl gba:font-bold gba:text-purple-900">
-                {data.issuesSummary.duplicatePotential}
-              </div>
-            </div>
+          <div>
+            <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Account Coverage</h4>
+            <ChartContainer config={coverageChartConfig} className="gba:w-full gba:h-[260px]">
+              <BarChart data={data.accountCoverage} layout="vertical">
+                <XAxis type="number" />
+                <YAxis dataKey="category" type="category" width={120} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="count" fill="var(--color-count)" />
+              </BarChart>
+            </ChartContainer>
           </div>
         </div>
       </CardContent>

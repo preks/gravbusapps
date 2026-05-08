@@ -15,23 +15,20 @@ import { useOpportunitiesOverTime } from './hooks/useOpportunitiesOverTime'
 import { useOpportunitiesByStage } from './hooks/useOpportunitiesByStage'
 import { useContactsOverTime } from './hooks/useContactsOverTime'
 import { useContactsStaticData } from './hooks/useContactsStaticData'
-import { useContactInsights } from './hooks/useContactInsights'
 import { useContactQualityData } from './hooks/useContactQualityData'
-import { useTopRevenueEarners } from './hooks/useTopRevenueEarners'
+import { useContactsByContactType } from './hooks/useContactsByContactType'
 import { useCrmAnalyticsData } from './hooks/useCrmAnalyticsData'
 import { useOverviewData } from './hooks/useOverviewData'
 import { useRevenueTrends } from './hooks/useRevenueTrends'
-import { usePipelineHealth } from './hooks/usePipelineHealth'
 import { useActivityHeatmap } from './hooks/useActivityHeatmap'
 import { usePipelines } from './hooks/usePipelines'
 import { useOpportunityVelocityData } from './hooks/useOpportunityVelocityData'
-import { useDealHealthData } from './hooks/useDealHealthData'
+import { useOpportunityStatusDistribution } from './hooks/useOpportunityStatusDistribution'
 import { useLeadsTrendData } from './hooks/useLeadsTrendData'
 import { useLeadsOverTime } from './hooks/useLeadsOverTime'
 import { useLeadsStaticData } from './hooks/useLeadsStaticData'
 import { useAccountsStaticData } from './hooks/useAccountsStaticData'
 import { useAccountsOverTime } from './hooks/useAccountsOverTime'
-import { useTopAccountsByRevenue } from './hooks/useTopAccountsByRevenue'
 import { useOpportunitiesStaticData } from './hooks/useOpportunitiesStaticData'
 import { useTopDeals } from './hooks/useTopDeals'
 
@@ -56,8 +53,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     setRevenueTimeFilter,
     revenuePipelineId,
     setRevenuePipelineId,
-    healthPipelineId,
-    setHealthPipelineId,
+    healthPipelineId: overviewStagePipelineId,
+    setHealthPipelineId: setOverviewStagePipelineId,
     oppLifecyclePipelineId,
     setOppLifecyclePipelineId,
     selectedStagePipelineId,
@@ -71,13 +68,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     opportunitiesKpiCurrency,
     setOpportunitiesKpiCurrency,
     topDealsCurrency,
-    setTopDealsCurrency,
-    topPerformersCurrency,
-    setTopPerformersCurrency
+    setTopDealsCurrency
   } = useAnalyticsState({
     defaultCurrency: 'EUR',
-    defaultTimeFilter: 'quarter',
-    enableTopPerformersCurrency: true // CRM has top performers
+    defaultTimeFilter: 'quarter'
   })
 
   // Fetch available currencies
@@ -94,6 +88,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   const { pipelines } = usePipelines(
     activeAnalyticsTab === 'overview' || activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
   )
+  const effectiveOverviewStagePipelineId = overviewStagePipelineId || pipelines?.[0]?.id
 
   // Overview tab - Use dedicated hook
   const { data: overviewData } = useOverviewData(
@@ -110,24 +105,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   // Overview tab data - get trend data from useOverviewData hook
   const kpiTrendData = activeAnalyticsTab === 'overview' ? overviewData?.overviewTrendData || null : null
-  const geographicData = activeAnalyticsTab === 'overview' ? overviewData?.overviewGeographicData || [] : []
-
   const { revenueTrends, isLoading: revenueLoading } = useRevenueTrends(
     activeAnalyticsTab === 'overview' ? context.accessToken : '',
     revenueTimeFilter,
     revenuePipelineId,
     revenueCurrency
   )
-  const { pipelineHealth, isLoading: pipelineHealthLoading } = usePipelineHealth(
-    activeAnalyticsTab === 'overview' ? context.accessToken : '',
-    healthPipelineId
+  const { data: overviewStageData, isLoading: overviewStageLoading } = useOpportunitiesByStage(
+    activeAnalyticsTab === 'overview' && effectiveOverviewStagePipelineId ? context.accessToken : '',
+    effectiveOverviewStagePipelineId,
+    true
   )
   const { activityData: activityHeatmap, isLoading: activityLoading } = useActivityHeatmap(
     activeAnalyticsTab === 'overview' ? context.accessToken : ''
-  )
-  const { contacts: topRevenueContacts, isLoading: topPerformersLoading } = useTopRevenueEarners(
-    activeAnalyticsTab === 'overview' ? context.accessToken : '',
-    topPerformersCurrency
   )
 
   // Leads tab data
@@ -144,12 +134,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   // Accounts static data (KPIs + trends) - single query
   const { data: accountsStaticData, isLoading: accountsStaticLoading } = useAccountsStaticData(
     activeAnalyticsTab === 'accounts' ? context.accessToken : ''
-  )
-
-  // Top Accounts by Revenue - separate query with currency filter (only refetches on currency change)
-  const { data: topAccountsByRevenue, isLoading: topAccountsLoading } = useTopAccountsByRevenue(
-    activeAnalyticsTab === 'accounts' ? context.accessToken : '',
-    accountsCurrency
   )
 
   // Accounts lifecycle chart data - dynamic time filter
@@ -174,10 +158,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     opportunitiesKpiCurrency
   )
-  const { data: oppVelocityData } = useOpportunityVelocityData(
+  const { data: oppFlowData, isLoading: oppFlowLoading } = useOpportunityVelocityData(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
   )
-  const { data: oppHealthData } = useDealHealthData(activeAnalyticsTab === 'opportunities' ? context.accessToken : '')
+  const { data: oppStatusDistributionData, isLoading: oppStatusDistributionLoading } = useOpportunityStatusDistribution(
+    activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
+  )
   const { data: oppLifecycleData, isLoading: oppLifecycleLoading } = useOpportunitiesOverTime(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : '',
     oppTimeFilter,
@@ -203,19 +189,22 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     contactsTimeFilter
   )
 
-  const { data: contactInsights, isLoading: contactInsightsLoading } = useContactInsights(
-    activeAnalyticsTab === 'contacts' ? context.accessToken : ''
-  )
   const { data: contactQuality, isLoading: contactQualityLoading } = useContactQualityData(
     activeAnalyticsTab === 'contacts' ? context.accessToken : ''
   )
+  const { data: contactsByContactType, isLoading: contactsByContactTypeLoading } = useContactsByContactType(
+    activeAnalyticsTab === 'contacts' ? context.accessToken : ''
+  )
 
-  // Initialize selectedStagePipelineId to first pipeline when pipelines are loaded
+  // Initialize pipeline selectors to the first pipeline when pipelines are loaded.
   useEffect(() => {
     if (pipelines && pipelines.length > 0 && !selectedStagePipelineId) {
       setSelectedStagePipelineId(pipelines[0].id)
     }
-  }, [pipelines, selectedStagePipelineId])
+    if (pipelines && pipelines.length > 0 && !overviewStagePipelineId) {
+      setOverviewStagePipelineId(pipelines[0].id)
+    }
+  }, [pipelines, selectedStagePipelineId, overviewStagePipelineId])
 
   if (isLoading) {
     return (
@@ -262,23 +251,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       onRevenueTimeFilterChange: setRevenueTimeFilter,
       revenueTrends: revenueTrends || [],
       revenueLoading,
-      pipelineHealth,
-      pipelineHealthLoading,
-      healthPipelineId,
-      onHealthPipelineChange: setHealthPipelineId,
-      geographicData: geographicData || [],
-      geographicLoading: isLoading,
+      openPipelineByStage: overviewStageData || [],
+      openPipelineByStageLoading: overviewStageLoading,
+      stagePipelineId: effectiveOverviewStagePipelineId,
+      onStagePipelineChange: setOverviewStagePipelineId,
       activityHeatmap: activityHeatmap || [],
-      activityLoading,
-      topPerformers: topRevenueContacts.map(contact => ({
-        employeeId: contact.id,
-        employeeName: `${contact.firstName} ${contact.lastName}`,
-        dealsWon: contact.wonOpportunities,
-        totalValue: contact.totalRevenue
-      })),
-      topPerformersLoading,
-      topPerformersCurrency,
-      onTopPerformersCurrencyChange: setTopPerformersCurrency
+      activityLoading
     },
     {
       moduleColor,
@@ -315,15 +293,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       accountsOverTimeLoading: accountsLifecycleLoading,
       accountsTimeFilter,
       onAccountsTimeFilterChange: setAccountsTimeFilter,
-      topAccounts: topAccountsByRevenue || [],
-      topAccountsLoading,
       accountsCurrency,
       onAccountsCurrencyChange: setAccountsCurrency,
       availableCurrencies
     },
     {
-      title: 'Accounts Analytics',
-      showTopAccounts: true
+      title: 'Accounts Analytics'
     }
   )
 
@@ -344,8 +319,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
       topDeals: topDealsData,
       topDealsLoading,
-      velocityData: oppVelocityData || null,
-      dealHealthData: oppHealthData || null,
+      flowData: oppFlowData || null,
+      flowLoading: oppFlowLoading,
+      statusDistributionData: oppStatusDistributionData || [],
+      statusDistributionLoading: oppStatusDistributionLoading,
       kpiCurrency: opportunitiesKpiCurrency,
       onKpiCurrencyChange: setOpportunitiesKpiCurrency,
       topDealsCurrency,
@@ -368,10 +345,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       contactsOverTimeLoading: contactsLifecycleLoading,
       contactsTimeFilter,
       onContactsTimeFilterChange: setContactsTimeFilter,
-      contactInsights,
-      contactInsightsLoading,
       contactQuality,
-      contactQualityLoading
+      contactQualityLoading,
+      contactsByContactType,
+      contactsByContactTypeLoading
     },
     {
       title: 'Contacts Analytics',

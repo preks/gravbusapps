@@ -4,24 +4,14 @@ import {
   RevenueTrendData,
   TimeFilter
 } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/RevenueTrendChart'
-import {
-  PipelineHealthOverview,
-  PipelineHealthMetrics
-} from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/PipelineHealthOverview'
-import {
-  GeographicChart,
-  GeographicData
-} from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/GeographicChart'
 import { ActivityHeatmapChart } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/ActivityHeatmapChart'
-import {
-  TopPerformers,
-  TopPerformerItem
-} from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/TopPerformers'
+import { OpenPipelineByStageChart } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/OpenPipelineByStageChart'
 import OverviewMetricsWidgets, {
   KpiLabels,
   KpiVisibility
 } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/OverviewMetricsWidgets'
 import type { ActivityHeatmapData, OverviewTrendData } from '../hooks'
+import type { StageItem } from '../opportunities/widgets/types'
 
 export interface OverviewCounts {
   leads: number
@@ -61,32 +51,19 @@ export interface OverviewTabLayoutProps {
   revenueTrends: RevenueTrendData[]
   revenueLoading?: boolean
 
-  // Optional: Pipeline Health chart (can be hidden)
-  pipelineHealth?: {
-    data?: PipelineHealthMetrics | null
-    isLoading?: boolean
-    error?: string | null
-  }
-  healthPipelineId?: string
-  onHealthPipelineChange?: (pipelineId: string | undefined) => void
-
-  // Optional: Geographic distribution chart (can be hidden)
-  geographicDistribution?: {
-    data: GeographicData[]
+  // Optional: Open pipeline by stage chart (can be hidden)
+  openPipelineByStage?: {
+    data: StageItem[]
     isLoading?: boolean
   }
+  stagePipelineId?: string
+  onStagePipelineChange?: (pipelineId: string | undefined) => void
 
   // Optional: Activity timeline chart (can be hidden)
   activityHeatmap?: {
     data: ActivityHeatmapData[]
     isLoading?: boolean
   }
-
-  // Optional: Top performers table (can be hidden)
-  topPerformers?: TopPerformerItem[]
-  topPerformersLoading?: boolean
-  topPerformersCurrency?: string
-  onTopPerformersCurrencyChange?: (currency: string) => void
 
   // Currency filters for KPIs and charts
   kpiCurrency?: string
@@ -110,21 +87,16 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   onRevenueTimeFilterChange,
   revenueTrends,
   revenueLoading = false,
-  healthPipelineId,
-  onHealthPipelineChange,
-  pipelineHealth,
-  geographicDistribution,
+  stagePipelineId,
+  onStagePipelineChange,
+  openPipelineByStage,
   activityHeatmap,
-  topPerformers,
-  topPerformersLoading = false,
   moduleColor = 'default',
   kpiCurrency = 'EUR',
   onKpiCurrencyChange,
   availableCurrencies = ['EUR', 'USD'],
   revenueCurrency = 'EUR',
-  onRevenueCurrencyChange,
-  topPerformersCurrency = 'EUR',
-  onTopPerformersCurrencyChange
+  onRevenueCurrencyChange
 }) => {
   return (
     <div className="gba:space-y-6" data-testid="overview-analytics-tab">
@@ -158,34 +130,19 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
         availableCurrencies={availableCurrencies}
       />
 
-      {/* Optional: Pipeline Health & Geographic Distribution */}
-      {(pipelineHealth || geographicDistribution) && (
-        <div className="gba:flex gba:gap-6" data-testid="analytics-charts-container">
-          {pipelineHealth && (
-            <div className="gba:min-w-0 gba:w-full lg:gba:w-2/3" data-testid="pipeline-health-container">
-              <PipelineHealthOverview
-                isLoading={pipelineHealth.isLoading}
-                error={pipelineHealth.error ?? null}
-                data={pipelineHealth.data ?? null}
-                moduleColor={moduleColor}
-                pipelines={pipelines}
-                selectedPipelineId={healthPipelineId}
-                onPipelineChange={onHealthPipelineChange}
-              />
-            </div>
-          )}
-          {geographicDistribution && (
-            <div
-              className={`gba:min-w-0 gba:w-full ${pipelineHealth ? 'lg:gba:w-1/3' : ''}`}
-              data-testid="geographic-chart-container"
-            >
-              <GeographicChart
-                data={geographicDistribution.data}
-                isLoading={geographicDistribution.isLoading}
-                moduleColor={moduleColor}
-              />
-            </div>
-          )}
+      {/* Optional: Open Pipeline by Stage */}
+      {openPipelineByStage && (
+        <div className="gba:grid gba:grid-cols-1" data-testid="analytics-charts-container">
+          <div className="gba:min-w-0 gba:w-full" data-testid="open-pipeline-stage-container">
+            <OpenPipelineByStageChart
+              data={openPipelineByStage.data}
+              isLoading={openPipelineByStage.isLoading}
+              moduleColor={moduleColor}
+              pipelines={pipelines}
+              selectedPipelineId={stagePipelineId}
+              onPipelineChange={onStagePipelineChange}
+            />
+          </div>
         </div>
       )}
 
@@ -198,18 +155,6 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
             moduleColor={moduleColor}
           />
         </div>
-      )}
-
-      {/* Optional: Top Performers */}
-      {topPerformers !== undefined && (
-        <TopPerformers
-          performers={topPerformers}
-          isLoading={topPerformersLoading}
-          moduleColor={moduleColor}
-          selectedCurrency={topPerformersCurrency}
-          onCurrencyChange={onTopPerformersCurrencyChange}
-          availableCurrencies={availableCurrencies}
-        />
       )}
     </div>
   )

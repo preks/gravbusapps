@@ -7,8 +7,6 @@ import { useGenericAccountsStaticData } from '@/common/components/common-relatio
 const IRM_ACCOUNTS_CONFIG = {
   accountEntity: 'InvestmentAccount',
   opportunityEntity: 'InvestmentOpportunity',
-  industryField: 'industryClass',
-  sizeField: 'companySize',
   opportunityRelation: 'opportunityAccounts',
   isOpportunityRelationList: true,
   isJunctionTable: true
@@ -20,7 +18,5 @@ export const useAccountsStaticData = (accessToken: string) => {
 export type {
   TopAccountData,
   MonthlyGrowthPoint,
-  AccountIndustryData,
-  AccountSizeData,
   AccountsStaticData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'

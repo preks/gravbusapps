@@ -17,7 +17,6 @@ export interface GenericOpportunitiesStaticData {
   avgDealSize: number
   avgOpportunityValue: number // Average value of ALL opportunities in pipeline
   winRate: number
-  pipelineVelocity: number
   conversionRate: number // Lead to Opportunity conversion rate (all time)
 
   // 30-day trend data
@@ -233,18 +232,6 @@ export const useGenericOpportunitiesStaticData = (
             ) {
               aggregate { count }
             }
-
-            # Pipeline velocity calculation - sample of last 100 opportunities for avg days
-            pipelineVelocityOpps: ${config.opportunityEntity}(
-              where: {
-                isDeleted: { _eq: false }
-                createdAt: { _gte: "${last30DaysStart}" }${currencyFilter}
-              }
-              limit: 100
-            ) {
-              createdAt
-              updatedAt
-            }
           }
         `
 
@@ -269,10 +256,6 @@ export const useGenericOpportunitiesStaticData = (
 
         // Calculate conversion rate (Lead → Opportunity)
         const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0
-
-        // Calculate pipeline velocity (last 30 days)
-        const pipelineVelocityOpps = result.pipelineVelocityOpps || []
-        const pipelineVelocity = calculatePipelineVelocity(pipelineVelocityOpps)
 
         // 30-day trend data
         const last30DaysLeads = result.last30DaysLeads?.aggregate?.count || 0
@@ -304,7 +287,6 @@ export const useGenericOpportunitiesStaticData = (
           avgDealSize,
           avgOpportunityValue,
           winRate,
-          pipelineVelocity,
           conversionRate,
           last30DaysOpportunities,
           previous30DaysOpportunities,
@@ -337,18 +319,4 @@ export const useGenericOpportunitiesStaticData = (
   ])
 
   return { data, isLoading, error }
-}
-
-// Helper function to calculate pipeline velocity (avg days from created to last update)
-const calculatePipelineVelocity = (opportunities: Array<{ createdAt: string; updatedAt: string }>): number => {
-  if (opportunities.length === 0) return 0
-
-  const totalDays = opportunities.reduce((sum, opp) => {
-    const created = new Date(opp.createdAt)
-    const updated = new Date(opp.updatedAt)
-    const days = Math.max(0, Math.ceil((updated.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)))
-    return sum + days
-  }, 0)
-
-  return Math.round(totalDays / opportunities.length)
 }

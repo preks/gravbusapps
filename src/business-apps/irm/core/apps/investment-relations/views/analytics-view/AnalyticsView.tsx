@@ -17,8 +17,8 @@ import { useOpportunityTrendData } from './hooks/useOpportunityTrendData'
 import { useOpportunitiesByStage } from './hooks/useOpportunitiesByStage'
 import { useContactsStaticData } from './hooks/useContactsStaticData'
 import { useContactsOverTime } from './hooks/useContactsOverTime'
-import { useContactInsights as useInvestmentContactInsights } from './hooks/useContactInsights'
 import { useContactQualityData as useInvestmentContactQualityData } from './hooks/useContactQualityData'
+import { useContactsByContactType } from './hooks/useContactsByContactType'
 import { useIrmAnalyticsData } from './hooks/useIrmAnalyticsData'
 import { useOverviewData } from './hooks/useOverviewData'
 import { useLeadsTrendData } from './hooks/useLeadsTrendData'
@@ -27,13 +27,12 @@ import { useLeadsOverTime } from './hooks/useLeadsOverTime'
 import { useAccountsStaticData } from './hooks/useAccountsStaticData'
 import { useAccountsOverTime } from './hooks/useAccountsOverTime'
 import { useRevenueTrends } from './hooks/useRevenueTrends'
-import { usePipelineHealth } from './hooks/usePipelineHealth'
 import { useActivityHeatmap } from './hooks/useActivityHeatmap'
 import { usePipelines } from './hooks/usePipelines'
 import { IRM_KPI_LABELS, IRM_KPI_VISIBILITY } from './config/kpiConfig'
 
 import { useOpportunityVelocityData } from './hooks/useOpportunityVelocityData'
-import { useDealHealthData } from './hooks/useDealHealthData'
+import { useOpportunityStatusDistribution } from './hooks/useOpportunityStatusDistribution'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
   moduleColor?: string
@@ -54,7 +53,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     setContactsTimeFilter,
     revenueTimeFilter,
     setRevenueTimeFilter,
-    revenuePipelineId: selectedPipelineId, // IRM uses single pipeline ID for revenue and health
+    revenuePipelineId: selectedPipelineId,
     setRevenuePipelineId: setSelectedPipelineId,
     selectedStagePipelineId,
     setSelectedStagePipelineId,
@@ -69,8 +68,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     setTopDealsCurrency
   } = useAnalyticsState({
     defaultCurrency: 'EUR',
-    defaultTimeFilter: 'quarter',
-    enableTopPerformersCurrency: false // IRM doesn't have top performers
+    defaultTimeFilter: 'quarter'
   })
 
   // Fetch available currencies
@@ -85,9 +83,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   // Fetch pipelines from catalog
   const { pipelines } = usePipelines(context.accessToken)
+  const effectiveSelectedPipelineId = selectedPipelineId || pipelines[0]?.id
 
   // Overview tab - Use dedicated hook
-  const { data: overviewData, isLoading: overviewLoading } = useOverviewData(
+  const { data: overviewData } = useOverviewData(
     activeAnalyticsTab === 'overview' ? context.accessToken : '',
     kpiCurrency
   )
@@ -106,16 +105,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     selectedPipelineId,
     revenueCurrency
   )
-  const { pipelineHealth, isLoading: pipelineHealthLoading } = usePipelineHealth(
-    activeAnalyticsTab === 'overview' ? context.accessToken : '',
-    selectedPipelineId
+  const { data: overviewStageData, isLoading: overviewStageLoading } = useOpportunitiesByStage(
+    activeAnalyticsTab === 'overview' && effectiveSelectedPipelineId ? context.accessToken : '',
+    effectiveSelectedPipelineId,
+    true
   )
   const { activityData: activityHeatmap, isLoading: activityLoading } = useActivityHeatmap(
     activeAnalyticsTab === 'overview' ? context.accessToken : ''
   )
-  // Geographic data now comes from useOverviewData (shared generic hook)
-  const geographicData = activeAnalyticsTab === 'overview' ? overviewData?.overviewGeographicData || [] : []
-
   // Leads tab hooks - Use aggregate-based hooks instead of full-record query
   const { data: leadsStaticData, isLoading: leadsStaticLoading } = useLeadsStaticData(
     activeAnalyticsTab === 'leads' ? context.accessToken : ''
@@ -155,10 +152,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     undefined,
     opportunitiesKpiCurrency
   )
-  const { data: oppVelocityData, isLoading: oppVelocityLoading } = useOpportunityVelocityData(
+  const { data: oppFlowData, isLoading: oppFlowLoading } = useOpportunityVelocityData(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
   )
-  const { data: oppHealthData, isLoading: oppHealthLoading } = useDealHealthData(
+  const { data: oppStatusDistributionData, isLoading: oppStatusDistributionLoading } = useOpportunityStatusDistribution(
     activeAnalyticsTab === 'opportunities' ? context.accessToken : ''
   )
   const { data: oppStageData, isLoading: oppStageLoading } = useOpportunitiesByStage(
@@ -176,19 +173,22 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     timeFilter: contactsTimeFilter
   })
 
-  const { data: contactInsights, isLoading: contactInsightsLoading } = useInvestmentContactInsights(
-    activeAnalyticsTab === 'contacts' ? context.accessToken : ''
-  )
   const { data: contactQuality, isLoading: contactQualityLoading } = useInvestmentContactQualityData(
     activeAnalyticsTab === 'contacts' ? context.accessToken : ''
   )
+  const { data: contactsByContactType, isLoading: contactsByContactTypeLoading } = useContactsByContactType(
+    activeAnalyticsTab === 'contacts' ? context.accessToken : ''
+  )
 
-  // Initialize selectedStagePipelineId to first pipeline if not set
+  // Initialize pipeline selectors to the first pipeline if not set
   useEffect(() => {
     if (pipelines.length > 0 && !selectedStagePipelineId) {
       setSelectedStagePipelineId(pipelines[0].id)
     }
-  }, [pipelines.length])
+    if (pipelines.length > 0 && !selectedPipelineId) {
+      setSelectedPipelineId(pipelines[0].id)
+    }
+  }, [pipelines, selectedStagePipelineId, selectedPipelineId])
 
   if (isLoading) {
     return (
@@ -231,18 +231,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       overviewData,
       kpiTrendData: transformedTrendData,
       pipelines,
-      revenuePipelineId: selectedPipelineId,
+      revenuePipelineId: effectiveSelectedPipelineId,
       onRevenuePipelineChange: setSelectedPipelineId,
       revenueTimeFilter,
       onRevenueTimeFilterChange: setRevenueTimeFilter,
       revenueTrends: revenueTrends || [],
       revenueLoading,
-      pipelineHealth,
-      pipelineHealthLoading,
-      healthPipelineId: selectedPipelineId,
-      onHealthPipelineChange: setSelectedPipelineId,
-      geographicData: geographicData || [],
-      geographicLoading: overviewLoading,
+      openPipelineByStage: overviewStageData || [],
+      openPipelineByStageLoading: overviewStageLoading,
+      stagePipelineId: effectiveSelectedPipelineId,
+      onStagePipelineChange: setSelectedPipelineId,
       activityHeatmap: activityHeatmap || [],
       activityLoading
     },
@@ -288,8 +286,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       availableCurrencies
     },
     {
-      title: 'Accounts Analytics',
-      showTopAccounts: false
+      title: 'Accounts Analytics'
     }
   )
 
@@ -311,10 +308,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       selectedStagePipelineId,
       onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
       topDeals: [],
-      velocityData: oppVelocityData || null,
-      velocityLoading: oppVelocityLoading,
-      dealHealthData: oppHealthData || null,
-      dealHealthLoading: oppHealthLoading,
+      flowData: oppFlowData || null,
+      flowLoading: oppFlowLoading,
+      statusDistributionData: oppStatusDistributionData || [],
+      statusDistributionLoading: oppStatusDistributionLoading,
       kpiCurrency: opportunitiesKpiCurrency,
       onKpiCurrencyChange: setOpportunitiesKpiCurrency,
       topDealsCurrency,
@@ -337,10 +334,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       contactsOverTimeLoading: contactsLifecycleLoading,
       contactsTimeFilter,
       onContactsTimeFilterChange: setContactsTimeFilter,
-      contactInsights,
-      contactInsightsLoading,
       contactQuality,
-      contactQualityLoading
+      contactQualityLoading,
+      contactsByContactType,
+      contactsByContactTypeLoading
     },
     {
       title: 'Contacts Analytics',

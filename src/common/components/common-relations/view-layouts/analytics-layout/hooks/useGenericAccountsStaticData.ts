@@ -17,19 +17,6 @@ export interface MonthlyGrowthPoint {
   accountsActive: number
 }
 
-export interface AccountIndustryData {
-  industry: string
-  industryId: string
-  count: number
-  percentage: number
-}
-
-export interface AccountSizeData {
-  sizeRange: string
-  count: number
-  percentage: number
-}
-
 export interface AccountsStaticData {
   // Basic metrics
   totalAccounts: number
@@ -45,17 +32,11 @@ export interface AccountsStaticData {
 
   // Account Growth Analysis data
   monthlyGrowthTrend: MonthlyGrowthPoint[]
-
-  // Account Health Matrix data
-  accountsByIndustry: AccountIndustryData[]
-  accountsBySize: AccountSizeData[]
 }
 
 export interface AccountsEntityConfig {
   accountEntity: string // "Account" | "InvestmentAccount"
   opportunityEntity: string // "Opportunity" | "InvestmentOpportunity"
-  industryField: string // "industry" | "industryClass"
-  sizeField: string // "numberOfEmployees" | "companySize"
   opportunityRelation?: string // "opportunity" | "opportunityAccounts" (junction table for IRM)
   isOpportunityRelationList?: boolean // true for IRM (list relationship), false for CRM (singular)
   isJunctionTable?: boolean // true if using junction table (IRM uses opportunityAccounts)
@@ -177,7 +158,7 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
           `)
         }
 
-        // === STEP 2: MEGA KPI QUERY - Combine KPIs + trends + monthly + distinct + accounts ===
+        // === STEP 2: MEGA KPI QUERY - Combine KPIs + trends + monthly aggregates ===
         const query = `
         query GetAccountsStaticDataMega {
           # === Basic KPIs ===
@@ -257,46 +238,10 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
 
           # === Monthly Growth Trend (Last 6 Months) ===
           ${monthlyGrowthQueries.join('\n')}
-
-          # === Distinct Industries and Sizes ===
-          industries: ${config.accountEntity}(
-            where: {isDeleted: {_eq: false}, ${config.industryField}: {id: {_isNull: false}}}
-            distinctOn: [${config.industryField}Ref]
-          ) {
-            ${config.industryField} {
-              id
-              code
-              value
-            }
-          }
-
-          sizes: ${config.accountEntity}(
-            where: {isDeleted: {_eq: false}, ${config.sizeField}: {id: {_isNull: false}}}
-            distinctOn: [${config.sizeField}Ref]
-          ) {
-            ${config.sizeField} {
-              id
-              code
-              value
-            }
-          }
         }
       `
 
         const result = await graphqlClient.request(query)
-
-        // Extract data from mega query
-        const industries = (result.industries || []).map((acc: any) => ({
-          code: acc[config.industryField].code,
-          value: acc[config.industryField].value,
-          id: acc[config.industryField].id
-        }))
-
-        const companySizes = (result.sizes || []).map((acc: any) => ({
-          code: acc[config.sizeField].code,
-          value: acc[config.sizeField].value,
-          id: acc[config.sizeField].id
-        }))
 
         // Process monthly growth trend from mega query
         const monthlyGrowthTrend: MonthlyGrowthPoint[] = months.map((month, index) => ({
@@ -315,83 +260,6 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
         const avgOpportunitiesPerAccount =
           accountsWithOpportunities > 0 ? Math.round((totalOpportunities / accountsWithOpportunities) * 100) / 100 : 0
 
-        // === STEP 4: Industry & Size Distribution (Combined Query) ===
-        let accountsByIndustry: AccountIndustryData[] = []
-        let accountsBySize: AccountSizeData[] = []
-
-        if (industries.length > 0 || companySizes.length > 0) {
-          const industryAggregates = industries
-            .map((industry: any, index: number) => {
-              const code = industry.code
-              return `
-              industry_${index}_total: ${config.accountEntity}Aggregate(
-                where: {
-                  isDeleted: {_eq: false}
-                  ${config.industryField}: {code: {_eq: "${code}"}}
-                }
-              ) {
-                aggregate { count }
-              }
-            `
-            })
-            .join('\n')
-
-          const sizeAggregates = companySizes
-            .map((size: any, index: number) => {
-              const code = size.code
-              return `
-              size_${index}_total: ${config.accountEntity}Aggregate(
-                where: {
-                  isDeleted: {_eq: false}
-                  ${config.sizeField}: {code: {_eq: "${code}"}}
-                }
-              ) {
-                aggregate { count }
-              }
-            `
-            })
-            .join('\n')
-
-          const combinedQuery = `
-          query GetAccountsByIndustryAndSize {
-            ${industryAggregates}
-            ${sizeAggregates}
-          }
-        `
-
-          const combinedResult = await graphqlClient.request(combinedQuery)
-
-          // Process industry data
-          if (industries.length > 0) {
-            accountsByIndustry = industries
-              .map((industry: any, index: number) => {
-                const count = combinedResult[`industry_${index}_total`]?.aggregate?.count || 0
-                return {
-                  industry: industry.value,
-                  industryId: industry.id,
-                  count,
-                  percentage: totalAccounts > 0 ? Math.round((count / totalAccounts) * 100 * 10) / 10 : 0
-                }
-              })
-              .filter((item: AccountIndustryData) => item.count > 0)
-              .sort((a: AccountIndustryData, b: AccountIndustryData) => b.count - a.count)
-          }
-
-          // Process size data
-          if (companySizes.length > 0) {
-            accountsBySize = companySizes
-              .map((size: any, index: number) => {
-                const count = combinedResult[`size_${index}_total`]?.aggregate?.count || 0
-                return {
-                  sizeRange: size.value,
-                  count,
-                  percentage: totalAccounts > 0 ? Math.round((count / totalAccounts) * 100 * 10) / 10 : 0
-                }
-              })
-              .filter((item: AccountSizeData) => item.count > 0)
-          }
-        }
-
         // Calculate average revenue per account from won opportunities
         const totalWonRevenue = result.wonOpportunitiesRevenue?.aggregate?.sum?.estimatedAmount || 0
         const accountsWithWonOpps = result.accountsWithWonOpportunities?.aggregate?.count || 0
@@ -407,9 +275,7 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
           last30DaysAccountsWithOpportunities: result.last30DaysAccountsWithOpportunities?.aggregate?.count || 0,
           previous30DaysAccountsWithOpportunities:
             result.previous30DaysAccountsWithOpportunities?.aggregate?.count || 0,
-          monthlyGrowthTrend,
-          accountsByIndustry,
-          accountsBySize
+          monthlyGrowthTrend
         }
 
         setData(finalData)
@@ -421,14 +287,7 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
     }
 
     fetchAllAccountsData()
-  }, [
-    accessToken,
-    config.accountEntity,
-    config.opportunityEntity,
-    config.industryField,
-    config.sizeField,
-    config.opportunityRelation
-  ])
+  }, [accessToken, config.accountEntity, config.opportunityEntity, config.opportunityRelation])
 
   return { data, isLoading, error }
 }

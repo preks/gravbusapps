@@ -9,8 +9,7 @@ export const useOverviewData = (accessToken: string, currencyCode?: string) => {
       leadEntity: 'InvestmentLead',
       accountEntity: 'InvestmentAccount',
       opportunityEntity: 'InvestmentOpportunity',
-      contactEntity: 'InvestmentContact',
-      addressEntity: 'InvestmentAddress'
+      contactEntity: 'InvestmentContact'
     },
     currencyCode
   )
@@ -20,6 +19,5 @@ export type {
   OverviewCounts,
   OverviewConversionMetrics,
   OverviewTrendData,
-  GeographicDataPoint,
   GenericOverviewData as OverviewData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOverviewData'

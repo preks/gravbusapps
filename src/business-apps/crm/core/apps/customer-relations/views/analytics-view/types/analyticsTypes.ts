@@ -84,11 +84,6 @@ export interface LeadsAnalytics {
     count: number
     percentage: number
   }[]
-  leadsByRating: {
-    rating: string
-    count: number
-    percentage: number
-  }[]
   leadsByCompanySize: {
     sizeCategory: string
     count: number
@@ -97,27 +92,10 @@ export interface LeadsAnalytics {
   }[]
   // leadsOverTime moved to separate useLeadsOverTime hook
   conversionRate: number
-  avgTimeToConversion: number
-  topOwners: {
-    employeeId: string
-    employeeName: string
-    leadCount: number
-    conversionRate: number
-  }[]
 }
 
 export interface AccountsAnalytics {
   totalAccounts: number
-  accountsByIndustry: {
-    industry: string
-    count: number
-    percentage: number
-  }[]
-  accountsBySize: {
-    sizeRange: string
-    count: number
-    percentage: number
-  }[]
   accountsOverTime: {
     date: string
     count: number
@@ -164,7 +142,6 @@ export interface OpportunitiesAnalytics {
   avgDealSize: number
   avgSalesCycle: number
   conversionRate: number
-  pipelineVelocity: number
   topDeals: {
     id: string
     name: string
