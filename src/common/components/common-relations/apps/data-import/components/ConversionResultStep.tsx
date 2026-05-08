@@ -28,16 +28,17 @@ import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import { calculateDataQuality } from '@/common/components/common-relations/apps/data-import/utils/dataQualityCalculator'
+import { buildEntityPreviewCardData } from '@/common/components/common-relations/apps/data-import/utils/entityPreviewData'
 import { pluralize } from '@/common/utils/pluralize'
 import { CsvQualityBanner } from './CsvQualityBanner'
-import { EntityPreviewCard, type InvestmentPreviewDetails } from './EntityPreviewCard'
+import { EntityPreviewCard } from './EntityPreviewCard'
 import translations from './ConversionResultStep/_i18n'
 
-const ADDITIONAL_PREVIEW_CATALOG_FIELDS = [
-  'investment.investmentGroupRef',
-  'investment.investmentTypeRef',
-  'investment.currencyRef'
-] as const
+interface InvestmentPreviewDetails {
+  name: string
+  totalInvestmentAmount?: number
+  currency?: string
+}
 
 function getConvertedEntityValue(entity: ConvertedEntity, key: string): unknown {
   if (key in entity) return entity[key]
@@ -54,8 +55,35 @@ function getCatalogRef(entity: ConvertedEntity, key: string): string | undefined
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
+function getPreviewCatalogFields(config: ImportConfig): string[] {
+  const preview = config.preview
+  if (!preview) return []
+
+  return [
+    ...(preview.badges?.map(badge => badge.field) ?? []),
+    ...(preview.rows?.flatMap(row => [
+      ...(row.badges?.map(badge => badge.field) ?? []),
+      ...(row.currencyField ? [row.currencyField] : [])
+    ]) ?? [])
+  ]
+}
+
 function getInvestmentId(entity: ConvertedEntity): string | undefined {
   return typeof entity.investmentId === 'string' && entity.investmentId.length > 0 ? entity.investmentId : undefined
+}
+
+function withInvestmentPreviewDetails(
+  entity: ConvertedEntity,
+  investmentPreviewDetails?: InvestmentPreviewDetails
+): ConvertedEntity {
+  if (!investmentPreviewDetails) return entity
+
+  return {
+    ...entity,
+    'investment.name': investmentPreviewDetails.name,
+    'investment.totalInvestmentAmount': investmentPreviewDetails.totalInvestmentAmount,
+    'investment.currency': investmentPreviewDetails.currency
+  }
 }
 
 function getPreviewEntityKey(entity: ConvertedEntity, entityType: string): string {
@@ -175,14 +203,14 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
             ...targetFieldsConfig
               .filter(targetField => targetField.type === 'catalog')
               .map(targetField => targetField.value),
-            ...ADDITIONAL_PREVIEW_CATALOG_FIELDS
+            ...getPreviewCatalogFields(config)
           ]
             .map(field => getCatalogRef(entity, field))
             .filter((catalogRef): catalogRef is string => Boolean(catalogRef))
         )
       )
     ],
-    [previewEntities, targetFieldsConfig]
+    [config, previewEntities, targetFieldsConfig]
   )
   const previewInvestmentIds = useMemo(
     () =>
@@ -371,23 +399,20 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
                       </CardContent>
                     </Card>
                   ) : (
-                    previewEntities.map((entity, idx) => (
-                      <EntityPreviewCard
-                        key={getPreviewEntityKey(entity, entityType)}
-                        entity={entity}
-                        config={config}
-                        investmentPreviewDetails={investmentPreviewDetails.get(getInvestmentId(entity) ?? '')}
-                        investmentImportPreviewDetails={{
-                          investmentGroup: catalogValueByRef.get(
-                            getCatalogRef(entity, 'investment.investmentGroupRef')
-                          ),
-                          investmentType: catalogValueByRef.get(getCatalogRef(entity, 'investment.investmentTypeRef')),
-                          currency: catalogValueByRef.get(getCatalogRef(entity, 'investment.currencyRef'))
-                        }}
-                        catalogValueByRef={catalogValueByRef}
-                        data-testid={`${testId}-preview-${idx}`}
-                      />
-                    ))
+                    previewEntities.map((entity, idx) => {
+                      const previewEntity = withInvestmentPreviewDetails(
+                        entity,
+                        investmentPreviewDetails.get(getInvestmentId(entity) ?? '')
+                      )
+
+                      return (
+                        <EntityPreviewCard
+                          key={getPreviewEntityKey(entity, entityType)}
+                          preview={buildEntityPreviewCardData(previewEntity, config, catalogValueByRef)}
+                          data-testid={`${testId}-preview-${idx}`}
+                        />
+                      )
+                    })
                   )}
                   {convertedEntities.length > 3 && (
                     <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">

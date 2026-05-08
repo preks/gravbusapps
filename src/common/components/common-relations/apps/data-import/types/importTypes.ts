@@ -124,6 +124,8 @@ export interface ImportConfig {
   investmentGroupRef?: string
   /** Optional list of catalog selects enforced across every imported row. */
   enforcedSelects?: EnforcedSelectConfig[]
+  /** Declarative preview-card layout for the converted entity. */
+  preview?: EntityPreviewConfig
   /**
    * Optional per-group value extensions applied inside
    * `toInvestmentBatchPayload` (investment-domain only).
@@ -138,6 +140,68 @@ export interface TargetFieldDefinition {
   type: 'direct' | 'catalog'
   catalog?: string
   required?: boolean
+}
+
+export type EntityPreviewIcon = 'building' | 'calendar' | 'currency' | 'email' | 'location' | 'phone'
+
+export type EntityPreviewBadgeVariant = 'secondary' | 'info' | 'success'
+
+export interface EntityPreviewTextConfig {
+  fields: string[]
+  separator?: string
+  fallbackFields?: string[]
+}
+
+export interface EntityPreviewBadgeConfig {
+  field: string
+  variant?: EntityPreviewBadgeVariant
+}
+
+export interface EntityPreviewRowConfig {
+  label: string
+  icon?: EntityPreviewIcon
+  field?: string
+  fields?: string[]
+  separator?: string
+  format?: 'amountWithCurrency'
+  currencyField?: string
+  badges?: EntityPreviewBadgeConfig[]
+}
+
+export interface EntityPreviewFooterItemConfig {
+  field: string
+  icon?: EntityPreviewIcon
+}
+
+export interface EntityPreviewConfig {
+  title: EntityPreviewTextConfig
+  badges?: EntityPreviewBadgeConfig[]
+  rows?: EntityPreviewRowConfig[]
+  footerItems?: EntityPreviewFooterItemConfig[]
+}
+
+export interface EntityPreviewBadge {
+  value: string
+  variant?: EntityPreviewBadgeVariant
+}
+
+export interface EntityPreviewRow {
+  label: string
+  value: string
+  icon?: EntityPreviewIcon
+  badges?: EntityPreviewBadge[]
+}
+
+export interface EntityPreviewFooterItem {
+  value: string
+  icon?: EntityPreviewIcon
+}
+
+export interface EntityPreviewCardData {
+  title: string
+  badges: EntityPreviewBadge[]
+  rows: EntityPreviewRow[]
+  footerItems: EntityPreviewFooterItem[]
 }
 
 // Import result after API call
