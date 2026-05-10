@@ -163,21 +163,30 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
     selectedWhiteboardId
   })
 
-  const { favorites, toggleFavorite } = useWhiteboardHubFavorites()
+  const { favorites, toggleFavorite: toggleWhiteboardFavorite } = useWhiteboardHubFavorites({ accessToken })
 
   const { whiteboards, isLoading, refresh, createWhiteboard, deleteWhiteboard, duplicateWhiteboard, renameWhiteboard } =
     useWhiteboards({
       accessToken,
+      section: activeSection === 'favorites' ? 'favorites' : undefined,
       search: searchQuery || undefined,
       includeShared: true,
       sortBy,
       sortOrder
     })
 
+  const handleToggleFavorite = useCallback(
+    async (id: string) => {
+      await toggleWhiteboardFavorite(id)
+      refresh()
+    },
+    [refresh, toggleWhiteboardFavorite]
+  )
+
   const filteredWhiteboards = whiteboards.filter(wb => {
     if (activeSection === 'my-whiteboards') return isOwnedWhiteboard(wb, currentUserId)
     if (activeSection === 'shared') return isSharedWhiteboard(wb, currentUserId)
-    if (activeSection === 'favorites') return favorites.has(wb.id)
+    if (activeSection === 'favorites') return true
     return true
   })
 
@@ -805,9 +814,9 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
                 <WhiteboardCard
                   key={wb.id}
                   whiteboard={wb}
-                  isFavorite={favorites.has(wb.id)}
+                  isFavorite={wb.isFavorite ?? favorites.has(wb.id)}
                   onOpen={() => handleOpen(wb.id)}
-                  onToggleFavorite={() => toggleFavorite(wb.id)}
+                  onToggleFavorite={() => handleToggleFavorite(wb.id)}
                   onRename={() => {
                     setWhiteboardToRename(wb.id)
                     setRenameDialogOpen(true)
@@ -835,9 +844,9 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
                 <WhiteboardListItem
                   key={wb.id}
                   whiteboard={wb}
-                  isFavorite={favorites.has(wb.id)}
+                  isFavorite={wb.isFavorite ?? favorites.has(wb.id)}
                   onOpen={() => handleOpen(wb.id)}
-                  onToggleFavorite={() => toggleFavorite(wb.id)}
+                  onToggleFavorite={() => handleToggleFavorite(wb.id)}
                   onRename={() => {
                     setWhiteboardToRename(wb.id)
                     setRenameDialogOpen(true)

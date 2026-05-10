@@ -16,6 +16,7 @@ import type { QuickAccessSection } from './components/NoteTreeQuickAccess'
 import type { PaperStyle, StrokeData } from './components/handwriting'
 
 import { useNotes } from './hooks/useNotes'
+import { useNoteAppsHubFavorites } from './hooks/useNoteAppsHubFavorites'
 import { useNoteTree } from './hooks/useNoteTree'
 import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
 import { useResizableSidebar } from './hooks/useResizableSidebar'
@@ -77,14 +78,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [folderBreadcrumbs, setFolderBreadcrumbs] = useState<Array<{ id: string; title: string }>>([])
-  const [favorites, setFavorites] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem('note-favorites')
-      return saved ? new Set(JSON.parse(saved)) : new Set()
-    } catch {
-      return new Set()
-    }
-  })
+  const [favoriteNotes, setFavoriteNotes] = useState<NoteSummary[]>([])
+  const { favorites, toggleFavorite: toggleNoteFavorite } = useNoteAppsHubFavorites({ accessToken })
 
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
@@ -155,11 +150,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
-
-  // Persist favorites
-  useEffect(() => {
-    localStorage.setItem('note-favorites', JSON.stringify(Array.from(favorites)))
-  }, [favorites])
 
   useEffect(() => {
     const nextQuickAccess = SECTION_TO_QUICK_ACCESS[activeSection]
@@ -244,6 +234,51 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     void loadTrashCount()
   }, [loadTrashCount])
 
+  useEffect(() => {
+    if (!accessToken) {
+      setFavoriteNotes([])
+      return
+    }
+
+    let cancelled = false
+
+    const loadFavoriteNotes = async () => {
+      try {
+        const PAGE_SIZE = 100
+        let page = 1
+        let hasMore = true
+        let nextFavoriteNotes: NoteSummary[] = []
+
+        while (hasMore) {
+          const result = await NoteApiService.listNotes({
+            section: 'favorites',
+            includeShared: true,
+            limit: PAGE_SIZE,
+            page
+          })
+          nextFavoriteNotes = [...nextFavoriteNotes, ...result.items]
+          hasMore = result.items.length === PAGE_SIZE
+          page += 1
+        }
+
+        if (!cancelled) {
+          setFavoriteNotes(nextFavoriteNotes)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setFavoriteNotes([])
+        }
+        console.error('[NoteAppsHub] Failed to load favorite notes:', error)
+      }
+    }
+
+    void loadFavoriteNotes()
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, favorites])
+
   // Categorise notes
   const { myNotes, sharedNotes, pinnedNotes, recentNotes } = useMemo(() => {
     const my: NoteSummary[] = []
@@ -271,13 +306,13 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const quickAccessCounts = useMemo(
     () => ({
       'all-notes': myNotes.filter(n => !isFolder(n)).length,
-      favorites: Array.from(favorites).filter(id => notes.some(n => n.id === id && !isFolder(n))).length,
+      favorites: favoriteNotes.filter(n => !isFolder(n)).length,
       pinned: pinnedNotes.filter(n => !isFolder(n)).length,
       shared: sharedNotes.filter(n => !isFolder(n)).length,
       recent: recentNotes.filter(n => !isFolder(n)).length,
       trash: trashCount
     }),
-    [myNotes, sharedNotes, pinnedNotes, recentNotes, favorites, notes, trashCount]
+    [favoriteNotes, myNotes, pinnedNotes, recentNotes, sharedNotes, trashCount]
   )
 
   // Filter + sort notes
@@ -304,7 +339,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     }
 
     if (activeQuickAccess === 'favorites') {
-      base = base.filter(n => favorites.has(n.id))
+      base = favoriteNotes
     }
 
     if (currentFolderId) {
@@ -351,7 +386,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     searchQuery,
     sortBy,
     sortOrder,
-    favorites,
+    favoriteNotes,
     currentFolderId
   ])
 
@@ -694,21 +729,14 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   ])
 
   const toggleFavorite = useCallback(
-    (id: string, e?: React.MouseEvent) => {
+    async (id: string, e?: React.MouseEvent) => {
       e?.stopPropagation()
-      setFavorites(prev => {
-        const next = new Set(prev)
-        if (next.has(id)) {
-          next.delete(id)
-          toast.success(t('toast-favorite-removed'))
-        } else {
-          next.add(id)
-          toast.success(t('toast-favorite-added'))
-        }
-        return next
-      })
+      const wasFavorite = favorites.has(id)
+      await toggleNoteFavorite(id)
+      await refreshNotes()
+      toast.success(t(wasFavorite ? 'toast-favorite-removed' : 'toast-favorite-added'))
     },
-    [t]
+    [favorites, refreshNotes, t, toggleNoteFavorite]
   )
 
   const toggleSelectNote = useCallback((id: string, e?: React.MouseEvent) => {

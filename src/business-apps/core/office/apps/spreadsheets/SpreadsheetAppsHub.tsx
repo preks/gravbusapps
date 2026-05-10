@@ -552,7 +552,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [isMovingAppsToTrash, setIsMovingAppsToTrash] = useState(false)
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const { favorites, setFavorites } = useSpreadsheetAppsHubFavorites()
+  const { favorites, toggleFavorite: toggleSpreadsheetFavorite } = useSpreadsheetAppsHubFavorites({ accessToken })
 
   // Data state
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
@@ -594,6 +594,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
 
+  const spreadsheetListOptions = useMemo(
+    () => (activeSection === 'favorites' ? { section: 'favorites' as const } : undefined),
+    [activeSection]
+  )
+
   // Hooks - Using file storage (database-backed) with localStorage fallback
   const {
     apps,
@@ -616,7 +621,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     updateSheet,
     addSheet,
     deleteSheet
-  } = useSpreadsheetApps(accessToken, currentUserId)
+  } = useSpreadsheetApps(accessToken, currentUserId, spreadsheetListOptions)
 
   const trashList = useOfficeTrashList({
     accessToken: accessToken ?? '',
@@ -741,7 +746,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     apps,
     currentUserId,
     activeSection,
-    favorites,
     taskAppIds: new Set<string>([...pendingTaskAppIds, ...completedTaskAppIds]),
     searchQuery,
     sortBy,
@@ -1424,21 +1428,14 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   }, [createWithAiAbout, createWithAiTitle, resetCreateWithAiState])
 
   const toggleFavorite = useCallback(
-    (id: string, e?: React.MouseEvent) => {
+    async (id: string, e?: React.MouseEvent) => {
       e?.stopPropagation()
-      setFavorites(prev => {
-        const next = new Set(prev)
-        if (next.has(id)) {
-          next.delete(id)
-          toast.success(t('toast-removed-from-favorites'))
-        } else {
-          next.add(id)
-          toast.success(t('toast-added-to-favorites'))
-        }
-        return next
-      })
+      const wasFavorite = favorites.has(id)
+      await toggleSpreadsheetFavorite(id)
+      await refreshApps()
+      toast.success(t(wasFavorite ? 'toast-removed-from-favorites' : 'toast-added-to-favorites'))
     },
-    [t]
+    [favorites, refreshApps, t, toggleSpreadsheetFavorite]
   )
 
   const toggleSelectApp = useCallback(
@@ -2213,7 +2210,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           {paginatedApps.map(app => {
                             const isOwner = app.isOwner ?? app.createdBy === currentUserId
                             const isSelected = selectedApps.has(app.id)
-                            const isFavorite = favorites.has(app.id)
+                            const isFavorite = app.isFavorite ?? favorites.has(app.id)
                             const ownerInfo = app.createdBy ? ownerInfoMap.get(app.createdBy) : undefined
                             const sharedWith = sharedUsersMap.get(app.id) || []
 
@@ -2430,7 +2427,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         {paginatedApps.map(app => {
                           const isOwner = app.isOwner ?? app.createdBy === currentUserId
                           const isSelected = selectedApps.has(app.id)
-                          const isFavorite = favorites.has(app.id)
+                          const isFavorite = app.isFavorite ?? favorites.has(app.id)
 
                           return (
                             <Card

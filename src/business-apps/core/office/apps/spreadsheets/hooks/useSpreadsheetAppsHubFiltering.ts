@@ -17,7 +17,6 @@ export interface UseSpreadsheetAppsHubFilteringParams {
   apps: SpreadsheetAppSummary[]
   currentUserId: string
   activeSection: SpreadsheetHubSidebarSection
-  favorites: Set<string>
   taskAppIds?: Set<string>
   searchQuery: string
   sortBy: SpreadsheetHubSortBy
@@ -78,10 +77,9 @@ function filterBySection(params: {
   apps: SpreadsheetAppSummary[]
   activeSection: SpreadsheetHubSidebarSection
   currentUserId: string
-  favorites: Set<string>
   taskAppIds?: Set<string>
 }): SpreadsheetAppSummary[] {
-  const { apps, activeSection, currentUserId, favorites, taskAppIds } = params
+  const { apps, activeSection, currentUserId, taskAppIds } = params
   const taskApps = apps.filter(app => isExcelCollectionTaskForCurrentUser(app, currentUserId))
   const fallbackTaskApps = taskAppIds && taskAppIds.size > 0 ? apps.filter(app => taskAppIds.has(app.id)) : []
   const allTaskApps = [...taskApps, ...fallbackTaskApps]
@@ -97,7 +95,7 @@ function filterBySection(params: {
     case 'tasks':
       return uniqueTaskApps
     case 'favorites':
-      return visibleApps.filter(app => favorites.has(app.id))
+      return visibleApps
     case 'recent':
       return [...visibleApps]
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -141,15 +139,15 @@ function sortApps(
 export function useSpreadsheetAppsHubFiltering(
   params: UseSpreadsheetAppsHubFilteringParams
 ): UseSpreadsheetAppsHubFilteringReturn {
-  const { apps, currentUserId, activeSection, favorites, taskAppIds, searchQuery, sortBy, sortOrder } = params
+  const { apps, currentUserId, activeSection, taskAppIds, searchQuery, sortBy, sortOrder } = params
 
   const filteredApps = useMemo(() => {
-    const sectionFiltered = filterBySection({ apps, activeSection, currentUserId, favorites, taskAppIds })
+    const sectionFiltered = filterBySection({ apps, activeSection, currentUserId, taskAppIds })
     const searched = applySearchFilter(sectionFiltered, searchQuery)
     const sorted = [...searched]
     sortApps(sorted, sortBy, sortOrder)
     return sorted
-  }, [activeSection, apps, currentUserId, favorites, taskAppIds, searchQuery, sortBy, sortOrder])
+  }, [activeSection, apps, currentUserId, taskAppIds, searchQuery, sortBy, sortOrder])
 
   return { filteredApps }
 }

@@ -101,6 +101,7 @@ export const WhiteboardApiService = {
       limit?: number
       sortBy?: string
       sortOrder?: string
+      section?: 'favorites'
     }
   ): Promise<PaginatedResponse<WhiteboardSummary>> {
     const searchParams = new URLSearchParams()
@@ -110,6 +111,7 @@ export const WhiteboardApiService = {
     if (params?.limit) searchParams.set('limit', String(params.limit))
     if (params?.sortBy) searchParams.set('sortBy', params.sortBy)
     if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder)
+    if (params?.section) searchParams.set('section', params.section)
     const qs = searchParams.toString()
     return request(`/whiteboards${qs ? `?${qs}` : ''}`, accessToken)
   },

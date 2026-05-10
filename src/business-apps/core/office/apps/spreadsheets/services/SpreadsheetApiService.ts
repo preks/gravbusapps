@@ -293,7 +293,8 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
     // Permission info from backend
     permission: mapPermission(apiApp.permission as string | undefined),
     isShared: apiApp.isShared as boolean | undefined,
-    sharedBy: apiApp.sharedBy as string | undefined
+    sharedBy: apiApp.sharedBy as string | undefined,
+    isFavorite: apiApp.isFavorite as boolean | undefined
   }
 }
 
@@ -342,12 +343,14 @@ export const SpreadsheetApiService = {
     search?: string
     page?: number
     limit?: number
+    section?: 'favorites'
   }): Promise<SpreadsheetAppSummary[]> {
     const params = new URLSearchParams()
     if (options?.status) params.set('status', options.status)
     if (options?.search) params.set('search', options.search)
     if (options?.page) params.set('page', options.page.toString())
     if (options?.limit) params.set('limit', options.limit.toString())
+    if (options?.section) params.set('section', options.section)
 
     const queryString = params.toString()
     const endpoint = `${spreadsheetEndpoint()}${queryString ? `?${queryString}` : ''}`

@@ -19,6 +19,7 @@ export interface WhiteboardSummary extends Whiteboard {
   isShared?: boolean
   sharedBy?: string
   permission?: WhiteboardPermission
+  isFavorite?: boolean
 }
 
 export type WhiteboardPermission = 'view' | 'comment' | 'edit' | 'admin'

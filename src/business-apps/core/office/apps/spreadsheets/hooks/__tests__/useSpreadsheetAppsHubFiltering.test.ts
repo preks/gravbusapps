@@ -32,7 +32,6 @@ describe('useSpreadsheetAppsHubFiltering', () => {
         apps,
         currentUserId: 'user-1',
         activeSection: 'my-files',
-        favorites: new Set<string>(),
         searchQuery: '',
         sortBy: 'name',
         sortOrder: 'asc'
@@ -66,7 +65,6 @@ describe('useSpreadsheetAppsHubFiltering', () => {
         apps,
         currentUserId: 'user-1',
         activeSection: 'tasks',
-        favorites: new Set<string>(),
         taskAppIds: new Set(['fallback-1']),
         searchQuery: '',
         sortBy: 'name',
@@ -95,7 +93,6 @@ describe('useSpreadsheetAppsHubFiltering', () => {
         apps,
         currentUserId: 'user-1',
         activeSection: 'tasks',
-        favorites: new Set<string>(),
         taskAppIds: new Set(['copy-1']),
         searchQuery: '',
         sortBy: 'name',
@@ -123,7 +120,6 @@ describe('useSpreadsheetAppsHubFiltering', () => {
         apps,
         currentUserId: 'recipient-1',
         activeSection: 'tasks',
-        favorites: new Set<string>(),
         searchQuery: '',
         sortBy: 'name',
         sortOrder: 'asc'

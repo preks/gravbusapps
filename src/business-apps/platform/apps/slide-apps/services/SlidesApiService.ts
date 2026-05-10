@@ -124,6 +124,7 @@ function mapApiSlideToSummary(api: Record<string, unknown>): SlideSummary {
     sharedBy: api.sharedBy as string | undefined,
     permission: mapPermission((api.permission as string) || 'view'),
     isOwner: api.isOwner as boolean | undefined,
+    isFavorite: api.isFavorite as boolean | undefined,
     spaceId: (api.spaceId as string | null | undefined) ?? null,
     trashedAt: (api.trashedAt as string | null | undefined) ?? null
   }
@@ -218,12 +219,14 @@ export const SlidesApiService = {
     page?: number
     limit?: number
     includeShared?: boolean
+    section?: 'favorites'
   }): Promise<SlideSummary[]> {
     const params = new URLSearchParams()
     if (options?.search) params.set('search', options.search)
     if (options?.page) params.set('page', options.page.toString())
     if (options?.limit) params.set('limit', options.limit.toString())
     params.set('includeShared', options?.includeShared !== false ? 'true' : 'false')
+    if (options?.section) params.set('section', options.section)
     const queryString = params.toString()
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(
       `/slides${queryString ? `?${queryString}` : ''}`

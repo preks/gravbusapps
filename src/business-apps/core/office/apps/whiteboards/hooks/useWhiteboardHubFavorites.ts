@@ -1,38 +1,14 @@
-import { useState, useCallback } from 'react'
+import { useDriveFavorites } from '@/business-apps/platform/apps/shared/hooks/useDriveFavorites'
 
-const STORAGE_KEY = 'whiteboard-hub-favorites'
+interface UseWhiteboardHubFavoritesParams {
+  accessToken?: string
+}
 
-export function useWhiteboardHubFavorites() {
-  const [favorites, setFavoritesState] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      return stored ? new Set(JSON.parse(stored)) : new Set()
-    } catch {
-      return new Set()
-    }
+export function useWhiteboardHubFavorites(params: UseWhiteboardHubFavoritesParams = {}) {
+  const { favorites, setFavorites, toggleFavorite } = useDriveFavorites({
+    accessToken: params.accessToken,
+    entityType: 'whiteboard'
   })
-
-  const setFavorites = useCallback((next: Set<string>) => {
-    setFavoritesState(next)
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]))
-    } catch {
-      // Ignore storage errors
-    }
-  }, [])
-
-  const toggleFavorite = useCallback(
-    (id: string) => {
-      const next = new Set(favorites)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      setFavorites(next)
-    },
-    [favorites, setFavorites]
-  )
 
   return { favorites, setFavorites, toggleFavorite }
 }

@@ -262,6 +262,7 @@ export interface DocumentSummary {
   isShared?: boolean // Whether this doc was shared with current user
   sharedBy?: string // User ID of person who shared (if shared)
   sharedByName?: string // Display name of person who shared (if shared)
+  isFavorite?: boolean
   sourceFile?: DocumentFileInfo // Source file info for PDFs
   isPdf?: boolean // Shorthand for sourceFile?.mimeType === 'application/pdf'
   settings?: {
