@@ -148,6 +148,49 @@
   margin: 1.5em 0;
 }
 
+/* Tables — visible borders on every cell, transparent background */
+.note-editor-content .tiptap table.note-editor-table {
+  --note-table-border: color-mix(in srgb, currentColor 35%, transparent);
+
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 1.25em 0;
+  font-size: 0.9375rem;
+  background: transparent;
+}
+
+.note-editor-content .tiptap td.note-editor-table-cell,
+.note-editor-content .tiptap th.note-editor-table-header {
+  position: relative;
+  border: 1px solid var(--note-table-border);
+  padding: 0.5em 0.65em;
+  vertical-align: top;
+  min-width: 3rem;
+  height: 2.5rem;
+  word-break: break-word;
+  background: transparent;
+}
+
+.note-editor-content .tiptap td.note-editor-table-cell > p,
+.note-editor-content .tiptap th.note-editor-table-header > p {
+  margin-bottom: 0.35em;
+}
+
+.note-editor-content .tiptap td.note-editor-table-cell > p:last-child,
+.note-editor-content .tiptap th.note-editor-table-header > p:last-child {
+  margin-bottom: 0;
+}
+
+.note-editor-content .tiptap .selectedCell::after {
+  z-index: 2;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
 .note-editor-content .tiptap p.is-editor-empty:first-child::before {
   color: var(--color-muted-foreground);
   opacity: 0.35;
