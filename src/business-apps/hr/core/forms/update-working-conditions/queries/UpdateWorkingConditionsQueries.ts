@@ -17,6 +17,8 @@ export interface WorkingConditionsRecord {
   contractTypeRef?: string
   remoteRef?: string
   regionRef?: string
+  activeFrom?: string | null
+  activeTo?: string | null
   startDate?: string | null
   probationEndDate?: string | null
   endDate?: string | null
@@ -25,8 +27,14 @@ export interface WorkingConditionsRecord {
   }
 }
 
+export interface WorkingConditionValidationRecord {
+  id?: string
+  activeFrom?: string | null
+  activeTo?: string | null
+}
+
 export const GET_WORKING_CONDITIONS_LOOKUPS = `
-  query MyQuery($id: uuid!, $activeUserLocale: String!) {
+  query MyQuery($id: uuid!, $activeUserLocale: String!, $today: timestamptz!) {
     Employee(where: {id: {_eq: $id}}) {
       firstName
       lastName
@@ -40,7 +48,19 @@ export const GET_WORKING_CONDITIONS_LOOKUPS = `
         country { value id }
         type
       }
-      workingCondition {
+      workingCondition(
+        where: {
+          isDeleted: {_eq: false}
+          _or: [
+            {activeFrom: {_isNull: true}, activeTo: {_isNull: true}}
+            {
+              activeFrom: {_lte: $today}
+              _or: [{activeTo: {_isNull: true}}, {activeTo: {_gte: $today}}]
+            }
+          ]
+        }
+        orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
+      ) {
         contractTypeRef
         contractType { id value }
         employmentTypeRef
@@ -51,12 +71,19 @@ export const GET_WORKING_CONDITIONS_LOOKUPS = `
         region { id value }
         remoteRef
         remote { id value }
+        activeFrom
+        activeTo
         vacationDays
         version
         exitDate
         employeeId
         probationEnd
         additionalProperties
+      }
+      workingConditionValidationRecords: workingCondition(where: {isDeleted: {_eq: false}}) {
+        id
+        activeFrom
+        activeTo
       }
     }
     allEmploymentRegions: CatalogEntry(
@@ -132,6 +159,9 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
   const [remoteOptions, setRemoteOptions] = useState<SelectOption[]>([])
   const [regions, setRegions] = useState<SelectOption[]>([])
   const [current, setCurrent] = useState<WorkingConditionsRecord | null>(null)
+  const [workingConditionValidationRecords, setWorkingConditionValidationRecords] = useState<
+    WorkingConditionValidationRecord[]
+  >([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [jobTitle, setJobTitle] = useState<string>('')
@@ -149,6 +179,39 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
       additionalValue2: e.additionalValue2 || null
     }))
 
+  const toTimestamp = (value?: string | null): number | null => {
+    if (!value) {
+      return null
+    }
+
+    const timestamp = Date.parse(value)
+    return Number.isNaN(timestamp) ? null : timestamp
+  }
+
+  const isActiveWorkingCondition = (record: any, today: string): boolean => {
+    const activeFrom = toTimestamp(record?.activeFrom)
+    const todayTimestamp = toTimestamp(today)
+
+    if (activeFrom === null || todayTimestamp === null || activeFrom > todayTimestamp) {
+      return false
+    }
+
+    const activeTo = toTimestamp(record?.activeTo)
+    return activeTo === null || activeTo >= todayTimestamp
+  }
+
+  const isLegacyWorkingCondition = (record: any): boolean => !record?.activeFrom && !record?.activeTo
+
+  const getCurrentWorkingCondition = (records: any[], today: string) => {
+    const activeRecord = records.find(record => isActiveWorkingCondition(record, today))
+
+    if (activeRecord) {
+      return activeRecord
+    }
+
+    return records.find(isLegacyWorkingCondition) || null
+  }
+
   const load = useCallback(async () => {
     const employeeId =
       (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
@@ -159,16 +222,20 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
     setError(null)
     try {
       const locale = getCurrentActiveUserLocale() || 'en-US'
+      const today = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`
       const res = await graphqlClient.request<any>(GET_WORKING_CONDITIONS_LOOKUPS, {
         id: employeeId,
-        activeUserLocale: locale
+        activeUserLocale: locale,
+        today
       })
       setEmploymentTypes(toOptions(res?.employmentTypes))
       setContractTypes(toOptions(res?.contractTypes))
       setRemoteOptions(toOptions(res?.remote))
       const employeeCountry = res?.employee?.[0]?.addresses?.[0]?.country || null
       const employeeCountryId = employeeCountry?.id || ''
-      const wcRaw = res?.employee?.[0]?.workingCondition?.[0] || null
+      const workingConditionCandidates = res?.employee?.[0]?.workingCondition || []
+      const wcRaw = getCurrentWorkingCondition(workingConditionCandidates, today)
+      setWorkingConditionValidationRecords(res?.employee?.[0]?.workingConditionValidationRecords || [])
       const currentRegionId = wcRaw?.region?.id
       const allRegionsFromLookups = res?.allEmploymentRegions || []
       const currentRegionEntry = currentRegionId
@@ -228,6 +295,8 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
             contractTypeRef: wcRaw.contractType?.id || wcRaw.contractTypeRef,
             remoteRef: wcRaw.remote?.id || wcRaw.remoteRef,
             regionRef: wcRaw.region?.id || wcRaw.regionRef,
+            activeFrom: wcRaw.activeFrom || null,
+            activeTo: wcRaw.activeTo || null,
             startDate: wcRaw.hireDate || null,
             probationEndDate: wcRaw.probationEnd || null,
             endDate: wcRaw.exitDate || null,
@@ -262,6 +331,7 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
     regions,
     countryId,
     current,
+    workingConditionValidationRecords,
     jobTitle,
     firstName,
     lastName,

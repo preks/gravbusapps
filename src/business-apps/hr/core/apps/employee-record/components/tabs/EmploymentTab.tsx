@@ -2,7 +2,16 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
+import {
+  Button,
+  Card,
+  CardContent,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { WarningIcon } from '@phosphor-icons/react'
 import { Employee } from '../../hooks/useEmployeeData'
 import { AppAction } from '@/components/app-action/AppAction'
 import translations from '../../_i18n'
@@ -30,7 +39,85 @@ interface EmploymentTabProps {
  */
 const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, showChangeTaxDetailsButton = false }) => {
   const { t } = useTranslation(translations)
-  const workingCondition = employee.workingCondition?.[0]
+  const [selectedWorkingConditionIndex, setSelectedWorkingConditionIndex] = React.useState(0)
+  const workingConditions = React.useMemo(() => {
+    return [...(employee.workingCondition || [])].sort((a, b) => {
+      const firstDate = dayjs(a.activeFrom || a.hireDate)
+      const secondDate = dayjs(b.activeFrom || b.hireDate)
+
+      if (!firstDate.isValid() && !secondDate.isValid()) {
+        return 0
+      }
+
+      if (!firstDate.isValid()) {
+        return 1
+      }
+
+      if (!secondDate.isValid()) {
+        return -1
+      }
+
+      return firstDate.valueOf() - secondDate.valueOf()
+    })
+  }, [employee.workingCondition])
+  const activeWorkingConditionIndex = React.useMemo(() => {
+    const today = dayjs().startOf('day')
+    const activeIndex = workingConditions.findIndex(condition => {
+      if (!condition.activeFrom) {
+        return false
+      }
+
+      const activeFrom = dayjs(condition.activeFrom).startOf('day')
+      const activeTo = condition.activeTo ? dayjs(condition.activeTo).startOf('day') : null
+
+      if (!activeFrom.isValid()) {
+        return false
+      }
+
+      const startsTodayOrEarlier = !today.isBefore(activeFrom, 'day')
+      const endsTodayOrLater = !activeTo?.isValid() || !today.isAfter(activeTo, 'day')
+
+      return startsTodayOrEarlier && endsTodayOrLater
+    })
+
+    return Math.max(activeIndex, 0)
+  }, [workingConditions])
+  const selectedWorkingConditionSafeIndex = Math.max(
+    0,
+    Math.min(selectedWorkingConditionIndex, workingConditions.length - 1)
+  )
+  const workingCondition = workingConditions[selectedWorkingConditionSafeIndex]
+  const hasMultipleWorkingConditions = workingConditions.length > 1
+  const isFirstWorkingCondition = selectedWorkingConditionSafeIndex <= 0
+  const isLastWorkingCondition = selectedWorkingConditionSafeIndex >= workingConditions.length - 1
+  const employmentPeriodIsNotContinuous = React.useMemo(() => {
+    const currentCondition = workingConditions[selectedWorkingConditionSafeIndex]
+    const previousCondition = workingConditions[selectedWorkingConditionSafeIndex - 1]
+    const nextCondition = workingConditions[selectedWorkingConditionSafeIndex + 1]
+    const currentStart = currentCondition?.activeFrom ? dayjs(currentCondition.activeFrom).startOf('day') : null
+    const currentEnd = currentCondition?.activeTo ? dayjs(currentCondition.activeTo).startOf('day') : null
+
+    if (previousCondition?.activeTo && currentStart?.isValid()) {
+      const previousEnd = dayjs(previousCondition.activeTo).startOf('day')
+      if (previousEnd.isValid() && !previousEnd.add(1, 'day').isSame(currentStart, 'day')) {
+        return true
+      }
+    }
+
+    if (nextCondition?.activeFrom && currentEnd?.isValid()) {
+      const nextStart = dayjs(nextCondition.activeFrom).startOf('day')
+      if (nextStart.isValid() && !currentEnd.add(1, 'day').isSame(nextStart, 'day')) {
+        return true
+      }
+    }
+
+    return false
+  }, [selectedWorkingConditionSafeIndex, workingConditions])
+
+  React.useEffect(() => {
+    setSelectedWorkingConditionIndex(activeWorkingConditionIndex)
+  }, [activeWorkingConditionIndex, employee.id, workingConditions.length])
+
   const primaryAddress = employee.addresses?.find(addr => addr.type === 'PRIMARY')
   const addressCountryId = primaryAddress?.country?.id ?? ''
   const regionLabelLinkedToAddress = useEmploymentRegionLabel(
@@ -89,6 +176,14 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
       {
         label: t('employment-label-employment-type'),
         value: getCatalogValue(workingCondition?.employmentType) || ''
+      },
+      {
+        label: t('employment-label-employment-start-date'),
+        value: workingCondition?.activeFrom ? dayjs(workingCondition.activeFrom).format('MMM D, YYYY') : ''
+      },
+      {
+        label: t('employment-label-employment-end-date'),
+        value: workingCondition?.activeTo ? dayjs(workingCondition.activeTo).format('MMM D, YYYY') : ''
       },
       {
         label: t('employment-label-hire-date'),
@@ -355,6 +450,54 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
               />
             </div>
             {renderDataItems(workingConditionsData)}
+            {hasMultipleWorkingConditions && (
+              <div
+                className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2"
+                data-testid="employment-working-conditions-pagination"
+              >
+                {employmentPeriodIsNotContinuous && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="gba:inline-flex gba:items-center gba:text-warning"
+                        data-testid="employment-working-conditions-period-warning"
+                      >
+                        <WarningIcon size={16} />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('employment-working-conditions-period-not-continuous')}</TooltipContent>
+                  </Tooltip>
+                )}
+                <span
+                  className="gba:text-xs gba:text-muted-foreground"
+                  data-testid="employment-working-conditions-pagination-position"
+                >
+                  {selectedWorkingConditionSafeIndex + 1} / {workingConditions.length}
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={isFirstWorkingCondition}
+                  data-testid="employment-working-conditions-previous"
+                  onClick={() => setSelectedWorkingConditionIndex(prev => Math.max(0, prev - 1))}
+                >
+                  {t('employment-working-conditions-previous')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={isLastWorkingCondition}
+                  data-testid="employment-working-conditions-next"
+                  onClick={() =>
+                    setSelectedWorkingConditionIndex(prev => Math.min(workingConditions.length - 1, prev + 1))
+                  }
+                >
+                  {t('employment-working-conditions-next')}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

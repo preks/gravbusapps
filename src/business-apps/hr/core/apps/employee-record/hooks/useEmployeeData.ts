@@ -215,6 +215,8 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         id
         version
         regionRef
+        activeFrom
+        activeTo
         probationEnd
         contractType {
           value
@@ -705,6 +707,8 @@ interface WorkingCondition {
   id: string
   version: number
   regionRef: string
+  activeFrom?: string | null
+  activeTo?: string | null
   probationEnd: string
   contractType: CodeValue
   employmentType: CodeValue
