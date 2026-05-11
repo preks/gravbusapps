@@ -25,6 +25,7 @@ interface AbsenceDateRangePickerProps {
   employeeId: string
   selectedTypeRef?: string
   prevalidate?: PrevalidateResult
+  minDate?: Date
   disabled?: boolean
   'data-testid'?: string
 }
@@ -61,6 +62,7 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
   employeeId,
   selectedTypeRef,
   prevalidate = IDLE_PREVALIDATE,
+  minDate,
   disabled = false,
   'data-testid': testId = 'absence-date-range-input'
 }) => {
@@ -72,6 +74,7 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
     useAbsenceCalendarData(accessToken, employeeId, visibleMonth, selectedTypeRef)
 
   const blockedDateSet = new Set([...blockedRequestDates, ...bankHolidayDates].map(toLocalDateStr))
+  const minDateKey = minDate ? toLocalDateStr(minDate) : undefined
 
   const handleSelect = useCallback(
     (range: DateRange | undefined) => {
@@ -203,7 +206,10 @@ export const AbsenceDateRangePicker: React.FC<AbsenceDateRangePickerProps> = ({
           onSelect={(range: unknown) => handleSelect(range as DateRange | undefined)}
           onMonthChange={handleMonthChange}
           defaultMonth={visibleMonth}
-          disabled={date => blockedDateSet.has(toLocalDateStr(date))}
+          disabled={date => {
+            const dateKey = toLocalDateStr(date)
+            return blockedDateSet.has(dateKey) || Boolean(minDateKey && dateKey < minDateKey)
+          }}
           modifiers={{
             approved: approvedDates,
             pending: pendingDates,

@@ -6,6 +6,7 @@ import type { BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { Address } from '@/common/data/common/types/commonTypes'
 import type { AddressType, SourceTable } from './investmentEnums'
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
+import type { InvestmentCompany } from './investmentCompanyTypes'
 
 /**
  * InvestmentAddress
@@ -25,7 +26,31 @@ export interface InvestmentAddress extends BaseEntity, Address {
   opportunityId?: string
   lead?: any // InvestmentLead
   leadId?: string
+  investmentCompany?: InvestmentCompany
+  investmentCompanyId?: string
 }
+
+export const InvestmentAddressFields = {
+  id: 'id',
+  addressType: 'addressType',
+  addressLine: 'addressLine',
+  locality: 'locality',
+  postalCode: 'postalCode',
+  region: 'region',
+  regionRef: 'regionRef',
+  country: 'country',
+  countryRef: 'countryRef',
+  account: 'account',
+  accountId: 'accountId',
+  contact: 'contact',
+  contactId: 'contactId',
+  opportunity: 'opportunity',
+  opportunityId: 'opportunityId',
+  lead: 'lead',
+  leadId: 'leadId',
+  investmentCompany: 'investmentCompany',
+  investmentCompanyId: 'investmentCompanyId'
+} as const
 
 /**
  * Investment Address Fragment
@@ -46,4 +71,5 @@ export const INVESTMENT_ADDRESS_FRAGMENT = `
     ${CATALOG_ENTRY}
   }
   countryRef
+  investmentCompanyId
 `

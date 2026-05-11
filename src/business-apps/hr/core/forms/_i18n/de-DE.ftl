@@ -285,9 +285,28 @@ adjust-salary-process-title = Gehaltsanpassung
 adjust-salary-pending-status = Ausstehend
 
 # Update Working Conditions Form
+working-conditions-title = Arbeitsbedingungen aktualisieren
+working-conditions-employment-start-date = Beschäftigungsbeginn
+working-conditions-employment-end-date = Beschäftigungsende
+working-conditions-employment-type = Beschäftigungsart
+working-conditions-contract-type = Vertragsart
+working-conditions-remote = Remote
+working-conditions-region = Region
+working-conditions-start-date = Startdatum
+working-conditions-probation-end-date = Ende der Probezeit
 working-conditions-probation-period = Probezeit
+working-conditions-select-remote = Remote auswählen
+working-conditions-select-region = Region auswählen
+working-conditions-future-entry-dates-required = Dieses Datum muss morgen oder später sein
+working-conditions-active-period-overlap = Der aktive Zeitraum der Arbeitsbedingungen überschneidet sich mit bestehenden Arbeitsbedingungen
+working-conditions-employment-end-before-start = Das Beschäftigungsende darf nicht vor dem Beschäftigungsbeginn liegen
 working-conditions-probation-end-before-start = Das Ende der Probezeit muss am Startdatum oder danach liegen.
 working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
+working-conditions-required = Bitte füllen Sie alle Pflichtfelder aus
+working-conditions-change-mode-title = Beschäftigungsänderung bestätigen
+working-conditions-change-mode-description = Möchten Sie die aktuelle Beschäftigung ändern oder eine neue zum Mitarbeiter hinzufügen?
+working-conditions-change-mode-update = Aktualisieren
+working-conditions-change-mode-add = Hinzufügen
 working-conditions-unit-day = { $count ->
     [one] Tag
    *[other] Tage
@@ -308,6 +327,7 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
 request-correction-date-absence-error = Dieses Datum ist ein Feiertag oder eine Abwesenheit und kann nicht für eine Korrekturanfrage verwendet werden.
+request-correction-date-before-hire-error = Dieses Datum liegt vor dem Eintrittsdatum des Mitarbeiters und kann nicht für eine Korrekturanfrage verwendet werden.
 request-correction-zero-planned-warning = Für dieses Datum sind keine Arbeitsstunden geplant. Eingetragene Zeiten werden als Überstunden gewertet.
 notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
@@ -386,6 +406,7 @@ create-absence-days = Tage
 create-absence-effective-days-label = Effektive Tage
 create-absence-calendar-days-label = Kalendertage
 create-absence-end-date-after-start = Das Enddatum muss nach dem Startdatum liegen.
+create-absence-date-before-hire-error = Abwesenheitsdaten dürfen nicht vor dem Eintrittsdatum des Mitarbeiters liegen.
 create-absence-single-day-bank-holiday-blocked = Der gewählte Tag ist ein Feiertag. Sie können für dieses Datum keine eintägige Abwesenheit einreichen.
 create-absence-validation-failed = Validierung fehlgeschlagen. Bitte versuchen Sie es erneut.
 create-absence-bank-holidays-not-counted = { $count } Tage sind Feiertage und werden daher nicht berücksichtigt.

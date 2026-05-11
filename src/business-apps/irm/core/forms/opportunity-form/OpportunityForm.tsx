@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
+import { InvestmentCompanySelect } from '@/components/investment-company-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 import {
@@ -63,6 +64,7 @@ const prefixDataTestId = 'InvestmentOpportunityForm'
 
 // Base investment opportunity schema (will be extended with investmentTypeId)
 const baseInvestmentOpportunitySchema = opportunitySchemaBase.extend({
+  investmentCompanyId: z.string().nullable().optional(),
   investmentName: z.string().min(1, 'Investment Name is required'),
   dealType: z.string().nullable().optional()
 })
@@ -544,6 +546,31 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     return formData
   }
 
+  const companySelectField = useMemo(
+    () => (
+      <FormField
+        control={form.control}
+        name="investmentCompanyId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Company</FormLabel>
+            <FormControl>
+              <InvestmentCompanySelect
+                value={field.value || null}
+                onValueChange={(value: string | null) => field.onChange(value || '')}
+                businessAppContext={{ accessToken, userInfo, additionalData }}
+                initialCompany={opportunity?.investmentCompany}
+                data-testid={formatDataTestId(prefixDataTestId, 'company-select')}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    ),
+    [accessToken, additionalData, form.control, opportunity?.investmentCompany, userInfo]
+  )
+
   // Deal Type selector - hide if dealType is already set (from additionalData or opportunity)
   const dealTypeField = useMemo(() => {
     // Hide if dealType is set from additionalData (create mode) OR from opportunity (edit mode)
@@ -678,6 +705,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
           accountTypeCatalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
           opportunityInformationCustomFields={
             <>
+              {companySelectField}
               {dealTypeField}
               {investmentSelectorField}
             </>

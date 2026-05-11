@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Button, Alert, AlertDescription, Spinner, Badge } from '@newwork/nw-design-system'
-import { message } from 'antd'
+import { Button, Alert, AlertDescription, Spinner, Badge, toast } from '@newwork/nw-design-system'
 import { useStageTransitionPopupContext } from '../context/StageTransitionPopupContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -19,12 +18,12 @@ const StageTransitionPopupComponent: React.FC = () => {
       try {
         const response = event.detail?.response
         if (response) {
-          message.success('Opportunity stage transitioned successfully')
+          toast.success('Opportunity stage transitioned successfully')
           setSubmitting(false)
         }
       } catch (err: any) {
         console.error('Error in process completion:', err)
-        message.error(err?.message || 'Failed to transition opportunity stage')
+        toast.error(err?.message || 'Failed to transition opportunity stage')
         setSubmitting(false)
       }
     }
@@ -38,11 +37,11 @@ const StageTransitionPopupComponent: React.FC = () => {
 
   const handleSubmit = async () => {
     if (Array.isArray(incompleteConditionIds) && incompleteConditionIds.length > 0) {
-      message.error('Please complete all required conditions for the current stage before transitioning.')
+      toast.error('Please complete all required conditions for the current stage before transitioning.')
       return
     }
     if (!formValues.opportunityId || !formValues.targetStageRef) {
-      message.error('Missing required data')
+      toast.error('Missing required data')
       return
     }
 
@@ -54,7 +53,7 @@ const StageTransitionPopupComponent: React.FC = () => {
       })
     } catch (err: any) {
       console.error('Error submitting stage transition:', err)
-      message.error(err?.message || 'Failed to transition opportunity stage')
+      toast.error(err?.message || 'Failed to transition opportunity stage')
       setSubmitting(false)
     }
   }

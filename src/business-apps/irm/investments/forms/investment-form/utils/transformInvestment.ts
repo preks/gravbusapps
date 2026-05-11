@@ -80,12 +80,12 @@ export const transformInvestment = (
     ;(mappedValues.investment as any).investmentAccounts = investment.investmentAccounts
   }
 
-  // Explicitly preserve company for update mode prefill (CompanySelect needs company object for initialCompany)
-  if (investment.company && mappedValues.investment) {
-    ;(mappedValues.investment as any).company = investment.company
+  // Explicitly preserve investment company for update mode prefill (InvestmentCompanySelect needs company object for initialCompany)
+  if (investment.investmentCompany && mappedValues.investment) {
+    ;(mappedValues.investment as any).investmentCompany = investment.investmentCompany
   }
-  if (investment.companyId && mappedValues.investment) {
-    ;(mappedValues.investment as any).companyId = investment.companyId
+  if (investment.investmentCompanyId && mappedValues.investment) {
+    ;(mappedValues.investment as any).investmentCompanyId = investment.investmentCompanyId
   }
 
   // Convert null to undefined for optional fields (schema expects string | undefined, not null)

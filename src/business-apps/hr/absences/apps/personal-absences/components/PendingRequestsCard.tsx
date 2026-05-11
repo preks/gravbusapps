@@ -1,6 +1,6 @@
 import type { ActionOption } from '@newwork/nw-design-system'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Skeleton } from '@newwork/nw-design-system'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { formatDate } from '@/common/utils/windowUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
@@ -12,7 +12,7 @@ interface PendingRequestsCardProps {
   isLoading: boolean
   pendingRequests: AbsenceRow[]
   t: TFunction
-  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot) => Promise<void>
+  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot) => Promise<boolean>
   cancellingAbsenceId: string | null
   accessToken?: string
 }
@@ -81,13 +81,13 @@ export function PendingRequestsCard({
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
                     <Badge variant="pending">{getAbsenceStatusLabel('PENDING')}</Badge>
-                    <AppActionButton
+                    <AppAction
                       data-testid={`personal-absence-pending-actions-${a.id}`}
-                      size="icon"
-                      staticFlowData={buildActions(a)}
+                      variant="table-row"
+                      customActions={buildActions(a)}
                       prefixDataTestId={`personal-absence-pending-action-${a.id}`}
                       accessToken={accessToken}
-                      emptyStateBehavior="enable"
+                      emptyState="enable"
                       deferMainContextRequestsUntilClick
                       disabled={cancellingAbsenceId === a.id}
                     />

@@ -10,7 +10,12 @@ import {
   Button,
   Badge,
   Card,
-  CardContent
+  CardContent,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
 import { CalendarIcon, TagIcon, MegaphoneIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -373,22 +378,18 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
         <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
           <div className="gba:flex gba:items-center gba:space-x-2">
             <p className="gba:text-sm gba:font-medium">Rows per page</p>
-            <select
-              value={pageSize}
-              onChange={e => onPaginationChange(1, Number(e.target.value))}
-              className="gba:h-8 gba:w-[70px] gba:rounded gba:px-3 gba:py-1 gba:text-sm"
-              style={{
-                border: '1px solid var(--color-border-default)',
-                backgroundColor: 'var(--color-surface-primary)',
-                color: 'var(--color-text-primary)'
-              }}
-              data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
+            <Select value={String(pageSize)} onValueChange={value => onPaginationChange(1, Number(value))}>
+              <SelectTrigger className="gba:h-8 gba:w-20" data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50, 100].map(size => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div
             className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"

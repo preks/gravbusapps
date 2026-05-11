@@ -9,13 +9,15 @@
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
-import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
 import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
 import { InvestmentAccountFields } from '../../types/investmentAccountTypes'
 import { InvestmentContactFields } from '../../types/investmentContactTypes'
+import { INVESTMENT_ADDRESS_FRAGMENT } from '../../types/investmentAddressTypes'
 import {
   INVESTMENT_ACCOUNT_REF,
+  INVESTMENT_COMPANY_GROUP_REF,
+  INVESTMENT_COMPANY_REF,
   INVESTMENT_CONTACT_REF,
   INVESTMENT_LEAD_REF,
   INVESTMENT_OPPORTUNITY_REF,
@@ -28,6 +30,74 @@ import {
   REAL_ESTATE_INVESTMENT_REF,
   LIQUID_FUND_INVESTMENT_REF
 } from './investmentReferenceFragments'
+
+export const INVESTMENT_COMPANY_EXECUTIVE = `
+  id
+  ${AUDIT_FIELDS}
+  investmentCompanyId
+  employeeId
+  investmentContactId
+  executiveType {
+    ${CATALOG_ENTRY}
+  }
+  executiveTypeRef
+  employee {
+    ${EMPLOYEE_REF}
+  }
+  investmentContact {
+    ${INVESTMENT_CONTACT_REF}
+  }
+`
+
+export const INVESTMENT_COMPANY_OWNERSHIP = `
+  id
+  ${AUDIT_FIELDS}
+  investmentCompanyId
+  ownerInvestmentCompanyId
+  percentage
+  ownerInvestmentCompany {
+    ${INVESTMENT_COMPANY_REF}
+  }
+`
+
+export const INVESTMENT_COMPANY_GROUP_ASSOCIATION = `
+  id
+  ${AUDIT_FIELDS}
+  investmentCompanyId
+  investmentCompanyGroupId
+  investmentCompany {
+    ${INVESTMENT_COMPANY_REF}
+  }
+  investmentCompanyGroup {
+    ${INVESTMENT_COMPANY_GROUP_REF}
+  }
+`
+
+export const INVESTMENT_COMPANY = `
+  ${INVESTMENT_COMPANY_REF}
+  investmentAddress(where: { isDeleted: { _eq: false } }) {
+    ${INVESTMENT_ADDRESS_FRAGMENT}
+  }
+  investmentDocument(where: { isDeleted: { _eq: false } }) {
+    ${INVESTMENT_DOCUMENT_REF}
+  }
+  investmentCompanyExecutives(where: { isDeleted: { _eq: false } }) {
+    ${INVESTMENT_COMPANY_EXECUTIVE}
+  }
+  investmentCompanyOwnership(where: { isDeleted: { _eq: false } }) {
+    ${INVESTMENT_COMPANY_OWNERSHIP}
+  }
+  investmentCompanyGroupAssociation(where: { isDeleted: { _eq: false } }) {
+    ${INVESTMENT_COMPANY_GROUP_ASSOCIATION}
+  }
+`
+
+export const INVESTMENT_COMPANY_GROUP = `
+  ${INVESTMENT_COMPANY_GROUP_REF}
+  investmentCompanyGroupAssociation(where: { isDeleted: { _eq: false } }) {
+    ${INVESTMENT_COMPANY_GROUP_ASSOCIATION}
+  }
+`
 
 /**
  * ============================================================================
@@ -183,6 +253,8 @@ export const INVESTMENT_DOCUMENT = `
   ${INVESTMENT_DOCUMENT_REF}
   account { ${INVESTMENT_ACCOUNT_REF} }
   accountId
+  investmentCompany { ${INVESTMENT_COMPANY_REF} }
+  investmentCompanyId
   contact { ${INVESTMENT_CONTACT_REF} }
   contactId
   opportunity { ${INVESTMENT_OPPORTUNITY_REF} }
@@ -321,8 +393,8 @@ export const INVESTMENT = `
     }
     
     # Company relationship
-    company {
-        ${COMPANY_REF}
+    investmentCompany {
+        ${INVESTMENT_COMPANY_REF}
     }
     
     # All investment specializations with full details

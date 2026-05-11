@@ -75,7 +75,7 @@ import type { PagedDocumentEditorRef } from './components/PagedDocumentEditor'
 import { DocumentAppsHubEditorView } from './components/DocumentAppsHubEditorView'
 
 // Hooks
-import { useDocumentApps } from './hooks/useDocumentApps'
+import { useDocumentApps, type ListQueryParams } from './hooks/useDocumentApps'
 import { useDocumentTemplates } from './hooks/useDocumentTemplates'
 
 import { useDocumentAppsHubUserLookup } from './hooks/useDocumentAppsHubUserLookup'
@@ -94,6 +94,7 @@ import { DriveApiService } from '@/business-apps/core/office/apps/drive/services
 // Entities / context
 import { getContextForCategory, getContextForEntityKeys } from './entities'
 import { extractEntityKeysFromContent } from './utils/templatePlaceholders'
+import { readInitialSectionFromUrl } from './utils/readInitialSectionFromUrl'
 
 // Types
 import type { DocumentTemplate, ParsedWordDocument, DocumentSummary } from './types'
@@ -188,11 +189,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeSection, setActiveSection] = useState<SidebarSection>('my-documents')
+  const [activeSection, setActiveSection] = useState<SidebarSection>(() => readInitialSectionFromUrl())
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const { favorites, setFavorites } = useDocumentAppsHubFavorites()
+  const { favorites, toggleFavorite: toggleDocumentFavorite } = useDocumentAppsHubFavorites({ accessToken })
 
   // Data state
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
@@ -290,9 +291,49 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     activeSection,
     setActiveSection
   })
-  const handleTrashItemsChanged = useCallback(() => {
-    void refreshDocuments()
-  }, [refreshDocuments])
+  const sortByMap: Record<string, 'createdAt' | 'updatedAt' | 'title'> = {
+    created: 'createdAt',
+    modified: 'updatedAt',
+    name: 'title'
+  }
+
+  // Drive server-side queries when section, search, sort, or page changes
+  const serverPageRef = useRef(1)
+  const PAGE_SIZE = 20
+
+  const buildListQuery = useCallback(
+    (sectionOverride: SidebarSection = activeSection, page = serverPageRef.current): ListQueryParams | null => {
+      if (sectionOverride === 'templates' || sectionOverride === 'trash') {
+        return null
+      }
+
+      return {
+        section: sectionOverride,
+        search: searchQuery || undefined,
+        page,
+        limit: PAGE_SIZE,
+        sortBy: sortByMap[sortBy] ?? 'updatedAt',
+        sortOrder: sortOrder === 'asc' ? 'ASC' : 'DESC'
+      }
+    },
+    [activeSection, searchQuery, sortBy, sortOrder]
+  )
+
+  const refreshCurrentList = useCallback(
+    async (sectionOverride: SidebarSection = activeSection, page = serverPageRef.current) => {
+      const query = buildListQuery(sectionOverride, page)
+      if (!query) {
+        return
+      }
+
+      await refreshDocuments(query)
+    },
+    [activeSection, buildListQuery, refreshDocuments]
+  )
+
+  const handleTrashItemsChanged = useCallback(async () => {
+    await refreshCurrentList()
+  }, [refreshCurrentList])
   const trashList = useOfficeTrashList({
     accessToken,
     entityType: 'document',
@@ -342,7 +383,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       toast.success(`${toDelete.length} item${toDelete.length === 1 ? '' : 's'} deleted permanently`)
       setSelectedTrashIds(new Set())
       await trashList.refresh()
-      void refreshDocuments()
+      await refreshCurrentList()
     } catch (error) {
       console.error('[DocumentAppsHub] Failed to bulk delete trash items:', error)
       toast.error('Failed to delete some items permanently')
@@ -350,7 +391,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       setIsBulkDeletingTrash(false)
       setBulkDeleteTrashOpen(false)
     }
-  }, [accessToken, refreshDocuments, selectedTrashIds, trashList])
+  }, [accessToken, refreshCurrentList, selectedTrashIds, trashList])
 
   const handleBulkRestoreTrash = useCallback(async () => {
     if (!accessToken || selectedTrashIds.size === 0) return
@@ -362,14 +403,14 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       toast.success(`${toRestore.length} item${toRestore.length === 1 ? '' : 's'} restored`)
       setSelectedTrashIds(new Set())
       await trashList.refresh()
-      void refreshDocuments()
+      await refreshCurrentList()
     } catch (error) {
       console.error('[DocumentAppsHub] Failed to bulk restore trash items:', error)
       toast.error('Failed to restore some items')
     } finally {
       setIsBulkRestoringTrash(false)
     }
-  }, [accessToken, refreshDocuments, selectedTrashIds, trashList])
+  }, [accessToken, refreshCurrentList, selectedTrashIds, trashList])
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   useEffect(() => {
@@ -381,41 +422,27 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     }
   }, [activeSection, currentView, selectedDocumentId, updateUrl])
 
-  // Map frontend sort names to backend field names
-  const sortByMap: Record<string, 'createdAt' | 'updatedAt' | 'title'> = {
-    created: 'createdAt',
-    modified: 'updatedAt',
-    name: 'title'
-  }
-
-  // Drive server-side queries when section, search, sort, or page changes
-  const serverPageRef = useRef(1)
-  const PAGE_SIZE = 20
-
   const fetchPage = useCallback(
     (page: number) => {
-      if (activeSection === 'trash') {
-        return
-      }
       serverPageRef.current = page
-      refreshDocuments({
-        section: activeSection === 'templates' ? undefined : activeSection,
-        favoriteIds: activeSection === 'favorites' ? [...favorites].join(',') : undefined,
-        search: searchQuery || undefined,
-        page,
-        limit: PAGE_SIZE,
-        sortBy: sortByMap[sortBy] ?? 'updatedAt',
-        sortOrder: sortOrder === 'asc' ? 'ASC' : 'DESC'
+      refreshCurrentList(activeSection, page).catch(error => {
+        console.error('[DocumentAppsHub] Failed to refresh list after page change:', error)
       })
     },
-    [activeSection, favorites, searchQuery, sortBy, sortOrder, refreshDocuments]
+    [activeSection, refreshCurrentList]
   )
+
+  const handleRefreshDocumentsList = useCallback(() => {
+    refreshCurrentList().catch(error => {
+      console.error('[DocumentAppsHub] Failed to refresh document list:', error)
+    })
+  }, [refreshCurrentList])
 
   useEffect(() => {
     if (activeSection !== 'templates' && activeSection !== 'trash') {
       fetchPage(1)
     }
-  }, [activeSection, searchQuery, sortBy, sortOrder, favorites, fetchPage])
+  }, [activeSection, searchQuery, sortBy, sortOrder, fetchPage])
 
   const goToPage = useCallback((page: number) => fetchPage(page), [fetchPage])
 
@@ -770,7 +797,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       setCurrentView('editor')
       updateUrl(currentDocument.id, 'editor', 'my-documents')
       toast.success(t('toast-restored'))
-      await refreshDocuments()
+      await refreshCurrentList('my-documents', 1)
     } catch (error) {
       console.error('[DocumentAppsHub] Failed to restore trashed document:', error)
       toast.error(t('toast-restore-failed'))
@@ -783,7 +810,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     currentDocument?.id,
     currentDocumentPermission,
     loadDocument,
-    refreshDocuments,
+    refreshCurrentList,
     t,
     updateUrl
   ])
@@ -815,21 +842,14 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    * Toggle favorite
    */
   const toggleFavorite = useCallback(
-    (id: string, e?: React.MouseEvent) => {
+    async (id: string, e?: React.MouseEvent) => {
       e?.stopPropagation()
-      setFavorites(prev => {
-        const next = new Set(prev)
-        if (next.has(id)) {
-          next.delete(id)
-          toast.success(t('toast-removed-favorites'))
-        } else {
-          next.add(id)
-          toast.success(t('toast-added-favorites'))
-        }
-        return next
-      })
+      const wasFavorite = favorites.has(id)
+      await toggleDocumentFavorite(id)
+      await refreshCurrentList()
+      toast.success(t(wasFavorite ? 'toast-removed-favorites' : 'toast-added-favorites'))
     },
-    [t]
+    [favorites, refreshCurrentList, t, toggleDocumentFavorite]
   )
 
   /**
@@ -908,7 +928,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           shareDocument={shareDocument}
           onApprovalSent={async () => {
             if (documentForApproval) {
-              await refreshDocuments()
+              await refreshCurrentList()
               if (currentDocument?.id === documentForApproval) {
                 await loadDocument(documentForApproval)
               }
@@ -934,7 +954,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           accessToken={accessToken}
           shareDocument={shareDocument}
           onShareComplete={async () => {
-            refreshDocuments()
+            await refreshCurrentList()
             await refreshSharedUsersForDocument(documentForShare)
           }}
           data-testid={`${testId}-share-dialog`}
@@ -953,7 +973,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           documentTitle={documents.find(d => d.id === documentForManageShares)?.title || t('title-untitled-document')}
           accessToken={accessToken}
           onSharesChanged={async () => {
-            refreshDocuments()
+            await refreshCurrentList()
             await refreshSharedUsersForDocument(documentForManageShares)
           }}
           onAddMoreUsers={() => {
@@ -999,7 +1019,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           onGoToDocsHome={handleGoToDocsHome}
           onRestoreTrashedDocument={handleRestoreTrashedDocument}
           onApprovalResolved={async () => {
-            await refreshDocuments()
+            await refreshCurrentList()
             if (currentDocument?.id) {
               await loadDocument(currentDocument.id)
             }
@@ -1417,7 +1437,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => refreshDocuments()}
+                          onClick={handleRefreshDocumentsList}
                           className="gba:gap-1.5 gba:h-7 gba:text-xs"
                           data-testid={`${testId}-refresh`}
                         >
@@ -1574,8 +1594,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     <div className="gba:divide-y gba:divide-border">
                       {paginatedDocuments.map(doc => {
                         const isOwner = doc.isOwner || doc.permission === 'owner'
+                        const isCurrentUserCreator = Boolean(
+                          currentUserId && doc.createdBy && doc.createdBy === currentUserId
+                        )
                         const isSelected = selectedDocuments.has(doc.id)
-                        const isFavorite = favorites.has(doc.id)
+                        const isFavorite = doc.isFavorite ?? favorites.has(doc.id)
                         const ownerInfo = doc.createdBy ? ownerInfoMap.get(doc.createdBy) : undefined
                         const sharedWith = sharedUsersMap[doc.id] || []
                         const approvalMetadata = doc.settings?.approvalMetadata
@@ -1721,7 +1744,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                   </AvatarFallback>
                                 </Avatar>
                                 <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
-                                  {isOwner ? t('owner-you') : ownerInfo?.name || t('owner-unknown')}
+                                  {isCurrentUserCreator ? t('owner-you') : ownerInfo?.name || t('owner-unknown')}
                                 </span>
                               </div>
                             </div>
@@ -1804,7 +1827,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     {paginatedDocuments.map(doc => {
                       const isOwner = doc.isOwner || doc.permission === 'owner'
                       const isSelected = selectedDocuments.has(doc.id)
-                      const isFavorite = favorites.has(doc.id)
+                      const isFavorite = doc.isFavorite ?? favorites.has(doc.id)
                       const approvalMetadata = doc.settings?.approvalMetadata
 
                       return (

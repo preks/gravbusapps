@@ -182,6 +182,7 @@ task-dialog-completing = Wird abgeschlossen...
 task-dialog-complete-task = Aufgabe abschließen
 task-dialog-missing-user-info = Aufgabe kann nicht abgeschlossen werden: Benutzerinformationen fehlen.
 task-dialog-lowcoder-screen = Lowcoder-Bildschirm
+task-dialog-no-screen-available = Für diese Aufgabe ist noch kein Formular konfiguriert. Bitte wenden Sie sich an Ihren Administrator.
 
 # CompletedView Component
 completed-search-placeholder = Erledigte Aufgaben suchen...

@@ -137,7 +137,13 @@ function updateSheetRowsForRowDelete(sheets: SpreadsheetSheet[], sheetId: string
   return sheets.map(sheet => (sheet.id === sheetId ? { ...sheet, data: removeSheetRowById(sheet.data, rowId) } : sheet))
 }
 
-async function fetchAllAppsPaginated(): Promise<Awaited<ReturnType<typeof SpreadsheetApiService.listApps>>> {
+interface SpreadsheetAppsListOptions {
+  section?: 'favorites'
+}
+
+async function fetchAllAppsPaginated(
+  options?: SpreadsheetAppsListOptions
+): Promise<Awaited<ReturnType<typeof SpreadsheetApiService.listApps>>> {
   const PAGE_SIZE = 100
   const MAX_PAGES = 100
   const allApps: Awaited<ReturnType<typeof SpreadsheetApiService.listApps>> = []
@@ -147,7 +153,7 @@ async function fetchAllAppsPaginated(): Promise<Awaited<ReturnType<typeof Spread
   let hasMore = true
 
   while (hasMore && page <= MAX_PAGES) {
-    const pageItems = await SpreadsheetApiService.listApps({ limit: PAGE_SIZE, page })
+    const pageItems = await SpreadsheetApiService.listApps({ ...options, limit: PAGE_SIZE, page })
     const pageSignature = pageItems.map(app => app.id).join(',')
 
     if (pageItems.length > 0 && seenPageSignatures.has(pageSignature)) {
@@ -279,7 +285,11 @@ async function copyUniverSnapshotsAfterDuplicate(sourceAppId: string, duplicated
 /**
  * Hook for managing spreadsheet apps using the document-service backend
  */
-export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpreadsheetAppsResult {
+export function useSpreadsheetApps(
+  accessToken: string,
+  userId?: string,
+  listOptions?: SpreadsheetAppsListOptions
+): UseSpreadsheetAppsResult {
   const [state, setState] = useState<UseSpreadsheetAppsState>({
     apps: [],
     currentApp: null,
@@ -302,7 +312,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
     setState(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      const allApps = await fetchAllAppsPaginated()
+      const allApps = await fetchAllAppsPaginated(listOptions)
 
       setState(prev => ({
         ...prev,
@@ -319,7 +329,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         error: getErrorMessage(error, isConn, 'Failed to load apps')
       }))
     }
-  }, [accessToken])
+  }, [accessToken, listOptions])
 
   /**
    * Refresh apps (alias for loadApps)

@@ -13,6 +13,7 @@ of_planned = din { $planned }
 location_label = LOCAȚIE
 location_not_clocked_in = Nepontat
 location_placeholder = Pontați intrarea pentru a determina locația
+clock_in_before_hire_date = Pontarea este disponibilă începând cu data angajării.
 location_address_review_warning = Adresa trebuie revizuită pentru detectarea exactă a locației. Te rugăm să actualizezi adresa de domiciliu sau de birou.
 location_address_review_warning_home = Adresei tale de domiciliu îi lipsesc coordonatele. Te rugăm să o actualizezi pentru detectarea exactă a locației.
 location_address_review_warning_office = Adresei biroului tău îi lipsesc coordonatele. Cere unui administrator să o actualizeze pentru detectarea exactă a locației.

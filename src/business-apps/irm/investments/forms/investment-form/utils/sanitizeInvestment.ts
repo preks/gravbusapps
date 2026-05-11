@@ -31,7 +31,7 @@ export const sanitizeInvestment = (
 
   // Sanitize entity reference IDs - extract ID string if passed as object
   const ownerEmployeeId = extractIdOrString(investmentRaw.ownerEmployeeId)
-  const companyId = extractIdOrString(investmentRaw.companyId)
+  const investmentCompanyId = extractIdOrString(investmentRaw.investmentCompanyId)
   const loanRecipientInvestmentAccountId = extractIdOrString(investmentRaw.loanRecipientInvestmentAccountId)
 
   // Sanitize investmentAccounts - extract investmentAccountId from nested objects
@@ -58,7 +58,7 @@ export const sanitizeInvestment = (
     investmentTypeRef: typeId ?? undefined,
     // Sanitized entity reference IDs (extract ID string from objects)
     ownerEmployeeId,
-    ...(companyId !== undefined && { companyId }),
+    ...(investmentCompanyId !== undefined && { investmentCompanyId }),
     ...(loanRecipientInvestmentAccountId !== undefined && { loanRecipientInvestmentAccountId }),
     ...(investmentAccounts && { investmentAccounts }),
     // Include investmentOpportunityId if present (for creating investment from opportunity)

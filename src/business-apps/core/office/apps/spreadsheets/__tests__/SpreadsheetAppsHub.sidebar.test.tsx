@@ -7,6 +7,7 @@ jest.mock('@newwork/nw-design-system', () => {
   const passthrough = ({ children, ...props }: any) => <div {...props}>{children}</div>
   const button = ({ children, ...props }: any) => <button {...props}>{children}</button>
   const input = ({ ...props }: any) => <input {...props} />
+  const textarea = ({ ...props }: any) => <textarea {...props} />
   const checkbox = ({ checked, onCheckedChange }: any) => (
     <input type="checkbox" checked={!!checked} onChange={e => onCheckedChange?.(e.target.checked)} />
   )
@@ -14,6 +15,7 @@ jest.mock('@newwork/nw-design-system', () => {
     Card: passthrough,
     Button: button,
     Input: input,
+    Textarea: textarea,
     Spinner: () => <div>Loading...</div>,
     DropdownMenu: passthrough,
     DropdownMenuContent: passthrough,
@@ -135,7 +137,11 @@ jest.mock('../hooks/useDataPromotion', () => ({
 }))
 
 jest.mock('../hooks/useSpreadsheetAppsHubFavorites', () => ({
-  useSpreadsheetAppsHubFavorites: () => ({ favorites: new Set<string>(), setFavorites: jest.fn() })
+  useSpreadsheetAppsHubFavorites: () => ({
+    favorites: new Set<string>(),
+    toggleFavorite: jest.fn(),
+    setFavorites: jest.fn()
+  })
 }))
 
 jest.mock('../hooks/useSpreadsheetAppsHubUrlState', () => ({
@@ -187,7 +193,13 @@ jest.mock('../components/automations/SpreadsheetAutomationsSection', () => ({
 }))
 
 jest.mock('@/business-apps/platform/apps/shared/components/OfficeTrashList', () => ({
-  OfficeTrashList: () => <div data-testid="office-trash-list" />
+  OfficeTrashList: () => <div data-testid="office-trash-list" />,
+  OfficeTrashListTable: () => <div data-testid="office-trash-list-table" />,
+  OfficeTrashListToolbar: () => <div data-testid="office-trash-list-toolbar" />,
+  useOfficeTrashList: () => ({
+    sortedItems: [],
+    refresh: jest.fn()
+  })
 }))
 
 jest.mock('../utils/exportUtils', () => ({
@@ -222,7 +234,7 @@ describe('SpreadsheetAppsHub sidebar sections', () => {
     fireEvent.click(screen.getByTestId('spreadsheet-apps-hub-hero-tab-trash'))
 
     expect(screen.getByTestId('spreadsheet-apps-hub-trash-search')).toBeInTheDocument()
-    expect(screen.getByTestId('office-trash-list')).toBeInTheDocument()
+    expect(screen.getByTestId('office-trash-list-toolbar')).toBeInTheDocument()
   })
 
   it('does not render Share in the spreadsheet row overflow menu', () => {

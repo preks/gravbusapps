@@ -265,7 +265,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                   : false
                 const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
                 const isSelected = selectedNotes.has(note.id)
-                const isFavorite = favorites.has(note.id)
+                const isFavorite = note.isFavorite ?? favorites.has(note.id)
                 const ownerInfo = note.ownerId ? ownerInfoMap.get(note.ownerId) : undefined
                 const isHandwriting =
                   note.noteType === 'handwriting' ||

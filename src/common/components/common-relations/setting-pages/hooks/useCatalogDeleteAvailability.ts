@@ -106,6 +106,13 @@ const CATALOG_USAGE_SPECS: Record<string, CatalogUsageCheckSpec[]> = {
     { table: 'InvestmentAggregate', refField: 'investmentStakeTypeRef', label: 'investments' },
     { table: 'InvestmentReportAggregate', refField: 'investmentStakeTypeRef', label: 'investment reports' }
   ],
+  'Legal Entity Executive Type': [
+    {
+      table: 'InvestmentCompanyExecutiveAggregate',
+      refField: 'executiveTypeRef',
+      label: 'investment company executives'
+    }
+  ],
   InvestmentDocumentGroup: [{ table: 'InvestmentDocumentAggregate', refField: 'documentGroupRef', label: 'documents' }],
   InvestmentDocumentType: [{ table: 'InvestmentDocumentAggregate', refField: 'documentTypeRef', label: 'documents' }],
   InvestmentOpportunityPipelineStageCondition: [

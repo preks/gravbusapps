@@ -31,6 +31,24 @@ const REPORT_TARGET_FIELDS = {
   LIQUID_FUND: LIQUID_FUND_INVESTMENT_REPORT_FIELDS
 } as const
 
+const investmentReportPreviewConfig: ImportConfig['preview'] = {
+  title: { fields: ['investment.name'] },
+  rows: [
+    {
+      label: 'Report date',
+      icon: 'calendar',
+      field: 'date'
+    },
+    {
+      label: 'Total investment amount',
+      icon: 'currency',
+      field: 'investment.totalInvestmentAmount',
+      currencyField: 'investment.currency',
+      format: 'amountWithCurrency'
+    }
+  ]
+}
+
 interface InvestmentGroupReportConfiguration {
   flowbotEntityType: string
   investmentReportPayloadKey?: ImportConfig['investmentReportPayloadKey']
@@ -96,7 +114,8 @@ const createDefaultReportImportConfig = (group: InvestmentImportGroupDescriptor)
     domain: 'investment',
     targetFields: groupConfig?.targetFields ?? COMMON_INVESTMENT_REPORT_FIELDS,
     investmentReportPayloadKey: groupConfig?.investmentReportPayloadKey,
-    investmentGroupRef: group.id
+    investmentGroupRef: group.id,
+    preview: investmentReportPreviewConfig
   }
 }
 

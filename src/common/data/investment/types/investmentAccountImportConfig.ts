@@ -9,6 +9,7 @@
  */
 
 import { ImportConfig, TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
+import { accountPreviewConfig } from '@/common/data/relations/types/entityPreviewConfigs'
 
 const irmAccountSpecificFields: TargetFieldDefinition[] = [
   // Address fields — nested under addresses.* (IRM schema only)
@@ -62,5 +63,6 @@ const irmAccountSharedFields: TargetFieldDefinition[] = [
 export const investmentAccountImportConfig: ImportConfig = {
   entityType: 'account',
   domain: 'investment',
-  targetFields: [...irmAccountSharedFields, ...irmAccountSpecificFields]
+  targetFields: [...irmAccountSharedFields, ...irmAccountSpecificFields],
+  preview: accountPreviewConfig
 }

@@ -76,7 +76,12 @@ interface ChatInputProps {
   isSpeaking?: boolean
   isVoiceLoading?: boolean
   voiceVolume?: number
+  voiceTranscript?: string
+  voiceInterimTranscript?: string
+  currentSpeechText?: string | null
+  voiceError?: string | null
   onToggleVoiceMode?: () => void
+  onStartListening?: () => void
   onStopSpeaking?: () => void
   /**
    * Optional callback fired as soon as the user attaches files.
@@ -160,7 +165,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   isSpeaking = false,
   isVoiceLoading = false,
   voiceVolume = 0,
+  voiceTranscript = '',
+  voiceInterimTranscript = '',
+  currentSpeechText = null,
+  voiceError = null,
   onToggleVoiceMode,
+  onStartListening,
   onStopSpeaking,
   onFilesAttached,
   cancelledMessageText,
@@ -567,6 +577,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Blue color theme for animations (matching the EveryAI hero)
   const goldRgb = '59, 130, 246' // Royal blue
   const goldSecondary = 'rgb(96, 165, 250)' // Light blue
+  const handsFreeStatusLabel = isListening
+    ? 'Listening'
+    : isSpeaking
+      ? 'Speaking'
+      : isVoiceLoading
+        ? 'Thinking'
+        : voiceError
+          ? 'Error'
+          : 'Ready'
 
   return (
     <>
@@ -1116,30 +1135,93 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   />
                 )}
 
-                {/* Input with inline mention chips when mentions exist */}
-                {selectedEntities.length > 0 ? (
+                {isSpeechMode ? (
                   <div
-                    ref={contentEditableRef}
-                    contentEditable={!disabled}
-                    suppressContentEditableWarning
-                    onInput={handleContentEditableInput}
-                    onKeyDown={handleKeyDown}
-                    data-placeholder={effectivePlaceholder}
-                    className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:overflow-y-auto gba:!bg-transparent focus-visible:gba:!bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:outline-none ${darkMode ? 'gba:text-white before:gba:text-white/50' : 'gba:text-foreground before:gba:text-muted-foreground'} ${!value ? 'before:content-[attr(data-placeholder)] before:pointer-events-none' : ''}`}
-                    role="textbox"
-                    aria-multiline="true"
-                    data-testid="chat-input-contenteditable"
-                  />
+                    className={`gba:flex-1 gba:min-w-0 gba:rounded-xl gba:border gba:px-3 gba:py-2.5 ${darkMode ? 'gba:border-white/20 gba:bg-white/5' : 'gba:border-border gba:bg-card/50'}`}
+                    data-testid="hands-free-status-panel"
+                  >
+                    <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                      <span
+                        className={`gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide ${darkMode ? 'gba:text-white/80' : 'gba:text-muted-foreground'}`}
+                      >
+                        Hands-free mode
+                      </span>
+                      <span
+                        className={`gba:text-xs gba:font-semibold ${isListening ? 'gba:text-success' : isSpeaking ? 'gba:text-info' : isVoiceLoading ? 'gba:text-primary' : voiceError ? 'gba:text-destructive' : darkMode ? 'gba:text-white/70' : 'gba:text-muted-foreground'}`}
+                      >
+                        {handsFreeStatusLabel}
+                      </span>
+                    </div>
+                    {isSpeaking && currentSpeechText ? (
+                      <p
+                        className={`gba:mt-1 gba:text-sm gba:leading-relaxed ${darkMode ? 'gba:text-white/90' : 'gba:text-foreground'}`}
+                      >
+                        {currentSpeechText}
+                      </p>
+                    ) : voiceError ? (
+                      <p
+                        className={`gba:mt-1 gba:text-sm gba:leading-relaxed gba:text-destructive`}
+                        data-testid="hands-free-error"
+                      >
+                        {voiceError}
+                      </p>
+                    ) : (
+                      <p
+                        role={!isListening && onStartListening ? 'button' : undefined}
+                        tabIndex={!isListening && onStartListening ? 0 : undefined}
+                        onClick={!isListening && onStartListening ? onStartListening : undefined}
+                        className={`gba:mt-1 gba:text-sm gba:leading-relaxed ${darkMode ? 'gba:text-white/90' : 'gba:text-foreground'} ${!isListening && onStartListening ? 'gba:cursor-pointer hover:gba:underline' : ''}`}
+                        data-testid="hands-free-tap-to-speak"
+                      >
+                        {voiceTranscript ||
+                          voiceInterimTranscript ||
+                          (isListening ? 'Listening...' : 'Tap here or speak to start.')}
+                        {voiceTranscript && voiceInterimTranscript ? (
+                          <span className={darkMode ? 'gba:text-white/60' : 'gba:text-muted-foreground'}>
+                            {' '}
+                            {voiceInterimTranscript}
+                          </span>
+                        ) : null}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={onToggleVoiceMode}
+                      className={`gba:mt-2 gba:inline-flex gba:items-center gba:rounded-md gba:px-2 gba:py-1 gba:text-xs gba:font-medium gba:transition-colors ${darkMode ? 'gba:bg-white/10 gba:text-white/90 hover:gba:bg-white/20' : 'gba:bg-muted gba:text-foreground hover:gba:bg-accent'}`}
+                      disabled={!onToggleVoiceMode || disabled}
+                      data-testid="hands-free-exit-button"
+                    >
+                      Exit hands-free
+                    </button>
+                  </div>
                 ) : (
-                  <Textarea
-                    ref={textareaRef}
-                    value={value}
-                    onChange={e => handleValueChange(e.target.value)}
-                    placeholder={effectivePlaceholder}
-                    className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:!bg-transparent focus-visible:gba:!bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:ring-0 ${darkMode ? 'gba:text-white gba:placeholder-white/50' : 'gba:text-foreground'}`}
-                    onKeyDown={handleKeyDown}
-                    disabled={disabled}
-                  />
+                  <>
+                    {/* Input with inline mention chips when mentions exist */}
+                    {selectedEntities.length > 0 ? (
+                      <div
+                        ref={contentEditableRef}
+                        contentEditable={!disabled}
+                        suppressContentEditableWarning
+                        onInput={handleContentEditableInput}
+                        onKeyDown={handleKeyDown}
+                        data-placeholder={effectivePlaceholder}
+                        className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:overflow-y-auto gba:!bg-transparent focus-visible:gba:!bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:outline-none ${darkMode ? 'gba:text-white before:gba:text-white/50' : 'gba:text-foreground before:gba:text-muted-foreground'} ${!value ? 'before:content-[attr(data-placeholder)] before:pointer-events-none' : ''}`}
+                        role="textbox"
+                        aria-multiline="true"
+                        data-testid="chat-input-contenteditable"
+                      />
+                    ) : (
+                      <Textarea
+                        ref={textareaRef}
+                        value={value}
+                        onChange={e => handleValueChange(e.target.value)}
+                        placeholder={effectivePlaceholder}
+                        className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:!bg-transparent focus-visible:gba:!bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:ring-0 ${darkMode ? 'gba:text-white gba:placeholder-white/50' : 'gba:text-foreground'}`}
+                        onKeyDown={handleKeyDown}
+                        disabled={disabled}
+                      />
+                    )}
+                  </>
                 )}
 
                 {/* Right side: Voice + Send - vertical premium stack */}
@@ -1160,40 +1242,42 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   )}
 
                   {/* Send Button - Premium design */}
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="gba:h-10 gba:w-10 gba:rounded-full gba:border-0 gba:transition-all gba:duration-300"
-                    onClick={handleSend}
-                    aria-label="Send"
-                    title="Send message"
-                    disabled={disabled || (!value.trim() && files.length === 0)}
-                    style={{
-                      background:
-                        !disabled && (value.trim() || files.length > 0)
-                          ? darkMode
-                            ? 'linear-gradient(135deg, rgb(59, 130, 246), rgb(96, 165, 250))'
-                            : `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`
-                          : darkMode
-                            ? 'rgba(255,255,255,0.1)'
-                            : 'rgba(0,0,0,0.06)',
-                      color:
-                        !disabled && (value.trim() || files.length > 0)
-                          ? 'white'
-                          : darkMode
-                            ? 'rgba(255,255,255,0.5)'
-                            : 'var(--nw-muted-foreground)',
-                      boxShadow:
-                        !disabled && (value.trim() || files.length > 0)
-                          ? darkMode
-                            ? '0 4px 16px rgba(59, 130, 246, 0.4)'
-                            : `0 4px 16px rgba(${goldRgb}, 0.4)`
-                          : 'none',
-                      transform: !disabled && (value.trim() || files.length > 0) ? 'scale(1)' : 'scale(0.95)'
-                    }}
-                  >
-                    <PaperPlaneTiltIcon className="gba:h-5 gba:w-5" weight="fill" />
-                  </Button>
+                  {!isSpeechMode && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="gba:h-10 gba:w-10 gba:rounded-full gba:border-0 gba:transition-all gba:duration-300"
+                      onClick={handleSend}
+                      aria-label="Send"
+                      title="Send message"
+                      disabled={disabled || (!value.trim() && files.length === 0)}
+                      style={{
+                        background:
+                          !disabled && (value.trim() || files.length > 0)
+                            ? darkMode
+                              ? 'linear-gradient(135deg, rgb(59, 130, 246), rgb(96, 165, 250))'
+                              : `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`
+                            : darkMode
+                              ? 'rgba(255,255,255,0.1)'
+                              : 'rgba(0,0,0,0.06)',
+                        color:
+                          !disabled && (value.trim() || files.length > 0)
+                            ? 'white'
+                            : darkMode
+                              ? 'rgba(255,255,255,0.5)'
+                              : 'var(--nw-muted-foreground)',
+                        boxShadow:
+                          !disabled && (value.trim() || files.length > 0)
+                            ? darkMode
+                              ? '0 4px 16px rgba(59, 130, 246, 0.4)'
+                              : `0 4px 16px rgba(${goldRgb}, 0.4)`
+                            : 'none',
+                        transform: !disabled && (value.trim() || files.length > 0) ? 'scale(1)' : 'scale(0.95)'
+                      }}
+                    >
+                      <PaperPlaneTiltIcon className="gba:h-5 gba:w-5" weight="fill" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

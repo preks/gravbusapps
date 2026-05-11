@@ -51,6 +51,20 @@ const CANCELLATION_PHRASES = [
   'hold on'
 ]
 
+const NEGATION_PREFIXES = ["don't", 'do not', 'not', "doesn't", 'does not', "won't", 'will not', "can't", 'cannot']
+
+function matchesPhrase(text: string, phrase: string): boolean {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`\\b${escaped}\\b`, 'i').test(text)
+}
+
+function hasNegationBefore(text: string, phrase: string): boolean {
+  const phraseIdx = text.toLowerCase().indexOf(phrase.toLowerCase())
+  if (phraseIdx < 0) return false
+  const preceding = text.slice(0, phraseIdx).trimEnd()
+  return NEGATION_PREFIXES.some(neg => preceding.endsWith(neg))
+}
+
 const MODIFICATION_PATTERNS = [
   /change (?:the )?(.+?) to (.+)/i,
   /update (?:the )?(.+?) to (.+)/i,
@@ -163,45 +177,52 @@ export function VoiceFormProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // Parse a voice transcript to determine the command type
-  const parseVoiceCommand = useCallback((transcript: string): VoiceFormCommand => {
-    const lowerTranscript = transcript.toLowerCase().trim()
+  const parseVoiceCommand = useCallback(
+    (transcript: string): VoiceFormCommand => {
+      const lowerTranscript = transcript.toLowerCase().trim()
 
-    // Check for confirmation
-    if (CONFIRMATION_PHRASES.some(phrase => lowerTranscript === phrase || lowerTranscript.includes(phrase))) {
-      return { type: 'confirm' }
-    }
-
-    // Check for cancellation
-    if (CANCELLATION_PHRASES.some(phrase => lowerTranscript === phrase || lowerTranscript.startsWith(phrase))) {
-      return { type: 'cancel' }
-    }
-
-    // Check for explicit modification patterns ("change name to ...")
-    for (const pattern of MODIFICATION_PATTERNS) {
-      const match = lowerTranscript.match(pattern)
-      if (match) {
-        return { type: 'modify', field: match[1].trim(), value: match[2].trim() }
+      // Check cancellation BEFORE confirmation to avoid "don't submit" matching "submit"
+      if (CANCELLATION_PHRASES.some(phrase => matchesPhrase(lowerTranscript, phrase))) {
+        return { type: 'cancel' }
       }
-    }
 
-    // Fallback patterns that omit the field ("change to ...", "rename to ...")
-    const renameMatch = lowerTranscript.match(/^rename\s+(?:to\s+)?(.+)/i)
-    if (renameMatch) {
-      const inferred = inferDefaultFieldName(activeForm)
-      if (inferred) {
-        return { type: 'modify', field: inferred, value: renameMatch[1].trim() }
+      // Check for confirmation (only if no negation precedes the phrase)
+      if (
+        CONFIRMATION_PHRASES.some(
+          phrase => matchesPhrase(lowerTranscript, phrase) && !hasNegationBefore(lowerTranscript, phrase)
+        )
+      ) {
+        return { type: 'confirm' }
       }
-    }
-    const defaultChangeMatch = lowerTranscript.match(/^(?:change|update|set|make)\s+(?:to\s+)?(.+)/i)
-    if (defaultChangeMatch) {
-      const inferred = inferDefaultFieldName(activeForm)
-      if (inferred) {
-        return { type: 'modify', field: inferred, value: defaultChangeMatch[1].trim() }
-      }
-    }
 
-    return { type: 'unknown', text: transcript }
-  }, [activeForm])
+      // Check for explicit modification patterns ("change name to ...")
+      for (const pattern of MODIFICATION_PATTERNS) {
+        const match = lowerTranscript.match(pattern)
+        if (match) {
+          return { type: 'modify', field: match[1].trim(), value: match[2].trim() }
+        }
+      }
+
+      // Fallback patterns that omit the field ("change to ...", "rename to ...")
+      const renameMatch = lowerTranscript.match(/^rename\s+(?:to\s+)?(.+)/i)
+      if (renameMatch) {
+        const inferred = inferDefaultFieldName(activeForm)
+        if (inferred) {
+          return { type: 'modify', field: inferred, value: renameMatch[1].trim() }
+        }
+      }
+      const defaultChangeMatch = lowerTranscript.match(/^(?:change|update|set|make)\s+(?:to\s+)?(.+)/i)
+      if (defaultChangeMatch) {
+        const inferred = inferDefaultFieldName(activeForm)
+        if (inferred) {
+          return { type: 'modify', field: inferred, value: defaultChangeMatch[1].trim() }
+        }
+      }
+
+      return { type: 'unknown', text: transcript }
+    },
+    [activeForm]
+  )
 
   // Check if a transcript looks like a form command
   const isFormCommand = useCallback(

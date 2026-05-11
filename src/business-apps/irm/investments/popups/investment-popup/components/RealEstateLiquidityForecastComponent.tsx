@@ -9,6 +9,7 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
+  DateInput,
   Input,
   Button,
   Alert
@@ -354,9 +355,10 @@ export const RealEstateLiquidityForecastComponent: React.FC<InvestmentLiquidityF
                       <span className="gba:text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
+                      <DateInput
                         type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(typeof value === 'string' ? value : '')}
                         data-testid={formatDataTestId(prefixDataTestId, 'balanced-date-input')}
                       />
                     </FormControl>

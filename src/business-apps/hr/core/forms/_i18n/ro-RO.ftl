@@ -285,9 +285,28 @@ adjust-salary-process-title = Ajustare salariu
 adjust-salary-pending-status = În așteptare
 
 # Update Working Conditions Form
+working-conditions-title = Actualizare condiții de muncă
+working-conditions-employment-start-date = Dată de început angajare
+working-conditions-employment-end-date = Dată de sfârșit angajare
+working-conditions-employment-type = Tip angajare
+working-conditions-contract-type = Tip contract
+working-conditions-remote = Remote
+working-conditions-region = Regiune
+working-conditions-start-date = Dată de început
+working-conditions-probation-end-date = Dată încheiere perioadă de probă
 working-conditions-probation-period = Perioadă de probă
+working-conditions-select-remote = Selectează remote
+working-conditions-select-region = Selectează regiunea
+working-conditions-future-entry-dates-required = Această dată trebuie să fie mâine sau mai târziu
+working-conditions-active-period-overlap = Perioada activă a condițiilor de muncă se suprapune cu o condiție de muncă existentă
+working-conditions-employment-end-before-start = Data de sfârșit a angajării nu poate fi înaintea datei de început
 working-conditions-probation-end-before-start = Data de încheiere a perioadei de probă trebuie să fie la sau după data de începere.
 working-conditions-probation-exception-warning = Ați modificat manual data de încheiere a perioadei de probă față de valoarea din contract. Vă rugăm să verificați.
+working-conditions-required = Vă rugăm să completați câmpurile obligatorii
+working-conditions-change-mode-title = Confirmă modificarea angajării
+working-conditions-change-mode-description = Doriți să modificați angajarea curentă sau să adăugați una nouă pentru angajat?
+working-conditions-change-mode-update = Actualizează
+working-conditions-change-mode-add = Adaugă
 working-conditions-unit-day = { $count ->
     [one] Zi
    *[other] Zile
@@ -308,6 +327,7 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = Cererea este trimisă către manager pentru aprobare
 request-correction-date-absence-error = Această dată este o sărbătoare sau o absență și nu poate fi folosită pentru o cerere de corectare.
+request-correction-date-before-hire-error = Această dată este înainte de data angajării și nu poate fi folosită pentru o cerere de corectare.
 request-correction-zero-planned-warning = Această dată nu are ore de lucru planificate. Timpul introdus va fi considerat ore suplimentare.
 notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
@@ -386,6 +406,7 @@ create-absence-days = zile
 create-absence-effective-days-label = Zile efective
 create-absence-calendar-days-label = Zile calendaristice
 create-absence-end-date-after-start = Data de încheiere trebuie să fie după data de început.
+create-absence-date-before-hire-error = Datele de absență nu pot fi înainte de data angajării.
 create-absence-single-day-bank-holiday-blocked = Ziua selectată este o sărbătoare legală. Nu puteți trimite o absență de o zi pentru această dată.
 create-absence-validation-failed = Validarea a eșuat. Vă rugăm să încercați din nou.
 create-absence-bank-holidays-not-counted = { $count } zile sunt zile libere legale și nu sunt luate în considerare.

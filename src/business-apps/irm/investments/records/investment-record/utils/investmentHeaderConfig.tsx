@@ -529,26 +529,26 @@ export const createHeaderMeta = (
       </AppAction>
 
       {/* Company Badge - Only show if company association exists */}
-      {investment?.company?.id && (
+      {investment?.investmentCompany?.id && (
         <button
           type="button"
           onClick={() => {
-            const companyId = investment.company?.id
-            if (companyId) {
+            const investmentCompanyId = investment.investmentCompany?.id
+            if (investmentCompanyId) {
               navigateTo(
-                buildPlatformUrl('/platform/mdm/company-record', {
-                  companyId
+                buildPlatformUrl('/platform/irm/company-record', {
+                  investmentCompanyId
                 })
               )
             }
           }}
           className="gba:bg-transparent gba:border-0 gba:p-0"
           data-testid="investment-company-link"
-          aria-label={`${getTranslationFromI18nKeyAndLabel('investment.legalEntity.ariaLabel', 'Navigate to legal entity')}: ${investment.company.name}`}
+          aria-label={`${getTranslationFromI18nKeyAndLabel('investment.legalEntity.ariaLabel', 'Navigate to legal entity')}: ${investment.investmentCompany?.name}`}
         >
           <Badge variant="outline" className="gba:cursor-pointer gba:hover:opacity-80">
             {getTranslationFromI18nKeyAndLabel('investment.legalEntity.label', 'Legal Entity')}:{' '}
-            {investment.company.name}
+            {investment.investmentCompany?.name}
           </Badge>
         </button>
       )}

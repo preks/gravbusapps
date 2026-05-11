@@ -288,9 +288,28 @@ adjust-salary-process-title = Salary Adjustment
 adjust-salary-pending-status = Pending
 
 # Update Working Conditions Form
+working-conditions-title = Update Working Conditions
+working-conditions-employment-start-date = Employment Start Date
+working-conditions-employment-end-date = Employment End Date
+working-conditions-employment-type = Employment Type
+working-conditions-contract-type = Contract Type
+working-conditions-remote = Remote
+working-conditions-region = Region
+working-conditions-start-date = Start Date
+working-conditions-probation-end-date = Probation End Date
 working-conditions-probation-period = Probation Period
+working-conditions-select-remote = Select remote
+working-conditions-select-region = Select Region
+working-conditions-future-entry-dates-required = This date must be tomorrow or later
+working-conditions-active-period-overlap = Employee working condition active period overlaps with an existing working condition
+working-conditions-employment-end-before-start = Employment end date cannot be before employment start date
 working-conditions-probation-end-before-start = Probation end date must be on or after the start date.
 working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
+working-conditions-required = Please complete required fields
+working-conditions-change-mode-title = Confirm Employment Change
+working-conditions-change-mode-description = Do you want to modify the current employment or add a new one to the employee?
+working-conditions-change-mode-update = Update
+working-conditions-change-mode-add = Add
 working-conditions-unit-day = { $count ->
     [one] Day
    *[other] Days
@@ -311,6 +330,7 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = The request is sent to be approved by the manager
 request-correction-date-absence-error = This date is a bank holiday or absence and cannot be used for a correction request.
+request-correction-date-before-hire-error = This date is before the employee's hire date and cannot be used for a correction request.
 request-correction-zero-planned-warning = This date has no planned working hours. Any time entered will count as overtime.
 notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
 notification-working-hours-updated-success = Working hours updates are sent for HR approval
@@ -389,6 +409,7 @@ create-absence-days = days
 create-absence-effective-days-label = Effective days
 create-absence-calendar-days-label = Calendar days
 create-absence-end-date-after-start = End date must be after start date
+create-absence-date-before-hire-error = Absence dates cannot be before the employee's hire date.
 create-absence-single-day-bank-holiday-blocked = The selected day is a bank holiday. You cannot submit a single-day absence for this date.
 create-absence-validation-failed = Validation failed. Please try again.
 create-absence-bank-holidays-not-counted = { $count } days are bank holidays, so they are not taken into consideration.

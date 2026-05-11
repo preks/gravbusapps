@@ -584,26 +584,26 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           </AppAction>
         )}
         {/* Company Badge - Only show if company association exists */}
-        {opportunityData?.company?.id && (
+        {opportunityData?.investmentCompany?.id && (
           <button
             type="button"
             onClick={() => {
-              const companyId = opportunityData.company?.id
-              if (companyId) {
+              const investmentCompanyId = opportunityData.investmentCompany?.id
+              if (investmentCompanyId) {
                 navigateTo(
-                  buildPlatformUrl('/platform/mdm/company-record', {
-                    companyId
+                  buildPlatformUrl('/platform/irm/company-record', {
+                    investmentCompanyId
                   })
                 )
               }
             }}
             className="gba:bg-transparent gba:border-0 gba:p-0"
             data-testid="opportunity-company-link"
-            aria-label={`${getTranslationFromI18nKeyAndLabel('opportunity.legalEntity.ariaLabel', 'Navigate to legal entity')}: ${opportunityData.company.name}`}
+            aria-label={`${getTranslationFromI18nKeyAndLabel('opportunity.legalEntity.ariaLabel', 'Navigate to legal entity')}: ${opportunityData.investmentCompany?.name}`}
           >
             <Badge variant="outline" className="gba:cursor-pointer gba:hover:opacity-80">
               {getTranslationFromI18nKeyAndLabel('opportunity.legalEntity.label', 'Legal Entity')}:{' '}
-              {opportunityData.company.name}
+              {opportunityData.investmentCompany?.name}
             </Badge>
           </button>
         )}
@@ -671,7 +671,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     opportunityData?.opportunityForecast,
     opportunityData?.investments,
     opportunityData?.equityInvestmentRound,
-    opportunityData?.company,
     rejectionReasonsBadge,
     opportunityId,
     props.accessToken

@@ -19,17 +19,100 @@ import {
   ConvertedEntity,
   TargetFieldDefinition,
   ImportResult,
-  CsvQuality
+  CsvQuality,
+  ImportConfig
 } from '@/common/components/common-relations/apps/data-import/types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
+import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
+import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import { calculateDataQuality } from '@/common/components/common-relations/apps/data-import/utils/dataQualityCalculator'
+import { buildEntityPreviewCardData } from '@/common/components/common-relations/apps/data-import/utils/entityPreviewData'
 import { pluralize } from '@/common/utils/pluralize'
 import { CsvQualityBanner } from './CsvQualityBanner'
 import { EntityPreviewCard } from './EntityPreviewCard'
 import translations from './ConversionResultStep/_i18n'
 
+interface InvestmentPreviewDetails {
+  name: string
+  totalInvestmentAmount?: number
+  currency?: string
+}
+
+function getConvertedEntityValue(entity: ConvertedEntity, key: string): unknown {
+  if (key in entity) return entity[key]
+  const [root, field] = key.split('.')
+  const rootValue = entity[root]
+  if (rootValue && typeof rootValue === 'object' && !Array.isArray(rootValue)) {
+    return rootValue[field]
+  }
+  return undefined
+}
+
+function getCatalogRef(entity: ConvertedEntity, key: string): string | undefined {
+  const value = getConvertedEntityValue(entity, key)
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function getPreviewCatalogFields(config: ImportConfig): string[] {
+  const preview = config.preview
+  if (!preview) return []
+
+  return [
+    ...(preview.badges?.map(badge => badge.field) ?? []),
+    ...(preview.rows?.flatMap(row => [
+      ...(row.badges?.map(badge => badge.field) ?? []),
+      ...(row.currencyField ? [row.currencyField] : [])
+    ]) ?? [])
+  ]
+}
+
+function getInvestmentId(entity: ConvertedEntity): string | undefined {
+  return typeof entity.investmentId === 'string' && entity.investmentId.length > 0 ? entity.investmentId : undefined
+}
+
+function withInvestmentPreviewDetails(
+  entity: ConvertedEntity,
+  investmentPreviewDetails?: InvestmentPreviewDetails
+): ConvertedEntity {
+  if (!investmentPreviewDetails) return entity
+
+  return {
+    ...entity,
+    'investment.name': investmentPreviewDetails.name,
+    'investment.totalInvestmentAmount': investmentPreviewDetails.totalInvestmentAmount,
+    'investment.currency': investmentPreviewDetails.currency
+  }
+}
+
+function getPreviewEntityKey(entity: ConvertedEntity, entityType: string): string {
+  const identity = [entity.id, entity.investmentId, entity.name, entity.companyName, entity.email]
+    .map(toPreviewKeyPart)
+    .find(Boolean)
+
+  return `${entityType}-${identity || getPrimitivePreviewKey(entity) || entityType}`
+}
+
+function toPreviewKeyPart(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return undefined
+}
+
+function getPrimitivePreviewKey(entity: ConvertedEntity): string | undefined {
+  const parts = Object.values(entity)
+    .map(toPreviewKeyPart)
+    .filter((value): value is string => Boolean(value))
+    .slice(0, 3)
+  return parts.length > 0 ? parts.join('-') : undefined
+}
+
 export interface ConversionResultStepProps<T = ConvertedEntity> {
   convertedEntities: T[]
   targetFieldsConfig: TargetFieldDefinition[]
+  config: ImportConfig
+  businessAppContext: BusinessAppContextProps
   entityType: string
   isLoading: boolean
   importResult: ImportResult | null
@@ -50,6 +133,8 @@ export interface ConversionResultStepProps<T = ConvertedEntity> {
 export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity>({
   convertedEntities,
   targetFieldsConfig,
+  config,
+  businessAppContext,
   entityType,
   isLoading,
   campaignName,
@@ -92,14 +177,120 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
 
   // Calculate data quality metrics
   const dataQuality = useMemo(
-    () => calculateDataQuality(convertedEntities as ConvertedEntity[], targetFieldsConfig),
+    () => calculateDataQuality(convertedEntities, targetFieldsConfig),
     [convertedEntities, targetFieldsConfig]
   )
 
   // Get first 3 entities for preview
-  const previewEntities = convertedEntities.slice(0, 3)
+  const previewEntities = useMemo(() => convertedEntities.slice(0, 3), [convertedEntities])
+  const { fetchInvestments } = useGetInvestments(businessAppContext)
+  const { fetchCatalogEntries } = useCatalogEntries({ accessToken: businessAppContext.accessToken ?? '' })
+  const [investmentPreviewDetails, setInvestmentPreviewDetails] = React.useState<Map<string, InvestmentPreviewDetails>>(
+    () => new Map()
+  )
+  const [catalogValueByRef, setCatalogValueByRef] = React.useState<Map<string, string>>(() => new Map())
+  const [isLoadingInvestmentPreviewDetails, setIsLoadingInvestmentPreviewDetails] = React.useState(false)
+  const [isLoadingCatalogValues, setIsLoadingCatalogValues] = React.useState(false)
   const entityLabel = pluralize(entityType)
   const entityLabelSingular = entityType.charAt(0).toUpperCase() + entityType.slice(1)
+  const isInvestmentReportPreview =
+    Boolean(config.investmentReportPayloadKey) || /investmentreport$/i.test(config.flowbotEntityType ?? '')
+  const previewCatalogEntryIds = useMemo(
+    () => [
+      ...new Set(
+        previewEntities.flatMap(entity =>
+          [
+            ...targetFieldsConfig
+              .filter(targetField => targetField.type === 'catalog')
+              .map(targetField => targetField.value),
+            ...getPreviewCatalogFields(config)
+          ]
+            .map(field => getCatalogRef(entity, field))
+            .filter((catalogRef): catalogRef is string => Boolean(catalogRef))
+        )
+      )
+    ],
+    [config, previewEntities, targetFieldsConfig]
+  )
+  const previewInvestmentIds = useMemo(
+    () =>
+      isInvestmentReportPreview
+        ? previewEntities.map(getInvestmentId).filter((investmentId): investmentId is string => Boolean(investmentId))
+        : [],
+    [isInvestmentReportPreview, previewEntities]
+  )
+
+  React.useEffect(() => {
+    if (previewCatalogEntryIds.length === 0) {
+      setCatalogValueByRef(new Map())
+      return
+    }
+
+    let cancelled = false
+
+    const loadInvestmentCatalogDetails = async () => {
+      setIsLoadingCatalogValues(true)
+      try {
+        const response = await fetchCatalogEntries({
+          entryId: previewCatalogEntryIds,
+          limit: previewCatalogEntryIds.length
+        })
+        if (cancelled) return
+
+        setCatalogValueByRef(new Map(response.entries.map((entry: CatalogEntry) => [entry.id, entry.value ?? ''])))
+      } finally {
+        if (!cancelled) {
+          setIsLoadingCatalogValues(false)
+        }
+      }
+    }
+
+    loadInvestmentCatalogDetails()
+
+    return () => {
+      cancelled = true
+    }
+  }, [fetchCatalogEntries, previewCatalogEntryIds])
+
+  React.useEffect(() => {
+    if (!isInvestmentReportPreview || previewInvestmentIds.length === 0) {
+      setInvestmentPreviewDetails(new Map())
+      return
+    }
+
+    let cancelled = false
+
+    const loadInvestmentPreviewDetails = async () => {
+      setIsLoadingInvestmentPreviewDetails(true)
+      try {
+        const response = await fetchInvestments({ ids: previewInvestmentIds, limit: previewInvestmentIds.length })
+        if (cancelled) return
+
+        setInvestmentPreviewDetails(
+          new Map(
+            response.Investment.map((investment: Investment) => [
+              investment.id,
+              {
+                name: investment.name,
+                totalInvestmentAmount: investment.totalInvestmentAmount,
+                currency: investment.currency?.value
+              }
+            ])
+          )
+        )
+      } finally {
+        if (!cancelled) {
+          setIsLoadingInvestmentPreviewDetails(false)
+        }
+      }
+    }
+
+    loadInvestmentPreviewDetails()
+
+    return () => {
+      cancelled = true
+    }
+  }, [fetchInvestments, isInvestmentReportPreview, previewInvestmentIds])
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
@@ -200,13 +391,29 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
                   <h3 className="gba:text-sm gba:font-medium">
                     {t('preview-title', { count: previewEntities.length, entityType: entityLabel })}
                   </h3>
-                  {previewEntities.map((entity, idx) => (
-                    <EntityPreviewCard
-                      key={idx}
-                      entity={entity as ConvertedEntity}
-                      data-testid={`${testId}-preview-${idx}`}
-                    />
-                  ))}
+                  {isLoadingInvestmentPreviewDetails || isLoadingCatalogValues ? (
+                    <Card variant="surface">
+                      <CardContent className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:text-sm gba:text-muted-foreground">
+                        <Spinner className="gba:h-4 gba:w-4" />
+                        Loading investment details
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    previewEntities.map((entity, idx) => {
+                      const previewEntity = withInvestmentPreviewDetails(
+                        entity,
+                        investmentPreviewDetails.get(getInvestmentId(entity) ?? '')
+                      )
+
+                      return (
+                        <EntityPreviewCard
+                          key={getPreviewEntityKey(entity, entityType)}
+                          preview={buildEntityPreviewCardData(previewEntity, config, catalogValueByRef)}
+                          data-testid={`${testId}-preview-${idx}`}
+                        />
+                      )
+                    })
+                  )}
                   {convertedEntities.length > 3 && (
                     <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
                       {t('preview-more-text', { count: convertedEntities.length - 3, entityType: entityLabel })}

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Human Resources application provides a unified interface for managing employees and job positions within the organization. It follows the same pattern as other relation-based applications in the platform.
+The Human Resources application provides reporting and insights for the organization. It focuses on analytics and insight views.
 
 ## Structure
 
@@ -78,9 +78,15 @@ src/business-apps/hr/core/apps/human-resources/
 
 The application uses URL-based navigation with query parameters:
 
-- `?view=employees` - Shows the employee management view
-- `?view=positions` - Shows the job position management view
 - `?view=analytics` - Shows the HR analytics view
+- `?view=insights` - Shows the HR insights view
+
+### Related Application
+
+Employee and job position management moved to Workforce Management:
+
+- `/platform/hr/workforce-management?view=employees`
+- `/platform/hr/workforce-management?view=positions`
 
 ### Analytics Sub-Navigation
 

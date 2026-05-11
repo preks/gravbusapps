@@ -210,6 +210,8 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
         <ConversionResultStep
           convertedEntities={convertedEntities}
           targetFieldsConfig={config.targetFields}
+          config={config}
+          businessAppContext={context}
           entityType={entityTypeSingular}
           isLoading={isLoading}
           importResult={importResult}

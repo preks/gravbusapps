@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
-import { message } from 'antd'
+import { toast } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export const useUpdateLeadStatus = (context: BusinessAppContextProps) => {
@@ -16,6 +16,12 @@ export const useUpdateLeadStatus = (context: BusinessAppContextProps) => {
     statusDisplayName: string,
     onSuccess?: () => void
   ) => {
+    if (!context.accessToken) {
+      console.error('Access token missing')
+      toast.error(getTranslationFromI18nKeyAndLabel('crm:common.accessTokenMissing', 'Authentication is required'))
+      return
+    }
+
     setIsLoading(true)
     try {
       const payload = {
@@ -30,7 +36,7 @@ export const useUpdateLeadStatus = (context: BusinessAppContextProps) => {
         headers: { Authorization: `Bearer ${context.accessToken}` }
       })
 
-      message.success(
+      toast.success(
         getTranslationFromI18nKeyAndLabel(
           'crm:lead.statusUpdateSuccess',
           `Lead status updated to ${statusDisplayName} successfully`
@@ -42,7 +48,7 @@ export const useUpdateLeadStatus = (context: BusinessAppContextProps) => {
       }
     } catch (error) {
       console.error('Error updating lead status:', error)
-      message.error(
+      toast.error(
         getTranslationFromI18nKeyAndLabel(
           'crm:lead.statusUpdateError',
           `Failed to update lead status to ${statusDisplayName}`

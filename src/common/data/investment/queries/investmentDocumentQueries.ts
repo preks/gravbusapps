@@ -42,6 +42,7 @@ import { InvestmentOpportunityFields } from '../types/investmentOpportunityTypes
 import { InvestmentTaskFields } from '../types/investmentTaskTypes'
 import { InvestmentActivityFields } from '../types/investmentActivityTypes'
 import { InvestmentNoteFields } from '../types/investmentNoteTypes'
+import { INVESTMENT_COMPANY_REF } from './fragments/investmentReferenceFragments'
 
 /**
  * Investment Document Query Variables Interface
@@ -51,7 +52,15 @@ export interface InvestmentDocumentQueryVariables extends CommonDocumentQueryVar
   // Investment-specific: investmentId filter
   investmentId?: string
   investmentIds?: string[]
+  investmentCompanyIds?: string[]
 }
+
+const INVESTMENT_DOCUMENT_COMPANY_FIELDS = `
+  ${InvestmentDocumentFields.investmentCompanyId}
+  ${InvestmentDocumentFields.investmentCompany} {
+    ${INVESTMENT_COMPANY_REF}
+  }
+`
 
 /**
  * Build Investment Document query with fields mapping
@@ -59,7 +68,7 @@ export interface InvestmentDocumentQueryVariables extends CommonDocumentQueryVar
 export const buildInvestmentDocumentQuery = (
   fields: typeof InvestmentDocumentFields = InvestmentDocumentFields
 ): string => {
-  return buildDocumentQuery('InvestmentDocument', fields)
+  return buildDocumentQuery('InvestmentDocument', fields, undefined, undefined, INVESTMENT_DOCUMENT_COMPANY_FIELDS)
 }
 
 /**
@@ -90,7 +99,14 @@ export const buildInvestmentDocumentByIdQuery = (
     noteFields: InvestmentNoteFields
   }
 
-  return buildDocumentByIdQuery('InvestmentDocument', id, fields, relationBuilders, relationFields)
+  return buildDocumentByIdQuery(
+    'InvestmentDocument',
+    id,
+    fields,
+    relationBuilders,
+    relationFields,
+    INVESTMENT_DOCUMENT_COMPANY_FIELDS
+  )
 }
 
 /**
@@ -158,7 +174,13 @@ export const buildInvestmentDocumentByLeadIdQuery = (): string => {
     noteFields: InvestmentNoteFields
   }
 
-  return buildDocumentByLeadIdQuery('InvestmentDocument', InvestmentDocumentFields, relationBuilders, relationFields)
+  return buildDocumentByLeadIdQuery(
+    'InvestmentDocument',
+    InvestmentDocumentFields,
+    relationBuilders,
+    relationFields,
+    INVESTMENT_DOCUMENT_COMPANY_FIELDS
+  )
 }
 
 /**
@@ -185,7 +207,13 @@ export const buildInvestmentDocumentByAccountIdQuery = (): string => {
     noteFields: InvestmentNoteFields
   }
 
-  return buildDocumentByAccountIdQuery('InvestmentDocument', InvestmentDocumentFields, relationBuilders, relationFields)
+  return buildDocumentByAccountIdQuery(
+    'InvestmentDocument',
+    InvestmentDocumentFields,
+    relationBuilders,
+    relationFields,
+    INVESTMENT_DOCUMENT_COMPANY_FIELDS
+  )
 }
 
 /**
@@ -212,7 +240,13 @@ export const buildInvestmentDocumentByContactIdQuery = (): string => {
     noteFields: InvestmentNoteFields
   }
 
-  return buildDocumentByContactIdQuery('InvestmentDocument', InvestmentDocumentFields, relationBuilders, relationFields)
+  return buildDocumentByContactIdQuery(
+    'InvestmentDocument',
+    InvestmentDocumentFields,
+    relationBuilders,
+    relationFields,
+    INVESTMENT_DOCUMENT_COMPANY_FIELDS
+  )
 }
 
 /**
@@ -243,7 +277,38 @@ export const buildInvestmentDocumentByOpportunityIdQuery = (): string => {
     'InvestmentDocument',
     InvestmentDocumentFields,
     relationBuilders,
-    relationFields
+    relationFields,
+    INVESTMENT_DOCUMENT_COMPANY_FIELDS
+  )
+}
+
+export const buildInvestmentDocumentByCompanyIdQuery = (): string => {
+  const relationBuilders: Partial<DocumentRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment,
+    buildTaskFragment: buildInvestmentTaskFragmentForRelations,
+    buildActivityFragment,
+    buildNoteFragment
+  }
+
+  const relationFields: Partial<DocumentRelationFields> = {
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields,
+    taskFields: InvestmentTaskFields,
+    activityFields: InvestmentActivityFields,
+    noteFields: InvestmentNoteFields
+  }
+
+  return buildDocumentQuery(
+    'InvestmentDocument',
+    InvestmentDocumentFields,
+    relationBuilders,
+    relationFields,
+    INVESTMENT_DOCUMENT_COMPANY_FIELDS
   )
 }
 

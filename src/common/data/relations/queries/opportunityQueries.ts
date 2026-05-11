@@ -6,7 +6,6 @@
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
-import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
 import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/graphql/queryHelpers'
 import { OpportunityFields } from '../types/opportunityTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
@@ -133,11 +132,6 @@ export const buildOpportunityQuery = (
         `
             : ''
         }
-        # Company relation
-        ${entityFields.companyId}
-        ${entityFields.company} {
-          ${COMPANY_REF}
-        }
         ${additionalFields || ''}
       }
       ${entityName}Aggregate(where: $where) {
@@ -206,11 +200,6 @@ export const buildOpportunityByIdQuery = (
         }
         ${entityFields.ownerEmployeeId}
         ${entityFields.winningChance}
-        # Company relation
-        ${entityFields.companyId}
-        ${entityFields.company} {
-          ${COMPANY_REF}
-        }
   `
 
   // Helper function to build account relation string
@@ -244,12 +233,6 @@ export const buildOpportunityByIdQuery = (
     ${buildAccountRelation(entityFields.account, relationBuilders, relationFields.accountFields)}
     `
         : ''
-    }
-    
-    # Company relation
-    ${entityFields.companyId}
-    ${entityFields.company} {
-      ${COMPANY_REF}
     }
     
     # Common entity relations (present in both IRM and CRM)

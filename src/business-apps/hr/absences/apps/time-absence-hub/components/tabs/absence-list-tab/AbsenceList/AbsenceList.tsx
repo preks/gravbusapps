@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../../common/utils/windowUtils'
 import { AbsenceListTable } from './AbsenceListTable'
 import type { EnhancedAbsence } from '../../../../types'
 import { useAbsenceFilters, useAbsenceData } from '../../../../hooks'
+import { cancelEmployeeAbsence } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
 
 interface AbsenceListProps extends BusinessAppContextProps {
   initialFilters?: {
@@ -51,6 +52,21 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
     }))
   }, [data.absences, filters.absenceGroups])
 
+  const handleRequestCancellation = useCallback(
+    async (absence: EnhancedAbsence) => {
+      if (!accessToken) {
+        throw new Error('Access token missing')
+      }
+
+      await cancelEmployeeAbsence(accessToken, absence.cancelSnapshot)
+      await data.fetchAbsences()
+      globalThis.setTimeout(() => {
+        data.fetchAbsences().catch(() => {})
+      }, 3000)
+    },
+    [accessToken, data.fetchAbsences]
+  )
+
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="backoffice-absence-list-modern-content">
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-2 gba:pt-2">
@@ -73,6 +89,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
         sortOrder={data.sortOrder}
         onSort={data.handleSort}
         onPaginationChange={data.handlePaginationChange}
+        onRequestCancellation={handleRequestCancellation}
         onOpenEmployeeRecord={onOpenEmployeeRecord}
       />
     </div>

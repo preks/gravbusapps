@@ -111,6 +111,7 @@ export interface NoteSummary {
   isShared?: boolean
   sharedBy?: string
   sharedByName?: string
+  isFavorite?: boolean
   permission?: NotePermission | 'owner'
   sharedWithCount?: number
   // Note type info (for identifying handwriting notes)
@@ -169,6 +170,7 @@ export interface MoveNoteInput {
  * Note query parameters
  */
 export interface NoteQueryParams {
+  section?: 'favorites'
   parentId?: string
   rootOnly?: boolean
   tags?: string[]

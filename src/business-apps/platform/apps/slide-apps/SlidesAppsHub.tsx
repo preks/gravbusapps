@@ -5,7 +5,7 @@
  * Hero-based layout with section tabs replacing the sidebar.
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -193,6 +193,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [selectedSlides, setSelectedSlides] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<SlideHubSortBy>('modified')
   const [sortOrder, setSortOrder] = useState<SlideHubSortOrder>('desc')
+  const slideListOptions = useMemo(
+    () => (activeSection === 'favorites' ? { section: 'favorites' as const } : undefined),
+    [activeSection]
+  )
 
   // Data state
   const [selectedSlideId, setSelectedSlideId] = useState<string | null>(null)
@@ -230,7 +234,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     shareSlide,
     clearCurrentSlide,
     refreshSlides
-  } = useSlides(accessToken)
+  } = useSlides(accessToken, slideListOptions)
 
   const trashList = useOfficeTrashList({
     accessToken: accessToken ?? '',
@@ -312,7 +316,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     }
   }, [accessToken, refreshSlides, selectedTrashIds, trashList])
 
-  const { favorites, setFavorites } = useSlidesHubFavorites()
+  const { favorites, toggleFavorite: toggleSlideFavorite } = useSlidesHubFavorites({ accessToken })
   const { ownerInfoMap, sharedUsersMap, refreshSharedUsersForSlide } = useSlidesHubUserLookup({
     accessToken: accessToken || '',
     slides,
@@ -595,21 +599,14 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
 
   /** Toggle favorite */
   const toggleFavorite = useCallback(
-    (id: string, e?: React.MouseEvent) => {
+    async (id: string, e?: React.MouseEvent) => {
       e?.stopPropagation()
-      setFavorites(prev => {
-        const next = new Set(prev)
-        if (next.has(id)) {
-          next.delete(id)
-          toast.success(t('toast-favorite-removed'))
-        } else {
-          next.add(id)
-          toast.success(t('toast-favorite-added'))
-        }
-        return next
-      })
+      const wasFavorite = favorites.has(id)
+      await toggleSlideFavorite(id)
+      await refreshSlides()
+      toast.success(t(wasFavorite ? 'toast-favorite-removed' : 'toast-favorite-added'))
     },
-    [setFavorites, t]
+    [favorites, refreshSlides, t, toggleSlideFavorite]
   )
 
   /** Toggle select slide */
@@ -1283,7 +1280,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                   {paginatedSlides.map(slide => {
                     const isOwner = slide.isOwner || slide.permission === 'owner' || slide.createdBy === currentUserId
                     const isSelected = selectedSlides.has(slide.id)
-                    const isFavorite = favorites.has(slide.id)
+                    const isFavorite = slide.isFavorite ?? favorites.has(slide.id)
                     const ownerInfo = slide.createdBy ? ownerInfoMap.get(slide.createdBy) : undefined
                     const sharedWith = sharedUsersMap[slide.id] || []
 
@@ -1466,7 +1463,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                 {paginatedSlides.map(slide => {
                   const isOwner = slide.isOwner || slide.permission === 'owner' || slide.createdBy === currentUserId
                   const isSelected = selectedSlides.has(slide.id)
-                  const isFavorite = favorites.has(slide.id)
+                  const isFavorite = slide.isFavorite ?? favorites.has(slide.id)
 
                   return (
                     <Card

@@ -288,6 +288,7 @@ export interface SpreadsheetApp {
   permission?: AppPermission
   isShared?: boolean
   sharedBy?: string
+  isFavorite?: boolean
 
   // Versioning, locking, and publishing metadata
   currentVersion?: number
@@ -662,6 +663,7 @@ export interface SpreadsheetAppSummary {
   permission?: AppPermission
   sharedBy?: string
   sharedByName?: string
+  isFavorite?: boolean
   /** App settings (e.g. excel_collection_copy for Excel Collection copies to hide from list) */
   settings?: Record<string, unknown>
   /** First sheet ID when available (from list API) - used for grid preview thumbnail */

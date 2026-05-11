@@ -6,6 +6,7 @@ import {
   type GetEmployeeAbsencesResponse
 } from '../queries/absenceQueries'
 import { EnhancedAbsence } from '../types'
+import { buildCancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/buildCancelEmployeeAbsenceSnapshot'
 
 type SortOrder = 'ASC' | 'DESC' | ''
 
@@ -124,7 +125,8 @@ const mapEnhancedAbsence = (absence: any, filters: UseAbsenceDataProps['filters'
       absence.type?.value || 'Unknown Group'
     ),
     typeName: absence.type?.value || 'Unknown Type',
-    color: extractColorFromObjectValue(absence.type?.parentEntry?.objectValue)
+    color: extractColorFromObjectValue(absence.type?.parentEntry?.objectValue),
+    cancelSnapshot: buildCancelEmployeeAbsenceSnapshot(absence)
   }
 }
 

@@ -21,6 +21,7 @@ import type { InvestmentLead } from './investmentLeadTypes'
 import type { InvestmentOpportunityContact } from './investmentRelationTypes'
 import type { Investment, EquityInvestmentRound } from './investmentTypes'
 import type { InvestmentOpportunityAccount } from './investmentAccountAssociationTypes'
+import type { InvestmentCompany } from './investmentCompanyTypes'
 
 /**
  * Investment Opportunity Type
@@ -49,6 +50,8 @@ export interface InvestmentOpportunity extends Opportunity {
   // IRM-specific fields
   annualNetColdRent?: number // IRM specific
   buildingYear?: string // IRM specific
+  investmentCompany?: InvestmentCompany // IRM specific
+  investmentCompanyId?: string // IRM specific
   dealType?: string // IRM specific
   divestmentId?: string // IRM specific
   forecastedProfitAmount?: number // IRM specific
@@ -104,6 +107,8 @@ export const InvestmentOpportunityFields = (() => {
     // IRM-specific fields
     annualNetColdRent: 'annualNetColdRent',
     buildingYear: 'buildingYear',
+    investmentCompany: 'investmentCompany',
+    investmentCompanyId: 'investmentCompanyId',
     dealType: 'dealType',
     divestment: 'divestment',
     divestmentId: 'divestmentId',
@@ -317,6 +322,7 @@ export const investmentOpportunityFormFields = {
   // IRM-specific prospect fields (dynamically added based on investmentGroup/investmentType)
   annualNetColdRent: 'annualNetColdRent',
   buildingYear: 'buildingYear',
+  investmentCompanyId: 'investmentCompany',
   forecastedProfitAmount: 'forecastedProfitAmount',
   initialInvestmentAmount: 'initialInvestmentAmount',
   loanAmount: 'loanAmount',

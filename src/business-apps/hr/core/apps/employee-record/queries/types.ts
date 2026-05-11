@@ -2,11 +2,13 @@ import React from 'react'
 import { Employee, EmployeeAbsenceEntitlement } from '../hooks/useEmployeeData'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 import { PrevalidateResult } from '../hooks/useAbsencePrevalidate'
+import type { CancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
 
 export type { PrevalidateResult }
 
 // Types for absence data
 export interface AbsenceListCardAbsence {
+  id: string
   type: string // Translated type name for display
   typeId: string // Original catalog ID for grouping
   status: string // Translated status for display
@@ -20,6 +22,7 @@ export interface AbsenceListCardAbsence {
   typeColor: string
   statusColor: string
   requestDate: string
+  employeeAbsence: CancelEmployeeAbsenceSnapshot
   // Optional fields used by consumers (e.g., DailyLog calendar)
   plannedMinutes?: number
   effectiveMinutes?: number
@@ -80,6 +83,9 @@ export interface AbsenceListProps {
   setCurrentPage: (page: number) => void
   pageSize: number
   setPageSize: (size: number) => void
+  onRequestCancellation?: (absence: AbsenceListCardAbsence) => Promise<boolean>
+  cancellingAbsenceId?: string | null
+  accessToken?: string
 }
 
 export interface EntitlementsProps {

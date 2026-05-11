@@ -21,6 +21,7 @@ import InvestmentDataPage from './pages/investment-data/InvestmentDataPage'
 import InvestmentGroupsTypesPage from './pages/investment-groups-types/InvestmentGroupsTypesPage'
 import InvestmentLiquidFundTypesPage from './pages/investment-liquid-fund-types/InvestmentLiquidFundTypesPage'
 import InvestmentSpecificDataPage from './pages/investment-specific-data/InvestmentSpecificDataPage'
+import InvestmentCompanyExecutiveTypesPage from './pages/investment-company-executive-types'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
@@ -135,6 +136,10 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         {
           label: t('crm.investment_stake_types', 'Stake Types'),
           onClick: () => handleInlinePageChange({ key: 'investment-specific-data', tab: 'stake-types' })
+        },
+        {
+          label: t('crm.investment_company_executive_types', 'Executive Types'),
+          onClick: () => handleInlinePageChange({ key: 'investment-company-executive-types' })
         }
       ]
     },
@@ -286,6 +291,16 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentSpecificSettings`}
         onBack={() => handleInlinePageChange(null)}
         initialTab={initialTab || 'roles'}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'investment-company-executive-types') {
+    return (
+      <InvestmentCompanyExecutiveTypesPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentCompanyExecutiveTypesSettings`}
+        onBack={() => handleInlinePageChange(null)}
       />
     )
   }

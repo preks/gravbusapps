@@ -16,6 +16,8 @@ interface HeroClockCardProps {
   readonly isSubmitting: boolean
   readonly clockIn: () => void
   readonly clockOut: () => void
+  readonly isClockInDisabled?: boolean
+  readonly clockInDisabledReason?: string
   readonly todayRecordedMinutes: number
   readonly todaysPlannedMinutes: number
   readonly allMonthEntries: TimeEntry[]
@@ -87,6 +89,8 @@ export const HeroClockCard: React.FC<HeroClockCardProps> = ({
   isSubmitting,
   clockIn,
   clockOut,
+  isClockInDisabled = false,
+  clockInDisabledReason,
   todayRecordedMinutes,
   todaysPlannedMinutes,
   allMonthEntries,
@@ -211,7 +215,7 @@ export const HeroClockCard: React.FC<HeroClockCardProps> = ({
             <Button
               variant="default"
               tone="inverse"
-              disabled={!isSelfView || isSubmitting}
+              disabled={!isSelfView || isSubmitting || isClockInDisabled}
               onClick={clockIn}
               data-testid="timeclock-hero-clock-in-button"
             >
@@ -221,6 +225,11 @@ export const HeroClockCard: React.FC<HeroClockCardProps> = ({
               </span>
             </Button>
           )}
+          {!isClockedIn && isClockInDisabled && clockInDisabledReason ? (
+            <p className="gba:max-w-48 gba:text-center gba:text-xs gba:text-inverse-muted-foreground">
+              {clockInDisabledReason}
+            </p>
+          ) : null}
         </div>
       </div>
     </Card>

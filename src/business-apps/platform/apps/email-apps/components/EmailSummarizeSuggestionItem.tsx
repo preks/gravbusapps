@@ -245,7 +245,7 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
   const confidenceLow = showConfidence && s.confidence !== undefined && !isSuggestionConfidentEnough(s)
 
   const target = String(s.integrationTarget ?? '').trim()
-  const hasTarget = target.length > 0
+  const hasTarget = target.length > 0 && normalizeTypeKey(target) !== 'blink'
 
   const metaEntries = s.metadata ? Object.entries(s.metadata) : []
   const hasMeta = metaEntries.length > 0
@@ -304,11 +304,6 @@ export const EmailSummarizeSuggestionItem: React.FC<EmailSummarizeSuggestionItem
         {hasTarget ? (
           <Badge variant="outline" className="gba:text-xs gba:font-normal" data-testid={`${testId}-target`}>
             {integrationTargetLabel(target, t)}
-          </Badge>
-        ) : null}
-        {s.explicit !== undefined ? (
-          <Badge variant="outline" className="gba:text-xs gba:font-normal" data-testid={`${testId}-explicit`}>
-            {s.explicit ? t('email-suggestion-explicit') : t('email-suggestion-implicit')}
           </Badge>
         ) : null}
         {showConfidence && s.confidence !== undefined && Number.isFinite(s.confidence) && (

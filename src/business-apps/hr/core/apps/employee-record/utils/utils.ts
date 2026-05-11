@@ -10,6 +10,7 @@ import { EmployeeAbsenceEntitlement } from '../hooks/useEmployeeData'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '../../../../../../common/utils/windowUtils'
 import { AbsenceListCardAbsence, Entitlement } from '../queries/types'
 import { getAbsenceStatusLabel, getAbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { buildCancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/buildCancelEmployeeAbsenceSnapshot'
 
 export const getTypeValue = (type: any) => {
   if (type?.translations?.length > 0) {
@@ -20,6 +21,7 @@ export const getTypeValue = (type: any) => {
 
 export const transformAbsenceData = (absences: any[]): AbsenceListCardAbsence[] => {
   return absences.map((absence: any) => ({
+    id: absence.id,
     type: getCatalogValue(absence.type) || '',
     typeId: absence.type?.id || '',
     originalStatus: absence.status || '',
@@ -39,7 +41,8 @@ export const transformAbsenceData = (absences: any[]): AbsenceListCardAbsence[] 
     icon: CalendarBlankIcon,
     typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
     statusColor: getAbsenceStatusConfig(absence.status).color,
-    requestDate: absence.createdAt
+    requestDate: absence.createdAt,
+    employeeAbsence: buildCancelEmployeeAbsenceSnapshot(absence)
   }))
 }
 

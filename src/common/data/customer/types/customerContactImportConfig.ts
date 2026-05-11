@@ -5,11 +5,13 @@
  */
 
 import { baseContactImportFields } from '@/common/data/relations/types/contactImportConfig'
+import { contactPreviewConfig } from '@/common/data/relations/types/entityPreviewConfigs'
 import { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
 
 // CRM uses base fields only (no extensions)
 export const customerContactImportConfig: ImportConfig = {
   entityType: 'contact',
   domain: 'customer',
-  targetFields: baseContactImportFields
+  targetFields: baseContactImportFields,
+  preview: contactPreviewConfig
 }

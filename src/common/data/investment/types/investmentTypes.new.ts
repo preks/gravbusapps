@@ -1,7 +1,7 @@
 import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
-import type { Company } from '@/common/data/orgchart/types/companyTypes'
+import type { InvestmentCompany } from './investmentCompanyTypes'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentOpportunity } from './investmentOpportunityTypes'
 import { type EquityInvestment, EquityInvestmentFormFields } from './equityInvestmentTypes'
@@ -76,13 +76,13 @@ export interface Investment extends BaseEntity {
   ownerEmployee?: Employee
   investmentOpportunity?: InvestmentOpportunity
   loanRecipientInvestmentAccount?: InvestmentAccount
-  company?: Company
+  investmentCompany?: InvestmentCompany
 
   // Entity Reference IDs (Id fields)
   ownerEmployeeId?: string
   investmentOpportunityId?: string
   loanRecipientInvestmentAccountId?: string
-  companyId?: string
+  investmentCompanyId?: string
 
   // Investment Role relationships (array)
   investmentRole?: InvestmentRole[]
@@ -174,13 +174,13 @@ export const InvestmentFields = {
   ownerEmployee: 'ownerEmployee',
   investmentOpportunity: 'investmentOpportunity',
   loanRecipientInvestmentAccount: 'loanRecipientInvestmentAccount',
-  company: 'company',
+  investmentCompany: 'investmentCompany',
 
   // Entity Reference IDs (Id fields)
   ownerEmployeeId: 'ownerEmployeeId',
   investmentOpportunityId: 'investmentOpportunityId',
   loanRecipientInvestmentAccountId: 'loanRecipientInvestmentAccountId',
-  companyId: 'companyId',
+  investmentCompanyId: 'investmentCompanyId',
 
   // Array Relationships (not used in forms)
   investmentInvestmentAccounts: 'investmentInvestmentAccount',
@@ -253,7 +253,7 @@ export const InvestmentFormFields = {
   ownerEmployeeId: 'ownerEmployee',
   investmentOpportunityId: 'investmentOpportunity',
   loanRecipientInvestmentAccountId: 'loanRecipientInvestmentAccount',
-  companyId: 'company',
+  investmentCompanyId: 'investmentCompany',
 
   // Junction table relationships
   investmentAccounts: 'investmentAccounts', // GraphQL field name
@@ -510,9 +510,9 @@ export const createInvestmentDescriptors = (
     type: 'text'
   },
   {
-    key: 'company',
-    searchPaths: [`${fields.company}.name`, `${fields.company}.code`],
-    sortPath: `${fields.company}.name`,
+    key: 'investmentCompany',
+    searchPaths: [`${fields.investmentCompany}.name`, `${fields.investmentCompany}.code`],
+    sortPath: `${fields.investmentCompany}.name`,
     type: 'text'
   },
 
@@ -591,12 +591,12 @@ export const createInvestmentDescriptors = (
     kind: 'inIds'
   },
   {
-    key: 'companyIds',
-    path: fields.companyId,
+    key: 'investmentCompanyIds',
+    path: fields.investmentCompanyId,
     filterLabel: 'Company',
-    optionSelectPaths: [`${fields.company}.id`, `${fields.company}.name`],
-    optionSearchPaths: [`${fields.company}.name`, `${fields.company}.code`],
-    optionDistinctOn: [fields.companyId],
+    optionSelectPaths: [`${fields.investmentCompany}.id`, `${fields.investmentCompany}.name`],
+    optionSearchPaths: [`${fields.investmentCompany}.name`, `${fields.investmentCompany}.code`],
+    optionDistinctOn: [fields.investmentCompanyId],
     kind: 'inIds'
   },
   {

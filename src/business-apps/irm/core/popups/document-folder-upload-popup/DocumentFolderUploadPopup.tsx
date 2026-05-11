@@ -22,7 +22,13 @@ import {
 } from '@/common/components/common-relations/popups/document-folder-upload-popup'
 import type { FolderUploadEntityIds } from '@/common/utils/folderUploadUtils'
 
-export type IrmDocumentFolderUploadEntityType = 'account' | 'contact' | 'lead' | 'opportunity' | 'investment'
+export type IrmDocumentFolderUploadEntityType =
+  | 'account'
+  | 'contact'
+  | 'lead'
+  | 'opportunity'
+  | 'investment'
+  | 'investmentCompany'
 
 export interface DocumentFolderUploadPopupProps extends BusinessAppContextProps {
   onClose?: () => void
@@ -74,6 +80,14 @@ function extractIrmEntityContext(additionalData: BusinessAppContextProps['additi
     initialParameters?.investment ||
     urlParams.get('investmentId') ||
     ''
+  const investmentCompanyId =
+    externalContext?.investmentCompanyId ||
+    ad?.investmentCompanyId ||
+    ad?.investmentCompany?.id ||
+    ad?.investmentCompany ||
+    initialParameters?.investmentCompany ||
+    urlParams.get('investmentCompanyId') ||
+    ''
 
   let entityType: IrmDocumentFolderUploadEntityType | '' = ''
   let entityId = ''
@@ -93,6 +107,9 @@ function extractIrmEntityContext(additionalData: BusinessAppContextProps['additi
   } else if (investmentId) {
     entityType = 'investment'
     entityId = investmentId
+  } else if (investmentCompanyId) {
+    entityType = 'investmentCompany'
+    entityId = investmentCompanyId
   }
 
   const entityIds: FolderUploadEntityIds = {}
@@ -101,6 +118,7 @@ function extractIrmEntityContext(additionalData: BusinessAppContextProps['additi
   if (leadId) entityIds.lead = leadId
   if (opportunityId) entityIds.opportunity = opportunityId
   if (investmentId) entityIds.investment = investmentId
+  if (investmentCompanyId) entityIds.investmentCompany = investmentCompanyId
 
   return { entityType, entityId, entityIds }
 }

@@ -25,6 +25,20 @@ import {
 } from '../types/commonInvestmentImportTypes'
 import { toInvestmentPayloadKey } from './investmentGroupImportUtils'
 
+const investmentPreviewConfig: ImportConfig['preview'] = {
+  title: { fields: ['investment.name'] },
+  badges: [{ field: 'investment.investmentGroupRef' }, { field: 'investment.investmentTypeRef', variant: 'info' }],
+  rows: [
+    {
+      label: 'Total investment amount',
+      icon: 'currency',
+      field: 'investment.totalInvestmentAmount',
+      currencyField: 'investment.currencyRef',
+      format: 'amountWithCurrency'
+    }
+  ]
+}
+
 /**
  * Override files declare only the fields that genuinely differ from the
  * default — `entityType`, `domain`, `investmentPayloadKey`, and
@@ -80,6 +94,7 @@ const createDefaultImportConfig = (group: InvestmentImportGroupDescriptor): Impo
   domain: 'investment',
   targetFields: COMMON_INVESTMENT_FIELDS,
   investmentPayloadKey: group.requiredSubtypeKey || toInvestmentPayloadKey(group.code),
+  preview: investmentPreviewConfig,
   // Pre-resolved catalog ref so submit doesn't re-query the InvestmentGroup
   // catalog. `investmentGroupCodeHint` is intentionally omitted: it only
   // matters for hand-built configs that don't have a ref.

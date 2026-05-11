@@ -1403,7 +1403,8 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       isSearching: boolean = false,
       additionInfo?: string,
       skills?: string[],
-      mentions?: Array<{ id: string; type: string; display: string }>
+      mentions?: Array<{ id: string; type: string; display: string }>,
+      handsFreeMode: boolean = false
     ) => {
       if (!userInputText.trim() && files.length === 0) return
       if (inFlightRef.current) return
@@ -1455,6 +1456,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         form.append('user_input_text', userInputText)
         form.append('model_kind', FLOWBOT_MODEL_KIND_DEFAULT)
         form.append('use_web_search_tool', (isSearching ?? false).toString())
+        form.append('hands_free_mode', handsFreeMode.toString())
         // Append when explicitly provided (including empty string) so callers can
         // force inclusion of the multipart field for document-edit flows.
         if (additionInfo !== undefined) {

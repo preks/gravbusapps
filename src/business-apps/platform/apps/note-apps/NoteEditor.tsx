@@ -117,6 +117,12 @@ import {
   type EntityType
 } from './components/EntityMention'
 import { mergeAttributes } from '@tiptap/core'
+import { Table } from '@tiptap/extension-table'
+import { TableRow } from '@tiptap/extension-table-row'
+import { TableCell } from '@tiptap/extension-table-cell'
+import { TableHeader } from '@tiptap/extension-table-header'
+import { handleTiptapTabKey } from '@/components/tiptap-extensions/tiptapTabKeyHandler'
+import { NoteTableMenu } from './components/NoteTableMenu'
 import { FileText } from 'lucide-react'
 import type { Note, NoteColor } from './types'
 import { toast } from 'sonner'
@@ -1100,9 +1106,35 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }),
         Drawing,
         Kanban,
+        Table.configure({
+          resizable: false,
+          HTMLAttributes: {
+            class: 'note-editor-table'
+          }
+        }),
+        TableRow.configure({
+          HTMLAttributes: {
+            class: 'note-editor-table-row'
+          }
+        }),
+        TableHeader.configure({
+          HTMLAttributes: {
+            class: 'note-editor-table-header'
+          }
+        }),
+        TableCell.configure({
+          HTMLAttributes: {
+            class: 'note-editor-table-cell'
+          }
+        }),
         ...(collaborationExtension ? [collaborationExtension] : []),
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ],
+      editorProps: {
+        handleDOMEvents: {
+          keydown: (_view, event) => handleTiptapTabKey(event, editorRef.current)
+        }
+      },
       content: isCollaborationMode ? '<p></p>' : note.content || '<p></p>',
       editable: canEditNote,
       onUpdate: () => {
@@ -2622,6 +2654,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     </TooltipTrigger>
                     <TooltipContent>{t('editor-format-code-block')}</TooltipContent>
                   </Tooltip>
+
+                  <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
+
+                  <NoteTableMenu editor={editor} t={t} />
 
                   <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
 

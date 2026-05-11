@@ -182,6 +182,7 @@ task-dialog-completing = Se finalizează...
 task-dialog-complete-task = Finalizează sarcina
 task-dialog-missing-user-info = Nu se poate finaliza sarcina: lipsesc informațiile utilizatorului.
 task-dialog-lowcoder-screen = Ecran Lowcoder
+task-dialog-no-screen-available = Nu există niciun formular configurat pentru această sarcină. Vă rugăm să contactați administratorul.
 
 # CompletedView Component
 completed-search-placeholder = Căutare sarcini finalizate...

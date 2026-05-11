@@ -6,6 +6,7 @@
  */
 
 import { sharedLeadImportFields } from '@/common/data/relations/types/leadImportConfig'
+import { leadPreviewConfig } from '@/common/data/relations/types/entityPreviewConfigs'
 import { ImportConfig, TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
 
 const irmLeadSpecificFields: TargetFieldDefinition[] = [
@@ -56,6 +57,7 @@ export const investmentLeadImportConfig: ImportConfig = {
   entityType: 'lead',
   domain: 'investment',
   targetFields: [...sharedLeadImportFields, ...irmLeadSpecificFields],
+  preview: leadPreviewConfig,
   enforcedSelects: [
     {
       id: 'leadStatus',

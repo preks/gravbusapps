@@ -206,6 +206,7 @@ function mapApiNoteToSummary(apiNote: Record<string, unknown>): NoteSummary {
     childCount: Array.isArray(apiNote.children) ? (apiNote.children as unknown[]).length : 0,
     isShared: apiNote.isShared as boolean | undefined,
     sharedBy: apiNote.sharedBy as string | undefined,
+    isFavorite: apiNote.isFavorite as boolean | undefined,
     permission,
     contentJson,
     noteType
@@ -248,6 +249,7 @@ export const NoteApiService = {
   async listNotes(params?: NoteQueryParams): Promise<PaginatedNotes> {
     const urlParams = new URLSearchParams()
 
+    if (params?.section) urlParams.set('section', params.section)
     if (params?.parentId) urlParams.set('parentId', params.parentId)
     if (params?.rootOnly) urlParams.set('rootOnly', 'true')
     if (params?.tags?.length) urlParams.set('tags', params.tags.join(','))
