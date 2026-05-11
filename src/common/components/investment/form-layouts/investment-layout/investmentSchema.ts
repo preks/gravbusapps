@@ -115,8 +115,8 @@ const createBaseInvestmentSchema = (messages: InvestmentValidationMessages) =>
         investmentTypeId: z.string().nullable().optional(),
         // Optional opportunity ID (when creating investment from opportunity)
         investmentOpportunityId: z.string().nullable().optional(),
-        // Optional company ID
-        companyId: z.string().nullable().optional()
+        // Optional investment company ID
+        investmentCompanyId: z.string().nullable().optional()
       })
       .catchall(z.any()),
 

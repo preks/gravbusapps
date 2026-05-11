@@ -76,8 +76,17 @@ const DocumentPopup: React.FC<DocumentPopupProps> = props => {
         invFromAd?.investment ||
         urlParams.get('investmentId') ||
         ''
+      const investmentCompanyId =
+        externalContext?.investmentCompanyId ||
+        ad?.investmentCompanyId ||
+        ad?.investmentCompany?.id ||
+        ad?.investmentCompany ||
+        invFromAd?.investmentCompany?.id ||
+        invFromAd?.investmentCompany ||
+        urlParams.get('investmentCompanyId') ||
+        ''
 
-      // Determine active entity (priority: account > contact > lead > opportunity > investment)
+      // Determine active entity (priority: account > contact > lead > opportunity > investment > investmentCompany)
       let type = ''
       let id = ''
       let idFieldName = ''
@@ -108,6 +117,11 @@ const DocumentPopup: React.FC<DocumentPopupProps> = props => {
         id = investmentId
         idFieldName = 'investmentId'
         folderName = 'investment'
+      } else if (investmentCompanyId) {
+        type = 'investmentCompany'
+        id = investmentCompanyId
+        idFieldName = 'investmentCompanyId'
+        folderName = 'investment-company'
       }
 
       // Build entity associations (document can belong to multiple entities)
@@ -117,6 +131,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = props => {
       if (leadId) associations.lead = leadId
       if (opportunityId) associations.opportunity = opportunityId
       if (investmentId) associations.investment = investmentId
+      if (investmentCompanyId) associations.investmentCompany = investmentCompanyId
 
       // Extract documentId from additionalData (for update mode)
       const docId =
@@ -171,7 +186,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = props => {
         setLoading(true)
         setError(null)
 
-        const entityFields = ['account', 'contact', 'lead', 'opportunity', 'investment']
+        const entityFields = ['account', 'contact', 'lead', 'opportunity', 'investment', 'investmentCompany']
           .map(entity => `${entity} { id }`)
           .join(' ')
 

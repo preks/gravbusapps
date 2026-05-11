@@ -45,8 +45,7 @@ import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 import { InvestmentLeadFields } from '../types/investmentLeadTypes'
 import { InvestmentNoteFields } from '../types/investmentNoteTypes'
 import { InvestmentTaskFields } from '../types/investmentTaskTypes'
-import { INVESTMENT_REF } from './fragments/investmentReferenceFragments'
-import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
+import { INVESTMENT_COMPANY_REF, INVESTMENT_REF } from './fragments/investmentReferenceFragments'
 
 /**
  * Investment Opportunity Query Variables Interface
@@ -92,9 +91,9 @@ export const buildInvestmentOpportunityQuery = (
     divestmentId
 
     # Company relation (IRM only)
-    companyId
-    company {
-      ${COMPANY_REF}
+    investmentCompanyId
+    investmentCompany {
+      ${INVESTMENT_COMPANY_REF}
     }
     
     # IRM-specific Investment fields
@@ -202,9 +201,9 @@ export const buildInvestmentOpportunityByIdQuery = (
     }
 
     # Company relation (IRM only)
-    companyId
-    company {
-      ${COMPANY_REF}
+    investmentCompanyId
+    investmentCompany {
+      ${INVESTMENT_COMPANY_REF}
     }
     
     # IRM-specific Investment fields

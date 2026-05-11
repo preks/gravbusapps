@@ -1,5 +1,8 @@
 import { useCallback } from 'react'
 import { useInvestmentReportClient } from '@/common/network/investment-reports'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import type { OpportunityData } from './useOpportunityData'
 import type { AccountOption } from './useOpportunityAccounts'
 import type { ContactOption } from './useOpportunityContacts'
@@ -12,6 +15,29 @@ interface ActualApiResponse {
   templateName: string
   reportData: any
 }
+
+interface OrgchartCompanyNode {
+  id: string
+  type: string
+  parentNode?: string
+  data?: {
+    companyData?: {
+      name?: string
+    }
+  }
+}
+
+interface OrgchartStructureResponse {
+  nodes: OrgchartCompanyNode[]
+}
+
+const GET_ACTIVE_STRUCTURE_ID_QUERY = `
+  query GetActiveStructureIdForNda {
+    Structure(where: { isActive: { _eq: true } }, limit: 1) {
+      id
+    }
+  }
+`
 
 // Standardized response format
 interface NdaReportResponse {
@@ -28,18 +54,18 @@ export interface NdaReportData {
   investmentOpportunityAddressCity: string
   investmentOpportunityAddressRegion: string
   investmentOpportunityAddressCountry: string
-  athosLegalName: string
-  athosLegalStreet: string
-  athosLegalAddressPostalCode: string
-  athosLegalAddressCity: string
-  athosLegalAddressRegion: string
-  athosLegalAddressCountry: string
+  ourCompanyLegalName: string
+  ourCompanyLegalStreet: string
+  ourCompanyLegalAddressPostalCode: string
+  ourCompanyLegalAddressCity: string
+  ourCompanyLegalAddressRegion: string
+  ourCompanyLegalAddressCountry: string
   contactFirstName: string
   contactLastName: string
   contactJobPosition: string
-  athosContactFirstName: string
-  athosContactLastName: string
-  athosContactJobPosition: string
+  ourCompanyContactFirstName: string
+  ourCompanyContactLastName: string
+  ourCompanyContactJobPosition: string
 }
 
 export interface GenerateNdaReportParams {
@@ -51,10 +77,45 @@ export interface GenerateNdaReportParams {
 
 export const useNdaReportGeneration = (accessToken: string) => {
   const reportClient = useInvestmentReportClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
+  const orgchartClient = useOrgchartClient(accessToken)
+
+  const getMainOrgchartCompanyName = useCallback(async (): Promise<string | null> => {
+    try {
+      let structureId = getCurrentActiveStructureId()
+
+      if (!structureId) {
+        const activeStructureResult = await graphqlClient.request<{ Structure?: Array<{ id?: string }> }>(
+          GET_ACTIVE_STRUCTURE_ID_QUERY
+        )
+        structureId = activeStructureResult.Structure?.[0]?.id || null
+      }
+
+      if (!structureId) {
+        return null
+      }
+
+      const structure = await orgchartClient.getStructure<OrgchartStructureResponse>(structureId, {
+        nodeType: 'company'
+      })
+      const companyNodes = (structure.nodes || []).filter(node => node.type === 'company')
+      if (!companyNodes.length) {
+        return null
+      }
+
+      const rootCompany = companyNodes.find(node => !node.parentNode)
+      const selectedCompany = rootCompany || companyNodes[0]
+      return selectedCompany.data?.companyData?.name || null
+    } catch (error) {
+      console.error('Failed to load main orgchart company name:', error)
+      return null
+    }
+  }, [graphqlClient, orgchartClient])
 
   const generateNdaReport = useCallback(
     async (params: GenerateNdaReportParams): Promise<NdaReportResponse> => {
       const { opportunity, account, contact, employee } = params
+      const mainOrgchartCompanyName = await getMainOrgchartCompanyName()
 
       // Prepare report data matching the required structure
       const reportData: NdaReportData = {
@@ -66,23 +127,23 @@ export const useNdaReportGeneration = (accessToken: string) => {
         investmentOpportunityAddressRegion: account?.address?.region || '',
         investmentOpportunityAddressCountry: account?.address?.country || '',
 
-        // Athos Legal Details (Your company details - from opportunity's company)
-        athosLegalName: opportunity.company?.name || '',
-        athosLegalStreet: '', // Company address not available in current schema
-        athosLegalAddressPostalCode: '',
-        athosLegalAddressCity: '',
-        athosLegalAddressRegion: '',
-        athosLegalAddressCountry: '',
+        // Our company legal details (from opportunity's company)
+        ourCompanyLegalName: mainOrgchartCompanyName || opportunity.investmentCompany?.name || '',
+        ourCompanyLegalStreet: '', // Company address not available in current schema
+        ourCompanyLegalAddressPostalCode: '',
+        ourCompanyLegalAddressCity: '',
+        ourCompanyLegalAddressRegion: '',
+        ourCompanyLegalAddressCountry: '',
 
         // Contact Details (from selected contact)
         contactFirstName: contact?.firstName || '',
         contactLastName: contact?.lastName || '',
         contactJobPosition: contact?.jobPosition || '',
 
-        // Athos Contact Details (from selected employee)
-        athosContactFirstName: employee.firstName || '',
-        athosContactLastName: employee.lastName || '',
-        athosContactJobPosition: employee.employeePosition?.jobPosition?.name || ''
+        // Our company contact details (from selected employee)
+        ourCompanyContactFirstName: employee.firstName || '',
+        ourCompanyContactLastName: employee.lastName || '',
+        ourCompanyContactJobPosition: employee.employeePosition?.jobPosition?.name || ''
       }
 
       // Prepare the request payload - NDA API expects investment object + flat structure in reportData
@@ -126,7 +187,7 @@ export const useNdaReportGeneration = (accessToken: string) => {
         throw error
       }
     },
-    [reportClient]
+    [getMainOrgchartCompanyName, reportClient]
   )
 
   return { generateNdaReport }

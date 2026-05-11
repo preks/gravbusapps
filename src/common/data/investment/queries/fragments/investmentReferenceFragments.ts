@@ -56,6 +56,30 @@ export const INVESTMENT_ACCOUNT_REF = `
   website
 `
 
+export const INVESTMENT_COMPANY_REF = `
+  id
+  ${AUDIT_FIELDS}
+  name
+  code
+  description
+  commercialRegistrationNumber
+  taxIdentificationNumber
+  taxNumber
+  valueAddedTaxNumber
+  picture
+  pictureThumbnail
+  currency {
+    ${CATALOG_ENTRY}
+  }
+  currencyRef
+`
+
+export const INVESTMENT_COMPANY_GROUP_REF = `
+  id
+  ${AUDIT_FIELDS}
+  name
+`
+
 /**
  * ============================================================================
  * INVESTMENT_CONTACT_REF
@@ -146,6 +170,10 @@ export const INVESTMENT_OPPORTUNITY_REF = `
   buildingYear
   dealType
   divestmentId
+  investmentCompany {
+    ${INVESTMENT_COMPANY_REF}
+  }
+  investmentCompanyId
   forecastedProfitAmount
   initialInvestmentAmount
   investmentGroup {
@@ -314,6 +342,7 @@ export const INVESTMENT_ACTIVITY_REF = `
  */
 export const INVESTMENT_DOCUMENT_REF = `
   ${COMMON_DOCUMENT_FIELDS}
+  investmentCompanyId
 `
 
 /**
@@ -403,6 +432,7 @@ export const INVESTMENT_REF = `
     currency {
       ${CATALOG_ENTRY}
     }
+    investmentCompanyId
 `
 
 /**

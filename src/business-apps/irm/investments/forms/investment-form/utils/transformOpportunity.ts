@@ -47,8 +47,8 @@ const createBaseInvestmentValues = (
       investmentStatus: { id: 'InvestmentStatus:v1:ACTIVE', code: 'ACTIVE' } as any,
       investmentAccounts: investmentInvestmentAccounts as any, // GraphQL field name
       investmentTypeId: investmentTypeId || null,
-      company: (opportunityData.company as any) || undefined,
-      companyId: opportunityData.companyId || undefined
+      investmentCompany: (opportunityData.investmentCompany as any) || undefined,
+      investmentCompanyId: opportunityData.investmentCompanyId || undefined
     }
   }
 

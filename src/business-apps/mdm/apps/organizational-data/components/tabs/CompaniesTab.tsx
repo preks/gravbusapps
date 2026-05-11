@@ -34,7 +34,7 @@ import {
 import CardTabHeaderComponent from '../../../generic-components/card'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import CompanyForm from '@/business-apps/mdm/forms/company-form/CompanyForm'
+import CompanyForm from '@/business-apps/irm/core/forms/company-form/CompanyForm'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { extractCurrencyCode } from '@/common/utils/numberFormatter'
@@ -152,7 +152,7 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
 
   const handleCompanyNameClick = useCallback((companyId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const url = buildPlatformUrl('/platform/mdm/company-record', { companyId })
+    const url = buildPlatformUrl('/platform/irm/company-record', { companyId })
     navigateTo(url)
   }, [])
 

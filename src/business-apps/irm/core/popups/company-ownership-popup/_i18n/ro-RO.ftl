@@ -1,0 +1,20 @@
+# Company Ownership Popup
+validation-company-required = Compania este obligatorie
+validation-owner-required = Compania proprietara este obligatorie
+validation-percentage-min = Procentul trebuie sa fie cel putin 0
+validation-percentage-max = Procentul trebuie sa fie cel mult 100
+validation-owner-different = Compania proprietara trebuie sa fie diferita de companie
+error-load-companies = Companiile nu au putut fi incarcate
+error-load-owner-companies = Companiile proprietare nu au putut fi incarcate
+update-button = Actualizati proprietatea companiei
+create-button = Setati proprietatea companiei
+company-label = Companie
+company-placeholder = Selectati compania
+company-search-placeholder = Cautati companii...
+company-empty = Nu au fost gasite companii
+owner-label = Companie proprietara
+owner-placeholder = Selectati compania proprietara
+owner-search-placeholder = Cautati companii proprietare...
+owner-empty = Nu au fost gasite companii
+percentage-label = Procent proprietate
+percentage-placeholder = Introduceti procentul (optional)

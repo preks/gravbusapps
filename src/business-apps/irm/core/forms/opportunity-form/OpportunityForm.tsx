@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { CompanySelect } from '@/components/company-select'
+import { InvestmentCompanySelect } from '@/components/investment-company-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 import {
@@ -64,7 +64,7 @@ const prefixDataTestId = 'InvestmentOpportunityForm'
 
 // Base investment opportunity schema (will be extended with investmentTypeId)
 const baseInvestmentOpportunitySchema = opportunitySchemaBase.extend({
-  companyId: z.string().nullable().optional(),
+  investmentCompanyId: z.string().nullable().optional(),
   investmentName: z.string().min(1, 'Investment Name is required'),
   dealType: z.string().nullable().optional()
 })
@@ -550,16 +550,16 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     () => (
       <FormField
         control={form.control}
-        name="companyId"
+        name="investmentCompanyId"
         render={({ field }) => (
           <FormItem>
             <FormLabel>Company</FormLabel>
             <FormControl>
-              <CompanySelect
+              <InvestmentCompanySelect
                 value={field.value || null}
                 onValueChange={(value: string | null) => field.onChange(value || '')}
                 businessAppContext={{ accessToken, userInfo, additionalData }}
-                initialCompany={opportunity?.company}
+                initialCompany={opportunity?.investmentCompany}
                 data-testid={formatDataTestId(prefixDataTestId, 'company-select')}
               />
             </FormControl>
@@ -568,7 +568,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         )}
       />
     ),
-    [accessToken, additionalData, form.control, opportunity?.company, userInfo]
+    [accessToken, additionalData, form.control, opportunity?.investmentCompany, userInfo]
   )
 
   // Deal Type selector - hide if dealType is already set (from additionalData or opportunity)
