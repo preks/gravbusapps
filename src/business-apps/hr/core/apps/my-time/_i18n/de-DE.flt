@@ -13,6 +13,7 @@ of_planned = von { $planned }
 location_label = STANDORT
 location_not_clocked_in = Nicht eingestempelt
 location_placeholder = Bitte stempeln Sie ein, um den Standort zu bestimmen
+clock_in_before_hire_date = Einstempeln ist ab Ihrem Eintrittsdatum möglich.
 location_address_review_warning = Adresse muss überprüft werden, um den Standort genau zu bestimmen. Bitte aktualisieren Sie Ihre Heim- oder Büroadresse.
 location_address_review_warning_home = Für Ihre Heimadresse fehlen Koordinaten. Bitte aktualisieren Sie sie für eine genaue Standortbestimmung.
 location_address_review_warning_office = Für Ihre Büroadresse fehlen Koordinaten. Bitte einen Administrator um Aktualisierung bitten, damit der Standort korrekt erkannt wird.

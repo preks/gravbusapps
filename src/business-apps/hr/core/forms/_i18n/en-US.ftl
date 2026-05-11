@@ -330,6 +330,7 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = The request is sent to be approved by the manager
 request-correction-date-absence-error = This date is a bank holiday or absence and cannot be used for a correction request.
+request-correction-date-before-hire-error = This date is before the employee's hire date and cannot be used for a correction request.
 request-correction-zero-planned-warning = This date has no planned working hours. Any time entered will count as overtime.
 notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
 notification-working-hours-updated-success = Working hours updates are sent for HR approval
@@ -408,6 +409,7 @@ create-absence-days = days
 create-absence-effective-days-label = Effective days
 create-absence-calendar-days-label = Calendar days
 create-absence-end-date-after-start = End date must be after start date
+create-absence-date-before-hire-error = Absence dates cannot be before the employee's hire date.
 create-absence-single-day-bank-holiday-blocked = The selected day is a bank holiday. You cannot submit a single-day absence for this date.
 create-absence-validation-failed = Validation failed. Please try again.
 create-absence-bank-holidays-not-counted = { $count } days are bank holidays, so they are not taken into consideration.

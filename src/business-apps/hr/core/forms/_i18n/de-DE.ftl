@@ -327,6 +327,7 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
 request-correction-date-absence-error = Dieses Datum ist ein Feiertag oder eine Abwesenheit und kann nicht für eine Korrekturanfrage verwendet werden.
+request-correction-date-before-hire-error = Dieses Datum liegt vor dem Eintrittsdatum des Mitarbeiters und kann nicht für eine Korrekturanfrage verwendet werden.
 request-correction-zero-planned-warning = Für dieses Datum sind keine Arbeitsstunden geplant. Eingetragene Zeiten werden als Überstunden gewertet.
 notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
@@ -405,6 +406,7 @@ create-absence-days = Tage
 create-absence-effective-days-label = Effektive Tage
 create-absence-calendar-days-label = Kalendertage
 create-absence-end-date-after-start = Das Enddatum muss nach dem Startdatum liegen.
+create-absence-date-before-hire-error = Abwesenheitsdaten dürfen nicht vor dem Eintrittsdatum des Mitarbeiters liegen.
 create-absence-single-day-bank-holiday-blocked = Der gewählte Tag ist ein Feiertag. Sie können für dieses Datum keine eintägige Abwesenheit einreichen.
 create-absence-validation-failed = Validierung fehlgeschlagen. Bitte versuchen Sie es erneut.
 create-absence-bank-holidays-not-counted = { $count } Tage sind Feiertage und werden daher nicht berücksichtigt.

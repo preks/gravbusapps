@@ -5,6 +5,9 @@ export const GET_EMPLOYEE_DETAILS = `
       firstName
       lastName
       pictureThumbnail
+      workingCondition {
+        hireDate
+      }
     }
     EmployeePosition(where: {employeeId: {_eq: $idEmployee}}) {
       jobPosition {

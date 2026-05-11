@@ -70,6 +70,9 @@ query GetEmployeeHeaderInfo($id: uuid!) {
     firstName
     lastName
     pictureThumbnail
+    workingCondition {
+      hireDate
+    }
     employeePosition {
       jobPosition {
         name
@@ -102,6 +105,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   const [workingHours, setWorkingHours] = useState<WeeklyWorkingHours | undefined>(undefined)
   const [disabledDatesSet, setDisabledDatesSet] = useState<Set<string>>(new Set())
   const [absenceDatesSet, setAbsenceDatesSet] = useState<Set<string>>(new Set())
+  const [employeeHireDateKey, setEmployeeHireDateKey] = useState<string | undefined>(undefined)
 
   // GraphQL client for fetching employee header info
   const graphqlClient = useGraphQLClient(accessToken)
@@ -116,6 +120,28 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     )
   }, [employeeId, additionalData])
 
+  const toLocalDateKey = (d: Date): string => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+  const toDateKey = (value?: string): string | undefined => {
+    if (!value) return undefined
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
+    if (dateOnly) return `${dateOnly[1]}-${dateOnly[2]}-${dateOnly[3]}`
+
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return undefined
+    return toLocalDateKey(parsed)
+  }
+
+  const isBeforeHireDate = useCallback(
+    (dateKey: string) => Boolean(employeeHireDateKey && dateKey < employeeHireDateKey),
+    [employeeHireDateKey]
+  )
+
   // Fetch employee header info
   const fetchEmployeeHeaderInfo = useCallback(async () => {
     if (!accessToken || !resolvedEmployeeId) return
@@ -129,6 +155,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
           pictureThumbnail: emp.pictureThumbnail,
           jobTitle: emp.employeePosition?.jobPosition?.name
         })
+        setEmployeeHireDateKey(toDateKey(emp.workingCondition?.[0]?.hireDate))
       }
     } catch {
       // Silently fail - form still works without header info
@@ -154,13 +181,6 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     }
     fetchWorkingHours()
   }, [accessToken, resolvedEmployeeId, graphqlClient])
-
-  const toLocalDateKey = (d: Date): string => {
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${day}`
-  }
 
   // Extract platform/flow-provided parameters (supports nested psi_taskPayload as well as externalContextData)
   const platformParams = React.useMemo(() => {
@@ -318,10 +338,10 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     string
   ]
 
-  // Re-validate date when absence set is loaded so pre-selected or chosen absence dates show the error
+  // Re-validate date when blocked date data is loaded so pre-selected or chosen dates show the error
   useEffect(() => {
-    if (absenceDatesSet.size > 0 && dateVal) form.trigger('date')
-  }, [absenceDatesSet, dateVal, form])
+    if ((absenceDatesSet.size > 0 || employeeHireDateKey) && dateVal) form.trigger('date')
+  }, [absenceDatesSet, dateVal, employeeHireDateKey, form])
 
   // Convert HH:MM to total minutes for comparison
   const hhmmToMinutes = (hhmm?: string): number | null => {
@@ -354,6 +374,12 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     return key ? absenceDatesSet.has(key) : false
   }, [dateVal, absenceDatesSet])
 
+  const isDateBeforeHireDate = useMemo(() => {
+    if (!dateVal) return false
+    const key = toDateKey(dateVal)
+    return key ? isBeforeHireDate(key) : false
+  }, [dateVal, isBeforeHireDate])
+
   const isZeroPlannedDay = useMemo(() => {
     if (!dateVal || !workingHours) return false
     const d = new Date(dateVal)
@@ -377,8 +403,18 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     const endMins = hhmmToMinutes(clockOutVal)
     const timeOrderOk = startMins === null || endMins === null || startMins <= endMins
     const dateNotAbsence = !isDateAbsence
-    return Boolean(dateVal && clockInVal && clockOutVal && hasNotes && timeOrderOk && hasChanges && dateNotAbsence)
-  }, [dateVal, clockInVal, clockOutVal, notesVal, hasChanges, isDateAbsence])
+    const dateIsHireDateOrLater = !isDateBeforeHireDate
+    return Boolean(
+      dateVal &&
+        clockInVal &&
+        clockOutVal &&
+        hasNotes &&
+        timeOrderOk &&
+        hasChanges &&
+        dateNotAbsence &&
+        dateIsHireDateOrLater
+    )
+  }, [dateVal, clockInVal, clockOutVal, notesVal, hasChanges, isDateAbsence, isDateBeforeHireDate])
 
   // Normalize any date (ISO with time or YYYY-MM-DD) to UTC midnight ISO
   const toUtcMidnightIso = (input: string): string => {
@@ -478,6 +514,10 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
               const isDisabledDate = (date: Date) => disabledDatesSet.has(toLocalDateKey(date))
               rangeMatchers.push(isDisabledDate)
             }
+            if (employeeHireDateKey) {
+              const isBeforeHireDateMatcher = (date: Date) => isBeforeHireDate(toLocalDateKey(date))
+              rangeMatchers.push(isBeforeHireDateMatcher)
+            }
             return rangeMatchers
           })()}
           {...(platformParams.attendanceDateISO && {
@@ -487,10 +527,14 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
         />
       )
     },
-    [platformParams, disabledDatesSet]
+    [platformParams, disabledDatesSet, employeeHireDateKey, isBeforeHireDate]
   )
 
   const handleSubmit = async () => {
+    if (isDateBeforeHireDate) {
+      form.setError('date', { message: t('request-correction-date-before-hire-error') })
+      return
+    }
     if (isDateAbsence) {
       form.setError('date', { message: t('request-correction-date-absence-error') })
       return
@@ -610,6 +654,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
                   } catch {
                     // no-op
                   }
+                  if (key && isBeforeHireDate(key)) return t('request-correction-date-before-hire-error')
                   if (key && absenceDatesSet.has(key)) return t('request-correction-date-absence-error')
                   return true
                 }

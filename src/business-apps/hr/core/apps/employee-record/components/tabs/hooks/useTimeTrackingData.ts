@@ -59,6 +59,7 @@ export type SortDirection = 'asc' | 'desc'
 export interface UseTimeTrackingDataOptions extends Pick<BusinessAppContextProps, 'accessToken'> {
   employeeId: string
   hireDate?: string
+  clockInBeforeHireDateMessage?: string
   workingHours?: {
     sundayHours?: number
     mondayHours?: number
@@ -74,6 +75,7 @@ export const useTimeTrackingData = ({
   employeeId,
   accessToken,
   hireDate,
+  clockInBeforeHireDateMessage,
   workingHours
 }: UseTimeTrackingDataOptions) => {
   const locale = getCurrentActiveUserLocale()
@@ -196,6 +198,11 @@ export const useTimeTrackingData = ({
 
   const isBeforeHireDate = useCallback(
     (dateKey: string) => Boolean(hireDateKey && dateKey < hireDateKey),
+    [hireDateKey]
+  )
+
+  const isBeforeHireDateToday = useMemo(
+    () => Boolean(hireDateKey && toLocalDateKey(new Date()) < hireDateKey),
     [hireDateKey]
   )
 
@@ -539,9 +546,15 @@ export const useTimeTrackingData = ({
   }, [workingHours, hireDateKey])
   const clockIn = useCallback(async () => {
     setError(null)
+    const now = new Date()
+    const todayKey = toLocalDateKey(now)
+    if (isBeforeHireDate(todayKey)) {
+      setError(clockInBeforeHireDateMessage ?? 'Clock-in is available from your hire date.')
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      const now = new Date()
       const today = now.toISOString().slice(0, 10)
       const isoNow = now.toISOString()
 
@@ -628,7 +641,15 @@ export const useTimeTrackingData = ({
     } finally {
       setIsSubmitting(false)
     }
-  }, [accessToken, employeeId, locale, loadFromGraphql])
+  }, [
+    accessToken,
+    clockInBeforeHireDateMessage,
+    employeeId,
+    graphqlClient,
+    isBeforeHireDate,
+    isClockedIn,
+    loadFromGraphql
+  ])
 
   const clockOut = useCallback(async () => {
     setIsSubmitting(true)
@@ -897,6 +918,7 @@ export const useTimeTrackingData = ({
     todaysProjectMinutes,
     todaysPlannedMinutes,
     todayRecordedMinutes,
+    isBeforeHireDateToday,
     locationBanner,
     // actions
     setSort: (key: keyof TimeEntry, dir: SortDirection) => {
