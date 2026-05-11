@@ -11,6 +11,7 @@ export const hrAreas: HrArea[] = [
     badgeTone: 'core',
     explorePath: '/platform/hr-settings',
     links: [
+      { label: 'Workforce Management', path: '/platform/hr/workforce-management' },
       { label: 'Organizational Data', path: '/platform/mdm/organizational-data' },
       { label: 'Job Structures', path: '/platform/mdm/job-structure-data' },
       { label: 'Employee Records', path: '/platform/mdm/employment-data' }

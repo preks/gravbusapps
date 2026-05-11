@@ -1,6 +1,12 @@
 hr-analytics-salary-by-org-unit-description = Salariul mediu pe unitate organizațională – distribuția compensațiilor pe departamente
 ## Human Resources - Romanian Translations
 
+# Page headers
+hr-reporting-insights-page-title = HR Reporting & Insights
+hr-reporting-insights-page-description = Explorați metrici workforce, tendințe și insight-uri organizaționale
+hr-workforce-management-page-title = Workforce Management
+hr-workforce-management-page-description = Gestionați angajații, rolurile și posturile din întreaga organizație
+
 # Employees - Filters
 hr-employees-filters-organizational-units = Unități organizaționale
 hr-employees-filters-employment-types = Tipuri de angajare

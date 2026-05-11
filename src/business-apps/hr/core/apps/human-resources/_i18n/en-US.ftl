@@ -1,6 +1,12 @@
 hr-analytics-salary-by-org-unit-description = Average salary by organizational unit showing compensation distribution across departments
 ## Human Resources - English Translations
 
+# Page headers
+hr-reporting-insights-page-title = HR Reporting & Insights
+hr-reporting-insights-page-description = Explore workforce metrics, trends and organization insights
+hr-workforce-management-page-title = Workforce Management
+hr-workforce-management-page-description = Manage employees, roles, and job positions across your organization
+
 # Employees - Filters
 hr-employees-filters-organizational-units = Organizational Units
 hr-employees-filters-employment-types = Employment Types

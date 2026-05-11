@@ -1,6 +1,12 @@
 hr-analytics-salary-by-org-unit-description = Durchschnittsgehalt nach Organisationseinheit – Verteilung der Vergütung über Abteilungen
 ## Human Resources - German Translations
 
+# Page headers
+hr-reporting-insights-page-title = HR Reporting & Insights
+hr-reporting-insights-page-description = Entdecken Sie Workforce-Metriken, Trends und organisatorische Einblicke
+hr-workforce-management-page-title = Workforce Management
+hr-workforce-management-page-description = Verwalten Sie Mitarbeitende, Rollen und Stellen in Ihrer gesamten Organisation
+
 # Employees - Filters
 hr-employees-filters-organizational-units = Organisationseinheiten
 hr-employees-filters-employment-types = Beschäftigungsarten

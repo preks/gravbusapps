@@ -35,7 +35,7 @@ interface UseOpenJobPositionsProps {
 
 /**
  * Hook to fetch open/vacant job positions in the manager's team.
- * Uses the same query pattern as platform/hr/human-resources?view=positions
+ * Uses the same query pattern as platform/hr/workforce-management?view=positions
  * A position is considered "open/vacant" if it has no employee assigned (employeeId is null).
  */
 export const useOpenJobPositions = ({
