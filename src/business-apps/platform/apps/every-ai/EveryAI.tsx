@@ -8,9 +8,8 @@ import { ChatInput } from './components/ChatInput'
 import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
-import { VoiceOverlay } from './components/voice/VoiceOverlay'
 import { ChatHistory } from './components/ChatHistory'
-import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
+import type { OutputItem, AnswerOutput, NavigationData, DisplayData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
 import { FlowProposalFileUploadProvider } from './context/FlowProposalFileUploadContext'
 import { HeroSection, DeepBlueNeuralBackground } from './components/HeroSection'
@@ -42,6 +41,24 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   )
 }
 
+const HANDS_FREE_HEAVY_DISPLAY_TYPES: Set<DisplayData['type']> = new Set([
+  'table',
+  'scatter',
+  'bar',
+  'lineChart',
+  'areaChart',
+  'stackedBarChart',
+  'pieChart',
+  'heatmap',
+  'gantt',
+  'treemap',
+  'kanbanBoard',
+  'crmFunnel',
+  'workflowAnalytics',
+  'assetSummary',
+  'teamAvailability'
+])
+
 /**
  * Inner component that uses the VoiceFormContext
  */
@@ -53,6 +70,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
   const lastNavigatedTurnIndexRef = useRef<number>(-1)
+  const navigateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
@@ -117,8 +135,13 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       voiceInput.cancelListening()
     },
     onEnd: () => {
-      // Record when AI stopped speaking (for echo filtering)
       aiStoppedSpeakingAtRef.current = Date.now()
+      if (isSpeechModeRef.current) {
+        voiceInput.startListening()
+      }
+    },
+    onError: () => {
+      // TTS failed — restart listening so the user isn't stuck in "Ready" state
       if (isSpeechModeRef.current) {
         voiceInput.startListening()
       }
@@ -134,6 +157,26 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   }, [isSpeechMode, voiceSynthesis, voiceInput.interimTranscript, voiceInput.volume])
 
+  // Safety net: restart listening when hands-free mode is idle
+  // (not listening, not speaking, not loading) to recover from missed restart
+  useEffect(() => {
+    if (!isSpeechMode) return
+    if (voiceInput.isListening || voiceSynthesis.isSpeaking || voiceSynthesis.isLoading || isLoading) return
+
+    const restartTimer = setTimeout(() => {
+      if (
+        isSpeechModeRef.current &&
+        !voiceInput.isListening &&
+        !voiceSynthesis.isSpeaking &&
+        !voiceSynthesis.isLoading
+      ) {
+        voiceInput.startListening()
+      }
+    }, 1200)
+
+    return () => clearTimeout(restartTimer)
+  }, [isSpeechMode, voiceInput.isListening, voiceSynthesis.isSpeaking, voiceSynthesis.isLoading, isLoading])
+
   // Toggle speech mode
   const toggleSpeechMode = useCallback(() => {
     if (isSpeechMode) {
@@ -145,6 +188,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       setTimeout(() => {
         voiceSynthesis.stop()
       }, 100)
+      if (navigateTimeoutRef.current) {
+        clearTimeout(navigateTimeoutRef.current)
+        navigateTimeoutRef.current = null
+      }
       voiceForm.setIsVoiceMode(false)
       voiceForm.clearPendingFormSummary()
       voiceForm.setActiveForm(null) // Clear any active form registration
@@ -251,7 +298,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
           if (textParts.length > 0 && isSpeechModeRef.current) {
             const textToSpeak = textParts.join('. ')
-            const truncatedText = textToSpeak.length > 500 ? textToSpeak.substring(0, 500) + '...' : textToSpeak
+            let truncatedText = textToSpeak
+            if (textToSpeak.length > 500) {
+              const sentenceEnd = textToSpeak.substring(0, 500).lastIndexOf('. ')
+              truncatedText =
+                sentenceEnd > 100 ? textToSpeak.substring(0, sentenceEnd + 1) : textToSpeak.substring(0, 500)
+            }
             voiceSynthesis.speak(truncatedText)
             lastSpokenTurnIndexRef.current = i
             break // Only speak one response at a time
@@ -279,15 +331,34 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           if (navigationData?.url) {
             lastNavigatedTurnIndexRef.current = i
 
-            setTimeout(() => {
-              navigateTo(navigationData.url)
-            }, 1500) // Wait 1.5 seconds so they can hear the explanation
+            if (navigateTimeoutRef.current) {
+              clearTimeout(navigateTimeoutRef.current)
+            }
+            navigateTimeoutRef.current = setTimeout(() => {
+              navigateTimeoutRef.current = null
+              if (isSpeechModeRef.current) {
+                navigateTo(navigationData.url)
+              }
+            }, 1500)
             break
           }
         }
       }
     }
+
+    return () => {
+      if (navigateTimeoutRef.current) {
+        clearTimeout(navigateTimeoutRef.current)
+        navigateTimeoutRef.current = null
+      }
+    }
   }, [conversation, isSpeechMode])
+
+  // Reset spoken/navigated indices when session changes to prevent desync
+  useEffect(() => {
+    lastSpokenTurnIndexRef.current = -1
+    lastNavigatedTurnIndexRef.current = -1
+  }, [sessionId])
 
   // Handle sending voice transcript with form command detection
   const handleVoiceSend = useCallback(
@@ -363,7 +434,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               // Exit form mode so TTS is allowed to speak the response
               voiceForm.setActiveForm(null)
               voiceForm.clearPendingFormSummary()
-              sendMessage(cleanText, [], false, false)
+              sendMessage(cleanText, [], false, false, undefined, undefined, undefined, true)
               voiceInput.resetTranscript()
               return
             }
@@ -374,7 +445,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         }
 
         // No active form - send as regular chat message
-        sendMessage(cleanText, [], false, false)
+        sendMessage(cleanText, [], false, false, undefined, undefined, undefined, true)
         voiceInput.resetTranscript()
       }
     },
@@ -396,6 +467,46 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
     return conversation
   }, [conversation, isLoading])
+
+  const renderConversation = useMemo(() => {
+    if (!isSpeechMode) {
+      return extendedConversation
+    }
+
+    return extendedConversation.map(turn => {
+      if (turn.side !== 'agent') {
+        return turn
+      }
+
+      const normalizedOutputs = turn.outputs?.map(output => {
+        if (output.type !== 'answer') {
+          return output
+        }
+
+        const safeDisplayData = output.displayData.filter(item => !HANDS_FREE_HEAVY_DISPLAY_TYPES.has(item.type))
+        if (safeDisplayData.length > 0) {
+          return {
+            ...output,
+            displayData: safeDisplayData
+          }
+        }
+
+        const fallbackDisplayData: DisplayData[] = [
+          { type: 'textBlock', text: 'Done. I can continue with your next voice instruction.' }
+        ]
+
+        return {
+          ...output,
+          displayData: fallbackDisplayData
+        }
+      })
+
+      return {
+        ...turn,
+        outputs: normalizedOutputs ?? turn.outputs
+      }
+    })
+  }, [extendedConversation, isSpeechMode])
 
   // When the user loads older messages via "Load more", we need to keep the
   // viewport anchored at the same visual position instead of letting the
@@ -473,7 +584,16 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         setTimeout(() => {
           // Pass through exactly as resolved so empty string can still force
           // `addition_info` multipart field inclusion.
-          sendMessage(initialPrompt, [], false, false, initialAdditionInfo ?? undefined, initialSkills)
+          sendMessage(
+            initialPrompt,
+            [],
+            false,
+            false,
+            initialAdditionInfo ?? undefined,
+            initialSkills,
+            undefined,
+            false
+          )
         }, 300)
       }
     } catch (error) {
@@ -517,14 +637,15 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       if (!normalizedText || !isFinal) {
         return
       }
-      sendMessage(normalizedText, [], false, false)
+      // Route through handleVoiceSend for echo filtering and form command detection
+      handleVoiceSendRef.current(normalizedText)
     }
 
     window.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     return () => {
       window.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     }
-  }, [sendMessage])
+  }, [])
 
   const handleSessionSelect = useCallback(
     async (sessionIdToLoad: string) => {
@@ -568,8 +689,24 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     isSearching: boolean,
     mentions?: Array<{ id: string; type: string; display: string }>
   ) => {
-    sendMessage(text, files, isThinking, isSearching, undefined, undefined, mentions)
+    sendMessage(text, files, isThinking, isSearching, undefined, undefined, mentions, false)
   }
+
+  const handleConversationSend = useCallback(
+    (userInputText: string, files: File[], isThinking: boolean = false, isSearching: boolean = false) => {
+      return sendMessage(
+        userInputText,
+        files,
+        isThinking,
+        isSearching,
+        undefined,
+        undefined,
+        undefined,
+        isSpeechModeRef.current
+      )
+    },
+    [sendMessage]
+  )
 
   const isEmptyState = conversation.length === 0 && !isLoading
 
@@ -643,53 +780,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         />
       </div>
 
-      {/* Voice Mode Overlay */}
-      <VoiceOverlay
-        isVisible={isSpeechMode}
-        isListening={voiceInput.isListening}
-        isSpeaking={voiceSynthesis.isSpeaking}
-        isLoading={voiceSynthesis.isLoading || isLoading}
-        volume={voiceInput.volume}
-        transcript={voiceInput.transcript}
-        interimTranscript={voiceInput.interimTranscript}
-        currentSpeechText={voiceSynthesis.currentText}
-        activeForm={
-          voiceForm.activeForm
-            ? {
-                flowName: voiceForm.activeForm.flowName,
-                fields: Object.entries(voiceForm.activeForm.formData || {})
-                  .filter(([key, value]) => {
-                    if (value === undefined || value === null || value === '') return false
-                    if (key.toLowerCase().includes('version')) return false
-                    if (key === 'changeMode') return false
-                    // Skip UUID values (e.g., owner employee IDs)
-                    if (
-                      typeof value === 'string' &&
-                      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
-                    )
-                      return false
-                    // Skip fields that end with Id or Ref (like ownerEmployeeId)
-                    if (key.toLowerCase().endsWith('id') || key.toLowerCase().endsWith('ref')) return false
-                    return true
-                  })
-                  .map(([key, value]) => ({
-                    name: key
-                      .replace(/([A-Z])/g, ' $1')
-                      .replace(/_/g, ' ')
-                      .trim()
-                      .replace(/\b\w/g, c => c.toUpperCase()),
-                    value: typeof value === 'object' ? JSON.stringify(value) : String(value)
-                  }))
-              }
-            : null
-        }
-        onClose={toggleSpeechMode}
-        onStartListening={voiceInput.startListening}
-        onStopListening={voiceInput.stopListening}
-        onStopSpeaking={voiceSynthesis.stop}
-        onSendTranscript={handleVoiceSend}
-      />
-
       <FormSubmissionProvider>
         <FlowProposalFileUploadProvider upload={attachFilesForFlowProposalField}>
           {/* Conversation Area with subtle gradient */}
@@ -719,9 +809,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   </div>
                 )}
                 <ConversationRenderer
-                  turns={extendedConversation}
+                  turns={renderConversation}
                   accessToken={accessToken}
-                  sendMessage={sendMessage}
+                  sendMessage={handleConversationSend}
                   editMessage={editMessage}
                   userInfo={userInfo}
                   pictureThumbnail={pictureThumbnail}
@@ -796,7 +886,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   isSpeaking={voiceSynthesis.isSpeaking}
                   isVoiceLoading={voiceSynthesis.isLoading}
                   voiceVolume={voiceInput.volume}
+                  voiceTranscript={voiceInput.transcript}
+                  voiceInterimTranscript={voiceInput.interimTranscript}
+                  currentSpeechText={voiceSynthesis.currentText}
+                  voiceError={voiceSynthesis.error || voiceInput.error}
                   onToggleVoiceMode={toggleSpeechMode}
+                  onStartListening={voiceInput.startListening}
                   onStopSpeaking={voiceSynthesis.stop}
                   // Pre-upload files as soon as they are attached for faster first answers.
                   onFilesAttached={files => attachFiles(files)}

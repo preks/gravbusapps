@@ -43,9 +43,15 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
   const audioQueueRef = useRef<string[]>([])
   const isProcessingQueueRef = useRef(false)
   const suppressAudioErrorRef = useRef(false)
+  const speakTextInternalRef = useRef<(text: string) => Promise<void>>(async () => {})
+  const activeObjectUrlRef = useRef<string | null>(null)
 
   // Cleanup audio element
   const cleanupAudio = useCallback(() => {
+    if (activeObjectUrlRef.current) {
+      URL.revokeObjectURL(activeObjectUrlRef.current)
+      activeObjectUrlRef.current = null
+    }
     if (audioRef.current) {
       suppressAudioErrorRef.current = true
       audioRef.current.oncanplay = null
@@ -69,7 +75,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
     const text = audioQueueRef.current.shift()
 
     if (text) {
-      await speakTextInternal(text)
+      await speakTextInternalRef.current(text)
     }
 
     isProcessingQueueRef.current = false
@@ -153,6 +159,9 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
     [accessToken, voice, speed, onStart, onEnd, onError, cleanupAudio]
   )
 
+  // Keep ref in sync so processQueue always uses latest speakTextInternal
+  speakTextInternalRef.current = speakTextInternal
+
   // Stream audio using MediaSource API - starts playing immediately
   const playWithStreaming = useCallback(
     async (body: ReadableStream<Uint8Array>): Promise<void> => {
@@ -163,7 +172,9 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         const audio = new Audio()
         suppressAudioErrorRef.current = false
         audioRef.current = audio
-        audio.src = URL.createObjectURL(mediaSource)
+        const objectUrl = URL.createObjectURL(mediaSource)
+        activeObjectUrlRef.current = objectUrl
+        audio.src = objectUrl
 
         mediaSource.addEventListener('sourceopen', async () => {
           try {
@@ -176,9 +187,22 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
               const { done, value } = await reader.read()
 
               if (done) {
-                // End of stream
+                if (sourceBuffer.updating) {
+                  await new Promise<void>(r => {
+                    sourceBuffer.addEventListener('updateend', () => r(), { once: true })
+                  })
+                }
                 if (mediaSource.readyState === 'open') {
                   mediaSource.endOfStream()
+                }
+                // Short responses that never crossed 8KB threshold
+                if (!hasStartedPlaying) {
+                  hasStartedPlaying = true
+                  setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }))
+                  onStart?.()
+                  audio.play().catch(err => {
+                    console.warn('[TTS] Auto-play blocked:', err)
+                  })
                 }
                 return
               }
@@ -227,7 +251,10 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
             resolve()
             return
           }
-          URL.revokeObjectURL(audio.src)
+          if (activeObjectUrlRef.current) {
+            URL.revokeObjectURL(activeObjectUrlRef.current)
+            activeObjectUrlRef.current = null
+          }
           setState(prev => ({ ...prev, isSpeaking: false, progress: 1 }))
           onEnd?.()
           resolve()
@@ -242,7 +269,10 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
             resolve()
             return
           }
-          URL.revokeObjectURL(audio.src)
+          if (activeObjectUrlRef.current) {
+            URL.revokeObjectURL(activeObjectUrlRef.current)
+            activeObjectUrlRef.current = null
+          }
           setState(prev => ({
             ...prev,
             isLoading: false,
@@ -281,6 +311,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
       return new Promise((resolve, reject) => {
         cleanupAudio()
 
+        activeObjectUrlRef.current = audioUrl
         const audio = new Audio()
         suppressAudioErrorRef.current = false
         audioRef.current = audio
@@ -297,6 +328,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
           onStart?.()
           audio.play().catch(err => {
             console.warn('[TTS] Auto-play blocked:', err)
+            setState(prev => ({ ...prev, isSpeaking: false }))
             resolve()
           })
         }
@@ -312,7 +344,10 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
             resolve()
             return
           }
-          URL.revokeObjectURL(audioUrl)
+          if (activeObjectUrlRef.current) {
+            URL.revokeObjectURL(activeObjectUrlRef.current)
+            activeObjectUrlRef.current = null
+          }
           setState(prev => ({ ...prev, isSpeaking: false, progress: 1 }))
           onEnd?.()
           resolve()
@@ -335,7 +370,10 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
             normalizedType: normalizedBlob.type,
             size: normalizedBlob.size
           })
-          URL.revokeObjectURL(audioUrl)
+          if (activeObjectUrlRef.current) {
+            URL.revokeObjectURL(activeObjectUrlRef.current)
+            activeObjectUrlRef.current = null
+          }
           setState(prev => ({
             ...prev,
             isLoading: false,
@@ -422,6 +460,8 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      audioQueueRef.current = []
+      isProcessingQueueRef.current = false
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
