@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
+import { GraphIcon, ListMagnifyingGlassIcon } from '@phosphor-icons/react'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
 import type { FabricSessionSummary } from '../../types/fabric'
 import { SidebarActiveSection } from './SidebarActiveSection'
 import { SidebarFooter } from './SidebarFooter'
 import { SidebarHeader } from './SidebarHeader'
+import { SidebarNavItem } from './SidebarNavItem'
 import { SidebarNewChatButton } from './SidebarNewChatButton'
 import { SidebarRecentsSection } from './SidebarRecentsSection'
 import { SidebarSearchBar } from './SidebarSearchBar'
@@ -46,6 +48,10 @@ export interface SidebarProps {
   onStopSession: (id: string) => void
   onOpenSettings: () => void
   onOpenScheduled: () => void
+  onOpenAgentMesh: () => void
+  isAgentMeshActive?: boolean
+  onOpenTraceExplorer: () => void
+  isTraceExplorerActive?: boolean
 }
 
 /**
@@ -73,7 +79,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteSession,
   onStopSession,
   onOpenSettings,
-  onOpenScheduled
+  onOpenScheduled,
+  onOpenAgentMesh,
+  isAgentMeshActive = false,
+  onOpenTraceExplorer,
+  isTraceExplorerActive = false
 }) => {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<Set<RecentsStatusFilter> | null>(null)
@@ -103,6 +113,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         <SidebarHeader isCollapsed={isCollapsed} onToggleCollapsed={onToggleCollapsed} />
         {showNewSessionCta && <SidebarNewChatButton isCollapsed={isCollapsed} onClick={onNewSession} />}
+
+        {/*
+         * Top-of-rail navigation. Currently only Agent Mesh — additional
+         * primary destinations (Trace Explorer, Library, …) plug in here as
+         * sibling `SidebarNavItem`s without changing the surrounding layout.
+         */}
+        <SidebarNavItem
+          icon={GraphIcon}
+          label="Agent Mesh"
+          badge="NEW"
+          isActive={isAgentMeshActive}
+          isCollapsed={isCollapsed}
+          onClick={onOpenAgentMesh}
+          testId="sidebar-nav-agent-mesh"
+        />
+        <SidebarNavItem
+          icon={ListMagnifyingGlassIcon}
+          label="Trace Explorer"
+          badge="NEW"
+          isActive={isTraceExplorerActive}
+          isCollapsed={isCollapsed}
+          onClick={onOpenTraceExplorer}
+          testId="sidebar-nav-trace-explorer"
+        />
+
+        <div className="gba:mx-3 gba:my-1.5 gba:border-t gba:border-border/40" />
+
         <SidebarSearchBar isCollapsed={isCollapsed} query={query} onChange={setQuery} onRequestExpand={onExpand} />
         {!isCollapsed && <SidebarFilterBar activeFilters={statusFilter} onChange={setStatusFilter} />}
 

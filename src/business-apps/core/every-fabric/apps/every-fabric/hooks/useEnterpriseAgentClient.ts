@@ -43,11 +43,14 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         config?.selectedEnterpriseSkill?.skill_id
       ].filter((value): value is string => Boolean(value))
       const selectedToolRefs = Array.from(new Set(config?.selectedEnterpriseSkill?.tool_refs ?? []))
+      const selectedExpertId = config?.selectedAgent?.id
+      const selectedExpertIds = selectedExpertId ? [selectedExpertId] : undefined
       return client.post<StartSessionResponse>('/deep-agent/sessions', {
         task,
         config,
         timezone,
         active_external_connection_ids: activeExternalConnectionIds,
+        expert_ids: selectedExpertIds,
         skill_ids: selectedSkillIds,
         tool_refs: selectedToolRefs
       })
@@ -423,16 +426,13 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
-  const listArchivedSkills = useCallback(
-    async () => {
-      const skills = await client.get<{ skill_id: string; name: string; description: string; status: string }[]>(
-        '/admin/skills/',
-        { params: { include_archived: 'true' } as Record<string, string> }
-      )
-      return skills.filter(s => s.status === 'archived')
-    },
-    [client]
-  )
+  const listArchivedSkills = useCallback(async () => {
+    const skills = await client.get<{ skill_id: string; name: string; description: string; status: string }[]>(
+      '/admin/skills/',
+      { params: { include_archived: 'true' } as Record<string, string> }
+    )
+    return skills.filter(s => s.status === 'archived')
+  }, [client])
 
   const enableSkill = useCallback(
     (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/enable`, {}),

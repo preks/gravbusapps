@@ -2,6 +2,8 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Button } from '@newwork/nw-design-system'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState } from 'react'
+import { AgentMeshScreen } from './components/agent-mesh/AgentMeshScreen'
+import { TraceExplorerScreen } from './components/trace-explorer/TraceExplorerScreen'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { LandingScreen } from './components/landing/LandingScreen'
 import { ScheduledDispatchesScreen } from './components/scheduled/ScheduledDispatchesScreen'
@@ -70,6 +72,13 @@ const EveryFabricInner: React.FC = () => {
   const handleCloseSettings = () => updateUrl({ view: null })
   const handleOpenScheduled = () => updateUrl({ view: 'scheduled' })
   const handleCloseScheduled = () => updateUrl({ view: null })
+  const handleOpenAgentMesh = () => updateUrl({ view: 'agent-mesh' })
+  const handleCloseAgentMesh = () => updateUrl({ view: null })
+  const handleOpenTraceExplorer = (positionMs?: number) =>
+    updateUrl({ view: 'trace-explorer', t: positionMs != null ? String(positionMs) : null })
+  const handleCloseTraceExplorer = () => updateUrl({ view: null, t: null, focus: null })
+  const handleOpenAgentMeshFromTrace = (positionMs?: number) =>
+    updateUrl({ view: 'agent-mesh', t: positionMs != null ? String(positionMs) : null })
   const handleSelectSession = (id: string) => {
     updateUrl({ view: null })
     selectSession(id)
@@ -88,6 +97,11 @@ const EveryFabricInner: React.FC = () => {
   const showSettings = urlView === 'settings'
   const isScheduledView = displayView === 'scheduled'
   const showScheduled = urlView === 'scheduled'
+  const isAgentMeshView = displayView === 'agent-mesh'
+  const showAgentMesh = urlView === 'agent-mesh'
+  const isTraceExplorerView = displayView === 'trace-explorer'
+  const showTraceExplorer = urlView === 'trace-explorer'
+  const isAnyOverlayShown = showSettings || showScheduled || showAgentMesh || showTraceExplorer
   const renderMain = () => {
     if (isLoadingSession && sessionLoadError) {
       return (
@@ -164,11 +178,33 @@ const EveryFabricInner: React.FC = () => {
 
         <div
           className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
-            !showSettings && !showScheduled ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+            showAgentMesh ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+          }`}
+          style={{ pointerEvents: showAgentMesh ? 'auto' : 'none', zIndex: showAgentMesh ? 30 : 0 }}
+        >
+          {isAgentMeshView && (
+            <AgentMeshScreen onBack={handleCloseAgentMesh} onOpenTraceExplorer={handleOpenTraceExplorer} />
+          )}
+        </div>
+
+        <div
+          className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
+            showTraceExplorer ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+          }`}
+          style={{ pointerEvents: showTraceExplorer ? 'auto' : 'none', zIndex: showTraceExplorer ? 30 : 0 }}
+        >
+          {isTraceExplorerView && (
+            <TraceExplorerScreen onBack={handleCloseTraceExplorer} onOpenAgentMesh={handleOpenAgentMeshFromTrace} />
+          )}
+        </div>
+
+        <div
+          className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
+            !isAnyOverlayShown ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
           }`}
           style={{
-            pointerEvents: !showSettings && !showScheduled ? 'auto' : 'none',
-            zIndex: !showSettings && !showScheduled ? 20 : 0
+            pointerEvents: !isAnyOverlayShown ? 'auto' : 'none',
+            zIndex: !isAnyOverlayShown ? 20 : 0
           }}
         >
           {session ? <WorkspaceLayout /> : <LandingScreen accessToken={accessToken} onStartSession={startSession} />}
@@ -194,6 +230,10 @@ const EveryFabricInner: React.FC = () => {
         onStopSession={handleStopSession}
         onOpenSettings={handleOpenSettings}
         onOpenScheduled={handleOpenScheduled}
+        onOpenAgentMesh={handleOpenAgentMesh}
+        isAgentMeshActive={showAgentMesh}
+        onOpenTraceExplorer={handleOpenTraceExplorer}
+        isTraceExplorerActive={showTraceExplorer}
       />
       <main className="gba:relative gba:flex-1 gba:min-w-0 gba:h-full">{renderMain()}</main>
     </div>
