@@ -1,5 +1,5 @@
 import React from 'react'
-import { PiMagnifyingGlass } from 'react-icons/pi'
+import { MagnifyingGlassIcon } from '@phosphor-icons/react'
 import {
   Card,
   CardContent,
@@ -89,7 +89,7 @@ const FilterChecklist: React.FC<{
   <div className="gba:space-y-4">
     <Label className="gba:text-sm gba:font-semibold gba:text-foreground">{label}</Label>
     <div className="gba:relative">
-      <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
+      <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
       <DebouncedInput
         placeholder={searchPlaceholder}
         value={searchValue}

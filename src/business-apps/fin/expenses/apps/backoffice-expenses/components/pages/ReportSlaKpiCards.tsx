@@ -1,5 +1,5 @@
 import React from 'react'
-import { PiInfo } from 'react-icons/pi'
+import { InfoIcon } from '@phosphor-icons/react'
 import {
   Card,
   CardContent,
@@ -85,7 +85,7 @@ const ReportSlaKpiCards: React.FC<ReportSlaKpiCardsProps> = ({ kpiValues }) => {
                         aria-label={card.triggerLabel}
                         data-testid={card.triggerTestId}
                       >
-                        <PiInfo />
+                        <InfoIcon />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent className="gba:max-w-[320px]">{card.tooltip}</TooltipContent>
