@@ -1,6 +1,12 @@
 import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import { SCREEN_NAMES_ENUM } from '../constants/constants'
+import {
+  applyEffectiveCostCenterToRows,
+  resolveInheritedOrSelectedCostCenterId,
+  resolveItemCostCenterId,
+  resolveMainCostCenterId
+} from '../../shared/utils/effectiveCostCenter'
 
 /**
  * Returns the list of mandatory field labels that are missing on a raw expense item.
@@ -11,14 +17,13 @@ export const getMissingMandatoryFields = (item: any): string[] => {
   const positions: any[] = item?.expensePosition || []
 
   if (positions.length === 0) {
+    missing.push(getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_group', 'Expense group'))
+    missing.push(getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_type', 'Expense type'))
     missing.push(
-      getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_group', 'Expense group')
-    )
-    missing.push(
-      getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_type', 'Expense type')
-    )
-    missing.push(
-      getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label', 'Cost center')
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
+        'Cost center'
+      )
     )
     return missing
   }
@@ -35,7 +40,10 @@ export const getMissingMandatoryFields = (item: any): string[] => {
   }
   if (allMissingCostCenter) {
     missing.push(
-      getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label', 'Cost center')
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
+        'Cost center'
+      )
     )
   }
 
@@ -137,6 +145,11 @@ export const createItemsScreenLogObject = (
   expenseRequestData: any,
   event: string
 ) => {
+  const effectiveCostCenterId = resolveMainCostCenterId(
+    expenseRequestData?.EmployeePosition,
+    initialRequest?.costCenterId || '',
+    initialRequest?.additionalProperties
+  )
   const expenseItemsArray = expenseItems
     .map(item => ({
       id: item.id,
@@ -145,7 +158,7 @@ export const createItemsScreenLogObject = (
       title: item.title || '',
       ruleId: item.expenseRuleId || '',
       expenseRequest: initialRequest?.id || '',
-      costCenter: item.costCenterId || '',
+      costCenter: resolveItemCostCenterId(item, effectiveCostCenterId, initialRequest?.costCenterId || ''),
       project: item.projectId || '',
       expenseGroupRef: item.expenseGroupRef || '',
       source: item.source || '',
@@ -160,7 +173,7 @@ export const createItemsScreenLogObject = (
         title: item.title || '',
         ruleId: item.expenseRuleId || '',
         expenseRequest: initialRequest?.id || '',
-        costCenter: item.costCenterId || '',
+        costCenter: resolveItemCostCenterId(item, effectiveCostCenterId, initialRequest?.costCenterId || ''),
         project: item.projectId || '',
         expenseGroupRef: item.expenseGroupRef || '',
         source: item.source || '',
@@ -180,7 +193,11 @@ export const createItemsScreenLogObject = (
     project: item.projectId,
     expenseRule: item.expenseRuleId,
     expenseRequest: initialRequest?.id,
-    costCenter: item.costCenterId
+    costCenter: resolveInheritedOrSelectedCostCenterId(
+      item.costCenterId,
+      effectiveCostCenterId,
+      initialRequest?.costCenterId || ''
+    )
   }))
   return {
     stepKey: SCREEN_NAMES_ENUM.ITEMS_TAB + '_' + event,
@@ -191,7 +208,7 @@ export const createItemsScreenLogObject = (
       endDate: initialRequest?.endDate || '',
       expenseRule: employeeRuleId || '',
       version: initialRequest?.version || 0,
-      costCenter: initialRequest?.costCenterId || '',
+      costCenter: effectiveCostCenterId,
       employee: initialRequest?.employeeId || '',
       expensePlan: initialRequest?.expensePlanId || '',
       title: currentTitle || initialRequest?.title || '',
@@ -206,7 +223,10 @@ export const createItemsScreenLogObject = (
       expenseItems: expenseItemsArray
     },
     expenseRequestTrips: {
-      expenseTrips: expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || []
+      expenseTrips: applyEffectiveCostCenterToRows(
+        expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip,
+        effectiveCostCenterId
+      )
     },
     travelBreakdownWrapper: {
       travelBreakdowns: travelBreakdowns

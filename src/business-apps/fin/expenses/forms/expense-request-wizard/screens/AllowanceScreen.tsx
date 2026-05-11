@@ -29,6 +29,10 @@ import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils'
 import { EVENTS } from '../../../utils/constants'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 import { showToast } from '../../../utils/notificationUtils'
+import {
+  resolveEffectiveCostCenterId,
+  resolveInheritedOrSelectedCostCenterId
+} from '../../shared/utils/effectiveCostCenter'
 
 const { Title } = Typography
 
@@ -118,6 +122,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
         const positions = travelRegionsResponse?.EmployeePosition ?? []
         const primaryPosition = resolvePrimaryEmployeePosition(positions, getCurrentActiveStructureId())
         const structureId = primaryPosition?.structureId ?? positions[0]?.structureId ?? getCurrentActiveStructureId()
+        const primaryCostCenterId = resolveEffectiveCostCenterId(positions)
 
         if (positions.length > 0 && structureId) {
           const costCentersCacheKey = `userCostCenters:${structureId}`
@@ -126,13 +131,6 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
           )
 
           setCostCentersData(costCentersResponse)
-
-          let primaryCostCenterId = ''
-          if (primaryPosition?.costCenterId) {
-            primaryCostCenterId = String(primaryPosition.costCenterId)
-          } else if (positions[0]?.costCenterId) {
-            primaryCostCenterId = String(positions[0].costCenterId)
-          }
 
           if (costCentersResponse?.userCostCenters && costCentersResponse.userCostCenters.length > 0) {
             if (primaryCostCenterId) {
@@ -255,9 +253,14 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
       .map(element => {
         const updatedElement = { ...element }
 
-        // Set default cost center for all allowances if it exists
-        if (!updatedElement.costCenterId && defaultCostCenter) {
-          updatedElement.costCenterId = defaultCostCenter
+        const resolvedCostCenterId = resolveInheritedOrSelectedCostCenterId(
+          updatedElement.costCenterId,
+          defaultCostCenter,
+          requestProject.costCenterId || ''
+        )
+        if (defaultCostCenter && updatedElement.costCenterId !== resolvedCostCenterId) {
+          updatedElement.costCenterId = resolvedCostCenterId
+          updatedElement.projectId = undefined
         }
 
         // Set default project for all allowances if it exists

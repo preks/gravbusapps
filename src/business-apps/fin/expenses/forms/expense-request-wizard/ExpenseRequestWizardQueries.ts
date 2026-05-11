@@ -356,6 +356,8 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
   }
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     id
+    structureId
+    costCenterId
     costCenter {
       id
       name
