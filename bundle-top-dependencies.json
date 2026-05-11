@@ -88233,20 +88233,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11944,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11944/",
-    "chunkJsBytes": 1874392,
+    "bitbucketBuildNumber": 11947,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11947/",
+    "chunkJsBytes": 1875951,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1574529,
-        "gzip": 97036,
+        "rendered": 1576151,
+        "gzip": 97103,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1574529,
-            "gzip": 97036
+            "rendered": 1576151,
+            "gzip": 97103
           }
         ]
       },
@@ -100436,15 +100436,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 11944,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11944/",
-    "chunkJsBytes": 647772,
+    "bitbucketBuildNumber": 11947,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11947/",
+    "chunkJsBytes": 735465,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 834245,
-        "gzip": 217691,
+        "rendered": 979020,
+        "gzip": 256118,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/newwork-connect/components/connectorLogoPaths.ts",
@@ -100462,7 +100462,7 @@
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
         "rendered": 52615,
-        "gzip": 13193,
+        "gzip": 13195,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/links/constants/entityConfig.ts",
@@ -100479,8 +100479,8 @@
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 45986,
-        "gzip": 14804,
+        "rendered": 50072,
+        "gzip": 16306,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
@@ -100497,13 +100497,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
-        "rendered": 41505,
-        "gzip": 10123,
+        "rendered": 41527,
+        "gzip": 10128,
         "leaves": [
           {
             "name": "src/common/dev-report/DevReportDot.tsx",
-            "rendered": 27301,
-            "gzip": 5038
+            "rendered": 27323,
+            "gzip": 5043
           },
           {
             "name": "src/common/dev-report/screenshot.ts",
@@ -100569,13 +100569,13 @@
       {
         "kind": "bucket",
         "name": "(src)/components/share-entity",
-        "rendered": 15753,
-        "gzip": 3725,
+        "rendered": 15761,
+        "gzip": 3728,
         "leaves": [
           {
             "name": "src/components/share-entity/ShareEntityDialog.tsx",
-            "rendered": 15753,
-            "gzip": 3725
+            "rendered": 15761,
+            "gzip": 3728
           }
         ]
       },
@@ -106734,7 +106734,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-11T16:14:32.979Z",
+    "generatedAt": "2026-05-11T23:44:39.472Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
