@@ -30,6 +30,12 @@ const fallbackRemoteVendors = [
   'zustand'
 ]
 
+const manualRemoteVendor = ['@graphiql/plugin-explorer', '@graphiql/react', 'graphiql', 'graphql']
+
+function isManualRemoteVendor(moduleId: string): boolean {
+  return manualRemoteVendor.some(vendor => moduleId === vendor || moduleId.startsWith(`${vendor}/`))
+}
+
 function fallbackIsRemoteVendorExternal(moduleId: string): boolean {
   return fallbackRemoteVendors.some(vendor => moduleId === vendor || moduleId.startsWith(`${vendor}/`))
 }
@@ -74,6 +80,7 @@ function moduleSpecifierFromResolvedId(resolvedId: string): string | null {
 export function isRemoteBundleExternal(rawId: string): boolean {
   const id = stripQuery(rawId).replace(/\\/g, '/')
   if (!id || id.startsWith('\0') || id.startsWith('virtual:')) return false
+  if (isManualRemoteVendor(rawId) || isManualRemoteVendor(id)) return true
   if (id.startsWith('@/')) return false
   if ((id.startsWith('./') || id.startsWith('../') || path.isAbsolute(id)) && !id.includes('node_modules')) {
     return false
@@ -88,6 +95,7 @@ export function isRemoteBundleExternal(rawId: string): boolean {
 
   const spec = moduleSpecifierFromResolvedId(id)
   if (spec) {
+    if (isManualRemoteVendor(spec)) return true
     return isRemoteVendorExternal(spec)
   }
 
