@@ -26,6 +26,7 @@ interface ExampleOwnership {
 
 const NODE_WIDTH = 260
 const NODE_HEIGHT = 150
+const EXAMPLE_COMPANY_COUNT = 300
 
 const executiveNames = [
   'Amira Stein',
@@ -60,7 +61,7 @@ const buildExecutives = (companyId: string, seed: number): InvestmentCompanyGrap
   ]
 }
 
-const exampleCompanies: ExampleCompany[] = [
+const seedCompanies: Array<[string, string, string, string]> = [
   ['atlas-holdings', 'Atlas Holdings SE', 'ATLAS', 'Top-level holding company'],
   ['nova-capital', 'Nova Capital GmbH', 'NOVA', 'European investment platform'],
   ['orion-ventures', 'Orion Ventures AG', 'ORION', 'Growth equity vehicle'],
@@ -81,38 +82,85 @@ const exampleCompanies: ExampleCompany[] = [
   ['aurora-bio', 'Aurora Bio AG', 'AUBIO', 'Biotech investments'],
   ['lumen-education', 'Lumen Education GmbH', 'LUMEN', 'Education technology'],
   ['zenith-cyber', 'Zenith Cyber SE', 'ZCYBER', 'Cybersecurity company']
-].map(([id, name, code, description], index) => ({
-  id,
-  name,
-  code,
-  description,
-  executives: buildExecutives(id, index)
-}))
-
-const exampleOwnerships: ExampleOwnership[] = [
-  { source: 'atlas-holdings', target: 'nova-capital', percentage: 85 },
-  { source: 'atlas-holdings', target: 'orion-ventures', percentage: 72.5 },
-  { source: 'atlas-holdings', target: 'cedar-real-estate', percentage: 64 },
-  { source: 'nova-capital', target: 'summit-health', percentage: 58 },
-  { source: 'nova-capital', target: 'harbor-logistics', percentage: 41 },
-  { source: 'nova-capital', target: 'apex-software', percentage: 76 },
-  { source: 'orion-ventures', target: 'northstar-ai', percentage: 62 },
-  { source: 'orion-ventures', target: 'silverline-payments', percentage: 49 },
-  { source: 'orion-ventures', target: 'quantum-labs', percentage: 33.3 },
-  { source: 'cedar-real-estate', target: 'blue-ridge-energy', percentage: 25 },
-  { source: 'cedar-real-estate', target: 'terra-infra', percentage: 52 },
-  { source: 'summit-health', target: 'aurora-bio', percentage: 67 },
-  { source: 'harbor-logistics', target: 'vector-mobility', percentage: 38 },
-  { source: 'apex-software', target: 'zenith-cyber', percentage: 55 },
-  { source: 'apex-software', target: 'lumen-education', percentage: 46 },
-  { source: 'meridian-foods', target: 'greenfield-farms', percentage: 80 },
-  { source: 'atlas-holdings', target: 'meridian-foods', percentage: 51 },
-  { source: 'meridian-foods', target: 'pioneer-retail', percentage: 35 },
-  { source: 'pioneer-retail', target: 'cobalt-media', percentage: 22.5 },
-  { source: 'silverline-payments', target: 'zenith-cyber', percentage: 18 },
-  { source: 'blue-ridge-energy', target: 'terra-infra', percentage: 29 },
-  { source: 'northstar-ai', target: 'quantum-labs', percentage: 14 }
 ]
+
+const generatedIndustries = [
+  'Digital services',
+  'Healthcare platform',
+  'Logistics network',
+  'Renewable infrastructure',
+  'Education services',
+  'Cybersecurity operations',
+  'Industrial technology',
+  'Financial services',
+  'Agriculture portfolio',
+  'Real estate assets'
+]
+
+const generatedCompanySuffixes = ['GmbH', 'AG', 'SE', 'Holding', 'Group']
+
+const getOwnershipPercentage = (index: number): number => {
+  return Number((18 + ((index * 13) % 72) + (index % 4) * 0.5).toFixed(1))
+}
+
+const exampleCompanies: ExampleCompany[] = Array.from({ length: EXAMPLE_COMPANY_COUNT }, (_, index) => {
+  const seedCompany = seedCompanies[index]
+
+  if (seedCompany) {
+    const [id, name, code, description] = seedCompany
+    return {
+      id,
+      name,
+      code,
+      description,
+      executives: buildExecutives(id, index)
+    }
+  }
+
+  const companyNumber = index + 1
+  const industry = generatedIndustries[index % generatedIndustries.length]
+  const suffix = generatedCompanySuffixes[index % generatedCompanySuffixes.length]
+  const id = `portfolio-company-${companyNumber}`
+
+  return {
+    id,
+    name: `Portfolio Company ${companyNumber} ${suffix}`,
+    code: `PC${String(companyNumber).padStart(3, '0')}`,
+    description: industry,
+    executives: buildExecutives(id, index)
+  }
+})
+
+const exampleOwnerships: ExampleOwnership[] = exampleCompanies.flatMap((company, index) => {
+  if (index === 0) return []
+
+  const parentIndex = Math.floor((index - 1) / 3)
+  const ownerships: ExampleOwnership[] = [
+    {
+      source: exampleCompanies[parentIndex].id,
+      target: company.id,
+      percentage: getOwnershipPercentage(index)
+    }
+  ]
+
+  if (index > 12 && index % 11 === 0) {
+    ownerships.push({
+      source: exampleCompanies[Math.max(1, index - 7)].id,
+      target: company.id,
+      percentage: getOwnershipPercentage(index + 5)
+    })
+  }
+
+  if (index > 30 && index % 17 === 0) {
+    ownerships.push({
+      source: exampleCompanies[Math.floor(index / 2)].id,
+      target: company.id,
+      percentage: getOwnershipPercentage(index + 9)
+    })
+  }
+
+  return ownerships
+})
 
 function layoutNodes(
   nodes: InvestmentCompanyGraphNode[],
@@ -198,7 +246,7 @@ export const InvestmentCompanyGroupExample: React.FC = () => {
     <div className="gba:h-screen gba:p-6" data-testid="investment-company-group-example">
       <Card className="gba:h-full gba:overflow-hidden">
         <CardHeader>
-          <CardTitle>Example Investment Company Group: 20 Companies</CardTitle>
+          <CardTitle>Example Investment Company Group: {EXAMPLE_COMPANY_COUNT} Companies</CardTitle>
         </CardHeader>
         <CardContent className="gba:h-[calc(100%-72px)] gba:p-0">
           <InvestmentCompanyGroupGraphCanvas nodes={nodes} edges={edges} />

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { MarkerType, Position } from '@xyflow/react'
-import dagre from 'dagre'
+import { MarkerType } from '@xyflow/react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildInvestmentCompanyGroupGraphQuery } from '../queries/companyGroupGraphQueries'
@@ -11,9 +10,6 @@ import type {
   InvestmentCompanyOwnershipEdge
 } from '../types/companyGroupGraphTypes'
 import translations from '../_i18n'
-
-const NODE_WIDTH = 260
-const NODE_HEIGHT = 150
 
 interface RawInvestmentCompany {
   id?: string
@@ -26,6 +22,7 @@ interface RawInvestmentCompany {
 }
 
 interface RawPersonRef {
+  id?: string
   displayName?: string
   fullName?: string
   firstName?: string
@@ -68,37 +65,6 @@ export interface UseInvestmentCompanyGroupGraphResult {
   refetch: () => Promise<void>
 }
 
-function layoutGraphNodes(
-  nodes: InvestmentCompanyGraphNode[],
-  edges: InvestmentCompanyOwnershipEdge[]
-): InvestmentCompanyGraphNode[] {
-  const dagreGraph = new dagre.graphlib.Graph()
-  dagreGraph.setDefaultEdgeLabel(() => ({}))
-  dagreGraph.setGraph({ rankdir: 'TB', nodesep: 90, ranksep: 120, marginx: 40, marginy: 40 })
-
-  nodes.forEach(node => {
-    dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT })
-  })
-  edges.forEach(edge => {
-    dagreGraph.setEdge(edge.source, edge.target)
-  })
-
-  dagre.layout(dagreGraph)
-
-  return nodes.map(node => {
-    const position = dagreGraph.node(node.id)
-    return {
-      ...node,
-      position: {
-        x: (position?.x ?? 0) - NODE_WIDTH / 2,
-        y: (position?.y ?? 0) - NODE_HEIGHT / 2
-      },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top
-    }
-  })
-}
-
 function addCompanyNode(
   nodesById: Map<string, InvestmentCompanyGraphNode>,
   company: RawInvestmentCompany,
@@ -137,21 +103,26 @@ function getPersonName(person?: RawPersonRef): string | undefined {
 }
 
 function toGraphExecutives(executives?: RawInvestmentCompanyExecutive[]): InvestmentCompanyGraphExecutive[] {
-  return (executives || [])
-    .map(executive => {
-      const isEmployee = Boolean(executive.employeeId || executive.employee)
-      const name = getPersonName(isEmployee ? executive.employee : executive.investmentContact)
+  return (executives || []).flatMap(executive => {
+    const isEmployee = Boolean(executive.employeeId || executive.employee)
+    const name = getPersonName(isEmployee ? executive.employee : executive.investmentContact)
 
-      if (!executive.id || !name) return null
+    if (!executive.id || !name) return []
 
-      return {
+    const employeeId = executive.employeeId || executive.employee?.id
+    const investmentContactId = executive.investmentContactId || executive.investmentContact?.id
+
+    return [
+      {
         id: executive.id,
         name,
         source: isEmployee ? ('Employee' as const) : ('Investment Contact' as const),
+        ...(employeeId ? { employeeId } : {}),
+        ...(investmentContactId ? { investmentContactId } : {}),
         executiveType: executive.executiveType?.value || executive.executiveType?.code || executive.executiveTypeRef
       }
-    })
-    .filter((executive): executive is InvestmentCompanyGraphExecutive => Boolean(executive))
+    ]
+  })
 }
 
 function buildGraph(
@@ -203,7 +174,7 @@ function buildGraph(
   return {
     id: rawGroup.id,
     name: rawGroup.name,
-    nodes: layoutGraphNodes(Array.from(nodesById.values()), edges),
+    nodes: Array.from(nodesById.values()),
     edges
   }
 }
