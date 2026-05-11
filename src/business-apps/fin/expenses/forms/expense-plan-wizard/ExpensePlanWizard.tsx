@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Typography, Input } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
-import { Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -12,6 +11,9 @@ import { SCREEN_NAMES_ENUM } from './constants/constants'
 import LoadScreen from '../expense-request-wizard/screens/LoadScreen'
 
 import ProgressIndicator from '../expense-request-wizard/components/ProgressIndicator'
+import WizardFooterButtonContent, {
+  WizardFooterAction
+} from '../expense-request-wizard/components/WizardFooterButtonContent'
 
 import PlanTripScreen from './screens/PlanTripScreen'
 import PlanItemsScreen from './screens/PlanItemsScreen'
@@ -58,7 +60,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false)
   const [itemsCount, setItemsCount] = useState<number>(0)
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0)
-  const [isNextLoading, setIsNextLoading] = useState<boolean>(false)
+  const [pendingFooterAction, setPendingFooterAction] = useState<WizardFooterAction | null>(null)
   const previousScreenRef = React.useRef<string>(currentScreen)
   const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes(PLAN_TYPES.TRIP)
 
@@ -66,6 +68,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
     () => Boolean(expensePlanData && !hasEmployeeOrgchartCostCenter(expensePlanData.EmployeePosition)),
     [expensePlanData]
   )
+  const isFooterActionPending = pendingFooterAction !== null
   // Update title and titleValue when expensePlanData changes
   useEffect(() => {
     if (expensePlanData?.ExpensePlanByPk) {
@@ -207,20 +210,20 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
     }
   }, [loading, expensePlanData])
 
-  // Clear next-button loading when screen actually changes (data loaded and navigated)
+  // Clear next/submit loading when screen actually changes (data loaded and navigated)
   useEffect(() => {
-    if (previousScreenRef.current !== currentScreen && isNextLoading) {
-      setIsNextLoading(false)
+    if (previousScreenRef.current !== currentScreen && pendingFooterAction === 'next') {
+      setPendingFooterAction(null)
     }
     previousScreenRef.current = currentScreen
-  }, [currentScreen, isNextLoading])
+  }, [currentScreen, pendingFooterAction])
 
-  // Safety: clear next loading after 30s in case the action fails and screen never changes
+  // Safety: clear footer loading after 30s in case the action fails and the process does not close/navigate.
   useEffect(() => {
-    if (!isNextLoading) return
-    const timeoutId = globalThis.setTimeout(() => setIsNextLoading(false), 30000)
+    if (!pendingFooterAction) return
+    const timeoutId = globalThis.setTimeout(() => setPendingFooterAction(null), 30000)
     return () => globalThis.clearTimeout(timeoutId)
-  }, [isNextLoading])
+  }, [pendingFooterAction])
 
   // Listen for process events (Next/Back button clicks) to navigate
   useEffect(() => {
@@ -326,6 +329,19 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
     }
   }
 
+  const isSaveDisabled =
+    isFooterActionPending || (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0)
+  const isNextDisabled =
+    isFooterActionPending ||
+    (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
+    (currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB && !isFormValid) ||
+    (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
+    (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && missingOrgchartCostCenter)
+  const nextButtonLabel =
+    currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
+      ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
+      : getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
+
   if (loading) {
     return (
       <div
@@ -386,6 +402,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
               style={{ padding: '0', height: 'auto', minWidth: 'auto' }}
               data-testid="expense-plan-wizard-back-button"
               onClick={navigateToPreviousScreen}
+              disabled={isFooterActionPending}
             >
               <img
                 src={ICONS.BACK_ARROW}
@@ -465,7 +482,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                       size="small"
                       data-testid="expense-plan-wizard-title-save-button"
                       onClick={saveTitle}
-                      disabled={!!titleError || !titleValue.trim()}
+                      disabled={isFooterActionPending || !!titleError || !titleValue.trim()}
                     >
                       <img
                         src={ICONS.CHECK_ICON}
@@ -485,6 +502,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                       size="small"
                       data-testid="expense-plan-wizard-title-cancel-button"
                       onClick={cancelEditingTitle}
+                      disabled={isFooterActionPending}
                     >
                       <img
                         src={ICONS.X_ICON}
@@ -521,6 +539,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     size="small"
                     data-testid="expense-plan-wizard-title-edit-button"
                     onClick={startEditingTitle}
+                    disabled={isFooterActionPending}
                     style={{
                       marginLeft: '8px',
                       zIndex: 10,
@@ -641,6 +660,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                   borderRadius: '22px'
                 }}
                 data-testid="expense-plan-wizard-cancel-selection-button"
+                disabled={isFooterActionPending}
                 onClick={() => {
                   const cancelEvent = new CustomEvent('expense-plan-items-cancel-selection')
                   document.dispatchEvent(cancelEvent)
@@ -661,7 +681,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     borderRadius: '22px'
                   }}
                   data-testid="expense-plan-wizard-confirm-selection-button"
-                  disabled={selectedItemCount === 0}
+                  disabled={isFooterActionPending || selectedItemCount === 0}
                   onClick={() => {
                     const confirmEvent = new CustomEvent('expense-plan-items-confirm-selection')
                     document.dispatchEvent(confirmEvent)
@@ -685,9 +705,15 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                   borderRadius: '22px'
                 }}
                 data-testid="expense-plan-wizard-cancel-button"
-                onClick={handleCancel}
+                disabled={isFooterActionPending}
+                onClick={() => {
+                  setPendingFooterAction('cancel')
+                  handleCancel()
+                }}
               >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
+                <WizardFooterButtonContent isPending={pendingFooterAction === 'cancel'}>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
+                </WizardFooterButtonContent>
               </Button>
               <div className="gba:flex" style={{ gap: '12px' }}>
                 <Button
@@ -703,8 +729,9 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     width: 'auto'
                   }}
                   data-testid="expense-plan-wizard-save-button"
-                  disabled={currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0}
+                  disabled={isSaveDisabled}
                   onClick={() => {
+                    setPendingFooterAction('save')
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const saveEvent = new CustomEvent('expense-plan-save-trip')
                       document.dispatchEvent(saveEvent)
@@ -722,7 +749,9 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     }
                   }}
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.save_button', 'Save')}
+                  <WizardFooterButtonContent isPending={pendingFooterAction === 'save'}>
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.save_button', 'Save')}
+                  </WizardFooterButtonContent>
                 </Button>
                 <Button
                   variant="primary"
@@ -737,13 +766,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     width: 'auto'
                   }}
                   data-testid="expense-plan-wizard-next-button"
-                  disabled={
-                    isNextLoading ||
-                    (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
-                    (currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB && !isFormValid) ||
-                    (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
-                    (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && missingOrgchartCostCenter)
-                  }
+                  disabled={isNextDisabled}
                   onClick={() => {
                     const isNextScreen =
                       currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB ||
@@ -751,7 +774,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                       currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB
                     const isSubmitScreen = currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
                     if (isNextScreen || isSubmitScreen) {
-                      setIsNextLoading(true)
+                      setPendingFooterAction('next')
                     }
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const nextEvent = new CustomEvent('expense-plan-next-trip')
@@ -770,28 +793,9 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     }
                   }}
                 >
-                  {(() => {
-                    if (isNextLoading) {
-                      const submitLabel = getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:modify_expense_request.btn_submit',
-                        'Submit'
-                      )
-                      const nextLabel = getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:add_items_to_plan.submit_button',
-                        'Next'
-                      )
-                      return (
-                        <span className="gba:inline-flex gba:items-center gba:gap-2">
-                          <Spinner size="sm" />
-                          {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB ? submitLabel : nextLabel}
-                        </span>
-                      )
-                    }
-                    if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
-                      return getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
-                    }
-                    return getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
-                  })()}
+                  <WizardFooterButtonContent isPending={pendingFooterAction === 'next'}>
+                    {nextButtonLabel}
+                  </WizardFooterButtonContent>
                 </Button>
               </div>
             </>

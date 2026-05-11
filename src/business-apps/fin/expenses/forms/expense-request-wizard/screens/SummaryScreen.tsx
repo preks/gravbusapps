@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Row, Col, Pagination, Alert } from 'antd'
-import { useTranslation } from '@newwork/nw-design-system'
-import { Button, SelectField } from '@newwork/gravity-ui-catalog'
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
 import {
   getCurrentActiveStructureId,
   getTranslationFromI18nKeyAndLabel,
@@ -79,10 +86,6 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
   const selectedMainCostCenter = useMemo(
     () => mainCostCenters.find(costCenter => costCenter.id === selectedMainCostCenterId),
     [mainCostCenters, selectedMainCostCenterId]
-  )
-  const draftMainCostCenter = useMemo(
-    () => mainCostCenters.find(costCenter => costCenter.id === draftMainCostCenterId),
-    [mainCostCenters, draftMainCostCenterId]
   )
   const mainCostCenterName =
     selectedMainCostCenter?.name ||
@@ -273,9 +276,9 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
 
           <Row gutter={[24, 16]}>
             <Col xs={24} className="gba:text-left">
-              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1">
                 <span
-                  className="gba:font-normal gba:flex-shrink-0 gba:whitespace-nowrap"
+                  className="gba:font-normal gba:flex-shrink-0 gba:whitespace-nowrap gba:leading-none"
                   data-testid="expense-request-cost-center-label"
                 >
                   {getTranslationFromI18nKeyAndLabel(
@@ -285,40 +288,39 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
                 </span>
                 {showMainCostCenterSelect ? (
                   <div
-                    className="gba:min-w-56 gba:flex-1 [&_.ant-form-item]:gba:mb-0"
+                    className="gba:m-0 gba:inline-block gba:flex-none gba:self-center gba:p-0"
                     data-testid="expense-request-main-cost-center-select-container"
                   >
-                    <SelectField
-                      allowClear={false}
-                      label={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
-                        'Cost Center'
-                      )}
-                      size="small"
-                      name="expense-request-main-cost-center"
-                      data-testid="expense-request-main-cost-center-select"
-                      data={mainCostCenters.map(costCenter => ({
-                        id: costCenter.id,
-                        name: costCenter.name
-                      }))}
-                      onChange={(value: any) => {
-                        const selectedValue = value && value.value ? value.value : ''
-                        setDraftMainCostCenterId(selectedValue)
-                      }}
-                      placeholder={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_placeholder',
-                        'Select Cost Center'
-                      )}
-                      value={
-                        draftMainCostCenter
-                          ? {
-                              value: draftMainCostCenter.id,
-                              label: draftMainCostCenter.name
-                            }
-                          : undefined
-                      }
-                      required={true}
-                    />
+                    <Select
+                      value={draftMainCostCenterId || undefined}
+                      onValueChange={setDraftMainCostCenterId}
+                      showClearButton={false}
+                    >
+                      <SelectTrigger
+                        id="expense-request-main-cost-center"
+                        size="sm"
+                        className="gba:w-max gba:max-w-xs gba:min-w-0 gba:!h-6 gba:!min-h-6 gba:!max-h-6 gba:!gap-1 gba:!py-0 gba:!px-1 gba:text-xs gba:leading-none gba:shadow-none [&_svg]:gba:h-3 [&_svg]:gba:w-3"
+                        data-testid="expense-request-main-cost-center-select"
+                        aria-label={getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
+                          'Cost Center'
+                        )}
+                      >
+                        <SelectValue
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_placeholder',
+                            'Select Cost Center'
+                          )}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mainCostCenters.map(costCenter => (
+                          <SelectItem key={costCenter.id} value={costCenter.id}>
+                            {costCenter.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 ) : (
                   <span
