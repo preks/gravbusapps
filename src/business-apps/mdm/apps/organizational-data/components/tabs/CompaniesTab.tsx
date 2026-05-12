@@ -152,7 +152,7 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
 
   const handleCompanyNameClick = useCallback((companyId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const url = buildPlatformUrl('/platform/irm/company-record', { companyId })
+    const url = buildPlatformUrl('/platform/mdm/company-record', { companyId })
     navigateTo(url)
   }, [])
 
