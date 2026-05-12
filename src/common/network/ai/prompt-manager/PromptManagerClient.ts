@@ -799,6 +799,10 @@ export class PromptManagerClient extends RestClient {
     return this.get<ProviderToolCatalogItem[]>('/enterprise-ai/tools/functions')
   }
 
+  async getMcpProviderTools(): Promise<ProviderToolCatalogItem[]> {
+    return this.get<ProviderToolCatalogItem[]>('/enterprise-ai/tools/mcp')
+  }
+
   async invokeEnterpriseTool(toolRef: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     return this.post<Record<string, unknown>>('/enterprise-ai/tools/invoke', {
       tool_ref: toolRef,
@@ -1179,6 +1183,7 @@ export class PromptManagerClient extends RestClient {
     agentType?: string
     division?: string
     search?: string
+    status?: string
     limit?: number
     offset?: number
   }): Promise<AgentRegistryEntry[]> {
@@ -1216,6 +1221,10 @@ export class PromptManagerClient extends RestClient {
 
   async archiveAgent(agentId: string): Promise<{ agent_id: string; source: string; status: string }> {
     return this.post(`/agents/registry/${encodeURIComponent(agentId)}/archive`, {})
+  }
+
+  async activateAgent(agentId: string): Promise<{ agent_id: string; source: string; status: string }> {
+    return this.post(`/agents/registry/${encodeURIComponent(agentId)}/activate`, {})
   }
 
   async updateAgentDetails(

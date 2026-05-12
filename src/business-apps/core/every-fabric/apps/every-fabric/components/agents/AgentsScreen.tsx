@@ -10,13 +10,79 @@ import {
   SpinnerGapIcon,
   WrenchIcon
 } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import type { AgentRegistryEntry } from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentCard } from './AgentCard'
 import { AgentConfigView } from './AgentConfigView'
 import { CreateAgentModal } from './CreateAgentModal'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
 import type { BuiltinSubagent, FabricAgent } from './agentTypes'
+
+function mapRegistryEntryToFabricAgent(e: AgentRegistryEntry, statusFallback: 'active' | 'archived'): FabricAgent {
+  return {
+    id: e.id,
+    name: e.name,
+    description: e.description,
+    agent_type: e.agent_type,
+    specialty: e.specialty,
+    domain: ((e as Record<string, unknown>).domain as string | null) ?? e.specialty,
+    avatar: e.avatar,
+    color: e.color,
+    is_public: e.is_public,
+    tags: e.tags ?? [],
+    tools_count: e.tools_count ?? 0,
+    knowledge_sources_count: e.knowledge_sources_count ?? 0,
+    skill_ids: e.skill_ids ?? [],
+    skills_count: e.skills_count ?? 0,
+    source: e.source ?? 'prompt_odm',
+    status: e.status ?? statusFallback,
+    created_at: e.created_at
+  }
+}
+
+interface CollapsibleFabricSectionProps {
+  sectionTestId: string
+  toggleTestId: string
+  expanded: boolean
+  onToggle: () => void
+  title: string
+  count: number
+  description: string
+  children: ReactNode
+}
+
+const CollapsibleFabricSection: FC<CollapsibleFabricSectionProps> = ({
+  sectionTestId,
+  toggleTestId,
+  expanded,
+  onToggle,
+  title,
+  count,
+  description,
+  children
+}) => (
+  <div className="gba:mt-8" data-testid={sectionTestId}>
+    <button
+      type="button"
+      onClick={onToggle}
+      className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:font-semibold gba:text-foreground gba:hover:text-foreground/80 gba:transition-colors"
+      data-testid={toggleTestId}
+    >
+      {expanded ? <CaretDownIcon className="gba:h-4 gba:w-4" /> : <CaretRightIcon className="gba:h-4 gba:w-4" />}
+      {title}
+      <span className="gba:text-xs gba:font-normal gba:text-muted-foreground">({count})</span>
+    </button>
+    {expanded && (
+      <>
+        <p className="gba:mt-2 gba:text-xs gba:text-muted-foreground gba:max-w-2xl">{description}</p>
+        <div className="gba:mt-3 gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-3 gba:gap-3">
+          {children}
+        </div>
+      </>
+    )}
+  </div>
+)
 
 interface AgentsScreenProps {
   accessToken: string
@@ -26,7 +92,7 @@ interface AgentsScreenProps {
   embedded?: boolean
 }
 
-export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack, onRunTask, embedded = false }) => {
+export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRunTask, embedded = false }) => {
   const client = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<FabricAgent[]>([])
   const [builtins, setBuiltins] = useState<BuiltinSubagent[]>([])
@@ -34,10 +100,13 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [builtinsExpanded, setBuiltinsExpanded] = useState(false)
+  const [archivedAgents, setArchivedAgents] = useState<FabricAgent[]>([])
+  const [archivedExpanded, setArchivedExpanded] = useState(false)
   const [showLegend, setShowLegend] = useState(false)
   const [configuringAgent, setConfiguringAgent] = useState<FabricAgent | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [archivingAgentId, setArchivingAgentId] = useState<string | null>(null)
+  const [activatingAgentId, setActivatingAgentId] = useState<string | null>(null)
 
   const renderHireAgentButton = () => (
     <button
@@ -54,30 +123,15 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
     setIsLoading(true)
     setError(null)
     try {
-      const [entries, builtinEntries] = await Promise.all([
+      const [entries, builtinEntries, archivedEntries] = await Promise.all([
         client.getAgentRegistry({ limit: 200 }),
-        client.getBuiltinSubagents().catch(() => [] as BuiltinSubagent[])
+        client.getBuiltinSubagents().catch(() => [] as BuiltinSubagent[]),
+        client.getAgentRegistry({ limit: 200, status: 'archived' }).catch(() => [] as AgentRegistryEntry[])
       ])
-      const mapped: FabricAgent[] = entries.map(e => ({
-        id: e.id,
-        name: e.name,
-        description: e.description,
-        agent_type: e.agent_type,
-        specialty: e.specialty,
-        domain: ((e as Record<string, unknown>).domain as string | null) ?? e.specialty,
-        avatar: e.avatar,
-        color: e.color,
-        is_public: e.is_public,
-        tags: e.tags ?? [],
-        tools_count: e.tools_count ?? 0,
-        knowledge_sources_count: e.knowledge_sources_count ?? 0,
-        skill_ids: e.skill_ids ?? [],
-        skills_count: e.skills_count ?? 0,
-        source: e.source ?? 'prompt_odm',
-        status: e.status ?? 'active',
-        created_at: e.created_at
-      }))
+      const mapped: FabricAgent[] = entries.map(e => mapRegistryEntryToFabricAgent(e, 'active'))
+      const mappedArchived: FabricAgent[] = archivedEntries.map(e => mapRegistryEntryToFabricAgent(e, 'archived'))
       setAgents(mapped)
+      setArchivedAgents(mappedArchived)
       setBuiltins(builtinEntries)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load agents')
@@ -108,6 +162,7 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
       try {
         await client.archiveAgent(agent.id)
         setAgents(prev => prev.filter(a => a.id !== agent.id))
+        setArchivedAgents(prev => [...prev, { ...agent, status: 'archived' }])
         if (configuringAgent?.id === agent.id) setConfiguringAgent(null)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to archive agent')
@@ -116,6 +171,23 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
       }
     },
     [client, configuringAgent?.id]
+  )
+
+  const handleActivateAgent = useCallback(
+    async (agent: FabricAgent) => {
+      setActivatingAgentId(agent.id)
+      setError(null)
+      try {
+        await client.activateAgent(agent.id)
+        setArchivedAgents(prev => prev.filter(a => a.id !== agent.id))
+        setAgents(prev => [...prev, { ...agent, status: 'active' }])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to activate agent')
+      } finally {
+        setActivatingAgentId(null)
+      }
+    },
+    [client]
   )
 
   const filtered = useMemo(() => {
@@ -151,9 +223,15 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
         onSkillsSaved={handleSkillsSaved}
         onAgentUpdated={(agentId, updates) => {
           setAgents(prev =>
-            prev.map(a => (a.id === agentId ? { ...a, name: updates.name, description: updates.description, tags: updates.tags } : a))
+            prev.map(a =>
+              a.id === agentId ? { ...a, name: updates.name, description: updates.description, tags: updates.tags } : a
+            )
           )
-          setConfiguringAgent(prev => prev && prev.id === agentId ? { ...prev, name: updates.name, description: updates.description, tags: updates.tags } : prev)
+          setConfiguringAgent(prev =>
+            prev && prev.id === agentId
+              ? { ...prev, name: updates.name, description: updates.description, tags: updates.tags }
+              : prev
+          )
         }}
       />
     )
@@ -265,76 +343,127 @@ export const AgentsScreen: React.FC<AgentsScreenProps> = ({ accessToken, onBack,
                 agent={agent}
                 onRunTask={onRunTask}
                 onConfigure={setConfiguringAgent}
-                onArchive={agent => void handleArchiveAgent(agent)}
+                onArchive={agent => {
+                  handleArchiveAgent(agent)
+                }}
                 isArchiving={archivingAgentId === agent.id}
               />
             ))}
           </div>
 
           {builtins.length > 0 && (
-            <div className="gba:mt-8" data-testid="builtins-section">
-              <button
-                type="button"
-                onClick={() => setBuiltinsExpanded(prev => !prev)}
-                className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:font-semibold gba:text-foreground gba:hover:text-foreground/80 gba:transition-colors"
-                data-testid="builtins-toggle"
-              >
-                {builtinsExpanded ? (
-                  <CaretDownIcon className="gba:h-4 gba:w-4" />
-                ) : (
-                  <CaretRightIcon className="gba:h-4 gba:w-4" />
-                )}
-                Built-in Sub-agents
-                <span className="gba:text-xs gba:font-normal gba:text-muted-foreground">({builtins.length})</span>
-              </button>
-              {builtinsExpanded && (
-                <>
-                  <p className="gba:mt-2 gba:text-xs gba:text-muted-foreground gba:max-w-2xl">
-                    Task-matched specialists that the Enterprise Agent activates automatically based on your request.
-                    They cannot be configured or run directly.
-                  </p>
-                  <div className="gba:mt-3 gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-3 gba:gap-3">
-                    {builtins.map(b => {
-                      const sd = getSourceDisplay(b.source)
-                      return (
-                        <div
-                          key={b.id}
-                          className="gba:rounded-lg gba:border gba:border-border/60 gba:bg-card/50 gba:p-4"
-                          data-testid={`builtin-card-${b.id}`}
-                        >
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1.5">
-                            <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">
-                              {b.name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                            </h4>
-                            <span
-                              className={`gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${sd.badgeClass}`}
-                            >
-                              {sd.label}
-                            </span>
-                          </div>
-                          <p className="gba:text-xs gba:leading-relaxed gba:text-muted-foreground gba:line-clamp-3">
-                            {b.description}
-                          </p>
-                          {b.categories.length > 0 && (
-                            <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:mt-2.5">
-                              {b.categories.map(cat => (
-                                <span
-                                  key={cat}
-                                  className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:bg-muted/60 gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-muted-foreground"
-                                >
-                                  <WrenchIcon className="gba:h-3 gba:w-3" />
-                                  {cat}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
+            <CollapsibleFabricSection
+              sectionTestId="builtins-section"
+              toggleTestId="builtins-toggle"
+              expanded={builtinsExpanded}
+              onToggle={() => setBuiltinsExpanded(prev => !prev)}
+              title="Built-in Sub-agents"
+              count={builtins.length}
+              description="Task-matched specialists that the Enterprise Agent activates automatically based on your request. They cannot be configured or run directly."
+            >
+              {builtins.map(b => {
+                const sd = getSourceDisplay(b.source)
+                return (
+                  <div
+                    key={b.id}
+                    className="gba:rounded-lg gba:border gba:border-border/60 gba:bg-card/50 gba:p-4"
+                    data-testid={`builtin-card-${b.id}`}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1.5">
+                      <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">
+                        {b.name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                      </h4>
+                      <span
+                        className={`gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${sd.badgeClass}`}
+                      >
+                        {sd.label}
+                      </span>
+                    </div>
+                    <p className="gba:text-xs gba:leading-relaxed gba:text-muted-foreground gba:line-clamp-3">
+                      {b.description}
+                    </p>
+                    {b.categories.length > 0 && (
+                      <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:mt-2.5">
+                        {b.categories.map(cat => (
+                          <span
+                            key={cat}
+                            className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:bg-muted/60 gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-muted-foreground"
+                          >
+                            <WrenchIcon className="gba:h-3 gba:w-3" />
+                            {cat}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </>
-              )}
-            </div>
+                )
+              })}
+            </CollapsibleFabricSection>
+          )}
+
+          {archivedAgents.length > 0 && (
+            <CollapsibleFabricSection
+              sectionTestId="archived-section"
+              toggleTestId="archived-toggle"
+              expanded={archivedExpanded}
+              onToggle={() => setArchivedExpanded(prev => !prev)}
+              title="Archived Agents"
+              count={archivedAgents.length}
+              description="Previously active agents that have been archived. They are excluded from orchestration but their history is preserved."
+            >
+              {archivedAgents.map(agent => {
+                const sd = getSourceDisplay(agent.source)
+                return (
+                  <div
+                    key={agent.id}
+                    className="gba:rounded-lg gba:border gba:border-border/60 gba:bg-card/50 gba:p-4 gba:opacity-70"
+                    data-testid={`archived-card-${agent.id}`}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1.5">
+                      <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">
+                        {agent.name.replace(/_/g, ' ')}
+                      </h4>
+                      <span
+                        className={`gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${sd.badgeClass}`}
+                      >
+                        {sd.label}
+                      </span>
+                      <span className="gba:shrink-0 gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+                        archived
+                      </span>
+                    </div>
+                    <p className="gba:text-xs gba:leading-relaxed gba:text-muted-foreground gba:line-clamp-3">
+                      {agent.description}
+                    </p>
+                    {agent.tags.length > 0 && (
+                      <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:mt-2.5">
+                        {agent.tags.map(tag => (
+                          <span
+                            key={tag}
+                            className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-muted/60 gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-muted-foreground"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="gba:mt-3 gba:flex gba:justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={activatingAgentId === agent.id}
+                        onClick={() => {
+                          handleActivateAgent(agent)
+                        }}
+                        data-testid={`activate-agent-${agent.id}`}
+                      >
+                        {activatingAgentId === agent.id ? 'Activating…' : 'Activate'}
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </CollapsibleFabricSection>
           )}
         </div>
       </div>
