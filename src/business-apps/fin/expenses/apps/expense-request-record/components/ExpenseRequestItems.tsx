@@ -1,6 +1,15 @@
 import React, { useMemo, useState } from 'react'
 import { Table } from 'antd'
-import { Card, CardHeader, CardTitle, CardContent, Icon, Sheet, SheetContent } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Icon,
+  Sheet,
+  SheetContent,
+  useTranslation
+} from '@newwork/nw-design-system'
 import type { ColumnsType } from 'antd/es/table'
 import Pill from '@/components/pill'
 import { ExpenseRequestItem } from '../types/expenseRequestRecord.types'
@@ -13,6 +22,7 @@ import { ExpenseDetailsShell } from '../../../common/components/details-panel/Ex
 import { ExpenseItemDetails } from '../../personal-expenses/components/tabs/expense-items-tab/details/ExpenseItemDetails'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import ExpensePositionsSection from './ExpensePositionsSection'
+import expenseRequestRecordTranslations from '../_i18n'
 
 interface ExpenseRequestItemsProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   expenseRequestItems: ExpenseRequestItem[]
@@ -41,18 +51,18 @@ const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) =
   return (
     <Table.Summary fixed>
       <Table.Summary.Row>
-        <Table.Summary.Cell index={0} colSpan={5}>
+        <Table.Summary.Cell index={0} colSpan={6}>
           <span className="gba:font-semibold">
             {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
           </span>
         </Table.Summary.Cell>
-        <Table.Summary.Cell index={5} align="right">
+        <Table.Summary.Cell index={6} align="right">
           <span className="gba:font-semibold">{formatAmount(totalAmount)}</span>
         </Table.Summary.Cell>
-        <Table.Summary.Cell index={6} align="right">
+        <Table.Summary.Cell index={7} align="right">
           <span>{formatAmount(totalReimbursable)}</span>
         </Table.Summary.Cell>
-        <Table.Summary.Cell index={7} align="right">
+        <Table.Summary.Cell index={8} align="right">
           <span>{formatAmount(totalDeductible)}</span>
         </Table.Summary.Cell>
       </Table.Summary.Row>
@@ -67,7 +77,26 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
   userInfo,
   expenseOwnerEmployeeId
 }) => {
+  const { t } = useTranslation(expenseRequestRecordTranslations)
   const loading = false
+
+  const getExpenseItemCostCenterLabel = (record: ExpenseRequestItem): string => {
+    const positions = record.expensePosition ?? []
+    if (positions.length > 1) {
+      const labels = positions.map(p => p.costCenter?.name?.trim() ?? '')
+      const distinctKeys = new Set(labels.map(label => label.toLowerCase()))
+      if (distinctKeys.size <= 1) {
+        const single = labels.find(label => label.length > 0) ?? ''
+        return single.length > 0 ? single : '-'
+      }
+      return t('expense-request-record-item-cost-center-multiple')
+    }
+    if (positions.length === 1) {
+      const name = positions[0]?.costCenter?.name?.trim()
+      return name ? name : '-'
+    }
+    return '-'
+  }
 
   // State for selected item and sheet visibility
   const [selectedItem, setSelectedItem] = useState<ExpenseRequestItem | null>(null)
@@ -168,6 +197,15 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
         const label = translated || (isAllowance ? allowanceLabel : '') || rawValue || '-'
         return <span>{label}</span>
       }
+    },
+    {
+      title: t('expense-request-record-items-column-cost-center'),
+      key: 'itemCostCenter',
+      render: (_: unknown, record: ExpenseRequestItem) => (
+        <span data-testid={`expense-request-item-cost-center-${record.id}`}>
+          {getExpenseItemCostCenterLabel(record)}
+        </span>
+      )
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),

@@ -1,7 +1,25 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
-import { Spinner, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
-import { PathIcon, HandCoinsIcon, MapPinIcon, ClockIcon, ChatCircleIcon, WalletIcon, CalendarIcon } from '@phosphor-icons/react'
+import {
+  Card,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Spinner,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  useTranslation
+} from '@newwork/nw-design-system'
+import {
+  PathIcon,
+  HandCoinsIcon,
+  MapPinIcon,
+  ClockIcon,
+  ChatCircleIcon,
+  WalletIcon,
+  CalendarIcon
+} from '@phosphor-icons/react'
 import Pill from '@/components/pill'
 import { formatDate } from '@/common/utils/windowUtils'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
@@ -18,6 +36,7 @@ import ExpensePlanAllowances from './components/ExpensePlanAllowances.tsx'
 import ExpensePlanTrip from './components/ExpensePlanTrip.tsx'
 import ExpensePlanAdvancePayments from './components/ExpensePlanAdvancePayments.tsx'
 import ExpensePlanComments from './components/ExpensePlanComments.tsx'
+import expensePlanRecordTranslations from './_i18n'
 
 // Helper function to check if expense plan has comments
 const hasComments = (expensePlan: any): boolean => {
@@ -35,6 +54,7 @@ const hasComments = (expensePlan: any): boolean => {
 }
 
 const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData = {} }) => {
+  const { t } = useTranslation(expensePlanRecordTranslations)
   const expensePlanId =
     additionalData.expensePlanId ||
     new URLSearchParams(window.location.search).get('expensePlanId') ||
@@ -278,6 +298,10 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           <div>
             <h4 className="gba:text-lg gba:font-semibold gba:mb-1">{expensePlan.title ?? '-'}</h4>
             <span className="gba:text-gray-500">{expensePlan?.code}</span>
+            <div className="gba:mt-1" data-testid="expense-plan-record-header-cost-center">
+              <span className="gba:text-gray-500">{t('expense-plan-record-cost-center-label')}: </span>
+              <span>{expensePlan?.costCenter?.name ?? '-'}</span>
+            </div>
           </div>
           <Pill
             type={getExpensePlanStatusDisplay(expensePlan.status).type}
@@ -338,15 +362,9 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
               </span>
             </div>
           )}
-          <div>
-            <span className="gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-                'Cost Center'
-              )}
-              :{' '}
-            </span>
-            <span>{expensePlan?.costCenter?.name ?? '-'}</span>
+          <div data-testid="expense-plan-record-requester-cost-center">
+            <span className="gba:text-gray-500">{t('expense-plan-record-requester-cost-center-label')}: </span>
+            <span>{expensePlan?.employee?.employeePosition?.costCenter?.name ?? '-'}</span>
           </div>
           <div>
             <span className="gba:text-gray-500">

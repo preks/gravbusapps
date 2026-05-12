@@ -1,14 +1,22 @@
 import React, { useMemo } from 'react'
 import { Table } from 'antd'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  useTranslation,
+  SectionKpiCards,
+  type KpiCardData
+} from '@newwork/nw-design-system'
 import type { ColumnsType } from 'antd/es/table'
 import Pill from '@/components/pill'
 import { ExpensePlanItem } from '../types/expensePlanRecord.types'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../utils/currency'
 import type { WidgetItem } from '@/components/widget-group'
-import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import { formatDate } from '@/common/utils/windowUtils'
+import expensePlanRecordTranslations from '../_i18n'
 
 interface ExpensePlanItemsProps {
   expensePlanItems: ExpensePlanItem[]
@@ -17,7 +25,13 @@ interface ExpensePlanItemsProps {
 
 // Table summary component defined outside parent component to fix lint error
 
+function getPlanItemCostCenterLabel(record: ExpensePlanItem): string {
+  const name = record.costCenter?.name?.trim()
+  return name ? name : '-'
+}
+
 const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, currencyCode }) => {
+  const { t } = useTranslation(expensePlanRecordTranslations)
   const loading = false
 
   // Date formatting via platform utility
@@ -74,6 +88,14 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       render: (_: string, record: ExpensePlanItem) => {
         const label = record.expenseClass ? (getCatalogValue(record.expenseClass) ?? _) : _
         return <span data-testid="expense-class-cell">{label}</span>
+      }
+    },
+    {
+      title: t('expense-plan-record-items-column-cost-center'),
+      key: 'itemCostCenter',
+      render: (_: unknown, record: ExpensePlanItem) => {
+        const rowKey = record.id ?? record.code ?? ''
+        return <span data-testid={`expense-plan-item-cost-center-${rowKey}`}>{getPlanItemCostCenterLabel(record)}</span>
       }
     },
     {
@@ -230,7 +252,10 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
         </div>
         <Table
           columns={columns}
-          dataSource={expensePlanItems.map((item, index) => ({ ...item, key: index }))}
+          dataSource={expensePlanItems.map((item, index) => ({
+            ...item,
+            key: item.id ?? `${item.code ?? 'row'}-${index}`
+          }))}
           loading={loading}
           pagination={false}
           size="middle"
@@ -238,20 +263,20 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
           summary={pageData => (
             <Table.Summary fixed>
               <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={5}>
+                <Table.Summary.Cell index={0} colSpan={6}>
                   <span className="gba:font-semibold">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
                   </span>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={5} align="right">
+                <Table.Summary.Cell index={6} align="right">
                   <span className="gba:font-semibold">
                     {formatAmount(pageData.reduce((sum, i) => sum + i.totalAmount, 0))}
                   </span>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={6} align="right">
+                <Table.Summary.Cell index={7} align="right">
                   <span>{formatAmount(pageData.reduce((sum, i) => sum + i.reimbursableAmount, 0))}</span>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={7} align="right">
+                <Table.Summary.Cell index={8} align="right">
                   <span>{formatAmount(pageData.reduce((sum, i) => sum + i.deductibleAmount, 0))}</span>
                 </Table.Summary.Cell>
               </Table.Summary.Row>
