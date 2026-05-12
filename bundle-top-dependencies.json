@@ -8253,9 +8253,9 @@
     ]
   },
   "core/every/apps/every-box": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 2062953,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 2063339,
     "top": [
       {
         "kind": "bucket",
@@ -8350,8 +8350,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 127527,
-        "gzip": 28968,
+        "rendered": 128208,
+        "gzip": 29086,
         "leaves": [
           {
             "name": "src/common/network/chat/ChatClient.ts",
@@ -9678,9 +9678,9 @@
     ]
   },
   "core/office/apps/documents": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 1795692,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 1796078,
     "top": [
       {
         "kind": "bucket",
@@ -9775,8 +9775,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 103112,
-        "gzip": 23150,
+        "rendered": 103793,
+        "gzip": 23268,
         "leaves": [
           {
             "name": "src/common/network/ai/prompt-manager/PromptManagerClient.ts",
@@ -14377,9 +14377,9 @@
     ]
   },
   "crm/core/apps/customer-settings": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 717679,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 717636,
     "top": [
       {
         "kind": "bucket",
@@ -14438,8 +14438,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
-        "rendered": 80171,
-        "gzip": 23725,
+        "rendered": 80131,
+        "gzip": 23715,
         "leaves": [
           {
             "name": "src/business-apps/crm/core/apps/customer-settings/CustomerSettings.tsx",
@@ -14694,9 +14694,9 @@
     ]
   },
   "crm/core/apps/data-import": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 651903,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 652289,
     "top": [
       {
         "kind": "bucket",
@@ -14791,8 +14791,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 27689,
-        "gzip": 8248,
+        "rendered": 28370,
+        "gzip": 8366,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -21571,9 +21571,9 @@
     ]
   },
   "crm/core/records/account-record": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 866658,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 867044,
     "top": [
       {
         "kind": "bucket",
@@ -21668,8 +21668,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 56187,
-        "gzip": 15722,
+        "rendered": 56868,
+        "gzip": 15840,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -41707,9 +41707,9 @@
     ]
   },
   "hr/core/apps/human-resources": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 2597762,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 2598148,
     "top": [
       {
         "kind": "bucket",
@@ -41840,8 +41840,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 96030,
-        "gzip": 22020,
+        "rendered": 96711,
+        "gzip": 22138,
         "leaves": [
           {
             "name": "src/common/network/office/OfficeWebSocketClient.ts",
@@ -66350,9 +66350,9 @@
     ]
   },
   "irm/core/apps/data-import": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 712114,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 712500,
     "top": [
       {
         "kind": "bucket",
@@ -66465,8 +66465,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 27689,
-        "gzip": 8248,
+        "rendered": 28370,
+        "gzip": 8366,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -75028,9 +75028,9 @@
     ]
   },
   "irm/core/records/account-record": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 899102,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 899488,
     "top": [
       {
         "kind": "bucket",
@@ -75125,8 +75125,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 56187,
-        "gzip": 15722,
+        "rendered": 56868,
+        "gzip": 15840,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -75365,9 +75365,9 @@
     ]
   },
   "irm/core/records/contact-record": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 895936,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 896322,
     "top": [
       {
         "kind": "bucket",
@@ -75462,8 +75462,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 56187,
-        "gzip": 15722,
+        "rendered": 56868,
+        "gzip": 15840,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -75702,9 +75702,9 @@
     ]
   },
   "irm/core/records/lead-record": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 699538,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 699924,
     "top": [
       {
         "kind": "bucket",
@@ -75799,8 +75799,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 56187,
-        "gzip": 15721,
+        "rendered": 56868,
+        "gzip": 15839,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -76044,9 +76044,9 @@
     ]
   },
   "irm/core/records/opportunity-record": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 754328,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 754714,
     "top": [
       {
         "kind": "bucket",
@@ -76141,8 +76141,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 56187,
-        "gzip": 15721,
+        "rendered": 56868,
+        "gzip": 15839,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -76703,9 +76703,9 @@
     ]
   },
   "irm/investments/apps/investment-portal": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 553223,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 553609,
     "top": [
       {
         "kind": "bucket",
@@ -76800,8 +76800,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 55967,
-        "gzip": 15576,
+        "rendered": 56648,
+        "gzip": 15694,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -79571,9 +79571,9 @@
     ]
   },
   "irm/investments/records/investment-record": {
-    "bitbucketBuildNumber": 12003,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12003/",
-    "chunkJsBytes": 1119472,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 1119862,
     "top": [
       {
         "kind": "bucket",
@@ -79686,8 +79686,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 67963,
-        "gzip": 18993,
+        "rendered": 68644,
+        "gzip": 19111,
         "leaves": [
           {
             "name": "src/common/network/graphql/queryHelpers.ts",
@@ -88259,20 +88259,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12003,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12003/",
-    "chunkJsBytes": 1875844,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 1875845,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1576136,
-        "gzip": 97038,
+        "gzip": 97064,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1576136,
-            "gzip": 97038
+            "gzip": 97064
           }
         ]
       },
@@ -91056,9 +91056,9 @@
     ]
   },
   "platform/apps/flowbot-evals-dashboard": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 126053,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 126439,
     "top": [
       {
         "kind": "bucket",
@@ -91117,8 +91117,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 23308,
-        "gzip": 6832,
+        "rendered": 23989,
+        "gzip": 6950,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -106105,9 +106105,9 @@
     ]
   },
   "irm/core/records/records/company-record": {
-    "bitbucketBuildNumber": 11996,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11996/",
-    "chunkJsBytes": 371921,
+    "bitbucketBuildNumber": 12004,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12004/",
+    "chunkJsBytes": 372307,
     "top": [
       {
         "kind": "bucket",
@@ -106197,8 +106197,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 44598,
-        "gzip": 12512,
+        "rendered": 45279,
+        "gzip": 12630,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -106765,7 +106765,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-12T14:27:36.491Z",
+    "generatedAt": "2026-05-12T14:43:47.909Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
