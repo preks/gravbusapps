@@ -918,6 +918,8 @@ export function CustomImageView({ node, editor, getPos, selected, options }: Rea
       as="span"
       className="gba:max-w-full"
       style={layout.wrapperStyle}
+      draggable
+      data-drag-handle
       onClick={handleSelectNode}
       data-testid="document-editor-image-anchor"
       ref={wrapperRef}

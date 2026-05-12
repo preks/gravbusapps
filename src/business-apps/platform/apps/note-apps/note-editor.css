@@ -148,6 +148,11 @@
   margin: 1.5em 0;
 }
 
+.note-editor-content .tiptap .editor-image-figure {
+  max-width: 100%;
+  margin: 1.25em 0;
+}
+
 /* Tables — visible borders on every cell, transparent background */
 .note-editor-content .tiptap table.note-editor-table {
   --note-table-border: color-mix(in srgb, currentColor 35%, transparent);

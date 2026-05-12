@@ -18,7 +18,7 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
-import { Image } from '@tiptap/extension-image'
+import { CustomImage } from '@/components/tiptap-extensions/tiptap-custom-image'
 import { TaskList } from '@tiptap/extension-task-list'
 import { LinkedTaskItem } from '../shared/extensions/LinkedTaskItem'
 import { Typography } from '@tiptap/extension-typography'
@@ -145,6 +145,13 @@ import {
   type PanelCommentAnchor
 } from '../shared/utils/commentAnchors'
 import noteAppTranslations from './_i18n'
+import {
+  isNoteDriveImageProtectedSrc,
+  resolveNoteDriveImageProtectedSrc,
+  type UploadNoteDriveImageOptions
+} from './services/noteDriveImageUpload'
+import { useNoteEditorImageUpload } from './hooks/useNoteEditorImageUpload'
+import { ImageSquare } from '@phosphor-icons/react'
 
 // Note color mapping (labels via i18n key editor-color-{value})
 const noteColors: Array<{ value: NoteColor; class: string }> = [
@@ -285,6 +292,8 @@ export interface NoteEditorProps extends Partial<BusinessAppContextProps> {
   onToggleSidebar?: () => void
   onTitleChanged?: (noteId: string, newTitle: string) => void
   onContentSaved?: (noteId: string) => void
+  /** Optional Drive folder id for uploads (not the same as note tree parent id). */
+  imageUploadDriveFolderId?: string | null
   'data-testid'?: string
 }
 
@@ -306,6 +315,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   onToggleSidebar,
   onTitleChanged,
   onContentSaved,
+  imageUploadDriveFolderId,
   accessToken: accessTokenProp,
   userInfo,
   'data-testid': testId = 'note-editor'
@@ -340,6 +350,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const contentSavedTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const editorRef = useRef<any>(null)
+  const noteImageFileInputRef = useRef<HTMLInputElement>(null)
   const editorContainerRef = useRef<HTMLDivElement>(null)
 
   const noteIdRef = useRef(note.id)
@@ -548,6 +559,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const canOwnerUnlockNote = canUseLockActions && isNoteOwner && isLockedByOtherUser
 
   canEditNoteRef.current = canEditNote
+
+  const canInsertNoteImages = canEditNote && !isTrashedNote && Boolean(accessToken)
+  const driveUploadOptionsRef = useRef<UploadNoteDriveImageOptions>({})
+  useEffect(() => {
+    driveUploadOptionsRef.current = {
+      folderId: imageUploadDriveFolderId ?? undefined,
+      spaceId: note.spaceId
+    }
+  }, [imageUploadDriveFolderId, note.spaceId])
 
   const handleAcquireLock = useCallback(async () => {
     const success = await fileLock.acquireLock()
@@ -962,6 +982,40 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     return createMentionSuggestion(accessToken)
   }, [accessToken])
 
+  const noteImageAccessTokenRef = useRef(accessToken)
+  noteImageAccessTokenRef.current = accessToken
+
+  const noteCustomImageExtension = React.useMemo(
+    () =>
+      CustomImage.configure({
+        resize: true,
+        inline: false,
+        allowBase64: true,
+        getAccessToken: () => noteImageAccessTokenRef.current,
+        isProtectedSrc: isNoteDriveImageProtectedSrc,
+        resolveProtectedSrc: resolveNoteDriveImageProtectedSrc,
+        minSize: 50,
+        defaultAlign: 'center',
+        defaultWrapMode: 'inline',
+        defaultAnchorMode: 'inline',
+        defaultDisplay: 'block',
+        defaultDistance: 0
+      }),
+    []
+  )
+
+  const {
+    handlePaste: handleNoteImagePaste,
+    handleDrop: handleNoteImageDrop,
+    insertImagesFromFileList
+  } = useNoteEditorImageUpload({
+    editorRef,
+    accessToken,
+    canInsertImages: canInsertNoteImages,
+    driveUploadOptionsRef,
+    translate: key => String(t(key as never))
+  })
+
   const isCollaborationMode = Boolean(note.id && !isTrashedNote)
 
   // Initialize TipTap editor
@@ -991,7 +1045,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         Link.configure({
           openOnClick: false
         }),
-        Image,
+        noteCustomImageExtension,
         TaskList,
         LinkedTaskItem.configure({
           nested: true
@@ -1133,7 +1187,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       editorProps: {
         handleDOMEvents: {
           keydown: (_view, event) => handleTiptapTabKey(event, editorRef.current)
-        }
+        },
+        handlePaste: handleNoteImagePaste,
+        handleDrop: handleNoteImageDrop
       },
       content: isCollaborationMode ? '<p></p>' : note.content || '<p></p>',
       editable: canEditNote,
@@ -1144,7 +1200,17 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
       }
     },
-    [note.id, note.content, ydoc, canEditNote, mentionSuggestion, isCollaborationMode]
+    [
+      note.id,
+      note.content,
+      ydoc,
+      canEditNote,
+      mentionSuggestion,
+      isCollaborationMode,
+      noteCustomImageExtension,
+      handleNoteImagePaste,
+      handleNoteImageDrop
+    ]
   )
 
   useEffect(() => {
@@ -2542,6 +2608,40 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <TooltipContent>{t('editor-format-strikethrough')}</TooltipContent>
                   </Tooltip>
 
+                  <input
+                    ref={noteImageFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="gba:sr-only"
+                    aria-hidden
+                    tabIndex={-1}
+                    data-testid={`${testId}-image-file-input`}
+                    onChange={e => {
+                      const files = e.target.files
+                      if (files?.length) {
+                        insertImagesFromFileList(files)
+                      }
+                      e.target.value = ''
+                    }}
+                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        disabled={!canInsertNoteImages}
+                        data-testid={`${testId}-insert-image`}
+                        onClick={() => noteImageFileInputRef.current?.click()}
+                      >
+                        <ImageSquare className="gba:w-3.5 gba:h-3.5" aria-hidden />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-insert-image')}</TooltipContent>
+                  </Tooltip>
+
                   <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
 
                   <Tooltip>
@@ -3211,6 +3311,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           height: auto;
           border-radius: 0.75rem;
           margin: 1.5em 0;
+        }
+
+        .note-editor-content .ProseMirror .editor-image-figure {
+          max-width: 100%;
+          margin: 1.25em 0;
         }
 
         .note-editor-content .ProseMirror mark {

@@ -138,7 +138,8 @@ export const CustomImage = Image.extend<CustomImageOptions>({
     }
   },
 
-  draggable: false,
+  /** Match @tiptap/extension-image so images can be dragged to reorder within the document. */
+  draggable: true,
 
   inline() {
     return this.options.inline

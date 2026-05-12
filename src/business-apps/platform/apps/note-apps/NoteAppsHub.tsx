@@ -162,9 +162,9 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     (users: NoteShare[]): SharedNoteUser[] =>
       users.map(user => ({
         ...user,
-        userName: user.userName || user.userEmail || t('owner-unknown')
+        userName: user.userName || user.userEmail || ''
       })),
-    [t]
+    []
   )
 
   // Fetch owner info

@@ -529,13 +529,19 @@ export const NoteApiService = {
     try {
       debugLog('getSharedUsers', noteId)
       const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/note/${noteId}`)
+      const optionalString = (v: unknown): string | undefined =>
+        typeof v === 'string' && v.trim().length > 0 ? v : undefined
+
       return (shares || []).map(s => ({
         id: s.id as string,
         userId: s.userId as string,
         permission: s.permission as NotePermission,
         sharedAt: s.createdAt as string,
         sharedBy: s.sharedBy as string,
-        message: s.message as string | undefined
+        message: s.message as string | undefined,
+        userName: optionalString(s.userName) ?? optionalString(s.displayName),
+        userEmail: optionalString(s.userEmail),
+        userAvatar: optionalString(s.userAvatar) ?? optionalString(s.pictureThumbnail) ?? optionalString(s.avatarUrl)
       }))
     } catch (error) {
       console.error('Failed to get shared users:', error)

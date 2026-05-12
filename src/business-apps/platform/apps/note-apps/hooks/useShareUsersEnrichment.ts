@@ -58,8 +58,8 @@ export function useShareUsersEnrichment(options: {
       const cached = cacheRef.current.get(u.userId)
       return {
         ...u,
-        userName: u.userName || cached?.displayName || fallbackName(u, 'User'),
-        userAvatar: u.userAvatar || cached?.avatarUrl
+        userName: cached?.displayName || u.userName || u.userEmail || fallbackName(u, 'User'),
+        userAvatar: cached?.avatarUrl || u.userAvatar
       }
     })
     setEnrichedSharedUsers(nextShared)
@@ -104,8 +104,8 @@ export function useShareUsersEnrichment(options: {
         const cached = cacheRef.current.get(u.userId)
         return {
           ...u,
-          userName: u.userName || cached?.displayName || fallbackName(u, 'User'),
-          userAvatar: u.userAvatar || cached?.avatarUrl
+          userName: cached?.displayName || u.userName || u.userEmail || fallbackName(u, 'User'),
+          userAvatar: cached?.avatarUrl || u.userAvatar
         }
       })
       setEnrichedSharedUsers(refreshedShared)
