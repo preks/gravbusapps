@@ -1,6 +1,7 @@
 import { BASE_ENTITY_DESCRIPTORS, type BaseEntity, type CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import { filterAddressLines, filterAddresses } from '@/common/data/common/utils/entityPayloadHelpers'
 import type {
   InvestmentCompanyExecutive,
   InvestmentCompanyGroupAssociation,
@@ -62,7 +63,8 @@ export const investmentCompanyFormFields = {
   valueAddedTaxNumber: 'valueAddedTaxNumber',
   picture: 'picture',
   pictureThumbnail: 'pictureThumbnail',
-  currencyRef: 'currencyRef'
+  currencyRef: 'currencyRef',
+  addresses: 'addresses'
 } as const
 
 export const INVESTMENT_COMPANY_DESCRIPTORS: Descriptor[] = [
@@ -152,9 +154,22 @@ export const INVESTMENT_COMPANY_DESCRIPTORS: Descriptor[] = [
   }
 ]
 
-export const buildInvestmentCompanyPayload = (company: Partial<InvestmentCompany>) => ({
-  investmentCompany: buildPayload(company, investmentCompanyFormFields)
-})
+export const buildInvestmentCompanyPayload = (
+  company: Omit<Partial<InvestmentCompany>, 'addresses'> & { addresses?: any[] }
+) => {
+  const payload = buildPayload(company, investmentCompanyFormFields)
+  const filteredAddresses = filterAddresses(payload.addresses, filterAddressLines)
+
+  if (filteredAddresses) {
+    payload.addresses = filteredAddresses
+  } else {
+    delete payload.addresses
+  }
+
+  return {
+    investmentCompany: payload
+  }
+}
 
 export function toInvestmentCompany(raw: any): InvestmentCompany {
   const {

@@ -195,6 +195,20 @@ export enum FlowContextName {
   investmentDocumentDelete = 'investmentDocumentDelete',
   investmentFolderUpload = 'investmentFolderUpload',
 
+  /// Investment Companies
+  investmentCompanyEntity = 'investmentCompanyEntity',
+  investmentCompanyCreate = 'investmentCompanyCreate',
+  investmentCompanyUpdate = 'investmentCompanyUpdate',
+
+  /// Investment Company Groups
+  investmentCompanyGroupEntity = 'investmentCompanyGroupEntity',
+  investmentCompanyGroupCreate = 'investmentCompanyGroupCreate',
+  investmentCompanyGroupUpdate = 'investmentCompanyGroupUpdate',
+  investmentCompanyGroupAssociationCreate = 'investmentCompanyGroupAssociationCreate',
+  investmentCompanyGroupAssociationUpdate = 'investmentCompanyGroupAssociationUpdate',
+  investmentCompanyOwnershipCreate = 'investmentCompanyOwnershipCreate',
+  investmentCompanyOwnershipUpdate = 'investmentCompanyOwnershipUpdate',
+
   /// Investments
   investmentCreate = 'investmentCreate', // TODO: Replace startProcess
   investmentEntity = 'investmentEntity',

@@ -7,6 +7,7 @@ tax-id-column = Tax ID
 currency-column = Currency
 created-column = Created
 empty-companies = No investment companies found
+create-company-button = Create company
 page-title = Company Management
 page-description = Manage investment companies, legal entity details, executives, and company documents
 companies-tab = Companies

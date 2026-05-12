@@ -11,7 +11,7 @@ import {
 import translations from './_i18n'
 
 const DATA_TEST_ID = 'InvestmentCompanyExecutiveTypesPage'
-const EXECUTIVE_TYPE_CATALOG = 'Legal Entity Executive Type'
+const EXECUTIVE_TYPE_CATALOG = 'LegalEntityExecutiveType'
 
 export interface InvestmentCompanyExecutiveTypesPageProps extends BusinessAppContextProps {
   className?: string

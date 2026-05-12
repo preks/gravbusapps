@@ -14,6 +14,8 @@ import { BuildingsIcon, CurrencyDollarIcon, FileTextIcon, IdentificationCardIcon
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useInvestmentCompany } from '@/common/data/investment/hooks/useInvestmentCompany'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { DetailsView } from './views/details-view/DetailsView'
 import { DocumentView } from './views/document-view/DocumentView'
 import type { CompanyRecordContentProps, CompanyRecordProps } from './types'
@@ -105,6 +107,30 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
 
     return <IconAvatar icon={BuildingsIcon} variant="decorative" size="xl" />
   }, [investmentCompany?.picture, investmentCompany?.pictureThumbnail, investmentCompanyName])
+
+  const headerActions = useMemo(
+    () => (
+      <AppAction
+        data-testid="investment-company-record-action-button"
+        variant="header"
+        contexts={[
+          {
+            context: FlowContextName.investmentCompanyEntity,
+            contextData: { investmentCompanyId }
+          }
+        ]}
+        shareContext={{
+          entityType: 'investment-company',
+          entityId: investmentCompanyId,
+          entityName: investmentCompanyName,
+          entityUrl: `/platform/irm/company-record?investmentCompanyId=${investmentCompanyId}`
+        }}
+        prefixDataTestId="investment-company-record-action"
+        accessToken={props.accessToken}
+      />
+    ),
+    [investmentCompanyId, investmentCompanyName, props.accessToken]
+  )
 
   const headerDetailGroups = useMemo(
     () => [
@@ -206,6 +232,7 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
       headerTitle={investmentCompanyName}
       headerSubtitle={investmentCompany.description}
       headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+      headerActions={headerActions}
       views={subViewsConfig.items}
       defaultView={subViewsConfig.defaultValue}
       onViewChange={subViewsConfig.onValueChange}

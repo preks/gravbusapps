@@ -1,20 +1,8 @@
-import React, { useMemo, useState } from 'react'
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  useTranslation
-} from '@newwork/nw-design-system'
+import React, { useMemo } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
 import { BuildingsIcon, IdentificationCardIcon, MapPinIcon, UsersIcon } from '@phosphor-icons/react'
-import { CompanyGroupPopup } from '@/business-apps/irm/core/popups/company-group-popup'
-import { CompanyGroupAssociationPopup } from '@/business-apps/irm/core/popups/company-group-association-popup'
-import { CompanyOwnershipPopup } from '@/business-apps/irm/core/popups/company-ownership-popup'
+import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { DetailsViewProps } from '../../types'
 import translations from '../../_i18n'
 
@@ -80,18 +68,10 @@ const DetailItem: React.FC<{ label: string; value?: string | number | null; data
   </div>
 )
 
-export const DetailsView: React.FC<DetailsViewProps> = ({
-  investmentCompany,
-  accessToken,
-  userInfo,
-  additionalData
-}) => {
+export const DetailsView: React.FC<DetailsViewProps> = ({ investmentCompany, accessToken, additionalData }) => {
   const { t } = useTranslation(translations)
   const addresses = investmentCompany.addresses || []
   const executives = investmentCompany.executives || []
-  const [isGroupPopupOpen, setIsGroupPopupOpen] = useState(false)
-  const [isAssociationPopupOpen, setIsAssociationPopupOpen] = useState(false)
-  const [isOwnershipPopupOpen, setIsOwnershipPopupOpen] = useState(false)
 
   const investmentCompanyScopedAdditionalData = useMemo(
     () => ({
@@ -131,30 +111,57 @@ export const DetailsView: React.FC<DetailsViewProps> = ({
           <CardTitle>{t('structure-actions-title')}</CardTitle>
         </CardHeader>
         <CardContent className="gba:flex gba:flex-wrap gba:gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setIsGroupPopupOpen(true)}
+          <AppAction
+            mode="button"
+            buttonVariant="outline"
+            autoExecute
+            emptyState="hide"
+            contexts={[
+              {
+                context: FlowContextName.investmentCompanyGroupCreate,
+                contextData: investmentCompanyScopedAdditionalData
+              }
+            ]}
+            accessToken={accessToken}
+            prefixDataTestId="investment-company-create-group"
             data-testid="investment-company-create-group-button"
           >
             {t('create-group-button')}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setIsAssociationPopupOpen(true)}
+          </AppAction>
+          <AppAction
+            mode="button"
+            buttonVariant="outline"
+            autoExecute
+            emptyState="hide"
+            contexts={[
+              {
+                context: FlowContextName.investmentCompanyGroupAssociationCreate,
+                contextData: investmentCompanyScopedAdditionalData
+              }
+            ]}
+            accessToken={accessToken}
+            prefixDataTestId="investment-company-create-group-association"
             data-testid="investment-company-create-group-association-button"
           >
             {t('associate-group-button')}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setIsOwnershipPopupOpen(true)}
+          </AppAction>
+          <AppAction
+            mode="button"
+            buttonVariant="outline"
+            autoExecute
+            emptyState="hide"
+            contexts={[
+              {
+                context: FlowContextName.investmentCompanyOwnershipCreate,
+                contextData: investmentCompanyScopedAdditionalData
+              }
+            ]}
+            accessToken={accessToken}
+            prefixDataTestId="investment-company-create-ownership"
             data-testid="investment-company-create-ownership-button"
           >
             {t('set-ownership-button')}
-          </Button>
+          </AppAction>
         </CardContent>
       </Card>
 
@@ -283,41 +290,6 @@ export const DetailsView: React.FC<DetailsViewProps> = ({
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={isGroupPopupOpen} onOpenChange={setIsGroupPopupOpen}>
-        <DialogContent className="gba:max-h-screen gba:w-[720px] gba:overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('create-group-dialog-title')}</DialogTitle>
-          </DialogHeader>
-          <CompanyGroupPopup accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isAssociationPopupOpen} onOpenChange={setIsAssociationPopupOpen}>
-        <DialogContent className="gba:max-h-screen gba:w-[720px] gba:overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('associate-group-dialog-title')}</DialogTitle>
-          </DialogHeader>
-          <CompanyGroupAssociationPopup
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={investmentCompanyScopedAdditionalData}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isOwnershipPopupOpen} onOpenChange={setIsOwnershipPopupOpen}>
-        <DialogContent className="gba:max-h-screen gba:w-[720px] gba:overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('set-ownership-dialog-title')}</DialogTitle>
-          </DialogHeader>
-          <CompanyOwnershipPopup
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={investmentCompanyScopedAdditionalData}
-          />
-        </DialogContent>
-      </Dialog>
     </>
   )
 }

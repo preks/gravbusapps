@@ -36,7 +36,6 @@ import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/She
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import CompanyForm from '@/business-apps/irm/core/forms/company-form/CompanyForm'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { CompanyAddress, Director, Company } from '../../types'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
@@ -150,12 +149,6 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
     setExpandedKeys(new Set(expandedIds))
   }, [])
 
-  const handleCompanyNameClick = useCallback((companyId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    const url = buildPlatformUrl('/platform/mdm/company-record', { companyId })
-    navigateTo(url)
-  }, [])
-
   const formatCampanyNodes = useCallback(
     (companies: Company[]): TreeNode[] => {
       return companies.map(company => ({
@@ -164,13 +157,12 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
           holding: company.percentage ?? '-',
           code: company.code,
           name: (
-            <button
-              onClick={e => handleCompanyNameClick(company.id, e)}
-              className="gba:text-left gba:font-medium gba:text-primary hover:gba:text-primary/80 gba:underline gba:cursor-pointer gba:bg-transparent gba:border-0 gba:p-0"
-              data-testid={`${prefixDataTestId || ''}-company-name-link-${company.id}`}
+            <span
+              className="gba:text-left gba:font-medium"
+              data-testid={`${prefixDataTestId || ''}-company-name-${company.id}`}
             >
               {company.name}
-            </button>
+            </span>
           ),
           employees: company.numberOfAssignedEmployees,
           jobPositions: company.numberOfAssignedJobPositions,
@@ -183,7 +175,7 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
         children: company.children.length > 0 ? formatCampanyNodes(company.children) : []
       }))
     },
-    [handleCompanyNameClick, prefixDataTestId]
+    [prefixDataTestId]
   )
 
   const nodes = useMemo(() => formatCampanyNodes(rootCompanies), [rootCompanies, formatCampanyNodes])

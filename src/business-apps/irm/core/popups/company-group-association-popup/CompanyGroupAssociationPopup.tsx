@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -7,6 +7,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useInvestmentCompanies } from '@/common/data/investment/hooks/useInvestmentCompanies'
+import { useInvestmentCompany } from '@/common/data/investment/hooks/useInvestmentCompany'
 import { useInvestmentCompanyGroups } from '@/common/data/investment/hooks/useInvestmentCompanyGroups'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 import { investmentCompanyGroupAssociationFormFields } from '@/common/data/investment/types/investmentCompanyAssociationTypes'
@@ -38,6 +39,17 @@ type AssociationAdditionalData = {
   investmentCompanyId?: string
   investmentCompanyGroupId?: string
   groupId?: string
+  externalContextData?: {
+    investmentCompanyId?: string
+    investmentCompanyGroupId?: string
+    groupId?: string
+  }
+  psi_initialParameters?: {
+    investmentCompanyGroupAssociation?: Partial<AssociationFormData>
+    investmentCompanyId?: string
+    investmentCompanyGroupId?: string
+    groupId?: string
+  }
   psi_taskPayload?: {
     psi_initialParameters?: {
       investmentCompanyGroupAssociation?: Partial<AssociationFormData>
@@ -59,28 +71,38 @@ const CompanyGroupAssociationPopup: React.FC<CompanyGroupAssociationPopupProps> 
   const associationAdditionalData: AssociationAdditionalData | undefined = additionalData
   const [companySearch, setCompanySearch] = useState('')
   const [groupSearch, setGroupSearch] = useState('')
+  const externalContextData = associationAdditionalData?.externalContextData
+  const initialParameters = associationAdditionalData?.psi_initialParameters
+  const taskInitialParameters = associationAdditionalData?.psi_taskPayload?.psi_initialParameters
 
   const seedAssociation =
     associationAdditionalData?.investmentCompanyGroupAssociation ||
     associationAdditionalData?.association ||
-    associationAdditionalData?.psi_taskPayload?.psi_initialParameters?.investmentCompanyGroupAssociation
+    initialParameters?.investmentCompanyGroupAssociation ||
+    taskInitialParameters?.investmentCompanyGroupAssociation
   const preselectedCompanyId =
     associationAdditionalData?.investmentCompanyId ||
-    associationAdditionalData?.psi_taskPayload?.psi_initialParameters?.investmentCompanyId
+    externalContextData?.investmentCompanyId ||
+    initialParameters?.investmentCompanyId ||
+    taskInitialParameters?.investmentCompanyId
   const preselectedGroupId =
     associationAdditionalData?.investmentCompanyGroupId ||
-    associationAdditionalData?.psi_taskPayload?.psi_initialParameters?.investmentCompanyGroupId ||
+    externalContextData?.investmentCompanyGroupId ||
+    initialParameters?.investmentCompanyGroupId ||
+    taskInitialParameters?.investmentCompanyGroupId ||
     associationAdditionalData?.groupId ||
-    associationAdditionalData?.psi_taskPayload?.psi_initialParameters?.groupId
+    externalContextData?.groupId ||
+    initialParameters?.groupId ||
+    taskInitialParameters?.groupId
 
   const defaultValues = useMemo<AssociationFormData>(
     () => ({
       id: initialValues?.id || seedAssociation?.id,
       version: initialValues?.version ?? seedAssociation?.version,
       investmentCompanyId:
-        initialValues?.investmentCompanyId || preselectedCompanyId || seedAssociation?.investmentCompanyId || '',
+        initialValues?.investmentCompanyId || seedAssociation?.investmentCompanyId || preselectedCompanyId || '',
       investmentCompanyGroupId:
-        initialValues?.investmentCompanyGroupId || preselectedGroupId || seedAssociation?.investmentCompanyGroupId || ''
+        initialValues?.investmentCompanyGroupId || seedAssociation?.investmentCompanyGroupId || preselectedGroupId || ''
     }),
     [initialValues, preselectedCompanyId, preselectedGroupId, seedAssociation]
   )
@@ -92,11 +114,22 @@ const CompanyGroupAssociationPopup: React.FC<CompanyGroupAssociationPopupProps> 
     reValidateMode: 'onSubmit'
   })
 
+  useEffect(() => {
+    if (!preselectedCompanyId || form.getValues('investmentCompanyId')) return
+
+    form.setValue('investmentCompanyId', preselectedCompanyId, {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: false
+    })
+  }, [form, preselectedCompanyId])
+
   const {
     companies,
     loading: companiesLoading,
     error: companiesError
   } = useInvestmentCompanies(accessToken || '', { limit: 50, search: companySearch || undefined })
+  const { company: selectedCompany } = useInvestmentCompany(accessToken || '', preselectedCompanyId)
   const {
     groups,
     loading: groupsLoading,
@@ -106,10 +139,16 @@ const CompanyGroupAssociationPopup: React.FC<CompanyGroupAssociationPopupProps> 
     search: groupSearch || undefined
   })
 
-  const companyOptions = useMemo(
-    () => companies.map(company => ({ value: company.id, label: company.name || company.code || company.id })),
-    [companies]
-  )
+  const companyOptions = useMemo(() => {
+    const options = companies.map(company => ({ value: company.id, label: company.name || company.code || company.id }))
+    if (selectedCompany && options.every(option => option.value !== selectedCompany.id)) {
+      options.unshift({
+        value: selectedCompany.id,
+        label: selectedCompany.name || selectedCompany.code || selectedCompany.id
+      })
+    }
+    return options
+  }, [companies, selectedCompany])
   const groupOptions = useMemo(
     () => groups.map(group => ({ value: group.id, label: group.name || group.id })),
     [groups]

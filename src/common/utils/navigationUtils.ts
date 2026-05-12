@@ -153,7 +153,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.IRM_INVESTMENT_CONTACT_RECORD]: 'irm/core/records/contact-record',
   [Navigation.IRM_INVESTMENT_LEAD_RECORD]: 'irm/core/records/lead-record',
   [Navigation.IRM_INVESTMENT_OPPORTUNITY_RECORD]: 'irm/core/records/opportunity-record',
-  [Navigation.IRM_INVESTMENT_COMPANY_RECORD]: 'irm/core/apps/company-management/records/company-record',
+  [Navigation.IRM_INVESTMENT_COMPANY_RECORD]: 'irm/core/records/records/company-record',
   [Navigation.IRM_INVESTMENT_MANAGEMENT]: 'irm/investments/apps/investment-management',
   [Navigation.IRM_INVESTMENT_PORTAL]: 'irm/investments/apps/investment-portal',
   [Navigation.IRM_INVESTMENT_RECORD]: 'irm/investments/records/investment-record',

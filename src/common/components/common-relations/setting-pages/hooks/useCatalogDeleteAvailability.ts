@@ -106,7 +106,7 @@ const CATALOG_USAGE_SPECS: Record<string, CatalogUsageCheckSpec[]> = {
     { table: 'InvestmentAggregate', refField: 'investmentStakeTypeRef', label: 'investments' },
     { table: 'InvestmentReportAggregate', refField: 'investmentStakeTypeRef', label: 'investment reports' }
   ],
-  'Legal Entity Executive Type': [
+  LegalEntityExecutiveType: [
     {
       table: 'InvestmentCompanyExecutiveAggregate',
       refField: 'executiveTypeRef',

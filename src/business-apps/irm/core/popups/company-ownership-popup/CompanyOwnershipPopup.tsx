@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -7,6 +7,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useInvestmentCompanies } from '@/common/data/investment/hooks/useInvestmentCompanies'
+import { useInvestmentCompany } from '@/common/data/investment/hooks/useInvestmentCompany'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 import { investmentCompanyOwnershipFormFields } from '@/common/data/investment/types/investmentCompanyAssociationTypes'
 import {
@@ -45,6 +46,13 @@ type OwnershipAdditionalData = {
   investmentCompanyOwnership?: Partial<OwnershipFormData>
   ownership?: Partial<OwnershipFormData>
   investmentCompanyId?: string
+  externalContextData?: {
+    investmentCompanyId?: string
+  }
+  psi_initialParameters?: {
+    investmentCompanyOwnership?: Partial<OwnershipFormData>
+    investmentCompanyId?: string
+  }
   psi_taskPayload?: {
     psi_initialParameters?: {
       investmentCompanyOwnership?: Partial<OwnershipFormData>
@@ -64,21 +72,27 @@ const CompanyOwnershipPopup: React.FC<CompanyOwnershipPopupProps> = ({ initialVa
   const ownershipAdditionalData: OwnershipAdditionalData | undefined = additionalData
   const [companySearch, setCompanySearch] = useState('')
   const [ownerSearch, setOwnerSearch] = useState('')
+  const externalContextData = ownershipAdditionalData?.externalContextData
+  const initialParameters = ownershipAdditionalData?.psi_initialParameters
+  const taskInitialParameters = ownershipAdditionalData?.psi_taskPayload?.psi_initialParameters
 
   const seedOwnership =
     ownershipAdditionalData?.investmentCompanyOwnership ||
     ownershipAdditionalData?.ownership ||
-    ownershipAdditionalData?.psi_taskPayload?.psi_initialParameters?.investmentCompanyOwnership
+    initialParameters?.investmentCompanyOwnership ||
+    taskInitialParameters?.investmentCompanyOwnership
   const preselectedCompanyId =
     ownershipAdditionalData?.investmentCompanyId ||
-    ownershipAdditionalData?.psi_taskPayload?.psi_initialParameters?.investmentCompanyId
+    externalContextData?.investmentCompanyId ||
+    initialParameters?.investmentCompanyId ||
+    taskInitialParameters?.investmentCompanyId
 
   const defaultValues = useMemo<OwnershipFormData>(
     () => ({
       id: initialValues?.id || seedOwnership?.id,
       version: initialValues?.version ?? seedOwnership?.version,
       investmentCompanyId:
-        initialValues?.investmentCompanyId || preselectedCompanyId || seedOwnership?.investmentCompanyId || '',
+        initialValues?.investmentCompanyId || seedOwnership?.investmentCompanyId || preselectedCompanyId || '',
       ownerInvestmentCompanyId:
         initialValues?.ownerInvestmentCompanyId || seedOwnership?.ownerInvestmentCompanyId || '',
       percentage: initialValues?.percentage ?? seedOwnership?.percentage
@@ -93,21 +107,38 @@ const CompanyOwnershipPopup: React.FC<CompanyOwnershipPopupProps> = ({ initialVa
     reValidateMode: 'onSubmit'
   })
 
+  useEffect(() => {
+    if (!preselectedCompanyId || form.getValues('investmentCompanyId')) return
+
+    form.setValue('investmentCompanyId', preselectedCompanyId, {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: false
+    })
+  }, [form, preselectedCompanyId])
+
   const {
     companies,
     loading: companiesLoading,
     error: companiesError
   } = useInvestmentCompanies(accessToken || '', { limit: 100, search: companySearch || undefined })
+  const { company: selectedCompany } = useInvestmentCompany(accessToken || '', preselectedCompanyId)
   const {
     companies: ownerCompanies,
     loading: ownersLoading,
     error: ownersError
   } = useInvestmentCompanies(accessToken || '', { limit: 100, search: ownerSearch || undefined })
 
-  const companyOptions = useMemo(
-    () => companies.map(company => ({ value: company.id, label: company.name || company.code || company.id })),
-    [companies]
-  )
+  const companyOptions = useMemo(() => {
+    const options = companies.map(company => ({ value: company.id, label: company.name || company.code || company.id }))
+    if (selectedCompany && options.every(option => option.value !== selectedCompany.id)) {
+      options.unshift({
+        value: selectedCompany.id,
+        label: selectedCompany.name || selectedCompany.code || selectedCompany.id
+      })
+    }
+    return options
+  }, [companies, selectedCompany])
   const ownerOptions = useMemo(
     () =>
       ownerCompanies.map(company => ({

@@ -1,9 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { Button, Card, CardContent, CardHeader, CardTitle, Spinner, useTranslation } from '@newwork/nw-design-system'
-import { ArrowLeftIcon, BuildingsIcon, TreeStructureIcon } from '@phosphor-icons/react'
+import { Button, Card, CardContent, DataTable, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { ArrowLeftIcon, TreeStructureIcon } from '@phosphor-icons/react'
+import type { ColumnDef } from '@tanstack/react-table'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentCompanyGroups } from '@/common/data/investment/hooks/useInvestmentCompanyGroups'
 import type { InvestmentCompanyGroup } from '@/common/data/investment/types/investmentCompanyGroupTypes'
+import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { InvestmentCompanyGroupGraphCanvas } from './components/InvestmentCompanyGroupGraphCanvas'
 import { InvestmentCompanyGraphDetails } from './components/InvestmentCompanyGraphDetails'
 import { useInvestmentCompanyGroupGraph } from './hooks/useInvestmentCompanyGroupGraph'
@@ -35,27 +38,50 @@ const GroupCard: React.FC<{
   isSelected: boolean
   onSelect: (groupId: string) => void
   t: (key: string) => string
-}> = ({ group, isSelected, onSelect, t }) => (
-  <button
-    type="button"
-    onClick={() => onSelect(group.id)}
+  accessToken?: string
+}> = ({ group, isSelected, onSelect, t, accessToken }) => (
+  <div
     className={`gba:rounded-xl gba:border gba:bg-card gba:p-4 gba:text-left gba:shadow-sm gba:transition hover:gba:border-primary hover:gba:shadow-md ${
       isSelected ? 'gba:border-primary gba:ring-2 gba:ring-primary/20' : 'gba:border-border'
     }`}
     data-testid={`investment-company-group-card-${group.id}`}
   >
     <div className="gba:flex gba:items-start gba:gap-3">
-      <div className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:bg-primary/10 gba:text-primary">
-        <TreeStructureIcon className="gba:h-5 gba:w-5" />
-      </div>
-      <div className="gba:min-w-0 gba:flex-1">
-        <div className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">
-          {group.name || t('unnamed-group')}
+      <button
+        type="button"
+        onClick={() => onSelect(group.id)}
+        className="gba:flex gba:min-w-0 gba:flex-1 gba:items-start gba:gap-3 gba:bg-transparent gba:border-0 gba:p-0 gba:text-left"
+        data-testid={`investment-company-group-card-open-${group.id}`}
+      >
+        <div className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:bg-primary/10 gba:text-primary">
+          <TreeStructureIcon className="gba:h-5 gba:w-5" />
         </div>
-        <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground">{t('open-ownership-chart')}</div>
-      </div>
+        <div className="gba:min-w-0 gba:flex-1">
+          <div className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">
+            {group.name || t('unnamed-group')}
+          </div>
+          <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground">{t('open-ownership-chart')}</div>
+        </div>
+      </button>
+      <AppAction
+        variant="table-row"
+        contexts={[
+          {
+            context: FlowContextName.investmentCompanyGroupEntity,
+            contextData: {
+              investmentCompanyGroupId: group.id,
+              groupId: group.id
+            }
+          }
+        ]}
+        prefixDataTestId="investment-company-group-row-action"
+        accessToken={accessToken}
+        emptyState="enable"
+        lazyLoad
+        data-testid={`investment-company-group-row-action-button-${group.id}`}
+      />
     </div>
-  </button>
+  </div>
 )
 
 export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = context => {
@@ -70,6 +96,17 @@ export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = context => {
   const selectedGroup = useMemo(() => {
     return groups.find(group => group.id === selectedGroupId)
   }, [groups, selectedGroupId])
+
+  const emptyColumns = useMemo<ColumnDef<InvestmentCompanyGroup>[]>(
+    () => [
+      {
+        id: 'name',
+        header: t('group-name-column'),
+        accessorKey: 'name'
+      }
+    ],
+    [t]
+  )
 
   const handleSelectGroup = useCallback((groupId: string) => {
     setSelectedGroupId(groupId)
@@ -161,15 +198,16 @@ export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = context => {
       )}
 
       {!loading && !error && groups.length === 0 && (
-        <Card data-testid="company-groups-empty">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <BuildingsIcon className="gba:h-5 gba:w-5" />
-              {t('empty-title')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="gba:text-sm gba:text-muted-foreground">{t('empty-description')}</CardContent>
-        </Card>
+        <DataTable<InvestmentCompanyGroup>
+          data={[]}
+          columns={emptyColumns}
+          totalCount={0}
+          enablePagination={false}
+          enableSorting={false}
+          enableSelection={false}
+          emptyMessage={t('empty-groups')}
+          data-testid="company-groups-empty-table"
+        />
       )}
 
       {!loading && !error && groups.length > 0 && (
@@ -181,6 +219,7 @@ export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = context => {
               isSelected={group.id === selectedGroupId}
               onSelect={handleSelectGroup}
               t={t}
+              accessToken={context.accessToken}
             />
           ))}
         </div>

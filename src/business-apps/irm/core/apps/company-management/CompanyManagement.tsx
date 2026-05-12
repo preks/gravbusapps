@@ -8,6 +8,8 @@ import type { InvestmentCompany } from '@/common/data/investment/types/investmen
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { CompanyGroupsView } from '@/business-apps/irm/investments/apps/investment-management/views/company-groups-view'
+import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import translations from './_i18n'
 
 export type CompanyManagementProps = BusinessAppContextProps
@@ -27,12 +29,39 @@ interface CompanyNameCellProps extends CellContext<InvestmentCompany, unknown> {
   t: (key: string) => string
 }
 
+type CompanyTableRow = { original: InvestmentCompany }
+
 const CompanyNameCell = ({ row, t }: CompanyNameCellProps) => (
   <div className="gba:min-w-0">
     <div className="gba:truncate gba:font-medium">{row.original.name || t('unnamed-investment-company')}</div>
     <div className="gba:text-xs gba:text-muted-foreground">{row.original.code || t('no-code')}</div>
   </div>
 )
+
+const CompanyRowActions: React.FC<{ company: InvestmentCompany; accessToken?: string }> = ({
+  company,
+  accessToken
+}) => (
+  <AppAction
+    variant="table-row"
+    contexts={[
+      {
+        context: FlowContextName.investmentCompanyEntity,
+        contextData: { investmentCompanyId: company.id }
+      }
+    ]}
+    prefixDataTestId="investment-company-row-action"
+    accessToken={accessToken}
+    emptyState="enable"
+    lazyLoad
+    onClick={event => event.stopPropagation()}
+    data-testid={`investment-company-row-action-button-${company.id}`}
+  />
+)
+
+const createCompanyRowActions =
+  (accessToken?: string) =>
+  (row: CompanyTableRow): React.ReactElement => <CompanyRowActions company={row.original} accessToken={accessToken} />
 
 const CompanyListView: React.FC<CompanyManagementProps> = context => {
   const { t } = useTranslation(translations)
@@ -54,6 +83,7 @@ const CompanyListView: React.FC<CompanyManagementProps> = context => {
   )
 
   const { companies, total, loading, error } = useInvestmentCompanies(context.accessToken || '', variables)
+  const rowActions = useMemo(() => createCompanyRowActions(context.accessToken), [context.accessToken])
 
   const columns = useMemo<ColumnDef<InvestmentCompany>[]>(
     () => [
@@ -121,6 +151,7 @@ const CompanyListView: React.FC<CompanyManagementProps> = context => {
           if (!company.id) return
           navigateTo(buildPlatformUrl('/platform/irm/company-record', { investmentCompanyId: company.id }))
         }}
+        actions={rowActions}
         data-testid="investment-companies-table"
       />
     </div>
@@ -142,6 +173,23 @@ export const CompanyManagement: React.FC<CompanyManagementProps> = context => {
     }
     globalThis.history.replaceState(null, '', `${globalThis.location.pathname}?${params.toString()}`)
   }
+
+  const headerActions =
+    activeView === 'companies' ? (
+      <AppAction
+        variant="create-primary"
+        contexts={[
+          {
+            context: FlowContextName.investmentCompanyCreate,
+            contextData: {}
+          }
+        ]}
+        prefixDataTestId="investment-company-create"
+        accessToken={context.accessToken}
+      >
+        {t('create-company-button')}
+      </AppAction>
+    ) : null
 
   return (
     <div data-testid="company-management-app">
@@ -165,6 +213,7 @@ export const CompanyManagement: React.FC<CompanyManagementProps> = context => {
             }
           ]
         }}
+        headerActions={headerActions}
         variant={MODULE_COLORS.IRM}
         className="gba:min-h-screen"
       >
