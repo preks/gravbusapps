@@ -24,15 +24,13 @@ import {
   DEFAULT_ITEM_LIST_LIMIT
 } from '../constants/constants'
 import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils'
+import { processAllowanceDataRow } from '../utils/allowanceScreenRowProcessing'
 import { toSortedCacheKey } from '../utils/cacheKeyUtils'
 import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils'
 import { EVENTS } from '../../../utils/constants'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 import { showToast } from '../../../utils/notificationUtils'
-import {
-  resolveEffectiveCostCenterId,
-  resolveInheritedOrSelectedCostCenterId
-} from '../../shared/utils/effectiveCostCenter'
+import { resolveEffectiveCostCenterId } from '../../shared/utils/effectiveCostCenter'
 
 const { Title } = Typography
 
@@ -250,83 +248,16 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
       .filter(Boolean) as any[]
 
     const processedData = allowanceData
-      .map(element => {
-        const updatedElement = { ...element }
-
-        const resolvedCostCenterId = resolveInheritedOrSelectedCostCenterId(
-          updatedElement.costCenterId,
+      .map(element =>
+        processAllowanceDataRow(element, {
+          requestProject,
+          tripData,
           defaultCostCenter,
-          requestProject.costCenterId || ''
-        )
-        if (defaultCostCenter && updatedElement.costCenterId !== resolvedCostCenterId) {
-          updatedElement.costCenterId = resolvedCostCenterId
-          updatedElement.projectId = undefined
-        }
-
-        // Set default project for all allowances if it exists
-        if (!updatedElement.projectId && requestProject.project) {
-          updatedElement.projectId = requestProject.project.id || ''
-        }
-
-        if (
-          !updatedElement.projectId &&
-          requestProject &&
-          updatedElement.expenseDate &&
-          requestProject.validTo &&
-          updatedElement.expenseDate <= requestProject.validTo
-        ) {
-          updatedElement.projectId = requestProject.id || ''
-        }
-
-        const tripMatch = tripData.find((trip: any) => trip.tripOrder === element.itemOrder)
-        updatedElement.travelRegionRef = tripMatch ? tripMatch.travelRegionRef : null
-
-        const allowanceRegionRuleDetailMatch = tripData.find((trip: any) => trip.tripOrder === element.itemOrder)
-        updatedElement.allowanceRegionRuleDetailId =
-          allowanceRegionRuleDetailMatch && allowanceRegionRuleDetailMatch.allowanceRegionRuleDetailId
-            ? allowanceRegionRuleDetailMatch.allowanceRegionRuleDetailId
-            : null
-
-        // Attach deductionDay if hasDeductions is true; ensure all flags exist and default to false
-        if (hasDeductions) {
-          const dd = getDeductionByDate(updatedElement.expenseDate)
-          if (dd) {
-            updatedElement.deductionDay = {
-              id: dd.id ?? null,
-              version: dd.version ?? 0,
-              deductionDay: null,
-              breakfast: !!dd.breakfast,
-              lunch: !!dd.lunch,
-              dinner: !!dd.dinner,
-              overnight: !!dd.overnight
-            }
-            const initialDeductions: string[] = []
-            if (dd.breakfast && visibleDeductionKeys.includes(DEDUCTION_KEYS.BREAKFAST))
-              initialDeductions.push(DEDUCTION_KEYS.BREAKFAST)
-            if (dd.lunch && visibleDeductionKeys.includes(DEDUCTION_KEYS.LUNCH))
-              initialDeductions.push(DEDUCTION_KEYS.LUNCH)
-            if (dd.dinner && visibleDeductionKeys.includes(DEDUCTION_KEYS.DINNER))
-              initialDeductions.push(DEDUCTION_KEYS.DINNER)
-            if (dd.overnight && visibleDeductionKeys.includes(DEDUCTION_KEYS.OVERNIGHT))
-              initialDeductions.push(DEDUCTION_KEYS.OVERNIGHT)
-            updatedElement.deductions = initialDeductions
-          } else {
-            updatedElement.deductionDay = {
-              id: null,
-              version: 0,
-              deductionDay: null,
-              breakfast: false,
-              lunch: false,
-              dinner: false,
-              overnight: false
-            }
-            updatedElement.deductions = []
-          }
-        } else {
-          updatedElement.deductionDay = null
-        }
-        return updatedElement
-      })
+          hasDeductions,
+          getDeductionByDate,
+          visibleDeductionKeys
+        })
+      )
       .sort((a: any, b: any) => {
         const positionA = a.itemOrder ?? 0
         const positionB = b.itemOrder ?? 0
@@ -343,7 +274,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
     if (costCenters.length > 0) {
       updateStructureIdArrayFromListData(processedData)
     }
-  }, [expenseRequestData, defaultCostCenter, deductionsData, hasDeductions])
+  }, [expenseRequestData, defaultCostCenter, deductionsData, hasDeductions, visibleDeductionKeys])
 
   const handleToggleCollapse = (index: number) => {
     setCollapsedStates(prev => ({

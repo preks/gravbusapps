@@ -87,13 +87,13 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
       const distinctKeys = new Set(labels.map(label => label.toLowerCase()))
       if (distinctKeys.size <= 1) {
         const single = labels.find(label => label.length > 0) ?? ''
-        return single.length > 0 ? single : '-'
+        return single || '-'
       }
       return t('expense-request-record-item-cost-center-multiple')
     }
     if (positions.length === 1) {
       const name = positions[0]?.costCenter?.name?.trim()
-      return name ? name : '-'
+      return name || '-'
     }
     return '-'
   }
@@ -380,11 +380,11 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
                   onClose={handleCloseDetails}
                   accessToken={accessToken}
                   userInfo={
-                    expenseOwnerEmployeeId
+                    userInfo && expenseOwnerEmployeeId
                       ? {
                           ...userInfo,
                           employeeDetails: {
-                            ...userInfo?.employeeDetails,
+                            ...userInfo.employeeDetails,
                             employeeId: expenseOwnerEmployeeId
                           }
                         }

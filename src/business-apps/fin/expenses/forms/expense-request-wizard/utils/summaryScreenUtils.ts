@@ -45,7 +45,7 @@ export const createSummaryScreenLogObject = (
       initialRequest?.costCenterId || '',
       initialRequest?.additionalProperties
     )
-  const additionalProperties: Record<string, any> = { ...(initialRequest?.additionalProperties || {}) }
+  const additionalProperties: Record<string, any> = { ...initialRequest?.additionalProperties }
   if (manualMainCostCenterId !== undefined) {
     if (manualMainCostCenterId) {
       additionalProperties[MANUAL_MAIN_COST_CENTER_ID_KEY] = manualMainCostCenterId

@@ -17,9 +17,9 @@ export const getMissingMandatoryFields = (item: any): string[] => {
   const positions: any[] = item?.expensePosition || []
 
   if (positions.length === 0) {
-    missing.push(getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_group', 'Expense group'))
-    missing.push(getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_type', 'Expense type'))
     missing.push(
+      getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_group', 'Expense group'),
+      getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_type', 'Expense type'),
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
         'Cost center'

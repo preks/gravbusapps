@@ -27,7 +27,7 @@ interface ExpensePlanItemsProps {
 
 function getPlanItemCostCenterLabel(record: ExpensePlanItem): string {
   const name = record.costCenter?.name?.trim()
-  return name ? name : '-'
+  return name || '-'
 }
 
 const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, currencyCode }) => {

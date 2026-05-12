@@ -85,8 +85,8 @@ export const applyEffectiveCostCenterToRows = <T extends { costCenterId?: string
 
   return rows.map(row => ({
     ...row,
-    costCenterId: row.costCenterId !== undefined ? costCenterId : row.costCenterId,
-    costCenter: row.costCenter !== undefined ? costCenterId : row.costCenter
+    costCenterId: row.costCenterId === undefined ? row.costCenterId : costCenterId,
+    costCenter: row.costCenter === undefined ? row.costCenter : costCenterId
   }))
 }
 
