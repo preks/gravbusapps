@@ -5,7 +5,7 @@ import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseCustomerLead, CustomerLead } from '../types/customerLeadTypes'
+import type { CustomerLead } from '../types/customerLeadTypes'
 
 // Queries (New)
 import {
@@ -21,7 +21,7 @@ import {
 import { toCustomerLead } from '../types/customerLeadTypes'
 
 export interface CustomerLeadListQueryResponse {
-  Lead: BaseCustomerLead[]
+  Lead: CustomerLead[]
   LeadAggregate: {
     aggregate: { count: number }
   }
@@ -98,7 +98,7 @@ export const useCustomerLeads = (context: BusinessAppContextProps) => {
         limit: Math.min(variables.limit || 50, 100),
         where: whereCondition
       }
-      const result = await graphqlClient.request<{ Lead: BaseCustomerLead[] }>(query, graphQLVariables)
+      const result = await graphqlClient.request<{ Lead: CustomerLead[] }>(query, graphQLVariables)
       return result.Lead.map(toCustomerLead)
     },
     [graphqlClient]
@@ -124,7 +124,13 @@ export interface UseCustomerLeadsListResult {
   total: number
   loading: boolean
   error: string | null
-  refetch: (variables?: CustomerLeadQueryVariables) => Promise<void>
+  refetch: (variables?: CustomerLeadQueryVariables) => Promise<CustomerLeadListData>
+  /**
+   * Imperative fetch that does NOT touch the hook's internal state.
+   * Use this when you need to fetch with arbitrary variables (e.g. drill-down panels)
+   * without triggering parent re-renders from the hook's state updates.
+   */
+  fetchCustomerLeads: (variables?: CustomerLeadQueryVariables) => Promise<CustomerLeadListData>
 }
 
 export function useCustomerLeadsList(
@@ -144,10 +150,10 @@ export function useCustomerLeadsList(
   })
 
   const fetchLeads = useCallback(
-    async (queryVariables?: CustomerLeadQueryVariables) => {
+    async (queryVariables?: CustomerLeadQueryVariables): Promise<CustomerLeadListData> => {
       if (!context.accessToken) {
         setState(prev => ({ ...prev, loading: false }))
-        return
+        return { leads: [], total: 0 }
       }
 
       setState(prev => ({ ...prev, loading: true, error: null }))
@@ -174,6 +180,7 @@ export function useCustomerLeadsList(
         const total = result.LeadAggregate?.aggregate?.count || 0
 
         setState({ leads, total, loading: false, error: null })
+        return { leads, total }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to fetch customer leads'
 
@@ -184,6 +191,7 @@ export function useCustomerLeadsList(
           loading: false,
           error: errorMessage
         }))
+        return { leads: [], total: 0 }
       }
     },
     [context.accessToken, graphqlClient, stableVariables]
@@ -193,8 +201,43 @@ export function useCustomerLeadsList(
     fetchLeads()
   }, [fetchLeads])
 
+  const fetchCustomerLeads = useCallback(
+    async (queryVariables?: CustomerLeadQueryVariables): Promise<CustomerLeadListData> => {
+      if (!context.accessToken) {
+        return { leads: [], total: 0 }
+      }
+
+      const vars = { ...stableVariables, ...queryVariables }
+      const query = buildCustomerLeadQuery()
+      const whereCondition = buildCustomerLeadWhereCondition(vars)
+      const orderBy = buildCustomerLeadOrderBy(vars.orderBy || [])
+      if (orderBy.length === 0) {
+        orderBy.push({ field: 'createdAt', direction: 'DESC_NULLS_LAST' })
+      }
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(vars.limit ?? 50, 100),
+        offset: vars.offset ?? 0,
+        where: whereCondition,
+        orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<CustomerLeadListQueryResponse>(query, graphQLVariables)
+        const leads = result.Lead.map(toCustomerLead)
+        const total = result.LeadAggregate?.aggregate?.count || 0
+        return { leads, total }
+      } catch (error) {
+        console.error('Error fetching customer leads:', error instanceof Error ? error.message : error)
+        return { leads: [], total: 0 }
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
   return {
     ...state,
-    refetch: fetchLeads
+    refetch: fetchLeads,
+    fetchCustomerLeads
   }
 }

@@ -24,7 +24,8 @@ export const useRevenueTrends = (
     selectedPipelineId,
     currencyCode,
     'InvestmentOpportunity',
-    'opportunityPipeline'
+    'opportunityPipeline',
+    'type'
   )
 }
 

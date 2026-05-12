@@ -31,6 +31,49 @@ export interface CustomerContactListData {
   total: number
 }
 
+/**
+ * Builds custom GraphQL conditions for customer contact filters that map to
+ * presence / absence / membership constraints (email, phone, names, account link,
+ * contact types). Kept as a flat helper to keep callers under the cognitive
+ * complexity threshold.
+ */
+function buildCustomerContactCustomConditions(
+  variables: CustomerContactQueryVariables & {
+    hasEmail?: boolean
+    missingEmail?: boolean
+    hasPhone?: boolean
+    missingPhone?: boolean
+    hasFirstName?: boolean
+    missingFirstName?: boolean
+    hasLastName?: boolean
+    missingLastName?: boolean
+    hasAccountLink?: boolean
+    missingAccountLink?: boolean
+    contactTypes?: string[]
+  }
+): Record<string, any>[] {
+  const conditions: Record<string, any>[] = []
+
+  if (variables.hasEmail) conditions.push({ email: { _isNull: false, _neq: '' } })
+  if (variables.missingEmail) conditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
+  if (variables.hasPhone) conditions.push({ phone: { _isNull: false, _neq: '' } })
+  if (variables.missingPhone) conditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+  if (variables.hasFirstName) conditions.push({ firstName: { _isNull: false, _neq: '' } })
+  if (variables.missingFirstName)
+    conditions.push({ _or: [{ firstName: { _isNull: true } }, { firstName: { _eq: '' } }] })
+  if (variables.hasLastName) conditions.push({ lastName: { _isNull: false, _neq: '' } })
+  if (variables.missingLastName) conditions.push({ _or: [{ lastName: { _isNull: true } }, { lastName: { _eq: '' } }] })
+  if (variables.hasAccountLink) conditions.push({ accountContacts: { isDeleted: { _eq: false } } })
+  if (variables.missingAccountLink) conditions.push({ _not: { accountContacts: { isDeleted: { _eq: false } } } })
+  if (variables.contactTypes?.length) {
+    conditions.push({
+      accountContacts: { contactType: { _in: variables.contactTypes }, isDeleted: { _eq: false } }
+    })
+  }
+
+  return conditions
+}
+
 // SelectOption interface for UI components
 export interface SelectOption {
   id: string
@@ -117,6 +160,15 @@ export function useGetCustomerContacts(
       if (variables.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
       if (variables.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
       if (variables.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+      if (variables.hasFirstName) customConditions.push({ firstName: { _isNull: false, _neq: '' } })
+      if (variables.missingFirstName)
+        customConditions.push({ _or: [{ firstName: { _isNull: true } }, { firstName: { _eq: '' } }] })
+      if (variables.hasLastName) customConditions.push({ lastName: { _isNull: false, _neq: '' } })
+      if (variables.missingLastName)
+        customConditions.push({ _or: [{ lastName: { _isNull: true } }, { lastName: { _eq: '' } }] })
+      if (variables.hasAccountLink) customConditions.push({ accountContacts: { isDeleted: { _eq: false } } })
+      if (variables.missingAccountLink)
+        customConditions.push({ _not: { accountContacts: { isDeleted: { _eq: false } } } })
 
       const whereCondition = buildCustomerContactWhereCondition(variables, [], customConditions)
       const orderBy = buildCustomerContactOrderBy(variables.orderBy || [])
@@ -298,6 +350,20 @@ export const useCustomerContacts = (context: BusinessAppContextProps) => {
       if (variables.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
       if (variables.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
       if (variables.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+      if (variables.hasFirstName) customConditions.push({ firstName: { _isNull: false, _neq: '' } })
+      if (variables.missingFirstName)
+        customConditions.push({ _or: [{ firstName: { _isNull: true } }, { firstName: { _eq: '' } }] })
+      if (variables.hasLastName) customConditions.push({ lastName: { _isNull: false, _neq: '' } })
+      if (variables.missingLastName)
+        customConditions.push({ _or: [{ lastName: { _isNull: true } }, { lastName: { _eq: '' } }] })
+      if (variables.hasAccountLink) customConditions.push({ accountContacts: { isDeleted: { _eq: false } } })
+      if (variables.missingAccountLink)
+        customConditions.push({ _not: { accountContacts: { isDeleted: { _eq: false } } } })
+      if (variables.contactTypes?.length) {
+        customConditions.push({
+          accountContacts: { contactType: { _in: variables.contactTypes }, isDeleted: { _eq: false } }
+        })
+      }
 
       const whereCondition = buildCustomerContactWhereCondition(variables, [], customConditions)
       const orderBy = buildCustomerContactOrderBy(variables.orderBy || [])
@@ -364,6 +430,12 @@ export interface UseCustomerContactsListResult {
   search: (searchTerm: string) => void
   loadMore: () => void
   refetch: () => Promise<void>
+  /**
+   * Imperative fetch that does NOT touch the hook's internal state.
+   * Use this when you need to fetch with arbitrary variables (e.g. drill-down panels)
+   * without affecting the combobox-style state managed by this hook.
+   */
+  fetchCustomerContacts: (variables?: CustomerContactQueryVariables) => Promise<CustomerContactListData>
 }
 
 export function useCustomerContactsList(
@@ -411,11 +483,7 @@ export function useCustomerContactsList(
           delete vars.search
         }
 
-        const customConditions: Record<string, any>[] = []
-        if (vars.hasEmail) customConditions.push({ email: { _isNull: false, _neq: '' } })
-        if (vars.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
-        if (vars.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
-        if (vars.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+        const customConditions = buildCustomerContactCustomConditions(vars)
 
         const query = buildCustomerContactQuery()
         const whereCondition = buildCustomerContactWhereCondition(vars, [], customConditions)
@@ -480,10 +548,44 @@ export function useCustomerContactsList(
     await fetchPage(currentSearchRef.current, 0, false)
   }, [fetchPage])
 
+  const fetchCustomerContacts = useCallback(
+    async (queryVariables?: CustomerContactQueryVariables): Promise<CustomerContactListData> => {
+      if (!context.accessToken) {
+        return { contacts: [], total: 0 }
+      }
+
+      const vars: CustomerContactQueryVariables = { ...stableVariables, ...queryVariables }
+      const customConditions = buildCustomerContactCustomConditions(vars)
+
+      const query = buildCustomerContactQuery()
+      const whereCondition = buildCustomerContactWhereCondition(vars, [], customConditions)
+      const orderBy = buildCustomerContactOrderBy(vars.orderBy || [])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(vars.limit ?? 50, 100),
+        offset: vars.offset ?? 0,
+        where: whereCondition,
+        orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<CustomerContactListQueryResponse>(query, graphQLVariables)
+        const contacts = result.Contact.map(toCustomerContact)
+        const total = result.ContactAggregate?.aggregate?.count || 0
+        return { contacts, total }
+      } catch (error) {
+        console.error('Error fetching customer contacts:', error instanceof Error ? error.message : error)
+        return { contacts: [], total: 0 }
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
   return {
     ...state,
     search,
     loadMore,
-    refetch
+    refetch,
+    fetchCustomerContacts
   }
 }

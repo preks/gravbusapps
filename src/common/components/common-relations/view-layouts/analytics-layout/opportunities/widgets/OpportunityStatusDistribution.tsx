@@ -25,12 +25,16 @@ export interface OpportunityStatusDistributionProps {
   data: OpportunityStatusDistributionItem[]
   moduleColor?: string
   currency?: string
+  onStatusClick?: (status: 'Open' | 'Won' | 'Lost') => void
+  selectedStatus?: 'Open' | 'Won' | 'Lost' | null
 }
 
 export const OpportunityStatusDistribution: React.FC<OpportunityStatusDistributionProps> = ({
   data,
   moduleColor = 'default',
-  currency = 'EUR'
+  currency = 'EUR',
+  onStatusClick,
+  selectedStatus
 }) => {
   const chartConfig = useMemo(
     () =>
@@ -54,27 +58,62 @@ export const OpportunityStatusDistribution: React.FC<OpportunityStatusDistributi
       <CardContent>
         <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-3 gba:mb-6">
           {data.map(item => (
-            <div
+            <button
               key={item.status}
-              className="gba:bg-gray-50 gba:p-3 gba:rounded-lg"
+              type="button"
+              className={`gba:p-3 gba:rounded-lg gba:transition-colors gba:w-full gba:text-left ${
+                selectedStatus === item.status ? 'gba:bg-primary/10 gba:ring-2 gba:ring-primary' : 'gba:bg-muted'
+              } ${
+                selectedStatus !== item.status && onStatusClick
+                  ? 'gba:cursor-pointer hover:gba:bg-muted/70'
+                  : 'gba:cursor-default'
+              }`}
               data-testid={`status-${item.status}`}
+              onClick={() => onStatusClick?.(item.status)}
+              disabled={!onStatusClick}
             >
-              <div className="gba:text-sm gba:font-medium gba:text-gray-600">{item.status}</div>
-              <div className="gba:text-2xl gba:font-bold gba:text-gray-900">{item.count}</div>
-              <div className="gba:text-xs gba:text-gray-600">
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">{item.status}</div>
+              <div className="gba:text-2xl gba:font-bold">{item.count}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">
                 {formatCurrencyCompact(item.value, currency, undefined, 1, true)}
               </div>
-            </div>
+            </button>
           ))}
         </div>
-        <ChartContainer config={chartConfig} className="gba:h-64 gba:w-full">
-          <BarChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
+        <ChartContainer
+          config={chartConfig}
+          className={`gba:h-64 gba:w-full ${onStatusClick ? 'gba:cursor-pointer' : ''}`}
+        >
+          <BarChart
+            data={data}
+            margin={{ top: 10, right: 20, bottom: 10, left: 20 }}
+            onClick={
+              onStatusClick
+                ? (chartData: any) => {
+                    const status = chartData?.activePayload?.[0]?.payload?.status ?? (chartData?.activeLabel as string)
+                    if (status) onStatusClick(status)
+                  }
+                : undefined
+            }
+          >
             <XAxis dataKey="status" />
             <YAxis />
             <ChartTooltip
-              content={<ChartTooltipContent formatter={(value: number) => [`${value}`, 'Opportunities']} />}
+              content={
+                <ChartTooltipContent
+                  formatter={(value: number, _name: string, item: any) => {
+                    const status = item?.payload?.status ?? ''
+                    return status ? [`${status} ${value}`, ''] : [`${value}`, '']
+                  }}
+                />
+              }
             />
-            <Bar dataKey="count" fill="var(--color-count)" radius={[3, 3, 0, 0]} />
+            <Bar
+              dataKey="count"
+              fill="var(--color-count)"
+              radius={[3, 3, 0, 0]}
+              style={onStatusClick ? { cursor: 'pointer' } : undefined}
+            />
           </BarChart>
         </ChartContainer>
       </CardContent>

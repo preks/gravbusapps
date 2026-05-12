@@ -42,7 +42,7 @@ export interface ActivityViewConfig<TActivity extends Activity = Activity, TQuer
 
   flowContexts: {
     entityContext: FlowContextName
-    createContext: FlowContextName
+    createContext?: FlowContextName
     createContextData?: Record<string, any>
   }
 

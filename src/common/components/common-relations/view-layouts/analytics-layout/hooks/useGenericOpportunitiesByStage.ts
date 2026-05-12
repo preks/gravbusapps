@@ -3,6 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface StageItem {
   stage: string
+  stageRef?: string
   count: number
   value: number
 }
@@ -34,6 +35,8 @@ export interface OpportunitiesByStageConfig {
   pipelineStageRefField: string // 'salesPipelineStageRef' or 'opportunityPipelineStageRef'
   pipelineField: string // 'salesPipeline' or 'opportunityPipeline'
   statusFilterField?: 'code' | 'type'
+  /** Additional raw GraphQL filter conditions (e.g. 'dealType: {_eq: "INVESTMENT_DEAL"}') */
+  additionalFilters?: string[]
 }
 
 /**
@@ -68,7 +71,12 @@ export const useGenericOpportunitiesByStage = (
         const pipelineFilter = pipelineId ? `${config.pipelineField}: {id: {_eq: "${pipelineId}"}}` : ''
         const statusField = config.statusFilterField ?? 'code'
         const activeStatusFilter = activeOnly ? `opportunityStatus: {${statusField}: {_nin: ["WON", "LOST"]}}` : ''
-        const filters = ['isDeleted: {_eq: false}', pipelineFilter, activeStatusFilter].filter(Boolean)
+        const filters = [
+          'isDeleted: {_eq: false}',
+          pipelineFilter,
+          activeStatusFilter,
+          ...(config.additionalFilters || [])
+        ].filter(Boolean)
         const whereClause = filters.join(', ')
 
         const distinctQuery = `
@@ -138,6 +146,7 @@ export const useGenericOpportunitiesByStage = (
 
           return {
             stage: stageName,
+            stageRef: stageInfo?.id,
             count: aggregate?.count || 0,
             value: aggregate?.sum?.estimatedAmount || 0
           }
@@ -162,7 +171,8 @@ export const useGenericOpportunitiesByStage = (
     config.pipelineStageField,
     config.pipelineStageRefField,
     config.pipelineField,
-    config.statusFilterField
+    config.statusFilterField,
+    JSON.stringify(config.additionalFilters)
   ])
 
   return { data, isLoading, error }

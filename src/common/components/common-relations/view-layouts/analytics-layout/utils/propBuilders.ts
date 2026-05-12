@@ -4,6 +4,7 @@
  * Used by both CRM and IRM to reduce code duplication
  */
 
+import type React from 'react'
 import type { TimeFilter } from './analyticsViewHelpers'
 import type { AccountsStaticData as HookAccountsStaticData } from '../hooks/useGenericAccountsStaticData'
 
@@ -23,6 +24,7 @@ export interface OverviewDataInput {
     }
   }
   overviewTrendData?: any
+  overviewGeographicData?: Array<{ country: string; countryId: string; accounts: number }>
 }
 
 export interface OverviewBuilderConfig {
@@ -51,6 +53,8 @@ export interface OverviewBuilderData {
   openPipelineByStageLoading?: boolean
   stagePipelineId?: string
   onStagePipelineChange?: (id: string | undefined) => void
+  geographicData?: Array<{ country: string; countryId: string; accounts: number }>
+  geographicLoading?: boolean
   activityHeatmap: any[]
   activityLoading: boolean
 }
@@ -70,7 +74,7 @@ export function buildOverviewProps(data: OverviewBuilderData, config: OverviewBu
       salesCycleLength: data.overviewData?.overview?.conversionMetrics?.salesCycleLength || 0
     },
     trendData: data.kpiTrendData || null,
-    trendLoading: data.revenueLoading || data.openPipelineByStageLoading || data.activityLoading,
+    trendLoading: data.revenueLoading,
 
     // Optional: Custom KPI labels and visibility (IRM uses this)
     ...(config.kpiLabels && { kpiLabels: config.kpiLabels }),
@@ -83,7 +87,7 @@ export function buildOverviewProps(data: OverviewBuilderData, config: OverviewBu
     revenueTimeFilter: data.revenueTimeFilter,
     onRevenueTimeFilterChange: data.onRevenueTimeFilterChange,
     revenueTrends: data.revenueTrends || [],
-    revenueLoading: data.revenueLoading || data.openPipelineByStageLoading || data.activityLoading,
+    revenueLoading: data.revenueLoading,
     ...(config.revenueCurrency && { revenueCurrency: config.revenueCurrency }),
     ...(config.onRevenueCurrencyChange && { onRevenueCurrencyChange: config.onRevenueCurrencyChange }),
 
@@ -96,6 +100,12 @@ export function buildOverviewProps(data: OverviewBuilderData, config: OverviewBu
       stagePipelineId: data.stagePipelineId,
       onStagePipelineChange: data.onStagePipelineChange
     }),
+
+    // Geographic Distribution
+    geographicDistribution: {
+      data: data.geographicData || [],
+      isLoading: data.geographicLoading ?? false
+    },
 
     // Optional: Activity Timeline
     activityHeatmap: {
@@ -122,8 +132,20 @@ export interface LeadsStaticData {
   totalLeads: number
   convertedLeads: number
   conversionRate: number
-  leadsBySource?: Array<{ source: string; count: number; percentage: number; conversionRate?: number }>
-  leadsByStatus?: Array<{ status: string; count: number }>
+  avgTimeToConversion?: number
+  leadsBySource?: Array<{
+    source: string
+    sourceRef?: string
+    count: number
+    percentage: number
+    conversionRate?: number
+  }>
+  leadsByStatus?: Array<{ status: string; statusRef?: string; count: number }>
+  leadsByRating?: Array<{ rating: string; count: number; percentage?: number; value?: number }>
+  topOwners?: Array<{ employeeId: string; employeeName: string; leadCount: number; conversionRate?: number }>
+  velocityData?: any[]
+  qualityMatrix?: any[]
+  highQualityPercentage?: number
 }
 
 export interface LeadsBuilderConfig {
@@ -163,13 +185,24 @@ export function buildLeadsProps(data: LeadsBuilderData, config: LeadsBuilderConf
     // Distributions
     leadsBySource: (data.leadsStaticData?.leadsBySource || []).map(x => ({
       source: x.source,
+      sourceRef: x.sourceRef,
       count: x.count,
       percentage: x.percentage,
       conversionRate: x.conversionRate
     })),
     leadsBySourceLoading: data.leadsStaticLoading || data.leadsOverTimeLoading,
-    leadsByStatus: (data.leadsStaticData?.leadsByStatus || []).map(x => ({ status: x.status, count: x.count })),
-    leadsByStatusLoading: data.leadsStaticLoading || data.leadsOverTimeLoading
+    leadsByStatus: (data.leadsStaticData?.leadsByStatus || []).map(x => ({
+      status: x.status,
+      statusRef: x.statusRef,
+      count: x.count
+    })),
+    leadsByStatusLoading: data.leadsStaticLoading || data.leadsOverTimeLoading,
+    topOwners: (data.leadsStaticData?.topOwners || []).map(o => ({
+      employeeId: o.employeeId,
+      employeeName: o.employeeName,
+      leadCount: o.leadCount,
+      conversionRate: o.conversionRate || 0
+    }))
   }
 }
 
@@ -288,6 +321,21 @@ export interface OpportunitiesBuilderData {
   topDealsCurrency?: string
   onTopDealsCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
+  onLifecyclePointClick?: (
+    date: string,
+    startDate: string,
+    endDate: string,
+    metric: 'opportunitiesCreated' | 'opportunitiesWon',
+    pipelineId?: string
+  ) => void
+  renderLifecycleDrillDown?: React.ReactNode
+  onFlowTrendPointClick?: (
+    label: string,
+    startDate: string,
+    endDate: string,
+    metric: 'opportunitiesCreated' | 'opportunitiesWon'
+  ) => void
+  renderFlowTrendDrillDown?: React.ReactNode
 }
 
 /** Helper: Calculate trend data from static opportunities data */
@@ -359,10 +407,16 @@ export function buildOpportunitiesProps(data: OpportunitiesBuilderData, config: 
     // Lifecycle chart
     lifecycleData: (data.oppLifecycleData || []).map(d => ({
       date: d.date,
+      startDate: d.startDate,
+      endDate: d.endDate,
       opportunitiesCreated: d.opportunitiesCreated,
       opportunitiesWon: d.opportunitiesWon
     })),
     lifecycleLoading: data.oppLifecycleLoading || false,
+    ...(data.onLifecyclePointClick && { onLifecyclePointClick: data.onLifecyclePointClick }),
+    ...(data.renderLifecycleDrillDown !== undefined && { renderLifecycleDrillDown: data.renderLifecycleDrillDown }),
+    ...(data.onFlowTrendPointClick && { onFlowTrendPointClick: data.onFlowTrendPointClick }),
+    ...(data.renderFlowTrendDrillDown !== undefined && { renderFlowTrendDrillDown: data.renderFlowTrendDrillDown }),
 
     // Pipelines
     pipelines: data.pipelines,
@@ -372,7 +426,12 @@ export function buildOpportunitiesProps(data: OpportunitiesBuilderData, config: 
     onTimeFilterChange: data.onOppTimeFilterChange,
 
     // Stage distribution
-    opportunitiesByStage: data.oppStageData.map(s => ({ stage: s.stage, count: s.count, value: s.value })),
+    opportunitiesByStage: data.oppStageData.map(s => ({
+      stage: s.stage,
+      stageRef: s.stageRef,
+      count: s.count,
+      value: s.value
+    })),
     selectedStagePipelineId: data.selectedStagePipelineId,
     onStagePipelineChange: data.onStagePipelineChange,
 
@@ -422,6 +481,8 @@ export interface ContactsBuilderData {
   contactQualityLoading?: boolean
   contactsByContactType?: Array<{ type: string; count: number }>
   contactsByContactTypeLoading?: boolean
+  onContactLifecyclePointClick?: (label: string, startDate: string, endDate: string) => void
+  renderContactLifecycleDrillDown?: React.ReactNode
 }
 
 export function buildContactsProps(data: ContactsBuilderData, config: ContactsBuilderConfig) {
@@ -467,6 +528,12 @@ export function buildContactsProps(data: ContactsBuilderData, config: ContactsBu
     // Quality data
     ...(data.contactQuality && {
       qualityData: data.contactQuality
+    }),
+
+    // Lifecycle drill-down
+    ...(data.onContactLifecyclePointClick && { onLifecyclePointClick: data.onContactLifecyclePointClick }),
+    ...(data.renderContactLifecycleDrillDown !== undefined && {
+      renderLifecycleDrillDown: data.renderContactLifecycleDrillDown
     }),
 
     // Average contacts per account

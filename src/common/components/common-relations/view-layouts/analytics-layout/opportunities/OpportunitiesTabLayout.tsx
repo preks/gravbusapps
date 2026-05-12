@@ -8,6 +8,7 @@ import {
 } from './widgets/OpportunityLifecycleChart'
 import { OpportunityVelocityAnalysis } from './widgets/OpportunityVelocityAnalysis'
 import { OpportunityStatusDistribution } from './widgets/OpportunityStatusDistribution'
+import type { StatusBucket, StatusSelection } from '../hooks/useStatusDrillDownState'
 import {
   Card,
   CardContent,
@@ -46,6 +47,8 @@ export interface OpportunitiesTrendData {
 
 export interface OpportunityLifecyclePoint {
   date: string
+  startDate: string
+  endDate: string
   opportunitiesCreated: number
   opportunitiesWon: number
 }
@@ -77,7 +80,10 @@ export interface OpportunitiesTabLayoutProps {
   onPipelineChange: (id: string) => void
   selectedTimeFilter: OpportunityTimeFilter
   onTimeFilterChange: (filter: OpportunityTimeFilter) => void
-  opportunitiesByStage: Array<{ stage: string; count: number; value: number }>
+  opportunitiesByStage: Array<{ stage: string; stageRef?: string; count: number; value: number }>
+  onOpportunitiesStageClick?: (stage: string, stageRef: string) => void
+  renderOpportunitiesStageDrillDown?: (selection: { stage: string; stageRef: string }) => React.ReactNode
+  selectedOppTabStage?: { stage: string; stageRef: string } | null
   selectedStagePipelineId?: string
   onStagePipelineChange?: (id: string | undefined) => void
   topDeals: Array<{
@@ -90,8 +96,27 @@ export interface OpportunitiesTabLayoutProps {
     currencyCode?: string
   }>
   topDealsLoading?: boolean
-  flowData?: { flowTrend: Array<{ month: string; opportunitiesCreated: number; opportunitiesWon: number }> } | null
+  onTopDealClick?: (dealId: string) => void
+  flowData?: {
+    flowTrend: Array<{
+      month: string
+      startDate: string
+      endDate: string
+      opportunitiesCreated: number
+      opportunitiesWon: number
+    }>
+  } | null
+  onFlowTrendPointClick?: (
+    label: string,
+    startDate: string,
+    endDate: string,
+    metric: 'opportunitiesCreated' | 'opportunitiesWon'
+  ) => void
+  renderFlowTrendDrillDown?: React.ReactNode
   statusDistributionData?: Array<{ status: 'Open' | 'Won' | 'Lost'; count: number; value: number }>
+  onStatusClick?: (status: StatusBucket) => void
+  renderStatusDrillDown?: (selection: StatusSelection) => React.ReactNode
+  selectedStatus?: StatusSelection | null
   moduleColor?: string
 
   // Currency filter props
@@ -100,6 +125,16 @@ export interface OpportunitiesTabLayoutProps {
   topDealsCurrency?: string
   onTopDealsCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
+
+  // Lifecycle drill-down
+  onLifecyclePointClick?: (
+    date: string,
+    startDate: string,
+    endDate: string,
+    metric: 'opportunitiesCreated' | 'opportunitiesWon',
+    pipelineId?: string
+  ) => void
+  renderLifecycleDrillDown?: React.ReactNode
 
   // Feature flags
   showTopDeals?: boolean // Default: true - Set to false to hide top deals section (e.g., for IRM)
@@ -126,17 +161,28 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   opportunitiesByStage,
   selectedStagePipelineId,
   onStagePipelineChange,
+  onOpportunitiesStageClick,
+  renderOpportunitiesStageDrillDown,
+  selectedOppTabStage,
   topDeals,
   topDealsLoading = false,
+  onTopDealClick,
   flowData,
   statusDistributionData = [],
+  onStatusClick,
+  renderStatusDrillDown,
+  selectedStatus,
   moduleColor = 'default',
   kpiCurrency = 'EUR',
   onKpiCurrencyChange,
   topDealsCurrency = 'EUR',
   onTopDealsCurrencyChange,
   availableCurrencies = ['EUR', 'USD'],
-  showTopDeals = true
+  showTopDeals = true,
+  onLifecyclePointClick,
+  renderLifecycleDrillDown,
+  onFlowTrendPointClick,
+  renderFlowTrendDrillDown
 }) => {
   const kpis = [
     {
@@ -305,12 +351,27 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
         selectedPipelineId={selectedPipelineId}
         onPipelineChange={onPipelineChange}
         moduleColor={moduleColor}
+        onPointClick={onLifecyclePointClick}
+        renderDrillDown={renderLifecycleDrillDown}
       />
 
       <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
-        <OpportunityVelocityAnalysis data={flowData || { flowTrend: [] }} moduleColor={moduleColor} />
-        <OpportunityStatusDistribution data={statusDistributionData} moduleColor={moduleColor} currency={kpiCurrency} />
+        <OpportunityVelocityAnalysis
+          data={flowData || { flowTrend: [] }}
+          moduleColor={moduleColor}
+          onPointClick={onFlowTrendPointClick}
+          renderDrillDown={renderFlowTrendDrillDown}
+        />
+        <OpportunityStatusDistribution
+          data={statusDistributionData}
+          moduleColor={moduleColor}
+          currency={kpiCurrency}
+          onStatusClick={onStatusClick}
+          selectedStatus={selectedStatus?.status}
+        />
       </div>
+
+      {selectedStatus && renderStatusDrillDown?.(selectedStatus)}
 
       <OpportunitiesByStagePie
         data={opportunitiesByStage}
@@ -318,7 +379,10 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
         pipelines={pipelines}
         selectedPipelineId={selectedStagePipelineId}
         onPipelineChange={onStagePipelineChange}
+        onStageClick={onOpportunitiesStageClick}
       />
+
+      {selectedOppTabStage && renderOpportunitiesStageDrillDown?.(selectedOppTabStage)}
 
       {/* Conditionally render Top Deals section */}
       {showTopDeals && (
@@ -357,29 +421,51 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
             )}
             {!topDealsLoading && topDeals.length > 0 && (
               <div className="gba:space-y-3">
-                {topDeals.map((deal, index) => (
-                  <div
-                    key={deal.id}
-                    className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg"
-                    data-testid={`top-deal-${index}`}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-3">
-                      <span className="gba:text-xs gba:text-gray-600">#{index + 1}</span>
-                      <div>
-                        <div className="gba:font-medium">{deal.name}</div>
-                        <div className="gba:text-sm gba:text-gray-600">
-                          {deal.stage} • {deal.winChance}% win chance • {deal.owner}
+                {topDeals.map((deal, index) => {
+                  const content = (
+                    <>
+                      <div className="gba:flex gba:items-center gba:gap-3">
+                        <span className="gba:text-xs gba:text-gray-600">#{index + 1}</span>
+                        <div>
+                          <div className="gba:font-medium">{deal.name}</div>
+                          <div className="gba:text-sm gba:text-gray-600">
+                            {deal.stage} • {deal.winChance}% win chance • {deal.owner}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="gba:text-right">
-                      <div className="gba:font-bold">
-                        {formatCurrencyCompact(deal.value, topDealsCurrency, undefined, 1, true)}
+                      <div className="gba:text-right">
+                        <div className="gba:font-bold">
+                          {formatCurrencyCompact(deal.value, topDealsCurrency, undefined, 1, true)}
+                        </div>
+                        <div className="gba:text-sm gba:text-gray-600">Opportunity Value</div>
                       </div>
-                      <div className="gba:text-sm gba:text-gray-600">Opportunity Value</div>
+                    </>
+                  )
+
+                  if (onTopDealClick) {
+                    return (
+                      <button
+                        key={deal.id}
+                        type="button"
+                        className="gba:flex gba:w-full gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg gba:text-left gba:transition-colors gba:hover:bg-muted"
+                        onClick={() => onTopDealClick(deal.id)}
+                        data-testid={`top-deal-${index}`}
+                      >
+                        {content}
+                      </button>
+                    )
+                  }
+
+                  return (
+                    <div
+                      key={deal.id}
+                      className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg"
+                      data-testid={`top-deal-${index}`}
+                    >
+                      {content}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
             {!topDealsLoading && topDeals.length === 0 && (

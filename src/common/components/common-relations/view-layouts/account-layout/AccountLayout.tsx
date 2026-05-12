@@ -46,7 +46,7 @@ export interface AccountViewConfig<TAccount extends Account = Account, TQueryVar
 
   flowContexts: {
     entityContext: FlowContextName
-    createContext: FlowContextName
+    createContext?: FlowContextName
     createContextData?: Record<string, any>
   }
 

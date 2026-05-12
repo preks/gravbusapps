@@ -13,10 +13,11 @@ import {
   ChartLegendContent,
   Spinner
 } from '@newwork/nw-design-system'
-import { PieChart, Pie } from 'recharts'
+import { PieChart, Pie, Cell } from 'recharts'
 
 export interface LeadsBySourceItem {
   source: string
+  sourceRef?: string
   count: number
 }
 
@@ -24,6 +25,7 @@ export interface LeadsBySourcePieProps {
   data: LeadsBySourceItem[]
   moduleColor?: string
   isLoading?: boolean
+  onSliceClick?: (label: string, ref: string) => void
 }
 
 const toKey = (value: string): string =>
@@ -32,7 +34,7 @@ const toKey = (value: string): string =>
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
 
-export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data, isLoading = false }) => {
+export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data, isLoading = false, onSliceClick }) => {
   const dataKey = 'leads'
   const nameKey = 'source'
 
@@ -43,6 +45,8 @@ export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data, isLoad
       return {
         [nameKey]: key,
         [dataKey]: item.count,
+        _label: item.source,
+        _ref: item.sourceRef ?? '',
         fill: `var(--color-${key})`
       } as Record<string, string | number>
     })
@@ -56,6 +60,14 @@ export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data, isLoad
       config[key] = { label: item.source }
     })
     return config as ChartConfig
+  }, [data])
+
+  const labelByKey = useMemo(() => {
+    const map: Record<string, string> = {}
+    data?.forEach(item => {
+      map[toKey(item.source)] = item.source
+    })
+    return map
   }, [data])
 
   if (isLoading) {
@@ -90,8 +102,37 @@ export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data, isLoad
           className="[&_.recharts-pie-label-text]:fill-foreground gba:mx-auto gba:aspect-square gba:max-h-[300px] gba:pb-0"
         >
           <PieChart>
-            <Pie data={chartData} cx="50%" cy="40%" outerRadius={75} dataKey={dataKey} nameKey={nameKey} />
-            <ChartTooltip content={<ChartTooltipContent hideLabel labelKey={dataKey} nameKey={nameKey} />} />
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="40%"
+              outerRadius={75}
+              dataKey={dataKey}
+              nameKey={nameKey}
+              isAnimationActive={false}
+            >
+              {chartData.map(entry => (
+                <Cell
+                  key={String(entry[nameKey])}
+                  fill={entry.fill as string}
+                  cursor={onSliceClick ? 'pointer' : undefined}
+                  onClick={onSliceClick ? () => onSliceClick(entry._label as string, entry._ref as string) : undefined}
+                />
+              ))}
+            </Pie>
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  hideLabel
+                  labelKey={dataKey}
+                  nameKey={nameKey}
+                  formatter={(value: number, name: string) => {
+                    const displayName = labelByKey[name] ?? name
+                    return [`${displayName} ${value}`, '']
+                  }}
+                />
+              }
+            />
             <ChartLegend
               content={
                 <ChartLegendContent className="gba:-translate-y-2 gba:flex-wrap gba:gap-2 gba:*:basis-1/4 gba:*:justify-center" />

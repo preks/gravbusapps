@@ -4,7 +4,9 @@ import { useGenericContactsByContactType } from '@/common/components/common-rela
 export const useContactsByContactType = (accessToken: string) => {
   const config = useMemo(
     () => ({
-      accountContactAggregate: 'InvestmentAccountContactAggregate' as const
+      accountContactAggregate: 'InvestmentAccountContactAggregate' as const,
+      contactAggregate: 'InvestmentContactAggregate' as const,
+      junctionField: 'investmentAccountContact' as const
     }),
     []
   )

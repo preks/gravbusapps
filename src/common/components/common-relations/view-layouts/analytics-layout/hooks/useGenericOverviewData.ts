@@ -6,6 +6,7 @@ export interface OverviewEntityConfig {
   accountEntity: string // "Account" | "InvestmentAccount"
   opportunityEntity: string // "Opportunity" | "InvestmentOpportunity"
   contactEntity: string // "Contact" | "InvestmentContact"
+  addressEntity?: string // "AccountAddress" | "InvestmentAccountAddress" - used for geographic chart
 }
 
 export interface OverviewCounts {
@@ -33,6 +34,12 @@ export interface OverviewTrendData {
   convertedLeads: { current: number; previous: number }
 }
 
+export interface GeographicDataPoint {
+  country: string
+  countryId: string
+  accounts: number // Count of distinct accounts per country
+}
+
 export interface GenericOverviewData {
   overview: {
     totalCounts: OverviewCounts
@@ -43,10 +50,98 @@ export interface GenericOverviewData {
 
 export const useGenericOverviewData = (accessToken: string, config: OverviewEntityConfig, currencyCode?: string) => {
   const [mainData, setMainData] = useState<GenericOverviewData | null>(null)
+  const [geographicData, setGeographicData] = useState<GeographicDataPoint[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
 
+  // Effect 1: Fetch currency-INDEPENDENT geographic data (only runs when config changes, NOT currency)
+  useEffect(() => {
+    const fetchGeographicData = async () => {
+      if (!accessToken || !config.addressEntity) return
+
+      try {
+        // STEP 1: Get all distinct countries from account addresses
+        const distinctCountriesQuery = `
+          query GetDistinctCountries {
+            distinctCountries: ${config.addressEntity}(
+              distinctOn: [countryRef]
+              where: {
+                isDeleted: { _eq: false }
+                accountId: { _isNull: false }
+                country: { value: { _isNull: false } }
+              }
+            ) {
+              country {
+                id
+                value
+              }
+            }
+          }
+        `
+
+        const result = await graphqlClient.request(distinctCountriesQuery)
+        const distinctCountries = result.distinctCountries || []
+        const countryEntries: Array<{ id: string; value: string }> = distinctCountries
+          .map((addr: any) => addr.country)
+          .filter((c: any) => c?.value && c?.id)
+        const countryValues = countryEntries.map(c => c.value)
+
+        if (countryValues.length > 0) {
+          try {
+            // STEP 2: For each country, count how many DISTINCT accounts have addresses in that country
+            const countryAggregateQueries = countryValues
+              .map((country: string, index: number) => {
+                const safeCountry = country.replace(/"/g, String.raw`\"`).replace(/\\/g, String.raw`\\`)
+                return `country_${index}: ${config.addressEntity}Aggregate(
+                  where: {
+                    isDeleted: { _eq: false }
+                    accountId: { _isNull: false }
+                    country: { value: { _eq: "${safeCountry}" } }
+                  }
+                ) {
+                  aggregate {
+                    count(columns: accountId, distinct: true)
+                  }
+                }`
+              })
+              .join('\n')
+
+            // This query counts: "How many accounts appear in each country?"
+            const countryAggregateQuery = `query GetDistinctAccountCountByCountry {
+              ${countryAggregateQueries}
+            }`
+
+            const countryAggregateResult = await graphqlClient.request(countryAggregateQuery)
+
+            const geographicResult = countryEntries
+              .map((entry, index) => ({
+                country: entry.value,
+                countryId: entry.id,
+                accounts: countryAggregateResult[`country_${index}`]?.aggregate?.count || 0
+              }))
+              .filter((item: GeographicDataPoint) => item.accounts > 0)
+              .sort((a: GeographicDataPoint, b: GeographicDataPoint) => b.accounts - a.accounts)
+              .slice(0, 10)
+
+            setGeographicData(geographicResult)
+          } catch (error) {
+            console.error('Error fetching geographic data with aggregates:', error)
+            setGeographicData([])
+          }
+        } else {
+          setGeographicData([])
+        }
+      } catch (err) {
+        console.error('Error fetching distinct countries:', err)
+        setGeographicData([])
+      }
+    }
+
+    fetchGeographicData()
+  }, [accessToken, graphqlClient, config.addressEntity]) // NO currencyCode dependency!
+
+  // Effect 2: Fetch currency-DEPENDENT data (opportunities and metrics)
   useEffect(() => {
     const fetchOverviewData = async () => {
       try {
@@ -293,5 +388,5 @@ export const useGenericOverviewData = (accessToken: string, config: OverviewEnti
     config.contactEntity
   ])
 
-  return { data: mainData, isLoading, error }
+  return { data: mainData, geographicData, isLoading, error }
 }

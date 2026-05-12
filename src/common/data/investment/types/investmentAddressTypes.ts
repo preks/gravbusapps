@@ -71,5 +71,4 @@ export const INVESTMENT_ADDRESS_FRAGMENT = `
     ${CATALOG_ENTRY}
   }
   countryRef
-  investmentCompanyId
 `

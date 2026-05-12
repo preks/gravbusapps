@@ -10,6 +10,7 @@ import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/grap
 import { OpportunityFields } from '../types/opportunityTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
+import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
 
 // =====================================================
 // OPPORTUNITY RELATION TYPES
@@ -52,10 +53,18 @@ export interface CommonOpportunityQueryVariables extends BaseQueryVariables {
   opportunityPipelineIds?: string[]
   opportunityPipelineStageIds?: string[]
   opportunityStatusIds?: string[]
+  /**
+   * Filter by status code (CRM) or status type (IRM) using IN.
+   * Use ['WON'] or ['LOST'] to match exactly one bucket.
+   * Each hook translates this to the correct field (code vs type).
+   */
+  opportunityStatusTypesIn?: string[]
   opportunityForecastIds?: string[]
   ownerEmployeeIds?: string[]
   closeDateFrom?: string
   closeDateTo?: string
+  /** When true, excludes Won and Lost opportunities (shows only active/open pipeline). */
+  activeOnly?: boolean
 }
 
 /**
@@ -132,6 +141,17 @@ export const buildOpportunityQuery = (
         `
             : ''
         }
+        # Company relation (only for CRM - IRM does not have companyId)
+        ${
+          entityFields.companyId
+            ? `
+        ${entityFields.companyId}
+        ${entityFields.company} {
+          ${COMPANY_REF}
+        }
+        `
+            : ''
+        }
         ${additionalFields || ''}
       }
       ${entityName}Aggregate(where: $where) {
@@ -200,6 +220,17 @@ export const buildOpportunityByIdQuery = (
         }
         ${entityFields.ownerEmployeeId}
         ${entityFields.winningChance}
+        # Company relation (only for CRM - IRM does not have companyId)
+        ${
+          entityFields.companyId
+            ? `
+        ${entityFields.companyId}
+        ${entityFields.company} {
+          ${COMPANY_REF}
+        }
+        `
+            : ''
+        }
   `
 
   // Helper function to build account relation string
@@ -222,23 +253,31 @@ export const buildOpportunityByIdQuery = (
   }
 
   // Common entity relations
+  const accountRelation =
+    entityFields.account && relationBuilders && relationFields
+      ? `
+    ${entityFields.accountId}
+    ${buildAccountRelation(entityFields.account, relationBuilders, relationFields.accountFields)}
+    `
+      : ''
+
+  const companyRelation = entityFields.companyId
+    ? `
+    ${entityFields.companyId}
+    ${entityFields.company} {
+      ${COMPANY_REF}
+    }
+    `
+    : ''
+
   const commonRelations =
     relationBuilders && relationFields
       ? `
     # Account relation (legacy - both IRM and CRM now use opportunityAccounts junction table)
-    ${
-      entityFields.account
-        ? `
-    ${entityFields.accountId}
-    ${buildAccountRelation(entityFields.account, relationBuilders, relationFields.accountFields)}
-    `
-        : ''
-    }
+    ${accountRelation}
     
-    # Common entity relations (present in both IRM and CRM)
-    ${entityFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-      ${COMMUNICATION_CHANNEL_REF}
-    }
+    # Company relation (only for CRM - IRM does not have companyId)
+    ${companyRelation}
     
     ${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}

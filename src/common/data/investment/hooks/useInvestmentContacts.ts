@@ -48,6 +48,50 @@ import { toInvestmentContact } from '../types/investmentContactTypes'
 import { toInvestmentTask } from '../mappers/investmentTaskMappers'
 import { toInvestmentActivity, toInvestmentNote, toInvestmentDocument } from '../mappers/investmentRelatedEntityMappers'
 
+/**
+ * Builds custom GraphQL conditions for investment contact filters that map to
+ * presence / absence / membership constraints (email, phone, names, account link,
+ * contact types). Kept as a flat helper to keep callers under the cognitive
+ * complexity threshold.
+ */
+function buildInvestmentContactCustomConditions(
+  variables: InvestmentContactQueryVariables & {
+    hasEmail?: boolean
+    missingEmail?: boolean
+    hasPhone?: boolean
+    missingPhone?: boolean
+    hasFirstName?: boolean
+    missingFirstName?: boolean
+    hasLastName?: boolean
+    missingLastName?: boolean
+    hasAccountLink?: boolean
+    missingAccountLink?: boolean
+    contactTypes?: string[]
+  }
+): Record<string, any>[] {
+  const conditions: Record<string, any>[] = []
+
+  if (variables.hasEmail) conditions.push({ email: { _isNull: false, _neq: '' } })
+  if (variables.missingEmail) conditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
+  if (variables.hasPhone) conditions.push({ phone: { _isNull: false, _neq: '' } })
+  if (variables.missingPhone) conditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+  if (variables.hasFirstName) conditions.push({ firstName: { _isNull: false, _neq: '' } })
+  if (variables.missingFirstName)
+    conditions.push({ _or: [{ firstName: { _isNull: true } }, { firstName: { _eq: '' } }] })
+  if (variables.hasLastName) conditions.push({ lastName: { _isNull: false, _neq: '' } })
+  if (variables.missingLastName) conditions.push({ _or: [{ lastName: { _isNull: true } }, { lastName: { _eq: '' } }] })
+  if (variables.hasAccountLink) conditions.push({ investmentAccountContact: { isDeleted: { _eq: false } } })
+  if (variables.missingAccountLink)
+    conditions.push({ _not: { investmentAccountContact: { isDeleted: { _eq: false } } } })
+  if (variables.contactTypes?.length) {
+    conditions.push({
+      investmentAccountContact: { contactType: { _in: variables.contactTypes }, isDeleted: { _eq: false } }
+    })
+  }
+
+  return conditions
+}
+
 // Simplified hook alias for ContactView compatibility
 export const useInvestmentContacts = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
@@ -63,6 +107,20 @@ export const useInvestmentContacts = (context: BusinessAppContextProps) => {
       if (variables.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
       if (variables.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
       if (variables.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+      if (variables.hasFirstName) customConditions.push({ firstName: { _isNull: false, _neq: '' } })
+      if (variables.missingFirstName)
+        customConditions.push({ _or: [{ firstName: { _isNull: true } }, { firstName: { _eq: '' } }] })
+      if (variables.hasLastName) customConditions.push({ lastName: { _isNull: false, _neq: '' } })
+      if (variables.missingLastName)
+        customConditions.push({ _or: [{ lastName: { _isNull: true } }, { lastName: { _eq: '' } }] })
+      if (variables.hasAccountLink) customConditions.push({ investmentAccountContact: { isDeleted: { _eq: false } } })
+      if (variables.missingAccountLink)
+        customConditions.push({ _not: { investmentAccountContact: { isDeleted: { _eq: false } } } })
+      if (variables.contactTypes?.length) {
+        customConditions.push({
+          investmentAccountContact: { contactType: { _in: variables.contactTypes }, isDeleted: { _eq: false } }
+        })
+      }
 
       const whereCondition = buildInvestmentContactWhereCondition(variables, [], customConditions)
 
@@ -393,6 +451,15 @@ export function useGetInvestmentContacts(
       if (variables.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
       if (variables.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
       if (variables.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+      if (variables.hasFirstName) customConditions.push({ firstName: { _isNull: false, _neq: '' } })
+      if (variables.missingFirstName)
+        customConditions.push({ _or: [{ firstName: { _isNull: true } }, { firstName: { _eq: '' } }] })
+      if (variables.hasLastName) customConditions.push({ lastName: { _isNull: false, _neq: '' } })
+      if (variables.missingLastName)
+        customConditions.push({ _or: [{ lastName: { _isNull: true } }, { lastName: { _eq: '' } }] })
+      if (variables.hasAccountLink) customConditions.push({ investmentAccountContact: { isDeleted: { _eq: false } } })
+      if (variables.missingAccountLink)
+        customConditions.push({ _not: { investmentAccountContact: { isDeleted: { _eq: false } } } })
 
       const whereCondition = buildInvestmentContactWhereCondition(variables, [], customConditions)
 
@@ -564,6 +631,14 @@ export interface UseInvestmentContactsListResult {
   refetch: (variables?: InvestmentContactQueryVariables) => Promise<void>
   search: (searchTerm: string) => void
   loadMore: () => void
+  /**
+   * Imperative fetch that does NOT touch the hook's internal state.
+   * Use this when you need to fetch with arbitrary variables (e.g. drill-down panels)
+   * without affecting the combobox-style state managed by this hook.
+   */
+  fetchInvestmentContacts: (
+    variables?: InvestmentContactQueryVariables
+  ) => Promise<{ contacts: InvestmentContact[]; total: number }>
 }
 
 export function useInvestmentContactsList(
@@ -610,12 +685,7 @@ export function useInvestmentContactsList(
         }
 
         const query = buildInvestmentContactQuery()
-
-        const customConditions: Record<string, any>[] = []
-        if (vars.hasEmail) customConditions.push({ email: { _isNull: false, _neq: '' } })
-        if (vars.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
-        if (vars.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
-        if (vars.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+        const customConditions = buildInvestmentContactCustomConditions(vars)
 
         const whereCondition = buildInvestmentContactWhereCondition(vars, [], customConditions)
         const orderBy = buildInvestmentContactOrderBy(vars.orderBy || [])
@@ -687,10 +757,46 @@ export function useInvestmentContactsList(
     }
   }, [fetchPage, state.hasMore, state.loading])
 
+  const fetchInvestmentContacts = useCallback(
+    async (
+      queryVariables?: InvestmentContactQueryVariables
+    ): Promise<{ contacts: InvestmentContact[]; total: number }> => {
+      if (!context.accessToken) {
+        return { contacts: [], total: 0 }
+      }
+
+      const vars: InvestmentContactQueryVariables = { ...stableVariables, ...queryVariables }
+      const customConditions = buildInvestmentContactCustomConditions(vars)
+
+      const query = buildInvestmentContactQuery()
+      const whereCondition = buildInvestmentContactWhereCondition(vars, [], customConditions)
+      const orderBy = buildInvestmentContactOrderBy(vars.orderBy || [])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: vars.limit ?? 50,
+        offset: vars.offset ?? 0,
+        where: whereCondition,
+        orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<InvestmentContactQueryResponse>(query, graphQLVariables)
+        const contacts = result.InvestmentContact.map(toInvestmentContact)
+        const total = result.InvestmentContactAggregate?.aggregate?.count || 0
+        return { contacts, total }
+      } catch (error) {
+        console.error('Error fetching investment contacts:', error instanceof Error ? error.message : error)
+        return { contacts: [], total: 0 }
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
   return {
     ...state,
     refetch,
     search,
-    loadMore
+    loadMore,
+    fetchInvestmentContacts
   }
 }

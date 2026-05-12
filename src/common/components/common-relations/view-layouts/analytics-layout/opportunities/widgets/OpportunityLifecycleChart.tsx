@@ -21,7 +21,12 @@ import {
 } from '@newwork/nw-design-system'
 import { AreaChart, Area, XAxis, YAxis } from 'recharts'
 import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
-import { TIME_FILTER_OPTIONS, formatLifecycleXAxisLabel, getCurrentFilterLabel } from '../../shared/lifecycleChartUtils'
+import {
+  TIME_FILTER_OPTIONS,
+  formatLifecycleXAxisLabel,
+  getCurrentFilterLabel,
+  createChartTooltipFormatter
+} from '../../shared/lifecycleChartUtils'
 import type { TimeFilter } from '../../shared/lifecycleChartUtils'
 
 // Re-export TimeFilter for backward compatibility
@@ -34,6 +39,8 @@ export interface PipelineItem {
 
 export interface OpportunityLifecyclePoint {
   date: string
+  startDate: string
+  endDate: string
   opportunitiesCreated: number
   opportunitiesWon: number
 }
@@ -47,6 +54,14 @@ interface OpportunityLifecycleChartProps {
   selectedPipelineId?: string
   onPipelineChange: (pipelineId: string) => void
   moduleColor?: string
+  onPointClick?: (
+    date: string,
+    startDate: string,
+    endDate: string,
+    metric: 'opportunitiesCreated' | 'opportunitiesWon',
+    pipelineId?: string
+  ) => void
+  renderDrillDown?: React.ReactNode
 }
 
 export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps> = ({
@@ -57,7 +72,9 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
   pipelines,
   selectedPipelineId,
   onPipelineChange,
-  moduleColor = 'primary'
+  moduleColor = 'primary',
+  onPointClick,
+  renderDrillDown
 }) => {
   const [visibleLines, setVisibleLines] = React.useState({ opportunitiesCreated: true, opportunitiesWon: true })
 
@@ -69,6 +86,8 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
     }),
     []
   )
+
+  const tooltipFormatter = useMemo(() => createChartTooltipFormatter(chartConfig), [chartConfig])
 
   // Non-hook logic
   const currentFilterLabel = getCurrentFilterLabel(selectedTimeFilter)
@@ -154,17 +173,31 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
     return (
       <ChartContainer
         config={chartConfig}
-        className="gba:h-[400px] gba:w-full gba:aspect-auto"
+        className={`gba:h-[400px] gba:w-full gba:aspect-auto${onPointClick ? ' gba:cursor-pointer' : ''}`}
         data-testid="opportunity-lifecycle-chart-container"
       >
-        <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+        <AreaChart
+          data={data}
+          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          onClick={clickData => {
+            if (!onPointClick || clickData?.activeTooltipIndex == null) return
+            const point = data[clickData.activeTooltipIndex as number]
+            if (!point) return
+            const metric =
+              visibleLines.opportunitiesWon && !visibleLines.opportunitiesCreated
+                ? 'opportunitiesWon'
+                : 'opportunitiesCreated'
+            const displayLabel = formatLifecycleXAxisLabel(point.date, selectedTimeFilter)
+            onPointClick(displayLabel, point.startDate, point.endDate, metric, selectedPipelineId)
+          }}
+        >
           <XAxis
             dataKey="date"
             tickLine={false}
             tickFormatter={value => formatLifecycleXAxisLabel(value, selectedTimeFilter)}
           />
           <YAxis tickLine={false} />
-          <ChartTooltip content={<ChartTooltipContent labelKey="date" />} />
+          <ChartTooltip content={<ChartTooltipContent labelKey="date" formatter={tooltipFormatter} />} />
           <ChartLegend content={<ChartLegendContent />} />
           {visibleLines.opportunitiesCreated && (
             <Area
@@ -194,88 +227,93 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
   }
 
   return (
-    <Card data-testid="opportunity-lifecycle-chart">
-      <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartLineIcon} variant={moduleColor as any} size="md" decorative />
-            Opportunity Lifecycle Overview ({currentFilterLabel})
-            {selectedPipelineId && (
-              <span className="gba:text-sm gba:font-normal gba:text-gray-500">
-                - {pipelines.find(p => p.id === selectedPipelineId)?.name || 'Selected Pipeline'}
-              </span>
-            )}
-          </CardTitle>
-          <div className="gba:flex gba:items-center gba:gap-4 gba:ml-auto">
-            {/* Time Filters */}
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <CalendarIcon size={16} className="gba:text-gray-500" />
-              <div className="gba:flex gba:gap-1" data-testid="opportunity-time-filters">
-                {TIME_FILTER_OPTIONS.map(option => (
-                  <Button
-                    key={option.key}
-                    variant={selectedTimeFilter === option.key ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => onTimeFilterChange(option.key)}
-                    data-testid={`opportunity-filter-${option.key}`}
+    <>
+      <Card data-testid="opportunity-lifecycle-chart">
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <CardTitle className="gba:flex gba:items-center gba:gap-2">
+              <IconAvatar icon={ChartLineIcon} variant={moduleColor as any} size="md" decorative />
+              Opportunity Lifecycle Overview ({currentFilterLabel})
+              {selectedPipelineId && (
+                <span className="gba:text-sm gba:font-normal gba:text-gray-500">
+                  - {pipelines.find(p => p.id === selectedPipelineId)?.name || 'Selected Pipeline'}
+                </span>
+              )}
+            </CardTitle>
+            <div className="gba:flex gba:items-center gba:gap-4 gba:ml-auto">
+              {/* Time Filters */}
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <CalendarIcon size={16} className="gba:text-gray-500" />
+                <div className="gba:flex gba:gap-1" data-testid="opportunity-time-filters">
+                  {TIME_FILTER_OPTIONS.map(option => (
+                    <Button
+                      key={option.key}
+                      variant={selectedTimeFilter === option.key ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => onTimeFilterChange(option.key)}
+                      data-testid={`opportunity-filter-${option.key}`}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pipeline Filter */}
+              <div className="gba:min-w-48">
+                <Select value={selectedPipelineId || 'all'} onValueChange={onPipelineChange}>
+                  <SelectTrigger data-testid="opportunity-pipeline-selector">
+                    <SelectValue placeholder="Select pipeline" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Pipelines</SelectItem>
+                    {pipelines.map(pipeline => (
+                      <SelectItem key={pipeline.id} value={pipeline.id}>
+                        {pipeline.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <div className="gba:mt-4 gba:border-t gba:pt-4">
+            <div className="gba:flex gba:items-center gba:gap-6">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <EyeIcon size={16} className="gba:text-gray-500" />
+                <span className="gba:text-sm gba:font-medium gba:text-gray-700">Show Data:</span>
+              </div>
+              <div className="gba:flex gba:flex-wrap gba:gap-4" data-testid="opportunity-line-filters">
+                {(
+                  [
+                    { key: 'opportunitiesCreated', label: 'Opportunities Created', dataKey: 'opportunitiesCreated' },
+                    { key: 'opportunitiesWon', label: 'Opportunities Won', dataKey: 'opportunitiesWon' }
+                  ] as Array<{ key: keyof typeof visibleLines; label: string; dataKey: string }>
+                ).map(line => (
+                  <label
+                    key={line.key}
+                    className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
+                    data-testid={`opportunity-line-filter-${line.key}`}
                   >
-                    {option.label}
-                  </Button>
+                    <Checkbox
+                      checked={visibleLines[line.key]}
+                      onCheckedChange={() => setVisibleLines(prev => ({ ...prev, [line.key]: !prev[line.key] }))}
+                    />
+                    <div
+                      className="gba:w-3 gba:h-3 gba:rounded"
+                      style={{ backgroundColor: `var(--color-${line.dataKey})` }}
+                    />
+                    <span className="gba:text-sm gba:text-gray-700">{line.label}</span>
+                  </label>
                 ))}
               </div>
             </div>
-
-            {/* Pipeline Filter */}
-            <div className="gba:min-w-48">
-              <Select value={selectedPipelineId || 'all'} onValueChange={onPipelineChange}>
-                <SelectTrigger data-testid="opportunity-pipeline-selector">
-                  <SelectValue placeholder="Select pipeline" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Pipelines</SelectItem>
-                  {pipelines.map(pipeline => (
-                    <SelectItem key={pipeline.id} value={pipeline.id}>
-                      {pipeline.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
-        </div>
-        <div className="gba:mt-4 gba:border-t gba:pt-4">
-          <div className="gba:flex gba:items-center gba:gap-6">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <EyeIcon size={16} className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">Show Data:</span>
-            </div>
-            <div className="gba:flex gba:flex-wrap gba:gap-4" data-testid="opportunity-line-filters">
-              {[
-                { key: 'opportunitiesCreated', label: 'Opportunities Created', dataKey: 'opportunitiesCreated' },
-                { key: 'opportunitiesWon', label: 'Opportunities Won', dataKey: 'opportunitiesWon' }
-              ].map(line => (
-                <label
-                  key={line.key}
-                  className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
-                  data-testid={`opportunity-line-filter-${line.key}`}
-                >
-                  <Checkbox
-                    checked={(visibleLines as any)[line.key]}
-                    onCheckedChange={() => setVisibleLines(prev => ({ ...prev, [line.key]: !(prev as any)[line.key] }))}
-                  />
-                  <div
-                    className="gba:w-3 gba:h-3 gba:rounded"
-                    style={{ backgroundColor: `var(--color-${line.dataKey})` }}
-                  />
-                  <span className="gba:text-sm gba:text-gray-700">{line.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>{renderChartContent()}</CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent>{renderChartContent()}</CardContent>
+      </Card>
+      {renderDrillDown}
+    </>
   )
 }
 

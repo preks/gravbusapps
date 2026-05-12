@@ -3,6 +3,8 @@ import { WidgetGroup } from '@/components/widget-group'
 import { BankIcon, CurrencyCircleDollarIcon, UsersIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { AccountLifecycleChart } from './widgets/AccountLifecycleChart'
 import { AccountGrowthAnalysis } from './widgets/AccountGrowthAnalysis'
+import type { GrowthBarSelection, GrowthMetric } from '../hooks/useAccountGrowthDrillDownState'
+import type { LifecyclePointSelection, LifecycleMetric } from '../hooks/useAccountLifecycleDrillDownState'
 // no direct Card usage in this layout; widgets handle their own cards
 
 export interface AccountsTrendData {
@@ -23,10 +25,10 @@ export interface AccountsTabLayoutProps {
   trendLoading?: boolean
   accountsOverTime: Array<{
     date: string
+    endDate: string
     count: number
     accountsCreated: number
     accountsWithOpportunities: number
-    accountsActive: number
   }>
   accountsOverTimeLoading?: boolean
   selectedTimeFilter?: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
@@ -37,7 +39,6 @@ export interface AccountsTabLayoutProps {
     date: string
     accountsCreated: number
     accountsWithOpportunities: number
-    accountsActive: number
   }>
   growthLoading?: boolean
   moduleColor?: string
@@ -49,6 +50,16 @@ export interface AccountsTabLayoutProps {
 
   // Optional sections
   showTopAccounts?: boolean // Control visibility of Top Accounts by Revenue section
+
+  // Account growth chart drill-down
+  selectedGrowthBar?: GrowthBarSelection | null
+  onGrowthBarClick?: (month: string, date: string, metric: GrowthMetric) => void
+  renderAccountGrowthDrillDown?: (selection: GrowthBarSelection) => React.ReactNode
+
+  // Account lifecycle chart drill-down
+  onLifecyclePointClick?: (label: string, date: string, endDate: string, metric: LifecycleMetric) => void
+  selectedLifecyclePoint?: LifecyclePointSelection | null
+  renderLifecycleDrillDown?: (selection: LifecyclePointSelection) => React.ReactNode
 }
 
 const calculateTrend = (
@@ -82,7 +93,13 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   onTimeFilterChange,
   monthlyGrowthTrend = [],
   growthLoading = false,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  selectedGrowthBar,
+  onGrowthBarClick,
+  renderAccountGrowthDrillDown,
+  onLifecyclePointClick,
+  selectedLifecyclePoint,
+  renderLifecycleDrillDown
 }) => {
   const kpis = [
     {
@@ -154,15 +171,19 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange || (() => {})}
         moduleColor={moduleColor}
+        onPointClick={onLifecyclePointClick}
       />
 
+      {selectedLifecyclePoint && renderLifecycleDrillDown?.(selectedLifecyclePoint)}
+
       <AccountGrowthAnalysis
-        data={{
-          monthlyGrowthTrend
-        }}
+        data={{ monthlyGrowthTrend }}
         isLoading={growthLoading}
         moduleColor={moduleColor}
+        onBarClick={onGrowthBarClick}
       />
+
+      {selectedGrowthBar && renderAccountGrowthDrillDown?.(selectedGrowthBar)}
     </div>
   )
 }

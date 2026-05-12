@@ -10,12 +10,18 @@ export interface OpportunityStatusDistributionItem {
 export interface OpportunityStatusDistributionConfig {
   opportunityAggregate: 'OpportunityAggregate' | 'InvestmentOpportunityAggregate'
   statusFilterField: 'code' | 'type'
+  /** Additional raw GraphQL filter conditions applied to every bucket (e.g. 'dealType: {_eq: "INVESTMENT_DEAL"}') */
+  additionalFilters?: string[]
+}
+
+interface AggregateResult {
+  aggregate: { count: number; sum?: { estimatedAmount?: number | null } | null }
 }
 
 interface StatusDistributionResult {
-  open: { aggregate: { count: number; sum?: { estimatedAmount?: number | null } | null } }
-  won: { aggregate: { count: number; sum?: { estimatedAmount?: number | null } | null } }
-  lost: { aggregate: { count: number; sum?: { estimatedAmount?: number | null } | null } }
+  open: AggregateResult
+  won: AggregateResult
+  lost: AggregateResult
 }
 
 export const useOpportunityStatusDistribution = (accessToken: string, config: OpportunityStatusDistributionConfig) => {
@@ -32,44 +38,21 @@ export const useOpportunityStatusDistribution = (accessToken: string, config: Op
 
       try {
         setIsLoading(true)
-        const statusField = config.statusFilterField
+        const sf = config.statusFilterField
+        const extra = config.additionalFilters?.length ? `, ${config.additionalFilters.join(', ')}` : ''
         const query = `
           query GetOpportunityStatusDistribution {
             open: ${config.opportunityAggregate}(
-              where: {
-                isDeleted: {_eq: false}
-                opportunityStatus: {${statusField}: {_nin: ["WON", "LOST"]}}
-              }
-            ) {
-              aggregate {
-                count
-                sum { estimatedAmount }
-              }
-            }
+              where: { isDeleted: {_eq: false}, opportunityStatus: {${sf}: {_nin: ["WON", "LOST"]}}${extra} }
+            ) { aggregate { count sum { estimatedAmount } } }
 
             won: ${config.opportunityAggregate}(
-              where: {
-                isDeleted: {_eq: false}
-                opportunityStatus: {${statusField}: {_eq: "WON"}}
-              }
-            ) {
-              aggregate {
-                count
-                sum { estimatedAmount }
-              }
-            }
+              where: { isDeleted: {_eq: false}, opportunityStatus: {${sf}: {_eq: "WON"}}${extra} }
+            ) { aggregate { count sum { estimatedAmount } } }
 
             lost: ${config.opportunityAggregate}(
-              where: {
-                isDeleted: {_eq: false}
-                opportunityStatus: {${statusField}: {_eq: "LOST"}}
-              }
-            ) {
-              aggregate {
-                count
-                sum { estimatedAmount }
-              }
-            }
+              where: { isDeleted: {_eq: false}, opportunityStatus: {${sf}: {_eq: "LOST"}}${extra} }
+            ) { aggregate { count sum { estimatedAmount } } }
           }
         `
 
@@ -100,7 +83,13 @@ export const useOpportunityStatusDistribution = (accessToken: string, config: Op
     }
 
     fetchStatusDistribution()
-  }, [accessToken, graphqlClient, config.opportunityAggregate, config.statusFilterField])
+  }, [
+    accessToken,
+    graphqlClient,
+    config.opportunityAggregate,
+    config.statusFilterField,
+    JSON.stringify(config.additionalFilters)
+  ])
 
   return { data, isLoading }
 }

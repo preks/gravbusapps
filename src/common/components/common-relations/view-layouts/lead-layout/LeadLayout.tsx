@@ -41,7 +41,7 @@ export interface LeadViewConfig<TLead extends Lead = Lead, TQueryVariables = any
 
   flowContexts: {
     entityContext: FlowContextName
-    createContext: FlowContextName
+    createContext?: FlowContextName
     createContextData?: Record<string, any>
   }
 

@@ -90,12 +90,6 @@ export const buildInvestmentOpportunityQuery = (
     }
     divestmentId
 
-    # Company relation (IRM only)
-    investmentCompanyId
-    investmentCompany {
-      ${INVESTMENT_COMPANY_REF}
-    }
-    
     # IRM-specific Investment fields
     dealType
     investmentGroup {
@@ -200,12 +194,6 @@ export const buildInvestmentOpportunityByIdQuery = (
       ${INVESTMENT_REF}
     }
 
-    # Company relation (IRM only)
-    investmentCompanyId
-    investmentCompany {
-      ${INVESTMENT_COMPANY_REF}
-    }
-    
     # IRM-specific Investment fields
     dealType
     investmentGroup {

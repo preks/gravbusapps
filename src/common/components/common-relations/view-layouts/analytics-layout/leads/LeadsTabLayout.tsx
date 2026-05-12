@@ -4,6 +4,8 @@ import { CheckCircleIcon, PercentIcon, TrendUpIcon, UsersIcon } from '@phosphor-
 import { LeadLifecycleChart, TimeFilter } from './widgets/LeadLifecycleChart'
 import { LeadsBySourcePie } from './widgets/LeadsBySourcePie'
 import { LeadsByStatusPie } from './widgets/LeadsByStatusPie'
+import type { LeadDrillDownSelection } from '../hooks/useLeadDrillDownState'
+import type { LeadLifecyclePointSelection } from '../hooks/useLeadLifecycleDrillDownState'
 
 // Leads-specific trend data interface (matching archived version)
 interface LeadsTrendData {
@@ -33,16 +35,47 @@ export interface LeadsTabLayoutProps {
   trendLoading?: boolean
 
   // Required: Lead Lifecycle Chart
-  leadsOverTime: Array<{ date: string; count: number; leadsCreated: number; leadsConverted: number; leadsLost: number }>
+  leadsOverTime: Array<{
+    date: string
+    endDate: string
+    count: number
+    leadsCreated: number
+    leadsConverted: number
+    leadsLost: number
+  }>
   leadsOverTimeLoading?: boolean
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
 
   // Optional: Distribution Charts (can be hidden)
-  leadsBySource?: Array<{ source: string; count: number; percentage?: number; conversionRate?: number }>
+  leadsBySource?: Array<{
+    source: string
+    sourceRef?: string
+    count: number
+    percentage?: number
+    conversionRate?: number
+  }>
   leadsBySourceLoading?: boolean
-  leadsByStatus?: Array<{ status: string; count: number }>
+  leadsByStatus?: Array<{ status: string; statusRef?: string; count: number }>
   leadsByStatusLoading?: boolean
+
+  // Optional: Top Lead Owners (can be hidden)
+
+  // Optional: Lead drill-down (source / status pie chart click-through)
+  selectedLeadFilter?: LeadDrillDownSelection | null
+  onSourceClick?: (label: string, ref: string) => void
+  onStatusClick?: (label: string, ref: string) => void
+  renderLeadPanel?: (selection: LeadDrillDownSelection) => React.ReactNode
+
+  // Optional: Lead Lifecycle chart drill-down
+  onLifecyclePointClick?: (
+    label: string,
+    date: string,
+    endDate: string,
+    metric: 'leadsCreated' | 'leadsConverted' | 'leadsLost'
+  ) => void
+  selectedLeadLifecyclePoint?: LeadLifecyclePointSelection | null
+  renderLeadLifecycleDrillDown?: (selection: LeadLifecyclePointSelection) => React.ReactNode
 }
 
 export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
@@ -59,7 +92,14 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   leadsBySource,
   leadsBySourceLoading = false,
   leadsByStatus,
-  leadsByStatusLoading = false
+  leadsByStatusLoading = false,
+  selectedLeadFilter,
+  onSourceClick,
+  onStatusClick,
+  renderLeadPanel,
+  onLifecyclePointClick,
+  selectedLeadLifecyclePoint,
+  renderLeadLifecycleDrillDown
 }) => {
   // Helper function to calculate trend with total description (matching archived version)
   const calculateTrendWithTotalDescription = (currentValue: number, previousValue: number) => {
@@ -167,23 +207,36 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         moduleColor={moduleColor}
+        onPointClick={onLifecyclePointClick}
       />
+
+      {/* Lead Lifecycle chart drill-down panel */}
+      {selectedLeadLifecyclePoint && renderLeadLifecycleDrillDown?.(selectedLeadLifecyclePoint)}
 
       {/* Optional: Distribution Pie Charts */}
       {(leadsBySource || leadsByStatus) && (
         <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
           {leadsBySource && (
             <LeadsBySourcePie
-              data={leadsBySource.map(s => ({ source: s.source, count: s.count }))}
+              data={leadsBySource.map(s => ({ source: s.source, sourceRef: s.sourceRef, count: s.count }))}
               isLoading={leadsBySourceLoading}
               moduleColor={moduleColor}
+              onSliceClick={onSourceClick}
             />
           )}
           {leadsByStatus && (
-            <LeadsByStatusPie data={leadsByStatus} isLoading={leadsByStatusLoading} moduleColor={moduleColor} />
+            <LeadsByStatusPie
+              data={leadsByStatus}
+              isLoading={leadsByStatusLoading}
+              moduleColor={moduleColor}
+              onSliceClick={onStatusClick}
+            />
           )}
         </div>
       )}
+
+      {/* Lead drill-down panel (source or status) */}
+      {selectedLeadFilter && renderLeadPanel?.(selectedLeadFilter)}
     </div>
   )
 }

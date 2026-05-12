@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface OpportunityVelocityData {
-  flowTrend: { month: string; opportunitiesCreated: number; opportunitiesWon: number }[]
+  flowTrend: {
+    month: string
+    startDate: string
+    endDate: string
+    opportunitiesCreated: number
+    opportunitiesWon: number
+  }[]
 }
 
 export interface OpportunityVelocityConfig {
@@ -91,6 +97,8 @@ export const useGenericOpportunityVelocityData = (accessToken: string, config: O
         // Process monthly aggregates for velocity trend
         const flowTrend = monthlyPeriods.map((period, idx) => ({
           month: period.label,
+          startDate: period.start,
+          endDate: period.end,
           opportunitiesCreated: result[`month${idx}Total`]?.aggregate?.count || 0,
           opportunitiesWon: result[`month${idx}Won`]?.aggregate?.count || 0
         }))

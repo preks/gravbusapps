@@ -3,6 +3,8 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface RevenueTrendData {
   month: string
+  startDate: string
+  endDate: string
   pipelineRevenue: number
   wonRevenue: number
   opportunities: number
@@ -27,7 +29,8 @@ export const useRevenueTrends = (
   selectedPipelineId?: string,
   currencyCode?: string,
   entityName: 'Opportunity' | 'InvestmentOpportunity' = 'Opportunity',
-  pipelineFieldName: 'salesPipeline' | 'opportunityPipeline' = 'salesPipeline'
+  pipelineFieldName: 'salesPipeline' | 'opportunityPipeline' = 'salesPipeline',
+  statusFieldName: 'code' | 'type' = 'code'
 ) => {
   const [revenueTrends, setRevenueTrends] = useState<RevenueTrendData[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -64,7 +67,7 @@ export const useRevenueTrends = (
             where: {
               ${baseWhere}
               createdAt: {_gte: "${period.start}", _lt: "${period.end}"}
-              opportunityStatus: {code: {_eq: "WON"}}
+              opportunityStatus: {${statusFieldName}: {_eq: "WON"}}
             }
           ) {
             aggregate {
@@ -88,6 +91,8 @@ export const useRevenueTrends = (
 
           return {
             month: period.label,
+            startDate: period.start,
+            endDate: period.end,
             pipelineRevenue: totalAmount - wonAmount,
             wonRevenue: wonAmount,
             opportunities: result[`period${index}`]?.aggregate?.count || 0
@@ -105,7 +110,16 @@ export const useRevenueTrends = (
     if (accessToken) {
       fetchRevenueTrends()
     }
-  }, [accessToken, graphqlClient, timeFilter, selectedPipelineId, currencyCode, entityName, pipelineFieldName])
+  }, [
+    accessToken,
+    graphqlClient,
+    timeFilter,
+    selectedPipelineId,
+    currencyCode,
+    entityName,
+    pipelineFieldName,
+    statusFieldName
+  ])
 
   return { revenueTrends, isLoading, error }
 }

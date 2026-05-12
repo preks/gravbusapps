@@ -3,6 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface LeadSourceData {
   source: string
+  sourceRef: string
   count: number
   convertedCount: number
   conversionRate: number
@@ -11,6 +12,7 @@ export interface LeadSourceData {
 
 export interface LeadStatusData {
   status: string
+  statusRef: string
   count: number
 }
 
@@ -154,6 +156,7 @@ export const useGenericLeadsStaticData = (accessToken: string, config: LeadsEnti
 
             return {
               source: source.value,
+              sourceRef: source.id,
               count,
               convertedCount,
               conversionRate,
@@ -170,6 +173,7 @@ export const useGenericLeadsStaticData = (accessToken: string, config: LeadsEnti
 
             return {
               status: status.value,
+              statusRef: status.id,
               count
             }
           })

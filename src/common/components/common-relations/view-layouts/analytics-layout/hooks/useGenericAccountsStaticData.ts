@@ -14,7 +14,6 @@ export interface MonthlyGrowthPoint {
   date: string
   accountsCreated: number
   accountsWithOpportunities: number
-  accountsActive: number
 }
 
 export interface AccountsStaticData {
@@ -51,17 +50,6 @@ const buildAccountOpportunityFilter = (config: AccountsEntityConfig): string => 
     return `${config.opportunityRelation}: {isDeleted: {_eq: false}}`
   }
   return `${config.opportunityRelation || 'opportunity'}: {id: {_isNull: false}}`
-}
-
-// Helper function to build opportunity filter with date range for active accounts
-const buildActiveAccountOpportunityFilter = (config: AccountsEntityConfig, cutoffDate: string): string => {
-  if (config.isJunctionTable) {
-    return `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, updatedAt: {_gte: "${cutoffDate}"}}}`
-  }
-  if (config.isOpportunityRelationList) {
-    return `${config.opportunityRelation}: {updatedAt: {_gte: "${cutoffDate}"}}`
-  }
-  return `${config.opportunityRelation || 'opportunity'}: {updatedAt: {_gte: "${cutoffDate}"}}`
 }
 
 // Helper function to build opportunity filter for accounts with won opportunities
@@ -132,30 +120,17 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
               }
             ) { aggregate { count } }
           `,
-            // Accounts with opportunities (cumulative up to end of month)
+            // Accounts with opportunities created in this month
             `
             month_${i}_withOpportunities: ${config.accountEntity}Aggregate(
               where: {
                 isDeleted: {_eq: false}
-                createdAt: {_lt: "${monthEnd}"}
+                createdAt: {_gte: "${monthStart}", _lt: "${monthEnd}"}
                 ${buildAccountOpportunityFilter(config)}
               }
             ) { aggregate { count } }
           `
           )
-
-          // Active accounts (with opportunities updated in last 90 days from month end)
-          const activeThreshold = new Date(monthDate)
-          activeThreshold.setDate(activeThreshold.getDate() - 90)
-          monthlyGrowthQueries.push(`
-            month_${i}_active: ${config.accountEntity}Aggregate(
-              where: {
-                isDeleted: {_eq: false}
-                createdAt: {_lt: "${monthEnd}"}
-                ${buildActiveAccountOpportunityFilter(config, activeThreshold.toISOString())}
-              }
-            ) { aggregate { count } }
-          `)
         }
 
         // === STEP 2: MEGA KPI QUERY - Combine KPIs + trends + monthly aggregates ===
@@ -248,8 +223,7 @@ export const useGenericAccountsStaticData = (accessToken: string, config: Accoun
           month: month.label,
           date: month.start,
           accountsCreated: result[`month_${5 - index}_created`]?.aggregate?.count || 0,
-          accountsWithOpportunities: result[`month_${5 - index}_withOpportunities`]?.aggregate?.count || 0,
-          accountsActive: result[`month_${5 - index}_active`]?.aggregate?.count || 0
+          accountsWithOpportunities: result[`month_${5 - index}_withOpportunities`]?.aggregate?.count || 0
         }))
 
         // Calculate basic metrics (used by multiple sections)

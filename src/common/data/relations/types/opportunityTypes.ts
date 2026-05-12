@@ -75,7 +75,9 @@ export const OpportunityFields = {
   ownerEmployeeId: 'ownerEmployeeId',
   rejectionReasons: 'rejectionReasons',
   tasks: 'tasks',
-  winningChance: 'winningChance'
+  winningChance: 'winningChance',
+  companyId: 'companyId', // CRM-only — override to undefined in IRM
+  company: 'company' // CRM-only — override to undefined in IRM
 } as const
 
 export type OpportunityFieldName = (typeof OpportunityFields)[keyof typeof OpportunityFields]

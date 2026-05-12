@@ -23,6 +23,7 @@ export interface OpenPipelineByStageChartProps {
   pipelines?: Pipeline[]
   selectedPipelineId?: string
   onPipelineChange?: (pipelineId: string | undefined) => void
+  onStageClick?: (stage: string, stageRef: string, pipelineId?: string) => void
 }
 
 export const OpenPipelineByStageChart: React.FC<OpenPipelineByStageChartProps> = ({
@@ -31,7 +32,8 @@ export const OpenPipelineByStageChart: React.FC<OpenPipelineByStageChartProps> =
   moduleColor = 'default',
   pipelines = [],
   selectedPipelineId,
-  onPipelineChange
+  onPipelineChange,
+  onStageClick
 }) => {
   const chartConfig = useMemo(
     () =>
@@ -106,11 +108,26 @@ export const OpenPipelineByStageChart: React.FC<OpenPipelineByStageChartProps> =
             </div>
           </div>
           <ChartContainer config={chartConfig} className="gba:h-48 gba:w-full">
-            <BarChart data={data} layout="vertical" margin={{ top: 5, right: 15, left: 40, bottom: 5 }}>
+            <BarChart
+              data={data}
+              layout="vertical"
+              margin={{ top: 5, right: 15, left: 40, bottom: 5 }}
+              style={onStageClick ? { cursor: 'pointer' } : undefined}
+            >
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="stage" tick={{ fontSize: 11 }} width={75} />
-              <ChartTooltip content={<ChartTooltipContent formatter={(value: number) => [`${value}`, 'Open']} />} />
-              <Bar dataKey="count" fill="var(--color-count)" radius={[0, 3, 3, 0]} />
+              <ChartTooltip content={<ChartTooltipContent formatter={(value: number) => [`${value} Open`, '']} />} />
+              <Bar
+                dataKey="count"
+                fill="var(--color-count)"
+                radius={[0, 3, 3, 0]}
+                onClick={(item: StageItem) => {
+                  if (onStageClick && item?.stage && item?.stageRef) {
+                    onStageClick(item.stage, item.stageRef, selectedPipelineId)
+                  }
+                }}
+                style={onStageClick ? { cursor: 'pointer' } : undefined}
+              />
             </BarChart>
           </ChartContainer>
         </div>

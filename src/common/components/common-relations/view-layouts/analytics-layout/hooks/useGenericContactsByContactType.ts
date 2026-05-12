@@ -9,6 +9,10 @@ export interface ContactsByContactTypeItem {
 
 export interface ContactsByContactTypeConfig {
   accountContactAggregate: 'AccountContactAggregate' | 'InvestmentAccountContactAggregate'
+  /** Contact aggregate entity (e.g. 'ContactAggregate' or 'InvestmentContactAggregate'). Used for unique-contact counting. */
+  contactAggregate: 'ContactAggregate' | 'InvestmentContactAggregate'
+  /** Junction field name on the Contact entity (e.g. 'accountContacts' or 'investmentAccountContact'). */
+  junctionField: 'accountContacts' | 'investmentAccountContact'
 }
 
 type ContactTypeAggregateResult = Record<string, { aggregate?: { count?: number } }>
@@ -31,10 +35,13 @@ export const useGenericContactsByContactType = (accessToken: string, config: Con
         const aggregateQueries = contactTypes
           .map(
             (contactType, index) => `
-              type_${index}: ${config.accountContactAggregate}(
+              type_${index}: ${config.contactAggregate}(
                 where: {
                   isDeleted: {_eq: false}
-                  contactType: {_eq: "${contactType}"}
+                  ${config.junctionField}: {
+                    contactType: {_eq: "${contactType}"}
+                    isDeleted: {_eq: false}
+                  }
                 }
               ) {
                 aggregate { count }
@@ -65,7 +72,7 @@ export const useGenericContactsByContactType = (accessToken: string, config: Con
     }
 
     fetchContactsByContactType()
-  }, [accessToken, graphqlClient, config.accountContactAggregate])
+  }, [accessToken, graphqlClient, config.contactAggregate, config.junctionField])
 
   return { data, isLoading }
 }

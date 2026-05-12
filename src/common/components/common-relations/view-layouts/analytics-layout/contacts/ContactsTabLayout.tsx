@@ -9,6 +9,8 @@ export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historica
 
 export interface ContactsOverTimePoint {
   date: string
+  startDate: string
+  endDate: string
   contactsCreated: number
 }
 
@@ -31,6 +33,11 @@ export interface ContactsTabLayoutProps {
   qualityData?: ContactQualityData
   moduleColor?: string
   module: 'crm' | 'irm'
+  selectedContactType?: string | null
+  onContactTypeClick?: (type: string) => void
+  renderContactTypeDrillDown?: (type: string) => React.ReactNode
+  onLifecyclePointClick?: (label: string, startDate: string, endDate: string) => void
+  renderLifecycleDrillDown?: React.ReactNode
 }
 
 export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
@@ -49,7 +56,12 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   contactsByContactType = [],
   contactsByContactTypeLoading = false,
   qualityData,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  selectedContactType,
+  onContactTypeClick,
+  renderContactTypeDrillDown,
+  onLifecyclePointClick,
+  renderLifecycleDrillDown
 }) => {
   // Helper to calculate trend percentage
   const calculateTrendPercent = (current: number, previous: number): number => {
@@ -150,6 +162,8 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         moduleColor={moduleColor}
+        onPointClick={onLifecyclePointClick}
+        renderDrillDown={renderLifecycleDrillDown}
       />
 
       <ContactDistributionPie
@@ -159,7 +173,11 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
         isLoading={contactsByContactTypeLoading}
         moduleColor={moduleColor}
         dataTestId="contacts-by-contact-type-chart"
+        onTypeClick={onContactTypeClick}
+        selectedType={selectedContactType}
       />
+
+      {selectedContactType && renderContactTypeDrillDown?.(selectedContactType)}
 
       {qualityData && <ContactQualityMatrix data={qualityData} moduleColor={moduleColor} />}
     </div>

@@ -9,7 +9,8 @@ export const useOverviewData = (accessToken: string, currencyCode?: string) => {
       leadEntity: 'Lead',
       accountEntity: 'Account',
       opportunityEntity: 'Opportunity',
-      contactEntity: 'Contact'
+      contactEntity: 'Contact',
+      addressEntity: 'CrmAddress'
     },
     currencyCode
   )

@@ -5,6 +5,8 @@ export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historica
 
 export interface OpportunityTimeSeriesData {
   date: string
+  startDate: string
+  endDate: string
   count: number
   value: number
   opportunitiesCreated: number
@@ -178,6 +180,8 @@ export const useGenericOpportunitiesOverTime = (
 
         return {
           date: period.key,
+          startDate: period.start,
+          endDate: period.end,
           count: totalCount,
           value: totalValue,
           opportunitiesCreated: totalCount,

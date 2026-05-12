@@ -53,6 +53,12 @@ export interface CustomerContactQueryVariables extends CommonContactQueryVariabl
   missingEmail?: boolean
   hasPhone?: boolean
   missingPhone?: boolean
+  hasFirstName?: boolean
+  missingFirstName?: boolean
+  hasLastName?: boolean
+  missingLastName?: boolean
+  hasAccountLink?: boolean
+  missingAccountLink?: boolean
   birthDateFrom?: string
   birthDateTo?: string
 }

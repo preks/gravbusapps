@@ -93,7 +93,7 @@ export interface InvestmentOpportunityStageCondition extends OpportunityStageCon
  */
 export const InvestmentOpportunityFields = (() => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { account, accountId, ...fields } = OpportunityFields
+  const { account, accountId, companyId, company, ...fields } = OpportunityFields
   return {
     ...fields,
     // Override IRM-specific field names

@@ -9,12 +9,7 @@ export const useActivityHeatmap = (accessToken: string) => {
   const config = useMemo(
     () => ({
       accessToken,
-      entityAggregates: [
-        'InvestmentLeadAggregate',
-        'InvestmentAccountAggregate',
-        'InvestmentOpportunityAggregate',
-        'InvestmentContactAggregate'
-      ],
+      entityAggregates: ['InvestmentActivityAggregate'],
       days: 30
     }),
     [accessToken]

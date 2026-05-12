@@ -19,12 +19,14 @@ export interface ActivityHeatmapChartProps {
   data: ActivityHeatmapData[]
   isLoading?: boolean
   moduleColor?: string
+  onDateClick?: (date: string, fullDate: string) => void
 }
 
 export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
   data,
   isLoading,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  onDateClick
 }) => {
   // Chart config for timeline
   const timelineChartConfig = useMemo(
@@ -121,8 +123,32 @@ export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
           </div>
 
           {/* Timeline Chart */}
-          <ChartContainer config={timelineChartConfig} className="gba:h-[300px] gba:w-full">
-            <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <ChartContainer
+            config={timelineChartConfig}
+            className={`gba:h-[300px] gba:w-full ${onDateClick ? 'gba:cursor-pointer' : ''}`}
+          >
+            <ComposedChart
+              data={data}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              onClick={
+                onDateClick
+                  ? (chartData: any) => {
+                      // activePayload is set when hovering before click
+                      const payload = chartData?.activePayload?.[0]?.payload as ActivityHeatmapData | undefined
+                      if (payload?.fullDate) {
+                        onDateClick(payload.date, payload.fullDate)
+                        return
+                      }
+                      // Fallback: match by activeLabel (the date tick label)
+                      const activeLabel = chartData?.activeLabel as string | undefined
+                      if (activeLabel) {
+                        const found = data.find(d => d.date === activeLabel)
+                        if (found) onDateClick(found.date, found.fullDate)
+                      }
+                    }
+                  : undefined
+              }
+            >
               <XAxis
                 dataKey="date"
                 tick={{ fontSize: 11 }}
@@ -142,8 +168,19 @@ export const ActivityHeatmapChart: React.FC<ActivityHeatmapChartProps> = ({
                 stroke="var(--color-activities)"
                 strokeWidth={2}
                 name="Total Activities"
-                dot={{ r: 3 }}
-                activeDot={{ r: 5 }}
+                dot={onDateClick ? { r: 4, style: { cursor: 'pointer' } } : { r: 3 }}
+                activeDot={
+                  onDateClick
+                    ? {
+                        r: 6,
+                        style: { cursor: 'pointer' },
+                        onClick: (_event: any, dotPayload: any) => {
+                          const point = dotPayload?.payload as ActivityHeatmapData | undefined
+                          if (point?.fullDate) onDateClick(point.date, point.fullDate)
+                        }
+                      }
+                    : { r: 5 }
+                }
               />
             </ComposedChart>
           </ChartContainer>

@@ -3,6 +3,8 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface ContactsOverTimePoint {
   date: string
+  startDate: string
+  endDate: string
   contactsCreated: number
 }
 
@@ -63,6 +65,8 @@ export const useGenericContactsOverTime = (
         // Process results
         const contactsOverTimeData: ContactsOverTimePoint[] = periods.map((period, index) => ({
           date: period.label,
+          startDate: period.start,
+          endDate: period.end,
           contactsCreated: result[`period_${index}_created`]?.aggregate?.count || 0
         }))
 

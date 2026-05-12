@@ -29,6 +29,8 @@ export interface ContactDistributionPieProps {
   isLoading?: boolean
   moduleColor?: string
   dataTestId: string
+  onTypeClick?: (type: string) => void
+  selectedType?: string | null
 }
 
 const toChartKey = (value: string): string =>
@@ -43,13 +45,16 @@ export const ContactDistributionPie: React.FC<ContactDistributionPieProps> = ({
   data,
   isLoading = false,
   moduleColor = 'default',
-  dataTestId
+  dataTestId,
+  onTypeClick,
+  selectedType
 }) => {
   const chartData = useMemo(() => {
     return data.map(item => {
       const key = toChartKey(item.label)
       return {
         label: key,
+        displayLabel: item.label,
         contacts: item.count,
         fill: `var(--color-${key})`
       }
@@ -63,6 +68,8 @@ export const ContactDistributionPie: React.FC<ContactDistributionPieProps> = ({
     })
     return config as ChartConfig
   }, [data])
+
+  const labelByKey = useMemo(() => Object.fromEntries(data.map(item => [toChartKey(item.label), item.label])), [data])
 
   return (
     <Card data-testid={dataTestId} className="gba:flex gba:flex-col">
@@ -84,8 +91,36 @@ export const ContactDistributionPie: React.FC<ContactDistributionPieProps> = ({
             className="[&_.recharts-pie-label-text]:fill-foreground gba:mx-auto gba:aspect-square gba:max-h-80"
           >
             <PieChart>
-              <Pie data={chartData} cx="50%" cy="40%" outerRadius={90} dataKey="contacts" nameKey="label" />
-              <ChartTooltip content={<ChartTooltipContent hideLabel labelKey="contacts" nameKey="label" />} />
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="40%"
+                outerRadius={90}
+                dataKey="contacts"
+                nameKey="label"
+                style={onTypeClick ? { cursor: 'pointer' } : undefined}
+                onClick={
+                  onTypeClick
+                    ? (item: any) => {
+                        if (item?.displayLabel) onTypeClick(item.displayLabel)
+                      }
+                    : undefined
+                }
+                strokeWidth={selectedType ? 1 : 0}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    hideLabel
+                    labelKey="contacts"
+                    nameKey="label"
+                    formatter={(value: number, name: string) => {
+                      const displayName = labelByKey[name] ?? name
+                      return [`${displayName} ${value}`, '']
+                    }}
+                  />
+                }
+              />
               <ChartLegend
                 content={<ChartLegendContent className="gba:flex-wrap gba:gap-4 [&>*]:whitespace-nowrap" />}
               />
