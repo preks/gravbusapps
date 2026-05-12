@@ -48,6 +48,13 @@ describe('resolveEntityLink', () => {
       expect(resolved?.id).toBe(id)
       expect(resolved?.url).toBe(`/platform/apps/flow/apps/launcher?tab=my-launches&flowId=${id}`)
     })
+
+    it('builds the Flow Studio draft URL when a draftId is embedded', () => {
+      const resolved = resolveEntityLink('service_workflow://draft-123?draftId=draft-123')
+
+      expect(resolved?.url).toBe('/platform/create/flow-studio?draftId=draft-123#manage')
+      expect(resolved?.id).toBe('draft-123')
+    })
   })
 
   describe('workflow_template protocol', () => {
@@ -78,5 +85,10 @@ describe('getEntityUrl', () => {
   it('returns the items-list URL via link resolution too', () => {
     const url = getEntityUrl('expense_item', 'item-1234', 'expense_item://item-1234')
     expect(url).toBe('/platform/fin/expenses/personal-expenses?tab=expense-items')
+  })
+
+  it('preserves direct Flow Studio draft links', () => {
+    const url = getEntityUrl('service_workflow', 'draft-123', '/platform/create/flow-studio?draftId=draft-123#manage')
+    expect(url).toBe('/platform/create/flow-studio?draftId=draft-123#manage')
   })
 })

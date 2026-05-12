@@ -548,6 +548,40 @@ export type NarrationAttachOutput = {
   step_id: string
 }
 
+/**
+ * Status of a single item in the agent's plan / to-do list. Mirrors
+ * deepagents' TodoListMiddleware state and the backend
+ * AgentPlanItemStatus literal.
+ */
+export type AgentPlanItemStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled'
+
+export type AgentPlanItem = {
+  id: string
+  content: string
+  status: AgentPlanItemStatus
+}
+
+/**
+ * First snapshot of the agent's plan for the current turn. Frontend creates
+ * one AgentPlanPanel per turn keyed by `id`; subsequent
+ * AgentPlanUpdateOutput events refresh the checklist in place.
+ */
+export type AgentPlanOutput = {
+  type: 'agent_plan'
+  id: string
+  items: AgentPlanItem[]
+}
+
+/**
+ * Full-snapshot update of the agent plan emitted on every `write_todos`
+ * call. Items array is the new full snapshot, not a delta.
+ */
+export type AgentPlanUpdateOutput = {
+  type: 'agent_plan_update'
+  id: string
+  items: AgentPlanItem[]
+}
+
 export type OutputItem =
   | AnswerOutput
   | ToolOutput
@@ -562,6 +596,8 @@ export type OutputItem =
   | ReasoningStepUpdateOutput
   | TextDeltaOutput
   | NarrationAttachOutput
+  | AgentPlanOutput
+  | AgentPlanUpdateOutput
 
 export type ChatOutput = {
   items: OutputItem[]

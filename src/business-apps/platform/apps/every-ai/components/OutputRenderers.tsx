@@ -411,8 +411,8 @@ function renderEntity(item: EntityData, accessToken: string) {
           workflowId={item.id}
           accessToken={accessToken}
           operation={item.operation}
-          flowProposal={item.flow_proposal}
           textTitle={item.text_title}
+          textHuman={item.text_human}
           tool={item.tool}
           link={item.link}
           textFull={item.text_full}
@@ -1433,6 +1433,12 @@ export const OutputItemRenderer: React.FC<{
     case 'narration_attach':
       // Pure dispatch event: the hook moves the streaming bubble's text
       // into the matching reasoning step's `narration`. Nothing to render.
+      return null
+    case 'agent_plan':
+    case 'agent_plan_update':
+      // Plan snapshots are rendered at the turn level by
+      // UnifiedAIMessageRenderer (pinned above the answer). Nothing to do
+      // when they appear inline in the output stream.
       return null
     case 'document_stream_start':
       return <DocumentStreamStartDisplay data={item} />

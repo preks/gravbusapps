@@ -56,6 +56,7 @@ const ENTITY_URL_PATTERNS = [
 
   // Flow/Workflow entities
   { pattern: /\/platform\/create\/flow-studio\?[^#]*flowId=([^&#]+)/, entity_name: 'workflow_template' },
+  { pattern: /\/platform\/create\/flow-studio\?[^#]*draftId=([^&#]+)/, entity_name: 'workflow_template' },
 
   // Every-office entities
   { pattern: /\/platform\/every-office\/slides\?[^#]*slideId=([^&]+)/, entity_name: 'slide' },

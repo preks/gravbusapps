@@ -44,6 +44,7 @@ import { FlowStudioCreateView } from './views/FlowStudioCreateView'
 import { FlowStudioListView } from './views/FlowStudioListView'
 
 const FLOW_ID_PARAM = 'flowId'
+const DRAFT_ID_PARAM = 'draftId'
 const FLOW_ID_NEW = 'new'
 const UNTITLED_FLOW_NAME = 'Untitled Flow'
 const LIST_VIEW_CREATE = 'create'
@@ -103,18 +104,47 @@ function getFlowIdFromUrl(): string | null {
   return id || null
 }
 
+function getDraftIdFromUrl(): string | null {
+  if (globalThis.window === undefined) return null
+  const urlParams = new URLSearchParams(globalThis.location.search)
+  const id = urlParams.get(DRAFT_ID_PARAM)?.trim() ?? ''
+  return id || null
+}
+
 function updateUrlWithFlowId(flowId: string | null, push = false): void {
   if (globalThis.window === undefined) return
   const urlParams = new URLSearchParams(globalThis.location.search)
   if (flowId) {
     urlParams.set(FLOW_ID_PARAM, flowId)
+    urlParams.delete(DRAFT_ID_PARAM)
   } else {
     urlParams.delete(FLOW_ID_PARAM)
+    urlParams.delete(DRAFT_ID_PARAM)
   }
   const query = urlParams.toString()
   const newUrl = query
     ? `${globalThis.location.pathname}?${query}${globalThis.location.hash}`
     : `${globalThis.location.pathname}${globalThis.location.hash}`
+  if (push) {
+    globalThis.history.pushState({}, '', newUrl)
+  } else {
+    globalThis.history.replaceState({}, '', newUrl)
+  }
+}
+
+function updateUrlWithDraftId(draftId: string | null, push = false): void {
+  if (globalThis.window === undefined) return
+  const urlParams = new URLSearchParams(globalThis.location.search)
+  if (draftId) {
+    urlParams.set(DRAFT_ID_PARAM, draftId)
+    urlParams.delete(FLOW_ID_PARAM)
+  } else {
+    urlParams.delete(DRAFT_ID_PARAM)
+    urlParams.delete(FLOW_ID_PARAM)
+  }
+  const query = urlParams.toString()
+  const hash = draftId ? '#manage' : globalThis.location.hash
+  const newUrl = query ? `${globalThis.location.pathname}?${query}${hash}` : `${globalThis.location.pathname}${hash}`
   if (push) {
     globalThis.history.pushState({}, '', newUrl)
   } else {
@@ -172,9 +202,12 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const selectNode = useFlowStudioStore(s => s.selectNode)
   const selectEdge = useFlowStudioStore(s => s.selectEdge)
 
-  const { saveFlow, loadFlow, isLoading } = useFlowStudioClient(accessToken)
+  const { saveFlow, loadFlow, loadDraft, isLoading } = useFlowStudioClient(accessToken)
   const urlFlowIdOnMount = getFlowIdFromUrl()
-  const [view, setView] = useState<'list' | 'designer'>(templateId || urlFlowIdOnMount ? 'designer' : 'list')
+  const urlDraftIdOnMount = getDraftIdFromUrl()
+  const [view, setView] = useState<'list' | 'designer'>(
+    templateId || urlFlowIdOnMount || urlDraftIdOnMount ? 'designer' : 'list'
+  )
   const [listSubView, setListSubView] = useState<ListSubView>(() => getListSubViewFromHash())
   const [labelsOpen, setLabelsOpen] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
@@ -337,6 +370,22 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     setSaveNameError(null)
   }, [saveNameDialogOpen])
 
+  const loadFlowOrDraft = useCallback(
+    async (id: string) => {
+      try {
+        await loadFlow(id)
+      } catch (flowError) {
+        try {
+          await loadDraft(id)
+          updateUrlWithDraftId(id)
+        } catch {
+          throw flowError
+        }
+      }
+    },
+    [loadDraft, loadFlow]
+  )
+
   // Load flow when templateId prop is set (parent control)
   useEffect(() => {
     if (!templateId) return
@@ -348,23 +397,34 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   useEffect(() => {
     if (templateId || !urlFlowIdOnMount) return
     setView('designer')
-    loadFlow(urlFlowIdOnMount).catch(() => updateUrlWithFlowId(null))
-  }, [loadFlow, templateId, urlFlowIdOnMount])
+    loadFlowOrDraft(urlFlowIdOnMount).catch(() => updateUrlWithFlowId(null))
+  }, [loadFlowOrDraft, templateId, urlFlowIdOnMount])
+
+  // Load draft from URL on mount when no persisted flow id is present.
+  useEffect(() => {
+    if (templateId || urlFlowIdOnMount || !urlDraftIdOnMount) return
+    setView('designer')
+    loadDraft(urlDraftIdOnMount).catch(() => updateUrlWithFlowId(null))
+  }, [loadDraft, templateId, urlDraftIdOnMount, urlFlowIdOnMount])
 
   // React to browser back/forward (URL change)
   useEffect(() => {
     const handlePopState = () => {
-      const id = getFlowIdFromUrl()
-      if (id) {
+      const flowId = getFlowIdFromUrl()
+      const draftId = getDraftIdFromUrl()
+      if (flowId) {
         setView('designer')
-        loadFlow(id).catch(() => updateUrlWithFlowId(null))
+        loadFlowOrDraft(flowId).catch(() => updateUrlWithFlowId(null))
+      } else if (draftId) {
+        setView('designer')
+        loadDraft(draftId).catch(() => updateUrlWithFlowId(null))
       } else {
         setView('list')
       }
     }
     globalThis.addEventListener('popstate', handlePopState)
     return () => globalThis.removeEventListener('popstate', handlePopState)
-  }, [loadFlow])
+  }, [loadDraft, loadFlowOrDraft])
 
   useKeyboardShortcuts({ onSave: requestSave, enabled: view === 'designer' })
 

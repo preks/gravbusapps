@@ -1,9 +1,11 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { FlowStudio } from './FlowStudio'
 
 const createLayoutMock = jest.fn()
 const useFlowStudioClientMock = jest.fn()
+const loadFlowMock = jest.fn()
+const loadDraftMock = jest.fn()
 
 const mockFlowStudioStoreState = {
   mode: 'simple',
@@ -129,6 +131,9 @@ jest.mock('@/business-apps/flow/providers', () => ({
 
 describe('FlowStudio', () => {
   beforeEach(() => {
+    loadFlowMock.mockResolvedValue(undefined)
+    loadDraftMock.mockResolvedValue(undefined)
+
     createLayoutMock.mockImplementation(
       ({
         heroVariant,
@@ -157,7 +162,8 @@ describe('FlowStudio', () => {
 
     useFlowStudioClientMock.mockReturnValue({
       saveFlow: jest.fn(),
-      loadFlow: jest.fn(),
+      loadFlow: loadFlowMock,
+      loadDraft: loadDraftMock,
       isLoading: false
     })
 
@@ -166,6 +172,8 @@ describe('FlowStudio', () => {
 
   afterEach(() => {
     jest.clearAllMocks()
+    loadFlowMock.mockReset()
+    loadDraftMock.mockReset()
   })
 
   it('renders the list overview inside CreateLayout overview mode', () => {
@@ -191,5 +199,27 @@ describe('FlowStudio', () => {
 
     expect(screen.queryByTestId('flow-studio-hero-create')).not.toBeInTheDocument()
     expect(screen.getByTestId('flow-studio-list-view-create')).toBeInTheDocument()
+  })
+
+  it('loads a draft from the URL when draftId is present', () => {
+    globalThis.history.replaceState({}, '', '/platform/create/flow-studio?draftId=draft-123#manage')
+
+    render(<FlowStudio accessToken="token" />)
+
+    expect(loadDraftMock).toHaveBeenCalledWith('draft-123')
+  })
+
+  it('falls back to loading a draft when a flowId URL points to an unsaved draft', async () => {
+    loadFlowMock.mockRejectedValueOnce(new Error('Template not found'))
+    globalThis.history.replaceState({}, '', '/platform/create/flow-studio?flowId=draft-123#flows')
+
+    render(<FlowStudio accessToken="token" />)
+
+    expect(loadFlowMock).toHaveBeenCalledWith('draft-123')
+    await waitFor(() => expect(loadDraftMock).toHaveBeenCalledWith('draft-123'))
+    await waitFor(() => {
+      expect(globalThis.location.search).toBe('?draftId=draft-123')
+      expect(globalThis.location.hash).toBe('#manage')
+    })
   })
 })

@@ -7,6 +7,8 @@ import { useVoiceSynthesis } from './hooks/useVoiceSynthesis'
 import { ChatInput } from './components/ChatInput'
 import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
+import { AgentPlanPanel } from './components/AgentPlanPanel'
+import { selectLatestAgentPlan } from './components/agentPlanUtils'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
 import { ChatHistory } from './components/ChatHistory'
 import type { OutputItem, AnswerOutput, NavigationData, DisplayData } from './types/models'
@@ -67,6 +69,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [isDesktopPlanLayout, setIsDesktopPlanLayout] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
   const lastNavigatedTurnIndexRef = useRef<number>(-1)
@@ -647,6 +650,20 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   }, [])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const mediaQuery = window.matchMedia('(min-width: 1024px)')
+    const applyLayoutMode = () => setIsDesktopPlanLayout(mediaQuery.matches)
+
+    applyLayoutMode()
+    mediaQuery.addEventListener('change', applyLayoutMode)
+
+    return () => {
+      mediaQuery.removeEventListener('change', applyLayoutMode)
+    }
+  }, [])
+
   const handleSessionSelect = useCallback(
     async (sessionIdToLoad: string) => {
       if (typeof window !== 'undefined') {
@@ -709,6 +726,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   )
 
   const isEmptyState = conversation.length === 0 && !isLoading
+
+  // Single, conversation-wide plan panel pinned to the right of the chat.
+  // Scans the whole conversation so the panel persists across follow-up
+  // turns that don't re-emit a plan event.
+  const latestAgentPlan = useMemo(() => selectLatestAgentPlan(extendedConversation), [extendedConversation])
 
   // Mobile webview fix: the webview viewport can be wider than the device
   // screen (e.g. 671px vs 430px), causing content to be clipped on the right.
@@ -782,46 +804,65 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
       <FormSubmissionProvider>
         <FlowProposalFileUploadProvider upload={attachFilesForFlowProposalField}>
-          {/* Conversation Area with subtle gradient */}
-          <div
-            ref={scrollRef}
-            className="gba:flex-1 gba:overflow-y-auto gba:relative gba:z-10 gba:flex gba:flex-col"
-            data-testid="conversation-area"
-          >
-            {conversation.length === 0 && !isLoading ? (
-              <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-0">
-                <HeroSection data-testid="every-ai-hero" />
-              </div>
-            ) : (
-              <div className="gba:p-6">
-                {hasMoreHistory && (
-                  <div className="gba:flex gba:justify-center gba:pb-4">
-                    <Button
-                      onClick={handleLoadMoreHistory}
-                      variant="ghost"
-                      size="sm"
-                      disabled={isLoadingMoreHistory}
-                      className="gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
-                      data-testid="every-ai-load-more-history"
-                    >
-                      {isLoadingMoreHistory ? <Spinner size="sm" /> : 'Load older messages'}
-                    </Button>
-                  </div>
-                )}
-                <ConversationRenderer
-                  turns={renderConversation}
-                  accessToken={accessToken}
-                  sendMessage={handleConversationSend}
-                  editMessage={editMessage}
-                  userInfo={userInfo}
-                  pictureThumbnail={pictureThumbnail}
-                  isVoiceMode={isSpeechMode}
-                  sessionId={sessionId ?? undefined}
-                  onCancelGeneration={cancelGeneration}
-                  isAgentGenerating={isLoading}
-                />
-              </div>
-            )}
+          {/* Conversation + side panel band */}
+          <div className="gba:flex-1 gba:flex gba:overflow-hidden gba:relative gba:z-10 gba:min-h-0">
+            {/* Conversation Area with subtle gradient */}
+            <div
+              ref={scrollRef}
+              className="gba:flex-1 gba:overflow-y-auto gba:flex gba:flex-col gba:min-w-0"
+              data-testid="conversation-area"
+            >
+              {conversation.length === 0 && !isLoading ? (
+                <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-0">
+                  <HeroSection data-testid="every-ai-hero" />
+                </div>
+              ) : (
+                <div className="gba:p-6">
+                  {hasMoreHistory && (
+                    <div className="gba:flex gba:justify-center gba:pb-4">
+                      <Button
+                        onClick={handleLoadMoreHistory}
+                        variant="ghost"
+                        size="sm"
+                        disabled={isLoadingMoreHistory}
+                        className="gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
+                        data-testid="every-ai-load-more-history"
+                      >
+                        {isLoadingMoreHistory ? <Spinner size="sm" /> : 'Load older messages'}
+                      </Button>
+                    </div>
+                  )}
+                  <ConversationRenderer
+                    turns={renderConversation}
+                    accessToken={accessToken}
+                    sendMessage={handleConversationSend}
+                    editMessage={editMessage}
+                    userInfo={userInfo}
+                    pictureThumbnail={pictureThumbnail}
+                    isVoiceMode={isSpeechMode}
+                    sessionId={sessionId ?? undefined}
+                    onCancelGeneration={cancelGeneration}
+                    isAgentGenerating={isLoading}
+                    hideInlinePlan={isDesktopPlanLayout && Boolean(latestAgentPlan)}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/*
+              Right-side plan panel. Only mounted when the agent has emitted
+              at least one plan event during the session, and never in the
+              empty state (the hero owns the visual real estate then).
+            */}
+            {latestAgentPlan && isDesktopPlanLayout && !isEmptyState ? (
+              <aside
+                className="gba:hidden gba:lg:flex gba:flex-col gba:w-80 gba:flex-shrink-0 gba:border-l gba:border-border gba:bg-background/60 gba:backdrop-blur-sm gba:overflow-y-auto gba:p-4"
+                data-testid="every-ai-plan-side-panel"
+                aria-label="Agent plan"
+              >
+                <AgentPlanPanel planId={latestAgentPlan.planId} items={latestAgentPlan.items} defaultExpanded />
+              </aside>
+            ) : null}
           </div>
 
           {/* Input Area - fully transparent, content behind shows through */}

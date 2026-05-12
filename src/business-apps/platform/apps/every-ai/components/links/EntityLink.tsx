@@ -92,6 +92,23 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
   const config = ENTITY_CONFIG[effectiveProtocol]
   if (!config) return null
 
+  // Unsaved workflow drafts (chat handoff) open Flow Studio in draft mode,
+  // regardless of whether the link came in as service_workflow or workflow_template.
+  if (effectiveProtocol === 'service_workflow' || effectiveProtocol === 'workflow_template') {
+    const draftId = embeddedParams.get('draftId')
+    if (draftId) {
+      return {
+        url: `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, { draftId })}#manage`,
+        protocol: effectiveProtocol,
+        id: draftId,
+        alternateId: metadata?.alternateId,
+        icon: config.icon(),
+        variant: config.variant,
+        showBorder: config.showBorder
+      }
+    }
+  }
+
   // Running workflow instances open in Flow Launcher (My launches detail).
   if (effectiveProtocol === 'service_workflow') {
     const instanceFlowId = embeddedParams.get('flowId') || embeddedParams.get('templateId') || effectiveId
@@ -163,6 +180,10 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
  * @returns The resolved platform URL or undefined if entity is unknown
  */
 export function getEntityUrl(entity: string, id: string, link?: string): string | undefined {
+  if (link?.includes('/platform/create/flow-studio')) {
+    return link
+  }
+
   // If link is provided, use unified resolution (handles alternateId and redirects)
   if (link) {
     const resolved = resolveEntityLink(link)

@@ -1,5 +1,7 @@
 import React from 'react'
-import type { OutputItem, ConversationTurn, ReasoningStepOutput } from '../types/models'
+import type { ConversationTurn, OutputItem, ReasoningStepOutput } from '../types/models'
+import { AgentPlanPanel } from './AgentPlanPanel'
+import { selectLatestPlanFromOutputs } from './agentPlanUtils'
 import { OutputItemRenderer, ReasoningStepsGroup } from './OutputRenderers'
 import { isTurnComplete, selectInlineReasoningStepIds } from './reasoningStepUtils'
 import { SparkleIcon } from '@phosphor-icons/react'
@@ -14,6 +16,13 @@ interface UnifiedAIMessageRendererProps {
   onCancelGeneration?: () => void
   isAgentGenerating?: boolean
   wrapInBubble?: boolean
+  /**
+   * When `true`, the renderer skips the per-turn AgentPlanPanel because
+   * the host surface (e.g. EveryAI) renders a single, conversation-wide
+   * plan panel on the right side of the chat. Defaults to `false` so
+   * embedded surfaces (Team Chat) keep showing the inline plan.
+   */
+  hideInlinePlan?: boolean
   className?: string
   headerContent?: React.ReactNode
   footerContent?: React.ReactNode
@@ -37,6 +46,7 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
   onCancelGeneration,
   isAgentGenerating,
   wrapInBubble = false,
+  hideInlinePlan = false,
   className = '',
   headerContent,
   footerContent,
@@ -54,9 +64,13 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
       outputType === 'tool' ||
       outputType === 'loading' ||
       outputType === 'reasoning_step' ||
-      outputType === 'reasoning_step_update'
+      outputType === 'reasoning_step_update' ||
+      outputType === 'agent_plan' ||
+      outputType === 'agent_plan_update'
     )
   })
+
+  const latestPlan = hideInlinePlan ? null : selectLatestPlanFromOutputs(filteredOutputs)
 
   // Once the turn has produced a *finalized* deliverable (a non-streaming
   // answer, a flow proposal, an entity card, …) the reasoning trail should
@@ -89,6 +103,9 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
 
   const content = (
     <div className={`gba:flex-1 gba:flex gba:flex-col ${isThinkingOnly ? 'gba:gap-1' : 'gba:gap-4'}`}>
+      {latestPlan ? (
+        <AgentPlanPanel planId={latestPlan.planId} items={latestPlan.items} defaultExpanded={!turnIsComplete} />
+      ) : null}
       {filteredOutputs.map((output: any, outputIdx: number) => {
         const outputType = output?.type ?? 'unknown'
         const outputKey = `output-${outputIdx}-${outputType}`
