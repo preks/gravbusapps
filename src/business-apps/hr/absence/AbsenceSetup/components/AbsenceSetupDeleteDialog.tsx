@@ -42,7 +42,7 @@ export function AbsenceSetupDeleteDialog({
           <DialogDescription>{t('delete-catalog-entry-description', { name, entity: entityLabel })}</DialogDescription>
         </DialogHeader>
         {messageToShow ? (
-          <div className="gba:mx-6 gba:mt-4 gba:rounded-xl gba:border gba:border-red-200 gba:bg-red-50 gba:px-4 gba:py-3 gba:text-sm gba:text-red-700">
+          <div className="gba:mx-6 gba:mt-4 gba:rounded-xl gba:border gba:border-destructive gba:bg-destructive-secondary gba:px-4 gba:py-3 gba:text-sm gba:text-destructive-secondary-foreground">
             {messageToShow}
           </div>
         ) : null}

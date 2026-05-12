@@ -1,5 +1,5 @@
-import { Calendar, Clock3, Wallet } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { CalendarIcon, ClockIcon, WalletIcon } from '@phosphor-icons/react'
+import type { Icon as PhosphorIcon } from '@phosphor-icons/react'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import type { SetupSectionItem, SetupSectionSortOption } from './absenceSetup'
@@ -9,7 +9,7 @@ type TranslateFn = (key: string, values?: Record<string, string>) => string
 type GenericCatalogKey = 'AbsenceGroup' | 'AbsencePolicy'
 
 export interface AbsenceSetupSectionCardConfig {
-  icon: LucideIcon
+  icon: typeof PhosphorIcon
   title: string
   entityLabel: string
   description: string
@@ -110,7 +110,7 @@ export const buildAbsenceSetupSectionCards = ({
     showDeleteAction: false
   },
   {
-    icon: Calendar,
+    icon: CalendarIcon,
     title: t('absence-types-title'),
     entityLabel: t('absence-type-entity-label'),
     description: t('absence-types-description'),
@@ -135,7 +135,7 @@ export const buildAbsenceSetupSectionCards = ({
     cardTestId: 'absence-setup-types-card'
   },
   {
-    icon: Clock3,
+    icon: ClockIcon,
     title: t('absence-type-versions-title'),
     entityLabel: t('absence-type-version-entity-label'),
     description: t('absence-type-versions-description'),
@@ -167,7 +167,7 @@ export const buildAbsenceSetupSectionCards = ({
     cardTestId: 'absence-setup-versions-card'
   },
   {
-    icon: Wallet,
+    icon: WalletIcon,
     title: t('entitlement-rules-title'),
     entityLabel: t('absence-entitlement-entity-label'),
     description: t('entitlement-rules-description'),

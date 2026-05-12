@@ -1,5 +1,13 @@
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import type { JSONObject, JSONValue } from '@/common/types/i18nTypes'
+import type { EligibilitySettings } from './absenceEligibilityConflict'
+import {
+  isObjectRecord,
+  toBooleanValue,
+  toNumberValue,
+  toStringArray,
+  toStringValue
+} from './objectValueHelpers'
 
 export interface AbsenceEntitlementDetailSettings {
   carryover: boolean
@@ -15,7 +23,7 @@ export interface AbsenceEntitlementDetailSettings {
   validation_amount_unit: string
 }
 
-export interface AbsenceEntitlementObjectSettings {
+export interface AbsenceEntitlementObjectSettings extends EligibilitySettings {
   valid_from: string
   valid_to: string
   year_type: string
@@ -50,7 +58,12 @@ export const defaultAbsenceEntitlementObjectSettings: AbsenceEntitlementObjectSe
   year_start_date: '01.01',
   entitlement_type: 'YEARLY',
   full_time_amount: '40',
-  full_time_frequency: 'WEEK'
+  full_time_frequency: 'WEEK',
+  standard: false,
+  company_id: '',
+  allowed_countries: [],
+  allowed_contract_types: [],
+  allowed_employment_types: []
 }
 
 export const defaultAbsenceEntitlementDetailSettings: AbsenceEntitlementDetailSettings = {
@@ -62,26 +75,15 @@ export const defaultAbsenceEntitlementDetailSettings: AbsenceEntitlementDetailSe
   validation_amount: '5',
   carryover_approval: 'GENERAL',
   entitlement_amount: '21',
-  max_carryover_amount: '0',
-  max_carryover_percent: '0',
+  max_carryover_amount: '',
+  max_carryover_percent: '',
   validation_amount_unit: 'MONTH'
 }
 
-const isObjectRecord = (value: JSONValue | undefined): value is JSONObject =>
-  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-
-const toStringValue = (value: JSONValue | undefined, fallback: string): string => {
-  if (typeof value === 'string') return value
-  if (typeof value === 'number') return String(value)
-  return fallback
-}
-
-const toBooleanValue = (value: JSONValue | undefined, fallback: boolean): boolean =>
-  typeof value === 'boolean' ? value : fallback
-
-const toNumberValue = (value: string): number => {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : 0
+const toCarryoverStringValue = (value: JSONValue | undefined): string => {
+  if (typeof value === 'number') return value === 0 ? '' : String(value)
+  if (typeof value === 'string') return value === '0' ? '' : value
+  return ''
 }
 
 export const getAbsenceTypeRefFromType = (absenceType?: AbsenceType): string =>
@@ -113,6 +115,11 @@ export const getAbsenceEntitlementEditorState = (
     entitlement_type,
     full_time_amount,
     full_time_frequency,
+    standard,
+    company_id,
+    allowed_countries,
+    allowed_contract_types,
+    allowed_employment_types,
     ...extraObjectValue
   } = objectValue
 
@@ -150,14 +157,8 @@ export const getAbsenceEntitlementEditorState = (
           entitlement_amount,
           defaultAbsenceEntitlementDetailSettings.entitlement_amount
         ),
-        max_carryover_amount: toStringValue(
-          max_carryover_amount,
-          defaultAbsenceEntitlementDetailSettings.max_carryover_amount
-        ),
-        max_carryover_percent: toStringValue(
-          max_carryover_percent,
-          defaultAbsenceEntitlementDetailSettings.max_carryover_percent
-        ),
+        max_carryover_amount: toCarryoverStringValue(max_carryover_amount),
+        max_carryover_percent: toCarryoverStringValue(max_carryover_percent),
         validation_amount_unit: toStringValue(
           validation_amount_unit,
           defaultAbsenceEntitlementDetailSettings.validation_amount_unit
@@ -167,43 +168,30 @@ export const getAbsenceEntitlementEditorState = (
     } satisfies AbsenceEntitlementDetailEntry
   })
 
-  if (detailEntries.length === 0) {
-    return {
-      settings: {
-        valid_from: toStringValue(valid_from ?? validFrom, defaultAbsenceEntitlementObjectSettings.valid_from),
-        valid_to: toStringValue(valid_to ?? validTo, defaultAbsenceEntitlementObjectSettings.valid_to),
-        year_type: toStringValue(year_type, defaultAbsenceEntitlementObjectSettings.year_type),
-        full_time_unit: toStringValue(full_time_unit, defaultAbsenceEntitlementObjectSettings.full_time_unit),
-        year_start_date: toStringValue(year_start_date, defaultAbsenceEntitlementObjectSettings.year_start_date),
-        entitlement_type: toStringValue(entitlement_type, defaultAbsenceEntitlementObjectSettings.entitlement_type),
-        full_time_amount: toStringValue(full_time_amount, defaultAbsenceEntitlementObjectSettings.full_time_amount),
-        full_time_frequency: toStringValue(
-          full_time_frequency,
-          defaultAbsenceEntitlementObjectSettings.full_time_frequency
-        )
-      },
-      detailEntries: [],
-      extraObjectValue
-    }
+  const parsedSettings: AbsenceEntitlementObjectSettings = {
+    valid_from: toStringValue(valid_from ?? validFrom, defaultAbsenceEntitlementObjectSettings.valid_from),
+    valid_to: toStringValue(valid_to ?? validTo, defaultAbsenceEntitlementObjectSettings.valid_to),
+    year_type: toStringValue(year_type, defaultAbsenceEntitlementObjectSettings.year_type),
+    full_time_unit: toStringValue(full_time_unit, defaultAbsenceEntitlementObjectSettings.full_time_unit),
+    year_start_date: toStringValue(year_start_date, defaultAbsenceEntitlementObjectSettings.year_start_date),
+    entitlement_type: toStringValue(entitlement_type, defaultAbsenceEntitlementObjectSettings.entitlement_type),
+    full_time_amount: toStringValue(full_time_amount, defaultAbsenceEntitlementObjectSettings.full_time_amount),
+    full_time_frequency: toStringValue(
+      full_time_frequency,
+      defaultAbsenceEntitlementObjectSettings.full_time_frequency
+    ),
+    standard: toBooleanValue(standard, defaultAbsenceEntitlementObjectSettings.standard),
+    company_id: toStringValue(company_id, defaultAbsenceEntitlementObjectSettings.company_id),
+    allowed_countries: toStringArray(allowed_countries),
+    allowed_contract_types: toStringArray(allowed_contract_types),
+    allowed_employment_types: toStringArray(allowed_employment_types)
   }
 
-  return {
-    settings: {
-      valid_from: toStringValue(valid_from ?? validFrom, defaultAbsenceEntitlementObjectSettings.valid_from),
-      valid_to: toStringValue(valid_to ?? validTo, defaultAbsenceEntitlementObjectSettings.valid_to),
-      year_type: toStringValue(year_type, defaultAbsenceEntitlementObjectSettings.year_type),
-      full_time_unit: toStringValue(full_time_unit, defaultAbsenceEntitlementObjectSettings.full_time_unit),
-      year_start_date: toStringValue(year_start_date, defaultAbsenceEntitlementObjectSettings.year_start_date),
-      entitlement_type: toStringValue(entitlement_type, defaultAbsenceEntitlementObjectSettings.entitlement_type),
-      full_time_amount: toStringValue(full_time_amount, defaultAbsenceEntitlementObjectSettings.full_time_amount),
-      full_time_frequency: toStringValue(
-        full_time_frequency,
-        defaultAbsenceEntitlementObjectSettings.full_time_frequency
-      )
-    },
-    detailEntries,
-    extraObjectValue
+  if (detailEntries.length === 0) {
+    return { settings: parsedSettings, detailEntries: [], extraObjectValue }
   }
+
+  return { settings: parsedSettings, detailEntries, extraObjectValue }
 }
 
 export const buildAbsenceEntitlementObjectValue = (
@@ -220,6 +208,11 @@ export const buildAbsenceEntitlementObjectValue = (
   entitlement_type: settings.entitlement_type.trim(),
   full_time_amount: toNumberValue(settings.full_time_amount),
   full_time_frequency: settings.full_time_frequency.trim(),
+  standard: settings.standard,
+  company_id: settings.company_id.trim(),
+  allowed_countries: settings.allowed_countries,
+  allowed_contract_types: settings.allowed_contract_types,
+  allowed_employment_types: settings.allowed_employment_types,
   details: detailEntries.map(detailEntry => ({
     ...detailEntry.extraValue,
     carryover: detailEntry.settings.carryover,
