@@ -88254,20 +88254,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11973,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11973/",
-    "chunkJsBytes": 1876422,
+    "bitbucketBuildNumber": 11975,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11975/",
+    "chunkJsBytes": 1876426,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1576653,
-        "gzip": 97247,
+        "gzip": 97298,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1576653,
-            "gzip": 97247
+            "gzip": 97298
           }
         ]
       },
@@ -104677,9 +104677,9 @@
     ]
   },
   "irm/core/apps/company-management": {
-    "bitbucketBuildNumber": 11944,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11944/",
-    "chunkJsBytes": 556747,
+    "bitbucketBuildNumber": 11975,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11975/",
+    "chunkJsBytes": 557701,
     "top": [
       {
         "kind": "bucket",
@@ -104702,13 +104702,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 96005,
-        "gzip": 25898,
+        "rendered": 97896,
+        "gzip": 26167,
         "leaves": [
           {
             "name": "src/business-apps/irm/investments/apps/investment-management/views/company-groups-view/components/InvestmentCompanyGraphToolbar.tsx",
-            "rendered": 10654,
-            "gzip": 1905
+            "rendered": 10881,
+            "gzip": 1976
           },
           {
             "name": "src/business-apps/irm/investments/apps/investment-management/views/company-groups-view/components/InvestmentCompanyGraphDetailsSections.tsx",
@@ -106760,7 +106760,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-12T09:53:30.268Z",
+    "generatedAt": "2026-05-12T09:59:59.930Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
