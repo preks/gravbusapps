@@ -31,9 +31,14 @@ interface InvestmentCompanyGraphToolbarProps {
   onJumpToFirstNode: () => void
   onRelationshipDisplayModeChange: (mode: InvestmentCompanyRelationshipDisplayMode) => void
   onEdgeViewModeChange: (mode: InvestmentCompanyEdgeViewMode) => void
+  viewControlsDisabled: boolean
 }
 
-const getToolbarButtonClassName = (isActive: boolean): string => {
+const getToolbarButtonClassName = (isActive: boolean, isDisabled = false): string => {
+  if (isDisabled) {
+    return 'gba:cursor-not-allowed gba:bg-muted gba:text-muted-foreground gba:opacity-50'
+  }
+
   if (isActive) {
     return 'gba:bg-primary gba:text-primary-foreground'
   }
@@ -53,7 +58,8 @@ export const InvestmentCompanyGraphToolbar: React.FC<InvestmentCompanyGraphToolb
   onJumpToCompany,
   onJumpToFirstNode,
   onRelationshipDisplayModeChange,
-  onEdgeViewModeChange
+  onEdgeViewModeChange,
+  viewControlsDisabled
 }) => {
   const { t } = useTranslation(translations)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
@@ -204,7 +210,8 @@ export const InvestmentCompanyGraphToolbar: React.FC<InvestmentCompanyGraphToolb
                   <button
                     type="button"
                     onClick={() => onRelationshipDisplayModeChange(option.id)}
-                    className={`gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-full gba:transition-colors ${getToolbarButtonClassName(isActive)}`}
+                    disabled={viewControlsDisabled}
+                    className={`gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-full gba:transition-colors ${getToolbarButtonClassName(isActive, viewControlsDisabled)}`}
                     aria-label={option.label}
                     data-testid={`investment-company-graph-relationship-mode-${option.id}`}
                   >

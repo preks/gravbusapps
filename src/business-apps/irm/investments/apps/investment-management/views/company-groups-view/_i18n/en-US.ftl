@@ -30,6 +30,7 @@ locked-node-count = { $count } locked
 focus-locked-toggle-label = Spotlight Mode
 unlock-all-edge-locks = Unlock All
 unlock-company-lock = Unlock { $name }
+jump-to-locked-company = Jump to { $name }
 edge-view-curved-label = Curved edges
 edge-view-curved-description = Use the faster default Dagre layout with curved ownership lines.
 edge-view-orthogonal-label = Orthogonal edges

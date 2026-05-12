@@ -30,6 +30,7 @@ locked-node-count = { $count } blocate
 focus-locked-toggle-label = Mod Spotlight
 unlock-all-edge-locks = Deblocheaza tot
 unlock-company-lock = Deblocheaza { $name }
+jump-to-locked-company = Sari la { $name }
 edge-view-curved-label = Muchii curbe
 edge-view-curved-description = Foloseste layout-ul Dagre implicit, mai rapid, cu linii de proprietate curbe.
 edge-view-orthogonal-label = Muchii ortogonale

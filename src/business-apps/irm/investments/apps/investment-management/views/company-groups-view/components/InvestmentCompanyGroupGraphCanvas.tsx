@@ -118,7 +118,6 @@ const InvestmentCompanyGroupGraphCanvasInner: React.FC<InvestmentCompanyGroupGra
 
   const {
     activeInvestmentCompanyIds,
-    clearLockInteractionState,
     handleHoverCompany,
     handleLockCompany,
     handleUnlockAllCompanies,
@@ -134,7 +133,7 @@ const InvestmentCompanyGroupGraphCanvasInner: React.FC<InvestmentCompanyGroupGra
     searchHighlightedInvestmentCompanyId
   })
 
-  const { focusLockedOnly, handleFocusLockedOnlyChange, renderEdges, renderNodes, setFocusLockedOnly } =
+  const { focusLockedOnly, handleFocusLockedOnlyChange, renderEdges, renderNodes, shouldFocusLockedOnly } =
     useInvestmentCompanyGraphFocus({
       edgeViewMode,
       edges,
@@ -160,20 +159,24 @@ const InvestmentCompanyGroupGraphCanvasInner: React.FC<InvestmentCompanyGroupGra
 
     return nodes
       .filter(node => {
+        if (shouldFocusLockedOnly && lockedInvestmentCompanyIdSet.has(node.id)) return false
+
         const name = node.data.name.toLowerCase()
         const code = node.data.code?.toLowerCase() || ''
         return name.includes(normalizedQuery) || code.includes(normalizedQuery)
       })
       .slice(0, 8)
-  }, [nodes, searchQuery])
+  }, [lockedInvestmentCompanyIdSet, nodes, searchQuery, shouldFocusLockedOnly])
 
   const handleJumpToCompany = useCallback(
     (investmentCompanyId: string) => {
       const node = nodes.find(currentNode => currentNode.id === investmentCompanyId)
       if (!node) return
 
-      clearLockInteractionState()
-      setFocusLockedOnly(false)
+      if (shouldFocusLockedOnly) {
+        handleLockCompany(investmentCompanyId)
+      }
+
       setSearchHighlightedInvestmentCompanyId(investmentCompanyId)
       centerOnNode(node)
 
@@ -184,7 +187,7 @@ const InvestmentCompanyGroupGraphCanvasInner: React.FC<InvestmentCompanyGroupGra
         setSearchHighlightedInvestmentCompanyId(undefined)
       }, SEARCH_HIGHLIGHT_DURATION_MS)
     },
-    [centerOnNode, clearLockInteractionState, nodes, setFocusLockedOnly]
+    [centerOnNode, handleLockCompany, nodes, shouldFocusLockedOnly]
   )
 
   const handleJumpToFirstNode = useCallback(() => {
@@ -196,6 +199,14 @@ const InvestmentCompanyGroupGraphCanvasInner: React.FC<InvestmentCompanyGroupGra
 
     if (firstNode) centerOnNode(firstNode)
   }, [centerOnNode, renderNodes])
+
+  const handleJumpToLockedCompany = useCallback(
+    (investmentCompanyId: string) => {
+      const node = renderNodes.find(currentNode => currentNode.id === investmentCompanyId)
+      if (node) centerOnNode(node)
+    },
+    [centerOnNode, renderNodes]
+  )
 
   const { displayedEdges, displayedNodes } = useInvestmentCompanyGraphDisplay({
     activeInvestmentCompanyIds,
@@ -241,12 +252,14 @@ const InvestmentCompanyGroupGraphCanvasInner: React.FC<InvestmentCompanyGroupGra
         onJumpToFirstNode={handleJumpToFirstNode}
         onRelationshipDisplayModeChange={setRelationshipDisplayMode}
         onEdgeViewModeChange={handleEdgeViewModeChange}
+        viewControlsDisabled={shouldFocusLockedOnly}
       />
       {lockedInvestmentCompanyIds.length > 0 && (
         <InvestmentCompanyGraphLockedSummary
           investmentCompanies={lockedInvestmentCompanies}
           focusLockedOnly={focusLockedOnly}
           onFocusLockedOnlyChange={handleFocusLockedOnlyChange}
+          onJumpToCompany={handleJumpToLockedCompany}
           onUnlock={handleUnlockCompany}
           onUnlockAll={handleUnlockAllCompanies}
         />

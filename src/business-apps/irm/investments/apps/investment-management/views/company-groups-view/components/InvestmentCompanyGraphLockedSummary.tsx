@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { LockIcon, LockOpenIcon, XIcon } from '@phosphor-icons/react'
+import { LockIcon, LockOpenIcon, TargetIcon, XIcon } from '@phosphor-icons/react'
 import type { InvestmentCompanyGraphNode } from '../types/companyGroupGraphTypes'
 import translations from '../_i18n'
 
@@ -8,6 +8,7 @@ interface InvestmentCompanyGraphLockedSummaryProps {
   investmentCompanies: InvestmentCompanyGraphNode[]
   focusLockedOnly: boolean
   onFocusLockedOnlyChange: (focusLockedOnly: boolean) => void
+  onJumpToCompany: (investmentCompanyId: string) => void
   onUnlock: (investmentCompanyId: string) => void
   onUnlockAll: () => void
 }
@@ -16,6 +17,7 @@ export const InvestmentCompanyGraphLockedSummary: React.FC<InvestmentCompanyGrap
   investmentCompanies,
   focusLockedOnly,
   onFocusLockedOnlyChange,
+  onJumpToCompany,
   onUnlock,
   onUnlockAll
 }) => {
@@ -81,32 +83,49 @@ export const InvestmentCompanyGraphLockedSummary: React.FC<InvestmentCompanyGrap
         <LockOpenIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
         {t('unlock-all-edge-locks')}
       </button>
-      <div className="gba:mt-3 gba:flex gba:max-h-24 gba:flex-wrap gba:gap-2 gba:overflow-auto">
+      <div className="gba:mt-3 gba:flex gba:max-h-56 gba:flex-col gba:gap-2 gba:overflow-auto">
         {investmentCompanies.map(company => {
           const isHovered = hoveredUnlockId === company.id
 
           return (
-            <button
+            <div
               key={company.id}
-              type="button"
-              onClick={() => onUnlock(company.id)}
-              onMouseEnter={() => setHoveredUnlockId(company.id)}
-              onMouseLeave={() => setHoveredUnlockId(undefined)}
-              onFocus={() => setHoveredUnlockId(company.id)}
-              onBlur={() => setHoveredUnlockId(undefined)}
-              className={`gba:inline-flex gba:max-w-full gba:items-center gba:gap-2 gba:rounded-full gba:border gba:px-2 gba:py-1 gba:transition-colors ${
-                isHovered ? 'gba:border-border gba:bg-background' : 'gba:border-success/30 gba:bg-success-secondary/60'
-              }`}
-              aria-label={t('unlock-company-lock', { name: company.data.name })}
-              data-testid={`investment-company-graph-unlock-${company.id}`}
+              className="gba:flex gba:min-w-0 gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-border gba:bg-muted/40 gba:p-2"
             >
-              {isHovered ? (
-                <LockOpenIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-muted-foreground" />
-              ) : (
-                <LockIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-success" />
-              )}
-              <span className="gba:truncate gba:font-medium gba:text-foreground">{company.data.name}</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => onUnlock(company.id)}
+                onMouseEnter={() => setHoveredUnlockId(company.id)}
+                onMouseLeave={() => setHoveredUnlockId(undefined)}
+                onFocus={() => setHoveredUnlockId(company.id)}
+                onBlur={() => setHoveredUnlockId(undefined)}
+                className={`gba:inline-flex gba:h-7 gba:w-7 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:border gba:transition-colors ${
+                  isHovered
+                    ? 'gba:border-border gba:bg-background'
+                    : 'gba:border-success/30 gba:bg-success-secondary/60'
+                }`}
+                aria-label={t('unlock-company-lock', { name: company.data.name })}
+                data-testid={`investment-company-graph-unlock-${company.id}`}
+              >
+                {isHovered ? (
+                  <LockOpenIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+                ) : (
+                  <LockIcon className="gba:h-3.5 gba:w-3.5 gba:text-success" />
+                )}
+              </button>
+              <span className="gba:block gba:min-w-0 gba:flex-1 gba:truncate gba:font-medium gba:text-foreground">
+                {company.data.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => onJumpToCompany(company.id)}
+                className="gba:inline-flex gba:h-7 gba:w-7 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:text-muted-foreground gba:transition-colors hover:gba:bg-background hover:gba:text-foreground"
+                aria-label={t('jump-to-locked-company', { name: company.data.name })}
+                data-testid={`investment-company-graph-jump-locked-${company.id}`}
+              >
+                <TargetIcon className="gba:h-3.5 gba:w-3.5" />
+              </button>
+            </div>
           )
         })}
       </div>
