@@ -55,6 +55,7 @@ import {
   REASONING_KIND_LABEL,
   REASONING_STATUS_STYLE,
   extractCodeHint,
+  extractStepReason,
   formatReasoningDuration,
   prettifyJson
 } from './reasoningStepUtils'
@@ -1229,6 +1230,7 @@ export const ReasoningStepDisplay: React.FC<{
   const kindLabel = REASONING_KIND_LABEL[step.kind] ?? 'Step'
   const statusClass = REASONING_STATUS_STYLE[step.status] ?? 'gba:text-muted-foreground'
   const duration = formatReasoningDuration(step.started_at, step.ended_at)
+  const description = extractStepReason(step)
   const statusIcon =
     step.status === 'running' ? (
       <span
@@ -1267,6 +1269,14 @@ export const ReasoningStepDisplay: React.FC<{
           ›
         </span>
       </button>
+      {description && (
+        <div
+          className="gba:text-xs gba:italic gba:text-muted-foreground gba:font-medium gba:pl-6 gba:pr-2 gba:break-words"
+          data-testid="reasoning-step-description"
+        >
+          {description}
+        </div>
+      )}
       {expanded && (
         <div
           className="gba:flex gba:flex-col gba:gap-2 gba:pl-6 gba:pr-2 gba:py-2 gba:border-l gba:border-border/60"

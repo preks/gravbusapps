@@ -1,7 +1,7 @@
 import React from 'react'
 import type { OutputItem, ConversationTurn, ReasoningStepOutput } from '../types/models'
 import { OutputItemRenderer, ReasoningStepsGroup } from './OutputRenderers'
-import { isTurnComplete } from './reasoningStepUtils'
+import { isTurnComplete, selectInlineReasoningStepIds } from './reasoningStepUtils'
 import { SparkleIcon } from '@phosphor-icons/react'
 
 interface UnifiedAIMessageRendererProps {
@@ -68,6 +68,15 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
     (o): o is ReasoningStepOutput => (o as OutputItem)?.type === 'reasoning_step'
   )
   const shouldGroupReasoning = turnIsComplete && reasoningSteps.length > 0
+  const inlineStepIds = selectInlineReasoningStepIds(filteredOutputs, turnIsComplete)
+  // While streaming, legacy ephemeral `tool` chips duplicate the description
+  // we now render on the reasoning-step row itself (via `extractStepReason`).
+  // They accumulate per tool call and only get pruned when the final answer
+  // arrives, which makes the chat look like the descriptions are being
+  // "spammed". Suppress them entirely when reasoning steps are present —
+  // the modern path always emits both, so the step row carries the same
+  // narration without the visual stacking.
+  const hideLegacyToolChips = !turnIsComplete && reasoningSteps.length > 0
 
   if (filteredOutputs.length === 0) {
     return null
@@ -88,6 +97,15 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
           if (firstReasoningRendered) return null
           firstReasoningRendered = true
           return <ReasoningStepsGroup key="reasoning-group" steps={reasoningSteps} />
+        }
+
+        if (!turnIsComplete && outputType === 'reasoning_step') {
+          const stepId = (output as ReasoningStepOutput).id
+          if (!inlineStepIds.has(stepId)) return null
+        }
+
+        if (hideLegacyToolChips && outputType === 'tool') {
+          return null
         }
 
         return (
