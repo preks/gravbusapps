@@ -103,10 +103,23 @@ export const GET_BENEFIT_TYPES_WITH_TRANSLATIONS_EXCLUDE_HR_BACKOFFICE = /*sql*/
  * Employment region lookup for an employee to obtain region id
  */
 export const GET_EMPLOYEE_REGION_ID = /*sql*/ `
-  query GetEmployeeRegionId($employeeId: uuid!) {
+  query GetEmployeeRegionId($employeeId: uuid!, $today: timestamptz!) {
     Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
       id
-      workingCondition {
+      workingCondition(
+        where: {
+          isDeleted: {_eq: false}
+          _or: [
+            {activeFrom: {_isNull: true}, activeTo: {_isNull: true}}
+            {
+              activeFrom: {_lte: $today}
+              _or: [{activeTo: {_isNull: true}}, {activeTo: {_gte: $today}}]
+            }
+          ]
+        }
+        orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
+        limit: 1
+      ) {
         region {
           id
         }

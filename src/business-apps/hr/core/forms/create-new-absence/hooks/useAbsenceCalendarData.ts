@@ -127,7 +127,8 @@ export const useAbsenceCalendarData = (
       try {
         const res = await client.request(employeeRegionLookupQuery, {
           employeeId,
-          activeUserLocale: getCurrentActiveUserLocale()
+          activeUserLocale: getCurrentActiveUserLocale(),
+          today: new Date().toISOString()
         })
         setRegionRef(resolveEmploymentRegionRef(res))
       } catch {

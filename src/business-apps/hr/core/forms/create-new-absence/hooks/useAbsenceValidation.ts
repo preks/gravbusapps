@@ -335,7 +335,8 @@ export const useAbsenceValidation = ({
         const activeLocale = getCurrentActiveUserLocale()
         const res = await client.request(employeeRegionLookupQuery, {
           employeeId,
-          activeUserLocale: activeLocale
+          activeUserLocale: activeLocale,
+          today: new Date().toISOString()
         })
         setEmployeeRegionRef(resolveEmploymentRegionRef(res))
       } catch {

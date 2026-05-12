@@ -91,10 +91,23 @@ export const employeeAttendanceForDateQuery = `
 
 // Employment region lookup for a given employee (to resolve regionId for holiday catalogs)
 export const employeeRegionLookupQuery = `
-  query GetEmployeeRegion($employeeId: uuid!, $activeUserLocale: String!) {
+  query GetEmployeeRegion($employeeId: uuid!, $activeUserLocale: String!, $today: timestamptz!) {
     employee: Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
       id
-      workingCondition {
+      workingCondition(
+        where: {
+          isDeleted: { _eq: false }
+          _or: [
+            { activeFrom: { _isNull: true }, activeTo: { _isNull: true } }
+            {
+              activeFrom: { _lte: $today }
+              _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: $today } }]
+            }
+          ]
+        }
+        orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
+        limit: 1
+      ) {
         region {
           id
           value

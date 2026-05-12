@@ -361,7 +361,8 @@ export const useTimeTrackingData = ({
     try {
       const regionRes = await graphqlClient.request<any>(employeeRegionLookupQuery, {
         employeeId,
-        activeUserLocale: activeLocale
+        activeUserLocale: activeLocale,
+        today: new Date().toISOString()
       })
       const regionCodeRaw: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
       if (regionCodeRaw) {

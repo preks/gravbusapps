@@ -263,7 +263,8 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
         const locale = getCurrentActiveUserLocale()
         const regionRes = await graphqlClient.request<any>(employeeRegionLookupQuery, {
           employeeId: resolvedEmployeeId,
-          activeUserLocale: locale
+          activeUserLocale: locale,
+          today: new Date().toISOString()
         })
         const regionIdRaw: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
         if (regionIdRaw) {

@@ -62,7 +62,8 @@ export function useChangeTaxDetailsData(
         if (employeeId) {
           const employeeRes = await graphqlClient.request<any>(GET_TAX_DETAILS_EMPLOYEE, {
             idEmployee: employeeId,
-            activeUserLocale: locale
+            activeUserLocale: locale,
+            today: new Date().toISOString()
           })
           employeeDetails = employeeRes?.EmployeeTaxDetail?.[0] ?? null
           setData(employeeDetails)

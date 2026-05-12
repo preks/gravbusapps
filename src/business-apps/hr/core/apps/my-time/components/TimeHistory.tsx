@@ -131,7 +131,8 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
       try {
         const regionRes = await graphqlClient.request<any>(employeeRegionLookupQuery, {
           employeeId,
-          activeUserLocale: activeLocale
+          activeUserLocale: activeLocale,
+          today: new Date().toISOString()
         })
         const regionIdRaw: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
         if (regionIdRaw) {

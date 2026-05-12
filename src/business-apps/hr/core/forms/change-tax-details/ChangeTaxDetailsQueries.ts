@@ -1,4 +1,4 @@
-export const GET_TAX_DETAILS_EMPLOYEE = `query fetchEmployeeData($idEmployee: uuid!, $activeUserLocale: String!) {
+export const GET_TAX_DETAILS_EMPLOYEE = `query fetchEmployeeData($idEmployee: uuid!, $activeUserLocale: String!, $today: timestamptz!) {
   EmployeeTaxDetail(where: {employeeId: {_eq: $idEmployee}, isDeleted: {_eq: false}}) {
     id
     version
@@ -33,7 +33,21 @@ export const GET_TAX_DETAILS_EMPLOYEE = `query fetchEmployeeData($idEmployee: uu
       }
     }
   }
-  EmployeeWorkingCondition(where: {employeeId: {_eq: $idEmployee}}) {
+  EmployeeWorkingCondition(
+    where: {
+      employeeId: {_eq: $idEmployee}
+      isDeleted: {_eq: false}
+      _or: [
+        {activeFrom: {_isNull: true}, activeTo: {_isNull: true}}
+        {
+          activeFrom: {_lte: $today}
+          _or: [{activeTo: {_isNull: true}}, {activeTo: {_gte: $today}}]
+        }
+      ]
+    }
+    orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
+    limit: 1
+  ) {
     region {
       parentEntry {
         id

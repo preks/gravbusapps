@@ -89,7 +89,8 @@ export const usePublicHolidays = ({
           }>
         }>(GET_EMPLOYEE_REGION, {
           employeeId,
-          activeUserLocale: activeLocale
+          activeUserLocale: activeLocale,
+          today: new Date().toISOString()
         })
 
         const employee = employeeResponse.employee?.[0]

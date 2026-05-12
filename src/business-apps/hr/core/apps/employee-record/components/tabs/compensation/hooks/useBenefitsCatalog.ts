@@ -52,7 +52,10 @@ export const useBenefitsCatalog = (employeeId: string, accessToken: string) => {
    */
   const getEmployeeCountryId = useCallback(async (): Promise<string | null> => {
     try {
-      const regionRes = await graphqlClient.request<any>(GET_EMPLOYEE_REGION_ID, { employeeId })
+      const regionRes = await graphqlClient.request<any>(GET_EMPLOYEE_REGION_ID, {
+        employeeId,
+        today: new Date().toISOString()
+      })
       const regionId: string | undefined = regionRes?.Employee?.[0]?.workingCondition?.[0]?.region?.id || undefined
       if (!regionId) return null
 
