@@ -161,7 +161,14 @@ interface MessageBubbleProps {
   accessToken?: string
 }
 
-export const MessageBubble = ({ message, allMessages, onReply, onViewArtifact, accessToken }: MessageBubbleProps) => {
+export const MessageBubble = ({
+  message,
+  sessionId,
+  allMessages,
+  onReply,
+  onViewArtifact,
+  accessToken
+}: MessageBubbleProps) => {
   switch (message.type) {
     case 'user_input': {
       return <UserMessageBubble message={message} />
@@ -336,7 +343,7 @@ export const MessageBubble = ({ message, allMessages, onReply, onViewArtifact, a
           disableEntranceAnimation
           data-testid={`msg-${message.id}`}
         >
-          <FinalAnswerRenderer {...content} onViewArtifact={onViewArtifact} />
+          <FinalAnswerRenderer {...content} onViewArtifact={onViewArtifact} sessionId={sessionId} />
         </AnimatedMessageWrapper>
       )
     }

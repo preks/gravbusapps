@@ -16,6 +16,7 @@ import {
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import type { TodoItem, ActionSummary, WorkspaceDocument } from '../../types/enterpriseAgent'
 import { formatDuration } from '../../utils/renderUtils'
+import HtmlPreviewCard from '../artifacts/HtmlPreviewCard'
 
 interface FinalAnswerArtifact {
   name: string
@@ -40,6 +41,8 @@ export interface FinalAnswerRendererProps {
    */
   isInstant?: boolean
   onViewArtifact?: (artifactName: string) => void
+  /** Session ID for constructing artifact download URLs (inline HTML preview) */
+  sessionId?: string
 }
 
 const getArtifactIcon = (rendererType: string) => {
@@ -198,7 +201,8 @@ export const FinalAnswerRenderer = ({
   artifacts,
   workspaceDocuments,
   isInstant,
-  onViewArtifact
+  onViewArtifact,
+  sessionId
 }: FinalAnswerRendererProps) => {
   const hasWorkspaceDocs = !!workspaceDocuments && workspaceDocuments.length > 0
   // Filter out leftover "ghost" artifacts produced by the agent: zero-byte
@@ -211,6 +215,8 @@ export const FinalAnswerRenderer = ({
     return true
   })
   const visibleArtifacts = hasWorkspaceDocs ? [] : displayArtifacts
+  const htmlArtifacts = visibleArtifacts.filter(a => a.rendererType === 'html')
+  const nonHtmlArtifacts = visibleArtifacts.filter(a => a.rendererType !== 'html')
   const [fullOutputVisible, setFullOutputVisible] = useState(true)
   const [actionsExpanded, setActionsExpanded] = useState(false)
   const todoCount = todos?.length ?? 0
@@ -287,7 +293,23 @@ export const FinalAnswerRenderer = ({
         </div>
       )}
 
-      {visibleArtifacts.length > 0 && <ArtifactsList artifacts={visibleArtifacts} onViewArtifact={onViewArtifact} />}
+      {htmlArtifacts.length > 0 &&
+        sessionId &&
+        htmlArtifacts.map(artifact => (
+          <HtmlPreviewCard
+            key={artifact.path || artifact.name}
+            artifactPath={artifact.path || artifact.name}
+            artifactName={artifact.name}
+            sessionId={sessionId}
+            onExpand={() => onViewArtifact?.(artifact.path || artifact.name)}
+          />
+        ))}
+
+      {nonHtmlArtifacts.length > 0 && <ArtifactsList artifacts={nonHtmlArtifacts} onViewArtifact={onViewArtifact} />}
+
+      {htmlArtifacts.length > 0 && !sessionId && (
+        <ArtifactsList artifacts={htmlArtifacts} onViewArtifact={onViewArtifact} />
+      )}
 
       {actionsPerformed && actionsPerformed.length > 0 && (
         <ActionsTakenPanel
