@@ -906,16 +906,40 @@ export const buildInvestmentReportPayload = (report: Partial<InvestmentReport>) 
     result.realEstateInvestmentReport = buildPayload(realEstateReport, RealEstateInvestmentReportFormFields)
   }
 
-  // Handle investment roles report separately - investmentRoleReport (form) → investmentRoleReports (API)
-  if (report.investmentRoleReport && report.investmentRoleReport.length > 0) {
-    const investmentRolesReportPayload = report.investmentRoleReport.map((roleReport: any, index: number) => ({
-      ...(isReportUpdate && roleReport.id && { id: roleReport.id }),
-      ...(isReportUpdate && roleReport.version !== undefined && { version: roleReport.version }),
-      investmentRoleRef: roleReport.investmentRole?.id ?? roleReport.investmentRoleRef,
-      displayOrder: roleReport.displayOrder ?? index,
-      ...(roleReport.isDeleted !== undefined && { isDeleted: roleReport.isDeleted })
-    }))
-    result.investmentReport.investmentRoleReports = investmentRolesReportPayload
+  // Handle investment roles report separately:
+  // - preferred: investmentRoleReport (current form/report field)
+  // - fallback: investmentRole (legacy callers that still pass the old field name)
+  const legacyInvestmentRole = (report as any).investmentRole
+  const roleReportsSource =
+    Array.isArray(report.investmentRoleReport) && report.investmentRoleReport.length > 0
+      ? report.investmentRoleReport
+      : Array.isArray(legacyInvestmentRole)
+        ? legacyInvestmentRole
+        : []
+
+  if (roleReportsSource.length > 0) {
+    const investmentRolesReportPayload = roleReportsSource
+      .map((roleReport: any, index: number) => {
+        const investmentRoleRef =
+          roleReport?.investmentRole?.id ?? roleReport?.investmentRoleRef ?? roleReport?.id ?? null
+
+        if (!investmentRoleRef) {
+          return null
+        }
+
+        return {
+          ...(isReportUpdate && roleReport.id && { id: roleReport.id }),
+          ...(isReportUpdate && roleReport.version !== undefined && { version: roleReport.version }),
+          investmentRoleRef,
+          displayOrder: roleReport.displayOrder ?? index,
+          ...(roleReport.isDeleted !== undefined && { isDeleted: roleReport.isDeleted })
+        }
+      })
+      .filter(Boolean)
+
+    if (investmentRolesReportPayload.length > 0) {
+      result.investmentReport.investmentRoleReports = investmentRolesReportPayload
+    }
   }
 
   return {
