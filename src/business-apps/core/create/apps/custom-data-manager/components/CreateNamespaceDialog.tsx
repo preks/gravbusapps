@@ -57,7 +57,7 @@ export const CreateNamespaceDialog: React.FC<CreateNamespaceDialogProps> = ({
     try {
       await onCreate({
         namespace: ns,
-        display_name: displayName || undefined,
+        displayName: displayName || undefined,
         description: description || undefined
       })
       setNamespace('')

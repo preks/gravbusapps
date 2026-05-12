@@ -27,18 +27,18 @@ describe('data viewer nodes', () => {
       <EntityNode
         {...({
           data: {
-            entityKey: 'sales_order',
+            entityName: 'SalesOrder',
             displayName: 'Sales Order',
             publishState: 'DRAFT',
             columns: [
               {
-                name: 'account_id',
+                name: 'accountId',
                 label: 'Account Owner',
                 type: 'SELECT',
-                dataSource: { type: 'CUSTOM_ENTITY', entity: 'account_profile' }
+                dataSource: { type: 'CUSTOM_ENTITY', entity: 'AccountProfile' }
               },
               {
-                name: 'created_at',
+                name: 'createdAt',
                 type: 'TIMESTAMP'
               }
             ],

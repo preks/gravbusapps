@@ -9,28 +9,28 @@ export type CustomDataRowMutationResponse = {
 }
 
 export type CustomDataRowCreateParams = {
-  definitionKey: string
+  entityName: string
   values: Record<string, unknown>
   namespace?: string
 }
 
 export type CustomDataRowUpdateParams = {
-  definitionKey: string
+  entityName: string
   rowId: string
   values: Record<string, unknown>
   namespace?: string
 }
 
 export type CustomDataRowDeleteParams = {
-  definitionKey: string
+  entityName: string
   rowId: string
   namespace?: string
 }
 
-function buildRowPath(namespace: string, definitionKey: string, rowId?: string): string {
+function buildRowPath(namespace: string, entityName: string, rowId?: string): string {
   const basePath =
     `/v1/custom-data/namespaces/${encodeURIComponent(namespace)}` +
-    `/custom-entities/${encodeURIComponent(definitionKey)}/rows`
+    `/custom-entities/${encodeURIComponent(entityName)}/rows`
 
   if (!rowId) {
     return basePath
@@ -71,20 +71,20 @@ export class CustomDataMutationClient extends RestClient {
 
   async createRow(params: CustomDataRowCreateParams): Promise<CustomDataRowMutationResponse> {
     const namespace = (params.namespace ?? this.namespace) || 'default'
-    return this.post<CustomDataRowMutationResponse>(buildRowPath(namespace, params.definitionKey), {
+    return this.post<CustomDataRowMutationResponse>(buildRowPath(namespace, params.entityName), {
       values: params.values
     })
   }
 
   async updateRow(params: CustomDataRowUpdateParams): Promise<CustomDataRowMutationResponse> {
     const namespace = (params.namespace ?? this.namespace) || 'default'
-    return this.patch<CustomDataRowMutationResponse>(buildRowPath(namespace, params.definitionKey, params.rowId), {
+    return this.patch<CustomDataRowMutationResponse>(buildRowPath(namespace, params.entityName, params.rowId), {
       values: params.values
     })
   }
 
   async deleteRow(params: CustomDataRowDeleteParams): Promise<CustomDataRowMutationResponse> {
     const namespace = (params.namespace ?? this.namespace) || 'default'
-    return this.delete<CustomDataRowMutationResponse>(buildRowPath(namespace, params.definitionKey, params.rowId))
+    return this.delete<CustomDataRowMutationResponse>(buildRowPath(namespace, params.entityName, params.rowId))
   }
 }

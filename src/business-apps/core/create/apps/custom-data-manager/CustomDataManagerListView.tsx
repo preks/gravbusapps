@@ -182,7 +182,7 @@ const NamespacesTabContent: React.FC<{
                 <div className="gba:flex gba:items-center gba:gap-3">
                   <FolderOpen className="gba:h-5 gba:w-5 gba:text-primary" />
                   <div>
-                    <p className="gba:font-medium">{ns.display_name || ns.namespace}</p>
+                    <p className="gba:font-medium">{ns.displayName || ns.namespace}</p>
                     {ns.description && <p className="gba:text-xs gba:text-muted-foreground">{ns.description}</p>}
                     <p className="gba:text-xs gba:text-muted-foreground gba:font-mono gba:mt-0.5">{ns.namespace}</p>
                   </div>

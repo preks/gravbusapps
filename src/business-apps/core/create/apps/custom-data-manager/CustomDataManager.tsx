@@ -19,7 +19,6 @@ import { InternalEntityInfoPanel } from './components/InternalEntityInfoPanel'
 import { RelationshipInfoPanel, type SelectedRelationshipData } from './components/RelationshipInfoPanel'
 import type { DataInternalEntityNodeData as InternalEntityNodeData } from '@/common/components/flow/data-viewer'
 import { createInitialColumns, stripColumnUiIds } from './utils/columnUiIds'
-import { buildUniqueDefinitionKey } from './utils/definitionFormUtils'
 import type {
   CustomDataDefinition,
   CustomDataSuggestionApplyResult,
@@ -48,7 +47,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false)
 
   const { namespaces, createNamespace: createNamespaceApi } = useNamespaces(accessToken)
-  const allNamespaces = namespaces.length > 0 ? namespaces : [{ namespace: 'default', created_at: '', updated_at: '' }]
+  const allNamespaces = namespaces.length > 0 ? namespaces : [{ namespace: 'default', createdAt: '', updatedAt: '' }]
 
   const { definitions, createDefinition, updateDefinition, refetch: refetchDefinitions } = useDefinitions(accessToken)
   const { aggregate: selectedNamespaceAggregate, refetch: refetchNamespaceAggregate } = useNamespaceAggregate(
@@ -97,17 +96,13 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
   }, [])
 
   const handleAddEntity = useCallback(async () => {
-    const existingKeysInNamespace = definitions
-      .filter(definition => (definition.namespace || 'default') === selectedNamespace)
-      .map(definition => definition.key)
-    const generatedDefinitionKey = buildUniqueDefinitionKey('New Entity', existingKeysInNamespace)
     try {
       const created = await createDefinition({
         namespace: selectedNamespace,
-        key: generatedDefinitionKey,
+        entityName: 'NewEntity',
         kind: 'CUSTOM_ENTITY',
-        display_name: 'New Entity',
-        columns_json: stripColumnUiIds(createInitialColumns())
+        displayName: 'New Entity',
+        columns: stripColumnUiIds(createInitialColumns())
       })
       await refetchDefinitions()
       await refetchNamespaceAggregate()
@@ -116,7 +111,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
     } catch (err) {
       console.error('Failed to create entity:', err)
     }
-  }, [createDefinition, definitions, refetchDefinitions, refetchNamespaceAggregate, selectedNamespace])
+  }, [createDefinition, refetchDefinitions, refetchNamespaceAggregate, selectedNamespace])
 
   const handleSaveEntity = useCallback(
     async (dto: UpdateDefinitionDto, definition: CustomDataDefinition) => {
@@ -129,7 +124,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
   )
 
   const handleCreateNamespace = useCallback(
-    async (dto: { namespace: string; display_name?: string; description?: string }) => {
+    async (dto: { namespace: string; displayName?: string; description?: string }) => {
       const created = await createNamespaceApi(dto)
       setSelectedNamespace(created.namespace)
       setView('canvas')
@@ -139,7 +134,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
 
   const handlePromote = useCallback(
     async (definition: CustomDataDefinition) => {
-      const promoted = await client.promoteEntity(definition.namespace, definition.key)
+      const promoted = await client.promoteEntity(definition.namespace, definition.entityName)
       await refetchDefinitions()
       await refetchNamespaceAggregate()
       if (selectedEntity?.id === definition.id) setSelectedEntity(promoted)
@@ -197,7 +192,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
         <CreateLayout
           heroVariant="editor"
           heroIcon={<Database className="gba:w-5 gba:h-5 gba:text-white" />}
-          heroTitle={nsInfo?.display_name || selectedNamespace}
+          heroTitle={nsInfo?.displayName || selectedNamespace}
           heroSubtitle={nsInfo?.description || `Namespace: ${selectedNamespace}`}
           onBack={handleBackToList}
           heroBackLabel="Back to Namespaces"
@@ -260,11 +255,15 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
                           data={selectedRelationship}
                           onClose={() => setSelectedRelationship(null)}
                           onNavigateToSource={() => {
-                            const def = namespaceEntities.find(d => d.key === selectedRelationship.sourceEntityKey)
+                            const def = namespaceEntities.find(
+                              d => d.entityName === selectedRelationship.sourceEntityKey
+                            )
                             if (def) handleSelectEntity(def)
                           }}
                           onNavigateToTarget={() => {
-                            const def = namespaceEntities.find(d => d.key === selectedRelationship.targetEntityKey)
+                            const def = namespaceEntities.find(
+                              d => d.entityName === selectedRelationship.targetEntityKey
+                            )
                             if (def) handleSelectEntity(def)
                           }}
                           data-testid={`${testId}-relationship-panel`}

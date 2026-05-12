@@ -19,7 +19,7 @@ jest.mock('graphiql', () => ({
 
 describe('GraphiQLPanel', () => {
   it('builds the default query with the TypeName root field', () => {
-    render(<GraphiQLPanel accessToken="token-123" namespace="default" entityKey="asset_location" />)
+    render(<GraphiQLPanel accessToken="token-123" namespace="default" entityName="AssetLocation" />)
 
     expect(screen.getByTestId('default-query')).toHaveTextContent('AssetLocation')
     expect(screen.getByTestId('default-query')).not.toHaveTextContent('AssetLocationList')

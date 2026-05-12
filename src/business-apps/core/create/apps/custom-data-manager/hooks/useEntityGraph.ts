@@ -33,11 +33,11 @@ function toDataGraphInput(def: CustomDataDefinition, isExternal: boolean): DataG
   return {
     id: def.id,
     namespace: def.namespace,
-    key: def.key,
-    displayName: def.display_name,
-    publishState: def.publish_state,
-    columns: (def.columns_json ?? []).map(col => ({
-      name: col.name,
+    key: def.entityName,
+    displayName: def.displayName || def.entityName,
+    publishState: def.publishState,
+    columns: (def.columns ?? []).map(col => ({
+      name: col.fieldName,
       type: col.type,
       label: col.label,
       required: col.required,
@@ -112,7 +112,7 @@ function buildAggregateRelationshipEdges(
   internalEntitiesByType: Map<string, InternalEntityDefinition>,
   namespace: string
 ): DataGraphEdge[] {
-  const entityIdByKey = new Map(Array.from(entitiesByKey.values()).map(entity => [entity.key, entity.id]))
+  const entityIdByKey = new Map(Array.from(entitiesByKey.values()).map(entity => [entity.entityName, entity.id]))
   const graphEdgeById = new Map(graphEdges.map(edge => [edge.id, edge]))
 
   return relationships
@@ -136,7 +136,7 @@ function buildAggregateRelationshipEdges(
       }
 
       const sourceEntity = entitiesByKey.get(relationship.sourceEntity)
-      const sourceColumn = sourceEntity?.columns_json?.find(column => column.name === relationship.fieldName)
+      const sourceColumn = sourceEntity?.columns?.find(column => column.fieldName === relationship.fieldName)
       const relationshipType =
         relationship.targetKind === 'INTERNAL_ENTITY'
           ? relationship.relationType === 'MANY_TO_MANY'
@@ -150,7 +150,7 @@ function buildAggregateRelationshipEdges(
       const targetDisplayName =
         relationship.targetKind === 'INTERNAL_ENTITY'
           ? internalEntitiesByType.get(relationship.targetEntity)?.displayName
-          : entitiesByKey.get(relationship.targetEntity)?.display_name
+          : entitiesByKey.get(relationship.targetEntity)?.displayName
 
       return {
         id: expectedEdgeId,
@@ -180,7 +180,7 @@ export function useEntityGraph(namespaceAggregate: NamespaceAggregate | null): U
     const entities = namespaceAggregate.customEntities.map(definition => toDataGraphInput(definition, false))
     const internalEntitiesByType = toInternalEntitySchemaMap(namespaceAggregate.internalEntities)
     const graph = buildDataGraph(entities, { internalEntitiesByType })
-    const entitiesByKey = new Map(namespaceAggregate.customEntities.map(entity => [entity.key, entity]))
+    const entitiesByKey = new Map(namespaceAggregate.customEntities.map(entity => [entity.entityName, entity]))
     const internalEntitiesByReferenceKey = new Map(
       namespaceAggregate.internalEntities.map(entity => [toInternalEntityReferenceKey(entity.type), entity])
     )

@@ -6,10 +6,8 @@ import { DataTablePanel } from './DataTablePanel'
 import { ColumnEditor } from './ColumnEditor'
 import { ensureColumnUiIds, stripColumnUiIds, type UiColumnDefinition } from '../utils/columnUiIds'
 import {
-  buildUniqueDefinitionKey,
   prepareColumnsForPersistence,
   prepareColumnsForEditing,
-  toPascalCase,
   validateDefinitionForm
 } from '../utils/definitionFormUtils'
 
@@ -20,9 +18,14 @@ interface EntityDetailPanelProps {
   onClose: () => void
   onSave: (dto: UpdateDefinitionDto, definition: CustomDataDefinition) => Promise<void>
   onOpenPromote: () => void
-  onCreateRow: (ns: string, key: string, values: Record<string, unknown>) => Promise<RowMutationResult>
-  onUpdateRow: (ns: string, key: string, rowId: string, values: Record<string, unknown>) => Promise<RowMutationResult>
-  onDeleteRow: (ns: string, key: string, rowId: string) => Promise<RowMutationResult>
+  onCreateRow: (ns: string, entityName: string, values: Record<string, unknown>) => Promise<RowMutationResult>
+  onUpdateRow: (
+    ns: string,
+    entityName: string,
+    rowId: string,
+    values: Record<string, unknown>
+  ) => Promise<RowMutationResult>
+  onDeleteRow: (ns: string, entityName: string, rowId: string) => Promise<RowMutationResult>
   'data-testid'?: string
 }
 
@@ -38,11 +41,10 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
   onDeleteRow,
   'data-testid': testId = 'entity-detail-panel'
 }) => {
-  const [displayName, setDisplayName] = useState(definition.display_name || '')
-  const [key, setKey] = useState(definition.key)
+  const [displayName, setDisplayName] = useState(definition.displayName || '')
   const [description, setDescription] = useState(definition.description || '')
   const [columns, setColumns] = useState<UiColumnDefinition[]>(() =>
-    ensureColumnUiIds(prepareColumnsForEditing(definition.columns_json ?? []))
+    ensureColumnUiIds(prepareColumnsForEditing(definition.columns ?? []))
   )
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,18 +52,13 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
   const [settingsExpanded, setSettingsExpanded] = useState(false)
   const definitionIdRef = useRef(definition.id)
 
-  const isPromoted = definition.publish_state === 'PROMOTED_TRACKED'
-  const siblingKeysInNamespace = (allDefinitions ?? [])
-    .filter(entity => (entity.namespace || 'default') === definition.namespace && entity.id !== definition.id)
-    .map(entity => entity.key)
-
+  const isPromoted = definition.publishState === 'PROMOTED_TRACKED'
   useEffect(() => {
     if (definition.id !== definitionIdRef.current) {
       definitionIdRef.current = definition.id
-      setDisplayName(definition.display_name || '')
-      setKey(definition.key)
+      setDisplayName(definition.displayName || '')
       setDescription(definition.description || '')
-      setColumns(ensureColumnUiIds(prepareColumnsForEditing(definition.columns_json ?? [])))
+      setColumns(ensureColumnUiIds(prepareColumnsForEditing(definition.columns ?? [])))
       setHasChanges(false)
       setError(null)
       setSettingsExpanded(false)
@@ -73,12 +70,9 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
   const handleDisplayNameChange = useCallback(
     (value: string) => {
       setDisplayName(value)
-      if (!isPromoted) {
-        setKey(buildUniqueDefinitionKey(value, siblingKeysInNamespace, definition.key))
-      }
       markDirty()
     },
-    [definition.key, isPromoted, markDirty, siblingKeysInNamespace]
+    [markDirty]
   )
 
   const handleDescriptionChange = useCallback(
@@ -104,22 +98,16 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
       return
     }
 
-    const generatedDefinitionKey = buildUniqueDefinitionKey(displayName, siblingKeysInNamespace, definition.key)
-    if (!generatedDefinitionKey) {
-      setError('Display name must generate a valid key')
-      return
-    }
-
     setIsSaving(true)
     setError(null)
 
     try {
       const persistedColumns = stripColumnUiIds(prepareColumnsForPersistence(columns))
       const dto: UpdateDefinitionDto = {
-        ...(isPromoted ? {} : { key: generatedDefinitionKey }),
-        display_name: displayName || undefined,
+        entityName: definition.entityName,
+        displayName: displayName || undefined,
         description: description || undefined,
-        columns_json: persistedColumns
+        columns: persistedColumns
       }
       await onSave(dto, definition)
       setHasChanges(false)
@@ -128,20 +116,17 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
     } finally {
       setIsSaving(false)
     }
-  }, [columns, definition, displayName, description, isPromoted, onSave, siblingKeysInNamespace])
+  }, [columns, definition, displayName, description, onSave])
 
   const availableNamespaces = Array.from(
     new Set([definition.namespace, ...(allDefinitions ?? []).map(entity => entity.namespace || 'default')])
   ).sort((left, right) => left.localeCompare(right))
   const customEntityOptions = (allDefinitions ?? []).map(d => ({
     namespace: d.namespace || 'default',
-    key: d.key,
-    displayName: d.display_name
+    entityName: d.entityName,
+    displayName: d.displayName || d.entityName
   }))
-  const generatedDefinitionKey = isPromoted
-    ? key
-    : buildUniqueDefinitionKey(displayName, siblingKeysInNamespace, definition.key)
-  const graphqlTypeName = generatedDefinitionKey ? toPascalCase(generatedDefinitionKey) : ''
+  const publicEntityName = definition.entityName
 
   return (
     <div
@@ -168,11 +153,8 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-[10px] gba:text-muted-foreground gba:mb-2">
-          <span>DB</span>
-          <span className="gba:font-mono">{generatedDefinitionKey || '-'}</span>
-          <span>|</span>
-          <span>GraphQL</span>
-          <span className="gba:font-mono">{graphqlTypeName || '-'}</span>
+          <span>Entity</span>
+          <span className="gba:font-mono">{publicEntityName || '-'}</span>
           <span>|</span>
           <span>NS</span>
           <span className="gba:font-mono">{definition.namespace}</span>
@@ -207,9 +189,9 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
           <Badge variant={isPromoted ? 'success' : 'warning'} className="gba:text-[10px] gba:px-1.5 gba:py-0">
             {isPromoted ? 'Promoted' : 'Draft'}
           </Badge>
-          {definition.deploy_state?.tableName && (
+          {definition.deployState?.tableName && (
             <span className="gba:text-[10px] gba:font-mono gba:text-muted-foreground">
-              {definition.deploy_state.tableName}
+              {definition.deployState.tableName}
             </span>
           )}
           <div className="gba:flex-1" />

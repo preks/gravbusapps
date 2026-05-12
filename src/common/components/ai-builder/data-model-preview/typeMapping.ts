@@ -39,7 +39,7 @@ export function enrichColumnsWithSchemaTypes(
   schemaTypes: Record<string, string>
 ): DataModelPreviewColumn[] {
   return columns.map(col => {
-    const schemaType = schemaTypes[col.name]
+    const schemaType = schemaTypes[col.fieldName]
     const mappedType = schemaType ? mapGraphQLTypeToColumnType(schemaType) : col.type || 'TEXT'
 
     // If GraphQL introspection returns a generic "String" type, but the original

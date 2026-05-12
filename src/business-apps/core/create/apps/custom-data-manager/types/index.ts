@@ -32,7 +32,7 @@ export interface InputDataSource {
 
 export interface ColumnDefinition {
   type: InputType
-  name: string
+  fieldName: string
   label: string
   required?: boolean
   options?: InputOption[]
@@ -55,25 +55,25 @@ export interface DeployState {
 export interface CustomDataDefinition {
   id: string
   namespace: string
-  key: string
+  entityName: string
   kind: DefinitionKind
-  display_name?: string
+  displayName?: string | null
   description?: string
-  columns_json: ColumnDefinition[]
-  publish_state: PublishState
-  deploy_state?: DeployState
-  created_at: string
-  updated_at: string
-  created_by?: string
-  updated_by?: string
+  columns: ColumnDefinition[]
+  publishState: PublishState
+  deployState?: DeployState
+  createdAt: string
+  updatedAt: string
+  createdBy?: string | null
+  updatedBy?: string | null
 }
 
 export interface CustomDataNamespace {
   namespace: string
-  display_name?: string | null
+  displayName?: string | null
   description?: string | null
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface InternalEntityFieldDefinition {
@@ -112,26 +112,26 @@ export interface NamespaceAggregate extends CustomDataNamespace {
 
 export interface CreateNamespaceDto {
   namespace: string
-  display_name?: string
+  displayName?: string
   description?: string
 }
 
 export interface CreateDefinitionDto {
   namespace: string
-  key: string
+  entityName: string
   kind: DefinitionKind
-  display_name?: string
+  displayName?: string
   description?: string
-  columns_json: ColumnDefinition[]
+  columns: ColumnDefinition[]
 }
 
 export interface UpdateDefinitionDto {
-  key?: string
-  display_name?: string
+  entityName?: string
+  displayName?: string
   description?: string
-  columns_json?: ColumnDefinition[]
-  publish_state?: PublishState
-  deploy_state?: DeployState
+  columns?: ColumnDefinition[]
+  publishState?: PublishState
+  deployState?: DeployState
 }
 
 /**
@@ -139,16 +139,16 @@ export interface UpdateDefinitionDto {
  */
 export interface EntityRelationship {
   type: 'ONE_TO_MANY'
-  sourceEntity: string // Parent entity key
-  targetEntity: string // Child entity key
-  foreignKeyColumn: string // Column name in child table
-  relationshipName?: string // Optional name for Hasura relationship
+  sourceEntity: string
+  targetEntity: string
+  foreignKeyColumn?: string
+  relationshipName?: string
   cascadeDelete?: boolean // Default: false
   targetKind?: RelationTargetKind
 }
 
 export interface EntityProposal {
-  key: string
+  entityName: string
   displayName: string
   description: string
   columns: ColumnDefinition[]
@@ -187,15 +187,15 @@ export interface CustomDataSuggestionStreamEvent {
 export interface CustomDataSuggestionApplyResult {
   success: boolean
   namespace: string
-  createdEntityKeys: string[]
-  updatedEntityKeys: string[]
-  deletedEntityKeys: string[]
-  downgradedEntityKeys: string[]
+  createdEntityNames: string[]
+  updatedEntityNames: string[]
+  deletedEntityNames: string[]
+  downgradedEntityNames: string[]
   proposal: EntitySchemaProposal
 }
 
 export interface NamespacePromotionEntityStatus {
-  entityKey: string
+  entityName: string
   definitionId: string
   deployed: boolean
   promoted: boolean
@@ -229,7 +229,7 @@ export interface NamespacePromotionResult {
 }
 
 export interface EntityCreationStatus {
-  entityKey: string
+  entityName: string
   definitionCreated: boolean
   tableDeployed: boolean
   tableName?: string

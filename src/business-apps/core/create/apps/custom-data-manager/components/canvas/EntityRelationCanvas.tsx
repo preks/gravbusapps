@@ -63,12 +63,12 @@ export const EntityRelationCanvas: React.FC<EntityRelationCanvasProps> = ({
       const targetDef = definitions.find(d => d.id === edge.target)
       const targetId = edge.target
       const isInternal = targetId.startsWith('internal-')
-      const targetKey = isInternal ? targetId.replace('internal-', '') : (targetDef?.key ?? targetId)
-      const targetDisplayName = isInternal ? targetKey : targetDef?.display_name
+      const targetKey = isInternal ? targetId.replace('internal-', '') : (targetDef?.entityName ?? targetId)
+      const targetDisplayName = isInternal ? targetKey : targetDef?.displayName
 
       onSelectRelationship({
-        sourceEntityKey: sourceDef?.key ?? edge.source,
-        sourceEntityDisplayName: sourceDef?.display_name,
+        sourceEntityKey: sourceDef?.entityName ?? edge.source,
+        sourceEntityDisplayName: sourceDef?.displayName,
         targetEntityKey: targetKey,
         targetEntityDisplayName: targetDisplayName,
         foreignKeyColumn: edgeData.foreignKeyColumn,

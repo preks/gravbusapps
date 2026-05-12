@@ -29,9 +29,9 @@ import { CustomDataDefinition, CreateDefinitionDto, UpdateDefinitionDto } from '
 import { ColumnEditor } from './ColumnEditor'
 import { SchemaPreview } from './SchemaPreview'
 import {
-  buildUniqueDefinitionKey,
   prepareColumnsForPersistence,
   prepareColumnsForEditing,
+  toPascalCase,
   validateDefinitionForm
 } from '../utils/definitionFormUtils'
 import { createInitialColumns, ensureColumnUiIds, stripColumnUiIds, UiColumnDefinition } from '../utils/columnUiIds'
@@ -64,7 +64,6 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
   'data-testid': testId = 'definition-form'
 }) => {
   const isEdit = !!definition
-  const isPromoted = definition?.publish_state === 'PROMOTED_TRACKED'
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('general')
@@ -79,9 +78,9 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
   useEffect(() => {
     if (definition) {
       setNamespace(definition.namespace || 'default')
-      setDisplayName(definition.display_name || '')
+      setDisplayName(definition.displayName || '')
       setDescription(definition.description || '')
-      setColumns(ensureColumnUiIds(prepareColumnsForEditing(definition.columns_json || [])))
+      setColumns(ensureColumnUiIds(prepareColumnsForEditing(definition.columns || [])))
     } else {
       // Reset form for new definition
       setNamespace('default')
@@ -93,30 +92,13 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
     setError(null)
   }, [definition, open])
 
-  const effectiveNamespace = isEdit ? definition?.namespace || namespace : namespace
-  const siblingKeysInNamespace = (allDefinitions ?? [])
-    .filter(existingDefinition => {
-      const existingNamespace = existingDefinition.namespace || 'default'
-      return existingNamespace === effectiveNamespace && existingDefinition.id !== definition?.id
-    })
-    .map(existingDefinition => existingDefinition.key)
-  const generatedKeyPreview = buildUniqueDefinitionKey(displayName, siblingKeysInNamespace, definition?.key)
+  const generatedEntityPreview = definition?.entityName || toPascalCase(displayName) || '-'
 
   const handleSubmit = async () => {
     const normalizedDisplayName = String(displayName || '').trim()
     const validationError = validateDefinitionForm({ displayName: normalizedDisplayName, columns })
     if (validationError) {
       setError(validationError)
-      return
-    }
-
-    const generatedDefinitionKey = buildUniqueDefinitionKey(
-      normalizedDisplayName,
-      siblingKeysInNamespace,
-      definition?.key
-    )
-    if (!generatedDefinitionKey) {
-      setError('Display name must generate a valid key')
       return
     }
 
@@ -127,20 +109,20 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
       const persistedColumns = stripColumnUiIds(prepareColumnsForPersistence(columns))
       if (isEdit) {
         const dto: UpdateDefinitionDto = {
-          ...(isPromoted ? {} : { key: generatedDefinitionKey }),
-          display_name: normalizedDisplayName || undefined,
+          entityName: definition.entityName,
+          displayName: normalizedDisplayName || undefined,
           description: description || undefined,
-          columns_json: persistedColumns
+          columns: persistedColumns
         }
         await onSave(dto, definition.id)
       } else {
         const dto: CreateDefinitionDto = {
           namespace,
-          key: generatedDefinitionKey,
+          entityName: toPascalCase(normalizedDisplayName),
           kind: 'CUSTOM_ENTITY',
-          display_name: normalizedDisplayName || undefined,
+          displayName: normalizedDisplayName || undefined,
           description: description || undefined,
-          columns_json: persistedColumns
+          columns: persistedColumns
         }
         await onSave(dto)
       }
@@ -165,7 +147,7 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? `Editing "${definition?.display_name || definition?.key}"`
+              ? `Editing "${definition?.displayName || definition?.entityName}"`
               : 'Define a new custom data schema with columns'}
           </DialogDescription>
         </DialogHeader>
@@ -229,14 +211,14 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
               <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                 {/* Generated Key */}
                 <div className="gba:space-y-2">
-                  <Label>Generated Key</Label>
+                  <Label>Entity</Label>
                   <div
                     className="gba:flex gba:min-h-10 gba:items-center gba:rounded-md gba:border gba:bg-muted/30 gba:px-3 gba:font-mono gba:text-sm"
                     data-testid={`${testId}-key-preview`}
                   >
-                    {generatedKeyPreview || '-'}
+                    {generatedEntityPreview}
                   </div>
-                  <p className="gba:text-xs gba:text-muted-foreground">Generated automatically from the display name</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">Derived by the Custom Flow Engine</p>
                 </div>
 
                 {/* Type */}
@@ -246,7 +228,7 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
                     <Database className="gba:h-4 gba:w-4" />
                     Entity
                   </Badge>
-                  <p className="gba:text-xs gba:text-muted-foreground">Native PostgreSQL table (requires promotion)</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">Custom Data entity (requires promotion)</p>
                 </div>
               </div>
 
@@ -290,8 +272,8 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
                 availableNamespaces={availableNamespaces}
                 customEntityOptions={(allDefinitions ?? []).map(d => ({
                   namespace: d.namespace || 'default',
-                  key: d.key,
-                  displayName: d.display_name
+                  entityName: d.entityName,
+                  displayName: d.displayName || d.entityName
                 }))}
                 data-testid={`${testId}-column-editor`}
               />

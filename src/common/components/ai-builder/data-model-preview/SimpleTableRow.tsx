@@ -45,8 +45,8 @@ export const SimpleTableRow: React.FC<SimpleTableRowProps> = ({
         const isInternalEntity = col.dataSource?.type === 'INTERNAL_ENTITY'
         let displayValue: string | undefined
         if (!isEditing && isInternalEntity) {
-          const nestedKey = col.name.replace(/Id$/, '').replace(/_id$/, '') || col.name
-          const resolvedKey = nestedKey === col.name ? `${col.name}Ref` : nestedKey
+          const nestedKey = col.fieldName.replace(/Id$/, '') || col.fieldName
+          const resolvedKey = nestedKey === col.fieldName ? `${col.fieldName}Ref` : nestedKey
           const nested = row[resolvedKey]
           if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
             const entity = nested as Record<string, unknown>
@@ -69,17 +69,19 @@ export const SimpleTableRow: React.FC<SimpleTableRowProps> = ({
           }
         }
         return (
-          <td key={col.name} className="gba:px-3 gba:py-2 gba:align-middle">
+          <td key={col.fieldName} className="gba:px-3 gba:py-2 gba:align-middle">
             <div className="gba:w-full gba:overflow-hidden">
               {isEditing ? (
                 <CellInput
                   col={col}
-                  value={editValues[col.name] ?? (col.type === 'CHECKBOX' ? false : '')}
-                  onChange={val => onCellChange(col.name, val)}
+                  value={editValues[col.fieldName] ?? (col.type === 'CHECKBOX' ? false : '')}
+                  onChange={val => onCellChange(col.fieldName, val)}
                   disabled={saving}
                 />
               ) : (
-                <span className="gba:block gba:truncate">{displayValue ?? formatValue(row[col.name], col.type)}</span>
+                <span className="gba:block gba:truncate">
+                  {displayValue ?? formatValue(row[col.fieldName], col.type)}
+                </span>
               )}
             </div>
           </td>

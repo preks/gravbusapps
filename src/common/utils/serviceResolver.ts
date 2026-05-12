@@ -13,28 +13,12 @@ export interface ServicePathConfig {
   apiPath: string
 }
 
-function isLocalhostRuntime(): boolean {
-  const host = globalThis.window?.location?.hostname
-  return host === 'localhost' || host === '127.0.0.1'
-}
-
 function buildFullPath(servicePath: string, apiPath: string): string {
   const s = servicePath.startsWith('/') ? servicePath : `/${servicePath}`
   const trimmed = s.endsWith('/') ? s.slice(0, -1) : s
   if (!apiPath) return trimmed
   const a = apiPath.startsWith('/') ? apiPath : `/${apiPath}`
   return `${trimmed}${a}`
-}
-
-/**
- * Custom Flow Engine (Conductor) REST base must include a single `/api` segment before paths like
- * `/entities`, `/templates/*`, `/custom-data/*`. Local overrides may already end with `/api`; hosted
- * URLs may be `.../flow-engine` without it — this avoids `/api/api/...` and fixes bare `.../3002`.
- */
-export function normalizeCustomFlowEngineApiBaseUrl(resolved: string): string {
-  const trimmed = resolved.replace(/\/+$/, '')
-  if (/\/api(?:\/|$)/.test(trimmed)) return trimmed
-  return `${trimmed}/api`
 }
 
 // ============================================================================
@@ -74,7 +58,7 @@ export function resolveGravityPlatformWordmarkUrl(): string {
  */
 export function resolveServiceUrl(envVar: string, config: ServicePathConfig): string {
   const serviceUrl = env(envVar)
-  if (serviceUrl && isLocalhostRuntime()) {
+  if (serviceUrl) {
     return serviceUrl
   }
 
@@ -108,12 +92,10 @@ export const CHAT_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_CHAT_WEB_SOCKE
   servicePath: '/chat-service',
   apiPath: ''
 })
-export const CUSTOM_FLOW_ENGINE_API_URL = normalizeCustomFlowEngineApiBaseUrl(
-  resolveServiceUrl('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL', {
-    servicePath: '/flow-engine',
-    apiPath: '/api'
-  })
-)
+export const CUSTOM_FLOW_ENGINE_API_URL = resolveServiceUrl('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL', {
+  servicePath: '/flow-engine',
+  apiPath: '/api'
+})
 export const CONTENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_CONTENT_API_URL', {
   servicePath: '/processes/content',
   apiPath: ''

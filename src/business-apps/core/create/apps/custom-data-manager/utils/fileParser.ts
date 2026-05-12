@@ -104,23 +104,24 @@ const sanitizeColumnName = (header: string): string => {
     .filter(c => /[a-z0-9_]/.test(c))
     .join('')
 
-  return collapseUnderscores(trimUnderscores(sanitized)) || 'column'
+  const snakeName = collapseUnderscores(trimUnderscores(sanitized)) || 'column'
+  return snakeName.replace(/_([a-z0-9])/g, (_match, char: string) => char.toUpperCase())
 }
 
 /**
- * Ensure column names are unique
+ * Ensure field names are unique
  */
 const ensureUniqueNames = (columns: ColumnDefinition[]): ColumnDefinition[] => {
   const usedNames = new Set<string>()
   return columns.map(col => {
-    let name = col.name
+    let fieldName = col.fieldName
     let counter = 1
-    while (usedNames.has(name)) {
-      name = `${col.name}_${counter}`
+    while (usedNames.has(fieldName)) {
+      fieldName = `${col.fieldName}${counter}`
       counter++
     }
-    usedNames.add(name)
-    return { ...col, name }
+    usedNames.add(fieldName)
+    return { ...col, fieldName }
   })
 }
 
@@ -323,14 +324,14 @@ export const parseFile = async (file: File): Promise<ParsedFileResult> => {
 
   // Create column definitions
   let columns: ColumnDefinition[] = headers.map(header => {
-    const name = sanitizeColumnName(header)
+    const fieldName = sanitizeColumnName(header)
     // Get sample values for type inference
     const sampleValues = rawData.slice(0, 100).map(row => row[header])
     const type = inferColumnType(sampleValues)
 
     return {
       type,
-      name,
+      fieldName,
       label: header,
       required: false
     }
@@ -342,7 +343,7 @@ export const parseFile = async (file: File): Promise<ParsedFileResult> => {
   // Create a mapping from original header to sanitized name
   const headerToName: Record<string, string> = {}
   headers.forEach((header, index) => {
-    headerToName[header] = columns[index].name
+    headerToName[header] = columns[index].fieldName
   })
 
   // Convert raw data to use sanitized column names and proper types
@@ -351,7 +352,7 @@ export const parseFile = async (file: File): Promise<ParsedFileResult> => {
     headers.forEach((header, index) => {
       const col = columns[index]
       const rawValue = rawRow[header]
-      row[col.name] = convertValue(rawValue, col.type)
+      row[col.fieldName] = convertValue(rawValue, col.type)
     })
     return row
   })
@@ -362,19 +363,4 @@ export const parseFile = async (file: File): Promise<ParsedFileResult> => {
     fileName,
     rowCount: rows.length
   }
-}
-
-/**
- * Generate a suggested key from a filename
- */
-export const generateKeyFromFilename = (filename: string): string => {
-  const withoutExtension = filename.replace(/\.(csv|xlsx|xls)$/i, '')
-  const sanitized = withoutExtension
-    .toLowerCase()
-    .split('')
-    .map(c => (/\s/.test(c) ? '_' : c))
-    .filter(c => /[a-z0-9_]/.test(c))
-    .join('')
-
-  return collapseUnderscores(trimUnderscores(sanitized)).slice(0, 50) || 'imported_data'
 }

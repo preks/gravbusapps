@@ -1,6 +1,6 @@
-import { env } from '@/common/env/EnvUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { resolveExecuteDynamicUrl } from '@/common/network/flows/flowEngineUrl'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 export type WhiteboardSharePermission = 'view' | 'edit' | 'comment'
 
@@ -26,8 +26,7 @@ export async function sendWhiteboardShareNotification(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const rawBaseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-    const executeDynamicUrl = resolveExecuteDynamicUrl(rawBaseUrl)
+    const executeDynamicUrl = resolveExecuteDynamicUrl(CUSTOM_FLOW_ENGINE_API_URL)
     const timestamp = Date.now()
     const blinkGroupId = `whiteboard_share_${timestamp}_${payload.initiatorId}`
 

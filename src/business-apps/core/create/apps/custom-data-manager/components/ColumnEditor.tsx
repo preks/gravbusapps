@@ -22,14 +22,13 @@ import type { UiColumnDefinition } from '../utils/columnUiIds'
 import { createNewColumn } from '../utils/columnUiIds'
 import {
   getColumnNameValidationError,
-  getPersistedReferenceFieldNamePreview,
   isEntityReferenceColumn,
   syncColumnNameWithLabel
 } from '../utils/definitionFormUtils'
 
 interface CustomEntityOption {
   namespace: string
-  key: string
+  entityName: string
   displayName?: string
 }
 
@@ -78,8 +77,8 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
     () =>
       customEntityOptions.map(entity => ({
         namespace: entity.namespace || 'default',
-        value: entity.key,
-        label: entity.displayName || entity.key
+        value: entity.entityName,
+        label: entity.displayName || entity.entityName
       })),
     [customEntityOptions]
   )
@@ -242,7 +241,6 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
           const optionsExpanded = expandedOptions[index]
           const isReferenceColumn = isEntityReferenceColumn(column)
           const columnNameValidationError = getColumnNameValidationError(column, index)
-          const persistedReferenceFieldNamePreview = getPersistedReferenceFieldNamePreview(column)
 
           return (
             <article
@@ -254,7 +252,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
               onDragEnd={handleDragEnd}
               className={`gba:border gba:rounded-lg gba:overflow-hidden ${isDragging ? 'gba:opacity-50 gba:bg-muted' : 'gba:bg-card'}`}
               data-testid={`${testId}-column-${index}`}
-              aria-label={`Column ${column.label || column.name}`}
+              aria-label={`Column ${column.label || column.fieldName}`}
             >
               {/* Compact header row -- always visible */}
               <div
@@ -268,7 +266,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                   <GripVertical className="gba:h-3.5 gba:w-3.5" />
                 </div>
                 <span className="gba:text-xs gba:font-medium gba:truncate gba:flex-1">
-                  {column.label || column.name || 'Untitled'}
+                  {column.label || column.fieldName || 'Untitled'}
                 </span>
                 <span className="gba:text-[10px] gba:text-muted-foreground gba:font-mono gba:shrink-0">
                   {typeLabel(column.type)}
@@ -311,10 +309,8 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                     {columnNameValidationError ? (
                       <p className="gba:text-[10px] gba:text-destructive">{columnNameValidationError}</p>
                     ) : isReferenceColumn ? (
-                      <p className="gba:text-[10px] gba:text-muted-foreground gba:font-mono">
-                        {persistedReferenceFieldNamePreview
-                          ? `Stored as ${persistedReferenceFieldNamePreview}`
-                          : `Relationship field: ${column.name || 'relatedItems'}`}
+                      <p className="gba:text-[10px] gba:text-muted-foreground">
+                        Select the target entity; the backend derives writable and relation names.
                       </p>
                     ) : null}
                   </div>

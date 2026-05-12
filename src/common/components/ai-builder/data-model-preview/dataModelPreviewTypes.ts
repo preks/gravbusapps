@@ -1,6 +1,6 @@
 /** Minimal type for data model preview. Callers (orchestrator, demo) map from CustomDataDefinition or mock. */
 export interface DataModelPreviewColumn {
-  name: string
+  fieldName: string
   label: string
   /** TEXT | NUMBER | DATE | DATETIME | CHECKBOX | SELECT | REFERENCE */
   type: string
@@ -9,13 +9,14 @@ export interface DataModelPreviewColumn {
   dataSource?: {
     type: string
     entity?: string
+    namespace?: string
   }
 }
 
 export interface DataModelPreviewDefinition {
-  key: string
+  entityName: string
   namespace: string
-  display_name?: string
+  displayName?: string
   description?: string
   columns: DataModelPreviewColumn[]
   /**

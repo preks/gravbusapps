@@ -29,10 +29,10 @@ describe('CustomDataChatPanel', () => {
     const proposal = {
       entities: [
         {
-          key: 'order',
+          entityName: 'Order',
           displayName: 'Order',
           description: 'Sales order',
-          columns: [{ type: InputType.TEXT, name: 'name', label: 'Name' }]
+          columns: [{ type: InputType.TEXT, fieldName: 'name', label: 'Name' }]
         }
       ],
       relationships: []
