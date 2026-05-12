@@ -85,7 +85,15 @@ export interface CalendarActivity {
   // Entity references (optional investment aligns with IRM-only data; CRM callers typically omit)
   account?: { id?: string; name?: string; pictureThumbnail?: string | null } | null
   contact?: { id?: string; firstName?: string; lastName?: string; pictureThumbnail?: string | null } | null
-  lead?: { id?: string; name?: string; contact?: { firstName?: string; lastName?: string } } | null
+  lead?: {
+    id?: string
+    name?: string
+    companyName?: string | null
+    firstName?: string | null
+    lastName?: string | null
+    code?: string | null
+    contact?: { firstName?: string; lastName?: string }
+  } | null
   opportunity?: { id?: string; name?: string } | null
   investment?: { id?: string; name?: string; pictureThumbnail?: string | null } | null
   investmentId?: string | null

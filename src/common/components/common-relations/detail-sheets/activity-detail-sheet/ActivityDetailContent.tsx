@@ -42,23 +42,30 @@ import {
 } from '@/common/components/common-relations/record-sections/activity-section/getActivityRelatedEntities'
 
 const DATA_TEST_ID_PREFIX = 'ActivityDetailSheet'
+const OVERVIEW_VALUE_MAX_WIDTH_CLASS = 'gba:max-w-[280px]'
+const DESCRIPTION_MAX_WIDTH_CLASS = 'gba:max-w-[380px]'
 
 interface FieldRowProps {
   icon: PhosphorIcon
   label: string
   children: React.ReactNode
   testId?: string
+  align?: 'start' | 'center'
 }
 
-const FieldRow: React.FC<FieldRowProps> = ({ icon: IconComponent, label, children, testId }) => (
-  <div className="gba:flex gba:items-start gba:gap-3 gba:py-2" data-testid={testId}>
-    <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
-      <IconComponent size={14} className="gba:text-muted-foreground" />
-      <span>{label}</span>
+const FieldRow: React.FC<FieldRowProps> = ({ icon: IconComponent, label, children, testId, align = 'center' }) => {
+  const alignmentClass = align === 'start' ? 'gba:items-start' : 'gba:items-center'
+
+  return (
+    <div className={`gba:flex ${alignmentClass} gba:gap-3 gba:py-2`} data-testid={testId}>
+      <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground gba:shrink-0">
+        <IconComponent size={14} className="gba:text-muted-foreground" />
+        <span>{label}</span>
+      </div>
+      <div className="gba:flex-1 gba:min-w-0 gba:overflow-hidden">{children}</div>
     </div>
-    <div className="gba:flex-1">{children}</div>
-  </div>
-)
+  )
+}
 
 const getInitials = (firstName: string, lastName: string): string => {
   const first = firstName?.charAt(0)?.toUpperCase() || ''
@@ -132,9 +139,12 @@ export const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
               icon={LinkIcon}
               label={t('activities-detail-related')}
               testId={`${dataTestId || DATA_TEST_ID_PREFIX}-related`}
+              align="start"
             >
               {relatedEntities.length > 0 ? (
-                <ActivityRelatedEntityHints activityId={activity.id} entities={relatedEntities} t={t} />
+                <div className={`gba:w-full gba:min-w-0 gba:overflow-hidden ${OVERVIEW_VALUE_MAX_WIDTH_CLASS}`}>
+                  <ActivityRelatedEntityHints activityId={activity.id} entities={relatedEntities} t={t} />
+                </div>
               ) : (
                 <Badge variant="outline">{t('activities-detail-general')}</Badge>
               )}
@@ -146,7 +156,7 @@ export const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:min-w-0 gba:max-w-full"
+                      className={`gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:min-w-0 ${OVERVIEW_VALUE_MAX_WIDTH_CLASS}`}
                       onClick={handleOwnerClick}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-owner-link`}
                     >
@@ -164,7 +174,7 @@ export const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                           {getInitials(activity.ownerEmployee.firstName || '', activity.ownerEmployee.lastName || '')}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="gba:text-sm gba:font-medium gba:truncate">
+                      <span className="gba:flex-1 gba:min-w-0 gba:truncate gba:text-sm gba:font-medium">
                         {activity.ownerEmployee.displayName ||
                           `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
                           'Unknown'}
@@ -204,8 +214,10 @@ export const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
             </CardHeader>
             <CardContent>
               <div className="gba:flex gba:items-start gba:gap-3">
-                <TextAlignLeftIcon size={14} className="gba:text-muted-foreground gba:mt-0.5" />
-                <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap gba:flex-1">
+                <TextAlignLeftIcon size={14} className="gba:text-muted-foreground gba:mt-0.5 gba:shrink-0" />
+                <p
+                  className={`gba:block gba:flex-1 gba:min-w-0 ${DESCRIPTION_MAX_WIDTH_CLASS} gba:whitespace-normal gba:text-sm gba:text-foreground`}
+                >
                   {activity.description}
                 </p>
               </div>

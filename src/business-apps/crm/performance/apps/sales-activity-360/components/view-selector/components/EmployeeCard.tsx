@@ -3,11 +3,13 @@ import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-s
 import { AirplaneTiltIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { EmployeeCardProps } from '../types/ViewSelectorTypes'
 import dayjs from 'dayjs'
+import { getEmployeeAvatarSrc } from '../../utils/avatarUtils'
 
 export const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp, showTrend = true, showAbsence = false, onClick }) => {
   const name =
     emp.employee.displayName || `${emp.employee.firstName || ''} ${emp.employee.lastName || ''}`.trim() || 'Unknown'
   const role = emp.employee.employeePosition?.jobPosition?.name || ''
+  const avatarSrc = getEmployeeAvatarSrc(emp.employee.pictureThumbnail)
 
   // Format days since last activity
   const formatDaysSince = (days?: number): string | null => {
@@ -39,9 +41,7 @@ export const EmployeeCard: React.FC<EmployeeCardProps> = ({ emp, showTrend = tru
       className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-lg gba:bg-background/60 hover:gba:bg-background gba:transition-colors gba:cursor-pointer gba:border-0 gba:text-left gba:w-full"
     >
       <Avatar className="gba:h-10 gba:w-10 gba:shrink-0">
-        {emp.employee.pictureThumbnail ? (
-          <AvatarImage src={`data:image/jpeg;base64,${emp.employee.pictureThumbnail}`} />
-        ) : null}
+        {avatarSrc ? <AvatarImage src={avatarSrc} alt={name} /> : null}
         <AvatarFallback>{name.charAt(0)}</AvatarFallback>
       </Avatar>
       <div className="gba:flex-1 gba:min-w-0">

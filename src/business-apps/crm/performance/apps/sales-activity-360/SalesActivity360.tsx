@@ -17,7 +17,8 @@ const VALID_FILTERS: ActivityViewFilter[] = [
   'by-account',
   'by-contact',
   'by-lead',
-  'by-opportunity'
+  'by-opportunity',
+  'by-general'
 ]
 
 // Unified app state - single source of truth
@@ -46,7 +47,7 @@ const parseUrlParams = (): AppScreen => {
     }
   }
 
-  if (screen === 'entity-selector' && validFilter && validFilter !== 'all') {
+  if (screen === 'entity-selector' && validFilter && validFilter !== 'all' && validFilter !== 'by-general') {
     return {
       screen: 'entity-selector',
       filter: validFilter
@@ -76,6 +77,12 @@ const buildUrlFromState = (state: AppScreen): string => {
   } else if (state.screen === 'activity-view') {
     newParams.set('screen', 'activity-view')
     newParams.set('filter', state.filter)
+    const currentTab = params.get('tab')
+    const isValidTab =
+      currentTab === 'list' || currentTab === 'calendar' || (currentTab === 'comparison' && state.filter === 'all')
+    if (isValidTab) {
+      newParams.set('tab', currentTab)
+    }
     if (state.entityId) {
       newParams.set('entityId', state.entityId)
     }
@@ -121,11 +128,10 @@ export const SalesActivity360: React.FC<SalesActivity360Props> = ({ accessToken,
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  // Handle view selection from ViewSelector (only "All Activities" now, as overlay handles others)
+  // Handle direct view selections from ViewSelector
   const handleViewSelect = (filter: ActivityViewFilter) => {
-    if (filter === 'all') {
-      // "All Activities" goes DIRECTLY to activity view
-      setAppState({ screen: 'activity-view', filter: 'all' })
+    if (filter === 'all' || filter === 'by-general') {
+      setAppState({ screen: 'activity-view', filter })
     }
     // Entity-specific views are now handled by the overlay in ViewSelector
   }
@@ -178,9 +184,8 @@ export const SalesActivity360: React.FC<SalesActivity360Props> = ({ accessToken,
   // Render based on current screen
   switch (appState.screen) {
     case 'activity-view':
-      // Activity view uses full width like team performance for wide tables
       return (
-        <div className="gba:min-h-screen gba:bg-background gba:p-6" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+        <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <ActivityView
             accessToken={accessToken}
             userInfo={userInfo}

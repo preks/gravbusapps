@@ -12,9 +12,17 @@ import {
   Spinner,
   ScrollArea
 } from '@newwork/nw-design-system'
-import { UserIcon, BuildingIcon, TargetIcon, HandshakeIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
+import {
+  UserIcon,
+  BuildingIcon,
+  TargetIcon,
+  HandshakeIcon,
+  MagnifyingGlassIcon,
+  UserCircleIcon
+} from '@phosphor-icons/react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ActivityViewFilter } from '../../../types'
+import { getEmployeeAvatarSrc } from '../../utils/avatarUtils'
 
 interface EntitySelectorOverlayProps {
   open: boolean
@@ -54,7 +62,7 @@ const getEntityConfig = (type: ActivityViewFilter) => {
       return {
         title: 'Select Contact',
         description: 'Choose a contact to view their touchpoints',
-        icon: <UserIconCircle className="gba:w-6 gba:h-6" />,
+        icon: <UserCircleIcon className="gba:w-6 gba:h-6" />,
         placeholder: 'Search contacts...',
         color: 'gba:bg-muted gba:text-muted-foreground'
       }
@@ -322,7 +330,7 @@ const transformResults = (type: ActivityViewFilter, data: any): EntityItem[] => 
           [e.employeePosition?.jobPosition?.name, e.employeePosition?.organizationalUnit?.name]
             .filter(Boolean)
             .join(' · ') || undefined,
-        avatar: e.pictureThumbnail ? `data:image/jpeg;base64,${e.pictureThumbnail}` : undefined
+        avatar: getEmployeeAvatarSrc(e.pictureThumbnail)
       }))
     case 'by-account':
       return (data?.Account || []).map((a: any) => ({

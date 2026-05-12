@@ -2,11 +2,16 @@ import { useState, useCallback, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { TeamSalesActivity } from './useTeamActivitiesData'
+import {
+  buildCustomerActivityOrderBy,
+  buildCustomerActivityQuery
+} from '@/common/data/customer/queries/customerActivityQueries'
 
 interface UseCalendarActivitiesDataProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   employeeIds: string[]
   dateFrom: string // YYYY-MM-DD format
   dateTo: string // YYYY-MM-DD format
+  unlinkedOnly?: boolean
 }
 
 interface UseCalendarActivitiesDataResult {
@@ -17,63 +22,6 @@ interface UseCalendarActivitiesDataResult {
   retry: () => void
 }
 
-// GraphQL query for calendar activities (no limit enforcement)
-const GET_CALENDAR_ACTIVITIES_QUERY = `
-  query GetCalendarActivities($where: SalesActivityBoolExp, $orderBy: [SalesActivityOrderBy!]) {
-    SalesActivity(
-      where: $where,
-      orderBy: $orderBy
-    ) {
-      id
-      contactId
-      leadId
-      accountId
-      opportunityId
-      source
-      description
-      createdAt
-      occurredAt
-      createdBy
-      ownerEmployeeId
-      ownerEmployee {
-        fullName
-        pictureThumbnail
-      }
-      title
-      activityType {
-        value
-      }
-      account {
-        email
-        name
-        pictureUrl
-      }
-      contact {
-        firstName
-        lastName
-        phone
-        pictureUrl
-        email
-      }
-      lead {
-        name
-        companyEmail
-        companyPhone
-        contact {
-          firstName
-          lastName
-        }
-      }
-      opportunity {
-        name
-        ownerEmployee {
-          fullName
-        }
-      }
-    }
-  }
-`
-
 /**
  * Hook specifically for calendar view - fetches ALL activities within a date range
  * without enforcing query limits. Safe because date range is typically one month.
@@ -83,7 +31,8 @@ export const useCalendarActivitiesData = ({
   dateFrom,
   dateTo,
   accessToken,
-  userInfo
+  userInfo,
+  unlinkedOnly = false
 }: UseCalendarActivitiesDataProps): UseCalendarActivitiesDataResult => {
   const [activities, setActivities] = useState<TeamSalesActivity[]>([])
   const [loading, setLoading] = useState(false)
@@ -126,12 +75,22 @@ export const useCalendarActivitiesData = ({
         ]
       }
 
+      if (unlinkedOnly) {
+        baseWhere._and.push(
+          { accountId: { _isNull: true } },
+          { contactId: { _isNull: true } },
+          { leadId: { _isNull: true } },
+          { opportunityId: { _isNull: true } }
+        )
+      }
+
       // Order by occurredAt descending
-      const orderBy = [{ occurredAt: 'DESC' }]
+      const orderBy = buildCustomerActivityOrderBy([{ field: 'occurredAt', direction: 'DESC_NULLS_LAST' }])
+      const query = buildCustomerActivityQuery()
 
       const result = await graphqlClient.request<{
         SalesActivity: TeamSalesActivity[]
-      }>(GET_CALENDAR_ACTIVITIES_QUERY, {
+      }>(query, {
         where: baseWhere,
         orderBy
       })
@@ -145,7 +104,7 @@ export const useCalendarActivitiesData = ({
     } finally {
       setLoading(false)
     }
-  }, [accessToken, employeeIds, dateFrom, dateTo, userInfo, graphqlClient])
+  }, [accessToken, employeeIds, dateFrom, dateTo, userInfo, unlinkedOnly, graphqlClient])
 
   const retry = useCallback(() => {
     loadActivities()

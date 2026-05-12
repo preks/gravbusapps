@@ -1,51 +1,14 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { SalesActivity } from '../../sales-member-performance/types/activitiesTypes'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits'
+import type { CustomerActivity } from '@/common/data/customer/types/customerActivityTypes'
+import {
+  buildCustomerActivityOrderBy,
+  buildCustomerActivityQuery
+} from '@/common/data/customer/queries/customerActivityQueries'
 
-// Extended interface for team activities with employee info
-// Omit conflicting property 'ownerEmployee' from base SalesActivity
-export interface TeamSalesActivity extends Omit<SalesActivity, 'ownerEmployee'> {
-  ownerEmployeeId: string | null
-  ownerEmployee: {
-    fullName: string
-    firstName?: string | null
-    lastName?: string | null
-    pictureThumbnail?: string | null
-  } | null
-  accountId: string | null
-  contactId: string | null
-  leadId: string | null
-  opportunityId: string | null
-  account: {
-    email?: string | null
-    name: string
-    pictureUrl?: string | null
-  } | null
-  contact: {
-    firstName: string
-    lastName: string
-    phone?: string | null
-    pictureUrl?: string | null
-    email?: string | null
-  } | null
-  lead: {
-    name: string
-    companyEmail?: string | null
-    companyPhone?: string | null
-    contact?: {
-      firstName: string
-      lastName: string
-    } | null
-  } | null
-  opportunity: {
-    name: string
-    ownerEmployee?: {
-      fullName: string
-    } | null
-  } | null
-}
+export type TeamSalesActivity = CustomerActivity
 
 export interface TeamActivitiesFilters {
   activityTypeRef?: string[]
@@ -56,6 +19,7 @@ export interface TeamActivitiesFilters {
   contactId?: string[]
   leadId?: string[]
   opportunityId?: string[]
+  unlinkedOnly?: boolean
   createdAtFrom?: string
   createdAtTo?: string
   occurredAtFrom?: string
@@ -78,74 +42,25 @@ interface UseTeamActivitiesDataResult {
   loading: boolean
   error: string | null
   loadActivities: () => Promise<void>
+  fetchActivities: (vars: {
+    limit?: number
+    offset?: number
+    enforceLimit?: boolean
+  }) => Promise<{ activities: TeamSalesActivity[]; total: number }>
   retry: () => void
 }
 
-// Build GraphQL query for team activities dynamically (to handle nested orderBy properly)
-const buildTeamActivitiesQuery = (orderByClause: string) => `
-  query GetTeamActivities($where: SalesActivityBoolExp, $limit: Int, $offset: Int) {
-    SalesActivity(
-      where: $where,
-      ${orderByClause}
-      limit: $limit,
-      offset: $offset
-    ) {
-      id
-      contactId
-      leadId
-      accountId
-      opportunityId
-      source
-      description
-      createdAt
-      occurredAt
-      createdBy
-      ownerEmployeeId
-      ownerEmployee {
-        fullName
-        firstName
-        lastName
-        pictureThumbnail
-      }
-      title
-      activityType {
-        value
-      }
-      account {
-        email
-        name
-        pictureUrl
-      }
-      contact {
-        firstName
-        lastName
-        phone
-        pictureUrl
-        email
-      }
-      lead {
-        name
-        companyEmail
-        companyPhone
-        contact {
-          firstName
-          lastName
-        }
-      }
-      opportunity {
-        name
-        ownerEmployee {
-          fullName
-        }
-      }
-    }
-    SalesActivityAggregate(where: $where) {
-      aggregate {
-        count
-      }
-    }
-  }
-`
+const mapSortField = (field: UseTeamActivitiesDataProps['sortField']): string => {
+  if (field === 'activityType.value') return 'activityType'
+  if (field === 'ownerEmployee.fullName') return 'ownerEmployee'
+  return field ?? 'createdAt'
+}
+
+const mapSortDirection = (direction: UseTeamActivitiesDataProps['sortOrder']) => {
+  if (direction === 'ASC') return 'ASC_NULLS_LAST'
+  if (direction === 'DESC') return 'DESC_NULLS_LAST'
+  return direction ?? 'DESC_NULLS_LAST'
+}
 
 export const useTeamActivitiesData = ({
   employeeIds,
@@ -198,8 +113,12 @@ export const useTeamActivitiesData = ({
           { account: { name: searchPattern } },
           { contact: { firstName: searchPattern } },
           { contact: { lastName: searchPattern } },
-          { lead: { name: searchPattern } },
+          { lead: { companyName: searchPattern } },
+          { lead: { firstName: searchPattern } },
+          { lead: { lastName: searchPattern } },
+          { lead: { code: searchPattern } },
           { opportunity: { name: searchPattern } },
+          { ownerEmployee: { displayName: searchPattern } },
           { ownerEmployee: { fullName: searchPattern } },
           { ownerEmployee: { firstName: searchPattern } },
           { ownerEmployee: { lastName: searchPattern } }
@@ -245,6 +164,14 @@ export const useTeamActivitiesData = ({
       if (filters.contactId?.length) baseWhere._and.push({ contactId: { _in: filters.contactId } })
       if (filters.leadId?.length) baseWhere._and.push({ leadId: { _in: filters.leadId } })
       if (filters.opportunityId?.length) baseWhere._and.push({ opportunityId: { _in: filters.opportunityId } })
+      if (filters.unlinkedOnly) {
+        baseWhere._and.push(
+          { accountId: { _isNull: true } },
+          { contactId: { _isNull: true } },
+          { leadId: { _isNull: true } },
+          { opportunityId: { _isNull: true } }
+        )
+      }
     },
     [buildReferenceEntityConditions]
   )
@@ -256,6 +183,58 @@ export const useTeamActivitiesData = ({
     if (filters.occurredAtFrom) baseWhere._and.push({ occurredAt: { _gte: filters.occurredAtFrom } })
     if (filters.occurredAtTo) baseWhere._and.push({ occurredAt: { _lte: filters.occurredAtTo } })
   }, [])
+
+  const fetchActivities = useCallback(
+    async (vars: { limit?: number; offset?: number; enforceLimit?: boolean } = {}) => {
+      const baseWhere: any = buildBaseWhereConditions(stableEmployeeIds, userInfo)
+      addSearchConditions(baseWhere, search)
+      addFilterConditions(baseWhere, stableFilters)
+      addDateRangeFilters(baseWhere, stableFilters)
+
+      const query = buildCustomerActivityQuery()
+      const orderBy = buildCustomerActivityOrderBy([
+        {
+          field: mapSortField(sortField),
+          direction: mapSortDirection(sortOrder)
+        }
+      ])
+
+      const requestedLimit = vars.limit ?? limit
+      const queryLimit = vars.enforceLimit ? enforceQueryLimit(requestedLimit) : requestedLimit
+
+      const result = await graphqlClient.request<{
+        SalesActivity: TeamSalesActivity[]
+        SalesActivityAggregate: {
+          aggregate: { count: number }
+        }
+      }>(query, {
+        where: baseWhere,
+        orderBy,
+        limit: queryLimit,
+        offset: vars.offset ?? offset
+      })
+
+      return {
+        activities: result.SalesActivity || [],
+        total: result.SalesActivityAggregate?.aggregate?.count || 0
+      }
+    },
+    [
+      stableEmployeeIds,
+      userInfo,
+      search,
+      stableFilters,
+      sortField,
+      sortOrder,
+      graphqlClient,
+      limit,
+      offset,
+      buildBaseWhereConditions,
+      addSearchConditions,
+      addFilterConditions,
+      addDateRangeFilters
+    ]
+  )
 
   const loadActivities = useCallback(async () => {
     if (!accessToken || stableEmployeeIds.length === 0) {
@@ -269,50 +248,9 @@ export const useTeamActivitiesData = ({
     setError(null)
 
     try {
-      // Build where conditions using helper functions
-      const baseWhere: any = buildBaseWhereConditions(stableEmployeeIds, userInfo)
-      addSearchConditions(baseWhere, search)
-      addFilterConditions(baseWhere, stableFilters)
-      addDateRangeFilters(baseWhere, stableFilters)
-
-      // Build orderBy clause as string (to handle nested catalog entries and employee fields properly)
-      const buildOrderByEntry = (field: string, direction: string): string => {
-        // Nested catalog entry fields (activityType is a CatalogEntry)
-        if (field === 'activityType.value' || field === 'activityType') {
-          return `{ activityType: { value: ${direction} } }`
-        }
-
-        // Nested employee fields (ownerEmployee is an Employee relation)
-        if (field === 'ownerEmployee.fullName' || field === 'ownerEmployee') {
-          return `{ ownerEmployee: { fullName: ${direction} } }`
-        }
-        if (field === 'ownerEmployee.displayName') {
-          return `{ ownerEmployee: { displayName: ${direction} } }`
-        }
-
-        // Direct scalar fields
-        return `{ ${field}: ${direction} }`
-      }
-
-      const orderByEntry = buildOrderByEntry(sortField, sortOrder)
-      const orderByClause = `orderBy: [${orderByEntry}]`
-
-      // Build query with orderBy as part of the string (not a variable)
-      const query = buildTeamActivitiesQuery(orderByClause)
-
-      const result = await graphqlClient.request<{
-        SalesActivity: TeamSalesActivity[]
-        SalesActivityAggregate: {
-          aggregate: { count: number }
-        }
-      }>(query, {
-        where: baseWhere,
-        limit: enforceQueryLimit(limit),
-        offset
-      })
-
-      setActivities(result.SalesActivity || [])
-      setTotal(result.SalesActivityAggregate?.aggregate?.count || 0)
+      const result = await fetchActivities({ limit, offset, enforceLimit: true })
+      setActivities(result.activities)
+      setTotal(result.total)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load team activities'
       setError(errorMessage)
@@ -321,22 +259,7 @@ export const useTeamActivitiesData = ({
     } finally {
       setLoading(false)
     }
-  }, [
-    accessToken,
-    stableEmployeeIds,
-    search,
-    sortField,
-    sortOrder,
-    limit,
-    offset,
-    stableFilters,
-    userInfo,
-    graphqlClient,
-    buildBaseWhereConditions,
-    addSearchConditions,
-    addFilterConditions,
-    addDateRangeFilters
-  ])
+  }, [accessToken, stableEmployeeIds, limit, offset, fetchActivities])
 
   const retry = useCallback(() => {
     loadActivities()
@@ -353,6 +276,7 @@ export const useTeamActivitiesData = ({
     loading,
     error,
     loadActivities,
+    fetchActivities,
     retry
   }
 }

@@ -54,9 +54,9 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
   // Handle view option click - open overlay for entity-specific views
   const handleViewOptionSelect = useCallback(
     (filter: ActivityViewFilter) => {
-      if (filter === 'all') {
-        // "All Activities" goes directly
-        onSelect('all')
+      if (filter === 'all' || filter === 'by-general') {
+        // Aggregate views go directly to the activity view.
+        onSelect(filter)
       } else {
         // Entity-specific views open the overlay
         setSelectedEntityType(filter)

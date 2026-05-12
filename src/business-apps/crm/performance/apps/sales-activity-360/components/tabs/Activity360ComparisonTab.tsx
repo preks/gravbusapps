@@ -4,6 +4,7 @@ import { ActivityViewFilter } from '../../types'
 import { useEmployeeComparisonData, EmployeeComparison } from './hooks/useEmployeeComparisonData'
 import { Button, Spinner, Avatar, AvatarImage, AvatarFallback, Badge, Card, Combobox } from '@newwork/nw-design-system'
 import { UsersThreeIcon, XIcon, TrendUpIcon, TrendDownIcon, MinusIcon } from '@phosphor-icons/react'
+import { getEmployeeAvatarSrc } from '../utils/avatarUtils'
 
 interface Activity360ComparisonTabProps extends Pick<BusinessAppContextProps, 'accessToken'> {
   filter: ActivityViewFilter
@@ -120,9 +121,9 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
       label: emp.displayName,
       content: (
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Avatar size="sm">
-            {emp.pictureThumbnail && (
-              <AvatarImage src={`data:image/jpeg;base64,${emp.pictureThumbnail}`} alt={emp.displayName} />
+          <Avatar size="sm" className="gba:shrink-0">
+            {getEmployeeAvatarSrc(emp.pictureThumbnail) && (
+              <AvatarImage src={getEmployeeAvatarSrc(emp.pictureThumbnail)} alt={emp.displayName} />
             )}
             <AvatarFallback className="gba:text-xs">{getInitials(emp.displayName)}</AvatarFallback>
           </Avatar>
@@ -225,17 +226,28 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
             {/* Selected employee chips */}
             {selectedEmployees.map(emp => (
-              <Badge key={emp.id} variant="secondary" className="gba:pl-1 gba:pr-1 gba:py-1 gba:gap-2 gba:text-sm">
-                <Avatar size="xs">
-                  {emp.pictureThumbnail && (
-                    <AvatarImage src={`data:image/jpeg;base64,${emp.pictureThumbnail}`} alt={emp.displayName} />
+              <Badge
+                key={emp.id}
+                variant="secondary"
+                className="gba:inline-flex gba:h-8 gba:max-w-72 gba:items-center gba:overflow-hidden gba:pl-1 gba:pr-1 gba:py-1 gba:gap-2 gba:text-sm"
+              >
+                <Avatar className="gba:!h-6 gba:!w-6 gba:!min-w-6 gba:!max-w-6 gba:shrink-0 gba:overflow-hidden gba:rounded-full">
+                  {getEmployeeAvatarSrc(emp.pictureThumbnail) && (
+                    <AvatarImage
+                      src={getEmployeeAvatarSrc(emp.pictureThumbnail)}
+                      alt={emp.displayName}
+                      className="gba:h-full gba:w-full gba:rounded-full gba:object-cover"
+                    />
                   )}
                   <AvatarFallback className="gba:text-[10px]">{getInitials(emp.displayName)}</AvatarFallback>
                 </Avatar>
-                <span className="gba:max-w-24 gba:truncate">{emp.displayName}</span>
+                <span className="gba:flex-1 gba:min-w-0 gba:max-w-40 gba:truncate" title={emp.displayName}>
+                  {emp.displayName}
+                </span>
                 <button
+                  type="button"
                   onClick={() => handleRemoveEmployee(emp.id)}
-                  className="gba:ml-1 gba:p-0.5 gba:rounded-full hover:gba:bg-background/50 gba:transition-colors"
+                  className="gba:ml-1 gba:shrink-0 gba:p-0.5 gba:rounded-full hover:gba:bg-background/50 gba:transition-colors"
                 >
                   <XIcon className="gba:w-3 gba:h-3" />
                 </button>
@@ -274,12 +286,9 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
               {/* Employee Header */}
               <div className="gba:p-3 gba:border-b gba:border-border">
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <Avatar size="sm">
-                    {employee.pictureThumbnail && (
-                      <AvatarImage
-                        src={`data:image/jpeg;base64,${employee.pictureThumbnail}`}
-                        alt={employee.displayName}
-                      />
+                  <Avatar size="sm" className="gba:shrink-0">
+                    {getEmployeeAvatarSrc(employee.pictureThumbnail) && (
+                      <AvatarImage src={getEmployeeAvatarSrc(employee.pictureThumbnail)} alt={employee.displayName} />
                     )}
                     <AvatarFallback className="gba:text-xs">{getInitials(employee.displayName)}</AvatarFallback>
                   </Avatar>

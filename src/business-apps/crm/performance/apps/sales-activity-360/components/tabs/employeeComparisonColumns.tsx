@@ -1,10 +1,10 @@
-import React from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import { TrendUpIcon, TrendDownIcon, MinusIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { EmployeeComparison } from './hooks/useEmployeeComparisonData'
+import { getEmployeeAvatarSrc } from '../utils/avatarUtils'
 
 dayjs.extend(relativeTime)
 
@@ -55,15 +55,14 @@ export const createEmployeeComparisonColumns = (): ColumnDef<EmployeeComparison>
     size: 280,
     cell: ({ row }) => {
       const employee = row.original
+      const avatarSrc = getEmployeeAvatarSrc(employee.pictureThumbnail)
       return (
         <div
           className="gba:flex gba:items-center gba:gap-3"
           data-testid={`employee-comparison-employee-${employee.id}`}
         >
           <Avatar size="sm">
-            {employee.pictureThumbnail && (
-              <AvatarImage src={`data:image/jpeg;base64,${employee.pictureThumbnail}`} alt={employee.displayName} />
-            )}
+            {avatarSrc && <AvatarImage src={avatarSrc} alt={employee.displayName} />}
             <AvatarFallback className="gba:text-xs">{getInitials(employee.displayName)}</AvatarFallback>
           </Avatar>
           <div className="gba:flex gba:flex-col gba:min-w-0">

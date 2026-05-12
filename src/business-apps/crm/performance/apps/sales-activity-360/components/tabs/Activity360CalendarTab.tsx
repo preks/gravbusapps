@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ActivityViewFilter } from '../../types'
 import { useCalendarActivitiesData } from '@/business-apps/crm/performance/apps/sales-team-performance/components/team-performance-view/hooks/useCalendarActivitiesData'
@@ -9,6 +9,10 @@ import {
 } from '@/business-apps/crm/performance/apps/sales-team-performance/components/shared/SharedActivitiesCalendar'
 import { calculateActivityScore } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityScoreCalculator'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import {
+  buildCustomerActivityOrderBy,
+  buildCustomerActivityQuery
+} from '@/common/data/customer/queries/customerActivityQueries'
 import { Spinner } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 
@@ -68,68 +72,6 @@ const GET_EMPLOYEE_ABSENCES = `
   }
 `
 
-// Query to get activities filtered by entity (account, contact, lead, opportunity)
-// Note: occurredAt is timestamptz type, so we use timestamptz for date filtering
-const buildEntityActivitiesQuery = (entityField: string) => `
-  query GetEntityActivities($entityId: uuid!, $dateFrom: timestamptz!, $dateTo: timestamptz!) {
-    SalesActivity(
-      where: {
-        _and: [
-          { ${entityField}: { _eq: $entityId } }
-          { isDeleted: { _eq: false } }
-          { occurredAt: { _gte: $dateFrom, _lte: $dateTo } }
-        ]
-      }
-      orderBy: [{ occurredAt: DESC_NULLS_LAST }]
-      limit: 500
-    ) {
-      id
-      title
-      description
-      source
-      createdAt
-      occurredAt
-      ownerEmployeeId
-      ownerEmployee {
-        id
-        fullName
-        firstName
-        lastName
-        pictureThumbnail
-      }
-      activityType {
-        id
-        value
-      }
-      accountId
-      account {
-        id
-        name
-      }
-      contactId
-      contact {
-        id
-        firstName
-        lastName
-      }
-      leadId
-      lead {
-        id
-        name
-        contact {
-          firstName
-          lastName
-        }
-      }
-      opportunityId
-      opportunity {
-        id
-        name
-      }
-    }
-  }
-`
-
 export const Activity360CalendarTab: React.FC<Activity360CalendarTabProps> = ({
   accessToken,
   userInfo,
@@ -139,10 +81,11 @@ export const Activity360CalendarTab: React.FC<Activity360CalendarTabProps> = ({
 }) => {
   const [currentDate, setCurrentDate] = useState(dayjs())
   const [allEmployeeIds, setAllEmployeeIds] = useState<string[]>([])
-  const [loadingEmployees, setLoadingEmployees] = useState(filter === 'all')
+  const [loadingEmployees, setLoadingEmployees] = useState(filter === 'all' || filter === 'by-general')
   const [entityActivities, setEntityActivities] = useState<any[]>([])
   const [entityLoading, setEntityLoading] = useState(false)
   const [entityError, setEntityError] = useState<string | null>(null)
+  const [entityRefreshKey, setEntityRefreshKey] = useState(0)
   const [absences, setAbsences] = useState<CalendarAbsence[]>([])
 
   const graphqlClient = useGraphQLClient(accessToken)
@@ -155,10 +98,10 @@ export const Activity360CalendarTab: React.FC<Activity360CalendarTabProps> = ({
     }
   }, [currentDate])
 
-  // For "all" view, fetch all employee IDs
+  // For aggregate views, fetch all employee IDs
   useEffect(() => {
-    if (filter === 'all' || filter === 'by-employee') {
-      if (filter === 'all') {
+    if (filter === 'all' || filter === 'by-general' || filter === 'by-employee') {
+      if (filter === 'all' || filter === 'by-general') {
         setLoadingEmployees(true)
         graphqlClient
           .request<{ Employee: Array<{ id: string; fullName: string }> }>(GET_ALL_EMPLOYEES)
@@ -232,11 +175,21 @@ export const Activity360CalendarTab: React.FC<Activity360CalendarTabProps> = ({
       setEntityLoading(true)
       setEntityError(null)
 
+      const where = {
+        _and: [
+          { [entityField]: { _eq: entityId } },
+          { isDeleted: { _eq: false } },
+          { occurredAt: { _gte: dateFrom, _lte: dateTo } }
+        ]
+      }
+      const orderBy = buildCustomerActivityOrderBy([{ field: 'occurredAt', direction: 'DESC_NULLS_LAST' }])
+      const query = buildCustomerActivityQuery()
+
       graphqlClient
-        .request(buildEntityActivitiesQuery(entityField), {
-          entityId,
-          dateFrom,
-          dateTo
+        .request(query, {
+          where,
+          orderBy,
+          limit: 500
         })
         .then((result: any) => {
           setEntityActivities(result.SalesActivity || [])
@@ -250,35 +203,39 @@ export const Activity360CalendarTab: React.FC<Activity360CalendarTabProps> = ({
           setEntityLoading(false)
         })
     }
-  }, [filter, entityId, dateFrom, dateTo, graphqlClient])
+  }, [filter, entityId, dateFrom, dateTo, entityRefreshKey, graphqlClient])
 
   // Determine employeeIds for calendar hook
   const employeeIds = useMemo(() => {
-    if (filter === 'all') return allEmployeeIds
+    if (filter === 'all' || filter === 'by-general') return allEmployeeIds
     if (filter === 'by-employee' && entityId) return [entityId]
     return [] // Entity-based filters don't use this hook
   }, [filter, entityId, allEmployeeIds])
 
   // Use calendar hook for employee-based views
-  const shouldUseHook = filter === 'all' || filter === 'by-employee'
+  const shouldUseHook = filter === 'all' || filter === 'by-general' || filter === 'by-employee'
   const hookResult = useCalendarActivitiesData({
     employeeIds: shouldUseHook ? employeeIds : [],
     dateFrom,
     dateTo,
     accessToken,
-    userInfo
+    userInfo,
+    unlinkedOnly: filter === 'by-general'
   })
 
   // Determine which data source to use
   const isLoading = loadingEmployees || (shouldUseHook ? hookResult.loading : entityLoading)
   const error = shouldUseHook ? hookResult.error : entityError
   const rawActivities = shouldUseHook ? hookResult.activities : entityActivities
-  const retry = shouldUseHook
-    ? hookResult.retry
-    : () => {
-        // Trigger re-fetch for entity activities
-        setEntityError(null)
-      }
+  const retry = useCallback(() => {
+    if (shouldUseHook) {
+      hookResult.retry()
+      return
+    }
+
+    setEntityError(null)
+    setEntityRefreshKey(prev => prev + 1)
+  }, [shouldUseHook, hookResult.retry])
 
   // Transform activities to calendar format
   const calendarActivities: CalendarActivity[] = useMemo(() => {
