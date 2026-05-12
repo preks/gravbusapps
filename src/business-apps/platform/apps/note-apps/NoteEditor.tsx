@@ -3057,6 +3057,48 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           margin: 0;
         }
 
+        /* Tables — same as note-editor.css but scoped to .ProseMirror so borders work when remote host only loads main.css (split chunks may omit note-editor.css). */
+        .note-editor-content .ProseMirror table.note-editor-table {
+          --note-table-border: color-mix(in srgb, currentColor 35%, transparent);
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+          margin: 1.25em 0;
+          font-size: 0.9375rem;
+          background: transparent;
+        }
+
+        .note-editor-content .ProseMirror td.note-editor-table-cell,
+        .note-editor-content .ProseMirror th.note-editor-table-header {
+          position: relative;
+          border: 1px solid var(--note-table-border);
+          padding: 0.5em 0.65em;
+          vertical-align: top;
+          min-width: 3rem;
+          height: 2.5rem;
+          word-break: break-word;
+          background: transparent;
+        }
+
+        .note-editor-content .ProseMirror td.note-editor-table-cell > p,
+        .note-editor-content .ProseMirror th.note-editor-table-header > p {
+          margin-bottom: 0.35em;
+        }
+
+        .note-editor-content .ProseMirror td.note-editor-table-cell > p:last-child,
+        .note-editor-content .ProseMirror th.note-editor-table-header > p:last-child {
+          margin-bottom: 0;
+        }
+
+        .note-editor-content .ProseMirror .selectedCell::after {
+          z-index: 2;
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          content: '';
+          background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+        }
+
         .note-editor-content .ProseMirror ul[data-type="taskList"] {
           list-style: none;
           padding-left: 0;
