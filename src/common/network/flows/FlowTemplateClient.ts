@@ -319,6 +319,9 @@ interface ApiResponse<T> {
   data: T
   count?: number
   totalCount?: number
+  hasMore?: boolean
+  limit?: number
+  offset?: number
   message?: string
 }
 
@@ -366,6 +369,7 @@ export class FlowTemplateClient extends RestClient {
   }): Promise<{
     templates: FlowTemplate[]
     totalCount: number
+    hasMore: boolean
     limit: number
     offset: number
   }> {
@@ -387,14 +391,18 @@ export class FlowTemplateClient extends RestClient {
       })
     }
 
-    const url = searchParams.toString() ? `/?${searchParams.toString()}` : '/'
+    const url = searchParams.toString() ? `/list?${searchParams.toString()}` : '/list'
     const response = await this.get<ApiResponse<FlowTemplate[]>>(url)
+    const limit = response.limit ?? params?.limit ?? 50
+    const offset = response.offset ?? params?.offset ?? 0
+    const totalCount = response.totalCount ?? response.data.length
 
     return {
       templates: response.data,
-      totalCount: response.totalCount || response.data.length,
-      limit: params?.limit || 20,
-      offset: params?.offset || 0
+      totalCount,
+      hasMore: response.hasMore ?? offset + response.data.length < totalCount,
+      limit,
+      offset
     }
   }
 

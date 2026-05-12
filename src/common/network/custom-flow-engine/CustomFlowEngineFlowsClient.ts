@@ -8,6 +8,9 @@ type ApiResponse<T> = {
   data: T
   count?: number
   totalCount?: number
+  hasMore?: boolean
+  limit?: number
+  offset?: number
   message?: string
 }
 
@@ -138,6 +141,7 @@ export class CustomFlowEngineFlowsClient extends RestClient {
   async getTemplatesList(params?: FlowTemplateListParams): Promise<{
     templates: FlowTemplate[]
     totalCount: number
+    hasMore: boolean
     limit: number
     offset: number
   }> {
@@ -160,14 +164,18 @@ export class CustomFlowEngineFlowsClient extends RestClient {
       })
     }
 
-    const path = searchParams.toString() ? `/templates/?${searchParams.toString()}` : '/templates/'
+    const path = searchParams.toString() ? `/templates/list?${searchParams.toString()}` : '/templates/list'
     const response = await this.get<ApiResponse<FlowTemplate[]>>(path)
+    const limit = response.limit ?? params?.limit ?? 50
+    const offset = response.offset ?? params?.offset ?? 0
+    const totalCount = response.totalCount ?? response.data.length
 
     return {
       templates: response.data,
-      totalCount: response.totalCount || response.data.length,
-      limit: params?.limit || 20,
-      offset: params?.offset || 0
+      totalCount,
+      hasMore: response.hasMore ?? offset + response.data.length < totalCount,
+      limit,
+      offset
     }
   }
 

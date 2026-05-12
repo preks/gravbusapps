@@ -66,9 +66,14 @@ export const FlowLibraryTab: React.FC<FlowLibraryTabProps> = ({
     error: categoriesError
   } = useServicePortalCategories({ accessToken })
 
-  const { items, isLoading, error, search, setSearch, hasNextPage, loadMore, totalCount } = useFlowTemplateLibrary(
+  const { items, isLoading, error, search, debouncedSearch, setSearch, hasNextPage, loadMore } = useFlowTemplateLibrary(
     accessToken,
-    { enabled: Boolean(accessToken), limit: 200, includeDrafts: true, onlyLatest: true }
+    {
+      enabled: Boolean(accessToken),
+      limit: 100,
+      includeDrafts: true,
+      onlyLatest: true
+    }
   )
 
   const knownCategoryIds = useMemo(() => new Set(categories.map(c => c.id)), [categories])
@@ -84,8 +89,8 @@ export const FlowLibraryTab: React.FC<FlowLibraryTabProps> = ({
   }, [byCategoryId, categories])
 
   const visibleGroups = useMemo(() => {
-    return filterGroupsByQuery(categoryGroups, search, categoryToCount)
-  }, [categoryGroups, categoryToCount, search])
+    return filterGroupsByQuery(categoryGroups, debouncedSearch, categoryToCount)
+  }, [categoryGroups, categoryToCount, debouncedSearch])
 
   const selectedItems = useMemo(() => {
     if (!selectedCategoryId) return []
@@ -136,7 +141,7 @@ export const FlowLibraryTab: React.FC<FlowLibraryTabProps> = ({
                 Showing {selectedItems.length} flow{selectedItems.length === 1 ? '' : 's'}
               </span>
             ) : (
-              <span>{totalCount > 0 ? `${totalCount} templates loaded` : 'Browse flow categories'}</span>
+              <span>{items.length > 0 ? `${items.length} templates loaded` : 'Browse flow categories'}</span>
             )}
           </div>
 
