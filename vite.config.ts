@@ -437,11 +437,11 @@ if (globalThis.__APP_BUILD_INFO__) {
           {
             name: '@dotenvx/dotenvx',
             config() {
-              dotenv.config({ path: '.env' })
+              const dotenvResult = dotenv.config({ path: '.env' })
               return {
                 define: {
                   'process.env': {
-                    ...dotenv.config({ path: '.env' }).parsed,
+                    ...dotenvResult.parsed,
                     ...localPublicOverrides
                   }
                 }
@@ -1058,6 +1058,46 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
         '@dnd-kit/core',
         '@dnd-kit/sortable',
         '@dnd-kit/utilities',
+        '@tiptap/core',
+        '@tiptap/react',
+        '@tiptap/react/menus',
+        '@tiptap/starter-kit',
+        '@tiptap/y-tiptap',
+        '@tiptap/pm/state',
+        '@tiptap/pm/model',
+        '@tiptap/pm/view',
+        '@tiptap/pm/tables',
+        '@tiptap/pm/transform',
+        '@tiptap/extension-collaboration',
+        '@tiptap/extension-placeholder',
+        '@tiptap/extension-text-align',
+        '@tiptap/extension-underline',
+        '@tiptap/extension-text-style',
+        '@tiptap/extension-text-style/font-size',
+        '@tiptap/extension-color',
+        '@tiptap/extension-highlight',
+        '@tiptap/extension-link',
+        '@tiptap/extension-font-family',
+        '@tiptap/extension-subscript',
+        '@tiptap/extension-superscript',
+        '@tiptap/extension-typography',
+        '@tiptap/extension-task-list',
+        '@tiptap/extension-task-item',
+        '@tiptap/extension-image',
+        '@tiptap/extension-unique-id',
+        '@tiptap/extension-table',
+        '@tiptap/extension-table-cell',
+        '@tiptap/extension-table-header',
+        '@tiptap/extension-table-row',
+        'axios',
+        'date-fns',
+        'date-fns/locale',
+        'html2canvas-pro',
+        'jszip',
+        'mammoth',
+        'perfect-freehand',
+        'y-protocols/awareness',
+        'yjs',
         'zustand',
         'react',
         'react-dom'
@@ -1194,6 +1234,19 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
     },
     server: {
       allowedHosts: ['6c88-2a02-2f0f-b302-7400-3ded-edbf-6ee4-75e.ngrok-free.app'],
+      warmup: {
+        clientFiles: [
+          'index.html',
+          'index.tsx',
+          'src/BusinessAppIDE.tsx',
+          'src/components/ide-breadcrumb/**/*.{ts,tsx}',
+          'src/components/ide-context-panel/**/*.{ts,tsx}',
+          'src/components/ide-header/**/*.{ts,tsx}',
+          'src/components/ide-main-menu/**/*.{ts,tsx}',
+          'src/components/ide-renderer/**/*.{ts,tsx}',
+          'src/components/ide-start-screen/**/*.{ts,tsx}'
+        ]
+      },
       watch: {
         ignored: [
           '**/.every/**',

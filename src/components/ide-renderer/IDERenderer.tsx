@@ -139,7 +139,7 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
           userInfo={userInfo}
           accessToken={accessToken}
           additionalData={additionalData}
-          key={`${selectedApp.screenKey}-${JSON.stringify(userInfo)}-${accessToken}-${JSON.stringify(additionalData)}`}
+          key={selectedApp.screenKey}
         />
       </Profiler>
     )

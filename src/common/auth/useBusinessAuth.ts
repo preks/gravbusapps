@@ -1,4 +1,4 @@
-import Keycloak, { KeycloakInitOptions, type KeycloakTokenParsed } from 'keycloak-js'
+import { type default as Keycloak, type KeycloakInitOptions, type KeycloakTokenParsed } from 'keycloak-js'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { env } from '@/common/env/EnvUtils'
 import {
@@ -7,6 +7,7 @@ import {
   STORAGE_KEY_ADDITIONAL_DATA
 } from '@/common/constants/ideStorageKeys'
 import { NAVIGATION_BASE_PATH } from '@/common/utils/navigationUtils'
+import { getKeycloakClient, initKeycloakClient } from './keycloakClient'
 
 const SESSION_KEY_KEYCLOAK_RETURN_PATH = 'keycloak_return_path'
 const MOBILE_TOKEN_KEY = 'com.newwork.mobile.accessToken'
@@ -121,11 +122,13 @@ export function useBusinessAuth(): UseBusinessAuthResult {
       }
     }
 
-    const kc = new Keycloak(keycloakConfig)
+    const kc = getKeycloakClient(keycloakConfig)
     setKcInstance(kc)
 
     let cancelled = false
     const minValiditySeconds = 60
+    const stableRedirectUri =
+      typeof window !== 'undefined' ? `${window.location.origin}${NAVIGATION_BASE_PATH}` : undefined
 
     const applyTokenFromInstance = () => {
       const token = kc.token ?? undefined
@@ -154,11 +157,9 @@ export function useBusinessAuth(): UseBusinessAuthResult {
         })
         .catch((err: unknown) => {
           console.error('[BusinessAuth] Token refresh failed', err)
+          void kc.login({ redirectUri: stableRedirectUri })
         })
     }
-
-    const stableRedirectUri =
-      typeof window !== 'undefined' ? `${window.location.origin}${NAVIGATION_BASE_PATH}` : undefined
 
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -182,7 +183,7 @@ export function useBusinessAuth(): UseBusinessAuthResult {
 
     ;(async () => {
       try {
-        const authenticated = await kc.init(initOptions)
+        const authenticated = await initKeycloakClient(keycloakConfig, initOptions)
         if (cancelled) return
 
         if (!authenticated) {

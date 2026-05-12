@@ -62,7 +62,7 @@ export function resolveServiceUrl(envVar: string, config: ServicePathConfig): st
     return serviceUrl
   }
 
-  let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
+  let baseUrl = env('NEXT_PUBLIC_API_SERVER') || ''
   while (baseUrl.length > 0 && baseUrl.endsWith('/')) {
     baseUrl = baseUrl.slice(0, -1)
   }
@@ -184,7 +184,7 @@ export const SPREADSHEET_PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC
 })
 /** Processes base (base + /processes). No env override; for FlowClient / useKogitoProcess only. */
 export const PROCESSES_BASE_URL = (() => {
-  let base = env('NEXT_PUBLIC_BASE_URL') || ''
+  let base = env('NEXT_PUBLIC_API_SERVER') || ''
   while (base.length > 0 && base.endsWith('/')) base = base.slice(0, -1)
   return `${base}/processes`
 })()
