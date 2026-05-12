@@ -14045,15 +14045,15 @@
     ]
   },
   "crm/core/apps/customer-relations": {
-    "bitbucketBuildNumber": 11944,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11944/",
-    "chunkJsBytes": 1485611,
+    "bitbucketBuildNumber": 11951,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11951/",
+    "chunkJsBytes": 1485628,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 838475,
-        "gzip": 209696,
+        "rendered": 838501,
+        "gzip": 209713,
         "leaves": [
           {
             "name": "src/common/components/common-relations/view-layouts/opportunity-layout/OpportunityLayout.tsx",
@@ -66876,15 +66876,15 @@
     ]
   },
   "irm/core/apps/investment-relations": {
-    "bitbucketBuildNumber": 11944,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11944/",
-    "chunkJsBytes": 1399517,
+    "bitbucketBuildNumber": 11951,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11951/",
+    "chunkJsBytes": 1399534,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 816788,
-        "gzip": 203276,
+        "rendered": 816814,
+        "gzip": 203293,
         "leaves": [
           {
             "name": "src/common/components/common-relations/view-layouts/opportunity-layout/OpportunityLayout.tsx",
@@ -88233,20 +88233,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 11949,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11949/",
-    "chunkJsBytes": 1875954,
+    "bitbucketBuildNumber": 11951,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/11951/",
+    "chunkJsBytes": 1875956,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1576151,
-        "gzip": 97125,
+        "gzip": 97135,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1576151,
-            "gzip": 97125
+            "gzip": 97135
           }
         ]
       },
@@ -106734,7 +106734,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-12T06:25:11.741Z",
+    "generatedAt": "2026-05-12T06:37:21.481Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
