@@ -2,12 +2,12 @@
 
 # Settings hub card
 icp-settings-card-title = Ideale Kundenprofile
-icp-settings-card-description = ICP-Kriterien und Gewichtungen für die KI-Lead-Bewertung konfigurieren
+icp-settings-card-description = ICP-Kriterien und Gewichtungen für die KI-ICP-Bewertung konfigurieren
 icp-settings-card-entry = Profile verwalten
 
 # Page
 icp-page-title = Ideale Kundenprofile
-icp-page-description = Definieren Sie ICP-Kriterien und Gewichtungen für die KI-Lead-Bewertung.
+icp-page-description = Definieren Sie ICP-Kriterien und Gewichtungen für die KI-ICP-Bewertung.
 
 # Sidebar
 icp-profiles-heading = Profile
@@ -27,7 +27,7 @@ icp-save-profile = Profil speichern
 
 # Dialogs
 icp-dialog-new-profile-title = Neues Profil
-icp-dialog-new-profile-description = Erstellt ein neues Profil für ICP-Kriterien und die Lead-Bewertung.
+icp-dialog-new-profile-description = Erstellt ein neues Profil für ICP-Kriterien und die Bewertung.
 icp-cancel = Abbrechen
 icp-create-profile = Erstellen
 icp-delete-confirm-message = „{ $name }“ wird dauerhaft entfernt.

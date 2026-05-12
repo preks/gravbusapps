@@ -2,12 +2,12 @@
 
 # Settings hub card
 icp-settings-card-title = Ideal Customer Profiles
-icp-settings-card-description = Configure ICP criteria and weights for AI lead scoring
+icp-settings-card-description = Configure ICP criteria and weights for AI ICP scoring
 icp-settings-card-entry = Manage Profiles
 
 # Page
 icp-page-title = Ideal Customer Profiles
-icp-page-description = Define ICP criteria and weights for AI lead scoring.
+icp-page-description = Define ICP criteria and weights for AI ICP scoring.
 
 # Sidebar
 icp-profiles-heading = Profiles
@@ -27,7 +27,7 @@ icp-save-profile = Save profile
 
 # Dialogs
 icp-dialog-new-profile-title = New profile
-icp-dialog-new-profile-description = Creates a new profile for ICP criteria and lead scoring.
+icp-dialog-new-profile-description = Creates a new profile for ICP criteria and scoring.
 icp-cancel = Cancel
 icp-create-profile = Create
 icp-delete-confirm-message = This permanently removes "{ $name }".
