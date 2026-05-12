@@ -8,6 +8,8 @@ action-retry = Retry
 action-return = Return
 action-approve = Approve
 action-confirm = Confirm
+action-cancel = Cancel
+action-change-main-cost-center = Change Main Cost Center
 
 # ============================================
 # Common Status Labels

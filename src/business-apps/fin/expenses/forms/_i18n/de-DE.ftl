@@ -8,6 +8,8 @@ action-retry = Erneut versuchen
 action-return = Zurückgeben
 action-approve = Genehmigen
 action-confirm = Bestätigen
+action-cancel = Abbrechen
+action-change-main-cost-center = Hauptkostenstelle ändern
 
 # ============================================
 # Common Status Labels

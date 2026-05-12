@@ -798,7 +798,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                   errorMessage={index === 0 ? startEqualsFirstDestinationMessage : null}
                   locationFormLabels={{
                     inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.add_request_trip_details.destination_input_label',
+                      'lowcoder:add_items_to_plan.add_trip_info_to_plan.destination_title',
                       'Destination'
                     ),
                     dateFieldLabel: getTranslationFromI18nKeyAndLabel(

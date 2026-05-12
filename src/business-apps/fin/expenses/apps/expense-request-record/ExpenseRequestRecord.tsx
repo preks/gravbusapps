@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Card, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
-import { Spinner, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import {
+  Card,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Spinner,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  useTranslation
+} from '@newwork/nw-design-system'
 import {
   PathIcon,
   HandCoinsIcon,
@@ -28,10 +38,12 @@ import ExpenseRequestAllowances from './components/ExpenseRequestAllowances.tsx'
 import ExpenseRequestTrip from './components/ExpenseRequestTrip.tsx'
 import ExpenseRequestAdvancePayments from './components/ExpenseRequestAdvancePayments.tsx'
 import ExpenseRequestComments from './components/ExpenseRequestComments.tsx'
+import expenseRequestRecordTranslations from './_i18n'
 
 // Using DS-styled markup instead of antd Typography
 
 const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData = {} }) => {
+  const { t } = useTranslation(expenseRequestRecordTranslations)
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
   const expenseRequestId =
@@ -304,6 +316,10 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
           <div>
             <h4 className="gba:text-lg gba:font-semibold gba:mb-1">{expenseRequest.title ?? '-'}</h4>
             <span className="gba:text-gray-500">{expenseRequest?.code}</span>
+            <div className="gba:mt-1" data-testid="expense-request-record-header-cost-center">
+              <span className="gba:text-gray-500">{t('expense-request-record-cost-center-label')}: </span>
+              <span>{expenseRequest?.costCenter?.name ?? '-'}</span>
+            </div>
           </div>
           <Pill
             type={getExpenseRequestStatusDisplay(expenseRequest.status).type}
@@ -367,15 +383,9 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
               </span>
             </div>
           )}
-          <div>
-            <span className="gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-                'Cost Center'
-              )}
-              :{' '}
-            </span>
-            <span>{expenseRequest?.costCenter?.name ?? '-'}</span>
+          <div data-testid="expense-request-record-requester-cost-center">
+            <span className="gba:text-gray-500">{t('expense-request-record-requester-cost-center-label')}: </span>
+            <span>{expenseRequest?.employee?.employeePosition?.costCenter?.name ?? '-'}</span>
           </div>
           <div>
             <span className="gba:text-gray-500">

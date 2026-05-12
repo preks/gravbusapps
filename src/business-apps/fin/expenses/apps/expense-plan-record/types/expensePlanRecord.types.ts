@@ -8,8 +8,12 @@ export interface ExpensePlanRecordProps {
 }
 
 export interface ExpensePlanItem {
+  id?: string
   code: string | null
   title: string
+  costCenter?: {
+    name: string | null
+  } | null
   currency: {
     code: string
   }
@@ -126,6 +130,9 @@ export interface ExpensePlanRecord {
     lastName: string
     pictureThumbnail?: string
     employeePosition?: {
+      costCenter?: {
+        name: string
+      }
       supervisor?: {
         firstName: string
         lastName: string

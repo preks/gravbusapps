@@ -8,6 +8,8 @@ action-retry = Reîncearcă
 action-return = Returnează
 action-approve = Aprobă
 action-confirm = Confirmă
+action-cancel = Anulare
+action-change-main-cost-center = Modifică centrul de cost principal
 
 # ============================================
 # Common Status Labels
