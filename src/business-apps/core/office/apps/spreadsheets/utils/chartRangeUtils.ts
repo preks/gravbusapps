@@ -3,24 +3,10 @@
  * Returns 0-based indices or null if invalid.
  */
 
-export function indexToExcelCol(index: number): string {
-  let col = ''
-  let num = index + 1
-  while (num > 0) {
-    const remainder = (num - 1) % 26
-    col = String.fromCharCode(65 + remainder) + col
-    num = Math.floor((num - 1) / 26)
-  }
-  return col
-}
+import { columnIndexToLetter, parseA1Reference } from '../core'
 
-function excelColToIndex(col: string): number {
-  let index = 0
-  const upper = col.toUpperCase()
-  for (let i = 0; i < upper.length; i++) {
-    index = index * 26 + (upper.charCodeAt(i) - 64)
-  }
-  return index - 1
+export function indexToExcelCol(index: number): string {
+  return columnIndexToLetter(index)
 }
 
 export interface ParsedChartRange {
@@ -32,32 +18,37 @@ export interface ParsedChartRange {
 
 /**
  * Parse a range like "A1", "A1:A11", "A2:K100".
- * Rows are 1-based in input, output is 0-based.
+ * Rows are 1-based in input, output is 0-based. Corner order is normalized (min/max).
  */
 export function parseChartRange(range: string): ParsedChartRange | null {
   const trimmed = range.trim()
   if (!trimmed) return null
 
-  const match = /^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/i.exec(trimmed)
-  if (!match) return null
+  const colonIndex = trimmed.indexOf(':')
+  const startPart = colonIndex === -1 ? trimmed : trimmed.slice(0, colonIndex).trim()
+  const endPart = colonIndex === -1 ? trimmed : trimmed.slice(colonIndex + 1).trim()
 
-  const startCol = excelColToIndex(match[1])
-  const startRow = Number.parseInt(match[2], 10)
-  if (Number.isNaN(startRow) || startRow < 1 || startCol < 0) return null
+  if (colonIndex !== -1 && !endPart) return null
 
-  let endRow = startRow
-  let endCol = startCol
+  const start = parseA1Reference(startPart)
+  if (!start) return null
 
-  if (match[3] && match[4]) {
-    endCol = excelColToIndex(match[3])
-    endRow = Number.parseInt(match[4], 10)
-    if (Number.isNaN(endRow) || endRow < 1 || endCol < 0) return null
+  if (colonIndex === -1) {
+    return {
+      startRow: start.row,
+      endRow: start.row,
+      startCol: start.col,
+      endCol: start.col
+    }
   }
 
+  const end = parseA1Reference(endPart)
+  if (!end) return null
+
   return {
-    startRow: Math.max(1, startRow) - 1,
-    endRow: Math.max(startRow, endRow) - 1,
-    startCol,
-    endCol
+    startRow: Math.min(start.row, end.row),
+    endRow: Math.max(start.row, end.row),
+    startCol: Math.min(start.col, end.col),
+    endCol: Math.max(start.col, end.col)
   }
 }

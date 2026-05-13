@@ -30,7 +30,15 @@ export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
   duplicateApp: (id: string, newName?: string) => Promise<SpreadsheetApp | null>
   updateSheetData: (appId: string, sheetId: string, data: Record<string, unknown>[]) => Promise<SpreadsheetSheet | null>
   updateSheet: (appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>) => Promise<SpreadsheetSheet | null>
-  addSheet: (appId: string, sheet?: Partial<SpreadsheetSheet>) => Promise<SpreadsheetSheet | null>
+  addSheet: (
+    appId: string,
+    sheet?: Partial<SpreadsheetSheet> & { worksheetSnapshot?: Record<string, unknown> }
+  ) => Promise<SpreadsheetSheet | null>
+  duplicateSheet: (
+    appId: string,
+    sourceSheetId: string,
+    sheet: { id?: string; name: string; visualWorksheetSnapshot?: Record<string, unknown> }
+  ) => Promise<SpreadsheetSheet | null>
   deleteSheet: (appId: string, sheetId: string) => Promise<boolean>
   addRow: (appId: string, sheetId: string, row: Record<string, unknown>) => Promise<Record<string, unknown> | null>
   updateRow: (
@@ -60,6 +68,7 @@ export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
   >
   revokeAccess: (shareId: string) => Promise<boolean>
   clearCurrentApp: () => void
+  applyCurrentAppLocalUpdate: (updater: (app: SpreadsheetApp) => SpreadsheetApp) => void
 }
 
 const resolveCurrentAppPermission = (app: SpreadsheetApp, userId?: string): 'owner' | 'edit' | 'view' | null => {
@@ -250,35 +259,34 @@ async function copyUniverSnapshotsAfterDuplicate(sourceAppId: string, duplicated
   const sourceSheets = sourceApp.sheets || []
   const duplicatedSheets = duplicatedApp.sheets || []
   const pairCount = Math.min(sourceSheets.length, duplicatedSheets.length)
+  const firstSourceSheet = sourceSheets[0]
+  const firstDuplicatedSheet = duplicatedSheets[0]
+  if (!firstSourceSheet?.id || !firstDuplicatedSheet?.id) return
 
-  for (let i = 0; i < pairCount; i++) {
-    const sourceSheet = sourceSheets[i]
-    const duplicatedSheet = duplicatedSheets[i]
-    if (!sourceSheet?.id || !duplicatedSheet?.id) continue
+  try {
+    const sourceSnapshotData = await SpreadsheetApiService.getUniverSnapshot(sourceAppId)
+    if (!sourceSnapshotData.snapshot || typeof sourceSnapshotData.snapshot !== 'object') return
 
-    try {
-      const sourceSnapshotData = await SpreadsheetApiService.getUniverSnapshot(sourceAppId, sourceSheet.id)
-      if (!sourceSnapshotData.snapshot || typeof sourceSnapshotData.snapshot !== 'object') continue
-
-      const targetSnapshotState = await SpreadsheetApiService.getUniverSnapshot(duplicatedApp.id, duplicatedSheet.id)
-      const expectedVersion = Number(targetSnapshotState.version ?? 0)
-      const remappedSnapshot = remapUniverSnapshotSheetId(
-        sourceSnapshotData.snapshot,
-        sourceSheet.id,
-        duplicatedSheet.id
-      )
-
-      await SpreadsheetApiService.saveUniverSnapshot(duplicatedApp.id, duplicatedSheet.id, {
-        version: expectedVersion,
-        snapshot: remappedSnapshot
-      })
-    } catch (error) {
-      console.warn('[useSpreadsheetApps] duplicate snapshot copy skipped for one sheet', {
-        sourceSheetId: sourceSheet.id,
-        duplicatedSheetId: duplicatedSheet.id,
-        error: error instanceof Error ? error.message : String(error)
-      })
+    const targetSnapshotState = await SpreadsheetApiService.getUniverSnapshot(duplicatedApp.id)
+    const expectedVersion = Number(targetSnapshotState.version ?? 0)
+    let remappedSnapshot = sourceSnapshotData.snapshot
+    for (let i = 0; i < pairCount; i++) {
+      const sourceSheet = sourceSheets[i]
+      const duplicatedSheet = duplicatedSheets[i]
+      if (!sourceSheet?.id || !duplicatedSheet?.id) continue
+      remappedSnapshot = remapUniverSnapshotSheetId(remappedSnapshot, sourceSheet.id, duplicatedSheet.id)
     }
+
+    await SpreadsheetApiService.saveUniverSnapshot(duplicatedApp.id, {
+      version: expectedVersion,
+      snapshot: remappedSnapshot
+    })
+  } catch (error) {
+    console.warn('[useSpreadsheetApps] duplicate app-level snapshot copy skipped', {
+      sourceAppId,
+      duplicatedAppId: duplicatedApp.id,
+      error: error instanceof Error ? error.message : String(error)
+    })
   }
 }
 
@@ -646,13 +654,16 @@ export function useSpreadsheetApps(
    *
    * A real SpreadsheetSheet row must exist in the database for:
    *   - /operations/batch to target it via its sheetId
-   *   - GET /spreadsheets/:id/univer-snapshot/:sheetId to load its own snapshot on reload
+   *   - GET /spreadsheets/:id/univer-snapshot to load the app-level workbook snapshot on reload
    *
    * Creating sheets only inside the Univer canvas does NOT persist and leads to
    * ghost-tab data bleed on reload.
    */
   const addSheet = useCallback(
-    async (appId: string, sheet?: Partial<SpreadsheetSheet>): Promise<SpreadsheetSheet | null> => {
+    async (
+      appId: string,
+      sheet?: Partial<SpreadsheetSheet> & { worksheetSnapshot?: Record<string, unknown> }
+    ): Promise<SpreadsheetSheet | null> => {
       if (!accessToken) {
         toast.error('Not authenticated')
         return null
@@ -710,6 +721,50 @@ export function useSpreadsheetApps(
       } catch (error) {
         console.error('[useSpreadsheetApps] Failed to add sheet:', error)
         const message = error instanceof Error ? error.message : 'Failed to create sheet'
+        toast.error(message)
+        return null
+      }
+    },
+    [accessToken, state.currentApp]
+  )
+
+  const duplicateSheet = useCallback(
+    async (
+      appId: string,
+      sourceSheetId: string,
+      sheet: { id?: string; name: string; visualWorksheetSnapshot?: Record<string, unknown> }
+    ): Promise<SpreadsheetSheet | null> => {
+      if (!accessToken) {
+        toast.error('Not authenticated')
+        return null
+      }
+
+      try {
+        const created = await SpreadsheetApiService.duplicateSheet(appId, sourceSheetId, sheet)
+
+        if (state.currentApp?.id === appId) {
+          setState(prev => {
+            if (!prev.currentApp) return prev
+            const nextSheet = { ...created, data: created.data ?? [] }
+            const existingIdx = prev.currentApp.sheets.findIndex(s => s.id === created.id || s.id === sheet.id)
+            const nextSheets =
+              existingIdx >= 0
+                ? prev.currentApp.sheets.map((s, i) => (i === existingIdx ? nextSheet : s))
+                : [...prev.currentApp.sheets, nextSheet]
+            return {
+              ...prev,
+              currentApp: {
+                ...prev.currentApp,
+                sheets: nextSheets
+              }
+            }
+          })
+        }
+
+        return created
+      } catch (error) {
+        console.error('[useSpreadsheetApps] Failed to duplicate sheet:', error)
+        const message = error instanceof Error ? error.message : 'Failed to duplicate sheet'
         toast.error(message)
         return null
       }
@@ -1021,6 +1076,16 @@ export function useSpreadsheetApps(
     setState(prev => ({ ...prev, currentApp: null, currentAppPermission: null }))
   }, [])
 
+  const applyCurrentAppLocalUpdate = useCallback((updater: (app: SpreadsheetApp) => SpreadsheetApp) => {
+    setState(prev => {
+      if (!prev.currentApp) return prev
+      return {
+        ...prev,
+        currentApp: updater(prev.currentApp)
+      }
+    })
+  }, [])
+
   // Load apps on mount
   useEffect(() => {
     if (accessToken) {
@@ -1040,6 +1105,7 @@ export function useSpreadsheetApps(
     updateSheetData,
     updateSheet,
     addSheet,
+    duplicateSheet,
     deleteSheet,
     addRow,
     updateRow,
@@ -1050,6 +1116,7 @@ export function useSpreadsheetApps(
     shareApp,
     revokeAccess,
     getSharedUsers,
-    clearCurrentApp
+    clearCurrentApp,
+    applyCurrentAppLocalUpdate
   }
 }

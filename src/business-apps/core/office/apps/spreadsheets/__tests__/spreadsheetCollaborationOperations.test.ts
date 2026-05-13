@@ -135,7 +135,7 @@ function applyColumnWidthsFromDimensions(
   columns: SpreadsheetColumn[],
   payload: {
     defaultColWidth: number
-    columnData: Record<string | number, { w?: number }>
+    columnData: Record<string | number, { w?: number; hd?: number }>
   }
 ): { nextColumns: SpreadsheetColumn[]; changedColumns: Array<{ columnId: string; width: number }> } | null {
   const changedColumns: Array<{ columnId: string; width: number }> = []
@@ -238,6 +238,17 @@ describe('spreadsheetCollaborationOperations', () => {
       expect(ctx.rowIdToIndex.get('uuid-row-1')).toBe(0)
       expect(ctx.rowIdToIndex.get('row_0')).toBe(0)
       expect(ctx.rowIndexToId.get(0)).toBe('row_0')
+    })
+
+    it('uses persisted backend uuid as canonical rowIndex mapping when _id is a provisional client id', () => {
+      const persistedUuid = '660e8400-e29b-41d4-a716-446655440000'
+      const clientId = 'client_550e8400-e29b-41d4-a716-446655440000'
+      const ctx = createUniverConversionContext(mockColumns, [
+        { _id: clientId, _rowUuid: persistedUuid, ColumnA: 'x', ColumnB: 1 }
+      ])
+      expect(ctx.rowIndexToId.get(0)).toBe(persistedUuid)
+      expect(ctx.rowIdToIndex.get(clientId)).toBe(0)
+      expect(ctx.rowIdToIndex.get(persistedUuid)).toBe(0)
     })
 
     it('resolves colIndex by column name or id', () => {

@@ -34,8 +34,13 @@ export { useSpreadsheetAppsHubFiltering } from './useSpreadsheetAppsHubFiltering
 export { useSpreadsheetAppsHubUrlState } from './useSpreadsheetAppsHubUrlState'
 export { useSpreadsheetAppsHubUserLookup } from './useSpreadsheetAppsHubUserLookup'
 
-export { useSpreadsheetViewerState, sortSpreadsheetRowsBySheetSettings } from './useSpreadsheetViewerState'
+export { useSpreadsheetViewerState } from './useSpreadsheetViewerState'
 export type { UseSpreadsheetViewerStateProps, SpreadsheetViewerState } from './useSpreadsheetViewerState'
+
+export { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
+
+export { useSpreadsheetSessionRowsRef } from './useSpreadsheetSessionRowsRef'
+export type { UseSpreadsheetSessionRowsRefParams } from './useSpreadsheetSessionRowsRef'
 
 export { useSpreadsheetCellSelection } from './useSpreadsheetCellSelection'
 export type {
@@ -55,11 +60,12 @@ export type {
 export { useSpreadsheetColumns } from './useSpreadsheetColumns'
 export type { UseSpreadsheetColumnsProps, SpreadsheetColumnsState } from './useSpreadsheetColumns'
 
-export { useSpreadsheetRows } from './useSpreadsheetRows'
-export type { UseSpreadsheetRowsProps, SpreadsheetRowsState } from './useSpreadsheetRows'
-
 export { useSpreadsheetBulkRows } from './useSpreadsheetBulkRows'
-export type { UseSpreadsheetBulkRowsProps, SpreadsheetBulkRowsHandlers } from './useSpreadsheetBulkRows'
+export type {
+  SpreadsheetCommitOptimisticActiveSheetRows,
+  UseSpreadsheetBulkRowsProps,
+  SpreadsheetBulkRowsHandlers
+} from './useSpreadsheetBulkRows'
 
 export { useSpreadsheetTableColumns } from './useSpreadsheetTableColumns'
 export type { UseSpreadsheetTableColumnsProps } from './useSpreadsheetTableColumns'

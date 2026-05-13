@@ -1806,7 +1806,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     className="gba:text-destructive"
-                                    onClick={() => handleDeleteDocument(doc.id, doc.title)}
+                                    onClick={() => handleDeleteDocument(doc.id)}
                                   >
                                     <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                     {t('menu-delete')}

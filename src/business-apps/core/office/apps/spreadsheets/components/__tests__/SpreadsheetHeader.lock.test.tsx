@@ -1,10 +1,20 @@
-import React from 'react'
+import * as React from 'react'
 import { render, screen } from '@testing-library/react'
 import { SpreadsheetHeader } from '../SpreadsheetHeader'
 
 jest.mock('@newwork/nw-design-system', () => {
-  const React = require('react')
   return {
+    useTranslation: () => ({
+      t: (key: string, opts?: { name?: string }) => {
+        if (key === 'lock-status-locked-by' && opts?.name) {
+          return `Locked by ${opts.name}`
+        }
+        if (key === 'lock-status-locked-by-unknown') {
+          return 'someone'
+        }
+        return key
+      }
+    }),
     Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
     Badge: ({ children, ...props }: any) => <span {...props}>{children}</span>,
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
@@ -17,7 +27,6 @@ jest.mock('@newwork/nw-design-system', () => {
 })
 
 jest.mock('lucide-react', () => {
-  const React = require('react')
   const Icon = ({ children, ...props }: any) => <span {...props}>{children}</span>
   return new Proxy(
     {},

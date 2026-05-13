@@ -322,6 +322,10 @@ export interface SpreadsheetSheet {
   name: string
   description?: string
   version?: number
+  /** Hidden state for the native Univer worksheet tab. */
+  hidden?: boolean
+  /** Present on some API responses (duplicate/create) for Univer materialization. */
+  worksheetSnapshot?: Record<string, unknown>
   viewType: ViewType
   columns: SpreadsheetColumn[]
   views: SheetView[]
@@ -445,6 +449,8 @@ export interface SheetSettings {
     rowlen?: Record<string, number>
     columnlen?: Record<string, number>
   }
+  /** Fallback persisted state for native Univer worksheet tab visibility. */
+  univerSheetHidden?: boolean
   /** Cell comments keyed by `${rowId}_${columnId}` */
   cellComments?: Record<string, { value: string }>
 }
@@ -487,6 +493,7 @@ export interface SpreadsheetAppViewerProps {
     updates: Record<string, unknown>
   ) => Promise<Record<string, unknown> | null>
   onAppUpdate?: (app: SpreadsheetApp) => void
+  onLocalAppUpdate?: (updater: (app: SpreadsheetApp) => SpreadsheetApp) => void
   /** Trigger full app reload (e.g. after creating a new sheet). Optional newSheetId to switch to. */
   onAppRefreshNeeded?: (appId: string, newSheetId?: string) => Promise<void>
   onSheetUpdate?: (
@@ -499,7 +506,15 @@ export interface SpreadsheetAppViewerProps {
    * "+" fires InsertSheetCommand; the frontend passes the Univer-chosen id so the
    * backend row and the in-memory workbook stay in sync.
    */
-  onSheetAdd?: (appId: string, sheet?: Partial<SpreadsheetSheet>) => Promise<SpreadsheetSheet | null>
+  onSheetAdd?: (
+    appId: string,
+    sheet?: Partial<SpreadsheetSheet> & { worksheetSnapshot?: Record<string, unknown> }
+  ) => Promise<SpreadsheetSheet | null>
+  onSheetDuplicate?: (
+    appId: string,
+    sourceSheetId: string,
+    sheet: { id?: string; name: string; visualWorksheetSnapshot?: Record<string, unknown> }
+  ) => Promise<SpreadsheetSheet | null>
   /**
    * Delete a real sheet on the backend. Called when Univer fires RemoveSheetCommand.
    */

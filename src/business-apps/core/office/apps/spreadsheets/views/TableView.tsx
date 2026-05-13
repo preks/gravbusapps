@@ -4,7 +4,7 @@
  * Table view with inline editing using Univer grid
  */
 
-import React, { useCallback, memo, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, memo, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from '@newwork/nw-design-system'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types'
@@ -12,13 +12,17 @@ import type {
   DocumentParticipant,
   DocumentOperation
 } from '../../../../../platform/apps/shared/services/CollaborationClient'
-import {
-  UniverSheetGrid,
-  type UniverSheetGridHandle,
-  type CellDimensionsPayload,
-  type WorkbookSnapshotLifecycleEvent
-} from '../components/UniverSheetGrid'
+import { UniverSheetGrid } from '../components/UniverSheetGrid'
+import type {
+  UniverSheetGridHandle,
+  CellDimensionsPayload,
+  WorkbookSnapshotLifecycleEvent,
+  UniverSheetGridInitLifecycleEvent
+} from '../components/UniverSheetGrid.types'
 import translations from '../_i18n'
+import type { SpreadsheetStylePatch, SpreadsheetUnifiedMutationBatchPayload } from '../core'
+import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
+import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIntent'
 
 export interface TableViewProps {
   sheet: SpreadsheetSheet
@@ -26,12 +30,26 @@ export interface TableViewProps {
   initialSnapshot?: Record<string, unknown> | null
   snapshotSeed?: string
   authoritativeDataSyncToken?: number
-  workbookRemountKey?: string
+  workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
+  apiFirstSheetStructure?: boolean
+  /** Background reconcile of remote workbook snapshot after cache-first bootstrap. */
+  workbookSnapshotSyncing?: boolean
+  /** Workbook layout could not be synced from server after retries (shown when syncing finishes). */
+  workbookSnapshotSyncFailed?: boolean
+  onNativeSheetStructureIntent?: (intent: NativeSheetStructureIntent) => void
   onActiveWorksheetChange?: (sheetId: string, sheetName: string) => void
-  onUniverSheetInserted?: (payload: { sheetId: string; sheetName: string; index: number }) => void
+  onUniverSheetInserted?: (payload: {
+    kind: 'blank' | 'duplicate'
+    sheetId: string
+    sheetName: string
+    index: number
+    visualWorksheetSnapshot?: Record<string, unknown>
+    sourceSheetId?: string
+  }) => void
   onUniverSheetRemoved?: (payload: { sheetId: string }) => void
   onUniverSheetRenamed?: (payload: { sheetId: string; sheetName: string }) => void
+  onUniverSheetVisibilityChanged?: (payload: { sheetId: string; hidden: boolean }) => void
   /**
    * Multi-sheet context resolver forwarded to `UniverSheetGrid`. When Univer
    * reports a cell mutation on a non-active sheet this tells the grid which
@@ -45,7 +63,11 @@ export interface TableViewProps {
   spreadsheetColumns: SpreadsheetColumn[]
   testId: string
   onCellChange?: (rowId: string, columnName: string, value: unknown, sheetId?: string) => void
-  onCellsChange?: (cells: Array<{ rowId: string; columnName: string; value: unknown; sheetId?: string }>) => void
+  onCellsChange?: (
+    cells: Array<{ rowId: string; columnName: string; value: unknown; sheetId?: string; traceId?: string }>
+  ) => void
+  onDiagnosticsTraceEvent?: (event: SpreadsheetTraceEventInput) => void
+  onGridInitLifecycle?: (event: UniverSheetGridInitLifecycleEvent) => void
   onSnapshotRequested?: () => Promise<void> | void
   onWorkbookSnapshotLifecycle?: (event: WorkbookSnapshotLifecycleEvent) => void
   onOpenCommentRequest?: () => void
@@ -62,9 +84,25 @@ export interface TableViewProps {
   onDataChange?: (data: Record<string, unknown>[], sheetId?: string) => void
   /** Callback when a new column needs to be auto-created */
   onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
+  onColumnsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  onColumnsDelete?: (startIndex: number, endIndex: number) => void
+  onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
   participants?: DocumentParticipant[]
   onOperationEmit?: (operation: DocumentOperation) => void
+  /** Authoritative set_style batch op emitter (see collab rework plan §4.4). */
+  onStyleBatchOp?: (data: {
+    sheetId: string
+    traceId?: string
+    styles?: Record<string, unknown>
+    cells: Array<{ row: number; col: number; cellRef?: string; stylePatch: SpreadsheetStylePatch }>
+  }) => void
+  /** Unified mutation batch emitter for value + style changes from a single local mutation wave. */
+  onMutationBatchOp?: (data: SpreadsheetUnifiedMutationBatchPayload) => void | Promise<void>
+  flushUnmaterializedRowsBeforePersistRef?: MutableRefObject<((sheetId: string) => Promise<void>) | null>
+  getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
+  isUuidForRowRemap?: (value: string) => boolean
   onCursorEmit?: (position: { path: string[] }) => void
+  getCanonicalSheetId?: (sheetId: string) => string
   collaborationEnabled?: boolean
   isReadOnly?: boolean
   onDimensionsChange?: (payload: CellDimensionsPayload) => void
@@ -81,12 +119,17 @@ export const TableView = memo<TableViewProps>(function TableView({
   initialSnapshot,
   snapshotSeed,
   authoritativeDataSyncToken,
-  workbookRemountKey,
+  workbookInstanceKey,
   multiSheetWorkbookMode,
+  apiFirstSheetStructure,
+  workbookSnapshotSyncing = false,
+  workbookSnapshotSyncFailed = false,
+  onNativeSheetStructureIntent,
   onActiveWorksheetChange,
   onUniverSheetInserted,
   onUniverSheetRemoved,
   onUniverSheetRenamed,
+  onUniverSheetVisibilityChanged,
   getSheetContext,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   columns,
@@ -98,15 +141,26 @@ export const TableView = memo<TableViewProps>(function TableView({
   showAddRow,
   onCellChange,
   onCellsChange,
+  onDiagnosticsTraceEvent,
+  onGridInitLifecycle,
   onSnapshotRequested,
   onWorkbookSnapshotLifecycle,
   onOpenCommentRequest,
   commentedCells,
   onDataChange,
   onColumnAdd,
+  onColumnsInsert,
+  onColumnsDelete,
+  onRowsInsert,
   participants,
   onOperationEmit,
+  onStyleBatchOp,
+  onMutationBatchOp,
+  flushUnmaterializedRowsBeforePersistRef,
+  getPersistSheetRowsSnapshot,
+  isUuidForRowRemap,
   onCursorEmit,
+  getCanonicalSheetId,
   collaborationEnabled,
   isReadOnly,
   onDimensionsChange,
@@ -115,9 +169,101 @@ export const TableView = memo<TableViewProps>(function TableView({
   const { t } = useTranslation(translations)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const gridReadyRef = useRef(false)
+  const readyToMountUniverRef = useRef(false)
+  const lastTableHostReadyRef = useRef<boolean | null>(null)
   const [showFallback, setShowFallback] = useState(false)
+  const [readyToMountUniver, setReadyToMountUniver] = useState(false)
+
+  // Guard the UniverSheetGrid mount on a non-zero container size. If the
+  // wrapper OR its parent is hidden (display: none) or has 0 width/height,
+  // mounting Univer triggers its skeleton-recompute warning ("column width
+  // is less than 0") for both the grid and its internal formula-bar editor.
+  // We additionally wait one animation frame after the size resolves so that
+  // descendant layout boxes (toolbar, formula bar host) have committed before
+  // Univer initializes its DI-resolved children.
+  useEffect(() => {
+    const node = wrapperRef.current
+    if (!node) return
+
+    let rafId: number | null = null
+    lastTableHostReadyRef.current = null
+
+    const scheduleReady = (ready: boolean) => {
+      if (rafId != null) {
+        cancelAnimationFrame(rafId)
+        rafId = null
+      }
+      if (!ready) {
+        if (lastTableHostReadyRef.current !== false) {
+          lastTableHostReadyRef.current = false
+          const own = node.getBoundingClientRect()
+          onGridInitLifecycle?.({
+            phase: 'host_waiting',
+            sheetId: sheet.id,
+            workbookInstanceKey,
+            snapshotSeed,
+            width: own.width,
+            height: own.height,
+            reason: 'table_wrapper_size_gate'
+          })
+        }
+        readyToMountUniverRef.current = false
+        setReadyToMountUniver(false)
+        return
+      }
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        const own = node.getBoundingClientRect()
+        if (lastTableHostReadyRef.current !== true) {
+          lastTableHostReadyRef.current = true
+          onGridInitLifecycle?.({
+            phase: 'host_ready',
+            sheetId: sheet.id,
+            workbookInstanceKey,
+            snapshotSeed,
+            width: own.width,
+            height: own.height,
+            reason: 'table_wrapper_size_gate'
+          })
+        }
+        readyToMountUniverRef.current = true
+        setReadyToMountUniver(true)
+      })
+    }
+
+    const measure = () => {
+      const parent = node.parentElement
+      const own = node.getBoundingClientRect()
+      const parentBox = parent ? parent.getBoundingClientRect() : null
+      const hasOwnSize = own.width > 0 && own.height > 0
+      const hasParentSize = parentBox ? parentBox.width > 0 && parentBox.height > 0 : true
+      scheduleReady(hasOwnSize && hasParentSize)
+    }
+
+    measure()
+
+    if (typeof ResizeObserver === 'undefined') {
+      scheduleReady(true)
+      return () => {
+        if (rafId != null) cancelAnimationFrame(rafId)
+      }
+    }
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    if (node.parentElement) observer.observe(node.parentElement)
+    return () => {
+      observer.disconnect()
+      if (rafId != null) cancelAnimationFrame(rafId)
+    }
+  }, [onGridInitLifecycle, sheet.id, snapshotSeed, workbookInstanceKey])
 
   useEffect(() => {
+    if (!readyToMountUniver) {
+      gridReadyRef.current = false
+      setShowFallback(false)
+      return
+    }
     gridReadyRef.current = false
     setShowFallback(false)
 
@@ -126,6 +272,13 @@ export const TableView = memo<TableViewProps>(function TableView({
       const hasCanvas = Boolean(host?.querySelector('[data-testid="univer-sheet-grid-container"] canvas'))
       if (!hasCanvas) return
       gridReadyRef.current = true
+      onGridInitLifecycle?.({
+        phase: 'canvas_ready',
+        sheetId: sheet.id,
+        workbookInstanceKey,
+        snapshotSeed,
+        reason: 'table_canvas_poll'
+      })
       setShowFallback(false)
       clearInterval(pollId)
       clearTimeout(fallbackTimeoutId)
@@ -133,6 +286,13 @@ export const TableView = memo<TableViewProps>(function TableView({
 
     const fallbackTimeoutId = globalThis.setTimeout(() => {
       if (gridReadyRef.current) return
+      onGridInitLifecycle?.({
+        phase: 'canvas_timeout',
+        sheetId: sheet.id,
+        workbookInstanceKey,
+        snapshotSeed,
+        reason: 'table_canvas_poll'
+      })
       setShowFallback(true)
     }, 3500)
 
@@ -140,7 +300,7 @@ export const TableView = memo<TableViewProps>(function TableView({
       clearInterval(pollId)
       clearTimeout(fallbackTimeoutId)
     }
-  }, [sheet.id, snapshotSeed])
+  }, [sheet.id, snapshotSeed, readyToMountUniver, onGridInitLifecycle, workbookInstanceKey])
 
   const fallbackColumns = useMemo(() => {
     const visible = spreadsheetColumns.filter(c => c.isVisible !== false)
@@ -213,44 +373,77 @@ export const TableView = memo<TableViewProps>(function TableView({
       className="gba:relative gba:w-full gba:h-full gba:min-w-0 gba:absolute gba:inset-0"
       data-testid={testId}
     >
-      <UniverSheetGrid
-        // In multi-sheet mode the workbook contains every sheet and switching
-        // tabs is handled inside Univer; remounting on `sheet.id` would throw
-        // away the in-memory workbook and cause a white flash on every switch.
-        // Key off the stable `workbookRemountKey` instead (only changes when
-        // sheets are added/removed) so the single Univer instance persists.
-        key={workbookRemountKey ?? sheet.id}
-        ref={gridRef}
-        sheet={sheet}
-        data={data}
-        initialSnapshot={initialSnapshot}
-        snapshotSeed={snapshotSeed}
-        authoritativeDataSyncToken={authoritativeDataSyncToken}
-        workbookRemountKey={workbookRemountKey}
-        multiSheetWorkbookMode={multiSheetWorkbookMode}
-        onActiveWorksheetChange={onActiveWorksheetChange}
-        onUniverSheetInserted={onUniverSheetInserted}
-        onUniverSheetRemoved={onUniverSheetRemoved}
-        onUniverSheetRenamed={onUniverSheetRenamed}
-        getSheetContext={getSheetContext}
-        columns={spreadsheetColumns}
-        isReadOnly={isReadOnly || false}
-        onCellChange={handleCellChange}
-        onCellsChange={handleCellsChange}
-        onSnapshotRequested={handleSnapshotRequested}
-        onWorkbookSnapshotLifecycle={onWorkbookSnapshotLifecycle}
-        onOpenCommentRequest={onOpenCommentRequest}
-        commentedCells={commentedCells}
-        onDataChange={handleDataChange}
-        onColumnAdd={onColumnAdd}
-        participants={participants}
-        onOperationEmit={onOperationEmit}
-        onCursorEmit={onCursorEmit}
-        collaborationEnabled={collaborationEnabled}
-        onDimensionsChange={onDimensionsChange}
-        height="100%"
-        width="100%"
-      />
+      {workbookSnapshotSyncing ? (
+        <div className="gba:pointer-events-none gba:absolute gba:left-0 gba:right-0 gba:top-0 gba:z-30 gba:flex gba:justify-center gba:px-3 gba:pt-2">
+          <div className="gba:rounded-md gba:bg-muted/90 gba:px-3 gba:py-1 gba:shadow-sm">
+            <span className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-workbook-sync-label`}>
+              {t('workbook-bootstrap-syncing')}
+            </span>
+          </div>
+        </div>
+      ) : workbookSnapshotSyncFailed ? (
+        <div className="gba:pointer-events-none gba:absolute gba:left-0 gba:right-0 gba:top-0 gba:z-30 gba:flex gba:justify-center gba:px-3 gba:pt-2">
+          <div className="gba:rounded-md gba:bg-muted/90 gba:px-3 gba:py-1 gba:shadow-sm">
+            <span className="gba:text-xs gba:text-destructive" data-testid={`${testId}-workbook-sync-failed-label`}>
+              {t('workbook-bootstrap-sync-failed-banner')}
+            </span>
+          </div>
+        </div>
+      ) : null}
+      {readyToMountUniver ? (
+        <UniverSheetGrid
+          // In multi-sheet mode the workbook contains every sheet and switching
+          // tabs is handled inside Univer; remounting on `sheet.id` would throw
+          // away the in-memory workbook and cause a white flash on every switch.
+          // Key off the explicit workbook instance key so the remount boundary is
+          // owned by the viewer instead of hidden behind a fallback in the grid.
+          key={workbookInstanceKey}
+          ref={gridRef}
+          sheet={sheet}
+          data={data}
+          initialSnapshot={initialSnapshot}
+          snapshotSeed={snapshotSeed}
+          authoritativeDataSyncToken={authoritativeDataSyncToken}
+          workbookInstanceKey={workbookInstanceKey}
+          multiSheetWorkbookMode={multiSheetWorkbookMode}
+          apiFirstSheetStructure={apiFirstSheetStructure}
+          onNativeSheetStructureIntent={onNativeSheetStructureIntent}
+          onActiveWorksheetChange={onActiveWorksheetChange}
+          onUniverSheetInserted={onUniverSheetInserted}
+          onUniverSheetRemoved={onUniverSheetRemoved}
+          onUniverSheetRenamed={onUniverSheetRenamed}
+          onUniverSheetVisibilityChanged={onUniverSheetVisibilityChanged}
+          getSheetContext={getSheetContext}
+          columns={spreadsheetColumns}
+          isReadOnly={isReadOnly || false}
+          onCellChange={handleCellChange}
+          onCellsChange={handleCellsChange}
+          onDiagnosticsTraceEvent={onDiagnosticsTraceEvent}
+          onInitLifecycle={onGridInitLifecycle}
+          onSnapshotRequested={handleSnapshotRequested}
+          onWorkbookSnapshotLifecycle={onWorkbookSnapshotLifecycle}
+          onOpenCommentRequest={onOpenCommentRequest}
+          commentedCells={commentedCells}
+          onDataChange={handleDataChange}
+          onColumnAdd={onColumnAdd}
+          onColumnsInsert={onColumnsInsert}
+          onColumnsDelete={onColumnsDelete}
+          onRowsInsert={onRowsInsert}
+          participants={participants}
+          onOperationEmit={onOperationEmit}
+          onStyleBatchOp={onStyleBatchOp}
+          onMutationBatchOp={onMutationBatchOp}
+          flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
+          getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
+          isUuidForRowRemap={isUuidForRowRemap}
+          onCursorEmit={onCursorEmit}
+          getCanonicalSheetId={getCanonicalSheetId}
+          collaborationEnabled={collaborationEnabled}
+          onDimensionsChange={onDimensionsChange}
+          height="100%"
+          width="100%"
+        />
+      ) : null}
       {showFallback && (
         <div className="gba:absolute gba:inset-0 gba:z-40 gba:bg-background gba:p-4 gba:overflow-auto">
           <div className="gba:mb-3 gba:text-sm gba:text-muted-foreground">{t('view-table-fallback-loading')}</div>

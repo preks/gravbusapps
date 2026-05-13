@@ -14,8 +14,13 @@ export interface SpreadsheetContextValue {
   activeSheet: SpreadsheetSheet
   activeSheetId: string
   setActiveSheetId: (id: string) => void
-  localSheetData: Record<string, unknown>[]
-  setLocalSheetData: React.Dispatch<React.SetStateAction<Record<string, unknown>[]>>
+  /**
+   * Tab-sync / bootstrap row snapshot for consumers not on SpreadsheetSession yet.
+   * Editors should prefer session-backed rows from SpreadsheetAppViewer when available.
+   */
+  localSheetData?: Record<string, unknown>[]
+  /** Setter paired with `localSheetData` for the same integration surface. */
+  setLocalSheetData?: React.Dispatch<React.SetStateAction<Record<string, unknown>[]>>
 
   // Column state
   columns: SpreadsheetColumn[]

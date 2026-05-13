@@ -1,4 +1,9 @@
-import { reconcileTemporarySheetIdReferences, resolveReconciledSheetId } from '../reconcileTemporarySheetId'
+import {
+  areCanonicalSheetIdsEqual,
+  isSheetCreationAwaitingPersistedId,
+  reconcileTemporarySheetIdReferences,
+  resolveReconciledSheetId
+} from '../reconcileTemporarySheetId'
 
 describe('reconcileTemporarySheetId', () => {
   it('rewires cached rows, pending work, and latest workbook data to the persisted sheet id', () => {
@@ -72,5 +77,37 @@ describe('reconcileTemporarySheetId', () => {
     const aliases = new Map([['temp-sheet', 'real-sheet']])
     expect(resolveReconciledSheetId('temp-sheet', aliases)).toBe('real-sheet')
     expect(resolveReconciledSheetId('other-sheet', aliases)).toBe('other-sheet')
+  })
+
+  it('areCanonicalSheetIdsEqual respects aliases on either side', () => {
+    const aliases = new Map([['temp-sheet', 'real-sheet']])
+    expect(areCanonicalSheetIdsEqual('temp-sheet', 'real-sheet', aliases)).toBe(true)
+    expect(areCanonicalSheetIdsEqual('real-sheet', 'temp-sheet', aliases)).toBe(true)
+    expect(areCanonicalSheetIdsEqual('a', 'b', aliases)).toBe(false)
+  })
+
+  it('isSheetCreationAwaitingPersistedId gates only matching temp sheet without persisted id', () => {
+    const aliases = new Map<string, string>()
+    expect(
+      isSheetCreationAwaitingPersistedId({
+        pendingCreatedSheetSelection: { temporarySheetId: 'temp-a', persistedSheetId: null },
+        effectiveSheetId: 'temp-a',
+        aliases
+      })
+    ).toBe(true)
+    expect(
+      isSheetCreationAwaitingPersistedId({
+        pendingCreatedSheetSelection: { temporarySheetId: 'temp-a', persistedSheetId: 'real-a' },
+        effectiveSheetId: 'temp-a',
+        aliases
+      })
+    ).toBe(false)
+    expect(
+      isSheetCreationAwaitingPersistedId({
+        pendingCreatedSheetSelection: { temporarySheetId: 'temp-a', persistedSheetId: null },
+        effectiveSheetId: 'other',
+        aliases
+      })
+    ).toBe(false)
   })
 })

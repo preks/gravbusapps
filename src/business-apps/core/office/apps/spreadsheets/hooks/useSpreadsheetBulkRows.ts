@@ -92,11 +92,20 @@ function revealBulkPlaceholderColumnsAfterResponse(
   return { columns: next, changed }
 }
 
+/** Keeps SpreadsheetSession + peer caches aligned with optimistic bulk mutations (viewer wired path). */
+export type SpreadsheetCommitOptimisticActiveSheetRows = (nextRows: Record<string, unknown>[]) => void
+
 export interface UseSpreadsheetBulkRowsProps {
   app: SpreadsheetApp
   activeSheet: SpreadsheetSheet | null
   localSheetDataRef: React.MutableRefObject<Record<string, unknown>[]>
-  setLocalSheetData: React.Dispatch<React.SetStateAction<Record<string, unknown>[]>>
+  /**
+   * When set (SpreadsheetAppViewer), bulk reads prefer live SpreadsheetSession rows for the active sheet,
+   * then `localSheetDataRef` — avoids stale ref snapshots versus session during merges/reconcile.
+   */
+  canonicalActiveSheetRowsSourceRef?: React.MutableRefObject<() => Record<string, unknown>[]>
+  /** Updates spreadsheet session rows for the active sheet (viewer `commitLocalSheetData` pipeline). */
+  commitOptimisticActiveSheetRows: SpreadsheetCommitOptimisticActiveSheetRows
   onDataChange?: (sheetId: string, data: Record<string, unknown>[]) => void
   onAppUpdate?: (app: SpreadsheetApp) => void
   onSheetUpdate?: (appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>) => Promise<unknown>
@@ -830,21 +839,32 @@ async function fallbackAddAndReconcileRow(params: {
   update: UpdateEntry
   updatedRow: Record<string, unknown>
   mappedCells: Record<string, unknown>
+  commitOptimisticActiveSheetRows: SpreadsheetCommitOptimisticActiveSheetRows
+  canonicalActiveSheetRowsSourceRef?: React.MutableRefObject<() => Record<string, unknown>[]>
   localSheetDataRef: React.MutableRefObject<Record<string, unknown>[]>
-  setLocalSheetData: React.Dispatch<React.SetStateAction<Record<string, unknown>[]>>
 }): Promise<void> {
-  const { onRowAdd, appId, sheetId, update, updatedRow, mappedCells, localSheetDataRef, setLocalSheetData } = params
+  const {
+    onRowAdd,
+    appId,
+    sheetId,
+    update,
+    updatedRow,
+    mappedCells,
+    commitOptimisticActiveSheetRows,
+    canonicalActiveSheetRowsSourceRef,
+    localSheetDataRef
+  } = params
   try {
     const added = await onRowAdd(appId, sheetId, buildRowDataForFallbackAdd(updatedRow, mappedCells))
     if (!added || !added._id) return
-    const next = localSheetDataRef.current.map(row => {
+    const rowSnapshot = canonicalActiveSheetRowsSourceRef?.current() ?? localSheetDataRef.current
+    const next = rowSnapshot.map(row => {
       if (row._workflow_id === update.workflowId) {
         return { ...row, _id: added._id, _rowUuid: added._rowUuid ?? row._rowUuid }
       }
       return row
     })
-    localSheetDataRef.current = next
-    setLocalSheetData(next)
+    commitOptimisticActiveSheetRows(next)
   } catch (addErr) {
     console.error('[handleUpdateRows] onRowAdd failed:', addErr)
   }
@@ -863,11 +883,22 @@ function persistMatchedRowUpdates(params: {
     updates: Record<string, unknown>
   ) => Promise<Record<string, unknown> | null>
   onRowAdd?: (appId: string, sheetId: string, data: Record<string, unknown>) => Promise<Record<string, unknown>>
+  commitOptimisticActiveSheetRows: SpreadsheetCommitOptimisticActiveSheetRows
+  canonicalActiveSheetRowsSourceRef?: React.MutableRefObject<() => Record<string, unknown>[]>
   localSheetDataRef: React.MutableRefObject<Record<string, unknown>[]>
-  setLocalSheetData: React.Dispatch<React.SetStateAction<Record<string, unknown>[]>>
 }): void {
-  const { updates, newData, appId, sheetId, columnMap, onRowUpdate, onRowAdd, localSheetDataRef, setLocalSheetData } =
-    params
+  const {
+    updates,
+    newData,
+    appId,
+    sheetId,
+    columnMap,
+    onRowUpdate,
+    onRowAdd,
+    commitOptimisticActiveSheetRows,
+    canonicalActiveSheetRowsSourceRef,
+    localSheetDataRef
+  } = params
   if (!onRowUpdate) return
   updates.forEach(update => {
     const updatedRow = findRowForUpdatePersistence(newData, update)
@@ -885,8 +916,9 @@ function persistMatchedRowUpdates(params: {
           update,
           updatedRow,
           mappedCells,
-          localSheetDataRef,
-          setLocalSheetData
+          commitOptimisticActiveSheetRows,
+          canonicalActiveSheetRowsSourceRef,
+          localSheetDataRef
         })
       })
       .catch(err => {
@@ -924,7 +956,8 @@ export function useSpreadsheetBulkRows({
   app,
   activeSheet,
   localSheetDataRef,
-  setLocalSheetData,
+  canonicalActiveSheetRowsSourceRef,
+  commitOptimisticActiveSheetRows,
   onDataChange,
   onAppUpdate,
   onSheetUpdate,
@@ -935,6 +968,9 @@ export function useSpreadsheetBulkRows({
 }: UseSpreadsheetBulkRowsProps): SpreadsheetBulkRowsHandlers {
   const handleAddRowsRef = useRef<HandleAddRowsFn | null>(null)
   const handleUpdateRowsRef = useRef<HandleUpdateRowsFn | null>(null)
+
+  const readCanonicalActiveRows = (): Record<string, unknown>[] =>
+    canonicalActiveSheetRowsSourceRef?.current() ?? localSheetDataRef.current
 
   const handleAddRows = useCallback(
     (rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => {
@@ -982,7 +1018,7 @@ export function useSpreadsheetBulkRows({
       // Legacy behavior parity: for data collection sheets, first insert a visible
       // header line with tracking labels when the sheet is empty.
       const hasTrackingColumns = updatedColumns.some(col => isTrackingColumn(col.name) || isTrackingColumn(col.id))
-      const hasHeaderRowAlready = localSheetDataRef.current.some(row => row._isTrackingHeader === true)
+      const hasHeaderRowAlready = readCanonicalActiveRows().some(row => row._isTrackingHeader === true)
       const shouldInsertHeaderRow = hasTrackingColumns && !hasHeaderRowAlready
 
       const headerRow: Record<string, unknown> | null = shouldInsertHeaderRow
@@ -990,11 +1026,10 @@ export function useSpreadsheetBulkRows({
         : null
 
       // Update local data
-      const currentData = localSheetDataRef.current
+      const currentData = readCanonicalActiveRows()
       const newData = [...currentData, ...(headerRow ? [headerRow] : []), ...newRows]
       const { columns: autoSizedColumns, changed: autoWidthChanged } = applyDynamicColumnWidths(updatedColumns, newData)
-      localSheetDataRef.current = newData
-      setLocalSheetData(newData)
+      commitOptimisticActiveSheetRows(newData)
       onRequestGridRefresh?.()
 
       // Persist changes
@@ -1036,7 +1071,7 @@ export function useSpreadsheetBulkRows({
           }
 
           if (persistedByTempId.size > 0) {
-            const reconciled = localSheetDataRef.current.map(row => {
+            const reconciled = readCanonicalActiveRows().map(row => {
               const tempId = String(row._id ?? '')
               const persisted = persistedByTempId.get(tempId)
               if (persisted) {
@@ -1048,8 +1083,7 @@ export function useSpreadsheetBulkRows({
               }
               return row
             })
-            localSheetDataRef.current = reconciled
-            setLocalSheetData(reconciled)
+            commitOptimisticActiveSheetRows(reconciled)
           }
         })()
       } else {
@@ -1060,12 +1094,13 @@ export function useSpreadsheetBulkRows({
     [
       activeSheet,
       app,
+      commitOptimisticActiveSheetRows,
       onDataChange,
       onAppUpdate,
       onRowAdd,
       onSheetUpdate,
+      canonicalActiveSheetRowsSourceRef,
       localSheetDataRef,
-      setLocalSheetData,
       saveTimeoutRef,
       onRequestGridRefresh
     ]
@@ -1100,7 +1135,7 @@ export function useSpreadsheetBulkRows({
       const { updateByWorkflowId, updateByRecipientId, completedByWorkflowId, completedByRecipientId } =
         buildUpdateMaps(nonCompletedUpdates, completedUpdates)
 
-      const currentData = localSheetDataRef.current
+      const currentData = readCanonicalActiveRows()
       const recipientIdToBestRowIndex = buildRecipientIdToBestRowIndex(currentData, updateByRecipientId)
       const { byWorkflowId: completedRowByWorkflowId, byRecipientId: completedRowByRecipientId } =
         buildCompletedRowIndices(currentData, completedByWorkflowId, completedByRecipientId)
@@ -1137,7 +1172,7 @@ export function useSpreadsheetBulkRows({
         matchedCompletedRecipientIds
       })
       const baseAddedRows = createRowsFromUnmatchedUpdates(unmatchedUpdates, columnMap)
-      const addedRows = insertTrackingHeaderIfNeeded(baseAddedRows, updatedColumns, localSheetDataRef.current)
+      const addedRows = insertTrackingHeaderIfNeeded(baseAddedRows, updatedColumns, readCanonicalActiveRows())
 
       let newData = matchCount > 0 || addedRows.length > 0 ? [...updatedExisting, ...addedRows] : updatedExisting
 
@@ -1168,8 +1203,7 @@ export function useSpreadsheetBulkRows({
         return
       }
 
-      localSheetDataRef.current = newData
-      setLocalSheetData(newData)
+      commitOptimisticActiveSheetRows(newData)
       onRequestGridRefresh?.()
 
       persistColumnChanges({
@@ -1190,8 +1224,9 @@ export function useSpreadsheetBulkRows({
           columnMap,
           onRowUpdate,
           onRowAdd,
-          localSheetDataRef,
-          setLocalSheetData
+          commitOptimisticActiveSheetRows,
+          canonicalActiveSheetRowsSourceRef,
+          localSheetDataRef
         })
       }
       if (addedRows.length > 0) {
@@ -1204,13 +1239,14 @@ export function useSpreadsheetBulkRows({
     [
       activeSheet,
       app,
+      commitOptimisticActiveSheetRows,
       onDataChange,
       onAppUpdate,
       onSheetUpdate,
       onRowUpdate,
       onRowAdd,
+      canonicalActiveSheetRowsSourceRef,
       localSheetDataRef,
-      setLocalSheetData,
       saveTimeoutRef,
       onRequestGridRefresh
     ]

@@ -5,18 +5,41 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { columnIndexToLetter as spreadsheetColumnIndexToLetter } from '../core'
 import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn } from '../types'
+import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationType } from '../services/SpreadsheetApiService'
+import type { SpreadsheetCommitOptimisticActiveSheetRows } from './useSpreadsheetBulkRows'
 
+/**
+ * Column-structure operation payload emitted through the v2 batch endpoint.
+ *
+ * The server persists the column change (sheet.columns JSONB), bumps the sheet
+ * version, writes an operation log entry, and broadcasts the same op to every
+ * connected client including the originator. The originator's echo is skipped
+ * by SpreadsheetCollaborationManager via the op-id dedupe cache, so the only
+ * UX path that makes the local grid reflect the change immediately is the
+ * optimistic onAppUpdate call below.
+ */
 export interface UseSpreadsheetColumnsProps {
   app: SpreadsheetApp
   activeSheet: SpreadsheetSheet
   localSheetDataRef: React.MutableRefObject<Record<string, unknown>[]>
-  setLocalSheetData: React.Dispatch<React.SetStateAction<Record<string, unknown>[]>>
+  /**
+   * When set (SpreadsheetAppViewer), row reads prefer live SpreadsheetSession rows for the active sheet,
+   * falling back to `localSheetDataRef` — avoids treating the ref as the sole canonical row source.
+   */
+  canonicalActiveSheetRowsSourceRef?: React.MutableRefObject<() => Record<string, unknown>[]>
+  /** Updates spreadsheet session rows for the active sheet (viewer commit pipeline). */
+  commitOptimisticActiveSheetRows: SpreadsheetCommitOptimisticActiveSheetRows
   handleCellChangeRef: React.MutableRefObject<(rowId: string, columnName: string, value: unknown) => void>
   onAppUpdate?: (app: SpreadsheetApp) => void
-  onSheetUpdate?: (appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>) => void
-  isCollaborationConnected: boolean
-  emitOperation: (operation: { type: string; data: unknown }) => void
+  /**
+   * Emit a column-structure batch operation to the v2 HTTP batch endpoint.
+   * This is the single authoritative persistence+broadcast path for
+   * column_add / column_update / column_delete / columns_reorder. There is
+   * no longer a WS P2P fallback — the server is the single broadcaster.
+   */
+  emitColumnBatchOperation?: (op: SpreadsheetBatchOperation) => void
 }
 
 export interface SpreadsheetColumnsState {
@@ -40,8 +63,15 @@ export interface SpreadsheetColumnsState {
   handleDeleteColumn: (columnId: string) => void
   handleRenameColumn: (columnId: string, newLabel: string) => void
   handleReorderColumns: (draggedColumnId: string, targetColumnId: string) => void
-  handleColumnsInsert: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
-  handleColumnsDelete: (startIndex: number, endIndex: number) => void
+  handleColumnsInsert: (
+    insertIndex: number,
+    count: number,
+    direction: 'lefttop' | 'rightbottom'
+  ) => SpreadsheetColumn[] | undefined
+  handleColumnsDelete: (
+    startIndex: number,
+    endIndex: number
+  ) => { columns: SpreadsheetColumn[]; data: Record<string, unknown>[] } | undefined
 
   // Handler refs for stable callbacks
   handleAddColumnRef: React.MutableRefObject<() => void>
@@ -53,8 +83,16 @@ export interface SpreadsheetColumnsState {
 }
 
 /** Creates a new SpreadsheetColumn with default properties. */
+const createColumnId = (): string => {
+  try {
+    return crypto.randomUUID()
+  } catch {
+    return `column_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  }
+}
+
 const createColumn = (name: string, label: string, order: number, width: number = 150): SpreadsheetColumn => ({
-  id: crypto.randomUUID(),
+  id: createColumnId(),
   name,
   label,
   type: 'text',
@@ -66,42 +104,40 @@ const createColumn = (name: string, label: string, order: number, width: number 
   order
 })
 
-/** Converts a zero-based column index to an Excel-style letter (0 → A, 25 → Z, 26 → AA). */
-const indexToColumnLetter = (idx: number): string => {
-  let col = ''
-  let num = idx + 1
-  while (num > 0) {
-    const remainder = (num - 1) % 26
-    col = String.fromCharCode(65 + remainder) + col
-    num = Math.floor((num - 1) / 26)
+/** Generate a stable operationId for a column batch op, falling back for older browsers. */
+const createColumnOperationId = (prefix: SpreadsheetBatchOperationType): string => {
+  try {
+    return `${prefix}_${crypto.randomUUID()}`
+  } catch {
+    return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`
   }
-  return col
 }
 
 export function useSpreadsheetColumns({
   app,
   activeSheet,
   localSheetDataRef,
-  setLocalSheetData,
+  canonicalActiveSheetRowsSourceRef,
+  commitOptimisticActiveSheetRows,
   handleCellChangeRef,
   onAppUpdate,
-  onSheetUpdate,
-  isCollaborationConnected,
-  emitOperation
+  emitColumnBatchOperation
 }: UseSpreadsheetColumnsProps): SpreadsheetColumnsState {
+  const readCanonicalActiveRows = (): Record<string, unknown>[] =>
+    canonicalActiveSheetRowsSourceRef?.current() ?? localSheetDataRef.current
   // Dialog state
   const [isManageColumnsDialogOpen, setIsManageColumnsDialogOpen] = useState(false)
   const [editingColumns, setEditingColumns] = useState<SpreadsheetColumn[]>([])
 
   // Stable refs for callbacks to avoid stale closures in async operations
-  const onSheetUpdateRef = useRef(onSheetUpdate)
-  useEffect(() => {
-    onSheetUpdateRef.current = onSheetUpdate
-  }, [onSheetUpdate])
   const onAppUpdateRef = useRef(onAppUpdate)
   useEffect(() => {
     onAppUpdateRef.current = onAppUpdate
   }, [onAppUpdate])
+  const emitColumnBatchOperationRef = useRef(emitColumnBatchOperation)
+  useEffect(() => {
+    emitColumnBatchOperationRef.current = emitColumnBatchOperation
+  }, [emitColumnBatchOperation])
   const appRef = useRef(app)
   useEffect(() => {
     appRef.current = app
@@ -129,47 +165,55 @@ export function useSpreadsheetColumns({
   }, [activeSheet.columns])
 
   /**
-   * Persist column changes to the backend via onSheetUpdate or onAppUpdate.
-   * Centralises the duplicated persist pattern used by every column handler.
+   * Apply column changes to the local in-memory app state optimistically so
+   * the grid re-renders immediately. The authoritative server write happens
+   * via emitColumnBatchOperation (v2 batch endpoint), which persists the
+   * columns JSONB and broadcasts to peers. We intentionally do NOT call the
+   * legacy onSheetUpdate PATCH here: a PATCH would blind-overwrite sheet
+   * columns and bump sheet.version independently of the batch pipeline,
+   * racing future batch ops that rely on baseVersion.
    */
-  const persistColumns = useCallback(
-    (
-      columns: SpreadsheetColumn[],
-      handlerName: string,
-      options?: { data?: Record<string, unknown>[]; async?: boolean }
-    ): void | Promise<void> => {
+  const applyColumnsLocal = useCallback(
+    (columns: SpreadsheetColumn[], handlerName: string, options?: { data?: Record<string, unknown>[] }): void => {
       const currentApp = appRef.current
       const currentSheet = activeSheetRef.current
-      const sheetUpdate = onSheetUpdateRef.current
       const appUpdate = onAppUpdateRef.current
 
-      if (sheetUpdate) {
-        const promise = sheetUpdate(currentApp.id, currentSheet.id, { columns })
-          .then(() => {
-            hasPendingColumnChanges.current = false
-          })
-          .catch((err: unknown) => {
-            console.error(`[${handlerName}] onSheetUpdate failed:`, err)
-          })
-        if (options?.async) return promise
-      } else if (appUpdate) {
-        const updatedSheets = currentApp.sheets.map(sheet => {
-          if (sheet.id === currentSheet.id) {
-            return {
-              ...sheet,
-              columns,
-              data: options?.data ?? localSheetDataRef.current
-            }
-          }
-          return sheet
-        })
-        appUpdate({ ...currentApp, sheets: updatedSheets })
-        hasPendingColumnChanges.current = false
-      } else {
-        console.warn(`[${handlerName}] No persistence callback available`)
+      if (!appUpdate) {
+        console.warn(`[${handlerName}] No onAppUpdate available — skipping local column state update`)
+        return
       }
+
+      const updatedSheets = currentApp.sheets.map(sheet => {
+        if (sheet.id === currentSheet.id) {
+          return {
+            ...sheet,
+            columns,
+            data: options?.data ?? readCanonicalActiveRows()
+          }
+        }
+        return sheet
+      })
+      appUpdate({ ...currentApp, sheets: updatedSheets })
+      hasPendingColumnChanges.current = false
     },
-    [localSheetDataRef]
+    [canonicalActiveSheetRowsSourceRef, localSheetDataRef]
+  )
+
+  /** Dispatch a column batch op through the v2 HTTP batch endpoint. No-op when no emitter is wired. */
+  const dispatchColumnBatchOp = useCallback(
+    (type: SpreadsheetBatchOperationType, data: Record<string, unknown>): void => {
+      const emit = emitColumnBatchOperationRef.current
+      if (!emit) {
+        return
+      }
+      emit({
+        operationId: createColumnOperationId(type),
+        type,
+        data
+      })
+    },
+    []
   )
 
   // Inline editing state
@@ -212,22 +256,16 @@ export function useSpreadsheetColumns({
     latestColumnsRef.current = updatedColumns
     hasPendingColumnChanges.current = true
 
-    persistColumns(updatedColumns, 'handleAddColumn')
-
-    if (isCollaborationConnected) {
-      emitOperation({
-        type: 'column_add',
-        data: { sheetId: activeSheet.id, column: newColumn }
-      })
-    }
-  }, [activeSheet, isCollaborationConnected, emitOperation, persistColumns])
+    applyColumnsLocal(updatedColumns, 'handleAddColumn')
+    dispatchColumnBatchOp('column_add', { sheetId: activeSheet.id, column: newColumn })
+  }, [activeSheet, applyColumnsLocal, dispatchColumnBatchOp])
 
   // Auto column add handler
   const handleAutoColumnAdd = useCallback(
     async (columnIndex: number, initialValue?: unknown, rowIndex?: number) => {
       if (!activeSheet) return
 
-      const columnLetter = indexToColumnLetter(columnIndex)
+      const columnLetter = spreadsheetColumnIndexToLetter(columnIndex)
       const columnName = `column_${columnLetter.toLowerCase()}`
       const columnLabel = `Column ${columnLetter}`
 
@@ -235,7 +273,7 @@ export function useSpreadsheetColumns({
       const existingColumn = currentColumns.find(c => c.name === columnName || c.order === columnIndex)
       if (existingColumn) {
         if (initialValue !== undefined && rowIndex !== undefined) {
-          const rowId = localSheetDataRef.current[rowIndex]?._id as string
+          const rowId = readCanonicalActiveRows()[rowIndex]?._id as string
           if (rowId) {
             handleCellChangeRef.current(rowId, existingColumn.name, initialValue)
           }
@@ -248,7 +286,7 @@ export function useSpreadsheetColumns({
       // Fill gap columns between current count and target index
       const columnsToAdd: SpreadsheetColumn[] = []
       for (let i = currentColumns.length; i < columnIndex; i++) {
-        const gapLetter = indexToColumnLetter(i)
+        const gapLetter = spreadsheetColumnIndexToLetter(i)
         const gapColName = `column_${gapLetter.toLowerCase()}`
         if (!currentColumns.find(c => c.name === gapColName)) {
           columnsToAdd.push(createColumn(gapColName, `Column ${gapLetter}`, i, 100))
@@ -260,27 +298,31 @@ export function useSpreadsheetColumns({
       latestColumnsRef.current = updatedColumns
       hasPendingColumnChanges.current = true
 
-      await persistColumns(updatedColumns, 'handleAutoColumnAdd', { async: true })
-
-      if (isCollaborationConnected) {
-        columnsToAdd.forEach(col => {
-          emitOperation({
-            type: 'column_add',
-            data: { sheetId: activeSheet.id, column: col }
-          })
-        })
-      }
+      applyColumnsLocal(updatedColumns, 'handleAutoColumnAdd')
+      columnsToAdd.forEach(col => {
+        dispatchColumnBatchOp('column_add', { sheetId: activeSheet.id, column: col })
+      })
 
       if (initialValue !== undefined && rowIndex !== undefined) {
+        // Columns are persisted via the batch pipeline above; this delay lets
+        // the op round-trip so the cell write isn't rejected with a stale
+        // column error on the server.
         setTimeout(() => {
-          const rowId = localSheetDataRef.current[rowIndex]?._id as string
+          const rowId = readCanonicalActiveRows()[rowIndex]?._id as string
           if (rowId) {
             handleCellChangeRef.current(rowId, columnName, initialValue)
           }
         }, 400)
       }
     },
-    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef, handleCellChangeRef, persistColumns]
+    [
+      activeSheet,
+      applyColumnsLocal,
+      dispatchColumnBatchOp,
+      canonicalActiveSheetRowsSourceRef,
+      localSheetDataRef,
+      handleCellChangeRef
+    ]
   )
 
   // Delete column handler
@@ -297,7 +339,7 @@ export function useSpreadsheetColumns({
         .sort((a, b) => a.order - b.order)
         .map((col, idx) => ({ ...col, order: idx }))
 
-      const updatedData = localSheetDataRef.current.map(row => {
+      const updatedData = readCanonicalActiveRows().map(row => {
         const newRow = { ...row }
         if (columnToDelete) {
           delete newRow[columnToDelete.name]
@@ -305,23 +347,22 @@ export function useSpreadsheetColumns({
         return newRow
       })
 
-      // Sync cleaned data to local state so the grid re-renders with correct alignment
-      localSheetDataRef.current = updatedData
-      setLocalSheetData(updatedData)
+      commitOptimisticActiveSheetRows(updatedData)
 
       latestColumnsRef.current = updatedColumns
       hasPendingColumnChanges.current = true
 
-      persistColumns(updatedColumns, 'handleDeleteColumn', { data: updatedData })
-
-      if (isCollaborationConnected) {
-        emitOperation({
-          type: 'column_delete',
-          data: { sheetId: activeSheet.id, columnId }
-        })
-      }
+      applyColumnsLocal(updatedColumns, 'handleDeleteColumn', { data: updatedData })
+      dispatchColumnBatchOp('column_delete', { sheetId: activeSheet.id, columnId })
     },
-    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef, setLocalSheetData, persistColumns]
+    [
+      activeSheet,
+      applyColumnsLocal,
+      commitOptimisticActiveSheetRows,
+      dispatchColumnBatchOp,
+      canonicalActiveSheetRowsSourceRef,
+      localSheetDataRef
+    ]
   )
 
   // Rename column handler
@@ -336,19 +377,17 @@ export function useSpreadsheetColumns({
         return col
       })
 
-      persistColumns(updatedColumns, 'handleRenameColumn')
-
-      if (isCollaborationConnected) {
-        emitOperation({
-          type: 'column_update',
-          data: { sheetId: activeSheet.id, columnId, label: newLabel.trim() }
-        })
-      }
+      applyColumnsLocal(updatedColumns, 'handleRenameColumn')
+      dispatchColumnBatchOp('column_update', {
+        sheetId: activeSheet.id,
+        columnId,
+        label: newLabel.trim()
+      })
 
       setEditingColumnId(null)
       setEditingColumnLabel('')
     },
-    [activeSheet, isCollaborationConnected, emitOperation, setEditingColumnId, setEditingColumnLabel, persistColumns]
+    [activeSheet, applyColumnsLocal, dispatchColumnBatchOp, setEditingColumnId, setEditingColumnLabel]
   )
 
   // Reorder columns handler
@@ -356,7 +395,7 @@ export function useSpreadsheetColumns({
     (draggedColumnId: string, targetColumnId: string) => {
       if (!activeSheet || draggedColumnId === targetColumnId) return
 
-      const columns = [...activeSheet.columns]
+      const columns = [...latestColumnsRef.current]
       const draggedIndex = columns.findIndex(c => c.id === draggedColumnId)
       const targetIndex = columns.findIndex(c => c.id === targetColumnId)
 
@@ -367,22 +406,19 @@ export function useSpreadsheetColumns({
 
       const reorderedColumns = columns.map((col, idx) => ({ ...col, order: idx }))
 
-      persistColumns(reorderedColumns, 'handleReorderColumns')
-
-      if (isCollaborationConnected) {
-        emitOperation({
-          type: 'columns_reorder',
-          data: { sheetId: activeSheet.id, columns: reorderedColumns }
-        })
-      }
+      applyColumnsLocal(reorderedColumns, 'handleReorderColumns')
+      dispatchColumnBatchOp('columns_reorder', {
+        sheetId: activeSheet.id,
+        columns: reorderedColumns
+      })
     },
-    [activeSheet, isCollaborationConnected, emitOperation, persistColumns]
+    [activeSheet, applyColumnsLocal, dispatchColumnBatchOp]
   )
 
   // Insert columns handler (from FortuneSheet context menu: insert column left/right)
   const handleColumnsInsert = useCallback(
-    (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => {
-      if (!activeSheet) return
+    (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom'): SpreadsheetColumn[] | undefined => {
+      if (!activeSheet) return undefined
 
       const currentColumns = latestColumnsRef.current
       const sortedColumns = [...currentColumns].sort((a, b) => a.order - b.order)
@@ -431,24 +467,22 @@ export function useSpreadsheetColumns({
       latestColumnsRef.current = allColumns
       hasPendingColumnChanges.current = true
 
-      persistColumns(allColumns, 'handleColumnsInsert')
-
-      if (isCollaborationConnected) {
-        newColumns.forEach(col => {
-          emitOperation({
-            type: 'column_add',
-            data: { sheetId: activeSheet.id, column: col }
-          })
-        })
-      }
+      applyColumnsLocal(allColumns, 'handleColumnsInsert')
+      newColumns.forEach(col => {
+        dispatchColumnBatchOp('column_add', { sheetId: activeSheet.id, column: col })
+      })
+      return allColumns
     },
-    [activeSheet, isCollaborationConnected, emitOperation, persistColumns]
+    [activeSheet, applyColumnsLocal, dispatchColumnBatchOp]
   )
 
   // Delete columns handler (from FortuneSheet context menu: delete column)
   const handleColumnsDelete = useCallback(
-    (startIndex: number, endIndex: number) => {
-      if (!activeSheet) return
+    (
+      startIndex: number,
+      endIndex: number
+    ): { columns: SpreadsheetColumn[]; data: Record<string, unknown>[] } | undefined => {
+      if (!activeSheet) return undefined
 
       const currentColumns = latestColumnsRef.current
       const sortedColumns = [...currentColumns].sort((a, b) => a.order - b.order)
@@ -462,7 +496,7 @@ export function useSpreadsheetColumns({
       const deletedColumnNames = deletedColumns.map(c => c.name)
 
       // Don't allow deleting all columns
-      if (deletedColumns.length >= currentColumns.length) return
+      if (deletedColumns.length >= currentColumns.length) return undefined
 
       // Remove deleted columns and assign clean sequential orders
       const remainingColumns = sortedColumns
@@ -470,7 +504,7 @@ export function useSpreadsheetColumns({
         .map((col, idx) => ({ ...col, order: idx }))
 
       // Remove deleted column data from rows
-      const updatedData = localSheetDataRef.current.map(row => {
+      const updatedData = readCanonicalActiveRows().map(row => {
         const newRow = { ...row }
         deletedColumnNames.forEach(name => {
           delete newRow[name]
@@ -478,25 +512,25 @@ export function useSpreadsheetColumns({
         return newRow
       })
 
-      // Sync cleaned data to local state so the grid re-renders with correct alignment
-      localSheetDataRef.current = updatedData
-      setLocalSheetData(updatedData)
+      commitOptimisticActiveSheetRows(updatedData)
 
       latestColumnsRef.current = remainingColumns
       hasPendingColumnChanges.current = true
 
-      persistColumns(remainingColumns, 'handleColumnsDelete', { data: updatedData })
-
-      if (isCollaborationConnected) {
-        deletedColumns.forEach(col => {
-          emitOperation({
-            type: 'column_delete',
-            data: { sheetId: activeSheet.id, columnId: col.id }
-          })
-        })
-      }
+      applyColumnsLocal(remainingColumns, 'handleColumnsDelete', { data: updatedData })
+      deletedColumns.forEach(col => {
+        dispatchColumnBatchOp('column_delete', { sheetId: activeSheet.id, columnId: col.id })
+      })
+      return { columns: remainingColumns, data: updatedData }
     },
-    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef, setLocalSheetData, persistColumns]
+    [
+      activeSheet,
+      applyColumnsLocal,
+      commitOptimisticActiveSheetRows,
+      dispatchColumnBatchOp,
+      canonicalActiveSheetRowsSourceRef,
+      localSheetDataRef
+    ]
   )
 
   // Handler refs
@@ -517,7 +551,7 @@ export function useSpreadsheetColumns({
   }, [handleReorderColumns])
 
   // Column index to letter utility — delegates to the shared helper
-  const columnIndexToLetter = useCallback((index: number): string => indexToColumnLetter(index), [])
+  const columnIndexToLetter = useCallback((index: number): string => spreadsheetColumnIndexToLetter(index), [])
 
   return {
     isManageColumnsDialogOpen,

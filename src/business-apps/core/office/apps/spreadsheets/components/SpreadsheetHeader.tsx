@@ -406,6 +406,7 @@ export interface SpreadsheetHeaderProps {
   isCollectionCopy?: boolean
   onSubmitCollection?: () => Promise<void>
   collectionSubmittedAt?: string | null
+  diagnosticsControl?: React.ReactNode
 
   testId: string
 }
@@ -442,6 +443,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   isCollectionCopy,
   onSubmitCollection,
   collectionSubmittedAt,
+  diagnosticsControl,
   testId
 }) {
   const { t } = useTranslation(translations)
@@ -573,6 +575,8 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               singleHeaderRow={singleHeaderRow}
             />
           )}
+
+          {diagnosticsControl}
 
           <div className={singleHeaderRow ? 'gba:block gba:h-6 gba:w-px gba:bg-border/50' : 'gba:hidden'} />
 

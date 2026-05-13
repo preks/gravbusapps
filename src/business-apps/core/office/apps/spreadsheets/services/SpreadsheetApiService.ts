@@ -25,6 +25,13 @@ import {
   getSpreadsheetServiceApiUrl
 } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { normalizeSpreadsheetColumnsForDisplay } from '../utils/normalizeSpreadsheetColumnsForDisplay'
+import type {
+  SpreadsheetTraceEvent,
+  SpreadsheetTraceEventInput,
+  SpreadsheetTraceFinding,
+  SpreadsheetTraceScope,
+  SpreadsheetTraceSession
+} from './spreadsheetDiagnostics'
 
 const API_URL = getSpreadsheetServiceApiUrl()
 const SPREADSHEET_CORE_API_URL = getSpreadsheetServiceApiUrl()
@@ -64,6 +71,9 @@ export function getSpreadsheetBatchConflictServerVersion(details: unknown): numb
   const raw = o.currentVersion
   if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw)
   if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw)
+  if (o.message && typeof o.message === 'object') {
+    return getSpreadsheetBatchConflictServerVersion(o.message)
+  }
   return undefined
 }
 
@@ -196,9 +206,35 @@ const cloneSnapshot = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
+export type SpreadsheetBatchOperationType =
+  | 'set_cell'
+  | 'set_range'
+  | 'add_rows'
+  | 'insert_rows_at'
+  | 'delete_rows'
+  | 'clear_cell'
+  | 'clear_all'
+  | 'clear_format'
+  | 'set_style'
+  | 'set_row_height'
+  | 'set_col_width'
+  | 'column_add'
+  | 'column_update'
+  | 'column_delete'
+  | 'columns_reorder'
+  | 'column_reorder'
+  | 'merge_ranges'
+  | 'unmerge_ranges'
+  | 'freeze_panes'
+  | 'filter_update'
+  | 'filter_clear'
+  | 'visibility_update'
+  | 'protect_ranges_update'
+  | 'sheet_protection_update'
+
 export interface SpreadsheetBatchOperation {
   operationId: string
-  type: 'set_cell' | 'set_range' | 'add_rows' | 'delete_rows' | 'clear_cell'
+  type: SpreadsheetBatchOperationType
   data: Record<string, unknown>
 }
 
@@ -238,12 +274,66 @@ function mapPermission(backendPermission: string | undefined): SpreadsheetApp['p
   return backendPermission as SpreadsheetApp['permission']
 }
 
+function mapApiRowsToSheetData(rows: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(rows)) return []
+  return rows.map(row => {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) return {}
+    const rowRecord = row as { id?: unknown; data?: unknown }
+    const rowData =
+      rowRecord.data && typeof rowRecord.data === 'object' && !Array.isArray(rowRecord.data)
+        ? (rowRecord.data as SpreadsheetRowData)
+        : {}
+    if (rowData._clientRowId) {
+      return { ...rowData, _id: rowData._clientRowId, _rowUuid: rowRecord.id }
+    }
+    return { ...rowData, _id: rowRecord.id }
+  })
+}
+
+function mapApiBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  return undefined
+}
+
+function mapApiWorksheetSnapshotHidden(sheet: Record<string, unknown>): boolean | undefined {
+  const snapshot = sheet.worksheetSnapshot
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return undefined
+  const snapshotRecord = snapshot as Record<string, unknown>
+  const directHidden = mapApiBoolean(snapshotRecord.hidden)
+  if (directHidden !== undefined) return directHidden
+
+  const sheetId = typeof sheet.id === 'string' ? sheet.id : ''
+  const sheets = snapshotRecord.sheets
+  if (!sheetId || !sheets || typeof sheets !== 'object' || Array.isArray(sheets)) return undefined
+  const worksheet = (sheets as Record<string, unknown>)[sheetId]
+  if (!worksheet || typeof worksheet !== 'object' || Array.isArray(worksheet)) return undefined
+  return mapApiBoolean((worksheet as Record<string, unknown>).hidden)
+}
+
+function mapApiSettingsHidden(sheet: Record<string, unknown>): boolean | undefined {
+  const settings = sheet.settings
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return undefined
+  return mapApiBoolean((settings as Record<string, unknown>).univerSheetHidden)
+}
+
 function mapApiResponseToSheet(sheet: Record<string, unknown>): SpreadsheetSheet {
+  const directData = Array.isArray(sheet.data) ? (sheet.data as Record<string, unknown>[]) : []
+  const rowData = mapApiRowsToSheetData(sheet.rows)
+  const rawHidden = mapApiBoolean(sheet.hidden)
+  const snapshotHidden = mapApiWorksheetSnapshotHidden(sheet)
+  const hidden = rawHidden ?? mapApiSettingsHidden(sheet) ?? snapshotHidden
   return {
     id: sheet.id as string,
     name: sheet.name as string,
     description: sheet.description as string | undefined,
     version: (sheet.version as number | undefined) ?? 0,
+    ...(hidden !== undefined ? { hidden } : {}),
+    ...(sheet.worksheetSnapshot &&
+    typeof sheet.worksheetSnapshot === 'object' &&
+    !Array.isArray(sheet.worksheetSnapshot)
+      ? { worksheetSnapshot: sheet.worksheetSnapshot as Record<string, unknown> }
+      : {}),
     viewType:
       (sheet.viewType as SpreadsheetSheet['viewType'] | undefined) ||
       ((sheet.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
@@ -255,7 +345,7 @@ function mapApiResponseToSheet(sheet: Record<string, unknown>): SpreadsheetSheet
     settings: (sheet.settings as SpreadsheetSheet['settings']) || {},
     entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
     chartConfigs: sheet.chartConfigs as SpreadsheetSheet['chartConfigs'],
-    data: [],
+    data: rowData.length > 0 ? rowData : directData,
     automations: [],
     workflowLinks: []
   }
@@ -527,7 +617,11 @@ export const SpreadsheetApiService = {
       )
       return mapApiResponseToSheet(sheet)
     } catch (error) {
-      console.error('Failed to get sheet:', error)
+      if (error instanceof SpreadsheetApiRequestError && error.status === 404) {
+        debugLog('getSheet: sheet not found', appId, sheetId)
+      } else {
+        console.error('Failed to get sheet:', error)
+      }
       return null
     }
   },
@@ -535,7 +629,10 @@ export const SpreadsheetApiService = {
   /**
    * Create a new sheet
    */
-  async createSheet(appId: string, sheet: Partial<SpreadsheetSheet>): Promise<SpreadsheetSheet> {
+  async createSheet(
+    appId: string,
+    sheet: Partial<SpreadsheetSheet> & { worksheetSnapshot?: Record<string, unknown> }
+  ): Promise<SpreadsheetSheet> {
     debugLog('createSheet', appId, sheet)
 
     const payload = {
@@ -545,13 +642,43 @@ export const SpreadsheetApiService = {
       columns: sheet.columns || [],
       views: sheet.views,
       settings: sheet.settings,
-      data: sheet.data
+      data: sheet.data,
+      hidden: sheet.hidden,
+      worksheetSnapshot: sheet.worksheetSnapshot
     }
 
     const created = await apiRequest<Record<string, unknown>>(spreadsheetEndpoint(`/${appId}/sheets`), {
       method: 'POST',
       body: JSON.stringify(payload)
     })
+
+    return mapApiResponseToSheet(created)
+  },
+
+  async duplicateSheet(
+    appId: string,
+    sourceSheetId: string,
+    sheet: {
+      id?: string
+      name: string
+      visualWorksheetSnapshot?: Record<string, unknown>
+    }
+  ): Promise<SpreadsheetSheet> {
+    debugLog('duplicateSheet', appId, sourceSheetId, sheet)
+
+    const payload = {
+      ...(sheet.id ? { id: sheet.id } : {}),
+      name: sheet.name,
+      visualWorksheetSnapshot: sheet.visualWorksheetSnapshot
+    }
+
+    const created = await apiRequest<Record<string, unknown>>(
+      spreadsheetEndpoint(`/${appId}/sheets/${sourceSheetId}/duplicate`),
+      {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }
+    )
 
     return mapApiResponseToSheet(created)
   },
@@ -567,7 +694,8 @@ export const SpreadsheetApiService = {
       description: updates.description,
       columns: updates.columns,
       views: updates.views,
-      settings: updates.settings
+      settings: updates.settings,
+      hidden: updates.hidden
     }
 
     // Remove undefined
@@ -795,6 +923,10 @@ export const SpreadsheetApiService = {
       baseVersion: number
       operations: SpreadsheetBatchOperation[]
       batchId?: string
+      traceSessionId?: string
+      traceId?: string
+      sessionId?: string
+      tabId?: string
     },
     options?: {
       keepalive?: boolean
@@ -819,17 +951,31 @@ export const SpreadsheetApiService = {
     appId: string,
     sheetId: string
   ): Promise<{
-    sheet: Record<string, unknown>
+    sheet: SpreadsheetSheet
     rows: Array<Record<string, unknown>>
     version: number
   }> {
-    return apiRequestToBase(SPREADSHEET_CORE_API_URL, spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/snapshot`))
+    const snapshot = await apiRequestToBase<{
+      sheet: Record<string, unknown>
+      rows: Array<Record<string, unknown>>
+      version: number
+    }>(SPREADSHEET_CORE_API_URL, spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/snapshot`))
+
+    return {
+      ...snapshot,
+      sheet: mapApiResponseToSheet(snapshot.sheet)
+    }
   },
 
   async getSheetChangesSince(
     appId: string,
     sheetId: string,
-    sinceVersion: number
+    sinceVersion: number,
+    options?: {
+      traceSessionId?: string
+      sessionId?: string
+      tabId?: string
+    }
   ): Promise<{
     sheetId: string
     currentVersion: number
@@ -838,22 +984,175 @@ export const SpreadsheetApiService = {
   }> {
     return apiRequestToBase(
       SPREADSHEET_CORE_API_URL,
-      `${spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/changes`)}?sinceVersion=${sinceVersion}`
+      `${spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/changes`)}?${new URLSearchParams({
+        sinceVersion: String(sinceVersion),
+        ...(options?.traceSessionId ? { traceSessionId: options.traceSessionId } : {}),
+        ...(options?.sessionId ? { sessionId: options.sessionId } : {}),
+        ...(options?.tabId ? { tabId: options.tabId } : {})
+      }).toString()}`
+    )
+  },
+
+  async startDiagnosticsTraceSession(
+    appId: string,
+    sheetId: string,
+    payload: {
+      scope: SpreadsheetTraceScope
+      ttlMinutes: number
+      sessionId?: string
+      tabId?: string
+    }
+  ): Promise<SpreadsheetTraceSession> {
+    return apiRequestToBase<SpreadsheetTraceSession>(
+      SPREADSHEET_CORE_API_URL,
+      spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/diagnostics/trace-sessions`),
+      {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }
+    )
+  },
+
+  async getActiveDiagnosticsTraceSession(
+    appId: string,
+    sheetId: string,
+    payload?: {
+      sessionId?: string
+      tabId?: string
+    }
+  ): Promise<SpreadsheetTraceSession | null> {
+    const query = new URLSearchParams({
+      ...(payload?.sessionId ? { sessionId: payload.sessionId } : {}),
+      ...(payload?.tabId ? { tabId: payload.tabId } : {})
+    }).toString()
+    return apiRequestToBase<SpreadsheetTraceSession | null>(
+      SPREADSHEET_CORE_API_URL,
+      `${spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/diagnostics/trace-sessions/active`)}${query ? `?${query}` : ''}`
+    )
+  },
+
+  async getDiagnosticsTraceSessions(
+    appId: string,
+    sheetId: string,
+    payload?: {
+      visibilitySessionId?: string
+      visibilityTabId?: string
+      limit?: number
+    }
+  ): Promise<{ sessions: SpreadsheetTraceSession[] }> {
+    const query = new URLSearchParams({
+      ...(payload?.visibilitySessionId ? { visibilitySessionId: payload.visibilitySessionId } : {}),
+      ...(payload?.visibilityTabId ? { visibilityTabId: payload.visibilityTabId } : {}),
+      ...(payload?.limit != null ? { limit: String(payload.limit) } : {})
+    }).toString()
+    return apiRequestToBase<{ sessions: SpreadsheetTraceSession[] }>(
+      SPREADSHEET_CORE_API_URL,
+      `${spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/diagnostics/trace-sessions`)}${query ? `?${query}` : ''}`
+    )
+  },
+
+  async stopDiagnosticsTraceSession(
+    appId: string,
+    sheetId: string,
+    traceSessionId: string
+  ): Promise<{ stopped: boolean }> {
+    return apiRequestToBase<{ stopped: boolean }>(
+      SPREADSHEET_CORE_API_URL,
+      spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/diagnostics/trace-sessions/${traceSessionId}`),
+      {
+        method: 'DELETE'
+      }
+    )
+  },
+
+  async appendDiagnosticsTraceEvents(
+    appId: string,
+    sheetId: string,
+    traceSessionId: string,
+    payload: {
+      sessionId?: string
+      tabId?: string
+      events: SpreadsheetTraceEventInput[]
+    }
+  ): Promise<{ appended: number }> {
+    return apiRequestToBase<{ appended: number }>(
+      SPREADSHEET_CORE_API_URL,
+      spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/diagnostics/trace-sessions/${traceSessionId}/events`),
+      {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }
+    )
+  },
+
+  async getDiagnosticsTraceEvents(
+    appId: string,
+    sheetId: string,
+    payload: {
+      traceSessionId?: string
+      sheetId?: string
+      batchId?: string
+      traceId?: string
+      stage?: string
+      operationType?: string
+      userId?: string
+      browserSessionId?: string
+      tabId?: string
+      visibilitySessionId?: string
+      visibilityTabId?: string
+      limit?: number
+    }
+  ): Promise<{ session: SpreadsheetTraceSession | null; events: SpreadsheetTraceEvent[] }> {
+    const params = new URLSearchParams({
+      ...(payload.traceSessionId ? { traceSessionId: payload.traceSessionId } : {}),
+      ...(payload.sheetId ? { sheetId: payload.sheetId } : {}),
+      ...(payload.batchId ? { batchId: payload.batchId } : {}),
+      ...(payload.traceId ? { traceId: payload.traceId } : {}),
+      ...(payload.stage ? { stage: payload.stage } : {}),
+      ...(payload.operationType ? { operationType: payload.operationType } : {}),
+      ...(payload.userId ? { userId: payload.userId } : {}),
+      ...(payload.browserSessionId ? { browserSessionId: payload.browserSessionId } : {}),
+      ...(payload.tabId ? { tabId: payload.tabId } : {}),
+      ...(payload.visibilitySessionId ? { visibilitySessionId: payload.visibilitySessionId } : {}),
+      ...(payload.visibilityTabId ? { visibilityTabId: payload.visibilityTabId } : {}),
+      ...(payload.limit != null ? { limit: String(payload.limit) } : {})
+    })
+    return apiRequestToBase<{ session: SpreadsheetTraceSession | null; events: SpreadsheetTraceEvent[] }>(
+      SPREADSHEET_CORE_API_URL,
+      `${spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/diagnostics/traces`)}?${params.toString()}`
+    )
+  },
+
+  async getDiagnosticsTraceFindings(
+    appId: string,
+    sheetId: string,
+    traceSessionId: string,
+    payload?: {
+      visibilitySessionId?: string
+      visibilityTabId?: string
+    }
+  ): Promise<{ session: SpreadsheetTraceSession; findings: SpreadsheetTraceFinding[] }> {
+    const params = new URLSearchParams({
+      ...(payload?.visibilitySessionId ? { visibilitySessionId: payload.visibilitySessionId } : {}),
+      ...(payload?.visibilityTabId ? { visibilityTabId: payload.visibilityTabId } : {})
+    })
+    return apiRequestToBase<{ session: SpreadsheetTraceSession; findings: SpreadsheetTraceFinding[] }>(
+      SPREADSHEET_CORE_API_URL,
+      `${spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/diagnostics/traces/${traceSessionId}/findings`)}?${params.toString()}`
     )
   },
 
   async saveUniverSnapshot(
     appId: string,
-    sheetId: string,
     payload: {
       version: number
       snapshot: Record<string, unknown>
     },
     requestOptions?: { keepalive?: boolean }
-  ): Promise<{ sheetId: string; version: number; saved: boolean }> {
-    debugLog('saveUniverSnapshot', appId, sheetId, { version: payload.version })
+  ): Promise<{ appId: string; version: number; saved: boolean }> {
+    debugLog('saveUniverSnapshot', appId, { version: payload.version, scope: 'app' })
     if (supportsUniverSnapshotEndpoint === false) {
-      return { sheetId, version: payload.version, saved: false }
+      return { appId, version: payload.version, saved: false }
     }
 
     try {
@@ -865,9 +1164,9 @@ export const SpreadsheetApiService = {
       const bodyBytes = new Blob([body]).size
       const useKeepalive = requestOptions?.keepalive === true && bodyBytes > 0 && bodyBytes <= 60_000
 
-      const response = await apiRequestToBase<{ sheetId: string; version: number; saved: boolean }>(
+      const response = await apiRequestToBase<{ appId: string; version: number; saved: boolean }>(
         SPREADSHEET_CORE_API_URL,
-        spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/univer-snapshot`),
+        spreadsheetEndpoint(`/${appId}/univer-snapshot`),
         {
           method: 'POST',
           body,
@@ -875,44 +1174,41 @@ export const SpreadsheetApiService = {
         }
       )
       supportsUniverSnapshotEndpoint = true
-      return response
+      return { appId, version: response.version, saved: response.saved }
     } catch (error) {
       if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 501)) {
         supportsUniverSnapshotEndpoint = false
         console.warn('[SpreadsheetApiService] univer-snapshot endpoint unavailable; snapshot persistence is disabled')
-        return { sheetId, version: payload.version, saved: false }
+        return { appId, version: payload.version, saved: false }
       }
       throw error
     }
   },
 
-  async getUniverSnapshot(
-    appId: string,
-    sheetId: string
-  ): Promise<{
-    sheetId: string
+  async getUniverSnapshot(appId: string): Promise<{
+    appId: string
     version: number
     updatedAt: string | null
     snapshot: Record<string, unknown> | null
   }> {
     if (supportsUniverSnapshotEndpoint === false) {
-      return { sheetId, version: 0, updatedAt: null, snapshot: null }
+      return { appId, version: 0, updatedAt: null, snapshot: null }
     }
 
     try {
       const response = await apiRequestToBase<{
-        sheetId: string
+        appId: string
         version: number
         updatedAt: string | null
         snapshot: Record<string, unknown> | null
-      }>(SPREADSHEET_CORE_API_URL, spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/univer-snapshot`))
+      }>(SPREADSHEET_CORE_API_URL, spreadsheetEndpoint(`/${appId}/univer-snapshot`))
       supportsUniverSnapshotEndpoint = true
-      return response
+      return { appId, version: response.version, updatedAt: response.updatedAt, snapshot: response.snapshot }
     } catch (error) {
       if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 501)) {
         supportsUniverSnapshotEndpoint = false
         console.warn('[SpreadsheetApiService] univer-snapshot endpoint unavailable; using row-data-only initialization')
-        return { sheetId, version: 0, updatedAt: null, snapshot: null }
+        return { appId, version: 0, updatedAt: null, snapshot: null }
       }
       throw error
     }
@@ -1133,45 +1429,34 @@ export const SpreadsheetApiService = {
         const app = await this.getApp(appId)
         if (!app) throw new Error('Spreadsheet app not found')
 
-        // Attach the Univer snapshot to every sheet so styling is included in the
-        // checkpoint.  Fast path: caller passed snapshots directly (no DB round-trip
-        // and no version-conflict risk).  Fallback path: fetch the latest snapshot
-        // from DB (used for auto-restore checkpoints where the DB was just updated).
-        const sheetsWithSnapshots = await Promise.all(
-          app.sheets.map(async sheet => {
-            // Fast path: caller provided the live Univer snapshot directly.
-            // Only use it when non-null – if null (e.g. grid not yet ready),
-            // fall through to the DB fetch so styling is never silently dropped.
-            if (options.univerSnapshots !== undefined) {
-              const directSnapshot = options.univerSnapshots[sheet.id]
-              if (directSnapshot != null) {
-                return {
-                  ...sheet,
-                  _univerSnapshot: directSnapshot,
-                  _univerSnapshotVersion: 0
-                }
-              }
-              // directSnapshot is null – fall through to DB fetch below
-            }
-            // DB fallback: used when the caller didn't supply a snapshot for this
-            // sheet OR when the live snapshot was unavailable.  The DB contains
-            // the snapshot written by the most recent auto-checkpoint.
-            try {
-              const univerData = await this.getUniverSnapshot(appId, sheet.id)
-              return {
-                ...sheet,
-                _univerSnapshot: univerData.snapshot ?? null,
-                _univerSnapshotVersion: univerData.version ?? 0
-              }
-            } catch {
-              return { ...sheet, _univerSnapshot: null, _univerSnapshotVersion: 0 }
-            }
-          })
-        )
+        const directWorkbookSnapshot =
+          options.univerSnapshots !== undefined
+            ? (Object.values(options.univerSnapshots).find(
+                snapshot => snapshot != null && typeof snapshot === 'object'
+              ) ?? null)
+            : null
+        let workbookSnapshot = directWorkbookSnapshot
+        let workbookSnapshotVersion = 0
+        if (!workbookSnapshot && app.sheets[0]) {
+          try {
+            const univerData = await this.getUniverSnapshot(appId)
+            workbookSnapshot = univerData.snapshot ?? null
+            workbookSnapshotVersion = univerData.version ?? 0
+          } catch {
+            workbookSnapshot = null
+          }
+        }
+        const sheetsWithSnapshots = app.sheets.map(sheet => ({
+          ...sheet,
+          _univerSnapshot: workbookSnapshot,
+          _univerSnapshotVersion: workbookSnapshotVersion
+        }))
 
         contentSnapshot = {
           name: app.name,
           description: app.description,
+          _univerSnapshot: workbookSnapshot,
+          _univerSnapshotVersion: workbookSnapshotVersion,
           sheets: sheetsWithSnapshots,
           relationships: app.relationships,
           settings: app.settings

@@ -106,8 +106,8 @@ function createCallbacks() {
   }
 }
 
-const createMockAccessToken = (): string =>
-  ['header', 'payload', 'signature'].map(part => Buffer.from(part).toString('base64url')).join('.')
+const createMockAccessToken = (payload: Record<string, unknown> = {}): string =>
+  ['header', JSON.stringify(payload), 'signature'].map(part => Buffer.from(part).toString('base64url')).join('.')
 
 describe('useSpreadsheetCollaboration', () => {
   beforeEach(() => {
@@ -125,17 +125,16 @@ describe('useSpreadsheetCollaboration', () => {
       })
     )
 
-    expect(mockOfficeClientInstances).toHaveLength(0)
+    expect(mockSpreadsheetClientInstances).toHaveLength(0)
     expect(result.current.isCollaborationConnected).toBe(false)
     expect(result.current.isCollaborationJoined).toBe(false)
   })
-
 
   it('joins spreadsheet collaboration through the spreadsheet socket client', async () => {
     const { result } = renderHook(() =>
       useSpreadsheetCollaboration({
         appId: 'app-1',
-        accessToken: createMockAccessToken(),
+        accessToken: createMockAccessToken({ sub: 'current-user' }),
         callbacks: createCallbacks()
       })
     )
@@ -164,6 +163,145 @@ describe('useSpreadsheetCollaboration', () => {
     expect(result.current.headerParticipants[0]?.userId).toBe('user-2')
   })
 
+  it('keeps the current socket in the header count but not in remote cursor participants', async () => {
+    const { result } = renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: createMockAccessToken({ sub: 'current-user' }),
+        callbacks: createCallbacks()
+      })
+    )
+
+    const client = mockSpreadsheetClientInstances[0]
+
+    act(() => {
+      client.socket.connected = true
+      client.trigger('connect')
+      client.resolveLatestJoin([
+        {
+          userId: 'current-user',
+          userName: 'Me',
+          userColor: '#111111',
+          socketId: 'socket-1',
+          cursor: { path: ['sheet-1', 'row-1', 'col-a'] }
+        },
+        {
+          userId: 'user-2',
+          userName: 'Alice',
+          userColor: '#123456',
+          socketId: 'socket-2'
+        }
+      ])
+    })
+
+    await waitFor(() => {
+      expect(result.current.headerParticipants).toHaveLength(2)
+      expect(result.current.cursorParticipants).toHaveLength(1)
+    })
+
+    expect(result.current.headerParticipants.map(participant => participant.userId)).toEqual(['current-user', 'user-2'])
+    expect(result.current.cursorParticipants[0]?.userId).toBe('user-2')
+
+    act(() => {
+      client.trigger('participants_updated', {
+        entityType: 'spreadsheet',
+        entityId: 'app-1',
+        participants: [
+          {
+            userId: 'current-user',
+            userName: 'Me',
+            userColor: '#111111'
+          }
+        ]
+      })
+    })
+
+    await waitFor(() => {
+      expect(result.current.headerParticipants).toHaveLength(1)
+      expect(result.current.cursorParticipants).toHaveLength(0)
+    })
+    expect(result.current.headerParticipants[0]?.userId).toBe('current-user')
+  })
+
+  it('renders a same-user second tab when it has a different socket id', async () => {
+    const { result } = renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: createMockAccessToken({ sub: 'current-user' }),
+        callbacks: createCallbacks()
+      })
+    )
+
+    const client = mockSpreadsheetClientInstances[0]
+
+    act(() => {
+      client.socket.connected = true
+      client.trigger('connect')
+      client.resolveLatestJoin([
+        {
+          userId: 'current-user',
+          userName: 'Me',
+          userColor: '#111111',
+          socketId: 'socket-2',
+          cursor: { path: ['sheet-1', 'row-1', 'col-a'] }
+        }
+      ])
+    })
+
+    await waitFor(() => {
+      expect(result.current.headerParticipants).toHaveLength(1)
+      expect(result.current.cursorParticipants).toHaveLength(1)
+    })
+
+    expect(result.current.headerParticipants[0]?.userId).toBe('current-user')
+    expect(result.current.headerParticipants[0]?.socketId).toBe('socket-2')
+  })
+
+  it('keeps same-user browser tabs separate so remote cursors can render', async () => {
+    const { result } = renderHook(() =>
+      useSpreadsheetCollaboration({
+        appId: 'app-1',
+        accessToken: createMockAccessToken({ sub: 'current-user' }),
+        callbacks: createCallbacks()
+      })
+    )
+
+    const client = mockSpreadsheetClientInstances[0]
+
+    act(() => {
+      client.socket.connected = true
+      client.trigger('connect')
+      client.resolveLatestJoin([
+        {
+          userId: 'current-user',
+          userName: 'Me',
+          userColor: '#111111',
+          socketId: 'socket-1'
+        },
+        {
+          userId: 'current-user',
+          userName: 'Me',
+          userColor: '#111111',
+          socketId: 'socket-2',
+          cursor: { path: ['sheetId:sheet-1', 'cellRef:C5', 'row:4', 'col:2'] }
+        }
+      ])
+    })
+
+    await waitFor(() => {
+      expect(result.current.headerParticipants).toHaveLength(2)
+      expect(result.current.cursorParticipants).toHaveLength(1)
+    })
+
+    expect(result.current.cursorParticipants[0]?.socketId).toBe('socket-2')
+    expect(result.current.cursorParticipants[0]?.cursor?.path).toEqual([
+      'sheetId:sheet-1',
+      'cellRef:C5',
+      'row:4',
+      'col:2'
+    ])
+  })
+
   it('normalizes and deduplicates join participants across id aliases', async () => {
     const { result } = renderHook(() =>
       useSpreadsheetCollaboration({
@@ -190,7 +328,7 @@ describe('useSpreadsheetCollaboration', () => {
           userId: 'owner-1',
           userName: 'Owner',
           userColor: '#111111',
-          socketId: 'socket-owner-current'
+          socketId: 'socket-owner-legacy'
         },
         {
           odId: 'user-2',

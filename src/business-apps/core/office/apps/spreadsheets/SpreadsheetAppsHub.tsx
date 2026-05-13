@@ -620,7 +620,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     updateRow,
     updateSheet,
     addSheet,
-    deleteSheet
+    duplicateSheet,
+    deleteSheet,
+    applyCurrentAppLocalUpdate
   } = useSpreadsheetApps(accessToken, currentUserId, spreadsheetListOptions)
 
   const trashList = useOfficeTrashList({
@@ -1069,7 +1071,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         const sheetsWithData = await Promise.all(
           app.sheets.map(async sheet => ({
             ...sheet,
-            data: await SpreadsheetApiService.getRows(id, sheet.id)
+            data: await SpreadsheetApiService.getAllRows(id, sheet.id)
           }))
         )
 
@@ -1522,9 +1524,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onShare={isReadonlyTrashView ? undefined : () => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
+            onLocalAppUpdate={canEdit ? applyCurrentAppLocalUpdate : undefined}
             onAppRefreshNeeded={isReadonlyTrashView ? undefined : handleAppRefreshNeeded}
             onSheetUpdate={canEdit ? updateSheet : undefined}
             onSheetAdd={canEdit ? addSheet : undefined}
+            onSheetDuplicate={canEdit ? duplicateSheet : undefined}
             onSheetDelete={canEdit ? deleteSheet : undefined}
             onRowAdd={canEdit ? addRow : undefined}
             onRowUpdate={canEdit ? updateRow : undefined}
@@ -1574,6 +1578,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       accessToken,
       addRow,
       addSheet,
+      duplicateSheet,
       deleteSheet,
       currentAppPermission,
       currentUserId,
@@ -2372,6 +2377,15 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                         <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                                         {t('action-open')}
                                       </DropdownMenuItem>
+                                      {previewEnabled && isOwner && (
+                                        <DropdownMenuItem
+                                          onClick={() => handleShareApp(app.id)}
+                                          data-testid={`${testId}-row-share-${app.id}`}
+                                        >
+                                          <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                          {t('action-share')}
+                                        </DropdownMenuItem>
+                                      )}
                                       {isOwner && sharedWith.length > 0 && (
                                         <DropdownMenuItem onClick={() => handleManageShares(app.id)}>
                                           <Users className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -2509,7 +2523,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                 <Button size="sm" variant="secondary" onClick={() => handleOpenApp(app.id)}>
                                   {t('action-open')}
                                 </Button>
-                                {isOwner && (
+                                {previewEnabled && isOwner && (
                                   <Button size="sm" variant="ghost" onClick={() => handleShareApp(app.id)}>
                                     <Share2 className="gba:w-4 gba:h-4" />
                                   </Button>

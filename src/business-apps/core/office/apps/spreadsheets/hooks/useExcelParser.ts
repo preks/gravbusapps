@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react'
 import ExcelJS from 'exceljs'
+import { excelColumnLettersToZeroBasedIndex } from '../core'
 import type { ParsedExcelFile, ParsedSheet, ParsedColumn, ExcelMetadata, SpreadsheetMergeRange } from '../types'
 
 export interface UseExcelParserState {
@@ -125,24 +126,18 @@ function extractHeaderString(value: unknown): string {
   return String(normalized).trim()
 }
 
-function excelColumnLettersToNumber(letters: string): number {
-  let result = 0
-  for (const char of letters.toUpperCase()) {
-    const code = char.charCodeAt(0)
-    if (code < 65 || code > 90) return 0
-    result = result * 26 + (code - 64)
-  }
-  return result
-}
-
 function parseMergeReference(reference: string): ParsedMergeReference | null {
   const trimmed = reference.trim()
   const match = trimmed.match(/^([A-Za-z]+)(\d+)(?::([A-Za-z]+)(\d+))?$/)
   if (!match) return null
 
-  const startColumnNumber = excelColumnLettersToNumber(match[1])
+  const startColZb = excelColumnLettersToZeroBasedIndex(match[1])
+  const endColZb = excelColumnLettersToZeroBasedIndex(match[3] ?? match[1])
+  if (startColZb === null || endColZb === null) return null
+
+  const startColumnNumber = startColZb + 1
+  const endColumnNumber = endColZb + 1
   const startRowNumber = Number(match[2])
-  const endColumnNumber = excelColumnLettersToNumber(match[3] ?? match[1])
   const endRowNumber = Number(match[4] ?? match[2])
 
   if (

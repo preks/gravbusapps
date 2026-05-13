@@ -17,6 +17,7 @@ import {
   type CollaborationOperation
 } from '../services/SpreadsheetCollaborationManager'
 import translations from '../_i18n'
+import { type SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 
 type CollaborationHealth = 'connected' | 'reconnecting' | 'failed'
 
@@ -125,7 +126,7 @@ function normalizeParticipants(participants: SocketParticipant[]): DocumentParti
 
   for (const participant of participants) {
     const mapped = mapSocketParticipantToParticipant(participant)
-    const key = mapped.userId || mapped.socketId
+    const key = participantIdentity(mapped)
     if (!key) continue
 
     const existing = deduped.get(key)
@@ -135,13 +136,39 @@ function normalizeParticipants(participants: SocketParticipant[]): DocumentParti
   return [...deduped.values()]
 }
 
+function filterCurrentSocketParticipant(
+  participants: SocketParticipant[],
+  currentSocketId: string | undefined,
+  currentUserId: string | undefined
+): SocketParticipant[] {
+  if (!currentSocketId && !currentUserId) return participants
+  return participants.filter(participant => !isCurrentParticipant(participant, currentSocketId, currentUserId))
+}
+
+function isCurrentParticipant(
+  participant: Pick<SocketParticipant, 'odId' | 'userId' | 'id' | 'socketId'>,
+  currentSocketId: string | undefined,
+  currentUserId: string | undefined
+): boolean {
+  if (currentSocketId && (participant.socketId === currentSocketId || participant.id === currentSocketId)) {
+    return true
+  }
+  if (!participant.socketId && currentUserId && resolveParticipantIdentity(participant) === currentUserId) {
+    return true
+  }
+  return false
+}
+
 function participantIdentity(data: Pick<DocumentParticipant, 'userId' | 'socketId'>): string {
   return data.socketId || data.userId
 }
 
 function sameBaseParticipant(a: DocumentParticipant, b: DocumentParticipant): boolean {
   return (
-    a.userId === b.userId && (a.userName || '') === (b.userName || '') && (a.avatarUrl || '') === (b.avatarUrl || '')
+    a.userId === b.userId &&
+    (a.socketId || '') === (b.socketId || '') &&
+    (a.userName || '') === (b.userName || '') &&
+    (a.avatarUrl || '') === (b.avatarUrl || '')
   )
 }
 
@@ -288,6 +315,16 @@ function resolveAccessTokenFromRefreshEvent(event: Event, fallbackAccessToken: s
   return fallbackAccessToken
 }
 
+function decodeBase64(value: string): string {
+  if (typeof globalThis.atob === 'function') {
+    return globalThis.atob(value)
+  }
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(value, 'base64').toString('utf-8')
+  }
+  return ''
+}
+
 function safeParseJwtPayload(
   token: string
 ): { sub?: string; userId?: string; name?: string; preferred_username?: string } | null {
@@ -295,7 +332,9 @@ function safeParseJwtPayload(
     const parts = token.split('.')
     if (parts.length !== 3 || !parts[1]) return null
     const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-    const json = atob(base64)
+    const paddedBase64 = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
+    const json = decodeBase64(paddedBase64)
+    if (!json) return null
     const payload = JSON.parse(json)
     return typeof payload === 'object' && payload !== null ? payload : null
   } catch {
@@ -360,10 +399,63 @@ export function useSpreadsheetCollaboration({
     callbacksRef.current = callbacks
     manager.updateCallbacks(callbacks)
   }, [callbacks, manager])
+  const tokenUserId = useMemo(() => {
+    const payload = safeParseJwtPayload(accessToken)
+    return payload?.sub || payload?.userId
+  }, [accessToken])
+  if (tokenUserId && currentUserIdRef.current !== tokenUserId) {
+    currentUserIdRef.current = tokenUserId
+  }
+  useEffect(() => {
+    if (!tokenUserId) return
+    currentUserIdRef.current = tokenUserId
+    manager.setCurrentUserId(tokenUserId)
+  }, [manager, tokenUserId])
 
   const onOperationReceivedStable = useCallback(
     (op: CollaborationOperation) => {
+      const data = op.operation?.data
+      const traceMeta =
+        data && typeof data === 'object'
+          ? {
+              traceSessionId:
+                typeof (data as Record<string, unknown>).traceSessionId === 'string'
+                  ? ((data as Record<string, unknown>).traceSessionId as string)
+                  : undefined,
+              traceId:
+                typeof (data as Record<string, unknown>).traceId === 'string'
+                  ? ((data as Record<string, unknown>).traceId as string)
+                  : undefined,
+              batchId:
+                typeof (data as Record<string, unknown>).batchId === 'string'
+                  ? ((data as Record<string, unknown>).batchId as string)
+                  : undefined
+            }
+          : {}
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'socket_operation_received',
+        traceSessionId: traceMeta.traceSessionId,
+        traceId: traceMeta.traceId,
+        batchId: traceMeta.batchId,
+        operationType: op.operation?.type,
+        version: typeof op.version === 'number' ? op.version : null,
+        payload: op as unknown as Record<string, unknown>
+      } satisfies SpreadsheetTraceEventInput)
       if (shouldIgnoreReceivedOperationRef.current?.(op)) {
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'socket_operation_ignored',
+          traceSessionId: traceMeta.traceSessionId,
+          traceId: traceMeta.traceId,
+          batchId: traceMeta.batchId,
+          operationType: op.operation?.type,
+          version: typeof op.version === 'number' ? op.version : null,
+          payload: {
+            ...(op as unknown as Record<string, unknown>),
+            ignoredReason: 'recent_local_echo_or_version'
+          }
+        } satisfies SpreadsheetTraceEventInput)
         return
       }
       manager.handleOperation(op as CollaborationOperation)
@@ -436,7 +528,6 @@ export function useSpreadsheetCollaboration({
       const joinRoomIfNeeded = () => {
         if (hasJoinedRef.current || isJoiningRef.current) return
         if (!client.getSocket()?.connected) return
-
         isJoiningRef.current = true
         clearJoinAckTimeout()
         joinAckTimeoutRef.current = setTimeout(() => {
@@ -482,6 +573,7 @@ export function useSpreadsheetCollaboration({
       })
 
       const unsubscribeUserJoined = client.onUserJoined(data => {
+        if (isCurrentParticipant(data, client.getSocket()?.id, tokenUserId ?? currentUserIdRef.current)) return
         setRawParticipants(prev => addParticipantIfMissing(prev, data, fallbackUserName))
         if (hasJoinedRef.current && client.getSocket()?.connected && data.socketId !== client.getSocket()?.id) {
           if (cursorReplayTimeoutRef.current) {
@@ -510,10 +602,12 @@ export function useSpreadsheetCollaboration({
       })
 
       const unsubscribeCursorUpdate = client.onCursorUpdate(data => {
+        if (isCurrentParticipant(data, client.getSocket()?.id, tokenUserId ?? currentUserIdRef.current)) return
         setRawParticipants(prev => updateParticipantCursor(prev, data, fallbackUserName))
       })
 
       const unsubscribeSelectionUpdate = client.onSelectionUpdate(data => {
+        if (isCurrentParticipant(data, client.getSocket()?.id, tokenUserId ?? currentUserIdRef.current)) return
         setRawParticipants(prev => updateParticipantSelection(prev, data, fallbackUserName))
       })
 
@@ -570,7 +664,16 @@ export function useSpreadsheetCollaboration({
       onErrorStable(resolvedError)
       return
     }
-  }, [accessToken, appId, clearJoinAckTimeout, disabled, fallbackUserName, onErrorStable, onOperationReceivedStable])
+  }, [
+    accessToken,
+    appId,
+    clearJoinAckTimeout,
+    disabled,
+    fallbackUserName,
+    onErrorStable,
+    onOperationReceivedStable,
+    tokenUserId
+  ])
 
   useEffect(() => {
     if (disabled || !accessToken || typeof window === 'undefined') {
@@ -590,6 +693,33 @@ export function useSpreadsheetCollaboration({
 
   const baseEmitOperation = useCallback(
     (operation: DocumentOperation) => {
+      const data = operation.data
+      const traceMeta =
+        data && typeof data === 'object'
+          ? {
+              traceSessionId:
+                typeof (data as Record<string, unknown>).traceSessionId === 'string'
+                  ? ((data as Record<string, unknown>).traceSessionId as string)
+                  : undefined,
+              traceId:
+                typeof (data as Record<string, unknown>).traceId === 'string'
+                  ? ((data as Record<string, unknown>).traceId as string)
+                  : undefined,
+              batchId:
+                typeof (data as Record<string, unknown>).batchId === 'string'
+                  ? ((data as Record<string, unknown>).batchId as string)
+                  : undefined
+            }
+          : {}
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'socket_operation_sent',
+        traceSessionId: traceMeta.traceSessionId,
+        traceId: traceMeta.traceId,
+        batchId: traceMeta.batchId,
+        operationType: operation.type,
+        payload: operation as unknown as Record<string, unknown>
+      } satisfies SpreadsheetTraceEventInput)
       clientRef.current?.sendDocumentOperation('spreadsheet', appId, operation, onAckFailureStable)
     },
     [appId, onAckFailureStable]
@@ -683,14 +813,28 @@ export function useSpreadsheetCollaboration({
     async function fetchAvatars() {
       if (!rawParticipants.length || !authToken) {
         setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
-        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+        const remoteParticipants = filterCurrentSocketParticipant(
+          rawParticipants,
+          clientRef.current?.getSocket()?.id,
+          tokenUserId ?? currentUserIdRef.current
+        ).map(mapSocketParticipantToParticipant)
+        setCursorParticipants(prev =>
+          areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
+        )
         return
       }
 
       const userIds = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
       if (userIds.length === 0) {
         setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
-        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+        const remoteParticipants = filterCurrentSocketParticipant(
+          rawParticipants,
+          clientRef.current?.getSocket()?.id,
+          tokenUserId ?? currentUserIdRef.current
+        ).map(mapSocketParticipantToParticipant)
+        setCursorParticipants(prev =>
+          areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
+        )
         return
       }
 
@@ -723,16 +867,30 @@ export function useSpreadsheetCollaboration({
           avatarUrl: avatarMap.get(p.userId) || undefined
         }))
         setHeaderParticipants(prev => (areParticipantsEquivalent(prev, enriched) ? prev : enriched))
-        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, enriched) ? prev : enriched))
+        const remoteParticipants = filterCurrentSocketParticipant(
+          enriched,
+          clientRef.current?.getSocket()?.id,
+          tokenUserId ?? currentUserIdRef.current
+        ).map(mapSocketParticipantToParticipant)
+        setCursorParticipants(prev =>
+          areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
+        )
       } catch (error) {
         console.error('[SpreadsheetCollaboration] Failed to fetch participant avatars:', error)
         setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
-        setCursorParticipants(prev => (areCursorParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+        const remoteParticipants = filterCurrentSocketParticipant(
+          rawParticipants,
+          clientRef.current?.getSocket()?.id,
+          tokenUserId ?? currentUserIdRef.current
+        ).map(mapSocketParticipantToParticipant)
+        setCursorParticipants(prev =>
+          areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
+        )
       }
     }
 
     fetchAvatars()
-  }, [rawParticipants, authToken, graphqlClient])
+  }, [rawParticipants, authToken, graphqlClient, tokenUserId])
 
   return {
     headerParticipants,

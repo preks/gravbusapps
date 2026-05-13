@@ -1,14 +1,15 @@
 import type { SpreadsheetColumn } from '../types'
+import {
+  getViewerRowIdentityCandidates,
+  stripEquivalentColumnKeysFromRow,
+  type ViewerRow
+} from './spreadsheetRowIdentity'
 
-type ViewerRow = Record<string, unknown>
 type SheetCellChange = {
   rowId: string
   columnName: string
   value: unknown
 }
-
-const getViewerRowIdentityCandidates = (row: ViewerRow): string[] =>
-  Array.from(new Set([row._id, row.id, row._rowUuid].map(value => String(value ?? '')).filter(Boolean)))
 
 const collectViewerRowUpdates = (
   row: ViewerRow,
@@ -19,35 +20,6 @@ const collectViewerRowUpdates = (
     Object.assign(mergedUpdates, updatesByRowId.get(candidateId) ?? {})
   }
   return Object.keys(mergedUpdates).length > 0 ? mergedUpdates : null
-}
-
-const resolveColumnAliasInfo = (
-  columnKey: string,
-  columns?: SpreadsheetColumn[]
-): { targetColumnName: string; normalizedAliases: Set<string> } => {
-  const targetColumn = columns?.find(column => column.id === columnKey || column.name === columnKey)
-  const aliases = [columnKey, targetColumn?.name, targetColumn?.id]
-    .map(value => (value == null ? '' : String(value).trim()))
-    .filter(Boolean)
-    .map(value => value.toLowerCase())
-  return {
-    targetColumnName: targetColumn?.name ?? String(columnKey),
-    normalizedAliases: new Set(aliases)
-  }
-}
-
-const stripEquivalentColumnKeysFromRow = (
-  row: ViewerRow,
-  columnKey: string,
-  columns?: SpreadsheetColumn[]
-): { nextRow: ViewerRow; targetColumnName: string } => {
-  const { targetColumnName, normalizedAliases } = resolveColumnAliasInfo(columnKey, columns)
-  const nextRow: ViewerRow = { ...row }
-  for (const rowKey of Object.keys(nextRow)) {
-    if (!normalizedAliases.has(rowKey.toLowerCase())) continue
-    delete nextRow[rowKey]
-  }
-  return { nextRow, targetColumnName }
 }
 
 const applyColumnUpdatesToViewerRow = (

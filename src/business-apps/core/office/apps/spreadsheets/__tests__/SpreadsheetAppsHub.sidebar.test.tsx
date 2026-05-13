@@ -2,6 +2,7 @@ import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { SpreadsheetAppsHub } from '../SpreadsheetAppsHub'
 import { useFeature } from '@/common/hooks/useFeature'
+import type { UserInfoProps } from '@/common/BusinessAppContext'
 
 jest.mock('@newwork/nw-design-system', () => {
   const passthrough = ({ children, ...props }: any) => <div {...props}>{children}</div>
@@ -32,6 +33,7 @@ jest.mock('@newwork/nw-design-system', () => {
     DialogTitle: passthrough,
     DialogFooter: passthrough,
     Label: ({ children, ...props }: any) => <label {...props}>{children}</label>,
+    Textarea: ({ ...props }: any) => <textarea {...props} />,
     Avatar: passthrough,
     AvatarImage: (props: any) => <img alt="" {...props} />,
     AvatarFallback: passthrough,
@@ -193,12 +195,22 @@ jest.mock('../components/automations/SpreadsheetAutomationsSection', () => ({
 }))
 
 jest.mock('@/business-apps/platform/apps/shared/components/OfficeTrashList', () => ({
-  OfficeTrashList: () => <div data-testid="office-trash-list" />,
-  OfficeTrashListTable: () => <div data-testid="office-trash-list-table" />,
-  OfficeTrashListToolbar: () => <div data-testid="office-trash-list-toolbar" />,
+  OfficeTrashListToolbar: () => <div data-testid="office-trash-list-toolbar-stub" />,
+  OfficeTrashListTable: () => <div data-testid="office-trash-list-table-stub" />,
   useOfficeTrashList: () => ({
+    isLoading: false,
     sortedItems: [],
-    refresh: jest.fn()
+    sortBy: 'trashedAt',
+    sortOrder: 'desc',
+    actionKey: null,
+    deleteConfirmItem: null,
+    refresh: jest.fn().mockResolvedValue(undefined),
+    handleSortChange: jest.fn(),
+    toggleSortOrder: jest.fn(),
+    handleRestore: jest.fn().mockResolvedValue(undefined),
+    requestDelete: jest.fn(),
+    handleDeleteConfirmOpenChange: jest.fn(),
+    confirmDelete: jest.fn().mockResolvedValue(undefined)
   })
 }))
 
@@ -234,13 +246,23 @@ describe('SpreadsheetAppsHub sidebar sections', () => {
     fireEvent.click(screen.getByTestId('spreadsheet-apps-hub-hero-tab-trash'))
 
     expect(screen.getByTestId('spreadsheet-apps-hub-trash-search')).toBeInTheDocument()
-    expect(screen.getByTestId('office-trash-list-toolbar')).toBeInTheDocument()
+    expect(screen.getByText('No trashed spreadsheets')).toBeInTheDocument()
   })
 
-  it('does not render Share in the spreadsheet row overflow menu', () => {
+  it('does not render Share in the spreadsheet row overflow menu when preview is disabled', () => {
     render(<SpreadsheetAppsHub accessToken="token" />)
 
-    expect(screen.queryByText('action-share')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('spreadsheet-apps-hub-row-share-app-1')).not.toBeInTheDocument()
+  })
+
+  it('renders Share in the row overflow menu when preview is enabled and the user owns the app', () => {
+    mockUseFeature.mockReturnValue(true)
+
+    const userInfo = { id: 'u-1' } as UserInfoProps
+
+    render(<SpreadsheetAppsHub accessToken="token" userInfo={userInfo} />)
+
+    expect(screen.getByTestId('spreadsheet-apps-hub-row-share-app-1')).toBeInTheDocument()
   })
 
   it('does not render the Rows column in list view', () => {

@@ -1,6 +1,9 @@
 import {
   VALUE_MUTATION_SNAPSHOT_SUPPRESSION_MS,
+  isClearAllRangeCommand,
   isStyleOnlySheetMutationCommand,
+  isUnsupportedSnapshotOnlyCollaborationCommand,
+  shouldRunDimensionSnapshotForCommand,
   shouldScheduleSnapshotForMutation
 } from '../snapshotTriggerUtils'
 
@@ -96,8 +99,64 @@ describe('snapshotTriggerUtils', () => {
     ).toBe(false)
   })
 
+  it('does not run dimension snapshots for high-volume edit and selection commands', () => {
+    expect(shouldRunDimensionSnapshotForCommand('sheet.mutation.set-range-values', 2)).toBe(false)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.operation.set-cell-edit-visible', 0)).toBe(false)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.operation.set-cell-edit-visible-arrow', 0)).toBe(false)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.mutation.move-selection', 2)).toBe(false)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.selection-move', 0)).toBe(false)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-value', 0)).toBe(false)
+  })
+
+  it('runs dimension snapshots for layout-affecting commands', () => {
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.resize-column', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-column-width', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-row-height', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.zoom-in', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.auto-fit-column', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.insert-column-right', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.delete-column', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.insert-row-before', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.delete-row', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-rows-hidden', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-selected-rows-visible', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.mutation.set-col-hidden', 2)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-selected-cols-visible', 0)).toBe(true)
+  })
+
   it('classifies style-only mutation commands for batch gating', () => {
     expect(isStyleOnlySheetMutationCommand('sheet.command.set-range-bold')).toBe(true)
     expect(isStyleOnlySheetMutationCommand('sheet.command.set-range-values')).toBe(false)
+  })
+
+  it('does not mark planned feature operations as snapshot-only once they have granular collaboration ops', () => {
+    expect(isUnsupportedSnapshotOnlyCollaborationCommand('sheet.command.merge-cell')).toBe(false)
+    expect(isUnsupportedSnapshotOnlyCollaborationCommand('sheet.command.freeze')).toBe(false)
+    expect(isUnsupportedSnapshotOnlyCollaborationCommand('sheet.command.protect-range')).toBe(false)
+    expect(isUnsupportedSnapshotOnlyCollaborationCommand('sheet.command.set-range-bold')).toBe(false)
+  })
+
+  describe('isClearAllRangeCommand', () => {
+    it('matches Univer ClearSelectionAllCommand', () => {
+      expect(isClearAllRangeCommand('sheet.command.clear-selection-all')).toBe(true)
+    })
+
+    it('matches case-insensitive variants', () => {
+      expect(isClearAllRangeCommand('sheet.command.CLEAR-SELECTION-ALL')).toBe(true)
+    })
+
+    it('does not match clear-content (values only)', () => {
+      expect(isClearAllRangeCommand('sheet.command.clear-selection-content')).toBe(false)
+    })
+
+    it('does not match clear-format (style only)', () => {
+      expect(isClearAllRangeCommand('sheet.command.clear-selection-format')).toBe(false)
+    })
+
+    it('does not match unrelated commands', () => {
+      expect(isClearAllRangeCommand('sheet.command.set-range-values')).toBe(false)
+      expect(isClearAllRangeCommand('sheet.command.set-range-bold')).toBe(false)
+      expect(isClearAllRangeCommand('')).toBe(false)
+    })
   })
 })
