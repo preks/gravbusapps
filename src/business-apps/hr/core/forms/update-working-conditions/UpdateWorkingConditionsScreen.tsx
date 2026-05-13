@@ -331,7 +331,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     return (
       Boolean(
         effectiveStartDate &&
-          effectiveEndDate &&
           selectedEmploymentType &&
           selectedContractType &&
           selectedRemote &&
@@ -343,7 +342,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     )
   }, [
     effectiveStartDate,
-    effectiveEndDate,
     selectedEmploymentType,
     selectedContractType,
     selectedRemote,
@@ -428,7 +426,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       existingRecord: WorkingConditionValidationRecord,
       changeMode?: ChangeMode
     ): boolean => {
-      if (changeMode === 'UPDATE' && existingRecord.id === submittedRecord.id) {
+      if ((changeMode === 'UPDATE' || changeMode === 'INSERT') && existingRecord.id === submittedRecord.id) {
         return false
       }
 
@@ -437,11 +435,11 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       }
 
       const submittedFrom = getDateTimestamp(submittedRecord.activeFrom)
-      const submittedTo = getDateTimestamp(submittedRecord.activeTo)
+      const submittedTo = getDateTimestamp(submittedRecord.activeTo) ?? Number.POSITIVE_INFINITY
       const existingFrom = getDateTimestamp(existingRecord.activeFrom) ?? Number.NEGATIVE_INFINITY
       const existingTo = getDateTimestamp(existingRecord.activeTo) ?? Number.POSITIVE_INFINITY
 
-      if (submittedFrom === null || submittedTo === null) {
+      if (submittedFrom === null) {
         return false
       }
 
@@ -478,7 +476,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     }
     if (
       !effectiveStartDate ||
-      !effectiveEndDate ||
       !selectedEmploymentType ||
       !selectedContractType ||
       !selectedRemote ||
@@ -701,7 +698,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
             </div>
 
             <div className="gba:space-y-2 gba:overflow-hidden">
-              <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-end-date')}*</div>
+              <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-end-date')}</div>
               <DateInput
                 type="date"
                 value={getDateInputValue(effectiveEndDate)}
