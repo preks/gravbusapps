@@ -1,12 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { File as FileIcon, Plus, Trash, Wrench, X } from '@phosphor-icons/react'
+import { ArrowSquareOut, File as FileIcon, Plus, ShieldCheck, Trash, Wrench, X } from '@phosphor-icons/react'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { AddToolsModal } from './AddToolsModal'
+import { AddPoliciesModal, buildPolicyDetailUrl, type PickedPolicy } from './AddPoliciesModal'
 import {
+  addPolicyToSkillDraft,
   addToolToSkillDraft,
+  getPoliciesFromSkillDraft,
   getToolsFromSkillDraft,
   hasYamlFrontmatter,
+  removeAllPoliciesFromSkillDraft,
   removeAllToolsFromSkillDraft,
+  removePolicyFromSkillDraft,
   removeToolFromSkillDraft
 } from '../renderers/skillDraftUtils'
 import { inferTargetDir, formatFileSize } from './skillFileUtils'
@@ -43,10 +48,14 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
   const [saving, setSaving] = useState(false)
   const [deletingFilePath, setDeletingFilePath] = useState<string | null>(null)
   const [addToolsModalOpen, setAddToolsModalOpen] = useState(false)
+  const [addPoliciesModalOpen, setAddPoliciesModalOpen] = useState(false)
+  const [policyTitles, setPolicyTitles] = useState<Record<string, string>>({})
   const addFilesRef = useRef<HTMLInputElement>(null)
 
   const attachedTools = useMemo(() => getToolsFromSkillDraft(content), [content])
+  const attachedPolicies = useMemo(() => getPoliciesFromSkillDraft(content), [content])
   const canEditTools = hasYamlFrontmatter(content)
+  const canEditPolicies = canEditTools
   const validationMessages = useMemo(() => {
     const messages: string[] = []
     if (!canEditTools) messages.push('Add YAML frontmatter before attaching provider tools.')
@@ -77,6 +86,34 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
     setContent(prev => removeToolFromSkillDraft(prev, toolName))
   }, [])
 
+  const applyPolicySelection = useCallback(
+    (policies: PickedPolicy[]) => {
+      let draft = removeAllPoliciesFromSkillDraft(content)
+      for (const p of policies) draft = addPolicyToSkillDraft(draft, p.id)
+      setContent(draft)
+      // Seed titles for the just-attached policies so the chips render the
+      // friendly name immediately instead of leaking the raw uuid until the
+      // user reloads. Existing titles (already attached items, possibly with
+      // server-resolved values) are preserved.
+      setPolicyTitles(prev => {
+        let changed = false
+        const next = { ...prev }
+        for (const p of policies) {
+          if (next[p.id] !== p.title) {
+            next[p.id] = p.title
+            changed = true
+          }
+        }
+        return changed ? next : prev
+      })
+    },
+    [content]
+  )
+
+  const handleRemovePolicy = useCallback((policyId: string) => {
+    setContent(prev => removePolicyFromSkillDraft(prev, policyId))
+  }, [])
+
   // Reload content whenever the caller changes the target skill. Swallow stale responses if
   // `skillId` changes again mid-flight by comparing against a local ref.
   const currentSkillRef = useRef<string | null>(null)
@@ -86,6 +123,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
       setContent('')
       setSavedContent('')
       setFiles([])
+      setPolicyTitles({})
       setLoading(false)
       return
     }
@@ -94,12 +132,23 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
     setContent('')
     setSavedContent('')
     setFiles([])
-    Promise.all([client.getSkill(skillId), client.listSkillFiles(skillId)])
-      .then(([doc, fileList]) => {
+    setPolicyTitles({})
+    // Policy titles are best-effort: a failure here only means chips show the
+    // raw uuid; the editor itself still works. We piggy-back on the main
+    // Promise.all so test consumers don't have to mock a second tail-call.
+    Promise.all([
+      client.getSkill(skillId),
+      client.listSkillFiles(skillId),
+      client.listSkillPolicies(skillId).catch(() => [] as { policy_id: string; title: string }[])
+    ])
+      .then(([doc, fileList, policyRows]) => {
         if (cancelled || currentSkillRef.current !== skillId) return
         setContent(doc.content)
         setSavedContent(doc.content)
         setFiles(fileList)
+        const map: Record<string, string> = {}
+        for (const r of policyRows) map[r.policy_id] = r.title
+        setPolicyTitles(map)
       })
       .catch(() => {
         if (cancelled || currentSkillRef.current !== skillId) return
@@ -323,6 +372,85 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
 
             <div>
               <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
+                Intranet Policies
+                {attachedPolicies.length > 0 && (
+                  <span className="gba:ml-1.5 gba:text-muted-foreground gba:font-normal">
+                    ({attachedPolicies.length})
+                  </span>
+                )}
+              </label>
+              <button
+                type="button"
+                className="gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-md gba:px-2.5 gba:py-1.5 gba:text-xs gba:text-foreground gba:border gba:border-border gba:bg-background gba:hover:bg-muted gba:transition-colors gba:disabled:opacity-50 gba:disabled:cursor-not-allowed"
+                onClick={() => setAddPoliciesModalOpen(true)}
+                disabled={!canEditPolicies}
+                title={
+                  canEditPolicies
+                    ? 'Attach intranet policies (Content > Intranet > Policies)'
+                    : 'Add a YAML frontmatter block (---) to this SKILL.md to attach policies'
+                }
+                data-testid="skill-editor-add-policy"
+              >
+                <ShieldCheck className="gba:h-3.5 gba:w-3.5" />
+                Attach Policy to Skill
+                {attachedPolicies.length > 0 && (
+                  <span className="gba:rounded-full gba:bg-primary/15 gba:px-1.5 gba:text-[10px] gba:font-semibold gba:text-primary">
+                    {attachedPolicies.length}
+                  </span>
+                )}
+              </button>
+              {attachedPolicies.length > 0 && (
+                <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:pt-2">
+                  {attachedPolicies.map(policyId => {
+                    const resolved = policyTitles[policyId]
+                    const title = resolved ?? policyId
+                    // Tooltip shows the title (when known) plus the uuid as a
+                    // secondary line, so authors can copy/diagnose the id
+                    // without it being the visible chip text.
+                    const tooltip = resolved ? `${resolved}\n${policyId}` : policyId
+                    return (
+                      <span
+                        key={policyId}
+                        className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-border gba:bg-muted/40 gba:px-2.5 gba:py-0.5 gba:text-xs gba:text-foreground"
+                        data-testid={`skill-editor-policy-chip-${policyId}`}
+                        title={tooltip}
+                      >
+                        <ShieldCheck className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+                        {title}
+                        <a
+                          href={buildPolicyDetailUrl(policyId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="gba:ml-0.5 gba:text-muted-foreground gba:hover:text-primary"
+                          title="Open policy in a new tab"
+                          data-testid={`skill-editor-policy-chip-open-${policyId}`}
+                          aria-label={`Open ${title} in a new tab`}
+                        >
+                          <ArrowSquareOut className="gba:h-3 gba:w-3" />
+                        </a>
+                        <button
+                          type="button"
+                          className="gba:ml-0.5 gba:text-muted-foreground gba:hover:text-destructive"
+                          onClick={() => handleRemovePolicy(policyId)}
+                          data-testid={`skill-editor-policy-chip-remove-${policyId}`}
+                          aria-label={`Remove ${title}`}
+                        >
+                          <X className="gba:h-3 gba:w-3" />
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+              <p className="gba:text-[11px] gba:text-muted-foreground gba:mt-1.5">
+                Policies attached here are fetched live from{' '}
+                <code className="gba:font-mono">/platform/content/intranet?tab=policies</code> and exposed to the agent
+                through <code className="gba:font-mono">skill_load_policy</code>.
+              </p>
+            </div>
+
+            <div>
+              <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
                 Attach files to Skill (optional)
                 {files.length > 0 && (
                   <span className="gba:ml-1.5 gba:text-muted-foreground gba:font-normal">({files.length})</span>
@@ -405,6 +533,16 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
         alreadySelected={attachedTools}
         onAdd={applyToolSelection}
       />
+
+      {addPoliciesModalOpen && (
+        <AddPoliciesModal
+          open
+          onClose={() => setAddPoliciesModalOpen(false)}
+          accessToken={accessToken}
+          alreadySelected={attachedPolicies}
+          onAdd={applyPolicySelection}
+        />
+      )}
     </div>
   )
 }

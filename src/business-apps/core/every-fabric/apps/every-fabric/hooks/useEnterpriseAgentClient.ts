@@ -401,6 +401,17 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  /**
+   * Resolve titles for intranet policies (ContentEntry.contentGroup = POLICY)
+   * attached to a skill via `policy_refs:` frontmatter. Backend returns the
+   * policy_id verbatim when the gateway is unreachable, so callers can render
+   * a usable chip even on partial failures.
+   */
+  const listSkillPolicies = useCallback(
+    (skillId: string) => client.get<{ policy_id: string; title: string }[]>(`/skills/${enc(skillId)}/policies`),
+    [client]
+  )
+
   const deleteSkillFile = useCallback(
     (skillId: string, filename: string) => client.delete(`/admin/skills/${enc(skillId)}/files/${enc(filename)}`),
     [client]
@@ -471,6 +482,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       deleteSkill,
       uploadSkillFiles,
       listSkillFiles,
+      listSkillPolicies,
       deleteSkillFile,
       exportSkillBundle,
       submitSkillForReview,
@@ -506,6 +518,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       deleteSkill,
       uploadSkillFiles,
       listSkillFiles,
+      listSkillPolicies,
       deleteSkillFile,
       exportSkillBundle,
       submitSkillForReview,
