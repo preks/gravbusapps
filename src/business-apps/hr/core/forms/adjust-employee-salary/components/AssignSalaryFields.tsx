@@ -5,7 +5,6 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  DateInput,
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
@@ -14,6 +13,7 @@ import type { Control, Path } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from '../types'
 import translations from '../../_i18n'
 import { SALARY_FORM_VALIDATION } from '../constants/salaryFormValidation'
+import EffectiveDateField from './EffectiveDateField'
 
 interface AssignSalaryFieldsProps {
   control: Control<AdjustEmployeeSalaryFormValues>
@@ -29,36 +29,16 @@ const AssignSalaryFields: React.FC<AssignSalaryFieldsProps> = ({ control }) => {
 
   return (
     <>
-      {/* Start Date */}
-      <FormField
+      <EffectiveDateField
         control={control}
-        name={'effectiveDate' as Path<AdjustEmployeeSalaryFormValues>}
-        rules={{
-          required: t('assign-salary-start-date-required')
-        }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="assign-employee-salary-start-date-label">
-              {t('assign-salary-start-date')}
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <FormControl>
-              <div data-testid="assign-employee-salary-start-date-input">
-                <DateInput
-                  type="date"
-                  value={(field.value as string) || ''}
-                  onChange={(v: string | [string | null, string | null] | null) => {
-                    const value = typeof v === 'string' ? v : ''
-                    field.onChange(value)
-                  }}
-                  placeholder={placeholderSelect}
-                  className="gba:w-full"
-                />
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
+        label={t('assign-salary-start-date')}
+        requiredMessage={t('assign-salary-start-date-required')}
+        monthStartMessage={t('assign-salary-start-date-month-start', {
+          defaultValue: 'Only the first day of a month can be selected.'
+        })}
+        placeholder={placeholderSelect}
+        labelTestId="assign-employee-salary-start-date-label"
+        inputTestId="assign-employee-salary-start-date-input"
       />
 
       {/* Notes */}

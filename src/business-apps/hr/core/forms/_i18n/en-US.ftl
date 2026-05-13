@@ -26,6 +26,7 @@ adjust-salary-currency-required = Currency is required. Please select a currency
 adjust-salary-effective-date-required = Effective date is required. Please select an effective date.
 adjust-salary-effective-date-too-old = Effective date cannot be more than 6 months in the past
 adjust-salary-effective-date-helper = Date must be within the last 6 months
+adjust-salary-effective-date-month-start = Only the first day of a month can be selected.
 adjust-salary-reason-required = Reason is required. Please select a reason.
 adjust-salary-frequency = Salary Adjustment type
 adjust-salary-frequency-required = Salary Adjustment type is required. Please select a salary adjustment type.
@@ -55,6 +56,7 @@ assign-salary-expected-monthly-wage = Expected Monthly Wage
 assign-salary-expected-monthly-wage-description = Based on the employee working hours
 assign-salary-start-date = Start Date
 assign-salary-start-date-required = Start date is required. Please select a start date.
+assign-salary-start-date-month-start = Only the first day of a month can be selected.
 
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Employee Salary Adjustment Review for { $employeeName }
@@ -120,6 +122,7 @@ validation-payment-month-required = Payment month is required. Please select a p
 validation-payment-month-invalid = Please select a valid payment month.
 validation-fiscal-year-required = Fiscal year is required. Please enter the fiscal year.
 validation-fiscal-year-range = Fiscal year must be between {$minYear} and {$maxYear}.
+grant-bonus-payment-date-month-start-hint = The submitted date is always the 1st day of the month.
 
 # Month Names
 month-january = January
@@ -338,12 +341,19 @@ notification-feedback-request-sent-success = Your feedback request has been sent
 notification-feedback-request-sent-success-on-behalf = The feedback request has been sent
 feedback-request-missing-user-id = Some selected employees are missing user IDs. Please reselect and try again.
 entitlements-valid-from-month-start-hint = The submitted date is always the first day of the selected month, regardless of the chosen day.
+entitlements-valid-from-minimum-hint = Entitlement can start from { $monthYear } or later.
 entitlements-valid-from = Valid From
 entitlements-update-title = Update Entitlements
 entitlements-add-title = Add Entitlement
 entitlements-total = Yearly Entitlement / Allowance
 entitlements-total-annual = Yearly Entitlement / Allowance
 entitlements-effective-from = Effective From
+entitlements-effective-from-required = Effective From is required. Please select an effective date.
+entitlements-effective-from-month = Month
+entitlements-effective-from-month-invalid = Only the first day of a month can be selected.
+entitlements-effective-from-year = Year
+entitlements-effective-from-year-placeholder = YYYY
+entitlements-effective-from-year-invalid = Please enter a valid year (e.g. 2026).
 entitlements-effective-to = Effective To
 entitlements-valid-from-hire-date-error = Effective From cannot be earlier than the employee hire date
 entitlements-duplicate-error = An entitlement with the same type and effective from date already exists.

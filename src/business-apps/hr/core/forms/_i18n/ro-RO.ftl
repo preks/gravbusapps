@@ -23,6 +23,7 @@ adjust-salary-currency-required = Moneda este obligatorie. Vă rugăm să select
 adjust-salary-effective-date-required = Data efectivă este obligatorie. Vă rugăm să selectați o dată efectivă.
 adjust-salary-effective-date-too-old = Data efectivă nu poate fi cu mai mult de 6 luni în trecut
 adjust-salary-effective-date-helper = Data trebuie să fie în ultimele 6 luni
+adjust-salary-effective-date-month-start = Se poate selecta doar prima zi a lunii.
 adjust-salary-reason-required = Motivul este obligatoriu. Vă rugăm să selectați un motiv.
 adjust-salary-frequency = Tip ajustare salariu
 adjust-salary-frequency-required = Tipul ajustării salariului este obligatoriu. Vă rugăm să selectați un tip de ajustare salariu.
@@ -52,6 +53,7 @@ assign-salary-expected-monthly-wage = Salariu lunar estimat
 assign-salary-expected-monthly-wage-description = Bazat pe orele de lucru ale angajatului
 assign-salary-start-date = Dată de început
 assign-salary-start-date-required = Data de început este obligatorie. Vă rugăm să selectați o dată de început.
+assign-salary-start-date-month-start = Se poate selecta doar prima zi a lunii.
 
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Revizuire ajustare salariu pentru { $employeeName }
@@ -117,6 +119,7 @@ validation-payment-month-required = Luna plății este obligatorie. Vă rugăm s
 validation-payment-month-invalid = Vă rugăm să selectați o lună de plată validă.
 validation-fiscal-year-required = Anul fiscal este obligatoriu. Vă rugăm să introduceți anul fiscal.
 validation-fiscal-year-range = Anul fiscal trebuie să fie între {$minYear} și {$maxYear}.
+grant-bonus-payment-date-month-start-hint = Data trimisă este întotdeauna ziua de 1 a lunii.
 
 # Month Names
 month-january = Ianuarie
@@ -335,12 +338,19 @@ notification-feedback-request-sent-success = Cererea ta de feedback a fost trimi
 notification-feedback-request-sent-success-on-behalf = Cererea de feedback a fost trimisă
 feedback-request-missing-user-id = Unii angajati selectati nu au user ID. Selectati-i din nou si incercati din nou.
 entitlements-valid-from-month-start-hint = Data trimisa va fi intotdeauna prima zi a lunii selectate, indiferent de ziua aleasa.
+entitlements-valid-from-minimum-hint = Dreptul poate începe din { $monthYear } sau mai târziu.
 entitlements-valid-from = Valabil de la
 entitlements-update-title = Actualizează drepturile
 entitlements-add-title = Adaugă drept
 entitlements-total = Drept / Alocare anuală
 entitlements-total-annual = Drept / Alocare anuală
 entitlements-effective-from = Efectiv de la
+entitlements-effective-from-required = Efectiv de la este obligatoriu. Te rugam sa selectezi o data efectiva.
+entitlements-effective-from-month = Lună
+entitlements-effective-from-month-invalid = Se poate selecta doar prima zi a lunii.
+entitlements-effective-from-year = An
+entitlements-effective-from-year-placeholder = AAAA
+entitlements-effective-from-year-invalid = Vă rugăm să introduceți un an valid (de ex. 2026).
 entitlements-effective-to = Efectiv pana la
 entitlements-valid-from-hire-date-error = Efectiv de la nu poate fi mai devreme decat data angajarii angajatului
 entitlements-duplicate-error = Exista deja un drept cu acelasi tip si aceeasi data de intrare in vigoare.

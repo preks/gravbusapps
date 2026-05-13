@@ -1,19 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import '@newwork/nw-design-system/style'
 import {
-  Alert,
-  AlertDescription,
   Button,
-  DateInput,
   Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  useTranslation
+  useTranslation,
+  DateInput
 } from '@newwork/nw-design-system'
-import { WarningCircleIcon } from '@phosphor-icons/react'
 import {
   formatDate,
   getCatalogValue,
@@ -54,8 +51,10 @@ interface UpdateEntitlementModalProps {
   employeeHeaderInfo?: EmployeeInfo
 }
 
+const ISO_DATE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/
+
 const normalizeInteger = (value: string): string => {
-  const onlyDigits = (value || '').replace(/[^0-9]/g, '')
+  const onlyDigits = (value || '').replace(/\D/g, '')
   if (onlyDigits.length === 0) return '0'
   // Disallow leading zeros like 015 -> 15
   const normalized = String(parseInt(onlyDigits, 10) || 0)
@@ -91,6 +90,40 @@ const toMonthStartDateInputValue = (value?: string): string => {
 
 const toUtcStartOfMonthIso = (value: string): string => {
   return `${toMonthStartDateInputValue(value)}T00:00:00Z`
+}
+
+const toMonthStartDateInputValueFromParts = (year: string, month: string): string => {
+  if (!year || !month) {
+    return ''
+  }
+
+  const normalizedYear = year.replace(/\D/g, '').slice(0, 4)
+  const normalizedMonth = month.replace(/\D/g, '').slice(0, 2).padStart(2, '0')
+
+  if (!/^\d{4}$/.test(normalizedYear) || !/^(0[1-9]|1[0-2])$/.test(normalizedMonth)) {
+    return ''
+  }
+
+  return `${normalizedYear}-${normalizedMonth}-01`
+}
+
+const isValidIsoDateInputValue = (value: string): boolean => {
+  const match = ISO_DATE_REGEX.exec(value)
+  if (!match) {
+    return false
+  }
+
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])]
+  if (!year || !month || !day) {
+    return false
+  }
+
+  const date = new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) {
+    return false
+  }
+
+  return date.getUTCFullYear() === year && date.getUTCMonth() + 1 === month && date.getUTCDate() === day
 }
 
 const maxDateValue = (firstValue: string, secondValue: string): string => {
@@ -139,7 +172,10 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   const [total, setTotal] = useState<number>(0)
   const [pending, setPending] = useState<number>(0)
   const [approved, setApproved] = useState<number>(0)
-  const [validFrom, setValidFrom] = useState<string>('')
+  const [validFromMonthId, setValidFromMonthId] = useState<string>('')
+  const [validFromYear, setValidFromYear] = useState<string>('')
+  const [validFromDraft, setValidFromDraft] = useState<string>('')
+  const [dateDayValidationError, setDateDayValidationError] = useState(false)
   const [initialState, setInitialState] = useState<{
     typeRef: string
     total: number
@@ -150,9 +186,26 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
 
   const selectTriggerRef = useRef<HTMLButtonElement | null>(null)
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
+  const previousCommittedValidFromRef = useRef<string>('')
 
   const [touchedType, setTouchedType] = useState(false)
+  const [touchedValidFrom, setTouchedValidFrom] = useState(false)
   const typeError = touchedType && !absenceTypeRef
+  const isValidYear = useMemo(() => {
+    const normalizedYear = validFromYear.replace(/\D/g, '').slice(0, 4)
+    if (!/^\d{4}$/.test(normalizedYear)) {
+      return false
+    }
+    const numeric = Number(normalizedYear)
+    return numeric >= 1000 && numeric <= 9999
+  }, [validFromYear])
+  const validFrom = useMemo(() => {
+    if (!isValidYear || !validFromMonthId) {
+      return ''
+    }
+
+    return toMonthStartDateInputValueFromParts(validFromYear, validFromMonthId)
+  }, [isValidYear, validFromMonthId, validFromYear])
   const minimumValidFrom = useMemo(() => toDateInputValue(employeeHireDate), [employeeHireDate])
   const minimumValidFromMonthStart = useMemo(() => toMonthStartDateInputValue(employeeHireDate), [employeeHireDate])
   const normalizedValidFrom = useMemo(() => toMonthStartDateInputValue(validFrom), [validFrom])
@@ -205,21 +258,96 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
     })
   }, [absenceTypeRef, existingEntitlements, normalizedValidFrom, selectedLine?.id])
 
+  const effectiveFromPlaceholderDate = useMemo(() => {
+    return minimumDateForSelectedType || minimumValidFromMonthStart || ''
+  }, [minimumDateForSelectedType, minimumValidFromMonthStart])
+  const minimumAllowedMonthYearLabel = useMemo(() => {
+    if (!effectiveFromPlaceholderDate) {
+      return ''
+    }
+
+    const [year = '', month = ''] = effectiveFromPlaceholderDate.split('-')
+    const numericYear = Number(year)
+    const numericMonth = Number(month)
+    if (!numericYear || !numericMonth) {
+      return ''
+    }
+
+    const date = new Date(numericYear, numericMonth - 1, 1)
+    if (Number.isNaN(date.getTime())) {
+      return ''
+    }
+
+    try {
+      return new Intl.DateTimeFormat(getCurrentActiveUserLocale(), { month: 'long', year: 'numeric' }).format(date)
+    } catch {
+      return `${year}-${month}`
+    }
+  }, [effectiveFromPlaceholderDate])
+  const minimumDateParts = useMemo(() => {
+    const [minYear = '', minMonth = ''] = (minimumDateForSelectedType || '').split('-')
+    return { minYear, minMonth }
+  }, [minimumDateForSelectedType])
+  const validFromDay = useMemo(() => {
+    const day = toDateInputValue(validFrom).split('-')[2]
+    return Number(day || '')
+  }, [validFrom])
+  const isMonthStartDay = validFrom ? validFromDay === 1 : true
+  const missingValidFromError = touchedValidFrom && !validFrom && !dateDayValidationError
+  const invalidValidFromDayError = touchedValidFrom && dateDayValidationError
+  const disabledDates = useMemo(() => {
+    return (date: Date) => {
+      return date.getDate() !== 1
+    }
+  }, [])
+
+  const clearCommittedValidFrom = () => {
+    setValidFromYear('')
+    setValidFromMonthId('')
+  }
+
+  const commitValidFrom = (nextDate: string) => {
+    setTouchedValidFrom(true)
+
+    if (!nextDate) {
+      setDateDayValidationError(false)
+      clearCommittedValidFrom()
+      return
+    }
+
+    const [nextYear = '', nextMonth = '', day = ''] = nextDate.split('-')
+    if (Number(day) !== 1) {
+      setDateDayValidationError(true)
+      clearCommittedValidFrom()
+      return
+    }
+
+    setDateDayValidationError(false)
+    setValidFromYear(nextYear)
+    setValidFromMonthId(nextMonth)
+  }
+
   useEffect(() => {
     if (!isOpen) return
     const defaultType = selectedLine?.type?.id || ''
-    const defaultValidFrom =
+    const defaultValidFromRaw =
       toDateInputValue(selectedLine?.validFrom) ||
       (isFirstEntitlementEntry && minimumValidFrom
         ? minimumValidFrom
         : maxDateValue(getTodayDateInputValue(), minimumValidFrom || '')) ||
       getTodayDateInputValue()
+    const defaultValidFrom = toMonthStartDateInputValue(defaultValidFromRaw)
+    const [defaultYear = '', defaultMonth = ''] = (defaultValidFrom || '').split('-')
     setAbsenceTypeRef(defaultType)
     setTotal(Number(selectedLine?.total ?? 0))
     setPending(Number(selectedLine?.pending ?? 0))
     setApproved(Number(selectedLine?.approved ?? 0))
-    setValidFrom(defaultValidFrom)
+    setValidFromYear(defaultYear)
+    setValidFromMonthId(defaultMonth)
+    setValidFromDraft(defaultValidFrom)
+    setDateDayValidationError(false)
     setTouchedType(false)
+    setTouchedValidFrom(false)
     setInitialState({
       typeRef: defaultType,
       total: Number(selectedLine?.total ?? 0),
@@ -227,7 +355,42 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
       approved: Number(selectedLine?.approved ?? 0),
       validFrom: defaultValidFrom
     })
+    previousCommittedValidFromRef.current = defaultValidFrom
   }, [isFirstEntitlementEntry, isOpen, minimumValidFrom, selectedLine, year])
+
+  useEffect(() => {
+    if (!isOpen) {
+      previousCommittedValidFromRef.current = ''
+      return
+    }
+
+    const previousCommitted = previousCommittedValidFromRef.current
+    if (validFromDraft === previousCommitted && validFromDraft !== validFrom) {
+      setValidFromDraft(validFrom)
+    }
+    previousCommittedValidFromRef.current = validFrom
+  }, [isOpen, validFrom, validFromDraft])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (!validFromMonthId) return
+    if (!minimumDateForSelectedType) return
+
+    const normalizedYear = validFromYear.replace(/\D/g, '').slice(0, 4)
+    if (!/^\d{4}$/.test(normalizedYear)) return
+
+    if (normalizedYear !== minimumDateParts.minYear) return
+    if (validFromMonthId >= minimumDateParts.minMonth) return
+
+    setValidFromMonthId(minimumDateParts.minMonth)
+  }, [
+    isOpen,
+    minimumDateForSelectedType,
+    minimumDateParts.minMonth,
+    minimumDateParts.minYear,
+    validFromMonthId,
+    validFromYear
+  ])
 
   // Manage initial focus when modal opens
   useEffect(() => {
@@ -295,6 +458,9 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   const isSubmitDisabled =
     !absenceTypeRef ||
     !validFrom ||
+    !isValidYear ||
+    !isMonthStartDay ||
+    dateDayValidationError ||
     hireDateViolation ||
     inBetweenViolation ||
     hasDuplicateEntitlement ||
@@ -370,19 +536,57 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
             {t('entitlements-effective-from')}
             <span className="gba:text-destructive"> *</span>
           </div>
-          <DateInput
-            type="date"
-            value={validFrom}
-            onChange={value => setValidFrom(typeof value === 'string' ? value : '')}
-            min={minimumDateForSelectedType || undefined}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:working_hours_form.employee_placeholder',
-              'Select...'
-            )}
-            className="gba:w-[100%]"
-            data-testid="flw_updateEntitlementModal_validFromInput"
-            {...({ locale: getCurrentActiveUserLocale(), captionLayout: 'dropdown' } as any)}
-          />
+          <div className="gba:flex gba:gap-3 gba:w-full" data-testid="flw_updateEntitlementModal_validFromInput">
+            <div className="gba:flex-1 gba:min-w-0">
+              <DateInput
+                value={validFromDraft}
+                captionLayout={'dropdown'}
+                min={minimumDateForSelectedType || minimumValidFromMonthStart || undefined}
+                className="!gba:w-full gba:min-w-0"
+                showOutsideDays={false}
+                onDraftChange={(value: string) => {
+                  setValidFromDraft(value)
+                  setTouchedValidFrom(true)
+
+                  if (!value) {
+                    commitValidFrom('')
+                    return
+                  }
+
+                  if (!isValidIsoDateInputValue(value)) {
+                    setDateDayValidationError(false)
+                    clearCommittedValidFrom()
+                    return
+                  }
+
+                  commitValidFrom(value)
+                }}
+                disabledDates={disabledDates}
+                data-testid="flw_updateEntitlementModal_validFromDateInput"
+                onChange={value => {
+                  const nextDate = toDateInputValue(typeof value === 'string' ? value : '')
+                  setValidFromDraft(nextDate)
+                  commitValidFrom(nextDate)
+                }}
+              />
+            </div>
+          </div>
+          {invalidValidFromDayError && (
+            <div
+              className="gba:text-sm gba:text-destructive"
+              data-testid="flw_updateEntitlementModal_validFromDateError"
+            >
+              {t('entitlements-effective-from-month-invalid')}
+            </div>
+          )}
+          {missingValidFromError && (
+            <div
+              className="gba:text-sm gba:text-destructive"
+              data-testid="flw_updateEntitlementModal_validFromRequiredError"
+            >
+              {t('entitlements-effective-from-required')}
+            </div>
+          )}
           {hireDateViolation && (
             <div
               className="gba:text-sm gba:text-destructive"
@@ -403,18 +607,15 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
               {formatDate(latestExistingValidFromForType, 'date.short') || latestExistingValidFromForType}
             </div>
           )}
-          <Alert
-            variant="default"
-            className="gba:w-full gba:py-2 gba:px-3"
-            data-testid="flw_updateEntitlementModal_validFromHint"
-          >
-            <WarningCircleIcon className="gba:h-4 gba:w-4" />
-            <AlertDescription className="gba:!max-w-none gba:text-xs gba:leading-5">
-              {t('entitlements-valid-from-month-start-hint')}
-            </AlertDescription>
-          </Alert>
+          {minimumAllowedMonthYearLabel ? (
+            <div
+              className="gba:text-sm gba:leading-5 gba:text-muted-foreground"
+              data-testid="flw_updateEntitlementModal_validFromHint"
+            >
+              {t('entitlements-valid-from-minimum-hint', { monthYear: minimumAllowedMonthYearLabel })}
+            </div>
+          ) : null}
         </div>
-
         {/* Numeric Inputs */}
         <div className="gba:flex gba:flex-col gba:gap-4">
           <div className="gba:flex gba:flex-col gba:gap-2">
@@ -449,8 +650,9 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
             disabled={isSubmitDisabled}
             onClick={() => {
               setTouchedType(true)
+              setTouchedValidFrom(true)
               if (isSubmitDisabled) return
-              void handleSubmit()
+              handleSubmit().catch(() => undefined)
             }}
           >
             {getTranslationFromI18nKeyAndLabel(
