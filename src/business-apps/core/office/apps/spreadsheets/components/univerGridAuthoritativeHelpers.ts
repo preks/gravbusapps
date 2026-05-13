@@ -47,6 +47,18 @@ export function buildAuthoritativeRowsByGridIndex(
   return rowsByGridIndex
 }
 
+/**
+ * Resolves the viewer row for a Univer 0-based grid row index.
+ * Uses `_gridRowIndex` when present so mutation planning matches collaboration
+ * and authoritative signatures (array index alone can point at the wrong row).
+ */
+export function getSpreadsheetRowAtUniverGridIndex(
+  data: Record<string, unknown>[],
+  gridRowIndex: number
+): Record<string, unknown> | undefined {
+  return buildAuthoritativeRowsByGridIndex(data).get(gridRowIndex)
+}
+
 export function getAuthoritativeGridRowExtent(data: Record<string, unknown>[]): number {
   return data.reduce((max, row, index) => Math.max(max, getViewerRowVisualIndex(row, index) + 1), 0)
 }

@@ -51,7 +51,7 @@ export function sheetDeltaRequiresFullSnapshot(
   const changes = delta.changes || []
   if (changes.length === 0) return true
   const applied = changes
-    .map(c => Number((c as Record<string, unknown>).appliedVersion))
+    .map(c => Number((c as unknown as Record<string, unknown>).appliedVersion))
     .filter(n => Number.isFinite(n) && n > 0)
   if (applied.length === 0) return true
   const minApplied = Math.min(...applied)

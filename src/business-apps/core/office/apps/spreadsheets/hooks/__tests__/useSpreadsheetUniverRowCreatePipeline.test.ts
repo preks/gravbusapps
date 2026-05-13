@@ -45,6 +45,8 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
       }
     )
     const commitRowsForSheet = jest.fn()
+    const onRowsMaterializedContextSync = jest.fn()
+    const onRowIdentityDiagnostics = jest.fn()
 
     const { result } = renderHook(() =>
       useSpreadsheetUniverRowCreatePipeline({
@@ -78,7 +80,6 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
             _clientRowId: row._id,
             [columns[0].name]: row[columns[0].name]
           })),
-        replaceClientRowsWithCreatedRows: (_previousRows, createdRows) => createdRows,
         persistAddedRowsWithBatch,
         persistSingleAddedRow: jest.fn(),
         recoverFromVersionConflict: jest.fn(async () => false),
@@ -86,6 +87,8 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
         getRowsForSheet: () => [],
         multiSheetDebugLog: jest.fn(),
         commitRowsForSheet,
+        onRowsMaterializedContextSync,
+        onRowIdentityDiagnostics,
         pendingCreatedSheetSelectionRef: { current: null },
         createdSheetIdAliasesRef: { current: new Map<string, string>() }
       })
@@ -102,8 +105,30 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     )
     expect(commitRowsForSheet).toHaveBeenCalledWith(
       'sheet-2',
-      [{ _id: 'client-row-1', _rowUuid: 'backend-row-1', ColumnA: 'first user value' }],
+      [{ _id: 'client-row-1', _rowUuid: 'backend-row-1', ColumnA: 'first user value', _gridRowIndex: 0 }],
       { syncGrid: false }
+    )
+    expect(onRowIdentityDiagnostics).toHaveBeenCalledWith(
+      'row_session_snapshot_reconciled',
+      expect.objectContaining({
+        targetSheetId: 'sheet-2',
+        rowIdentities: [
+          expect.objectContaining({
+            uiRowId: 'client-row-1',
+            backendRowUuid: 'backend-row-1',
+            hasBackendUuid: true,
+            canRemap: true
+          })
+        ]
+      })
+    )
+    expect(onRowsMaterializedContextSync).toHaveBeenCalledWith(
+      'sheet-2',
+      [{ _id: 'client-row-1', _rowUuid: 'backend-row-1', ColumnA: 'first user value', _gridRowIndex: 0 }],
+      {
+        affectedUiRowIds: ['client-row-1'],
+        isActiveTarget: false
+      }
     )
     expect(pendingUniverRowsBySheetRef.current.has('sheet-2')).toBe(false)
   })
@@ -157,7 +182,6 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
         onPersistRowsErrorMessage: 'failed',
         getActiveSessionRows: () => [],
         buildAddRowPayloadsFromUniverRows: rows => rows.map(row => ({ _clientRowId: row._id, ColumnA: row.ColumnA })),
-        replaceClientRowsWithCreatedRows: (_p, c) => c,
         persistAddedRowsWithBatch,
         persistSingleAddedRow: jest.fn(),
         recoverFromVersionConflict: jest.fn(async () => false),
@@ -165,6 +189,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
         getRowsForSheet: () => [],
         multiSheetDebugLog: jest.fn(),
         commitRowsForSheet: jest.fn(),
+        onRowIdentityDiagnostics: jest.fn(),
         pendingCreatedSheetSelectionRef: {
           current: { temporarySheetId: 'temp-new', persistedSheetId: null }
         },
@@ -204,6 +229,8 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
       }
     )
     const commitRowsForSheet = jest.fn()
+    const onRowsMaterializedContextSync = jest.fn()
+    const onRowIdentityDiagnostics = jest.fn()
 
     const { result } = renderHook(() =>
       useSpreadsheetUniverRowCreatePipeline({
@@ -233,7 +260,6 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
         onPersistRowsErrorMessage: 'failed',
         getActiveSessionRows: () => [{ _id: 'client-row-1' }, { _id: 'client-row-2' }],
         buildAddRowPayloadsFromUniverRows: rows => rows.map(row => ({ _clientRowId: row._id, ColumnA: row.ColumnA })),
-        replaceClientRowsWithCreatedRows: (_previousRows, createdRows) => createdRows,
         persistAddedRowsWithBatch,
         persistSingleAddedRow: jest.fn(),
         recoverFromVersionConflict: jest.fn(async () => false),
@@ -241,6 +267,8 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
         getRowsForSheet: () => [],
         multiSheetDebugLog: jest.fn(),
         commitRowsForSheet,
+        onRowsMaterializedContextSync,
+        onRowIdentityDiagnostics,
         pendingCreatedSheetSelectionRef: { current: null },
         createdSheetIdAliasesRef: { current: new Map<string, string>() }
       })
@@ -261,10 +289,30 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     expect(commitRowsForSheet).toHaveBeenCalledWith(
       'sheet-1',
       [
-        { _id: 'client-row-1', _rowUuid: 'backend-row-1', ColumnA: 'first pasted value' },
-        { _id: 'client-row-2', _rowUuid: 'backend-row-2', ColumnA: 'second pasted value' }
+        { _id: 'client-row-1', _rowUuid: 'backend-row-1', ColumnA: 'first pasted value', _gridRowIndex: 0 },
+        { _id: 'client-row-2', _rowUuid: 'backend-row-2', ColumnA: 'second pasted value', _gridRowIndex: 1 }
       ],
       { syncGrid: false }
+    )
+    expect(onRowIdentityDiagnostics).toHaveBeenCalledWith(
+      'row_session_snapshot_reconciled',
+      expect.objectContaining({
+        rowIdentities: [
+          expect.objectContaining({ uiRowId: 'client-row-1', backendRowUuid: 'backend-row-1' }),
+          expect.objectContaining({ uiRowId: 'client-row-2', backendRowUuid: 'backend-row-2' })
+        ]
+      })
+    )
+    expect(onRowsMaterializedContextSync).toHaveBeenCalledWith(
+      'sheet-1',
+      [
+        { _id: 'client-row-1', _rowUuid: 'backend-row-1', ColumnA: 'first pasted value', _gridRowIndex: 0 },
+        { _id: 'client-row-2', _rowUuid: 'backend-row-2', ColumnA: 'second pasted value', _gridRowIndex: 1 }
+      ],
+      {
+        affectedUiRowIds: ['client-row-1', 'client-row-2'],
+        isActiveTarget: true
+      }
     )
   })
 })

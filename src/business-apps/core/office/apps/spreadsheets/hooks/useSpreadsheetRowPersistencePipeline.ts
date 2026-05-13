@@ -2,7 +2,11 @@ import { useCallback, type MutableRefObject } from 'react'
 
 import { type SpreadsheetMutationFacade } from '../core'
 import { coalesceQueuedCellChanges, reconcileQueuedDraftCellsForCreatedRows } from '../utils/spreadsheetPendingCells'
-import { resolveBackendRowIdForViewerRow } from '../utils/spreadsheetRowIdentity'
+import {
+  buildRowIdentityDiagnostics,
+  resolveBackendRowIdForViewerRow,
+  toRowIdString
+} from '../utils/spreadsheetRowIdentity'
 import { normalizeCellValueForBatchPersistence } from '../core'
 
 type ViewerRow = Record<string, unknown>
@@ -37,6 +41,7 @@ export interface UseSpreadsheetRowPersistencePipelineParams {
     pendingClientRowUpdates: Map<string, Record<string, unknown>>
   ) => CreatedRowsFromBatchResult
   onFlushDeferredCellEmits: () => void
+  onRowIdentityDiagnostics?: (stage: string, payload: Record<string, unknown>) => void
 }
 
 export interface UseSpreadsheetRowPersistencePipelineResult {
@@ -64,7 +69,8 @@ export function useSpreadsheetRowPersistencePipeline(
     pendingCellChangesRef,
     persistPendingCellJournal,
     buildCreatedRowsFromBatch,
-    onFlushDeferredCellEmits
+    onFlushDeferredCellEmits,
+    onRowIdentityDiagnostics
   } = params
 
   const flushPendingCellsForPersistedRow = useCallback(
@@ -98,6 +104,22 @@ export function useSpreadsheetRowPersistencePipeline(
         returnedRows,
         pendingClientRowUpdatesRef.current
       )
+      const affectedUiRowIds = rowPayloads.map(rowPayload => toRowIdString(rowPayload._clientRowId)).filter(Boolean)
+      onRowIdentityDiagnostics?.('row_materialization_response_received', {
+        targetSheetId,
+        returnedRowCount: returnedRows.length,
+        rowIdentities: buildRowIdentityDiagnostics({
+          uiRowIds: affectedUiRowIds,
+          rows: createdRows,
+          isUuid,
+          identityOverrides: new Map(
+            Array.from(persistedIdByClientRowId.entries()).map(([uiRowId, backendRowUuid]) => [
+              uiRowId,
+              { backendRowUuid, identitySource: 'create_row_response' as const }
+            ])
+          )
+        })
+      })
       updateLocalRowsAfterCreate(createdRows)
       pendingCellChangesRef.current = coalesceQueuedCellChanges(
         reconcileQueuedDraftCellsForCreatedRows(
@@ -121,8 +143,10 @@ export function useSpreadsheetRowPersistencePipeline(
     },
     [
       buildCreatedRowsFromBatch,
+      isUuid,
       mutationFacade,
       onFlushDeferredCellEmits,
+      onRowIdentityDiagnostics,
       pendingCellChangesRef,
       pendingClientRowUpdatesRef,
       persistPendingCellJournal
@@ -139,6 +163,21 @@ export function useSpreadsheetRowPersistencePipeline(
       const singleClientRowId = String(singlePayload._clientRowId || '')
       const saved = await mutationFacade.createRow(targetSheetId, singlePayload)
       const persistedId = resolveBackendRowIdForViewerRow(saved as Record<string, unknown>, isUuid) || ''
+      onRowIdentityDiagnostics?.('row_materialization_response_received', {
+        targetSheetId,
+        returnedRowCount: saved ? 1 : 0,
+        rowIdentities: buildRowIdentityDiagnostics({
+          uiRowIds: singleClientRowId ? [singleClientRowId] : [],
+          rows: saved ? [saved] : [],
+          isUuid,
+          identityOverrides:
+            singleClientRowId && persistedId
+              ? new Map([
+                  [singleClientRowId, { backendRowUuid: persistedId, identitySource: 'create_row_response' as const }]
+                ])
+              : undefined
+        })
+      })
       const pending = singleClientRowId ? pendingClientRowUpdatesRef.current.get(singleClientRowId) : undefined
       if (singleClientRowId && pending) {
         pendingClientRowUpdatesRef.current.delete(singleClientRowId)

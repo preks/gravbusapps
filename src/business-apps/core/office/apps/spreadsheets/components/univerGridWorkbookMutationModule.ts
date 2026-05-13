@@ -17,7 +17,11 @@ import { readWorksheetCellValue } from '../utils/univerWorksheetCellRead'
 import type { SheetCellMatrix, SheetCellMatrixCoordinateMode, SheetRangeShape } from './cellMatrixUtils'
 import type { ApplyRemoteCellUpdateOptions } from './UniverSheetGrid.types'
 import type { RemoteEchoSuppressionEntry } from './univerGridInternalTypes'
-import { normalizeValueForEchoSignature, toEchoSignature } from './univerGridAuthoritativeHelpers'
+import {
+  getSpreadsheetRowAtUniverGridIndex,
+  normalizeValueForEchoSignature,
+  toEchoSignature
+} from './univerGridAuthoritativeHelpers'
 import { type ClearAllRectangle } from './univerGridRangeSelection'
 
 export const UNIVER_CELL_VALUE_KEYS = ['v', 'f', 'm', 'p', 'ct', 'si', 'custom'] as const
@@ -825,7 +829,7 @@ export function countCellMatrixWritesAgainstCurrentData(params: {
       const nextValue = rowCells[colIndex]
       if (!isPersistableCellDataMutationValue(nextValue)) continue
       const column = visibleColumns[colIndex]
-      const currentRow = currentData[rowIndex]
+      const currentRow = getSpreadsheetRowAtUniverGridIndex(currentData, rowIndex)
       const currentValue = column && currentRow ? readSpreadsheetRowCellValue(currentRow, column) : undefined
       const nextSignature = normalizeBlankLikeEchoSignature(toEchoSignature(normalizeValueForEchoSignature(nextValue)))
       const currentSignature = normalizeBlankLikeEchoSignature(toEchoSignature(currentValue))

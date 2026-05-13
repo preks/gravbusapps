@@ -5,6 +5,7 @@ import type { CellDimensionsPayload } from './UniverSheetGrid.types'
 import type { SnapshotDimensions } from './univerGridInternalTypes'
 import {
   CURSOR_OVERLAY_COL_WIDTH_PX,
+  CURSOR_OVERLAY_HEADER_HEIGHT_PX,
   CURSOR_OVERLAY_ROW_HEIGHT_PX,
   CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX
 } from './univerGridLayoutConstants'
@@ -25,6 +26,28 @@ type UniverVisibilityRange = {
   endRow: number
   startColumn: number
   endColumn: number
+}
+
+/** Minimal Univer workbook facade; active workbook from the API is typed as unknown */
+type UniverFacadeWorkbook = {
+  getActiveSheet?: () => unknown
+  getSheetBySheetId?: (id: string) => unknown
+  getId?: () => string
+  getUnitId?: () => string
+}
+
+function resolveWorksheetForRemoteApply(
+  workbook: unknown,
+  targetSheetId: string,
+  activePropSheetId: string,
+  multiSheetWorkbookMode: boolean
+): unknown {
+  const wb = workbook as UniverFacadeWorkbook
+  const isActivePropSheet = targetSheetId === activePropSheetId
+  if (!isActivePropSheet && multiSheetWorkbookMode) {
+    return wb.getSheetBySheetId?.(targetSheetId) ?? wb.getActiveSheet?.()
+  }
+  return wb.getActiveSheet?.()
 }
 
 const SET_ROWS_HIDDEN_COMMAND_ID = 'sheet.command.set-rows-hidden'
@@ -113,13 +136,12 @@ export function useUniverRemoteApply({
       }
       const api = univerAPIRef.current
       const workbook = api?.getActiveWorkbook?.()
-      const worksheet =
-        !isActivePropSheet && propsRef.current.multiSheetWorkbookMode
-          ? (((workbook as { getSheetBySheetId?: (id: string) => unknown } | undefined)?.getSheetBySheetId?.(
-              payload.sheetId
-            ) as ReturnType<NonNullable<typeof workbook>['getActiveSheet']> | undefined) ??
-            workbook?.getActiveSheet?.())
-          : workbook?.getActiveSheet?.()
+      const worksheet = resolveWorksheetForRemoteApply(
+        workbook,
+        payload.sheetId,
+        sheetId,
+        propsRef.current.multiSheetWorkbookMode === true
+      )
       if (
         worksheet &&
         typeof (worksheet as { setColumnWidth?: (col: number, w: number) => unknown }).setColumnWidth === 'function'
@@ -174,14 +196,12 @@ export function useUniverRemoteApply({
       if (!payload || !Array.isArray(payload.ranges) || payload.ranges.length === 0) return
       const workbook = api.getActiveWorkbook?.()
       if (!workbook) return
-      const isActivePropSheet = payload.sheetId === sheetId
-      const targetWorksheet =
-        !isActivePropSheet && propsRef.current.multiSheetWorkbookMode
-          ? (((workbook as { getSheetBySheetId?: (id: string) => unknown } | undefined)?.getSheetBySheetId?.(
-              payload.sheetId
-            ) as ReturnType<NonNullable<typeof workbook>['getActiveSheet']> | undefined) ??
-            workbook?.getActiveSheet?.())
-          : workbook?.getActiveSheet?.()
+      const targetWorksheet = resolveWorksheetForRemoteApply(
+        workbook,
+        payload.sheetId,
+        sheetId,
+        propsRef.current.multiSheetWorkbookMode === true
+      )
       if (!targetWorksheet) return
       const cellValue: Record<string, Record<string, null>> = {}
       for (const range of payload.ranges) {
@@ -243,14 +263,12 @@ export function useUniverRemoteApply({
       if (!payload || !Array.isArray(payload.ranges) || payload.ranges.length === 0) return
       const workbook = api.getActiveWorkbook?.()
       if (!workbook) return
-      const isActivePropSheet = payload.sheetId === sheetId
-      const targetWorksheet =
-        !isActivePropSheet && propsRef.current.multiSheetWorkbookMode
-          ? (((workbook as { getSheetBySheetId?: (id: string) => unknown } | undefined)?.getSheetBySheetId?.(
-              payload.sheetId
-            ) as ReturnType<NonNullable<typeof workbook>['getActiveSheet']> | undefined) ??
-            workbook?.getActiveSheet?.())
-          : workbook?.getActiveSheet?.()
+      const targetWorksheet = resolveWorksheetForRemoteApply(
+        workbook,
+        payload.sheetId,
+        sheetId,
+        propsRef.current.multiSheetWorkbookMode === true
+      )
       if (!targetWorksheet) return
       const cellValue: Record<string, Record<string, { s: null }>> = {}
       for (const range of payload.ranges) {
@@ -308,14 +326,12 @@ export function useUniverRemoteApply({
       const workbook = api?.getActiveWorkbook?.()
       if (!api || !workbook || !payload?.data?.sheetId) return
       const targetSheetId = payload.data.sheetId
-      const isActivePropSheet = targetSheetId === sheetId
-      const targetWorksheet =
-        !isActivePropSheet && propsRef.current.multiSheetWorkbookMode
-          ? (((workbook as { getSheetBySheetId?: (id: string) => unknown } | undefined)?.getSheetBySheetId?.(
-              targetSheetId
-            ) as ReturnType<NonNullable<typeof workbook>['getActiveSheet']> | undefined) ??
-            workbook?.getActiveSheet?.())
-          : workbook?.getActiveSheet?.()
+      const targetWorksheet = resolveWorksheetForRemoteApply(
+        workbook,
+        targetSheetId,
+        sheetId,
+        propsRef.current.multiSheetWorkbookMode === true
+      )
       if (!targetWorksheet) return
       const subUnitId =
         (targetWorksheet as { getSheetId?: () => string } | null | undefined)?.getSheetId?.() ?? targetSheetId

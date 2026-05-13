@@ -1,4 +1,4 @@
-import { useCallback, useRef, type MutableRefObject } from 'react'
+import { useCallback, useRef } from 'react'
 
 import { SpreadsheetApiRequestError } from '../services/SpreadsheetApiService'
 import {
@@ -6,73 +6,16 @@ import {
   isSheetCreationAwaitingPersistedId,
   resolveReconciledSheetId
 } from '../utils/reconcileTemporarySheetId'
-import { resolveBackendRowIdForViewerRow } from '../utils/spreadsheetRowIdentity'
-import type { SpreadsheetColumn } from '../types'
-
-interface SpreadsheetPersistenceIndicator {
-  beginPersist: () => void
-  endPersist: () => void
-  markDirty: () => void
-  recordSuccess: (isSettled: boolean) => void
-  recordError: (message: string) => void
-}
-
-export interface UseSpreadsheetUniverRowCreatePipelineParams {
-  activeSheetId: string
-  activeSheetIdRef: MutableRefObject<string>
-  activeSheetColumns: SpreadsheetColumn[]
-  getColumnsForSheet: (sheetId: string) => SpreadsheetColumn[]
-  isUuid: (value: string) => boolean
-  isOpsV2Enabled: boolean
-  onRowAdd?: unknown
-  entityEnabledRef: MutableRefObject<boolean>
-  canEditWithLockRef: MutableRefObject<boolean>
-  latestUniverDataRef: MutableRefObject<{ data: Record<string, unknown>[]; sheetId: string } | null>
-  pendingUniverRowsBySheetRef: MutableRefObject<
-    Map<string, { data: Record<string, unknown>[]; persistedRows: Record<string, unknown>[] }>
-  >
-  lastProcessedLengthRef: MutableRefObject<number>
-  operationQueueRef: MutableRefObject<Promise<void>>
-  chainOnOperationQueue: (queueRef: MutableRefObject<Promise<void>>, fn: () => Promise<void>) => Promise<void>
-  sheetPersist: SpreadsheetPersistenceIndicator
-  markVersionAsChanged: () => void
-  markVersionAsSaved: () => void
-  onPersistRowsErrorMessage: string
-  getActiveSessionRows: () => Record<string, unknown>[]
-  buildAddRowPayloadsFromUniverRows: (
-    rows: Array<Record<string, unknown>>,
-    columns: SpreadsheetColumn[]
-  ) => Array<Record<string, unknown>>
-  replaceClientRowsWithCreatedRows: (
-    previousRows: Record<string, unknown>[],
-    createdRows: Array<Record<string, unknown>>
-  ) => Record<string, unknown>[]
-  persistAddedRowsWithBatch: (
-    targetSheetId: string,
-    rowPayloads: Record<string, unknown>[],
-    updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
-  ) => Promise<void>
-  persistSingleAddedRow: (
-    targetSheetId: string,
-    rowPayloads: Record<string, unknown>[],
-    updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
-  ) => Promise<void>
-  recoverFromVersionConflict: () => Promise<boolean>
-  summarizeRowsForDebug: (rows: Record<string, unknown>[] | undefined) => Record<string, unknown>
-  getRowsForSheet: (sheetId: string) => Record<string, unknown>[]
-  multiSheetDebugLog: (event: string, meta?: Record<string, unknown> | (() => Record<string, unknown>)) => void
-  commitRowsForSheet: (sheetId: string, rows: Record<string, unknown>[], options?: { syncGrid?: boolean }) => void
-  pendingCreatedSheetSelectionRef: MutableRefObject<{
-    temporarySheetId: string
-    persistedSheetId: string | null
-  } | null>
-  createdSheetIdAliasesRef: MutableRefObject<Map<string, string>>
-}
-
-export interface UseSpreadsheetUniverRowCreatePipelineResult {
-  processUniverDataChange: () => Promise<void>
-  processUniverDataChangeRef: MutableRefObject<() => Promise<void>>
-}
+import { buildRowIdentityDiagnostics } from '../utils/spreadsheetRowIdentity'
+import {
+  buildSpreadsheetRowMaterializationPlan,
+  mergeCreatedRowsByVisualIndex,
+  type SpreadsheetRowMaterializationPlan
+} from './spreadsheetRowMaterializationPlan'
+import type {
+  UseSpreadsheetUniverRowCreatePipelineParams,
+  UseSpreadsheetUniverRowCreatePipelineResult
+} from './useSpreadsheetUniverRowCreatePipelineTypes'
 
 export function useSpreadsheetUniverRowCreatePipeline(
   params: UseSpreadsheetUniverRowCreatePipelineParams
@@ -97,7 +40,6 @@ export function useSpreadsheetUniverRowCreatePipeline(
     onPersistRowsErrorMessage,
     getActiveSessionRows,
     buildAddRowPayloadsFromUniverRows,
-    replaceClientRowsWithCreatedRows,
     persistAddedRowsWithBatch,
     persistSingleAddedRow,
     recoverFromVersionConflict,
@@ -105,9 +47,12 @@ export function useSpreadsheetUniverRowCreatePipeline(
     getRowsForSheet,
     multiSheetDebugLog,
     commitRowsForSheet,
+    onRowsMaterializedContextSync,
+    onRowIdentityDiagnostics,
     pendingCreatedSheetSelectionRef,
     createdSheetIdAliasesRef
   } = params
+  const inFlightRowMaterializationKeysRef = useRef(new Set<string>())
 
   const processUniverDataChange = useCallback(async () => {
     const latest = latestUniverDataRef.current
@@ -141,18 +86,35 @@ export function useSpreadsheetUniverRowCreatePipeline(
     const persistedRows = isActiveTarget
       ? getActiveSessionRows()
       : (pendingRows?.persistedRows ?? getRowsForSheet(canonicalTargetId))
-    const rowNeedsBackendMaterialization = (row: Record<string, unknown> | undefined): boolean =>
-      !row || !resolveBackendRowIdForViewerRow(row, isUuid)
-    const firstUnmaterializedRowIndex = newData.findIndex((_, index) =>
-      rowNeedsBackendMaterialization(persistedRows[index])
-    )
-    const hasUnmaterializedRows = firstUnmaterializedRowIndex >= 0 && firstUnmaterializedRowIndex < newData.length
-    const lastProcessed = hasUnmaterializedRows
-      ? Math.min(isActiveTarget ? lastProcessedLengthRef.current : persistedRows.length, firstUnmaterializedRowIndex)
-      : isActiveTarget
-        ? lastProcessedLengthRef.current
-        : persistedRows.length
+    const materializationPlan = buildSpreadsheetRowMaterializationPlan({
+      sheetId: canonicalTargetId,
+      univerRows: newData,
+      persistedRows,
+      isUuid,
+      inFlightKeys: inFlightRowMaterializationKeysRef.current
+    })
+    const lastProcessed = isActiveTarget ? lastProcessedLengthRef.current : persistedRows.length
     const targetColumns = isActiveTarget ? activeSheetColumns : getColumnsForSheet(canonicalTargetId)
+    const rowPayloads = buildAddRowPayloadsFromUniverRows(materializationPlan.rowsToMaterialize, targetColumns)
+    const buildMaterializationPlanDiagnostics = (
+      plan: SpreadsheetRowMaterializationPlan,
+      createdSparseGridRowIndices: number[] = []
+    ) => ({
+      sheetId: targetSheetId,
+      canonicalTargetId,
+      newDataLength: newData.length,
+      persistedRowsLength: persistedRows.length,
+      lastProcessedLength: lastProcessed,
+      missingGridRowIndices: plan.missingGridRowIndices,
+      unmaterializedClientRowIds: plan.unmaterializedClientRowIds,
+      rowPayloadCount: rowPayloads.length,
+      inFlightMissingGridRowIndices: plan.inFlightMissingGridRowIndices,
+      alreadyMaterializedGridRowIndices: plan.alreadyMaterializedGridRowIndices,
+      missingButInFlightCount: plan.missingButInFlightCount,
+      missingAndWillCreateCount: plan.missingAndWillCreateCount,
+      gridIndexCoordinateMode: plan.gridIndexCoordinateMode,
+      createdSparseGridRowIndices
+    })
     multiSheetDebugLog('process_univer_data_change_start', () => ({
       sheetId: targetSheetId,
       newData: summarizeRowsForDebug(newData),
@@ -160,12 +122,19 @@ export function useSpreadsheetUniverRowCreatePipeline(
       lastProcessedLength: lastProcessed,
       activeSheetId: activeSheetIdRef.current
     }))
-    if (newData.length <= lastProcessed) {
+    multiSheetDebugLog('process_univer_data_change_materialization_plan', () =>
+      buildMaterializationPlanDiagnostics(materializationPlan)
+    )
+    if (rowPayloads.length === 0) {
+      if (isActiveTarget && materializationPlan.missingGridRowIndices.length === 0) {
+        lastProcessedLengthRef.current = newData.length
+      }
       multiSheetDebugLog('process_univer_data_change_skip_no_new_rows', () => ({
         sheetId: latest.sheetId,
         newDataLength: newData.length,
         lastProcessedLength: lastProcessed,
-        firstUnmaterializedRowIndex
+        visualIndexPlannerFoundMissingRows: materializationPlan.missingGridRowIndices.length > 0,
+        inFlightMissingGridRowIndices: materializationPlan.inFlightMissingGridRowIndices
       }))
       return
     }
@@ -174,13 +143,23 @@ export function useSpreadsheetUniverRowCreatePipeline(
     markVersionAsChanged()
 
     const prev = persistedRows
-    const added = newData.slice(lastProcessed)
-    const rowPayloads = buildAddRowPayloadsFromUniverRows(added, targetColumns)
+    const inFlightKeysForRequest = materializationPlan.entries.map(entry => entry.inFlightKey)
+    const releaseInFlightKeysForRequest = () => {
+      inFlightKeysForRequest.forEach(key => inFlightRowMaterializationKeysRef.current.delete(key))
+    }
+    inFlightKeysForRequest.forEach(key => inFlightRowMaterializationKeysRef.current.add(key))
 
     const useBatchAddRows = isOpsV2Enabled || rowPayloads.length > 1 || !onRowAdd
 
     const updateLocalRowsAfterCreate = (createdRows: Array<Record<string, unknown>>) => {
-      const next = replaceClientRowsWithCreatedRows(prev, createdRows)
+      const mergedRows = mergeCreatedRowsByVisualIndex({
+        previousRows: prev,
+        univerRows: newData,
+        createdRows,
+        isUuid
+      })
+      const next = mergedRows.rows
+      const affectedUiRowIds = mergedRows.affectedUiRowIds
       if (isActiveTarget) {
         lastProcessedLengthRef.current = newData.length
       }
@@ -190,9 +169,25 @@ export function useSpreadsheetUniverRowCreatePipeline(
         previousLocalRows: summarizeRowsForDebug(prev),
         createdRows: summarizeRowsForDebug(createdRows),
         nextRows: summarizeRowsForDebug(next),
-        newData: summarizeRowsForDebug(newData)
+        newData: summarizeRowsForDebug(newData),
+        createdSparseGridRowIndices: mergedRows.createdGridRowIndices
       }))
+      multiSheetDebugLog('process_univer_data_change_materialization_plan', () =>
+        buildMaterializationPlanDiagnostics(materializationPlan, mergedRows.createdGridRowIndices)
+      )
       commitRowsForSheet(canonicalTargetId, next, { syncGrid: false })
+      onRowsMaterializedContextSync?.(canonicalTargetId, next, {
+        affectedUiRowIds,
+        isActiveTarget
+      })
+      onRowIdentityDiagnostics?.('row_session_snapshot_reconciled', {
+        targetSheetId: canonicalTargetId,
+        rowIdentities: buildRowIdentityDiagnostics({
+          uiRowIds: affectedUiRowIds,
+          rows: next,
+          isUuid
+        })
+      })
     }
 
     sheetPersist.beginPersist()
@@ -211,18 +206,33 @@ export function useSpreadsheetUniverRowCreatePipeline(
       console.error('[SpreadsheetAppViewer] Failed to persist added rows:', error)
       sheetPersist.recordError(onPersistRowsErrorMessage)
       if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
+        releaseInFlightKeysForRequest()
         const recovered = await recoverFromVersionConflict()
-        const latestSid = latestUniverDataRef.current?.sheetId
+        const latestData = latestUniverDataRef.current
+        const latestSid = latestData?.sheetId
+        const freshRows = isActiveTarget ? getActiveSessionRows() : getRowsForSheet(canonicalTargetId)
+        const followUpPlan =
+          recovered && latestData
+            ? buildSpreadsheetRowMaterializationPlan({
+                sheetId: canonicalTargetId,
+                univerRows: latestData.data,
+                persistedRows: freshRows,
+                isUuid,
+                inFlightKeys: inFlightRowMaterializationKeysRef.current
+              })
+            : undefined
         if (
           recovered &&
           latestSid &&
           resolveReconciledSheetId(latestSid, createdSheetIdAliasesRef.current) === canonicalTargetId &&
-          latestUniverDataRef.current.data.length > lastProcessed
+          followUpPlan &&
+          followUpPlan.rowsToMaterialize.length > 0
         ) {
           void chainOnOperationQueue(operationQueueRef, () => processUniverDataChangeRef.current())
         }
       }
     } finally {
+      releaseInFlightKeysForRequest()
       sheetPersist.endPersist()
     }
   }, [
@@ -243,6 +253,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
     markVersionAsChanged,
     markVersionAsSaved,
     multiSheetDebugLog,
+    onRowsMaterializedContextSync,
     onPersistRowsErrorMessage,
     onRowAdd,
     operationQueueRef,
@@ -250,9 +261,9 @@ export function useSpreadsheetUniverRowCreatePipeline(
     persistAddedRowsWithBatch,
     persistSingleAddedRow,
     recoverFromVersionConflict,
-    replaceClientRowsWithCreatedRows,
     sheetPersist,
     summarizeRowsForDebug,
+    onRowIdentityDiagnostics,
     pendingCreatedSheetSelectionRef,
     createdSheetIdAliasesRef
   ])

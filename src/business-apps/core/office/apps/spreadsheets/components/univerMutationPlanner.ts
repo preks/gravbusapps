@@ -3,6 +3,7 @@ import { readSpreadsheetRowCellValue, toA1Reference } from '../core'
 import type { SpreadsheetColumn } from '../types'
 import type { ConversionContext } from '../utils/univerAdapter'
 import type { SheetCellMatrix, SheetRangeShape } from './cellMatrixUtils'
+import { getSpreadsheetRowAtUniverGridIndex } from './univerGridAuthoritativeHelpers'
 
 const UNIVER_INLINE_STYLE_KEYS = [
   'bl',
@@ -444,7 +445,7 @@ function applyNonBlankWorksheetFallback(params: {
           continue
         }
 
-        const currentRow = currentData[globalRowIndex]
+        const currentRow = getSpreadsheetRowAtUniverGridIndex(currentData, globalRowIndex)
         const currentColumn = visibleColumns[globalColIndex]
         const currentValue =
           currentColumn && currentRow ? readSpreadsheetRowCellValue(currentRow, currentColumn) : undefined
@@ -574,7 +575,7 @@ export function buildAuthoritativeMutationEnvelope(
 
     if (!isMergeCoveredSlave && isPersistableCellDataMutationValue(candidateValue)) {
       const normalizedValue = normalizeValueForEchoSignature(candidateValue)
-      const currentRow = currentData[globalRowIndex]
+      const currentRow = getSpreadsheetRowAtUniverGridIndex(currentData, globalRowIndex)
       const currentColumn = visibleColumns[globalColIndex]
       const currentValue =
         currentColumn && currentRow ? readSpreadsheetRowCellValue(currentRow, currentColumn) : undefined

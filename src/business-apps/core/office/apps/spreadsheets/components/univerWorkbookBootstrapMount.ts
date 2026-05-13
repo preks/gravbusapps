@@ -164,11 +164,14 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
         source
       })
     }
-    return sanitized.snapshot as UniverWorkbookSnapshot
+    return sanitized.snapshot as unknown as UniverWorkbookSnapshot
   }
   const buildSafeRowSnapshot = (): UniverWorkbookSnapshot => {
     const rowBuiltSnapshot = buildWorkbookSnapshot(s, d, c) as unknown as Record<string, unknown>
-    return sanitizeSnapshotForBootstrap(rowBuiltSnapshot, 'row-built') ?? (rowBuiltSnapshot as UniverWorkbookSnapshot)
+    return (
+      sanitizeSnapshotForBootstrap(rowBuiltSnapshot, 'row-built') ??
+      (rowBuiltSnapshot as unknown as UniverWorkbookSnapshot)
+    )
   }
   try {
     if (initializedFromProvidedSnapshot) {

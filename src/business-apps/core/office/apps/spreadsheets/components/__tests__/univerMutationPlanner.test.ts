@@ -501,4 +501,57 @@ describe('univerMutationPlanner', () => {
       })
     ])
   })
+
+  it('uses viewer visual row index (not data array index) when comparing to currentData', () => {
+    const columns = [
+      {
+        id: 'col-name',
+        name: 'name',
+        label: 'Name',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 120,
+        order: 0
+      }
+    ] as any
+
+    const ctx = {
+      rowIndexToId: new Map([[2, 'row-at-vis-2']]),
+      columnIndexToName: new Map([[0, 'name']]),
+      columnIndexToId: new Map([[0, 'col-name']])
+    } as any
+
+    const currentData = [
+      { _id: 'row-vis-0', name: 'r0' },
+      { _id: 'row-vis-1', name: 'r1' },
+      { _id: 'row-vis-10', _gridRowIndex: 10, name: 'collision' },
+      { _id: 'row-at-vis-2', _gridRowIndex: 2, name: 'still-old' }
+    ]
+
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-grid-index',
+      intent: 'edit',
+      currentData,
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 2, endRow: 2, startColumn: 0, endColumn: 0 }],
+      mergedCellValue: {
+        2: { 0: { v: 'collision' } }
+      },
+      workbookSnapshot: null
+    })
+
+    expect(envelope.plan?.cells?.[0]).toEqual(
+      expect.objectContaining({
+        rowId: 'row-at-vis-2',
+        columnName: 'name',
+        valueAction: 'set',
+        value: 'collision'
+      })
+    )
+  })
 })

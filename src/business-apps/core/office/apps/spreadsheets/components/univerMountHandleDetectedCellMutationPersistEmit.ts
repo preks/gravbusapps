@@ -2,7 +2,12 @@ import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiServic
 import type { SpreadsheetStylePatch, SpreadsheetUnifiedMutationBatchPayload } from '../core'
 import { buildOperationsFromMutationPlan } from '../core'
 import { remapBatchOperationsWithUiToBackendRowMap } from '../utils/spreadsheetBatchOperationRowRemap'
-import { buildUiToBackendRowIdMap, isSpreadsheetBackendRowUuid, type ViewerRow } from '../utils/spreadsheetRowIdentity'
+import {
+  buildRowIdentityDiagnostics,
+  buildUiToBackendRowIdMap,
+  isSpreadsheetBackendRowUuid
+} from '../utils/spreadsheetRowIdentity'
+import { detectTemporaryRowIdsInKnownRowIdFields } from '../utils/spreadsheetUnifiedBatchSubmitUtils'
 import { MAX_INDIVIDUAL_CLEAR_CELL_OPS } from '../utils/spreadsheetViewerRows'
 import { debugMutationTrace } from './univerGridDebug'
 import { isUnifiedMutationOperationType } from './univerGridWorkbookMutationModule'
@@ -25,10 +30,7 @@ function getPersistRowsForRemap(
   return pr.data
 }
 
-function buildUnifiedOperationsForEmit(
-  deps: UniverMountHandleDetectedCellMutationDeps,
-  emit: PersistEmitInput
-): SpreadsheetBatchOperation[] {
+function buildUnifiedOperationsForEmit(emit: PersistEmitInput): SpreadsheetBatchOperation[] {
   let localOperationSequence = 0
   return buildOperationsFromMutationPlan({
     plan: emit.localMutationPlan,
@@ -50,6 +52,23 @@ function needsRowMaterializationFlush(emit: PersistEmitInput, unifiedOperations:
         !isSpreadsheetBackendRowUuid(cell.rowId)
     )
   )
+}
+
+function emitRowIdentityDiagnostics(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  stage: string,
+  payload: Record<string, unknown>
+): void {
+  deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
+    source: 'client',
+    stage,
+    traceId: emit.mutationTraceId,
+    payload: {
+      targetSheetId: emit.targetSheetId,
+      ...payload
+    }
+  })
 }
 
 /**
@@ -76,8 +95,8 @@ export function runDetectedCellMutationPersistEmitSync(
   if (source !== 'selection-reconcile') {
     const onMutationBatchOp = propsRef.current.onMutationBatchOp
     if (onMutationBatchOp) {
-      const unifiedOperations =
-        unifiedOpsOverride === undefined ? buildUnifiedOperationsForEmit(deps, emit) : unifiedOpsOverride
+      const unifiedOperations: SpreadsheetBatchOperation[] =
+        unifiedOpsOverride === undefined ? buildUnifiedOperationsForEmit(emit) : (unifiedOpsOverride ?? [])
 
       if (unifiedOperations.length > 0) {
         const operations: SpreadsheetUnifiedMutationBatchPayload['operations'] = []
@@ -174,18 +193,63 @@ export function runDetectedCellMutationPersistEmitDispatch(
     return runDetectedCellMutationPersistEmitSync(deps, emit, undefined)
   }
 
-  const unifiedOperations = buildUnifiedOperationsForEmit(deps, emit)
+  const unifiedOperations = buildUnifiedOperationsForEmit(emit)
+  const temporaryRowIdMatches = detectTemporaryRowIdsInKnownRowIdFields(unifiedOperations)
+  const affectedUiRowIds = Array.from(new Set(temporaryRowIdMatches.map(match => match.rowId)))
+  if (affectedUiRowIds.length > 0) {
+    const isUuid = deps.isUuidForRowRemap ?? isSpreadsheetBackendRowUuid
+    const optimisticRows = getPersistRowsForRemap(deps, emit.targetSheetId)
+    emitRowIdentityDiagnostics(deps, emit, 'grid_optimistic_row_identity_created', {
+      temporaryRowIdMatches,
+      rowIdentities: buildRowIdentityDiagnostics({
+        uiRowIds: affectedUiRowIds,
+        rows: optimisticRows,
+        isUuid
+      })
+    })
+  }
   const flushSlot = deps.propsRef.current.flushUnmaterializedRowsBeforePersistRef
   const needsFlush = needsRowMaterializationFlush(emit, unifiedOperations) && Boolean(flushSlot?.current)
+
+  if (affectedUiRowIds.length > 0) {
+    const isUuid = deps.isUuidForRowRemap ?? isSpreadsheetBackendRowUuid
+    const rowsBeforeFlush = getPersistRowsForRemap(deps, emit.targetSheetId)
+    emitRowIdentityDiagnostics(deps, emit, 'grid_row_materialization_before_flush', {
+      flushHookPresent: Boolean(flushSlot?.current),
+      needsFlush,
+      temporaryRowIdMatches,
+      rowIdentities: buildRowIdentityDiagnostics({
+        uiRowIds: affectedUiRowIds,
+        rows: rowsBeforeFlush,
+        isUuid
+      })
+    })
+  }
 
   if (needsFlush) {
     return (async () => {
       await deps.flushUnmaterializedRowsBeforePersist?.(emit.targetSheetId)
       const isUuid = deps.isUuidForRowRemap ?? isSpreadsheetBackendRowUuid
       const rows = getPersistRowsForRemap(deps, emit.targetSheetId)
-      const uiToBackend = buildUiToBackendRowIdMap(rows as ViewerRow[], isUuid)
-      const remapped = remapBatchOperationsWithUiToBackendRowMap(unifiedOperations, uiToBackend)
-      return runDetectedCellMutationPersistEmitSync(deps, emit, remapped)
+      const uiToBackend = buildUiToBackendRowIdMap(rows, isUuid)
+      const remapResult = remapBatchOperationsWithUiToBackendRowMap(unifiedOperations, uiToBackend)
+
+      if (affectedUiRowIds.length > 0) {
+        emitRowIdentityDiagnostics(deps, emit, 'grid_row_identity_after_remap_map_build', {
+          mapSize: remapResult.mapSize,
+          availableRemapKeys: remapResult.availableRemapKeys.slice(0, 20),
+          remappedEntries: remapResult.remappedEntries,
+          unresolvedTemporaryRowIdMatches: remapResult.unresolvedTemporaryRowIdMatches,
+          rowIdentities: buildRowIdentityDiagnostics({
+            uiRowIds: affectedUiRowIds,
+            rows,
+            uiToBackend,
+            isUuid
+          })
+        })
+      }
+
+      return runDetectedCellMutationPersistEmitSync(deps, emit, remapResult.operations)
     })()
   }
 

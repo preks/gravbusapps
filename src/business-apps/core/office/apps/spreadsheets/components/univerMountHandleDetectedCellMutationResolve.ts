@@ -29,12 +29,123 @@ import {
   selectionReconcileAllCellsRecentlyLocal,
   selectionReconcileHasAuthoritativeDiff
 } from './univerMountHandleDetectedCellMutationRemoteEcho'
+import { getSpreadsheetRowAtUniverGridIndex } from './univerGridAuthoritativeHelpers'
+import {
+  getViewerRowIdentityCandidates,
+  isSpreadsheetBackendRowUuid,
+  resolveBackendRowIdForViewerRow
+} from '../utils/spreadsheetRowIdentity'
 import type {
   DetectedCellMutationReady,
   HandleDetectedCellMutationArgs,
   ResolveDetectedCellMutationResult,
   UniverMountHandleDetectedCellMutationDeps
 } from './univerMountHandleDetectedCellMutation.types'
+
+type PlannerContextSourceName = 'props' | 'resolved'
+
+function countRowsWithBackendIdentity(rows: Record<string, unknown>[], isUuid: (value: string) => boolean): number {
+  return rows.filter(row => Boolean(resolveBackendRowIdForViewerRow(row, isUuid))).length
+}
+
+function resolvePlannerContextSource({
+  deps,
+  targetSheetId,
+  propsData,
+  propsColumns,
+  propsContext,
+  isUuid
+}: {
+  deps: UniverMountHandleDetectedCellMutationDeps
+  targetSheetId: string
+  propsData: Record<string, unknown>[]
+  propsColumns: UniverMountHandleDetectedCellMutationDeps['propsRef']['current']['columns']
+  propsContext: UniverMountHandleDetectedCellMutationDeps['contextRef']['current']
+  isUuid: (value: string) => boolean
+}): {
+  source: PlannerContextSourceName
+  columns: typeof propsColumns
+  data: Record<string, unknown>[]
+  context: typeof propsContext
+  resolvedDataLength: number | null
+  propsBackendRowCount: number
+  resolvedBackendRowCount: number | null
+} {
+  const propsBackendRowCount = countRowsWithBackendIdentity(propsData, isUuid)
+  const resolved = deps.propsRef.current.getSheetContext?.(targetSheetId) ?? null
+  if (!resolved) {
+    return {
+      source: 'props',
+      columns: propsColumns,
+      data: propsData,
+      context: propsContext,
+      resolvedDataLength: null,
+      propsBackendRowCount,
+      resolvedBackendRowCount: null
+    }
+  }
+
+  const resolvedBackendRowCount = countRowsWithBackendIdentity(resolved.data, isUuid)
+  const shouldUseResolved = resolvedBackendRowCount > 0 || resolved.data.length >= propsData.length
+
+  if (!shouldUseResolved) {
+    return {
+      source: 'props',
+      columns: propsColumns,
+      data: propsData,
+      context: propsContext,
+      resolvedDataLength: resolved.data.length,
+      propsBackendRowCount,
+      resolvedBackendRowCount
+    }
+  }
+
+  return {
+    source: 'resolved',
+    columns: resolved.columns,
+    data: resolved.data,
+    context: createUniverConversionContext(resolved.columns, resolved.data),
+    resolvedDataLength: resolved.data.length,
+    propsBackendRowCount,
+    resolvedBackendRowCount
+  }
+}
+
+function clearMaterializedClientRowIndexMappings({
+  rowIndices,
+  rowOffset,
+  data,
+  context,
+  idMap,
+  isUuid
+}: {
+  rowIndices: number[]
+  rowOffset: number
+  data: Record<string, unknown>[]
+  context: NonNullable<UniverMountHandleDetectedCellMutationDeps['contextRef']['current']>
+  idMap: Map<number, string>
+  isUuid: (value: string) => boolean
+}): Array<{ rowIndex: number; clientRowId: string; backendRowUuid: string }> {
+  const cleared: Array<{ rowIndex: number; clientRowId: string; backendRowUuid: string }> = []
+  for (const rowIndex of rowIndices) {
+    const globalRowIndex = rowIndex + rowOffset
+    const clientRowId = idMap.get(globalRowIndex)
+    if (!clientRowId) continue
+
+    const row = getSpreadsheetRowAtUniverGridIndex(data, globalRowIndex)
+    const backendRowUuid = row ? resolveBackendRowIdForViewerRow(row, isUuid) : undefined
+    const contextRowId = context.rowIndexToId.get(globalRowIndex)
+    const identityCandidates = row ? getViewerRowIdentityCandidates(row) : []
+    const sameLogicalRow =
+      identityCandidates.includes(clientRowId) || (typeof contextRowId === 'string' && contextRowId === clientRowId)
+
+    if (!backendRowUuid || !sameLogicalRow) continue
+
+    idMap.delete(globalRowIndex)
+    cleared.push({ rowIndex: globalRowIndex, clientRowId, backendRowUuid })
+  }
+  return cleared
+}
 
 export function resolveDetectedCellMutation(
   deps: UniverMountHandleDetectedCellMutationDeps,
@@ -43,6 +154,7 @@ export function resolveDetectedCellMutation(
   const {
     univerAPIRef,
     propsRef,
+    callbacksRef,
     contextRef,
     recentlyDuplicatedWorksheetIdsRef,
     remoteEchoSuppressionRef,
@@ -72,10 +184,8 @@ export function resolveDetectedCellMutation(
   const propSheetId = propsRef.current.sheet.id
   const targetSheetId =
     propsRef.current.multiSheetWorkbookMode && univerActiveSheetId ? univerActiveSheetId : propSheetId
-  const useResolvedContext =
-    propsRef.current.multiSheetWorkbookMode &&
-    typeof propsRef.current.getSheetContext === 'function' &&
-    targetSheetId !== propSheetId
+  const canResolveContext =
+    propsRef.current.multiSheetWorkbookMode && typeof propsRef.current.getSheetContext === 'function'
   const duplicateInsertedAt = recentlyDuplicatedWorksheetIdsRef.current.get(targetSheetId)
   if (duplicateInsertedAt != null) {
     if (Date.now() - duplicateInsertedAt < 3000) {
@@ -88,17 +198,29 @@ export function resolveDetectedCellMutation(
   const commandHasReplaceRangeStyleIntent = isRegionReplaceStyleCollaborationCommand(commandId)
   const shouldReadPostPasteCells = hasPasteFormattingIntentForSheet || commandHasReplaceRangeStyleIntent
 
-  let ctxBefore = contextRef.current
-  let contextColumns = propsRef.current.columns
-  let currentData = propsRef.current.data
-  if (useResolvedContext) {
-    const resolved = propsRef.current.getSheetContext?.(targetSheetId) ?? null
-    if (resolved) {
-      contextColumns = resolved.columns
-      currentData = resolved.data
-      ctxBefore = createUniverConversionContext(resolved.columns, resolved.data)
-    }
-  }
+  const isUuidForRowIdentity = deps.isUuidForRowRemap ?? isSpreadsheetBackendRowUuid
+  const plannerContext = canResolveContext
+    ? resolvePlannerContextSource({
+        deps,
+        targetSheetId,
+        propsData: propsRef.current.data,
+        propsColumns: propsRef.current.columns,
+        propsContext: contextRef.current,
+        isUuid: isUuidForRowIdentity
+      })
+    : {
+        source: 'props' as const,
+        columns: propsRef.current.columns,
+        data: propsRef.current.data,
+        context: contextRef.current,
+        resolvedDataLength: null,
+        propsBackendRowCount: countRowsWithBackendIdentity(propsRef.current.data, isUuidForRowIdentity),
+        resolvedBackendRowCount: null
+      }
+  const ctxBefore = plannerContext.context
+  const contextColumns = plannerContext.columns
+  const currentData = plannerContext.data
+  const useResolvedContext = plannerContext.source === 'resolved'
   if (!ctxBefore) return { status: 'return', value: false }
   const payloadCellValueForValueMerge = preserveUndefinedAsNull ? undefined : payloadCellValue
   const payloadCoordinateModeHint = detectCellMatrixCoordinateModeHint(ranges, payloadCellValueForValueMerge)
@@ -250,7 +372,41 @@ export function resolveDetectedCellMutation(
     }
   }
 
-  const newRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
+  const existingMappedRowIndices = Array.from(newRowClientIdByIndexRef.current.keys())
+    .map(globalRowIndex => globalRowIndex - rowOffset)
+    .filter(rowIndex => rowIndex >= 0)
+  const candidateNewRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
+  const clearedClientRowIndexMappings = clearMaterializedClientRowIndexMappings({
+    rowIndices: Array.from(new Set([...existingMappedRowIndices, ...candidateNewRowIndices])),
+    rowOffset,
+    data: currentData,
+    context: ctxBefore,
+    idMap: newRowClientIdByIndexRef.current,
+    isUuid: isUuidForRowIdentity
+  })
+  const newRowIndices = candidateNewRowIndices.filter(rowIndex => {
+    const globalRowIndex = rowIndex + rowOffset
+    const row = getSpreadsheetRowAtUniverGridIndex(currentData, globalRowIndex)
+    return !row || !resolveBackendRowIdForViewerRow(row, isUuidForRowIdentity)
+  })
+  callbacksRef.current.onDiagnosticsTraceEvent?.({
+    source: 'client',
+    stage: 'grid_planner_context_source_used',
+    payload: {
+      targetSheetId,
+      contextSource: plannerContext.source,
+      propSheetId,
+      propsDataLength: propsRef.current.data.length,
+      currentDataLength: currentData.length,
+      contextRowCount: ctxBefore.rowIndexToId.size,
+      resolvedDataLength: plannerContext.resolvedDataLength,
+      propsBackendRowCount: plannerContext.propsBackendRowCount,
+      resolvedBackendRowCount: plannerContext.resolvedBackendRowCount,
+      candidateNewRowIndices,
+      newRowIndices,
+      clearedClientRowIndexMappings
+    }
+  })
   const pendingNewRowsUpdate =
     newRowIndices.length > 0
       ? (() => {

@@ -19,21 +19,74 @@ describe('remapBatchOperationsWithUiToBackendRowMap', () => {
       }
     ]
     const next = remapBatchOperationsWithUiToBackendRowMap(operations, map)
-    const cells = (next[0]?.data as { cells: Array<{ rowId: string }> }).cells
+    const cells = (next.operations[0]?.data as { cells: Array<{ rowId: string }> }).cells
     expect(cells[0]?.rowId).toBe(backend)
     expect(cells[1]?.rowId).toBe(backend)
+    expect(next.remappedEntries).toEqual([
+      expect.objectContaining({
+        operationType: 'set_range',
+        fieldPath: 'data.cells[0].rowId',
+        fromRowId: client,
+        toRowId: backend
+      })
+    ])
   })
 
-  it('rewrites set_cell and clear_cell rowId values', () => {
+  it('rewrites set_cell, clear_cell, and delete_rows rowId values', () => {
     const backend = '4353823a-03a4-4710-ab36-d8b935540862'
     const client = 'client_abc'
     const map = new Map([[client, backend]])
     const operations: SpreadsheetBatchOperation[] = [
       { operationId: 'a', type: 'set_cell', data: { rowId: client, columnName: 'x', value: 1 } },
-      { operationId: 'b', type: 'clear_cell', data: { rowId: client, columnName: 'y' } }
+      { operationId: 'b', type: 'clear_cell', data: { rowId: client, columnName: 'y' } },
+      { operationId: 'c', type: 'delete_rows', data: { rowIds: [client, backend] } }
     ]
     const next = remapBatchOperationsWithUiToBackendRowMap(operations, map)
-    expect((next[0]?.data as { rowId: string }).rowId).toBe(backend)
-    expect((next[1]?.data as { rowId: string }).rowId).toBe(backend)
+    expect((next.operations[0]?.data as { rowId: string }).rowId).toBe(backend)
+    expect((next.operations[1]?.data as { rowId: string }).rowId).toBe(backend)
+    expect((next.operations[2]?.data as { rowIds: string[] }).rowIds).toEqual([backend, backend])
+  })
+
+  it('preserves operation shape and does not touch formulas or unrelated strings', () => {
+    const backend = '11111111-1111-4111-8111-111111111111'
+    const client = 'client_formula_row'
+    const map = new Map([[client, backend]])
+    const operations: SpreadsheetBatchOperation[] = [
+      {
+        operationId: 'range-1',
+        type: 'set_range',
+        data: {
+          cells: [
+            {
+              rowId: client,
+              columnName: 'formula',
+              value: '=IF(A1=\"client_formula_row\",1,0)',
+              note: 'keep client_formula_row literal'
+            }
+          ],
+          comment: 'client_formula_row should not be rewritten here'
+        }
+      }
+    ]
+
+    const next = remapBatchOperationsWithUiToBackendRowMap(operations, map)
+    expect(next.operations).toEqual([
+      {
+        operationId: 'range-1',
+        type: 'set_range',
+        data: {
+          cells: [
+            {
+              rowId: backend,
+              columnName: 'formula',
+              value: '=IF(A1=\"client_formula_row\",1,0)',
+              note: 'keep client_formula_row literal'
+            }
+          ],
+          comment: 'client_formula_row should not be rewritten here'
+        }
+      }
+    ])
+    expect(next.unresolvedTemporaryRowIdMatches).toEqual([])
   })
 })

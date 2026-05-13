@@ -123,7 +123,11 @@ import { scheduleCoalescedTimeout } from './utils/collaborationRepairScheduler'
 import { exportSnapshotAsXlsx } from './utils/exportToExcel'
 import { areCanonicalSheetIdsEqual, resolveReconciledSheetId } from './utils/reconcileTemporarySheetId'
 import { resolveRenderedSpreadsheetViewType } from './utils/resolveRenderedSpreadsheetViewType'
-import { buildUiToBackendRowIdMap, resolveBackendRowIdForViewerRow } from './utils/spreadsheetRowIdentity'
+import {
+  buildRowIdentityDiagnostics,
+  buildUiToBackendRowIdMap,
+  resolveBackendRowIdForViewerRow
+} from './utils/spreadsheetRowIdentity'
 import { shouldMarkDirtyForSnapshotLifecycle } from './utils/spreadsheetPersistenceSemantics'
 import { buildDuplicateVisualWorksheetSnapshot } from './utils/workbookStructureFormatting'
 import type { StructuralWsDedupToken } from './utils/spreadsheetStructuralWsDedup'
@@ -133,6 +137,7 @@ import {
   splitBatchOperationsByApproxJsonSize,
   summarizeUnifiedBatchOperationsForDiagnostics
 } from './utils/spreadsheetUnifiedBatchSubmitUtils'
+import { remapBatchOperationsWithUiToBackendRowMap } from './utils/spreadsheetBatchOperationRowRemap'
 import { SpreadsheetViewerLayout } from './components/SpreadsheetViewerLayout'
 import { createSpreadsheetTraceId } from './services/spreadsheetDiagnostics'
 import {
@@ -160,7 +165,6 @@ import {
   overlaySnapshotIfRowsMismatch,
   partitionCellUpdatesByBackendRowId,
   removePendingSnapshotClearCoordinates,
-  replaceClientRowsWithCreatedRows,
   viewerRowId,
   type ViewerRow
 } from './utils/spreadsheetViewerRows'
@@ -2318,6 +2322,27 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     handleCellChangeRef.current = handleCellChange
   }, [handleCellChange])
 
+  const logRowIdentityDiagnostics = useCallback(
+    (stage: string, payload: Record<string, unknown>) => {
+      const targetSheetId =
+        typeof payload.targetSheetId === 'string'
+          ? resolveReconciledSheetId(payload.targetSheetId, createdSheetIdAliasesRef.current)
+          : activeSheetIdRef.current
+      debugLog('row identity diagnostics', {
+        stage,
+        targetSheetId,
+        ...payload
+      })
+      enqueueDiagnosticsTraceEvent({
+        source: 'client',
+        stage,
+        sheetId: targetSheetId,
+        payload
+      })
+    },
+    [enqueueDiagnosticsTraceEvent]
+  )
+
   const { persistAddedRowsWithBatch, persistSingleAddedRow } = useSpreadsheetRowPersistencePipeline({
     activeSheetId,
     mutationFacade,
@@ -2327,7 +2352,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     pendingCellChangesRef,
     persistPendingCellJournal,
     buildCreatedRowsFromBatch,
-    onFlushDeferredCellEmits: () => collaborationManagerRef.current?.tryFlushDeferredCellEmits()
+    onFlushDeferredCellEmits: () => collaborationManagerRef.current?.tryFlushDeferredCellEmits(),
+    onRowIdentityDiagnostics: logRowIdentityDiagnostics
   })
 
   const { processUniverDataChangeRef } = useSpreadsheetUniverRowCreatePipeline({
@@ -2361,7 +2387,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     getActiveSessionRows,
     getRowsForSheet: getKnownRowsForSheet,
     buildAddRowPayloadsFromUniverRows,
-    replaceClientRowsWithCreatedRows,
     commitRowsForSheet: (targetSheetId, rows, options) => {
       if (areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
         commitLocalSheetData(rows, options)
@@ -2372,11 +2397,34 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         syncGrid: false
       })
     },
+    onRowsMaterializedContextSync: (targetSheetId, rows, meta) => {
+      const isActiveTarget = areCanonicalSheetIdsEqual(
+        targetSheetId,
+        activeSheetIdRef.current,
+        createdSheetIdAliasesRef.current
+      )
+      if (isActiveTarget) {
+        spreadsheetGridRef.current?.syncGridConversionContext?.(spreadsheetColumnsForGrid, rows)
+      }
+      logRowIdentityDiagnostics('row_materialization_context_synced', {
+        targetSheetId,
+        contextSynced: isActiveTarget,
+        isActiveTarget,
+        rowCount: rows.length,
+        affectedUiRowIds: meta.affectedUiRowIds,
+        rowIdentities: buildRowIdentityDiagnostics({
+          uiRowIds: meta.affectedUiRowIds,
+          rows,
+          isUuid
+        })
+      })
+    },
     persistAddedRowsWithBatch,
     persistSingleAddedRow,
     recoverFromVersionConflict,
     summarizeRowsForDebug,
     multiSheetDebugLog,
+    onRowIdentityDiagnostics: logRowIdentityDiagnostics,
     pendingCreatedSheetSelectionRef,
     createdSheetIdAliasesRef
   })
@@ -2756,7 +2804,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (!Array.isArray(batchData.operations) || batchData.operations.length === 0) return
       const targetSheetId = resolveReconciledSheetId(batchData.sheetId, createdSheetIdAliasesRef.current)
       const operationTypes = batchData.operations.map(operation => operation.type)
-      const mappedOperations: SpreadsheetBatchOperation[] = batchData.operations.map(operation => ({
+      let mappedOperations: SpreadsheetBatchOperation[] = batchData.operations.map(operation => ({
         operationId: createOperationId(operation.type),
         type: operation.type,
         data: {
@@ -2764,7 +2812,63 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           ...(typeof (operation.data as { sheetId?: unknown })?.sheetId === 'string' ? { sheetId: targetSheetId } : {})
         } as Record<string, unknown>
       }))
-      const diagnosticsSummary = summarizeUnifiedBatchOperationsForDiagnostics(mappedOperations)
+      let diagnosticsSummary = summarizeUnifiedBatchOperationsForDiagnostics(mappedOperations)
+      const flushHook = flushUnmaterializedRowsBeforePersistRef.current
+      const affectedUiRowIds = Array.from(new Set(diagnosticsSummary.temporaryRowIdMatches.map(match => match.rowId)))
+
+      if (affectedUiRowIds.length > 0) {
+        const rowsBeforeFlush = getPersistSheetRowsSnapshotForGrid(targetSheetId)
+        logRowIdentityDiagnostics('viewer_row_materialization_before_flush', {
+          targetSheetId,
+          traceId: batchData.traceId ?? null,
+          flushHookPresent: Boolean(flushHook),
+          temporaryRowIdMatches: diagnosticsSummary.temporaryRowIdMatches,
+          rowIdentities: buildRowIdentityDiagnostics({
+            uiRowIds: affectedUiRowIds,
+            rows: rowsBeforeFlush,
+            isUuid
+          })
+        })
+      }
+
+      const rebuildOperationsFromLatestSnapshot = (
+        attempt: 'after_flush' | 'after_microtask'
+      ): typeof diagnosticsSummary => {
+        const rows = getPersistSheetRowsSnapshotForGrid(targetSheetId)
+        const uiToBackend = buildUiToBackendRowIdMap(rows, isUuid)
+        const remapResult = remapBatchOperationsWithUiToBackendRowMap(mappedOperations, uiToBackend)
+        mappedOperations = remapResult.operations
+        const nextSummary = summarizeUnifiedBatchOperationsForDiagnostics(mappedOperations)
+        const attemptUiRowIds = Array.from(new Set(nextSummary.temporaryRowIdMatches.map(match => match.rowId)))
+
+        logRowIdentityDiagnostics('viewer_row_identity_after_remap_map_build', {
+          targetSheetId,
+          traceId: batchData.traceId ?? null,
+          attempt,
+          mapSize: remapResult.mapSize,
+          availableRemapKeys: remapResult.availableRemapKeys.slice(0, 20),
+          remappedEntries: remapResult.remappedEntries,
+          unresolvedTemporaryRowIdMatches: remapResult.unresolvedTemporaryRowIdMatches,
+          rowIdentities: buildRowIdentityDiagnostics({
+            uiRowIds: attemptUiRowIds.length > 0 ? attemptUiRowIds : affectedUiRowIds,
+            rows,
+            uiToBackend,
+            isUuid
+          })
+        })
+
+        return nextSummary
+      }
+
+      if (diagnosticsSummary.temporaryRowIdMatches.length > 0 && flushHook) {
+        await flushHook(targetSheetId)
+        diagnosticsSummary = rebuildOperationsFromLatestSnapshot('after_flush')
+        if (diagnosticsSummary.temporaryRowIdMatches.length > 0) {
+          await new Promise<void>(resolve => queueMicrotask(resolve))
+          diagnosticsSummary = rebuildOperationsFromLatestSnapshot('after_microtask')
+        }
+      }
+
       const chunks = splitBatchOperationsByApproxJsonSize(
         mappedOperations,
         SPREADSHEET_UNIFIED_MUTATION_SUBMIT_MAX_BYTES
@@ -2775,7 +2879,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         operationCount: batchData.operations.length,
         operationTypes,
         chunkCount: chunks.length,
-        approximatePayloadBytes: diagnosticsSummary.approximatePayloadBytes
+        approximatePayloadBytes: diagnosticsSummary.approximatePayloadBytes,
+        temporaryRowIdCount: diagnosticsSummary.temporaryRowIdCount
       })
       enqueueDiagnosticsTraceEvent({
         source: 'client',
@@ -2787,10 +2892,37 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           operationTypes,
           chunkCount: chunks.length,
           approximatePayloadBytes: diagnosticsSummary.approximatePayloadBytes,
-          hasNonBackendRowIdInSetRange: diagnosticsSummary.hasNonBackendRowIdInSetRange
+          hasNonBackendRowIdInSetRange: diagnosticsSummary.hasNonBackendRowIdInSetRange,
+          temporaryRowIdCount: diagnosticsSummary.temporaryRowIdCount,
+          temporaryRowIdMatches: diagnosticsSummary.temporaryRowIdMatches,
+          suspiciousClientIds: diagnosticsSummary.suspiciousClientIds
         }
       })
+
       try {
+        if (diagnosticsSummary.temporaryRowIdMatches.length > 0) {
+          const rowsBeforeBlock = getPersistSheetRowsSnapshotForGrid(targetSheetId)
+          const blockingError = new Error(
+            `Blocked spreadsheet batch submit because semantic row-id fields still contain temporary client ids: ${diagnosticsSummary.temporaryRowIdMatches
+              .map(match => `${match.operationType}:${match.fieldPath}=${match.rowId}`)
+              .join(', ')}`
+          )
+          logRowIdentityDiagnostics('viewer_unified_mutation_submit_blocked', {
+            targetSheetId,
+            traceId: batchData.traceId ?? null,
+            flushHookPresent: Boolean(flushHook),
+            temporaryRowIdMatches: diagnosticsSummary.temporaryRowIdMatches,
+            suspiciousClientIds: diagnosticsSummary.suspiciousClientIds,
+            rowIdentities: buildRowIdentityDiagnostics({
+              uiRowIds: Array.from(new Set(diagnosticsSummary.temporaryRowIdMatches.map(match => match.rowId))),
+              rows: rowsBeforeBlock,
+              isUuid
+            }),
+            message: blockingError.message
+          })
+          throw blockingError
+        }
+
         for (const chunk of chunks) {
           await submitMutationBatch({
             sheetId: targetSheetId,
@@ -2819,7 +2951,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         console.error('[SpreadsheetAppViewer] unified mutation batch op failed', err)
       }
     },
-    [submitMutationBatch, createOperationId, enqueueDiagnosticsTraceEvent]
+    [
+      submitMutationBatch,
+      createOperationId,
+      enqueueDiagnosticsTraceEvent,
+      getPersistSheetRowsSnapshotForGrid,
+      isUuid,
+      logRowIdentityDiagnostics
+    ]
   )
 
   const handleGridInitLifecycle = useCallback(

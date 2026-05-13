@@ -7,6 +7,11 @@ import {
 } from '../services/SpreadsheetApiService'
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { SpreadsheetMutationBatchRequest, SpreadsheetMutationFacade } from './SpreadsheetMutationFacade'
+import {
+  collectKnownRowIdFieldMatches,
+  detectTemporaryRowIdsInKnownRowIdFields
+} from '../utils/spreadsheetUnifiedBatchSubmitUtils'
+import { isSpreadsheetBackendRowUuid } from '../utils/spreadsheetRowIdentity'
 
 type SpreadsheetTraceContext = {
   traceSessionId?: string
@@ -80,6 +85,51 @@ const applyOperationBatch = async ({
     },
     keepalive ? { keepalive: true } : undefined
   )
+
+const assertNoTemporaryRowIdsInKnownFields = ({
+  operations,
+  targetSheetId,
+  traceId,
+  emitTraceEvent
+}: {
+  operations: SpreadsheetBatchOperation[]
+  targetSheetId: string
+  traceId: string
+  emitTraceEvent: (event: SpreadsheetTraceEventInput) => void
+}): void => {
+  const knownRowIdFields = collectKnownRowIdFieldMatches(operations)
+  const temporaryRowIdMatches = detectTemporaryRowIdsInKnownRowIdFields(operations)
+  emitTraceEvent({
+    source: 'client',
+    stage: 'http_batch_pre_submit_row_id_check',
+    traceId,
+    payload: {
+      targetSheetId,
+      temporaryRowIdMatches,
+      hasTemporaryRowIdsInKnownFields: temporaryRowIdMatches.length > 0,
+      submittedRowIds: knownRowIdFields.map(match => ({
+        operationType: match.operationType,
+        fieldPath: match.fieldPath,
+        submittedRowId: match.rowId,
+        submittedRowIdIsBackendUuid: isSpreadsheetBackendRowUuid(match.rowId),
+        containsTemporaryClientRowId: temporaryRowIdMatches.some(
+          temporaryMatch =>
+            temporaryMatch.operationIndex === match.operationIndex &&
+            temporaryMatch.fieldPath === match.fieldPath &&
+            temporaryMatch.rowId === match.rowId
+        )
+      }))
+    }
+  })
+
+  if (temporaryRowIdMatches.length === 0) return
+
+  throw new Error(
+    `Blocked spreadsheet /operations/batch submit because known semantic row-id fields still contain temporary client ids: ${temporaryRowIdMatches
+      .map(match => `${match.operationType}:${match.fieldPath}=${match.rowId}`)
+      .join(', ')}`
+  )
+}
 
 export const createSpreadsheetMutationBatchSubmitter = (
   options: CreateSpreadsheetMutationBatchSubmitterOptions
@@ -165,6 +215,12 @@ export const createSpreadsheetMutationBatchSubmitter = (
           operations,
           sourceTraceIds: traceMeta?.sourceTraceIds ?? []
         }
+      })
+      assertNoTemporaryRowIdsInKnownFields({
+        operations,
+        targetSheetId,
+        traceId,
+        emitTraceEvent: options.emitTraceEvent
       })
 
       const response = await applyOperationBatch({

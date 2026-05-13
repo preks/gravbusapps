@@ -772,6 +772,15 @@ export function useSpreadsheetCollaboration({
   const [headerParticipants, setHeaderParticipants] = useState<DocumentParticipant[]>([])
   const [cursorParticipants, setCursorParticipants] = useState<DocumentParticipant[]>([])
 
+  /** Stable across cursor/selection socket churn; only changes when collaborator identities change */
+  const participantAvatarUserIdsKey = useMemo(() => {
+    const userIds = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean) as string[])]
+    if (userIds.length === 0) return ''
+    return userIds.toSorted((a, b) => a.localeCompare(b)).join('\0')
+  }, [rawParticipants])
+
+  const [participantAvatarByUserId, setParticipantAvatarByUserId] = useState<Record<string, string>>({})
+
   // Fetch current user info
   useEffect(() => {
     const fetchCurrentUserInfo = async () => {
@@ -808,35 +817,17 @@ export function useSpreadsheetCollaboration({
     fetchCurrentUserInfo()
   }, [accessToken, authToken, fallbackUserName, graphqlClient])
 
-  // Single avatar fetch for all participants (deduplicated)
+  // Avatar thumbnails: fetch only when the set of collaborator userIds changes (not on each cursor/selection update)
   useEffect(() => {
+    let cancelled = false
+
     async function fetchAvatars() {
-      if (!rawParticipants.length || !authToken) {
-        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
-        const remoteParticipants = filterCurrentSocketParticipant(
-          rawParticipants,
-          clientRef.current?.getSocket()?.id,
-          tokenUserId ?? currentUserIdRef.current
-        ).map(mapSocketParticipantToParticipant)
-        setCursorParticipants(prev =>
-          areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
-        )
+      if (!participantAvatarUserIdsKey || !authToken) {
+        setParticipantAvatarByUserId({})
         return
       }
 
-      const userIds = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
-      if (userIds.length === 0) {
-        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
-        const remoteParticipants = filterCurrentSocketParticipant(
-          rawParticipants,
-          clientRef.current?.getSocket()?.id,
-          tokenUserId ?? currentUserIdRef.current
-        ).map(mapSocketParticipantToParticipant)
-        setCursorParticipants(prev =>
-          areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
-        )
-        return
-      }
+      const userIds = participantAvatarUserIdsKey.split('\0')
 
       try {
         const query = `
@@ -852,45 +843,76 @@ export function useSpreadsheetCollaboration({
           Employee: Array<{ id: string; userId: string; pictureThumbnail: string | null }>
         }>(query, { userIds })
 
-        const avatarMap = new Map<string, string>()
+        if (cancelled) return
+
+        const next: Record<string, string> = {}
         result?.Employee?.forEach(emp => {
           if (!emp.pictureThumbnail) return
           const avatarUrl = emp.pictureThumbnail.startsWith('data:')
             ? emp.pictureThumbnail
             : `data:image/png;base64,${emp.pictureThumbnail}`
-          avatarMap.set(emp.userId, avatarUrl)
-          avatarMap.set(emp.id, avatarUrl)
+          next[emp.userId] = avatarUrl
+          next[emp.id] = avatarUrl
         })
-
-        const enriched = rawParticipants.map(p => ({
-          ...p,
-          avatarUrl: avatarMap.get(p.userId) || undefined
-        }))
-        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, enriched) ? prev : enriched))
-        const remoteParticipants = filterCurrentSocketParticipant(
-          enriched,
-          clientRef.current?.getSocket()?.id,
-          tokenUserId ?? currentUserIdRef.current
-        ).map(mapSocketParticipantToParticipant)
-        setCursorParticipants(prev =>
-          areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
-        )
+        setParticipantAvatarByUserId(next)
       } catch (error) {
-        console.error('[SpreadsheetCollaboration] Failed to fetch participant avatars:', error)
-        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
-        const remoteParticipants = filterCurrentSocketParticipant(
-          rawParticipants,
-          clientRef.current?.getSocket()?.id,
-          tokenUserId ?? currentUserIdRef.current
-        ).map(mapSocketParticipantToParticipant)
-        setCursorParticipants(prev =>
-          areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
-        )
+        if (!cancelled) {
+          console.error('[SpreadsheetCollaboration] Failed to fetch participant avatars:', error)
+          setParticipantAvatarByUserId({})
+        }
       }
     }
 
-    fetchAvatars()
-  }, [rawParticipants, authToken, graphqlClient, tokenUserId])
+    void fetchAvatars()
+
+    return () => {
+      cancelled = true
+    }
+  }, [participantAvatarUserIdsKey, authToken, graphqlClient])
+
+  // Merge latest participant list (cursor/selection) with cached avatar map
+  useEffect(() => {
+    if (!rawParticipants.length || !authToken) {
+      setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+      const remoteParticipants = filterCurrentSocketParticipant(
+        rawParticipants,
+        clientRef.current?.getSocket()?.id,
+        tokenUserId ?? currentUserIdRef.current
+      ).map(mapSocketParticipantToParticipant)
+      setCursorParticipants(prev =>
+        areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
+      )
+      return
+    }
+
+    const userIds = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
+    if (userIds.length === 0) {
+      setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
+      const remoteParticipants = filterCurrentSocketParticipant(
+        rawParticipants,
+        clientRef.current?.getSocket()?.id,
+        tokenUserId ?? currentUserIdRef.current
+      ).map(mapSocketParticipantToParticipant)
+      setCursorParticipants(prev =>
+        areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
+      )
+      return
+    }
+
+    const enriched = rawParticipants.map(p => ({
+      ...p,
+      avatarUrl: participantAvatarByUserId[p.userId] || undefined
+    }))
+    setHeaderParticipants(prev => (areParticipantsEquivalent(prev, enriched) ? prev : enriched))
+    const remoteParticipants = filterCurrentSocketParticipant(
+      enriched,
+      clientRef.current?.getSocket()?.id,
+      tokenUserId ?? currentUserIdRef.current
+    ).map(mapSocketParticipantToParticipant)
+    setCursorParticipants(prev =>
+      areCursorParticipantsEquivalent(prev, remoteParticipants) ? prev : remoteParticipants
+    )
+  }, [rawParticipants, participantAvatarByUserId, authToken, tokenUserId])
 
   return {
     headerParticipants,

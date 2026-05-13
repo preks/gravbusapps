@@ -179,4 +179,50 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
       expect.any(Object)
     )
   })
+
+  it('blocks /operations/batch when known semantic row-id fields still contain temporary client ids', async () => {
+    const { options } = buildOptions()
+    const applyOperationBatchSpy = jest
+      .spyOn(SpreadsheetApiService, 'applyOperationBatch')
+      .mockResolvedValue(buildResponse(7))
+    const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
+
+    await expect(
+      submitBatch({
+        sheetId: 'sheet-1',
+        operations: [
+          {
+            operationId: 'op-1',
+            type: 'set_range',
+            data: { cells: [{ rowId: 'client_row_1', columnName: 'ColumnA', value: 'draft' }] }
+          }
+        ],
+        batchIdPrefix: 'set_range'
+      })
+    ).rejects.toThrow(/temporary client ids/)
+
+    expect(applyOperationBatchSpy).not.toHaveBeenCalled()
+    expect(options.emitTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'http_batch_pre_submit_row_id_check',
+        payload: expect.objectContaining({
+          hasTemporaryRowIdsInKnownFields: true,
+          temporaryRowIdMatches: [
+            expect.objectContaining({
+              operationType: 'set_range',
+              fieldPath: 'data.cells[0].rowId',
+              rowId: 'client_row_1'
+            })
+          ],
+          submittedRowIds: [
+            expect.objectContaining({
+              submittedRowId: 'client_row_1',
+              submittedRowIdIsBackendUuid: false,
+              containsTemporaryClientRowId: true
+            })
+          ]
+        })
+      })
+    )
+  })
 })
