@@ -12,8 +12,16 @@ import translations from '../employee-record/_i18n'
 
 export const MyDevelopment: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const { t } = useTranslation(translations)
-  const { loading, error, employee, employeeId, feedback, performanceGoals, devFeatureFlag } =
-    useCurrentUserEmployeeRecordData(accessToken, userInfo)
+  const {
+    loading,
+    error,
+    employee,
+    employeeId,
+    feedback,
+    performanceGoals,
+    previewEnabledFlag,
+    performanceEvaluationFeatureFlag
+  } = useCurrentUserEmployeeRecordData(accessToken, userInfo)
 
   return (
     <HrSelfServiceEmployeeBoundary
@@ -40,7 +48,8 @@ export const MyDevelopment: React.FC<BusinessAppContextProps> = ({ accessToken, 
                 accessToken={accessToken}
                 userInfo={userInfo}
                 isSelfView
-                devFeatureFlag={devFeatureFlag}
+                previewEnabledFlag={previewEnabledFlag}
+                performanceEvaluationFeatureFlag={performanceEvaluationFeatureFlag}
                 employeePerformanceGoals={performanceGoals}
                 feedback={feedback}
                 urlMode="standalone"

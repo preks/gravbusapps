@@ -527,8 +527,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                     accessToken={accessToken}
                     userInfo={userInfo}
                     isSelfView={isSelfView}
-                    devFeatureFlag={devFeatureFlag as boolean}
-                    previewEnabledFlag={previewEnabledFlag as boolean}
+                    previewEnabledFlag={previewEnabledFlag}
+                    performanceEvaluationFeatureFlag={hrDevelopmentFeatureFlag === true}
                     employeePerformanceGoals={performanceGoals}
                     feedback={feedback}
                   />

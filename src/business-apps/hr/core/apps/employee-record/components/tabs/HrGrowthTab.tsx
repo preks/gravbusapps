@@ -20,8 +20,8 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   employee: Employee
   employeeId: string
   isSelfView: boolean
-  devFeatureFlag: boolean
   previewEnabledFlag?: boolean
+  performanceEvaluationFeatureFlag?: boolean
   employeePerformanceGoals?: EmployeePerformanceGoal[]
   feedback?: EmployeeFeedback[]
   /** `standalone`: My Development page — URL uses only `subView`, no `tab=hrGrowth`. */
@@ -49,10 +49,10 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   accessToken,
   userInfo,
   isSelfView,
-  devFeatureFlag,
   employeePerformanceGoals,
   feedback,
   previewEnabledFlag = false,
+  performanceEvaluationFeatureFlag = false,
   urlMode = 'employeeRecord'
 }) => {
   const { t } = useTranslation(translations)
@@ -123,7 +123,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    if (!devFeatureFlag && activeSubView === 'performanceEvaluation') {
+    if (!performanceEvaluationFeatureFlag && activeSubView === 'performanceEvaluation') {
       const newSubView = 'skills'
       setActiveSubView(newSubView)
       updateUrl(newSubView)
@@ -141,8 +141,8 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
       updateUrl(newSubView)
     }
   }, [
-    devFeatureFlag,
     activeSubView,
+    performanceEvaluationFeatureFlag,
     permissionsLoading,
     hasPerformancePermission,
     employeeRecordAllHrBackoffice.loading,
@@ -208,7 +208,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               </div>
             </TabsTrigger>
           )}
-          {devFeatureFlag && (
+          {performanceEvaluationFeatureFlag && (
             <TabsTrigger
               value="performanceEvaluation"
               data-testid="hr-growth-performance-evaluation-subtab"
@@ -269,7 +269,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
           </TabsContent>
         )}
 
-        {devFeatureFlag && (
+        {performanceEvaluationFeatureFlag && (
           <TabsContent
             value="performanceEvaluation"
             data-testid="hr-growth-performance-evaluation-content"
