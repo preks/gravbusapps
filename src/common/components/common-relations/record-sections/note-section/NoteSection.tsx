@@ -19,8 +19,8 @@ import { NoteInput } from './NoteInput'
 
 const quickNoteSchema = z.object({
   details: z.object({
-    title: z.string().min(1, 'Title is required'),
-    text: z.string().min(1, 'Note text is required')
+    title: z.string().trim().min(1, 'Title is required'),
+    text: z.string().trim().min(1, 'Note text is required')
   }),
   reminderDate: z.string().optional(),
   _pendingFiles: z.array(z.any()).optional()

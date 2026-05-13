@@ -8,9 +8,9 @@ export const leadSchema = z.object({
   // BaseEntity fields
   id: z.string().optional(),
   version: z.number().optional(),
-  ownerEmployeeId: z.string().min(1, 'Owner is required'),
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
+  ownerEmployeeId: z.string().trim().min(1, 'Owner is required'),
+  firstName: z.string().trim().min(1, 'First name is required'),
+  lastName: z.string().trim().min(1, 'Last name is required'),
   companyName: nullableString(),
   leadStatusRef: nullableString(),
   leadSourceRef: nullableString(),

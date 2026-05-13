@@ -28,8 +28,8 @@ const createAssociationSchema = (t: (key: string) => string) =>
   z.object({
     id: z.string().optional(),
     version: z.number().optional(),
-    investmentCompanyId: z.string().min(1, t('validation-company-required')),
-    investmentCompanyGroupId: z.string().min(1, t('validation-group-required'))
+    investmentCompanyId: z.string().trim().min(1, t('validation-company-required')),
+    investmentCompanyGroupId: z.string().trim().min(1, t('validation-group-required'))
   })
 
 type AssociationFormData = z.infer<ReturnType<typeof createAssociationSchema>>

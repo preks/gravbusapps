@@ -73,7 +73,7 @@ import {
 // IRM-specific schema extension for Opportunity (adds investment fields)
 // Use opportunitySchemaBase (without refinements) to allow extension
 const baseInvestmentOpportunitySchema = opportunitySchemaBase.extend({
-  investmentName: z.string().min(1, 'Investment Name is required'),
+  investmentName: z.string().trim().min(1, 'Investment Name is required'),
   dealType: z.string().nullable().optional()
 })
 

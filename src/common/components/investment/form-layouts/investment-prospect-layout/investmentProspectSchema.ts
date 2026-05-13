@@ -47,7 +47,7 @@ const createValidationMessages = (translator?: ValidationTranslator): ProspectVa
 })
 
 const createRequiredStringRule = (errorMessage: string): z.ZodTypeAny =>
-  z.string({ message: errorMessage }).min(1, errorMessage)
+  z.string({ message: errorMessage }).trim().min(1, errorMessage)
 
 const hasRequiredObjectId = (value: unknown): boolean => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -55,12 +55,12 @@ const hasRequiredObjectId = (value: unknown): boolean => {
   }
 
   const id = (value as { id?: unknown }).id
-  return typeof id === 'string' && id.length > 0
+  return typeof id === 'string' && id.trim().length > 0
 }
 
 const hasRequiredSelectionValue = (value: unknown): boolean => {
   if (typeof value === 'string') {
-    return value.length > 0
+    return value.trim().length > 0
   }
 
   return hasRequiredObjectId(value)
@@ -95,10 +95,10 @@ const preprocessNumberOptional = (val: any): number | null | undefined => {
  * Catalog entry schema - accepts either string ID, catalog object, or null (for clearing)
  */
 const catalogEntrySchema = z.union([
-  z.string().min(1),
+  z.string().trim().min(1),
   z
     .object({
-      id: z.string().min(1),
+      id: z.string().trim().min(1),
       code: z.string().optional(),
       value: z.string().optional()
     })

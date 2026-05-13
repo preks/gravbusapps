@@ -39,7 +39,7 @@ type LeadFormProps = BusinessAppContextProps
 
 // Base investment lead schema (will be extended with investmentTypeId)
 const baseInvestmentLeadSchema = leadSchema.extend({
-  investmentName: z.string().min(1, 'Investment Name is required'),
+  investmentName: z.string().trim().min(1, 'Investment Name is required'),
   dealType: z.string().nullable().optional()
 })
 

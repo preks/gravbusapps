@@ -29,8 +29,8 @@ const createOwnershipSchema = (t: (key: string) => string) =>
     .object({
       id: z.string().optional(),
       version: z.number().optional(),
-      investmentCompanyId: z.string().min(1, t('validation-company-required')),
-      ownerInvestmentCompanyId: z.string().min(1, t('validation-owner-required')),
+      investmentCompanyId: z.string().trim().min(1, t('validation-company-required')),
+      ownerInvestmentCompanyId: z.string().trim().min(1, t('validation-owner-required')),
       percentage: z.preprocess(
         value => (value === '' || value === null || value === undefined ? undefined : Number(value)),
         z.number().min(0, t('validation-percentage-min')).max(100, t('validation-percentage-max')).optional()

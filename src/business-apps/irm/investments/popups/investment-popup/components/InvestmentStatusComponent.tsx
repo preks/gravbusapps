@@ -26,7 +26,7 @@ const prefixDataTestId = 'investment-status-component'
 // Form validation schema builder
 const buildStatusFormSchema = (requiredMessage: string) =>
   z.object({
-    statusRef: z.string().min(1, requiredMessage)
+    statusRef: z.string().trim().min(1, requiredMessage)
   })
 
 export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps> = ({

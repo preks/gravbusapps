@@ -2,8 +2,8 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 export const accountSchema = z.object({
-  ownerEmployeeId: z.string().min(1, 'Owner is required'),
-  name: z.string().min(1, 'Account name is required'),
+  ownerEmployeeId: z.string().trim().min(1, 'Owner is required'),
+  name: z.string().trim().min(1, 'Account name is required'),
   legalFormRef: z.string().nullable().optional(),
   industryClassRef: z.string().nullable().optional(),
   accountPriorityRef: z.string().nullable().optional(),

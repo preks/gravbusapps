@@ -19,8 +19,8 @@ export const noteSchema = z.object({
   additionalProperties: z.any().optional(),
 
   // Note specific fields
-  title: z.string().min(1, 'Title is required'),
-  text: z.string().min(1, 'Note text is required'),
+  title: z.string().trim().min(1, 'Title is required'),
+  text: z.string().trim().min(1, 'Note text is required'),
   reminderDate: z.string().nullable().optional(),
   source: z.string().nullable().optional(),
   /** CRM CrmNote.noteType; hidden in UI, preserved on update */

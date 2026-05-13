@@ -2,10 +2,10 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 export const contactSchema = z.object({
-  ownerEmployeeId: z.string().min(1, 'Owner is required'),
+  ownerEmployeeId: z.string().trim().min(1, 'Owner is required'),
   salutationRef: z.string().nullable().optional(),
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
+  firstName: z.string().trim().min(1, 'First name is required'),
+  lastName: z.string().trim().min(1, 'Last name is required'),
   academicTitleRef: z.string().nullable().optional(),
   languageRef: z.string().nullable().optional(),
   birthDate: z.string().nullable().optional(),

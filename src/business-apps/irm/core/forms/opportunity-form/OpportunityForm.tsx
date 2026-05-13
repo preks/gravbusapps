@@ -65,7 +65,7 @@ const prefixDataTestId = 'InvestmentOpportunityForm'
 // Base investment opportunity schema (will be extended with investmentTypeId)
 const baseInvestmentOpportunitySchema = opportunitySchemaBase.extend({
   investmentCompanyId: z.string().nullable().optional(),
-  investmentName: z.string().min(1, 'Investment Name is required'),
+  investmentName: z.string().trim().min(1, 'Investment Name is required'),
   dealType: z.string().nullable().optional()
 })
 

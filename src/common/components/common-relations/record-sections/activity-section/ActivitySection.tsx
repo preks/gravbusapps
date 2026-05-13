@@ -186,12 +186,12 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
   // Form schema for quick add
   const quickActivitySchema = z.object({
     details: z.object({
-      title: z.string().min(1, 'Title is required'),
+      title: z.string().trim().min(1, 'Title is required'),
       description: z.string().optional()
     }),
-    activityTypeRef: z.string().min(1, 'Activity type is required'),
-    occurredAt: z.string().min(1, 'Date & time is required'),
-    ownerEmployeeId: z.string().min(1, 'Owner is required'),
+    activityTypeRef: z.string().trim().min(1, 'Activity type is required'),
+    occurredAt: z.string().trim().min(1, 'Date & time is required'),
+    ownerEmployeeId: z.string().trim().min(1, 'Owner is required'),
     _pendingFiles: z.array(z.any()).optional()
   })
 

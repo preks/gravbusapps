@@ -16,8 +16,8 @@ const prefixDataTestId = 'investment-kpi-tile-component'
 
 // Form validation schema
 const kpiTileFormSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  kpiValue: z.string().min(1, 'Value is required'),
+  title: z.string().trim().min(1, 'Title is required'),
+  kpiValue: z.string().trim().min(1, 'Value is required'),
   kpiUnit: z.string().optional()
 })
 

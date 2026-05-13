@@ -32,10 +32,10 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 // Form validation schema
 const campaignSchema = z
   .object({
-    name: z.string().min(1, 'Name is required'),
-    type: z.string().min(1, 'Type is required'),
-    startDate: z.string().min(1, 'Start date is required'),
-    endDate: z.string().min(1, 'End date is required'),
+    name: z.string().trim().min(1, 'Name is required'),
+    type: z.string().trim().min(1, 'Type is required'),
+    startDate: z.string().trim().min(1, 'Start date is required'),
+    endDate: z.string().trim().min(1, 'End date is required'),
     description: z.string().optional()
   })
   .refine(
