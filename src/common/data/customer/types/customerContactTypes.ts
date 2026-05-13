@@ -9,6 +9,7 @@ import {
   createContactDescriptors,
   contactFormFields
 } from '@/common/data/relations/types/contactTypes'
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 import { filterCommunicationChannels } from '@/common/data/common/utils/entityPayloadHelpers'
@@ -41,6 +42,14 @@ export interface CustomerContact extends Contact {
   // CRM-specific fields
   salesCampaign: any
   salesCampaignId?: string // Sales campaign association
+  doubleOptIn?: boolean | null
+  doubleOptInDate?: string | null
+  optInSource?: CatalogEntry | null
+  optInSourceRef?: string | null
+  optInStatus?: CatalogEntry | null
+  optInStatusRef?: string | null
+  singleOptIn?: boolean | null
+  singleOptInDate?: string | null
 }
 
 /**
@@ -57,7 +66,15 @@ export const CustomerContactFields = {
   pictureThumbnail: 'pictureThumbnailUrl',
 
   // CRM-specific fields
-  salesCampaignId: 'salesCampaign'
+  salesCampaignId: 'salesCampaign',
+  doubleOptIn: 'doubleOptIn',
+  doubleOptInDate: 'doubleOptInDate',
+  optInSource: 'optInSource',
+  optInSourceRef: 'optInSourceRef',
+  optInStatus: 'optInStatus',
+  optInStatusRef: 'optInStatusRef',
+  singleOptIn: 'singleOptIn',
+  singleOptInDate: 'singleOptInDate'
 } as const
 
 export type CustomerContactFieldName = (typeof CustomerContactFields)[keyof typeof CustomerContactFields]
@@ -100,6 +117,54 @@ export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
     optionSearchPaths: [CustomerContactFields.jobPosition],
     optionDistinctOn: [CustomerContactFields.jobPosition],
     kind: 'inIds'
+  },
+  {
+    key: 'doubleOptIn',
+    searchPaths: [CustomerContactFields.doubleOptIn],
+    sortPath: CustomerContactFields.doubleOptIn,
+    type: 'boolean'
+  },
+  {
+    key: 'doubleOptInDate',
+    searchPaths: [CustomerContactFields.doubleOptInDate],
+    sortPath: CustomerContactFields.doubleOptInDate,
+    type: 'date'
+  },
+  {
+    key: 'optInSource',
+    searchPaths: [`${CustomerContactFields.optInSource}.value`, `${CustomerContactFields.optInSource}.code`],
+    sortPath: `${CustomerContactFields.optInSource}.value`,
+    type: 'text'
+  },
+  {
+    key: 'optInSourceRef',
+    searchPaths: [CustomerContactFields.optInSourceRef],
+    sortPath: CustomerContactFields.optInSourceRef,
+    type: 'text'
+  },
+  {
+    key: 'optInStatus',
+    searchPaths: [`${CustomerContactFields.optInStatus}.value`, `${CustomerContactFields.optInStatus}.code`],
+    sortPath: `${CustomerContactFields.optInStatus}.value`,
+    type: 'text'
+  },
+  {
+    key: 'optInStatusRef',
+    searchPaths: [CustomerContactFields.optInStatusRef],
+    sortPath: CustomerContactFields.optInStatusRef,
+    type: 'text'
+  },
+  {
+    key: 'singleOptIn',
+    searchPaths: [CustomerContactFields.singleOptIn],
+    sortPath: CustomerContactFields.singleOptIn,
+    type: 'boolean'
+  },
+  {
+    key: 'singleOptInDate',
+    searchPaths: [CustomerContactFields.singleOptInDate],
+    sortPath: CustomerContactFields.singleOptInDate,
+    type: 'date'
   }
 ]
 

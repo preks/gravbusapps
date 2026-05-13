@@ -17,6 +17,7 @@ import {
 import { CustomerContactFields, CUSTOMER_CONTACT_DESCRIPTORS } from '../types/customerContactTypes'
 import { CUSTOMER_ADDRESS_FRAGMENT } from '../types/customerAddressTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
 import {
@@ -38,6 +39,21 @@ import { CustomerLeadFields } from '../types/customerLeadTypes'
 import { CustomerNoteFields } from '../types/customerNoteTypes'
 import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 import { CustomerTaskFields } from '../types/customerTaskTypes'
+
+const buildCustomerContactComplianceFields = (fields: typeof CustomerContactFields): string => `
+  ${fields.doubleOptIn}
+  ${fields.doubleOptInDate}
+  ${fields.optInSource} {
+    ${CATALOG_ENTRY}
+  }
+  ${fields.optInSourceRef}
+  ${fields.optInStatus} {
+    ${CATALOG_ENTRY}
+  }
+  ${fields.optInStatusRef}
+  ${fields.singleOptIn}
+  ${fields.singleOptInDate}
+`
 
 /**
  * Customer Contact Query Variables Interface
@@ -83,6 +99,7 @@ export const buildCustomerContactQuery = (fields: typeof CustomerContactFields =
   }
 
   const entityFields = `
+    ${buildCustomerContactComplianceFields(fields)}
     # Addresses relation (CRM uses "city" not "locality")
     ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
       ${CUSTOMER_ADDRESS_FRAGMENT}
@@ -133,6 +150,7 @@ export const buildCustomerContactByIdQuery = (fields: typeof CustomerContactFiel
 
   // Domain-specific entity fields (addresses, leads)
   const entityFields = `
+    ${buildCustomerContactComplianceFields(fields)}
     # Addresses relation (CRM uses "city" not "locality")
     ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
       ${CUSTOMER_ADDRESS_FRAGMENT}

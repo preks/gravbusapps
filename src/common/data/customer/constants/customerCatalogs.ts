@@ -20,6 +20,8 @@ export const OPPORTUNITY_FORECAST = 'CustomerOpportunityForecast:v1'
 export const ACCOUNT_PRIORITY = 'CustomerAccountPriority:v1'
 export const CUSTOMER_ACCOUNT_TYPE = 'CustomerAccountType:v1'
 export const CAMPAIGN_TYPE = 'CustomerCampaignType:v1'
+export const MARKETING_OPT_IN_SOURCE = 'MarketingOptInSource:v1'
+export const MARKETING_OPT_IN_STATUS = 'MarketingOptInStatus:v1'
 
 // Task and activity catalogs (CRM)
 export const TASK_TYPE = 'SalesTaskType:v1'

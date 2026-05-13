@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button, Spinner, RecordLayout, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
-import { FolderIcon, UserIcon, TargetIcon, EnvelopeIcon, PhoneIcon, CakeIcon, GlobeIcon } from '@phosphor-icons/react'
+import {
+  FolderIcon,
+  UserIcon,
+  TargetIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  CakeIcon,
+  GlobeIcon,
+  CheckCircleIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -18,6 +27,8 @@ import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
+import ComplianceSection from '@/common/components/common-relations/record-sections/compliance-section/ComplianceSection'
+import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 
 interface ContactRecordContentProps extends BusinessAppContextProps {
   contactId: string
@@ -343,6 +354,29 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
           content: (
             <div className="gba:col-span-12">
               <DocumentView contactId={contactId} {...props} />
+            </div>
+          )
+        },
+        {
+          value: 'compliance',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.compliance', 'Compliance'),
+          icon: <CheckCircleIcon className="gba:mr-2" />,
+          content: (
+            <div className="gba:col-span-12">
+              <SectionWrapper
+                className="gba:min-h-96"
+                sections={[
+                  {
+                    id: 'compliance-section',
+                    component: ComplianceSection,
+                    props: {
+                      entity: contactData,
+                      'data-testid': 'contact-compliance-section'
+                    }
+                  }
+                ]}
+                data-testid="contact-compliance-section-wrapper"
+              />
             </div>
           )
         }

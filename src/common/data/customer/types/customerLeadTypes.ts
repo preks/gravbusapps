@@ -1,4 +1,5 @@
 import { type Lead, LeadFields, createLeadDescriptors, leadFormFields } from '@/common/data/relations/types/leadTypes'
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 import type { CustomerAccount } from './customerAccountTypes'
@@ -26,6 +27,14 @@ export interface CustomerLead extends Lead {
 
   salesCampaign?: any
   salesCampaignId?: string
+  doubleOptIn?: boolean | null
+  doubleOptInDate?: string | null
+  optInSource?: CatalogEntry | null
+  optInSourceRef?: string | null
+  optInStatus?: CatalogEntry | null
+  optInStatusRef?: string | null
+  singleOptIn?: boolean | null
+  singleOptInDate?: string | null
 }
 
 /**
@@ -42,7 +51,15 @@ export const CustomerLeadFields = {
   industryClass: 'industry',
   industryClassRef: 'industryRef',
   jobPosition: 'position',
-  locality: 'city'
+  locality: 'city',
+  doubleOptIn: 'doubleOptIn',
+  doubleOptInDate: 'doubleOptInDate',
+  optInSource: 'optInSource',
+  optInSourceRef: 'optInSourceRef',
+  optInStatus: 'optInStatus',
+  optInStatusRef: 'optInStatusRef',
+  singleOptIn: 'singleOptIn',
+  singleOptInDate: 'singleOptInDate'
 } as const
 
 /**
@@ -62,6 +79,54 @@ export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
     searchPaths: ['notes.noteTitle', 'notes.noteText'], // CRM uses "noteTitle"/"noteText"
     sortPaths: ['notes.noteTitle', 'notes.noteText'],
     type: 'text'
+  },
+  {
+    key: 'doubleOptIn',
+    searchPaths: [CustomerLeadFields.doubleOptIn],
+    sortPath: CustomerLeadFields.doubleOptIn,
+    type: 'boolean'
+  },
+  {
+    key: 'doubleOptInDate',
+    searchPaths: [CustomerLeadFields.doubleOptInDate],
+    sortPath: CustomerLeadFields.doubleOptInDate,
+    type: 'date'
+  },
+  {
+    key: 'optInSource',
+    searchPaths: [`${CustomerLeadFields.optInSource}.value`, `${CustomerLeadFields.optInSource}.code`],
+    sortPath: `${CustomerLeadFields.optInSource}.value`,
+    type: 'text'
+  },
+  {
+    key: 'optInSourceRef',
+    searchPaths: [CustomerLeadFields.optInSourceRef],
+    sortPath: CustomerLeadFields.optInSourceRef,
+    type: 'text'
+  },
+  {
+    key: 'optInStatus',
+    searchPaths: [`${CustomerLeadFields.optInStatus}.value`, `${CustomerLeadFields.optInStatus}.code`],
+    sortPath: `${CustomerLeadFields.optInStatus}.value`,
+    type: 'text'
+  },
+  {
+    key: 'optInStatusRef',
+    searchPaths: [CustomerLeadFields.optInStatusRef],
+    sortPath: CustomerLeadFields.optInStatusRef,
+    type: 'text'
+  },
+  {
+    key: 'singleOptIn',
+    searchPaths: [CustomerLeadFields.singleOptIn],
+    sortPath: CustomerLeadFields.singleOptIn,
+    type: 'boolean'
+  },
+  {
+    key: 'singleOptInDate',
+    searchPaths: [CustomerLeadFields.singleOptInDate],
+    sortPath: CustomerLeadFields.singleOptInDate,
+    type: 'date'
   }
 ]
 

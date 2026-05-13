@@ -11,7 +11,7 @@ import {
   IconAvatar,
   HeaderSlot
 } from '@newwork/nw-design-system'
-import { UserIcon, FolderIcon, FlagIcon } from '@phosphor-icons/react'
+import { UserIcon, FolderIcon, FlagIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -29,6 +29,8 @@ import { useAiSummary } from './hooks/useAiSummary'
 import { StatusProgression } from './components/StatusProgression'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view/DocumentView'
+import ComplianceSection from '@/common/components/common-relations/record-sections/compliance-section/ComplianceSection'
+import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
   leadId: string
@@ -404,6 +406,29 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
           content: (
             <div className="gba:col-span-12">
               <DocumentView leadId={leadId} {...props} />
+            </div>
+          )
+        },
+        {
+          value: 'compliance',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.compliance', 'Compliance'),
+          icon: <CheckCircleIcon className="gba:mr-2" />,
+          content: (
+            <div className="gba:col-span-12">
+              <SectionWrapper
+                className="gba:min-h-96"
+                sections={[
+                  {
+                    id: 'compliance-section',
+                    component: ComplianceSection,
+                    props: {
+                      entity: leadData,
+                      'data-testid': 'lead-compliance-section'
+                    }
+                  }
+                ]}
+                data-testid="lead-compliance-section-wrapper"
+              />
             </div>
           )
         }
