@@ -17,8 +17,10 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-  Textarea
+  Textarea,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { Check, Copy } from 'lucide-react'
 import { CodeEditor } from './CodeEditor'
 import { newEmptyConfigRow, type ConfigRow } from './SettingsEditor'
@@ -84,7 +86,7 @@ export interface TestFunctionCardProps {
   onPayloadFieldChange: (key: string, value: unknown) => void
   testOverrideRows: ConfigRow[]
   onTestOverrideRowsChange: (rows: ConfigRow[]) => void
-  /** When set, value column can bind fnsecret refs like function settings. */
+  /** When set, value column can bind `fncred:` refs like function settings. */
   credentialBindOptions?: CredentialBindOption[]
   onTest: () => void
   isTesting: boolean
@@ -120,6 +122,7 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
   variant = 'card',
   'data-testid': testId = 'function-editor-test'
 }) => {
+  const { t } = useTranslation(translations)
   const hasSchemaFields = Object.keys(schemaProperties || {}).length > 0
   const [hasCopiedResult, setHasCopiedResult] = React.useState(false)
   const [hasCopiedLogs, setHasCopiedLogs] = React.useState(false)
@@ -222,6 +225,9 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
 
   const content = (
     <div className="gba:space-y-4">
+      <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-credential-preview-hint`}>
+        {t('function-test-credential-preview-hint')}
+      </p>
       <div className="gba:rounded-xl gba:border gba:border-border gba:bg-muted/20 gba:p-4 gba:space-y-3">
         <div>
           <Label className="gba:text-sm">Test-only config overrides</Label>
@@ -234,23 +240,25 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
           {safeOverrideRows.map((kv, idx) => (
             <div
               key={`to-${idx}`}
-              className="gba:grid gba:grid-cols-1 gba:gap-2 gba:sm:grid-cols-[1fr_1fr_auto] gba:items-end"
+              className="gba:grid gba:grid-cols-1 gba:gap-x-2 gba:gap-y-1 gba:sm:grid-cols-[1fr_1fr_auto] gba:sm:grid-rows-[auto_auto]"
             >
-              <div className="gba:space-y-1">
-                <Label className="gba:text-xs gba:text-muted-foreground">Key</Label>
-                <Input
-                  placeholder="API_KEY"
-                  value={kv.key}
-                  onChange={e => {
-                    const next = [...safeOverrideRows]
-                    next[idx] = { ...next[idx], key: e.target.value }
-                    onTestOverrideRowsChange(next)
-                  }}
-                  data-testid={`${testId}-override-key-${idx}`}
-                />
-              </div>
-              <div className="gba:space-y-1">
-                <Label className="gba:text-xs gba:text-muted-foreground">Value</Label>
+              <Label className="gba:text-xs gba:text-muted-foreground gba:sm:col-start-1 gba:sm:row-start-1">Key</Label>
+              <Label className="gba:text-xs gba:text-muted-foreground gba:sm:col-start-2 gba:sm:row-start-1">
+                Value
+              </Label>
+              <span className="gba:hidden gba:sm:col-start-3 gba:sm:row-start-1" aria-hidden />
+              <Input
+                className="gba:sm:col-start-1 gba:sm:row-start-2"
+                placeholder="API_KEY"
+                value={kv.key}
+                onChange={e => {
+                  const next = [...safeOverrideRows]
+                  next[idx] = { ...next[idx], key: e.target.value }
+                  onTestOverrideRowsChange(next)
+                }}
+                data-testid={`${testId}-override-key-${idx}`}
+              />
+              <div className="gba:min-w-0 gba:sm:col-start-2 gba:sm:row-start-2">
                 {credentialBindOptions && credentialBindOptions.length ? (
                   <CredentialBindField
                     value={kv.value}
@@ -281,7 +289,7 @@ export const TestFunctionCard: React.FC<TestFunctionCardProps> = ({
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="gba:justify-self-end"
+                className="gba:justify-self-end gba:sm:col-start-3 gba:sm:row-start-2 gba:sm:self-center"
                 disabled={safeOverrideRows.length <= 1}
                 onClick={() => onTestOverrideRowsChange(safeOverrideRows.filter((_, i) => i !== idx))}
                 data-testid={`${testId}-override-remove-${idx}`}

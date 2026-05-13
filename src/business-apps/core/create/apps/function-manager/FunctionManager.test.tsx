@@ -53,6 +53,18 @@ jest.mock('./hooks/useFunctionsData', () => ({
   useFunctionsData: (...args: unknown[]) => useFunctionsDataMock(...args)
 }))
 
+jest.mock('./hooks/useTenantSecrets', () => ({
+  useTenantSecrets: () => ({
+    storedSecrets: [],
+    secretsLoading: false,
+    refreshSecrets: jest.fn(),
+    fetchCredentialReferences: jest.fn(),
+    onCreateStoredSecret: jest.fn(),
+    saveCredential: jest.fn(),
+    deleteSecret: jest.fn()
+  })
+}))
+
 jest.mock('./config/functionsColumns', () => ({
   createFunctionsColumns: (...args: unknown[]) => createFunctionsColumnsMock(...args)
 }))

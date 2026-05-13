@@ -1,23 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FunctionsServiceClient } from '@/common/network/functions/FunctionsServiceClient'
+import { FunctionsServiceClient, type CredentialReferenceLocation } from '@/common/network/functions/FunctionsServiceClient'
 import type { StoredSecretOption } from '../components/editor/SettingsEditor'
+import { assertValidCredentialFieldKey } from '@/common/utils/fncredRef'
 
-/** Lists and creates tenant-scoped stored credentials (same backing store as function Settings bindings). */
+/** Lists and manages tenant credentials (encrypted field maps; bind as `fncred:` from Settings). */
 export function useTenantSecrets(accessToken: string) {
   const client = useMemo(() => new FunctionsServiceClient(accessToken), [accessToken])
   const [storedSecrets, setStoredSecrets] = useState<StoredSecretOption[]>([])
+  const [secretsLoading, setSecretsLoading] = useState(true)
 
   const refreshSecrets = useCallback(async () => {
+    setSecretsLoading(true)
     try {
-      const list = await client.listSecrets()
+      const list = await client.listCredentials(undefined, true)
       setStoredSecrets(
         (list || []).map(s => ({
           id: s.id,
-          displayName: s.displayName
+          displayName: s.displayName,
+          fieldKeys: Array.isArray(s.fieldKeys) ? s.fieldKeys : []
         }))
       )
     } catch {
       setStoredSecrets([])
+    } finally {
+      setSecretsLoading(false)
     }
   }, [client])
 
@@ -25,36 +31,88 @@ export function useTenantSecrets(accessToken: string) {
     void refreshSecrets()
   }, [refreshSecrets])
 
+  const fetchCredentialReferences = useCallback(
+    async (credentialId: string): Promise<CredentialReferenceLocation[]> => {
+      try {
+        const { locations } = await client.getCredentialReferences(credentialId)
+        return Array.isArray(locations) ? locations : []
+      } catch {
+        return []
+      }
+    },
+    [client]
+  )
+
   const onCreateStoredSecret = useCallback(
-    async (input: { displayName: string; value: string }) => {
-      await client.createSecret({
-        displayName: input.displayName,
-        value: input.value
-      })
+    async (input: { displayName: string; live: Record<string, string>; preview: Record<string, string> }) => {
+      const displayName = String(input.displayName || '').trim()
+      if (!displayName) throw new Error('Display name is required')
+      const live = input.live || {}
+      const preview = input.preview || {}
+      for (const k of Object.keys(live)) {
+        assertValidCredentialFieldKey(k)
+      }
+      for (const k of Object.keys(preview)) {
+        assertValidCredentialFieldKey(k)
+      }
+      await client.createCredential({ displayName, live, preview })
       await refreshSecrets()
     },
     [client, refreshSecrets]
   )
 
-  const updateDisplayName = useCallback(
-    async (secretId: string, displayName: string) => {
-      await client.updateSecretMetadata(secretId, { displayName })
-      await refreshSecrets()
-    },
-    [client, refreshSecrets]
-  )
-
-  const appendSecretValue = useCallback(
-    async (secretId: string, value: string) => {
-      await client.appendSecretValue(secretId, { value })
+  const saveCredential = useCallback(
+    async (
+      credentialId: string,
+      input: {
+        displayName: string
+        removeFieldKeys: string[]
+        liveToSet: Record<string, string>
+        previewToSet: Record<string, string>
+      }
+    ) => {
+      const displayName = String(input.displayName || '').trim()
+      if (!displayName) throw new Error('Display name is required')
+      const removeFieldKeys = (input.removeFieldKeys || [])
+        .map(k => String(k || '').trim())
+        .filter(Boolean)
+      const liveToSet = input.liveToSet || {}
+      const previewToSet = input.previewToSet || {}
+      for (const k of Object.keys(liveToSet)) {
+        assertValidCredentialFieldKey(k)
+      }
+      for (const k of Object.keys(previewToSet)) {
+        assertValidCredentialFieldKey(k)
+      }
+      for (const k of removeFieldKeys) {
+        assertValidCredentialFieldKey(k)
+      }
+      await client.updateCredentialDisplayName(credentialId, { displayName })
+      const hasRemovals = removeFieldKeys.length > 0
+      const hasLive = Object.keys(liveToSet).length > 0
+      const hasPreview = Object.keys(previewToSet).length > 0
+      if (hasRemovals || hasLive) {
+        await client.replaceCredentialFields(credentialId, liveToSet, {
+          profile: 'live',
+          merge: true,
+          ...(hasRemovals ? { removeFieldKeys } : {})
+        })
+      }
+      if (hasRemovals || hasPreview) {
+        await client.replaceCredentialFields(credentialId, previewToSet, {
+          profile: 'preview',
+          merge: true,
+          ...(hasRemovals ? { removeFieldKeys } : {})
+        })
+      }
       await refreshSecrets()
     },
     [client, refreshSecrets]
   )
 
   const deleteSecret = useCallback(
-    async (secretId: string) => {
-      await client.deleteSecret(secretId)
+    async (credentialId: string) => {
+      await client.deleteCredential(credentialId)
       await refreshSecrets()
     },
     [client, refreshSecrets]
@@ -62,10 +120,11 @@ export function useTenantSecrets(accessToken: string) {
 
   return {
     storedSecrets,
+    secretsLoading,
     refreshSecrets,
+    fetchCredentialReferences,
     onCreateStoredSecret,
-    updateDisplayName,
-    appendSecretValue,
+    saveCredential,
     deleteSecret
   }
 }

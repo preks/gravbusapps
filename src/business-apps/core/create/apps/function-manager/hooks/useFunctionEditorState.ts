@@ -4,10 +4,10 @@ import {
   type FunctionCategory,
   type LatestFunctionItem,
   type ConnectorKind,
-  type FunctionConnectionBinding,
-  type SecretBundleListItemDto
+  type FunctionConnectionBinding
 } from '@/common/network/functions/FunctionsServiceClient'
-import { buildCredentialBindOptions } from '@/common/utils/credentialBindOptions'
+import { buildCredentialBindOptionsFromList } from '@/common/utils/credentialBindOptions'
+import { assertValidCredentialFieldKey } from '@/common/utils/fncredRef'
 import type { StoredSecretOption } from '../components/editor/SettingsEditor'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type {
@@ -95,30 +95,24 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   const [error, setError] = useState<string | null>(null)
 
   const [storedSecrets, setStoredSecrets] = useState<StoredSecretOption[]>([])
-  const [credentialBundleItems, setCredentialBundleItems] = useState<SecretBundleListItemDto[]>([])
 
   const credentialBindOptions = useMemo(
-    () => buildCredentialBindOptions(storedSecrets, credentialBundleItems),
-    [storedSecrets, credentialBundleItems]
+    () => buildCredentialBindOptionsFromList(storedSecrets),
+    [storedSecrets]
   )
 
   const refreshSecrets = useCallback(async () => {
     try {
-      const list = await client.listSecrets()
+      const list = await client.listCredentials(undefined, true)
       setStoredSecrets(
         (list || []).map(s => ({
           id: s.id,
-          displayName: s.displayName
+          displayName: s.displayName,
+          fieldKeys: Array.isArray(s.fieldKeys) ? s.fieldKeys : []
         }))
       )
     } catch {
       setStoredSecrets([])
-    }
-    try {
-      const bundlesPage = await client.listSecretBundles({ limit: 100, offset: 0, includeSlots: true })
-      setCredentialBundleItems(bundlesPage?.items || [])
-    } catch {
-      setCredentialBundleItems([])
     }
   }, [client])
 
@@ -127,17 +121,20 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   }, [refreshSecrets])
 
   const onCreateStoredSecret = useCallback(
-    async (input: { displayName: string; value: string }) => {
-      await client.createSecret({
+    async (input: { displayName: string; fieldKey: string; value: string }) => {
+      const fieldKey = String(input.fieldKey || '').trim() || 'VALUE'
+      assertValidCredentialFieldKey(fieldKey)
+      await client.createCredential({
         displayName: input.displayName,
-        value: input.value
+        live: { [fieldKey]: input.value },
+        preview: {}
       })
       await refreshSecrets()
     },
     [client, refreshSecrets]
   )
 
-  // Test-only plaintext overrides (merged server-side after fnsecret resolve; not persisted)
+  // Test-only plaintext overrides (merged server-side after fncred resolution; not persisted)
   const [testOverrideRows, setTestOverrideRows] = useState<ConfigRow[]>(() => [newEmptyConfigRow()])
 
   // Testing state

@@ -1,36 +1,39 @@
-/** Row for binding a config value to a stored credential (same secret may appear under multiple labels). */
+import { fncredRefFor } from '@/common/utils/fncredRef'
+
+/** Row for binding a config value to a stored credential field. */
 export type CredentialBindOption = {
-  secretId: string
+  credentialId: string
+  fieldKey: string
+  /** Full `fncred:<uuid>:<fieldKey>` string. */
+  ref: string
   label: string
 }
 
-export type CredentialBundleListItemForBind = {
+export type CredentialListItemForBind = {
   id: string
   displayName: string
-  slots?: Array<{ slotKey: string; secretId: string }>
+  fieldKeys?: string[]
 }
 
-export type StoredCredentialForBind = { id: string; displayName: string }
-
 /**
- * Flat list for pickers: standalone credentials first, then each bundle slot as "Bundle — SLOT_KEY".
+ * Flat list for pickers: one entry per credential field.
  */
-export function buildCredentialBindOptions(
-  credentials: StoredCredentialForBind[],
-  bundles: CredentialBundleListItemForBind[]
-): CredentialBindOption[] {
+export function buildCredentialBindOptionsFromList(credentials: CredentialListItemForBind[]): CredentialBindOption[] {
   const out: CredentialBindOption[] = []
   for (const c of credentials || []) {
     if (!c?.id) continue
-    out.push({ secretId: c.id, label: c.displayName || c.id })
-  }
-  for (const b of bundles || []) {
-    for (const slot of b.slots || []) {
-      if (!slot?.secretId) continue
-      out.push({
-        secretId: slot.secretId,
-        label: `${b.displayName} — ${slot.slotKey}`
-      })
+    const keys = [...new Set((c.fieldKeys || []).map(k => String(k || '').trim()).filter(Boolean))].sort()
+    for (const fieldKey of keys) {
+      try {
+        out.push({
+          credentialId: c.id,
+          fieldKey,
+          ref: fncredRefFor(c.id, fieldKey),
+          label: `${c.displayName || c.id} — ${fieldKey}`
+        })
+      } catch {
+        // skip invalid keys
+      }
     }
   }
   return out

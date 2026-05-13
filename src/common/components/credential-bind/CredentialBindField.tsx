@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { fnsecretRefForId, parseFnsecretUuid } from '@/common/utils/fnsecretRef'
+import { parseFncredRef } from '@/common/utils/fncredRef'
 import type { CredentialBindOption } from '@/common/utils/credentialBindOptions'
 
 export interface CredentialBindFieldProps {
@@ -14,7 +14,7 @@ export interface CredentialBindFieldProps {
   'data-testid'?: string
 }
 
-/** Select stored credential / bundle slot (fnsecret) or plain text. */
+/** Select stored credential field (`fncred:…`) or plain text. */
 export const CredentialBindField: React.FC<CredentialBindFieldProps> = ({
   value,
   onChange,
@@ -23,12 +23,15 @@ export const CredentialBindField: React.FC<CredentialBindFieldProps> = ({
   plainPlaceholder,
   'data-testid': testId = 'credential-bind-field'
 }) => {
-  const sid = parseFnsecretUuid(value)
+  const parsed = parseFncredRef(value)
   const selectedIndex = React.useMemo(() => {
-    if (!sid) return -1
-    const lower = sid.toLowerCase()
-    return bindOptions.findIndex(o => o.secretId.toLowerCase() === lower)
-  }, [bindOptions, sid])
+    if (!parsed) return -1
+    const cid = parsed.credentialId.toLowerCase()
+    const fk = parsed.fieldKey
+    return bindOptions.findIndex(
+      o => o.credentialId.toLowerCase() === cid && o.fieldKey === fk
+    )
+  }, [bindOptions, parsed])
 
   const selectValue = selectedIndex >= 0 ? `opt:${selectedIndex}` : '__plain__'
 
@@ -39,13 +42,13 @@ export const CredentialBindField: React.FC<CredentialBindFieldProps> = ({
           value={selectValue}
           onValueChange={v => {
             if (v === '__plain__') {
-              if (sid) onChange('')
+              if (parsed) onChange('')
               return
             }
             if (v.startsWith('opt:')) {
               const i = parseInt(v.slice(4), 10)
               const opt = bindOptions[i]
-              if (opt) onChange(fnsecretRefForId(opt.secretId))
+              if (opt) onChange(opt.ref)
             }
           }}
         >
@@ -59,7 +62,7 @@ export const CredentialBindField: React.FC<CredentialBindFieldProps> = ({
             <SelectItem value="__plain__">Plain value</SelectItem>
             {bindOptions.map((o, idx) => (
               <SelectItem
-                key={`${o.secretId}-${idx}`}
+                key={`${o.ref}-${idx}`}
                 value={`opt:${idx}`}
                 className="[&>span]:line-clamp-2 [&>span]:break-all"
                 title={o.label}
