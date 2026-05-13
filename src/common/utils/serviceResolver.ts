@@ -13,6 +13,11 @@ export interface ServicePathConfig {
   apiPath: string
 }
 
+function isLocalhostRuntime(): boolean {
+  const host = globalThis.window?.location?.hostname
+  return host === 'localhost' || host === '127.0.0.1'
+}
+
 function buildFullPath(servicePath: string, apiPath: string): string {
   const s = servicePath.startsWith('/') ? servicePath : `/${servicePath}`
   const trimmed = s.endsWith('/') ? s.slice(0, -1) : s
@@ -58,7 +63,7 @@ export function resolveGravityPlatformWordmarkUrl(): string {
  */
 export function resolveServiceUrl(envVar: string, config: ServicePathConfig): string {
   const serviceUrl = env(envVar)
-  if (serviceUrl) {
+  if (serviceUrl && isLocalhostRuntime()) {
     return serviceUrl
   }
 
