@@ -23,12 +23,16 @@ import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTyp
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
 import { useTaxableChurchAffiliationCatalog } from '../../hooks/useTaxableChurchAffiliationCatalog'
 import { useEmploymentRegionLabel } from '../../hooks/useEmploymentRegionLabel'
+import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
+import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
 interface EmploymentTabProps {
   employee: Employee
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
   userInfo?: UserInfoProps // Current user info
+  isSelfView: boolean
+  employeeRecordHrBackoffice: ScopePermissionCheckResult
   /** When true, show the Change Tax Details edit button (HR role only). */
   showChangeTaxDetailsButton?: boolean
 }
@@ -37,8 +41,17 @@ interface EmploymentTabProps {
  * Employment Tab Component
  * Displays employment-related information about the employee
  */
-const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, showChangeTaxDetailsButton = false }) => {
+const EmploymentTab: React.FC<EmploymentTabProps> = ({
+  employee,
+  accessToken,
+  employeeId,
+  isSelfView,
+  employeeRecordHrBackoffice,
+  showChangeTaxDetailsButton = false
+}) => {
   const { t } = useTranslation(translations)
+  const employeeIdForPermissions = employeeId || employee?.id
+  const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken)
   const [selectedWorkingConditionIndex, setSelectedWorkingConditionIndex] = React.useState(0)
   const workingConditions = React.useMemo(() => {
     return [...(employee.workingCondition || [])].sort((a, b) => {
@@ -267,37 +280,26 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
 
   const workingHoursData = getWorkingHoursData()
 
-  // Prepare payroll data
-  const getPayrollData = () => {
+  const getBankAccountData = () => {
+    const primaryBankAccount = employee.bankAccounts?.[0]
+
     return [
       {
-        label: t('employment-label-salary-group'),
-        value: employee.employeePosition?.costCenter?.name || ''
-      },
-      {
-        label: t('employment-label-payment-method'),
-        value: 'Direct Deposit'
-      },
-      {
-        label: t('employment-label-bank-account'),
-        value: employee.bankAccounts?.[0]?.iban || ''
-      },
-      {
         label: t('employment-label-bank-name'),
-        value: employee.bankAccounts?.[0]?.bankName || ''
+        value: primaryBankAccount?.bankName || ''
       },
       {
         label: t('employment-label-account-holder'),
-        value: employee.bankAccounts?.[0]?.accountHolder || ''
+        value: primaryBankAccount?.accountHolder || ''
       },
       {
-        label: t('employment-label-full-time-equivalent'),
-        value: employee.fullTimeEquivalent?.toString() || ''
+        label: t('details-label-iban'),
+        value: primaryBankAccount?.iban || ''
       }
     ]
   }
 
-  const payrollData = getPayrollData()
+  const bankAccountData = getBankAccountData()
 
   // Employee country from working condition region (parentEntry = country)
   const employeeCountryCode = employee.workingCondition?.[0]?.region?.parentEntry?.code ?? null
@@ -391,23 +393,49 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
 
   const taxInformationData = getTaxInformationData()
 
+  const getMaskedValue = (value: string, sectionKey?: string) => {
+    if (!value || value.trim() === '') {
+      return '-'
+    }
+
+    if (isSelfView || employeeRecordHrBackoffice.hasPermission) {
+      return value
+    }
+
+    if (sectionKey && isSectionVisible('details', sectionKey)) {
+      return value
+    }
+
+    return '••••••••'
+  }
+
   // Helper function to render data items in a grid with 3 columns
-  const renderDataItems = (data: Array<{ label: string; value: string }>) => (
+  const renderDataItems = (data: Array<{ label: string; value: string; sectionKey?: string }>) => (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
-      {data.map(item => (
-        <div
-          key={`${item.label}-${item.value}`}
-          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors gba:min-w-0"
-          data-testid={`employment-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-        >
-          <span className="gba:text-xs gba:text-muted-foreground gba:mb-0.5 gba:truncate gba:block" title={item.label}>
-            {item.label}
-          </span>
-          <span className="gba:font-medium gba:text-sm gba:text-foreground gba:truncate gba:block" title={item.value}>
-            {item.value || '-'}
-          </span>
-        </div>
-      ))}
+      {data.map(item => {
+        const displayValue = item.sectionKey ? getMaskedValue(item.value, item.sectionKey) : item.value || '-'
+
+        return (
+          <div
+            key={`${item.label}-${item.value}`}
+            className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors gba:min-w-0"
+            data-testid={`employment-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+          >
+            <span
+              className="gba:text-xs gba:text-muted-foreground gba:mb-0.5 gba:truncate gba:block"
+              title={item.label}
+            >
+              {item.label}
+            </span>
+            <span
+              className="gba:font-medium gba:text-sm gba:text-foreground gba:truncate gba:block"
+              title={displayValue}
+            >
+              {displayValue}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 
@@ -520,11 +548,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
           </CardContent>
         </Card>
 
-        {/* Payroll Card */}
-        <Card data-testid="employment-section-payroll">
+        {/* Bank Account Card */}
+        <Card data-testid="employment-section-bank-account">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">{t('employment-payroll')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-label-bank-account')}</h3>
               <AppAction
                 variant="update-secondary"
                 data-testid="employment-bank-account-action-button"
@@ -535,7 +563,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
                 accessToken={accessToken}
               />
             </div>
-            {renderDataItems(payrollData)}
+            {renderDataItems(bankAccountData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.bankAccount })))}
           </CardContent>
         </Card>
 

@@ -513,7 +513,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      ...(hrDevelopmentFeatureFlag || true
+      ...(hrDevelopmentFeatureFlag
         ? [
             {
               value: TAB_KEYS.hrGrowth,
