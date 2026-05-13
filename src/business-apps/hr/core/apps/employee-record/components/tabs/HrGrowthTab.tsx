@@ -21,6 +21,7 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   employeeId: string
   isSelfView: boolean
   devFeatureFlag: boolean
+  previewEnabledFlag?: boolean
   employeePerformanceGoals?: EmployeePerformanceGoal[]
   feedback?: EmployeeFeedback[]
   /** `standalone`: My Development page — URL uses only `subView`, no `tab=hrGrowth`. */
@@ -51,6 +52,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   devFeatureFlag,
   employeePerformanceGoals,
   feedback,
+  previewEnabledFlag = false,
   urlMode = 'employeeRecord'
 }) => {
   const { t } = useTranslation(translations)
@@ -221,7 +223,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
-          {devFeatureFlag ? (
+          {previewEnabledFlag ? (
             <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
           ) : (
             <SkillsTabOld
@@ -229,7 +231,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               accessToken={accessToken}
               employeeId={employeeId}
               userInfo={userInfo}
-              devFeatureFlag={devFeatureFlag}
+              devFeatureFlag={previewEnabledFlag}
             />
           )}
         </TabsContent>
