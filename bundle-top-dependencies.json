@@ -12292,15 +12292,15 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 12071,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12071/",
-    "chunkJsBytes": 1653768,
+    "bitbucketBuildNumber": 12077,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12077/",
+    "chunkJsBytes": 1665698,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2335548,
-        "gzip": 520347,
+        "rendered": 2361870,
+        "gzip": 526238,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppsHub.tsx",
@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12071,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12071/",
-    "chunkJsBytes": 1881897,
+    "bitbucketBuildNumber": 12077,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12077/",
+    "chunkJsBytes": 1881608,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1582655,
-        "gzip": 97672,
+        "rendered": 1582358,
+        "gzip": 97628,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1582655,
-            "gzip": 97672
+            "rendered": 1582358,
+            "gzip": 97628
           }
         ]
       },
@@ -100708,15 +100708,15 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 12071,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12071/",
-    "chunkJsBytes": 1653699,
+    "bitbucketBuildNumber": 12077,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12077/",
+    "chunkJsBytes": 1665629,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2335548,
-        "gzip": 520347,
+        "rendered": 2361870,
+        "gzip": 526238,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppsHub.tsx",
@@ -107251,7 +107251,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-13T17:24:17.571Z",
+    "generatedAt": "2026-05-13T23:57:53.341Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
