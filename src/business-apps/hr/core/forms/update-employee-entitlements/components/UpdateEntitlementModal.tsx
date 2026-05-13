@@ -130,6 +130,30 @@ const maxDateValue = (firstValue: string, secondValue: string): string => {
   return firstValue >= secondValue ? firstValue : secondValue
 }
 
+const nextMonthStartDateValue = (value?: string): string => {
+  const normalizedValue = toMonthStartDateInputValue(value)
+  if (!normalizedValue) {
+    return ''
+  }
+
+  const [year = '', month = ''] = normalizedValue.split('-')
+  const numericYear = Number(year)
+  const numericMonth = Number(month)
+  if (!numericYear || !numericMonth) {
+    return ''
+  }
+
+  const date = new Date(Date.UTC(numericYear, numericMonth - 1, 1))
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  date.setUTCMonth(date.getUTCMonth() + 1)
+  const nextYear = date.getUTCFullYear()
+  const nextMonth = String(date.getUTCMonth() + 1).padStart(2, '0')
+  return `${nextYear}-${nextMonth}-01`
+}
+
 const areDateValuesEqual = (firstValue?: string, secondValue?: string): boolean => {
   return toDateInputValue(firstValue) === toDateInputValue(secondValue)
 }
@@ -187,6 +211,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   const selectTriggerRef = useRef<HTMLButtonElement | null>(null)
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
   const previousCommittedValidFromRef = useRef<string>('')
+  const previousAbsenceTypeRef = useRef<string | null>(null)
 
   const [touchedType, setTouchedType] = useState(false)
   const [touchedValidFrom, setTouchedValidFrom] = useState(false)
@@ -234,9 +259,10 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
       return minimumValidFromMonthStart
     }
 
+    const minimumDateAfterLatestEntry = nextMonthStartDateValue(latestExistingValidFromForType)
     return minimumValidFromMonthStart
-      ? maxDateValue(latestExistingValidFromForType, minimumValidFromMonthStart)
-      : latestExistingValidFromForType
+      ? maxDateValue(minimumDateAfterLatestEntry, minimumValidFromMonthStart)
+      : minimumDateAfterLatestEntry
   }, [latestExistingValidFromForType, minimumValidFromMonthStart])
   const hireDateViolation = Boolean(
     normalizedValidFrom && minimumValidFromMonthStart && normalizedValidFrom < minimumValidFromMonthStart
@@ -284,10 +310,6 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
       return `${year}-${month}`
     }
   }, [effectiveFromPlaceholderDate])
-  const minimumDateParts = useMemo(() => {
-    const [minYear = '', minMonth = ''] = (minimumDateForSelectedType || '').split('-')
-    return { minYear, minMonth }
-  }, [minimumDateForSelectedType])
   const validFromDay = useMemo(() => {
     const day = toDateInputValue(validFrom).split('-')[2]
     return Number(day || '')
@@ -372,25 +394,38 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   }, [isOpen, validFrom, validFromDraft])
 
   useEffect(() => {
-    if (!isOpen) return
-    if (!validFromMonthId) return
-    if (!minimumDateForSelectedType) return
+    if (!isOpen) {
+      previousAbsenceTypeRef.current = null
+      return
+    }
 
-    const normalizedYear = validFromYear.replace(/\D/g, '').slice(0, 4)
-    if (!/^\d{4}$/.test(normalizedYear)) return
+    const previousType = previousAbsenceTypeRef.current
+    if (previousType === null) {
+      previousAbsenceTypeRef.current = absenceTypeRef
+      return
+    }
 
-    if (normalizedYear !== minimumDateParts.minYear) return
-    if (validFromMonthId >= minimumDateParts.minMonth) return
+    if (previousType === absenceTypeRef) {
+      return
+    }
 
-    setValidFromMonthId(minimumDateParts.minMonth)
-  }, [
-    isOpen,
-    minimumDateForSelectedType,
-    minimumDateParts.minMonth,
-    minimumDateParts.minYear,
-    validFromMonthId,
-    validFromYear
-  ])
+    previousAbsenceTypeRef.current = absenceTypeRef
+
+    if (!minimumDateForSelectedType) {
+      return
+    }
+
+    const normalizedCurrentValidFrom = toMonthStartDateInputValue(validFrom)
+    if (normalizedCurrentValidFrom && normalizedCurrentValidFrom >= minimumDateForSelectedType) {
+      return
+    }
+
+    const [nextYear = '', nextMonth = ''] = minimumDateForSelectedType.split('-')
+    setValidFromDraft(minimumDateForSelectedType)
+    setValidFromYear(nextYear)
+    setValidFromMonthId(nextMonth)
+    setDateDayValidationError(false)
+  }, [absenceTypeRef, isOpen, minimumDateForSelectedType, validFrom])
 
   // Manage initial focus when modal opens
   useEffect(() => {
@@ -615,6 +650,12 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
               {t('entitlements-valid-from-minimum-hint', { monthYear: minimumAllowedMonthYearLabel })}
             </div>
           ) : null}
+          <div
+            className="gba:text-sm gba:leading-5 gba:text-muted-foreground"
+            data-testid="flw_updateEntitlementModal_monthStartHint"
+          >
+            {t('entitlements-valid-from-month-start-hint')}
+          </div>
         </div>
         {/* Numeric Inputs */}
         <div className="gba:flex gba:flex-col gba:gap-4">
