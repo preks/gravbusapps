@@ -522,10 +522,12 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         showBottomBorder
         className="gba:h-full gba:flex gba:flex-col"
       >
+        {/* TabSwitchList already wraps triggers in a horizontal scroll container (nw-design-system).
+            Avoid a second overflow-x-auto here — it can force overflow-y: auto and show stray vertical scrollbars. */}
         <div
-          className={`gba:flex gba:bg-card gba:overflow-x-auto gba:scrollbar-hide ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
+          className={`gba:flex gba:min-w-0 gba:bg-card gba:overflow-x-hidden gba:overflow-y-hidden ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
         >
-          <TabSwitchList className="gba:overflow-x-auto gba:scrollbar-hide">
+          <TabSwitchList>
             {!isInSidepanel && (
               <TabSwitchTrigger
                 value="dashboard"
