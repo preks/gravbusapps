@@ -324,6 +324,37 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
     return Object.keys(orderBy).length > 0 ? [orderBy] : [{ name: 'ASC_NULLS_LAST' }]
   }, [])
 
+  const buildVacancyFilter = useCallback(
+    (currentFilters: JobPositionListFilters) => {
+      if (currentFilters.missingJobProfile === true || typeof currentFilters.vacant !== 'boolean') {
+        return {}
+      }
+
+      const scopedNullAssignment = {
+        organizationalUnitEmployees: {
+          _and: [{ structureId: { _eq: structureId } }, { employeeId: { _isNull: true } }]
+        }
+      }
+
+      const scopedNonNullAssignment = {
+        organizationalUnitEmployees: {
+          _and: [{ structureId: { _eq: structureId } }, { employeeId: { _isNull: false } }]
+        }
+      }
+
+      // Vacant: only null assignments for active structure (exclude mixed null/non-null rows)
+      if (currentFilters.vacant) {
+        return {
+          _and: [scopedNullAssignment, { _not: scopedNonNullAssignment }]
+        }
+      }
+
+      // Filled: at least one non-null assignment for active structure
+      return scopedNonNullAssignment
+    },
+    [structureId]
+  )
+
   /**
    * Loads a specific page of job positions. Used for true pagination.
    * @param page Page number (1-based)
@@ -363,10 +394,9 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
         structureId,
         limit: pageSize,
         offset: pageOffset,
+        vacancyFilter: buildVacancyFilter(currentFilters),
         filter: filterConditions.length > 0 ? { _and: filterConditions } : {},
         search: hasActiveSearch ? `%${currentFilters.search?.trim()}%` : '%%', // Match all if no search
-        // Always provide vacant parameter, but set to undefined to ignore vacancy when filtering by missing job profile
-        vacant: currentFilters.missingJobProfile ? undefined : currentFilters.vacant,
         orderBy: buildOrderBy(currentFilters)
       }
 
@@ -399,7 +429,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
           setLoading(false)
         })
     },
-    [client, structureId]
+    [client, structureId, buildVacancyFilter]
   ) // Removed filters from dependencies to avoid loops
 
   /**
