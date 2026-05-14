@@ -121,8 +121,8 @@ export const getActionScreenKeyPrefix = (combinedType: string): ActionScreenKeyP
  */
 export const generateFormScreenKey = (formName: string, prefix: ActionScreenKeyPrefix = 'frm'): string => {
   if (!formName.trim()) return `${prefix}_`
-  const kebab = normalToKebab(formName)
-  return `${prefix}_${kebab}`
+  const suffix = normalizeScreenKeySuffixPreserveCase(formName)
+  return suffix ? `${prefix}_${suffix}` : `${prefix}_`
 }
 
 /**
@@ -172,6 +172,27 @@ export const normalToKebab = (str: string): string => {
 
   // Trim leading and trailing dashes without unbounded quantifiers
   return result.replace(/^-/, '').replace(/-$/, '')
+}
+
+/**
+ * Suffix after `sys_`: preserve casing; non-alphanumeric runs → single underscore (legacy system-key shape).
+ */
+export const normalizeSystemScreenKeySuffix = (str: string): string => {
+  const trimmed = String(str).trim()
+  if (!trimmed) return ''
+  const result = trimmed.replaceAll(/[^a-zA-Z0-9]+/g, '_')
+  return result.replace(/^_+/, '').replace(/_+$/, '')
+}
+
+/**
+ * User-facing screen key suffix: keep letter casing (matches process/task names and SMS registry).
+ * Collapse runs of non-alphanumeric characters to a single hyphen (same shape as legacy kebab keys, without lowercasing).
+ */
+export const normalizeScreenKeySuffixPreserveCase = (str: string): string => {
+  const trimmed = String(str).trim()
+  if (!trimmed) return ''
+  const result = trimmed.replaceAll(/[^a-zA-Z0-9]+/g, '-')
+  return result.replace(/^-+/, '').replace(/-+$/, '')
 }
 
 /**

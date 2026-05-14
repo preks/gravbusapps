@@ -42,7 +42,8 @@ import {
   combineBuildAndScreenType,
   parseFormScreenKey,
   getFormScreenKeySuffix,
-  normalToKebab
+  normalizeScreenKeySuffixPreserveCase,
+  normalizeSystemScreenKeySuffix
 } from '../../utils/componentKeyUtils'
 
 // Helper function to get submit button text based on mode
@@ -117,11 +118,6 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
   initialData,
   'data-testid': dataTestId = 'component-dialog'
 }) => {
-  const toSystemKeySuffix = useCallback((value: string): string => {
-    const normalized = value.toLowerCase().replaceAll(/[^a-z0-9]+/g, '_')
-    return normalized.replace(/^_/, '').replace(/_$/, '')
-  }, [])
-
   // Combined type state (for UI)
   const [combinedType, setCombinedType] = useState<CombinedType>('native-screen')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -295,7 +291,7 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
         if (combinedType === 'native-screen' && data.urlPath) {
           screenKey = urlPathToScreenKey(data.urlPath)
         } else if (combinedType === 'system-component') {
-          const suffix = data.keyOverride?.trim() ? toSystemKeySuffix(data.keyOverride.trim()) : ''
+          const suffix = data.keyOverride?.trim() ? normalizeSystemScreenKeySuffix(data.keyOverride.trim()) : ''
           screenKey = suffix ? `sys_${suffix}` : 'sys_'
         } else if (
           combinedType === 'native-form' ||
@@ -306,18 +302,18 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
         ) {
           const prefix = getActionScreenKeyPrefix(combinedType)
           if (formKeyMode === 'key') {
-            const suffix = data.keyOverride?.trim() ? normalToKebab(data.keyOverride.trim()) : ''
+            const suffix = data.keyOverride?.trim() ? normalizeScreenKeySuffixPreserveCase(data.keyOverride.trim()) : ''
             screenKey = suffix ? `${prefix}_${suffix}` : `${prefix}_`
           } else {
             if (data.isLaunchingForm) {
               const suffix = data.keyOverride?.trim()
-                ? normalToKebab(data.keyOverride.trim())
+                ? normalizeScreenKeySuffixPreserveCase(data.keyOverride.trim())
                 : data.process?.trim() || ''
               screenKey = suffix ? `${prefix}_${suffix}` : `${prefix}_`
             } else if (data.process) {
               screenKey = `t${prefix}_${data.process}_${data.userTaskName || ''}`
             } else {
-              const suffix = data.keyOverride?.trim() ? normalToKebab(data.keyOverride.trim()) : ''
+              const suffix = data.keyOverride?.trim() ? normalizeSystemScreenKeySuffix(data.keyOverride.trim()) : ''
               screenKey = suffix ? `${prefix}_${suffix}` : `${prefix}_`
             }
           }
@@ -357,7 +353,7 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
         setIsSubmitting(false)
       }
     },
-    [combinedType, formKeyMode, onSubmit, onOpenChange, toSystemKeySuffix]
+    [combinedType, formKeyMode, onSubmit, onOpenChange]
   )
 
   const isNativeScreen = combinedType === 'native-screen'
@@ -373,22 +369,24 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
     if (combinedType === 'native-screen' && urlPath) {
       return urlPathToScreenKey(urlPath)
     } else if (combinedType === 'system-component') {
-      const suffix = keyOverride?.trim() ? toSystemKeySuffix(keyOverride.trim()) : ''
+      const suffix = keyOverride?.trim() ? normalizeSystemScreenKeySuffix(keyOverride.trim()) : ''
       return suffix ? `sys_${suffix}` : 'sys_'
     } else if (isFormOrPopup) {
       const prefix = getActionScreenKeyPrefix(combinedType)
       if (formKeyMode === 'key') {
-        const suffix = keyOverride?.trim() ? normalToKebab(keyOverride.trim()) : ''
+        const suffix = keyOverride?.trim() ? normalizeScreenKeySuffixPreserveCase(keyOverride.trim()) : ''
         return suffix ? `${prefix}_${suffix}` : `${prefix}_`
       }
       if (isLaunchingForm) {
-        const suffix = keyOverride?.trim() ? normalToKebab(keyOverride.trim()) : selectedProcess || ''
+        const suffix = keyOverride?.trim()
+          ? normalizeScreenKeySuffixPreserveCase(keyOverride.trim())
+          : selectedProcess || ''
         return suffix ? `${prefix}_${suffix}` : `${prefix}_`
       }
       if (selectedProcess) {
         return `t${prefix}_${selectedProcess}_${userTaskName}`
       }
-      const suffix = keyOverride?.trim() ? normalToKebab(keyOverride.trim()) : ''
+      const suffix = keyOverride?.trim() ? normalizeScreenKeySuffixPreserveCase(keyOverride.trim()) : ''
       return suffix ? `${prefix}_${suffix}` : `${prefix}_`
     }
     const prefix = isFormOrPopup ? getActionScreenKeyPrefix(combinedType) : 'frm'
@@ -401,7 +399,6 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
     keyOverride,
     isLaunchingForm,
     userTaskName,
-    toSystemKeySuffix,
     isNativeScreen,
     isFormOrPopup
   ])
