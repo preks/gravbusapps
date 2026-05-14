@@ -93,6 +93,7 @@ export class CaseApiClient {
       correlationId: data.correlationId,
       // Send full metadata object to backend
       metadata: {
+        ...data.metadata,
         title: data.metadata?.title || 'New Case',
         description: data.metadata?.description || '',
         priority: data.metadata?.priority || 'medium',
@@ -253,9 +254,10 @@ export class CaseApiClient {
     const cases: Case[] = data.cases.map(c => ({
       caseId: c.caseId,
       state: {
-        linkedFlows: c.state?.linkedFlows || [],
+        linkedFlows: c.state?.case?.linkedFlows || c.state?.linkedFlows || [],
         createdAt: c.createdAt,
         metadata: {
+          ...(c.state?.metadata || {}),
           // Use metadata from backend state, fallback to parsed tags for backward compatibility
           title: c.state?.metadata?.title || c.title,
           description: c.state?.metadata?.description,
