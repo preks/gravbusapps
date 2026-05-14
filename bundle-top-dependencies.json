@@ -9126,15 +9126,15 @@
     ]
   },
   "core/manage/apps/resource-manager": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 608562,
+    "bitbucketBuildNumber": 12114,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12114/",
+    "chunkJsBytes": 608597,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 563482,
-        "gzip": 118318,
+        "rendered": 563699,
+        "gzip": 118285,
         "leaves": [
           {
             "name": "src/business-apps/core/manage/apps/resource-manager/views/bundles-view/dialogs/screen-bundle-dialog/ScreenBundleDialog.tsx",
@@ -9143,8 +9143,8 @@
           },
           {
             "name": "src/business-apps/core/manage/apps/resource-manager/views/component-view/ComponentDialog.tsx",
-            "rendered": 28422,
-            "gzip": 4963
+            "rendered": 28337,
+            "gzip": 4887
           }
         ]
       },
@@ -40862,15 +40862,15 @@
     ]
   },
   "hr/core/apps/employee-record": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 1457277,
+    "bitbucketBuildNumber": 12114,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12114/",
+    "chunkJsBytes": 1457454,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 1325540,
-        "gzip": 321313,
+        "rendered": 1325797,
+        "gzip": 321383,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/PerformanceTab.tsx",
@@ -42356,15 +42356,15 @@
     ]
   },
   "hr/core/apps/my-development": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 457850,
+    "bitbucketBuildNumber": 12114,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12114/",
+    "chunkJsBytes": 458027,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 433757,
-        "gzip": 102421,
+        "rendered": 434014,
+        "gzip": 102489,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/PerformanceTab.tsx",
@@ -52873,9 +52873,9 @@
     ]
   },
   "hr/core/forms/feedback-form": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 138076,
+    "bitbucketBuildNumber": 12114,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12114/",
+    "chunkJsBytes": 138305,
     "top": [
       {
         "kind": "bucket",
@@ -52934,8 +52934,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 30422,
-        "gzip": 8525,
+        "rendered": 30697,
+        "gzip": 8603,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/feedback-form/components/FeedbackFormComponent.tsx",
@@ -54297,9 +54297,9 @@
     ]
   },
   "hr/core/forms/performance-evaluation-form": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 156734,
+    "bitbucketBuildNumber": 12114,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12114/",
+    "chunkJsBytes": 156963,
     "top": [
       {
         "kind": "bucket",
@@ -54322,8 +54322,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 53517,
-        "gzip": 14238,
+        "rendered": 53792,
+        "gzip": 14316,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/performance-evaluation-form/components/PerformanceEvaluationFormComponent.tsx",
@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 1886475,
+    "bitbucketBuildNumber": 12114,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12114/",
+    "chunkJsBytes": 1890738,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1587639,
-        "gzip": 98143,
+        "rendered": 1592292,
+        "gzip": 98569,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1587639,
-            "gzip": 98143
+            "rendered": 1592292,
+            "gzip": 98569
           }
         ]
       },
@@ -107900,7 +107900,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-14T11:14:51.654Z",
+    "generatedAt": "2026-05-14T12:56:28.705Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
