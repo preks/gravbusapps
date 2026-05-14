@@ -4,7 +4,7 @@ import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePr
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import translations from '../_i18n'
 
-const JOB_DESCRIPTION_SKILLS_AGENT_ID = '69d610957299ecfb57020515'
+const JOB_DESCRIPTION_SKILLS_PROMPT_NAME = 'job_description_skills_extractor'
 
 export interface AgentSkillItem {
   extracted_name: string
@@ -124,7 +124,14 @@ export const useSkillsFromFile = ({ accessToken, onSkillsSuggested }: UseSkillsF
           )
         }
 
-        const response = await client.executePromptById(JOB_DESCRIPTION_SKILLS_AGENT_ID, formData)
+        const promptsPage = await client.getPrompts({ promptName: JOB_DESCRIPTION_SKILLS_PROMPT_NAME, limit: 1 })
+        const taskExpertId = promptsPage?.data?.[0]?._id
+        if (!taskExpertId) {
+          setError(`Prompt not found: ${JOB_DESCRIPTION_SKILLS_PROMPT_NAME}`)
+          return
+        }
+
+        const response = await client.executePromptById(taskExpertId, formData)
         const { skills: agentSkills, summary, error: agentError } = parseAgentResponse(response.content)
 
         if (agentError) {
