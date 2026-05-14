@@ -139,6 +139,7 @@ function mapUserAndEmployeeToUserInfo(
       employeeId,
       firstName,
       lastName,
+      pictureThumbnail: employee?.pictureThumbnail,
       supervisor: {
         id: supervisor?.id ?? basic?.employeeDetails.supervisor.id ?? '',
         firstName: supervisor?.firstName ?? basic?.employeeDetails.supervisor.firstName ?? '',

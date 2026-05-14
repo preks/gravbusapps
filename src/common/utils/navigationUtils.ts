@@ -48,6 +48,7 @@ export const Navigation = {
   /** Same URL shape as other Self-Service HR apps (e.g. My Time in hub: `/platform/hr/core/apps/my-time`). */
   HR_MY_DEVELOPMENT: `${NAVIGATION_BASE_PATH}/hr/core/apps/my-development`,
   HR_PERFORMANCE_TRACKING: `${NAVIGATION_BASE_PATH}/hr/core/apps/performance-tracking`,
+  HR_ADMIN_COCKPIT: `${NAVIGATION_BASE_PATH}/hr/core/apps/hr-admin-cockpit`,
   /** HR compensation planning (overview, budget setup, distribution, department submissions). */
   HR_COMPENSATION_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation-planning/apps/compensation-planning`,
   /** Manager / supervisor team salary proposal workspace (compensation planning). */
@@ -81,6 +82,7 @@ export const Navigation = {
   MANAGE_USERS: `${NAVIGATION_BASE_PATH}/manage/user-manager`,
 
   // Platform
+  PLATFORM_WORK_HOME: `${NAVIGATION_BASE_PATH}/work-home`,
   PLATFORM_TASK_MANAGER: `${NAVIGATION_BASE_PATH}/task-manager`,
   PLATFORM_TEAM_CHAT: `${NAVIGATION_BASE_PATH}/chat`,
   PLATFORM_AI_CHAT: `${NAVIGATION_BASE_PATH}/every-ai`,
@@ -170,6 +172,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
   [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
   [Navigation.HR_PERFORMANCE_TRACKING]: 'hr/core/apps/performance-tracking',
+  [Navigation.HR_ADMIN_COCKPIT]: 'hr/core/apps/hr-admin-cockpit',
   [Navigation.HR_COMPENSATION_PLANNING]: 'hr/compensation-planning/apps/compensation-planning',
   [Navigation.HR_COMPENSATION_MANAGER_PLANNING]: 'hr/compensation-planning/apps/manager-compensation-planning',
   [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
@@ -202,6 +205,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.MANAGE_USERS]: 'core/manage/apps/user-manager',
 
   // Platform
+  [Navigation.PLATFORM_WORK_HOME]: 'platform/apps/work-home',
   [Navigation.PLATFORM_TASK_MANAGER]: 'core/every/apps/every-box',
   [Navigation.PLATFORM_TEAM_CHAT]: 'platform/apps/chat',
   [Navigation.PLATFORM_AI_CHAT]: 'platform/apps/every-ai',

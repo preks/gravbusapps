@@ -65,7 +65,8 @@ const PlatformFeature = {
   GlobalManagement: { Key: 'platform.global.manage.enabled' },
   FlowBot: { Key: 'platform.ai.flowbot.enabled' },
   DashboardLayout: { Key: 'platform.dashboard-layout.mode', Values: PlatformFeatureDashboardLayoutValue },
-  EveryAI: { Key: 'everyai.enabled' }
+  EveryAI: { Key: 'everyai.enabled' },
+  WorkHome: { Key: 'platform.work-home.enabled' }
 }
 
 const EveryBoxFeature = {
