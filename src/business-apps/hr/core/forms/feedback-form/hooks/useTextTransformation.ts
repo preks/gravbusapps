@@ -4,10 +4,10 @@ import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePr
 
 export type TextOperation = 'formalize' | 'translate' | 'shorten'
 
-const TEXT_OPERATION_QUERY_IDS: Record<TextOperation, string> = {
-  formalize: '6799beda3544ce9d4dfaa322',
-  translate: '6799c32a3544ce9d4dfaa323',
-  shorten: '6799c5dd3544ce9d4dfaa328'
+const TEXT_OPERATION_PROMPT_NAMES: Record<TextOperation, string> = {
+  formalize: 'EmployeeFeedbackFormalize',
+  translate: 'TranslateText',
+  shorten: 'ShortenText'
 }
 
 export const useTextTransformation = (accessToken: string) => {
@@ -47,7 +47,14 @@ export const useTextTransformation = (accessToken: string) => {
         formData.append('system_params', systemParams)
         formData.append('user_params', JSON.stringify({ userInput: request.text }))
 
-        const response = await promptManagerClient.executePromptById(TEXT_OPERATION_QUERY_IDS[operation], formData)
+        const promptName = TEXT_OPERATION_PROMPT_NAMES[operation]
+        const promptsPage = await promptManagerClient.getPrompts({ promptName, limit: 1 })
+        const taskExpertId = promptsPage?.data?.[0]?._id
+        if (!taskExpertId) {
+          throw new Error(`Prompt not found: ${promptName}`)
+        }
+
+        const response = await promptManagerClient.executePromptById(taskExpertId, formData)
 
         // Extract the processed text from the response
         const responseContent = response.content
