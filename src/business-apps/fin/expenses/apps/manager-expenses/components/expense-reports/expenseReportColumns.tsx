@@ -6,6 +6,13 @@ import {
   createFormatCurrency,
   createStatusBadgeColumn
 } from '../../common/columns/expenseColumnHelpers'
+import type { StatusDisplayConfig } from '../../utils'
+import {
+  getAdvancePaymentStatusDisplayT,
+  getExpenseItemStatusDisplayT,
+  getExpensePlanStatusDisplayT,
+  getExpenseRequestStatusDisplayT
+} from '../../utils'
 import type {
   AdvancePaymentReport,
   ExpenseItemReport,
@@ -20,10 +27,6 @@ const sortOff = { enableSorting: false as const }
 
 /** Empty / missing values in manager expense *reports* only (not other tables). */
 const REPORT_DASH = '-'
-
-function buildStatusLabelConfig(label: string | undefined) {
-  return { label: label?.trim() ? label : REPORT_DASH, badgeVariant: 'outline' as const }
-}
 
 function createReportFormatDate() {
   return (v: string | null | undefined) => {
@@ -150,9 +153,21 @@ function createManagerReportStringCodeColumn<Row, K extends string>({
 }
 
 function createManagerReportStatusColumn<Row extends { id: string; status?: string }>(
-  statusHeader: string
+  statusHeader: string,
+  resolveStatus: (status: string) => StatusDisplayConfig
 ): ColumnDef<Row> {
-  return createStatusBadgeColumn<Row>('status', statusHeader, row => buildStatusLabelConfig(row.status), sortOff)
+  return createStatusBadgeColumn<Row>(
+    'status',
+    statusHeader,
+    row => {
+      const raw = row.status?.trim()
+      if (!raw) {
+        return { label: REPORT_DASH, type: 'draft', badgeVariant: 'outline' }
+      }
+      return resolveStatus(raw)
+    },
+    sortOff
+  )
 }
 
 const DEFAULT_CODE_SIZES: CodeColumnSize = { minSize: 100, size: 120, maxSize: 180 }
@@ -165,12 +180,15 @@ const MANAGER_REPORT_SUBMISSION_DATE_SIZES = {
   meta: { className: 'gba:min-w-0' }
 } as const
 
-export function createExpenseReportTableColumns(reportType: ReportType): ColumnDef<ReportItem>[] {
+export function createExpenseReportTableColumns(
+  reportType: ReportType,
+  managerT: (key: string) => string
+): ColumnDef<ReportItem>[] {
   const formatDate = createReportFormatDate()
   const formatCurrency = createFormatCurrency(null)
   const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
   const titleHeader = t('lowcoder:expense_request_list.expense_plan_table.title', 'Title')
-  const statusHeader = t('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
+  const statusHeader = managerT('filter-status-group-title')
   const employeeHeader = t('lowcoder:hr_absences.create_absence.employee', 'Employee')
   const submissionHeader = t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date')
 
@@ -230,7 +248,7 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
             )
           }
         },
-        createManagerReportStatusColumn<ExpenseItemReport>(statusHeader)
+        createManagerReportStatusColumn<ExpenseItemReport>(statusHeader, s => getExpenseItemStatusDisplayT(managerT, s))
       ])
     case ReportType.EXPENSE_PLAN:
       return asPlanColumns([
@@ -275,7 +293,9 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           ...sortOff,
           ...MANAGER_REPORT_SUBMISSION_DATE_SIZES
         }),
-        createManagerReportStatusColumn<ExpensePlanReport>(statusHeader),
+        createManagerReportStatusColumn<ExpensePlanReport>(statusHeader, s =>
+          getExpensePlanStatusDisplayT(managerT, s)
+        ),
         createDateColumn<ExpensePlanReport>(
           'startDate',
           getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date'),
@@ -320,7 +340,9 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           ...sortOff,
           ...MANAGER_REPORT_SUBMISSION_DATE_SIZES
         }),
-        createManagerReportStatusColumn<ExpenseRequestReport>(statusHeader),
+        createManagerReportStatusColumn<ExpenseRequestReport>(statusHeader, s =>
+          getExpenseRequestStatusDisplayT(managerT, s)
+        ),
         createCurrencyColumn<ExpenseRequestReport>(
           'totalAmount',
           getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Total Amount'),
@@ -354,7 +376,9 @@ export function createExpenseReportTableColumns(reportType: ReportType): ColumnD
           ...sortOff,
           ...MANAGER_REPORT_SUBMISSION_DATE_SIZES
         }),
-        createManagerReportStatusColumn<AdvancePaymentReport>(statusHeader),
+        createManagerReportStatusColumn<AdvancePaymentReport>(statusHeader, s =>
+          getAdvancePaymentStatusDisplayT(managerT, s)
+        ),
         createCurrencyColumn<AdvancePaymentReport>(
           'amount',
           getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
@@ -408,9 +432,13 @@ type ExportField = { key: string; title: string }
  * Field keys and CSV headers for export, aligned with {@link createExpenseReportTableColumns}
  * where the table uses combined title+code: export uses separate `title` and `code` columns.
  */
-export function getExportFieldsForReportType(reportType: ReportType | null): ExportField[] {
+export function getExportFieldsForReportType(
+  reportType: ReportType | null,
+  managerT: (key: string) => string
+): ExportField[] {
   if (!reportType) return []
   const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
+  const statusColumnTitle = managerT('filter-status-group-title')
   const insertCurrencyAfter = (rows: ExportField[], afterKey: string): ExportField[] => {
     if (rows.some(f => f.key === 'currency')) {
       return rows
@@ -439,7 +467,7 @@ export function getExportFieldsForReportType(reportType: ReportType | null): Exp
         { key: 'date', title: t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date') },
         { key: 'amount', title: t('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount') },
         { key: 'category', title: t('lowcoder:team_expenses_page.dashboard_tab.category', 'Category') },
-        { key: 'status', title: t('lowcoder:expense_request_list.expense_plan_table.status', 'Status') }
+        { key: 'status', title: statusColumnTitle }
       ]
       return insertCurrencyAfter(base, 'amount')
     }
@@ -454,7 +482,7 @@ export function getExportFieldsForReportType(reportType: ReportType | null): Exp
         { key: 'totalAmount', title: t('lowcoder:expense_plan_table.total_amount', 'Total amount') },
         { key: 'employeeName', title: t('lowcoder:hr_absences.create_absence.employee', 'Employee') },
         { key: 'createdAt', title: t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date') },
-        { key: 'status', title: t('lowcoder:expense_request_list.expense_plan_table.status', 'Status') },
+        { key: 'status', title: statusColumnTitle },
         { key: 'startDate', title: t('lowcoder:hr_absences.create_absence.start_date', 'Start Date') },
         { key: 'endDate', title: t('lowcoder:hr_absences.create_absence.end_date', 'End Date') }
       ]
@@ -470,7 +498,7 @@ export function getExportFieldsForReportType(reportType: ReportType | null): Exp
         { key: 'planCode', title: t('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code') },
         { key: 'employeeName', title: t('lowcoder:hr_absences.create_absence.employee', 'Employee') },
         { key: 'createdAt', title: t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date') },
-        { key: 'status', title: t('lowcoder:expense_request_list.expense_plan_table.status', 'Status') },
+        { key: 'status', title: statusColumnTitle },
         { key: 'totalAmount', title: t('lowcoder:expense_request_list.expense_plan_table.amount', 'Total Amount') }
       ]
       return insertCurrencyAfter(base, 'totalAmount')
@@ -481,7 +509,7 @@ export function getExportFieldsForReportType(reportType: ReportType | null): Exp
         { key: 'employeeName', title: t('lowcoder:hr_absences.create_absence.employee', 'Employee') },
         { key: 'code', title: t('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code') },
         { key: 'requestDate', title: t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date') },
-        { key: 'status', title: t('lowcoder:expense_request_list.expense_plan_table.status', 'Status') },
+        { key: 'status', title: statusColumnTitle },
         { key: 'amount', title: t('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount') },
         { key: 'paymentMethod', title: t('lowcoder:payment_method', 'Payment Method') },
         { key: 'costCenter', title: t('lowcoder:cost_center', 'Cost Center') }

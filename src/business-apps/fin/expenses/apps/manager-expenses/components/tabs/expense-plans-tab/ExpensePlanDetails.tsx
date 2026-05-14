@@ -1,15 +1,16 @@
 import React, { useMemo } from 'react'
-import { Separator, Button, Badge } from '@newwork/nw-design-system'
-import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils'
+import { Separator, Button, Badge, useTranslation } from '@newwork/nw-design-system'
+import { getExpensePlanStatusDisplayT, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ArrowRightIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { ExpensePlan } from '../../../hooks/useMainViewExpensePlans'
 import { useExpensePlanFileService } from '../../../../../common/files/useExpensePlanFileService'
 import TravelOrderAttachmentPreview from '../../../../../common/components/document-preview/TravelOrderAttachmentPreview'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
 import { translateTypeValue, extractRequestTypeValue } from '../../../utils/typeUtils'
+import translations from '../../../_i18n'
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
   selectedItem: ExpensePlan
@@ -17,27 +18,30 @@ export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
 }
 
 const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem, ...contextProps }) => {
+  const { t } = useTranslation(translations)
   // Call hooks unconditionally before any early returns
   const { printExpensePlan } = useExpensePlanFileService(contextProps)
 
   // Memoize headerRight before early return to ensure hooks are always called in same order
   const headerRight = useMemo(() => {
     if (!selectedItem) return null
-    const statusConfig = getExpensePlanStatusDisplay(selectedItem.status)
+    const statusConfig = getExpensePlanStatusDisplayT(t, selectedItem.status)
     return (
       <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-badge">
         {statusConfig.label}
       </Badge>
     )
-  }, [selectedItem?.status])
+  }, [selectedItem?.status, t])
 
   if (!selectedItem) return null
+
+  const notAvailable = t('expense-details-value-not-available')
 
   const getPlanType = (): string => {
     // Only get from plan's own requestType - no fallbacks
     const typeValue =
       extractRequestTypeValue(selectedItem.requestType) || extractRequestTypeValue(selectedItem.type as any)
-    return typeValue || 'N/A'
+    return typeValue || notAvailable
   }
 
   const getExpenseType = (): string | undefined => {
@@ -47,29 +51,26 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem, .
   }
 
   const getDepartment = () => {
-    return selectedItem.employee?.employeePosition?.organizationalUnit?.name || 'N/A'
+    return selectedItem.employee?.employeePosition?.organizationalUnit?.name || notAvailable
   }
 
   const additionalFields = [
     {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
-      value: translateTypeValue(getPlanType())
+      label: t('expense-plans-detail-plan-type'),
+      value: translateTypeValue(getPlanType(), t)
     }
   ]
 
   const expenseTypeValue = getExpenseType()
   if (expenseTypeValue) {
     additionalFields.push({
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
-        'Expense Type'
-      ),
-      value: translateTypeValue(expenseTypeValue)
+      label: t('expense-plans-detail-request-type'),
+      value: translateTypeValue(expenseTypeValue, t)
     })
   }
 
   additionalFields.push({
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee_list.organizational_unit', 'Department'),
+    label: t('expense-plans-detail-department'),
     value: getDepartment()
   })
 
@@ -77,14 +78,15 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem, .
     <ExpenseDetailsPanelContent
       dataTestIdPrefix="expense-plan-details"
       showHeader={false}
+      t={t}
       record={{
         title: selectedItem.title,
         code: selectedItem.code,
-        employee: selectedItem.employee?.fullName || selectedItem.employee?.displayName || 'N/A',
+        employee: selectedItem.employee?.fullName || selectedItem.employee?.displayName || notAvailable,
         employeeCode: selectedItem.employee?.code || undefined,
-        startDate: selectedItem.startDate ? formatDate(selectedItem.startDate, 'date.short') : 'N/A',
-        endDate: selectedItem.endDate ? formatDate(selectedItem.endDate, 'date.short') : 'N/A',
-        creationDate: selectedItem.createdAt ? formatDate(selectedItem.createdAt, 'date.short') : 'N/A',
+        startDate: selectedItem.startDate ? formatDate(selectedItem.startDate, 'date.short') : notAvailable,
+        endDate: selectedItem.endDate ? formatDate(selectedItem.endDate, 'date.short') : notAvailable,
+        creationDate: selectedItem.createdAt ? formatDate(selectedItem.createdAt, 'date.short') : notAvailable,
         totalRemainingAmount: 0,
         totalAmount: typeof selectedItem.totalAmount === 'number' ? selectedItem.totalAmount : 0,
         currency: selectedItem.currencyRef || 'EUR'
@@ -115,10 +117,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({ selectedItem, .
               data-testid="view-expense-plan-details-button"
             >
               <ArrowRightIcon className="gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.plan_details.view_full_details',
-                'View Full Details'
-              )}
+              {t('expense-plans-detail-view-full')}
             </Button>
           </div>
         </>

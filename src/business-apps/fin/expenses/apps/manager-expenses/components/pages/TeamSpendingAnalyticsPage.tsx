@@ -18,7 +18,8 @@ import {
   RadioGroup,
   RadioGroupItem,
   Label,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
@@ -29,13 +30,15 @@ import StatusLegend from '../StatusLegend'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   formatCurrencyDisplay,
-  getExpenseRequestStatusDisplay,
-  getAdvancePaymentStatusDisplay,
-  getExpensePlanStatusDisplay
+  getExpenseItemStatusDisplayT,
+  getExpenseRequestStatusDisplayT,
+  getAdvancePaymentStatusDisplayT,
+  getExpensePlanStatusDisplayT
 } from '../../utils'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import CurrencyFilter from '../../components/currency-filter'
 import { useManagerExpensesOverview } from '../../hooks/useManagerExpensesOverview'
+import translations from '../../_i18n'
 
 type TeamSpendingAnalyticsPageProps = BusinessAppContextProps
 
@@ -84,6 +87,7 @@ const resolveStatusColor = (type: string | undefined, fallbackColor: string): st
 }
 
 const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ accessToken, userInfo }) => {
+  const { t } = useTranslation(translations)
   // colors resolved within StatusLegend component
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore()
@@ -274,7 +278,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
             <BarChartComponent
               data={
                 data?.expenseItemsByStatus?.map(item => ({
-                  name: getExpenseRequestStatusDisplay(item.status).label,
+                  name: getExpenseItemStatusDisplayT(t, item.status).label,
                   value: item.count,
                   status: item.status
                 })) ?? []
@@ -285,7 +289,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               countLabel={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.items', 'items')}
               getColor={entry => {
                 const code = entry.status || entry.name
-                const config = getExpenseRequestStatusDisplay(code)
+                const config = getExpenseItemStatusDisplayT(t, String(code))
                 const type = config?.type || 'draft'
                 return resolveStatusColor(type, 'var(--nw-chart-1)')
               }}
@@ -411,7 +415,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
             <BarChartComponent
               data={
                 data?.expenseRequestsByStatus?.map(item => ({
-                  name: getExpenseRequestStatusDisplay(item.status).label,
+                  name: getExpenseRequestStatusDisplayT(t, item.status).label,
                   value: item.count,
                   status: item.status
                 })) ?? []
@@ -425,7 +429,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               )}
               getColor={entry => {
                 const code = entry.status || entry.name
-                const config = getExpenseRequestStatusDisplay(code)
+                const config = getExpenseRequestStatusDisplayT(t, String(code))
                 const type = config?.type || 'draft'
                 return resolveStatusColor(type, 'var(--nw-chart-2)')
               }}
@@ -451,7 +455,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
             <PieChartComponent
               data={
                 data?.expenseRequestsByStatus?.map(item => ({
-                  name: getExpenseRequestStatusDisplay(item.status).label,
+                  name: getExpenseRequestStatusDisplayT(t, item.status).label,
                   value: item.amount ?? 0,
                   status: item.status
                 })) ?? []
@@ -467,7 +471,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               ]}
               getColor={entry => {
                 const code = entry.status || entry.name
-                const config = getExpenseRequestStatusDisplay(code)
+                const config = getExpenseRequestStatusDisplayT(t, String(code))
                 const type = config?.type || 'draft'
                 return resolveStatusColor(type, 'var(--nw-chart-2)')
               }}
@@ -563,7 +567,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
             <BarChartComponent
               data={
                 data?.expensePlansByStatus?.map(item => ({
-                  name: getExpensePlanStatusDisplay(item.status).label,
+                  name: getExpensePlanStatusDisplayT(t, item.status).label,
                   value: item.count,
                   status: item.status
                 })) ?? []
@@ -574,7 +578,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               countLabel={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.plans', 'Plans')}
               getColor={entry => {
                 const code = entry.status || entry.name
-                const config = getExpensePlanStatusDisplay(code)
+                const config = getExpensePlanStatusDisplayT(t, String(code))
                 const type = config?.type || 'draft'
                 return resolveStatusColor(type, 'var(--nw-chart-3)')
               }}
@@ -600,7 +604,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
             <PieChartComponent
               data={
                 data?.expensePlansByStatus?.map(item => ({
-                  name: getExpensePlanStatusDisplay(item.status).label,
+                  name: getExpensePlanStatusDisplayT(t, item.status).label,
                   value: item.amount ?? 0,
                   status: item.status
                 })) ?? []
@@ -616,7 +620,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               ]}
               getColor={entry => {
                 const code = entry.status || entry.name
-                const config = getExpensePlanStatusDisplay(code)
+                const config = getExpensePlanStatusDisplayT(t, String(code))
                 const type = config?.type || 'draft'
                 return resolveStatusColor(type, 'var(--nw-chart-3)')
               }}
@@ -710,7 +714,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
             <BarChartComponent
               data={
                 data?.advancePaymentsByStatus?.map((item: any) => ({
-                  name: getAdvancePaymentStatusDisplay(item.status).label,
+                  name: getAdvancePaymentStatusDisplayT(t, item.status).label,
                   value: item.count ?? 0,
                   status: item.status
                 })) ?? []
@@ -724,7 +728,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               )}
               getColor={entry => {
                 const code = entry.status || entry.name
-                const config = getAdvancePaymentStatusDisplay(code)
+                const config = getAdvancePaymentStatusDisplayT(t, String(code))
                 const type = config?.type || 'draft'
                 return resolveStatusColor(type, 'var(--nw-chart-5)')
               }}
@@ -750,7 +754,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
             <PieChartComponent
               data={
                 data?.advancePaymentsByStatus?.map((item: any) => ({
-                  name: getAdvancePaymentStatusDisplay(item.status).label,
+                  name: getAdvancePaymentStatusDisplayT(t, item.status).label,
                   value: item.amount ?? 0,
                   status: item.status
                 })) ?? []
@@ -766,7 +770,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               currency={currencyFilter || primaryCurrency}
               getColor={entry => {
                 const code = entry.status || entry.name
-                const config = getAdvancePaymentStatusDisplay(code)
+                const config = getAdvancePaymentStatusDisplayT(t, String(code))
                 const type = config?.type || 'draft'
                 return resolveStatusColor(type, 'var(--nw-chart-1)')
               }}

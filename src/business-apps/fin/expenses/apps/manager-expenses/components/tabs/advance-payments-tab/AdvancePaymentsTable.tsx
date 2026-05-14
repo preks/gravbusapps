@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { SortingState } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { RowActionsWrapper, RowActionsIcon } from '../../../../../common/components/table/RowActionComponents'
@@ -10,6 +11,7 @@ import { ExpenseDataTable } from '../../../../../common/components/table/Expense
 import { TableErrorState } from '../../../../../common/components/table/TableErrorState'
 import { useTableSetup } from '../../../../../common/hooks/useTableSetup'
 import { createAdvancePaymentColumns } from './advancePaymentColumns'
+import translations from '../../../_i18n'
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   advancePayments: AdvancePaymentItem[]
@@ -48,7 +50,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     onViewDetails
   } = props
 
-  const allColumns = useMemo(() => createAdvancePaymentColumns(currencyFilter ?? null), [currencyFilter])
+  const { t } = useTranslation(translations)
+  const allColumns = useMemo(() => createAdvancePaymentColumns(currencyFilter ?? null, t), [currencyFilter, t])
   const { contextProps, columns, pagination, handlePaginationChange } = useTableSetup(
     props,
     allColumns,

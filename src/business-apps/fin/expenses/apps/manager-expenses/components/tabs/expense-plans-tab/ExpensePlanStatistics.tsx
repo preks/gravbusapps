@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { WidgetItem } from '@/components/widget-group'
 import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
 import { CalendarIcon, FileTextIcon } from '@phosphor-icons/react'
 import { CurrencyPrefix } from '../../../common/components/CurrencyPrefix'
 import { ExpenseStatus } from '../../../utils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../../_i18n'
 import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans'
 
 export interface ExpensePlanStatisticsProps {
@@ -30,6 +31,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
   currencyFilter,
   displayCurrency: displayCurrencyProp
 }) => {
+  const { t } = useTranslation(translations)
   const displayCurrency = displayCurrencyProp ?? currencyFilter ?? 'EUR'
   // Handle card click
   const handleCardClick = useCallback(
@@ -56,35 +58,23 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
     return [
       {
         key: 'pending-approval',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.expense_plans_tab.pending_approval',
-          'Pending Approval'
-        ),
+        title: t('expense-plans-stats-pending-title'),
         value: planStats.pendingCount.toString(),
         prefix: <CurrencyPrefix icon={CalendarIcon} currency={displayCurrency} />,
         color: 'var(--nw-warning)',
         valueIsString: true,
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.expense_plans_tab.requires_action',
-          'Requires action'
-        ),
+        description: t('expense-plans-stats-requires-action-desc'),
         active: activeFilter?.includes(ExpenseStatus.PENDING) || false,
         onClick: () => handleCardClick(ExpenseStatus.PENDING)
       },
       {
         key: 'total-plans',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.expense_plans_tab.total_plans_submitted',
-          'Total Plans (Submitted)'
-        ),
+        title: t('expense-plans-stats-total-plans-title'),
         value: planStats.totalCount.toString(),
         prefix: <CurrencyPrefix icon={FileTextIcon} currency={displayCurrency} />,
         color: 'var(--nw-primary)',
         valueIsString: true,
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans',
-          'All submitted plans'
-        ),
+        description: t('expense-plans-stats-total-plans-desc'),
         active: !!(
           activeFilter?.length === 8 &&
           [
@@ -120,23 +110,17 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       },
       {
         key: 'total-amount',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.expense_plans_tab.total_amount_submitted',
-          'Total Amount (Submitted)'
-        ),
+        title: t('expense-plans-stats-total-amount-title'),
         value: planStats.sumTotalAmount
           ? formatCurrencyDisplay(planStats.sumTotalAmount, displayCurrency)
           : formatCurrencyDisplay(0, displayCurrency),
         color: 'var(--nw-success)',
         valueIsString: true,
 
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.expense_plans_tab.across_all_plans',
-          'Across all plans'
-        )
+        description: t('expense-plans-stats-total-amount-desc')
       }
     ]
-  }, [planStats, activeFilter, handleCardClick, displayCurrency])
+  }, [planStats, activeFilter, handleCardClick, displayCurrency, t])
 
   return (
     <ManagerClickableWidgetGroup
@@ -145,10 +129,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
       error={statsError ? 'Failed to load statistics' : undefined}
       onRetry={fetchPlanStatistics}
       skeletonCount={3}
-      emptyText={getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available',
-        'No expense plan statistics available.'
-      )}
+      emptyText={t('expense-plans-stats-empty')}
       cardBackground="transparent"
       className="gba:py-0 gba:bg-transparent"
       hoverable={true}

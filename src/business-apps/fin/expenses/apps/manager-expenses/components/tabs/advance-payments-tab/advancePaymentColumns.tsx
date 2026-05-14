@@ -8,7 +8,7 @@ import {
   renderTitleCodeCell
 } from '../../../common/columns/expenseColumnHelpers'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
-import { getAdvancePaymentStatusDisplay } from '../../../utils'
+import { getAdvancePaymentStatusDisplayT } from '../../../utils'
 import type { AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments'
 import { getAdvancePaymentColumnHeader } from './config/advancePaymentColumnDefinitions'
 
@@ -16,7 +16,10 @@ import { getAdvancePaymentColumnHeader } from './config/advancePaymentColumnDefi
  * Builds column definitions for the manager advance payments table.
  * currencyFilter: when set, all amount cells use this currency; otherwise each row uses its own.
  */
-export function createAdvancePaymentColumns(currencyFilter: string | null): ColumnDef<AdvancePaymentItem>[] {
+export function createAdvancePaymentColumns(
+  currencyFilter: string | null,
+  t: (key: string) => string
+): ColumnDef<AdvancePaymentItem>[] {
   const formatDate = createFormatDate()
 
   const normalizeCurrency = (raw: string | undefined): string => {
@@ -74,7 +77,7 @@ export function createAdvancePaymentColumns(currencyFilter: string | null): Colu
     createStatusBadgeColumn<AdvancePaymentItem>(
       'status',
       getAdvancePaymentColumnHeader('status'),
-      (row: AdvancePaymentItem) => getAdvancePaymentStatusDisplay(row.status)
+      (row: AdvancePaymentItem) => getAdvancePaymentStatusDisplayT(t, row.status)
     )
   ]
 }

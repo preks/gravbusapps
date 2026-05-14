@@ -1,11 +1,12 @@
 import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter/DataFilter'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { getAdvancePaymentStatusFilterLabel } from '../utils'
 import { advancePaymentFilterStatuses } from './availableFilterStatuses'
 import { useCurrencyStore } from '../store/useCurrencyStore'
 import { useAdvancePaymentCurrencies } from './useAdvancePaymentCurrencies'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 export interface UseAdvancePaymentFiltersProps {
   accessToken?: string
@@ -34,6 +35,7 @@ export const useAdvancePaymentFilters = ({
   accessToken,
   managerId
 }: UseAdvancePaymentFiltersProps = {}): UseAdvancePaymentFiltersReturn => {
+  const { t } = useTranslation(translations)
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string[] | null>(['PENDING'])
   // Local primary currency for advance payments (independent from global store)
@@ -148,14 +150,14 @@ export const useAdvancePaymentFilters = ({
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
     for (const status of availableFilterStatuses) {
-      map[status] = getAdvancePaymentStatusFilterLabel(status)
+      map[status] = getAdvancePaymentStatusFilterLabel(status, t)
     }
     const availableCurrencies = Array.isArray(dynamicCurrencies) ? dynamicCurrencies : []
     for (const currency of availableCurrencies) {
       map[currency] = currency
     }
     return map
-  }, [availableFilterStatuses, dynamicCurrencies])
+  }, [availableFilterStatuses, dynamicCurrencies, t])
 
   // Create filter groups for the DataFilter component
   // NOTE: Only returning status group - currency group is built by the tab from overview data
@@ -171,12 +173,12 @@ export const useAdvancePaymentFilters = ({
     return [
       {
         id: 'statusGroup',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        title: t('filter-status-group-title'),
         filters: statusItems,
         selectionMode: 'multiple'
       }
     ]
-  }, [availableFilterStatuses, statusFilter, filterLabelMap])
+  }, [availableFilterStatuses, statusFilter, filterLabelMap, t])
 
   // Unified currency setter that updates all related states (local + global)
   const setUnifiedCurrency = useCallback(

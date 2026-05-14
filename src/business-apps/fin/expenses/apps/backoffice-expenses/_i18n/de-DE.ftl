@@ -447,6 +447,19 @@ common-total = Insgesamt
 common-error = Fehler
 common-search-expense-requests = In Spesenabrechnungen suchen
 
+# Shared ExpenseDetailsPanelContent — same message ids as the common component; text comes from existing backoffice keys
+expense-details-value-not-available = { common-not-available }
+expense-details-label-employee = { header-employee }
+expense-details-label-employee-code = { header-employee-code }
+expense-details-label-sap-number = { header-sap-number }
+personal-expenses-filter-label-start-date = { header-start-date }
+personal-expenses-filter-label-end-date = { header-end-date }
+expense-details-label-creation-date = { header-creation-date }
+expense-details-label-remaining-amount = { header-remaining-amount }
+expense-details-label-total-amount = { header-total-amount }
+expense-items-column-status = { header-status }
+expense-items-details-field-code = { detail-code }
+
 # Report Utils
 report-former-employee = Ehemaliger Mitarbeiter
 report-uncategorized = Nicht kategorisiert

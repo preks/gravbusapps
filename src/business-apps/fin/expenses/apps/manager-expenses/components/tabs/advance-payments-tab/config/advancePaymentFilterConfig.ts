@@ -8,11 +8,13 @@ import {
 export interface AdvancePaymentFilterConfigOptions {
   statusOptions: string[]
   filterLabelMap: Record<string, string>
+  statusGroupLabel?: string
 }
 
 export function createAdvancePaymentFilterConfig({
   statusOptions,
-  filterLabelMap
+  filterLabelMap,
+  statusGroupLabel
 }: AdvancePaymentFilterConfigOptions): FilterConfiguration {
   const statusFilters = statusOptions.map(id => ({ id, label: filterLabelMap?.[id] ?? id }))
 
@@ -23,7 +25,12 @@ export function createAdvancePaymentFilterConfig({
       'Advance Payments Filters'
     ),
     groups: [
-      createStatusFilterGroup(statusFilters, 'lowcoder:expense_item_list.expense_table.status', 'Status'),
+      createStatusFilterGroup(
+        statusFilters,
+        'lowcoder:expense_item_list.expense_table.status',
+        'Status',
+        statusGroupLabel
+      ),
       createExpenseAmountRangeFilterGroup(
         'advance-payment-amount',
         'amount',

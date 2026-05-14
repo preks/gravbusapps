@@ -9,7 +9,7 @@ import {
   createStatusBadgeColumn,
   createFormatCurrency
 } from '../../../common/columns/expenseColumnHelpers'
-import { getExpenseRequestStatusDisplay } from '../utils'
+import { getExpenseRequestStatusDisplayT } from '../utils'
 
 const sortOff = { enableSorting: false as const }
 
@@ -42,7 +42,10 @@ export interface ApprovalTableColumnChrome {
   onToggleRow: (request: ApprovalRequest) => void
 }
 
-export function createApprovalTableColumns(chrome: ApprovalTableColumnChrome): ColumnDef<ApprovalTableRow>[] {
+export function createApprovalTableColumns(
+  chrome: ApprovalTableColumnChrome,
+  t: (key: string) => string
+): ColumnDef<ApprovalTableRow>[] {
   const formatCurrency = createFormatCurrency(null)
   const requestDateId = 'requestDate'
   const requestDateLabel = getTranslationFromI18nKeyAndLabel(
@@ -196,7 +199,7 @@ export function createApprovalTableColumns(chrome: ApprovalTableColumnChrome): C
     createStatusBadgeColumn<ApprovalTableRow>(
       'status',
       statusHeader,
-      (row: ApprovalTableRow) => getExpenseRequestStatusDisplay(row.approval.status),
+      (row: ApprovalTableRow) => getExpenseRequestStatusDisplayT(t, row.approval.status),
       {
         ...sortOff,
         getRowTestId: row =>

@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action'
 import { RowActionsWrapper, RowActionsIcon } from '../../../../../common/components/table/RowActionComponents'
@@ -16,6 +16,7 @@ import { useTableSetup } from '../../../../../common/hooks/useTableSetup'
 import { usePrintPreview } from '../../../common/hooks/usePrintPreview'
 import { useSortingState } from '../../../hooks/useTabState'
 import { createExpensePlanColumns } from './expensePlanColumns'
+import translations from '../../../_i18n'
 
 interface ExpensePlansTableProps extends BusinessAppContextProps {
   onViewDetails?: (plan: ExpensePlan) => void
@@ -37,8 +38,9 @@ interface ExpensePlansTableProps extends BusinessAppContextProps {
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
+  const { t } = useTranslation(translations)
   const currentCurrencyFilter = props.currencyFilter ?? null
-  const allColumns = useMemo(() => createExpensePlanColumns(currentCurrencyFilter), [currentCurrencyFilter])
+  const allColumns = useMemo(() => createExpensePlanColumns(currentCurrencyFilter, t), [currentCurrencyFilter, t])
   const { contextProps, columns, pagination, handlePaginationChange } = useTableSetup(
     props,
     allColumns,
@@ -91,15 +93,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
               record.employeeDocument?.file?.trim()
                 ? [
                     {
-                      category: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:employee_list.flows_button.actions',
-                        'Actions'
-                      ),
+                      category: t('expense-plans-row-category-actions'),
                       key: 'print',
-                      label: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_plan_list.expense_plan_flows.print',
-                        'Print'
-                      ),
+                      label: t('expense-plans-row-print'),
                       onClick: (e?: React.MouseEvent) => {
                         e?.stopPropagation()
                         handlePrintPlan(record)
@@ -108,15 +104,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                   ]
                 : []),
               {
-                category: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_list.flows_button.navigations',
-                  'Navigations'
-                ),
+                category: t('expense-plans-row-category-navigations'),
                 key: 'view-plan-details',
-                label: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
-                  'View Plan Details'
-                ),
+                label: t('expense-plans-row-view-details'),
                 onClick: (e?: React.MouseEvent) => {
                   e?.stopPropagation()
                   handleViewDetails(record)
@@ -132,7 +122,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         </RowActionsWrapper>
       )
     },
-    [handlePrintPlan, handleViewDetails, contextProps.accessToken]
+    [handlePrintPlan, handleViewDetails, contextProps.accessToken, t]
   )
 
   const onRowClick = useCallback((plan: ExpensePlan) => setSelectedItem(plan), [])
@@ -164,7 +154,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         onOpenChange={open => {
           if (!open) handlePrintClose()
         }}
-        title={getTranslationFromI18nKeyAndLabel('lowcoder:print.title', 'Print Expense Plan')}
+        title={t('expense-plans-print-dialog-title')}
         loading={printLoading}
         pdfUrl={printPdfUrl}
         testIdPrefix="print-plan"
@@ -173,13 +163,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
       <DetailsSheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedItem?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_plan.expense_subtitle_details',
-            'Expense Plan Details'
-          )
-        }
+        title={selectedItem?.title || t('expense-plans-details-title')}
         testId="expense-plan-details-sheet"
         onClose={handleCloseDetails}
       >

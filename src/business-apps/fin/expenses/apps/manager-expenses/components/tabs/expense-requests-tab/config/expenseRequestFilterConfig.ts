@@ -10,11 +10,13 @@ import {
 export interface ExpenseRequestFilterConfigOptions {
   statusOptions: string[]
   filterLabelMap: Record<string, string>
+  statusGroupLabel?: string
 }
 
 export function createExpenseRequestFilterConfig({
   statusOptions,
-  filterLabelMap
+  filterLabelMap,
+  statusGroupLabel
 }: ExpenseRequestFilterConfigOptions): FilterConfiguration {
   const statusFilters = statusOptions.map(id => ({ id, label: filterLabelMap?.[id] ?? id }))
   const requestTypeOptions = [
@@ -47,7 +49,12 @@ export function createExpenseRequestFilterConfig({
     ),
     createDateRangeFilterGroup('startDate', 'startDateRange', 'lowcoder:personal_expenses.start_date', 'Start Date'),
     createDateRangeFilterGroup('endDate', 'endDateRange', 'lowcoder:personal_expenses.end_date', 'End Date'),
-    createStatusFilterGroup(statusFilters),
+    createStatusFilterGroup(
+      statusFilters,
+      'lowcoder:expense_request_list.expense_plan_table.status',
+      'Status',
+      statusGroupLabel
+    ),
     createTypeFilterGroup(
       'requestType',
       'requestTypeIds',

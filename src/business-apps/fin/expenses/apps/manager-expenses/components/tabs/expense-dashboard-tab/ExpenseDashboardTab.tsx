@@ -11,10 +11,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import CurrencyFilter from '../../../components/currency-filter'
 
 import ExpenseTrendsChart from './components/ExpenseTrendsChart'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
-import { getExpenseRequestStatusDisplay, getNormalizedErrorMessage } from '../../../utils'
+import { getExpenseRequestStatusDisplayT, getNormalizedErrorMessage } from '../../../utils'
 
 // Enable localized date formatting
 dayjs.extend(localizedFormat)
@@ -131,29 +131,15 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   // Memoize chart data to prevent unnecessary re-renders
   const chartData = useMemo(() => overview.data?.monthlyExpenseTrends ?? [], [overview.data?.monthlyExpenseTrends])
 
-  // Memoize chart title (translation is stable)
-  const chartTitle = useMemo(
-    () =>
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
-        'Monthly Expense Trends'
-      ),
-    []
-  )
+  const chartTitle = useMemo(() => t('dashboard-monthly-expense-trends'), [t])
 
   // Quick actions data (memoized with stable nav callbacks)
   const quickActions = useMemo(
     () => [
       {
         key: 'approvals',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.review_approvals',
-          'Approvals Review'
-        ),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.review_pending_expense_approvals',
-          'Review pending expense approvals.'
-        ),
+        title: t('dashboard-review-approvals'),
+        description: t('dashboard-review-pending-expense-approvals'),
         icon: ListChecksIcon,
         onClick: props.onNavigateToApprovals,
         testId: 'review-approvals-action',
@@ -161,14 +147,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       },
       {
         key: 'analysis',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis',
-          'Team Spending Analysis'
-        ),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.view_spending_trends_and_reports',
-          'View spending trends and reports.'
-        ),
+        title: t('dashboard-team-spending-analysis'),
+        description: t('dashboard-view-spending-trends-and-reports'),
         icon: ChartLineUpIcon,
         onClick: props.onNavigateToAnalytics,
         testId: 'team-spending-analysis-action',
@@ -176,21 +156,15 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       },
       {
         key: 'reports',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.modal_list_or_flow_button.absence_same_location_btn',
-          'Expense Reports'
-        ),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.generate_or_view_team_expense_reports',
-          'Generate or view team expense reports.'
-        ),
+        title: t('dashboard-expense-reports-action-title'),
+        description: t('dashboard-generate-or-view-team-expense-reports'),
         icon: FileTextIcon,
         onClick: props.onNavigateToReports,
         testId: 'expense-reports-action',
         iconColor: 'gba:text-accent'
       }
     ],
-    [props.onNavigateToApprovals, props.onNavigateToReports, props.onNavigateToAnalytics]
+    [t, props.onNavigateToApprovals, props.onNavigateToReports, props.onNavigateToAnalytics]
   )
 
   // Transform dashboard data into widgets format (memoized depending on overview data and display currency)
@@ -206,41 +180,26 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     return [
       {
         key: 'team-members',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.team_members',
-          'Team Members'
-        ),
+        title: t('dashboard-team-members'),
         value: overview.data?.teamMembersCount ?? 0,
         prefix: <ListChecksIcon />,
         color: 'var(--nw-primary)',
 
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.total_team_members',
-          'Total team members'
-        )
+        description: t('dashboard-total-team-members')
       },
       {
         key: 'pending-approvals',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.pending_approvals',
-          'Pending Approvals'
-        ),
+        title: t('dashboard-pending-approvals'),
         // Unfiltered: sum pending across requests, plans, and payments
         value: pendingApprovalsCount,
         prefix: <ClockAfternoonIcon />,
         color: 'var(--nw-warning)',
 
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.pending_requests_plans_payments',
-          'Requests, Plans and Advance Payments pending'
-        )
+        description: t('dashboard-pending-requests-plans-payments')
       },
       {
         key: 'monthly-expenses',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.monthly_expenses',
-          'Monthly Expenses'
-        ),
+        title: t('dashboard-monthly-expenses'),
         value: overview.data?.monthlyExpensesAmount
           ? formatCurrencyDisplay(overview.data.monthlyExpensesAmount, displayCurrency)
           : formatCurrencyDisplay(0, displayCurrency),
@@ -252,28 +211,20 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
         color: 'var(--nw-success)',
         valueIsString: true,
 
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.current_month',
-          'Current month'
-        )
+        description: t('dashboard-current-month')
       },
       // Removed legacy dashboardData usage; keep placeholder with zero until categories are added to overview
       {
         key: 'expense-categories',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.expense_categories',
-          'Expense Categories'
-        ),
+        title: t('dashboard-expense-categories'),
         value: 0,
         prefix: <CalendarIcon />,
         color: 'var(--nw-accent)',
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.categories_used',
-          'Categories used'
-        )
+        description: t('dashboard-categories-used')
       }
     ]
   }, [
+    t,
     overview.data?.teamMembersCount,
     overview.data?.pendingRequestsAll,
     overview.data?.pendingPlansAll,
@@ -312,9 +263,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       {/* Currency Filter */}
       <div className="gba:flex gba:justify-start gba:mb-4" data-testid="expense-dashboard-currency-filter-container">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency_filter', 'Currency:')}
-          </span>
+          <span className="gba:text-sm gba:font-medium">{t('dashboard-currency-label')}</span>
           <CurrencyFilter
             value={pageCurrency}
             onChange={handleCurrencyChange}
@@ -342,7 +291,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       <div className="gba:flex-1 gba:space-y-6">
         {/* Quick Actions Section */}
         <div>
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-4">{t('insights-reports-title')}</h3>
+          <h3 className="gba:text-lg gba:font-semibold gba:mb-4">{t('dashboard-quick-actions')}</h3>
           <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             {quickActions.map(action => {
               return (
@@ -376,12 +325,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
           {/* Recent Expense Requests */}
           <Card data-testid="recent-expense-requests-card">
             <CardHeader>
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.recent_expense_requests',
-                  'Recent Expense Requests'
-                )}
-              </CardTitle>
+              <CardTitle>{t('dashboard-recent-expense-requests')}</CardTitle>
             </CardHeader>
             <CardContent>
               {recentRequestsForDisplay.length > 0 ? (
@@ -396,7 +340,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
                         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
                           <p className="gba:text-sm gba:text-muted-foreground">{request.employeeName}</p>
                           <span className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:bg-secondary gba:text-secondary-foreground">
-                            {getExpenseRequestStatusDisplay(request.status).label}
+                            {getExpenseRequestStatusDisplayT(t, request.status).label}
                           </span>
                         </div>
                       </div>
@@ -409,7 +353,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
                         <p className="gba:text-sm gba:text-muted-foreground">
                           {request.requestDate && request.requestDate !== 'N/A'
                             ? dayjs(request.requestDate).locale(userLocale).format('L')
-                            : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                            : t('dashboard-not-available')}
                         </p>
                       </div>
                     </div>
@@ -417,12 +361,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
                 </div>
               ) : (
                 <div className="gba:py-8 gba:text-center">
-                  <p className="gba:text-muted-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.no_recent_expense_requests',
-                      'No recent expense requests'
-                    )}
-                  </p>
+                  <p className="gba:text-muted-foreground">{t('dashboard-no-recent-expense-requests')}</p>
                 </div>
               )}
             </CardContent>
@@ -431,20 +370,10 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
           {/* Team Budget Status */}
           <Card>
             <CardHeader>
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.team_budget_status',
-                  'Team Budget Status'
-                )}
-              </CardTitle>
+              <CardTitle>{t('dashboard-team-budget-status')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.no_budget_data_available',
-                  'No budget data available'
-                )}
-              </p>
+              <p className="gba:text-muted-foreground">{t('dashboard-no-budget-data-available')}</p>
             </CardContent>
           </Card>
         </div>

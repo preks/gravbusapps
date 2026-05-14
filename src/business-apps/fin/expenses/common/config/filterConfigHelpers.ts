@@ -43,18 +43,21 @@ export function createDateRangeFilterGroup(
 export function createStatusFilterGroup(
   statusFilters: Array<{ id: string; label: string }>,
   i18nKey = 'lowcoder:expense_request_list.expense_plan_table.status',
-  fallback = 'Status'
+  fallback = 'Status',
+  resolvedGroupLabel?: string
 ): FilterConfiguration['groups'][number] {
+  const groupLabel =
+    resolvedGroupLabel !== undefined ? resolvedGroupLabel : getTranslationFromI18nKeyAndLabel(i18nKey, fallback)
   return {
     id: 'status-group',
-    label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
+    label: groupLabel,
     collapsible: true,
     defaultExpanded: true,
     filters: [
       {
         id: 'statusIds',
         field: 'statusIds',
-        label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
+        label: groupLabel,
         type: 'multi-select',
         config: { options: statusFilters }
       }

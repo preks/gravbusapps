@@ -2,7 +2,6 @@ import React, { useMemo, useCallback, useState } from 'react'
 import type { SortingState } from '@tanstack/react-table'
 import { DataDisplay, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import translations from '../../../_i18n'
 import { requestFilterStatuses } from '../../../hooks/availableFilterStatuses'
 import { useExpenseRequestCurrencies } from '../../../hooks/useExpenseRequestCurrencies'
@@ -100,19 +99,21 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
     for (const status of requestFilterStatuses) {
-      map[status] = getExpenseRequestStatusFilterLabel(status)
+      map[status] = getExpenseRequestStatusFilterLabel(status, t)
     }
-    map['ExpenseRequestType:v1:EXPENSES'] = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:personal_expenses.expense',
-      'Expense'
-    )
-    map['ExpenseRequestType:v1:TRIP'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+    map['ExpenseRequestType:v1:EXPENSES'] = t('expense-plans-filter-type-expense')
+    map['ExpenseRequestType:v1:TRIP'] = t('expense-plans-filter-type-trip')
     return map
-  }, [])
+  }, [t])
 
   const filterConfiguration = useMemo(
-    () => createExpenseRequestFilterConfig({ statusOptions: requestFilterStatuses, filterLabelMap }),
-    [filterLabelMap]
+    () =>
+      createExpenseRequestFilterConfig({
+        statusOptions: requestFilterStatuses,
+        filterLabelMap,
+        statusGroupLabel: t('filter-status-group-title')
+      }),
+    [filterLabelMap, t]
   )
 
   const filterSignature = useMemo(
@@ -271,19 +272,13 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
         titleSections={[
           {
             id: 'list',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:manager_expense_landing_page.expense_requests_tab.title',
-              'Expense Requests'
-            ),
+            label: t('expense-requests-section-title'),
             metadata: { count: totalCount, isLoading: requestsLoading }
           }
         ]}
         currentSection="list"
         searchValue={searchTerm}
-        searchPlaceholder={
-          getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
-          '...'
-        }
+        searchPlaceholder={t('expense-requests-search-placeholder')}
         onSearchChange={handleSearchChange}
         filters={filtersObject}
         filterConfiguration={filterConfiguration}
@@ -323,21 +318,12 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       <DetailsSheet
         open={!!selectedRequest}
         onOpenChange={open => !open && setSelectedRequest(null)}
-        title={
-          selectedRequest?.title ||
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')
-        }
+        title={selectedRequest?.title || t('expense-requests-details-title')}
         testId="expense-request-details-sheet"
         onClose={() => setSelectedRequest(null)}
       >
         {selectedRequest && (
-          <ExpenseRequestDetails
-            request={selectedRequest}
-            onApprove={async () => setSelectedRequest(null)}
-            onReject={async () => setSelectedRequest(null)}
-            accessToken={props.accessToken}
-            userInfo={props.userInfo}
-          />
+          <ExpenseRequestDetails request={selectedRequest} accessToken={props.accessToken} userInfo={props.userInfo} />
         )}
       </DetailsSheet>
     </div>

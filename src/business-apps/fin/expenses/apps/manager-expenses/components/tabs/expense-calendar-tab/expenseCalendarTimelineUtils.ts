@@ -1,5 +1,5 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { ExpenseStatus, getExpensePlanStatusDisplay, getExpenseRequestStatusDisplay } from '../../../utils'
+import { ExpenseStatus, getExpensePlanStatusDisplayT, getExpenseRequestStatusDisplayT } from '../../../utils'
 import type { ExpenseTimelineEvent, ExpenseTimelineItem, TeamEmployee } from './expenseCalendarTypes'
 
 export function mapToCalendarTimelineType(pillType: string): string {
@@ -92,8 +92,9 @@ export function buildTimelineEvents(params: {
   expensePlans: any[]
   expenseRequests: any[]
   userLocale: string
+  t: (key: string) => string
 }): ExpenseTimelineEvent[] {
-  const { expensePlans, expenseRequests, userLocale } = params
+  const { expensePlans, expenseRequests, userLocale, t } = params
   const events: ExpenseTimelineEvent[] = []
 
   for (const plan of expensePlans || []) {
@@ -102,7 +103,7 @@ export function buildTimelineEvents(params: {
     const eventEndDate = plan.endDate || fallbackDate
     if (!eventStartDate || !eventEndDate) continue
 
-    const statusDisplay = getExpensePlanStatusDisplay(plan.status as ExpenseStatus)
+    const statusDisplay = getExpensePlanStatusDisplayT(t, plan.status as ExpenseStatus)
     events.push({
       id: `plan-${plan.id}`,
       itemId: plan.employee?.id || 'unknown',
@@ -126,7 +127,7 @@ export function buildTimelineEvents(params: {
     if (!eventStartDate || !eventEndDate) continue
     if (!request.employee?.id) continue
 
-    const statusDisplay = getExpenseRequestStatusDisplay(request.status as ExpenseStatus)
+    const statusDisplay = getExpenseRequestStatusDisplayT(t, request.status as ExpenseStatus)
     events.push({
       id: `request-${request.id}`,
       itemId: request.employee.id,
@@ -146,7 +147,7 @@ export function buildTimelineEvents(params: {
   return events
 }
 
-export function buildAllStatusesLegendItems(): Array<{ label: string; color: string }> {
+export function buildAllStatusesLegendItems(t: (key: string) => string): Array<{ label: string; color: string }> {
   const allStatusesInOrder: string[] = [
     ExpenseStatus.CREATED,
     ExpenseStatus.PREPARED,
@@ -166,10 +167,10 @@ export function buildAllStatusesLegendItems(): Array<{ label: string; color: str
 
   const uniqueByLabel = new Map<string, { label: string; type: string }>()
   for (const status of allStatusesInOrder) {
-    const requestDisplay = getExpenseRequestStatusDisplay(status)
+    const requestDisplay = getExpenseRequestStatusDisplayT(t, status)
     uniqueByLabel.set(requestDisplay.label, { label: requestDisplay.label, type: requestDisplay.type })
 
-    const planDisplay = getExpensePlanStatusDisplay(status)
+    const planDisplay = getExpensePlanStatusDisplayT(t, status)
     uniqueByLabel.set(planDisplay.label, { label: planDisplay.label, type: planDisplay.type })
   }
 

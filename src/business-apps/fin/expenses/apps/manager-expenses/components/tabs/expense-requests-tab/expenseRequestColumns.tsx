@@ -10,7 +10,7 @@ import {
   renderTitleCodeCell,
   renderCodeCell
 } from '../../../common/columns/expenseColumnHelpers'
-import { getExpenseRequestStatusDisplay } from '../../../utils'
+import { getExpenseRequestStatusDisplayT } from '../../../utils'
 import type { ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
 import { getExpenseRequestColumnHeader } from './config/expenseRequestColumnDefinitions'
 
@@ -18,7 +18,10 @@ import { getExpenseRequestColumnHeader } from './config/expenseRequestColumnDefi
  * Builds column definitions for the manager expense requests table.
  * currencyFilter: when set, all amount cells use this currency; otherwise each row uses its own.
  */
-export function createExpenseRequestColumns(currencyFilter: string | null): ColumnDef<ExpenseRequest>[] {
+export function createExpenseRequestColumns(
+  currencyFilter: string | null,
+  t: (key: string) => string
+): ColumnDef<ExpenseRequest>[] {
   const formatDate = createFormatDate()
   const formatCurrency = createFormatCurrency(currencyFilter)
 
@@ -76,7 +79,7 @@ export function createExpenseRequestColumns(currencyFilter: string | null): Colu
       formatCurrency
     ),
     createStatusBadgeColumn<ExpenseRequest>('status', getExpenseRequestColumnHeader('status'), (row: ExpenseRequest) =>
-      getExpenseRequestStatusDisplay(row.status)
+      getExpenseRequestStatusDisplayT(t, row.status)
     )
   ]
 }

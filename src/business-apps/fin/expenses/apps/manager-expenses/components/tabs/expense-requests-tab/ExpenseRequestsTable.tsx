@@ -1,4 +1,6 @@
+import type { SortingState } from '@tanstack/react-table'
 import React, { useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -12,6 +14,7 @@ import { TableErrorState } from '../../../../../common/components/table/TableErr
 import { useTableSetup } from '../../../../../common/hooks/useTableSetup'
 import { usePrintPreview } from '../../../common/hooks/usePrintPreview'
 import { createExpenseRequestColumns } from './expenseRequestColumns'
+import translations from '../../../_i18n'
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   expenseRequests: ExpenseRequest[]
@@ -50,7 +53,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     onViewDetails
   } = props
 
-  const allColumns = useMemo(() => createExpenseRequestColumns(currencyFilter ?? null), [currencyFilter])
+  const { t } = useTranslation(translations)
+  const allColumns = useMemo(() => createExpenseRequestColumns(currencyFilter ?? null, t), [currencyFilter, t])
   const { contextProps, columns, pagination, handlePaginationChange } = useTableSetup(
     props,
     allColumns,

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Spinner, Alert, AlertDescription, Label } from '@newwork/nw-design-system'
+import { Spinner, Alert, AlertDescription, Label, useTranslation } from '@newwork/nw-design-system'
 import { CalendarTimeline } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
@@ -7,6 +7,7 @@ import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@
 import type { ExpenseTimelineEvent, ExpenseTimelineItem } from './expenseCalendarTypes'
 import { useTeamMembersByManager } from './useTeamMembersByManager'
 import { buildAllStatusesLegendItems, buildTimelineEvents, buildTimelineItems } from './expenseCalendarTimelineUtils'
+import translations from '../../../_i18n'
 
 // Step 5: Overview limits for calendar. Review with product; a lower cap (e.g. 500) can reduce payload if acceptable for UX.
 const CALENDAR_OVERVIEW_REQUESTS_LIMIT = 1000
@@ -16,6 +17,7 @@ export type ExpenseCalendarProps = BusinessAppContextProps
 
 export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
   const { userInfo, accessToken } = props
+  const { t } = useTranslation(translations)
   // Memoize once so timelineEvents useMemo only recomputes when plans/requests change (PERFORMANCE-IMPROVEMENT-PLAN §2.3 / Step 5).
   const userLocale = useMemo(() => getCurrentActiveUserLocale(), [])
 
@@ -46,12 +48,12 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
   }, [allTeamMembers, expensePlans, expenseRequests])
 
   const timelineEvents = useMemo((): ExpenseTimelineEvent[] => {
-    return buildTimelineEvents({ expensePlans, expenseRequests, userLocale })
-  }, [expensePlans, expenseRequests, userLocale])
+    return buildTimelineEvents({ expensePlans, expenseRequests, userLocale, t })
+  }, [expensePlans, expenseRequests, userLocale, t])
 
   const legendItems = useMemo(() => {
-    return buildAllStatusesLegendItems()
-  }, [])
+    return buildAllStatusesLegendItems(t)
+  }, [t])
 
   const renderDataBody = () => {
     if (overview.isLoading || loadingTeamMembers)

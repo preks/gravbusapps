@@ -76,17 +76,18 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     })
 
   const filterLabelMap = useMemo(
-    () => Object.fromEntries(advancePaymentFilterStatuses.map(s => [s, getAdvancePaymentStatusFilterLabel(s)])),
-    []
+    () => Object.fromEntries(advancePaymentFilterStatuses.map(s => [s, getAdvancePaymentStatusFilterLabel(s, t)])),
+    [t]
   )
 
   const filterConfiguration = useMemo(
     () =>
       createAdvancePaymentFilterConfig({
         statusOptions: advancePaymentFilterStatuses,
-        filterLabelMap
+        filterLabelMap,
+        statusGroupLabel: t('filter-status-group-title')
       }),
-    [filterLabelMap]
+    [filterLabelMap, t]
   )
 
   // Initialize selector/filter with the most used currency once it becomes available.

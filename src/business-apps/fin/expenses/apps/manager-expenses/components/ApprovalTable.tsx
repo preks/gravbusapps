@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react'
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FlowExecutionTask } from '@/common/network/flow-metrics/FlowMetricsClient'
 import { ApprovalRequest } from '../types'
@@ -11,6 +11,7 @@ import { useApprovalHandling } from '../hooks/useApprovalHandling'
 import { ExpenseDataTable } from '../../../common/components/table/ExpenseDataTable'
 import { useTableSetup } from '../../../common/hooks/useTableSetup'
 import { type ApprovalTableRow, createApprovalTableColumns } from './approvalTableColumns'
+import translations from '../_i18n'
 
 interface ApprovalTableProps extends BusinessAppContextProps {
   tasks: FlowExecutionTask[]
@@ -54,6 +55,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   onRowClick,
   emptyMessage
 }) => {
+  const { t } = useTranslation(translations)
   const { isApproving, approvalError, handleApproveClick } = useApprovalHandling({
     selectedTasks,
     setSelectedTasks,
@@ -126,14 +128,17 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
 
   const allColumns = useMemo(
     () =>
-      createApprovalTableColumns({
-        dataTestIdPrefix,
-        allRequests,
-        selectedTasks,
-        onSelectAll: handleSelectAll,
-        onToggleRow: handleTaskSelection
-      }),
-    [dataTestIdPrefix, allRequests, handleSelectAll, handleTaskSelection, selectedTasks]
+      createApprovalTableColumns(
+        {
+          dataTestIdPrefix,
+          allRequests,
+          selectedTasks,
+          onSelectAll: handleSelectAll,
+          onToggleRow: handleTaskSelection
+        },
+        t
+      ),
+    [dataTestIdPrefix, allRequests, handleSelectAll, handleTaskSelection, selectedTasks, t]
   )
 
   const { columns, pagination, handlePaginationChange } = useTableSetup(

@@ -1,11 +1,12 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
+import { getAdvancePaymentStatusDisplayT, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DetailsPanelContent } from '@/business-apps/fin/expenses/common/components/details-panel/DetailsPanelContent'
 import { buildAdvancePaymentFields } from '@/business-apps/fin/expenses/common/utils/advancePaymentUtils'
 import { AdvancePaymentDetailsFooter } from '@/business-apps/fin/expenses/common/components/advance-payment/AdvancePaymentDetailsFooter'
 import advancePaymentDetailsTranslations from '@/business-apps/fin/expenses/common/_i18n'
+import translations from '../../../_i18n'
 
 export interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
   payment: any
@@ -13,6 +14,7 @@ export interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
 
 const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }) => {
   const { t } = useTranslation(advancePaymentDetailsTranslations)
+  const { t: tManager } = useTranslation(translations)
   if (!payment) return null
 
   const fields = buildAdvancePaymentFields(payment, {
@@ -24,7 +26,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
     showPlanTotalAmount: true,
     formatCurrency: formatCurrencyDisplay,
     t,
-    getStatusDisplay: getAdvancePaymentStatusDisplay
+    getStatusDisplay: (status: string) => getAdvancePaymentStatusDisplayT(tManager, status)
   })
 
   return (

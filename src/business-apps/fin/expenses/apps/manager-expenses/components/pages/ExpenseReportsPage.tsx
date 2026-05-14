@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react'
-import { DataDisplay, Button, PageLayout, Tabs, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { DataDisplay, Button, PageLayout, Tabs, TabsList, TabsTrigger, useTranslation } from '@newwork/nw-design-system'
 import { DownloadIcon, FileTextIcon } from '@phosphor-icons/react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -16,8 +16,10 @@ import {
   buildManagerExpenseReportDownloadFilename,
   escapeManagerExpenseReportCsv,
   formatManagerExpenseReportCell,
-  htmlEscapeForManagerExpenseReport
+  htmlEscapeForManagerExpenseReport,
+  type FormatManagerExpenseReportCellOptions
 } from '../../utils/managerExpenseReportPageExportUtils'
+import translations from '../../_i18n'
 import {
   EXPENSE_REPORT_SEGMENTED_TAB_TRIGGER_CLASS,
   EXPENSE_REPORT_TABS_ROOT_CLASS,
@@ -27,6 +29,7 @@ import {
 type ExpenseReportsPageProps = BusinessAppContextProps
 
 const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, userInfo }) => {
+  const { t } = useTranslation(translations)
   const contextProps = useMemo(
     () => ({
       accessToken,
@@ -68,8 +71,8 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
   useManagerExpenseReportUrlSync(setSelectedReportType, selectedReportType)
 
   const allColumns = useMemo(
-    () => createExpenseReportTableColumns(selectedReportType ?? ReportType.EXPENSE_ITEM),
-    [selectedReportType]
+    () => createExpenseReportTableColumns(selectedReportType ?? ReportType.EXPENSE_ITEM, t),
+    [selectedReportType, t]
   )
 
   const { columns, pagination, handlePaginationChange } = useTableSetup(
@@ -112,17 +115,24 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
   )
 
   const handleDownload = async () => {
-    const cols = getExportFieldsForReportType(selectedReportType)
+    if (!selectedReportType) {
+      return
+    }
+    const cols = getExportFieldsForReportType(selectedReportType, t)
     if (cols.length === 0) {
       return
     }
+
+    const cellOpts: FormatManagerExpenseReportCellOptions = { reportType: selectedReportType, translate: t }
 
     const header = cols.map(c => escapeManagerExpenseReportCsv(c.title))
 
     const allRows = await fetchAllForExport()
     const rows = allRows.map(row => {
       const record = row as Record<string, unknown>
-      return cols.map(c => escapeManagerExpenseReportCsv(formatManagerExpenseReportCell(c.key, record[c.key])))
+      return cols.map(c =>
+        escapeManagerExpenseReportCsv(formatManagerExpenseReportCell(c.key, record[c.key], cellOpts))
+      )
     })
 
     const csvLines = [header.join(','), ...rows.map(r => r.join(','))]
@@ -142,10 +152,15 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
   }
 
   const handleDownloadExcel = async () => {
-    const cols = getExportFieldsForReportType(selectedReportType)
+    if (!selectedReportType) {
+      return
+    }
+    const cols = getExportFieldsForReportType(selectedReportType, t)
     if (cols.length === 0) {
       return
     }
+
+    const cellOpts: FormatManagerExpenseReportCellOptions = { reportType: selectedReportType, translate: t }
 
     const headerCells = cols.map(c => `<th>${htmlEscapeForManagerExpenseReport(c.title)}</th>`).join('')
 
@@ -156,7 +171,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ accessToken, us
           .map(
             c =>
               `<td>${htmlEscapeForManagerExpenseReport(
-                formatManagerExpenseReportCell(c.key, (row as Record<string, unknown>)[c.key])
+                formatManagerExpenseReportCell(c.key, (row as Record<string, unknown>)[c.key], cellOpts)
               )}</td>`
           )
           .join('')
