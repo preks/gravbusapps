@@ -1,6 +1,8 @@
+import type { MutableRefObject } from 'react'
 import type { SpreadsheetMutationPlan, SpreadsheetMutationPlannedCell } from '../core'
 import type { SpreadsheetColumn } from '../types/spreadsheet'
 import type { ConversionContext } from '../utils/univerAdapter'
+import type { SpreadsheetStableRowTarget } from '../utils/spreadsheetRowSlotIdentity'
 import type { SheetCellMatrix, SheetRangeShape } from './cellMatrixUtils'
 import type { UniverWorkbookBootstrapMountContext } from './univerWorkbookBootstrapMountContext'
 import type { UniverGridController } from './useUniverGridController'
@@ -39,6 +41,14 @@ export type UniverMountHandleDetectedCellMutationDeps = Pick<
     getPersistSheetRowsSnapshot?: (targetSheetId: string) => Record<string, unknown>[]
     /** Same predicate as pending cell batches; identifies persisted backend row ids for remap map. */
     isUuidForRowRemap?: (value: string) => boolean
+    rowSlotIdentityRegistryRef?: MutableRefObject<
+      import('../utils/spreadsheetRowSlotIdentity').SpreadsheetRowSlotIdentityRegistry | null
+    >
+    columnStructureStateRef?: MutableRefObject<{
+      healthy: boolean
+      pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+      expectedColumnsSignature: string | null
+    }>
   }
 
 /** Work completed after matrix + gating; passed into persist plan + emit. */
@@ -52,6 +62,12 @@ export type DetectedCellMutationReady = {
   ctxBefore: ConversionContext
   contextColumns: SpreadsheetColumn[]
   currentData: Record<string, unknown>[]
+  resolveStableRowTarget: (rowIndex: number) => SpreadsheetStableRowTarget | null
+  resolveStableColumnName: (columnIndex: number) => string | null
+  rowIdentityStructureHealthy: boolean
+  rowIdentityStructuralMismatch: boolean
+  columnIdentityStructureHealthy: boolean
+  columnIdentityStructuralMismatch: boolean
   rowOffset: number
   colOffset: number
   hadPasteIntentForSheet: boolean

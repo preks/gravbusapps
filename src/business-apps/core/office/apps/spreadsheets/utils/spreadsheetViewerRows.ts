@@ -96,7 +96,8 @@ export const mapSnapshotRowsToViewerRows = (snapshotRows: unknown[]): ViewerRow[
       if (clientRowId) {
         return {
           ...raw,
-          _id: clientRowId,
+          _id: rowRecord.id as string,
+          _clientRowId: clientRowId,
           _rowUuid: rowRecord.id as string
         }
       }
@@ -162,7 +163,7 @@ export const buildAddRowPayloadsFromUniverRows = (
 ): Array<Record<string, unknown>> =>
   mergeDuplicateClientRows(rows).map(row => {
     const payload: Record<string, unknown> = {}
-    const clientRowId = String(row._id || '')
+    const clientRowId = getClientRowIdentity(row)
     if (clientRowId) payload._clientRowId = clientRowId
     const gridRowIndex = getFiniteNonNegativeGridRowIndex(row)
     if (gridRowIndex !== undefined) payload._gridRowIndex = gridRowIndex
@@ -216,7 +217,8 @@ export const buildCreatedRowsFromBatch = (
     const merged = Object.keys(reconciledPending).length > 0 ? { ...rowPayload, ...reconciledPending } : rowPayload
     return {
       ...merged,
-      _id: clientRowId || persistedId || `temp_${index}`,
+      _id: persistedId || clientRowId || `temp_${index}`,
+      ...(clientRowId ? { _clientRowId: clientRowId } : {}),
       ...(persistedId ? { _rowUuid: persistedId } : {})
     }
   })
@@ -234,7 +236,7 @@ export const mapPersistedRowsToViewerRows = (rows: unknown): Array<Record<string
         : {}
     const clientRowId = data._clientRowId
     if (typeof clientRowId === 'string' && clientRowId) {
-      return { ...data, _id: clientRowId, _rowUuid: record.id }
+      return { ...data, _id: record.id, _clientRowId: clientRowId, _rowUuid: record.id }
     }
     return { ...data, _id: record.id ?? `temp_${index}` }
   })

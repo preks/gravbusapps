@@ -31,10 +31,14 @@ import {
 } from './univerMountHandleDetectedCellMutationRemoteEcho'
 import { getSpreadsheetRowAtUniverGridIndex } from './univerGridAuthoritativeHelpers'
 import {
+  createClientRowRef,
+  getClientRowIdentity,
   getViewerRowIdentityCandidates,
   isSpreadsheetBackendRowUuid,
   resolveBackendRowIdForViewerRow
 } from '../utils/spreadsheetRowIdentity'
+import { getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
+import { rowSlotTargetMatchesRowIdentity } from '../utils/spreadsheetRowSlotIdentity'
 import type {
   DetectedCellMutationReady,
   HandleDetectedCellMutationArgs,
@@ -48,28 +52,52 @@ function countRowsWithBackendIdentity(rows: Record<string, unknown>[], isUuid: (
   return rows.filter(row => Boolean(resolveBackendRowIdForViewerRow(row, isUuid))).length
 }
 
+function buildPlannerRowLayoutSignature(rows: Record<string, unknown>[]): string[] {
+  return rows
+    .map((row, index) => {
+      const visualIndex = getViewerRowVisualIndex(row, index)
+      const identity = getViewerRowIdentityCandidates(row)[0] ?? `row_${index}`
+      return `${visualIndex}:${identity}`
+    })
+    .sort()
+}
+
+function buildPlannerColumnLayoutSignature(
+  columns: UniverMountHandleDetectedCellMutationDeps['propsRef']['current']['columns']
+): string[] {
+  return [...columns]
+    .sort((left, right) => left.order - right.order)
+    .map((column, index) => `${index}:${column.id}:${column.name}:${column.isVisible !== false ? 'visible' : 'hidden'}`)
+}
+
+function createPlannerContext(
+  columns: UniverMountHandleDetectedCellMutationDeps['propsRef']['current']['columns'],
+  data: Record<string, unknown>[]
+): NonNullable<UniverMountHandleDetectedCellMutationDeps['contextRef']['current']> {
+  return createUniverConversionContext(columns, data)
+}
+
 function resolvePlannerContextSource({
   deps,
   targetSheetId,
   propsData,
   propsColumns,
-  propsContext,
   isUuid
 }: {
   deps: UniverMountHandleDetectedCellMutationDeps
   targetSheetId: string
   propsData: Record<string, unknown>[]
   propsColumns: UniverMountHandleDetectedCellMutationDeps['propsRef']['current']['columns']
-  propsContext: UniverMountHandleDetectedCellMutationDeps['contextRef']['current']
   isUuid: (value: string) => boolean
 }): {
   source: PlannerContextSourceName
   columns: typeof propsColumns
   data: Record<string, unknown>[]
-  context: typeof propsContext
+  context: NonNullable<UniverMountHandleDetectedCellMutationDeps['contextRef']['current']>
   resolvedDataLength: number | null
   propsBackendRowCount: number
   resolvedBackendRowCount: number | null
+  columnStructuralMismatch: boolean
 } {
   const propsBackendRowCount = countRowsWithBackendIdentity(propsData, isUuid)
   const resolved = deps.propsRef.current.getSheetContext?.(targetSheetId) ?? null
@@ -78,25 +106,44 @@ function resolvePlannerContextSource({
       source: 'props',
       columns: propsColumns,
       data: propsData,
-      context: propsContext,
+      context: createPlannerContext(propsColumns, propsData),
       resolvedDataLength: null,
       propsBackendRowCount,
-      resolvedBackendRowCount: null
+      resolvedBackendRowCount: null,
+      columnStructuralMismatch: false
     }
   }
 
   const resolvedBackendRowCount = countRowsWithBackendIdentity(resolved.data, isUuid)
-  const shouldUseResolved = resolvedBackendRowCount > 0 || resolved.data.length >= propsData.length
+  const propsLayoutSignature = buildPlannerRowLayoutSignature(propsData)
+  const resolvedLayoutSignature = buildPlannerRowLayoutSignature(resolved.data)
+  const propsColumnSignature = buildPlannerColumnLayoutSignature(propsColumns)
+  const resolvedColumnSignature = buildPlannerColumnLayoutSignature(resolved.columns)
+  const hasPropsRows = propsData.length > 0
+  const hasResolvedRows = resolved.data.length > 0
+  const hasStructuralMismatch =
+    hasPropsRows &&
+    hasResolvedRows &&
+    (propsLayoutSignature.length !== resolvedLayoutSignature.length ||
+      propsLayoutSignature.some((entry, index) => entry !== resolvedLayoutSignature[index]))
+  const hasColumnStructuralMismatch =
+    propsColumnSignature.length !== resolvedColumnSignature.length ||
+    propsColumnSignature.some((entry, index) => entry !== resolvedColumnSignature[index])
+  const shouldUseResolved =
+    !hasStructuralMismatch &&
+    !hasColumnStructuralMismatch &&
+    (resolvedBackendRowCount > 0 || (!hasPropsRows && hasResolvedRows) || resolved.data.length >= propsData.length)
 
   if (!shouldUseResolved) {
     return {
       source: 'props',
       columns: propsColumns,
       data: propsData,
-      context: propsContext,
+      context: createPlannerContext(propsColumns, propsData),
       resolvedDataLength: resolved.data.length,
       propsBackendRowCount,
-      resolvedBackendRowCount
+      resolvedBackendRowCount,
+      columnStructuralMismatch: hasColumnStructuralMismatch
     }
   }
 
@@ -104,10 +151,11 @@ function resolvePlannerContextSource({
     source: 'resolved',
     columns: resolved.columns,
     data: resolved.data,
-    context: createUniverConversionContext(resolved.columns, resolved.data),
+    context: createPlannerContext(resolved.columns, resolved.data),
     resolvedDataLength: resolved.data.length,
     propsBackendRowCount,
-    resolvedBackendRowCount
+    resolvedBackendRowCount,
+    columnStructuralMismatch: false
   }
 }
 
@@ -155,7 +203,6 @@ export function resolveDetectedCellMutation(
     univerAPIRef,
     propsRef,
     callbacksRef,
-    contextRef,
     recentlyDuplicatedWorksheetIdsRef,
     remoteEchoSuppressionRef,
     recentLocallyMutatedGridCellsRef,
@@ -205,14 +252,13 @@ export function resolveDetectedCellMutation(
         targetSheetId,
         propsData: propsRef.current.data,
         propsColumns: propsRef.current.columns,
-        propsContext: contextRef.current,
         isUuid: isUuidForRowIdentity
       })
     : {
         source: 'props' as const,
         columns: propsRef.current.columns,
         data: propsRef.current.data,
-        context: contextRef.current,
+        context: createPlannerContext(propsRef.current.columns, propsRef.current.data),
         resolvedDataLength: null,
         propsBackendRowCount: countRowsWithBackendIdentity(propsRef.current.data, isUuidForRowIdentity),
         resolvedBackendRowCount: null
@@ -221,6 +267,85 @@ export function resolveDetectedCellMutation(
   const contextColumns = plannerContext.columns
   const currentData = plannerContext.data
   const useResolvedContext = plannerContext.source === 'resolved'
+  const rowSlotIdentityRegistry = propsRef.current.rowSlotIdentityRegistryRef?.current ?? null
+  const columnStructureState = propsRef.current.columnStructureStateRef?.current ?? null
+  const rowIdentityStructuralMismatch =
+    rowSlotIdentityRegistry?.hasStructuralMismatch(targetSheetId, currentData, isUuidForRowIdentity) ?? false
+  const rowIdentityStructureHealthy =
+    (rowSlotIdentityRegistry?.getState(targetSheetId)?.healthy ?? true) && !rowIdentityStructuralMismatch
+  const columnIdentityStructuralMismatch =
+    !plannerContext.columnStructuralMismatch && !columnStructureState?.pendingInsertedRange
+      ? false
+      : plannerContext.columnStructuralMismatch || columnStructureState?.healthy === false
+  const resolveStableRowTarget = (rowIndex: number) => {
+    const registryTarget = rowSlotIdentityRegistry?.resolveRowTarget(targetSheetId, rowIndex)
+    const row = getSpreadsheetRowAtUniverGridIndex(currentData, rowIndex)
+    if (row) {
+      const backendRowId = resolveBackendRowIdForViewerRow(row, isUuidForRowIdentity)
+      const clientRowId = getClientRowIdentity(row)
+      const registryMatchesCurrentRow = rowSlotTargetMatchesRowIdentity(registryTarget, row, isUuidForRowIdentity)
+
+      if (registryTarget && !registryMatchesCurrentRow && rowIdentityStructureHealthy) {
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'grid_mutation_row_registry_override_rejected',
+          payload: {
+            targetSheetId,
+            rowIndex,
+            registryRowId: registryTarget.rowId,
+            registryBackendRowId: registryTarget.backendRowId ?? null,
+            registryClientRowId: registryTarget.clientRowId ?? null,
+            currentBackendRowId: backendRowId ?? null,
+            currentClientRowId: clientRowId || null
+          }
+        })
+      }
+
+      if (backendRowId) {
+        if (registryTarget && registryMatchesCurrentRow) return registryTarget
+        return {
+          rowId: backendRowId,
+          backendRowId,
+          clientRowId: clientRowId || undefined,
+          rowIndex
+        }
+      }
+
+      if (clientRowId) {
+        if (registryTarget && registryMatchesCurrentRow) return registryTarget
+        return {
+          rowId: clientRowId,
+          rowRef: createClientRowRef(clientRowId),
+          clientRowId,
+          rowIndex
+        }
+      }
+    }
+
+    if (registryTarget) return registryTarget
+    if (!row) {
+      const fallbackRowId = ctxBefore?.rowIndexToId.get(rowIndex)
+      return fallbackRowId && rowIdentityStructureHealthy ? { rowId: fallbackRowId, rowIndex } : null
+    }
+    const fallbackRowId = ctxBefore?.rowIndexToId.get(rowIndex)
+    return fallbackRowId && rowIdentityStructureHealthy ? { rowId: fallbackRowId, rowIndex } : null
+  }
+  const resolveStableColumnName = (columnIndex: number) => {
+    const visibleColumns = [...contextColumns]
+      .sort((left, right) => left.order - right.order)
+      .filter(column => column.isVisible !== false)
+    const structuralColumn = visibleColumns[columnIndex]
+    if (structuralColumn) {
+      return structuralColumn.name
+    }
+    const fallbackColumnName =
+      ctxBefore?.columnIndexToName.get(columnIndex) ?? ctxBefore?.columnIndexToId.get(columnIndex)
+    return fallbackColumnName && !(columnIdentityStructuralMismatch && columnStructureState?.healthy === false)
+      ? fallbackColumnName
+      : null
+  }
+  const columnIdentityStructureHealthy =
+    (columnStructureState?.healthy ?? true) && !plannerContext.columnStructuralMismatch
   if (!ctxBefore) return { status: 'return', value: false }
   const payloadCellValueForValueMerge = preserveUndefinedAsNull ? undefined : payloadCellValue
   const payloadCoordinateModeHint = detectCellMatrixCoordinateModeHint(ranges, payloadCellValueForValueMerge)
@@ -339,6 +464,57 @@ export function resolveDetectedCellMutation(
 
   const rowOffset = 0
   const colOffset = 0
+  const touchedRowIndices = Array.from(
+    new Set(
+      Object.keys(cellValue)
+        .map(key => Number(key))
+        .filter(rowIndex => !Number.isNaN(rowIndex))
+    )
+  )
+  const unresolvedStableRowIndices = touchedRowIndices.filter(
+    rowIndex => resolveStableRowTarget(rowIndex + rowOffset) == null
+  )
+  const touchedColumnIndices = Array.from(
+    new Set(
+      Object.values(cellValue).flatMap(rowCells =>
+        rowCells && typeof rowCells === 'object'
+          ? Object.keys(rowCells)
+              .map(key => Number(key))
+              .filter(columnIndex => !Number.isNaN(columnIndex))
+          : []
+      )
+    )
+  )
+  const unresolvedStableColumnIndices = touchedColumnIndices.filter(
+    columnIndex => resolveStableColumnName(columnIndex + colOffset) == null
+  )
+  if (!rowIdentityStructureHealthy && unresolvedStableRowIndices.length > 0) {
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_mutation_deferred_unhealthy_row_identity',
+      payload: {
+        targetSheetId,
+        unresolvedStableRowIndices,
+        rowIdentityStructureHealthy,
+        rowIdentityStructuralMismatch
+      }
+    })
+    return { status: 'return', value: false }
+  }
+  if (!columnIdentityStructureHealthy && unresolvedStableColumnIndices.length > 0) {
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_mutation_deferred_unhealthy_column_identity',
+      payload: {
+        targetSheetId,
+        unresolvedStableColumnIndices,
+        columnIdentityStructureHealthy,
+        columnIdentityStructuralMismatch,
+        pendingInsertedRange: columnStructureState?.pendingInsertedRange ?? null
+      }
+    })
+    return { status: 'return', value: false }
+  }
   const now = Date.now()
   pruneExpiredRecentMutationEntries(recentLocallyMutatedGridCellsRef.current, now)
   const shouldSuppress = buildShouldSuppressRemoteEcho({ remoteEchoSuppressionRef }, now)
@@ -402,9 +578,14 @@ export function resolveDetectedCellMutation(
       resolvedDataLength: plannerContext.resolvedDataLength,
       propsBackendRowCount: plannerContext.propsBackendRowCount,
       resolvedBackendRowCount: plannerContext.resolvedBackendRowCount,
+      rowIdentityStructureHealthy,
+      rowIdentityStructuralMismatch,
+      columnIdentityStructureHealthy,
+      columnIdentityStructuralMismatch,
       candidateNewRowIndices,
       newRowIndices,
-      clearedClientRowIndexMappings
+      clearedClientRowIndexMappings,
+      pendingInsertedColumnRange: columnStructureState?.pendingInsertedRange ?? null
     }
   })
   const pendingNewRowsUpdate =
@@ -444,6 +625,12 @@ export function resolveDetectedCellMutation(
     ctxBefore,
     contextColumns,
     currentData,
+    resolveStableRowTarget,
+    resolveStableColumnName,
+    rowIdentityStructureHealthy,
+    rowIdentityStructuralMismatch,
+    columnIdentityStructureHealthy,
+    columnIdentityStructuralMismatch,
     rowOffset,
     colOffset,
     hadPasteIntentForSheet: hasPasteFormattingIntentForSheet,

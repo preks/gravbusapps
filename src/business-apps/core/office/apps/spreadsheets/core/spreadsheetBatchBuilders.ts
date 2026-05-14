@@ -1,5 +1,6 @@
 import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
 import type { SpreadsheetStylePatch } from './SpreadsheetCollaborationContract'
+import type { SpreadsheetRowRef } from '../utils/spreadsheetRowIdentity'
 
 export const SPREADSHEET_MAX_SET_STYLE_CELLS_PER_OPERATION = 2000
 
@@ -8,17 +9,20 @@ export const SPREADSHEET_MAX_SET_RANGE_CELLS_PER_OPERATION = 2000
 
 export interface SpreadsheetCellUpdate {
   rowId: string
+  rowRef?: SpreadsheetRowRef
   columnName: string
   value: unknown
 }
 
 export interface SpreadsheetCellClear {
   rowId: string
+  rowRef?: SpreadsheetRowRef
   columnName: string
 }
 
 export interface SpreadsheetMutationPlannedCell {
   rowId: string
+  rowRef?: SpreadsheetRowRef
   columnName: string
   rowIndex: number
   colIndex: number
@@ -47,11 +51,12 @@ export interface SpreadsheetMutationPlan {
 }
 
 export const flattenUpdatesToCells = (
-  updatesByBackendRowId: Map<string, Record<string, unknown>>
+  updatesByIdentity: Map<string, { rowId: string; rowRef?: SpreadsheetRowRef; updates: Record<string, unknown> }>
 ): SpreadsheetCellUpdate[] =>
-  Array.from(updatesByBackendRowId.entries()).flatMap(([rowId, updates]) =>
+  Array.from(updatesByIdentity.values()).flatMap(({ rowId, rowRef, updates }) =>
     Object.entries(updates).map(([columnName, value]) => ({
       rowId,
+      rowRef,
       columnName,
       value
     }))
@@ -72,17 +77,24 @@ export const normalizeCellValueForBatchPersistence = (value: unknown): unknown =
 }
 
 export const buildCellPersistenceOperations = ({
+  setUpdatesByIdentity,
   setUpdatesByBackendRowId,
   clearCells,
   createOperationId,
   maxIndividualClearCellOps
 }: {
-  setUpdatesByBackendRowId: Map<string, Record<string, unknown>>
+  setUpdatesByIdentity?: Map<string, { rowId: string; rowRef?: SpreadsheetRowRef; updates: Record<string, unknown> }>
+  setUpdatesByBackendRowId?: Map<string, Record<string, unknown>>
   clearCells: SpreadsheetCellClear[]
   createOperationId: (prefix: string) => string
   maxIndividualClearCellOps: number
 }): SpreadsheetBatchOperation[] => {
-  const setCellsToPersist = flattenUpdatesToCells(setUpdatesByBackendRowId).map(cell => ({
+  const normalizedUpdatesByIdentity =
+    setUpdatesByIdentity ??
+    new Map(
+      Array.from(setUpdatesByBackendRowId?.entries() ?? []).map(([rowId, updates]) => [rowId, { rowId, updates }])
+    )
+  const setCellsToPersist = flattenUpdatesToCells(normalizedUpdatesByIdentity).map(cell => ({
     ...cell,
     value: normalizeCellValueForBatchPersistence(cell.value)
   }))
@@ -100,7 +112,14 @@ export const buildCellPersistenceOperations = ({
       operations.push({
         operationId: createOperationId('set_range'),
         type: 'set_range',
-        data: { cells: cellChunk }
+        data: {
+          cells: cellChunk.map(cell => ({
+            ...(cell.rowRef?.kind === 'clientHandle' ? { rowRef: cell.rowRef } : { rowId: cell.rowId }),
+            ...(cell.rowRef?.kind === 'backendUuid' ? { rowRef: cell.rowRef } : {}),
+            columnName: cell.columnName,
+            value: cell.value
+          }))
+        }
       })
     }
   }
@@ -110,7 +129,8 @@ export const buildCellPersistenceOperations = ({
         operationId: createOperationId('clear_cell'),
         type: 'clear_cell' as const,
         data: {
-          rowId: cell.rowId,
+          ...(cell.rowRef?.kind === 'clientHandle' ? { rowRef: cell.rowRef } : { rowId: cell.rowId }),
+          ...(cell.rowRef?.kind === 'backendUuid' ? { rowRef: cell.rowRef } : {}),
           columnName: cell.columnName
         }
       }))
@@ -177,18 +197,28 @@ export const buildOperationsFromMutationPlan = ({
     })
   }
 
-  const setUpdatesByBackendRowId = new Map<string, Record<string, unknown>>()
+  const setUpdatesByIdentity = new Map<
+    string,
+    { rowId: string; rowRef?: SpreadsheetRowRef; updates: Record<string, unknown> }
+  >()
   const clearCells: SpreadsheetCellClear[] = []
   const styleCells: Array<{ row: number; col: number; cellRef?: string; stylePatch: SpreadsheetStylePatch }> = []
 
   for (const cell of plan.cells) {
+    const identityKey =
+      cell.rowRef?.kind === 'clientHandle'
+        ? `client:${cell.rowRef.clientRowId}`
+        : cell.rowRef?.kind === 'backendUuid'
+          ? `backend-ref:${cell.rowRef.rowUuid}`
+          : `row:${cell.rowId}`
     if (cell.valueAction === 'set') {
-      const next = setUpdatesByBackendRowId.get(cell.rowId) ?? {}
-      next[cell.columnName] = normalizeCellValueForBatchPersistence(cell.value)
-      setUpdatesByBackendRowId.set(cell.rowId, next)
+      const entry = setUpdatesByIdentity.get(identityKey) ?? { rowId: cell.rowId, rowRef: cell.rowRef, updates: {} }
+      entry.updates[cell.columnName] = normalizeCellValueForBatchPersistence(cell.value)
+      setUpdatesByIdentity.set(identityKey, entry)
     } else if (cell.valueAction === 'clear') {
       clearCells.push({
         rowId: cell.rowId,
+        rowRef: cell.rowRef,
         columnName: cell.columnName
       })
     }
@@ -204,7 +234,7 @@ export const buildOperationsFromMutationPlan = ({
 
   operations.push(
     ...buildCellPersistenceOperations({
-      setUpdatesByBackendRowId,
+      setUpdatesByIdentity,
       clearCells,
       createOperationId,
       maxIndividualClearCellOps

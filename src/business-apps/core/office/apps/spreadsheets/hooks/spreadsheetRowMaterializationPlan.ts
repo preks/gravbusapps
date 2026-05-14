@@ -1,5 +1,5 @@
 import { getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
-import { resolveBackendRowIdForViewerRow } from '../utils/spreadsheetRowIdentity'
+import { resolveBackendRowIdForViewerRow, rowMatchesRemoteId, type ViewerRow } from '../utils/spreadsheetRowIdentity'
 
 export const SPREADSHEET_ROW_GRID_INDEX_COORDINATE_MODE = 'zeroBasedVisualGridIndex' as const
 
@@ -28,9 +28,41 @@ export interface SpreadsheetRowsMergedByVisualIndex {
   createdGridRowIndices: number[]
 }
 
-const getMaterializationClientRowId = (row: Record<string, unknown>): string => {
-  const value = row._clientRowId ?? row._id ?? row.id
-  return typeof value === 'string' && value ? value : ''
+export const getSpreadsheetRowMaterializationClientRowId = (row: Record<string, unknown>): string => {
+  const explicit = row._clientRowId
+  if (typeof explicit === 'string' && explicit) {
+    return explicit
+  }
+  const fallbackId = row._id ?? row.id
+  if (typeof fallbackId === 'string' && fallbackId.startsWith('client_')) {
+    return fallbackId
+  }
+  return ''
+}
+
+/** Alias of {@link getSpreadsheetRowMaterializationClientRowId} (same function). */
+export const getMaterializationClientRowId = getSpreadsheetRowMaterializationClientRowId
+
+export const viewerRowMatchesPersistedRowAtSlot = (
+  viewerRow: ViewerRow,
+  persistedRow: ViewerRow,
+  isUuid: (value: string) => boolean
+): boolean => {
+  const viewerBackendRowId = resolveBackendRowIdForViewerRow(viewerRow, isUuid)
+  const persistedBackendRowId = resolveBackendRowIdForViewerRow(persistedRow, isUuid)
+
+  if (viewerBackendRowId && persistedBackendRowId) {
+    return viewerBackendRowId === persistedBackendRowId
+  }
+
+  if (persistedBackendRowId && rowMatchesRemoteId(viewerRow, persistedBackendRowId)) {
+    return true
+  }
+
+  const viewerClientRowId = getMaterializationClientRowId(viewerRow)
+  const persistedClientRowId = getMaterializationClientRowId(persistedRow)
+
+  return viewerClientRowId !== '' && persistedClientRowId !== '' && viewerClientRowId === persistedClientRowId
 }
 
 export const buildRowMaterializationInFlightKey = (sheetId: string, visualIndex: number, clientRowId: string): string =>
@@ -58,6 +90,9 @@ const buildRowsByVisualIndex = (
   return rowsByVisualIndex
 }
 
+/** Same map used by the row materialization planner (one row per visual grid index). */
+export const buildMaterializationRowsByVisualIndexMap = buildRowsByVisualIndex
+
 export const buildSpreadsheetRowMaterializationPlan = ({
   sheetId,
   univerRows,
@@ -80,8 +115,20 @@ export const buildSpreadsheetRowMaterializationPlan = ({
 
   univerRows.forEach((row, index) => {
     const visualIndex = getViewerRowVisualIndex(row, index)
+    const viewerBackendRowId = resolveBackendRowIdForViewerRow(row, isUuid)
     const persistedRow = persistedRowsByVisualIndex.get(visualIndex)
-    if (persistedRow && resolveBackendRowIdForViewerRow(persistedRow, isUuid)) {
+    const persistedBackendRowId = persistedRow ? resolveBackendRowIdForViewerRow(persistedRow, isUuid) : undefined
+    if (viewerBackendRowId && !persistedRow) {
+      alreadyMaterializedGridRowIndices.push(visualIndex)
+      return
+    }
+    if (viewerBackendRowId) {
+      if (persistedBackendRowId && viewerBackendRowId === persistedBackendRowId) {
+        alreadyMaterializedGridRowIndices.push(visualIndex)
+        return
+      }
+    }
+    if (persistedRow && persistedBackendRowId && viewerRowMatchesPersistedRowAtSlot(row, persistedRow, isUuid)) {
       alreadyMaterializedGridRowIndices.push(visualIndex)
       return
     }

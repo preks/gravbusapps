@@ -1357,11 +1357,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(commitLocalSheetData).toHaveBeenCalledWith(
       [
         { _id: 'row-1', ColumnA: 'existing' },
-        { _clientRowId: 'client-row-new', ColumnA: 'plain value', _id: 'client-row-new', _rowUuid: 'backend-row-new' }
+        { _clientRowId: 'client-row-new', ColumnA: 'plain value', _id: 'backend-row-new', _rowUuid: 'backend-row-new' }
       ],
       { persisted: true, syncGrid: true }
     )
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(1, 0, 'plain value', 'client-row-new')
+    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(1, 0, 'plain value', 'backend-row-new')
     expect(forceGridReapply).toHaveBeenCalledWith(
       'sheet-1',
       { minRow: 1, maxRow: 1, minCol: 0, maxCol: 0 },
@@ -1425,14 +1425,14 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
           _clientRowId: 'client-row-new',
           _gridRowIndex: 1,
           ColumnA: 'plain value',
-          _id: 'client-row-new',
+          _id: 'backend-row-new',
           _rowUuid: 'backend-row-new'
         },
         { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2, ColumnA: 'existing bottom' }
       ],
       { persisted: true, syncGrid: true }
     )
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(1, 0, 'plain value', 'client-row-new')
+    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(1, 0, 'plain value', 'backend-row-new')
     expect(forceGridReapply).toHaveBeenCalledWith(
       'sheet-1',
       { minRow: 1, maxRow: 2, minCol: 0, maxCol: 0 },
@@ -1501,7 +1501,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(rows).toEqual([
       { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, ColumnA: 'existing top' },
       expect.objectContaining({
-        _id: 'client-row-new',
+        _id: 'backend-row-new',
         _rowUuid: 'backend-row-new',
         _clientRowId: 'client-row-new',
         _gridRowIndex: 1,
@@ -1514,7 +1514,162 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       [
         { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, ColumnA: 'existing top' },
         expect.objectContaining({
-          _id: 'client-row-new',
+          _id: 'backend-row-new',
+          _rowUuid: 'backend-row-new',
+          _clientRowId: 'client-row-new',
+          _gridRowIndex: 1,
+          ColumnA: 'edited immediately'
+        }),
+        { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2, ColumnA: 'existing bottom' }
+      ],
+      { persisted: true, syncGrid: false }
+    )
+  })
+
+  it('canonicalizes a permuted receiver baseline before applying insert_rows_at', () => {
+    const commitLocalSheetData = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+    const forceGridReapply = jest.fn()
+    let rows: Record<string, unknown>[] = [
+      { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 1, ColumnA: 'existing bottom' },
+      { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, ColumnA: 'existing top' }
+    ]
+    const callbacks = makeCallbacks({
+      getColumns: () => [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })],
+      getLocalSheetData: () => rows,
+      commitLocalSheetData: (next, options) => {
+        rows = next
+        commitLocalSheetData(next, options)
+      },
+      applyRemoteCellUpdate,
+      forceGridReapply
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'insert_rows_at',
+              data: {
+                sheetId: 'sheet-1',
+                insertAt: 1,
+                rows: [
+                  {
+                    id: 'backend-row-new',
+                    data: { _clientRowId: 'client-row-new', _gridRowIndex: 1, ColumnA: 'plain value' }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      version: 17,
+      timestamp: Date.now()
+    })
+
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      [
+        { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, ColumnA: 'existing top' },
+        {
+          _clientRowId: 'client-row-new',
+          _gridRowIndex: 1,
+          ColumnA: 'plain value',
+          _id: 'backend-row-new',
+          _rowUuid: 'backend-row-new'
+        },
+        { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2, ColumnA: 'existing bottom' }
+      ],
+      { persisted: true, syncGrid: true }
+    )
+    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(1, 0, 'plain value', 'backend-row-new')
+    expect(forceGridReapply).toHaveBeenCalledWith(
+      'sheet-1',
+      { minRow: 1, maxRow: 2, minCol: 0, maxCol: 0 },
+      expect.objectContaining({ clearAllSignatures: false, preferBulk: true })
+    )
+  })
+
+  it('keeps follow-up edits on the inserted row even when the receiver baseline started permuted', () => {
+    const commitLocalSheetData = jest.fn()
+    let rows: Record<string, unknown>[] = [
+      { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 1, ColumnA: 'existing bottom' },
+      { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, ColumnA: 'existing top' }
+    ]
+    const callbacks = makeCallbacks({
+      getColumns: () => [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })],
+      getLocalSheetData: () => rows,
+      commitLocalSheetData: (next, options) => {
+        rows = next
+        commitLocalSheetData(next, options)
+      },
+      applyRemoteCellUpdate: jest.fn(),
+      forceGridReapply: jest.fn()
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'insert_rows_at',
+              data: {
+                sheetId: 'sheet-1',
+                insertAt: 1,
+                rows: [{ id: 'backend-row-new', data: { _clientRowId: 'client-row-new', _gridRowIndex: 1 } }]
+              }
+            }
+          ]
+        }
+      },
+      version: 18,
+      timestamp: Date.now()
+    })
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'set_cell',
+        data: {
+          sheetId: 'sheet-1',
+          rowId: 'backend-row-new',
+          columnName: 'ColumnA',
+          value: 'edited immediately'
+        }
+      },
+      version: 19,
+      timestamp: Date.now()
+    })
+
+    expect(rows).toEqual([
+      { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, ColumnA: 'existing top' },
+      expect.objectContaining({
+        _id: 'backend-row-new',
+        _rowUuid: 'backend-row-new',
+        _clientRowId: 'client-row-new',
+        _gridRowIndex: 1,
+        ColumnA: 'edited immediately'
+      }),
+      { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2, ColumnA: 'existing bottom' }
+    ])
+    expect(commitLocalSheetData).toHaveBeenNthCalledWith(
+      2,
+      [
+        { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, ColumnA: 'existing top' },
+        expect.objectContaining({
+          _id: 'backend-row-new',
           _rowUuid: 'backend-row-new',
           _clientRowId: 'client-row-new',
           _gridRowIndex: 1,
@@ -1650,7 +1805,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(commitLocalSheetData).toHaveBeenLastCalledWith(
       [
         { _id: 'row-1', ColumnA: 'existing' },
-        { _clientRowId: 'client-row-new', ColumnA: 'plain value', _id: 'client-row-new', _rowUuid: 'backend-row-new' }
+        { _clientRowId: 'client-row-new', ColumnA: 'plain value', _id: 'backend-row-new', _rowUuid: 'backend-row-new' }
       ],
       { persisted: true, syncGrid: true }
     )
@@ -1727,7 +1882,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
         {
           _clientRowId: 'client-row-new',
           ColumnA: 'plain value',
-          _id: 'client-row-new',
+          _id: 'backend-row-new',
           _rowUuid: 'backend-row-new',
           _gridRowIndex: 1
         },

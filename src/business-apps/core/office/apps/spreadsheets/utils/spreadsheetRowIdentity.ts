@@ -11,6 +11,66 @@ export const toRowIdString = (value: unknown): string => {
   return ''
 }
 
+export type SpreadsheetBackendRowRef = {
+  kind: 'backendUuid'
+  rowUuid: string
+}
+
+export type SpreadsheetClientRowRef = {
+  kind: 'clientHandle'
+  clientRowId: string
+}
+
+export type SpreadsheetRowRef = SpreadsheetBackendRowRef | SpreadsheetClientRowRef
+
+export const createBackendRowRef = (rowUuid: string): SpreadsheetBackendRowRef => ({
+  kind: 'backendUuid',
+  rowUuid
+})
+
+export const createClientRowRef = (clientRowId: string): SpreadsheetClientRowRef => ({
+  kind: 'clientHandle',
+  clientRowId
+})
+
+export const isSpreadsheetBackendRowRef = (value: unknown): value is SpreadsheetBackendRowRef =>
+  Boolean(
+    value &&
+      typeof value === 'object' &&
+      (value as { kind?: unknown }).kind === 'backendUuid' &&
+      typeof (value as { rowUuid?: unknown }).rowUuid === 'string' &&
+      (value as { rowUuid: string }).rowUuid
+  )
+
+export const isSpreadsheetClientRowRef = (value: unknown): value is SpreadsheetClientRowRef =>
+  Boolean(
+    value &&
+      typeof value === 'object' &&
+      (value as { kind?: unknown }).kind === 'clientHandle' &&
+      typeof (value as { clientRowId?: unknown }).clientRowId === 'string' &&
+      (value as { clientRowId: string }).clientRowId
+  )
+
+export const resolveSpreadsheetRowRef = (value: unknown): SpreadsheetRowRef | undefined => {
+  if (isSpreadsheetBackendRowRef(value)) return value
+  if (isSpreadsheetClientRowRef(value)) return value
+  return undefined
+}
+
+export const createSpreadsheetRowRefFromRowId = (rowId: string): SpreadsheetRowRef | undefined => {
+  if (!rowId) return undefined
+  if (isSpreadsheetBackendRowUuid(rowId)) {
+    return createBackendRowRef(rowId)
+  }
+  if (isSpreadsheetTemporaryClientRowId(rowId)) {
+    return createClientRowRef(rowId)
+  }
+  return undefined
+}
+
+export const getSpreadsheetRowRefIdentity = (rowRef: SpreadsheetRowRef): string =>
+  rowRef.kind === 'backendUuid' ? rowRef.rowUuid : rowRef.clientRowId
+
 export type ViewerRow = Record<string, unknown>
 export type ViewerRowBackendIdentitySource = '_rowUuid' | 'UUID' | 'uuid' | '_id' | 'id'
 
@@ -22,20 +82,20 @@ export interface ViewerRowBackendIdentity {
 export interface SpreadsheetRowIdentityDiagnostic {
   uiRowId: string
   backendRowUuid: string | null
-  identitySource: ViewerRowBackendIdentitySource | 'remap_map' | 'create_row_response' | null
+  identitySource: ViewerRowBackendIdentitySource | 'remap_map' | 'create_row_response' | 'readiness_coordinator' | null
   hasBackendUuid: boolean
   canRemap: boolean
   remapEntry?: { from: string; to: string }
 }
 
 export const getCanonicalRowId = (row: ViewerRow): string => {
+  if (typeof row._rowUuid === 'string' && row._rowUuid) return row._rowUuid
   const idField = row._id ?? row.id
   if (idField != null) {
     const rowId = String(idField)
     if (rowId) return rowId
   }
-
-  return typeof row._rowUuid === 'string' && row._rowUuid ? row._rowUuid : ''
+  return ''
 }
 
 export const getViewerRowIdentityCandidates = (row: ViewerRow): string[] =>

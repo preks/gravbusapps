@@ -2,18 +2,28 @@ import type { SpreadsheetColumn } from '../types'
 import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
 import { mergeInsertedRowsAtIndex } from './spreadsheetInsertRowsAt'
 import {
+  getSpreadsheetRowRefIdentity,
   getCanonicalRowId,
+  getClientRowIdentity,
+  resolveSpreadsheetRowRef,
   rowMatchesRemoteId,
   stripEquivalentColumnKeysFromRow,
   type ViewerRow
 } from './spreadsheetRowIdentity'
+
+const resolvePayloadRowIdentity = (payload: Record<string, unknown>): string => {
+  const rowId = String(payload.rowId || '')
+  if (rowId) return rowId
+  const rowRef = resolveSpreadsheetRowRef(payload.rowRef)
+  return rowRef ? getSpreadsheetRowRefIdentity(rowRef) : ''
+}
 
 const applySetCellDelta = (
   rows: ViewerRow[],
   payload: Record<string, unknown>,
   columns?: SpreadsheetColumn[]
 ): ViewerRow[] => {
-  const rowId = String(payload.rowId || '')
+  const rowId = resolvePayloadRowIdentity(payload)
   const columnName = String(payload.columnName || payload.column || '')
   const value = payload.value
   return rows.map(row => {
@@ -34,7 +44,7 @@ const applySetRangeDelta = (
   const cells = Array.isArray(payload.cells) ? (payload.cells as Array<Record<string, unknown>>) : []
   let nextRows = rows
   for (const cell of cells) {
-    const rowId = String(cell.rowId || '')
+    const rowId = resolvePayloadRowIdentity(cell)
     const columnName = String(cell.columnName || cell.column || '')
     if (!rowId || !columnName) continue
     if (!Object.prototype.hasOwnProperty.call(cell, 'value')) {
@@ -51,7 +61,7 @@ const applyClearCellDelta = (
   payload: Record<string, unknown>,
   columns?: SpreadsheetColumn[]
 ): ViewerRow[] => {
-  const rowId = String(payload.rowId || '')
+  const rowId = resolvePayloadRowIdentity(payload)
   const columnName = String(payload.columnName || payload.column || '')
   return rows.map(row => {
     if (!rowMatchesRemoteId(row, rowId)) return row
@@ -67,7 +77,8 @@ const mapAddedRowsFromDeltaResult = (result: Record<string, unknown>): ViewerRow
     if (clientRowId) {
       return {
         ...rowData,
-        _id: clientRowId,
+        _id: (entry.id as string) || `row_${Math.random().toString(16).slice(2)}`,
+        _clientRowId: clientRowId,
         _rowUuid: (entry.id as string) || `row_${Math.random().toString(16).slice(2)}`
       }
     }
@@ -81,14 +92,14 @@ const mapAddedRowsFromDeltaResult = (result: Record<string, unknown>): ViewerRow
 const replaceClientRowsWithCreatedRows = (existingRows: ViewerRow[], createdRows: ViewerRow[]): ViewerRow[] => {
   const createdRowByClientId = new Map<string, ViewerRow>()
   createdRows.forEach(row => {
-    const clientRowId = getCanonicalRowId(row)
+    const clientRowId = getClientRowIdentity(row) || getCanonicalRowId(row)
     if (!clientRowId) return
     createdRowByClientId.set(clientRowId, row)
   })
 
   const replacedClientRowIds = new Set<string>()
   const nextRows = existingRows.map(row => {
-    const clientRowId = getCanonicalRowId(row)
+    const clientRowId = getClientRowIdentity(row) || getCanonicalRowId(row)
     if (!clientRowId) return row
     const createdRow = createdRowByClientId.get(clientRowId)
     if (!createdRow) return row
@@ -97,7 +108,7 @@ const replaceClientRowsWithCreatedRows = (existingRows: ViewerRow[], createdRows
   })
 
   createdRows.forEach(row => {
-    const clientRowId = getCanonicalRowId(row)
+    const clientRowId = getClientRowIdentity(row) || getCanonicalRowId(row)
     if (clientRowId && replacedClientRowIds.has(clientRowId)) return
     nextRows.push(row)
   })
@@ -107,7 +118,14 @@ const replaceClientRowsWithCreatedRows = (existingRows: ViewerRow[], createdRows
 
 const applyDeleteRowsDelta = (rows: ViewerRow[], payload: Record<string, unknown>): ViewerRow[] => {
   const rowIds = Array.isArray(payload.rowIds) ? (payload.rowIds as Array<unknown>).map(String) : []
-  return rows.filter(row => !rowIds.some(rowId => rowMatchesRemoteId(row, rowId)))
+  const rowRefs = Array.isArray(payload.rowRefs)
+    ? (payload.rowRefs as Array<Record<string, unknown>>)
+        .map(rowRef => resolveSpreadsheetRowRef(rowRef))
+        .filter((rowRef): rowRef is NonNullable<typeof rowRef> => Boolean(rowRef))
+        .map(getSpreadsheetRowRefIdentity)
+    : []
+  const allIds = [...rowIds, ...rowRefs]
+  return rows.filter(row => !allIds.some(rowId => rowMatchesRemoteId(row, rowId)))
 }
 
 export const applyAuthoritativeBatchResponseToRows = (

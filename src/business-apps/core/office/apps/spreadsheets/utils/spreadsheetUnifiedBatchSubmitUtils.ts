@@ -1,5 +1,12 @@
 import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
-import { isSpreadsheetBackendRowUuid, isSpreadsheetTemporaryClientRowId, toRowIdString } from './spreadsheetRowIdentity'
+import {
+  getSpreadsheetRowRefIdentity,
+  isSpreadsheetBackendRowRef,
+  isSpreadsheetBackendRowUuid,
+  isSpreadsheetTemporaryClientRowId,
+  resolveSpreadsheetRowRef,
+  toRowIdString
+} from './spreadsheetRowIdentity'
 
 /** UTF-8 byte length for JSON size estimates (Node Jest may lack global TextEncoder at module load). */
 function utf8ByteLength(value: string): number {
@@ -17,6 +24,7 @@ export interface SpreadsheetKnownRowIdFieldMatch {
   operationType: string
   fieldPath: string
   rowId: string
+  referenceKind: 'rowId' | 'rowRef'
 }
 
 export interface SpreadsheetSuspiciousClientIdDiagnostic {
@@ -41,24 +49,50 @@ function visitKnownRowIdFields(operations: SpreadsheetBatchOperation[], visitor:
     if (op.type === 'set_range' && Array.isArray(op.data?.cells)) {
       for (const [cellIndex, cell] of op.data.cells.entries()) {
         if (!cell || typeof cell !== 'object' || Array.isArray(cell)) continue
+        const rowRef = resolveSpreadsheetRowRef((cell as { rowRef?: unknown }).rowRef)
+        if (rowRef) {
+          visitor({
+            operationIndex,
+            operationId,
+            operationType: op.type,
+            fieldPath: `data.cells[${cellIndex}].rowRef`,
+            rowId: getSpreadsheetRowRefIdentity(rowRef),
+            referenceKind: 'rowRef'
+          })
+          continue
+        }
         visitor({
           operationIndex,
           operationId,
           operationType: op.type,
           fieldPath: `data.cells[${cellIndex}].rowId`,
-          rowId: toRowIdString((cell as { rowId?: unknown }).rowId)
+          rowId: toRowIdString((cell as { rowId?: unknown }).rowId),
+          referenceKind: 'rowId'
         })
       }
       return
     }
 
     if ((op.type === 'set_cell' || op.type === 'clear_cell') && op.data && typeof op.data === 'object') {
+      const rowRef = resolveSpreadsheetRowRef((op.data as { rowRef?: unknown }).rowRef)
+      if (rowRef) {
+        visitor({
+          operationIndex,
+          operationId,
+          operationType: op.type,
+          fieldPath: 'data.rowRef',
+          rowId: getSpreadsheetRowRefIdentity(rowRef),
+          referenceKind: 'rowRef'
+        })
+        return
+      }
       visitor({
         operationIndex,
         operationId,
         operationType: op.type,
         fieldPath: 'data.rowId',
-        rowId: toRowIdString((op.data as { rowId?: unknown }).rowId)
+        rowId: toRowIdString((op.data as { rowId?: unknown }).rowId),
+        referenceKind: 'rowId'
       })
       return
     }
@@ -70,7 +104,23 @@ function visitKnownRowIdFields(operations: SpreadsheetBatchOperation[], visitor:
           operationId,
           operationType: op.type,
           fieldPath: `data.rowIds[${rowIndex}]`,
-          rowId: String(rowId ?? '')
+          rowId: String(rowId ?? ''),
+          referenceKind: 'rowId'
+        })
+      }
+    }
+
+    if (op.type === 'delete_rows' && Array.isArray(op.data?.rowRefs)) {
+      for (const [rowIndex, rowRefValue] of op.data.rowRefs.entries()) {
+        const rowRef = resolveSpreadsheetRowRef(rowRefValue)
+        if (!rowRef) continue
+        visitor({
+          operationIndex,
+          operationId,
+          operationType: op.type,
+          fieldPath: `data.rowRefs[${rowIndex}]`,
+          rowId: getSpreadsheetRowRefIdentity(rowRef),
+          referenceKind: 'rowRef'
         })
       }
     }
@@ -275,8 +325,10 @@ export function summarizeUnifiedBatchOperationsForDiagnostics(operations: Spread
     approximatePayloadBytes += utf8ByteLength(JSON.stringify(op))
     if (op.type === 'set_range' && Array.isArray(op.data?.cells)) {
       for (const c of op.data.cells as Array<{ rowId?: unknown }>) {
-        const id = String(c.rowId ?? '')
-        if (id && !isSpreadsheetBackendRowUuid(id)) {
+        const rowRef = resolveSpreadsheetRowRef((c as { rowRef?: unknown }).rowRef)
+        const id = rowRef ? getSpreadsheetRowRefIdentity(rowRef) : String(c.rowId ?? '')
+        const isBackendIdentity = rowRef ? isSpreadsheetBackendRowRef(rowRef) : isSpreadsheetBackendRowUuid(id)
+        if (id && !isBackendIdentity) {
           hasNonBackendRowIdInSetRange = true
           break
         }

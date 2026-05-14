@@ -36,6 +36,16 @@ export interface UseSpreadsheetViewerSessionModelParams {
   >
   latestUniverDataRef: MutableRefObject<{ data: Record<string, unknown>[]; sheetId: string } | null>
   setActiveSheetId: (nextId: string) => void
+  onRowsStateUpdated?: (
+    sheetId: string,
+    rows: Record<string, unknown>[],
+    meta: {
+      persisted: boolean
+      activeSheet: boolean
+      source: 'commit_local' | 'sync_sheet_rows'
+      version?: number
+    }
+  ) => void
 }
 
 export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSessionModelParams) {
@@ -165,9 +175,20 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
         publishParent: options?.publishParent,
         peerAuthoritative: options?.peerAuthoritative
       })
+      params.onRowsStateUpdated?.(params.activeSheetId, next, {
+        persisted: Boolean(options?.persisted),
+        activeSheet: true,
+        source: 'commit_local'
+      })
       queueMicrotask(() => params.collaborationManagerRef.current?.tryFlushDeferredCellEmits())
     },
-    [applyActiveSheetRowsToSession, mirrorActiveSheetRowsToViewerUi, params.collaborationManagerRef]
+    [
+      applyActiveSheetRowsToSession,
+      mirrorActiveSheetRowsToViewerUi,
+      params.activeSheetId,
+      params.collaborationManagerRef,
+      params.onRowsStateUpdated
+    ]
   )
   commitLocalSheetDataRef.current = commitLocalSheetData
 
@@ -251,6 +272,12 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
         })
         queueMicrotask(() => params.collaborationManagerRef.current?.tryFlushDeferredCellEmits())
       }
+      params.onRowsStateUpdated?.(targetSheetId, rows, {
+        persisted: Boolean(options?.persisted || typeof options?.version === 'number'),
+        activeSheet: targetSheetId === params.activeSheetIdRef.current,
+        source: 'sync_sheet_rows',
+        version: options?.version
+      })
     },
     [
       params.activeSheet,
@@ -262,6 +289,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
       params.activeSheetIdRef,
       params.appSheetsRef,
       params.collaborationManagerRef,
+      params.onRowsStateUpdated,
       params.spreadsheetGridRef
     ]
   )

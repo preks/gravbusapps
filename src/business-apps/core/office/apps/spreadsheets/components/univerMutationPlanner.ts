@@ -2,6 +2,7 @@ import type { SpreadsheetMutationPlan, SpreadsheetMutationPlannedCell, Spreadshe
 import { readSpreadsheetRowCellValue, toA1Reference } from '../core'
 import type { SpreadsheetColumn } from '../types'
 import type { ConversionContext } from '../utils/univerAdapter'
+import type { SpreadsheetStableRowTarget } from '../utils/spreadsheetRowSlotIdentity'
 import type { SheetCellMatrix, SheetRangeShape } from './cellMatrixUtils'
 import { getSpreadsheetRowAtUniverGridIndex } from './univerGridAuthoritativeHelpers'
 
@@ -71,6 +72,8 @@ export interface BuildAuthoritativeMutationEnvelopeParams {
   allowValueCarryingStylePayloads?: boolean
   replaceRangeStyleIntent?: boolean
   shouldSuppress?: (rowIndex: number, colIndex: number, value: unknown) => boolean
+  resolveStableRowTarget?: (rowIndex: number) => SpreadsheetStableRowTarget | null
+  resolveStableColumnName?: (columnIndex: number) => string | null
   /** Univer command id from SheetValueChanged / CommandExecuted (empty when omitted). */
   mutationCommandId?: string
 }
@@ -369,6 +372,8 @@ function applyNonBlankWorksheetFallback(params: {
   replaceRangeStyleIntent: boolean
   allowValueCarryingStylePayloads: boolean
   shouldSuppress?: (rowIndex: number, colIndex: number, value: unknown) => boolean
+  resolveStableRowTarget?: (rowIndex: number) => SpreadsheetStableRowTarget | null
+  resolveStableColumnName?: (columnIndex: number) => string | null
   styleIntent: SpreadsheetStylePatchIntent
   mergeCoveredCellKeys: Set<string>
 }): void {
@@ -384,6 +389,8 @@ function applyNonBlankWorksheetFallback(params: {
     replaceRangeStyleIntent,
     allowValueCarryingStylePayloads,
     shouldSuppress,
+    resolveStableRowTarget,
+    resolveStableColumnName,
     styleIntent,
     mergeCoveredCellKeys
   } = params
@@ -417,8 +424,12 @@ function applyNonBlankWorksheetFallback(params: {
         if (scannedKeys.has(mapKey)) continue
         scannedKeys.add(mapKey)
 
-        const rowId = ctx.rowIndexToId.get(globalRowIndex)
-        const columnName = ctx.columnIndexToName.get(globalColIndex) ?? ctx.columnIndexToId.get(globalColIndex)
+        const stableRowTarget = resolveStableRowTarget?.(globalRowIndex)
+        const rowId = stableRowTarget?.rowId ?? ctx.rowIndexToId.get(globalRowIndex)
+        const columnName =
+          resolveStableColumnName?.(globalColIndex) ??
+          ctx.columnIndexToName.get(globalColIndex) ??
+          ctx.columnIndexToId.get(globalColIndex)
         if (rowId === undefined || columnName === undefined) continue
 
         const candidateValue =
@@ -457,6 +468,7 @@ function applyNonBlankWorksheetFallback(params: {
         if (!existing) {
           existing = {
             rowId,
+            rowRef: stableRowTarget?.rowRef,
             columnName,
             rowIndex: globalRowIndex,
             colIndex: globalColIndex,
@@ -516,6 +528,8 @@ export function buildAuthoritativeMutationEnvelope(
     allowValueCarryingStylePayloads = false,
     replaceRangeStyleIntent = false,
     shouldSuppress,
+    resolveStableRowTarget,
+    resolveStableColumnName,
     mutationCommandId
   } = params
 
@@ -547,8 +561,12 @@ export function buildAuthoritativeMutationEnvelope(
   for (const target of targetCells) {
     const globalRowIndex = target.rowIndex
     const globalColIndex = target.colIndex
-    const rowId = ctx.rowIndexToId.get(globalRowIndex)
-    const columnName = ctx.columnIndexToName.get(globalColIndex) ?? ctx.columnIndexToId.get(globalColIndex)
+    const stableRowTarget = resolveStableRowTarget?.(globalRowIndex)
+    const rowId = stableRowTarget?.rowId ?? ctx.rowIndexToId.get(globalRowIndex)
+    const columnName =
+      resolveStableColumnName?.(globalColIndex) ??
+      ctx.columnIndexToName.get(globalColIndex) ??
+      ctx.columnIndexToId.get(globalColIndex)
     if (rowId === undefined || columnName === undefined) continue
 
     const candidateValue =
@@ -566,6 +584,7 @@ export function buildAuthoritativeMutationEnvelope(
       plannedCells.get(key) ??
       ({
         rowId,
+        rowRef: stableRowTarget?.rowRef,
         columnName,
         rowIndex: globalRowIndex,
         colIndex: globalColIndex,
@@ -643,6 +662,8 @@ export function buildAuthoritativeMutationEnvelope(
     replaceRangeStyleIntent,
     allowValueCarryingStylePayloads,
     shouldSuppress,
+    resolveStableRowTarget,
+    resolveStableColumnName,
     styleIntent,
     mergeCoveredCellKeys
   })

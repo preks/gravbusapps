@@ -180,7 +180,7 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
     )
   })
 
-  it('blocks /operations/batch when known semantic row-id fields still contain temporary client ids', async () => {
+  it('normalizes temporary client row ids into typed row refs before submit', async () => {
     const { options } = buildOptions()
     const applyOperationBatchSpy = jest
       .spyOn(SpreadsheetApiService, 'applyOperationBatch')
@@ -199,30 +199,145 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
         ],
         batchIdPrefix: 'set_range'
       })
-    ).rejects.toThrow(/temporary client ids/)
+    ).resolves.toEqual(buildResponse(7))
 
-    expect(applyOperationBatchSpy).not.toHaveBeenCalled()
+    expect(applyOperationBatchSpy).toHaveBeenCalledWith(
+      'app-1',
+      'sheet-1',
+      expect.objectContaining({
+        operations: [
+          {
+            operationId: 'op-1',
+            type: 'set_range',
+            data: {
+              cells: [
+                {
+                  rowRef: {
+                    kind: 'clientHandle',
+                    clientRowId: 'client_row_1'
+                  },
+                  rowId: undefined,
+                  columnName: 'ColumnA',
+                  value: 'draft'
+                }
+              ]
+            }
+          }
+        ]
+      }),
+      { keepalive: true }
+    )
     expect(options.emitTraceEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         stage: 'http_batch_pre_submit_row_id_check',
         payload: expect.objectContaining({
-          hasTemporaryRowIdsInKnownFields: true,
-          temporaryRowIdMatches: [
-            expect.objectContaining({
-              operationType: 'set_range',
-              fieldPath: 'data.cells[0].rowId',
-              rowId: 'client_row_1'
-            })
-          ],
+          hasTemporaryRowIdsInKnownFields: false,
+          temporaryRowIdMatches: [],
           submittedRowIds: [
             expect.objectContaining({
               submittedRowId: 'client_row_1',
               submittedRowIdIsBackendUuid: false,
-              containsTemporaryClientRowId: true
+              containsTemporaryClientRowId: false
             })
           ]
         })
       })
+    )
+  })
+
+  it('retries retryable unknown client row handle failures once', async () => {
+    const { options } = buildOptions()
+    const applyOperationBatchSpy = jest
+      .spyOn(SpreadsheetApiService, 'applyOperationBatch')
+      .mockRejectedValueOnce(
+        new SpreadsheetApiRequestError('Unknown handle', 400, {
+          code: 'unknown_client_row_handle',
+          retryable: true
+        })
+      )
+      .mockResolvedValueOnce(buildResponse(9))
+    const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
+
+    await expect(
+      submitBatch({
+        sheetId: 'sheet-1',
+        operations: [
+          {
+            operationId: 'op-1',
+            type: 'set_cell',
+            data: {
+              rowRef: { kind: 'clientHandle', clientRowId: 'client_row_1' },
+              columnName: 'ColumnA',
+              value: 'draft'
+            }
+          }
+        ],
+        batchIdPrefix: 'set_cell'
+      })
+    ).resolves.toEqual(buildResponse(9))
+
+    expect(applyOperationBatchSpy).toHaveBeenCalledTimes(2)
+    expect(applyOperationBatchSpy).toHaveBeenNthCalledWith(
+      2,
+      'app-1',
+      'sheet-1',
+      expect.objectContaining({
+        batchId: 'set_cell_retry_wait_generated'
+      }),
+      { keepalive: true }
+    )
+  })
+
+  it('does not convert UUID-like unresolved row ids into client handles', async () => {
+    const { options } = buildOptions()
+    const applyOperationBatchSpy = jest
+      .spyOn(SpreadsheetApiService, 'applyOperationBatch')
+      .mockResolvedValue(buildResponse(10))
+    const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
+
+    await expect(
+      submitBatch({
+        sheetId: 'sheet-1',
+        operations: [
+          {
+            operationId: 'op-1',
+            type: 'set_range',
+            data: {
+              cells: [
+                {
+                  rowId: '5492aca5-56e8-405d-85f6-58d932e4c478',
+                  columnName: 'ColumnA',
+                  value: 'draft'
+                }
+              ]
+            }
+          }
+        ],
+        batchIdPrefix: 'set_range'
+      })
+    ).resolves.toEqual(buildResponse(10))
+
+    expect(applyOperationBatchSpy).toHaveBeenCalledWith(
+      'app-1',
+      'sheet-1',
+      expect.objectContaining({
+        operations: [
+          {
+            operationId: 'op-1',
+            type: 'set_range',
+            data: {
+              cells: [
+                {
+                  rowId: '5492aca5-56e8-405d-85f6-58d932e4c478',
+                  columnName: 'ColumnA',
+                  value: 'draft'
+                }
+              ]
+            }
+          }
+        ]
+      }),
+      { keepalive: true }
     )
   })
 })

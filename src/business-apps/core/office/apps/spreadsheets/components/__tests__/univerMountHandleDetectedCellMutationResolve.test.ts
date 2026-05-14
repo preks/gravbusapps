@@ -1,6 +1,7 @@
 import { resolveDetectedCellMutation } from '../univerMountHandleDetectedCellMutationResolve'
 import { runDetectedCellMutationPersistPlanPhase } from '../univerMountHandleDetectedCellMutationPersistPlan'
 import { createUniverConversionContext } from '../../utils/univerAdapter'
+import { createSpreadsheetRowSlotIdentityRegistry } from '../../utils/spreadsheetRowSlotIdentity'
 
 const columns = [
   {
@@ -100,7 +101,7 @@ describe('resolveDetectedCellMutation', () => {
     if (result.status !== 'ready') return
     expect(result.ready.useResolvedContext).toBe(true)
     expect(result.ready.currentData).toBe(resolvedRows)
-    expect(result.ready.ctxBefore.rowIndexToId.get(0)).toBe('client_materialized')
+    expect(result.ready.ctxBefore.rowIndexToId.get(0)).toBe('backend-row-1')
     expect(result.ready.pendingNewRowsUpdate).toBeNull()
     expect(deps.callbacksRef.current.onDiagnosticsTraceEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -116,7 +117,7 @@ describe('resolveDetectedCellMutation', () => {
     )
   })
 
-  it('prefers shorter authoritative session context over longer visual props data', () => {
+  it('prefers props context when resolved rows no longer match the visual row layout', () => {
     const resolvedRows = [
       {
         _id: 'client_materialized',
@@ -148,20 +149,108 @@ describe('resolveDetectedCellMutation', () => {
 
     expect(result.status).toBe('ready')
     if (result.status !== 'ready') return
-    expect(result.ready.useResolvedContext).toBe(true)
-    expect(result.ready.currentData).toBe(resolvedRows)
-    expect(result.ready.pendingNewRowsUpdate?.nextData).toHaveLength(2)
+    expect(result.ready.useResolvedContext).toBe(false)
+    expect(result.ready.currentData).toBe(visualOnlyRows)
+    expect(result.ready.pendingNewRowsUpdate).toBeNull()
     expect(deps.callbacksRef.current.onDiagnosticsTraceEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: expect.objectContaining({
-          contextSource: 'resolved',
+          contextSource: 'props',
           propsDataLength: 2,
-          currentDataLength: 1,
-          candidateNewRowIndices: [1],
-          newRowIndices: [1]
+          currentDataLength: 2
         })
       })
     )
+  })
+
+  it('keeps inserted-row visual mapping aligned when resolved context is missing the optimistic middle row', () => {
+    const propsRows = [
+      { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, column_a: '1' },
+      { _id: 'client_inserted', _clientRowId: 'client_inserted', _gridRowIndex: 1, column_a: '' },
+      { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 2, column_a: '2' },
+      { _id: 'backend-row-3', _rowUuid: 'backend-row-3', _gridRowIndex: 3, column_a: '3' }
+    ]
+    const resolvedRows = [
+      { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, column_a: '1' },
+      { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 1, column_a: '2' },
+      { _id: 'backend-row-3', _rowUuid: 'backend-row-3', _gridRowIndex: 2, column_a: '3' }
+    ]
+    const deps = makeDeps({
+      propsData: propsRows,
+      getSheetContext: () => ({ columns, data: resolvedRows })
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: 'sheet.mutation.set-range-values',
+      ranges: [{ startRow: 1, endRow: 1, startColumn: 0, endColumn: 0 }],
+      payloadCellValue: undefined,
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result.status).toBe('ready')
+    if (result.status !== 'ready') return
+    expect(result.ready.useResolvedContext).toBe(false)
+    expect(result.ready.ctxBefore.rowIndexToId.get(1)).toBe('client_inserted')
+    const planned = runDetectedCellMutationPersistPlanPhase(deps, result.ready)
+    expect(planned.kind).toBe('emit')
+    if (planned.kind !== 'emit') return
+    expect(planned.emit.plannedCellsFiltered).toEqual([
+      expect.objectContaining({
+        rowId: 'client_inserted',
+        rowRef: { kind: 'clientHandle', clientRowId: 'client_inserted' },
+        rowIndex: 1,
+        columnName: 'column_a',
+        valueAction: 'set',
+        value: 'edited'
+      })
+    ])
+  })
+
+  it('rebuilds props planner context from props rows instead of reusing a stale contextRef mapping', () => {
+    const propsRows = [
+      { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, column_a: '1' },
+      { _id: 'client_inserted', _clientRowId: 'client_inserted', _gridRowIndex: 1, column_a: '' },
+      { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 2, column_a: '2' }
+    ]
+    const staleContextRows = [
+      { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, column_a: '1' },
+      { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 1, column_a: '2' }
+    ]
+    const deps = makeDeps({
+      propsData: propsRows,
+      deps: {
+        contextRef: {
+          current: createUniverConversionContext(columns, staleContextRows)
+        }
+      }
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: 'sheet.mutation.set-range-values',
+      ranges: [{ startRow: 1, endRow: 1, startColumn: 0, endColumn: 0 }],
+      payloadCellValue: undefined,
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result.status).toBe('ready')
+    if (result.status !== 'ready') return
+    expect(result.ready.useResolvedContext).toBe(false)
+    expect(result.ready.ctxBefore.rowIndexToId.get(1)).toBe('client_inserted')
+    const planned = runDetectedCellMutationPersistPlanPhase(deps, result.ready)
+    expect(planned.kind).toBe('emit')
+    if (planned.kind !== 'emit') return
+    expect(planned.emit.plannedCellsFiltered).toEqual([
+      expect.objectContaining({
+        rowId: 'client_inserted',
+        rowRef: { kind: 'clientHandle', clientRowId: 'client_inserted' },
+        rowIndex: 1,
+        columnName: 'column_a',
+        valueAction: 'set',
+        value: 'edited'
+      })
+    ])
   })
 
   it('materializes a sparse visual row even when compact data has a later backend row at that array index', () => {
@@ -263,5 +352,175 @@ describe('resolveDetectedCellMutation', () => {
         })
       })
     )
+  })
+
+  it('defers mutation planning when row slot identity is structurally unhealthy and unresolved', () => {
+    const registry = createSpreadsheetRowSlotIdentityRegistry()
+    registry.markUnhealthy('sheet-1', 'manual_insert_pending')
+    const deps = makeDeps({
+      propsData: [],
+      props: {
+        rowSlotIdentityRegistryRef: {
+          current: registry
+        }
+      }
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: 'sheet.mutation.set-range-values',
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      payloadCellValue: undefined,
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result).toEqual({ status: 'return', value: false })
+    expect(deps.callbacksRef.current.onDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'grid_mutation_deferred_unhealthy_row_identity',
+        payload: expect.objectContaining({
+          targetSheetId: 'sheet-1',
+          unresolvedStableRowIndices: [0]
+        })
+      })
+    )
+  })
+
+  it('prefers props columns for immediate post-insert edits when resolved column mapping is stale', () => {
+    const propsColumns = [
+      {
+        id: 'col-a',
+        name: 'column_a',
+        label: 'Column A',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        order: 0
+      },
+      {
+        id: 'col-inserted',
+        name: 'column_inserted',
+        label: 'Inserted',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        order: 1
+      }
+    ] as any
+    const staleResolvedColumns = [propsColumns[0]]
+    const deps = makeDeps({
+      propsData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', column_a: 'A', column_inserted: '' }],
+      propsColumns,
+      getSheetContext: () => ({
+        columns: staleResolvedColumns,
+        data: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', column_a: 'A' }]
+      }),
+      props: {
+        columnStructureStateRef: {
+          current: {
+            healthy: false,
+            pendingInsertedRange: { startIndex: 1, endIndex: 1, columnNames: ['column_inserted'] },
+            expectedColumnsSignature: 'pending'
+          }
+        }
+      }
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: 'sheet.mutation.set-range-values',
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 1, endColumn: 1 }],
+      payloadCellValue: undefined,
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result.status).toBe('ready')
+    if (result.status !== 'ready') return
+    expect(result.ready.useResolvedContext).toBe(false)
+    expect(result.ready.columnIdentityStructureHealthy).toBe(false)
+    expect(result.ready.resolveStableColumnName(1)).toBe('column_inserted')
+
+    const planned = runDetectedCellMutationPersistPlanPhase(deps, result.ready)
+    expect(planned.kind).toBe('emit')
+    if (planned.kind !== 'emit') return
+    expect(planned.emit.plannedCellsFiltered).toEqual([
+      expect.objectContaining({
+        rowId: 'backend-row-1',
+        columnName: 'column_inserted',
+        rowIndex: 0,
+        colIndex: 1,
+        valueAction: 'set',
+        value: 'edited'
+      })
+    ])
+    expect(deps.callbacksRef.current.onDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'grid_planner_context_source_used',
+        payload: expect.objectContaining({
+          contextSource: 'props',
+          columnIdentityStructureHealthy: false,
+          columnIdentityStructuralMismatch: true,
+          pendingInsertedColumnRange: { startIndex: 1, endIndex: 1, columnNames: ['column_inserted'] }
+        })
+      })
+    )
+  })
+
+  it('prefers the current planner row over a stale registry slot target for the same visual index', () => {
+    const registry = createSpreadsheetRowSlotIdentityRegistry()
+    registry.syncRows(
+      'sheet-1',
+      [
+        { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, column_a: '1' },
+        { _id: 'backend-row-3', _rowUuid: 'backend-row-3', _gridRowIndex: 1, column_a: '3' },
+        { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 2, column_a: '2' }
+      ],
+      value => value.startsWith('backend-')
+    )
+
+    const propsRows = [
+      { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, column_a: '1' },
+      { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 1, column_a: '' },
+      { _id: 'backend-row-3', _rowUuid: 'backend-row-3', _gridRowIndex: 2, column_a: '3' }
+    ]
+
+    const deps = makeDeps({
+      propsData: propsRows,
+      props: {
+        rowSlotIdentityRegistryRef: {
+          current: registry
+        }
+      },
+      getSheetContext: () => ({ columns, data: propsRows })
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: 'sheet.mutation.set-range-values',
+      ranges: [{ startRow: 1, endRow: 1, startColumn: 0, endColumn: 0 }],
+      payloadCellValue: undefined,
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result.status).toBe('ready')
+    if (result.status !== 'ready') return
+
+    const planned = runDetectedCellMutationPersistPlanPhase(deps, result.ready)
+    expect(planned.kind).toBe('emit')
+    if (planned.kind !== 'emit') return
+
+    expect(planned.emit.plannedCellsFiltered).toEqual([
+      expect.objectContaining({
+        rowId: 'backend-row-2',
+        rowIndex: 1,
+        columnName: 'column_a',
+        valueAction: 'set',
+        value: 'edited'
+      })
+    ])
   })
 })

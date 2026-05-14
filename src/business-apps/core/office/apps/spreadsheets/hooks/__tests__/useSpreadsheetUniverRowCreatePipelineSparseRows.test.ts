@@ -70,9 +70,18 @@ function renderPipeline({
       async (
         _targetSheetId: string,
         rowPayloads: Record<string, unknown>[],
-        updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
+        updateLocalRowsAfterCreate: (result: {
+          createdRows: Array<Record<string, unknown>>
+          persistedIdByClientRowId: Map<string, string>
+        }) => void
       ) => {
-        updateLocalRowsAfterCreate(rowPayloads.map(row => createdRow(Number(row._gridRowIndex))))
+        const createdRows = rowPayloads.map(row => createdRow(Number(row._gridRowIndex)))
+        updateLocalRowsAfterCreate({
+          createdRows,
+          persistedIdByClientRowId: new Map(
+            createdRows.map(row => [String(row._clientRowId ?? row._id ?? ''), String(row._rowUuid ?? '')])
+          )
+        })
       }
     )
 
@@ -175,16 +184,26 @@ describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () 
   })
 
   it('does not create the same sparse visual row twice while creation is in flight', async () => {
+    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
     let finishPersist: (() => void) | undefined
     const persistAddedRowsWithBatch = jest.fn(
       async (
         _targetSheetId: string,
         rowPayloads: Record<string, unknown>[],
-        updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
+        updateLocalRowsAfterCreate: (result: {
+          createdRows: Array<Record<string, unknown>>
+          persistedIdByClientRowId: Map<string, string>
+        }) => void
       ) =>
         new Promise<void>(resolve => {
           finishPersist = () => {
-            updateLocalRowsAfterCreate(rowPayloads.map(row => createdRow(Number(row._gridRowIndex))))
+            const createdRows = rowPayloads.map(row => createdRow(Number(row._gridRowIndex)))
+            updateLocalRowsAfterCreate({
+              createdRows,
+              persistedIdByClientRowId: new Map(
+                createdRows.map(row => [String(row._clientRowId ?? row._id ?? ''), String(row._rowUuid ?? '')])
+              )
+            })
             resolve()
           }
         })
@@ -198,13 +217,17 @@ describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () 
       persistAddedRowsWithBatch
     })
 
-    await act(async () => {
-      const firstFlush = result.current.processUniverDataChange()
-      await Promise.resolve()
-      await result.current.processUniverDataChange()
-      finishPersist?.()
-      await firstFlush
-    })
+    try {
+      await act(async () => {
+        const firstFlush = result.current.processUniverDataChange()
+        await Promise.resolve()
+        await result.current.processUniverDataChange()
+        finishPersist?.()
+        await firstFlush
+      })
+    } finally {
+      consoleWarnSpy.mockRestore()
+    }
 
     expect(persistAddedRowsWithBatch).toHaveBeenCalledTimes(1)
     const skipLogs = getDebugPayloads(multiSheetDebugLog, 'process_univer_data_change_skip_no_new_rows')

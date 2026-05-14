@@ -23,6 +23,7 @@ import translations from '../_i18n'
 import type { SpreadsheetStylePatch, SpreadsheetUnifiedMutationBatchPayload } from '../core'
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIntent'
+import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 
 export interface TableViewProps {
   sheet: SpreadsheetSheet
@@ -101,6 +102,12 @@ export interface TableViewProps {
   flushUnmaterializedRowsBeforePersistRef?: MutableRefObject<((sheetId: string) => Promise<void>) | null>
   getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
   isUuidForRowRemap?: (value: string) => boolean
+  rowSlotIdentityRegistryRef?: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
+  columnStructureStateRef?: MutableRefObject<{
+    healthy: boolean
+    pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+    expectedColumnsSignature: string | null
+  }>
   onCursorEmit?: (position: { path: string[] }) => void
   getCanonicalSheetId?: (sheetId: string) => string
   collaborationEnabled?: boolean
@@ -159,6 +166,8 @@ export const TableView = memo<TableViewProps>(function TableView({
   flushUnmaterializedRowsBeforePersistRef,
   getPersistSheetRowsSnapshot,
   isUuidForRowRemap,
+  rowSlotIdentityRegistryRef,
+  columnStructureStateRef,
   onCursorEmit,
   getCanonicalSheetId,
   collaborationEnabled,
@@ -436,6 +445,8 @@ export const TableView = memo<TableViewProps>(function TableView({
           flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
           getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
           isUuidForRowRemap={isUuidForRowRemap}
+          rowSlotIdentityRegistryRef={rowSlotIdentityRegistryRef}
+          columnStructureStateRef={columnStructureStateRef}
           onCursorEmit={onCursorEmit}
           getCanonicalSheetId={getCanonicalSheetId}
           collaborationEnabled={collaborationEnabled}

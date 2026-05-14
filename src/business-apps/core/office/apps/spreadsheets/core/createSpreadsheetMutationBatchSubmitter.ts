@@ -11,6 +11,7 @@ import {
   collectKnownRowIdFieldMatches,
   detectTemporaryRowIdsInKnownRowIdFields
 } from '../utils/spreadsheetUnifiedBatchSubmitUtils'
+import { normalizeBatchOperationsWithRowRefs } from '../utils/spreadsheetBatchOperationRowRemap'
 import { isSpreadsheetBackendRowUuid } from '../utils/spreadsheetRowIdentity'
 
 type SpreadsheetTraceContext = {
@@ -85,6 +86,14 @@ const applyOperationBatch = async ({
     },
     keepalive ? { keepalive: true } : undefined
   )
+
+const getRetryableBatchErrorCode = (error: unknown): string | undefined => {
+  if (!(error instanceof SpreadsheetApiRequestError)) return undefined
+  if (!error.details || typeof error.details !== 'object') return undefined
+  const code = (error.details as { code?: unknown }).code
+  const retryable = (error.details as { retryable?: unknown }).retryable
+  return retryable === true && typeof code === 'string' ? code : undefined
+}
 
 const assertNoTemporaryRowIdsInKnownFields = ({
   operations,
@@ -193,6 +202,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
     const batchId = batchIdOverride ?? options.createBatchId(batchIdPrefix)
     const traceId = traceMeta?.traceId ?? batchId
     const isActiveTarget = options.isActiveSheet(targetSheetId)
+    const preparedOperations = normalizeBatchOperationsWithRowRefs(operations, new Map())
 
     try {
       const baseVersion = await options.refreshBaseVersionBeforeWrite(
@@ -212,12 +222,12 @@ export const createSpreadsheetMutationBatchSubmitter = (
         baseVersion,
         payload: {
           targetSheetId,
-          operations,
+          operations: preparedOperations,
           sourceTraceIds: traceMeta?.sourceTraceIds ?? []
         }
       })
       assertNoTemporaryRowIdsInKnownFields({
-        operations,
+        operations: preparedOperations,
         targetSheetId,
         traceId,
         emitTraceEvent: options.emitTraceEvent
@@ -227,7 +237,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
         appId: options.appId,
         targetSheetId,
         baseVersion,
-        operations,
+        operations: preparedOperations,
         batchId,
         traceId,
         traceContext: options.getTraceContext(),
@@ -236,7 +246,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
 
       return handleSuccess({
         targetSheetId,
-        operations,
+        operations: preparedOperations,
         response,
         batchId,
         traceId,
@@ -245,6 +255,36 @@ export const createSpreadsheetMutationBatchSubmitter = (
         traceMetaOperationType: traceMeta?.operationType
       })
     } catch (error) {
+      const retryableErrorCode = getRetryableBatchErrorCode(error)
+      if (retryableErrorCode === 'unknown_client_row_handle' || retryableErrorCode === 'dependency_not_ready') {
+        const retryBatchId = options.createBatchId(`${batchIdPrefix}_retry_wait`)
+        const retryBaseVersion = await options.refreshBaseVersionBeforeWrite(
+          targetSheetId,
+          options.resolveBaseVersion(targetSheetId)
+        )
+        const retry = await applyOperationBatch({
+          appId: options.appId,
+          targetSheetId,
+          baseVersion: retryBaseVersion,
+          operations: preparedOperations,
+          batchId: retryBatchId,
+          traceId,
+          traceContext: options.getTraceContext(),
+          keepalive: options.shouldKeepalive()
+        })
+        return handleSuccess({
+          targetSheetId,
+          operations: preparedOperations,
+          response: retry,
+          batchId: retryBatchId,
+          traceId,
+          batchIdPrefix,
+          baseVersion: retryBaseVersion,
+          traceMetaOperationType: traceMeta?.operationType,
+          extraPayload: { retriedBatchId: batchId, retryReason: retryableErrorCode }
+        })
+      }
+
       if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
         const serverVersion = getSpreadsheetBatchConflictServerVersion(error.details)
         if (serverVersion != null) {
@@ -260,7 +300,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
               appId: options.appId,
               targetSheetId,
               baseVersion: serverVersion,
-              operations,
+              operations: preparedOperations,
               batchId: quickRetryBatchId,
               traceId,
               traceContext: options.getTraceContext()
@@ -268,7 +308,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
             options.scheduleSnapshotCheckpointFromPersistence()
             return handleSuccess({
               targetSheetId,
-              operations,
+              operations: preparedOperations,
               response: quickRetry,
               batchId: quickRetryBatchId,
               traceId,
@@ -295,7 +335,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
             appId: options.appId,
             targetSheetId,
             baseVersion: options.getActiveSheetVersion(),
-            operations,
+            operations: preparedOperations,
             batchId: retryBatchId,
             traceId,
             traceContext: options.getTraceContext(),
@@ -303,7 +343,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
           })
           return handleSuccess({
             targetSheetId,
-            operations,
+            operations: preparedOperations,
             response: retry,
             batchId: retryBatchId,
             traceId,
@@ -323,7 +363,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
             appId: options.appId,
             targetSheetId,
             baseVersion: latestSheetVersion,
-            operations,
+            operations: preparedOperations,
             batchId: retryBatchId,
             traceId,
             traceContext: options.getTraceContext(),
@@ -331,7 +371,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
           })
           return handleSuccess({
             targetSheetId,
-            operations,
+            operations: preparedOperations,
             response: retry,
             batchId: retryBatchId,
             traceId,

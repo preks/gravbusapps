@@ -1,6 +1,7 @@
 import type { MutableRefObject } from 'react'
 
 import type { SpreadsheetColumn } from '../types'
+import type { SpreadsheetRowMaterializationReadiness } from './spreadsheetRowMaterializationReadiness'
 
 interface SpreadsheetPersistenceIndicator {
   beginPersist: () => void
@@ -39,12 +40,18 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
   persistAddedRowsWithBatch: (
     targetSheetId: string,
     rowPayloads: Record<string, unknown>[],
-    updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
+    updateLocalRowsAfterCreate: (result: {
+      createdRows: Array<Record<string, unknown>>
+      persistedIdByClientRowId: Map<string, string>
+    }) => void
   ) => Promise<void>
   persistSingleAddedRow: (
     targetSheetId: string,
     rowPayloads: Record<string, unknown>[],
-    updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
+    updateLocalRowsAfterCreate: (result: {
+      createdRows: Array<Record<string, unknown>>
+      persistedIdByClientRowId: Map<string, string>
+    }) => void
   ) => Promise<void>
   recoverFromVersionConflict: () => Promise<boolean>
   summarizeRowsForDebug: (rows: Record<string, unknown>[] | undefined) => Record<string, unknown>
@@ -62,9 +69,11 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
     persistedSheetId: string | null
   } | null>
   createdSheetIdAliasesRef: MutableRefObject<Map<string, string>>
+  rowMaterializationReadiness?: SpreadsheetRowMaterializationReadiness
 }
 
 export interface UseSpreadsheetUniverRowCreatePipelineResult {
   processUniverDataChange: () => Promise<void>
   processUniverDataChangeRef: MutableRefObject<() => Promise<void>>
+  materializeTemporaryRowsForSubmit: (targetSheetId: string, rows: Array<Record<string, unknown>>) => Promise<void>
 }

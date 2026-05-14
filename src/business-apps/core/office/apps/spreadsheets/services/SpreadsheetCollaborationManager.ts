@@ -17,6 +17,7 @@ import { createUniverConversionContext } from '../utils/univerAdapter'
 import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
 import { SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH } from '../utils/spreadsheetBulkRemoteConstants'
 import { mergeInsertedRowsAtIndex } from '../utils/spreadsheetInsertRowsAt'
+import { findViewerRowVisualIndex, sortRowsByCanonicalVisualOrder } from '../utils/spreadsheetPeerRowHydration'
 import { getCanonicalRowId, rowMatchesRemoteId, type ViewerRow } from '../utils/spreadsheetRowIdentity'
 import type { SpreadsheetTraceEventInput } from './spreadsheetDiagnostics'
 
@@ -44,7 +45,8 @@ const mapCreatedRowsFromWireRows = (rows: unknown): ViewerRow[] => {
         clientRowId
       mappedRows.push({
         ...rowData,
-        _id: clientRowId,
+        _id: fallbackId,
+        _clientRowId: clientRowId,
         _rowUuid: fallbackId
       })
       continue
@@ -1693,16 +1695,17 @@ export class SpreadsheetCollaborationManager {
       const createdRows = mapCreatedRowsFromWireRows(payload.rows)
       const insertAt = Number(payload.insertAt)
       if (createdRows.length === 0) return false
+      const canonicalCurrentRows = sortRowsByCanonicalVisualOrder(currentRows)
       nextRows = mergeInsertedRowsAtIndex(
-        currentRows,
+        canonicalCurrentRows,
         createdRows,
-        Number.isFinite(insertAt) ? insertAt : currentRows.length
+        Number.isFinite(insertAt) ? insertAt : canonicalCurrentRows.length
       )
       rowsToApplyToGrid = createdRows
       dirtyRegion = this.buildDirtyRegionForInsertedRows(
         targetSheetId,
         nextRows,
-        Number.isFinite(insertAt) ? insertAt : currentRows.length
+        Number.isFinite(insertAt) ? insertAt : canonicalCurrentRows.length
       )
     } else if (operationType === 'row_add') {
       const placeholderRows = rowPlaceholdersFromIds(payload.rowIds)
@@ -1780,10 +1783,11 @@ export class SpreadsheetCollaborationManager {
           const currentRows = this.getSheetData(targetSheetId)
           const rawInsertAt = Number(change.payload?.insertAt ?? change.result?.insertAt)
           const isInsertAtOp = change.operationType === 'insert_rows_at' && Number.isFinite(rawInsertAt)
-          const insertAt = isInsertAtOp ? rawInsertAt : currentRows.length
+          const canonicalCurrentRows = isInsertAtOp ? sortRowsByCanonicalVisualOrder(currentRows) : currentRows
+          const insertAt = isInsertAtOp ? rawInsertAt : canonicalCurrentRows.length
           const nextRows = isInsertAtOp
-            ? mergeInsertedRowsAtIndex(currentRows, createdRows, insertAt)
-            : mergeCreatedRows(currentRows, createdRows)
+            ? mergeInsertedRowsAtIndex(canonicalCurrentRows, createdRows, insertAt)
+            : mergeCreatedRows(canonicalCurrentRows, createdRows)
           this.commitSheetData(targetSheetId, nextRows, {
             persisted: true,
             syncGrid: targetSheetId === this.callbacks.getActiveSheetId()
@@ -1845,12 +1849,9 @@ export class SpreadsheetCollaborationManager {
 
     const items: SpreadsheetBulkRemoteCellItem[] = []
     for (const row of createdRows) {
-      const rowIndex = allRows.findIndex(candidate => {
-        const rowId = getCanonicalRowId(row)
-        return rowId ? rowMatchesRemoteRowId(candidate, rowId) : candidate === row
-      })
-      if (rowIndex < 0) continue
-      const rowId = getCanonicalRowId(row) || getCanonicalRowId(allRows[rowIndex] ?? {})
+      const rowIndex = findViewerRowVisualIndex(allRows, row)
+      if (rowIndex == null || rowIndex < 0) continue
+      const rowId = getCanonicalRowId(row)
       const applyOptions = this.withTargetSheetApplyOptions(targetSheetId)
       for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
         const column = visibleColumns[colIndex]
@@ -1885,11 +1886,8 @@ export class SpreadsheetCollaborationManager {
     let minR = Number.POSITIVE_INFINITY
     let maxR = -1
     for (const row of createdRows) {
-      const rowIndex = allRows.findIndex(candidate => {
-        const rowId = getCanonicalRowId(row)
-        return rowId ? rowMatchesRemoteRowId(candidate, rowId) : candidate === row
-      })
-      if (rowIndex < 0) continue
+      const rowIndex = findViewerRowVisualIndex(allRows, row)
+      if (rowIndex == null || rowIndex < 0) continue
       minR = Math.min(minR, rowIndex)
       maxR = Math.max(maxR, rowIndex)
     }

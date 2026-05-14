@@ -118,7 +118,7 @@ describe('applyAuthoritativeBatchResponseToRows', () => {
 
     expect(applyAuthoritativeBatchResponseToRows(startingBaseline, operations, response)).toEqual([
       { _id: 'row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, ColumnA: 'top' },
-      { _id: 'client-row-new', _rowUuid: 'backend-row-new', _clientRowId: 'client-row-new', _gridRowIndex: 1 },
+      { _id: 'backend-row-new', _rowUuid: 'backend-row-new', _clientRowId: 'client-row-new', _gridRowIndex: 1 },
       { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 2, ColumnA: 'bottom' }
     ])
   })

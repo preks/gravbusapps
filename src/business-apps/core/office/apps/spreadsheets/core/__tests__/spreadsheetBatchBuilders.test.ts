@@ -153,4 +153,41 @@ describe('spreadsheetBatchBuilders', () => {
       })
     ).toBe(true)
   })
+
+  it('emits client row handles from the stable row identity transport path', () => {
+    const operations = buildOperationsFromMutationPlan({
+      plan: {
+        sheetId: 'sheet-1',
+        cells: [
+          {
+            rowId: 'client-row-1',
+            rowRef: { kind: 'clientHandle', clientRowId: 'client-row-1' },
+            columnName: 'ColumnA',
+            rowIndex: 1,
+            colIndex: 0,
+            valueAction: 'set',
+            value: 'draft'
+          }
+        ]
+      },
+      createOperationId: prefix => `${prefix}-1`,
+      maxIndividualClearCellOps: 10
+    })
+
+    expect(operations).toEqual([
+      {
+        operationId: 'set_range-1',
+        type: 'set_range',
+        data: {
+          cells: [
+            {
+              rowRef: { kind: 'clientHandle', clientRowId: 'client-row-1' },
+              columnName: 'ColumnA',
+              value: 'draft'
+            }
+          ]
+        }
+      }
+    ])
+  })
 })

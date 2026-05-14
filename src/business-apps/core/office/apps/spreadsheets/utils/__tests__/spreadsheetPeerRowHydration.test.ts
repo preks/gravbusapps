@@ -1,7 +1,9 @@
 import {
+  findViewerRowVisualIndex,
   getFiniteNonNegativeGridRowIndex,
   hydrateCachedRowsWithServerIdentities,
-  getViewerRowVisualIndex
+  getViewerRowVisualIndex,
+  sortRowsByCanonicalVisualOrder
 } from '../spreadsheetPeerRowHydration'
 
 describe('getFiniteNonNegativeGridRowIndex', () => {
@@ -50,5 +52,34 @@ describe('hydrateCachedRowsWithServerIdentities', () => {
     const cached = [{ _id: '550e8400-e29b-41d4-a716-446655440000', _gridRowIndex: 0 }]
     const server = [{ _id: 'other', _gridRowIndex: 0 }]
     expect(hydrateCachedRowsWithServerIdentities(cached, server)).toEqual(cached)
+  })
+})
+
+describe('sortRowsByCanonicalVisualOrder', () => {
+  it('sorts rows by explicit visual row index while preserving ties', () => {
+    const rows = [
+      { _id: 'row-3', _gridRowIndex: 2 },
+      { _id: 'row-1', _gridRowIndex: 0 },
+      { _id: 'row-2', _gridRowIndex: 1 }
+    ]
+
+    expect(sortRowsByCanonicalVisualOrder(rows).map(row => row._id)).toEqual(['row-1', 'row-2', 'row-3'])
+  })
+
+  it('keeps original order for rows without explicit visual indices', () => {
+    const rows = [{ _id: 'row-a' }, { _id: 'row-b' }]
+    expect(sortRowsByCanonicalVisualOrder(rows)).toEqual(rows)
+  })
+})
+
+describe('findViewerRowVisualIndex', () => {
+  it('resolves visual row index from canonical row identity instead of array order', () => {
+    const rows = [
+      { _id: 'row-3', _rowUuid: 'row-3', _gridRowIndex: 2 },
+      { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0 },
+      { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 1 }
+    ]
+
+    expect(findViewerRowVisualIndex(rows, { _id: 'row-2', _rowUuid: 'row-2' })).toBe(1)
   })
 })

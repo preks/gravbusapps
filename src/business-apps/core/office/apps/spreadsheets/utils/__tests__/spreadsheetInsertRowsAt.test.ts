@@ -36,4 +36,21 @@ describe('mergeInsertedRowsAtIndex', () => {
       { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 3, ColumnA: 'bottom' }
     ])
   })
+
+  it('reindexes every row after insert even when a row has no canonical id', () => {
+    const rows = [
+      { _id: 'row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, ColumnA: 'top' },
+      { ColumnA: 'blank spacer', _gridRowIndex: 8 },
+      { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 1, ColumnA: 'bottom' }
+    ]
+
+    const merged = mergeInsertedRowsAtIndex(rows, [{ _id: 'client-row-1', _gridRowIndex: 1 }], 1)
+
+    expect(merged).toEqual([
+      { _id: 'row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, ColumnA: 'top' },
+      { _id: 'client-row-1', _gridRowIndex: 1 },
+      { ColumnA: 'blank spacer', _gridRowIndex: 2 },
+      { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 3, ColumnA: 'bottom' }
+    ])
+  })
 })

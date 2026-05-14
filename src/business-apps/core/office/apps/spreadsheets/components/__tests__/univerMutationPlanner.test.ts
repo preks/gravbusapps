@@ -231,6 +231,51 @@ describe('univerMutationPlanner', () => {
     expect(envelope.plan?.cells?.some(cell => cell.stylePatch != null)).toBe(false)
   })
 
+  it('prefers a stable column resolver over stale columnIndexToName mappings', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-stable-column',
+      intent: 'edit',
+      currentData: [{ _id: 'row-1', inserted_column: '' }],
+      contextColumns: [
+        {
+          id: 'col-inserted',
+          name: 'inserted_column',
+          label: 'Inserted Column',
+          type: 'text',
+          isVisible: true,
+          isEditable: true,
+          isRequired: false,
+          isUnique: false,
+          width: 120,
+          order: 0
+        }
+      ] as any,
+      ctx: {
+        rowIndexToId: new Map([[0, 'row-1']]),
+        columnIndexToName: new Map([[0, 'stale_column']]),
+        columnIndexToId: new Map([[0, 'col-stale']])
+      } as any,
+      resolveStableColumnName: columnIndex => (columnIndex === 0 ? 'inserted_column' : null),
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      mergedCellValue: {
+        0: { 0: { v: 'typed' } }
+      },
+      workbookSnapshot: null
+    })
+
+    expect(envelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowId: 'row-1',
+          columnName: 'inserted_column',
+          valueAction: 'set',
+          value: 'typed'
+        })
+      ])
+    )
+  })
+
   it('replaces existing values and old styling with pasted inline styling', () => {
     const envelope = buildAuthoritativeMutationEnvelope({
       sheetId: 'sheet-1',
@@ -553,5 +598,52 @@ describe('univerMutationPlanner', () => {
         value: 'collision'
       })
     )
+  })
+
+  it('prefers stable row target resolution over stale rowIndexToId mappings', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-stable-target',
+      intent: 'edit',
+      currentData: [
+        { _id: 'backend-row-1', _rowUuid: 'backend-row-1', name: 'row 1' },
+        { _id: 'client-row-2', _clientRowId: 'client-row-2', name: '' }
+      ],
+      contextColumns: columns,
+      ctx: {
+        rowIndexToId: new Map([
+          [0, 'backend-row-1'],
+          [1, 'backend-row-3']
+        ]),
+        columnIndexToName: new Map([[0, 'name']]),
+        columnIndexToId: new Map([[0, 'col-name']])
+      } as any,
+      resolveStableRowTarget: rowIndex =>
+        rowIndex === 1
+          ? {
+              rowId: 'client-row-2',
+              rowRef: { kind: 'clientHandle', clientRowId: 'client-row-2' },
+              clientRowId: 'client-row-2',
+              rowIndex: 1
+            }
+          : null,
+      ranges: [{ startRow: 1, endRow: 1, startColumn: 0, endColumn: 0 }],
+      mergedCellValue: {
+        1: { 0: { v: 'edited row 2' } }
+      },
+      workbookSnapshot: null,
+      mutationCommandId: 'sheet.mutation.set-range-values'
+    })
+
+    expect(envelope.plan?.cells).toEqual([
+      expect.objectContaining({
+        rowId: 'client-row-2',
+        rowRef: { kind: 'clientHandle', clientRowId: 'client-row-2' },
+        rowIndex: 1,
+        columnName: 'name',
+        valueAction: 'set',
+        value: 'edited row 2'
+      })
+    ])
   })
 })

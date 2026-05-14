@@ -25,6 +25,7 @@ import {
   getSpreadsheetServiceApiUrl
 } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { normalizeSpreadsheetColumnsForDisplay } from '../utils/normalizeSpreadsheetColumnsForDisplay'
+import type { SpreadsheetRowRef } from '../utils/spreadsheetRowIdentity'
 import type {
   SpreadsheetTraceEvent,
   SpreadsheetTraceEventInput,
@@ -238,6 +239,11 @@ export interface SpreadsheetBatchOperation {
   data: Record<string, unknown>
 }
 
+export interface SpreadsheetBatchRowMapping {
+  clientRowId: string
+  rowUuid: string
+}
+
 export interface SpreadsheetBatchOperationResponse {
   sheetId: string
   newVersion: number
@@ -251,6 +257,14 @@ export interface SpreadsheetBatchOperationResponse {
     result: Record<string, unknown>
   }>
   idempotentReplay: boolean
+  rowMappings?: SpreadsheetBatchRowMapping[]
+}
+
+export interface SpreadsheetBatchRowCellInput {
+  rowId?: string
+  rowRef?: SpreadsheetRowRef
+  columnName: string
+  value?: unknown
 }
 
 // Cache whether the backend supports Univer snapshot persistence endpoints.

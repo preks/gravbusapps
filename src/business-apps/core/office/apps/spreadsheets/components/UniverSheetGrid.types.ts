@@ -16,6 +16,7 @@ import type {
 } from '../utils/spreadsheetAuthoritativeRegion'
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIntent'
+import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 import type { MutableRefObject } from 'react'
 
 export type WorkbookSnapshotLifecycleOrigin = 'cell' | 'workbook'
@@ -138,6 +139,12 @@ export interface UniverSheetGridProps {
   getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
   /** Predicate for backend row UUIDs; should match pending-cell batch logic. */
   isUuidForRowRemap?: (value: string) => boolean
+  rowSlotIdentityRegistryRef?: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
+  columnStructureStateRef?: MutableRefObject<{
+    healthy: boolean
+    pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+    expectedColumnsSignature: string | null
+  }>
   onSpreadsheetFeatureBatchOp?: (data: SpreadsheetUnifiedMutationBatchPayload) => void
   onCursorEmit?: (position: { path: string[] }) => void
   getCanonicalSheetId?: (sheetId: string) => string

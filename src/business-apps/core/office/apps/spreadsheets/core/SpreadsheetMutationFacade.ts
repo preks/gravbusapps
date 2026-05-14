@@ -1,4 +1,5 @@
 import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
+import type { SpreadsheetRowRef } from '../utils/spreadsheetRowIdentity'
 import type { SpreadsheetApp, SpreadsheetColumn, SpreadsheetSheet } from '../types'
 import type { SpreadsheetReplayResponse } from './SpreadsheetCollaborationContract'
 import type { SpreadsheetSaveWorkbookSnapshotInput } from './spreadsheetSnapshotSaveWithRetry'
@@ -81,6 +82,7 @@ export interface SpreadsheetDuplicateSheetMutationRequest {
 
 export interface SpreadsheetRowRangeUpdate {
   rowId: string
+  rowRef?: SpreadsheetRowRef
   columnName: string
   value: unknown
 }

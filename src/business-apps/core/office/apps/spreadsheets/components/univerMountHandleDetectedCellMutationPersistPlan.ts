@@ -43,6 +43,12 @@ export function runDetectedCellMutationPersistPlanPhase(
     ctxBefore,
     contextColumns,
     currentData,
+    resolveStableRowTarget,
+    resolveStableColumnName,
+    rowIdentityStructureHealthy,
+    rowIdentityStructuralMismatch,
+    columnIdentityStructureHealthy,
+    columnIdentityStructuralMismatch,
     rowOffset,
     colOffset,
     hadPasteIntentForSheet,
@@ -88,6 +94,8 @@ export function runDetectedCellMutationPersistPlanPhase(
     currentData,
     contextColumns,
     ctx: pendingNewRowsCtx,
+    resolveStableRowTarget,
+    resolveStableColumnName,
     ranges,
     explicitPayloadAbsoluteCellValue,
     worksheetCellValue,
@@ -132,6 +140,10 @@ export function runDetectedCellMutationPersistPlanPhase(
       mergedMatrix: summarizeCellMatrixForDebug(cellValue),
       explicitPayloadMatrix: summarizeCellMatrixForDebug(explicitPayloadAbsoluteCellValue),
       plannerDiagnostics: authoritativeEnvelope.diagnostics,
+      rowIdentityStructureHealthy,
+      rowIdentityStructuralMismatch,
+      columnIdentityStructureHealthy,
+      columnIdentityStructuralMismatch,
       pendingNewRowCount: pendingNewRowsUpdate?.nextData.length
         ? Math.max(0, pendingNewRowsUpdate.nextData.length - currentData.length)
         : 0

@@ -8,6 +8,9 @@ import {
   toRowIdString
 } from '../utils/spreadsheetRowIdentity'
 import { normalizeCellValueForBatchPersistence } from '../core'
+import { createSpreadsheetMutationOperationId } from '../core'
+import { createClientRowRef } from '../utils/spreadsheetRowIdentity'
+import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
 
 type ViewerRow = Record<string, unknown>
 
@@ -48,12 +51,18 @@ export interface UseSpreadsheetRowPersistencePipelineResult {
   persistAddedRowsWithBatch: (
     targetSheetId: string,
     rowPayloads: Record<string, unknown>[],
-    updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
+    updateLocalRowsAfterCreate: (result: {
+      createdRows: Array<Record<string, unknown>>
+      persistedIdByClientRowId: Map<string, string>
+    }) => void
   ) => Promise<void>
   persistSingleAddedRow: (
     targetSheetId: string,
     rowPayloads: Record<string, unknown>[],
-    updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
+    updateLocalRowsAfterCreate: (result: {
+      createdRows: Array<Record<string, unknown>>
+      persistedIdByClientRowId: Map<string, string>
+    }) => void
   ) => Promise<void>
 }
 
@@ -92,9 +101,52 @@ export function useSpreadsheetRowPersistencePipeline(
     async (
       targetSheetId: string,
       rowPayloads: Record<string, unknown>[],
-      updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
+      updateLocalRowsAfterCreate: (result: {
+        createdRows: Array<Record<string, unknown>>
+        persistedIdByClientRowId: Map<string, string>
+      }) => void
     ) => {
-      const result = await mutationFacade.appendRows(targetSheetId, rowPayloads)
+      const buildCompoundBatchOperations = (): SpreadsheetBatchOperation[] => {
+        const deferredCells = rowPayloads.flatMap(rowPayload => {
+          const clientRowId = toRowIdString(rowPayload._clientRowId)
+          if (!clientRowId) return []
+          const pending = pendingClientRowUpdatesRef.current.get(clientRowId)
+          if (!pending) return []
+          return Object.entries(pending).map(([columnName, value]) => ({
+            rowRef: createClientRowRef(clientRowId),
+            columnName,
+            value: normalizeCellValueForBatchPersistence(value)
+          }))
+        })
+
+        const operations: SpreadsheetBatchOperation[] = [
+          {
+            operationId: createSpreadsheetMutationOperationId('add_rows'),
+            type: 'add_rows',
+            data: { rows: rowPayloads }
+          }
+        ]
+
+        if (deferredCells.length > 0) {
+          operations.push({
+            operationId: createSpreadsheetMutationOperationId('set_range'),
+            type: 'set_range',
+            data: { cells: deferredCells }
+          })
+        }
+
+        return operations
+      }
+
+      const compoundOperations = buildCompoundBatchOperations()
+      const result =
+        compoundOperations.length > 1
+          ? await mutationFacade.submitBatch({
+              sheetId: targetSheetId,
+              operations: compoundOperations,
+              batchIdPrefix: 'add_rows_with_values'
+            })
+          : await mutationFacade.appendRows(targetSheetId, rowPayloads)
       const opResult = result.operationResults.find(r => r.type === 'add_rows')
       const returnedRows = Array.isArray(opResult?.result?.rows)
         ? (opResult?.result?.rows as Array<Record<string, unknown>>)
@@ -120,7 +172,10 @@ export function useSpreadsheetRowPersistencePipeline(
           )
         })
       })
-      updateLocalRowsAfterCreate(createdRows)
+      updateLocalRowsAfterCreate({
+        createdRows,
+        persistedIdByClientRowId
+      })
       pendingCellChangesRef.current = coalesceQueuedCellChanges(
         reconcileQueuedDraftCellsForCreatedRows(
           pendingCellChangesRef.current,
@@ -131,7 +186,7 @@ export function useSpreadsheetRowPersistencePipeline(
       persistPendingCellJournal()
       onFlushDeferredCellEmits()
 
-      if (flushCells.length === 0) return
+      if (compoundOperations.length > 1 || flushCells.length === 0) return
 
       await mutationFacade.setRange(
         targetSheetId,
@@ -157,7 +212,10 @@ export function useSpreadsheetRowPersistencePipeline(
     async (
       targetSheetId: string,
       rowPayloads: Record<string, unknown>[],
-      updateLocalRowsAfterCreate: (createdRows: Array<Record<string, unknown>>) => void
+      updateLocalRowsAfterCreate: (result: {
+        createdRows: Array<Record<string, unknown>>
+        persistedIdByClientRowId: Map<string, string>
+      }) => void
     ) => {
       const singlePayload = rowPayloads[0]
       const singleClientRowId = String(singlePayload._clientRowId || '')
@@ -184,7 +242,11 @@ export function useSpreadsheetRowPersistencePipeline(
       }
       const mergedPayload = pending ? { ...singlePayload, ...pending } : singlePayload
       const createdRows: Record<string, unknown>[] = [{ ...mergedPayload, ...(saved || {}) }]
-      updateLocalRowsAfterCreate(createdRows)
+      updateLocalRowsAfterCreate({
+        createdRows,
+        persistedIdByClientRowId:
+          singleClientRowId && persistedId ? new Map([[singleClientRowId, persistedId]]) : new Map<string, string>()
+      })
       if (singleClientRowId && persistedId) {
         onFlushDeferredCellEmits()
       }

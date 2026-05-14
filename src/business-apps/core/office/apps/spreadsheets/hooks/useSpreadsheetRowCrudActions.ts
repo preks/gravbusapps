@@ -29,6 +29,7 @@ export interface UseSpreadsheetRowCrudActionsParams {
   sheetPersist: SpreadsheetPersistenceIndicator
   onPersistRowUpdateFailedMessage: string
   onPersistRowDeleteFailedMessage: string
+  onBeforeStructuralRowDelete?: (sheetId: string, rowId: string) => void
 }
 
 export interface UseSpreadsheetRowCrudActionsResult {
@@ -55,7 +56,8 @@ export function useSpreadsheetRowCrudActions(
     markVersionAsSaved,
     sheetPersist,
     onPersistRowUpdateFailedMessage,
-    onPersistRowDeleteFailedMessage
+    onPersistRowDeleteFailedMessage,
+    onBeforeStructuralRowDelete
   } = params
 
   const handleUpdateRow = useCallback(
@@ -109,6 +111,7 @@ export function useSpreadsheetRowCrudActions(
   const handleDeleteRow = useCallback(
     async (rowId: string) => {
       if (!canEditWithLock) return
+      onBeforeStructuralRowDelete?.(activeSheetId, String(rowId))
       const prev = getActiveSessionRows()
       const deletedRow = prev.find(r => viewerRowId(r) === String(rowId))
       const backendRowId = deletedRow ? resolveBackendRowIdForViewerRow(deletedRow, isUuid) : undefined
@@ -142,6 +145,7 @@ export function useSpreadsheetRowCrudActions(
       markVersionAsSaved,
       mutationFacade,
       onPersistRowDeleteFailedMessage,
+      onBeforeStructuralRowDelete,
       sheetPersist,
       viewerRowId
     ]

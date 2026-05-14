@@ -126,7 +126,11 @@ function normalizeColumnToken(value: string): string {
 
 function getRowIdentityCandidates(row: Record<string, unknown>): string[] {
   return Array.from(
-    new Set([row._id, row.id, row._rowUuid].map(value => (typeof value === 'string' ? value : '')).filter(Boolean))
+    new Set(
+      [row._rowUuid, row._id, row.id, row._clientRowId]
+        .map(value => (typeof value === 'string' ? value : ''))
+        .filter(Boolean)
+    )
   )
 }
 

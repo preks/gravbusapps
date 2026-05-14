@@ -114,4 +114,53 @@ describe('useSpreadsheetColumns', () => {
       })
     )
   })
+
+  it('does not auto-create another column for an immediate edit in a freshly inserted structural slot', async () => {
+    const columns = [
+      column('col-a', 'column_a', 0),
+      column('col-b', 'column_b', 1),
+      column('col-c', 'column_c', 2),
+      column('col-d', 'column_d', 3)
+    ]
+    const sheet = makeSheet(columns)
+    const onAppUpdate = jest.fn()
+    const emitColumnBatchOperation = jest.fn()
+    const commitOptimisticActiveSheetRows = jest.fn()
+    const handleCellChange = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetColumns({
+        app: makeApp(sheet),
+        activeSheet: sheet,
+        localSheetDataRef: { current: [{ _id: 'row-1', column_a: 'A', column_b: 'B', column_c: 'C', column_d: 'D' }] },
+        commitOptimisticActiveSheetRows,
+        handleCellChangeRef: { current: handleCellChange },
+        onAppUpdate,
+        emitColumnBatchOperation
+      })
+    )
+
+    act(() => {
+      result.current.handleColumnsInsert(1, 1, 'rightbottom')
+    })
+
+    const insertedColumn = (onAppUpdate.mock.calls[0][0].sheets[0].columns as SpreadsheetColumn[])[2]
+
+    await act(async () => {
+      await result.current.handleAutoColumnAdd(2, 'typed', 0)
+    })
+
+    expect(handleCellChange).toHaveBeenCalledWith('row-1', insertedColumn.name, 'typed')
+    expect(emitColumnBatchOperation).toHaveBeenCalledTimes(1)
+    expect(emitColumnBatchOperation).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        type: 'column_add',
+        data: expect.objectContaining({
+          sheetId: 'sheet-1',
+          column: expect.objectContaining({ name: insertedColumn.name, order: 2 })
+        })
+      })
+    )
+  })
 })

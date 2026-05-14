@@ -77,6 +77,11 @@ export interface SpreadsheetColumnsState {
   handleAddColumnRef: React.MutableRefObject<() => void>
   handleRenameColumnRef: React.MutableRefObject<(columnId: string, newLabel: string) => void>
   handleReorderColumnsRef: React.MutableRefObject<(draggedColumnId: string, targetColumnId: string) => void>
+  columnStructureStateRef: React.MutableRefObject<{
+    healthy: boolean
+    pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+    expectedColumnsSignature: string | null
+  }>
 
   // Utility
   columnIndexToLetter: (index: number) => string
@@ -103,6 +108,14 @@ const createColumn = (name: string, label: string, order: number, width: number 
   width,
   order
 })
+
+const sortColumnsByOrder = (columns: SpreadsheetColumn[]): SpreadsheetColumn[] =>
+  [...columns].sort((a, b) => a.order - b.order)
+
+const buildColumnsSignature = (columns: SpreadsheetColumn[]): string =>
+  sortColumnsByOrder(columns)
+    .map(column => `${column.order}:${column.id}:${column.name}:${column.isVisible !== false ? 'visible' : 'hidden'}`)
+    .join('|')
 
 /** Generate a stable operationId for a column batch op, falling back for older browsers. */
 const createColumnOperationId = (prefix: SpreadsheetBatchOperationType): string => {
@@ -152,14 +165,29 @@ export function useSpreadsheetColumns({
   // adding multiple columns quickly).
   const latestColumnsRef = useRef<SpreadsheetColumn[]>(activeSheet.columns)
   const hasPendingColumnChanges = useRef(false)
+  const columnStructureStateRef = useRef<{
+    healthy: boolean
+    pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+    expectedColumnsSignature: string | null
+  }>({
+    healthy: true,
+    pendingInsertedRange: null,
+    expectedColumnsSignature: null
+  })
   useEffect(() => {
+    const normalized = sortColumnsByOrder(activeSheet.columns).map((col, idx) =>
+      col.order === idx ? col : { ...col, order: idx }
+    )
+    const expectedSignature = columnStructureStateRef.current.expectedColumnsSignature
+    if (expectedSignature && buildColumnsSignature(normalized) === expectedSignature) {
+      columnStructureStateRef.current = {
+        healthy: true,
+        pendingInsertedRange: null,
+        expectedColumnsSignature: null
+      }
+    }
     // Only sync from props when there are no pending local changes
     if (!hasPendingColumnChanges.current) {
-      // Normalize orders to sequential values when syncing from props.
-      // Columns may arrive with duplicate order values (e.g. multiple cols
-      // at order=1) which breaks position-based operations like delete/insert.
-      const sorted = [...activeSheet.columns].sort((a, b) => a.order - b.order)
-      const normalized = sorted.map((col, idx) => (col.order === idx ? col : { ...col, order: idx }))
       latestColumnsRef.current = normalized
     }
   }, [activeSheet.columns])
@@ -271,11 +299,21 @@ export function useSpreadsheetColumns({
 
       const currentColumns = latestColumnsRef.current
       const existingColumn = currentColumns.find(c => c.name === columnName || c.order === columnIndex)
+      const structuralColumn = sortColumnsByOrder(currentColumns)[columnIndex]
       if (existingColumn) {
         if (initialValue !== undefined && rowIndex !== undefined) {
           const rowId = readCanonicalActiveRows()[rowIndex]?._id as string
           if (rowId) {
             handleCellChangeRef.current(rowId, existingColumn.name, initialValue)
+          }
+        }
+        return
+      }
+      if (!columnStructureStateRef.current.healthy) {
+        if (structuralColumn && initialValue !== undefined && rowIndex !== undefined) {
+          const rowId = readCanonicalActiveRows()[rowIndex]?._id as string
+          if (rowId) {
+            handleCellChangeRef.current(rowId, structuralColumn.name, initialValue)
           }
         }
         return
@@ -464,6 +502,16 @@ export function useSpreadsheetColumns({
         ...sortedColumns.slice(fullInsertAt)
       ].map((col, idx) => ({ ...col, order: idx }))
 
+      columnStructureStateRef.current = {
+        healthy: false,
+        pendingInsertedRange: {
+          startIndex: fullInsertAt,
+          endIndex: fullInsertAt + count - 1,
+          columnNames: allColumns.slice(fullInsertAt, fullInsertAt + count).map(column => column.name)
+        },
+        expectedColumnsSignature: buildColumnsSignature(allColumns)
+      }
+
       latestColumnsRef.current = allColumns
       hasPendingColumnChanges.current = true
 
@@ -574,6 +622,7 @@ export function useSpreadsheetColumns({
     handleAddColumnRef,
     handleRenameColumnRef,
     handleReorderColumnsRef,
+    columnStructureStateRef,
     columnIndexToLetter
   }
 }

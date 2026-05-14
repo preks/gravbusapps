@@ -62,7 +62,7 @@ export function mergeInsertedRowsAtIndex(
 
   return remainingRows.map((row, index) => {
     const canonical = getCanonicalRowId(row)
-    if (!canonical) return row
+    if (!canonical && row._gridRowIndex === index) return row
     return { ...row, _gridRowIndex: index }
   })
 }

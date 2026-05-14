@@ -89,4 +89,37 @@ describe('remapBatchOperationsWithUiToBackendRowMap', () => {
     ])
     expect(next.unresolvedTemporaryRowIdMatches).toEqual([])
   })
+
+  it('rewrites client rowRef handles to backend ids when the map becomes available', () => {
+    const backend = '22222222-2222-4222-8222-222222222222'
+    const client = 'client_handle_1'
+    const map = new Map([[client, backend]])
+    const operations: SpreadsheetBatchOperation[] = [
+      {
+        operationId: 'range-1',
+        type: 'set_range',
+        data: {
+          cells: [{ rowRef: { kind: 'clientHandle', clientRowId: client }, columnName: 'formula', value: 'x' }]
+        }
+      }
+    ]
+
+    const next = remapBatchOperationsWithUiToBackendRowMap(operations, map)
+    expect(next.operations).toEqual([
+      {
+        operationId: 'range-1',
+        type: 'set_range',
+        data: {
+          cells: [
+            {
+              rowId: backend,
+              rowRef: { kind: 'backendUuid', rowUuid: backend },
+              columnName: 'formula',
+              value: 'x'
+            }
+          ]
+        }
+      }
+    ])
+  })
 })

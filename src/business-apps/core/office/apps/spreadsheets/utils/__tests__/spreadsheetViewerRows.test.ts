@@ -1,5 +1,6 @@
 import {
   appendPendingSnapshotClearCoordinates,
+  buildAddRowPayloadsFromUniverRows,
   collectSnapshotClearCoordinates,
   collectSnapshotValueWriteCoordinates,
   isUuidString,
@@ -59,6 +60,76 @@ describe('spreadsheetViewerRows', () => {
       const uiToBackend = new Map<string, string>()
       partitionCellUpdatesByBackendRowId(cells, uiToBackend, pending, isUuid)
       expect(pending.get('temp-1')?.a).toBe(2)
+    })
+  })
+
+  describe('buildAddRowPayloadsFromUniverRows', () => {
+    it('uses explicit client row id instead of persisted backend uuid', () => {
+      const payloads = buildAddRowPayloadsFromUniverRows(
+        [
+          {
+            _id: '978d11d9-ae40-443a-b264-bcac96e006ca',
+            _rowUuid: '978d11d9-ae40-443a-b264-bcac96e006ca',
+            _clientRowId: 'client_7e32aad9-f6cb-46d7-981c-76ec46124f93',
+            _gridRowIndex: 2,
+            column_a: 2
+          }
+        ],
+        [
+          {
+            id: 'col-a',
+            name: 'column_a',
+            label: 'A',
+            type: 'text',
+            isVisible: true,
+            isEditable: true,
+            isRequired: false,
+            isUnique: false,
+            order: 0
+          }
+        ]
+      )
+
+      expect(payloads).toEqual([
+        {
+          _clientRowId: 'client_7e32aad9-f6cb-46d7-981c-76ec46124f93',
+          _gridRowIndex: 2,
+          column_a: 2
+        }
+      ])
+    })
+
+    it('omits _clientRowId when the row already has only backend identity', () => {
+      const payloads = buildAddRowPayloadsFromUniverRows(
+        [
+          {
+            _id: '978d11d9-ae40-443a-b264-bcac96e006ca',
+            _rowUuid: '978d11d9-ae40-443a-b264-bcac96e006ca',
+            _gridRowIndex: 2,
+            column_a: 2
+          }
+        ],
+        [
+          {
+            id: 'col-a',
+            name: 'column_a',
+            label: 'A',
+            type: 'text',
+            isVisible: true,
+            isEditable: true,
+            isRequired: false,
+            isUnique: false,
+            order: 0
+          }
+        ]
+      )
+
+      expect(payloads).toEqual([
+        {
+          _gridRowIndex: 2,
+          column_a: 2
+        }
+      ])
     })
   })
 

@@ -7,6 +7,7 @@ import type { SpreadsheetUnifiedMutationBatchPayload } from '../core'
 import { DashboardView, FormView, KanbanView } from '../views'
 import { TableView } from '../views/TableView'
 import type { UniverSheetGridInitLifecycleEvent } from '../components/UniverSheetGrid.types'
+import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 import translations from '../_i18n'
 
 type ViewerRow = Record<string, unknown>
@@ -57,6 +58,12 @@ export interface UseSpreadsheetMainViewRendererParams {
   flushUnmaterializedRowsBeforePersistRef: MutableRefObject<((sheetId: string) => Promise<void>) | null>
   getPersistSheetRowsSnapshot: (sheetId: string) => ViewerRow[]
   isUuidForRowRemap: (value: string) => boolean
+  rowSlotIdentityRegistryRef: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
+  columnStructureStateRef: MutableRefObject<{
+    healthy: boolean
+    pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+    expectedColumnsSignature: string | null
+  }>
   onCursorEmit: (pos: { path: string[] }) => void
   getCanonicalSheetId: (sheetId: string) => string
   collaborationEnabled: boolean
@@ -115,6 +122,8 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     flushUnmaterializedRowsBeforePersistRef,
     getPersistSheetRowsSnapshot,
     isUuidForRowRemap,
+    rowSlotIdentityRegistryRef,
+    columnStructureStateRef,
     onCursorEmit,
     getCanonicalSheetId,
     collaborationEnabled,
@@ -191,6 +200,8 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
           getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
           isUuidForRowRemap={isUuidForRowRemap}
+          rowSlotIdentityRegistryRef={rowSlotIdentityRegistryRef}
+          columnStructureStateRef={columnStructureStateRef}
           onCursorEmit={onCursorEmit}
           getCanonicalSheetId={getCanonicalSheetId}
           collaborationEnabled={collaborationEnabled}
@@ -273,6 +284,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     flushUnmaterializedRowsBeforePersistRef,
     getPersistSheetRowsSnapshot,
     isUuidForRowRemap,
+    rowSlotIdentityRegistryRef,
     onUniverSheetInserted,
     onUniverSheetRemoved,
     onUniverSheetRenamed,
