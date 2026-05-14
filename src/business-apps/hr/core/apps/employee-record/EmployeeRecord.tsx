@@ -200,8 +200,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const activeStructureId = getCurrentActiveStructureId() || ''
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const assetsFeatureFlag = useFeature(Feature.HCM.Assets.Key)
-  const previewFeatureRaw = useFeature(Feature.Preview.Enabled.Key)
-  const previewEnabledFlag = previewFeatureRaw === true || previewFeatureRaw === 'true'
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
   const servicesFeatureFlag = useFeature('services.enabled')
   const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
@@ -527,7 +525,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                     accessToken={accessToken}
                     userInfo={userInfo}
                     isSelfView={isSelfView}
-                    previewEnabledFlag={previewEnabledFlag}
                     performanceEvaluationFeatureFlag={hrDevelopmentFeatureFlag === true}
                     employeePerformanceGoals={performanceGoals}
                     feedback={feedback}

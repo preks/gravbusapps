@@ -410,7 +410,32 @@ feedback-hub-section-received-title = Erhaltenes Feedback ({ $total } gesamt)
 feedback-hub-section-received-visible-title = Erhaltenes Feedback ({ $visible } sichtbar)
 feedback-hub-section-given-title = Gegebenes Feedback ({ $total } gesamt)
 feedback-hub-ai-insights-button = KI-Einblicke
+feedback-hub-analyze-feedback-button = Feedback analysieren
 feedback-hub-ai-insights-analyzing = Wird analysiert…
+
+# KI-Einblicke Bereich
+feedback-hub-insights-section-title = KI-Einblicke
+feedback-hub-insights-section-description = Personalisierte Vorschläge, um zu wachsen und unsere Feedback-Kultur zu stärken.
+feedback-hub-insights-how-it-works = So funktionieren Einblicke
+feedback-hub-insight-why-this = Warum dies?
+feedback-hub-insight-pending-title = Offene Feedback-Anfrage beantworten
+feedback-hub-insight-pending-description = Sie haben { $count } Feedback-Anfrage(n) von Kollegen. Die Bearbeitung hält Ihren Feedback-Zyklus aktuell.
+feedback-hub-insight-pending-reason = Basierend auf { $count } offenen Anfrage(n)
+feedback-hub-insight-pending-cta = Anfrage prüfen
+feedback-hub-insight-imbalance-title = Feedback-Aktivität ausgleichen
+feedback-hub-insight-imbalance-description = Sie haben Feedback erhalten, aber noch keines gegeben. Ausgewogenes Feedback stärkt Beziehungen.
+feedback-hub-insight-imbalance-reason = Basierend auf { $received } erhaltenem und 0 gegebenem Feedback in den letzten 30 Tagen
+feedback-hub-insight-imbalance-cta = Feedback geben
+feedback-hub-insight-low-activity-title = Feedback-Zyklus starten
+feedback-hub-insight-low-activity-description = Keine Feedback-Aktivität in den letzten 30 Tagen. Regelmäßiges Feedback fördert Wachstum.
+feedback-hub-insight-low-activity-reason = Basierend auf fehlender Feedback-Aktivität in den letzten 30 Tagen
+feedback-hub-insight-low-activity-cta = Feedback anfordern
+feedback-hub-insight-recognition-title = Zusammenarbeit anerkennen
+feedback-hub-insight-recognition-description = Sie haben kürzlich positives Feedback erhalten. Erwägen Sie, jemandem Anerkennung zu zeigen.
+feedback-hub-insight-recognition-reason = Basierend auf kürzlich erhaltenem positivem Feedback
+feedback-hub-insight-recognition-cta = Anerkennung senden
+feedback-hub-insight-healthy-title = Ihre Feedback-Aktivität ist auf Kurs
+feedback-hub-insight-healthy-reason = Basierend auf aktueller Aktivität bei erhaltenem und gegebenem Feedback
 feedback-hub-ai-panel-title = KI-Einblicke
 feedback-hub-ai-panel-analyzing = { $count } Feedback-Einträge werden analysiert…
 feedback-hub-ai-panel-no-analysis = Noch keine Analyse vorhanden. Starten Sie die Analyse, um Einblicke zu sehen.
@@ -527,6 +552,12 @@ skills-development-job-profile-missing-one-suffix = .
 skills-development-job-profile-missing-prefix = Ihre Rolle erfordert { $count } Fähigkeiten, die Sie noch nicht haben. Ziehen Sie in Betracht: 
 skills-development-job-profile-below-level-prefix = Ihr Level für 
 skills-development-job-profile-below-level-suffix = liegt unter dem typischen Rollenlevel ({ $employeeLevel } vs { $profileLevel }).
+
+# Skills AI Insight Card Titles
+skills-insight-verify-title = Zertifizierungen überprüfen
+skills-insight-fit-title = Sie entsprechen Ihrem Rollenprofil
+skills-insight-missing-title = Skills-Lücke erkannt
+skills-insight-below-level-title = Skill-Level unter Zielwert
 
 # Add Skill Form
 add-skill-form-title = Fähigkeit hinzufügen

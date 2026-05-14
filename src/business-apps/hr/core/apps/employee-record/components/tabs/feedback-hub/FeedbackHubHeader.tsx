@@ -25,8 +25,8 @@ const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({
   <div>
     <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:items-center gba:gap-4">
       <div className="gba:max-w-2xl">
-        <h2 className="gba:font-bold gba:text-2xl">{t('feedback-hub-title')}</h2>
-        <p className="gba:text-muted-foreground gba:text-lg">{t('feedback-hub-description')}</p>
+        <h2 className="gba:text-2xl gba:font-bold">{t('feedback-hub-title')}</h2>
+        <p className="gba:text-muted-foreground">{t('feedback-hub-description')}</p>
       </div>
       <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
         {!isSelfView && (
@@ -53,7 +53,7 @@ const FeedbackHubHeader: React.FC<FeedbackHubHeaderProps> = ({
         )}
         {(isSelfView || canRequestFeedbackOnBehalf) && (
           <AppAction
-            variant="update-secondary"
+            variant="update-primary"
             buttonSize="default"
             contexts={[
               {

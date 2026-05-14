@@ -117,8 +117,8 @@ const PerformanceEvaluationTab: React.FC<PerformanceEvaluationTabProps> = ({ emp
         data-testid="employee-performance-evaluation-header"
       >
         <div>
-          <h2 className="gba:text-2xl gba:font-semibold">{t('performance-evaluation-title')}</h2>
-          <p className="gba:text-muted-foreground gba:text-sm">{t('performance-evaluation-description')}</p>
+          <h2 className="gba:text-2xl gba:font-bold">{t('performance-evaluation-title')}</h2>
+          <p className="gba:text-muted-foreground">{t('performance-evaluation-description')}</p>
         </div>
 
         <div className="gba:w-full gba:max-w-[360px] gba:space-y-1">

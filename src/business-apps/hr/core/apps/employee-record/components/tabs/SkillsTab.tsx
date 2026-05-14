@@ -17,6 +17,7 @@ import translations from '../../_i18n'
 import { getSkillCategory } from '../../utils/utils'
 import { SkillCard } from './components/skills-profile/SkillCard'
 import { SkillsSnapshot } from './components/skills-profile/SkillsSnapshot'
+import { SkillsInsightsSection } from './components/skills-profile/SkillsInsightsSection'
 import { SkillsDevelopmentPanel } from './components/skills-profile/SkillsDevelopmentPanel'
 import {
   SkillLevelFilter,
@@ -118,118 +119,109 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
         </div>
       </div>
 
-      <SkillsSnapshot snapshot={snapshot} t={t} />
+      <SkillsSnapshot snapshot={snapshot} t={t}>
+        <SkillsDevelopmentPanel distribution={distribution} t={t} />
+      </SkillsSnapshot>
 
-      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-12 gba:gap-4">
-        <div className="gba:lg:col-span-9 gba:lg:order-1 gba:space-y-4" data-testid="skills-profile-main-column">
-          <FilterBar
-            dataTestId="skills-profile-filters-card"
-            className="gba:rounded-xl gba:border gba:border-border gba:bg-muted/40 gba:p-1.5"
-            controlsClassName="gba:gap-2"
-            search={{
-              value: searchTerm,
-              onChange: setSearchTerm,
-              placeholder: t('skills-filter-search-placeholder'),
-              'data-testid': 'skills-filter-search-input'
-            }}
-            clear={{
-              label: t('skills-filter-clear'),
-              onClick: () => {
-                setSearchTerm('')
-                setCategoryFilter('all')
-                setStatusFilter('all')
-                setLevelFilter('all')
-                setSortBy('level-desc')
-              },
-              'data-testid': 'skills-filter-clear'
-            }}
-          >
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="gba:h-9 gba:min-w-[170px]" data-testid="skills-filter-category-select">
-                <SelectValue placeholder={t('skills-filter-category-all')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('skills-filter-category-all')}</SelectItem>
-                {categoryOptions.map(category => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <SkillsInsightsSection verifyCount={verifyCount} jobProfileGap={jobProfileGap} t={t} />
 
-            <Select value={statusFilter} onValueChange={value => setStatusFilter(value as SkillStatusFilter)}>
-              <SelectTrigger className="gba:h-9 gba:min-w-[160px]" data-testid="skills-filter-status-select">
-                <SelectValue placeholder={t('skills-filter-status-all')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('skills-filter-status-all')}</SelectItem>
-                <SelectItem value="verified">{t('skills-filter-status-verified')}</SelectItem>
-                <SelectItem value="unverified">{t('skills-filter-status-unverified')}</SelectItem>
-                <SelectItem value="pending">{t('skills-filter-status-pending')}</SelectItem>
-                <SelectItem value="inactive">{t('skills-filter-status-inactive')}</SelectItem>
-              </SelectContent>
-            </Select>
+      <FilterBar
+        dataTestId="skills-profile-filters-card"
+        className="gba:rounded-xl gba:border gba:border-border gba:bg-muted/40 gba:p-1.5"
+        controlsClassName="gba:gap-2"
+        search={{
+          value: searchTerm,
+          onChange: setSearchTerm,
+          placeholder: t('skills-filter-search-placeholder'),
+          'data-testid': 'skills-filter-search-input'
+        }}
+        clear={{
+          label: t('skills-filter-clear'),
+          onClick: () => {
+            setSearchTerm('')
+            setCategoryFilter('all')
+            setStatusFilter('all')
+            setLevelFilter('all')
+            setSortBy('level-desc')
+          },
+          'data-testid': 'skills-filter-clear'
+        }}
+      >
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="gba:h-9 gba:min-w-[170px]" data-testid="skills-filter-category-select">
+            <SelectValue placeholder={t('skills-filter-category-all')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('skills-filter-category-all')}</SelectItem>
+            {categoryOptions.map(category => (
+              <SelectItem key={category} value={category}>
+                {category}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-            <Select value={levelFilter} onValueChange={value => setLevelFilter(value as SkillLevelFilter)}>
-              <SelectTrigger className="gba:h-9 gba:min-w-[140px]" data-testid="skills-filter-level-select">
-                <SelectValue placeholder={t('skills-filter-level-all')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('skills-filter-level-all')}</SelectItem>
-                <SelectItem value="1-3">{t('skills-filter-level-low')}</SelectItem>
-                <SelectItem value="4-6">{t('skills-filter-level-mid')}</SelectItem>
-                <SelectItem value="7-10">{t('skills-filter-level-high')}</SelectItem>
-                <SelectItem value="unset">{t('skills-filter-level-unset')}</SelectItem>
-              </SelectContent>
-            </Select>
+        <Select value={statusFilter} onValueChange={value => setStatusFilter(value as SkillStatusFilter)}>
+          <SelectTrigger className="gba:h-9 gba:min-w-[160px]" data-testid="skills-filter-status-select">
+            <SelectValue placeholder={t('skills-filter-status-all')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('skills-filter-status-all')}</SelectItem>
+            <SelectItem value="verified">{t('skills-filter-status-verified')}</SelectItem>
+            <SelectItem value="unverified">{t('skills-filter-status-unverified')}</SelectItem>
+            <SelectItem value="pending">{t('skills-filter-status-pending')}</SelectItem>
+            <SelectItem value="inactive">{t('skills-filter-status-inactive')}</SelectItem>
+          </SelectContent>
+        </Select>
 
-            <Select value={sortBy} onValueChange={value => setSortBy(value as SkillSortOption)}>
-              <SelectTrigger className="gba:h-9 gba:min-w-[140px]" data-testid="skills-filter-sort-select">
-                <SelectValue placeholder={t('skills-filter-sort-level')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="level-desc">{t('skills-filter-sort-level')}</SelectItem>
-                <SelectItem value="updated-desc">{t('skills-filter-sort-updated')}</SelectItem>
-                <SelectItem value="verified-first">{t('skills-filter-sort-verified')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </FilterBar>
+        <Select value={levelFilter} onValueChange={value => setLevelFilter(value as SkillLevelFilter)}>
+          <SelectTrigger className="gba:h-9 gba:min-w-[140px]" data-testid="skills-filter-level-select">
+            <SelectValue placeholder={t('skills-filter-level-all')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('skills-filter-level-all')}</SelectItem>
+            <SelectItem value="1-3">{t('skills-filter-level-low')}</SelectItem>
+            <SelectItem value="4-6">{t('skills-filter-level-mid')}</SelectItem>
+            <SelectItem value="7-10">{t('skills-filter-level-high')}</SelectItem>
+            <SelectItem value="unset">{t('skills-filter-level-unset')}</SelectItem>
+          </SelectContent>
+        </Select>
 
-          {filteredSkills.length === 0 ? (
-            <EmptyState
-              type="no-data"
-              title={t('skills-empty')}
-              description={t('skills-profile-empty-filtered')}
-              data-testid="skills-profile-empty-state"
+        <Select value={sortBy} onValueChange={value => setSortBy(value as SkillSortOption)}>
+          <SelectTrigger className="gba:h-9 gba:min-w-[140px]" data-testid="skills-filter-sort-select">
+            <SelectValue placeholder={t('skills-filter-sort-level')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="level-desc">{t('skills-filter-sort-level')}</SelectItem>
+            <SelectItem value="updated-desc">{t('skills-filter-sort-updated')}</SelectItem>
+            <SelectItem value="verified-first">{t('skills-filter-sort-verified')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterBar>
+
+      {filteredSkills.length === 0 ? (
+        <EmptyState
+          type="no-data"
+          title={t('skills-empty')}
+          description={t('skills-profile-empty-filtered')}
+          data-testid="skills-profile-empty-state"
+        />
+      ) : (
+        <div
+          className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-4 gba:gap-4"
+          data-testid="skills-profile-grid"
+        >
+          {filteredSkills.map(skill => (
+            <SkillCard
+              key={skill.skill.id}
+              skill={skill}
+              accessToken={accessToken}
+              updateSkillContext={updateSkillContext}
+              t={t}
             />
-          ) : (
-            <div
-              className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:2xl:grid-cols-3 gba:gap-4"
-              data-testid="skills-profile-grid"
-            >
-              {filteredSkills.map(skill => (
-                <SkillCard
-                  key={skill.skill.id}
-                  skill={skill}
-                  accessToken={accessToken}
-                  updateSkillContext={updateSkillContext}
-                  t={t}
-                />
-              ))}
-            </div>
-          )}
+          ))}
         </div>
-
-        <div className="gba:lg:col-span-3 gba:lg:order-2" data-testid="skills-profile-sidebar-column">
-          <SkillsDevelopmentPanel
-            verifyCount={verifyCount}
-            distribution={distribution}
-            jobProfileGap={jobProfileGap}
-            t={t}
-          />
-        </div>
-      </div>
+      )}
     </div>
   )
 }

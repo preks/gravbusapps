@@ -410,7 +410,32 @@ feedback-hub-section-received-title = Feedback primit ({ $total } total)
 feedback-hub-section-received-visible-title = Feedback primit ({ $visible } vizibil)
 feedback-hub-section-given-title = Feedback oferit ({ $total } total)
 feedback-hub-ai-insights-button = Insight-uri AI
+feedback-hub-analyze-feedback-button = Analizează Feedback
 feedback-hub-ai-insights-analyzing = Se analizează…
+
+# Secțiunea AI Insights
+feedback-hub-insights-section-title = AI Insights
+feedback-hub-insights-section-description = Sugestii personalizate pentru a te ajuta să crești și să consolidăm cultura noastră de feedback.
+feedback-hub-insights-how-it-works = Cum funcționează
+feedback-hub-insight-why-this = De ce aceasta?
+feedback-hub-insight-pending-title = Răspunde la cererea de feedback
+feedback-hub-insight-pending-description = Ai { $count } cerere/cereri de feedback în așteptare de la colegi. Completarea menține ciclul de feedback actualizat.
+feedback-hub-insight-pending-reason = Pe baza a { $count } cerere/cereri în așteptare
+feedback-hub-insight-pending-cta = Vezi cererea
+feedback-hub-insight-imbalance-title = Echilibrează activitatea de feedback
+feedback-hub-insight-imbalance-description = Ai primit feedback în ultimele 30 de zile, dar nu ai oferit niciunul. Feedback-ul echilibrat construiește relații mai puternice.
+feedback-hub-insight-imbalance-reason = Pe baza a { $received } feedback primit și 0 feedback oferit în ultimele 30 de zile
+feedback-hub-insight-imbalance-cta = Oferă feedback
+feedback-hub-insight-low-activity-title = Începe ciclul de feedback
+feedback-hub-insight-low-activity-description = Nicio activitate de feedback în ultimele 30 de zile. Feedback-ul regulat ajută la creșterea ta și a colegilor.
+feedback-hub-insight-low-activity-reason = Pe baza lipsei de activitate de feedback în ultimele 30 de zile
+feedback-hub-insight-low-activity-cta = Solicită feedback
+feedback-hub-insight-recognition-title = Recunoaște colaborarea recentă
+feedback-hub-insight-recognition-description = Ai primit feedback pozitiv recent. Ia în considerare să apreciezi pe cineva care ți-a susținut succesul.
+feedback-hub-insight-recognition-reason = Pe baza feedback-ului pozitiv primit recent
+feedback-hub-insight-recognition-cta = Trimite apreciere
+feedback-hub-insight-healthy-title = Activitatea ta de feedback este pe drumul cel bun
+feedback-hub-insight-healthy-reason = Pe baza activității recente de feedback primit și oferit
 feedback-hub-ai-panel-title = Insight-uri AI
 feedback-hub-ai-panel-analyzing = Se analizează { $count } intrări de feedback…
 feedback-hub-ai-panel-no-analysis = Nu există încă analiză. Rulează analiza pentru a vedea insight-urile.
@@ -527,6 +552,12 @@ skills-development-job-profile-missing-one-suffix = .
 skills-development-job-profile-missing-prefix = Rolul dvs. necesită { $count } competențe pe care nu le aveți încă. Considerați adăugarea: 
 skills-development-job-profile-below-level-prefix = Nivelul dvs. pentru 
 skills-development-job-profile-below-level-suffix = este sub nivelul tipic al rolului ({ $employeeLevel } vs { $profileLevel }).
+
+# Skills AI Insight Card Titles
+skills-insight-verify-title = Verifică certificările
+skills-insight-fit-title = Corespunzi profilului rolului
+skills-insight-missing-title = Lipsă competențe detectată
+skills-insight-below-level-title = Nivel competență sub țintă
 
 # Add Skill Form
 add-skill-form-title = Adaugă competență

@@ -12,8 +12,6 @@ import { useSilentRefetchOnProcessCompletion } from './useSilentRefetchOnProcess
 export function useCurrentUserEmployeeRecordData(accessToken: string, userInfo: UserInfoProps | undefined) {
   const activeStructureId = getCurrentActiveStructureId() || ''
   const employeeId = userInfo?.employeeDetails?.employeeId || ''
-  const previewFeatureRaw = useFeature(Feature.Preview.Enabled.Key)
-  const previewEnabledFlag = previewFeatureRaw === true || previewFeatureRaw === 'true'
   const hrDevelopmentFeatureFlag = useFeature<boolean>(Feature.HCM.HRDevelopment.Key)
 
   const { loading, error, employee, feedback, performanceGoals, silentRefetch } = useEmployeeData(
@@ -32,7 +30,6 @@ export function useCurrentUserEmployeeRecordData(accessToken: string, userInfo: 
     employee,
     feedback,
     performanceGoals,
-    previewEnabledFlag,
     performanceEvaluationFeatureFlag: hrDevelopmentFeatureFlag === true
   }
 }

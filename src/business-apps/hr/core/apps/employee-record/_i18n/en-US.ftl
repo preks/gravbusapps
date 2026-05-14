@@ -417,7 +417,38 @@ feedback-hub-section-received-title = Feedback Received ({ $total } total)
 feedback-hub-section-received-visible-title = Feedback Received ({ $visible } visible)
 feedback-hub-section-given-title = Feedback Given ({ $total } total)
 feedback-hub-ai-insights-button = AI Insights
+feedback-hub-analyze-feedback-button = Analyze Feedback
 feedback-hub-ai-insights-analyzing = Analyzing…
+
+# AI Insights Section
+feedback-hub-insights-section-title = AI Insights
+feedback-hub-insights-section-description = Personalized suggestions to help you grow and strengthen our feedback culture.
+feedback-hub-insights-how-it-works = How insights work
+feedback-hub-insight-why-this = Why this?
+feedback-hub-insight-pending-title = Respond to pending feedback request
+feedback-hub-insight-pending-description = You have { $count } feedback { $count ->
+    [one] request
+   *[other] requests
+  } waiting from colleagues. Completing it keeps your feedback cycle up to date.
+feedback-hub-insight-pending-reason = Based on { $count } pending { $count ->
+    [one] request
+   *[other] requests
+  }
+feedback-hub-insight-pending-cta = Review request
+feedback-hub-insight-imbalance-title = Balance your feedback activity
+feedback-hub-insight-imbalance-description = You received feedback in the last 30 days, but haven't given any. Balanced feedback builds stronger relationships.
+feedback-hub-insight-imbalance-reason = Based on { $received } feedback received and 0 feedback given in the last 30 days
+feedback-hub-insight-imbalance-cta = Give feedback
+feedback-hub-insight-low-activity-title = Start your feedback cycle
+feedback-hub-insight-low-activity-description = No feedback activity in the last 30 days. Regular feedback helps you and your colleagues grow.
+feedback-hub-insight-low-activity-reason = Based on no recent feedback activity in the last 30 days
+feedback-hub-insight-low-activity-cta = Request feedback
+feedback-hub-insight-recognition-title = Recognize recent collaboration
+feedback-hub-insight-recognition-description = You received positive feedback recently. Consider appreciating someone who supported your success.
+feedback-hub-insight-recognition-reason = Based on positive feedback received recently
+feedback-hub-insight-recognition-cta = Send appreciation
+feedback-hub-insight-healthy-title = Your feedback activity is on track
+feedback-hub-insight-healthy-reason = Based on recent activity across received and given feedback
 feedback-hub-ai-panel-title = AI Insights
 feedback-hub-ai-panel-analyzing = Analyzing { $count } feedback entries…
 feedback-hub-ai-panel-no-analysis = No analysis yet. Run analysis to see insights.
@@ -534,6 +565,12 @@ skills-development-job-profile-missing-one-suffix = .
 skills-development-job-profile-missing-prefix = Your role requires { $count } skills you don't have yet. Consider adding: 
 skills-development-job-profile-below-level-prefix = Your level for 
 skills-development-job-profile-below-level-suffix = is below the role's typical level ({ $employeeLevel } vs { $profileLevel }).
+
+# Skills AI Insight Card Titles
+skills-insight-verify-title = Verify your certifications
+skills-insight-fit-title = You match your role profile
+skills-insight-missing-title = Skills gap detected
+skills-insight-below-level-title = Skill level below target
 
 # Add Skill Form
 add-skill-form-title = Add Skill

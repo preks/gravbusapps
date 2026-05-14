@@ -781,12 +781,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     <div className="gba:space-y-6" data-testid="performance-tab-container">
       <div className="gba:flex gba:justify-between gba:items-start gba:gap-4" data-testid="performance-goals-header">
         <div>
-          <div className="gba:font-bold gba:text-2xl" data-testid="performance-goals-title">
+          <h2 className="gba:text-2xl gba:font-bold" data-testid="performance-goals-title">
             {t('performance-title')}
-          </div>
-          <div className="gba:text-muted-foreground gba:text-lg" data-testid="performance-goals-description">
+          </h2>
+          <p className="gba:text-muted-foreground" data-testid="performance-goals-description">
             {t('performance-description')}
-          </div>
+          </p>
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-3">

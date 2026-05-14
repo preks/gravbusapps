@@ -12,7 +12,6 @@ import { Employee, EmployeePerformanceGoal, EmployeeFeedback } from '../../hooks
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import translations from '../../_i18n'
-import SkillsTabOld from './SkillsTabOld'
 
 export type HrGrowthUrlMode = 'employeeRecord' | 'standalone'
 
@@ -20,7 +19,6 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   employee: Employee
   employeeId: string
   isSelfView: boolean
-  previewEnabledFlag?: boolean
   performanceEvaluationFeatureFlag?: boolean
   employeePerformanceGoals?: EmployeePerformanceGoal[]
   feedback?: EmployeeFeedback[]
@@ -51,7 +49,6 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   isSelfView,
   employeePerformanceGoals,
   feedback,
-  previewEnabledFlag = false,
   performanceEvaluationFeatureFlag = false,
   urlMode = 'employeeRecord'
 }) => {
@@ -223,17 +220,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
-          {previewEnabledFlag ? (
-            <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
-          ) : (
-            <SkillsTabOld
-              employee={employee}
-              accessToken={accessToken}
-              employeeId={employeeId}
-              userInfo={userInfo}
-              devFeatureFlag={previewEnabledFlag}
-            />
-          )}
+          <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
         </TabsContent>
 
         <TabsContent value="feedback" data-testid="hr-growth-feedback-content" className="gba:mt-4">
