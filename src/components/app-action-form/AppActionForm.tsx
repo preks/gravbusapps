@@ -86,6 +86,22 @@ const getSuccessMessage = (processType: string, t: (key: string, args?: Record<s
   }
 }
 
+const getProcessFailureMessage = (
+  detail: Record<string, any> | null | undefined,
+  t: (key: string, args?: Record<string, any>) => string
+): string => {
+  const candidates = [
+    detail?.response?.detail?.message,
+    detail?.response?.detail?.error,
+    detail?.response?.message,
+    detail?.message,
+    detail?.error
+  ]
+
+  const firstMessage = candidates.find(candidate => typeof candidate === 'string' && candidate.trim() !== '')
+  return firstMessage || t('process-error-generic')
+}
+
 // Form Navigation component that handles all 4 buttons: Cancel, Back, Next, Submit
 interface FormNavigationProps {
   // Button states
@@ -283,7 +299,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         }
 
         // Create a promise that resolves when process completes OR after timeout
-        const waitForProcessCompletion = new Promise<void>(resolve => {
+        const waitForProcessCompletion = new Promise<void>((resolve, reject) => {
           const TIMEOUT = 10000
           const timeoutId = setTimeout(() => {
             cleanup()
@@ -301,9 +317,15 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
                 // Ignore errors from consumer callback
               }
             }
-            if (detail?.resolution === 'success' || detail?.resolution === 'failure') {
+            if (detail?.resolution === 'success') {
               cleanup()
               resolve()
+              return
+            }
+
+            if (detail?.resolution === 'failure') {
+              cleanup()
+              reject(new Error(getProcessFailureMessage(detail as Record<string, any>, t)))
             }
           }
 
@@ -336,7 +358,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         isSubmittingRef.current = false
       }
     },
-    [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit]
+    [submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit, onProcessCompletion, t]
   )
 
   const handleCancel = useCallback(async () => {

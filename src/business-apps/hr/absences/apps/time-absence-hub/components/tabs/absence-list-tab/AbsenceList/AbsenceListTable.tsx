@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import {
   Table,
   TableHeader,
@@ -13,7 +13,6 @@ import {
   Badge,
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -21,7 +20,11 @@ import {
 } from '@newwork/nw-design-system'
 import { CalendarIcon, UserIcon, ArrowUpIcon, ArrowDownIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '../../../../../../../../../common/utils/windowUtils'
-import { getAbsenceStatusLabel, isApprovedAbsenceStatus } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import {
+  getAbsenceStatusLabel,
+  hasApprovedAbsenceCancellationExpired,
+  isApprovedAbsenceStatus
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { statusVariant } from '@/business-apps/hr/absences/apps/personal-absences/utils/statusUtils'
 import { AppAction } from '@/components/app-action/AppAction'
 import { EnhancedAbsence } from '../../../../types'
@@ -299,8 +302,12 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * pageSize + 1
   const rangeEnd = Math.min(currentPage * pageSize, total)
 
-  const cancellationActions = useCallback(
-    (absence: EnhancedAbsence): ActionOption[] => [
+  const cancellationActions = useCallback((absence: EnhancedAbsence): ActionOption[] => {
+    if (hasApprovedAbsenceCancellationExpired(absence.endDate)) {
+      return []
+    }
+
+    return [
       {
         category: getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.common.action', 'Action'),
         key: `request-cancellation-${absence.id}`,
@@ -312,12 +319,21 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
           setSelectedForCancellation(absence)
         }
       }
-    ],
-    []
-  )
+    ]
+  }, [])
 
   const handleConfirmCancellation = useCallback(async () => {
     if (!selectedForCancellation) {
+      return
+    }
+
+    if (hasApprovedAbsenceCancellationExpired(selectedForCancellation.endDate)) {
+      toast.error(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_absence_hub.absence_list.request_cancellation_ended_error',
+          'Approved absences that have already ended can no longer be cancelled.'
+        )
+      )
       return
     }
 
@@ -355,13 +371,27 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
     }
   }, [onRequestCancellation, selectedForCancellation])
 
-  const selectedEmployeeName = useMemo(() => {
-    if (!selectedForCancellation) {
-      return ''
-    }
-
-    return getEmployeeName(selectedForCancellation)
-  }, [selectedForCancellation])
+  const approvedCancellationDayCount =
+    selectedForCancellation?.cancelSnapshot.workingDays ??
+    selectedForCancellation?.cancelSnapshot.effectiveDays ??
+    selectedForCancellation?.effectiveDays ??
+    0
+  const approvedCancellationSummary =
+    selectedForCancellation == null
+      ? ''
+      : getTranslationFromI18nKeyAndLabel(
+          'lowcoder:time_absence_hub.absence_list.request_cancellation_dialog_date_range',
+          `${formatDate(selectedForCancellation.startDate, 'date.medium')} to ${formatDate(
+            selectedForCancellation.endDate,
+            'date.medium'
+          )} (${approvedCancellationDayCount} ${approvedCancellationDayCount === 1 ? 'day' : 'days'})`,
+          {
+            startDate: formatDate(selectedForCancellation.startDate, 'date.medium') ?? '—',
+            endDate: formatDate(selectedForCancellation.endDate, 'date.medium') ?? '—',
+            days: approvedCancellationDayCount,
+            dayLabel: approvedCancellationDayCount === 1 ? 'day' : 'days'
+          }
+        )
 
   if (error) {
     return (
@@ -438,7 +468,8 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                       </TableCell>
                     ))}
                     <TableCell className={ACTION_COLUMN_CLASS}>
-                      {isApprovedAbsenceStatus(record.status) ? (
+                      {isApprovedAbsenceStatus(record.status) &&
+                      !hasApprovedAbsenceCancellationExpired(record.endDate) ? (
                         <div
                           className="gba:flex gba:items-center gba:justify-end"
                           role="presentation"
@@ -557,20 +588,31 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
             <DialogTitle>
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:time_absence_hub.absence_list.request_cancellation_dialog_title',
-                'Request cancellation approval'
+                'Request Cancellation'
               )}
             </DialogTitle>
-            <DialogDescription>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_absence_hub.absence_list.request_cancellation_dialog_description',
-                'A task will be created in Everybox for the employee manager. The approved absence will be cancelled only after manager approval.'
-              )}
-            </DialogDescription>
           </DialogHeader>
-          <div className="gba:text-sm gba:text-muted-foreground">
-            {selectedEmployeeName
-              ? `${getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee')}: ${selectedEmployeeName}`
-              : null}
+          <div className="gba:space-y-4">
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_absence_hub.absence_list.request_cancellation_dialog_intro',
+                'You are requesting to cancel the following absence:'
+              )}
+            </p>
+
+            {selectedForCancellation && (
+              <div className="gba:rounded-lg gba:border gba:bg-muted/40 gba:p-4 gba:space-y-2">
+                <p className="gba:text-sm gba:font-medium">{selectedForCancellation.typeName}</p>
+                <p className="gba:text-sm gba:text-muted-foreground">{approvedCancellationSummary}</p>
+              </div>
+            )}
+
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_absence_hub.absence_list.request_cancellation_dialog_approval_note',
+                'By submitting this request, a cancellation notification will be sent to your manager for approval. The absence will remain in your calendar and balance until the request is finalized.'
+              )}
+            </p>
           </div>
           <DialogFooter>
             <Button

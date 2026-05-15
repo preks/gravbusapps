@@ -12,6 +12,7 @@ process-button-previous = Previous
 process-button-next = Next
 process-button-submit = Submit
 process-error-title = Error
+process-error-generic = The process could not be completed. Please try again.
 
 
 

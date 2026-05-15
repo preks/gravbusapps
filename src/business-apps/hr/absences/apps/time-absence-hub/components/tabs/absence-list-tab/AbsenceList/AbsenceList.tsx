@@ -5,6 +5,7 @@ import { AbsenceListTable } from './AbsenceListTable'
 import type { EnhancedAbsence } from '../../../../types'
 import { useAbsenceFilters, useAbsenceData } from '../../../../hooks'
 import { cancelEmployeeAbsence } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
+import { hasApprovedAbsenceCancellationExpired } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 interface AbsenceListProps extends BusinessAppContextProps {
   initialFilters?: {
@@ -56,6 +57,15 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
     async (absence: EnhancedAbsence) => {
       if (!accessToken) {
         throw new Error('Access token missing')
+      }
+
+      if (hasApprovedAbsenceCancellationExpired(absence.endDate)) {
+        throw new Error(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:time_absence_hub.absence_list.request_cancellation_ended_error',
+            'Approved absences that have already ended can no longer be cancelled.'
+          )
+        )
       }
 
       await cancelEmployeeAbsence(accessToken, absence.cancelSnapshot)

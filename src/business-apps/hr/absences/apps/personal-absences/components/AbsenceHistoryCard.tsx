@@ -21,20 +21,22 @@ import {
   Badge,
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle
 } from '@newwork/nw-design-system'
 import { CaretLeftIcon, CaretRightIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
-import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import {
+  getAbsenceStatusLabel,
+  hasApprovedAbsenceCancellationExpired
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { formatDate } from '@/common/utils/windowUtils'
 import { statusVariant } from '../utils/statusUtils'
 import type { AbsenceRow } from '../types/personalAbsences'
 import type { CancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
 
-type TFunction = (key: string) => string
+type TFunction = (key: string, values?: Record<string, string | number>) => string
 
 interface AbsenceHistoryCardProps {
   isLoading: boolean
@@ -50,7 +52,7 @@ interface AbsenceHistoryCardProps {
   paginatedAbsences: AbsenceRow[]
   totalPages: number
   t: TFunction
-  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot) => Promise<boolean>
+  onCancelAbsence: (employeeAbsence: CancelEmployeeAbsenceSnapshot, approvalNote?: string) => Promise<boolean>
   cancellingAbsenceId: string | null
   accessToken?: string
 }
@@ -75,8 +77,26 @@ export function AbsenceHistoryCard({
 }: Readonly<AbsenceHistoryCardProps>) {
   const [approvedCancellationTarget, setApprovedCancellationTarget] = useState<AbsenceRow | null>(null)
 
+  const closeApprovedCancellationDialog = () => {
+    setApprovedCancellationTarget(null)
+  }
+
+  const cancellationSummary = approvedCancellationTarget
+    ? t('request-cancellation-dialog-date-range', {
+        startDate: formatDate(approvedCancellationTarget.startDate, 'date.medium') ?? '—',
+        endDate: formatDate(approvedCancellationTarget.endDate, 'date.medium') ?? '—',
+        days: approvedCancellationTarget.workingDays,
+        dayLabel: approvedCancellationTarget.workingDays === 1 ? t('day') : t('days')
+      })
+    : ''
+
   const buildActions = (absence: AbsenceRow): ActionOption[] => {
     const isApproved = absence.originalStatus === 'APPROVED'
+    const isApprovedCancellationExpired = isApproved && hasApprovedAbsenceCancellationExpired(absence.endDate)
+
+    if (isApprovedCancellationExpired) {
+      return []
+    }
 
     return [
       {
@@ -102,7 +122,7 @@ export function AbsenceHistoryCard({
 
     const requestSucceeded = await onCancelAbsence(approvedCancellationTarget.employeeAbsence)
     if (requestSucceeded) {
-      setApprovedCancellationTarget(null)
+      closeApprovedCancellationDialog()
     }
   }
 
@@ -166,7 +186,8 @@ export function AbsenceHistoryCard({
                   </TableCell>
                   <TableCell className="gba:max-w-[200px] gba:truncate">{a.description || '—'}</TableCell>
                   <TableCell>
-                    {a.originalStatus === 'PENDING' || a.originalStatus === 'APPROVED' ? (
+                    {a.originalStatus === 'PENDING' ||
+                    (a.originalStatus === 'APPROVED' && !hasApprovedAbsenceCancellationExpired(a.endDate)) ? (
                       <AppAction
                         data-testid={`personal-absence-history-actions-${a.id}`}
                         variant="table-row"
@@ -271,19 +292,30 @@ export function AbsenceHistoryCard({
         open={approvedCancellationTarget !== null}
         onOpenChange={open => {
           if (!open && cancellingAbsenceId !== approvedCancellationTarget?.id) {
-            setApprovedCancellationTarget(null)
+            closeApprovedCancellationDialog()
           }
         }}
       >
         <DialogContent data-testid="personal-absence-approved-cancel-dialog">
           <DialogHeader>
             <DialogTitle>{t('request-cancellation-dialog-title')}</DialogTitle>
-            <DialogDescription>{t('request-cancellation-dialog-description')}</DialogDescription>
           </DialogHeader>
+          <div className="gba:space-y-4">
+            <p className="gba:text-sm gba:text-muted-foreground">{t('request-cancellation-dialog-intro')}</p>
+
+            {approvedCancellationTarget && (
+              <div className="gba:rounded-lg gba:border gba:bg-muted/40 gba:p-4 gba:space-y-2">
+                <p className="gba:text-sm gba:font-medium">{approvedCancellationTarget.type}</p>
+                <p className="gba:text-sm gba:text-muted-foreground">{cancellationSummary}</p>
+              </div>
+            )}
+
+            <p className="gba:text-sm gba:text-muted-foreground">{t('request-cancellation-dialog-approval-note')}</p>
+          </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setApprovedCancellationTarget(null)}
+              onClick={closeApprovedCancellationDialog}
               disabled={cancellingAbsenceId === approvedCancellationTarget?.id}
               data-testid="personal-absence-approved-cancel-dialog-cancel-button"
             >

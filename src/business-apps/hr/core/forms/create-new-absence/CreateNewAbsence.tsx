@@ -52,26 +52,107 @@ type CreateNewAbsenceFormValues = {
   comment: string
 }
 
+type LaunchContextValue = Record<string, unknown>
+
+type LaunchContext = {
+  employeeId?: string
+  startDate?: string
+  endDate?: string
+  absenceType?: string
+  flowType?: string
+  processName?: string
+}
+
+const toLaunchContextValue = (value: unknown): LaunchContextValue => {
+  return value && typeof value === 'object' ? (value as LaunchContextValue) : {}
+}
+
+const pickLaunchString = (sources: LaunchContextValue[], key: keyof LaunchContext): string | undefined => {
+  for (const source of sources) {
+    const value = source[key]
+    if (typeof value === 'string' && value.trim() !== '') {
+      return value
+    }
+  }
+
+  return undefined
+}
+
+const toInitialDate = (value?: string): Date | undefined => {
+  if (!value) {
+    return undefined
+  }
+
+  const parsedDate = new Date(value)
+  return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate
+}
+
 export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   const { accessToken, userInfo, additionalData } = props
   const client = useGraphQLClient(accessToken)
   const { t } = useTranslation(translations)
   const structureId = getCurrentActiveStructureId()
 
-  const propStartDate = additionalData?.psi_taskPayload?.psi_initialParameters?.startDate
-  const propEndDate = additionalData?.psi_taskPayload?.psi_initialParameters?.endDate
+  const absenceTypeToProcessMap: Record<string, string> = {
+    'AbsenceType:v1:A001': 'createEmployeeVacation',
+    'AbsenceType:v1:A021': 'createEmployeeSickLeave',
+    'AbsenceType:v1:A050': 'createEmployeeSpecialLeave',
+    'AbsenceType:v1:A170': 'createEmployeeWorkLeave'
+  }
+  const flowTypeToProcessMap: Record<string, string> = {
+    vacation: 'createEmployeeVacation',
+    sickLeave: 'createEmployeeSickLeave',
+    specialLeave: 'createEmployeeSpecialLeave',
+    workLeave: 'createEmployeeWorkLeave'
+  }
+  const launchContext = useMemo<LaunchContext>(() => {
+    const taskPayload = toLaunchContextValue(additionalData?.psi_taskPayload)
+    const taskInitialParameters = toLaunchContextValue(taskPayload.psi_initialParameters)
+    const legacyTaskInitialParameters = toLaunchContextValue(taskPayload.initialParameters)
+    const standaloneInitialParameters = toLaunchContextValue(additionalData?.psi_initialParameters)
+    const externalContextData = toLaunchContextValue(additionalData?.externalContextData)
+    const contextData = toLaunchContextValue(additionalData?.contextData)
+    const flowContext = toLaunchContextValue(additionalData?.flowContext)
+    const directContext = toLaunchContextValue(additionalData)
 
-  const initialStartDate = propStartDate ? new Date(propStartDate) : undefined
-  const initialEndDate = propEndDate ? new Date(propEndDate) : undefined
+    const launchSources = [
+      taskInitialParameters,
+      legacyTaskInitialParameters,
+      taskPayload,
+      standaloneInitialParameters,
+      externalContextData,
+      contextData,
+      flowContext,
+      directContext
+    ]
 
-  const processName = additionalData?.psi_processMetadata?.processMetadata?.name
+    return {
+      employeeId: pickLaunchString(launchSources, 'employeeId'),
+      startDate: pickLaunchString(launchSources, 'startDate'),
+      endDate: pickLaunchString(launchSources, 'endDate'),
+      absenceType: pickLaunchString(launchSources, 'absenceType'),
+      flowType: pickLaunchString(launchSources, 'flowType'),
+      processName: pickLaunchString(launchSources, 'processName')
+    }
+  }, [additionalData])
+
+  const initialStartDate = toInitialDate(launchContext.startDate)
+  const initialEndDate = toInitialDate(launchContext.endDate)
+
+  const processName =
+    additionalData?.psi_processMetadata?.processName ||
+    additionalData?.psi_processMetadata?.processMetadata?.name ||
+    launchContext.processName ||
+    (launchContext.absenceType ? absenceTypeToProcessMap[launchContext.absenceType] : '') ||
+    (launchContext.flowType ? flowTypeToProcessMap[launchContext.flowType] : '') ||
+    ''
   const processToParentAbsenceTypeMap: Record<string, string> = {
     createEmployeeVacation: 'AbsenceType:v1:A001',
     createEmployeeSickLeave: 'AbsenceType:v1:A021',
     createEmployeeSpecialLeave: 'AbsenceType:v1:A050',
     createEmployeeWorkLeave: 'AbsenceType:v1:A170'
   }
-  const mappedParentType = processName && processToParentAbsenceTypeMap[processName]
+  const mappedParentType = launchContext.absenceType || (processName ? processToParentAbsenceTypeMap[processName] : '')
   const absenceType = mappedParentType || ''
   const isSickLeaveProcess = processName === 'createEmployeeSickLeave'
 
@@ -84,14 +165,10 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   } | null>(null)
   const [employeeHireDate, setEmployeeHireDate] = useState<Date | undefined>(undefined)
 
-  // Prioritize employeeId from task payload, then fall back to logged-in user's employeeId
+  // Prefer flow-provided employee context, then fall back to the logged-in employee.
   const employeeId = useMemo(() => {
-    return (
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-      userInfo?.employeeDetails?.employeeId ||
-      ''
-    )
-  }, [additionalData, userInfo?.employeeDetails?.employeeId])
+    return launchContext.employeeId || userInfo?.employeeDetails?.employeeId || ''
+  }, [launchContext.employeeId, userInfo?.employeeDetails?.employeeId])
 
   const { absenceTypes: types } = useAbsenceTypesByGroup(props, absenceType)
 

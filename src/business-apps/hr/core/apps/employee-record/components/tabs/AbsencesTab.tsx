@@ -45,7 +45,10 @@ import { useAbsencePrevalidate } from '../../hooks/useAbsencePrevalidate'
 import translations from './_i18n'
 import { AbsenceRequestMenuButton } from './components/AbsenceRequestMenuButton'
 import { cancelEmployeeAbsence } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
-import { isApprovedAbsenceStatus } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import {
+  hasApprovedAbsenceCancellationExpired,
+  isApprovedAbsenceStatus
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import type { AbsenceListCardAbsence } from '../../queries/types'
 import { toast } from 'sonner'
 
@@ -352,8 +355,19 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   )
 
   const handleRequestCancellation = async (absence: AbsenceListCardAbsence): Promise<boolean> => {
-    setCancellingAbsenceId(absence.id)
     const requiresManagerApproval = isApprovedAbsenceStatus(absence.originalStatus)
+
+    if (requiresManagerApproval && hasApprovedAbsenceCancellationExpired(absence.endDate)) {
+      toast.error(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_absences.request_cancellation_ended_error',
+          'Approved absences that have already ended can no longer be cancelled.'
+        )
+      )
+      return false
+    }
+
+    setCancellingAbsenceId(absence.id)
     const managerId =
       employee?.employeePosition?.supervisor?.id || employee?.employeePosition?.supervisorEmployeeId || null
     const payload = {

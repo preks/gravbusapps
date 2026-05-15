@@ -27,7 +27,10 @@ import {
   cancelEmployeeAbsence,
   type CancelEmployeeAbsenceSnapshot
 } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
-import { isApprovedAbsenceStatus } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import {
+  hasApprovedAbsenceCancellationExpired,
+  isApprovedAbsenceStatus
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 type PersonalAbsencesProps = BusinessAppContextProps & {
   employeeIdOverride?: string
@@ -120,15 +123,26 @@ export const PersonalAbsences = (props: PersonalAbsencesProps) => {
       .catch(() => {})
   }, [employee?.id, accessToken, calendarDate, client])
 
-  const handleCancelAbsence = async (employeeAbsence: CancelEmployeeAbsenceSnapshot): Promise<boolean> => {
-    setCancellingAbsenceId(employeeAbsence.id)
+  const handleCancelAbsence = async (
+    employeeAbsence: CancelEmployeeAbsenceSnapshot,
+    approvalNote?: string
+  ): Promise<boolean> => {
     const requiresManagerApproval = isApprovedAbsenceStatus(employeeAbsence.status)
+
+    if (requiresManagerApproval && hasApprovedAbsenceCancellationExpired(employeeAbsence.endDate)) {
+      toast.error(t('request-cancellation-ended-error'))
+      return false
+    }
+
+    setCancellingAbsenceId(employeeAbsence.id)
     const managerId =
       employee?.employeePosition?.supervisor?.id || employee?.employeePosition?.supervisorEmployeeId || null
+    const trimmedApprovalNote = approvalNote?.trim() || null
     const payload = {
       ...employeeAbsence,
       employeeId: employeeAbsence.employeeId || employee?.id || '',
-      approverId: employeeAbsence.approverId || managerId
+      approverId: employeeAbsence.approverId || managerId,
+      approvalNote: trimmedApprovalNote
     }
 
     try {

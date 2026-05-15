@@ -33,10 +33,14 @@ request-cancellation = Solicită anularea
 cancel-request-success = Cererea de absență a fost anulată
 request-cancellation-success = Solicitarea de anulare a fost trimisă managerului pentru aprobare
 cancel-request-error = Cererea de absență nu a putut fi anulată
-request-cancellation-dialog-title = Solicită aprobarea anulării
-request-cancellation-dialog-description = O sarcină va fi creată în Everybox pentru managerul tău. Absența aprobată va fi anulată doar după aprobarea managerului.
+request-cancellation-dialog-title = Solicită anularea
+request-cancellation-dialog-intro = Soliciți anularea următoarei absențe:
+request-cancellation-dialog-date-range = { $startDate } până la { $endDate } ({ $days } { $dayLabel })
+request-cancellation-dialog-approval-note = Prin trimiterea acestei solicitări, managerul tău va primi o notificare de anulare pentru aprobare. Absența va rămâne în calendarul și soldul tău până când solicitarea este finalizată.
+request-cancellation-dialog-reason-label = Motivul anulării (opțional):
 request-cancellation-confirm = Trimite solicitarea
 request-cancellation-no-manager = Acest angajat nu are manager alocat. Solicitarea de anulare nu poate fi trimisă.
+request-cancellation-ended-error = Absențele aprobate care s-au încheiat deja nu mai pot fi anulate.
 cancel = Anulează
 
 # My Absence History

@@ -1,3 +1,4 @@
+import dayjs from 'dayjs'
 import type { BadgeProps } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -257,6 +258,20 @@ export function isActiveAbsenceStatus(status?: string): boolean {
  */
 export function isApprovedAbsenceStatus(status?: string): boolean {
   return normalizeToLegacy(status) === 'APPROVED'
+}
+
+/**
+ * Check whether approved-absence cancellation is no longer allowed because the
+ * absence ended before today.
+ * @param endDate - The absence end date in ISO-like date format
+ * @returns True when the approved absence has fully ended
+ */
+export function hasApprovedAbsenceCancellationExpired(endDate?: string | null): boolean {
+  if (!endDate) {
+    return false
+  }
+
+  return dayjs(endDate).isBefore(dayjs(), 'day')
 }
 
 /**

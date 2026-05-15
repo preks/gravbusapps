@@ -33,10 +33,14 @@ request-cancellation = Request Cancellation
 cancel-request-success = Absence request cancelled
 request-cancellation-success = Cancellation request sent to manager for approval
 cancel-request-error = Failed to cancel absence request
-request-cancellation-dialog-title = Request cancellation approval
-request-cancellation-dialog-description = A task will be created in Everybox for your manager. The approved absence will be cancelled only after manager approval.
+request-cancellation-dialog-title = Request Cancellation
+request-cancellation-dialog-intro = You are requesting to cancel the following absence:
+request-cancellation-dialog-date-range = { $startDate } to { $endDate } ({ $days } { $dayLabel })
+request-cancellation-dialog-approval-note = By submitting this request, a cancellation notification will be sent to your manager for approval. The absence will remain in your calendar and balance until the request is finalized.
+request-cancellation-dialog-reason-label = Reason for cancellation (optional):
 request-cancellation-confirm = Send request
 request-cancellation-no-manager = No manager is assigned to this employee. Cancellation request cannot be sent.
+request-cancellation-ended-error = Approved absences that have already ended can no longer be cancelled.
 cancel = Cancel
 
 # My Absence History
