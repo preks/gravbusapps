@@ -182,14 +182,113 @@ async function getResourceUrlByPath(urlPath, apiEndpoint = null, oauthConfig = {
   }
 }
 
+function normalizeFormComponentPath(path) {
+  if (!path || typeof path !== 'string') return ''
+  return path.replace(/^\/+/, '').trim()
+}
+
 /**
- * Helper to detect LOWCODER screens by builderType
- * @param {Object} screen
- * @returns {boolean}
+ * Whether a screen's formDefinition.componentPath matches any of the normalized path tokens
+ * (same logic as publish-prod-screens matching: exact or suffix segment).
  */
-function isLowcoderScreen(screen) {
-  const type = (screen?.screenComponents?.builderType || '').toUpperCase()
-  return type === 'LOWCODER'
+function screenMatchesAnyPurgePath(screen, normalizedPaths) {
+  const n = normalizeFormComponentPath(screen?.screenComponents?.formDefinition?.componentPath)
+  if (!n) return false
+  return normalizedPaths.some(p => n === p || n.endsWith(`/${p}`))
+}
+
+/** When dev omits namespace fields, match resource-manager native create defaults. */
+const DEFAULT_PROD_SYNC_NAMESPACE_CODE = 'nw_dev'
+const DEFAULT_PROD_SYNC_NAMESPACE_DESCRIPTION = 'nw_dev'
+const DEFAULT_PROD_SYNC_NAMESPACE_ID = '1e6e2926-33f1-4dfb-a3b8-d535602d06b0'
+
+function trimString(value) {
+  if (value == null) return ''
+  return String(value).trim()
+}
+
+/**
+ * appId is Lowcoder-only; native NATIVE_SCREEN sync must not send it or DB uniqueness breaks
+ * when multiple screenKeys share one componentPath.
+ */
+function stripAppIdFromScreenComponents(components) {
+  if (!components || typeof components !== 'object') return components
+  const copy = { ...components }
+  delete copy.appId
+  return copy
+}
+
+/**
+ * Shape a dev screen row for prod POST: same fields as resource-manager / platform screen create
+ * (explicit top-level + screenComponents; no id/audit/isDeleted; native formDefinition is only path + version).
+ * Mirrors ComponentDialog / ActionBundleDialog payload (omit createdAt, updatedAt, createdBy, updatedBy).
+ */
+function buildNativeProdScreenSyncBody(devScreen, buildVersion) {
+  const sc = stripAppIdFromScreenComponents(devScreen.screenComponents || {})
+  const fd = sc.formDefinition && typeof sc.formDefinition === 'object' ? sc.formDefinition : {}
+  const componentPath = fd.componentPath != null ? String(fd.componentPath) : ''
+  const screenKey = devScreen.screenKey != null ? String(devScreen.screenKey) : ''
+  const nsCode = trimString(devScreen.namespaceCode)
+  const nsDesc = trimString(devScreen.namespaceDescription)
+  const nsId = trimString(devScreen.namespaceId)
+  return {
+    name: devScreen.name != null ? String(devScreen.name) : '',
+    screenKey,
+    namespaceCode: nsCode || DEFAULT_PROD_SYNC_NAMESPACE_CODE,
+    namespaceId: nsId || DEFAULT_PROD_SYNC_NAMESPACE_ID,
+    namespaceDescription: nsDesc || DEFAULT_PROD_SYNC_NAMESPACE_DESCRIPTION,
+    type: devScreen.type || 'SCREEN',
+    screenComponents: {
+      key: sc.key != null ? String(sc.key) : screenKey,
+      name: sc.name != null ? String(sc.name) : devScreen.name != null ? String(devScreen.name) : '',
+      builderType: 'NATIVE_SCREEN',
+      formDefinition: {
+        componentPath,
+        version: buildVersion != null ? String(buildVersion) : ''
+      }
+    }
+  }
+}
+
+/**
+ * Delete prod NATIVE_SCREEN rows before comprehensive sync (union):
+ * - `formDefinition.componentPath` matches any normalized path from dev, OR
+ * - `screenKey` is in `screenKeysToPurge` (dev keys for this publish batch).
+ *
+ * Screen-management enforces unique `screenKey` on create (`ApplicationScreenValidator.validateUniqueFields` /
+ * `existsByScreenKey`); purge-by-key clears prod rows whose path did not match the path filter.
+ *
+ * @param {string[]} normalizedPaths - paths without leading slash (e.g. hr/core/forms/foo)
+ * @param {string} prodScreenManagementApi
+ * @param {Object} prodOauthConfig
+ * @param {string[]|null} screenKeysToPurge - dev screenKeys for this batch (optional)
+ * @returns {{ deleted: number, matched: number }}
+ */
+async function deleteProdNativeScreensByComponentPaths(
+  normalizedPaths,
+  prodScreenManagementApi,
+  prodOauthConfig,
+  screenKeysToPurge = null
+) {
+  const paths = [...new Set((normalizedPaths || []).map(normalizeFormComponentPath).filter(Boolean))]
+  const keySet = new Set((screenKeysToPurge || []).map(k => String(k || '').trim()).filter(Boolean))
+
+  if (paths.length === 0 && keySet.size === 0) return { deleted: 0, matched: 0 }
+
+  const allProd = await getAllNativeScreens(prodScreenManagementApi, prodOauthConfig)
+  const matched = allProd.filter(s => {
+    const key = s.screenKey ? String(s.screenKey).trim() : ''
+    if (key && keySet.has(key)) return true
+    if (paths.length > 0 && screenMatchesAnyPurgePath(s, paths)) return true
+    return false
+  })
+  let deleted = 0
+  for (const screen of matched) {
+    await deleteScreenInScreenManagement(screen.id, prodScreenManagementApi, prodOauthConfig)
+    deleted++
+    console.log(`   Purged prod screen screenKey=${screen.screenKey} id=${screen.id}`)
+  }
+  return { deleted, matched: matched.length }
 }
 
 /**
@@ -880,7 +979,9 @@ async function syncResourceUrlWithSameId(devResourceUrl, prodNavigationApi, prod
 }
 
 /**
- * Sync screen from dev to prod environment
+ * Sync screen from dev to prod: POST create only.
+ * Callers must purge prod first (path ∪ screenKey) so `screenKey` is free; see `deleteProdNativeScreensByComponentPaths`.
+ *
  * @param {Object} devScreen - The screen object from dev environment
  * @param {string} prodScreenManagementApi - Production screen management API endpoint
  * @param {Object} prodOauthConfig - Production OAuth configuration
@@ -891,174 +992,39 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
   try {
     const oauthClient = new OAuthClient(prodOauthConfig)
     const accessToken = await oauthClient.getAccessToken()
+    const syncBody = buildNativeProdScreenSyncBody(devScreen, buildVersion)
 
-    // Check if screen already exists in prod
-    console.log(`   Checking if screen exists in prod: ${devScreen.screenKey}`)
-    const existingProdScreen = await getScreenByKey(devScreen.screenKey, prodScreenManagementApi, prodOauthConfig)
+    console.log(`   Creating screen in prod: ${devScreen.screenKey}`)
 
-    if (existingProdScreen) {
-      // Strict LOWCODER detection and deletion
-      if (isLowcoderScreen(existingProdScreen)) {
-        console.log('   LOWCODER screen detected - deleting before recreation')
-        await deleteScreenInScreenManagement(existingProdScreen.id, prodScreenManagementApi, prodOauthConfig)
+    let lastCreateError = null
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        if (attempt > 1) {
+          console.log(`   Retrying create in prod (attempt ${attempt}/2): ${devScreen.screenKey}`)
+        }
+        await http.post(`${prodScreenManagementApi}/screen`, syncBody, {
+          headers: {
+            accept: 'application/json',
+            authorization: `Bearer ${accessToken}`,
+            'content-type': 'application/json'
+          }
+        })
 
-        // Build minimal creation payload without reusing dev ID to avoid server-side conflicts
-        const recreatePayload = {
-          name: devScreen.name,
+        console.log(`   Screen written in prod (create): ${devScreen.screenKey}`)
+        return { success: true, operation: 'create', screenId: devScreen.id }
+      } catch (error) {
+        lastCreateError = error
+        logAxiosError('screenManagement.syncScreenFromDevToProd.create', error, {
           screenKey: devScreen.screenKey,
-          namespaceId: devScreen.namespaceId,
-          namespaceCode: devScreen.namespaceCode,
-          namespaceDescription: devScreen.namespaceDescription,
-          type: 'SCREEN',
-          screenComponents: {
-            appName: devScreen.screenComponents?.appName || devScreen.name,
-            builderType: 'NATIVE_SCREEN',
-            key: devScreen.screenKey,
-            name: devScreen.name,
-            flowIcon: devScreen.screenComponents?.flowIcon || '',
-            formDefinition: {
-              componentPath: devScreen.screenComponents?.formDefinition?.componentPath,
-              version: buildVersion
-            },
-            release: 'true'
-          }
-        }
-
-        try {
-          // short delay to let deletion complete server-side
-          await new Promise(r => setTimeout(r, 300))
-          await http.post(`${prodScreenManagementApi}/screen`, recreatePayload, {
-            headers: {
-              accept: 'application/json',
-              authorization: `Bearer ${accessToken}`,
-              'content-type': 'application/json'
-            }
-          })
-          console.log(`   Screen recreated in prod as NATIVE_SCREEN: ${devScreen.screenKey}`)
-          return { success: true, operation: 'create', screenId: devScreen.id }
-        } catch (error) {
-          logAxiosError('screenManagement.syncScreenFromDevToProd.recreateLowcoder', error, {
-            screenKey: devScreen.screenKey,
-            prodScreenManagementApi
-          })
-          console.error(`   Failed to recreate screen in prod: ${error.message}`)
-          return { success: false, operation: 'create', error: error.message }
-        }
-      }
-
-      console.log(`   Screen exists in prod (ID: ${existingProdScreen.id}), updating version to ${buildVersion}`)
-
-      const updateData = {
-        ...devScreen,
-        // Overwrite namespace with source (dev)
-        namespaceId: devScreen.namespaceId,
-        namespaceCode: devScreen.namespaceCode,
-        namespaceDescription: devScreen.namespaceDescription,
-        screenComponents: {
-          ...devScreen.screenComponents,
-          builderType: 'NATIVE_SCREEN',
-          formDefinition: {
-            ...devScreen.screenComponents.formDefinition,
-            version: buildVersion
-          },
-          release: 'true'
-        }
-      }
-
-      const updateResult = await updateScreenConfigInScreenManagementDetailed(
-        existingProdScreen.id,
-        updateData,
-        prodScreenManagementApi,
-        prodOauthConfig
-      )
-
-      if (updateResult.success) {
-        console.log(`   Screen updated in prod: ${devScreen.screenKey}`)
-        return { success: true, operation: 'update', screenId: existingProdScreen.id }
-      }
-
-      const message = (updateResult.message || '').toLowerCase()
-      if ([400, 409, 422].includes(updateResult.status) || message.includes('namespace')) {
-        console.log('   Update failed due to namespace mismatch -> deleting and recreating')
-        try {
-          await deleteScreenInScreenManagement(existingProdScreen.id, prodScreenManagementApi, prodOauthConfig)
-          // Create without reusing dev ID or extra metadata
-          const createPayload = {
-            name: updateData.name,
-            screenKey: updateData.screenKey,
-            namespaceId: updateData.namespaceId,
-            namespaceCode: updateData.namespaceCode,
-            namespaceDescription: updateData.namespaceDescription,
-            type: 'SCREEN',
-            screenComponents: {
-              appName: updateData.screenComponents?.appName || updateData.name,
-              builderType: 'NATIVE_SCREEN',
-              key: updateData.screenComponents?.key || updateData.screenKey,
-              name: updateData.screenComponents?.name || updateData.name,
-              flowIcon: updateData.screenComponents?.flowIcon || '',
-              formDefinition: updateData.screenComponents?.formDefinition,
-              release: 'true'
-            }
-          }
-          await http.post(`${prodScreenManagementApi}/screen`, createPayload, {
-            headers: {
-              accept: 'application/json',
-              authorization: `Bearer ${accessToken}`,
-              'content-type': 'application/json'
-            }
-          })
-          console.log(`   Screen recreated with source namespace in prod: ${devScreen.screenKey}`)
-          return { success: true, operation: 'recreate', screenId: devScreen.id }
-        } catch (error) {
-          logAxiosError('screenManagement.syncScreenFromDevToProd.recreateNamespaceMismatch', error, {
-            screenKey: devScreen.screenKey,
-            prodScreenManagementApi
-          })
-          console.error(`   Failed to recreate screen in prod after namespace mismatch: ${error.message}`)
-          return { success: false, operation: 'recreate', error: error.message }
-        }
-      }
-
-      console.error(`   Failed to update screen in prod: ${updateResult.message || 'Unknown error'}`)
-      return { success: false, operation: 'update', error: updateResult.message }
-    }
-
-    // Create new screen in prod with same ID as dev
-    console.log(`   Screen does not exist in prod, creating: ${devScreen.screenKey}`)
-
-    const payload = {
-      ...devScreen,
-      // Ensure builder type and version
-      screenComponents: {
-        ...devScreen.screenComponents,
-        builderType: 'NATIVE_SCREEN',
-        formDefinition: {
-          ...devScreen.screenComponents.formDefinition,
-          version: buildVersion
-        },
-        release: 'true'
+          prodScreenManagementApi,
+          attempt
+        })
+        if (attempt < 2) continue
       }
     }
 
-    try {
-      await http.post(`${prodScreenManagementApi}/screen`, payload, {
-        headers: {
-          accept: 'application/json',
-          authorization: `Bearer ${accessToken}`,
-          'content-type': 'application/json'
-        }
-      })
-
-      console.log(`   Screen created in prod: ${devScreen.screenKey}`)
-      return { success: true, operation: 'create', screenId: devScreen.id }
-    } catch (error) {
-      logAxiosError('screenManagement.syncScreenFromDevToProd.create', error, {
-        screenKey: devScreen.screenKey,
-        prodScreenManagementApi
-      })
-      console.error(`   Failed to create screen in prod: ${error.message}`)
-      return { success: false, operation: 'create', error: error.message }
-    }
+    console.error(`   Failed to create screen in prod after 2 attempts: ${lastCreateError?.message}`)
+    return { success: false, operation: 'create', error: lastCreateError?.message }
   } catch (error) {
     logAxiosError('screenManagement.syncScreenFromDevToProd', error, {
       screenKey: devScreen?.screenKey,
@@ -1085,8 +1051,8 @@ export {
   convertScreenKeyToUrl,
   syncResourceUrlWithSameId,
   syncScreenFromDevToProd,
+  deleteProdNativeScreensByComponentPaths,
   // helpers for prod publish
-  isLowcoderScreen,
   deleteScreenInScreenManagement,
   updateScreenConfigInScreenManagementDetailed
 }
