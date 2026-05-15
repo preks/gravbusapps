@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
-import { ArrowUpIcon, PlusIcon, PlugsIcon, SpinnerGapIcon, StopIcon, XIcon } from '@phosphor-icons/react'
+import { ArrowUpIcon, PlugsIcon, SpinnerGapIcon, StopIcon, XIcon } from '@phosphor-icons/react'
 import type {
+  ModelOption,
   PendingComposerAttachment,
+  ReasoningEffort,
   SessionAttachment,
   SessionConfig,
   SpecialistAgent
 } from '../../types/enterpriseAgent'
 import type { ExternalConnection } from '../../hooks/useFabricConnectors'
-import { ActiveConnectorChips } from '../connectors/ActiveConnectorChips'
 import { AttachmentChipList } from '../chat/AttachmentChipList'
+import { ModelSelector } from './ModelSelector'
+import { ComposerActionMenu } from './ComposerActionMenu'
 import { SETTINGS_KEY } from '../settings/agentSettings.types'
 
 export interface FabricInputProps {
@@ -28,10 +31,11 @@ export interface FabricInputProps {
   selectedAgent?: SpecialistAgent
   onClearAgent?: () => void
   autoFocus?: boolean
-  /** Connectors integration */
-  onConnectorsClick?: () => void
-  activeConnectors?: ExternalConnection[]
-  onRemoveConnector?: (connectionId: string) => void
+  /** Connectors integration — drives the plus-menu connector submenu and the condensed summary */
+  availableConnectors?: ExternalConnection[]
+  activeConnectorIds?: Set<string>
+  onToggleConnector?: (connectionId: string) => void
+  isLoadingConnectors?: boolean
   /**
    * Session attachments (RAG over uploaded files).
    *
@@ -47,6 +51,12 @@ export interface FabricInputProps {
   onRemovePendingAttachment?: (clientId: string) => void
   attachments?: SessionAttachment[]
   pendingAttachments?: PendingComposerAttachment[]
+  /** Model selector — pass the loaded options and handler from the provider */
+  modelSelectorModels?: ModelOption[]
+  selectedModelId?: string
+  selectedEffort?: ReasoningEffort
+  onModelChange?: (modelId: string, effort: ReasoningEffort) => void
+  isLoadingModels?: boolean
 }
 
 const ACCEPTED_UPLOAD_TYPES =
@@ -61,21 +71,31 @@ const DEFAULT_CONFIG: SessionConfig = {
   enable_reflection: undefined
 }
 
-function buildSessionConfig(selectedAgent?: SpecialistAgent): SessionConfig {
+function buildSessionConfig(
+  selectedAgent?: SpecialistAgent,
+  modelId?: string,
+  reasoningEffort?: ReasoningEffort
+): SessionConfig {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
-    if (!raw) return { ...DEFAULT_CONFIG, selectedAgent }
-    const parsed = JSON.parse(raw)
+    const parsed = raw ? JSON.parse(raw) : {}
     return {
-      ...DEFAULT_CONFIG,
+      mode: 'deep',
       enable_memory: parsed.enableMemory ?? DEFAULT_CONFIG.enable_memory,
       enable_reflection:
         parsed.enableReflection === 'always' ? true : parsed.enableReflection === 'disabled' ? false : undefined,
       ...(parsed.maxIterations ? { max_iterations: parsed.maxIterations } : {}),
-      selectedAgent
+      selectedAgent,
+      ...(modelId ? { model: modelId } : {}),
+      ...(reasoningEffort && reasoningEffort !== 'none' ? { reasoning_effort: reasoningEffort } : {})
     }
   } catch {
-    return { ...DEFAULT_CONFIG, selectedAgent }
+    return {
+      ...DEFAULT_CONFIG,
+      selectedAgent,
+      ...(modelId ? { model: modelId } : {}),
+      ...(reasoningEffort && reasoningEffort !== 'none' ? { reasoning_effort: reasoningEffort } : {})
+    }
   }
 }
 
@@ -107,6 +127,26 @@ const getAttachmentBusyHint = (hasUploadingAttachments: boolean, hasIndexingAtta
   return null
 }
 
+function deriveAttachmentState(
+  isLanding: boolean,
+  pendingAttachments: PendingComposerAttachment[],
+  attachments: SessionAttachment[]
+) {
+  const hasUploadingAttachments = isLanding
+    ? pendingAttachments.some(entry => entry.state === 'uploading')
+    : pendingAttachments.some(entry => entry.state === 'uploading' || entry.state === 'pending')
+  const hasIndexingAttachments = attachments.some(att => att.indexing_status === 'pending')
+  const isAttachmentBusy = hasUploadingAttachments || hasIndexingAttachments
+
+  return {
+    hasUploadingAttachments,
+    hasIndexingAttachments,
+    isAttachmentBusy,
+    attachmentHintText:
+      getAttachmentBusyHint(hasUploadingAttachments, hasIndexingAttachments) ?? 'Enter to send, Shift+Enter for newline'
+  }
+}
+
 const runPromiseSilently = (promise: Promise<unknown>) => {
   promise.catch(() => undefined)
 }
@@ -120,15 +160,16 @@ interface BaseInputLayoutProps {
   resolvedPlaceholder: string
   isSubmitting: boolean
   handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void
-  handleAddClick: () => void
-  uploadEnabled: boolean
-  onConnectorsClick?: () => void
-  activeConnectors: ExternalConnection[]
-  onRemoveConnector?: (connectionId: string) => void
   attachmentChips: React.ReactNode
   attachmentHintText: string
   sendDisabled: boolean
   onSendClick: () => void
+  /** Pre-built composer action menu (plus button + upload/connectors). */
+  composerActionMenuNode: React.ReactNode
+  /** Condensed connector summary shown when connectors are active. */
+  connectorSummaryNode?: React.ReactNode
+  /** Rendered model selector node — caller owns its state. */
+  modelSelectorNode?: React.ReactNode
 }
 
 interface LandingInputLayoutProps extends BaseInputLayoutProps {
@@ -171,19 +212,17 @@ const LandingFabricInput = ({
   isSubmitting,
   autoFocus,
   handleFileChange,
-  handleAddClick,
-  uploadEnabled,
-  onConnectorsClick,
-  activeConnectors,
-  onRemoveConnector,
   attachmentChips,
   attachmentHintText,
   sendDisabled,
-  onSendClick
+  onSendClick,
+  composerActionMenuNode,
+  connectorSummaryNode,
+  modelSelectorNode
 }: LandingInputLayoutProps) => (
   <div className="gba:w-full" data-testid="fabric-input-landing">
     <HiddenFileInput fileInputRef={fileInputRef} handleFileChange={handleFileChange} />
-    <div className="gba:rounded-4xl gba:border gba:border-foreground/15 gba:bg-card/98 gba:overflow-hidden gba:shadow-[0_12px_32px_rgba(15,23,42,0.05)] gba:transition-shadow gba:focus-within:border-foreground/20 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
+    <div className="gba:rounded-4xl gba:border gba:border-foreground/15 gba:bg-white gba:overflow-hidden gba:shadow-[0_12px_32px_rgba(15,23,42,0.05)] gba:transition-shadow gba:focus-within:border-foreground/20 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
       <Textarea
         ref={textareaRef}
         value={value}
@@ -193,38 +232,18 @@ const LandingFabricInput = ({
         disabled={isSubmitting}
         rows={3}
         autoFocus={autoFocus}
-        className="gba:min-h-[118px] gba:resize-none gba:border-0 gba:focus-visible:ring-0 gba:rounded-none gba:bg-transparent gba:px-5 gba:pt-5 gba:pb-2 gba:pr-36 gba:text-[1.05rem] gba:leading-8 gba:placeholder:text-muted-foreground/62"
+        className="gba:min-h-[102px] gba:resize-none gba:border-0 gba:focus-visible:ring-0 gba:rounded-none gba:bg-white gba:px-5 gba:pt-4 gba:pb-1.5 gba:pr-36 gba:text-[1.05rem] gba:leading-8 gba:placeholder:text-muted-foreground/62"
         data-testid="fabric-input-textarea"
       />
 
-      {activeConnectors.length > 0 && onRemoveConnector && (
-        <ActiveConnectorChips connectors={activeConnectors} onRemove={onRemoveConnector} />
-      )}
-
       <AttachmentChipSection>{attachmentChips}</AttachmentChipSection>
 
-      <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3">
-        <button
-          type="button"
-          onClick={handleAddClick}
-          className="gba:flex gba:items-center gba:justify-center gba:h-9 gba:w-9 gba:rounded-full gba:shrink-0 gba:border gba:border-foreground/15 gba:bg-background gba:text-foreground/70 gba:hover:text-foreground gba:hover:bg-muted/40 gba:transition-colors"
-          title={uploadEnabled ? 'Attach file (PDF, DOCX, TXT, PNG, JPG, ...)' : 'Add'}
-          data-testid="fabric-input-add"
-        >
-          <PlusIcon className="gba:h-4 gba:w-4" weight="bold" />
-        </button>
+      <div className="gba:flex gba:items-center gba:gap-2 gba:bg-white gba:px-3 gba:py-2.5">
+        {composerActionMenuNode}
 
-        {onConnectorsClick && (
-          <button
-            type="button"
-            onClick={onConnectorsClick}
-            className="gba:flex gba:items-center gba:justify-center gba:h-9 gba:w-9 gba:rounded-full gba:shrink-0 gba:border gba:border-foreground/15 gba:bg-background gba:text-foreground/70 gba:hover:text-foreground gba:hover:bg-muted/40 gba:transition-colors"
-            title="Connectors"
-            data-testid="fabric-input-connectors"
-          >
-            <PlugsIcon className="gba:h-4 gba:w-4" weight="bold" />
-          </button>
-        )}
+        {connectorSummaryNode}
+
+        {modelSelectorNode}
 
         <span
           className="gba:ml-auto gba:text-[11px] gba:text-muted-foreground/50 gba:text-right gba:max-w-[min(100%,12rem)] gba:leading-snug"
@@ -260,11 +279,6 @@ const WorkspaceFabricInput = ({
   resolvedPlaceholder,
   isSubmitting,
   handleFileChange,
-  handleAddClick,
-  uploadEnabled,
-  onConnectorsClick,
-  activeConnectors,
-  onRemoveConnector,
   selectedAgent,
   onClearAgent,
   attachmentChips,
@@ -273,11 +287,14 @@ const WorkspaceFabricInput = ({
   onSendClick,
   isRunning,
   isReplyMode,
-  onStop
+  onStop,
+  composerActionMenuNode,
+  connectorSummaryNode,
+  modelSelectorNode
 }: WorkspaceInputLayoutProps) => (
   <div className="gba:w-full" data-testid="fabric-input-workspace">
     <HiddenFileInput fileInputRef={fileInputRef} handleFileChange={handleFileChange} />
-    <div className="gba:rounded-[1.75rem] gba:border gba:border-foreground/15 gba:bg-card/95 gba:backdrop-blur-md gba:overflow-hidden gba:shadow-[0_6px_18px_rgba(15,23,42,0.035)] gba:transition-all gba:focus-within:border-foreground/20 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
+    <div className="gba:rounded-[1.75rem] gba:border gba:border-foreground/15 gba:bg-white gba:overflow-hidden gba:shadow-[0_6px_18px_rgba(15,23,42,0.035)] gba:transition-all gba:focus-within:border-foreground/20 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
       <Textarea
         ref={textareaRef}
         value={value}
@@ -286,38 +303,16 @@ const WorkspaceFabricInput = ({
         placeholder={resolvedPlaceholder}
         disabled={isSubmitting || (isRunning && !isReplyMode)}
         rows={2}
-        className="gba:min-h-[88px] gba:resize-none gba:border-0 gba:focus-visible:ring-0 gba:rounded-none gba:bg-transparent gba:px-5 gba:pt-4 gba:pb-2 gba:text-[15px] gba:leading-7 gba:placeholder:text-muted-foreground/62"
+        className="gba:min-h-[88px] gba:resize-none gba:border-0 gba:focus-visible:ring-0 gba:rounded-none gba:bg-white gba:px-5 gba:pt-4 gba:pb-2 gba:text-[15px] gba:leading-7 gba:placeholder:text-muted-foreground/62"
         data-testid="fabric-input-textarea"
       />
 
-      {activeConnectors.length > 0 && onRemoveConnector && (
-        <ActiveConnectorChips connectors={activeConnectors} onRemove={onRemoveConnector} />
-      )}
-
       <AttachmentChipSection>{attachmentChips}</AttachmentChipSection>
 
-      <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2.5">
-        <button
-          type="button"
-          onClick={handleAddClick}
-          className="gba:flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-full gba:shrink-0 gba:border gba:border-foreground/15 gba:bg-background gba:text-foreground/70 gba:hover:text-foreground gba:hover:bg-muted/40 gba:transition-colors"
-          title={uploadEnabled ? 'Attach file (PDF, DOCX, TXT, PNG, JPG, ...)' : 'Add'}
-          data-testid="fabric-input-add"
-        >
-          <PlusIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
-        </button>
+      <div className="gba:flex gba:items-center gba:gap-2 gba:bg-white gba:px-3 gba:py-2.5">
+        {composerActionMenuNode}
 
-        {onConnectorsClick && (
-          <button
-            type="button"
-            onClick={onConnectorsClick}
-            className="gba:flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-full gba:shrink-0 gba:border gba:border-foreground/15 gba:bg-background gba:text-foreground/70 gba:hover:text-foreground gba:hover:bg-muted/40 gba:transition-colors"
-            title="Connectors"
-            data-testid="fabric-input-connectors"
-          >
-            <PlugsIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
-          </button>
-        )}
+        {connectorSummaryNode}
 
         {selectedAgent && (
           <button
@@ -330,6 +325,8 @@ const WorkspaceFabricInput = ({
             <XIcon className="gba:h-3 gba:w-3" />
           </button>
         )}
+
+        {modelSelectorNode}
 
         <span
           className="gba:ml-auto gba:text-[11px] gba:font-medium gba:tracking-[0.02em] gba:text-muted-foreground/55 gba:text-right gba:max-w-[min(100%,11rem)] gba:leading-snug"
@@ -377,20 +374,25 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   selectedAgent,
   onClearAgent,
   autoFocus = false,
-  onConnectorsClick,
-  activeConnectors = [],
-  onRemoveConnector,
+  availableConnectors = [],
+  activeConnectorIds = new Set(),
+  onToggleConnector,
+  isLoadingConnectors = false,
   onUploadAttachment,
   onRemoveAttachment,
   onRemovePendingAttachment,
   attachments = [],
-  pendingAttachments = []
+  pendingAttachments = [],
+  modelSelectorModels = [],
+  selectedModelId,
+  selectedEffort = 'none',
+  onModelChange,
+  isLoadingModels = false
 }) => {
   const [value, setValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const uploadEnabled = !!onUploadAttachment
 
   // Sync external prefill (chip selection) into the textarea
   useEffect(() => {
@@ -417,17 +419,22 @@ export const FabricInput: React.FC<FabricInputProps> = ({
 
     setIsSubmitting(true)
     try {
-      if (isReplyMode && onReply) {
-        await Promise.resolve(onReply(trimmed))
-      } else {
-        const task = buildTaskText(trimmed, selectedAgent)
-        await Promise.resolve(onSubmit(task, buildSessionConfig(selectedAgent)))
-      }
+      const submitPromise =
+        isReplyMode && onReply
+          ? Promise.resolve(onReply(trimmed))
+          : Promise.resolve(
+              onSubmit(
+                buildTaskText(trimmed, selectedAgent),
+                buildSessionConfig(selectedAgent, selectedModelId, selectedEffort)
+              )
+            )
+
+      await submitPromise
       setValue('')
     } finally {
       setIsSubmitting(false)
     }
-  }, [value, isDisabled, isSubmitting, isReplyMode, onReply, onSubmit, selectedAgent])
+  }, [value, isDisabled, isSubmitting, isReplyMode, onReply, onSubmit, selectedAgent, selectedModelId, selectedEffort])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -438,9 +445,8 @@ export const FabricInput: React.FC<FabricInputProps> = ({
     [handleSubmit]
   )
 
-  const handleAddClick = useCallback(() => {
+  const handleTriggerFileUpload = useCallback(() => {
     if (fileInputRef.current) {
-      // Clear the current value so picking the same file twice still triggers change.
       fileInputRef.current.value = ''
       fileInputRef.current.click()
     }
@@ -494,15 +500,8 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   // BEFORE any session exists. These should NOT block sending — they're
   // waiting for the user to send the first message to create a session,
   // which triggers the flush. Only block for actively uploading files.
-  const hasUploadingAttachments = isLanding
-    ? pendingAttachments.some(entry => entry.state === 'uploading')
-    : pendingAttachments.some(entry => entry.state === 'uploading' || entry.state === 'pending')
-  const hasIndexingAttachments = attachments.some(att => att.indexing_status === 'pending')
-  const isAttachmentBusy = hasUploadingAttachments || hasIndexingAttachments
+  const { isAttachmentBusy, attachmentHintText } = deriveAttachmentState(isLanding, pendingAttachments, attachments)
   const canSend = !!value.trim() && !isDisabled && !isSubmitting && !(isRunning && !isReplyMode) && !isAttachmentBusy
-
-  const attachmentBusyHint = getAttachmentBusyHint(hasUploadingAttachments, hasIndexingAttachments)
-  const attachmentHintText = attachmentBusyHint ?? 'Enter to send, Shift+Enter for newline'
   const landingHintText = isSubmitting ? 'Starting session...' : attachmentHintText
   const attachmentChips =
     attachments.length > 0 || pendingAttachments.length > 0 ? (
@@ -517,6 +516,45 @@ export const FabricInput: React.FC<FabricInputProps> = ({
     ) : null
   const handleSendClick = () => runPromiseSilently(handleSubmit())
 
+  const modelSelectorNode =
+    modelSelectorModels.length > 0 ? (
+      <ModelSelector
+        models={modelSelectorModels}
+        selectedModelId={selectedModelId ?? ''}
+        selectedEffort={selectedEffort}
+        isLoading={isLoadingModels}
+        variant={variant}
+        onChange={onModelChange ?? (() => undefined)}
+        disabled={isDisabled}
+      />
+    ) : null
+
+  const composerActionMenuNode = (
+    <ComposerActionMenu
+      onTriggerFileUpload={handleTriggerFileUpload}
+      availableConnectors={availableConnectors}
+      activeConnectorIds={activeConnectorIds}
+      onToggleConnector={onToggleConnector ?? (() => undefined)}
+      isLoadingConnectors={isLoadingConnectors}
+      variant={variant}
+    />
+  )
+
+  const activeConnectors = availableConnectors.filter(c => activeConnectorIds.has(c.connection_id))
+
+  const connectorSummaryNode =
+    activeConnectors.length > 0 ? (
+      <span
+        className="gba:flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground/60 gba:shrink-0 gba:select-none"
+        data-testid="fabric-input-connector-summary"
+      >
+        <PlugsIcon className="gba:h-3 gba:w-3" weight="bold" />
+        <span>
+          {activeConnectors.length === 1 ? activeConnectors[0].name : `${activeConnectors.length} connectors`}
+        </span>
+      </span>
+    ) : null
+
   if (isLanding) {
     return (
       <LandingFabricInput
@@ -529,15 +567,13 @@ export const FabricInput: React.FC<FabricInputProps> = ({
         isSubmitting={isSubmitting}
         autoFocus={autoFocus}
         handleFileChange={handleFileChange}
-        handleAddClick={handleAddClick}
-        uploadEnabled={uploadEnabled}
-        onConnectorsClick={onConnectorsClick}
-        activeConnectors={activeConnectors}
-        onRemoveConnector={onRemoveConnector}
         attachmentChips={attachmentChips}
         attachmentHintText={landingHintText}
         sendDisabled={!canSend}
         onSendClick={handleSendClick}
+        composerActionMenuNode={composerActionMenuNode}
+        connectorSummaryNode={connectorSummaryNode}
+        modelSelectorNode={modelSelectorNode}
       />
     )
   }
@@ -552,11 +588,6 @@ export const FabricInput: React.FC<FabricInputProps> = ({
       resolvedPlaceholder={resolvedPlaceholder}
       isSubmitting={isSubmitting}
       handleFileChange={handleFileChange}
-      handleAddClick={handleAddClick}
-      uploadEnabled={uploadEnabled}
-      onConnectorsClick={onConnectorsClick}
-      activeConnectors={activeConnectors}
-      onRemoveConnector={onRemoveConnector}
       selectedAgent={selectedAgent}
       onClearAgent={onClearAgent}
       attachmentChips={attachmentChips}
@@ -566,6 +597,9 @@ export const FabricInput: React.FC<FabricInputProps> = ({
       isRunning={isRunning}
       isReplyMode={isReplyMode}
       onStop={onStop}
+      composerActionMenuNode={composerActionMenuNode}
+      connectorSummaryNode={connectorSummaryNode}
+      modelSelectorNode={modelSelectorNode}
     />
   )
 }

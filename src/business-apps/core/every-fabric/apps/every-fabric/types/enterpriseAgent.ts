@@ -479,11 +479,32 @@ export interface WorkspaceDocument {
 export interface SessionConfig {
   mode: 'deep' | 'autonomous'
   model?: string
+  reasoning_effort?: 'none' | 'low' | 'medium' | 'high'
   enable_memory: boolean
   enable_reflection: boolean | undefined
   max_iterations?: number
   selectedAgent?: SpecialistAgent
   selectedEnterpriseSkill?: EnterpriseSkill
+}
+
+// ── Model selector types ──────────────────────────────────────────────────────
+
+export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high'
+
+export interface ModelOption {
+  id: string
+  label: string
+  provider: string
+  context_window: number
+  supports_reasoning_effort: boolean
+  allowed_reasoning_efforts: ReasoningEffort[]
+  is_default: boolean
+}
+
+export interface ModelOptionsResponse {
+  default_model: string
+  default_reasoning_effort: ReasoningEffort
+  models: ModelOption[]
 }
 
 export interface EnterpriseSkill {

@@ -8,6 +8,7 @@ import type {
   DeepAgentSession,
   MessageAttachmentRef,
   PendingComposerAttachment,
+  ReasoningEffort,
   SessionAttachment,
   SessionConfig,
   WorkspaceDocument
@@ -21,6 +22,8 @@ import { useFabricArtifacts } from '../hooks/useFabricArtifacts'
 import { useFabricDecisions, type DecisionItem } from '../hooks/useFabricDecisions'
 import { useFabricPlan } from '../hooks/useFabricPlan'
 import { useFabricSkills, type ActiveFabricSkill } from '../hooks/useFabricSkills'
+import { useEnterpriseAgentClient } from '../hooks/useEnterpriseAgentClient'
+import { useModelOptions } from '../hooks/useModelOptions'
 import { useSessionUrlState } from '../hooks/useSessionUrlState'
 import { deriveActivityFromEvents } from '../utils/messageUtils'
 
@@ -88,6 +91,15 @@ interface FabricContextValue {
   artifactPreviews: ArtifactPreview[]
   latestPreview: ArtifactPreview | null
   hasActivePreview: boolean
+
+  // Model selector
+  modelOptions: import('../types/enterpriseAgent').ModelOption[]
+  defaultModelId: string
+  defaultReasoningEffort: import('../types/enterpriseAgent').ReasoningEffort
+  selectedModelId: string
+  selectedReasoningEffort: import('../types/enterpriseAgent').ReasoningEffort
+  isLoadingModels: boolean
+  setModelSelection: (modelId: string, effort: import('../types/enterpriseAgent').ReasoningEffort) => void
 
   // Actions
   startSession: (
@@ -243,6 +255,46 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   )
   const pendingInternalSessionIdRef = useRef<string | null | undefined>(undefined)
   const [sessionConnectorIds, setSessionConnectorIds] = useState<string[]>([])
+
+  // Model selection state — loaded once per app session from the backend catalog.
+  const {
+    models: modelOptions,
+    defaultModelId,
+    defaultReasoningEffort,
+    isLoading: isLoadingModels
+  } = useModelOptions(accessToken)
+
+  const [selectedModelId, setSelectedModelId] = useState<string>('')
+  const [selectedReasoningEffort, setSelectedReasoningEffort] = useState<ReasoningEffort>('none')
+
+  // Once defaults are loaded, hydrate from defaults (only runs once).
+  const defaultsHydratedRef = useRef(false)
+  useEffect(() => {
+    if (!isLoadingModels && modelOptions.length > 0 && !defaultsHydratedRef.current) {
+      defaultsHydratedRef.current = true
+      if (!selectedModelId) {
+        setSelectedModelId(defaultModelId)
+        setSelectedReasoningEffort(defaultReasoningEffort)
+      }
+    }
+  }, [isLoadingModels, modelOptions, defaultModelId, defaultReasoningEffort, selectedModelId])
+
+  const enterpriseClient = useEnterpriseAgentClient(accessToken)
+
+  const setModelSelection = useCallback(
+    (modelId: string, effort: ReasoningEffort) => {
+      setSelectedModelId(modelId)
+      setSelectedReasoningEffort(effort)
+      // If there is an active session, persist the new selection immediately so
+      // the backend uses the updated model on the next turn.
+      if (activeSessionId) {
+        enterpriseClient.updateSessionConfig(activeSessionId, modelId, effort).catch((err: unknown) => {
+          console.warn('[FabricContext] Failed to persist session model config:', err)
+        })
+      }
+    },
+    [activeSessionId, enterpriseClient]
+  )
 
   // Keep activeSessionId aligned with browser history changes.
   useEffect(() => {
@@ -524,6 +576,13 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       artifactPreviews,
       latestPreview,
       hasActivePreview,
+      modelOptions,
+      defaultModelId,
+      defaultReasoningEffort,
+      selectedModelId: selectedModelId || defaultModelId,
+      selectedReasoningEffort,
+      isLoadingModels,
+      setModelSelection,
       startSession,
       selectSession,
       newSession,
@@ -586,7 +645,14 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       sessionAttachments,
       pendingSessionAttachments,
       uploadSessionAttachment,
-      removeSessionAttachment
+      removeSessionAttachment,
+      modelOptions,
+      defaultModelId,
+      defaultReasoningEffort,
+      selectedModelId,
+      selectedReasoningEffort,
+      isLoadingModels,
+      setModelSelection
     ]
   )
 

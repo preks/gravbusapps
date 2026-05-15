@@ -122,7 +122,9 @@ describe('WorkspaceLayout right panel', () => {
     mockUseFabricConnectors.mockReturnValue({
       availableConnectors: [],
       activeConnectors: [],
+      activeConnectionIds: new Set(),
       toggleConnector: jest.fn(),
+      hydrateActiveIds: jest.fn(),
       isLoading: false
     })
   })

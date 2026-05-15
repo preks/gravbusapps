@@ -5,7 +5,6 @@ import { useFabric } from '../../context/FabricContext'
 import { resolveUserFirstName } from '../../utils/userUtils'
 import { SETTINGS_KEY } from '../settings/agentSettings.types'
 import { FabricInput } from './FabricInput'
-import { ConnectorPickerSheet } from '../connectors/ConnectorPickerSheet'
 
 interface LandingScreenProps {
   accessToken: string
@@ -40,15 +39,24 @@ const GlowStyle: React.FC = () => (
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onStartSession }) => {
-  const { userInfo, sessionAttachments, pendingSessionAttachments, uploadSessionAttachment, removeSessionAttachment } =
-    useFabric()
+  const {
+    userInfo,
+    sessionAttachments,
+    pendingSessionAttachments,
+    uploadSessionAttachment,
+    removeSessionAttachment,
+    modelOptions,
+    selectedModelId,
+    selectedReasoningEffort,
+    isLoadingModels,
+    setModelSelection
+  } = useFabric()
   const {
     availableConnectors,
     activeConnectors,
     toggleConnector,
     isLoading: isLoadingConnectors
   } = useFabricConnectors(accessToken)
-  const [isConnectorSheetOpen, setIsConnectorSheetOpen] = useState(false)
   const [fallbackSkillId, setFallbackSkillId] = useState<string | undefined>(undefined)
 
   const userFirstName = resolveUserFirstName(userInfo)
@@ -97,13 +105,19 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
                 }}
                 selectedAgent={undefined}
                 onClearAgent={() => {}}
-                onConnectorsClick={() => setIsConnectorSheetOpen(true)}
-                activeConnectors={activeConnectors}
-                onRemoveConnector={toggleConnector}
+                availableConnectors={availableConnectors}
+                activeConnectorIds={new Set(activeConnectors.map(c => c.connection_id))}
+                onToggleConnector={toggleConnector}
+                isLoadingConnectors={isLoadingConnectors}
                 onUploadAttachment={uploadSessionAttachment}
                 onRemoveAttachment={removeSessionAttachment}
                 attachments={sessionAttachments}
                 pendingAttachments={pendingSessionAttachments}
+                modelSelectorModels={modelOptions}
+                selectedModelId={selectedModelId}
+                selectedEffort={selectedReasoningEffort}
+                onModelChange={setModelSelection}
+                isLoadingModels={isLoadingModels}
                 autoFocus
               />
             </div>
@@ -112,15 +126,6 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
           </div>
         </div>
       </div>
-
-      <ConnectorPickerSheet
-        isOpen={isConnectorSheetOpen}
-        onClose={() => setIsConnectorSheetOpen(false)}
-        connectors={availableConnectors}
-        activeConnectorIds={new Set(activeConnectors.map(c => c.connection_id))}
-        onToggle={toggleConnector}
-        isLoading={isLoadingConnectors}
-      />
     </div>
   )
 }

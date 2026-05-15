@@ -3,7 +3,14 @@ import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { ResponseType } from '@/common/network/rest/RestClient'
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
-import type { DeepAgentSession, SessionAttachment, SessionConfig, StartSessionResponse } from '../types/enterpriseAgent'
+import type {
+  DeepAgentSession,
+  ModelOptionsResponse,
+  ReasoningEffort,
+  SessionAttachment,
+  SessionConfig,
+  StartSessionResponse
+} from '../types/enterpriseAgent'
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
 import type { ActiveSessionsListResponse, ActiveSessionsSummaryResponse } from '../types/activeSession'
@@ -488,6 +495,26 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  /**
+   * Fetch the server's curated list of user-selectable primary models.
+   * This is a read-only, unauthenticated-friendly endpoint — load once
+   * per app mount via a shared React hook that caches the result.
+   */
+  const getModelOptions = useCallback(() => client.get<ModelOptionsResponse>('/agent-sessions/model-options'), [client])
+
+  /**
+   * Persist a new model + reasoning-effort choice on an existing session.
+   * Applies to future turns only; does not interrupt any in-flight turn.
+   */
+  const updateSessionConfig = useCallback(
+    (sessionId: string, modelId: string, reasoningEffort: ReasoningEffort) =>
+      client.patch<{ session_id: string; model: string; reasoning_effort: string; effective_from: string }>(
+        `/agent-sessions/sessions/${enc(sessionId)}/config`,
+        { modelId, reasoningEffort }
+      ),
+    [client]
+  )
+
   return useMemo(
     () => ({
       startSession,
@@ -527,7 +554,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       disableSkill,
       uploadSessionAttachment,
       listSessionAttachments,
-      deleteSessionAttachment
+      deleteSessionAttachment,
+      getModelOptions,
+      updateSessionConfig
     }),
     [
       startSession,
@@ -567,7 +596,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       disableSkill,
       uploadSessionAttachment,
       listSessionAttachments,
-      deleteSessionAttachment
+      deleteSessionAttachment,
+      getModelOptions,
+      updateSessionConfig
     ]
   )
 }
