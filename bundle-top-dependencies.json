@@ -50623,20 +50623,20 @@
     ]
   },
   "hr/core/forms/create-new-absence": {
-    "bitbucketBuildNumber": 12133,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12133/",
-    "chunkJsBytes": 237285,
+    "bitbucketBuildNumber": 12157,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12157/",
+    "chunkJsBytes": 237362,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 165232,
-        "gzip": 39575,
+        "rendered": 165520,
+        "gzip": 39681,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/create-new-absence/CreateNewAbsence.tsx",
-            "rendered": 27077,
-            "gzip": 5359
+            "rendered": 27365,
+            "gzip": 5465
           },
           {
             "name": "src/business-apps/hr/core/forms/_i18n/ro-RO.ftl?raw",
@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12145,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
-    "chunkJsBytes": 1890702,
+    "bitbucketBuildNumber": 12157,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12157/",
+    "chunkJsBytes": 1890887,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1592260,
-        "gzip": 98853,
+        "rendered": 1592456,
+        "gzip": 98961,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1592260,
-            "gzip": 98853
+            "rendered": 1592456,
+            "gzip": 98961
           }
         ]
       },
@@ -107913,7 +107913,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-15T07:35:31.587Z",
+    "generatedAt": "2026-05-15T10:42:08.155Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
