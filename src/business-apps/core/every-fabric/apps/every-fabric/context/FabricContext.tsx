@@ -218,6 +218,61 @@ function snapshotAttachmentsForMessage(
   return dedupedRefs
 }
 
+type PreviewAttachmentRef = Pick<MessageAttachmentRef, 'id' | 'name' | 'mime_type' | 'size' | 'preview_url'>
+
+function attachmentSignature(att: Pick<MessageAttachmentRef, 'name' | 'mime_type' | 'size'>): string {
+  return `${att.name}\u0000${att.size}\u0000${att.mime_type}`
+}
+
+function buildPreviewLookup(refs: PreviewAttachmentRef[]) {
+  const byId = new Map<string, string>()
+  const bySignature = new Map<string, string>()
+  const duplicateSignatures = new Set<string>()
+
+  for (const ref of refs) {
+    if (!ref.preview_url) continue
+    byId.set(ref.id, ref.preview_url)
+
+    const signature = attachmentSignature(ref)
+    if (bySignature.has(signature)) {
+      duplicateSignatures.add(signature)
+      bySignature.delete(signature)
+      continue
+    }
+    if (!duplicateSignatures.has(signature)) {
+      bySignature.set(signature, ref.preview_url)
+    }
+  }
+
+  return { byId, bySignature }
+}
+
+function resolvePreviewUrl(
+  att: Pick<MessageAttachmentRef, 'id' | 'name' | 'mime_type' | 'size'>,
+  lookup: ReturnType<typeof buildPreviewLookup>
+): string | undefined {
+  return lookup.byId.get(att.id) ?? lookup.bySignature.get(attachmentSignature(att))
+}
+
+function mergePreviewUrlsIntoAttachments(
+  serverAttachments: Array<SessionAttachment | MessageAttachmentRef> | undefined,
+  bootstrapAttachments: Array<SessionAttachment | MessageAttachmentRef> | undefined
+): Array<SessionAttachment | MessageAttachmentRef> | undefined {
+  if (!serverAttachments || serverAttachments.length === 0) return bootstrapAttachments
+
+  const refsWithPreview = (bootstrapAttachments ?? []).filter(
+    (att): att is PreviewAttachmentRef => !!(att as { preview_url?: string }).preview_url
+  )
+  if (refsWithPreview.length === 0) return serverAttachments
+
+  const lookup = buildPreviewLookup(refsWithPreview)
+  return serverAttachments.map(att => {
+    if ((att as { preview_url?: string }).preview_url) return att
+    const previewUrl = resolvePreviewUrl(att, lookup)
+    return previewUrl ? { ...att, preview_url: previewUrl } : att
+  })
+}
+
 function createFallbackBootstrapSession(
   sessionId: string,
   task: string,
@@ -457,16 +512,15 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       await flushPendingToSession(sessionId)
       const activatedResponse = await _activateSession(sessionId)
       if (activatedResponse.session) {
-        // Preserve the attachment snapshot from the initial bootstrap in case the
-        // activation response's session_attachments is empty (race: files uploaded
-        // just before activation may not have landed in Mongo yet when the endpoint
-        // serialises the session).
         const activatedSession: DeepAgentSession = {
           ...activatedResponse.session,
-          session_attachments:
-            activatedResponse.session.session_attachments && activatedResponse.session.session_attachments.length > 0
-              ? activatedResponse.session.session_attachments
-              : bootstrap.session_attachments
+          // Preserve the client-only image blob previews across the pending
+          // client-id -> persisted attachment-id handoff. We match by exact id
+          // first, then by unique name/size/mime only; no fuzzy matching.
+          session_attachments: mergePreviewUrlsIntoAttachments(
+            activatedResponse.session.session_attachments,
+            bootstrap.session_attachments
+          )
         }
         setBootstrapSession(activatedSession)
         writeBootstrapSessionToHistoryState(activatedSession)
@@ -529,6 +583,56 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     [_reply, sessionAttachments, pendingSessionAttachments]
   )
 
+  // Build a deterministic lookup of client-only image blob URLs from both
+  // confirmed and still-pending attachments. Pending refs are important for the
+  // first landing turn, where the message bubble can render before upload has
+  // completed and ids have transitioned to server UUIDs.
+  const attachmentPreviewLookup = useMemo(() => {
+    const refs: PreviewAttachmentRef[] = []
+    for (const att of sessionAttachments) {
+      if (att.preview_url) refs.push(att)
+    }
+    for (const pending of pendingSessionAttachments) {
+      const previewUrl = pending.preview_url ?? pending.attachment?.preview_url
+      if (!previewUrl) continue
+      if (pending.attachment) {
+        refs.push({ ...pending.attachment, preview_url: previewUrl })
+      }
+      refs.push({
+        id: pending.client_id,
+        name: pending.name,
+        mime_type: pending.mime_type,
+        size: pending.size,
+        preview_url: previewUrl
+      })
+    }
+    return buildPreviewLookup(refs)
+  }, [sessionAttachments, pendingSessionAttachments])
+
+  // Re-hydrate preview_url on every ChatMessage whose attachment refs are
+  // missing it. This covers:
+  //   • First message: the activated session replaces the bootstrap and the
+  //     server-returned session_attachments have no blob URLs.
+  //   • Follow-up messages: the trace's attachment_refs never carry blob URLs.
+  //   • Any fetchSession() refresh that overwrites the in-memory preview_url.
+  // Runs in O(messages × attachments) but both counts are tiny; useMemo keeps
+  // it from re-running unless messages or the attachment preview lookup changes.
+  const enrichedMessages = useMemo(() => {
+    if (attachmentPreviewLookup.byId.size === 0 && attachmentPreviewLookup.bySignature.size === 0) return messages
+    return messages.map(msg => {
+      if (!msg.attachments?.length) return msg
+      let changed = false
+      const enrichedAtts = msg.attachments.map(att => {
+        if (att.preview_url) return att
+        const url = resolvePreviewUrl(att, attachmentPreviewLookup)
+        if (!url) return att
+        changed = true
+        return { ...att, preview_url: url }
+      })
+      return changed ? { ...msg, attachments: enrichedAtts } : msg
+    })
+  }, [messages, attachmentPreviewLookup])
+
   const stopSession = useCallback(async () => {
     if (!activeSessionId) return
     await removeSession(activeSessionId)
@@ -546,7 +650,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       sessions: sessions as FabricSessionSummary[],
       activeSessionId,
       session,
-      messages,
+      messages: enrichedMessages,
       events,
       streamingGreeting,
       streamingContent,
@@ -603,7 +707,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       sessions,
       activeSessionId,
       session,
-      messages,
+      enrichedMessages,
       events,
       streamingGreeting,
       streamingContent,

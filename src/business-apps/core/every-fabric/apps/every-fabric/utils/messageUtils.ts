@@ -115,12 +115,17 @@ const toArtifactRefsFromMeta = (
 
 const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
   if (chunk.role === 'human') {
+    // Rehydrate attachment refs stored in the chunk metadata (set by reply endpoint).
+    const storedRefs = chunk.metadata?.attachment_refs
+    const attachments =
+      Array.isArray(storedRefs) && storedRefs.length > 0 ? (storedRefs as MessageAttachmentRef[]) : undefined
     return {
       id: chunk.event_id,
       type: 'user_input',
       timestamp: chunk.timestamp,
       content: chunk.content,
-      presentationMode: chunk.presentation_mode
+      presentationMode: chunk.presentation_mode,
+      ...(attachments ? { attachments } : {})
     }
   }
 

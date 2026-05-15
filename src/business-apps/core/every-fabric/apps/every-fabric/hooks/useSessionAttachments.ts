@@ -36,6 +36,7 @@ export function useSessionAttachments(sessionId: string | null | undefined, acce
   const pollDeadlineRef = useRef<number | null>(null)
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const flushingRef = useRef(false)
+  const flushPromiseRef = useRef<Promise<void> | null>(null)
   /**
    * Tracks client-generated blob URLs for image previews.
    * Keyed by client_id (pending) and attachment.id (confirmed).
@@ -62,7 +63,17 @@ export function useSessionAttachments(sessionId: string | null | undefined, acce
     if (!sessionId) return
     try {
       const fresh = await client.listSessionAttachments(sessionId)
-      setAttachments(Array.isArray(fresh) ? fresh : [])
+      const freshList = Array.isArray(fresh) ? fresh : []
+      // Re-enrich from our in-memory blob URL map so polling never silently
+      // drops the preview thumbnails created during upload. The server has
+      // no knowledge of client-side blob URLs, so a plain replacement would
+      // lose preview_url and break the optimistic image display on send.
+      setAttachments(
+        freshList.map(a => {
+          const blobUrl = previewUrlMapRef.current.get(a.id)
+          return blobUrl ? { ...a, preview_url: blobUrl } : a
+        })
+      )
     } catch {
       // Listing is best-effort; failures shouldn't break the composer.
     }
@@ -107,7 +118,7 @@ export function useSessionAttachments(sessionId: string | null | undefined, acce
 
   const flushPendingToSession = useCallback(
     async (targetSessionId: string) => {
-      if (flushingRef.current) return
+      if (flushPromiseRef.current) return flushPromiseRef.current
       const staged = stagedFilesRef.current
       if (staged.length === 0) return
 
@@ -115,7 +126,7 @@ export function useSessionAttachments(sessionId: string | null | undefined, acce
       const queue = staged.slice()
       stagedFilesRef.current = []
 
-      try {
+      const flushPromise = (async () => {
         await Promise.all(
           queue.map(async item => {
             try {
@@ -130,8 +141,14 @@ export function useSessionAttachments(sessionId: string | null | undefined, acce
             }
           })
         )
+      })()
+      flushPromiseRef.current = flushPromise
+
+      try {
+        await flushPromise
       } finally {
         flushingRef.current = false
+        flushPromiseRef.current = null
       }
     },
     [setPendingState, uploadOne]

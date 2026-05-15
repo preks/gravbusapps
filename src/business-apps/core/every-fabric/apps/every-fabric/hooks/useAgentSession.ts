@@ -63,7 +63,12 @@ interface AgentExecutionClient {
   ) => Promise<StartSessionResponse>
   activateSession: (sessionId: string) => Promise<StartSessionResponse>
   getSession: (sessionId: string) => Promise<DeepAgentSession>
-  replyToInterrupt: (sessionId: string, message?: string, structuredInput?: Record<string, any>) => Promise<unknown>
+  replyToInterrupt: (
+    sessionId: string,
+    message?: string,
+    structuredInput?: Record<string, any>,
+    attachmentRefs?: Array<{ id: string; name: string; mime_type: string; size: number; indexing_status?: string }>
+  ) => Promise<unknown>
 }
 
 const readSessionUiCache = (sessionId: string | null): SessionUiStateCache | null => {
@@ -322,6 +327,11 @@ export const useAgentSession = (
   // Track the event count at which we last processed a terminal, so the
   // terminal-detection effect ignores stale terminals after events are cleared.
   const processedTerminalAtRef = useRef<number>(-1)
+  // Accumulates blob preview URLs keyed by attachment ID across reply() calls.
+  // Used to enrich trace messages so the optimistic → trace transition is
+  // seamless: the ImageBlock keeps rendering from the blob URL rather than
+  // starting a proxy fetch after the optimistic message is removed.
+  const previewUrlByAttachmentId = useRef<Map<string, string>>(new Map())
 
   const fetchSession = useCallback(async () => {
     if (!sessionId) return null
@@ -461,6 +471,23 @@ export const useAgentSession = (
     const restSession = session ?? matchedBootstrapSession
     if (!restSession) return null
 
+    // Carry the bootstrap's session_attachments through whenever the REST
+    // session lacks them. Right after startSession the REST `getSession()`
+    // call typically returns before the flushed uploads land in the
+    // backend's session record, so its `session_attachments` is briefly
+    // empty even though the bootstrap captured the user's snapshot
+    // (including blob preview URLs). Without this carry-over the first
+    // user_input bubble loses its attachment chips/image until the
+    // backend catches up — exactly the optimistic-update bug.
+    const bootstrapAttachments = matchedBootstrapSession?.session_attachments
+    const restAttachments = session?.session_attachments
+    const mergedAttachments =
+      restAttachments && restAttachments.length > 0
+        ? restAttachments
+        : bootstrapAttachments && bootstrapAttachments.length > 0
+          ? bootstrapAttachments
+          : restAttachments
+
     // REST session status is AUTHORITATIVE for terminal states.
     // If REST says completed/failed/cancelled, that's the final answer.
     // SSE may have stale or intermediate terminal events (e.g. waiting_for_human)
@@ -469,7 +496,7 @@ export const useAgentSession = (
     const isRestTerminal = restStatus === 'completed' || restStatus === 'failed' || restStatus === 'cancelled'
 
     if (isRestTerminal) {
-      return restSession // REST is authoritative, no overlay needed
+      return { ...restSession, session_attachments: mergedAttachments }
     }
 
     // For non-terminal REST status, SSE terminal events provide real-time updates
@@ -477,7 +504,7 @@ export const useAgentSession = (
     for (const ev of events) {
       if (ev.type === 'terminal') status = ev.status
     }
-    return { ...restSession, status }
+    return { ...restSession, status, session_attachments: mergedAttachments }
   }, [session, matchedBootstrapSession, events])
 
   const messages: ChatMessage[] = useMemo(() => {
@@ -489,7 +516,29 @@ export const useAgentSession = (
     const isRestTerminal = restSession && isTerminalStatus(restSession.status)
 
     // Get authoritative messages from REST session trace
-    const traceMessages = mergedSession ? sessionToMessages(mergedSession) : []
+    const rawTraceMessages = mergedSession ? sessionToMessages(mergedSession) : []
+
+    // Re-hydrate attachment preview_urls from the in-session blob URL cache so
+    // the ImageBlock can render from a local blob instead of kicking off a proxy
+    // fetch after the optimistic message is removed. This is a ref read (not a
+    // reactive dep) — the enrichment is applied whenever the memo re-runs for
+    // other reasons (mergedSession update, optimisticMessages change, etc.).
+    const cachedUrls = previewUrlByAttachmentId.current
+    const traceMessages =
+      cachedUrls.size > 0
+        ? rawTraceMessages.map(msg => {
+            if (!msg.attachments?.length) return msg
+            let changed = false
+            const enrichedAtts = msg.attachments.map(att => {
+              if (att.preview_url) return att
+              const url = cachedUrls.get(att.id)
+              if (!url) return att
+              changed = true
+              return { ...att, preview_url: url }
+            })
+            return changed ? { ...msg, attachments: enrichedAtts } : msg
+          })
+        : rawTraceMessages
 
     if (isRestTerminal && !isAgentRunning) {
       // Session is complete - use REST trace as the single source of truth.
@@ -621,11 +670,21 @@ export const useAgentSession = (
     async (message?: string, structuredInput?: Record<string, any>, attachments?: MessageAttachmentRef[]) => {
       if (!sessionId) return
 
-      // Avoid TS control-flow narrowing on sessionRef inside the sync loop (ref updates after fetch).
-      const readRestStatus = (): DeepAgentSession['status'] | undefined => sessionRef.current?.status
+      // Cache any blob preview URLs from the snapshot immediately — before the
+      // REST sync wait — so the optimistic message and any subsequent trace
+      // message can render the image from a local blob URL instead of waiting
+      // for a proxy round-trip (see messages useMemo below).
+      if (attachments) {
+        for (const att of attachments) {
+          if (att.preview_url) {
+            previewUrlByAttachmentId.current.set(att.id, att.preview_url)
+          }
+        }
+      }
 
-      await waitForRestSyncWithWaitingHumanStream(eventsRef.current, readRestStatus, fetchSession)
-
+      // Show the user's message bubble immediately — before the REST sync wait
+      // — so there is zero perceived latency between pressing Send and seeing
+      // the message (with any attached image) appear in the chat.
       const optimisticId = `optimistic-${Date.now()}`
       if (message && !structuredInput) {
         const optimisticMessage: ChatMessage = {
@@ -638,9 +697,21 @@ export const useAgentSession = (
         setOptimisticMessages(prev => [...prev, optimisticMessage])
       }
 
+      // Avoid TS control-flow narrowing on sessionRef inside the sync loop (ref updates after fetch).
+      const readRestStatus = (): DeepAgentSession['status'] | undefined => sessionRef.current?.status
+
+      await waitForRestSyncWithWaitingHumanStream(eventsRef.current, readRestStatus, fetchSession)
+
       setIsAgentRunning(true)
       setLastReplyTimestamp(Date.now()) // Mark when we sent a new reply to prevent showing stale content
-      const postInterrupt = () => client.replyToInterrupt(sessionId, message, structuredInput)
+      const attachmentRefs = attachments?.map(a => ({
+        id: a.id,
+        name: a.name,
+        mime_type: a.mime_type,
+        size: a.size,
+        indexing_status: a.indexing_status
+      }))
+      const postInterrupt = () => client.replyToInterrupt(sessionId, message, structuredInput, attachmentRefs)
 
       try {
         await postInterruptWith409Retry(postInterrupt, fetchSession)

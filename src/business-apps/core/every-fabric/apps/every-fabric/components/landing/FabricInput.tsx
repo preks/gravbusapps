@@ -509,6 +509,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
         attachments={attachments}
         pendingAttachments={pendingAttachments}
         compact={!isLanding}
+        imageVariant={isLanding ? 'block' : 'chip'}
         onRemoveAttachment={onRemoveAttachment ? id => runPromiseSilently(handleRemoveAttachment(id)) : undefined}
         onRemovePending={handleRemovePending}
         testIdPrefix="fabric-input-attachment"

@@ -14,13 +14,15 @@ import {
   XIcon
 } from '@phosphor-icons/react'
 import type { Icon as PhosphorIcon } from '@phosphor-icons/react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type {
   MessageAttachmentRef,
   PendingComposerAttachment,
   SessionAttachment,
   SessionAttachmentStatus
 } from '../../types/enterpriseAgent'
+import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
+import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 
 /**
  * Visual states a chip can be in, derived from either a live session
@@ -64,6 +66,16 @@ export interface AttachmentChipListProps {
   onRemovePending?: (clientId: string) => void
   /** Optional testid prefix so multiple instances on the page don't collide. */
   testIdPrefix?: string
+  /**
+   * 'chip' (default): render all attachments as inline chips.
+   * 'block': render image attachments as larger standalone preview blocks;
+   *   non-image attachments still render as chips.
+   */
+  imageVariant?: 'chip' | 'block'
+  /** Session ID required for authenticated image loading when imageVariant='block'. */
+  sessionId?: string
+  /** Bearer token required for authenticated image loading when imageVariant='block'. */
+  accessToken?: string
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -243,6 +255,162 @@ const resolveFileTypePresentation = (name: string, mimeType?: string): FileTypeP
   return { label: 'FILE', Icon: FileIcon }
 }
 
+const isImageMime = (mimeType?: string): boolean => (mimeType ?? '').toLowerCase().startsWith('image/')
+
+const resolvePromptManagerBase = (): string =>
+  PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
+
+/**
+ * Allow-list preview URLs for <img src>. Rejects javascript:, data:, unknown hosts, etc.
+ * (Static analysis / security review: do not bind unsanitized strings to src.)
+ */
+const sanitizeImagePreviewSrc = (raw: string | undefined): string | undefined => {
+  if (!raw) return undefined
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+
+  if (trimmed.startsWith('blob:')) {
+    return /^blob:https?:\/\//i.test(trimmed) ? trimmed : undefined
+  }
+
+  const allowedOrigins = new Set<string>()
+  try {
+    allowedOrigins.add(new URL(PROMPT_MANAGER_API_URL).origin)
+  } catch {
+    // ignore invalid service URL config
+  }
+  if (typeof globalThis !== 'undefined' && 'location' in globalThis) {
+    const loc = (globalThis as { location?: { origin?: string } }).location
+    if (loc?.origin) allowedOrigins.add(loc.origin)
+  }
+
+  let parsed: URL
+  try {
+    parsed =
+      trimmed.startsWith('http://') || trimmed.startsWith('https://')
+        ? new URL(trimmed)
+        : new URL(trimmed, `${resolvePromptManagerBase()}/`)
+  } catch {
+    return undefined
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined
+  if (!allowedOrigins.has(parsed.origin)) return undefined
+  return parsed.href
+}
+
+/** Renders a single image attachment as a larger standalone block (imageVariant='block'). */
+const ImageBlock: React.FC<{
+  chip: ChipDescriptor
+  sessionId?: string
+  accessToken?: string
+  testIdPrefix: string
+  onRemove?: (chip: ChipDescriptor) => void
+}> = ({ chip, sessionId, accessToken, testIdPrefix, onRemove }) => {
+  const [resolvedUrl, setResolvedUrl] = useState<string | undefined>(() => sanitizeImagePreviewSrc(chip.previewUrl))
+
+  useEffect(() => {
+    const safePreview = sanitizeImagePreviewSrc(chip.previewUrl)
+    if (safePreview) {
+      setResolvedUrl(safePreview)
+      return
+    }
+    // No preview URL — try to fetch from the authenticated proxy.
+    // Only works for persisted attachments (UUID-shaped IDs, not pending client_ids).
+    if (!sessionId || !accessToken || !chip.id) return
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidPattern.test(chip.id)) return
+
+    let createdBlobUrl: string | null = null
+    const controller = new AbortController()
+    const base = resolvePromptManagerBase()
+    const headers: Record<string, string> = {
+      Authorization: setAccessTokenToAuthorizationHeader(accessToken)
+    }
+
+    fetch(
+      `${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(chip.id)}/content`,
+      { method: 'GET', headers, credentials: 'same-origin', mode: 'cors', signal: controller.signal }
+    )
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.blob()
+      })
+      .then(blob => {
+        if (controller.signal.aborted) return
+        createdBlobUrl = URL.createObjectURL(blob)
+        const safeBlob = sanitizeImagePreviewSrc(createdBlobUrl)
+        if (!safeBlob) {
+          URL.revokeObjectURL(createdBlobUrl)
+          createdBlobUrl = null
+          return
+        }
+        setResolvedUrl(safeBlob)
+      })
+      .catch(() => {})
+
+    return () => {
+      controller.abort()
+      if (createdBlobUrl) URL.revokeObjectURL(createdBlobUrl)
+    }
+  }, [chip.previewUrl, chip.id, sessionId, accessToken])
+
+  const displaySrc = sanitizeImagePreviewSrc(resolvedUrl)
+
+  return (
+    <div
+      className="gba:relative gba:inline-block gba:rounded-xl gba:overflow-hidden gba:max-w-[240px]"
+      title={chip.tooltip}
+      data-testid={`${testIdPrefix}-img-block-${chip.id}`}
+    >
+      {displaySrc ? (
+        <img
+          src={displaySrc}
+          alt={chip.name}
+          className="gba:block gba:max-w-[240px] gba:max-h-[200px] gba:w-auto gba:h-auto gba:object-contain gba:rounded-xl"
+        />
+      ) : (
+        <div className="gba:flex gba:items-center gba:justify-center gba:w-[80px] gba:h-[60px] gba:bg-muted/40 gba:rounded-xl">
+          <SpinnerGapIcon
+            className="gba:h-4 gba:w-4 gba:animate-spin gba:text-muted-foreground"
+            weight="bold"
+            aria-hidden="true"
+          />
+        </div>
+      )}
+      {chip.state === 'pending' && (
+        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black/25 gba:rounded-xl">
+          <SpinnerGapIcon
+            className="gba:h-5 gba:w-5 gba:animate-spin gba:text-white"
+            weight="bold"
+            aria-hidden="true"
+          />
+        </div>
+      )}
+      {chip.state === 'failed' && !displaySrc && (
+        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-muted/40 gba:rounded-xl">
+          <WarningCircleIcon className="gba:h-5 gba:w-5 gba:text-rose-500" weight="fill" aria-hidden="true" />
+        </div>
+      )}
+      {chip.removable && onRemove && (
+        <button
+          type="button"
+          className="gba:absolute gba:top-1 gba:right-1 gba:h-5 gba:w-5 gba:rounded-full gba:bg-black/50 gba:flex gba:items-center gba:justify-center gba:text-white gba:hover:bg-black/70 gba:transition-colors"
+          onClick={event => {
+            event.preventDefault()
+            event.stopPropagation()
+            onRemove(chip)
+          }}
+          aria-label={`Remove ${chip.name}`}
+          data-testid={`${testIdPrefix}-img-remove-${chip.id}`}
+        >
+          <XIcon className="gba:h-3 gba:w-3" weight="bold" />
+        </button>
+      )}
+    </div>
+  )
+}
+
 const collectChips = (props: AttachmentChipListProps): ChipDescriptor[] => {
   const { attachments, pendingAttachments, messageAttachments, readOnly } = props
   const chips: ChipDescriptor[] = []
@@ -268,7 +436,10 @@ export const AttachmentChipList: React.FC<AttachmentChipListProps> = props => {
     onRemovePending,
     pendingAttachments,
     attachments,
-    testIdPrefix = 'attachment'
+    testIdPrefix = 'attachment',
+    imageVariant = 'chip',
+    sessionId,
+    accessToken
   } = props
 
   const chips = collectChips(props)
@@ -308,84 +479,110 @@ export const AttachmentChipList: React.FC<AttachmentChipListProps> = props => {
     }
   }
 
+  // Split chips into image blocks vs file chips when imageVariant='block'.
+  const imageChips = imageVariant === 'block' ? chipsWithType.filter(c => isImageMime(c.mimeType)) : []
+  const fileChips = imageVariant === 'block' ? chipsWithType.filter(c => !isImageMime(c.mimeType)) : chipsWithType
+
   return (
     <div
-      className={`gba:flex gba:flex-wrap gba:gap-2 ${compact ? 'gba:pt-1 gba:pb-1' : 'gba:pt-2 gba:pb-1'}`}
+      className={`gba:flex gba:flex-col gba:gap-2 ${compact ? 'gba:pt-1 gba:pb-1' : 'gba:pt-2 gba:pb-1'}`}
       data-testid={`${testIdPrefix}-list`}
     >
-      {chipsWithType.map(chip => {
-        const { Icon: TypeIcon, label } = chip.fileType
-        const hasThumbnail = !!chip.previewUrl
+      {/* Larger image preview blocks (only when imageVariant='block') */}
+      {imageChips.length > 0 && (
+        <div className="gba:flex gba:flex-wrap gba:gap-2">
+          {imageChips.map(chip => (
+            <ImageBlock
+              key={chip.key}
+              chip={chip}
+              sessionId={sessionId}
+              accessToken={accessToken}
+              testIdPrefix={testIdPrefix}
+              onRemove={chip.removable ? handleRemove : undefined}
+            />
+          ))}
+        </div>
+      )}
 
-        const iconContainerSize = compact ? 'gba:h-5 gba:w-5' : 'gba:h-6 gba:w-6'
-        const fileIconSize = compact ? 'gba:h-3 gba:w-3' : 'gba:h-3.5 gba:w-3.5'
-        const spinnerSize = compact ? 'gba:h-5 gba:w-5' : 'gba:h-6 gba:w-6'
+      {/* Standard file chips (always; also image chips when imageVariant='chip') */}
+      {fileChips.length > 0 && (
+        <div className="gba:flex gba:flex-wrap gba:gap-2">
+          {fileChips.map(chip => {
+            const { Icon: TypeIcon, label } = chip.fileType
+            const safePreviewSrc = sanitizeImagePreviewSrc(chip.previewUrl)
+            const hasThumbnail = !!safePreviewSrc
 
-        return (
-          <span
-            key={chip.key}
-            className={`${chipBase} gba:border-border/20 gba:bg-muted/50 gba:text-foreground/75`}
-            title={chip.tooltip}
-            data-testid={`${testIdPrefix}-chip-${chip.id}`}
-          >
-            {/* Icon container: thumbnail image for images, file-type icon otherwise */}
-            <span
-              className={`gba:relative gba:inline-flex gba:items-center gba:justify-center gba:shrink-0 gba:rounded-md gba:overflow-hidden gba:bg-muted ${iconContainerSize}`}
-            >
-              {hasThumbnail ? (
-                <img
-                  src={chip.previewUrl}
-                  alt=""
-                  className="gba:h-full gba:w-full gba:object-cover"
-                  aria-hidden="true"
-                />
-              ) : (
-                <TypeIcon className={`${fileIconSize} gba:text-foreground/50`} weight="fill" aria-hidden="true" />
-              )}
-              {chip.state === 'pending' && (
-                <SpinnerGapIcon
-                  className={`gba:absolute gba:animate-spin ${spinnerSize} ${hasThumbnail ? 'gba:text-white/70' : 'gba:text-foreground/35'}`}
-                  weight="bold"
-                  aria-hidden="true"
-                />
-              )}
-              {chip.state === 'failed' && (
-                <WarningCircleIcon
-                  className="gba:absolute gba:-bottom-1 gba:-right-1 gba:h-3 gba:w-3 gba:text-rose-500"
-                  weight="fill"
-                  aria-hidden="true"
-                />
-              )}
-            </span>
+            const iconContainerSize = compact ? 'gba:h-5 gba:w-5' : 'gba:h-6 gba:w-6'
+            const fileIconSize = compact ? 'gba:h-3 gba:w-3' : 'gba:h-3.5 gba:w-3.5'
+            const spinnerSize = compact ? 'gba:h-5 gba:w-5' : 'gba:h-6 gba:w-6'
 
-            {/* Type label badge — hide for image thumbnails to keep chips clean */}
-            {!hasThumbnail && (
-              <span className={`${typeBadgeClass} gba:bg-muted gba:text-foreground/50`} aria-hidden="true">
-                {label}
-              </span>
-            )}
-
-            <span className="gba:max-w-[160px] gba:truncate">{chip.name}</span>
-            {chip.size > 0 && <span className="gba:opacity-50">{formatFileSize(chip.size)}</span>}
-
-            {chip.removable && (
-              <button
-                type="button"
-                className="gba:ml-0.5 gba:opacity-50 gba:hover:opacity-100 gba:transition-opacity"
-                onClick={event => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  handleRemove(chip)
-                }}
-                aria-label={`Remove ${chip.name}`}
-                data-testid={`${testIdPrefix}-chip-remove-${chip.id}`}
+            return (
+              <span
+                key={chip.key}
+                className={`${chipBase} gba:border-border/20 gba:bg-muted/50 gba:text-foreground/75`}
+                title={chip.tooltip}
+                data-testid={`${testIdPrefix}-chip-${chip.id}`}
               >
-                <XIcon className="gba:h-3 gba:w-3" weight="bold" />
-              </button>
-            )}
-          </span>
-        )
-      })}
+                {/* Icon container: thumbnail image for images, file-type icon otherwise */}
+                <span
+                  className={`gba:relative gba:inline-flex gba:items-center gba:justify-center gba:shrink-0 gba:rounded-md gba:overflow-hidden gba:bg-muted ${iconContainerSize}`}
+                >
+                  {hasThumbnail ? (
+                    <img
+                      src={safePreviewSrc}
+                      alt=""
+                      className="gba:h-full gba:w-full gba:object-contain"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <TypeIcon className={`${fileIconSize} gba:text-foreground/50`} weight="fill" aria-hidden="true" />
+                  )}
+                  {chip.state === 'pending' && (
+                    <SpinnerGapIcon
+                      className={`gba:absolute gba:animate-spin ${spinnerSize} ${hasThumbnail ? 'gba:text-white/70' : 'gba:text-foreground/35'}`}
+                      weight="bold"
+                      aria-hidden="true"
+                    />
+                  )}
+                  {chip.state === 'failed' && (
+                    <WarningCircleIcon
+                      className="gba:absolute gba:-bottom-1 gba:-right-1 gba:h-3 gba:w-3 gba:text-rose-500"
+                      weight="fill"
+                      aria-hidden="true"
+                    />
+                  )}
+                </span>
+
+                {/* Type label badge — hide for image thumbnails to keep chips clean */}
+                {!hasThumbnail && (
+                  <span className={`${typeBadgeClass} gba:bg-muted gba:text-foreground/50`} aria-hidden="true">
+                    {label}
+                  </span>
+                )}
+
+                <span className="gba:max-w-[160px] gba:truncate">{chip.name}</span>
+                {chip.size > 0 && <span className="gba:opacity-50">{formatFileSize(chip.size)}</span>}
+
+                {chip.removable && (
+                  <button
+                    type="button"
+                    className="gba:ml-0.5 gba:opacity-50 gba:hover:opacity-100 gba:transition-opacity"
+                    onClick={event => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      handleRemove(chip)
+                    }}
+                    aria-label={`Remove ${chip.name}`}
+                    data-testid={`${testIdPrefix}-chip-remove-${chip.id}`}
+                  >
+                    <XIcon className="gba:h-3 gba:w-3" weight="bold" />
+                  </button>
+                )}
+              </span>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

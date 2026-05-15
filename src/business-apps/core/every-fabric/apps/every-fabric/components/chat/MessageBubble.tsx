@@ -96,7 +96,15 @@ const AssistantLockup = ({ trailing }: { trailing?: React.ReactNode }) => (
  *  before the user's actual task text. The chips already show the files. */
 const stripAttachmentPrefix = (text: string): string => text.replace(/^\[Attached documents?: [^\]]+\]\n\n/, '')
 
-const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
+const UserMessageBubble = ({
+  message,
+  sessionId,
+  accessToken
+}: {
+  message: ChatMessage
+  sessionId: string
+  accessToken?: string
+}) => {
   const [copied, setCopied] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const rawContent = message.content as string
@@ -129,7 +137,9 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
           <div className="gba:-mx-1 gba:mb-2 gba:flex gba:flex-wrap gba:justify-end">
             <AttachmentChipList
               messageAttachments={messageAttachments}
-              compact
+              imageVariant="block"
+              sessionId={sessionId}
+              accessToken={accessToken}
               readOnly
               testIdPrefix={`msg-${message.id}-attachment`}
             />
@@ -349,7 +359,7 @@ const renderMessageBubbleContent = ({
 }: MessageBubbleProps) => {
   switch (message.type) {
     case 'user_input':
-      return <UserMessageBubble message={message} />
+      return <UserMessageBubble message={message} sessionId={sessionId} accessToken={accessToken} />
 
     case 'agent_thinking': {
       const content = message.content as string

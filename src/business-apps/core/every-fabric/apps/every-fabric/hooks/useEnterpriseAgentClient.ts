@@ -130,7 +130,12 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   )
 
   const replyToInterrupt = useCallback(
-    (sessionId: string, message?: string, structuredInput?: Record<string, any>) => {
+    (
+      sessionId: string,
+      message?: string,
+      structuredInput?: Record<string, any>,
+      attachmentRefs?: Array<{ id: string; name: string; mime_type: string; size: number; indexing_status?: string }>
+    ) => {
       const payload: Record<string, unknown> = {}
       if (structuredInput) {
         payload.structured_input = structuredInput
@@ -142,9 +147,29 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         console.error('[replyToInterrupt] Missing message and structured_input')
         throw new Error('Either message or structured_input must be provided')
       }
+      if (attachmentRefs && attachmentRefs.length > 0) {
+        payload.attachment_refs = attachmentRefs
+      }
       return client.post(`/deep-agent/sessions/${sessionId}/message`, payload)
     },
     [client]
+  )
+
+  const fetchAttachmentContent = useCallback(
+    async (sessionId: string, attachmentId: string): Promise<Blob> => {
+      const base = resolvePromptManagerBase()
+      const headers: Record<string, string> = {}
+      if (accessToken) {
+        headers.Authorization = setAccessTokenToAuthorizationHeader(accessToken)
+      }
+      const response = await fetch(
+        `${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(attachmentId)}/content`,
+        { method: 'GET', headers, credentials: 'same-origin', mode: 'cors' }
+      )
+      if (!response.ok) throw new Error(`Attachment fetch failed: ${response.status}`)
+      return response.blob()
+    },
+    [accessToken]
   )
 
   const stopSession = useCallback((sessionId: string) => client.delete(`/deep-agent/sessions/${sessionId}`), [client])
@@ -555,6 +580,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       uploadSessionAttachment,
       listSessionAttachments,
       deleteSessionAttachment,
+      fetchAttachmentContent,
       getModelOptions,
       updateSessionConfig
     }),
@@ -597,6 +623,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       uploadSessionAttachment,
       listSessionAttachments,
       deleteSessionAttachment,
+      fetchAttachmentContent,
       getModelOptions,
       updateSessionConfig
     ]

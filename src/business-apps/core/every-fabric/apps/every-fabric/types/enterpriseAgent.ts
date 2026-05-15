@@ -666,9 +666,9 @@ export interface ChatMessage {
   presentationMode?: EnterprisePresentationMode
   isStreaming?: boolean
   isCollapsed?: boolean
-  /** Populated for `user_input` only — the attachments that were already on
-   * the composer when the user pressed Send. Snapshotted client-side; not
-   * persisted in the trace yet. */
+  /** Populated for `user_input` only — the attachments that were on the
+   * composer when the user pressed Send. On new turns, sent to the backend
+   * and stored in the human chunk metadata so they survive session reload. */
   attachments?: MessageAttachmentRef[]
 }
 
