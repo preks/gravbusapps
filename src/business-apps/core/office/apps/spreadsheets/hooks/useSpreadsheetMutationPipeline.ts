@@ -229,10 +229,28 @@ export function useSpreadsheetMutationPipeline(
       const aliases = createdSheetIdAliasesRef?.current ?? EMPTY_SHEET_ID_ALIASES
       const targetSheetId = resolveReconciledSheetId(request.sheetId, aliases)
       const previous = perSheetSubmitTailRef.current.get(targetSheetId) ?? Promise.resolve()
+      // Fix G: when the previous batch on this sheet rejected, do NOT silently chain through.
+      // We must re-sync our cached baseVersion before issuing the next submit, otherwise the
+      // next batch fires with stale version state and produces cascading 409s that the user
+      // experiences as random missing rows / cells. `recoverFromVersionConflict` is best-effort
+      // (idempotent on its own); we swallow its rejection so the chain stays alive, but the
+      // next batch will at least see a refreshed baseline.
       const next = previous
-        .catch(() => undefined)
+        .then(undefined, async previousError => {
+          console.warn('[SpreadsheetMutationPipeline] previous batch failed; resyncing before next submit', {
+            targetSheetId,
+            error: previousError instanceof Error ? previousError.message : String(previousError ?? 'unknown')
+          })
+          try {
+            await recoverFromVersionConflict()
+          } catch {
+            /* recovery is best-effort; the next submitter call will refreshBaseVersionBeforeWrite anyway */
+          }
+        })
         .then(() => rawSubmitMutationBatch(request)) as Promise<SpreadsheetBatchOperationResponse>
       perSheetSubmitTailRef.current.set(targetSheetId, next)
+      // Don't let an unhandled rejection bubble; we only care for chain-consumers awaiting `next` directly.
+      void next.catch(() => undefined)
       return next
     }
 
@@ -254,7 +272,7 @@ export function useSpreadsheetMutationPipeline(
       }
       return captured
     }
-  }, [createdSheetIdAliasesRef, rawSubmitMutationBatch, serializeMutationSubmitsWithQueue])
+  }, [createdSheetIdAliasesRef, rawSubmitMutationBatch, recoverFromVersionConflict, serializeMutationSubmitsWithQueue])
 
   const mutationFacade = useMemo(
     () =>

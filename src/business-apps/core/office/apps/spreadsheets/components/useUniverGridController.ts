@@ -80,6 +80,8 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     onMutationBatchOp: props.onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef: props.flushUnmaterializedRowsBeforePersistRef,
     getPersistSheetRowsSnapshot: props.getPersistSheetRowsSnapshot,
+    // 2a: prefer `isBackendRowUuid`; keep legacy alias for one release.
+    isBackendRowUuid: props.isBackendRowUuid,
     isUuidForRowRemap: props.isUuidForRowRemap,
     rowSlotIdentityRegistryRef: props.rowSlotIdentityRegistryRef,
     columnStructureStateRef: props.columnStructureStateRef,
@@ -107,6 +109,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     onMutationBatchOp: props.onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef: props.flushUnmaterializedRowsBeforePersistRef,
     getPersistSheetRowsSnapshot: props.getPersistSheetRowsSnapshot,
+    isBackendRowUuid: props.isBackendRowUuid,
     isUuidForRowRemap: props.isUuidForRowRemap,
     rowSlotIdentityRegistryRef: props.rowSlotIdentityRegistryRef,
     columnStructureStateRef: props.columnStructureStateRef,

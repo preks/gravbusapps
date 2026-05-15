@@ -59,14 +59,17 @@ describe('reconcileQueuedDraftCellsForCreatedRows', () => {
     ).toEqual([{ rowId: 'row-1', columnName: 'ColumnA', value: 'queued' }])
   })
 
-  it('drops queued cells that are already represented by the freshly created row', () => {
+  it('preserves queued cells even when value equals the freshly created row baseline (Fix F)', () => {
+    // Pre-Fix-F behaviour dropped these as redundant, silently swallowing legitimate user writes
+    // such as "type 0 into a numeric column whose default is 0". Post-Fix F we always replay so
+    // audit / collab logs see the explicit edit.
     expect(
       reconcileQueuedDraftCellsForCreatedRows(
         [{ rowId: 'client_row_1', columnName: 'ColumnA', value: 'fresh' }],
         [{ _id: 'client_row_1', _rowUuid: 'row-1', ColumnA: 'fresh' }],
         new Map([['client_row_1', 'row-1']])
       )
-    ).toEqual([])
+    ).toEqual([{ rowId: 'row-1', columnName: 'ColumnA', value: 'fresh' }])
   })
 
   it('leaves non-created-row queued cells untouched', () => {

@@ -34,9 +34,9 @@ import {
   createClientRowRef,
   getClientRowIdentity,
   getViewerRowIdentityCandidates,
-  isSpreadsheetBackendRowUuid,
   resolveBackendRowIdForViewerRow
 } from '../utils/spreadsheetRowIdentity'
+import { resolveBackendRowUuidPredicateFromGridProps } from './univerBackendRowUuidPredicate'
 import { getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
 import { rowSlotTargetMatchesRowIdentity } from '../utils/spreadsheetRowSlotIdentity'
 import type {
@@ -47,6 +47,73 @@ import type {
 } from './univerMountHandleDetectedCellMutation.types'
 
 type PlannerContextSourceName = 'props' | 'resolved'
+
+/**
+ * 3b: Pure scoring decision for `'auto'` coordinate-mode tie-breaker. Extracted so the
+ * boundary semantics (relative wins on ties; absolute wins only on strict inequality) are
+ * pinnable in unit tests. See the inline decision table above the inline call site.
+ */
+export function selectCoordinateModeAuto(
+  relative: { destructiveBlankWrites: number; changed: number },
+  absolute: { destructiveBlankWrites: number; changed: number }
+): 'relative' | 'absolute' {
+  if (absolute.destructiveBlankWrites < relative.destructiveBlankWrites) return 'absolute'
+  if (absolute.destructiveBlankWrites === relative.destructiveBlankWrites && absolute.changed < relative.changed) {
+    return 'absolute'
+  }
+  return 'relative'
+}
+
+/**
+ * 1d: Read live merge ranges from the current Univer worksheet facade. The Univer FWorksheet
+ * surface exposes `getMergeData()` returning either ranges or facade-wrapped range objects with
+ * `getRange()`. We normalize defensively because the live API surface evolves between Univer
+ * versions and we want to never throw — extraction failure must degrade to the snapshot path.
+ */
+function extractLiveMergeRangesFromFacade(
+  currentWorksheet: unknown
+): import('./cellMatrixUtils').SheetRangeShape[] | null {
+  if (!currentWorksheet || typeof currentWorksheet !== 'object') return null
+  const facade = currentWorksheet as { getMergeData?: () => unknown[] }
+  if (typeof facade.getMergeData !== 'function') return null
+  try {
+    const raw = facade.getMergeData()
+    if (!Array.isArray(raw)) return null
+    const normalized: import('./cellMatrixUtils').SheetRangeShape[] = []
+    for (const candidate of raw) {
+      const sourceRange =
+        candidate &&
+        typeof candidate === 'object' &&
+        typeof (candidate as { getRange?: unknown }).getRange === 'function'
+          ? (candidate as { getRange: () => unknown }).getRange()
+          : candidate
+      if (!sourceRange || typeof sourceRange !== 'object') continue
+      const rec = sourceRange as Record<string, unknown>
+      const startRow = Number(rec.startRow)
+      const endRow = Number(rec.endRow)
+      const startColumn = Number(rec.startColumn)
+      const endColumn = Number(rec.endColumn)
+      if (
+        !Number.isFinite(startRow) ||
+        !Number.isFinite(endRow) ||
+        !Number.isFinite(startColumn) ||
+        !Number.isFinite(endColumn)
+      ) {
+        continue
+      }
+      if (endRow < startRow || endColumn < startColumn) continue
+      normalized.push({
+        startRow: Math.max(0, Math.trunc(startRow)),
+        endRow: Math.max(0, Math.trunc(endRow)),
+        startColumn: Math.max(0, Math.trunc(startColumn)),
+        endColumn: Math.max(0, Math.trunc(endColumn))
+      })
+    }
+    return normalized
+  } catch {
+    return null
+  }
+}
 
 function countRowsWithBackendIdentity(rows: Record<string, unknown>[], isUuid: (value: string) => boolean): number {
   return rows.filter(row => Boolean(resolveBackendRowIdForViewerRow(row, isUuid))).length
@@ -159,18 +226,16 @@ function resolvePlannerContextSource({
   }
 }
 
-function clearMaterializedClientRowIndexMappings({
+export function clearMaterializedClientRowIndexMappings({
   rowIndices,
   rowOffset,
   data,
-  context,
   idMap,
   isUuid
 }: {
   rowIndices: number[]
   rowOffset: number
   data: Record<string, unknown>[]
-  context: NonNullable<UniverMountHandleDetectedCellMutationDeps['contextRef']['current']>
   idMap: Map<number, string>
   isUuid: (value: string) => boolean
 }): Array<{ rowIndex: number; clientRowId: string; backendRowUuid: string }> {
@@ -182,10 +247,17 @@ function clearMaterializedClientRowIndexMappings({
 
     const row = getSpreadsheetRowAtUniverGridIndex(data, globalRowIndex)
     const backendRowUuid = row ? resolveBackendRowIdForViewerRow(row, isUuid) : undefined
-    const contextRowId = context.rowIndexToId.get(globalRowIndex)
     const identityCandidates = row ? getViewerRowIdentityCandidates(row) : []
-    const sameLogicalRow =
-      identityCandidates.includes(clientRowId) || (typeof contextRowId === 'string' && contextRowId === clientRowId)
+    const currentClientRowId = row ? getClientRowIdentity(row) : ''
+    // 2b: strict head-equality on the primary identity candidate. A previous loose
+    // `identityCandidates.includes(clientRowId)` could match a *stale* candidate that has since
+    // been demoted from primary (identity rotated), causing this mapping to be cleared even
+    // though the row is no longer the same logical entity. Require either (a) the primary
+    // (head) candidate matches OR (b) the current canonical client row id matches. We also
+    // require a backendRowUuid so we never over-clear when the row hasn't been materialized.
+    const headCandidateMatches = identityCandidates.length > 0 && identityCandidates[0] === clientRowId
+    const currentClientIdMatches = typeof currentClientRowId === 'string' && currentClientRowId === clientRowId
+    const sameLogicalRow = headCandidateMatches || currentClientIdMatches
 
     if (!backendRowUuid || !sameLogicalRow) continue
 
@@ -245,7 +317,9 @@ export function resolveDetectedCellMutation(
   const commandHasReplaceRangeStyleIntent = isRegionReplaceStyleCollaborationCommand(commandId)
   const shouldReadPostPasteCells = hasPasteFormattingIntentForSheet || commandHasReplaceRangeStyleIntent
 
-  const isUuidForRowIdentity = deps.isUuidForRowRemap ?? isSpreadsheetBackendRowUuid
+  // 2a: single authoritative predicate from host props (not bootstrap wrappers — those are
+  // never referentially equal and would false-trigger the conflict warning).
+  const isUuidForRowIdentity = resolveBackendRowUuidPredicateFromGridProps(propsRef)
   const plannerContext = canResolveContext
     ? resolvePlannerContextSource({
         deps,
@@ -261,12 +335,15 @@ export function resolveDetectedCellMutation(
         context: createPlannerContext(propsRef.current.columns, propsRef.current.data),
         resolvedDataLength: null,
         propsBackendRowCount: countRowsWithBackendIdentity(propsRef.current.data, isUuidForRowIdentity),
-        resolvedBackendRowCount: null
+        resolvedBackendRowCount: null,
+        columnStructuralMismatch: false
       }
   const ctxBefore = plannerContext.context
   const contextColumns = plannerContext.columns
   const currentData = plannerContext.data
-  const useResolvedContext = plannerContext.source === 'resolved'
+  // 2c: True when the host (via getSheetContext) owns the planner context lifetime; persist
+  // plan must NOT write to the refs listed in DetectedCellMutationReady.contextOwnedByHost JSDoc.
+  const contextOwnedByHost = plannerContext.source === 'resolved'
   const rowSlotIdentityRegistry = propsRef.current.rowSlotIdentityRegistryRef?.current ?? null
   const columnStructureState = propsRef.current.columnStructureStateRef?.current ?? null
   const rowIdentityStructuralMismatch =
@@ -346,7 +423,9 @@ export function resolveDetectedCellMutation(
   }
   const columnIdentityStructureHealthy =
     (columnStructureState?.healthy ?? true) && !plannerContext.columnStructuralMismatch
-  if (!ctxBefore) return { status: 'return', value: false }
+  if (!ctxBefore) {
+    return { status: 'return', value: false }
+  }
   const payloadCellValueForValueMerge = preserveUndefinedAsNull ? undefined : payloadCellValue
   const payloadCoordinateModeHint = detectCellMatrixCoordinateModeHint(ranges, payloadCellValueForValueMerge)
   const workbookSnapshotCellValue =
@@ -422,11 +501,26 @@ export function resolveDetectedCellMutation(
     })
     relativeStatsDebug = relativeStats
     absoluteStatsDebug = absoluteStats
-    if (
-      absoluteStats.destructiveBlankWrites < relativeStats.destructiveBlankWrites ||
-      (absoluteStats.destructiveBlankWrites === relativeStats.destructiveBlankWrites &&
-        absoluteStats.changed < relativeStats.changed)
-    ) {
+    /**
+     * 3b: `'auto'` coordinate-mode tie-breaker decision table.
+     *
+     * Primary metric: `destructiveBlankWrites` (fewer is better — they overwrite real data
+     * with blanks, the highest-risk corruption mode).
+     * Secondary metric: `changed` (fewer is better — smaller delta is less risky).
+     *
+     * | relative.destructiveBlankWrites | absolute.destructiveBlankWrites | relative.changed | absolute.changed | Winner    |
+     * |---------------------------------|---------------------------------|------------------|------------------|-----------|
+     * | x                               | < x                             | any              | any              | absolute  |
+     * | x                               | = x                             | y                | < y              | absolute  |
+     * | x                               | = x                             | y                | = y              | relative  |
+     * | x                               | = x                             | y                | > y              | relative  |
+     * | x                               | > x                             | any              | any              | relative  |
+     *
+     * Rule: absolute wins only on STRICT inequality in either dimension; relative wins all
+     * ties. This bias is intentional — relative is Univer's natural mode for SheetValueChanged
+     * events, so on a true tie we prefer the cheaper interpretation.
+     */
+    if (selectCoordinateModeAuto(relativeStats, absoluteStats) === 'absolute') {
       selectedPayloadCoordinateMode = 'absolute'
       baseCellValue = absoluteCellValue
     }
@@ -552,11 +646,29 @@ export function resolveDetectedCellMutation(
     .map(globalRowIndex => globalRowIndex - rowOffset)
     .filter(rowIndex => rowIndex >= 0)
   const candidateNewRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
+
+  // selection-reconcile is a read-only confirmation pass. It must never create new logical rows
+  // nor mint client_* identities into newRowClientIdByIndexRef. Doing so caused identity divergence
+  // during rapid local edits: reconcile would burn a client_* into a visual slot, then the user's
+  // real sheet-value-changed edit at that slot would inherit the burned id, while the materialized
+  // row carried a different id, leading to unresolved-temporary-row-id drops at the emit dispatch.
+  // If reconcile observes a value in a slot with no logical row yet, bail out and let the next
+  // real edit event mint the identity through its own pendingNewRowsUpdate.
+  if (source === 'selection-reconcile' && candidateNewRowIndices.length > 0) {
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_mutation_selection_reconcile_skipped_new_rows',
+      payload: {
+        targetSheetId,
+        candidateNewRowIndices
+      }
+    })
+    return { status: 'return', value: false }
+  }
   const clearedClientRowIndexMappings = clearMaterializedClientRowIndexMappings({
     rowIndices: Array.from(new Set([...existingMappedRowIndices, ...candidateNewRowIndices])),
     rowOffset,
     data: currentData,
-    context: ctxBefore,
     idMap: newRowClientIdByIndexRef.current,
     isUuid: isUuidForRowIdentity
   })
@@ -620,7 +732,7 @@ export function resolveDetectedCellMutation(
     source,
     commandId,
     targetSheetId,
-    useResolvedContext,
+    contextOwnedByHost,
     cellValue,
     ctxBefore,
     contextColumns,
@@ -643,8 +755,11 @@ export function resolveDetectedCellMutation(
     payloadCellValue,
     ranges,
     shouldSuppress,
-    pendingNewRowsUpdate
+    pendingNewRowsUpdate,
+    liveMergeRanges: extractLiveMergeRangesFromFacade(currentWorksheet)
   }
 
   return { status: 'ready', ready }
 }
+
+export { extractLiveMergeRangesFromFacade }

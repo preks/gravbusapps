@@ -1,4 +1,8 @@
-import { resolveDetectedCellMutation } from '../univerMountHandleDetectedCellMutationResolve'
+import {
+  clearMaterializedClientRowIndexMappings,
+  resolveDetectedCellMutation,
+  selectCoordinateModeAuto
+} from '../univerMountHandleDetectedCellMutationResolve'
 import { runDetectedCellMutationPersistPlanPhase } from '../univerMountHandleDetectedCellMutationPersistPlan'
 import { createUniverConversionContext } from '../../utils/univerAdapter'
 import { createSpreadsheetRowSlotIdentityRegistry } from '../../utils/spreadsheetRowSlotIdentity'
@@ -37,6 +41,7 @@ function makeDeps(overrides: Partial<any> = {}) {
       columns: propsColumns,
       multiSheetWorkbookMode: true,
       getSheetContext: overrides.getSheetContext,
+      isUuidForRowRemap: (value: string) => value.startsWith('backend-'),
       ...overrides.props
     }
   }
@@ -69,7 +74,6 @@ function makeDeps(overrides: Partial<any> = {}) {
     pendingFormattingPasteIntentRef: { current: null },
     getWorkbookSnapshotRef: { current: () => null },
     peekPasteFormattingReplaceIntent: () => false,
-    isUuidForRowRemap: (value: string) => value.startsWith('backend-'),
     ...overrides.deps
   } as any
 }
@@ -99,7 +103,7 @@ describe('resolveDetectedCellMutation', () => {
 
     expect(result.status).toBe('ready')
     if (result.status !== 'ready') return
-    expect(result.ready.useResolvedContext).toBe(true)
+    expect(result.ready.contextOwnedByHost).toBe(true)
     expect(result.ready.currentData).toBe(resolvedRows)
     expect(result.ready.ctxBefore.rowIndexToId.get(0)).toBe('backend-row-1')
     expect(result.ready.pendingNewRowsUpdate).toBeNull()
@@ -149,7 +153,7 @@ describe('resolveDetectedCellMutation', () => {
 
     expect(result.status).toBe('ready')
     if (result.status !== 'ready') return
-    expect(result.ready.useResolvedContext).toBe(false)
+    expect(result.ready.contextOwnedByHost).toBe(false)
     expect(result.ready.currentData).toBe(visualOnlyRows)
     expect(result.ready.pendingNewRowsUpdate).toBeNull()
     expect(deps.callbacksRef.current.onDiagnosticsTraceEvent).toHaveBeenCalledWith(
@@ -190,7 +194,7 @@ describe('resolveDetectedCellMutation', () => {
 
     expect(result.status).toBe('ready')
     if (result.status !== 'ready') return
-    expect(result.ready.useResolvedContext).toBe(false)
+    expect(result.ready.contextOwnedByHost).toBe(false)
     expect(result.ready.ctxBefore.rowIndexToId.get(1)).toBe('client_inserted')
     const planned = runDetectedCellMutationPersistPlanPhase(deps, result.ready)
     expect(planned.kind).toBe('emit')
@@ -236,7 +240,7 @@ describe('resolveDetectedCellMutation', () => {
 
     expect(result.status).toBe('ready')
     if (result.status !== 'ready') return
-    expect(result.ready.useResolvedContext).toBe(false)
+    expect(result.ready.contextOwnedByHost).toBe(false)
     expect(result.ready.ctxBefore.rowIndexToId.get(1)).toBe('client_inserted')
     const planned = runDetectedCellMutationPersistPlanPhase(deps, result.ready)
     expect(planned.kind).toBe('emit')
@@ -440,7 +444,7 @@ describe('resolveDetectedCellMutation', () => {
 
     expect(result.status).toBe('ready')
     if (result.status !== 'ready') return
-    expect(result.ready.useResolvedContext).toBe(false)
+    expect(result.ready.contextOwnedByHost).toBe(false)
     expect(result.ready.columnIdentityStructureHealthy).toBe(false)
     expect(result.ready.resolveStableColumnName(1)).toBe('column_inserted')
 
@@ -522,5 +526,135 @@ describe('resolveDetectedCellMutation', () => {
         value: 'edited'
       })
     ])
+  })
+})
+
+// 3b: 'auto' coordinate-mode tie-breaker semantics — relative wins on ties; absolute wins
+// only on strict inequality in destructiveBlankWrites or (when those are equal) in changed.
+describe('selectCoordinateModeAuto', () => {
+  it('returns absolute when it has strictly fewer destructive blank writes', () => {
+    expect(
+      selectCoordinateModeAuto({ destructiveBlankWrites: 3, changed: 10 }, { destructiveBlankWrites: 1, changed: 10 })
+    ).toBe('absolute')
+  })
+
+  it('returns relative when it has strictly fewer destructive blank writes', () => {
+    expect(
+      selectCoordinateModeAuto({ destructiveBlankWrites: 1, changed: 10 }, { destructiveBlankWrites: 3, changed: 10 })
+    ).toBe('relative')
+  })
+
+  it('returns absolute when destructive writes tie and absolute has fewer changes', () => {
+    expect(
+      selectCoordinateModeAuto({ destructiveBlankWrites: 2, changed: 10 }, { destructiveBlankWrites: 2, changed: 5 })
+    ).toBe('absolute')
+  })
+
+  it('returns relative on an exact tie (relative wins ties)', () => {
+    expect(
+      selectCoordinateModeAuto({ destructiveBlankWrites: 2, changed: 5 }, { destructiveBlankWrites: 2, changed: 5 })
+    ).toBe('relative')
+  })
+
+  it('returns relative when destructive writes tie and absolute has more changes', () => {
+    expect(
+      selectCoordinateModeAuto({ destructiveBlankWrites: 2, changed: 5 }, { destructiveBlankWrites: 2, changed: 10 })
+    ).toBe('relative')
+  })
+})
+
+// 2b: strict head-equality identity matching for client_* row-index mapping rotation safety.
+describe('clearMaterializedClientRowIndexMappings (identity rotation)', () => {
+  const BACKEND_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const isUuid = (value: string): boolean => BACKEND_UUID.test(value)
+
+  it('clears the mapping when the primary (head) candidate matches the recorded client id', () => {
+    const idMap = new Map<number, string>([[0, 'client_row_aaa']])
+    const cleared = clearMaterializedClientRowIndexMappings({
+      rowIndices: [0],
+      rowOffset: 0,
+      data: [
+        {
+          _id: 'client_row_aaa',
+          _clientRowId: 'client_row_aaa',
+          _rowUuid: '00000000-0000-4000-8000-000000000001',
+          _gridRowIndex: 0
+        }
+      ],
+      idMap,
+      isUuid
+    })
+    expect(cleared).toEqual([
+      expect.objectContaining({
+        rowIndex: 0,
+        clientRowId: 'client_row_aaa',
+        backendRowUuid: '00000000-0000-4000-8000-000000000001'
+      })
+    ])
+    expect(idMap.has(0)).toBe(false)
+  })
+
+  it('does NOT clear when the recorded client id is only a stale non-head candidate', () => {
+    // The recorded clientRowId now sits in `id` (a non-primary candidate), while the row's
+    // current primary identity is `_id: client_row_new`. Old loose `includes()` would still
+    // clear the mapping; strict head-equality must not.
+    const idMap = new Map<number, string>([[0, 'client_row_aaa']])
+    const cleared = clearMaterializedClientRowIndexMappings({
+      rowIndices: [0],
+      rowOffset: 0,
+      data: [
+        {
+          _id: 'client_row_new',
+          _clientRowId: 'client_row_new',
+          id: 'client_row_aaa',
+          _rowUuid: '00000000-0000-4000-8000-000000000001',
+          _gridRowIndex: 0
+        }
+      ],
+      idMap,
+      isUuid
+    })
+    expect(cleared).toEqual([])
+    expect(idMap.get(0)).toBe('client_row_aaa')
+  })
+
+  it('does NOT clear when backendRowUuid is missing (row not yet materialized)', () => {
+    const idMap = new Map<number, string>([[0, 'client_row_aaa']])
+    const cleared = clearMaterializedClientRowIndexMappings({
+      rowIndices: [0],
+      rowOffset: 0,
+      data: [
+        {
+          _id: 'client_row_aaa',
+          _clientRowId: 'client_row_aaa',
+          _gridRowIndex: 0
+        }
+      ],
+      idMap,
+      isUuid
+    })
+    expect(cleared).toEqual([])
+    expect(idMap.get(0)).toBe('client_row_aaa')
+  })
+
+  it('accepts a current getClientRowIdentity match even when the head candidate differs', () => {
+    // `_clientRowId` provides the canonical client identity; `_id` is already the backend uuid.
+    const idMap = new Map<number, string>([[0, 'client_row_aaa']])
+    const cleared = clearMaterializedClientRowIndexMappings({
+      rowIndices: [0],
+      rowOffset: 0,
+      data: [
+        {
+          _id: '00000000-0000-4000-8000-000000000001',
+          _rowUuid: '00000000-0000-4000-8000-000000000001',
+          _clientRowId: 'client_row_aaa',
+          _gridRowIndex: 0
+        }
+      ],
+      idMap,
+      isUuid
+    })
+    expect(cleared).toHaveLength(1)
+    expect(idMap.has(0)).toBe(false)
   })
 })

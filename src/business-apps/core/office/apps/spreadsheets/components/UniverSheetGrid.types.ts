@@ -133,11 +133,27 @@ export interface UniverSheetGridProps {
   /**
    * Runs before unified HTTP batch when new rows must be materialized (`add_rows`) so `set_range` uses server ids.
    * Invoked on the spreadsheet operation queue; set from SpreadsheetAppViewer.
+   *
+   * Optional `finalize` callback runs INSIDE the same operation-queue task as the flush, immediately
+   * after the flush completes. Callers (emit dispatch) use this to execute the post-flush
+   * remap + HTTP submit atomically with respect to other queue tasks (other emits, debounced
+   * data-change processing, snapshot checkpoints). Without this, the post-flush snapshot read can
+   * race with a concurrent processUniverDataChange and drop or mis-map cell writes.
    */
-  flushUnmaterializedRowsBeforePersistRef?: MutableRefObject<((sheetId: string) => Promise<void>) | null>
+  flushUnmaterializedRowsBeforePersistRef?: MutableRefObject<
+    ((sheetId: string, finalize?: () => Promise<void>) => Promise<void>) | null
+  >
   /** Session-backed row snapshot for remapping `client_*` ids after {@link flushUnmaterializedRowsBeforePersistRef}. */
   getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
-  /** Predicate for backend row UUIDs; should match pending-cell batch logic. */
+  /**
+   * 2a: Single authoritative predicate for backend row UUIDs; should match pending-cell batch
+   * logic. Hosts must wire this; the legacy `isUuidForRowRemap` slot is honored for one release.
+   */
+  isBackendRowUuid?: (value: string) => boolean
+  /**
+   * @deprecated 2a: Use {@link isBackendRowUuid}. The old name is honored for one release via
+   * `resolveBackendRowUuidPredicate`, then removed.
+   */
   isUuidForRowRemap?: (value: string) => boolean
   rowSlotIdentityRegistryRef?: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
   columnStructureStateRef?: MutableRefObject<{

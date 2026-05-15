@@ -2475,15 +2475,30 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     rowMaterializationReadiness
   })
 
-  const flushUnmaterializedRowsBeforePersistRef = useRef<((sheetId: string) => Promise<void>) | null>(null)
+  const flushUnmaterializedRowsBeforePersistRef = useRef<
+    ((sheetId: string, finalize?: () => Promise<void>) => Promise<void>) | null
+  >(null)
   useEffect(() => {
-    flushUnmaterializedRowsBeforePersistRef.current = async (sheetId: string) => {
-      void sheetId
+    flushUnmaterializedRowsBeforePersistRef.current = async (sheetId: string, finalize?: () => Promise<void>) => {
       await chainOnOperationQueue(operationQueueRef, async () => {
-        await processUniverDataChangeRef.current()
+        // Fix D: use the `submit_readiness` materialization path, NOT the regular
+        // `processUniverDataChange` path. The regular path is gated by a "stale active snapshot"
+        // guard (univer_data_change reason) which silently skips when Univer's view is
+        // compressed/behind the persisted session — exactly the state we land in just after
+        // add_rows commits while Univer hasn't re-emitted the new row identities yet. When the
+        // emit dispatch explicitly asks us to flush before submitting, we MUST actually flush.
+        const latest = latestUniverDataRef.current
+        const rows = latest?.data ?? []
+        const effectiveSheetId = latest?.sheetId || sheetId
+        if (rows.length > 0) {
+          await materializeTemporaryRowsForSubmit(effectiveSheetId, rows)
+        }
+        if (finalize) {
+          await finalize()
+        }
       })
     }
-  }, [chainOnOperationQueue])
+  }, [chainOnOperationQueue, materializeTemporaryRowsForSubmit])
 
   const getPersistSheetRowsSnapshotForGrid = useCallback(
     (sheetId: string) => {
@@ -2873,7 +2888,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleMutationBatchOp = useCallback(
     async (batchData: SpreadsheetUnifiedMutationBatchPayload) => {
-      if (!Array.isArray(batchData.operations) || batchData.operations.length === 0) return
+      if (!Array.isArray(batchData.operations) || batchData.operations.length === 0) {
+        return
+      }
       const targetSheetId = resolveReconciledSheetId(batchData.sheetId, createdSheetIdAliasesRef.current)
       const operationTypes = batchData.operations.map(operation => operation.type)
       let mappedOperations: SpreadsheetBatchOperation[] = batchData.operations.map(operation => ({
@@ -3259,7 +3276,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onMutationBatchOp: handleMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef,
     getPersistSheetRowsSnapshot: getPersistSheetRowsSnapshotForGrid,
-    isUuidForRowRemap: (value: string) => isUuid(value),
+    isBackendRowUuid: (value: string) => isUuid(value),
     rowSlotIdentityRegistryRef,
     columnStructureStateRef: columnsState.columnStructureStateRef,
     onCursorEmit: handleLocalCursorEmit,

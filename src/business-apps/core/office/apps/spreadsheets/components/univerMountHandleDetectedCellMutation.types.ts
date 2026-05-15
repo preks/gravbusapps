@@ -35,11 +35,27 @@ export type UniverMountHandleDetectedCellMutationDeps = Pick<
     peekPasteFormattingReplaceIntent: (sheetId: string) => boolean
     /**
      * Ensures `add_rows` completes before unified cell/style HTTP batch when new rows use `client_*` ids.
+     *
+     * Optional `finalize` runs INSIDE the same operation-queue task as the flush. Used by the emit
+     * dispatch to make `flush → snapshot read → remap → submit` atomic with respect to other
+     * concurrent processUniverDataChange / submit tasks. Without it, the snapshot read can race
+     * with another emit's flush and miss a freshly-materialized row UUID, causing the cell write
+     * to be submitted with a temp `client_*` id (which the backend rejects).
      */
-    flushUnmaterializedRowsBeforePersist?: (targetSheetId: string) => Promise<void>
+    flushUnmaterializedRowsBeforePersist?: (targetSheetId: string, finalize?: () => Promise<void>) => Promise<void>
     /** Authoritative row snapshot after flush (session); used to remap `client_*` → server UUIDs in batch ops. */
     getPersistSheetRowsSnapshot?: (targetSheetId: string) => Record<string, unknown>[]
-    /** Same predicate as pending cell batches; identifies persisted backend row ids for remap map. */
+    /**
+     * 2a: Predicate slots live on {@link UniverMountHandleDetectedCellMutationDeps.propsRef}
+     * (`isBackendRowUuid`, deprecated `isUuidForRowRemap`). Call sites use
+     * {@link resolveBackendRowUuidPredicateFromGridProps}.
+     */
+    isBackendRowUuid?: (value: string) => boolean
+    /**
+     * @deprecated 2a: Use {@link isBackendRowUuid} on grid props / `propsRef.current`. The
+     * {@link resolveBackendRowUuidPredicate} helper warns once if both host predicates are
+     * provided and not referentially equal.
+     */
     isUuidForRowRemap?: (value: string) => boolean
     rowSlotIdentityRegistryRef?: MutableRefObject<
       import('../utils/spreadsheetRowSlotIdentity').SpreadsheetRowSlotIdentityRegistry | null
@@ -57,7 +73,20 @@ export type DetectedCellMutationReady = {
   source: HandleDetectedCellMutationArgs['source']
   commandId: string | undefined
   targetSheetId: string
-  useResolvedContext: boolean
+  /**
+   * 2c: True when the planner context for this mutation was sourced from the host's
+   * `getSheetContext` (i.e. the host owns context lifetime). When true, the persist plan
+   * intentionally does NOT mutate any of the following refs because the host is the
+   * authoritative writer:
+   *   - `lastSyncedGridCellSignaturesRef` (echo signature ledger)
+   *   - `contextRef.current` (planner conversion context)
+   *   - `recentLocalMutationSignaturesRef` (treated as host-owned in this branch)
+   *   - `newRowClientIdByIndexRef` (host clears, planner only reads)
+   *
+   * When false, the planner is the authoritative writer for these refs. This boolean was
+   * previously named `useResolvedContext`, which obscured the ownership contract.
+   */
+  contextOwnedByHost: boolean
   cellValue: SheetCellMatrix
   ctxBefore: ConversionContext
   contextColumns: SpreadsheetColumn[]
@@ -84,6 +113,13 @@ export type DetectedCellMutationReady = {
     nextData: Record<string, unknown>[]
     nextContext: ConversionContext
   } | null
+  /**
+   * 1d: Normalized live merge ranges extracted from the current worksheet facade. The planner
+   * uses these for merge-slave protection instead of the workbook snapshot, which can lag the
+   * live state by one or two layers. `null` means extraction failed and the planner should fall
+   * back to `workbookSnapshot.mergeData`.
+   */
+  liveMergeRanges: SheetRangeShape[] | null
 }
 
 export type ResolveDetectedCellMutationResult =

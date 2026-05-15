@@ -1,4 +1,4 @@
-import { getViewerRowIdentityCandidates, type ViewerRow } from './spreadsheetRowIdentity'
+import type { ViewerRow } from './spreadsheetRowIdentity'
 
 export type PendingCellChangeLike = {
   rowId: string
@@ -57,19 +57,13 @@ export const shouldSkipFreshRowCellReplay = (baselineValue: unknown, queuedValue
 
 export const reconcileQueuedDraftCellsForCreatedRows = <T extends PendingCellChangeLike>(
   queuedCells: T[],
-  createdRows: ViewerRow[],
+  // Kept for signature compatibility with existing callers; baseline lookup no longer used (Fix F).
+  _createdRows: ViewerRow[],
   persistedIdByClientRowId: Map<string, string>
 ): T[] => {
   if (queuedCells.length === 0 || persistedIdByClientRowId.size === 0) {
     return queuedCells
   }
-
-  const createdRowById = new Map<string, ViewerRow>()
-  createdRows.forEach(row => {
-    getViewerRowIdentityCandidates(row).forEach(candidateId => {
-      createdRowById.set(candidateId, row)
-    })
-  })
 
   const nextQueuedCells: T[] = []
   for (const cell of queuedCells) {
@@ -80,12 +74,11 @@ export const reconcileQueuedDraftCellsForCreatedRows = <T extends PendingCellCha
       continue
     }
 
-    const createdRow = createdRowById.get(clientRowId) ?? createdRowById.get(persistedId)
-    const baselineValue = createdRow?.[cell.columnName]
-    if (shouldSkipFreshRowCellReplay(baselineValue, cell.value)) {
-      continue
-    }
-
+    // Fix F: never drop a queued cell just because its value happens to match the freshly-created
+    // row's baseline. The user's queued write is intentional and must reach the server so audit /
+    // collaboration logs see the explicit edit. The baseline is just the column default; relying
+    // on equality silently swallows legitimate writes (e.g. typing "0" into a numeric column with
+    // default 0, or typing the same value into 20 new rows in the same column).
     nextQueuedCells.push({
       ...cell,
       rowId: persistedId

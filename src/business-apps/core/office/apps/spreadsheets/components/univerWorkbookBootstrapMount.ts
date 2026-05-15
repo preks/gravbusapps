@@ -27,7 +27,6 @@ import {
   extractWorkbookStylesFromSnapshot
 } from './univerGridSnapshotDimensions'
 import { stripWorksheetValueKeys, worksheetHasCopyPayload } from './univerGridWorkbookMutationModule'
-import { isSpreadsheetBackendRowUuid } from '../utils/spreadsheetRowIdentity'
 
 export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountContext): (() => void) | undefined {
   const {
@@ -396,13 +395,11 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     pendingFormattingPasteIntentRef,
     getWorkbookSnapshotRef,
     peekPasteFormattingReplaceIntent,
-    flushUnmaterializedRowsBeforePersist: async (targetSheetId: string) => {
-      await propsRef.current.flushUnmaterializedRowsBeforePersistRef?.current?.(targetSheetId)
+    flushUnmaterializedRowsBeforePersist: async (targetSheetId: string, finalize?: () => Promise<void>) => {
+      await propsRef.current.flushUnmaterializedRowsBeforePersistRef?.current?.(targetSheetId, finalize)
     },
     getPersistSheetRowsSnapshot: (targetSheetId: string) =>
-      propsRef.current.getPersistSheetRowsSnapshot?.(targetSheetId) ?? propsRef.current.data,
-    isUuidForRowRemap: (value: string) =>
-      propsRef.current.isUuidForRowRemap?.(value) ?? isSpreadsheetBackendRowUuid(value)
+      propsRef.current.getPersistSheetRowsSnapshot?.(targetSheetId) ?? propsRef.current.data
   })
   const reconcileSingleCell = (
     row: number | undefined,
@@ -579,6 +576,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     isApplyingRemoteUpdateRef,
     collabPersistedBulkApplyDepthRef,
     univerAPIRef,
+    callbacksRef,
     handleDetectedCellMutation,
     reconcileSingleCell
   })

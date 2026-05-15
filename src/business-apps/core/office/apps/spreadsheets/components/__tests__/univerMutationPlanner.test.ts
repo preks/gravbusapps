@@ -1,4 +1,4 @@
-import { buildAuthoritativeMutationEnvelope } from '../univerMutationPlanner'
+import { buildAuthoritativeMutationEnvelope, buildStylePatchFromUniverCell } from '../univerMutationPlanner'
 
 describe('univerMutationPlanner', () => {
   const columns = [
@@ -645,5 +645,245 @@ describe('univerMutationPlanner', () => {
         value: 'edited row 2'
       })
     ])
+  })
+
+  // 3d: StylePatchMode covers full-restyle (replaceInlineWithStyleRef) and partial-patch
+  // (preserveUnspecifiedInline) behaviors. Auto-unset of unspecified inline keys must only
+  // happen in full-restyle mode.
+  describe('buildStylePatchFromUniverCell StylePatchMode', () => {
+    it('replaceInlineWithStyleRef: auto-unsets unspecified inline keys when style id is set', () => {
+      const patch = buildStylePatchFromUniverCell({ s: 'style-1' }, 'normal', 'replaceInlineWithStyleRef')
+      expect(patch?.set).toEqual({ s: 'style-1' })
+      // every UNIVER_INLINE_STYLE_KEY not in set gets added to unset
+      expect(patch?.unset).toEqual(expect.arrayContaining(['bg', 'cl', 'bd', 'ff', 'fs']))
+    })
+
+    it('preserveUnspecifiedInline: leaves unspecified inline keys untouched when style id is set', () => {
+      const patch = buildStylePatchFromUniverCell({ s: 'style-1' }, 'normal', 'preserveUnspecifiedInline')
+      expect(patch?.set).toEqual({ s: 'style-1' })
+      expect(patch?.unset).toBeUndefined()
+    })
+
+    it('replaceRange intent unsets all formatting keys regardless of mode', () => {
+      const patch = buildStylePatchFromUniverCell({ v: 'plain' }, 'replaceRange', 'preserveUnspecifiedInline')
+      expect(patch?.unset).toEqual(expect.arrayContaining(['s', 'bg', 'cl']))
+    })
+
+    it('returns undefined when there is no style payload at all', () => {
+      const patch = buildStylePatchFromUniverCell({}, 'normal', 'preserveUnspecifiedInline')
+      expect(patch).toBeUndefined()
+    })
+  })
+
+  // 1d: liveMergeRanges from the worksheet facade must take precedence over a stale
+  // workbookSnapshot.mergeData so writes into freshly-merged slave cells are skipped even
+  // before the snapshot catches up.
+  it('protects merge-slave coordinates from value writes using liveMergeRanges over stale snapshot', () => {
+    const twoColumns = [
+      {
+        id: 'col-name',
+        name: 'name',
+        label: 'Name',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 120,
+        order: 0
+      },
+      {
+        id: 'col-note',
+        name: 'note',
+        label: 'Note',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 120,
+        order: 1
+      }
+    ] as any
+    const twoColumnCtx = {
+      rowIndexToId: new Map([[0, 'row-1']]),
+      columnIndexToName: new Map([
+        [0, 'name'],
+        [1, 'note']
+      ]),
+      columnIndexToId: new Map([
+        [0, 'col-name'],
+        [1, 'col-note']
+      ])
+    } as any
+
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-live-merge',
+      intent: 'edit',
+      currentData: [{ _id: 'row-1', name: 'Anchor', note: 'Covered' }],
+      contextColumns: twoColumns,
+      ctx: twoColumnCtx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }],
+      mergedCellValue: {
+        0: {
+          0: { v: 'Anchor updated' },
+          1: { v: 'Covered updated' }
+        }
+      },
+      // Snapshot has NO merge; live merge ranges have the freshly-landed merge instead.
+      workbookSnapshot: { sheets: { 'sheet-1': { id: 'sheet-1', mergeData: [] } } },
+      liveMergeRanges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }]
+    })
+
+    expect(envelope.plan?.cells).toEqual([
+      expect.objectContaining({
+        rowId: 'row-1',
+        columnName: 'name',
+        valueAction: 'set',
+        value: 'Anchor updated'
+      })
+    ])
+  })
+
+  // 1d: when liveMergeRanges is empty/undefined, the planner still uses snapshot.mergeData.
+  it('falls back to workbookSnapshot.mergeData when liveMergeRanges is not provided', () => {
+    const twoColumns = [
+      {
+        id: 'col-name',
+        name: 'name',
+        label: 'Name',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 120,
+        order: 0
+      },
+      {
+        id: 'col-note',
+        name: 'note',
+        label: 'Note',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 120,
+        order: 1
+      }
+    ] as any
+    const twoColumnCtx = {
+      rowIndexToId: new Map([[0, 'row-1']]),
+      columnIndexToName: new Map([
+        [0, 'name'],
+        [1, 'note']
+      ]),
+      columnIndexToId: new Map([
+        [0, 'col-name'],
+        [1, 'col-note']
+      ])
+    } as any
+
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-snapshot-merge',
+      intent: 'edit',
+      currentData: [{ _id: 'row-1', name: 'Anchor', note: 'Covered' }],
+      contextColumns: twoColumns,
+      ctx: twoColumnCtx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }],
+      mergedCellValue: {
+        0: {
+          0: { v: 'Anchor updated' },
+          1: { v: 'Covered updated' }
+        }
+      },
+      workbookSnapshot: {
+        sheets: {
+          'sheet-1': { id: 'sheet-1', mergeData: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }] }
+        }
+      }
+    })
+
+    expect(envelope.plan?.cells).toEqual([
+      expect.objectContaining({ rowId: 'row-1', columnName: 'name', valueAction: 'set' })
+    ])
+  })
+
+  // 1c: ambiguous sparse-null clear is intentionally skipped in the primary loop, and the
+  // fallback's broader matrix scan must NOT resurrect that key with a value mutation.
+  it('does not resurrect a key the primary loop intentionally skipped via the ambiguous sparse-null gate', () => {
+    const twoColumnColumns = [
+      {
+        id: 'col-name',
+        name: 'name',
+        label: 'Name',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 120,
+        order: 0
+      },
+      {
+        id: 'col-amount',
+        name: 'amount',
+        label: 'Amount',
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 120,
+        order: 1
+      }
+    ] as any
+
+    const twoColumnCtx = {
+      rowIndexToId: new Map([[0, 'row-1']]),
+      columnIndexToName: new Map([
+        [0, 'name'],
+        [1, 'amount']
+      ]),
+      columnIndexToId: new Map([
+        [0, 'col-name'],
+        [1, 'col-amount']
+      ])
+    } as any
+
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-no-resurrect',
+      intent: 'edit',
+      currentData: [{ _id: 'row-1', name: 'Alice', amount: '42' }],
+      contextColumns: twoColumnColumns,
+      ctx: twoColumnCtx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }],
+      // Two cells; one carries an ambiguous sparse-null over a non-blank current value, the
+      // other carries a real edit. Empty commandId activates the ambiguousSparseNullNoiseGate.
+      mergedCellValue: {
+        0: { 0: { v: 'Alice updated' }, 1: { v: null } }
+      },
+      worksheetCellValue: {
+        0: { 0: { v: 'Alice updated' }, 1: { v: null } }
+      },
+      explicitPayloadAbsoluteCellValue: {
+        0: { 0: { v: 'Alice updated' }, 1: { v: null } }
+      },
+      workbookSnapshot: null,
+      mutationCommandId: ''
+    })
+
+    const cells = envelope.plan?.cells ?? []
+    const amountCell = cells.find(cell => cell.columnName === 'amount')
+    // The intentionally-skipped key must not be resurrected with a value mutation by fallback.
+    expect(amountCell).toBeUndefined()
+    // The unambiguous edit on the other cell still flows through.
+    expect(cells.find(cell => cell.columnName === 'name')).toEqual(
+      expect.objectContaining({ valueAction: 'set', value: 'Alice updated' })
+    )
   })
 })

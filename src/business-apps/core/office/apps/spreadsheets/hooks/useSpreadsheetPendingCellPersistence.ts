@@ -71,8 +71,12 @@ export function useSpreadsheetPendingCellPersistence(
   } = params
 
   const flushPendingCellChanges = useCallback(async () => {
-    if (entityEnabled) return
-    if (!hasPendingCellPersistence()) return
+    if (entityEnabled) {
+      return
+    }
+    if (!hasPendingCellPersistence()) {
+      return
+    }
 
     const aliases = createdSheetIdAliasesRef.current
     const pendingSel = pendingCreatedSheetSelectionRef.current
@@ -85,8 +89,12 @@ export function useSpreadsheetPendingCellPersistence(
             aliases
           })
       )
-    if (pendingCellChangesRef.current.some(c => sheetBlocked(c.sheetId))) return
-    if (pendingCellBatchesRef.current.some(b => sheetBlocked(b.targetSheetId))) return
+    if (pendingCellChangesRef.current.some(c => sheetBlocked(c.sheetId))) {
+      return
+    }
+    if (pendingCellBatchesRef.current.some(b => sheetBlocked(b.targetSheetId))) {
+      return
+    }
 
     cellFlushSequenceRef.current += 1
 
@@ -96,11 +104,15 @@ export function useSpreadsheetPendingCellPersistence(
       while (true) {
         if (pendingCellBatchesRef.current.length === 0) {
           const draftCells = pendingCellChangesRef.current
-          if (draftCells.length === 0) break
+          if (draftCells.length === 0) {
+            break
+          }
           pendingCellChangesRef.current = []
           pendingCellBatchesRef.current = buildPendingCellBatches(draftCells)
           persistPendingCellJournal()
-          if (pendingCellBatchesRef.current.length === 0) break
+          if (pendingCellBatchesRef.current.length === 0) {
+            break
+          }
         }
 
         const [nextBatch, ...remainingBatches] = pendingCellBatchesRef.current

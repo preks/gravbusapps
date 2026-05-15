@@ -57,7 +57,7 @@ export interface UseSpreadsheetMainViewRendererParams {
   onMutationBatchOp?: (data: SpreadsheetUnifiedMutationBatchPayload) => void | Promise<void>
   flushUnmaterializedRowsBeforePersistRef: MutableRefObject<((sheetId: string) => Promise<void>) | null>
   getPersistSheetRowsSnapshot: (sheetId: string) => ViewerRow[]
-  isUuidForRowRemap: (value: string) => boolean
+  isBackendRowUuid: (value: string) => boolean
   rowSlotIdentityRegistryRef: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
   columnStructureStateRef: MutableRefObject<{
     healthy: boolean
@@ -121,7 +121,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef,
     getPersistSheetRowsSnapshot,
-    isUuidForRowRemap,
+    isBackendRowUuid,
     rowSlotIdentityRegistryRef,
     columnStructureStateRef,
     onCursorEmit,
@@ -199,7 +199,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           onMutationBatchOp={onMutationBatchOp}
           flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
           getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
-          isUuidForRowRemap={isUuidForRowRemap}
+          isBackendRowUuid={isBackendRowUuid}
           rowSlotIdentityRegistryRef={rowSlotIdentityRegistryRef}
           columnStructureStateRef={columnStructureStateRef}
           onCursorEmit={onCursorEmit}
@@ -283,7 +283,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef,
     getPersistSheetRowsSnapshot,
-    isUuidForRowRemap,
+    isBackendRowUuid,
     rowSlotIdentityRegistryRef,
     onUniverSheetInserted,
     onUniverSheetRemoved,

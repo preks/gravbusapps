@@ -76,6 +76,13 @@ export interface BuildAuthoritativeMutationEnvelopeParams {
   resolveStableColumnName?: (columnIndex: number) => string | null
   /** Univer command id from SheetValueChanged / CommandExecuted (empty when omitted). */
   mutationCommandId?: string
+  /**
+   * 1d: Live merge ranges read from the current worksheet facade in the resolve phase. When
+   * present, the planner uses these to compute merge-slave protection instead of the workbook
+   * snapshot, which may be one or two layers stale and miss a merge that just landed locally.
+   * Pass `undefined` to fall back to `workbookSnapshot.mergeData`.
+   */
+  liveMergeRanges?: SheetRangeShape[]
 }
 
 function isClearLikeMutationCommandId(commandId: string | undefined): boolean {
@@ -180,11 +187,32 @@ function isUniverFormattingKey(key: string): boolean {
   return key === 's' || UNIVER_INLINE_STYLE_KEY_SET.has(key)
 }
 
+/**
+ * 3d: Style patch construction mode.
+ *
+ * - `'replaceInlineWithStyleRef'` — when the source carries a style id (`s`), every inline
+ *   formatting key (`bg`, `cl`, etc.) that is NOT explicitly set in the source is added to the
+ *   `unset` list. This is the correct behavior for FULL restyles (e.g. paste-all, set-range-
+ *   style collaboration commands) where the destination must look identical to the source.
+ *
+ * - `'preserveUnspecifiedInline'` — only modify keys that are explicitly present in the source
+ *   payload; unspecified inline keys are left untouched on the destination. Correct for
+ *   PARTIAL style patches Univer may emit (e.g. via the merged-cell read path) where the
+ *   payload only describes the keys that changed.
+ *
+ * Default: `'replaceInlineWithStyleRef'` (preserves current behavior). Callers using the merged
+ * matrix as the style source should pass `'preserveUnspecifiedInline'` to avoid silently
+ * unsetting destination styles that the partial payload did not describe.
+ */
+export type StylePatchMode = 'replaceInlineWithStyleRef' | 'preserveUnspecifiedInline'
+
+// Legacy intent name; kept as an alias because callers used `'normal' | 'replaceRange'`.
 type SpreadsheetStylePatchIntent = 'normal' | 'replaceRange'
 
 function buildStylePatchFromUniverCell(
   univerCell: Record<string, unknown> | undefined,
-  intent: SpreadsheetStylePatchIntent
+  intent: SpreadsheetStylePatchIntent,
+  mode: StylePatchMode = 'replaceInlineWithStyleRef'
 ): SpreadsheetStylePatch | undefined {
   const set: Record<string, unknown> = {}
   const unset = new Set<string>()
@@ -203,7 +231,9 @@ function buildStylePatchFromUniverCell(
       }
     }
   }
-  if (intent === 'normal' && typeof set.s === 'string' && set.s.length > 0) {
+  // 3d: only auto-unset unspecified inline keys when the caller asked for full-restyle mode.
+  // Partial style patches (mode === 'preserveUnspecifiedInline') leave unspecified keys alone.
+  if (intent === 'normal' && mode === 'replaceInlineWithStyleRef' && typeof set.s === 'string' && set.s.length > 0) {
     for (const key of UNIVER_INLINE_STYLE_KEYS) {
       if (Object.prototype.hasOwnProperty.call(set, key)) continue
       unset.add(key)
@@ -215,6 +245,8 @@ function buildStylePatchFromUniverCell(
     ...(unset.size > 0 ? { unset: Array.from(unset) } : {})
   }
 }
+
+export { buildStylePatchFromUniverCell }
 
 function countCellMatrixEntries(cellValue: SheetCellMatrix | undefined): number {
   if (!cellValue) return 0
@@ -338,11 +370,9 @@ function normalizeMergeRange(
   }
 }
 
-function buildMergeCoveredCellSet(workbookSnapshot: Record<string, unknown> | null, sheetId: string): Set<string> {
-  const worksheet = resolveWorkbookWorksheet(workbookSnapshot, sheetId)
-  const mergeData = Array.isArray(worksheet?.mergeData) ? worksheet.mergeData : []
+function buildMergeCoveredCellSetFromRanges(ranges: Iterable<unknown>): Set<string> {
   const covered = new Set<string>()
-  for (const candidate of mergeData) {
+  for (const candidate of ranges) {
     const range = normalizeMergeRange(candidate)
     if (!range) continue
     for (let row = range.startRow; row <= range.endRow; row += 1) {
@@ -353,6 +383,22 @@ function buildMergeCoveredCellSet(workbookSnapshot: Record<string, unknown> | nu
     }
   }
   return covered
+}
+
+function buildMergeCoveredCellSet(
+  workbookSnapshot: Record<string, unknown> | null,
+  sheetId: string,
+  liveMergeRanges: SheetRangeShape[] | undefined
+): Set<string> {
+  // 1d: Prefer live merge ranges from the worksheet facade — they reflect merges that just
+  // landed locally and may not yet be in the workbook snapshot. Fall back to snapshot merge
+  // data only when live extraction did not run or returned an empty list.
+  if (liveMergeRanges && liveMergeRanges.length > 0) {
+    return buildMergeCoveredCellSetFromRanges(liveMergeRanges)
+  }
+  const worksheet = resolveWorkbookWorksheet(workbookSnapshot, sheetId)
+  const mergeData = Array.isArray(worksheet?.mergeData) ? worksheet.mergeData : []
+  return buildMergeCoveredCellSetFromRanges(mergeData)
 }
 
 /**
@@ -376,6 +422,14 @@ function applyNonBlankWorksheetFallback(params: {
   resolveStableColumnName?: (columnIndex: number) => string | null
   styleIntent: SpreadsheetStylePatchIntent
   mergeCoveredCellKeys: Set<string>
+  /**
+   * 1c invariant: once a cell key is intentionally classified as skipped for safety in the
+   * primary loop (ambiguous sparse-null clears, shouldSuppress hits, merge-slave protection),
+   * NO later fallback phase may produce a mutation for that key during the same planning pass.
+   * Without this, the fallback's broader scan can re-read the same coordinate and write the
+   * value back, silently overriding the safety decision.
+   */
+  intentionallySkippedKeys: Set<string>
 }): void {
   const {
     plannedCells,
@@ -392,7 +446,8 @@ function applyNonBlankWorksheetFallback(params: {
     resolveStableRowTarget,
     resolveStableColumnName,
     styleIntent,
-    mergeCoveredCellKeys
+    mergeCoveredCellKeys,
+    intentionallySkippedKeys
   } = params
 
   const matrices: SheetCellMatrix[] = []
@@ -421,6 +476,9 @@ function applyNonBlankWorksheetFallback(params: {
         const globalColIndex = colIndex
         const mapKey = `${globalRowIndex}:${globalColIndex}`
         if (mergeCoveredCellKeys.has(mapKey)) continue
+        // 1c: respect the primary loop's intentional-skip decisions. A later fallback phase
+        // must NOT resurrect a key the primary classified as unsafe to plan.
+        if (intentionallySkippedKeys.has(mapKey)) continue
         if (scannedKeys.has(mapKey)) continue
         scannedKeys.add(mapKey)
 
@@ -489,7 +547,14 @@ function applyNonBlankWorksheetFallback(params: {
           (replaceRangeStyleIntent || isCollabWireCellMutationValue(styleCell, allowValueCarryingStylePayloads)) &&
           !(existing.valueAction === 'clear' && !replaceRangeStyleIntent)
         if (shouldIncludeStyle) {
-          const stylePatch = buildStylePatchFromUniverCell(styleCell, styleIntent)
+          // 3d: fallback source is the merged matrix which may carry partial style payloads —
+          // preserve unspecified inline keys. Full restyles still cascade `unset` via
+          // `styleIntent === 'replaceRange'`.
+          const stylePatch = buildStylePatchFromUniverCell(
+            styleCell,
+            styleIntent,
+            replaceRangeStyleIntent ? 'replaceInlineWithStyleRef' : 'preserveUnspecifiedInline'
+          )
           if (stylePatch) {
             existing.stylePatch = stylePatch
             const styleId =
@@ -530,7 +595,8 @@ export function buildAuthoritativeMutationEnvelope(
     shouldSuppress,
     resolveStableRowTarget,
     resolveStableColumnName,
-    mutationCommandId
+    mutationCommandId,
+    liveMergeRanges
   } = params
 
   const targetCells = buildTargetCells({
@@ -556,7 +622,11 @@ export function buildAuthoritativeMutationEnvelope(
   const visibleColumns = contextColumns.filter(column => column.isVisible !== false)
   const plannedCells = new Map<string, SpreadsheetMutationPlannedCell>()
   const styleIntent: SpreadsheetStylePatchIntent = replaceRangeStyleIntent ? 'replaceRange' : 'normal'
-  const mergeCoveredCellKeys = buildMergeCoveredCellSet(workbookSnapshot, sheetId)
+  const mergeCoveredCellKeys = buildMergeCoveredCellSet(workbookSnapshot, sheetId, liveMergeRanges)
+  // 1c: primary-loop intentional-skip decisions. Fallback must honor these so unsafe writes
+  // (ambiguous sparse-null clears, suppressed cells, merge slaves) cannot be resurrected by
+  // the fallback's broader matrix scan within the same planning pass.
+  const intentionallySkippedKeys = new Set<string>()
 
   for (const target of targetCells) {
     const globalRowIndex = target.rowIndex
@@ -574,11 +644,12 @@ export function buildAuthoritativeMutationEnvelope(
       readMatrixCell(mergedCellValue, target.rowIndex, target.colIndex) ??
       readMatrixCell(explicitPayloadAbsoluteCellValue, target.rowIndex, target.colIndex)
 
+    const key = `${globalRowIndex}:${globalColIndex}`
     if (shouldSuppress?.(globalRowIndex, globalColIndex, candidateValue) === true) {
+      intentionallySkippedKeys.add(key)
       continue
     }
 
-    const key = `${globalRowIndex}:${globalColIndex}`
     const isMergeCoveredSlave = mergeCoveredCellKeys.has(key)
     const existing =
       plannedCells.get(key) ??
@@ -613,7 +684,10 @@ export function buildAuthoritativeMutationEnvelope(
         nextSignature === 'blank' &&
         currentSignature !== 'blank'
 
-      if (!ambiguousSparseNullClear && currentSignature !== nextSignature) {
+      if (ambiguousSparseNullClear) {
+        // 1c: classify this key as intentionally skipped so the fallback cannot resurrect it.
+        intentionallySkippedKeys.add(key)
+      } else if (currentSignature !== nextSignature) {
         existing.valueAction = nextSignature === 'blank' ? 'clear' : 'set'
         existing.value = normalizedValue
       }
@@ -629,7 +703,13 @@ export function buildAuthoritativeMutationEnvelope(
       (replaceRangeStyleIntent || isCollabWireCellMutationValue(styleCell, allowValueCarryingStylePayloads)) &&
       !(existing.valueAction === 'clear' && !replaceRangeStyleIntent)
     if (shouldIncludeStyle) {
-      const stylePatch = buildStylePatchFromUniverCell(styleCell, styleIntent)
+      // 3d: same logic as the fallback site — for partial style payloads sourced from the
+      // merged matrix, preserve unspecified inline keys; for full restyles, cascade unsets.
+      const stylePatch = buildStylePatchFromUniverCell(
+        styleCell,
+        styleIntent,
+        replaceRangeStyleIntent ? 'replaceInlineWithStyleRef' : 'preserveUnspecifiedInline'
+      )
       if (stylePatch) {
         existing.stylePatch = stylePatch
         const styleId =
@@ -665,7 +745,8 @@ export function buildAuthoritativeMutationEnvelope(
     resolveStableRowTarget,
     resolveStableColumnName,
     styleIntent,
-    mergeCoveredCellKeys
+    mergeCoveredCellKeys,
+    intentionallySkippedKeys
   })
 
   const cells = Array.from(plannedCells.values()).map(cell => ({

@@ -80,7 +80,9 @@ export function useSpreadsheetUniverRowCreatePipeline(
       sourceRows: Array<Record<string, unknown>>
       reason: 'univer_data_change' | 'submit_readiness'
     }) => {
-      if (entityEnabledRef.current || !canEditWithLockRef.current) return
+      if (entityEnabledRef.current || !canEditWithLockRef.current) {
+        return
+      }
       if (
         isSheetCreationAwaitingPersistedId({
           pendingCreatedSheetSelection: pendingCreatedSheetSelectionRef.current,

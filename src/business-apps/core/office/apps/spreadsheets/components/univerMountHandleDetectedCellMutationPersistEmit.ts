@@ -5,8 +5,9 @@ import { remapBatchOperationsWithUiToBackendRowMap } from '../utils/spreadsheetB
 import {
   buildRowIdentityDiagnostics,
   buildUiToBackendRowIdMap,
-  isSpreadsheetBackendRowUuid
+  isSpreadsheetTemporaryClientRowId
 } from '../utils/spreadsheetRowIdentity'
+import { resolveBackendRowUuidPredicateFromGridProps } from './univerBackendRowUuidPredicate'
 import { detectTemporaryRowIdsInKnownRowIdFields } from '../utils/spreadsheetUnifiedBatchSubmitUtils'
 import { MAX_INDIVIDUAL_CLEAR_CELL_OPS } from '../utils/spreadsheetViewerRows'
 import { debugMutationTrace } from './univerGridDebug'
@@ -44,12 +45,18 @@ function buildUnifiedOperationsForEmit(emit: PersistEmitInput): SpreadsheetBatch
 
 function needsRowMaterializationFlush(emit: PersistEmitInput, unifiedOperations: SpreadsheetBatchOperation[]): boolean {
   if (unifiedOperations.length === 0) return false
+  // 1a invariant: persistence must never submit unresolved temporary row ids (`client_*`).
+  // Materialization is required when the host explicitly asked for it, OR a planned cell
+  // carries a temporary client row id that the backend would reject. Custom non-UUID row ids
+  // that hosts use intentionally (e.g. project-specific persisted identifiers) are NOT
+  // temporary — only the `client_*` shape triggers materialization here.
   return (
     emit.materializeRowsBeforeEmit ||
     emit.plannedCellsFiltered.some(
       cell =>
         (cell.valueAction === 'set' || cell.valueAction === 'clear' || cell.stylePatch != null) &&
-        !isSpreadsheetBackendRowUuid(cell.rowId)
+        typeof cell.rowId === 'string' &&
+        isSpreadsheetTemporaryClientRowId(cell.rowId)
     )
   )
 }
@@ -69,6 +76,19 @@ function emitRowIdentityDiagnostics(
       ...payload
     }
   })
+}
+
+// Rate-limit per (workbook|worksheet|errorCode) to avoid log floods if a host integration is
+// permanently misconfigured. We only need one warning per minute per host scope to keep the
+// signal visible without burying other logs.
+const MISSING_FLUSH_WARN_INTERVAL_MS = 60_000
+const lastMissingFlushWarnAtByKey = new Map<string, number>()
+
+function shouldEmitMissingFlushWarning(scopeKey: string, now: number): boolean {
+  const last = lastMissingFlushWarnAtByKey.get(scopeKey)
+  if (last !== undefined && now - last < MISSING_FLUSH_WARN_INTERVAL_MS) return false
+  lastMissingFlushWarnAtByKey.set(scopeKey, now)
+  return true
 }
 
 /**
@@ -197,7 +217,7 @@ export function runDetectedCellMutationPersistEmitDispatch(
   const temporaryRowIdMatches = detectTemporaryRowIdsInKnownRowIdFields(unifiedOperations)
   const affectedUiRowIds = Array.from(new Set(temporaryRowIdMatches.map(match => match.rowId)))
   if (affectedUiRowIds.length > 0) {
-    const isUuid = deps.isUuidForRowRemap ?? isSpreadsheetBackendRowUuid
+    const isUuid = resolveBackendRowUuidPredicateFromGridProps(deps.propsRef)
     const optimisticRows = getPersistRowsForRemap(deps, emit.targetSheetId)
     emitRowIdentityDiagnostics(deps, emit, 'grid_optimistic_row_identity_created', {
       temporaryRowIdMatches,
@@ -209,13 +229,15 @@ export function runDetectedCellMutationPersistEmitDispatch(
     })
   }
   const flushSlot = deps.propsRef.current.flushUnmaterializedRowsBeforePersistRef
-  const needsFlush = needsRowMaterializationFlush(emit, unifiedOperations) && Boolean(flushSlot?.current)
+  const needsMaterialization = needsRowMaterializationFlush(emit, unifiedOperations)
+  const flushHookPresent = Boolean(flushSlot?.current) || Boolean(deps.flushUnmaterializedRowsBeforePersist)
+  const needsFlush = needsMaterialization && flushHookPresent
 
   if (affectedUiRowIds.length > 0) {
-    const isUuid = deps.isUuidForRowRemap ?? isSpreadsheetBackendRowUuid
+    const isUuid = resolveBackendRowUuidPredicateFromGridProps(deps.propsRef)
     const rowsBeforeFlush = getPersistRowsForRemap(deps, emit.targetSheetId)
     emitRowIdentityDiagnostics(deps, emit, 'grid_row_materialization_before_flush', {
-      flushHookPresent: Boolean(flushSlot?.current),
+      flushHookPresent,
       needsFlush,
       temporaryRowIdMatches,
       rowIdentities: buildRowIdentityDiagnostics({
@@ -226,30 +248,148 @@ export function runDetectedCellMutationPersistEmitDispatch(
     })
   }
 
+  // 1a: Row materialization is required but the host did not wire a flush dependency. We must
+  // NOT silently bypass the operation queue — that is the exact race that drops cells under
+  // concurrent emits. Leave the cell in the pending journal (handled = false), warn (rate
+  // limited per host scope), and emit telemetry so the missing wiring is observable.
+  if (needsMaterialization && !flushHookPresent) {
+    const errorCode = 'cell_emit_missing_flush_dependency'
+    const hadTempRowIds = affectedUiRowIds.length > 0
+    const rateLimitKey = `${emit.targetSheetId}|${errorCode}`
+    if (shouldEmitMissingFlushWarning(rateLimitKey, Date.now())) {
+      console.warn('[SPREADSHEET_PERSIST] emit_dispatch: missing_flush_dependency', {
+        errorCode,
+        worksheetId: emit.targetSheetId,
+        commandId: emit.commandId,
+        affectedUiRowIds,
+        hadTempRowIds,
+        traceId: emit.mutationTraceId
+      })
+    }
+    deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'spreadsheet.cell_emit.missing_flush_dependency',
+      severity: 'error',
+      sheetId: emit.targetSheetId,
+      traceId: emit.mutationTraceId,
+      payload: {
+        errorCode,
+        worksheetId: emit.targetSheetId,
+        commandId: emit.commandId,
+        affectedUiRowIds,
+        hadTempRowIds
+      }
+    })
+    return false
+  }
+
   if (needsFlush) {
     return (async () => {
-      await deps.flushUnmaterializedRowsBeforePersist?.(emit.targetSheetId)
-      const isUuid = deps.isUuidForRowRemap ?? isSpreadsheetBackendRowUuid
-      const rows = getPersistRowsForRemap(deps, emit.targetSheetId)
-      const uiToBackend = buildUiToBackendRowIdMap(rows, isUuid)
-      const remapResult = remapBatchOperationsWithUiToBackendRowMap(unifiedOperations, uiToBackend)
+      const isUuid = resolveBackendRowUuidPredicateFromGridProps(deps.propsRef)
+      let handled = false
 
-      if (affectedUiRowIds.length > 0) {
-        emitRowIdentityDiagnostics(deps, emit, 'grid_row_identity_after_remap_map_build', {
-          mapSize: remapResult.mapSize,
-          availableRemapKeys: remapResult.availableRemapKeys.slice(0, 20),
-          remappedEntries: remapResult.remappedEntries,
-          unresolvedTemporaryRowIdMatches: remapResult.unresolvedTemporaryRowIdMatches,
-          rowIdentities: buildRowIdentityDiagnostics({
-            uiRowIds: affectedUiRowIds,
-            rows,
-            uiToBackend,
-            isUuid
+      // Critical section: flush + snapshot read + remap + submit MUST run as a single
+      // operation-queue task. Otherwise a concurrent processUniverDataChange (from a debounced
+      // Univer data change, snapshot checkpoint, etc.) can mutate the session rows between our
+      // `getPersistRowsForRemap` read and another emit's, causing one of them to remap against
+      // a stale `uiToBackend` map and submit a cell op with a raw `client_*` rowId (which the
+      // backend rejects). See Fix B in spreadsheet-row-write-race-fix plan.
+      const runCriticalSection = async (): Promise<void> => {
+        const rows = getPersistRowsForRemap(deps, emit.targetSheetId)
+        const uiToBackend = buildUiToBackendRowIdMap(rows, isUuid)
+        let remapResult = remapBatchOperationsWithUiToBackendRowMap(unifiedOperations, uiToBackend)
+
+        if (affectedUiRowIds.length > 0) {
+          emitRowIdentityDiagnostics(deps, emit, 'grid_row_identity_after_remap_map_build', {
+            mapSize: remapResult.mapSize,
+            availableRemapKeys: remapResult.availableRemapKeys.slice(0, 20),
+            remappedEntries: remapResult.remappedEntries,
+            unresolvedTemporaryRowIdMatches: remapResult.unresolvedTemporaryRowIdMatches,
+            rowIdentities: buildRowIdentityDiagnostics({
+              uiRowIds: affectedUiRowIds,
+              rows,
+              uiToBackend,
+              isUuid
+            })
           })
-        })
+        }
+
+        // Fix C: If any operation still references a temp `client_*` rowId after the first remap,
+        // do NOT submit it raw (backend would reject with `invalid_row_ref`). Re-read the rows
+        // (the materialization writes may have just landed) and try once more. If still
+        // unresolved, log and bail so the cell stays in the pending journal for the next flush.
+        if (remapResult.unresolvedTemporaryRowIdMatches.length > 0) {
+          // 1b: After flush, if any operation still references a temp `client_*` rowId, never
+          // submit it raw (backend rejects with `invalid_row_ref`). Re-read the rows once — the
+          // materialization writes may have just landed — and try again. If still unresolved,
+          // bail so the cell stays in the pending journal for the next flush cycle.
+          deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
+            source: 'client',
+            stage: 'spreadsheet.cell_emit.unresolved_temp_id_retry',
+            severity: 'warning',
+            sheetId: emit.targetSheetId,
+            traceId: emit.mutationTraceId,
+            payload: {
+              targetSheetId: emit.targetSheetId,
+              unresolvedCount: remapResult.unresolvedTemporaryRowIdMatches.length
+            }
+          })
+          const rowsRetry = getPersistRowsForRemap(deps, emit.targetSheetId)
+          const uiToBackendRetry = buildUiToBackendRowIdMap(rowsRetry, isUuid)
+          const remapRetry = remapBatchOperationsWithUiToBackendRowMap(unifiedOperations, uiToBackendRetry)
+          if (remapRetry.unresolvedTemporaryRowIdMatches.length === 0) {
+            remapResult = remapRetry
+          } else {
+            emitRowIdentityDiagnostics(deps, emit, 'grid_row_identity_unresolved_after_retry', {
+              mapSize: remapRetry.mapSize,
+              availableRemapKeys: remapRetry.availableRemapKeys.slice(0, 20),
+              unresolvedTemporaryRowIdMatches: remapRetry.unresolvedTemporaryRowIdMatches
+            })
+            deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
+              source: 'client',
+              stage: 'spreadsheet.cell_emit.unresolved_temp_id_bail',
+              severity: 'error',
+              sheetId: emit.targetSheetId,
+              traceId: emit.mutationTraceId,
+              payload: {
+                targetSheetId: emit.targetSheetId,
+                unresolvedCount: remapRetry.unresolvedTemporaryRowIdMatches.length,
+                unresolvedTemporaryRowIdMatches: remapRetry.unresolvedTemporaryRowIdMatches
+              }
+            })
+            console.warn('[SPREADSHEET_PERSIST] emit_dispatch: unresolved_temporary_row_id_after_retry', {
+              targetSheetId: emit.targetSheetId,
+              traceId: emit.mutationTraceId,
+              unresolvedCount: remapRetry.unresolvedTemporaryRowIdMatches.length,
+              unresolvedTemporaryRowIdMatches: remapRetry.unresolvedTemporaryRowIdMatches
+            })
+            handled = false
+            return
+          }
+        }
+
+        handled = runDetectedCellMutationPersistEmitSync(deps, emit, remapResult.operations)
+        if (!handled && remapResult.unresolvedTemporaryRowIdMatches.length > 0) {
+          console.warn('[SPREADSHEET_PERSIST] emit_dispatch: post_flush_persist_false', {
+            targetSheetId: emit.targetSheetId,
+            traceId: emit.mutationTraceId,
+            unresolvedTemporaryRowIdMatches: remapResult.unresolvedTemporaryRowIdMatches
+          })
+        }
       }
 
-      return runDetectedCellMutationPersistEmitSync(deps, emit, remapResult.operations)
+      // Critical section runs inside the same queue task as the flush. The `needsMaterialization
+      // && !flushHookPresent` branch above guarantees a flush dep exists when we reach here.
+      const flushImpl =
+        deps.flushUnmaterializedRowsBeforePersist ??
+        deps.propsRef.current.flushUnmaterializedRowsBeforePersistRef?.current
+      if (!flushImpl) {
+        // Defense in depth: 1a's gate should make this unreachable.
+        return false
+      }
+      await flushImpl(emit.targetSheetId, runCriticalSection)
+
+      return handled
     })()
   }
 

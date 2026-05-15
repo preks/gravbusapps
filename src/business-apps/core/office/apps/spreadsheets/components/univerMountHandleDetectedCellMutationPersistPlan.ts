@@ -38,7 +38,7 @@ export function runDetectedCellMutationPersistPlanPhase(
     source,
     commandId,
     targetSheetId,
-    useResolvedContext,
+    contextOwnedByHost,
     cellValue,
     ctxBefore,
     contextColumns,
@@ -61,7 +61,8 @@ export function runDetectedCellMutationPersistPlanPhase(
     payloadCellValue,
     ranges,
     shouldSuppress,
-    pendingNewRowsUpdate
+    pendingNewRowsUpdate,
+    liveMergeRanges
   } = ready
 
   lastCellValueMutationAtRef.current = now
@@ -104,7 +105,8 @@ export function runDetectedCellMutationPersistPlanPhase(
     allowValueCarryingStylePayloads,
     replaceRangeStyleIntent,
     shouldSuppress,
-    mutationCommandId: commandId ?? ''
+    mutationCommandId: commandId ?? '',
+    liveMergeRanges: liveMergeRanges ?? undefined
   })
 
   const plannedCellsFiltered =
@@ -162,8 +164,15 @@ export function runDetectedCellMutationPersistPlanPhase(
     authoritativeEnvelope.plan?.styles
   )
 
+  // Dedupe window narrowed from 1500ms to 250ms. The original 1500ms window was sized to absorb
+  // Univer focus/blur churn that re-emits the same value, but it also swallows legitimate
+  // repeated edits (e.g. user types "1" in two adjacent rows in a freshly-created sheet, with
+  // the second edit landing within the window). Combined with the rowId inclusion in
+  // buildUnifiedPlannerMutationSignature, 250ms is enough to absorb true echo without dropping
+  // distinct user edits on slow networks.
+  const SIGNATURE_DEDUPE_WINDOW_MS = 250
   for (const [existingSignature, at] of recentLocalMutationSignaturesRef.current.entries()) {
-    if (now - at > 1500) {
+    if (now - at > SIGNATURE_DEDUPE_WINDOW_MS) {
       recentLocalMutationSignaturesRef.current.delete(existingSignature)
     }
   }
@@ -239,7 +248,9 @@ export function runDetectedCellMutationPersistPlanPhase(
     }
   }
 
-  if (!useResolvedContext && emittedChangedCells.length > 0) {
+  // 2c: only the planner writes the echo signature ledger when it owns the context. When the
+  // host owns context (contextOwnedByHost === true), the host is the authoritative writer.
+  if (!contextOwnedByHost && emittedChangedCells.length > 0) {
     for (const cell of emittedChangedCells) {
       lastSyncedGridCellSignaturesRef.current.set(
         remoteEchoKey(cell.univerRow, cell.univerCol),
@@ -251,7 +262,8 @@ export function runDetectedCellMutationPersistPlanPhase(
   const hasValueCells = emittedChangedCells.length > 0
   if (pendingNewRowsUpdate && onDataChangeCb && hasValueCells) {
     onDataChangeCb(pendingNewRowsUpdate.nextData, targetSheetId)
-    if (!useResolvedContext) {
+    // 2c: same contract — only overwrite contextRef when the planner owns it.
+    if (!contextOwnedByHost) {
       contextRef.current = pendingNewRowsUpdate.nextContext
     }
   }

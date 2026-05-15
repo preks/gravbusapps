@@ -101,6 +101,9 @@ export interface TableViewProps {
   onMutationBatchOp?: (data: SpreadsheetUnifiedMutationBatchPayload) => void | Promise<void>
   flushUnmaterializedRowsBeforePersistRef?: MutableRefObject<((sheetId: string) => Promise<void>) | null>
   getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
+  /** Preferred: host predicate for persisted backend row ids (UUIDs). */
+  isBackendRowUuid?: (value: string) => boolean
+  /** @deprecated Use {@link isBackendRowUuid}. */
   isUuidForRowRemap?: (value: string) => boolean
   rowSlotIdentityRegistryRef?: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
   columnStructureStateRef?: MutableRefObject<{
@@ -165,6 +168,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   onMutationBatchOp,
   flushUnmaterializedRowsBeforePersistRef,
   getPersistSheetRowsSnapshot,
+  isBackendRowUuid,
   isUuidForRowRemap,
   rowSlotIdentityRegistryRef,
   columnStructureStateRef,
@@ -444,6 +448,7 @@ export const TableView = memo<TableViewProps>(function TableView({
           onMutationBatchOp={onMutationBatchOp}
           flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
           getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
+          isBackendRowUuid={isBackendRowUuid ?? isUuidForRowRemap}
           isUuidForRowRemap={isUuidForRowRemap}
           rowSlotIdentityRegistryRef={rowSlotIdentityRegistryRef}
           columnStructureStateRef={columnStructureStateRef}

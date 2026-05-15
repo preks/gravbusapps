@@ -269,10 +269,14 @@ export function buildUnifiedPlannerMutationSignature(
   cells: SpreadsheetMutationPlannedCell[],
   styles?: Record<string, unknown>
 ): string {
+  // Include `rowId` so two cells that share a (rowIndex, colIndex, value) tuple but belong to
+  // different rows can never collide (e.g. typing the same value in a freshly-created row right
+  // after the previous row's emit). Without this, the dedupe window silently swallows the
+  // second edit on the second row.
   const parts = cells
     .map(
       cell =>
-        `${cell.rowIndex}:${cell.colIndex}:${cell.valueAction}:${toEchoSignature(cell.value)}:${JSON.stringify(cell.stylePatch ?? null)}`
+        `${cell.rowId ?? ''}:${cell.rowIndex}:${cell.colIndex}:${cell.valueAction}:${toEchoSignature(cell.value)}:${JSON.stringify(cell.stylePatch ?? null)}`
     )
     .sort()
   const styleKeys = styles && typeof styles === 'object' ? Object.keys(styles).sort().join(',') : ''
