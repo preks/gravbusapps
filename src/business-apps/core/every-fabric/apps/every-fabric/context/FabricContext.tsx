@@ -6,9 +6,13 @@ import type {
   AgentStreamEvent,
   ChatMessage,
   DeepAgentSession,
+  MessageAttachmentRef,
+  PendingComposerAttachment,
+  SessionAttachment,
   SessionConfig,
   WorkspaceDocument
 } from '../types/enterpriseAgent'
+import { useSessionAttachments } from '../hooks/useSessionAttachments'
 import type { ArtifactFile, FabricSessionSummary, FabricTaskNode } from '../types/fabric'
 import { useAgentSession, type ActiveSkillInfo } from '../hooks/useAgentSession'
 import { useAgentSessions } from '../hooks/useAgentSessions'
@@ -101,6 +105,13 @@ interface FabricContextValue {
   stopSession: () => Promise<void>
   setActiveArtifactId: (id: string | null) => void
   refreshArtifacts: () => Promise<void>
+
+  // Session attachments (RAG over composer uploads). Staged files survive the
+  // landing -> workspace transition because the hook lives in the provider.
+  sessionAttachments: SessionAttachment[]
+  pendingSessionAttachments: PendingComposerAttachment[]
+  uploadSessionAttachment: (file: File) => Promise<SessionAttachment | null>
+  removeSessionAttachment: (id: string) => Promise<void>
 }
 
 // ─── Context ───────────────────────────────────────────────────────────────────
@@ -138,6 +149,61 @@ function writeBootstrapSessionToHistoryState(session: DeepAgentSession | null) {
     delete nextState[BOOTSTRAP_SESSION_HISTORY_KEY]
   }
   globalThis.history.replaceState(nextState, '', getCurrentPathSearchHash())
+}
+
+/**
+ * Take the current attachment set from FabricContext (server-confirmed +
+ * still-pending) and project it down to the minimal MessageAttachmentRef
+ * shape we attach to the optimistic `user_input` ChatMessage. We include
+ * pending ones too — the chip already exists in the composer, so dropping
+ * it off the user's bubble would feel jumpy. Newly-staged-during-send is
+ * not a real concern because this is called synchronously before the
+ * server round-trip.
+ */
+function snapshotAttachmentsForMessage(
+  attachments: SessionAttachment[],
+  pending: PendingComposerAttachment[]
+): MessageAttachmentRef[] {
+  const refs: MessageAttachmentRef[] = []
+
+  for (const a of attachments) {
+    refs.push({
+      id: a.id,
+      name: a.name,
+      mime_type: a.mime_type,
+      size: a.size,
+      indexing_status: a.indexing_status,
+      preview_url: a.preview_url
+    })
+  }
+  for (const p of pending) {
+    if (p.attachment) {
+      refs.push({
+        id: p.attachment.id,
+        name: p.attachment.name,
+        mime_type: p.attachment.mime_type,
+        size: p.attachment.size,
+        indexing_status: p.attachment.indexing_status,
+        preview_url: p.preview_url ?? p.attachment.preview_url
+      })
+      continue
+    }
+    refs.push({
+      id: p.client_id,
+      name: p.name,
+      mime_type: p.mime_type,
+      size: p.size,
+      indexing_status: p.state === 'failed' ? 'failed' : 'pending',
+      preview_url: p.preview_url
+    })
+  }
+  const seen = new Set<string>()
+  const dedupedRefs = refs.filter(ref => {
+    if (seen.has(ref.id)) return false
+    seen.add(ref.id)
+    return true
+  })
+  return dedupedRefs
 }
 
 function createFallbackBootstrapSession(
@@ -218,6 +284,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     sessionLoadError,
     activeSkill,
     startSession: _startSession,
+    activateSession: _activateSession,
     reply: _reply,
     retrySessionLoad: _retrySessionLoad
   } = useAgentSession(activeSessionId, accessToken, bootstrapSession)
@@ -262,6 +329,17 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   // Live artifact previews from SSE or session trace events
   const { previews: artifactPreviews, latestPreview, hasActivePreview } = useArtifactPreview(previewSourceEvents)
 
+  // Session attachments (RAG over composer uploads). Lives at the provider
+  // level so files staged on the landing screen survive the transition into
+  // the workspace and get auto-flushed once a session id exists.
+  const {
+    attachments: sessionAttachments,
+    pendingAttachments: pendingSessionAttachments,
+    upload: uploadSessionAttachment,
+    remove: removeSessionAttachment,
+    flushPendingToSession
+  } = useSessionAttachments(activeSessionId, accessToken)
+
   // ── Actions ──────────────────────────────────────────────────────────────────
 
   const startSession = useCallback(
@@ -272,17 +350,43 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       activeEnterpriseSkillId?: string,
       fallbackSkillId?: string
     ) => {
-      const startResponse = await _startSession(
-        task,
+      // Snapshot the attachments that were on the composer at the moment
+      // the user pressed Send, before kicking off the network request — so
+      // the chip on the first turn's user bubble can't accidentally drop
+      // mid-flight if the user keeps staging files. We forward them onto
+      // the bootstrap session so `sessionToMessages` picks them up for
+      // the synthesised initial `user_input` row before the trace catches
+      // up. (See C4 in the doc-ux plan: not yet persisted to the trace,
+      // so refresh = chip gone — accepted limitation.)
+      // CRITICAL: Include BOTH server-confirmed AND pending (staged) attachments
+      const attachmentSnapshot = snapshotAttachmentsForMessage(sessionAttachments, pendingSessionAttachments)
+
+      // If user attached files, prepend their names to the task so the agent
+      // is immediately aware of what documents are available.
+      let taskWithAttachments = task
+      if (attachmentSnapshot.length > 0) {
+        const fileList = attachmentSnapshot.map(a => a.name).join(', ')
+        taskWithAttachments = `[Attached document${attachmentSnapshot.length > 1 ? 's' : ''}: ${fileList}]\n\n${task}`
+      }
+
+      const createResponse = await _startSession(
+        taskWithAttachments, // Use modified task with file names
         config,
         activeExternalConnectionIds,
         activeEnterpriseSkillId,
         fallbackSkillId
       )
-      const sessionId = startResponse.session_id
-      const bootstrap =
-        startResponse.session ??
-        createFallbackBootstrapSession(sessionId, task, config, startResponse.status ?? 'running')
+      const sessionId = createResponse.session_id
+      const bootstrapBase =
+        createResponse.session ??
+        createFallbackBootstrapSession(sessionId, task, config, createResponse.status ?? 'pending')
+      const bootstrap: DeepAgentSession = {
+        ...bootstrapBase,
+        session_attachments:
+          bootstrapBase.session_attachments && bootstrapBase.session_attachments.length > 0
+            ? bootstrapBase.session_attachments
+            : attachmentSnapshot // Use snapshot which includes pending files
+      }
       setBootstrapSession(bootstrap)
       writeBootstrapSessionToHistoryState(bootstrap)
       pendingInternalSessionIdRef.current = sessionId === urlSessionId ? undefined : sessionId
@@ -297,9 +401,36 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
         updated_at: bootstrap.updated_at,
         config: bootstrap.config ?? config
       })
+
+      await flushPendingToSession(sessionId)
+      const activatedResponse = await _activateSession(sessionId)
+      if (activatedResponse.session) {
+        // Preserve the attachment snapshot from the initial bootstrap in case the
+        // activation response's session_attachments is empty (race: files uploaded
+        // just before activation may not have landed in Mongo yet when the endpoint
+        // serialises the session).
+        const activatedSession: DeepAgentSession = {
+          ...activatedResponse.session,
+          session_attachments:
+            activatedResponse.session.session_attachments && activatedResponse.session.session_attachments.length > 0
+              ? activatedResponse.session.session_attachments
+              : bootstrap.session_attachments
+        }
+        setBootstrapSession(activatedSession)
+        writeBootstrapSessionToHistoryState(activatedSession)
+      }
       return sessionId
     },
-    [_startSession, addSession, urlSessionId]
+    [
+      _startSession,
+      _activateSession,
+      addSession,
+      sessionAttachments,
+      pendingSessionAttachments,
+      flushPendingToSession,
+      urlSessionId,
+      activeSessionId
+    ]
   )
 
   const selectSession = useCallback(
@@ -340,9 +471,10 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
 
   const reply = useCallback(
     async (message?: string, structuredInput?: Record<string, any>) => {
-      await _reply(message, structuredInput)
+      const attachmentSnapshot = snapshotAttachmentsForMessage(sessionAttachments, pendingSessionAttachments)
+      await _reply(message, structuredInput, attachmentSnapshot)
     },
-    [_reply]
+    [_reply, sessionAttachments, pendingSessionAttachments]
   )
 
   const stopSession = useCallback(async () => {
@@ -400,7 +532,11 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       reply,
       stopSession,
       setActiveArtifactId,
-      refreshArtifacts
+      refreshArtifacts,
+      sessionAttachments,
+      pendingSessionAttachments,
+      uploadSessionAttachment,
+      removeSessionAttachment
     }),
     [
       accessToken,
@@ -446,7 +582,11 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       reply,
       stopSession,
       setActiveArtifactId,
-      refreshArtifacts
+      refreshArtifacts,
+      sessionAttachments,
+      pendingSessionAttachments,
+      uploadSessionAttachment,
+      removeSessionAttachment
     ]
   )
 

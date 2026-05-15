@@ -8,6 +8,8 @@ interface RuntimeSessionState {
   seq: number
   streamText: string
   stepNames: Map<string, string>
+  activeEnterpriseSkillId?: string
+  fallbackSkillId?: string
 }
 
 interface FlowBotTextBlock {
@@ -72,6 +74,35 @@ const sessions = new Map<string, RuntimeSessionState>()
 
 const nowIso = (): string => new Date().toISOString()
 
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
+
+const toRecord = (value: unknown): Record<string, unknown> | undefined => (isRecord(value) ? value : undefined)
+
+const isFlowBotAnswerOutput = (item: FlowBotOutputItem): item is FlowBotAnswerOutput =>
+  item.type === 'answer' && (item.displayData === undefined || Array.isArray(item.displayData))
+
+const isFlowBotToolOutput = (item: FlowBotOutputItem): item is FlowBotToolOutput =>
+  item.type === 'tool' &&
+  typeof item.name === 'string' &&
+  (item.reason === undefined || typeof item.reason === 'string')
+
+const isFlowBotReasoningStepOutput = (item: FlowBotOutputItem): item is FlowBotReasoningStepOutput =>
+  item.type === 'reasoning_step' &&
+  typeof item.id === 'string' &&
+  typeof item.title === 'string' &&
+  (item.kind === undefined || typeof item.kind === 'string') &&
+  (item.started_at === undefined || typeof item.started_at === 'number')
+
+const isFlowBotReasoningStepUpdateOutput = (item: FlowBotOutputItem): item is FlowBotReasoningStepUpdateOutput =>
+  item.type === 'reasoning_step_update' &&
+  typeof item.id === 'string' &&
+  (item.status === undefined || item.status === 'done' || item.status === 'error' || item.status === 'running') &&
+  (item.error === undefined || typeof item.error === 'string') &&
+  (item.ended_at === undefined || typeof item.ended_at === 'number')
+
+const isFlowBotTextDeltaOutput = (item: FlowBotOutputItem): item is FlowBotTextDeltaOutput =>
+  item.type === 'text_delta' && typeof item.delta === 'string'
+
 const createSessionId = (): string => {
   const cryptoApi = globalThis.crypto
   if (cryptoApi?.randomUUID) return cryptoApi.randomUUID()
@@ -129,6 +160,141 @@ const eventTimeFromUnix = (value?: number): string => {
   return new Date(value * 1000).toISOString()
 }
 
+const mapTextDeltaOutput = (
+  sessionId: string,
+  state: RuntimeSessionState,
+  item: FlowBotTextDeltaOutput,
+  timestamp: string
+): AgentStreamEvent[] => {
+  state.streamText += item.delta
+
+  return [
+    {
+      type: 'agent_chunk',
+      seq: nextSeq(state),
+      event_id: `${sessionId}:delta:${state.seq}`,
+      role: 'ai',
+      content: state.streamText,
+      timestamp,
+      chunk_kind: 'response_stream',
+      metadata: { stream_key: item.run_id ?? 'flowbot' }
+    }
+  ]
+}
+
+const mapToolOutput = (
+  sessionId: string,
+  state: RuntimeSessionState,
+  item: FlowBotOutputItem,
+  timestamp: string
+): AgentStreamEvent[] => {
+  if (!isFlowBotToolOutput(item)) return []
+
+  return [
+    {
+      type: 'step_started',
+      seq: nextSeq(state),
+      event_id: `${sessionId}:tool:${state.seq}`,
+      step_id: `${sessionId}:tool:${state.seq}`,
+      step_type: 'tool',
+      name: item.name,
+      input: item.reason ? { reason: item.reason } : undefined,
+      timestamp
+    }
+  ]
+}
+
+const mapReasoningStepOutput = (
+  sessionId: string,
+  state: RuntimeSessionState,
+  item: FlowBotOutputItem
+): AgentStreamEvent[] => {
+  if (!isFlowBotReasoningStepOutput(item)) return []
+
+  state.stepNames.set(item.id, item.title)
+  const timestamp = eventTimeFromUnix(item.started_at)
+
+  if (item.kind === 'handoff') {
+    return [
+      {
+        type: 'expert_called',
+        seq: nextSeq(state),
+        event_id: `${sessionId}:expert:${item.id}`,
+        step_id: item.id,
+        expert_name: item.title.replace(/^Handoff to\s+/i, ''),
+        task_summary: item.title,
+        timestamp
+      }
+    ]
+  }
+
+  return [
+    {
+      type: 'step_started',
+      seq: nextSeq(state),
+      event_id: `${sessionId}:step:${item.id}`,
+      step_id: item.id,
+      step_type: item.kind === 'thought' ? 'thinking' : 'tool',
+      name: item.title,
+      input: toRecord(item.args),
+      timestamp
+    }
+  ]
+}
+
+const getReasoningStepOutputPayload = (item: FlowBotReasoningStepUpdateOutput): string | undefined => {
+  if (typeof item.error === 'string') return item.error
+  if (item.result === undefined) return undefined
+  return JSON.stringify(item.result)
+}
+
+const mapReasoningStepUpdateOutput = (
+  sessionId: string,
+  state: RuntimeSessionState,
+  item: FlowBotOutputItem
+): AgentStreamEvent[] => {
+  if (!isFlowBotReasoningStepUpdateOutput(item)) return []
+
+  return [
+    {
+      type: 'step_completed',
+      seq: nextSeq(state),
+      event_id: `${sessionId}:step-done:${item.id}`,
+      step_id: item.id,
+      status: item.status === 'error' ? 'failed' : 'done',
+      name: state.stepNames.get(item.id),
+      output: getReasoningStepOutputPayload(item),
+      timestamp: eventTimeFromUnix(item.ended_at)
+    }
+  ]
+}
+
+const mapAnswerOutput = (
+  sessionId: string,
+  state: RuntimeSessionState,
+  item: FlowBotOutputItem,
+  timestamp: string
+): AgentStreamEvent[] => {
+  if (!isFlowBotAnswerOutput(item)) return []
+
+  const text = outputText(item)
+  state.session.status = 'completed'
+  state.session.output = text
+  state.session.completed_at = timestamp
+  state.session.updated_at = timestamp
+
+  return [
+    {
+      type: 'terminal',
+      seq: nextSeq(state),
+      event_id: `${sessionId}:terminal:${state.seq}`,
+      timestamp,
+      status: 'completed',
+      output: text
+    }
+  ]
+}
+
 const mapOutputItemToEvents = (
   sessionId: string,
   state: RuntimeSessionState,
@@ -136,97 +302,16 @@ const mapOutputItemToEvents = (
 ): AgentStreamEvent[] => {
   const timestamp = nowIso()
   switch (item.type) {
-    case 'text_delta': {
-      state.streamText += item.delta
-      return [
-        {
-          type: 'agent_chunk',
-          seq: nextSeq(state),
-          event_id: `${sessionId}:delta:${state.seq}`,
-          role: 'ai',
-          content: state.streamText,
-          timestamp,
-          chunk_kind: 'response_stream',
-          metadata: { stream_key: item.run_id ?? 'flowbot' }
-        }
-      ]
-    }
+    case 'text_delta':
+      return isFlowBotTextDeltaOutput(item) ? mapTextDeltaOutput(sessionId, state, item, timestamp) : []
     case 'tool':
-      return [
-        {
-          type: 'step_started',
-          seq: nextSeq(state),
-          event_id: `${sessionId}:tool:${state.seq}`,
-          step_id: `${sessionId}:tool:${state.seq}`,
-          step_type: 'tool',
-          name: item.name,
-          input: item.reason ? { reason: item.reason } : undefined,
-          timestamp
-        }
-      ]
+      return mapToolOutput(sessionId, state, item, timestamp)
     case 'reasoning_step':
-      state.stepNames.set(item.id, item.title)
-      if (item.kind === 'handoff') {
-        return [
-          {
-            type: 'expert_called',
-            seq: nextSeq(state),
-            event_id: `${sessionId}:expert:${item.id}`,
-            step_id: item.id,
-            expert_name: item.title.replace(/^Handoff to\s+/i, ''),
-            task_summary: item.title,
-            timestamp: eventTimeFromUnix(item.started_at)
-          }
-        ]
-      }
-      return [
-        {
-          type: 'step_started',
-          seq: nextSeq(state),
-          event_id: `${sessionId}:step:${item.id}`,
-          step_id: item.id,
-          step_type: item.kind === 'thought' ? 'thinking' : 'tool',
-          name: item.title,
-          input: item.args && typeof item.args === 'object' ? (item.args as Record<string, unknown>) : undefined,
-          timestamp: eventTimeFromUnix(item.started_at)
-        }
-      ]
+      return mapReasoningStepOutput(sessionId, state, item)
     case 'reasoning_step_update':
-      const stepName = state.stepNames.get(item.id)
-      return [
-        {
-          type: 'step_completed',
-          seq: nextSeq(state),
-          event_id: `${sessionId}:step-done:${item.id}`,
-          step_id: item.id,
-          status: item.status === 'error' ? 'failed' : 'done',
-          name: stepName,
-          output:
-            typeof item.error === 'string'
-              ? item.error
-              : item.result === undefined
-                ? undefined
-                : JSON.stringify(item.result),
-          timestamp: eventTimeFromUnix(item.ended_at)
-        }
-      ]
-    case 'answer': {
-      const text = outputText(item)
-      state.session.status = 'completed'
-      state.session.output = text
-      state.session.completed_at = timestamp
-      state.session.updated_at = timestamp
-      return [
-        {
-          type: 'terminal',
-          seq: nextSeq(state),
-          event_id: `${sessionId}:terminal:${state.seq}`,
-          timestamp,
-          status: 'completed',
-          output: text
-        }
-      ]
-    }
+      return mapReasoningStepUpdateOutput(sessionId, state, item)
+    case 'answer':
+      return mapAnswerOutput(sessionId, state, item, timestamp)
     default:
       return []
   }
@@ -361,7 +446,14 @@ export const useFlowBotFabricClient = (accessToken: string) => {
         config,
         trace: []
       }
-      const state: RuntimeSessionState = { session, seq: 0, streamText: '', stepNames: new Map() }
+      const state: RuntimeSessionState = {
+        session,
+        seq: 0,
+        streamText: '',
+        stepNames: new Map(),
+        activeEnterpriseSkillId,
+        fallbackSkillId
+      }
       sessions.set(sessionId, state)
       ensureSessionStreamEntry(sessionId, accessToken)
       applyEvents(
@@ -378,8 +470,30 @@ export const useFlowBotFabricClient = (accessToken: string) => {
         ],
         accessToken
       )
-      void streamFlowBotTurn(sessionId, accessToken, task, config, activeEnterpriseSkillId, fallbackSkillId)
-      return { session_id: sessionId, status: 'running', session }
+      state.session.status = 'pending'
+      return { session_id: sessionId, status: 'pending', session: state.session }
+    },
+    [accessToken]
+  )
+
+  const activateSession = useCallback(
+    async (sessionId: string): Promise<StartSessionResponse> => {
+      const state = sessions.get(sessionId)
+      if (!state) throw new Error(`FlowBot Fabric session '${sessionId}' was not found`)
+      if (state.session.status === 'running' || state.session.status === 'completed') {
+        return { session_id: sessionId, status: state.session.status, session: state.session }
+      }
+      state.session.status = 'running'
+      state.session.updated_at = nowIso()
+      void streamFlowBotTurn(
+        sessionId,
+        accessToken,
+        state.session.input,
+        state.session.config,
+        state.activeEnterpriseSkillId,
+        state.fallbackSkillId
+      )
+      return { session_id: sessionId, status: 'running', session: state.session }
     },
     [accessToken]
   )
@@ -429,10 +543,11 @@ export const useFlowBotFabricClient = (accessToken: string) => {
   return useMemo(
     () => ({
       startSession,
+      activateSession,
       getSession,
       replyToInterrupt,
       stopSession
     }),
-    [getSession, replyToInterrupt, startSession, stopSession]
+    [activateSession, getSession, replyToInterrupt, startSession, stopSession]
   )
 }

@@ -40,7 +40,8 @@ const GlowStyle: React.FC = () => (
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onStartSession }) => {
-  const { userInfo } = useFabric()
+  const { userInfo, sessionAttachments, pendingSessionAttachments, uploadSessionAttachment, removeSessionAttachment } =
+    useFabric()
   const {
     availableConnectors,
     activeConnectors,
@@ -99,6 +100,10 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
                 onConnectorsClick={() => setIsConnectorSheetOpen(true)}
                 activeConnectors={activeConnectors}
                 onRemoveConnector={toggleConnector}
+                onUploadAttachment={uploadSessionAttachment}
+                onRemoveAttachment={removeSessionAttachment}
+                attachments={sessionAttachments}
+                pendingAttachments={pendingSessionAttachments}
                 autoFocus
               />
             </div>

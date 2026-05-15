@@ -4,6 +4,7 @@ import type {
   AgentStreamEvent,
   ChatMessage,
   DeepAgentSession,
+  MessageAttachmentRef,
   SessionConfig,
   SkillLoadedEvent,
   StartSessionResponse
@@ -60,6 +61,7 @@ interface AgentExecutionClient {
     activeEnterpriseSkillId?: string,
     fallbackSkillId?: string
   ) => Promise<StartSessionResponse>
+  activateSession: (sessionId: string) => Promise<StartSessionResponse>
   getSession: (sessionId: string) => Promise<DeepAgentSession>
   replyToInterrupt: (sessionId: string, message?: string, structuredInput?: Record<string, any>) => Promise<unknown>
 }
@@ -264,7 +266,7 @@ function computeStreamingDisplayContent(
   isAgentRunning: boolean,
   mergedStatus: DeepAgentSession['status'] | undefined
 ): string {
-  const isActivelyRunning = isAgentRunning || mergedStatus === 'running'
+  const isActivelyRunning = isAgentRunning || mergedStatus === 'running' || mergedStatus === 'pending'
   if (!isActivelyRunning) {
     return ''
   }
@@ -578,6 +580,10 @@ export const useAgentSession = (
       return null
     }
 
+    if (mergedSession?.status === 'pending') {
+      return 'Preparing your files and starting the session...'
+    }
+
     if (!events || events.length === 0) return null
 
     // Get latest status event from the stream
@@ -606,8 +612,13 @@ export const useAgentSession = (
     [client]
   )
 
+  const activateSession = useCallback(
+    async (targetSessionId: string): Promise<StartSessionResponse> => client.activateSession(targetSessionId),
+    [client]
+  )
+
   const reply = useCallback(
-    async (message?: string, structuredInput?: Record<string, any>) => {
+    async (message?: string, structuredInput?: Record<string, any>, attachments?: MessageAttachmentRef[]) => {
       if (!sessionId) return
 
       // Avoid TS control-flow narrowing on sessionRef inside the sync loop (ref updates after fetch).
@@ -621,7 +632,8 @@ export const useAgentSession = (
           id: optimisticId,
           type: 'user_input',
           timestamp: new Date().toISOString(),
-          content: message
+          content: message,
+          ...(attachments && attachments.length > 0 ? { attachments } : {})
         }
         setOptimisticMessages(prev => [...prev, optimisticMessage])
       }
@@ -656,11 +668,13 @@ export const useAgentSession = (
     streamingThinking,
     statusHeadline,
     isConnected,
-    isStreaming: isAgentRunning || (!!mergedSession && mergedSession.status === 'running'),
+    isStreaming:
+      isAgentRunning || (!!mergedSession && (mergedSession.status === 'running' || mergedSession.status === 'pending')),
     isWaitingForInput: mergedSession?.status === 'waiting_for_human',
     sessionLoadError,
     activeSkill,
     startSession,
+    activateSession,
     reply,
     retrySessionLoad: fetchSession
   }

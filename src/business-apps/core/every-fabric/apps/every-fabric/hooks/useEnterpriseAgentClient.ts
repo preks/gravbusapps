@@ -3,7 +3,7 @@ import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { ResponseType } from '@/common/network/rest/RestClient'
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
-import type { DeepAgentSession, SessionConfig, StartSessionResponse } from '../types/enterpriseAgent'
+import type { DeepAgentSession, SessionAttachment, SessionConfig, StartSessionResponse } from '../types/enterpriseAgent'
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
 import type { ActiveSessionsListResponse, ActiveSessionsSummaryResponse } from '../types/activeSession'
@@ -49,12 +49,18 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         task,
         config,
         timezone,
+        presentation_mode: 'enterprise_agents',
         active_external_connection_ids: activeExternalConnectionIds,
         expert_ids: selectedExpertIds,
         skill_ids: selectedSkillIds,
         tool_refs: selectedToolRefs
       })
     },
+    [client]
+  )
+
+  const activateSession = useCallback(
+    (sessionId: string) => client.post<StartSessionResponse>(`/deep-agent/sessions/${enc(sessionId)}/start`, {}),
     [client]
   )
 
@@ -455,9 +461,37 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  // ── Session attachments (RAG over composer uploads) ────────────────────
+  const uploadSessionAttachment = useCallback(
+    async (
+      sessionId: string,
+      file: File,
+      opts?: { spaceId?: string; folderId?: string }
+    ): Promise<SessionAttachment> => {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (opts?.spaceId) formData.append('spaceId', opts.spaceId)
+      if (opts?.folderId) formData.append('folderId', opts.folderId)
+      return client.post<SessionAttachment>(`/deep-agent/sessions/${enc(sessionId)}/attachments`, formData)
+    },
+    [client]
+  )
+
+  const listSessionAttachments = useCallback(
+    (sessionId: string) => client.get<SessionAttachment[]>(`/deep-agent/sessions/${enc(sessionId)}/attachments`),
+    [client]
+  )
+
+  const deleteSessionAttachment = useCallback(
+    (sessionId: string, attachmentId: string) =>
+      client.delete(`/deep-agent/sessions/${enc(sessionId)}/attachments/${enc(attachmentId)}`),
+    [client]
+  )
+
   return useMemo(
     () => ({
       startSession,
+      activateSession,
       getSession,
       getSessions,
       replyToInterrupt,
@@ -490,10 +524,14 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       archiveSkill,
       listArchivedSkills,
       enableSkill,
-      disableSkill
+      disableSkill,
+      uploadSessionAttachment,
+      listSessionAttachments,
+      deleteSessionAttachment
     }),
     [
       startSession,
+      activateSession,
       getSession,
       getSessions,
       replyToInterrupt,
@@ -526,7 +564,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       archiveSkill,
       listArchivedSkills,
       enableSkill,
-      disableSkill
+      disableSkill,
+      uploadSessionAttachment,
+      listSessionAttachments,
+      deleteSessionAttachment
     ]
   )
 }

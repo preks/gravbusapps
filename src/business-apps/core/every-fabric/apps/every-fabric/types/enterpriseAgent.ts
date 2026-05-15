@@ -1,12 +1,50 @@
+export type SessionAttachmentStatus = 'pending' | 'ready' | 'failed'
+export type EnterprisePresentationMode = 'default' | 'enterprise_agents'
+
+export interface SessionAttachment {
+  id: string
+  name: string
+  mime_type: string
+  size: number
+  content_type: 'drive_file'
+  content_id: string
+  indexing_status: SessionAttachmentStatus
+  origin?: string
+  created_at?: string | null
+  source_app?: string | null
+  source_session_id?: string | null
+  /** Client-only blob URL for image preview thumbnails. Not sent to or received from the server. */
+  preview_url?: string
+}
+
+/** Local-only state used by the composer while uploads are in flight. */
+export interface PendingComposerAttachment {
+  /** Stable client id for keying / removal before the server assigns one. */
+  client_id: string
+  name: string
+  mime_type: string
+  size: number
+  /** 'uploading' = bytes still in flight; once the server returns we promote
+   * to 'pending' (server indexing) or 'failed'. */
+  state: 'uploading' | 'pending' | 'ready' | 'failed'
+  error?: string
+  attachment?: SessionAttachment
+  /** Blob URL for image preview thumbnails, created via URL.createObjectURL(). */
+  preview_url?: string
+}
+
 // Session
 export interface DeepAgentSession {
   session_id: string
   input: string
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'waiting_for_human'
+  presentation_mode?: EnterprisePresentationMode
   output?: string
   todos?: TodoItem[]
   trace?: AgentStreamEvent[]
   artifacts?: SessionArtifactMeta[]
+  /** Full rows from the API and/or client bootstrap refs (see `MessageAttachmentRef`). */
+  session_attachments?: Array<SessionAttachment | MessageAttachmentRef>
   workspace_documents?: WorkspaceDocument[]
   reflection?: ReflectionResult
   quality_score?: number
@@ -34,6 +72,7 @@ export interface StartSessionResponse {
   status?: DeepAgentSession['status']
   user_id?: string
   workspace_id?: string
+  presentation_mode?: EnterprisePresentationMode
   session: DeepAgentSession
 }
 
@@ -52,6 +91,7 @@ export interface AgentChunkEvent {
   seq: number
   event_id: string
   role: 'ai' | 'tool' | 'human' | 'system' | 'unknown'
+  presentation_mode?: EnterprisePresentationMode
   content: string
   timestamp: string
   chunk_kind?: AgentStreamChunkKind
@@ -67,6 +107,7 @@ export interface AgentTerminalEvent {
   event_id: string
   timestamp?: string
   status: 'completed' | 'failed' | 'cancelled' | 'waiting_for_human'
+  presentation_mode?: EnterprisePresentationMode
   output?: string | null
   todos?: TodoItem[]
   reflection?: ReflectionResult | null
@@ -177,6 +218,7 @@ export interface StructuredInputRequestEvent {
   seq: number
   event_id: string
   timestamp: string
+  presentation_mode?: EnterprisePresentationMode
   form_id: string
   title: string
   description: string
@@ -215,6 +257,7 @@ export interface HitlRequestedEvent {
   seq: number
   event_id: string
   timestamp: string
+  presentation_mode?: EnterprisePresentationMode
   request: {
     request_id: string
     type: 'approval' | 'form' | 'email_draft' | 'tool_permission' | 'draft_review' | 'human_question'
@@ -575,13 +618,37 @@ export type ChatMessageType =
   | 'final_answer'
   | 'error'
 
+/**
+ * Lightweight reference to a session attachment captured at the moment a
+ * `user_input` ChatMessage is emitted. We keep it minimal (id, name, mime,
+ * size, indexing_status) so the renderer doesn't need to re-resolve
+ * anything off the live attachment store — which would lose the chip on
+ * remove. Shaped to be a strict subset of `SessionAttachment` so a future
+ * Option-B backend echo (per-turn `attachment_ids` on the human chunk)
+ * can populate it without a refactor.
+ */
+export interface MessageAttachmentRef {
+  id: string
+  name: string
+  mime_type: string
+  size: number
+  indexing_status?: SessionAttachmentStatus
+  /** Client-only blob URL for image preview thumbnails. Not persisted or sent to server. */
+  preview_url?: string
+}
+
 export interface ChatMessage {
   id: string
   type: ChatMessageType
   timestamp: string
   content: unknown
+  presentationMode?: EnterprisePresentationMode
   isStreaming?: boolean
   isCollapsed?: boolean
+  /** Populated for `user_input` only — the attachments that were already on
+   * the composer when the user pressed Send. Snapshotted client-side; not
+   * persisted in the trace yet. */
+  attachments?: MessageAttachmentRef[]
 }
 
 /** Present on `subagent_spawn` rows: lifecycle of the delegated expert/sub-agent. */

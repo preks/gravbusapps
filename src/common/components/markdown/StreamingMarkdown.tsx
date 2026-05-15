@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -9,6 +9,7 @@ export interface StreamingMarkdownProps {
   content: string
   isStreaming: boolean
   accessToken?: string
+  variant?: 'default' | 'enterprise'
   className?: string
 }
 
@@ -176,6 +177,87 @@ const MarkdownStrong: React.FC<{ children?: React.ReactNode }> = ({ children }) 
   <strong className="gba:font-semibold gba:text-foreground">{children}</strong>
 )
 
+const EnterpriseMarkdownStrong: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <strong className="gba:font-semibold gba:text-foreground gba:tracking-[0.01em]">{children}</strong>
+)
+
+const EnterpriseMarkdownParagraph: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <p className="gba:mb-0 gba:leading-7 gba:text-[15px] gba:text-foreground [&+p]:gba:mt-3">{children}</p>
+)
+
+const EnterpriseMarkdownH1: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <h1 className="gba:text-[1.85rem] gba:leading-tight gba:font-bold gba:mb-5 gba:mt-7 gba:text-foreground gba:border-b gba:border-border gba:pb-3">
+    {children}
+  </h1>
+)
+
+const EnterpriseMarkdownH2: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <h2 className="gba:text-[1.35rem] gba:leading-tight gba:font-semibold gba:mb-3 gba:mt-7 gba:text-foreground">
+    {children}
+  </h2>
+)
+
+const EnterpriseMarkdownH3: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <h3 className="gba:text-[1.05rem] gba:leading-6 gba:font-semibold gba:mb-2 gba:mt-5 gba:text-foreground">
+    {children}
+  </h3>
+)
+
+const EnterpriseMarkdownUnorderedList: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <ul className="gba:list-disc gba:list-outside gba:mb-5 gba:space-y-1.5 gba:pl-[1.35rem]">{children}</ul>
+)
+
+const EnterpriseMarkdownOrderedList: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <ol className="gba:list-decimal gba:list-outside gba:mb-5 gba:space-y-1.5 gba:pl-[1.35rem]">{children}</ol>
+)
+
+const EnterpriseMarkdownListItem: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <li className="gba:text-[15px] gba:leading-7 gba:text-foreground">{children}</li>
+)
+
+const EnterpriseMarkdownCode: React.FC<{ className?: string; children?: React.ReactNode }> = ({
+  className: codeClassName,
+  children
+}) => {
+  const isCodeBlock = codeClassName?.includes('language-')
+  if (isCodeBlock) {
+    return (
+      <code className="gba:block gba:bg-slate-950 gba:text-slate-50 gba:p-4 gba:rounded-xl gba:text-[13px] gba:leading-6 gba:font-mono gba:overflow-x-auto gba:my-5 gba:animate-in gba:fade-in gba:duration-200">
+        {children}
+      </code>
+    )
+  }
+  return (
+    <code className="gba:bg-muted gba:px-1.5 gba:py-0.5 gba:rounded-md gba:text-[0.92em] gba:font-mono gba:text-foreground">
+      {children}
+    </code>
+  )
+}
+
+const EnterpriseMarkdownPre: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <pre className="gba:bg-slate-950 gba:text-slate-50 gba:p-4 gba:rounded-xl gba:overflow-x-auto gba:my-5 gba:border gba:border-slate-800 gba:animate-in gba:fade-in gba:duration-200">
+    {children}
+  </pre>
+)
+
+const EnterpriseMarkdownBlockquote: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <blockquote className="gba:border-l-4 gba:border-primary gba:pl-4 gba:pr-3 gba:py-3 gba:my-5 gba:bg-muted/35 gba:italic gba:rounded-r-xl gba:animate-in gba:fade-in gba:slide-in-from-left-2 gba:duration-200">
+    {children}
+  </blockquote>
+)
+
+const EnterpriseMarkdownTableCell: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <TableCell className="gba:py-3 gba:px-4 gba:align-top gba:min-w-[120px] gba:text-foreground gba:text-[14px] gba:leading-6">
+    {children}
+  </TableCell>
+)
+
+const EnterpriseMarkdownTableHeadCell: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
+  <TableHead className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground gba:py-3 gba:px-4 gba:whitespace-nowrap gba:align-top gba:min-w-[120px] gba:text-[13px] gba:tracking-[0.01em]">
+    {children}
+  </TableHead>
+)
+
 const MarkdownEmphasis: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <em className="gba:italic">{children}</em>
 )
@@ -251,10 +333,122 @@ const MarkdownBlockquote: React.FC<{ children?: React.ReactNode }> = ({ children
 
 const MarkdownHorizontalRule: React.FC = () => <hr className="gba:my-6 gba:border-border" />
 
+interface StreamingMarkdownContextValue {
+  accessToken: string
+  variant: 'default' | 'enterprise'
+}
+
+const StreamingMarkdownContext = React.createContext<StreamingMarkdownContextValue>({
+  accessToken: '',
+  variant: 'default'
+})
+
+const StreamingMarkdownAnchor: React.FC<{ href?: string; children?: React.ReactNode }> = props => {
+  const { accessToken } = React.useContext(StreamingMarkdownContext)
+  return <MarkdownLink {...props} accessToken={accessToken} />
+}
+
+const StreamingMarkdownTableHead: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? (
+    <EnterpriseMarkdownTableHeadCell {...props} />
+  ) : (
+    <MarkdownTableHeadCell {...props} />
+  )
+}
+
+const StreamingMarkdownTableData: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownTableCell {...props} /> : <MarkdownTableCell {...props} />
+}
+
+const StreamingMarkdownStrongText: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownStrong {...props} /> : <MarkdownStrong {...props} />
+}
+
+const StreamingMarkdownParagraphRenderer: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownParagraph {...props} /> : <MarkdownParagraph {...props} />
+}
+
+const StreamingMarkdownHeading1: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownH1 {...props} /> : <MarkdownH1 {...props} />
+}
+
+const StreamingMarkdownHeading2: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownH2 {...props} /> : <MarkdownH2 {...props} />
+}
+
+const StreamingMarkdownHeading3: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownH3 {...props} /> : <MarkdownH3 {...props} />
+}
+
+const StreamingMarkdownUnorderedListRenderer: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? (
+    <EnterpriseMarkdownUnorderedList {...props} />
+  ) : (
+    <MarkdownUnorderedList {...props} />
+  )
+}
+
+const StreamingMarkdownOrderedListRenderer: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownOrderedList {...props} /> : <MarkdownOrderedList {...props} />
+}
+
+const StreamingMarkdownListItemRenderer: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownListItem {...props} /> : <MarkdownListItem {...props} />
+}
+
+const StreamingMarkdownCodeRenderer: React.FC<{ className?: string; children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownCode {...props} /> : <MarkdownCode {...props} />
+}
+
+const StreamingMarkdownPreRenderer: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownPre {...props} /> : <MarkdownPre {...props} />
+}
+
+const StreamingMarkdownBlockquoteRenderer: React.FC<{ children?: React.ReactNode }> = props => {
+  const { variant } = React.useContext(StreamingMarkdownContext)
+  return variant === 'enterprise' ? <EnterpriseMarkdownBlockquote {...props} /> : <MarkdownBlockquote {...props} />
+}
+
+const STREAMING_MARKDOWN_COMPONENTS = {
+  a: StreamingMarkdownAnchor,
+  table: MarkdownTable,
+  thead: MarkdownTableHeader,
+  tbody: MarkdownTableBody,
+  tr: MarkdownTableRow,
+  th: StreamingMarkdownTableHead,
+  td: StreamingMarkdownTableData,
+  strong: StreamingMarkdownStrongText,
+  em: MarkdownEmphasis,
+  p: StreamingMarkdownParagraphRenderer,
+  h1: StreamingMarkdownHeading1,
+  h2: StreamingMarkdownHeading2,
+  h3: StreamingMarkdownHeading3,
+  ul: StreamingMarkdownUnorderedListRenderer,
+  ol: StreamingMarkdownOrderedListRenderer,
+  li: StreamingMarkdownListItemRenderer,
+  code: StreamingMarkdownCodeRenderer,
+  pre: StreamingMarkdownPreRenderer,
+  blockquote: StreamingMarkdownBlockquoteRenderer,
+  hr: MarkdownHorizontalRule
+}
+
 export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = ({
   content,
   isStreaming,
   accessToken = '',
+  variant = 'default',
   className = ''
 }) => {
   const [renderedContent, setRenderedContent] = useState('')
@@ -293,42 +487,25 @@ export const StreamingMarkdown: React.FC<StreamingMarkdownProps> = ({
     }
   }, [isStreaming, content, renderedContent])
 
-  const components = useMemo(
-    () => ({
-      a: (props: { href?: string; children?: React.ReactNode }) => (
-        <MarkdownLink {...props} accessToken={accessToken} />
-      ),
-      table: MarkdownTable,
-      thead: MarkdownTableHeader,
-      tbody: MarkdownTableBody,
-      tr: MarkdownTableRow,
-      th: MarkdownTableHeadCell,
-      td: MarkdownTableCell,
-      strong: MarkdownStrong,
-      em: MarkdownEmphasis,
-      p: MarkdownParagraph,
-      h1: MarkdownH1,
-      h2: MarkdownH2,
-      h3: MarkdownH3,
-      ul: MarkdownUnorderedList,
-      ol: MarkdownOrderedList,
-      li: MarkdownListItem,
-      code: MarkdownCode,
-      pre: MarkdownPre,
-      blockquote: MarkdownBlockquote,
-      hr: MarkdownHorizontalRule
-    }),
-    [accessToken]
-  )
+  const streamingContextValue = useMemo(() => ({ accessToken, variant }), [accessToken, variant])
 
-  const proseClasses = 'gba:prose gba:prose-sm gba:max-w-none gba:text-foreground [&>*:last-child]:gba:mb-0'
+  const proseClasses =
+    variant === 'enterprise'
+      ? 'gba:prose gba:prose-sm gba:max-w-none gba:text-foreground gba:[&_table]:gba:text-[14px] [&>*:last-child]:gba:mb-0'
+      : 'gba:prose gba:prose-sm gba:max-w-none gba:text-foreground [&>*:last-child]:gba:mb-0'
 
   return (
-    <div className={`${proseClasses} ${className}`} data-testid="streaming-markdown">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={markdownUrlTransform} components={components}>
-        {renderedContent}
-      </ReactMarkdown>
-    </div>
+    <StreamingMarkdownContext.Provider value={streamingContextValue}>
+      <div className={`${proseClasses} ${className}`} data-testid="streaming-markdown">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          urlTransform={markdownUrlTransform}
+          components={STREAMING_MARKDOWN_COMPONENTS}
+        >
+          {renderedContent}
+        </ReactMarkdown>
+      </div>
+    </StreamingMarkdownContext.Provider>
   )
 }
 

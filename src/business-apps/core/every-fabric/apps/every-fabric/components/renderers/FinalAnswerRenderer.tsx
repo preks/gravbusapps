@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Badge, Button } from '@newwork/nw-design-system'
 import {
   CaretDownIcon,
@@ -14,7 +14,12 @@ import {
   PresentationIcon
 } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
-import type { TodoItem, ActionSummary, WorkspaceDocument } from '../../types/enterpriseAgent'
+import type {
+  EnterprisePresentationMode,
+  TodoItem,
+  ActionSummary,
+  WorkspaceDocument
+} from '../../types/enterpriseAgent'
 import { formatDuration } from '../../utils/renderUtils'
 import HtmlPreviewCard from '../artifacts/HtmlPreviewCard'
 
@@ -43,6 +48,13 @@ export interface FinalAnswerRendererProps {
   onViewArtifact?: (artifactName: string) => void
   /** Session ID for constructing artifact download URLs (inline HTML preview) */
   sessionId?: string
+  /**
+   * Presentation policy for the rendered answer. When 'enterprise_agents',
+   * the markdown is rendered through the Enterprise Agents typography
+   * variant so headings, bold, lists, and tables get the polished hierarchy
+   * the backend's Final response format contract assumes.
+   */
+  presentationMode?: EnterprisePresentationMode
 }
 
 const getArtifactIcon = (rendererType: string) => {
@@ -202,8 +214,14 @@ export const FinalAnswerRenderer = ({
   workspaceDocuments,
   isInstant,
   onViewArtifact,
-  sessionId
+  sessionId,
+  presentationMode = 'default'
 }: FinalAnswerRendererProps) => {
+  const markdownVariant = presentationMode === 'enterprise_agents' ? 'enterprise' : 'default'
+  // Enterprise sessions get a touch more vertical breathing room above the
+  // markdown body so headings/lists don't feel cramped against the bubble
+  // chrome. Non-enterprise keeps the existing rhythm.
+  const markdownTopSpacingClass = presentationMode === 'enterprise_agents' ? 'gba:pt-6' : 'gba:pt-5'
   const hasWorkspaceDocs = !!workspaceDocuments && workspaceDocuments.length > 0
   // Filter out leftover "ghost" artifacts produced by the agent: zero-byte
   // entries with no mime type are backend scaffolding that should never reach
@@ -240,6 +258,7 @@ export const FinalAnswerRenderer = ({
       className="gba:w-full gba:overflow-hidden"
       data-testid="enterprise-agent-final-answer"
       data-instant={isInstant ? 'true' : 'false'}
+      data-presentation-mode={presentationMode}
     >
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
         <span className="gba:text-[12px] gba:font-bold gba:tracking-[0.01em] gba:text-foreground">
@@ -281,15 +300,15 @@ export const FinalAnswerRenderer = ({
               </button>
               {fullOutputVisible && (
                 <div className="gba:pt-2">
-                  <MarkdownWithChipsRenderer content={output} />
+                  <MarkdownWithChipsRenderer content={output} variant={markdownVariant} />
                 </div>
               )}
             </div>
           )}
         </>
       ) : (
-        <div className="gba:pt-5">
-          <MarkdownWithChipsRenderer content={output} />
+        <div className={markdownTopSpacingClass}>
+          <MarkdownWithChipsRenderer content={output} variant={markdownVariant} />
         </div>
       )}
 

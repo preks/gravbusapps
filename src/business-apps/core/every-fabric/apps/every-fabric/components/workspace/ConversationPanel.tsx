@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useLayoutEffect } from 'react'
-import type { ChatMessage } from '../../types/enterpriseAgent'
+import type { ChatMessage, EnterprisePresentationMode } from '../../types/enterpriseAgent'
 import { MessageBubble } from '../chat/MessageBubble'
 import { StreamingAnswerBubble } from '../chat/StreamingAnswerBubble'
 import {
@@ -41,6 +41,7 @@ interface ConversationPanelProps {
   onViewArtifact?: (artifactName: string) => void
   composer?: React.ReactNode
   accessToken?: string
+  presentationMode?: EnterprisePresentationMode
 }
 
 const isTranscriptMessage = (message: ChatMessage) =>
@@ -147,7 +148,8 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   onReply,
   onViewArtifact,
   composer,
-  accessToken
+  accessToken,
+  presentationMode = 'default'
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -233,6 +235,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               onReply={onReply}
               onViewArtifact={onViewArtifact}
               accessToken={accessToken}
+              presentationMode={msg.presentationMode ?? presentationMode}
             />
           ))}
 
@@ -243,6 +246,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               thinkingContent={streamingThinking}
               isStreaming={isStreaming}
               statusMessage={statusHeadline}
+              presentationMode={presentationMode}
             />
           ) : null}
 
@@ -255,6 +259,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               onReply={onReply}
               onViewArtifact={onViewArtifact}
               accessToken={accessToken}
+              presentationMode={msg.presentationMode ?? presentationMode}
             />
           ))}
 

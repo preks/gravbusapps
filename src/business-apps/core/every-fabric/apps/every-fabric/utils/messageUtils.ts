@@ -10,7 +10,9 @@ import type {
   AgentTerminalEvent,
   ChatMessage,
   ChatMessageType,
-  DeepAgentSession
+  DeepAgentSession,
+  MessageAttachmentRef,
+  SessionAttachment
 } from '../types/enterpriseAgent'
 import { resolveRendererType } from '../types/fabric'
 import { extractLatestTodosFromEvents, isTodoListToolName } from './fabricTodoStream'
@@ -117,7 +119,8 @@ const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
       id: chunk.event_id,
       type: 'user_input',
       timestamp: chunk.timestamp,
-      content: chunk.content
+      content: chunk.content,
+      presentationMode: chunk.presentation_mode
     }
   }
 
@@ -133,6 +136,7 @@ const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
       type: isStatus ? 'agent_status' : 'agent_thinking',
       timestamp: chunk.timestamp,
       content: chunk.content,
+      presentationMode: chunk.presentation_mode,
       isStreaming: chunk.chunk_kind !== 'final'
     }
   }
@@ -259,8 +263,10 @@ function terminalCompletedToChatMessage(
     id: event.event_id,
     type: 'final_answer',
     timestamp: event.timestamp ?? new Date().toISOString(),
+    presentationMode: event.presentation_mode,
     content: {
       output: event.output ?? '',
+      presentationMode: event.presentation_mode,
       todos: event.todos,
       recommendations: event.reflection?.missing_steps?.join('\n'),
       qualityScore,
@@ -280,14 +286,16 @@ function terminalWaitingToChatMessage(event: AgentTerminalEvent): ChatMessage {
       id: event.event_id,
       type: 'structured_input_request',
       timestamp: event.timestamp ?? new Date().toISOString(),
-      content: event.structured_input_request
+      content: event.structured_input_request,
+      presentationMode: event.presentation_mode
     }
   }
   return {
     id: event.event_id,
     type: 'human_interrupt',
     timestamp: event.timestamp ?? new Date().toISOString(),
-    content: { question: terminalQuestion(event.output, event.human_question) }
+    content: { question: terminalQuestion(event.output, event.human_question) },
+    presentationMode: event.presentation_mode
   }
 }
 
@@ -298,7 +306,8 @@ function terminalOtherToChatMessage(event: AgentTerminalEvent): ChatMessage {
     timestamp: event.timestamp ?? new Date().toISOString(),
     content: {
       message: event.status === 'cancelled' ? 'Session was cancelled.' : (event.output ?? 'Session failed')
-    }
+    },
+    presentationMode: event.presentation_mode
   }
 }
 
@@ -457,7 +466,8 @@ export function eventToMessage(
         id: event.event_id,
         type: 'structured_input_request',
         timestamp: event.timestamp,
-        content: event
+        content: event,
+        presentationMode: event.presentation_mode
       }
     }
 
@@ -469,6 +479,7 @@ export function eventToMessage(
           id: event.event_id,
           type: 'structured_input_request',
           timestamp: event.timestamp,
+          presentationMode: event.presentation_mode,
           content: {
             type: 'structured_input_request',
             seq: event.seq,
@@ -488,7 +499,8 @@ export function eventToMessage(
         id: event.event_id,
         type: 'human_interrupt',
         timestamp: event.timestamp,
-        content: { question: event.request.description || event.request.title }
+        content: { question: event.request.description || event.request.title },
+        presentationMode: event.presentation_mode
       }
     }
 
@@ -707,11 +719,29 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]): ActivityEv
   return activityEvents
 }
 
+function sessionAttachmentsToRefs(
+  attachments?: Array<SessionAttachment | MessageAttachmentRef>
+): MessageAttachmentRef[] | undefined {
+  if (!attachments || attachments.length === 0) return undefined
+  return attachments.map(a => ({
+    id: a.id,
+    name: a.name,
+    mime_type: a.mime_type,
+    size: a.size,
+    indexing_status: a.indexing_status,
+    // preview_url is client-only and survives on MessageAttachmentRef snapshots;
+    // it won't be present on server-reloaded sessions (accepted limitation).
+    preview_url: a.preview_url
+  }))
+}
+
 export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
   // Derive messages from the trace - the server's authoritative record.
   // The trace is already in correct chronological/seq order from the backend.
   // Do NOT re-sort or add synthetic messages - trust the server order.
   const traceMessages = deriveMessagesFromEvents(session.trace ?? [])
+
+  const sessionAttachmentRefs = sessionAttachmentsToRefs(session.session_attachments)
 
   // If the trace doesn't include the initial user message (older sessions),
   // prepend it. But check if it's already in the trace first.
@@ -721,13 +751,34 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
     // Find the first seq in the trace to create a proper ID for sorting
     const firstSeq = readEventSeq(session.trace?.[0])
     const syntheticSeq = typeof firstSeq === 'number' ? firstSeq - 1 : 0
+    // Snapshot current session attachments onto the synthesised first
+    // user_input so the chip survives the brief window between
+    // `startSession()` returning and the real trace arriving. On full
+    // reload the trace doesn't carry per-turn attachments — that's the
+    // accepted Option-A limitation (see C4 in the doc-ux plan).
     const initialUserMessage: ChatMessage = {
       id: `${session.session_id}:${syntheticSeq}`,
       type: 'user_input',
       timestamp: session.created_at,
-      content: session.input
+      content: session.input,
+      ...(sessionAttachmentRefs ? { attachments: sessionAttachmentRefs } : {})
     }
     return [initialUserMessage, ...traceMessages]
+  }
+
+  // The trace has the initial user message but lacks attachment refs (they are
+  // not persisted in the server event stream). Enrich the first user_input
+  // message with the session's attachment list so the chips always render.
+  if (sessionAttachmentRefs && sessionAttachmentRefs.length > 0) {
+    let enriched = false
+    const enrichedMessages = traceMessages.map(msg => {
+      if (!enriched && msg.type === 'user_input' && !msg.attachments) {
+        enriched = true
+        return { ...msg, attachments: sessionAttachmentRefs }
+      }
+      return msg
+    })
+    return enrichedMessages
   }
 
   return traceMessages

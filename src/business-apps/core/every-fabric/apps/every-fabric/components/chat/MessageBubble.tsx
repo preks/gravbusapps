@@ -1,6 +1,11 @@
 import { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import { BrainIcon, CaretDownIcon, CaretUpIcon, CheckIcon, CopyIcon, WarningCircleIcon } from '@phosphor-icons/react'
-import type { ChatMessage, StructuredInputRequestEvent, ComposeEmailSubmission } from '../../types/enterpriseAgent'
+import type {
+  ChatMessage,
+  StructuredInputRequestEvent,
+  ComposeEmailSubmission,
+  EnterprisePresentationMode
+} from '../../types/enterpriseAgent'
 import { PlanRenderer } from '../renderers/PlanRenderer'
 import { ToolCallRenderer } from '../renderers/ToolCallRenderer'
 import { ToolResultRenderer } from '../renderers/ToolResultRenderer'
@@ -8,6 +13,7 @@ import { ReflectionRenderer } from '../renderers/ReflectionRenderer'
 import { ExpertCallRenderer } from '../renderers/ExpertCallRenderer'
 import { StructuredInputForm } from '../renderers/StructuredInputForm'
 import { ToolPermissionRequest } from '../renderers/ToolPermissionRequest'
+import { AttachmentChipList } from './AttachmentChipList'
 import { EmailComposerBubble } from './EmailComposerBubble'
 import { FinalAnswerRenderer } from '../renderers/FinalAnswerRenderer'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
@@ -86,10 +92,17 @@ const AssistantLockup = ({ trailing }: { trailing?: React.ReactNode }) => (
   </div>
 )
 
+/** Strip the [Attached document(s): …]\n\n prefix injected by FabricContext
+ *  before the user's actual task text. The chips already show the files. */
+const stripAttachmentPrefix = (text: string): string => text.replace(/^\[Attached documents?: [^\]]+\]\n\n/, '')
+
 const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
   const [copied, setCopied] = useState(false)
   const [expanded, setExpanded] = useState(false)
-  const content = message.content as string
+  const rawContent = message.content as string
+  // Strip the file-name prefix that was prepended to the task for the backend;
+  // the attachment chips render the file info visually.
+  const content = stripAttachmentPrefix(rawContent)
   const timestampLabel = useMemo(() => formatMessageTimestamp(message.timestamp), [message.timestamp])
   const isCollapsible = content.length > USER_PROMPT_COLLAPSE_CHARS
   const visibleContent =
@@ -102,6 +115,9 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
     })
   }, [content])
 
+  const messageAttachments = message.attachments
+  const hasAttachments = !!messageAttachments && messageAttachments.length > 0
+
   return (
     <AnimatedMessageWrapper
       messageId={message.id}
@@ -109,6 +125,16 @@ const UserMessageBubble = ({ message }: { message: ChatMessage }) => {
       data-testid={`msg-${message.id}`}
     >
       <div className="gba:max-w-[85%] gba:rounded-[1.15rem] gba:bg-muted/40 gba:px-4 gba:py-2.5 gba:text-[14px] gba:leading-6 gba:font-normal gba:text-foreground">
+        {hasAttachments && (
+          <div className="gba:-mx-1 gba:mb-2 gba:flex gba:flex-wrap gba:justify-end">
+            <AttachmentChipList
+              messageAttachments={messageAttachments}
+              compact
+              readOnly
+              testIdPrefix={`msg-${message.id}-attachment`}
+            />
+          </div>
+        )}
         {visibleContent}
       </div>
       <div className="gba:mt-2 gba:flex gba:items-center gba:gap-2 gba:px-1">
@@ -159,20 +185,171 @@ interface MessageBubbleProps {
   onReply?: (answer?: string, structuredInput?: Record<string, any>) => void
   onViewArtifact?: (artifactName: string) => void
   accessToken?: string
+  presentationMode?: EnterprisePresentationMode
 }
 
-export const MessageBubble = ({
+const getMarkdownVariant = (presentationMode: EnterprisePresentationMode): 'default' | 'enterprise' =>
+  presentationMode === 'enterprise_agents' ? 'enterprise' : 'default'
+
+const renderStructuredInputRequestBubble = (
+  message: ChatMessage,
+  allMessages: ChatMessage[] | undefined,
+  onReply: MessageBubbleProps['onReply'],
+  accessToken: string | undefined
+) => {
+  const formData = message.content as StructuredInputRequestEvent
+
+  if (formData.form_id === 'compose_email' && formData.email_draft) {
+    const traceOutcome =
+      allMessages && allMessages.length > 0 ? findComposeEmailOutcomeAfterMessage(allMessages, message.id) : null
+
+    return (
+      <div className="gba:py-1" data-testid={`msg-${message.id}`}>
+        <EmailComposerBubble
+          draft={formData.email_draft}
+          rationale={formData.description}
+          accessToken={accessToken}
+          traceOutcome={traceOutcome}
+          onSubmit={(submission: ComposeEmailSubmission) => {
+            if (onReply) {
+              onReply(undefined, submission as Record<string, any>)
+            }
+          }}
+        />
+      </div>
+    )
+  }
+
+  const alreadySubmitted = hasAnsweredReply(allMessages, message.id)
+
+  if (formData.form_id === 'tool_permission_request') {
+    return (
+      <div className="gba:py-1" data-testid={`msg-${message.id}`}>
+        <ToolPermissionRequest
+          request={formData}
+          alreadySubmitted={alreadySubmitted}
+          onSubmit={payload => {
+            if (onReply) {
+              onReply(undefined, payload)
+            }
+          }}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="gba:py-1" data-testid={`msg-${message.id}`}>
+      <StructuredInputForm
+        formId={formData.form_id}
+        title={formData.title}
+        description={formData.description}
+        fields={formData.fields}
+        allowPartialSubmit={formData.allow_partial_submit}
+        accessToken={accessToken}
+        alreadySubmitted={alreadySubmitted}
+        toolRef={formData.tool_ref}
+        requestStatus={formData.request_status}
+        onSubmit={(values, aiDelegated) => {
+          if (onReply) {
+            const structuredPayload = aiDelegated.length > 0 ? { ...values, _ai_should_fill: aiDelegated } : values
+            onReply(undefined, structuredPayload)
+          }
+        }}
+        onCancel={
+          formData.tool_ref
+            ? () => {
+                if (onReply) onReply(undefined, { action: 'cancel' })
+              }
+            : undefined
+        }
+      />
+    </div>
+  )
+}
+
+const renderErrorBubble = (message: ChatMessage, onReply: MessageBubbleProps['onReply']) => {
+  const {
+    message: errMsg,
+    code,
+    retryable
+  } = message.content as {
+    message: string
+    code?: string
+    retryable?: boolean
+  }
+  const needsAuth = code === 'permission_required' || /permission|auth|token|login/i.test(errMsg)
+
+  let errorTitle: string
+  if (needsAuth) {
+    errorTitle = 'Authentication required'
+  } else if (retryable) {
+    errorTitle = 'Provider unavailable'
+  } else {
+    errorTitle = 'Session failed'
+  }
+
+  return (
+    <AnimatedMessageWrapper messageId={message.id} className="gba:py-1" data-testid={`msg-${message.id}`}>
+      <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-2xl gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:px-5 gba:py-4">
+        <WarningCircleIcon className="gba:h-4 gba:w-4 gba:text-destructive gba:shrink-0 gba:mt-0.5" />
+        <div>
+          <p className="gba:text-sm gba:font-medium gba:text-destructive gba:mb-0.5">{errorTitle}</p>
+          <p className="gba:text-sm gba:text-muted-foreground">{errMsg}</p>
+          <div className="gba:mt-3 gba:flex gba:flex-wrap gba:gap-2">
+            {needsAuth && (
+              <button
+                type="button"
+                onClick={() => globalThis.dispatchEvent(new Event('every-fabric:reauth-requested'))}
+                className="gba:rounded-md gba:bg-foreground gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:text-background"
+              >
+                Re-authenticate
+              </button>
+            )}
+            {retryable && onReply && (
+              <button
+                type="button"
+                onClick={() =>
+                  onReply('Retry the previous failed provider operation after the user addressed the required action.')
+                }
+                className="gba:rounded-md gba:border gba:border-border gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:text-foreground"
+              >
+                Retry after fixing
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </AnimatedMessageWrapper>
+  )
+}
+
+const renderDefaultBubble = (message: ChatMessage, presentationMode: EnterprisePresentationMode) => {
+  const content = message.content as string | undefined
+
+  return (
+    <div className="gba:py-1" data-testid={`msg-${message.id}`}>
+      <div className="gba:rounded-2xl gba:bg-muted/45 gba:px-5 gba:py-4 gba:text-[15px] gba:leading-7">
+        {typeof content === 'string' ? (
+          <MarkdownWithChipsRenderer content={content} variant={getMarkdownVariant(presentationMode)} />
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+const renderMessageBubbleContent = ({
   message,
   sessionId,
   allMessages,
   onReply,
   onViewArtifact,
-  accessToken
+  accessToken,
+  presentationMode = 'default'
 }: MessageBubbleProps) => {
   switch (message.type) {
-    case 'user_input': {
+    case 'user_input':
       return <UserMessageBubble message={message} />
-    }
 
     case 'agent_thinking': {
       const content = message.content as string
@@ -185,7 +362,7 @@ export const MessageBubble = ({
             <div className="gba:flex gba:items-start gba:gap-3">
               <BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:mt-0.5 gba:shrink-0" />
               <div className="gba:text-[15px] gba:text-foreground/88 gba:leading-7">
-                <MarkdownWithChipsRenderer content={content} />
+                <MarkdownWithChipsRenderer content={content} variant={getMarkdownVariant(presentationMode)} />
               </div>
             </div>
           </div>
@@ -238,80 +415,8 @@ export const MessageBubble = ({
       )
     }
 
-    case 'structured_input_request': {
-      const formData = message.content as StructuredInputRequestEvent
-      if (formData.form_id === 'compose_email' && formData.email_draft) {
-        const draft = formData.email_draft
-        const traceOutcome =
-          allMessages && allMessages.length > 0 ? findComposeEmailOutcomeAfterMessage(allMessages, message.id) : null
-        return (
-          <div className="gba:py-1" data-testid={`msg-${message.id}`}>
-            <EmailComposerBubble
-              draft={draft}
-              rationale={formData.description}
-              accessToken={accessToken}
-              traceOutcome={traceOutcome}
-              onSubmit={(submission: ComposeEmailSubmission) => {
-                if (onReply) {
-                  onReply(undefined, submission as unknown as Record<string, any>)
-                }
-              }}
-            />
-          </div>
-        )
-      }
-      if (formData.form_id === 'tool_permission_request') {
-        const alreadySubmitted = hasAnsweredReply(allMessages, message.id)
-        return (
-          <div className="gba:py-1" data-testid={`msg-${message.id}`}>
-            <ToolPermissionRequest
-              request={formData}
-              alreadySubmitted={alreadySubmitted}
-              onSubmit={payload => {
-                if (onReply) {
-                  onReply(undefined, payload)
-                }
-              }}
-            />
-          </div>
-        )
-      }
-      // A structured_input_request is "already submitted" when the transcript
-      // contains any later message after it — the user answered the form in a
-      // prior turn and the agent has since produced more output. In that case
-      // we render the form as a compact collapsed summary (matches the
-      // EmailComposerBubble pattern) so historical sessions aren't dominated
-      // by giant post-submit forms.
-      const alreadySubmitted = hasAnsweredReply(allMessages, message.id)
-      return (
-        <div className="gba:py-1" data-testid={`msg-${message.id}`}>
-          <StructuredInputForm
-            formId={formData.form_id}
-            title={formData.title}
-            description={formData.description}
-            fields={formData.fields}
-            allowPartialSubmit={formData.allow_partial_submit}
-            accessToken={accessToken}
-            alreadySubmitted={alreadySubmitted}
-            toolRef={formData.tool_ref}
-            requestStatus={formData.request_status}
-            onSubmit={(values, aiDelegated) => {
-              if (onReply) {
-                const structuredPayload = aiDelegated.length > 0 ? { ...values, _ai_should_fill: aiDelegated } : values
-                onReply(undefined, structuredPayload)
-              }
-            }}
-            onCancel={
-              formData.tool_ref
-                ? () => {
-                    if (onReply) onReply(undefined, { action: 'cancel' })
-                  }
-                : undefined
-            }
-          />
-        </div>
-      )
-    }
+    case 'structured_input_request':
+      return renderStructuredInputRequestBubble(message, allMessages, onReply, accessToken)
 
     case 'human_interrupt': {
       const { question } = message.content as { question: string }
@@ -343,70 +448,39 @@ export const MessageBubble = ({
           disableEntranceAnimation
           data-testid={`msg-${message.id}`}
         >
-          <FinalAnswerRenderer {...content} onViewArtifact={onViewArtifact} sessionId={sessionId} />
+          <FinalAnswerRenderer
+            {...content}
+            onViewArtifact={onViewArtifact}
+            sessionId={sessionId}
+            presentationMode={presentationMode}
+          />
         </AnimatedMessageWrapper>
       )
     }
 
-    case 'error': {
-      const {
-        message: errMsg,
-        code,
-        retryable
-      } = message.content as {
-        message: string
-        code?: string
-        retryable?: boolean
-      }
-      const needsAuth = code === 'permission_required' || /permission|auth|token|login/i.test(errMsg)
-      return (
-        <AnimatedMessageWrapper messageId={message.id} className="gba:py-1" data-testid={`msg-${message.id}`}>
-          <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-2xl gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:px-5 gba:py-4">
-            <WarningCircleIcon className="gba:h-4 gba:w-4 gba:text-destructive gba:shrink-0 gba:mt-0.5" />
-            <div>
-              <p className="gba:text-sm gba:font-medium gba:text-destructive gba:mb-0.5">
-                {needsAuth ? 'Authentication required' : retryable ? 'Provider unavailable' : 'Session failed'}
-              </p>
-              <p className="gba:text-sm gba:text-muted-foreground">{errMsg}</p>
-              <div className="gba:mt-3 gba:flex gba:flex-wrap gba:gap-2">
-                {needsAuth && (
-                  <button
-                    type="button"
-                    onClick={() => window.dispatchEvent(new Event('every-fabric:reauth-requested'))}
-                    className="gba:rounded-md gba:bg-foreground gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:text-background"
-                  >
-                    Re-authenticate
-                  </button>
-                )}
-                {retryable && onReply && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onReply(
-                        'Retry the previous failed provider operation after the user addressed the required action.'
-                      )
-                    }
-                    className="gba:rounded-md gba:border gba:border-border gba:px-3 gba:py-1.5 gba:text-xs gba:font-medium gba:text-foreground"
-                  >
-                    Retry after fixing
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </AnimatedMessageWrapper>
-      )
-    }
+    case 'error':
+      return renderErrorBubble(message, onReply)
 
-    default: {
-      const content = message.content as string | undefined
-      return (
-        <div className="gba:py-1" data-testid={`msg-${message.id}`}>
-          <div className="gba:rounded-2xl gba:bg-muted/45 gba:px-5 gba:py-4 gba:text-[15px] gba:leading-7">
-            {typeof content === 'string' ? <MarkdownWithChipsRenderer content={content} /> : null}
-          </div>
-        </div>
-      )
-    }
+    default:
+      return renderDefaultBubble(message, presentationMode)
   }
 }
+
+export const MessageBubble = ({
+  message,
+  sessionId,
+  allMessages,
+  onReply,
+  onViewArtifact,
+  accessToken,
+  presentationMode = 'default'
+}: MessageBubbleProps) =>
+  renderMessageBubbleContent({
+    message,
+    sessionId,
+    allMessages,
+    onReply,
+    onViewArtifact,
+    accessToken,
+    presentationMode
+  })

@@ -127,7 +127,11 @@ export const WorkspaceLayout: React.FC = () => {
     refreshArtifacts,
     reply,
     stopSession,
-    setActiveArtifactId
+    setActiveArtifactId,
+    sessionAttachments,
+    pendingSessionAttachments,
+    uploadSessionAttachment,
+    removeSessionAttachment
   } = useFabric()
 
   const {
@@ -394,6 +398,10 @@ export const WorkspaceLayout: React.FC = () => {
                     onConnectorsClick={() => setIsConnectorSheetOpen(true)}
                     activeConnectors={activeConnectors}
                     onRemoveConnector={toggleConnector}
+                    onUploadAttachment={uploadSessionAttachment}
+                    onRemoveAttachment={removeSessionAttachment}
+                    attachments={sessionAttachments}
+                    pendingAttachments={pendingSessionAttachments}
                   />
                 </div>
               </div>
@@ -446,6 +454,7 @@ export const WorkspaceLayout: React.FC = () => {
           onReply={reply}
           onViewArtifact={setActiveArtifactId}
           accessToken={accessToken}
+          presentationMode={session.presentation_mode}
         />
 
         {showClarification && (
