@@ -16,7 +16,7 @@ function utf8ByteLength(value: string): number {
   return Buffer.byteLength(value, 'utf8')
 }
 
-export const SPREADSHEET_UNIFIED_MUTATION_SUBMIT_MAX_BYTES = 24 * 1024 * 1024
+export const SPREADSHEET_UNIFIED_MUTATION_SUBMIT_MAX_BYTES = 8 * 1024 * 1024
 
 export interface SpreadsheetKnownRowIdFieldMatch {
   operationIndex: number
@@ -208,7 +208,8 @@ export function mapKnownSemanticRowIdFields(
             operationId,
             operationType: op.type,
             fieldPath: `data.cells[${cellIndex}].rowId`,
-            rowId: fromRowId
+            rowId: fromRowId,
+            referenceKind: 'rowId'
           }) ?? fromRowId
 
         if (toRowId === fromRowId) return cell
@@ -236,7 +237,8 @@ export function mapKnownSemanticRowIdFields(
           operationId,
           operationType: op.type,
           fieldPath: 'data.rowId',
-          rowId: fromRowId
+          rowId: fromRowId,
+          referenceKind: 'rowId'
         }) ?? fromRowId
 
       if (toRowId === fromRowId) return op
@@ -261,7 +263,8 @@ export function mapKnownSemanticRowIdFields(
             operationId,
             operationType: op.type,
             fieldPath: `data.rowIds[${rowIndex}]`,
-            rowId: fromRowId
+            rowId: fromRowId,
+            referenceKind: 'rowId'
           }) ?? fromRowId
 
         if (toRowId === fromRowId) return rowId
