@@ -35,7 +35,10 @@ import { useAbsencePrevalidate } from './hooks/useAbsencePrevalidate'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useAbsenceTypesByGroup } from './hooks/useAbsenceTypesByGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import translations from '../_i18n'
+
+const SICK_LEAVE_USER_TASK_AUTO_COMPLETE_DELAY_MS = 2000
 
 type Employee = {
   id: string
@@ -433,9 +436,15 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               ...(employeeDocuments.length > 0 && { employeeDocuments })
             }
 
+      if (isSickLeaveProcess && !isUpdateMode) {
+        window.setTimeout(() => {
+          dispatchProcessContinueEvent('pse_submit', payload)
+        }, SICK_LEAVE_USER_TASK_AUTO_COMPLETE_DELAY_MS)
+      }
+
       return payload
     },
-    [employeeId, fileList, isUpdateMode, existingSickLeave, fileClient]
+    [employeeId, fileList, isUpdateMode, existingSickLeave, fileClient, isSickLeaveProcess]
   )
 
   const validateForm = useCallback(
