@@ -812,9 +812,9 @@
     ]
   },
   "ai/forms/scheduled-task-result": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 191764,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 195035,
     "top": [
       {
         "kind": "bucket",
@@ -890,6 +890,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 17864,
+        "gzip": 3621,
+        "leaves": [
+          {
+            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
+            "rendered": 13895,
+            "gzip": 2489
+          },
+          {
+            "name": "src/common/components/markdown/UnifiedTableRenderer.tsx",
+            "rendered": 3969,
+            "gzip": 1132
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15753,
         "gzip": 3725,
@@ -916,24 +934,6 @@
             "name": "src/common/network/graphql/GraphQLClient.ts",
             "rendered": 1869,
             "gzip": 701
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/components",
-        "rendered": 11477,
-        "gzip": 3039,
-        "leaves": [
-          {
-            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7508,
-            "gzip": 1907
-          },
-          {
-            "name": "src/common/components/markdown/UnifiedTableRenderer.tsx",
-            "rendered": 3969,
-            "gzip": 1132
           }
         ]
       },
@@ -8253,9 +8253,9 @@
     ]
   },
   "core/every/apps/every-box": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 2065439,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 2068710,
     "top": [
       {
         "kind": "bucket",
@@ -8386,8 +8386,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 54913,
-        "gzip": 10942,
+        "rendered": 61473,
+        "gzip": 11534,
         "leaves": [
           {
             "name": "src/common/components/flow/flow-execution/InputRenderer.tsx",
@@ -8396,8 +8396,8 @@
           },
           {
             "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7672,
-            "gzip": 1912
+            "rendered": 14232,
+            "gzip": 2504
           }
         ]
       },
@@ -9678,9 +9678,9 @@
     ]
   },
   "core/office/apps/documents": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 1791135,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 1791206,
     "top": [
       {
         "kind": "bucket",
@@ -9842,8 +9842,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 8709,
-        "gzip": 2679,
+        "rendered": 8803,
+        "gzip": 2790,
         "leaves": [
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -10887,9 +10887,9 @@
     ]
   },
   "core/office/apps/office-canvas": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 273670,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 276938,
     "top": [
       {
         "kind": "bucket",
@@ -10948,13 +10948,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 16183,
-        "gzip": 4577,
+        "rendered": 22570,
+        "gzip": 5159,
         "leaves": [
           {
             "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7508,
-            "gzip": 1907
+            "rendered": 13895,
+            "gzip": 2489
           },
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -11150,9 +11150,9 @@
     ]
   },
   "core/office/apps/office-launcher": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 291500,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 294774,
     "top": [
       {
         "kind": "bucket",
@@ -11211,13 +11211,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 16183,
-        "gzip": 4577,
+        "rendered": 22570,
+        "gzip": 5159,
         "leaves": [
           {
             "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7508,
-            "gzip": 1907
+            "rendered": 13895,
+            "gzip": 2489
           },
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -11658,9 +11658,9 @@
     ]
   },
   "core/office/apps/slides": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 1659697,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 1659768,
     "top": [
       {
         "kind": "bucket",
@@ -11840,8 +11840,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 8715,
-        "gzip": 2681,
+        "rendered": 8811,
+        "gzip": 2794,
         "leaves": [
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -11975,9 +11975,9 @@
     ]
   },
   "core/office/apps/spaces": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 1410071,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 1410142,
     "top": [
       {
         "kind": "bucket",
@@ -12139,8 +12139,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 8709,
-        "gzip": 2679,
+        "rendered": 8803,
+        "gzip": 2790,
         "leaves": [
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -12292,9 +12292,9 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 12128,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12128/",
-    "chunkJsBytes": 1692919,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 1696191,
     "top": [
       {
         "kind": "bucket",
@@ -12406,6 +12406,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 22590,
+        "gzip": 5162,
+        "leaves": [
+          {
+            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
+            "rendered": 13895,
+            "gzip": 2489
+          },
+          {
+            "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
+            "rendered": 7410,
+            "gzip": 2251
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 19296,
         "gzip": 6913,
@@ -12419,24 +12437,6 @@
             "name": "src/common/utils/serviceResolver.ts",
             "rendered": 4283,
             "gzip": 993
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/components",
-        "rendered": 16203,
-        "gzip": 4580,
-        "leaves": [
-          {
-            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7508,
-            "gzip": 1907
-          },
-          {
-            "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
-            "rendered": 7410,
-            "gzip": 2251
           }
         ]
       },
@@ -24105,9 +24105,9 @@
     ]
   },
   "every/apps/every-box": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 2065360,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 2068631,
     "top": [
       {
         "kind": "bucket",
@@ -24238,8 +24238,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 54913,
-        "gzip": 10942,
+        "rendered": 61473,
+        "gzip": 11534,
         "leaves": [
           {
             "name": "src/common/components/flow/flow-execution/InputRenderer.tsx",
@@ -24248,8 +24248,8 @@
           },
           {
             "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7672,
-            "gzip": 1912
+            "rendered": 14232,
+            "gzip": 2504
           }
         ]
       },
@@ -29243,9 +29243,9 @@
     ]
   },
   "fin/expenses/apps/personal-expenses": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 2484106,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 2484177,
     "top": [
       {
         "kind": "bucket",
@@ -41687,9 +41687,9 @@
     ]
   },
   "hr/core/apps/human-resources": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 2592682,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 2592753,
     "top": [
       {
         "kind": "bucket",
@@ -87641,9 +87641,9 @@
     ]
   },
   "platform/apps/agent-mesh": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 257531,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 260805,
     "top": [
       {
         "kind": "bucket",
@@ -87720,13 +87720,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 16183,
-        "gzip": 4577,
+        "rendered": 22572,
+        "gzip": 5161,
         "leaves": [
           {
             "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7508,
-            "gzip": 1907
+            "rendered": 13897,
+            "gzip": 2491
           },
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -87917,9 +87917,9 @@
     ]
   },
   "platform/apps/board-apps": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 1280114,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 1280185,
     "top": [
       {
         "kind": "bucket",
@@ -88063,8 +88063,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 8709,
-        "gzip": 2679,
+        "rendered": 8803,
+        "gzip": 2790,
         "leaves": [
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12143,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12143/",
-    "chunkJsBytes": 1890707,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 1890702,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1592260,
-        "gzip": 98856,
+        "gzip": 98853,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1592260,
-            "gzip": 98856
+            "gzip": 98853
           }
         ]
       },
@@ -88492,9 +88492,9 @@
     ]
   },
   "platform/apps/chat": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 3756288,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 3759558,
     "top": [
       {
         "kind": "bucket",
@@ -88624,6 +88624,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 35343,
+        "gzip": 8278,
+        "leaves": [
+          {
+            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
+            "rendered": 14236,
+            "gzip": 2508
+          },
+          {
+            "name": "src/common/components/entity-mentions/EntityMentionPopover.tsx",
+            "rendered": 8315,
+            "gzip": 1944
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "@newwork/remote-component-loader",
         "rendered": 30933,
         "gzip": 7679,
@@ -88637,24 +88655,6 @@
             "name": "node_modules/@newwork/remote-component-loader/dist/loadRemoteComponent.js",
             "rendered": 7761,
             "gzip": 1583
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/components",
-        "rendered": 28783,
-        "gzip": 7686,
-        "leaves": [
-          {
-            "name": "src/common/components/entity-mentions/EntityMentionPopover.tsx",
-            "rendered": 8315,
-            "gzip": 1944
-          },
-          {
-            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7676,
-            "gzip": 1916
           }
         ]
       },
@@ -92292,9 +92292,9 @@
     ]
   },
   "platform/apps/nexus": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 273577,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 276845,
     "top": [
       {
         "kind": "bucket",
@@ -92353,13 +92353,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 16183,
-        "gzip": 4577,
+        "rendered": 22570,
+        "gzip": 5159,
         "leaves": [
           {
             "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7508,
-            "gzip": 1907
+            "rendered": 13895,
+            "gzip": 2489
           },
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -93339,9 +93339,9 @@
     ]
   },
   "platform/apps/shared": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 314873,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 314944,
     "top": [
       {
         "kind": "bucket",
@@ -93588,6 +93588,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 94,
+        "gzip": 111,
+        "leaves": [
+          {
+            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
+            "rendered": 94,
+            "gzip": 111
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/runtime",
         "rendered": 38,
         "gzip": 58,
@@ -93602,9 +93615,9 @@
     ]
   },
   "platform/apps/slide-apps": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 1659696,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 1659767,
     "top": [
       {
         "kind": "bucket",
@@ -93784,8 +93797,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 8715,
-        "gzip": 2681,
+        "rendered": 8811,
+        "gzip": 2794,
         "leaves": [
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -93919,9 +93932,9 @@
     ]
   },
   "platform/apps/spaces": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 1409994,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 1410065,
     "top": [
       {
         "kind": "bucket",
@@ -94083,8 +94096,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 8709,
-        "gzip": 2679,
+        "rendered": 8803,
+        "gzip": 2790,
         "leaves": [
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -100414,15 +100427,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 753429,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 777943,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1013642,
-        "gzip": 263204,
+        "rendered": 1049450,
+        "gzip": 271453,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/newwork-connect/components/connectorLogoPaths.ts",
@@ -100492,6 +100505,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 39818,
+        "gzip": 8257,
+        "leaves": [
+          {
+            "name": "src/common/components/markdown/StreamingMarkdown.tsx",
+            "rendered": 17506,
+            "gzip": 2747
+          },
+          {
+            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
+            "rendered": 13903,
+            "gzip": 2493
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 36417,
         "gzip": 9372,
@@ -100505,24 +100536,6 @@
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
             "rendered": 9004,
             "gzip": 2181
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/components",
-        "rendered": 25565,
-        "gzip": 7027,
-        "leaves": [
-          {
-            "name": "src/common/components/markdown/StreamingMarkdown.tsx",
-            "rendered": 9648,
-            "gzip": 2103
-          },
-          {
-            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7508,
-            "gzip": 1907
           }
         ]
       },
@@ -100708,9 +100721,9 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 12128,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12128/",
-    "chunkJsBytes": 1692850,
+    "bitbucketBuildNumber": 12145,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12145/",
+    "chunkJsBytes": 1696122,
     "top": [
       {
         "kind": "bucket",
@@ -100822,6 +100835,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 22590,
+        "gzip": 5162,
+        "leaves": [
+          {
+            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
+            "rendered": 13895,
+            "gzip": 2489
+          },
+          {
+            "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
+            "rendered": 7410,
+            "gzip": 2251
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/utils",
         "rendered": 19296,
         "gzip": 6913,
@@ -100835,24 +100866,6 @@
             "name": "src/common/utils/serviceResolver.ts",
             "rendered": 4283,
             "gzip": 993
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/components",
-        "rendered": 16203,
-        "gzip": 4580,
-        "leaves": [
-          {
-            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7508,
-            "gzip": 1907
-          },
-          {
-            "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
-            "rendered": 7410,
-            "gzip": 2251
           }
         ]
       },
@@ -107900,7 +107913,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-15T07:14:25.103Z",
+    "generatedAt": "2026-05-15T07:35:31.587Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
