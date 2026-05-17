@@ -29,7 +29,9 @@ describe('UniverSheetGrid fallback cell derivation', () => {
   it('treats clear-like commands as nulling mutations', () => {
     expect(isClearLikeMutationCommand('sheet.clear-range')).toBe(true)
     expect(isClearLikeMutationCommand('DeleteSelectionCommand')).toBe(true)
-    expect(isClearLikeMutationCommand('sheet.mutation.move-range')).toBe(true)
+    expect(isClearLikeMutationCommand('sheet.mutation.move-range')).toBe(false)
+    expect(isClearLikeMutationCommand('sheet.mutation.move-cell')).toBe(false)
+    expect(isClearLikeMutationCommand('sheet.mutation.move-row')).toBe(false)
     expect(isClearLikeMutationCommand('sheet.command.move-selection')).toBe(false)
     expect(isClearLikeMutationCommand('SetRangeValuesMutation')).toBe(false)
   })

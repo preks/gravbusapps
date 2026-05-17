@@ -115,6 +115,102 @@ describe('useSpreadsheetColumns', () => {
     )
   })
 
+  it('moves visible columns right using original-grid destination semantics', () => {
+    const columns = [
+      column('col-a', 'column_a', 0),
+      column('col-b', 'column_b', 1),
+      { ...column('col-hidden', 'column_hidden', 2), isVisible: false },
+      column('col-c', 'column_c', 3),
+      column('col-d', 'column_d', 4)
+    ]
+    const sheet = makeSheet(columns)
+    const onAppUpdate = jest.fn()
+    const emitColumnBatchOperation = jest.fn()
+    const commitOptimisticActiveSheetRows = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetColumns({
+        app: makeApp(sheet),
+        activeSheet: sheet,
+        localSheetDataRef: { current: sheet.data },
+        commitOptimisticActiveSheetRows,
+        handleCellChangeRef: { current: jest.fn() },
+        onAppUpdate,
+        emitColumnBatchOperation
+      })
+    )
+
+    act(() => {
+      result.current.handleColumnsMove(1, 1, 3)
+    })
+
+    const updatedColumns = onAppUpdate.mock.calls[0][0].sheets[0].columns as SpreadsheetColumn[]
+    expect(updatedColumns.map(col => `${col.id}:${col.order}`)).toEqual([
+      'col-a:0',
+      'col-hidden:1',
+      'col-c:2',
+      'col-b:3',
+      'col-d:4'
+    ])
+    expect(emitColumnBatchOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'columns_reorder',
+        data: expect.objectContaining({
+          sheetId: 'sheet-1',
+          columns: expect.arrayContaining([expect.objectContaining({ id: 'col-b', order: 3 })])
+        })
+      })
+    )
+  })
+
+  it('moves visible columns left without changing hidden-column placement', () => {
+    const columns = [
+      column('col-a', 'column_a', 0),
+      { ...column('col-hidden', 'column_hidden', 1), isVisible: false },
+      column('col-b', 'column_b', 2),
+      column('col-c', 'column_c', 3),
+      column('col-d', 'column_d', 4)
+    ]
+    const sheet = makeSheet(columns)
+    const onAppUpdate = jest.fn()
+    const emitColumnBatchOperation = jest.fn()
+    const commitOptimisticActiveSheetRows = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetColumns({
+        app: makeApp(sheet),
+        activeSheet: sheet,
+        localSheetDataRef: { current: sheet.data },
+        commitOptimisticActiveSheetRows,
+        handleCellChangeRef: { current: jest.fn() },
+        onAppUpdate,
+        emitColumnBatchOperation
+      })
+    )
+
+    act(() => {
+      result.current.handleColumnsMove(2, 1, 0)
+    })
+
+    const updatedColumns = onAppUpdate.mock.calls[0][0].sheets[0].columns as SpreadsheetColumn[]
+    expect(updatedColumns.map(col => `${col.id}:${col.order}`)).toEqual([
+      'col-c:0',
+      'col-a:1',
+      'col-hidden:2',
+      'col-b:3',
+      'col-d:4'
+    ])
+    expect(emitColumnBatchOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'columns_reorder',
+        data: expect.objectContaining({
+          sheetId: 'sheet-1',
+          columns: expect.arrayContaining([expect.objectContaining({ id: 'col-c', order: 0 })])
+        })
+      })
+    )
+  })
+
   it('does not auto-create another column for an immediate edit in a freshly inserted structural slot', async () => {
     const columns = [
       column('col-a', 'column_a', 0),

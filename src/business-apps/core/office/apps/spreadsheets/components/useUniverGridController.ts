@@ -65,6 +65,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const lastClearAllEmitAtBySignatureRef = useRef<Map<string, number>>(new Map())
   const lastClearFormatEmitAtBySignatureRef = useRef<Map<string, number>>(new Map())
   const lastFeatureEmitAtBySignatureRef = useRef<Map<string, number>>(new Map())
+  const pendingFreezeClearEmitTimeoutBySheetRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const activeSelectionRef = useRef<ActiveSelectionPosition | null>(null)
   const copiedSelectionAnchorRef = useRef<(ActiveSelectionPosition & { copiedAt: number }) | null>(null)
   const pendingFormattingPasteIntentRef = useRef<FormattingPasteIntent | null>(null)
@@ -138,7 +139,11 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     onNativeSheetStructureIntent: props.onNativeSheetStructureIntent,
     onColumnsInsert: props.onColumnsInsert,
     onColumnsDelete: props.onColumnsDelete,
-    onRowsInsert: props.onRowsInsert
+    onColumnsMove: props.onColumnsMove,
+    onRowsInsert: props.onRowsInsert,
+    onRowsDelete: props.onRowsDelete,
+    onRowsMove: props.onRowsMove,
+    onCellRangeMove: props.onCellRangeMove
   })
 
   callbacksRef.current = {
@@ -160,7 +165,11 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     onNativeSheetStructureIntent: props.onNativeSheetStructureIntent,
     onColumnsInsert: props.onColumnsInsert,
     onColumnsDelete: props.onColumnsDelete,
-    onRowsInsert: props.onRowsInsert
+    onColumnsMove: props.onColumnsMove,
+    onRowsInsert: props.onRowsInsert,
+    onRowsDelete: props.onRowsDelete,
+    onRowsMove: props.onRowsMove,
+    onCellRangeMove: props.onCellRangeMove
   }
 
   const readOnlyRef = useRef(props.isReadOnly)
@@ -213,6 +222,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     lastClearAllEmitAtBySignatureRef,
     lastClearFormatEmitAtBySignatureRef,
     lastFeatureEmitAtBySignatureRef,
+    pendingFreezeClearEmitTimeoutBySheetRef,
     activeSelectionRef,
     copiedSelectionAnchorRef,
     pendingFormattingPasteIntentRef,

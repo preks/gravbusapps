@@ -71,7 +71,11 @@ export interface UseSpreadsheetMainViewRendererParams {
   onColumnAdd?: (...args: any[]) => void | Promise<void>
   onColumnsInsert?: (...args: any[]) => void
   onColumnsDelete?: (...args: any[]) => void
+  onColumnsMove?: (...args: any[]) => void
   onRowsInsert?: (...args: any[]) => void
+  onRowsDelete?: (...args: any[]) => void
+  onRowsMove?: (...args: any[]) => void
+  onCellRangeMove?: (...args: any[]) => void
   onDimensionsChange: (payload: unknown) => void
   gridRef: MutableRefObject<any>
   onEditRow: (row: ViewerRow) => void
@@ -131,7 +135,11 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onColumnAdd,
     onColumnsInsert,
     onColumnsDelete,
+    onColumnsMove,
     onRowsInsert,
+    onRowsDelete,
+    onRowsMove,
+    onCellRangeMove,
     onDimensionsChange,
     gridRef,
     onEditRow,
@@ -208,7 +216,11 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           onColumnAdd={canEditWithLock ? onColumnAdd : undefined}
           onColumnsInsert={canEditWithLock ? onColumnsInsert : undefined}
           onColumnsDelete={canEditWithLock ? onColumnsDelete : undefined}
+          onColumnsMove={canEditWithLock ? onColumnsMove : undefined}
           onRowsInsert={canEditWithLock ? onRowsInsert : undefined}
+          onRowsDelete={canEditWithLock ? onRowsDelete : undefined}
+          onRowsMove={canEditWithLock ? onRowsMove : undefined}
+          onCellRangeMove={canEditWithLock ? onCellRangeMove : undefined}
           onDimensionsChange={onDimensionsChange as any}
           isReadOnly={!canEditWithLock}
           gridRef={gridRef}

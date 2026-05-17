@@ -1224,6 +1224,55 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(commitSheetData).not.toHaveBeenCalled()
   })
 
+  it('applies full remote columns_reorder payloads before scheduling active-sheet resync', () => {
+    const scheduleRemoteStructuralResync = jest.fn()
+    const onRemoteColumnUpdate = jest.fn()
+    const callbacks = makeCallbacks({
+      scheduleRemoteStructuralResync,
+      onRemoteColumnUpdate,
+      getActiveSheetId: () => 'sheet-2'
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-2',
+          operations: [
+            {
+              type: 'columns_reorder',
+              data: {
+                sheetId: 'sheet-2',
+                columns: [
+                  col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+                  col({ id: 'col-c', name: 'ColumnC', order: 1 }),
+                  col({ id: 'col-b', name: 'ColumnB', order: 2 })
+                ]
+              }
+            }
+          ]
+        }
+      },
+      version: 15,
+      timestamp: Date.now()
+    })
+
+    expect(onRemoteColumnUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sheetId: 'sheet-2',
+        columns: [
+          expect.objectContaining({ id: 'col-a', order: 0 }),
+          expect.objectContaining({ id: 'col-c', order: 1 }),
+          expect.objectContaining({ id: 'col-b', order: 2 })
+        ]
+      })
+    )
+    expect(scheduleRemoteStructuralResync).toHaveBeenCalledWith('sheet-2', { immediate: true })
+  })
+
   it('applies inactive-sheet structural row batches into cache instead of forcing a workbook reload', () => {
     const scheduleRemoteStructuralResync = jest.fn()
     const onSheetVersionUpdate = jest.fn()
@@ -1267,6 +1316,223 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(onSheetVersionUpdate).toHaveBeenCalledWith('sheet-2', 13)
     expect(callbacks.commitLocalSheetData).not.toHaveBeenCalled()
     expect(callbacks.onVersionUpdate).not.toHaveBeenCalled()
+  })
+
+  it('requests structural resync after move_row_slots so row styling can follow the move', () => {
+    const scheduleRemoteStructuralResync = jest.fn()
+    const commitLocalSheetData = jest.fn()
+    const callbacks = makeCallbacks({
+      scheduleRemoteStructuralResync,
+      getActiveSheetId: () => 'sheet-2',
+      getSheetData: sheetId =>
+        sheetId === 'sheet-2'
+          ? [
+              { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2, ColumnA: 'first' },
+              { _id: 'row-3', _rowUuid: 'row-3', _gridRowIndex: 3, ColumnA: 'second' }
+            ]
+          : [],
+      commitSheetData: commitLocalSheetData
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-2',
+          operations: [
+            {
+              type: 'move_row_slots',
+              data: {
+                sheetId: 'sheet-2',
+                sourceStartGridRowIndex: 2,
+                destinationGridRowIndex: 10,
+                count: 1,
+                rowIds: ['row-2']
+              }
+            }
+          ]
+        }
+      },
+      version: 16,
+      timestamp: Date.now()
+    })
+
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      'sheet-2',
+      [
+        expect.objectContaining({ _id: 'row-3', _gridRowIndex: 2 }),
+        expect.objectContaining({ _id: 'row-2', _gridRowIndex: 9 })
+      ],
+      { persisted: true, syncGrid: true }
+    )
+    expect(scheduleRemoteStructuralResync).toHaveBeenCalledWith('sheet-2', { immediate: true })
+  })
+
+  it('relocates relational row values and requests structural resync on remote move_cell_range', () => {
+    const scheduleRemoteStructuralResync = jest.fn()
+    const forceGridReapply = jest.fn()
+    const commitLocalSheetData = jest.fn()
+    const columns: SpreadsheetColumn[] = [
+      col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 }),
+      col({ id: 'col-b', name: 'ColumnB', isVisible: true, order: 1 }),
+      col({ id: 'col-c', name: 'ColumnC', isVisible: true, order: 2 })
+    ]
+    const callbacks = makeCallbacks({
+      scheduleRemoteStructuralResync,
+      forceGridReapply,
+      getActiveSheetId: () => 'sheet-2',
+      getColumnsForSheet: () => columns,
+      getSheetData: sheetId =>
+        sheetId === 'sheet-2'
+          ? [
+              { _id: 'row-0', _rowUuid: 'row-0', _gridRowIndex: 0, ColumnA: 'A0', ColumnB: 'keep' },
+              { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 1 },
+              { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2 }
+            ]
+          : [],
+      commitSheetData: commitLocalSheetData
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setCurrentUserId('u1')
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-2',
+          operations: [
+            {
+              type: 'move_cell_range',
+              data: {
+                sheetId: 'sheet-2',
+                fromRange: { startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 },
+                toRange: { startRow: 2, endRow: 2, startColumn: 2, endColumn: 2 }
+              }
+            }
+          ]
+        }
+      },
+      version: 21,
+      timestamp: Date.now()
+    })
+
+    expect(commitLocalSheetData).toHaveBeenCalled()
+    const [, committedRows] = commitLocalSheetData.mock.calls[0]
+    expect(committedRows[0]).not.toHaveProperty('ColumnA')
+    expect(committedRows[0].ColumnB).toBe('keep')
+    expect(committedRows[2].ColumnC).toBe('A0')
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      'sheet-2',
+      expect.any(Array),
+      expect.objectContaining({ persisted: true, syncGrid: false })
+    )
+    expect(forceGridReapply).toHaveBeenCalledWith(
+      'sheet-2',
+      { minRow: 0, maxRow: 2, minCol: 0, maxCol: 2 },
+      expect.objectContaining({ clearAllSignatures: false })
+    )
+    expect(scheduleRemoteStructuralResync).toHaveBeenCalledWith('sheet-2', { immediate: true })
+  })
+
+  it('skips heavy grid resync on same-user move_cell_range batch echo', () => {
+    const scheduleRemoteStructuralResync = jest.fn()
+    const forceGridReapply = jest.fn()
+    const commitLocalSheetData = jest.fn()
+    const columns: SpreadsheetColumn[] = [
+      col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 }),
+      col({ id: 'col-b', name: 'ColumnB', isVisible: true, order: 1 })
+    ]
+    const callbacks = makeCallbacks({
+      scheduleRemoteStructuralResync,
+      forceGridReapply,
+      getActiveSheetId: () => 'sheet-2',
+      getColumnsForSheet: () => columns,
+      getSheetData: () => [{ _id: 'row-0', _rowUuid: 'row-0', _gridRowIndex: 0, ColumnA: 'A0' }],
+      commitSheetData: commitLocalSheetData
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setCurrentUserId('u1')
+    manager.handleOperation({
+      userId: 'u1',
+      userName: 'Self',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-2',
+          operations: [
+            {
+              type: 'move_cell_range',
+              data: {
+                sheetId: 'sheet-2',
+                fromRange: { startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 },
+                toRange: { startRow: 0, endRow: 0, startColumn: 1, endColumn: 1 }
+              }
+            }
+          ]
+        }
+      },
+      version: 22,
+      timestamp: Date.now()
+    })
+
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      'sheet-2',
+      expect.any(Array),
+      expect.objectContaining({ persisted: true, syncGrid: false })
+    )
+    expect(forceGridReapply).not.toHaveBeenCalled()
+    expect(scheduleRemoteStructuralResync).not.toHaveBeenCalled()
+  })
+
+  it('requests structural resync after insert_row_slots so row styling stays aligned below the insert', () => {
+    const scheduleRemoteStructuralResync = jest.fn()
+    const commitLocalSheetData = jest.fn()
+    const callbacks = makeCallbacks({
+      scheduleRemoteStructuralResync,
+      getActiveSheetId: () => 'sheet-2',
+      getSheetData: sheetId =>
+        sheetId === 'sheet-2'
+          ? [
+              { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2, ColumnA: 'first' },
+              { _id: 'row-3', _rowUuid: 'row-3', _gridRowIndex: 3, ColumnA: 'second' }
+            ]
+          : [],
+      commitSheetData: commitLocalSheetData
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-2',
+          operations: [
+            {
+              type: 'insert_row_slots',
+              data: {
+                sheetId: 'sheet-2',
+                startGridRowIndex: 2,
+                count: 1,
+                rows: [{ id: 'row-new', data: { _gridRowIndex: 2, ColumnA: '' } }]
+              }
+            }
+          ]
+        }
+      },
+      version: 16,
+      timestamp: Date.now()
+    })
+
+    expect(commitLocalSheetData).toHaveBeenCalled()
+    expect(scheduleRemoteStructuralResync).toHaveBeenCalledWith('sheet-2', { immediate: true })
   })
 
   it('applies active-sheet row_add placeholders so later cell updates can target the new row', () => {

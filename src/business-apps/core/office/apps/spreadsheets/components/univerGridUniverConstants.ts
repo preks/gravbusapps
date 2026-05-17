@@ -1,3 +1,6 @@
+/** Univer command `type` for top-level user commands (CommandType.COMMAND in Univer's pipeline). */
+export const UNIVER_COMMAND_TYPE_COMMAND = 0
+
 /** Univer command `type` for committed mutations (see Univer command pipeline). */
 export const UNIVER_COMMAND_TYPE_MUTATION = 2
 

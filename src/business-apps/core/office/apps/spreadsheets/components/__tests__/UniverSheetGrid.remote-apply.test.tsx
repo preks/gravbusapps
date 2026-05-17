@@ -5,7 +5,9 @@ import type { UniverSheetGridHandle } from '../UniverSheetGrid.types'
 import {
   executeCommandMock,
   eventHandlers,
+  lastCancelFreezeMock,
   lastRangeSetValueMock,
+  lastSetFreezeMock,
   resetUniverSheetGridTestMocks,
   TestUniverSheetGrid
 } from './setupUniverSheetGridTestMocks'
@@ -223,6 +225,127 @@ describe('UniverSheetGrid remote apply', () => {
         ranges: [{ startRow: 0, endRow: 0, startColumn: 1, endColumn: 2 }]
       })
     )
+  })
+
+  it('applyRemoteSpreadsheetFeatureOperation uses deterministic worksheet freeze replay', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+    render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+    await waitFor(() => expect(ref.current?.applyRemoteSpreadsheetFeatureOperation).toBeDefined())
+    await waitFor(() => expect(lastSetFreezeMock).toBeDefined())
+    executeCommandMock?.mockClear()
+    lastSetFreezeMock?.mockClear()
+
+    act(() => {
+      ref.current?.applyRemoteSpreadsheetFeatureOperation?.({
+        type: 'freeze_panes',
+        data: {
+          sheetId: 'sheet-1',
+          startRow: 2,
+          startColumn: -1,
+          ySplit: 2,
+          xSplit: 0
+        }
+      })
+    })
+
+    expect(lastSetFreezeMock).toHaveBeenCalledWith({
+      startRow: 2,
+      startColumn: -1,
+      ySplit: 2,
+      xSplit: 0
+    })
+    expect(executeCommandMock).not.toHaveBeenCalled()
+  })
+
+  it('applyRemoteSpreadsheetFeatureOperation cancels freeze without re-emitting a local mutation', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+    const onMutationBatchOp = jest.fn()
+    render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onMutationBatchOp={onMutationBatchOp}
+      />
+    )
+    await waitFor(() => expect(ref.current?.applyRemoteSpreadsheetFeatureOperation).toBeDefined())
+    await waitFor(() => expect(lastCancelFreezeMock).toBeDefined())
+    lastCancelFreezeMock?.mockImplementation(() => {
+      eventHandlers.CommandExecuted?.({
+        type: 0,
+        id: 'sheet.command.cancel-frozen',
+        params: {}
+      })
+    })
+    lastCancelFreezeMock?.mockClear()
+
+    act(() => {
+      ref.current?.applyRemoteSpreadsheetFeatureOperation?.({
+        type: 'freeze_panes',
+        data: {
+          sheetId: 'sheet-1',
+          cleared: true
+        }
+      })
+    })
+
+    expect(lastCancelFreezeMock).toHaveBeenCalledTimes(1)
+    expect(onMutationBatchOp).not.toHaveBeenCalled()
+  })
+
+  it('applyRemoteSpreadsheetFeatureOperation normalizes explicit zero first-column freeze state', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+    render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+    await waitFor(() => expect(ref.current?.applyRemoteSpreadsheetFeatureOperation).toBeDefined())
+    await waitFor(() => expect(lastSetFreezeMock).toBeDefined())
+    executeCommandMock?.mockClear()
+    lastSetFreezeMock?.mockClear()
+
+    act(() => {
+      ref.current?.applyRemoteSpreadsheetFeatureOperation?.({
+        type: 'freeze_panes',
+        data: {
+          sheetId: 'sheet-1',
+          commandId: 'sheet.command.set-col-frozen',
+          startRow: -1,
+          startColumn: 0,
+          ySplit: 0,
+          xSplit: 0
+        }
+      })
+    })
+
+    expect(lastSetFreezeMock).toHaveBeenCalledWith({
+      startRow: -1,
+      startColumn: 1,
+      ySplit: 0,
+      xSplit: 1
+    })
+    expect(executeCommandMock).not.toHaveBeenCalled()
   })
 
   it('does not re-emit remote visibility replay as a local mutation', async () => {

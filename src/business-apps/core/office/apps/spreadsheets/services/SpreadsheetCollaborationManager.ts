@@ -16,8 +16,14 @@ import type { SpreadsheetColumn } from '../types'
 import { createUniverConversionContext } from '../utils/univerAdapter'
 import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
 import { SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH } from '../utils/spreadsheetBulkRemoteConstants'
+import { applyMoveCellRangeTransform } from '../utils/applyMoveCellRangeTransform'
 import { mergeInsertedRowsAtIndex } from '../utils/spreadsheetInsertRowsAt'
 import { findViewerRowVisualIndex, sortRowsByCanonicalVisualOrder } from '../utils/spreadsheetPeerRowHydration'
+import {
+  applyDeleteRowSlotsTransform,
+  applyInsertRowSlotsTransform,
+  applyMoveRowSlotsTransform
+} from '../utils/spreadsheetRowSlotTransforms'
 import { getCanonicalRowId, rowMatchesRemoteId, type ViewerRow } from '../utils/spreadsheetRowIdentity'
 import type { SpreadsheetTraceEventInput } from './spreadsheetDiagnostics'
 
@@ -129,11 +135,34 @@ export type CollaborationOperation = {
   timestamp: number
 }
 
+function normalizeCellRangeRect(value: unknown): {
+  startRow: number
+  endRow: number
+  startColumn: number
+  endColumn: number
+} | null {
+  if (!value || typeof value !== 'object') return null
+  const candidate = value as Record<string, unknown>
+  const startRow = Number(candidate.startRow)
+  const endRow = Number(candidate.endRow)
+  const startColumn = Number(candidate.startColumn)
+  const endColumn = Number(candidate.endColumn)
+  if (!Number.isFinite(startRow) || startRow < 0) return null
+  if (!Number.isFinite(startColumn) || startColumn < 0) return null
+  if (!Number.isFinite(endRow) || endRow < startRow) return null
+  if (!Number.isFinite(endColumn) || endColumn < startColumn) return null
+  return { startRow, endRow, startColumn, endColumn }
+}
+
 const STRUCTURAL_OPS = new Set([
   'row_add',
   'row_delete',
   'add_rows',
   'insert_rows_at',
+  'insert_row_slots',
+  'delete_row_slots',
+  'move_row_slots',
+  'move_cell_range',
   'column_add',
   'column_delete',
   'columns_reorder'
@@ -141,8 +170,28 @@ const STRUCTURAL_OPS = new Set([
 
 const CELL_OP_TYPES = new Set(['set_cell', 'set_range', 'clear_cell', 'cells_changed'])
 const LIVE_PERSISTED_CELL_OP_TYPES = new Set(['set_cell', 'set_range', 'clear_cell'])
-const LIVE_STRUCTURAL_OP_TYPES = new Set(['row_add', 'row_delete', 'add_rows', 'insert_rows_at', 'delete_rows'])
-const LIVE_ROW_STRUCTURAL_OP_TYPES = new Set(['row_add', 'row_delete', 'add_rows', 'insert_rows_at', 'delete_rows'])
+const LIVE_STRUCTURAL_OP_TYPES = new Set([
+  'row_add',
+  'row_delete',
+  'add_rows',
+  'insert_rows_at',
+  'insert_row_slots',
+  'delete_rows',
+  'delete_row_slots',
+  'move_row_slots',
+  'move_cell_range'
+])
+const LIVE_ROW_STRUCTURAL_OP_TYPES = new Set([
+  'row_add',
+  'row_delete',
+  'add_rows',
+  'insert_rows_at',
+  'insert_row_slots',
+  'delete_rows',
+  'delete_row_slots',
+  'move_row_slots',
+  'move_cell_range'
+])
 const SPREADSHEET_FEATURE_OP_TYPES = new Set<SpreadsheetFeatureOperationType>([
   'merge_ranges',
   'unmerge_ranges',
@@ -200,6 +249,22 @@ const getDiagnosticsTraceMeta = (data: unknown): DiagnosticsTraceMeta => {
     traceId: typeof record.traceId === 'string' ? record.traceId : undefined,
     batchId: typeof record.batchId === 'string' ? record.batchId : undefined
   }
+}
+
+const hasFullColumnObjectsForRemoteReorder = (data: unknown): boolean => {
+  if (!data || typeof data !== 'object') return false
+  const columns = (data as { columns?: unknown }).columns
+  return (
+    Array.isArray(columns) &&
+    columns.length > 0 &&
+    columns.every(
+      column =>
+        column &&
+        typeof column === 'object' &&
+        !Array.isArray(column) &&
+        typeof (column as { id?: unknown }).id === 'string'
+    )
+  )
 }
 
 const normalizeStylePatch = (value: unknown): SpreadsheetStylePatch | null => {
@@ -601,6 +666,13 @@ export class SpreadsheetCollaborationManager {
       return
     }
 
+    if (
+      (operation.type === 'columns_reorder' || operation.type === 'column_reorder') &&
+      hasFullColumnObjectsForRemoteReorder(operation.data)
+    ) {
+      this.callbacks.onRemoteColumnUpdate?.((operation.data as Record<string, unknown>) ?? {})
+    }
+
     if (SPREADSHEET_FEATURE_OP_TYPES.has(operation.type as SpreadsheetFeatureOperationType)) {
       this.updateVersion(operation.data, version)
       this.applyRemoteSpreadsheetFeatureOperation(
@@ -668,7 +740,9 @@ export class SpreadsheetCollaborationManager {
           operations: d.operations
         }
       })
-      this.handleBatchOperations(d.operations, version, d.sheetId, traceMeta)
+      this.handleBatchOperations(d.operations, version, d.sheetId, traceMeta, {
+        isLocalEcho: isSameUser
+      })
       return
     }
 
@@ -709,7 +783,11 @@ export class SpreadsheetCollaborationManager {
     }
 
     if (opSheetId && LIVE_ROW_STRUCTURAL_OP_TYPES.has(operation.type)) {
-      if (this.applyLiveRowStructuralOperation(operation.type, operation.data, opSheetId, traceMeta, version)) {
+      if (
+        this.applyLiveRowStructuralOperation(operation.type, operation.data, opSheetId, traceMeta, version, {
+          isLocalEcho: isSameUser
+        })
+      ) {
         return
       }
     }
@@ -929,7 +1007,8 @@ export class SpreadsheetCollaborationManager {
     operations: Array<{ type?: string; data?: unknown }>,
     version: number | undefined,
     targetSheetId: string,
-    traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string }
+    traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string },
+    applyOptions?: { isLocalEcho?: boolean }
   ): void {
     const batchIncludesPersistedCellOps = operations.some(op => {
       const opType = typeof op.type === 'string' ? op.type : ''
@@ -964,7 +1043,9 @@ export class SpreadsheetCollaborationManager {
 
       if (LIVE_ROW_STRUCTURAL_OP_TYPES.has(type)) {
         const operationSheetId = this.getSheetIdFromData(operation.data) ?? targetSheetId
-        if (this.applyLiveRowStructuralOperation(type, operation.data, operationSheetId, traceMeta, version)) {
+        if (
+          this.applyLiveRowStructuralOperation(type, operation.data, operationSheetId, traceMeta, version, applyOptions)
+        ) {
           continue
         }
       }
@@ -982,6 +1063,12 @@ export class SpreadsheetCollaborationManager {
 
       if (COLUMN_STRUCTURAL_OP_TYPES.has(type)) {
         const operationSheetId = this.getSheetIdFromData(operation.data) ?? targetSheetId
+        if (
+          (type === 'columns_reorder' || type === 'column_reorder') &&
+          hasFullColumnObjectsForRemoteReorder(operation.data)
+        ) {
+          this.callbacks.onRemoteColumnUpdate?.((operation.data as Record<string, unknown>) ?? {})
+        }
         resyncSheetId = operationSheetId
         if (operationSheetId === this.callbacks.getActiveSheetId()) {
           requiresColumnResync = true
@@ -1676,7 +1763,8 @@ export class SpreadsheetCollaborationManager {
     data: unknown,
     targetSheetId: string,
     traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string },
-    version?: number
+    version?: number,
+    applyOptions?: { isLocalEcho?: boolean }
   ): boolean {
     if (!targetSheetId || !data || typeof data !== 'object') return false
     const payload = data as Record<string, unknown>
@@ -1707,6 +1795,22 @@ export class SpreadsheetCollaborationManager {
         nextRows,
         Number.isFinite(insertAt) ? insertAt : canonicalCurrentRows.length
       )
+    } else if (operationType === 'insert_row_slots') {
+      const createdRows = mapCreatedRowsFromWireRows(payload.rows)
+      const startGridRowIndex = Number(payload.startGridRowIndex)
+      const count = Number(payload.count)
+      nextRows = applyInsertRowSlotsTransform(
+        currentRows,
+        Number.isFinite(startGridRowIndex) ? startGridRowIndex : currentRows.length,
+        Number.isFinite(count) ? count : createdRows.length,
+        createdRows
+      )
+      rowsToApplyToGrid = createdRows
+      dirtyRegion = this.buildDirtyRegionForInsertedRows(
+        targetSheetId,
+        nextRows,
+        Number.isFinite(startGridRowIndex) ? startGridRowIndex : currentRows.length
+      )
     } else if (operationType === 'row_add') {
       const placeholderRows = rowPlaceholdersFromIds(payload.rowIds)
       if (placeholderRows.length === 0) return false
@@ -1718,26 +1822,71 @@ export class SpreadsheetCollaborationManager {
         : []
       if (rowIds.length === 0) return false
       nextRows = currentRows.filter(row => !rowIds.some(rowId => rowMatchesRemoteRowId(row, rowId)))
+    } else if (operationType === 'delete_row_slots') {
+      const startGridRowIndex = Number(payload.startGridRowIndex)
+      const count = Number(payload.count)
+      nextRows = applyDeleteRowSlotsTransform(
+        currentRows,
+        Number.isFinite(startGridRowIndex) ? startGridRowIndex : 0,
+        Number.isFinite(count) ? count : 0
+      )
+    } else if (operationType === 'move_row_slots') {
+      const sourceStartGridRowIndex = Number(payload.sourceStartGridRowIndex)
+      const destinationGridRowIndex = Number(payload.destinationGridRowIndex)
+      const count = Number(payload.count)
+      nextRows = applyMoveRowSlotsTransform(
+        currentRows,
+        Number.isFinite(sourceStartGridRowIndex) ? sourceStartGridRowIndex : 0,
+        Number.isFinite(count) ? count : 0,
+        Number.isFinite(destinationGridRowIndex) ? destinationGridRowIndex : 0
+      )
+    } else if (operationType === 'move_cell_range') {
+      const fromRange = normalizeCellRangeRect(payload.fromRange)
+      const toRange = normalizeCellRangeRect(payload.toRange)
+      if (fromRange && toRange) {
+        const visibleColumns = this.getColumnsForSheet(targetSheetId).filter(column => column.isVisible !== false)
+        const columnNamesByGridIndex = visibleColumns.map(column =>
+          typeof column?.name === 'string' ? column.name : null
+        )
+        nextRows = applyMoveCellRangeTransform({
+          rows: currentRows,
+          columnNamesByGridIndex,
+          fromRange,
+          toRange
+        })
+        dirtyRegion = this.buildDirtyRegionForCellRangeMove(fromRange, toRange)
+      }
     }
 
     if (!nextRows) return false
+    const isMoveCellRange = operationType === 'move_cell_range'
+    const isLocalEcho = Boolean(applyOptions?.isLocalEcho)
     this.markGridMaterializationNeeded(targetSheetId, operationType)
     this.commitSheetData(targetSheetId, nextRows, {
       persisted: true,
-      syncGrid: targetSheetId === activeSheetId
+      syncGrid: isMoveCellRange ? false : targetSheetId === activeSheetId
     })
     if (rowsToApplyToGrid.length > 0) {
       this.applyCreatedRowsToGrid(targetSheetId, nextRows, rowsToApplyToGrid)
     }
-    if (targetSheetId === activeSheetId) {
+    if (targetSheetId === activeSheetId && !isLocalEcho) {
       const dirty =
         dirtyRegion ??
         (rowsToApplyToGrid.length > 0
           ? this.buildDirtyRegionForCreatedRows(targetSheetId, nextRows, rowsToApplyToGrid)
           : null)
       this.callbacks.forceGridReapply?.(targetSheetId, dirty, {
-        clearAllSignatures: dirty == null,
-        preferBulk: true
+        clearAllSignatures: isMoveCellRange ? false : dirty == null,
+        preferBulk: !isMoveCellRange
+      })
+    }
+    if (
+      operationType === 'move_row_slots' ||
+      operationType === 'insert_row_slots' ||
+      (operationType === 'move_cell_range' && !isLocalEcho)
+    ) {
+      this.callbacks.scheduleRemoteStructuralResync(targetSheetId, {
+        immediate: targetSheetId === activeSheetId
       })
     }
     this.collabDiag('collab_receive_row_structure_applied', {
@@ -1774,20 +1923,39 @@ export class SpreadsheetCollaborationManager {
       try {
         const delta = await fetcher(targetSheetId, sinceVersion)
         const addRowChanges = delta.changes.filter(
-          change => change.operationType === 'add_rows' || change.operationType === 'insert_rows_at'
+          change =>
+            change.operationType === 'add_rows' ||
+            change.operationType === 'insert_rows_at' ||
+            change.operationType === 'insert_row_slots'
         )
         if (addRowChanges.length === 0) return
         for (const change of addRowChanges) {
           const createdRows = mapCreatedRowsFromWireRows(change.result?.rows)
           if (createdRows.length === 0) continue
           const currentRows = this.getSheetData(targetSheetId)
-          const rawInsertAt = Number(change.payload?.insertAt ?? change.result?.insertAt)
-          const isInsertAtOp = change.operationType === 'insert_rows_at' && Number.isFinite(rawInsertAt)
+          const rawInsertAt = Number(
+            change.payload?.insertAt ??
+              change.result?.insertAt ??
+              change.payload?.startGridRowIndex ??
+              change.result?.startGridRowIndex
+          )
+          const rawCount = Number(change.payload?.count ?? change.result?.count)
+          const isInsertAtOp =
+            (change.operationType === 'insert_rows_at' || change.operationType === 'insert_row_slots') &&
+            Number.isFinite(rawInsertAt)
           const canonicalCurrentRows = isInsertAtOp ? sortRowsByCanonicalVisualOrder(currentRows) : currentRows
           const insertAt = isInsertAtOp ? rawInsertAt : canonicalCurrentRows.length
-          const nextRows = isInsertAtOp
-            ? mergeInsertedRowsAtIndex(canonicalCurrentRows, createdRows, insertAt)
-            : mergeCreatedRows(canonicalCurrentRows, createdRows)
+          const nextRows =
+            change.operationType === 'insert_row_slots'
+              ? applyInsertRowSlotsTransform(
+                  canonicalCurrentRows,
+                  insertAt,
+                  Number.isFinite(rawCount) ? rawCount : createdRows.length,
+                  createdRows
+                )
+              : isInsertAtOp
+                ? mergeInsertedRowsAtIndex(canonicalCurrentRows, createdRows, insertAt)
+                : mergeCreatedRows(canonicalCurrentRows, createdRows)
           this.commitSheetData(targetSheetId, nextRows, {
             persisted: true,
             syncGrid: targetSheetId === this.callbacks.getActiveSheetId()
@@ -1897,6 +2065,18 @@ export class SpreadsheetCollaborationManager {
       maxRow: maxR,
       minCol: 0,
       maxCol: visibleColumns.length - 1
+    }
+  }
+
+  private buildDirtyRegionForCellRangeMove(
+    fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number },
+    toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+  ): AuthoritativeGridRegion {
+    return {
+      minRow: Math.min(fromRange.startRow, toRange.startRow),
+      maxRow: Math.max(fromRange.endRow, toRange.endRow),
+      minCol: Math.min(fromRange.startColumn, toRange.startColumn),
+      maxCol: Math.max(fromRange.endColumn, toRange.endColumn)
     }
   }
 
@@ -2144,12 +2324,54 @@ export class SpreadsheetCollaborationManager {
         }
       }
     }
+    if (change.operationType === 'insert_row_slots') {
+      const rows = Array.isArray(change.result?.rows) ? change.result.rows : []
+      const startGridRowIndex = Number(
+        change.payload?.startGridRowIndex ?? change.result?.startGridRowIndex ?? rows.length
+      )
+      const count = Number(change.payload?.count ?? change.result?.count ?? rows.length)
+      return {
+        type: 'insert_row_slots',
+        data: {
+          sheetId,
+          startGridRowIndex: Number.isFinite(startGridRowIndex) ? startGridRowIndex : rows.length,
+          count: Number.isFinite(count) ? count : rows.length,
+          rows,
+          rowIds: rows
+            .map(row => (row && typeof row === 'object' ? String((row as { id?: unknown }).id ?? '') : ''))
+            .filter(Boolean)
+        }
+      }
+    }
     if (change.operationType === 'delete_rows') {
       return {
         type: 'row_delete',
         data: {
           sheetId,
           rowIds: Array.isArray(change.payload?.rowIds) ? change.payload.rowIds : []
+        }
+      }
+    }
+    if (change.operationType === 'delete_row_slots') {
+      return {
+        type: 'delete_row_slots',
+        data: {
+          sheetId,
+          startGridRowIndex: Number(change.payload?.startGridRowIndex ?? 0),
+          count: Number(change.payload?.count ?? 0),
+          rowIds: Array.isArray(change.result?.deletedRowIds) ? change.result?.deletedRowIds : []
+        }
+      }
+    }
+    if (change.operationType === 'move_row_slots') {
+      return {
+        type: 'move_row_slots',
+        data: {
+          sheetId,
+          sourceStartGridRowIndex: Number(change.payload?.sourceStartGridRowIndex ?? 0),
+          destinationGridRowIndex: Number(change.payload?.destinationGridRowIndex ?? 0),
+          count: Number(change.payload?.count ?? 0),
+          rowIds: Array.isArray(change.result?.movedRowIds) ? change.result?.movedRowIds : []
         }
       }
     }

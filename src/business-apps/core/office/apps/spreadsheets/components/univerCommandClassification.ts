@@ -30,6 +30,8 @@ export type CommandKind =
   | 'styleOnly'
   | 'structuralRow'
   | 'structuralColumn'
+  | 'cellRangeMove'
+  | 'freezePanes'
   | 'navigation'
   | 'other'
 
@@ -43,11 +45,25 @@ const UNIVER_COMMAND_KIND_ENTRIES: ReadonlyArray<readonly [string, CommandKind]>
   ['sheet.command.clear-range-value', 'clearLike'],
   ['sheet.command.delete-selection', 'clearLike'],
   ['DeleteSelectionCommand', 'clearLike'],
-  ['sheet.mutation.move-range', 'clearLike'],
-  ['sheet.mutation.move-cell', 'clearLike'],
-  ['sheet.mutation.move-row', 'clearLike'],
-  ['sheet.mutation.move-column', 'clearLike'],
   ['sheet.command.cut-paste', 'clearLike'],
+
+  // cellRangeMove — relocate a rectangular cell block (values + style refs travel together).
+  // Routed through the dedicated move_cell_range batch op, not the unified planner.
+  ['sheet.command.move-range', 'cellRangeMove'],
+  ['sheet.mutation.move-range', 'cellRangeMove'],
+  ['sheet.mutation.move-cell', 'cellRangeMove'],
+
+  // freezePanes — freeze/unfreeze rows and/or columns.
+  ['sheet.command.set-selection-frozen', 'freezePanes'],
+  ['sheet.command.set-row-frozen', 'freezePanes'],
+  ['sheet.command.set-col-frozen', 'freezePanes'],
+  ['sheet.command.set-first-row-frozen', 'freezePanes'],
+  ['sheet.command.set-first-column-frozen', 'freezePanes'],
+  ['sheet.command.set-frozen', 'freezePanes'],
+  ['sheet.mutation.set-frozen', 'freezePanes'],
+  ['sheet.command.cancel-frozen', 'freezePanes'],
+  // Backward-compatible alias observed in existing tests / persisted payloads.
+  ['sheet.command.freeze', 'freezePanes'],
 
   // replaceRangeStyle — region-replace paste / cut-paste that wipes destination style
   ['sheet.command.paste', 'replaceRangeStyle'],
@@ -73,10 +89,16 @@ const UNIVER_COMMAND_KIND_ENTRIES: ReadonlyArray<readonly [string, CommandKind]>
   ['sheet.command.insert-rows', 'structuralRow'],
   ['sheet.command.delete-row', 'structuralRow'],
   ['sheet.command.delete-rows', 'structuralRow'],
+  ['sheet.command.move-row', 'structuralRow'],
+  ['sheet.command.move-rows', 'structuralRow'],
+  ['sheet.mutation.move-row', 'structuralRow'],
   ['sheet.command.insert-column', 'structuralColumn'],
   ['sheet.command.insert-columns', 'structuralColumn'],
   ['sheet.command.delete-column', 'structuralColumn'],
   ['sheet.command.delete-columns', 'structuralColumn'],
+  ['sheet.command.move-column', 'structuralColumn'],
+  ['sheet.command.move-columns', 'structuralColumn'],
+  ['sheet.mutation.move-column', 'structuralColumn'],
 
   // navigation — selection / cursor / scroll, never a cell mutation
   ['sheet.command.move-selection', 'navigation'],
@@ -118,6 +140,12 @@ export function legacyClassifyCommandKindBySubstring(commandId: string | undefin
   ) {
     return 'navigation'
   }
+  if (normalized.includes('move-range') || normalized.includes('move-cell')) {
+    return 'cellRangeMove'
+  }
+  if (normalized.includes('freeze') || normalized.includes('frozen')) {
+    return 'freezePanes'
+  }
   if (
     normalized.includes('clear-range') ||
     normalized.includes('clear-selection') ||
@@ -125,10 +153,6 @@ export function legacyClassifyCommandKindBySubstring(commandId: string | undefin
     normalized.includes('clear-value') ||
     normalized.includes('delete-selection') ||
     normalized.includes('deleteselectioncommand') ||
-    normalized.includes('move-range') ||
-    normalized.includes('move-cell') ||
-    normalized.includes('move-row') ||
-    normalized.includes('move-column') ||
     normalized.includes('cut-paste') ||
     normalized.includes('cutpaste')
   ) {
@@ -162,11 +186,19 @@ export function legacyClassifyCommandKindBySubstring(commandId: string | undefin
     normalized.includes('delete-row') ||
     normalized.includes('delete-rows') ||
     normalized.includes('remove-row') ||
-    normalized.includes('remove-rows')
+    normalized.includes('remove-rows') ||
+    normalized.includes('move-row') ||
+    normalized.includes('move-rows')
   ) {
     return 'structuralRow'
   }
-  if (normalized.includes('insert-col') || normalized.includes('delete-col') || normalized.includes('remove-col')) {
+  if (
+    normalized.includes('insert-col') ||
+    normalized.includes('delete-col') ||
+    normalized.includes('remove-col') ||
+    normalized.includes('move-col') ||
+    normalized.includes('move-column')
+  ) {
     return 'structuralColumn'
   }
   return 'other'

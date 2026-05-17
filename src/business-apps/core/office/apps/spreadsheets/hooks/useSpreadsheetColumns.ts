@@ -63,6 +63,11 @@ export interface SpreadsheetColumnsState {
   handleDeleteColumn: (columnId: string) => void
   handleRenameColumn: (columnId: string, newLabel: string) => void
   handleReorderColumns: (draggedColumnId: string, targetColumnId: string) => void
+  handleColumnsMove: (
+    sourceStartIndex: number,
+    count: number,
+    destinationIndex: number
+  ) => SpreadsheetColumn[] | undefined
   handleColumnsInsert: (
     insertIndex: number,
     count: number,
@@ -111,6 +116,24 @@ const createColumn = (name: string, label: string, order: number, width: number 
 
 const sortColumnsByOrder = (columns: SpreadsheetColumn[]): SpreadsheetColumn[] =>
   [...columns].sort((a, b) => a.order - b.order)
+
+const normalizeColumnMoveDestinationIndex = (
+  sourceStartIndex: number,
+  count: number,
+  destinationIndex: number
+): number | null => {
+  const safeSourceStart = Math.max(0, Math.trunc(sourceStartIndex))
+  const safeCount = Math.max(0, Math.trunc(count))
+  const safeDestination = Math.max(0, Math.trunc(destinationIndex))
+  if (safeCount <= 0) return safeDestination
+
+  const sourceEndExclusive = safeSourceStart + safeCount
+  if (safeDestination >= safeSourceStart && safeDestination <= sourceEndExclusive) {
+    return null
+  }
+
+  return safeDestination > safeSourceStart ? Math.max(0, safeDestination - safeCount) : safeDestination
+}
 
 const buildColumnsSignature = (columns: SpreadsheetColumn[]): string =>
   sortColumnsByOrder(columns)
@@ -453,6 +476,58 @@ export function useSpreadsheetColumns({
     [activeSheet, applyColumnsLocal, dispatchColumnBatchOp]
   )
 
+  const handleColumnsMove = useCallback(
+    (sourceStartIndex: number, count: number, destinationIndex: number): SpreadsheetColumn[] | undefined => {
+      if (!activeSheet || count <= 0) return undefined
+
+      const currentColumns = latestColumnsRef.current
+      const sortedColumns = [...currentColumns].sort((a, b) => a.order - b.order)
+      const visibleSortedColumns = sortedColumns.filter(c => c.isVisible !== false)
+
+      const safeSourceStart = Math.max(0, Math.trunc(sourceStartIndex))
+      const safeCount = Math.max(0, Math.trunc(count))
+      const movedVisibleColumns = visibleSortedColumns.slice(safeSourceStart, safeSourceStart + safeCount)
+      if (movedVisibleColumns.length === 0) return undefined
+
+      const movedColumnIds = new Set(movedVisibleColumns.map(column => column.id))
+      const remainingVisibleColumns = visibleSortedColumns.filter(column => !movedColumnIds.has(column.id))
+      const normalizedDestinationIndex = normalizeColumnMoveDestinationIndex(
+        safeSourceStart,
+        movedVisibleColumns.length,
+        destinationIndex
+      )
+      if (normalizedDestinationIndex == null) return undefined
+      const safeDestinationIndex = Math.max(0, Math.min(normalizedDestinationIndex, remainingVisibleColumns.length))
+
+      const remainingAllColumns = sortedColumns.filter(column => !movedColumnIds.has(column.id))
+      const fullInsertAt =
+        safeDestinationIndex >= remainingVisibleColumns.length
+          ? remainingAllColumns.length
+          : Math.max(
+              0,
+              remainingAllColumns.findIndex(column => column.id === remainingVisibleColumns[safeDestinationIndex]?.id)
+            )
+
+      const reorderedColumns = [
+        ...remainingAllColumns.slice(0, fullInsertAt),
+        ...movedVisibleColumns,
+        ...remainingAllColumns.slice(fullInsertAt)
+      ].map((column, index) => ({ ...column, order: index }))
+
+      latestColumnsRef.current = reorderedColumns
+      hasPendingColumnChanges.current = true
+
+      applyColumnsLocal(reorderedColumns, 'handleColumnsMove')
+      dispatchColumnBatchOp('columns_reorder', {
+        sheetId: activeSheet.id,
+        columns: reorderedColumns
+      })
+
+      return reorderedColumns
+    },
+    [activeSheet, applyColumnsLocal, dispatchColumnBatchOp]
+  )
+
   // Insert columns handler (from FortuneSheet context menu: insert column left/right)
   const handleColumnsInsert = useCallback(
     (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom'): SpreadsheetColumn[] | undefined => {
@@ -617,6 +692,7 @@ export function useSpreadsheetColumns({
     handleDeleteColumn,
     handleRenameColumn,
     handleReorderColumns,
+    handleColumnsMove,
     handleColumnsInsert,
     handleColumnsDelete,
     handleAddColumnRef,

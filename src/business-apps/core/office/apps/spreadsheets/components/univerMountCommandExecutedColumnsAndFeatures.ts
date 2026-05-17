@@ -1,16 +1,25 @@
 import { createSpreadsheetTraceId } from '../services/spreadsheetDiagnostics'
 import { resolveClearAllRanges } from './univerGridRangeSelection'
-import { UNIVER_COMMAND_TYPE_MUTATION } from './univerGridUniverConstants'
+import { UNIVER_COMMAND_TYPE_COMMAND, UNIVER_COMMAND_TYPE_MUTATION } from './univerGridUniverConstants'
 import {
   cloneJsonRecord,
   featureRangesToVisibilityRanges,
+  getCellRangeMoveMutation,
+  getFreezePanesMutation,
   getColumnInsertDirection,
+  getColumnMoveMutation,
   getColumnMutationRange,
+  getRowMoveMutation,
   getRowInsertDirection,
   getRowMutationRange,
+  isNativeCellRangeMoveCommand,
   isNativeColumnDeleteCommand,
   isNativeColumnInsertCommand,
+  isNativeColumnMoveCommand,
+  isNativeFreezePanesCommand,
+  isNativeRowDeleteCommand,
   isNativeRowInsertCommand,
+  isNativeRowMoveCommand,
   resolveSpreadsheetFeatureOperationType,
   resolveVisibilityAxis,
   resolveVisibilityHidden
@@ -25,12 +34,28 @@ type CommandParams =
         | { startRow: number; endRow: number; startColumn: number; endColumn: number }
         | Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
       ranges?: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+      fromRange?:
+        | { startRow: number; endRow: number; startColumn: number; endColumn: number }
+        | Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+      sourceRange?: { startRow: number; endRow: number; startColumn: number; endColumn: number }
       sheetId?: string
       subUnitId?: string
       startRow?: number
       endRow?: number
+      targetRow?: number
+      destinationStartRow?: number
+      toStartRow?: number
+      destinationRow?: number
       startColumn?: number
       endColumn?: number
+      targetColumn?: number
+      destinationStartColumn?: number
+      toStartColumn?: number
+      destinationColumn?: number
+      toRange?: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+      targetRange?: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+      from?: { row?: number; column?: number } | null
+      to?: { row?: number; column?: number } | null
       direction?: unknown
       insertDirection?: unknown
     }
@@ -38,7 +63,11 @@ type CommandParams =
 
 type ColumnFeatureRefs = Pick<
   UniverGridController,
-  'univerAPIRef' | 'propsRef' | 'callbacksRef' | 'lastFeatureEmitAtBySignatureRef'
+  | 'univerAPIRef'
+  | 'propsRef'
+  | 'callbacksRef'
+  | 'lastFeatureEmitAtBySignatureRef'
+  | 'pendingFreezeClearEmitTimeoutBySheetRef'
 >
 
 function resolveVisibilityCommandRanges(params: CommandParams, axis: 'row' | 'column') {
@@ -83,7 +112,13 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
     params: CommandParams | undefined
   }
 ): void {
-  const { univerAPIRef, propsRef, callbacksRef, lastFeatureEmitAtBySignatureRef } = refs
+  const {
+    univerAPIRef,
+    propsRef,
+    callbacksRef,
+    lastFeatureEmitAtBySignatureRef,
+    pendingFreezeClearEmitTimeoutBySheetRef
+  } = refs
   const { t, commandId, params } = args
 
   const insertColHeuristic =
@@ -94,6 +129,16 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
   const insertRowHeuristic =
     t === UNIVER_COMMAND_TYPE_MUTATION &&
     commandId.includes('insert') &&
+    (commandId.includes('row') || commandId.includes('rows'))
+
+  const moveColHeuristic =
+    t === UNIVER_COMMAND_TYPE_MUTATION &&
+    (commandId.includes('move') || commandId.includes('drag')) &&
+    (commandId.includes('column') || commandId.includes('columns') || commandId.includes('col'))
+
+  const moveRowHeuristic =
+    t === UNIVER_COMMAND_TYPE_MUTATION &&
+    (commandId.includes('move') || commandId.includes('drag')) &&
     (commandId.includes('row') || commandId.includes('rows'))
 
   if (insertRowHeuristic && !isNativeRowInsertCommand(commandId)) {
@@ -117,6 +162,26 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
       severity: 'info',
       sheetId: propsRef.current.sheet.id,
       payload: { commandId, commandType: t, reason: 'insert+col heuristic did not pass isNativeColumnInsertCommand' }
+    })
+  }
+
+  if (moveColHeuristic && !isNativeColumnMoveCommand(commandId)) {
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_column_move_command_id_unmatched',
+      severity: 'info',
+      sheetId: propsRef.current.sheet.id,
+      payload: { commandId, commandType: t, reason: 'move+col heuristic did not pass isNativeColumnMoveCommand' }
+    })
+  }
+
+  if (moveRowHeuristic && !isNativeRowMoveCommand(commandId)) {
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_row_move_command_id_unmatched',
+      severity: 'info',
+      sheetId: propsRef.current.sheet.id,
+      payload: { commandId, commandType: t, reason: 'move+row heuristic did not pass isNativeRowMoveCommand' }
     })
   }
 
@@ -155,6 +220,37 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
     if (range) {
       callbacksRef.current.onColumnsDelete?.(range.startColumn, range.endColumn)
     }
+  } else if (t === UNIVER_COMMAND_TYPE_MUTATION && isNativeColumnMoveCommand(commandId)) {
+    const move = getColumnMoveMutation((params ?? {}) as Parameters<typeof getColumnMoveMutation>[0])
+    const hasOnColumnsMove = typeof callbacksRef.current.onColumnsMove === 'function'
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_column_move_native_command',
+      severity: move && hasOnColumnsMove ? 'info' : 'warning',
+      sheetId: propsRef.current.sheet.id,
+      payload: {
+        commandId,
+        commandType: t,
+        hasOnColumnsMove,
+        hasMove: Boolean(move),
+        params: cloneJsonRecord(params),
+        ...(move
+          ? {
+              sourceStartColumn: move.sourceStartColumn,
+              sourceEndColumn: move.sourceEndColumn,
+              destinationStartColumn: move.destinationStartColumn,
+              count: move.sourceEndColumn - move.sourceStartColumn + 1
+            }
+          : {})
+      }
+    })
+    if (move) {
+      callbacksRef.current.onColumnsMove?.(
+        move.sourceStartColumn,
+        move.sourceEndColumn - move.sourceStartColumn + 1,
+        move.destinationStartColumn
+      )
+    }
   } else if (t === UNIVER_COMMAND_TYPE_MUTATION && isNativeRowInsertCommand(commandId)) {
     const range = getRowMutationRange(params ?? {})
     const hasOnRowsInsert = typeof callbacksRef.current.onRowsInsert === 'function'
@@ -186,6 +282,199 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
         getRowInsertDirection(commandId, params ?? {})
       )
     }
+  } else if (t === UNIVER_COMMAND_TYPE_MUTATION && isNativeRowDeleteCommand(commandId)) {
+    const range = getRowMutationRange(params ?? {})
+    if (range) {
+      callbacksRef.current.onRowsDelete?.(range.startRow, range.endRow - range.startRow + 1)
+    }
+  } else if (t === UNIVER_COMMAND_TYPE_MUTATION && isNativeRowMoveCommand(commandId)) {
+    const move = getRowMoveMutation((params ?? {}) as Parameters<typeof getRowMoveMutation>[0])
+    const hasOnRowsMove = typeof callbacksRef.current.onRowsMove === 'function'
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_row_move_native_command',
+      severity: move && hasOnRowsMove ? 'info' : 'warning',
+      sheetId: propsRef.current.sheet.id,
+      payload: {
+        commandId,
+        commandType: t,
+        hasOnRowsMove,
+        hasMove: Boolean(move),
+        params: cloneJsonRecord(params),
+        ...(move
+          ? {
+              sourceStartRow: move.sourceStartRow,
+              sourceEndRow: move.sourceEndRow,
+              destinationStartRow: move.destinationStartRow,
+              count: move.sourceEndRow - move.sourceStartRow + 1
+            }
+          : {})
+      }
+    })
+    if (move) {
+      callbacksRef.current.onRowsMove?.(
+        move.sourceStartRow,
+        move.sourceEndRow - move.sourceStartRow + 1,
+        move.destinationStartRow
+      )
+    }
+  } else if (
+    (t === UNIVER_COMMAND_TYPE_MUTATION || t === UNIVER_COMMAND_TYPE_COMMAND) &&
+    isNativeCellRangeMoveCommand(commandId)
+  ) {
+    const move = getCellRangeMoveMutation((params ?? {}) as Parameters<typeof getCellRangeMoveMutation>[0])
+    const hasOnCellRangeMove = typeof callbacksRef.current.onCellRangeMove === 'function'
+    if (move) {
+      const targetSheetId =
+        (typeof params?.subUnitId === 'string' && params.subUnitId) ||
+        (typeof params?.sheetId === 'string' && params.sheetId) ||
+        propsRef.current.sheet.id
+      const dedupKey = `${targetSheetId}|move_cell_range|${move.fromRange.startRow},${move.fromRange.endRow},${move.fromRange.startColumn},${move.fromRange.endColumn}->${move.toRange.startRow},${move.toRange.endRow},${move.toRange.startColumn},${move.toRange.endColumn}`
+      const emitNow = Date.now()
+      const lastEmitAt = lastFeatureEmitAtBySignatureRef.current.get(dedupKey) ?? 0
+      const shouldEmit = emitNow - lastEmitAt >= 1000
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'grid_cell_range_move_native_command',
+        severity: hasOnCellRangeMove ? 'info' : 'warning',
+        sheetId: propsRef.current.sheet.id,
+        payload: {
+          commandId,
+          commandType: t,
+          hasOnCellRangeMove,
+          deduped: !shouldEmit,
+          fromRange: move.fromRange,
+          toRange: move.toRange
+        }
+      })
+      if (shouldEmit) {
+        lastFeatureEmitAtBySignatureRef.current.set(dedupKey, emitNow)
+        if (lastFeatureEmitAtBySignatureRef.current.size > 64) {
+          for (const [key, timestamp] of lastFeatureEmitAtBySignatureRef.current) {
+            if (emitNow - timestamp > 5000) lastFeatureEmitAtBySignatureRef.current.delete(key)
+          }
+        }
+        callbacksRef.current.onCellRangeMove?.(move.fromRange, move.toRange)
+      }
+    } else {
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'grid_cell_range_move_command_id_unmatched',
+        severity: 'warning',
+        sheetId: propsRef.current.sheet.id,
+        payload: { commandId, commandType: t, params: cloneJsonRecord(params) }
+      })
+    }
+  }
+  if (
+    (t === UNIVER_COMMAND_TYPE_MUTATION || t === UNIVER_COMMAND_TYPE_COMMAND) &&
+    isNativeFreezePanesCommand(commandId)
+  ) {
+    const targetSheetId =
+      (typeof params?.subUnitId === 'string' && params.subUnitId) ||
+      (typeof params?.sheetId === 'string' && params.sheetId) ||
+      propsRef.current.sheet.id
+    const paramsClone = cloneJsonRecord(params)
+    const ranges = resolveClearAllRanges(
+      univerAPIRef.current?.getActiveWorkbook?.(),
+      params as { ranges?: unknown[]; range?: unknown | unknown[] } | undefined
+    )
+    const freeze = getFreezePanesMutation(commandId, params ?? {}, ranges)
+    if (!freeze) {
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'grid_freeze_panes_command_id_unmatched',
+        severity: 'warning',
+        sheetId: propsRef.current.sheet.id,
+        payload: { commandId, commandType: t, params: paramsClone, rangeCount: ranges.length }
+      })
+      return
+    }
+    const isFreezeClear = 'cleared' in freeze
+    const traceId = createSpreadsheetTraceId('grid_freeze_panes')
+    const dedupKey = isFreezeClear
+      ? `${targetSheetId}|freeze_panes|cleared`
+      : `${targetSheetId}|freeze_panes|${freeze.startRow},${freeze.startColumn},${freeze.ySplit},${freeze.xSplit}`
+    const data: Record<string, unknown> = {
+      sheetId: targetSheetId,
+      commandId,
+      ...(paramsClone ? { params: paramsClone } : {}),
+      ...(isFreezeClear
+        ? { cleared: true }
+        : {
+            xSplit: freeze.xSplit,
+            ySplit: freeze.ySplit,
+            startRow: freeze.startRow,
+            startColumn: freeze.startColumn,
+            ...(freeze.range ? { range: freeze.range } : {})
+          })
+    }
+    const emitFreezeOperation = () => {
+      const emitNow = Date.now()
+      const lastEmitAt = lastFeatureEmitAtBySignatureRef.current.get(dedupKey) ?? 0
+      const shouldEmit = emitNow - lastEmitAt >= 1000
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'grid_freeze_panes_native_command',
+        severity: shouldEmit ? 'info' : 'warning',
+        traceId,
+        sheetId: propsRef.current.sheet.id,
+        payload: {
+          commandId,
+          commandType: t,
+          deduped: !shouldEmit,
+          targetSheetId,
+          freeze
+        }
+      })
+      if (!shouldEmit) return
+      lastFeatureEmitAtBySignatureRef.current.set(dedupKey, emitNow)
+      if (lastFeatureEmitAtBySignatureRef.current.size > 64) {
+        for (const [key, timestamp] of lastFeatureEmitAtBySignatureRef.current) {
+          if (emitNow - timestamp > 5000) lastFeatureEmitAtBySignatureRef.current.delete(key)
+        }
+      }
+      propsRef.current.onMutationBatchOp?.({
+        sheetId: targetSheetId,
+        traceId,
+        operations: [
+          {
+            type: 'freeze_panes',
+            data
+          }
+        ]
+      })
+    }
+    const pendingClearTimeout = pendingFreezeClearEmitTimeoutBySheetRef.current.get(targetSheetId)
+    if (!isFreezeClear && pendingClearTimeout) {
+      clearTimeout(pendingClearTimeout)
+      pendingFreezeClearEmitTimeoutBySheetRef.current.delete(targetSheetId)
+    }
+    if (isFreezeClear) {
+      if (pendingClearTimeout) {
+        clearTimeout(pendingClearTimeout)
+      }
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'grid_freeze_panes_clear_queued',
+        severity: 'info',
+        traceId,
+        sheetId: propsRef.current.sheet.id,
+        payload: {
+          commandId,
+          commandType: t,
+          targetSheetId
+        }
+      })
+      const timeoutId = setTimeout(() => {
+        pendingFreezeClearEmitTimeoutBySheetRef.current.delete(targetSheetId)
+        emitFreezeOperation()
+      }, 75)
+      pendingFreezeClearEmitTimeoutBySheetRef.current.set(targetSheetId, timeoutId)
+      return
+    }
+    emitFreezeOperation()
+    return
   }
   if (isUnsupportedSnapshotOnlyCollaborationCommand(commandId)) {
     callbacksRef.current.onDiagnosticsTraceEvent?.({

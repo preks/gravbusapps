@@ -28,6 +28,13 @@ type UniverVisibilityRange = {
   endColumn: number
 }
 
+type FreezePanesState = {
+  startRow: number
+  startColumn: number
+  xSplit: number
+  ySplit: number
+}
+
 /** Minimal Univer workbook facade; active workbook from the API is typed as unknown */
 type UniverFacadeWorkbook = {
   getActiveSheet?: () => unknown
@@ -78,6 +85,59 @@ function toUniverVisibilityRanges(axis: VisibilityAxis, ranges: VisibilityRange[
         : { startRow: 0, endRow: 0, startColumn: start, endColumn: end }
     })
     .filter((range): range is UniverVisibilityRange => range != null)
+}
+
+function normalizeFreezeStart(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined
+  return Math.max(-1, Math.trunc(raw))
+}
+
+function normalizeFreezeSplit(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined
+  return Math.max(0, Math.trunc(raw))
+}
+
+function normalizeRemoteFreezeState(data: Record<string, unknown>): { cleared: true } | FreezePanesState | null {
+  const commandId = typeof data.commandId === 'string' ? data.commandId.trim().toLowerCase() : ''
+  const params =
+    data.params && typeof data.params === 'object' && !Array.isArray(data.params)
+      ? (data.params as Record<string, unknown>)
+      : {}
+  const readStart = (...keys: string[]): number | undefined => {
+    for (const key of keys) {
+      const fromData = normalizeFreezeStart(data[key])
+      if (fromData !== undefined) return fromData
+      const fromParams = normalizeFreezeStart(params[key])
+      if (fromParams !== undefined) return fromParams
+    }
+    return undefined
+  }
+  const readSplit = (...keys: string[]): number | undefined => {
+    for (const key of keys) {
+      const fromData = normalizeFreezeSplit(data[key])
+      if (fromData !== undefined) return fromData
+      const fromParams = normalizeFreezeSplit(params[key])
+      if (fromParams !== undefined) return fromParams
+    }
+    return undefined
+  }
+  if (data.cleared === true) return { cleared: true }
+  let startRow = readStart('startRow')
+  let startColumn = readStart('startColumn')
+  let xSplit = readSplit('xSplit')
+  let ySplit = readSplit('ySplit')
+  if (commandId === 'sheet.command.set-row-frozen') {
+    if (startRow === 0) startRow = 1
+    if (ySplit === 0) ySplit = 1
+  }
+  if (commandId === 'sheet.command.set-col-frozen') {
+    if (startColumn === 0) startColumn = 1
+    if (xSplit === 0) xSplit = 1
+  }
+  if (startRow === undefined || startColumn === undefined || xSplit === undefined || ySplit === undefined) {
+    return null
+  }
+  return { startRow, startColumn, xSplit, ySplit }
 }
 
 export interface UseUniverRemoteApplyParams {
@@ -396,6 +456,34 @@ export function useUniverRemoteApply({
             }
           }
           return
+        }
+        if (payload.type === 'freeze_panes') {
+          const freeze = normalizeRemoteFreezeState(payload.data as Record<string, unknown>)
+          if (freeze?.cleared) {
+            const freezeTarget = targetWorksheet as { cancelFreeze?: () => unknown }
+            if (typeof freezeTarget.cancelFreeze === 'function') {
+              freezeTarget.cancelFreeze()
+              return
+            }
+            if (typeof api.syncExecuteCommand === 'function') {
+              api.syncExecuteCommand(commandId || 'sheet.command.cancel-frozen', params)
+              return
+            }
+          }
+          if (freeze) {
+            const freezeTarget = targetWorksheet as { setFreeze?: (freeze: FreezePanesState) => unknown }
+            if (typeof freezeTarget.setFreeze === 'function') {
+              freezeTarget.setFreeze(freeze)
+              return
+            }
+            if (typeof api.syncExecuteCommand === 'function') {
+              api.syncExecuteCommand(commandId || 'sheet.command.set-selection-frozen', {
+                ...params,
+                ...freeze
+              })
+              return
+            }
+          }
         }
         if (commandId && typeof api.syncExecuteCommand === 'function') {
           api.syncExecuteCommand(commandId, params && typeof params === 'object' ? params : undefined)

@@ -87,7 +87,14 @@ export interface TableViewProps {
   onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
   onColumnsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
   onColumnsDelete?: (startIndex: number, endIndex: number) => void
+  onColumnsMove?: (sourceStartIndex: number, count: number, destinationIndex: number) => void
   onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  onRowsDelete?: (startIndex: number, count: number) => void
+  onRowsMove?: (sourceStartIndex: number, count: number, destinationIndex: number) => void
+  onCellRangeMove?: (
+    fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number },
+    toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+  ) => void
   participants?: DocumentParticipant[]
   onOperationEmit?: (operation: DocumentOperation) => void
   /** Authoritative set_style batch op emitter (see collab rework plan §4.4). */
@@ -161,7 +168,11 @@ export const TableView = memo<TableViewProps>(function TableView({
   onColumnAdd,
   onColumnsInsert,
   onColumnsDelete,
+  onColumnsMove,
   onRowsInsert,
+  onRowsDelete,
+  onRowsMove,
+  onCellRangeMove,
   participants,
   onOperationEmit,
   onStyleBatchOp,
@@ -441,7 +452,11 @@ export const TableView = memo<TableViewProps>(function TableView({
           onColumnAdd={onColumnAdd}
           onColumnsInsert={onColumnsInsert}
           onColumnsDelete={onColumnsDelete}
+          onColumnsMove={onColumnsMove}
           onRowsInsert={onRowsInsert}
+          onRowsDelete={onRowsDelete}
+          onRowsMove={onRowsMove}
+          onCellRangeMove={onCellRangeMove}
           participants={participants}
           onOperationEmit={onOperationEmit}
           onStyleBatchOp={onStyleBatchOp}

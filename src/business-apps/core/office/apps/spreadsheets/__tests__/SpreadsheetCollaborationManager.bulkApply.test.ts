@@ -116,6 +116,54 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
     )
   })
 
+  it('routes freeze_panes batch operations through feature replay with normalized data', () => {
+    const applyRemoteSpreadsheetFeatureOperation = jest.fn()
+    const callbacks = makeCallbacks({
+      applyRemoteSpreadsheetFeatureOperation
+    })
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'freeze_panes',
+              data: {
+                sheetId: 'sheet-1',
+                commandId: 'sheet.command.set-row-frozen',
+                startRow: 2,
+                startColumn: -1,
+                ySplit: 2,
+                xSplit: 0
+              }
+            }
+          ]
+        }
+      },
+      version: 3,
+      timestamp: Date.now()
+    })
+
+    expect(applyRemoteSpreadsheetFeatureOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'freeze_panes',
+        data: expect.objectContaining({
+          sheetId: 'sheet-1',
+          startRow: 2,
+          startColumn: -1,
+          ySplit: 2,
+          xSplit: 0
+        })
+      }),
+      expect.objectContaining({ operationType: 'freeze_panes' })
+    )
+  })
+
   it('routes multi-cell cells_changed through applyRemoteCellUpdatesBulk', () => {
     const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', order: 0 })]
     const data: Record<string, unknown>[] = [

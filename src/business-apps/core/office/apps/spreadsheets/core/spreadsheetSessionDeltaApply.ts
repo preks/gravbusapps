@@ -1,5 +1,11 @@
 import type { SpreadsheetColumn } from '../types'
+import { applyMoveCellRangeTransform } from '../utils/applyMoveCellRangeTransform'
 import { mergeInsertedRowsAtIndex } from '../utils/spreadsheetInsertRowsAt'
+import {
+  applyDeleteRowSlotsTransform,
+  applyInsertRowSlotsTransform,
+  applyMoveRowSlotsTransform
+} from '../utils/spreadsheetRowSlotTransforms'
 import {
   getClientRowIdentity,
   getViewerRowIdentityCandidates,
@@ -231,8 +237,63 @@ const applySingleDeltaChange = (
         Number.isFinite(insertAt) ? insertAt : rows.length
       )
     }
+    case 'insert_row_slots': {
+      const startGridRowIndex = Number(payload.startGridRowIndex ?? result.startGridRowIndex ?? rows.length)
+      const count = Number(payload.count ?? result.count ?? 0)
+      return applyInsertRowSlotsTransform(
+        rows,
+        Number.isFinite(startGridRowIndex) ? startGridRowIndex : rows.length,
+        Number.isFinite(count) ? count : 0,
+        mapAddedRowsFromDeltaResult(result)
+      )
+    }
     case 'delete_rows':
       return applyDeleteRowsDelta(rows, payload)
+    case 'delete_row_slots': {
+      const startGridRowIndex = Number(payload.startGridRowIndex ?? 0)
+      const count = Number(payload.count ?? 0)
+      return applyDeleteRowSlotsTransform(
+        rows,
+        Number.isFinite(startGridRowIndex) ? startGridRowIndex : 0,
+        Number.isFinite(count) ? count : 0
+      )
+    }
+    case 'move_row_slots': {
+      const sourceStartGridRowIndex = Number(payload.sourceStartGridRowIndex ?? 0)
+      const destinationGridRowIndex = Number(payload.destinationGridRowIndex ?? 0)
+      const count = Number(payload.count ?? 0)
+      return applyMoveRowSlotsTransform(
+        rows,
+        Number.isFinite(sourceStartGridRowIndex) ? sourceStartGridRowIndex : 0,
+        Number.isFinite(count) ? count : 0,
+        Number.isFinite(destinationGridRowIndex) ? destinationGridRowIndex : 0
+      )
+    }
+    case 'move_cell_range': {
+      const fromRange = payload.fromRange as Record<string, unknown> | undefined
+      const toRange = payload.toRange as Record<string, unknown> | undefined
+      if (!fromRange || !toRange || !columns) return rows
+      const visibleColumns = columns.filter(column => column.isVisible !== false)
+      const columnNamesByGridIndex = visibleColumns.map(column =>
+        typeof column?.name === 'string' ? column.name : null
+      )
+      return applyMoveCellRangeTransform({
+        rows,
+        columnNamesByGridIndex,
+        fromRange: {
+          startRow: Number(fromRange.startRow ?? 0),
+          endRow: Number(fromRange.endRow ?? 0),
+          startColumn: Number(fromRange.startColumn ?? 0),
+          endColumn: Number(fromRange.endColumn ?? 0)
+        },
+        toRange: {
+          startRow: Number(toRange.startRow ?? 0),
+          endRow: Number(toRange.endRow ?? 0),
+          startColumn: Number(toRange.startColumn ?? 0),
+          endColumn: Number(toRange.endColumn ?? 0)
+        }
+      })
+    }
     default:
       return rows
   }

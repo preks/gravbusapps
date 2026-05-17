@@ -226,6 +226,26 @@ export const createSpreadsheetMutationFacade = (
     })
   },
 
+  insertRowSlots(
+    sheetId: string,
+    startGridRowIndex: number,
+    count: number,
+    materializedRows: SpreadsheetViewerRow[] = []
+  ) {
+    return options.submitBatch({
+      sheetId,
+      operations: [
+        {
+          operationId: createSpreadsheetMutationOperationId('insert_row_slots'),
+          type: 'insert_row_slots',
+          data: { startGridRowIndex, count, materializedRows }
+        }
+      ],
+      batchIdPrefix: 'insert_row_slots',
+      traceMeta: buildTraceMeta(undefined, 'insert_row_slots')
+    })
+  },
+
   deleteRow(sheetId: string, rowId: string) {
     return SpreadsheetApiService.deleteRow(options.appId, sheetId, rowId)
   },
@@ -242,6 +262,55 @@ export const createSpreadsheetMutationFacade = (
       ],
       batchIdPrefix: 'delete_rows',
       traceMeta: buildTraceMeta(undefined, 'delete_rows')
+    })
+  },
+
+  deleteRowSlots(sheetId: string, startGridRowIndex: number, count: number) {
+    return options.submitBatch({
+      sheetId,
+      operations: [
+        {
+          operationId: createSpreadsheetMutationOperationId('delete_row_slots'),
+          type: 'delete_row_slots',
+          data: { startGridRowIndex, count }
+        }
+      ],
+      batchIdPrefix: 'delete_row_slots',
+      traceMeta: buildTraceMeta(undefined, 'delete_row_slots')
+    })
+  },
+
+  moveRowSlots(sheetId: string, sourceStartGridRowIndex: number, count: number, destinationGridRowIndex: number) {
+    return options.submitBatch({
+      sheetId,
+      operations: [
+        {
+          operationId: createSpreadsheetMutationOperationId('move_row_slots'),
+          type: 'move_row_slots',
+          data: { sourceStartGridRowIndex, count, destinationGridRowIndex }
+        }
+      ],
+      batchIdPrefix: 'move_row_slots',
+      traceMeta: buildTraceMeta(undefined, 'move_row_slots')
+    })
+  },
+
+  moveCellRange(
+    sheetId: string,
+    fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number },
+    toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+  ) {
+    return options.submitBatch({
+      sheetId,
+      operations: [
+        {
+          operationId: createSpreadsheetMutationOperationId('move_cell_range'),
+          type: 'move_cell_range',
+          data: { sheetId, fromRange, toRange }
+        }
+      ],
+      batchIdPrefix: 'move_cell_range',
+      traceMeta: buildTraceMeta(undefined, 'move_cell_range')
     })
   },
 

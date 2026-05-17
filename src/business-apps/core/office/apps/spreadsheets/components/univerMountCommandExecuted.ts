@@ -14,6 +14,7 @@ import {
   isImplicitClearLikeSetRangeMutation,
   isNativeColumnInsertCommand
 } from './univerGridWorkbookMutationModule'
+import { getCommandKind } from './univerCommandClassification'
 import {
   isClearAllRangeCommand,
   isClearFormatRangeCommand,
@@ -45,6 +46,7 @@ export type RegisterUniverMountCommandExecutedDeps = Pick<
   | 'isApplyingRemoteUpdateRef'
   | 'collabPersistedBulkApplyDepthRef'
   | 'lastFeatureEmitAtBySignatureRef'
+  | 'pendingFreezeClearEmitTimeoutBySheetRef'
   | 'lastClearAllEmitAtBySignatureRef'
   | 'lastClearFormatEmitAtBySignatureRef'
   | 'lastCellValueMutationAtRef'
@@ -93,6 +95,7 @@ export function registerUniverMountCommandExecuted(
     isApplyingRemoteUpdateRef,
     collabPersistedBulkApplyDepthRef,
     lastFeatureEmitAtBySignatureRef,
+    pendingFreezeClearEmitTimeoutBySheetRef,
     lastClearAllEmitAtBySignatureRef,
     lastClearFormatEmitAtBySignatureRef,
     lastCellValueMutationAtRef,
@@ -295,7 +298,13 @@ export function registerUniverMountCommandExecuted(
     }
 
     handleCommandExecutedColumnInsertsAndFeatureOps(
-      { univerAPIRef, propsRef, callbacksRef, lastFeatureEmitAtBySignatureRef },
+      {
+        univerAPIRef,
+        propsRef,
+        callbacksRef,
+        lastFeatureEmitAtBySignatureRef,
+        pendingFreezeClearEmitTimeoutBySheetRef
+      },
       { t, commandId, params }
     )
 
@@ -357,7 +366,9 @@ export function registerUniverMountCommandExecuted(
       }
     }
     const commandRanges = Array.isArray(params?.range) ? params.range : []
+    const commandKind = getCommandKind(commandId)
     const commandPreserveUndefinedAsNull =
+      commandKind === 'clearLike' ||
       isClearLikeMutationCommand(commandId) ||
       isImplicitClearLikeSetRangeMutation({
         commandId,
@@ -367,6 +378,10 @@ export function registerUniverMountCommandExecuted(
     const didHandleCellMutation =
       t === UNIVER_COMMAND_TYPE_MUTATION &&
       (commandPayloadCellValue || commandRanges.length > 0) &&
+      commandKind !== 'structuralRow' &&
+      commandKind !== 'structuralColumn' &&
+      commandKind !== 'cellRangeMove' &&
+      commandKind !== 'freezePanes' &&
       !isStyleOnlySheetMutationCommand(commandId)
     if (didHandleCellMutation) {
       const result = handleDetectedCellMutation({

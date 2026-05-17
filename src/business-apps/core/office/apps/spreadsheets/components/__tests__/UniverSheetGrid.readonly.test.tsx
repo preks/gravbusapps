@@ -1,5 +1,4 @@
 import './setupUniverSheetGridTestMocks'
-import * as gridTestMocks from './setupUniverSheetGridTestMocks'
 import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { UniverSheetGridHandle } from '../UniverSheetGrid.types'
@@ -8,6 +7,7 @@ import * as univerGridOverlayCellRect from '../univerGridOverlayCellRect'
 import {
   eventHandlers,
   executeCommandMock,
+  gridTestMockState,
   inactiveSheetSetValueMock,
   lastPresetContainer,
   lastRangeGetCellDataMock,
@@ -781,7 +781,7 @@ describe('UniverSheetGrid read-only behavior', () => {
   it('persists copied worksheets when Univer emits a copy command without an insert mutation', async () => {
     jest.useFakeTimers()
     const onUniverSheetInserted = jest.fn()
-    gridTestMocks.workbookSnapshotOverride = {
+    gridTestMockState.workbookSnapshotOverride = {
       sheetOrder: ['sheet-1', 'sheet-copy-fallback'],
       sheets: {
         'sheet-1': {
@@ -885,7 +885,7 @@ describe('UniverSheetGrid read-only behavior', () => {
       params: insertParams
     })
 
-    gridTestMocks.workbookSnapshotOverride = {
+    gridTestMockState.workbookSnapshotOverride = {
       sheetOrder: ['sheet-1', copiedSheet.id],
       styles: { 'style-red': { bg: { rgb: '#ff0000' } } },
       sheets: {
@@ -1086,6 +1086,526 @@ describe('UniverSheetGrid read-only behavior', () => {
     })
 
     expect(onColumnsDelete).toHaveBeenCalledWith(1, 2)
+  })
+
+  it('routes native column move mutations to the dedicated callback', () => {
+    const onColumnsMove = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onColumnsMove={onColumnsMove}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 2,
+      id: 'sheet.mutation.move-column',
+      params: {
+        range: [{ startRow: 0, endRow: 99, startColumn: 1, endColumn: 2 }],
+        targetRange: { startRow: 0, endRow: 99, startColumn: 4, endColumn: 5 }
+      }
+    })
+
+    expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
+  })
+
+  it('routes native row move mutations to the dedicated callback', () => {
+    const onRowsMove = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onRowsMove={onRowsMove}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 2,
+      id: 'sheet.command.move-rows',
+      params: {
+        fromRange: { startRow: 1, endRow: 2, startColumn: 0, endColumn: 99 },
+        destinationRow: 5
+      }
+    })
+
+    expect(onRowsMove).toHaveBeenCalledWith(1, 2, 5)
+  })
+
+  it('routes native cell-range move mutations to onCellRangeMove without firing the unified planner', () => {
+    const onCellRangeMove = jest.fn()
+    const onMutationBatchOp = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onCellRangeMove={onCellRangeMove}
+        onMutationBatchOp={onMutationBatchOp}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 2,
+      id: 'sheet.mutation.move-range',
+      params: {
+        fromRange: { startRow: 1, endRow: 2, startColumn: 1, endColumn: 2 },
+        toRange: { startRow: 5, endRow: 6, startColumn: 4, endColumn: 5 }
+      }
+    })
+
+    expect(onCellRangeMove).toHaveBeenCalledTimes(1)
+    expect(onCellRangeMove).toHaveBeenCalledWith(
+      { startRow: 1, endRow: 2, startColumn: 1, endColumn: 2 },
+      { startRow: 5, endRow: 6, startColumn: 4, endColumn: 5 }
+    )
+    const plannerCellOps = onMutationBatchOp.mock.calls
+      .flatMap(([request]) => (request as { operations?: Array<{ type: string }> })?.operations ?? [])
+      .filter(op => op.type === 'set_range' || op.type === 'clear_cell')
+    expect(plannerCellOps).toHaveLength(0)
+  })
+
+  it('emits a normalized freeze_panes batch for selection freeze commands', () => {
+    const onMutationBatchOp = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onMutationBatchOp={onMutationBatchOp}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.set-selection-frozen',
+      params: {
+        range: { startRow: 0, endRow: 1, startColumn: 0, endColumn: 2 }
+      }
+    })
+
+    expect(onMutationBatchOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sheetId: 'sheet-1',
+        operations: [
+          {
+            type: 'freeze_panes',
+            data: expect.objectContaining({
+              sheetId: 'sheet-1',
+              commandId: 'sheet.command.set-selection-frozen',
+              startRow: 2,
+              startColumn: 3,
+              ySplit: 2,
+              xSplit: 3,
+              range: { startRow: 0, endRow: 1, startColumn: 0, endColumn: 2 }
+            })
+          }
+        ]
+      })
+    )
+    const plannerCellOps = onMutationBatchOp.mock.calls
+      .flatMap(([request]) => (request as { operations?: Array<{ type: string }> })?.operations ?? [])
+      .filter(op => op.type === 'set_range' || op.type === 'clear_cell')
+    expect(plannerCellOps).toHaveLength(0)
+  })
+
+  it('emits row-only freeze with the column sentinel preserved', () => {
+    const onMutationBatchOp = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onMutationBatchOp={onMutationBatchOp}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.set-row-frozen',
+      params: {
+        range: { startRow: 4, endRow: 4, startColumn: 0, endColumn: 0 },
+        startColumn: -1,
+        xSplit: 0
+      }
+    })
+
+    expect(onMutationBatchOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operations: [
+          {
+            type: 'freeze_panes',
+            data: expect.objectContaining({
+              startRow: 4,
+              ySplit: 4,
+              startColumn: -1,
+              xSplit: 0
+            })
+          }
+        ]
+      })
+    )
+    const rowFreezePayload = onMutationBatchOp.mock.calls[0]?.[0] as {
+      operations: Array<{ type: string; data: Record<string, unknown> }>
+    }
+    expect(rowFreezePayload.operations[0]?.data).not.toHaveProperty('range')
+  })
+
+  it('emits cleared freeze_panes for cancel freeze commands', () => {
+    jest.useFakeTimers()
+    const onMutationBatchOp = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onMutationBatchOp={onMutationBatchOp}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.cancel-frozen',
+      params: {}
+    })
+
+    act(() => {
+      jest.advanceTimersByTime(100)
+    })
+
+    expect(onMutationBatchOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operations: [
+          {
+            type: 'freeze_panes',
+            data: expect.objectContaining({
+              sheetId: 'sheet-1',
+              commandId: 'sheet.command.cancel-frozen',
+              cleared: true
+            })
+          }
+        ]
+      })
+    )
+  })
+
+  it('ignores set-selection-frozen wrapper commands when the authoritative column freeze follows', () => {
+    jest.useFakeTimers()
+    const onMutationBatchOp = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onMutationBatchOp={onMutationBatchOp}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.set-selection-frozen',
+      params: {
+        type: 2
+      }
+    })
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.cancel-frozen',
+      params: {}
+    })
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.set-col-frozen',
+      params: {
+        startRow: -1,
+        ySplit: 0,
+        range: { startRow: 0, endRow: 1011, startColumn: 2, endColumn: 2 }
+      }
+    })
+
+    act(() => {
+      jest.advanceTimersByTime(100)
+    })
+
+    expect(onMutationBatchOp).toHaveBeenCalledTimes(1)
+    expect(onMutationBatchOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operations: [
+          {
+            type: 'freeze_panes',
+            data: expect.objectContaining({
+              commandId: 'sheet.command.set-col-frozen',
+              startRow: -1,
+              startColumn: 2,
+              ySplit: 0,
+              xSplit: 2
+            })
+          }
+        ]
+      })
+    )
+  })
+
+  it('suppresses a transient clear when freeze first column resolves to column A', () => {
+    jest.useFakeTimers()
+    const onMutationBatchOp = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onMutationBatchOp={onMutationBatchOp}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.cancel-frozen',
+      params: {}
+    })
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.set-col-frozen',
+      params: {
+        startRow: -1,
+        ySplit: 0,
+        range: { startRow: 0, endRow: 1011, startColumn: 0, endColumn: 0 }
+      }
+    })
+
+    act(() => {
+      jest.advanceTimersByTime(100)
+    })
+
+    expect(onMutationBatchOp).toHaveBeenCalledTimes(1)
+    expect(onMutationBatchOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operations: [
+          {
+            type: 'freeze_panes',
+            data: expect.objectContaining({
+              commandId: 'sheet.command.set-col-frozen',
+              startRow: -1,
+              startColumn: 1,
+              ySplit: 0,
+              xSplit: 1
+            })
+          }
+        ]
+      })
+    )
+  })
+
+  it('emits first-row freeze from a wrapper-only set-selection-frozen command', () => {
+    const onMutationBatchOp = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onMutationBatchOp={onMutationBatchOp}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.set-first-row-frozen',
+      params: {}
+    })
+
+    expect(onMutationBatchOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operations: [
+          {
+            type: 'freeze_panes',
+            data: expect.objectContaining({
+              commandId: 'sheet.command.set-first-row-frozen',
+              startRow: 1,
+              startColumn: -1,
+              ySplit: 1,
+              xSplit: 0
+            })
+          }
+        ]
+      })
+    )
+  })
+
+  it('emits first-column freeze from a wrapper-only set-selection-frozen command', () => {
+    const onMutationBatchOp = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onMutationBatchOp={onMutationBatchOp}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.set-first-column-frozen',
+      params: {}
+    })
+
+    expect(onMutationBatchOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operations: [
+          {
+            type: 'freeze_panes',
+            data: expect.objectContaining({
+              commandId: 'sheet.command.set-first-column-frozen',
+              startRow: -1,
+              startColumn: 1,
+              ySplit: 0,
+              xSplit: 1
+            })
+          }
+        ]
+      })
+    )
+  })
+
+  it('dedupes the special first-column command against the following frozen-state mutation', () => {
+    const onMutationBatchOp = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onMutationBatchOp={onMutationBatchOp}
+      />
+    )
+
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.set-first-column-frozen',
+      params: {}
+    })
+    eventHandlers.CommandExecuted?.({
+      type: 0,
+      id: 'sheet.command.set-selection-frozen',
+      params: {
+        type: 4
+      }
+    })
+    eventHandlers.CommandExecuted?.({
+      type: 2,
+      id: 'sheet.mutation.set-frozen',
+      params: {
+        subUnitId: 'sheet-1',
+        startRow: -1,
+        startColumn: 1,
+        ySplit: 0,
+        xSplit: 1,
+        trigger: 'sheet.command.set-selection-frozen'
+      }
+    })
+
+    expect(onMutationBatchOp).toHaveBeenCalledTimes(1)
+    expect(onMutationBatchOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operations: [
+          {
+            type: 'freeze_panes',
+            data: expect.objectContaining({
+              commandId: 'sheet.command.set-first-column-frozen',
+              startRow: -1,
+              startColumn: 1,
+              ySplit: 0,
+              xSplit: 1
+            })
+          }
+        ]
+      })
+    )
+  })
+
+  it('dedupes a paired sheet.command + sheet.mutation move-range to a single onCellRangeMove call', () => {
+    const onCellRangeMove = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onCellRangeMove={onCellRangeMove}
+      />
+    )
+
+    const params = {
+      fromRange: { startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 },
+      toRange: { startRow: 3, endRow: 3, startColumn: 3, endColumn: 3 }
+    }
+
+    eventHandlers.CommandExecuted?.({ type: 0, id: 'sheet.command.move-range', params })
+    eventHandlers.CommandExecuted?.({ type: 2, id: 'sheet.mutation.move-range', params })
+
+    expect(onCellRangeMove).toHaveBeenCalledTimes(1)
   })
 
   it('retargets copied worksheet follow-up mutations to the rewritten UUID', () => {
@@ -1336,7 +1856,7 @@ describe('UniverSheetGrid read-only behavior', () => {
 
   it('reads pasted formatting from live Univer cell data when SheetValueChanged only carries values', () => {
     const onMutationBatchOp = jest.fn()
-    gridTestMocks.worksheetCellDataByCoord = new Map([
+    gridTestMockState.worksheetCellDataByCoord = new Map([
       [
         '0:0',
         {
@@ -1406,7 +1926,7 @@ describe('UniverSheetGrid read-only behavior', () => {
       width: 150,
       order: index
     })) as any
-    gridTestMocks.worksheetCellDataByCoord = new Map([
+    gridTestMockState.worksheetCellDataByCoord = new Map([
       [
         '6:12',
         {
@@ -1527,7 +2047,7 @@ describe('UniverSheetGrid read-only behavior', () => {
 
   it('includes referenced style definitions for pasted style ids', () => {
     const onMutationBatchOp = jest.fn()
-    gridTestMocks.workbookSnapshotOverride = {
+    gridTestMockState.workbookSnapshotOverride = {
       sheetOrder: ['sheet-1'],
       styles: {
         'style-1': { bg: { rgb: '#111111' }, cl: { rgb: '#eeeeee' } }
@@ -1633,7 +2153,7 @@ describe('UniverSheetGrid read-only behavior', () => {
       />
     )
 
-    gridTestMocks.worksheetValueByCoord = new Map([
+    gridTestMockState.worksheetValueByCoord = new Map([
       ['0:0', null],
       ['1:0', null]
     ])
@@ -1708,7 +2228,7 @@ describe('UniverSheetGrid read-only behavior', () => {
       { id: 'col-c', name: 'colC', label: 'C', type: 'text', isVisible: true, order: 2 }
     ] as any
     const rowData = [{ _id: 'row-1', colA: '', colB: '', colC: '' }]
-    gridTestMocks.worksheetValueByCoord = new Map<string, unknown>([
+    gridTestMockState.worksheetValueByCoord = new Map<string, unknown>([
       ['0:0', 7],
       ['0:1', 8],
       ['0:2', 9]
@@ -2127,7 +2647,7 @@ describe('UniverSheetGrid read-only behavior', () => {
     ] as any
     const rowData = [{ _id: 'row-1', colA: '', colB: '', colC: 'C', colD: 'D', colE: '', colF: '' }]
 
-    gridTestMocks.worksheetValueByCoord = new Map<string, unknown>([
+    gridTestMockState.worksheetValueByCoord = new Map<string, unknown>([
       ['0:2', 'C'],
       ['0:3', ''],
       ['0:4', 'C'],
@@ -2271,14 +2791,14 @@ describe('UniverSheetGrid read-only behavior', () => {
     ] as any
     const rowData = [{ _id: 'row-1', colA: 1, colB: 5, colC: '', colD: '', colE: '', colF: '', colG: '' }]
 
-    gridTestMocks.worksheetValueByCoord = new Map<string, unknown>([
+    gridTestMockState.worksheetValueByCoord = new Map<string, unknown>([
       ['0:2', null],
       ['0:3', null],
       ['0:4', null],
       ['0:5', 5],
       ['0:6', 5]
     ])
-    gridTestMocks.workbookSnapshotOverride = {
+    gridTestMockState.workbookSnapshotOverride = {
       sheetOrder: ['sheet-1'],
       sheets: {
         'sheet-1': {
@@ -2528,7 +3048,7 @@ describe('UniverSheetGrid read-only behavior', () => {
     ] as any
     const rowData = [{ _id: 'row-1', colA: '', colB: 'A', colC: 'B', colD: '', colE: '' }]
 
-    gridTestMocks.worksheetValueByCoord = new Map<string, unknown>([
+    gridTestMockState.worksheetValueByCoord = new Map<string, unknown>([
       ['0:1', 'A'],
       ['0:2', 'B'],
       ['0:3', 'A'],
@@ -2638,13 +3158,13 @@ describe('UniverSheetGrid read-only behavior', () => {
 
     lastRangeGetValueMock?.mockReturnValue(undefined)
 
-    gridTestMocks.selectionState = { actualRow: 0, actualColumn: 0 }
+    gridTestMockState.selectionState = { actualRow: 0, actualColumn: 0 }
     act(() => {
       eventHandlers.SelectionChanged?.({})
       jest.advanceTimersByTime(100)
     })
 
-    gridTestMocks.selectionState = { actualRow: 0, actualColumn: 1 }
+    gridTestMockState.selectionState = { actualRow: 0, actualColumn: 1 }
     act(() => {
       eventHandlers.SelectionChanged?.({})
       jest.advanceTimersByTime(100)
@@ -2751,7 +3271,7 @@ describe('UniverSheetGrid read-only behavior', () => {
       />
     )
 
-    gridTestMocks.selectionState = { actualRow: 0, actualColumn: 0 }
+    gridTestMockState.selectionState = { actualRow: 0, actualColumn: 0 }
 
     act(() => {
       eventHandlers.SelectionChanged?.({})
@@ -2816,8 +3336,8 @@ describe('UniverSheetGrid read-only behavior', () => {
       />
     )
 
-    gridTestMocks.selectionState = { actualRow: 0, actualColumn: 0 }
-    gridTestMocks.workbookSnapshotOverride = {
+    gridTestMockState.selectionState = { actualRow: 0, actualColumn: 0 }
+    gridTestMockState.workbookSnapshotOverride = {
       sheetOrder: ['sheet-1'],
       sheets: {
         'sheet-1': {

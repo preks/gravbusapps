@@ -108,8 +108,26 @@ export interface SpreadsheetMutationFacade {
     rowIndex: number,
     rows: SpreadsheetViewerRow[]
   ): Promise<SpreadsheetBatchOperationResponse>
+  insertRowSlots(
+    sheetId: string,
+    startGridRowIndex: number,
+    count: number,
+    materializedRows?: SpreadsheetViewerRow[]
+  ): Promise<SpreadsheetBatchOperationResponse>
   deleteRow(sheetId: string, rowId: string): Promise<boolean>
   deleteRows(sheetId: string, rowIds: string[]): Promise<SpreadsheetBatchOperationResponse>
+  deleteRowSlots(sheetId: string, startGridRowIndex: number, count: number): Promise<SpreadsheetBatchOperationResponse>
+  moveRowSlots(
+    sheetId: string,
+    sourceStartGridRowIndex: number,
+    count: number,
+    destinationGridRowIndex: number
+  ): Promise<SpreadsheetBatchOperationResponse>
+  moveCellRange(
+    sheetId: string,
+    fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number },
+    toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+  ): Promise<SpreadsheetBatchOperationResponse>
   moveRows(
     sheetId: string,
     rowIds: string[],

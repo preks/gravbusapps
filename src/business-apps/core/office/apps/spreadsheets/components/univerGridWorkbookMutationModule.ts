@@ -297,8 +297,6 @@ export function isClearLikeMutationCommand(commandId: string): boolean {
     normalized.includes('deleteselectioncommand') ||
     normalized.includes('move-range') ||
     normalized.includes('move-cell') ||
-    normalized.includes('move-row') ||
-    normalized.includes('move-column') ||
     normalized.includes('cut-paste') ||
     normalized.includes('cutpaste')
   )
@@ -349,17 +347,38 @@ export function isNativeColumnDeleteCommand(commandId: string): boolean {
   return isDelete && (normalized.includes('column') || normalized.includes('col'))
 }
 
+export function isNativeColumnMoveCommand(commandId: string): boolean {
+  const normalized = commandId.trim().toLowerCase()
+  return (
+    normalized.includes('move-column') ||
+    normalized.includes('move-columns') ||
+    ((normalized.includes('move') || normalized.includes('drag')) &&
+      (normalized.includes('column') || normalized.includes('columns') || normalized.includes('col')))
+  )
+}
+
 export function getColumnMutationRange(params: {
   /** Univer column mutations (`sheet.mutation.insert-col`, `remove-col`, …) pass a single range object here. */
   range?: SheetRangeShape | SheetRangeShape[]
   ranges?: SheetRangeShape[]
+  fromRange?: SheetRangeShape | SheetRangeShape[] | null
   startColumn?: number
   endColumn?: number
 }): { startColumn: number; endColumn: number } | null {
-  const raw = params.range
-  const fromRangeProp = Array.isArray(raw) ? raw[0] : raw && typeof raw === 'object' ? raw : undefined
+  const directRaw = params.range
+  const fromRangeRaw = params.fromRange
+  const fromDirectRange = Array.isArray(directRaw)
+    ? directRaw[0]
+    : directRaw && typeof directRaw === 'object'
+      ? directRaw
+      : undefined
+  const fromSourceRange = Array.isArray(fromRangeRaw)
+    ? fromRangeRaw[0]
+    : fromRangeRaw && typeof fromRangeRaw === 'object'
+      ? fromRangeRaw
+      : undefined
   const fromRangesProp = Array.isArray(params.ranges) ? params.ranges[0] : undefined
-  const range = fromRangeProp ?? fromRangesProp
+  const range = fromSourceRange ?? fromDirectRange ?? fromRangesProp
   const startColumn = typeof range?.startColumn === 'number' ? range.startColumn : params.startColumn
   const endColumn = typeof range?.endColumn === 'number' ? range.endColumn : params.endColumn
   if (typeof startColumn !== 'number' || !Number.isFinite(startColumn) || startColumn < 0) return null
@@ -381,21 +400,87 @@ export function getColumnInsertDirection(
   return 'lefttop'
 }
 
+export function getColumnMoveMutation(params: {
+  range?: SheetRangeShape | SheetRangeShape[]
+  ranges?: SheetRangeShape[]
+  fromRange?: SheetRangeShape | SheetRangeShape[] | null
+  toRange?: SheetRangeShape | null
+  targetRange?: SheetRangeShape | null
+  sourceRange?: SheetRangeShape | null
+  startColumn?: number
+  endColumn?: number
+  targetColumn?: number
+  destinationStartColumn?: number
+  toStartColumn?: number
+  destinationColumn?: number
+}): { sourceStartColumn: number; sourceEndColumn: number; destinationStartColumn: number } | null {
+  const sourceRange = getColumnMutationRange({
+    ...params,
+    fromRange: params.fromRange ?? params.sourceRange
+  })
+  const destinationCandidates = [
+    params.toRange?.startColumn,
+    params.targetRange?.startColumn,
+    params.destinationStartColumn,
+    params.toStartColumn,
+    params.targetColumn,
+    params.destinationColumn
+  ]
+  const rawDestinationStart = destinationCandidates.find(
+    candidate => typeof candidate === 'number' && Number.isFinite(candidate)
+  )
+  if (!sourceRange || typeof rawDestinationStart !== 'number') {
+    return null
+  }
+  return {
+    sourceStartColumn: sourceRange.startColumn,
+    sourceEndColumn: sourceRange.endColumn,
+    destinationStartColumn: Math.max(0, Math.trunc(rawDestinationStart))
+  }
+}
+
 export function isNativeRowInsertCommand(commandId: string): boolean {
   const normalized = commandId.trim().toLowerCase()
   return normalized.includes('insert') && (normalized.includes('row') || normalized.includes('rows'))
 }
 
+export function isNativeRowDeleteCommand(commandId: string): boolean {
+  const normalized = commandId.trim().toLowerCase()
+  const isDelete = normalized.includes('delete') || normalized.includes('remove')
+  return isDelete && (normalized.includes('row') || normalized.includes('rows'))
+}
+
+export function isNativeRowMoveCommand(commandId: string): boolean {
+  const normalized = commandId.trim().toLowerCase()
+  return (
+    normalized.includes('move-row') ||
+    normalized.includes('move-rows') ||
+    ((normalized.includes('move') || normalized.includes('drag')) &&
+      (normalized.includes('row') || normalized.includes('rows')))
+  )
+}
+
 export function getRowMutationRange(params: {
   range?: SheetRangeShape | SheetRangeShape[]
   ranges?: SheetRangeShape[]
+  fromRange?: SheetRangeShape | SheetRangeShape[] | null
   startRow?: number
   endRow?: number
 }): { startRow: number; endRow: number } | null {
-  const raw = params.range
-  const fromRangeProp = Array.isArray(raw) ? raw[0] : raw && typeof raw === 'object' ? raw : undefined
+  const directRaw = params.range
+  const fromRangeRaw = params.fromRange
+  const fromDirectRange = Array.isArray(directRaw)
+    ? directRaw[0]
+    : directRaw && typeof directRaw === 'object'
+      ? directRaw
+      : undefined
+  const fromSourceRange = Array.isArray(fromRangeRaw)
+    ? fromRangeRaw[0]
+    : fromRangeRaw && typeof fromRangeRaw === 'object'
+      ? fromRangeRaw
+      : undefined
   const fromRangesProp = Array.isArray(params.ranges) ? params.ranges[0] : undefined
-  const range = fromRangeProp ?? fromRangesProp
+  const range = fromSourceRange ?? fromDirectRange ?? fromRangesProp
   const startRow = typeof range?.startRow === 'number' ? range.startRow : params.startRow
   const endRow = typeof range?.endRow === 'number' ? range.endRow : params.endRow
   if (typeof startRow !== 'number' || !Number.isFinite(startRow) || startRow < 0) return null
@@ -420,6 +505,316 @@ export function getRowInsertDirection(
     return 'rightbottom'
   }
   return 'lefttop'
+}
+
+export function getRowMoveMutation(params: {
+  range?: SheetRangeShape | SheetRangeShape[]
+  ranges?: SheetRangeShape[]
+  fromRange?: SheetRangeShape | SheetRangeShape[] | null
+  toRange?: SheetRangeShape | null
+  targetRange?: SheetRangeShape | null
+  sourceRange?: SheetRangeShape | null
+  startRow?: number
+  endRow?: number
+  targetRow?: number
+  destinationStartRow?: number
+  toStartRow?: number
+  destinationRow?: number
+}): { sourceStartRow: number; sourceEndRow: number; destinationStartRow: number } | null {
+  const sourceRange = getRowMutationRange({
+    ...params,
+    fromRange: params.fromRange ?? params.sourceRange
+  })
+  const destinationCandidates = [
+    params.toRange?.startRow,
+    params.targetRange?.startRow,
+    params.destinationStartRow,
+    params.toStartRow,
+    params.targetRow,
+    params.destinationRow
+  ]
+  const rawDestinationStart = destinationCandidates.find(
+    candidate => typeof candidate === 'number' && Number.isFinite(candidate)
+  )
+  if (!sourceRange || typeof rawDestinationStart !== 'number') {
+    return null
+  }
+  return {
+    sourceStartRow: sourceRange.startRow,
+    sourceEndRow: sourceRange.endRow,
+    destinationStartRow: Math.max(0, Math.trunc(rawDestinationStart))
+  }
+}
+
+/**
+ * Detects Univer commands/mutations that relocate a rectangular block of cells.
+ * Matches `sheet.command.move-range`, `sheet.mutation.move-range`, and `sheet.mutation.move-cell`.
+ * Intentionally excludes row/column structural moves which are handled by their own detectors.
+ */
+export function isNativeCellRangeMoveCommand(commandId: string): boolean {
+  const normalized = commandId.trim().toLowerCase()
+  if (!normalized) return false
+  if (isNativeRowMoveCommand(commandId) || isNativeColumnMoveCommand(commandId)) return false
+  return normalized.includes('move-range') || normalized.includes('move-cell')
+}
+
+const NATIVE_FREEZE_PANES_COMMAND_IDS = new Set([
+  'sheet.command.set-selection-frozen',
+  'sheet.command.set-row-frozen',
+  'sheet.command.set-col-frozen',
+  'sheet.command.set-first-row-frozen',
+  'sheet.command.set-first-column-frozen',
+  'sheet.command.set-frozen',
+  'sheet.mutation.set-frozen',
+  'sheet.command.cancel-frozen',
+  'sheet.command.freeze'
+])
+
+function normalizeFreezeStart(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined
+  return Math.max(-1, Math.trunc(raw))
+}
+
+function normalizeFreezeSplit(raw: unknown): number | undefined {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined
+  return Math.max(0, Math.trunc(raw))
+}
+
+function isRowFreezeCommand(commandId: string): boolean {
+  const normalized = commandId.trim().toLowerCase()
+  return normalized === 'sheet.command.set-row-frozen'
+}
+
+function isColumnFreezeCommand(commandId: string): boolean {
+  const normalized = commandId.trim().toLowerCase()
+  return normalized === 'sheet.command.set-col-frozen'
+}
+
+function isSelectionFreezeCommand(commandId: string): boolean {
+  const normalized = commandId.trim().toLowerCase()
+  return normalized === 'sheet.command.set-selection-frozen' || normalized === 'sheet.command.freeze'
+}
+
+function isFirstRowFreezeCommand(commandId: string): boolean {
+  return commandId.trim().toLowerCase() === 'sheet.command.set-first-row-frozen'
+}
+
+function isFirstColumnFreezeCommand(commandId: string): boolean {
+  return commandId.trim().toLowerCase() === 'sheet.command.set-first-column-frozen'
+}
+
+/**
+ * Detects native freeze/unfreeze commands that should persist as a `freeze_panes` feature op.
+ */
+export function isNativeFreezePanesCommand(commandId: string): boolean {
+  const normalized = commandId.trim().toLowerCase()
+  if (!normalized) return false
+  return NATIVE_FREEZE_PANES_COMMAND_IDS.has(normalized)
+}
+
+/**
+ * Extracts a canonical freeze payload from native freeze commands.
+ *
+ * Preserves Univer's `-1` sentinel on `startRow` / `startColumn`, which represents "no frozen
+ * rows/columns" for the untouched axis of a row-only / column-only freeze.
+ */
+export function getFreezePanesMutation(
+  commandId: string,
+  params: {
+    startRow?: number
+    startColumn?: number
+    xSplit?: number
+    ySplit?: number
+    cleared?: boolean
+    type?: unknown
+  },
+  ranges: ClearAllRectangle[]
+):
+  | {
+      cleared: true
+    }
+  | {
+      xSplit: number
+      ySplit: number
+      startRow: number
+      startColumn: number
+      range?: ClearAllRectangle
+    }
+  | null {
+  const normalized = commandId.trim().toLowerCase()
+  if (!normalized) return null
+  if (normalized === 'sheet.command.cancel-frozen' || params.cleared === true) {
+    return { cleared: true }
+  }
+  if (isFirstRowFreezeCommand(commandId)) {
+    return {
+      startRow: 1,
+      startColumn: -1,
+      ySplit: 1,
+      xSplit: 0
+    }
+  }
+  if (isFirstColumnFreezeCommand(commandId)) {
+    return {
+      startRow: -1,
+      startColumn: 1,
+      ySplit: 0,
+      xSplit: 1
+    }
+  }
+
+  const range = ranges[0]
+  const selectionFreeze = isSelectionFreezeCommand(commandId)
+  const rowFreeze = isRowFreezeCommand(commandId)
+  const columnFreeze = isColumnFreezeCommand(commandId)
+
+  // Observed in the live UI: `sheet.command.set-selection-frozen` can fire first with only a
+  // discriminator like `{ type: 2 }`, then the authoritative `set-row-frozen`/`set-col-frozen`
+  // command follows immediately. Do not persist the wrapper event or we emit a duplicate,
+  // incorrect freeze_panes op before the real one arrives.
+  const hasExplicitFreezeCoordinates =
+    typeof params.startRow === 'number' ||
+    typeof params.startColumn === 'number' ||
+    typeof params.xSplit === 'number' ||
+    typeof params.ySplit === 'number'
+  if (selectionFreeze && typeof params.type === 'number' && !hasExplicitFreezeCoordinates) {
+    return null
+  }
+
+  let startRow = normalizeFreezeStart(params.startRow)
+  let startColumn = normalizeFreezeStart(params.startColumn)
+  let xSplit = normalizeFreezeSplit(params.xSplit)
+  let ySplit = normalizeFreezeSplit(params.ySplit)
+
+  if (rowFreeze) {
+    if (startRow === 0) startRow = 1
+    if (ySplit === 0) ySplit = 1
+  }
+  if (columnFreeze) {
+    if (startColumn === 0) startColumn = 1
+    if (xSplit === 0) xSplit = 1
+  }
+
+  if (range && selectionFreeze) {
+    startRow ??= range.endRow + 1
+    ySplit ??= range.endRow + 1
+    startColumn ??= range.endColumn + 1
+    xSplit ??= range.endColumn + 1
+  }
+  if (range && rowFreeze) {
+    const rowBoundary = Math.max(1, range.startRow)
+    startRow ??= rowBoundary
+    ySplit ??= rowBoundary
+  }
+  if (range && columnFreeze) {
+    const columnBoundary = Math.max(1, range.startColumn)
+    startColumn ??= columnBoundary
+    xSplit ??= columnBoundary
+  }
+
+  if (rowFreeze && startColumn === undefined && xSplit === undefined) {
+    startColumn = -1
+    xSplit = 0
+  }
+  if (columnFreeze && startRow === undefined && ySplit === undefined) {
+    startRow = -1
+    ySplit = 0
+  }
+
+  if (startRow === undefined && ySplit !== undefined) {
+    startRow = ySplit > 0 ? ySplit : -1
+  }
+  if (startColumn === undefined && xSplit !== undefined) {
+    startColumn = xSplit > 0 ? xSplit : -1
+  }
+  if (ySplit === undefined && startRow !== undefined) {
+    ySplit = startRow > 0 ? startRow : 0
+  }
+  if (xSplit === undefined && startColumn !== undefined) {
+    xSplit = startColumn > 0 ? startColumn : 0
+  }
+
+  if (startRow === undefined || startColumn === undefined || xSplit === undefined || ySplit === undefined) {
+    return null
+  }
+
+  return {
+    startRow,
+    startColumn,
+    xSplit,
+    ySplit,
+    ...(selectionFreeze && range ? { range } : {})
+  }
+}
+
+function normalizeMoveRange(raw: unknown): SheetRangeShape | null {
+  if (!raw || typeof raw !== 'object') return null
+  const candidate = (Array.isArray(raw) ? raw[0] : raw) as Partial<SheetRangeShape> | undefined
+  if (!candidate) return null
+  const startRow = typeof candidate.startRow === 'number' ? candidate.startRow : null
+  const startColumn = typeof candidate.startColumn === 'number' ? candidate.startColumn : null
+  if (startRow === null || startColumn === null) return null
+  const endRow = typeof candidate.endRow === 'number' ? candidate.endRow : startRow
+  const endColumn = typeof candidate.endColumn === 'number' ? candidate.endColumn : startColumn
+  if (!Number.isFinite(startRow) || startRow < 0) return null
+  if (!Number.isFinite(startColumn) || startColumn < 0) return null
+  if (!Number.isFinite(endRow) || endRow < startRow) return null
+  if (!Number.isFinite(endColumn) || endColumn < startColumn) return null
+  return { startRow, startColumn, endRow, endColumn }
+}
+
+/**
+ * Extracts `{ fromRange, toRange }` from Univer move-range / move-cell command or mutation params.
+ * Returns `null` when the payload does not carry a recognizable source+destination pair.
+ */
+export function getCellRangeMoveMutation(params: {
+  fromRange?: SheetRangeShape | SheetRangeShape[] | null
+  toRange?: SheetRangeShape | null
+  targetRange?: SheetRangeShape | null
+  sourceRange?: SheetRangeShape | null
+  from?: { row?: number; column?: number } | null
+  to?: { row?: number; column?: number } | null
+}): { fromRange: SheetRangeShape; toRange: SheetRangeShape } | null {
+  const fromRange = normalizeMoveRange(params.fromRange) ?? normalizeMoveRange(params.sourceRange)
+  const toRange = normalizeMoveRange(params.toRange) ?? normalizeMoveRange(params.targetRange)
+  if (fromRange && toRange) return { fromRange, toRange }
+
+  // sheet.mutation.move-cell uses { from: { row, column }, to: { row, column } }
+  const fromPoint = params.from
+  const toPoint = params.to
+  if (
+    fromPoint &&
+    toPoint &&
+    typeof fromPoint.row === 'number' &&
+    typeof fromPoint.column === 'number' &&
+    typeof toPoint.row === 'number' &&
+    typeof toPoint.column === 'number' &&
+    Number.isFinite(fromPoint.row) &&
+    Number.isFinite(fromPoint.column) &&
+    Number.isFinite(toPoint.row) &&
+    Number.isFinite(toPoint.column) &&
+    fromPoint.row >= 0 &&
+    fromPoint.column >= 0 &&
+    toPoint.row >= 0 &&
+    toPoint.column >= 0
+  ) {
+    return {
+      fromRange: {
+        startRow: fromPoint.row,
+        endRow: fromPoint.row,
+        startColumn: fromPoint.column,
+        endColumn: fromPoint.column
+      },
+      toRange: {
+        startRow: toPoint.row,
+        endRow: toPoint.row,
+        startColumn: toPoint.column,
+        endColumn: toPoint.column
+      }
+    }
+  }
+
+  return null
 }
 
 export function isImplicitClearLikeSetRangeMutation(params: {

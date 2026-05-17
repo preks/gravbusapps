@@ -114,7 +114,19 @@ export interface UniverSheetGridProps {
   onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
   onColumnsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
   onColumnsDelete?: (startIndex: number, endIndex: number) => void
+  onColumnsMove?: (sourceStartIndex: number, count: number, destinationIndex: number) => void
   onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  onRowsDelete?: (startIndex: number, count: number) => void
+  onRowsMove?: (sourceStartIndex: number, count: number, destinationIndex: number) => void
+  /**
+   * Fires for Univer's cell-range move (sheet.command.move-range / sheet.mutation.move-range /
+   * sheet.mutation.move-cell). Emits the absolute source and destination rectangles (zero-based,
+   * end-inclusive) so the embedding viewer can persist a single `move_cell_range` batch op.
+   */
+  onCellRangeMove?: (
+    fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number },
+    toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+  ) => void
   onFormulaEvaluated?: (rowId: string, columnId: string, result: unknown) => void
   participants?: DocumentParticipant[]
   onOperationEmit?: (operation: DocumentOperation) => void

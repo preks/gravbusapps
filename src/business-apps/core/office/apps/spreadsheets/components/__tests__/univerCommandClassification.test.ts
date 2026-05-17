@@ -20,12 +20,26 @@ describe('UNIVER_COMMAND_KIND_REGISTRY', () => {
     const required: Array<[string, CommandKind]> = [
       ['sheet.clear-range', 'clearLike'],
       ['DeleteSelectionCommand', 'clearLike'],
-      ['sheet.mutation.move-range', 'clearLike'],
+      ['sheet.command.move-range', 'cellRangeMove'],
+      ['sheet.mutation.move-range', 'cellRangeMove'],
+      ['sheet.mutation.move-cell', 'cellRangeMove'],
+      ['sheet.command.set-selection-frozen', 'freezePanes'],
+      ['sheet.command.set-row-frozen', 'freezePanes'],
+      ['sheet.command.set-col-frozen', 'freezePanes'],
+      ['sheet.command.set-first-row-frozen', 'freezePanes'],
+      ['sheet.command.set-first-column-frozen', 'freezePanes'],
+      ['sheet.command.set-frozen', 'freezePanes'],
+      ['sheet.mutation.set-frozen', 'freezePanes'],
+      ['sheet.command.cancel-frozen', 'freezePanes'],
       ['sheet.command.move-selection', 'navigation'],
       ['sheet.command.paste', 'replaceRangeStyle'],
       ['sheet.command.set-range-bold', 'styleOnly'],
       ['sheet.command.insert-row', 'structuralRow'],
-      ['sheet.command.delete-column', 'structuralColumn']
+      ['sheet.command.move-rows', 'structuralRow'],
+      ['sheet.mutation.move-row', 'structuralRow'],
+      ['sheet.command.delete-column', 'structuralColumn'],
+      ['sheet.command.move-columns', 'structuralColumn'],
+      ['sheet.mutation.move-column', 'structuralColumn']
     ]
     for (const [id, expected] of required) {
       expect(UNIVER_COMMAND_KIND_REGISTRY.get(id)).toBe(expected)
@@ -51,7 +65,22 @@ describe('legacyClassifyCommandKindBySubstring (deprecated one-release shim)', (
       ['sheet.clear-range', 'clearLike'],
       ['DeleteSelectionCommand', 'clearLike'],
       ['sheet.command.move-selection', 'navigation'],
-      ['sheet.command.set-range-bold', 'styleOnly']
+      ['sheet.command.set-range-bold', 'styleOnly'],
+      ['sheet.command.move-rows', 'structuralRow'],
+      ['sheet.mutation.move-row', 'structuralRow'],
+      ['sheet.command.move-columns', 'structuralColumn'],
+      ['sheet.mutation.move-column', 'structuralColumn'],
+      ['sheet.command.set-selection-frozen', 'freezePanes'],
+      ['sheet.command.set-row-frozen', 'freezePanes'],
+      ['sheet.command.set-col-frozen', 'freezePanes'],
+      ['sheet.command.set-first-row-frozen', 'freezePanes'],
+      ['sheet.command.set-first-column-frozen', 'freezePanes'],
+      ['sheet.command.set-frozen', 'freezePanes'],
+      ['sheet.mutation.set-frozen', 'freezePanes'],
+      ['sheet.command.cancel-frozen', 'freezePanes'],
+      ['sheet.command.move-range', 'cellRangeMove'],
+      ['sheet.mutation.move-range', 'cellRangeMove'],
+      ['sheet.mutation.move-cell', 'cellRangeMove']
     ]
     for (const [id, expected] of fixtures) {
       expect(legacyClassifyCommandKindBySubstring(id)).toBe(expected)

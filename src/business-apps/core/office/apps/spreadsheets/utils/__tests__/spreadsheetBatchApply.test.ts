@@ -122,4 +122,69 @@ describe('applyAuthoritativeBatchResponseToRows', () => {
       { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 2, ColumnA: 'bottom' }
     ])
   })
+
+  it('applies sparse slot transforms from authoritative row-slot operations', () => {
+    const startingBaseline = [
+      { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 2, ColumnA: 'row 2' },
+      { _id: 'row-25', _rowUuid: 'backend-row-25', _gridRowIndex: 25, ColumnA: 'row 25' },
+      { _id: 'row-99', _rowUuid: 'backend-row-99', _gridRowIndex: 99, ColumnA: 'row 99' }
+    ]
+
+    const insertOps: SpreadsheetBatchOperation[] = [
+      {
+        operationId: 'insert-slot-1',
+        type: 'insert_row_slots',
+        data: {
+          startGridRowIndex: 14,
+          count: 1,
+          materializedRows: []
+        }
+      }
+    ]
+    const insertResponse: SpreadsheetBatchOperationResponse = {
+      sheetId: 'sheet-1',
+      newVersion: 6,
+      appliedOperations: [{ operationId: 'insert-slot-1', type: 'insert_row_slots' }],
+      operationResults: [
+        {
+          operationId: 'insert-slot-1',
+          type: 'insert_row_slots',
+          result: { startGridRowIndex: 14, count: 1, rows: [] }
+        }
+      ],
+      idempotentReplay: false
+    }
+
+    expect(
+      applyAuthoritativeBatchResponseToRows(startingBaseline, insertOps, insertResponse).map(row => row._gridRowIndex)
+    ).toEqual([2, 26, 100])
+
+    const deleteOps: SpreadsheetBatchOperation[] = [
+      {
+        operationId: 'delete-slot-1',
+        type: 'delete_row_slots',
+        data: {
+          startGridRowIndex: 14,
+          count: 1
+        }
+      }
+    ]
+    const deleteResponse: SpreadsheetBatchOperationResponse = {
+      sheetId: 'sheet-1',
+      newVersion: 7,
+      appliedOperations: [{ operationId: 'delete-slot-1', type: 'delete_row_slots' }],
+      operationResults: [
+        {
+          operationId: 'delete-slot-1',
+          type: 'delete_row_slots',
+          result: { startGridRowIndex: 14, count: 1, deletedRowIds: [] }
+        }
+      ],
+      idempotentReplay: false
+    }
+
+    expect(
+      applyAuthoritativeBatchResponseToRows(startingBaseline, deleteOps, deleteResponse).map(row => row._gridRowIndex)
+    ).toEqual([2, 24, 98])
+  })
 })

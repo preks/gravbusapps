@@ -37,10 +37,6 @@ export function isClearLikeMutationCommand(commandId: string): boolean {
     normalized.includes('clear-value') ||
     normalized.includes('delete-selection') ||
     normalized.includes('deleteselectioncommand') ||
-    normalized.includes('move-range') ||
-    normalized.includes('move-cell') ||
-    normalized.includes('move-row') ||
-    normalized.includes('move-column') ||
     normalized.includes('cut-paste') ||
     normalized.includes('cutpaste')
   )

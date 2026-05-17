@@ -11,7 +11,6 @@ import { useTranslation } from '@newwork/nw-design-system'
 import type { SpreadsheetApp, SpreadsheetAppViewerProps, SpreadsheetColumn, SpreadsheetSheet, ViewType } from './types'
 import { columnToFormField } from './types'
 import {
-  SpreadsheetApiRequestError,
   SpreadsheetApiService,
   revalidateSpreadsheetUniverSnapshotAfterIdleTab,
   type SpreadsheetBatchOperation,
@@ -65,6 +64,7 @@ import { useSpreadsheetViewerController } from './hooks/useSpreadsheetViewerCont
 import { useSpreadsheetSidePanelState } from './hooks/useSpreadsheetSidePanelState'
 import { useSpreadsheetDiagnosticsDialogActions } from './hooks/useSpreadsheetDiagnosticsDialogActions'
 import { useSpreadsheetPersistenceIndicator, maxPersistDate } from './hooks/useSpreadsheetPersistenceIndicator'
+import { useSpreadsheetGridStructuralMutations } from './hooks/useSpreadsheetGridStructuralMutations'
 import translations from './_i18n'
 import { useSpreadsheetCollaboration } from './hooks/useSpreadsheetCollaboration'
 import { buildSpreadsheetCollaborationCallbacks } from './core'
@@ -173,7 +173,6 @@ import {
   viewerRowId,
   type ViewerRow
 } from './utils/spreadsheetViewerRows'
-import { mergeInsertedRowsAtIndex } from './utils/spreadsheetInsertRowsAt'
 
 function createNativeSpreadsheetClientRowId(): string {
   try {
@@ -196,20 +195,6 @@ function buildPersistedRowIdMapFromBatchRows(rows: unknown): Map<string, string>
     persistedIdByClientRowId.set(clientRowId, record.id)
   })
   return persistedIdByClientRowId
-}
-
-function removeRowsByClientIdsAndReindex(rows: ViewerRow[], clientRowIds: Set<string>): ViewerRow[] {
-  return rows
-    .filter(row => {
-      const rowId = String(row._id ?? '')
-      const clientRowId = String(row._clientRowId ?? '')
-      return !clientRowIds.has(rowId) && !clientRowIds.has(clientRowId)
-    })
-    .map((row, index) => {
-      const canonical = viewerRowId(row)
-      if (!canonical) return row
-      return { ...row, _gridRowIndex: index }
-    })
 }
 
 export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
@@ -3236,6 +3221,44 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [activeSheetId, app.id, enqueueDiagnosticsTraceEvent]
   )
 
+  const structuralMutations = useSpreadsheetGridStructuralMutations({
+    activeSheetIdRef,
+    createdSheetIdAliasesRef,
+    operationQueueRef,
+    chainOnOperationQueue,
+    mutationFacade: mutationFacade as any,
+    rowSlotIdentityRegistry,
+    rowMaterializationReadiness,
+    activeSheetColumns: activeSheet.columns as any,
+    spreadsheetColumnsForGrid: spreadsheetColumnsForGrid as any,
+    spreadsheetGridRef: spreadsheetGridRef as any,
+    getActiveSessionRows,
+    getKnownRowsForSheet,
+    commitLocalSheetData,
+    syncSheetRowsIntoLocalState,
+    pendingUniverRowsBySheetRef,
+    latestUniverDataRef,
+    lastProcessedLengthRef,
+    buildAddRowPayloadsFromUniverRows,
+    buildPersistedRowIdMapFromBatchRows,
+    mapPersistedRowsToViewerRows,
+    createNativeSpreadsheetClientRowId,
+    logRowIdentityDiagnostics,
+    buildRowIdentityDiagnostics: buildRowIdentityDiagnostics as any,
+    isUuid,
+    isUuidString,
+    recoverFromVersionConflictRef,
+    sheetPersist,
+    versioning,
+    sheetPersistErrorMessage: sheetT('persist-rows-add-failed'),
+    handleColumnsInsertInternal: columnsState.handleColumnsInsert as any,
+    handleColumnsDeleteInternal: columnsState.handleColumnsDelete as any,
+    handleColumnsMoveInternal: columnsState.handleColumnsMove as any,
+    scheduleStructuralSnapshotReload: (targetSheetId: string) => {
+      scheduleRemoteStructuralResync(targetSheetId, { immediate: true })
+    }
+  })
+
   const mainView = useSpreadsheetMainViewRenderer({
     viewType,
     isBootstrapCanonicalReady,
@@ -3284,154 +3307,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     collaborationEnabled: collaboration.isCollaborationConnected,
     canEditWithLock,
     onColumnAdd: columnsState.handleAutoColumnAdd,
-    onColumnsInsert: (insertIndex, count, direction) => {
-      const nextColumns = columnsState.handleColumnsInsert(insertIndex, count, direction)
-      if (nextColumns) {
-        spreadsheetGridRef.current?.syncGridConversionContext?.(nextColumns)
-      }
-    },
-    onRowsInsert: (insertIndex, count) => {
-      if (count <= 0) {
-        return
-      }
-      const targetSheetId = resolveReconciledSheetId(activeSheetIdRef.current, createdSheetIdAliasesRef.current)
-      rowSlotIdentityRegistry.markUnhealthy(targetSheetId, 'manual_insert_pending')
-      const previousRows = getActiveSessionRows()
-      const placeholders = Array.from({ length: count }, (_, offset) => ({
-        _id: createNativeSpreadsheetClientRowId(),
-        _clientRowId: '',
-        _gridRowIndex: insertIndex + offset
-      })).map(row => ({ ...row, _clientRowId: String(row._id) }))
-      const placeholderClientIds = new Set(placeholders.map(row => String(row._id ?? '')).filter(Boolean))
-      const optimisticRows = mergeInsertedRowsAtIndex(previousRows, placeholders, insertIndex)
-      const insertedRows = optimisticRows.slice(insertIndex, insertIndex + count)
-      const rowPayloads = buildAddRowPayloadsFromUniverRows(insertedRows, activeSheet.columns)
-      logRowIdentityDiagnostics('viewer_manual_insert_optimistic_rows', {
-        targetSheetId,
-        insertIndex,
-        count,
-        placeholderClientRowIds: Array.from(placeholderClientIds),
-        rowIdentities: buildRowIdentityDiagnostics({
-          uiRowIds: Array.from(placeholderClientIds),
-          rows: optimisticRows,
-          isUuid
-        })
-      })
-
-      commitLocalSheetData(optimisticRows, {
-        persisted: false,
-        syncGrid: false,
-        publishParent: true
-      })
-      spreadsheetGridRef.current?.syncGridConversionContext?.(spreadsheetColumnsForGrid, optimisticRows)
-
-      void chainOnOperationQueue(operationQueueRef, async () => {
-        sheetPersist.beginPersist()
-        sheetPersist.markDirty()
-        versioning.markAsChanged()
-        const readinessPendingResolvers = new Map<
-          string,
-          { resolve: (backendRowId: string) => void; reject: (error: unknown) => void }
-        >()
-        placeholderClientIds.forEach(clientRowId => {
-          const promise = new Promise<string>((resolvePromise, rejectPromise) => {
-            readinessPendingResolvers.set(clientRowId, {
-              resolve: resolvePromise,
-              reject: rejectPromise
-            })
-          })
-          rowMaterializationReadiness.registerPending(targetSheetId, clientRowId, promise)
-        })
-        try {
-          const response = await mutationFacade.insertRowsAt(targetSheetId, insertIndex, rowPayloads)
-          const insertResult = response.operationResults.find(result => result.type === 'insert_rows_at')
-          const persistedIdByClientRowId = buildPersistedRowIdMapFromBatchRows(insertResult?.result?.rows)
-          rowMaterializationReadiness.resolveMany(targetSheetId, persistedIdByClientRowId)
-          persistedIdByClientRowId.forEach((backendRowId, clientRowId) => {
-            rowSlotIdentityRegistry.bindBackendRowId(targetSheetId, clientRowId, backendRowId)
-          })
-          persistedIdByClientRowId.forEach((backendRowId, clientRowId) => {
-            const resolver = readinessPendingResolvers.get(clientRowId)
-            if (!resolver) return
-            resolver.resolve(backendRowId)
-            readinessPendingResolvers.delete(clientRowId)
-          })
-          const latestRows = getKnownRowsForSheet(targetSheetId)
-          const authoritativeRows = mergeInsertedRowsAtIndex(
-            latestRows,
-            mapPersistedRowsToViewerRows(insertResult?.result?.rows),
-            insertIndex
-          )
-          logRowIdentityDiagnostics('viewer_manual_insert_rows_persisted', {
-            targetSheetId,
-            insertIndex,
-            persistedRowMappings: Array.from(persistedIdByClientRowId.entries()).map(([clientRowId, backendRowId]) => ({
-              clientRowId,
-              backendRowId
-            })),
-            rowIdentities: buildRowIdentityDiagnostics({
-              uiRowIds: Array.from(placeholderClientIds),
-              rows: authoritativeRows,
-              identityOverrides: new Map(
-                Array.from(persistedIdByClientRowId.entries()).map(([uiRowId, backendRowUuid]) => [
-                  uiRowId,
-                  { backendRowUuid, identitySource: 'create_row_response' as const }
-                ])
-              ),
-              isUuid
-            })
-          })
-          syncSheetRowsIntoLocalState(targetSheetId, authoritativeRows, {
-            persisted: true,
-            syncGrid: true,
-            version: response.newVersion
-          })
-          pendingUniverRowsBySheetRef.current.delete(targetSheetId)
-          latestUniverDataRef.current = {
-            data: authoritativeRows,
-            sheetId: targetSheetId
-          }
-          if (areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
-            lastProcessedLengthRef.current = authoritativeRows.length
-          }
-          rowSlotIdentityRegistry.markHealthy(targetSheetId)
-          rowSlotIdentityRegistry.syncRows(targetSheetId, authoritativeRows, isUuidString)
-          sheetPersist.recordSuccess(true)
-          versioning.markAsSaved()
-        } catch (error) {
-          placeholderClientIds.forEach(clientRowId => {
-            rowMaterializationReadiness.reject(targetSheetId, clientRowId, error)
-            const resolver = readinessPendingResolvers.get(clientRowId)
-            if (!resolver) return
-            resolver.reject(error)
-            readinessPendingResolvers.delete(clientRowId)
-          })
-          const rollbackRows = removeRowsByClientIdsAndReindex(
-            getKnownRowsForSheet(targetSheetId),
-            placeholderClientIds
-          )
-          commitLocalSheetData(rollbackRows, {
-            persisted: false,
-            syncGrid: false,
-            publishParent: true
-          })
-          rowSlotIdentityRegistry.markHealthy(targetSheetId)
-          spreadsheetGridRef.current?.syncGridConversionContext?.(spreadsheetColumnsForGrid, rollbackRows)
-          if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
-            await recoverFromVersionConflictRef.current()
-          }
-          sheetPersist.recordError(sheetT('persist-rows-add-failed'))
-        } finally {
-          sheetPersist.endPersist()
-        }
-      })
-    },
-    onColumnsDelete: (startIndex, endIndex) => {
-      const syncPayload = columnsState.handleColumnsDelete(startIndex, endIndex)
-      if (syncPayload) {
-        spreadsheetGridRef.current?.syncGridConversionContext?.(syncPayload.columns, syncPayload.data)
-      }
-    },
+    onColumnsInsert: structuralMutations.onColumnsInsert,
+    onRowsInsert: structuralMutations.onRowsInsert,
+    onRowsDelete: structuralMutations.onRowsDelete,
+    onRowsMove: structuralMutations.onRowsMove,
+    onColumnsDelete: structuralMutations.onColumnsDelete,
+    onColumnsMove: structuralMutations.onColumnsMove,
+    onCellRangeMove: structuralMutations.onCellRangeMove,
     onDimensionsChange: handleDimensionsChanged as any,
     gridRef: spreadsheetGridRef as any,
     onEditRow: row => setEditingRow(row),

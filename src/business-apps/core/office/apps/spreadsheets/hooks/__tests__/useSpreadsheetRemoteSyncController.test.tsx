@@ -1,0 +1,152 @@
+import { renderHook, waitFor } from '@testing-library/react'
+
+import { SpreadsheetApiService } from '../../services/SpreadsheetApiService'
+import { useSpreadsheetRemoteSyncController } from '../useSpreadsheetRemoteSyncController'
+
+const col = (id: string, name: string, order: number) => ({
+  id,
+  name,
+  label: name,
+  type: 'text',
+  isVisible: true,
+  isEditable: true,
+  isRequired: false,
+  isUnique: false,
+  order
+})
+
+describe('useSpreadsheetRemoteSyncController', () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('reloads active sheet snapshots using refreshed recovered column order', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getSheetSnapshot').mockResolvedValue({
+      sheet: {
+        id: 'sheet-1',
+        name: 'Sheet 1',
+        viewType: 'table',
+        columns: [col('col-a', 'A', 0), col('col-c', 'C', 1), col('col-b', 'B', 2)],
+        views: [],
+        data: [],
+        settings: {}
+      },
+      rows: [{ id: 'row-1', data: { A: 1, B: 2, C: 4 } }],
+      version: 3
+    } as any)
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
+      version: 3,
+      snapshot: {
+        id: 'workbook-1',
+        name: 'Workbook',
+        sheetOrder: ['sheet-1'],
+        sheets: {
+          'sheet-1': {
+            id: 'sheet-1',
+            name: 'Sheet 1',
+            cellData: {
+              0: {
+                0: { v: 1 },
+                1: { v: 2 },
+                2: { v: 4 }
+              }
+            }
+          }
+        }
+      },
+      updatedAt: null
+    } as any)
+
+    const requestGridRefresh = jest.fn()
+    const syncSheetRowsIntoLocalState = jest.fn()
+    const rememberKnownSheetVersion = jest.fn()
+    const updateActiveSheetVersion = jest.fn()
+
+    const activeSheet = {
+      id: 'sheet-1',
+      name: 'Sheet 1',
+      viewType: 'table',
+      columns: [col('col-a', 'A', 0), col('col-b', 'B', 1), col('col-c', 'C', 2)],
+      views: [],
+      data: [],
+      settings: {}
+    } as any
+
+    const appSheetsRef = {
+      current: [activeSheet]
+    }
+
+    const { result } = renderHook(() =>
+      useSpreadsheetRemoteSyncController({
+        appId: 'app-1',
+        activeSheetId: 'sheet-1',
+        activeSheet,
+        preferUniverNativeSheetTabs: false,
+        entityEnabled: false,
+        activeSheetIdRef: { current: 'sheet-1' },
+        appSheetsRef,
+        workbookSnapshotVersionRef: { current: 0 },
+        pendingCreatedSheetSelectionRef: { current: null },
+        createdSheetIdAliasesRef: { current: new Map() },
+        collaborationManagerRef: { current: null },
+        mutationFacadeRef: { current: null },
+        sheetsNeedingGridMaterializationRef: { current: new Map() },
+        snapshotSaveMetricsRef: { current: { fallbackLoads: 0 } },
+        spreadsheetSession: {
+          replaceSheetState: jest.fn(),
+          clearDirty: jest.fn(),
+          capturePersistedBaseline: jest.fn()
+        } as any,
+        enqueueDiagnosticsTraceEvent: jest.fn(),
+        activeTraceSessionRef: { current: null },
+        debugLog: jest.fn(),
+        rememberKnownSheetVersion,
+        updateActiveSheetVersion,
+        resolveKnownSheetVersion: jest.fn(() => 0),
+        syncSheetRowsIntoLocalState,
+        setBootstrapSnapshot: jest.fn(),
+        requestGridRefresh,
+        getKnownRowsForSheet: jest.fn(() => []),
+        hasPendingCellPersistence: jest.fn(() => false),
+        hasPendingPersistenceForSheet: jest.fn(() => false),
+        getActiveSessionVersion: jest.fn(() => 0),
+        sheetMetadataReloadEnabled: false,
+        scheduleSheetVersionRefreshFromApiRef: { current: jest.fn() },
+        conflictRecovery: {
+          onRecoverSuccess: jest.fn(),
+          onRecoverError: jest.fn(),
+          translatePersistRecoveryFailed: jest.fn(() => 'failed')
+        }
+      })
+    )
+
+    await result.current.reloadSheetFromCanonicalSnapshot('remote-structural-resync', 'sheet-1')
+
+    await waitFor(() => expect(requestGridRefresh).toHaveBeenCalled())
+
+    const refreshedSnapshot = requestGridRefresh.mock.calls[0][0] as {
+      sheets: Record<string, { cellData: Record<string, Record<string, { v?: unknown }>> }>
+    }
+
+    expect(syncSheetRowsIntoLocalState).toHaveBeenCalledWith(
+      'sheet-1',
+      [{ _id: 'row-1', A: 1, B: 2, C: 4 }],
+      expect.objectContaining({
+        persisted: true,
+        syncGrid: true,
+        recoveredSheetMeta: expect.objectContaining({
+          columns: [
+            expect.objectContaining({ id: 'col-a', order: 0 }),
+            expect.objectContaining({ id: 'col-c', order: 1 }),
+            expect.objectContaining({ id: 'col-b', order: 2 })
+          ]
+        })
+      })
+    )
+    expect(rememberKnownSheetVersion).toHaveBeenCalledWith('sheet-1', 3)
+    expect(updateActiveSheetVersion).not.toHaveBeenCalled()
+    expect(refreshedSnapshot.sheets['sheet-1'].cellData['0']['0'].v).toBe(1)
+    expect(refreshedSnapshot.sheets['sheet-1'].cellData['0']['1'].v).toBe(4)
+    expect(refreshedSnapshot.sheets['sheet-1'].cellData['0']['2'].v).toBe(2)
+  })
+})

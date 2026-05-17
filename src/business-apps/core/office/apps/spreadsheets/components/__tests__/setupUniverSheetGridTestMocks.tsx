@@ -24,15 +24,27 @@ export let lastRangeGetValueMock: jest.Mock | undefined
 export let lastRangeGetCellDataMock: jest.Mock | undefined
 export let lastRangeSetValueMock: jest.Mock | undefined
 export let inactiveSheetSetValueMock: jest.Mock | undefined
+export let lastSetFreezeMock: jest.Mock | undefined
+export let lastCancelFreezeMock: jest.Mock | undefined
 export let univerMockActiveSheetId: 'sheet-1' | 'sheet-2' = 'sheet-1'
-export let worksheetValueByCoord: Map<string, unknown> | null = null
-export let worksheetCellDataByCoord: Map<string, unknown> | null = null
-export let worksheetCellRectByCoord: Map<
-  string,
-  { left: number; top: number; width: number; height: number } | null
-> | null = null
-export let workbookSnapshotOverride: Record<string, unknown> | null = null
-export let selectionState: { actualRow?: number; actualColumn?: number; row?: number; column?: number } | null = null
+
+/** Mutable test overrides; assign via this object (not namespace imports) from test files. */
+export const gridTestMockState = {
+  worksheetValueByCoord: null as Map<string, unknown> | null,
+  worksheetCellDataByCoord: null as Map<string, unknown> | null,
+  worksheetCellRectByCoord: null as Map<
+    string,
+    { left: number; top: number; width: number; height: number } | null
+  > | null,
+  workbookSnapshotOverride: null as Record<string, unknown> | null,
+  selectionState: null as {
+    actualRow?: number
+    actualColumn?: number
+    row?: number
+    column?: number
+  } | null
+}
+
 export let executeCommandMock: jest.Mock | undefined
 export let createWorkbookMock: jest.Mock | undefined
 export let createWorkbookSnapshots: Record<string, unknown>[] = []
@@ -72,8 +84,8 @@ jest.mock(
         getCellData: jest.fn(() => ({ v: undefined })),
         getCellRect: jest.fn((row = 0, col = 0) => {
           const key = `${row}:${col}`
-          if (worksheetCellRectByCoord?.has(key)) {
-            return worksheetCellRectByCoord.get(key) ?? null
+          if (gridTestMockState.worksheetCellRectByCoord?.has(key)) {
+            return gridTestMockState.worksheetCellRectByCoord.get(key) ?? null
           }
           return {
             left: 48 + col * 73,
@@ -86,26 +98,37 @@ jest.mock(
       lastRangeGetValueMock = range.getValue
       lastRangeGetCellDataMock = range.getCellData
       lastRangeSetValueMock = range.setValue as jest.Mock
+      lastSetFreezeMock = jest.fn()
+      lastCancelFreezeMock = jest.fn()
       const activeSheet = {
         getSheetId: () => 'sheet-1',
         getScrollState: () => ({ sheetViewStartRow: 0, sheetViewStartColumn: 0, offsetX: 0, offsetY: 0 }),
         onScroll: () => ({ dispose: jest.fn() }),
+        setFreeze: lastSetFreezeMock,
+        cancelFreeze: lastCancelFreezeMock,
         getRange: (row?: number, col?: number) => {
           const key = `${row ?? ''}:${col ?? ''}`
           return {
             setValue: range.setValue,
-            getValue: () => (worksheetValueByCoord?.has(key) ? worksheetValueByCoord.get(key) : range.getValue()),
+            getValue: () =>
+              gridTestMockState.worksheetValueByCoord?.has(key)
+                ? gridTestMockState.worksheetValueByCoord.get(key)
+                : range.getValue(),
             getCellData: () =>
-              worksheetCellDataByCoord?.has(key) ? worksheetCellDataByCoord.get(key) : range.getCellData(),
+              gridTestMockState.worksheetCellDataByCoord?.has(key)
+                ? gridTestMockState.worksheetCellDataByCoord.get(key)
+                : range.getCellData(),
             getCellRect: () => range.getCellRect(row, col)
           }
         },
         getSelection: () => ({
-          getCurrentCell: () => selectionState
+          getCurrentCell: () => gridTestMockState.selectionState
         })
       }
       const inactiveSheet = {
         getSheetId: () => 'sheet-2',
+        setFreeze: lastSetFreezeMock,
+        cancelFreeze: lastCancelFreezeMock,
         getRange: jest.fn(() => {
           inactiveSheetSetValueMock = jest.fn()
           return {
@@ -127,7 +150,7 @@ jest.mock(
         getSheets: () => [activeSheet, inactiveSheet],
         getSheetBySheetId: (sheetId: string) => (sheetId === 'sheet-2' ? inactiveSheet : undefined),
         save: () =>
-          workbookSnapshotOverride ?? {
+          gridTestMockState.workbookSnapshotOverride ?? {
             sheetOrder: ['sheet-1'],
             sheets: {
               'sheet-1': {
@@ -180,12 +203,14 @@ export function resetUniverSheetGridTestMocks(): void {
   lastRangeGetCellDataMock = undefined
   lastRangeSetValueMock = undefined
   inactiveSheetSetValueMock = undefined
+  lastSetFreezeMock = undefined
+  lastCancelFreezeMock = undefined
   univerMockActiveSheetId = 'sheet-1'
-  worksheetValueByCoord = null
-  worksheetCellDataByCoord = null
-  worksheetCellRectByCoord = null
-  workbookSnapshotOverride = null
-  selectionState = null
+  gridTestMockState.worksheetValueByCoord = null
+  gridTestMockState.worksheetCellDataByCoord = null
+  gridTestMockState.worksheetCellRectByCoord = null
+  gridTestMockState.workbookSnapshotOverride = null
+  gridTestMockState.selectionState = null
   executeCommandMock = undefined
   createWorkbookMock = undefined
   createWorkbookSnapshots = []

@@ -187,6 +187,41 @@ describe('createSpreadsheetMutationFacade', () => {
     saveSpy.mockRestore()
   })
 
+  it('submits moveCellRange as a single move_cell_range batch op with fromRange/toRange', async () => {
+    const submitBatch = jest.fn().mockResolvedValue({
+      sheetId: 'sheet-1',
+      newVersion: 7,
+      appliedOperations: [],
+      operationResults: []
+    })
+    const facade = createSpreadsheetMutationFacade({
+      appId: 'app-1',
+      submitBatch
+    })
+
+    await facade.moveCellRange(
+      'sheet-1',
+      { startRow: 1, endRow: 2, startColumn: 3, endColumn: 4 },
+      { startRow: 5, endRow: 6, startColumn: 7, endColumn: 8 }
+    )
+
+    expect(submitBatch).toHaveBeenCalledTimes(1)
+    const request = submitBatch.mock.calls[0][0]
+    expect(request.sheetId).toBe('sheet-1')
+    expect(request.batchIdPrefix).toBe('move_cell_range')
+    expect(request.operations).toHaveLength(1)
+    expect(request.operations[0]).toMatchObject({
+      type: 'move_cell_range',
+      data: {
+        sheetId: 'sheet-1',
+        fromRange: { startRow: 1, endRow: 2, startColumn: 3, endColumn: 4 },
+        toRange: { startRow: 5, endRow: 6, startColumn: 7, endColumn: 8 }
+      }
+    })
+    expect(typeof request.operations[0].operationId).toBe('string')
+    expect(request.operations[0].operationId).toMatch(/^move_cell_range/)
+  })
+
   it('routes updateAppMetadata through SpreadsheetApiService.updateApp', async () => {
     const updateSpy = jest.spyOn(SpreadsheetApiService, 'updateApp').mockResolvedValue({ id: 'app-1' } as never)
     const facade = createSpreadsheetMutationFacade({

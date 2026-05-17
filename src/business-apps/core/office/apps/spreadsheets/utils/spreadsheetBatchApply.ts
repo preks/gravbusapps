@@ -1,6 +1,12 @@
 import type { SpreadsheetColumn } from '../types'
 import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
 import { mergeInsertedRowsAtIndex } from './spreadsheetInsertRowsAt'
+import { applyMoveCellRangeTransform } from './applyMoveCellRangeTransform'
+import {
+  applyDeleteRowSlotsTransform,
+  applyInsertRowSlotsTransform,
+  applyMoveRowSlotsTransform
+} from './spreadsheetRowSlotTransforms'
 import {
   getSpreadsheetRowRefIdentity,
   getCanonicalRowId,
@@ -169,9 +175,70 @@ export const applyAuthoritativeBatchResponseToRows = (
         )
         break
       }
+      case 'insert_row_slots': {
+        const result = resultByOperationId.get(operation.operationId) ?? {}
+        const startGridRowIndex = Number(payload.startGridRowIndex ?? result.startGridRowIndex ?? nextRows.length)
+        const count = Number(payload.count ?? result.count ?? 0)
+        nextRows = applyInsertRowSlotsTransform(
+          nextRows,
+          Number.isFinite(startGridRowIndex) ? startGridRowIndex : nextRows.length,
+          Number.isFinite(count) ? count : 0,
+          mapAddedRowsFromDeltaResult(result)
+        )
+        break
+      }
       case 'delete_rows':
         nextRows = applyDeleteRowsDelta(nextRows, payload)
         break
+      case 'delete_row_slots': {
+        const startGridRowIndex = Number(payload.startGridRowIndex ?? 0)
+        const count = Number(payload.count ?? 0)
+        nextRows = applyDeleteRowSlotsTransform(
+          nextRows,
+          Number.isFinite(startGridRowIndex) ? startGridRowIndex : 0,
+          Number.isFinite(count) ? count : 0
+        )
+        break
+      }
+      case 'move_row_slots': {
+        const sourceStartGridRowIndex = Number(payload.sourceStartGridRowIndex ?? 0)
+        const destinationGridRowIndex = Number(payload.destinationGridRowIndex ?? 0)
+        const count = Number(payload.count ?? 0)
+        nextRows = applyMoveRowSlotsTransform(
+          nextRows,
+          Number.isFinite(sourceStartGridRowIndex) ? sourceStartGridRowIndex : 0,
+          Number.isFinite(count) ? count : 0,
+          Number.isFinite(destinationGridRowIndex) ? destinationGridRowIndex : 0
+        )
+        break
+      }
+      case 'move_cell_range': {
+        const fromRange = payload.fromRange as Record<string, unknown> | undefined
+        const toRange = payload.toRange as Record<string, unknown> | undefined
+        if (fromRange && toRange && columns) {
+          const visibleColumns = columns.filter(column => column.isVisible !== false)
+          const columnNamesByGridIndex = visibleColumns.map(column =>
+            typeof column?.name === 'string' ? column.name : null
+          )
+          nextRows = applyMoveCellRangeTransform({
+            rows: nextRows,
+            columnNamesByGridIndex,
+            fromRange: {
+              startRow: Number(fromRange.startRow ?? 0),
+              endRow: Number(fromRange.endRow ?? 0),
+              startColumn: Number(fromRange.startColumn ?? 0),
+              endColumn: Number(fromRange.endColumn ?? 0)
+            },
+            toRange: {
+              startRow: Number(toRange.startRow ?? 0),
+              endRow: Number(toRange.endRow ?? 0),
+              startColumn: Number(toRange.startColumn ?? 0),
+              endColumn: Number(toRange.endColumn ?? 0)
+            }
+          })
+        }
+        break
+      }
       default:
         break
     }

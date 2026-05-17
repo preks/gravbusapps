@@ -164,6 +164,9 @@ export function useSpreadsheetRemoteSyncController(
         if (!targetSheet) return false
         const snapshot = await SpreadsheetApiService.getSheetSnapshot(params.appId, targetSheetId)
         const recoveredSheetMeta = (snapshot.sheet as unknown as SpreadsheetSheet | undefined) ?? targetSheet
+        const appSheetsWithRecoveredMeta = params.appSheetsRef.current.map(sheet =>
+          sheet.id === targetSheetId ? { ...sheet, ...recoveredSheetMeta } : sheet
+        )
         const rows = sortSpreadsheetRowsBySheetSettings(
           mapSnapshotRowsToViewerRows(snapshot.rows || []),
           recoveredSheetMeta
@@ -185,12 +188,12 @@ export function useSpreadsheetRemoteSyncController(
           if (univerData?.snapshot && typeof univerData.snapshot === 'object') {
             let snap = normalizeWorkbookSnapshotToAppSheets(
               univerData.snapshot as Record<string, unknown>,
-              params.appSheetsRef.current
+              appSheetsWithRecoveredMeta
             )
             snap = stripWorkbookSnapshotValuesPreservingFormatting(snap)
             const columnsForMerge =
               (Array.isArray(sheetMeta?.columns) ? (sheetMeta.columns as SpreadsheetColumn[]) : null) ??
-              params.appSheetsRef.current.find(s => s.id === targetSheetId)?.columns ??
+              appSheetsWithRecoveredMeta.find(s => s.id === targetSheetId)?.columns ??
               []
             if (columnsForMerge.length > 0) {
               const merged = overlaySnapshotIfRowsMismatch(snap, targetSheetId, rows, columnsForMerge)
