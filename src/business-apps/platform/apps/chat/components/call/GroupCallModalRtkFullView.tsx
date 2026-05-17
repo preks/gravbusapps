@@ -244,6 +244,7 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                         t={state.t}
                         prefixDataTestId={`${prefixDataTestId}-filmstrip`}
                         isMinimized={callState.isMinimized}
+                        isMirrorEnabled={state.isMirrorEnabled}
                       />
                     ) : (
                       (() => {
@@ -305,6 +306,7 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                                   isActiveSpeaker={item.isActiveSpeaker}
                                   reactions={hideReactionsAndHandRaise ? [] : state.activeReactions}
                                   isMinimized={callState.isMinimized}
+                                  isMirrored={item.isLocal && state.isMirrorEnabled}
                                   onScreenShareClick={() => {
                                     if (item.screenShareTrack) {
                                       state.setFocusedScreenShareId(item.peerId)
@@ -386,6 +388,7 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                         isActiveSpeaker={item.isActiveSpeaker}
                         reactions={hideReactionsAndHandRaise ? [] : state.activeReactions}
                         isMinimized={callState.isMinimized}
+                        isMirrored={item.isLocal && state.isMirrorEnabled}
                         onScreenShareClick={() => {
                           if (item.screenShareTrack) {
                             state.setFocusedScreenShareId(item.peerId)
@@ -506,6 +509,8 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
               backgroundEnabled={callState.backgroundEnabled}
               handRaised={hideReactionsAndHandRaise ? false : state.effectiveLocalHandRaised}
               transcriptionActive={transcriptionEnabled}
+              isMirrorEnabled={state.isMirrorEnabled}
+              onToggleMirror={state.toggleMirror}
               onToggleMute={onToggleMute}
               onToggleVideo={onToggleVideo}
               onToggleScreenShare={onToggleScreenShare}

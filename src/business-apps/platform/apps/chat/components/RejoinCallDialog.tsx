@@ -253,7 +253,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                         autoPlay
                         playsInline
                         muted
-                        className="gba:w-full gba:h-full gba:object-cover"
+                        className="gba:w-full gba:h-full gba:object-cover gba:scale-x-[-1]"
                       />
                       {isLoadingPreview && (
                         <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-gray-800/70">
