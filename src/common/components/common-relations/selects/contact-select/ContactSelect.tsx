@@ -683,7 +683,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                   data-testid={formatDataTestId(dataTestId || 'contact-list', `remove-contact-${index}`)}
                   aria-label={`Remove ${displayName}`}
                 >
-                  <XIcon className="gba:w-4 gba:h-4" />
+                  <XIcon className="gba:w-4 gba:h-4 gba:text-destructive gba:stroke-destructive" />
                 </Button>
               </div>
             )

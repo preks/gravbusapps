@@ -501,11 +501,11 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
                   variant="ghost"
                   size="icon"
                   onClick={() => handleRemoveAccount(accountId)}
-                  className="gba:flex-shrink-0 gba:text-destructive hover:gba:text-destructive/80"
+                  className="gba:flex-shrink-0 !gba:text-destructive hover:!gba:text-destructive/80"
                   data-testid={formatDataTestId(dataTestId || 'account-list', `remove-account-${index}`)}
                   aria-label={`Remove ${accountData.label}`}
                 >
-                  <XIcon className="gba:w-4 gba:h-4" />
+                  <XIcon className="gba:w-4 gba:h-4 !gba:text-destructive" />
                 </Button>
               </div>
             )

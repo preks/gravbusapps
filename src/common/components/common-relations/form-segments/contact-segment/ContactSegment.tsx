@@ -147,9 +147,9 @@ const ContactItem: React.FC<{
   }, [contactId, contactRelations, contacts])
 
   return (
-    <div className="gba:flex gba:items-center gba:gap-3 gba:py-2">
+    <div className="gba:flex gba:items-center gba:gap-3 gba:py-2 gba:w-full gba:min-w-0">
       {/* Avatar */}
-      <Avatar className="gba:flex-shrink-0" size="sm">
+      <Avatar className="gba:shrink-0" size="sm">
         {contactData.pictureThumbnail ? (
           <AvatarImage src={`data:image/gif;base64,${contactData.pictureThumbnail}`} alt={contactData.name} />
         ) : (
@@ -160,7 +160,7 @@ const ContactItem: React.FC<{
       </Avatar>
 
       {/* Contact Info */}
-      <div className="gba:flex-1 gba:min-w-0">
+      <div className="gba:flex-1 gba:min-w-0 gba:overflow-hidden">
         <h4 className="gba:text-sm gba:font-semibold gba:truncate">{contactData.name}</h4>
         {(contactData.jobPosition || contactData.department) && (
           <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
@@ -170,7 +170,7 @@ const ContactItem: React.FC<{
       </div>
 
       {/* Contact Type Select */}
-      <div className="gba:w-48">
+      <div className="gba:w-48 gba:shrink-0">
         <FormField
           control={form.control}
           name={`${fieldArrayName}.${contactIndex}.${contactTypeFieldName}`}
@@ -199,18 +199,20 @@ const ContactItem: React.FC<{
       </div>
 
       {/* Remove Button */}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={onRemove}
-        className="gba:flex-shrink-0 gba:text-destructive hover:gba:text-destructive/80"
-        data-testid={formatDataTestId(dataTestId || 'contact-segment', `remove-contact-${contactIndex}`)}
-        aria-label={`Remove ${contactData.name}`}
-        disabled={disabled}
-      >
-        <XIcon className="gba:w-4 gba:h-4" />
-      </Button>
+      <div className="gba:w-8 gba:shrink-0 gba:flex gba:justify-center">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onRemove}
+          className="gba:text-destructive hover:gba:text-destructive/80"
+          data-testid={formatDataTestId(dataTestId || 'contact-segment', `remove-contact-${contactIndex}`)}
+          aria-label={`Remove ${contactData.name}`}
+          disabled={disabled}
+        >
+          <XIcon className="gba:w-4 gba:h-4 gba:text-destructive" />
+        </Button>
+      </div>
     </div>
   )
 }
@@ -281,10 +283,13 @@ const ContactSegment: React.FC<ContactSegmentProps> = ({
   }
 
   return (
-    <div className="gba:space-y-2" data-testid={dataTestId}>
+    <div className="gba:space-y-2 gba:w-full gba:max-w-full gba:min-w-0" data-testid={dataTestId}>
       {/* Selected Contacts List */}
       {fields.length > 0 && (
-        <div className="gba:space-y-0" data-testid={formatDataTestId(dataTestId, 'selected-list')}>
+        <div
+          className="gba:space-y-0 gba:w-full gba:min-w-0"
+          data-testid={formatDataTestId(dataTestId, 'selected-list')}
+        >
           {fields.map((field, index) => (
             <ContactItem
               key={field.id}
