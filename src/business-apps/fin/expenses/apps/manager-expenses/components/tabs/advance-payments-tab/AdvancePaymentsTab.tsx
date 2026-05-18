@@ -7,11 +7,9 @@ import {
   useSearchHandler,
   useCurrencyChangeHandler,
   useVisibleColumns,
-  useCurrencySecondaryAction,
-  useEmptyMessage
+  useCurrencySecondaryAction
 } from '../../../hooks/useTabState'
 import { DataDisplay, useTranslation } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import translations from '../../../_i18n'
 import { advancePaymentFilterStatuses } from '../../../hooks/availableFilterStatuses'
@@ -25,8 +23,7 @@ import { useAdvancePaymentsOverviewData } from '../../../hooks/useAdvancePayment
 import { createAdvancePaymentFilterConfig } from './config/advancePaymentFilterConfig'
 import { buildAdvancePaymentOrderBy } from './config/advancePaymentOrderBy'
 import { ADVANCE_PAYMENT_DEFAULT_VISIBLE_COLUMN_IDS } from './config/advancePaymentColumnDefinitions'
-import { advancePaymentSortableColumns } from './config/advancePaymentSortableColumns'
-import { advancePaymentAvailableColumns } from './config/advancePaymentAvailableColumns'
+import { buildAdvancePaymentSortableColumns } from './config/advancePaymentSortableColumns'
 import type { AdvancePayment } from '../../../hooks/useMainViewAdvancePayments'
 import {
   applyAmountRangeFromFilters,
@@ -85,7 +82,8 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       createAdvancePaymentFilterConfig({
         statusOptions: advancePaymentFilterStatuses,
         filterLabelMap,
-        statusGroupLabel: t('filter-status-group-title')
+        statusGroupLabel: t('filter-status-group-title'),
+        t
       }),
     [filterLabelMap, t]
   )
@@ -159,11 +157,13 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     return hasSearch || hasStatus || !!primaryCurrency || hasAmount
   }, [searchTerm, statusFilter, primaryCurrency, amountRange])
 
-  const emptyMessage = useEmptyMessage(
-    hasActiveFilters,
-    'lowcoder:manager_expense_landing_page.no_advance_payments_created_by_team',
-    'No advance payment created by your team yet.'
+  const emptyMessage = useMemo(
+    () => (hasActiveFilters ? t('advance-payments-empty-filtered') : t('advance-payments-empty-no-team')),
+    [hasActiveFilters, t]
   )
+
+  const advancePaymentSortableColumns = useMemo(() => buildAdvancePaymentSortableColumns(t), [t])
+  const advancePaymentAvailableColumns = advancePaymentSortableColumns
 
   const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, advancePaymentAvailableColumns)
 
@@ -193,19 +193,13 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
         titleSections={[
           {
             id: 'list',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:backoffice_expense_landing_page.advance_title',
-              'Advance Payments'
-            ),
+            label: t('advance-payments-list-section-title'),
             metadata: { count: totalCount, isLoading: paymentsLoading }
           }
         ]}
         currentSection="list"
         searchValue={searchTerm}
-        searchPlaceholder={
-          getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
-          '...'
-        }
+        searchPlaceholder={t('advance-payments-search-placeholder')}
         onSearchChange={handleSearchChange}
         filters={filtersObject}
         filterConfiguration={filterConfiguration}
@@ -245,10 +239,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       <DetailsSheet
         open={!!selectedPayment}
         onOpenChange={open => !open && setSelectedPayment(null)}
-        title={
-          selectedPayment?.expensePlan?.title ||
-          getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')
-        }
+        title={selectedPayment?.expensePlan?.title || t('advance-payments-details-title')}
         testId="advance-payments-details-sheet"
         onClose={() => setSelectedPayment(null)}
       >

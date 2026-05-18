@@ -14,8 +14,7 @@ import { useExpenseRequestsOverviewData } from '../../../hooks/useExpenseRequest
 import { createExpenseRequestFilterConfig } from './config/expenseRequestFilterConfig'
 import { buildExpenseRequestOrderBy } from './config/expenseRequestOrderBy'
 import { EXPENSE_REQUEST_DEFAULT_VISIBLE_COLUMN_IDS } from './config/expenseRequestColumnDefinitions'
-import { expenseRequestSortableColumns } from './config/expenseRequestSortableColumns'
-import { expenseRequestAvailableColumns } from './config/expenseRequestAvailableColumns'
+import { buildExpenseRequestSortableColumns } from './config/expenseRequestSortableColumns'
 import { formatDateRangeForChip, applyDateRangeFromFilter } from '../../../../../common/utils/dateRangeFilterUtils'
 import {
   applyAmountRangeFromFilters,
@@ -29,8 +28,7 @@ import {
   useSearchHandler,
   useCurrencyChangeHandler,
   useVisibleColumns,
-  useCurrencySecondaryAction,
-  useEmptyMessage
+  useCurrencySecondaryAction
 } from '../../../hooks/useTabState'
 import type { ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
 
@@ -111,7 +109,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       createExpenseRequestFilterConfig({
         statusOptions: requestFilterStatuses,
         filterLabelMap,
-        statusGroupLabel: t('filter-status-group-title')
+        statusGroupLabel: t('filter-status-group-title'),
+        t
       }),
     [filterLabelMap, t]
   )
@@ -239,11 +238,13 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     totalAmountRange
   ])
 
-  const emptyMessage = useEmptyMessage(
-    hasActiveFilters,
-    'lowcoder:manager_expense_landing_page.no_requests_created_by_team',
-    'No expense request created by your team yet.'
+  const emptyMessage = useMemo(
+    () => (hasActiveFilters ? t('expense-requests-empty-filtered') : t('expense-requests-empty-no-team')),
+    [hasActiveFilters, t]
   )
+
+  const expenseRequestSortableColumns = useMemo(() => buildExpenseRequestSortableColumns(t), [t])
+  const expenseRequestAvailableColumns = expenseRequestSortableColumns
 
   const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, expenseRequestAvailableColumns)
 

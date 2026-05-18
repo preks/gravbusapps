@@ -40,14 +40,10 @@ export function createDateRangeFilterGroup(
   }
 }
 
-export function createStatusFilterGroup(
+export function createStatusFilterGroupWithLabel(
   statusFilters: Array<{ id: string; label: string }>,
-  i18nKey = 'lowcoder:expense_request_list.expense_plan_table.status',
-  fallback = 'Status',
-  resolvedGroupLabel?: string
+  groupLabel: string
 ): FilterConfiguration['groups'][number] {
-  const groupLabel =
-    resolvedGroupLabel !== undefined ? resolvedGroupLabel : getTranslationFromI18nKeyAndLabel(i18nKey, fallback)
   return {
     id: 'status-group',
     label: groupLabel,
@@ -60,6 +56,97 @@ export function createStatusFilterGroup(
         label: groupLabel,
         type: 'multi-select',
         config: { options: statusFilters }
+      }
+    ]
+  }
+}
+
+/** Date-range filter group with Fluent label key + manager expense-plans date placeholders. */
+export function createFluentDateRangeFilterGroup(
+  t: (key: string) => string,
+  id: string,
+  field: string,
+  labelFluentKey: string,
+  groupInfo?: string
+): FilterConfiguration['groups'][number] {
+  const label = t(labelFluentKey)
+  return {
+    id: `${id}-group`,
+    label,
+    ...(groupInfo ? { info: groupInfo } : {}),
+    collapsible: true,
+    defaultExpanded: false,
+    filters: [
+      {
+        id: field,
+        field,
+        label,
+        type: 'date',
+        config: {
+          dateType: 'date' as const,
+          mode: 'range' as const,
+          placeholder: t('expense-plans-filter-placeholder-start-date'),
+          placeholderEnd: t('expense-plans-filter-placeholder-end-date'),
+          showClearButton: true
+        }
+      }
+    ]
+  }
+}
+
+/** Multi-select type filter with Fluent label key (manager expense requests / plans tabs). */
+export function createFluentTypeFilterGroup(
+  t: (key: string) => string,
+  id: string,
+  field: string,
+  labelFluentKey: string,
+  typeOptions: Array<{ id: string; label: string }>
+): FilterConfiguration['groups'][number] {
+  const label = t(labelFluentKey)
+  return {
+    id: `${id}-group`,
+    label,
+    collapsible: true,
+    defaultExpanded: false,
+    filters: [
+      {
+        id: field,
+        field,
+        label,
+        type: 'multi-select',
+        config: { options: typeOptions }
+      }
+    ]
+  }
+}
+
+/** Amount range filter with Fluent labels + expense-plans min/max placeholders (manager tabs). */
+export function createFluentExpenseAmountRangeFilterGroup(
+  t: (key: string) => string,
+  groupId: string,
+  field: string,
+  labelFluentKey: string
+): FilterConfiguration['groups'][number] {
+  const label = t(labelFluentKey)
+  return {
+    id: `${groupId}-group`,
+    label,
+    collapsible: true,
+    defaultExpanded: false,
+    filters: [
+      {
+        id: field,
+        field,
+        label,
+        type: 'number',
+        config: {
+          mode: 'range' as const,
+          min: 0,
+          max: 10_000_000,
+          step: 0.01,
+          placeholderMin: t('expense-plans-filter-amount-min'),
+          placeholderMax: t('expense-plans-filter-amount-max')
+        }
       }
     ]
   }

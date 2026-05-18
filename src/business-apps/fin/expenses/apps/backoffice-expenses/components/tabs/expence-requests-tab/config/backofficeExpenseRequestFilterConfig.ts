@@ -2,9 +2,9 @@ import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createDateRangeFilterGroup,
-  createStatusFilterGroup,
+  createStatusFilterGroupWithLabel,
   createTypeFilterGroup
-} from '../../../../common/config/filterConfigHelpers'
+} from '@/business-apps/fin/expenses/common/config/filterConfigHelpers'
 
 /**
  * Options for building a {@link FilterConfiguration} aligned with backoffice list filters
@@ -81,7 +81,7 @@ export function createBackofficeExpenseRequestFilterConfig({
         }
       ]
     },
-    createStatusFilterGroup(statusFilters),
+    createStatusFilterGroupWithLabel(statusFilters, t('filter-status')),
     createTypeFilterGroup(
       'requestType',
       'requestTypeIds',

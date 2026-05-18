@@ -1,4 +1,3 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpenseStatus, getExpensePlanStatusDisplayT, getExpenseRequestStatusDisplayT } from '../../../utils'
 import type { ExpenseTimelineEvent, ExpenseTimelineItem, TeamEmployee } from './expenseCalendarTypes'
 
@@ -40,19 +39,17 @@ export function buildTimelineItems(params: {
   allTeamMembers: TeamEmployee[]
   expensePlans: any[]
   expenseRequests: any[]
+  t: (key: string) => string
 }): ExpenseTimelineItem[] {
-  const { allTeamMembers, expensePlans, expenseRequests } = params
+  const { allTeamMembers, expensePlans, expenseRequests, t } = params
   const employeesMap = new Map<string, ExpenseTimelineItem>()
+  const unknownEmployeeLabel = t('expense-calendar-unknown-employee')
 
   for (const member of allTeamMembers) {
     if (!member.id) continue
     employeesMap.set(member.id, {
       id: member.id,
-      name:
-        member.fullName ||
-        member.displayName ||
-        `${member.firstName} ${member.lastName}` ||
-        getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
+      name: member.fullName || member.displayName || `${member.firstName} ${member.lastName}` || unknownEmployeeLabel,
       detail: member.employeePosition?.organizationalUnit?.name || member.department || ''
     })
   }
@@ -62,10 +59,7 @@ export function buildTimelineItems(params: {
     if (emp?.id && !employeesMap.has(emp.id)) {
       employeesMap.set(emp.id, {
         id: emp.id,
-        name:
-          emp.fullName ??
-          emp.displayName ??
-          getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
+        name: emp.fullName ?? emp.displayName ?? unknownEmployeeLabel,
         detail: emp.employeePosition?.organizationalUnit?.name ?? ''
       })
     }
@@ -76,10 +70,7 @@ export function buildTimelineItems(params: {
     if (emp?.id && !employeesMap.has(emp.id)) {
       employeesMap.set(emp.id, {
         id: emp.id,
-        name:
-          emp.fullName ??
-          emp.displayName ??
-          getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
+        name: emp.fullName ?? emp.displayName ?? unknownEmployeeLabel,
         detail: emp.employeePosition?.organizationalUnit?.name ?? ''
       })
     }
@@ -96,6 +87,8 @@ export function buildTimelineEvents(params: {
 }): ExpenseTimelineEvent[] {
   const { expensePlans, expenseRequests, userLocale, t } = params
   const events: ExpenseTimelineEvent[] = []
+  const fallbackPlanTitle = t('expense-calendar-event-fallback-plan')
+  const fallbackRequestTitle = t('expense-calendar-event-fallback-request')
 
   for (const plan of expensePlans || []) {
     const fallbackDate = plan.planDate
@@ -104,6 +97,7 @@ export function buildTimelineEvents(params: {
     if (!eventStartDate || !eventEndDate) continue
 
     const statusDisplay = getExpensePlanStatusDisplayT(t, plan.status as ExpenseStatus)
+    const planTitle = plan.title || fallbackPlanTitle
     events.push({
       id: `plan-${plan.id}`,
       itemId: plan.employee?.id || 'unknown',
@@ -111,11 +105,11 @@ export function buildTimelineEvents(params: {
       endDate: new Date(eventEndDate).toISOString(),
       type: mapToCalendarTimelineType(statusDisplay.type),
       color: getColorForPillType(statusDisplay.type),
-      note: `${plan.title || 'Expense Plan'} - ${statusDisplay.label} (${new Date(eventStartDate).toLocaleDateString(
+      note: `${planTitle} - ${statusDisplay.label} (${new Date(eventStartDate).toLocaleDateString(
         userLocale
       )} - ${new Date(eventEndDate).toLocaleDateString(userLocale)})`,
       status: statusDisplay.label,
-      title: plan.title || 'Expense Plan',
+      title: planTitle,
       eventType: 'Plan'
     })
   }
@@ -128,6 +122,7 @@ export function buildTimelineEvents(params: {
     if (!request.employee?.id) continue
 
     const statusDisplay = getExpenseRequestStatusDisplayT(t, request.status as ExpenseStatus)
+    const requestTitle = request.title || fallbackRequestTitle
     events.push({
       id: `request-${request.id}`,
       itemId: request.employee.id,
@@ -135,11 +130,11 @@ export function buildTimelineEvents(params: {
       endDate: new Date(eventEndDate).toISOString(),
       type: mapToCalendarTimelineType(statusDisplay.type),
       color: getColorForPillType(statusDisplay.type),
-      note: `${request.title || 'Expense Request'} - ${statusDisplay.label} (${new Date(
-        eventStartDate
-      ).toLocaleDateString(userLocale)} - ${new Date(eventEndDate).toLocaleDateString(userLocale)})`,
+      note: `${requestTitle} - ${statusDisplay.label} (${new Date(eventStartDate).toLocaleDateString(
+        userLocale
+      )} - ${new Date(eventEndDate).toLocaleDateString(userLocale)})`,
       status: statusDisplay.label,
-      title: request.title || 'Expense Request',
+      title: requestTitle,
       eventType: 'Request'
     })
   }

@@ -10,7 +10,7 @@ import {
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { getAdvancePaymentStatusDisplayT } from '../../../utils'
 import type { AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments'
-import { getAdvancePaymentColumnHeader } from './config/advancePaymentColumnDefinitions'
+import { getAdvancePaymentColumnTitle } from './config/advancePaymentColumnDefinitions'
 
 /**
  * Builds column definitions for the manager advance payments table.
@@ -34,7 +34,14 @@ export function createAdvancePaymentColumns(
     {
       id: 'expensePlan.title',
       accessorFn: (row: AdvancePaymentItem) => row.expensePlan?.title ?? null,
-      header: getAdvancePaymentColumnHeader('expensePlan.title'),
+      header: () => {
+        const label = getAdvancePaymentColumnTitle(t, 'expensePlan.title')
+        return (
+          <span className="gba:block gba:w-full gba:min-w-0 gba:truncate" title={label}>
+            {label}
+          </span>
+        )
+      },
       size: 200,
       minSize: 160,
       maxSize: 320,
@@ -47,28 +54,28 @@ export function createAdvancePaymentColumns(
     },
     createDateColumn<AdvancePaymentItem>(
       'expensePlan.startDate',
-      getAdvancePaymentColumnHeader('expensePlan.startDate'),
+      getAdvancePaymentColumnTitle(t, 'expensePlan.startDate'),
       (row: AdvancePaymentItem) => row.expensePlan?.startDate ?? null,
       { formatDate }
     ),
     createDateColumn<AdvancePaymentItem>(
       'expensePlan.endDate',
-      getAdvancePaymentColumnHeader('expensePlan.endDate'),
+      getAdvancePaymentColumnTitle(t, 'expensePlan.endDate'),
       (row: AdvancePaymentItem) => row.expensePlan?.endDate ?? null,
       { formatDate }
     ),
     createEmployeeColumn<AdvancePaymentItem>(
       'expensePlan.employee.fullName',
-      getAdvancePaymentColumnHeader('expensePlan.employee.fullName'),
+      getAdvancePaymentColumnTitle(t, 'expensePlan.employee.fullName'),
       (row: AdvancePaymentItem) => row.expensePlan?.employee ?? null,
       { showEmployeeAvatar: false }
     ),
-    createDateColumn<AdvancePaymentItem>('createdAt', getAdvancePaymentColumnHeader('createdAt'), 'createdAt', {
+    createDateColumn<AdvancePaymentItem>('createdAt', getAdvancePaymentColumnTitle(t, 'createdAt'), 'createdAt', {
       formatDate
     }),
     createCurrencyColumn<AdvancePaymentItem>(
       'amount',
-      getAdvancePaymentColumnHeader('amount'),
+      getAdvancePaymentColumnTitle(t, 'amount'),
       (row: AdvancePaymentItem) => (typeof row.amount === 'number' ? row.amount : 0),
       (row: AdvancePaymentItem) =>
         currencyFilter ? normalizeCurrency(currencyFilter) : normalizeCurrency(row.currencyRef),
@@ -76,7 +83,7 @@ export function createAdvancePaymentColumns(
     ),
     createStatusBadgeColumn<AdvancePaymentItem>(
       'status',
-      getAdvancePaymentColumnHeader('status'),
+      getAdvancePaymentColumnTitle(t, 'status'),
       (row: AdvancePaymentItem) => getAdvancePaymentStatusDisplayT(t, row.status)
     )
   ]

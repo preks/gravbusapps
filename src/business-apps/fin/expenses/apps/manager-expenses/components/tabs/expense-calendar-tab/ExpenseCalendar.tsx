@@ -2,12 +2,14 @@ import React, { useMemo } from 'react'
 import { Spinner, Alert, AlertDescription, Label, useTranslation } from '@newwork/nw-design-system'
 import { CalendarTimeline } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import type { ExpenseTimelineEvent, ExpenseTimelineItem } from './expenseCalendarTypes'
 import { useTeamMembersByManager } from './useTeamMembersByManager'
 import { buildAllStatusesLegendItems, buildTimelineEvents, buildTimelineItems } from './expenseCalendarTimelineUtils'
+import { useExpenseCalendarI18n } from './useExpenseCalendarI18n'
 import translations from '../../../_i18n'
+import './expense-calendar-tooltip.css'
 
 // Step 5: Overview limits for calendar. Review with product; a lower cap (e.g. 500) can reduce payload if acceptable for UX.
 const CALENDAR_OVERVIEW_REQUESTS_LIMIT = 1000
@@ -18,8 +20,8 @@ export type ExpenseCalendarProps = BusinessAppContextProps
 export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
   const { userInfo, accessToken } = props
   const { t } = useTranslation(translations)
-  // Memoize once so timelineEvents useMemo only recomputes when plans/requests change (PERFORMANCE-IMPROVEMENT-PLAN §2.3 / Step 5).
   const userLocale = useMemo(() => getCurrentActiveUserLocale(), [])
+  useExpenseCalendarI18n(t, userLocale)
 
   const managerId = userInfo?.employeeDetails?.employeeId || userInfo?.id || ''
 
@@ -44,8 +46,8 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
   const expenseRequests = overview.data?.expenseRequests || []
 
   const timelineItems = useMemo((): ExpenseTimelineItem[] => {
-    return buildTimelineItems({ allTeamMembers, expensePlans, expenseRequests })
-  }, [allTeamMembers, expensePlans, expenseRequests])
+    return buildTimelineItems({ allTeamMembers, expensePlans, expenseRequests, t })
+  }, [allTeamMembers, expensePlans, expenseRequests, t])
 
   const timelineEvents = useMemo((): ExpenseTimelineEvent[] => {
     return buildTimelineEvents({ expensePlans, expenseRequests, userLocale, t })
@@ -64,7 +66,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
       )
 
     const errorMessages = []
-    if (overview.error) errorMessages.push(`Error loading calendar data: ${overview.error}`)
+    if (overview.error) errorMessages.push(`${t('expense-calendar-error-loading')} ${overview.error}`)
     if (teamMembersError) errorMessages.push(teamMembersError)
     if (errorMessages.length > 0)
       return (
@@ -77,21 +79,12 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
     return (
       <div data-testid="expense-calendar-timeline">
         <CalendarTimeline<ExpenseTimelineItem, ExpenseTimelineEvent>
-          title={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.expense_calendar',
-            'Expense Calendar'
-          )}
+          title={t('team-expenses-tab-expense-calendar')}
           items={timelineItems}
           events={timelineEvents}
-          itemLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
-          itemDetailLabel={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_list.search_employee_list.recent_employees_table.department',
-            'Department'
-          )}
-          searchPlaceholder={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_table.employee_search_filter',
-            'Search Employee...'
-          )}
+          itemLabel={t('expense-plans-column-employee')}
+          itemDetailLabel={t('expense-plans-detail-department')}
+          searchPlaceholder={t('expense-calendar-search-placeholder')}
           renderItemContent={item => (
             <div className="gba:p-2">
               <Label className="gba:font-semibold">{item.name}</Label>

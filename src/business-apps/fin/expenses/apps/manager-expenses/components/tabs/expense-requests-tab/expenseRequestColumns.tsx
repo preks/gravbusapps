@@ -1,5 +1,4 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createDateColumn,
   createEmployeeColumn,
@@ -12,7 +11,7 @@ import {
 } from '../../../common/columns/expenseColumnHelpers'
 import { getExpenseRequestStatusDisplayT } from '../../../utils'
 import type { ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
-import { getExpenseRequestColumnHeader } from './config/expenseRequestColumnDefinitions'
+import { getExpenseRequestColumnTitle } from './config/expenseRequestColumnDefinitions'
 
 /**
  * Builds column definitions for the manager expense requests table.
@@ -29,7 +28,7 @@ export function createExpenseRequestColumns(
     {
       id: 'title',
       accessorKey: 'title',
-      header: getExpenseRequestColumnHeader('title'),
+      header: getExpenseRequestColumnTitle(t, 'title'),
       enableSorting: true,
       sortDescFirst: false,
       size: 200,
@@ -40,13 +39,13 @@ export function createExpenseRequestColumns(
           row.original.title,
           row.original.code,
           `expense-requests-title-${row.original.id}`,
-          getTranslationFromI18nKeyAndLabel('lowcoder:common.untitled_request', 'Untitled Request')
+          t('expense-requests-untitled-fallback')
         )
     },
     {
       id: 'planCode',
       accessorFn: (row: ExpenseRequest) => (row as any)?.expensePlan?.code ?? null,
-      header: getExpenseRequestColumnHeader('planCode'),
+      header: getExpenseRequestColumnTitle(t, 'planCode'),
       enableSorting: true,
       sortDescFirst: false,
       size: 120,
@@ -54,22 +53,22 @@ export function createExpenseRequestColumns(
       maxSize: 180,
       cell: ({ row }) => renderCodeCell((row.original as any)?.expensePlan?.code ?? null)
     },
-    createDateColumn<ExpenseRequest>('startDate', getExpenseRequestColumnHeader('startDate'), 'startDate', {
+    createDateColumn<ExpenseRequest>('startDate', getExpenseRequestColumnTitle(t, 'startDate'), 'startDate', {
       formatDate
     }),
-    createDateColumn<ExpenseRequest>('endDate', getExpenseRequestColumnHeader('endDate'), 'endDate', { formatDate }),
+    createDateColumn<ExpenseRequest>('endDate', getExpenseRequestColumnTitle(t, 'endDate'), 'endDate', { formatDate }),
     createEmployeeColumn<ExpenseRequest>(
       'employee',
-      getExpenseRequestColumnHeader('employee'),
+      getExpenseRequestColumnTitle(t, 'employee'),
       (row: ExpenseRequest) => row.employee ?? null,
       { showEmployeeAvatar: false }
     ),
-    createDateColumn<ExpenseRequest>('requestDate', getExpenseRequestColumnHeader('requestDate'), 'requestDate', {
+    createDateColumn<ExpenseRequest>('requestDate', getExpenseRequestColumnTitle(t, 'requestDate'), 'requestDate', {
       formatDate
     }),
     createCurrencyColumn<ExpenseRequest>(
       'totalAmount',
-      getExpenseRequestColumnHeader('totalAmount'),
+      getExpenseRequestColumnTitle(t, 'totalAmount'),
       (row: ExpenseRequest) => {
         if (typeof row.amount === 'number') return row.amount
         if (typeof row.totalAmount === 'number') return row.totalAmount
@@ -78,8 +77,10 @@ export function createExpenseRequestColumns(
       (row: ExpenseRequest) => currencyFilter ?? row.currency ?? 'EUR',
       formatCurrency
     ),
-    createStatusBadgeColumn<ExpenseRequest>('status', getExpenseRequestColumnHeader('status'), (row: ExpenseRequest) =>
-      getExpenseRequestStatusDisplayT(t, row.status)
+    createStatusBadgeColumn<ExpenseRequest>(
+      'status',
+      getExpenseRequestColumnTitle(t, 'status'),
+      (row: ExpenseRequest) => getExpenseRequestStatusDisplayT(t, row.status)
     )
   ]
 }

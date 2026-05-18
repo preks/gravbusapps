@@ -4,7 +4,6 @@ import type { SortingState } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { RowActionsWrapper, RowActionsIcon } from '../../../../../common/components/table/RowActionComponents'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments'
 import { ExpenseDataTable } from '../../../../../common/components/table/ExpenseDataTable'
@@ -92,15 +91,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
               ...(record.expensePlan?.id
                 ? [
                     {
-                      category: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:employee_list.flows_button.navigations',
-                        'Navigations'
-                      ),
+                      category: t('advance-payments-row-category-navigations'),
                       key: 'view-plan-details',
-                      label: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
-                        'View Plan Details'
-                      ),
+                      label: t('advance-payments-row-view-plan-details'),
                       onClick: (e?: React.MouseEvent) => {
                         e?.stopPropagation()
                         handleViewExpensePlanDetails(record)
@@ -114,15 +107,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
               record.expensePlan.expenseRequest[0].id
                 ? [
                     {
-                      category: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:employee_list.flows_button.navigations',
-                        'Navigations'
-                      ),
+                      category: t('advance-payments-row-category-navigations'),
                       key: 'view-request-details',
-                      label: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                        'View Request Details'
-                      ),
+                      label: t('advance-payments-row-view-request-details'),
                       onClick: (e?: React.MouseEvent) => {
                         e?.stopPropagation()
                         handleViewExpenseRequestDetails(record)
@@ -140,7 +127,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         </RowActionsWrapper>
       )
     },
-    [handleViewExpensePlanDetails, handleViewExpenseRequestDetails, contextProps.accessToken]
+    [handleViewExpensePlanDetails, handleViewExpenseRequestDetails, contextProps.accessToken, t]
   )
 
   const onRowClick = useCallback(

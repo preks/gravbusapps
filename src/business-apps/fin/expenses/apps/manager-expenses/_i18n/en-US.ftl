@@ -145,5 +145,162 @@ expense-requests-details-title = Expense Request Details
 expense-requests-section-title = Expense Requests
 expense-requests-search-placeholder = Search...
 
-# Advance payments tab
-advance_payments_tab_paid_and_transferred = Paid and transferred advance payments
+# Expense plans tab (transl.txt — backoffice_expense_landing_page, employee_list, team_expenses_page, etc.)
+
+expense-plans-list-section-title = Plans
+expense-plans-search-placeholder = Search...
+expense-plans-details-title = Expense Plan Details
+expense-plans-print-dialog-title = Print Expense Plan
+expense-plans-empty-filtered = No data found
+expense-plans-empty-no-team-plans = No expense plan created by your team yet.
+
+expense-plans-stats-pending-title = Pending Approval
+expense-plans-stats-requires-action-desc = Requires Action
+expense-plans-stats-total-plans-title = Total Plans (Submitted)
+expense-plans-stats-total-plans-desc = All Submitted Plans
+expense-plans-stats-total-amount-title = Total Amount (Submitted)
+expense-plans-stats-total-amount-desc = Across All Plans
+expense-plans-stats-empty = No expense plan statistics available.
+
+expense-plans-row-category-actions = Actions
+expense-plans-row-print = Print
+expense-plans-row-category-navigations = Navigations
+expense-plans-row-view-details = View Plan Details
+
+expense-plans-detail-plan-type = Plan Type
+expense-plans-detail-request-type = Request Type
+expense-plans-detail-department = Department
+expense-plans-detail-view-full = View Full Details
+
+expense-plans-filter-config-name = Expense Plans Filters
+expense-plans-filter-group-currency = Currency
+expense-plans-filter-effective-date = Effective Date
+expense-plans-filter-plan-date = Plan Date
+expense-plans-filter-start-date = Start Date
+expense-plans-filter-end-date = End Date
+expense-plans-filter-plan-type = Plan Type
+expense-plans-filter-amount = Amount
+expense-plans-filter-placeholder-start-date = Start date
+expense-plans-filter-placeholder-end-date = End date
+expense-plans-effective-date-info = For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.
+expense-plans-filter-amount-min = Min amount
+expense-plans-filter-amount-max = Max amount
+expense-plans-filter-type-expense = Expense
+expense-plans-filter-type-trip = Trip
+
+expense-plans-column-title = Title
+expense-plans-column-request-code = Request Number
+expense-plans-column-start-date = Start date
+expense-plans-column-end-date = End date
+expense-plans-column-employee = Employee
+expense-plans-column-creation-date = Creation Date
+expense-plans-column-amount = Amount
+expense-plans-column-status = Status
+
+# Details sidebar (ExpenseDetailsPanelContent — same message ids as personal-expenses)
+expense-items-column-status = Status
+expense-items-details-field-code = Code
+personal-expenses-filter-label-start-date = Start Date
+personal-expenses-filter-label-end-date = End Date
+expense-details-value-not-available = N/A
+expense-details-label-employee = Employee
+expense-details-label-employee-code = Employee Code
+expense-details-label-sap-number = SAP Number
+expense-details-label-creation-date = Creation Date
+expense-details-label-remaining-amount = Remaining Amount
+expense-details-label-total-amount = Total Amount
+
+expense-requests-details-title = Expense Request Details
+expense-requests-section-title = Expense Requests
+expense-requests-search-placeholder = Search...
+
+expense-requests-column-title = Title
+expense-requests-column-plan-code = Code
+expense-requests-column-start-date = Start date
+expense-requests-column-end-date = End date
+expense-requests-column-employee = Employee
+expense-requests-column-request-date = Request Date
+expense-requests-column-amount = Amount
+expense-requests-column-status = Status
+
+expense-requests-filter-request-type = Request Type
+expense-requests-filter-request-date = Request Date
+
+expense-requests-empty-filtered = No data found
+expense-requests-empty-no-team = No expense request created by your team yet.
+
+expense-requests-stats-pending-requests-title = Pending Requests
+expense-requests-stats-pending-requests-desc = Waiting for Approval
+expense-requests-stats-pending-amount-title = Pending Amount
+expense-requests-stats-pending-amount-desc = Total Pending Reimbursement
+expense-requests-stats-total-submitted-title = Total Requests (Submitted)
+expense-requests-stats-total-submitted-desc = All Submitted Requests
+expense-requests-stats-total-amount-title = Total Submitted Amount
+expense-requests-stats-total-amount-desc = All Expense Requests
+expense-requests-stats-empty = No expense request statistics available.
+expense-requests-stats-load-error = Error loading data
+
+expense-requests-print-preview-title = Print Preview
+expense-requests-print-no-document = This expense request does not have an associated document to print.
+
+expense-requests-untitled-fallback = Untitled Request
+
+# Expense calendar tab (transl.txt — team_expenses_page.dashboard_tab.expense_calendar, calendar.error_loading, expense_plan/request, expense_request_table.employee_search_filter, common.unknown_employee)
+
+expense-calendar-search-placeholder = Search employee...
+expense-calendar-unknown-employee = Unknown Employee
+expense-calendar-error-loading = Error loading calendar data:
+expense-calendar-team-members-load-error = Error loading team members
+expense-calendar-event-fallback-plan = Expense Plan
+expense-calendar-event-fallback-request = Expense Request
+
+expense-calendar-tooltip-from = From
+expense-calendar-tooltip-to = To
+expense-calendar-tooltip-note = Note
+
+expense-calendar-view-mode = View
+expense-calendar-today = Today
+expense-calendar-days = Days
+
+expense-calendar-month-january = January
+expense-calendar-month-february = February
+expense-calendar-month-march = March
+expense-calendar-month-april = April
+expense-calendar-month-may = May
+expense-calendar-month-june = June
+expense-calendar-month-july = July
+expense-calendar-month-august = August
+expense-calendar-month-september = September
+expense-calendar-month-october = October
+expense-calendar-month-november = November
+expense-calendar-month-december = December
+
+# Advance payments tab (Fluent — manager list, stats, filters, columns)
+
+advance-payments-list-section-title = Advance Payments
+advance-payments-search-placeholder = Search in Advance Payments
+advance-payments-details-title = Advance Payment Details
+advance-payments-empty-filtered = No data found
+advance-payments-empty-no-team = No advance payment created by your team yet.
+
+advance-payments-stats-total-title = Total Advance Payments
+advance-payments-stats-total-desc = Paid and transferred advance payments
+advance-payments-stats-pending-title = Pending Amount
+advance-payments-stats-pending-desc = Awaiting Approval
+advance-payments-stats-empty = No advance payment statistics available.
+advance-payments-stats-load-error = Error loading data
+
+advance-payments-filter-config-name = Filter By Advance Payment
+advance-payments-filter-amount = Amount
+
+advance-payments-row-category-navigations = Navigations
+advance-payments-row-view-plan-details = View Plan Details
+advance-payments-row-view-request-details = View Request Details
+
+advance-payments-column-expense-plan = Expense Plan
+advance-payments-column-start-date = Start Date
+advance-payments-column-end-date = End Date
+advance-payments-column-employee = Employee
+advance-payments-column-creation-date = Creation Date
+advance-payments-column-amount = Amount
+advance-payments-column-status = Status

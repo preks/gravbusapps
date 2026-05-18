@@ -1,5 +1,8 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { createExpenseTripMultiSelectOptions } from '../../../../../../common/config/filterConfigHelpers'
+import {
+  createExpenseTripMultiSelectOptions,
+  createStatusFilterGroupWithLabel
+} from '@/business-apps/fin/expenses/common/config/filterConfigHelpers'
 
 export interface ExpenseRequestFilterConfigOptions {
   statusOptions: string[]
@@ -92,21 +95,7 @@ export function createExpenseRequestFilterConfig({
     createDateRangeFilterGroupWithT('requestDate', 'requestDateRange', t('personal-expenses-label-request-date'), t),
     createDateRangeFilterGroupWithT('startDate', 'startDateRange', t('personal-expenses-filter-label-start-date'), t),
     createDateRangeFilterGroupWithT('endDate', 'endDateRange', t('personal-expenses-filter-label-end-date'), t),
-    {
-      id: 'status-group',
-      label: t('expense-items-column-status'),
-      collapsible: true,
-      defaultExpanded: true,
-      filters: [
-        {
-          id: 'statusIds',
-          field: 'statusIds',
-          label: t('expense-items-column-status'),
-          type: 'multi-select',
-          config: { options: statusFilters }
-        }
-      ]
-    },
+    createStatusFilterGroupWithLabel(statusFilters, t('expense-items-column-status')),
     {
       id: 'requestType-group',
       label: t('expense-requests-filter-request-type'),

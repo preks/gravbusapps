@@ -145,5 +145,162 @@ expense-requests-details-title = Detalii solicitare decont
 expense-requests-section-title = Solicitări de Decont
 expense-requests-search-placeholder = Căutați...
 
-# Advance payments tab
-advance_payments_tab_paid_and_transferred = Plăți în avans achitate și transferate
+# Expense plans tab (transl.txt — backoffice_expense_landing_page, employee_list, team_expenses_page, personal_expenses, etc.)
+
+expense-plans-list-section-title = Planuri
+expense-plans-search-placeholder = Căutați...
+expense-plans-details-title = Detalii privind Planul de Cheltuieli
+expense-plans-print-dialog-title = Imprimă planul de cheltuieli
+expense-plans-empty-filtered = Nu s-au găsit date
+expense-plans-empty-no-team-plans = Echipa dvs. nu a creat încă niciun plan de cheltuieli.
+
+expense-plans-stats-pending-title = În așteptarea aprobării
+expense-plans-stats-requires-action-desc = Necesită acțiune
+expense-plans-stats-total-plans-title = Total planuri (trimise)
+expense-plans-stats-total-plans-desc = Toate planurile trimise
+expense-plans-stats-total-amount-title = Sumă totală (trimisă)
+expense-plans-stats-total-amount-desc = În toate planurile
+expense-plans-stats-empty = Nu există statistici pentru planurile de cheltuieli.
+
+expense-plans-row-category-actions = Acțiuni
+expense-plans-row-print = Printare
+expense-plans-row-category-navigations = Navigare
+expense-plans-row-view-details = Vizualizați Detaliile Planului
+
+expense-plans-detail-plan-type = Tip plan
+expense-plans-detail-request-type = Tipul Solicitării
+expense-plans-detail-department = Departament
+expense-plans-detail-view-full = Vezi detalii complete
+
+expense-plans-filter-config-name = Filtre planuri de cheltuieli
+expense-plans-filter-group-currency = Monedă
+expense-plans-filter-effective-date = Dată efectivă
+expense-plans-filter-plan-date = Data planului
+expense-plans-filter-start-date = Dată de Început
+expense-plans-filter-end-date = Data de Sfârşit
+expense-plans-filter-plan-type = Tip plan
+expense-plans-filter-amount = Sumă
+expense-plans-filter-placeholder-start-date = Data de început
+expense-plans-filter-placeholder-end-date = Data de sfârșit
+expense-plans-effective-date-info = Pentru tipul CĂLĂTORIE, se folosește data de început. Pentru tipul CHELTUIALĂ, se folosește data cheltuielii elementului.
+expense-plans-filter-amount-min = Sumă minimă
+expense-plans-filter-amount-max = Sumă maximă
+expense-plans-filter-type-expense = Cheltuială
+expense-plans-filter-type-trip = Călătorie
+
+expense-plans-column-title = Titlu
+expense-plans-column-request-code = Număr Cerere
+expense-plans-column-start-date = Dată de Început
+expense-plans-column-end-date = Data de Sfârşit
+expense-plans-column-employee = Angajat
+expense-plans-column-creation-date = Data creării
+expense-plans-column-amount = Sumă
+expense-plans-column-status = Status
+
+# Details sidebar (ExpenseDetailsPanelContent — same message ids as personal-expenses)
+expense-items-column-status = Status
+expense-items-details-field-code = Cod
+personal-expenses-filter-label-start-date = Data de Început
+personal-expenses-filter-label-end-date = Data de Sfârşit
+expense-details-value-not-available = N/A
+expense-details-label-employee = Angajat
+expense-details-label-employee-code = Cod angajat
+expense-details-label-sap-number = Numărul SAP
+expense-details-label-creation-date = Data creării
+expense-details-label-remaining-amount = Suma rămasă
+expense-details-label-total-amount = Suma Totală
+
+expense-requests-details-title = Detalii solicitare decont
+expense-requests-section-title = Solicitări de Decont
+expense-requests-search-placeholder = Căutați...
+
+expense-requests-column-title = Scop
+expense-requests-column-plan-code = Cod
+expense-requests-column-start-date = Data de început
+expense-requests-column-end-date = Data de sfârșit
+expense-requests-column-employee = Angajat
+expense-requests-column-request-date = Data Solicitării
+expense-requests-column-amount = Suma
+expense-requests-column-status = Statut
+
+expense-requests-filter-request-type = Tipul Solicitării
+expense-requests-filter-request-date = Data Solicitării
+
+expense-requests-empty-filtered = Nu s-au găsit date
+expense-requests-empty-no-team = Echipa dvs. nu a creat încă nicio cerere de decont.
+
+expense-requests-stats-pending-requests-title = Cereri În Așteptare
+expense-requests-stats-pending-requests-desc = Așteaptă aprobare
+expense-requests-stats-pending-amount-title = Sumă în așteptare
+expense-requests-stats-pending-amount-desc = Total rambursări în așteptare
+expense-requests-stats-total-submitted-title = Total cereri (trimise)
+expense-requests-stats-total-submitted-desc = Toate cererile trimise
+expense-requests-stats-total-amount-title = Sumă totală trimisă
+expense-requests-stats-total-amount-desc = Toate cererile de cheltuieli
+expense-requests-stats-empty = Nu există statistici pentru cererile de cheltuieli.
+expense-requests-stats-load-error = Eroare la încărcarea datelor
+
+expense-requests-print-preview-title = Previzualizare imprimare
+expense-requests-print-no-document = Această cerere de cheltuieli nu are un document asociat pentru imprimare.
+
+expense-requests-untitled-fallback = Cerere fără titlu
+
+# Expense calendar tab (transl.txt)
+
+expense-calendar-search-placeholder = Caută angajat...
+expense-calendar-unknown-employee = Angajat necunoscut
+expense-calendar-error-loading = Eroare la încărcarea datelor calendarului:
+expense-calendar-team-members-load-error = Eroare la încărcarea membrilor echipei
+expense-calendar-event-fallback-plan = Plan de cheltuieli
+expense-calendar-event-fallback-request = Cerere de cheltuieli
+
+expense-calendar-tooltip-from = De la
+expense-calendar-tooltip-to = Până la
+expense-calendar-tooltip-note = Notă
+
+expense-calendar-view-mode = Afişare
+expense-calendar-today = Astăzi
+expense-calendar-days = Zile
+
+expense-calendar-month-january = Ianuarie
+expense-calendar-month-february = Februarie
+expense-calendar-month-march = Martie
+expense-calendar-month-april = Aprilie
+expense-calendar-month-may = Mai
+expense-calendar-month-june = Iunie
+expense-calendar-month-july = Iulie
+expense-calendar-month-august = August
+expense-calendar-month-september = Septembrie
+expense-calendar-month-october = Octombrie
+expense-calendar-month-november = Noiembrie
+expense-calendar-month-december = Decembrie
+
+# Advance payments tab (Fluent — manager list, stats, filters, columns)
+
+advance-payments-list-section-title = Plăți în avans
+advance-payments-search-placeholder = Caută în plăți în avans
+advance-payments-details-title = Detalii plată în avans
+advance-payments-empty-filtered = Nu s-au găsit date
+advance-payments-empty-no-team = Echipa dvs. nu a creat încă nicio plată în avans.
+
+advance-payments-stats-total-title = Total avansuri
+advance-payments-stats-total-desc = Plăți în avans achitate și transferate
+advance-payments-stats-pending-title = Sumă în așteptare
+advance-payments-stats-pending-desc = Așteaptă aprobare
+advance-payments-stats-empty = Nu există statistici pentru plățile în avans.
+advance-payments-stats-load-error = Eroare la încărcarea datelor
+
+advance-payments-filter-config-name = Filtrați după Avans
+advance-payments-filter-amount = Sumă
+
+advance-payments-row-category-navigations = Navigare
+advance-payments-row-view-plan-details = Vizualizați Detaliile Planului
+advance-payments-row-view-request-details = Vizualizați Detaliile Solicitării
+
+advance-payments-column-expense-plan = Plan de Cheltuieli
+advance-payments-column-start-date = Data de Început
+advance-payments-column-end-date = Data de Sfârşit
+advance-payments-column-employee = Angajat
+advance-payments-column-creation-date = Data creării
+advance-payments-column-amount = Suma
+advance-payments-column-status = Statut

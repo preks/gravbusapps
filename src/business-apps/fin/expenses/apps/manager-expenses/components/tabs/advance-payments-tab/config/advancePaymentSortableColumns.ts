@@ -1,13 +1,12 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { ColumnConfig } from '../../../../common/types/columnTypes'
 import { ADVANCE_PAYMENT_COLUMN_DEFINITIONS } from './advancePaymentColumnDefinitions'
 
-/** Toolbar sort + column visibility: same ids/labels as {@link ADVANCE_PAYMENT_COLUMN_DEFINITIONS}. */
-export const advancePaymentSortableColumns: ColumnConfig[] = ADVANCE_PAYMENT_COLUMN_DEFINITIONS.map(
-  ({ id, i18nKey, fallback }) => ({
-    id,
-    label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback)
-  })
-)
+export type { AdvancePaymentColumnId } from './advancePaymentColumnDefinitions'
 
-export const advancePaymentAvailableColumns = advancePaymentSortableColumns
+/** Toolbar sort + column visibility: same ids/labels as {@link ADVANCE_PAYMENT_COLUMN_DEFINITIONS}. */
+export function buildAdvancePaymentSortableColumns(t: (key: string) => string): ColumnConfig[] {
+  return ADVANCE_PAYMENT_COLUMN_DEFINITIONS.map(({ id, fluentKey }) => ({
+    id,
+    label: t(fluentKey)
+  }))
+}
