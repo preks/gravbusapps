@@ -15,7 +15,8 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Plus, Trash2, GripVertical, Info, Database, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, GripVertical, Info, Database, ChevronDown, ChevronUp } from 'lucide-react'
+import { TrashIcon } from '@phosphor-icons/react'
 import { InputType, InputOption } from '../types'
 import { useInternalEntityTypes } from '../hooks/useInternalEntityTypes'
 import type { UiColumnDefinition } from '../utils/columnUiIds'
@@ -274,7 +275,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                 {column.required && <span className="gba:text-[10px] gba:text-destructive gba:shrink-0">*</span>}
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="iconSm"
                   onClick={e => {
                     e.stopPropagation()
                     handleRemoveColumn(index)
@@ -282,7 +283,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                   className="gba:text-muted-foreground gba:hover:text-destructive gba:h-5 gba:w-5 gba:shrink-0"
                   data-testid={`${testId}-remove-${index}`}
                 >
-                  <Trash2 className="gba:h-3 gba:w-3" />
+                  <TrashIcon className="gba:h-3 gba:w-3" />
                 </Button>
                 {isExpanded ? (
                   <ChevronUp className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
@@ -401,6 +402,18 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                       )}
                     </div>
                   )}
+                  <div className="gba:flex gba:justify-end gba:border-t gba:border-border gba:pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRemoveColumn(index)}
+                      className="gba:h-7 gba:text-xs gba:text-destructive gba:hover:text-destructive"
+                      data-testid={`${testId}-remove-expanded-${index}`}
+                    >
+                      <TrashIcon className="gba:h-3 gba:w-3 gba:mr-1" />
+                      Remove column
+                    </Button>
+                  </div>
                 </div>
               )}
             </article>
@@ -617,12 +630,12 @@ const ManualOptions: React.FC<{
             />
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="iconSm"
               className="gba:h-6 gba:w-6 gba:shrink-0"
               onClick={() => onRemove(index, optIndex)}
               data-testid={`${testId}-remove-option-${index}-${optIndex}`}
             >
-              <Trash2 className="gba:h-2.5 gba:w-2.5" />
+              <TrashIcon className="gba:h-2.5 gba:w-2.5" />
             </Button>
           </div>
         ))}

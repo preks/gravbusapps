@@ -123,6 +123,18 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
     [updateDefinition, refetchDefinitions, refetchNamespaceAggregate]
   )
 
+  const handleDeleteEntity = useCallback(
+    async (definition: CustomDataDefinition) => {
+      await client.deleteDefinition(definition.namespace, definition.entityName)
+      await refetchDefinitions()
+      await refetchNamespaceAggregate()
+      setSelectedEntity(null)
+      setSelectedInternalEntity(null)
+      setSelectedRelationship(null)
+    },
+    [client, refetchDefinitions, refetchNamespaceAggregate]
+  )
+
   const handleCreateNamespace = useCallback(
     async (dto: { namespace: string; displayName?: string; description?: string }) => {
       const created = await createNamespaceApi(dto)
@@ -238,6 +250,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
                           accessToken={accessToken}
                           onClose={() => setSelectedEntity(null)}
                           onSave={(dto, definition) => handleSaveEntity(dto, definition)}
+                          onDelete={handleDeleteEntity}
                           onOpenPromote={() => setPromoteDefinition(selectedEntity)}
                           onCreateRow={client.createRow}
                           onUpdateRow={client.updateRow}
