@@ -128,6 +128,23 @@ export const LIST_COMPENSATION_BUDGET_PLAN_COMPANY_BY_PLAN = `
   }
 `
 
+/** Company display data for company ids referenced by compensation budget company rows. */
+export const LIST_COMPANIES_BY_IDS = `
+  query ListCompaniesByIds($companyIds: [uuid!]!) {
+    Company(
+      where: {
+        id: { _in: $companyIds }
+        isDeleted: { _eq: false }
+      }
+      orderBy: [{ name: ASC }]
+    ) {
+      id
+      name
+      code
+    }
+  }
+`
+
 /**
  * Org unit rows for one company budget row. No `organizationalUnit` join here — Hasura may not expose
  * that relationship; resolve names client-side via `OrganizationalUnit` (e.g. `useCompanyOrganizationalUnits`).

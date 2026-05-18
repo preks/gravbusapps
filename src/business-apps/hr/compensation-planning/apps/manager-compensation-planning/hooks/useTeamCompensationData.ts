@@ -61,6 +61,7 @@ interface EmployeePositionResult {
   firstName: string
   lastName: string
   hireDate: string | null
+  companyId: string | null
   organizationalUnitId: string | null
   organizationalUnit:
     | (OrganizationalUnitRef & { organizationalUnitEmployee?: OrganizationalUnitEmployeeAssignment[] })
@@ -68,6 +69,7 @@ interface EmployeePositionResult {
   siteLocationId: string | null
   supervisorEmployeeId: string | null
   jobPosition: {
+    id: string
     name: string
     jobFunction: { jobFamily: { id: string } | null } | null
     jobProfile: {
@@ -76,8 +78,12 @@ interface EmployeePositionResult {
     jobLevel: { id: string } | null
   } | null
   employee: {
+    id: string
     code: string
+    firstName: string | null
+    lastName: string | null
     displayName: string
+    picture: string | null
     pictureThumbnail: string | null
     workingCondition: { hireDate: string | null } | null
     workingHours: Array<{ weeklyHours: number | null; fullTimeEquivalent: number | null }>
@@ -198,8 +204,8 @@ function buildTeamMemberFromPosition(
   return {
     employeeId: pos.employeeId,
     employeeCode: pos.employee?.code ?? '',
-    firstName: pos.firstName,
-    lastName: pos.lastName,
+    firstName: pos.employee?.firstName ?? pos.firstName,
+    lastName: pos.employee?.lastName ?? pos.lastName,
     displayName: pos.employee?.displayName ?? `${pos.firstName} ${pos.lastName}`,
     pictureThumbnail: pos.employee?.pictureThumbnail ?? undefined,
     jobPosition: pos.jobPosition?.name ?? null,
@@ -225,6 +231,7 @@ function buildTeamMemberFromPosition(
 interface UseTeamCompensationDataParams {
   accessToken: string
   companyId?: string | null
+  companyIds?: string[]
   orgUnitId?: string | null
   supervisorEmployeeId?: string | null
   supervisorOnly?: boolean
@@ -290,6 +297,7 @@ async function resolveActiveStructureId(
 export function useTeamCompensationData({
   accessToken,
   companyId,
+  companyIds,
   orgUnitId,
   supervisorEmployeeId,
   supervisorOnly = false,
@@ -312,6 +320,7 @@ export function useTeamCompensationData({
       return
     }
     if (!accessToken) return
+    const normalizedCompanyIds = [...new Set((companyIds ?? []).map(id => id.trim()).filter(Boolean))]
     if (supervisorOnly) {
       if (!supervisorEmployeeId) {
         setTeamMembers([])
@@ -330,7 +339,11 @@ export function useTeamCompensationData({
       const whereConditions: Record<string, unknown>[] = [
         { employee: buildEmployeeWhereForPosition(requirePayrollRelevantContractType) }
       ]
-      if (companyId) whereConditions.push({ companyId: { _eq: companyId } })
+      if (normalizedCompanyIds.length > 0) {
+        whereConditions.push({ companyId: { _in: normalizedCompanyIds } })
+      } else if (companyId) {
+        whereConditions.push({ companyId: { _eq: companyId } })
+      }
       if (orgUnitId) whereConditions.push({ organizationalUnitId: { _eq: orgUnitId } })
       if (supervisorEmployeeId) whereConditions.push({ supervisorEmployeeId: { _eq: supervisorEmployeeId } })
 
@@ -472,6 +485,7 @@ export function useTeamCompensationData({
   }, [
     accessToken,
     companyId,
+    companyIds,
     orgUnitId,
     supervisorEmployeeId,
     supervisorOnly,

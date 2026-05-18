@@ -11,6 +11,7 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
       firstName
       lastName
       hireDate
+      companyId
       organizationalUnitId
       organizationalUnit {
         id
@@ -25,6 +26,7 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
       siteLocationId
       supervisorEmployeeId
       jobPosition {
+        id
         name
         jobFunction {
           jobFamily {
@@ -43,8 +45,12 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
         }
       }
       employee {
+        id
         code
+        firstName
+        lastName
         displayName
+        picture
         pictureThumbnail
         workingCondition {
           hireDate
