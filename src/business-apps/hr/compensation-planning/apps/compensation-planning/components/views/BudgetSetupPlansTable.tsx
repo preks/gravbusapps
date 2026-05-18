@@ -28,6 +28,7 @@ export interface BudgetSetupPlansTableProps {
   selectedCompensationPlanId: string | null
   editDisabled?: boolean
   showCycleColumn?: boolean
+  currentSalaryCostByCompanyId?: ReadonlyMap<string, number>
 }
 
 export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
@@ -45,7 +46,8 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
   onOpenDepartmentsBreakdown,
   selectedCompensationPlanId,
   editDisabled = false,
-  showCycleColumn = true
+  showCycleColumn = true,
+  currentSalaryCostByCompanyId = new Map()
 }) => {
   const { t } = useTranslation(translations)
   const {
@@ -76,7 +78,8 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
     companies,
     showCompanyColumn,
     editDisabled,
-    showCycleColumn
+    showCycleColumn,
+    currentSalaryCostByCompanyId
   )
 
   return (

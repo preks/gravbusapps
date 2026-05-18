@@ -29,8 +29,8 @@ import type {
   CompensationBudgetPlanListItem,
   CreateBudgetPlanInput
 } from '../../hooks/useBudgetSetupForCompany'
-import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
 import { useCurrencyCatalogOptions, type CurrencyCatalogOption } from '../../hooks/useCurrencyCatalogOptions'
+import { useCompanyCompensationSalaryBaseline } from '../../hooks/useCompanyCompensationSalaryBaseline'
 import translations from '../../_i18n'
 import {
   buildCreateBudgetPlanFormSchema,
@@ -141,19 +141,19 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
     effectiveCompanyId,
     'record'
   )
-  const { teamMembers, loading: loadingCompanySalaryCost } = useTeamCompensationData({
+  const { totalSalaryAcrossOrgUnits, loading: loadingCompanySalaryCost } = useCompanyCompensationSalaryBaseline(
     accessToken,
-    companyId: effectiveCompanyId,
-    requirePayrollRelevantContractType: true,
-    enabled: open && Boolean(effectiveCompanyId)
-  })
+    effectiveCompanyId,
+    t('overview-org-unit-unassigned'),
+    open && Boolean(effectiveCompanyId)
+  )
 
   const selectedCompanySalaryCost = useMemo(() => {
     if (isEdit && editRow != null) {
       return editRow.currentTotalSalaryCost
     }
-    return teamMembers.reduce((sum, member) => sum + (member.currentAnnualSalary ?? 0), 0)
-  }, [editRow, isEdit, teamMembers])
+    return totalSalaryAcrossOrgUnits
+  }, [editRow, isEdit, totalSalaryAcrossOrgUnits])
 
   const selectedCompanyCurrencyOption = useMemo(
     () => findCompanyCurrencyOption(selectedCompany, currencyOptionsSafe),

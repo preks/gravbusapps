@@ -72,6 +72,24 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
   }
 `
 
+export const GET_COMPENSATION_COMPANY_BASELINE_POSITIONS = `
+  query GetCompensationCompanyBaselinePositions($where: EmployeePositionBoolExp!) {
+    EmployeePosition(where: $where, orderBy: [{ employeeId: ASC }, { organizationalUnitId: ASC }]) {
+      id
+      employeeId
+      companyId
+      organizationalUnitId
+      organizationalUnit {
+        id
+        name
+      }
+      employee {
+        id
+      }
+    }
+  }
+`
+
 export const GET_COMPENSATION_BAND_POLICIES_FOR_TEAM = `
   query GetCompensationBandPoliciesForTeam($jobFamilyIds: [uuid!]!, $jobLevelIds: [uuid!]!, $geoZoneIds: [uuid!]!) {
     CompensationBandPolicy(

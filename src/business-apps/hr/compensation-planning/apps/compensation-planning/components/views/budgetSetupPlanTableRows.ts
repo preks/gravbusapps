@@ -44,7 +44,8 @@ export function buildBudgetSetupPlanTableRows(
   plans: CompensationBudgetPlanListItem[],
   /** When null, no rows (user must select a cycle). Otherwise only this plan’s row for the company. */
   selectedCompensationPlanId: string | null,
-  companies: BudgetSetupCompanyOption[] = []
+  companies: BudgetSetupCompanyOption[] = [],
+  currentSalaryCostByCompanyId: ReadonlyMap<string, number> = new Map()
 ): BudgetSetupPlanTableRow[] {
   if (selectedCompensationPlanId == null) {
     return []
@@ -59,6 +60,8 @@ export function buildBudgetSetupPlanTableRows(
       const budgetPlanLabel = formatBudgetPlanChosenLabel(companyRow.compensationBudgetPlanId, plans)
       const company = companyById.get(companyRow.companyId)
       const companyLabel = company?.name ? company.name : companyRow.companyId
+      const displaySalaryBaseline =
+        currentSalaryCostByCompanyId.get(companyRow.companyId) ?? companyRow.currentTotalSalaryCost
 
       return {
         id: companyRow.id,
@@ -70,7 +73,7 @@ export function buildBudgetSetupPlanTableRows(
         salaryBudgetPercent: companyRow.salaryBudgetPercent,
         allocationAmount: companyRow.allocationAmount,
         companyBudgetStatus: companyRow.budgetPlanStatus || null,
-        salaryBaseline: companyRow.currentTotalSalaryCost,
+        salaryBaseline: displaySalaryBaseline,
         currencyRef: companyRow.currencyRef,
         displayCurrency
       }

@@ -55,7 +55,8 @@ export function useBudgetSetupPlansTableModel(
   companies: BudgetSetupCompanyOption[] = [],
   showCompanyColumn = false,
   editDisabled = false,
-  showCycleColumn = true
+  showCycleColumn = true,
+  currentSalaryCostByCompanyId: ReadonlyMap<string, number> = new Map()
 ) {
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
@@ -75,9 +76,18 @@ export function useBudgetSetupPlansTableModel(
         currencyCode,
         plans,
         selectedCompensationPlanId,
-        companies
+        companies,
+        currentSalaryCostByCompanyId
       ),
-    [companyBudgetPlanRows, selectedCompanyId, currencyCode, plans, selectedCompensationPlanId, companies]
+    [
+      companyBudgetPlanRows,
+      selectedCompanyId,
+      currencyCode,
+      plans,
+      selectedCompensationPlanId,
+      companies,
+      currentSalaryCostByCompanyId
+    ]
   )
 
   const companyBudgetStatusOptions = useMemo(() => {
