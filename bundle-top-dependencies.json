@@ -40228,9 +40228,9 @@
     ]
   },
   "hr/core/apps/assets": {
-    "bitbucketBuildNumber": 12133,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12133/",
-    "chunkJsBytes": 815104,
+    "bitbucketBuildNumber": 12197,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12197/",
+    "chunkJsBytes": 815077,
     "top": [
       {
         "kind": "bucket",
@@ -40253,8 +40253,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 302738,
-        "gzip": 66842,
+        "rendered": 302656,
+        "gzip": 66821,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/equipment-registration/EquipmentRegistration.tsx",
@@ -40263,8 +40263,8 @@
           },
           {
             "name": "src/business-apps/hr/core/forms/allocate-asset/AllocateAsset.tsx",
-            "rendered": 29047,
-            "gzip": 5503
+            "rendered": 28965,
+            "gzip": 5482
           }
         ]
       },
@@ -45776,9 +45776,9 @@
     ]
   },
   "hr/core/forms/allocate-asset": {
-    "bitbucketBuildNumber": 12133,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12133/",
-    "chunkJsBytes": 169247,
+    "bitbucketBuildNumber": 12197,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12197/",
+    "chunkJsBytes": 169297,
     "top": [
       {
         "kind": "bucket",
@@ -45801,13 +45801,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 72348,
-        "gzip": 16446,
+        "rendered": 72266,
+        "gzip": 16426,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/allocate-asset/AllocateAsset.tsx",
-            "rendered": 28987,
-            "gzip": 5488
+            "rendered": 28905,
+            "gzip": 5468
           },
           {
             "name": "src/business-apps/hr/core/apps/assets/services/useAssetService.ts",
@@ -88234,9 +88234,9 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12193,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12193/",
-    "chunkJsBytes": 1890889,
+    "bitbucketBuildNumber": 12197,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12197/",
+    "chunkJsBytes": 1890888,
     "top": [
       {
         "kind": "bucket",
@@ -107913,7 +107913,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-17T22:33:21.798Z",
+    "generatedAt": "2026-05-18T05:56:54.511Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
