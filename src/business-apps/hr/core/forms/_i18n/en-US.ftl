@@ -292,8 +292,8 @@ adjust-salary-pending-status = Pending
 
 # Update Working Conditions Form
 working-conditions-title = Update Working Conditions
-working-conditions-employment-start-date = Employment Start Date
-working-conditions-employment-end-date = Employment End Date
+working-conditions-employment-start-date = Valid From
+working-conditions-employment-end-date = Valid To
 working-conditions-employment-type = Employment Type
 working-conditions-contract-type = Contract Type
 working-conditions-remote = Remote
@@ -309,10 +309,6 @@ working-conditions-employment-end-before-start = Employment end date cannot be b
 working-conditions-probation-end-before-start = Probation end date must be on or after the start date.
 working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
 working-conditions-required = Please complete required fields
-working-conditions-change-mode-title = Confirm Employment Change
-working-conditions-change-mode-description = Do you want to modify the current employment or add a new one to the employee?
-working-conditions-change-mode-update = Update
-working-conditions-change-mode-add = Add
 working-conditions-unit-day = { $count ->
     [one] Day
    *[other] Days

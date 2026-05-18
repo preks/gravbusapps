@@ -289,8 +289,8 @@ adjust-salary-pending-status = Ausstehend
 
 # Update Working Conditions Form
 working-conditions-title = Arbeitsbedingungen aktualisieren
-working-conditions-employment-start-date = Beschäftigungsbeginn
-working-conditions-employment-end-date = Beschäftigungsende
+working-conditions-employment-start-date = Gültig ab
+working-conditions-employment-end-date = Gültig bis
 working-conditions-employment-type = Beschäftigungsart
 working-conditions-contract-type = Vertragsart
 working-conditions-remote = Remote
@@ -306,10 +306,6 @@ working-conditions-employment-end-before-start = Das Beschäftigungsende darf ni
 working-conditions-probation-end-before-start = Das Ende der Probezeit muss am Startdatum oder danach liegen.
 working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
 working-conditions-required = Bitte füllen Sie alle Pflichtfelder aus
-working-conditions-change-mode-title = Beschäftigungsänderung bestätigen
-working-conditions-change-mode-description = Möchten Sie die aktuelle Beschäftigung ändern oder eine neue zum Mitarbeiter hinzufügen?
-working-conditions-change-mode-update = Aktualisieren
-working-conditions-change-mode-add = Hinzufügen
 working-conditions-unit-day = { $count ->
     [one] Tag
    *[other] Tage

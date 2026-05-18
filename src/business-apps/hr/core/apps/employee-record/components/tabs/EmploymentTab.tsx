@@ -468,62 +468,94 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-lg gba:font-semibold">{t('employment-working-conditions')}</h3>
               <AppAction
-                variant="update-secondary"
-                data-testid="employee-working-conditions-edit-button"
+                variant="create-secondary"
+                data-testid="employee-working-conditions-add-button"
                 contexts={[
-                  { context: FlowContextName.updateEmployeeWorkingCondition, contextData: { employeeId: employee?.id } }
+                  {
+                    context: FlowContextName.updateEmployeeWorkingCondition,
+                    contextData: { employeeId: employee?.id, changeMode: 'INSERT' }
+                  }
                 ]}
-                prefixDataTestId="employee-working-conditions-edit"
+                prefixDataTestId="employee-working-conditions-add"
                 accessToken={accessToken}
               />
             </div>
             {renderDataItems(workingConditionsData)}
-            {hasMultipleWorkingConditions && (
+            {(workingCondition?.id || hasMultipleWorkingConditions) && (
               <div
-                className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2"
-                data-testid="employment-working-conditions-pagination"
+                className="gba:mt-4 gba:flex gba:items-center gba:justify-between gba:gap-2"
+                data-testid="employment-working-conditions-actions"
               >
-                {employmentPeriodIsNotContinuous && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span
-                        className="gba:inline-flex gba:items-center gba:text-warning"
-                        data-testid="employment-working-conditions-period-warning"
+                <div
+                  className="gba:flex gba:items-center gba:gap-2"
+                  data-testid="employment-working-conditions-navigation"
+                >
+                  {hasMultipleWorkingConditions && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isFirstWorkingCondition}
+                        data-testid="employment-working-conditions-previous"
+                        onClick={() => setSelectedWorkingConditionIndex(prev => Math.max(0, prev - 1))}
                       >
-                        <WarningIcon size={16} />
+                        {t('employment-working-conditions-previous')}
+                      </Button>
+                      <span
+                        className="gba:text-xs gba:text-muted-foreground"
+                        data-testid="employment-working-conditions-pagination-position"
+                      >
+                        {selectedWorkingConditionSafeIndex + 1} / {workingConditions.length}
                       </span>
-                    </TooltipTrigger>
-                    <TooltipContent>{t('employment-working-conditions-period-not-continuous')}</TooltipContent>
-                  </Tooltip>
-                )}
-                <span
-                  className="gba:text-xs gba:text-muted-foreground"
-                  data-testid="employment-working-conditions-pagination-position"
-                >
-                  {selectedWorkingConditionSafeIndex + 1} / {workingConditions.length}
-                </span>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={isFirstWorkingCondition}
-                  data-testid="employment-working-conditions-previous"
-                  onClick={() => setSelectedWorkingConditionIndex(prev => Math.max(0, prev - 1))}
-                >
-                  {t('employment-working-conditions-previous')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={isLastWorkingCondition}
-                  data-testid="employment-working-conditions-next"
-                  onClick={() =>
-                    setSelectedWorkingConditionIndex(prev => Math.min(workingConditions.length - 1, prev + 1))
-                  }
-                >
-                  {t('employment-working-conditions-next')}
-                </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isLastWorkingCondition}
+                        data-testid="employment-working-conditions-next"
+                        onClick={() =>
+                          setSelectedWorkingConditionIndex(prev => Math.min(workingConditions.length - 1, prev + 1))
+                        }
+                      >
+                        {t('employment-working-conditions-next')}
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className="gba:flex gba:items-center gba:gap-2" data-testid="employment-working-conditions-update">
+                  {employmentPeriodIsNotContinuous && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className="gba:inline-flex gba:items-center gba:text-warning"
+                          data-testid="employment-working-conditions-period-warning"
+                        >
+                          <WarningIcon size={16} />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('employment-working-conditions-period-not-continuous')}</TooltipContent>
+                    </Tooltip>
+                  )}
+                  {workingCondition?.id && (
+                    <AppAction
+                      variant="update-secondary"
+                      data-testid="employee-working-conditions-edit-button"
+                      contexts={[
+                        {
+                          context: FlowContextName.updateEmployeeWorkingCondition,
+                          contextData: {
+                            employeeId: employee?.id,
+                            workingConditionId: workingCondition.id,
+                            changeMode: 'UPDATE'
+                          }
+                        }
+                      ]}
+                      prefixDataTestId="employee-working-conditions-edit"
+                      accessToken={accessToken}
+                    />
+                  )}
+                </div>
               </div>
             )}
           </CardContent>

@@ -24,12 +24,44 @@ import {
 import flowSmall from '@/assets/icons/flowSmall.svg'
 import { truncateText } from '@/common/utils/textUtils'
 import translations from '../_i18n'
-import UpdateWorkingConditionsChangeModeDialog, { type ChangeMode } from './UpdateWorkingConditionsChangeModeDialog'
 
 const prefixDataTestId = 'UpdateWorkingConditionsScreen'
+type ChangeMode = 'UPDATE' | 'INSERT'
 
 const getDateInputValue = (value: string): string | undefined => (value ? value : undefined)
 const getTomorrowDate = (): string => dayjs().add(1, 'day').format('YYYY-MM-DD')
+const toInstantDate = (value: string): string | undefined => {
+  if (!value) return undefined
+
+  const date = dayjs(value)
+  return date.isValid() ? `${date.format('YYYY-MM-DD')}T00:00:00.000Z` : undefined
+}
+
+const toDateInputValue = (value?: string | null): string => {
+  if (!value) return ''
+  const timestampIndex = value.indexOf('T')
+  if (timestampIndex === -1) {
+    return value
+  }
+
+  const date = dayjs(value)
+  return date.isValid() ? date.format('YYYY-MM-DD') : value.substring(0, timestampIndex)
+}
+
+const getWorkingConditionChangeMode = (context: BusinessAppContextProps): ChangeMode => {
+  const additionalData = (context as any)?.additionalData
+  const externalContextData = additionalData?.externalContextData
+  const psiTaskPayload = additionalData?.psi_taskPayload
+  const initialParameters = psiTaskPayload?.psi_initialParameters
+  const changeMode =
+    externalContextData?.changeMode ||
+    additionalData?.changeMode ||
+    psiTaskPayload?.changeMode ||
+    initialParameters?.changeMode
+
+  return changeMode === 'INSERT' ? 'INSERT' : 'UPDATE'
+}
+
 const toDateTimestamp = (year: string, month: string, day: string): number | null => {
   const date = dayjs(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`)
 
@@ -96,12 +128,14 @@ const hasDateValidationErrors = (errors: DateValidationErrors): boolean =>
 
 const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(translations)
+  const changeMode = useMemo(() => getWorkingConditionChangeMode(context), [context])
   const {
     employmentTypes,
     contractTypes,
     remoteOptions,
     regions,
     current,
+    defaultWorkingCondition,
     workingConditionValidationRecords,
     jobTitle,
     firstName,
@@ -118,8 +152,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const [effectiveEndDate, setEffectiveEndDate] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [probationEndDate, setProbationEndDate] = useState<string>('')
-  const [confirmationDialogOpen, setConfirmationDialogOpen] = useState(false)
-  const [pendingSubmitPayload, setPendingSubmitPayload] = useState<WorkingConditionsSubmitPayload | null>(null)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [dateValidationErrors, setDateValidationErrors] = useState<DateValidationErrors>({})
   useEffect(() => {
@@ -127,17 +159,20 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       return
     }
 
-    const toDateInput = (val?: string | null): string => {
-      if (!val) return ''
-      const idx = val.indexOf('T')
-      return idx > 0 ? val.substring(0, idx) : val
+    setStartDate(toDateInputValue(current.startDate))
+    setEffectiveStartDate(toDateInputValue(current.activeFrom))
+    setEffectiveEndDate(toDateInputValue(current.activeTo))
+    setProbationEndDate(toDateInputValue(current.probationEndDate))
+  }, [current])
+
+  useEffect(() => {
+    if (changeMode !== 'INSERT' || !defaultWorkingCondition) {
+      return
     }
 
-    setStartDate(toDateInput(current.startDate))
-    setEffectiveStartDate(toDateInput(current.activeFrom))
-    setEffectiveEndDate(toDateInput(current.activeTo))
-    setProbationEndDate(toDateInput(current.probationEndDate))
-  }, [current])
+    setStartDate(previousValue => previousValue || toDateInputValue(defaultWorkingCondition.startDate))
+    setProbationEndDate(previousValue => previousValue || toDateInputValue(defaultWorkingCondition.probationEndDate))
+  }, [changeMode, defaultWorkingCondition])
 
   useEffect(() => {
     if (!regionCatalogIsFull && !current?.regionRef && !region && Array.isArray(regions) && regions.length === 1) {
@@ -152,13 +187,22 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const currentStartDate = current?.startDate ? current.startDate.split('T')[0] : ''
   const currentContractTypeRef = current?.contractTypeRef || ''
   const minimumEntryDate = useMemo(getTomorrowDate, [])
+  const minimumEffectiveStartDate = changeMode === 'UPDATE' ? startDate || undefined : minimumEntryDate
   const effectiveEndMinDate = useMemo(() => {
+    if (changeMode === 'UPDATE') {
+      if (effectiveStartDate) {
+        return effectiveStartDate
+      }
+
+      return startDate || undefined
+    }
+
     if (effectiveStartDate && effectiveStartDate > minimumEntryDate) {
       return effectiveStartDate
     }
 
     return minimumEntryDate
-  }, [effectiveStartDate, minimumEntryDate])
+  }, [changeMode, effectiveStartDate, minimumEntryDate, startDate])
 
   useEffect(() => {
     if (employmentType) {
@@ -382,6 +426,10 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
   const getFutureEntryDateError = useCallback(
     (value: string): string | undefined => {
+      if (changeMode === 'UPDATE') {
+        return undefined
+      }
+
       const minimumTimestamp = getDateTimestamp(minimumEntryDate)
       const valueTimestamp = getDateTimestamp(value)
 
@@ -391,7 +439,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
       return undefined
     },
-    [futureDateErrorMessage, minimumEntryDate]
+    [changeMode, futureDateErrorMessage, minimumEntryDate]
   )
 
   const getFutureEntryDateErrors = useCallback((): DateValidationErrors => {
@@ -426,7 +474,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       existingRecord: WorkingConditionValidationRecord,
       changeMode?: ChangeMode
     ): boolean => {
-      if ((changeMode === 'UPDATE' || changeMode === 'INSERT') && existingRecord.id === submittedRecord.id) {
+      if (changeMode === 'UPDATE' && submittedRecord.id && existingRecord.id === submittedRecord.id) {
         return false
       }
 
@@ -443,9 +491,34 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
         return false
       }
 
+      const existingIsOpenEnded = getDateTimestamp(existingRecord.activeTo) === null
+      if (changeMode === 'INSERT' && existingIsOpenEnded && submittedFrom > existingFrom) {
+        return false
+      }
+
       return submittedFrom <= existingTo && existingFrom <= submittedTo
     },
     [hasWorkingConditionDateRange]
+  )
+
+  const getOpenEndedWorkingConditionToClose = useCallback(
+    (newActiveFrom?: string): WorkingConditionValidationRecord | null => {
+      const submittedFrom = getDateTimestamp(newActiveFrom)
+      if (changeMode !== 'INSERT' || submittedFrom === null) {
+        return null
+      }
+
+      return workingConditionValidationRecords
+        .filter(record => {
+          const existingFrom = getDateTimestamp(record.activeFrom)
+          const existingTo = getDateTimestamp(record.activeTo)
+          return record.id && existingFrom !== null && existingTo === null && existingFrom < submittedFrom
+        })
+        .sort(
+          (first, second) => (getDateTimestamp(second.activeFrom) ?? 0) - (getDateTimestamp(first.activeFrom) ?? 0)
+        )[0]
+    },
+    [changeMode, workingConditionValidationRecords]
   )
 
   const getActivePeriodOverlapErrors = useCallback(
@@ -487,67 +560,54 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     return null
   }
 
-  const resetConfirmationDialog = useCallback(() => {
-    setConfirmationDialogOpen(false)
-    setPendingSubmitPayload(null)
-  }, [])
-
-  const closeConfirmationDialog = useCallback(() => {
-    resetConfirmationDialog()
-  }, [resetConfirmationDialog])
-
-  const handleConfirmChangeMode = useCallback(
-    (changeMode: ChangeMode) => {
-      if (!pendingSubmitPayload) {
-        return
-      }
-
-      const overlapErrors = getActivePeriodOverlapErrors(pendingSubmitPayload, changeMode)
-      if (overlapErrors && overlapErrors.length > 0) {
-        setValidationError(overlapErrors.join(', '))
-        resetConfirmationDialog()
-        return
-      }
-
-      setValidationError(null)
-      dispatchProcessContinueEvent('pse_submit', {
-        ...pendingSubmitPayload,
-        changeMode
-      })
-      resetConfirmationDialog()
-    },
-    [getActivePeriodOverlapErrors, pendingSubmitPayload, resetConfirmationDialog]
-  )
-
   const buildSubmitPayload = useCallback((): WorkingConditionsSubmitPayload => {
+    const additionalData = (context as any)?.additionalData
+    const externalContextData = additionalData?.externalContextData
+    const psiTaskPayload = additionalData?.psi_taskPayload
+    const initialParameters = psiTaskPayload?.psi_initialParameters
     const employeeId =
-      (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      externalContextData?.employeeId ||
+      additionalData?.employeeId ||
+      psiTaskPayload?.employeeId ||
+      initialParameters?.employeeId ||
       context.userInfo?.employeeDetails?.employeeId
+
+    const workingConditionToClose = getOpenEndedWorkingConditionToClose(effectiveStartDate)
+    const payloadWorkingConditionId = changeMode === 'INSERT' ? workingConditionToClose?.id : current?.id
+    let payloadWorkingConditionVersion: number | undefined
+    if (changeMode === 'INSERT') {
+      payloadWorkingConditionVersion = workingConditionToClose?.version
+    } else if (typeof current?.version === 'number') {
+      payloadWorkingConditionVersion = current.version
+    }
 
     return {
       employeeId,
       event: 'pse_submit',
+      changeMode,
       employeeWorkingCondition: {
-        id: current?.id,
-        version: typeof current?.version === 'number' ? current?.version : undefined,
+        id: payloadWorkingConditionId,
+        version: payloadWorkingConditionVersion,
         employmentTypeRef: selectedEmploymentType,
         contractTypeRef: selectedContractType,
         remoteRef: selectedRemote,
         regionRef: selectedRegion,
-        activeFrom: effectiveStartDate || undefined,
-        activeTo: effectiveEndDate || undefined,
-        hireDate: startDate || undefined,
-        probationEnd: probationEndDate || undefined,
+        activeFrom: toInstantDate(effectiveStartDate),
+        activeTo: toInstantDate(effectiveEndDate),
+        hireDate: toInstantDate(startDate),
+        probationEnd: toInstantDate(probationEndDate),
         employeeId,
         contractStatus: 'ACTIVE'
       }
     }
   }, [
+    changeMode,
     context,
     current?.id,
     current?.version,
     effectiveEndDate,
     effectiveStartDate,
+    getOpenEndedWorkingConditionToClose,
     probationEndDate,
     selectedContractType,
     selectedEmploymentType,
@@ -569,15 +629,14 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
     setValidationError(null)
     const payload = buildSubmitPayload()
-    const overlapErrors = getActivePeriodOverlapErrors(payload, 'UPDATE')
+    const overlapErrors = getActivePeriodOverlapErrors(payload, changeMode)
     if (overlapErrors && overlapErrors.length > 0) {
       setValidationError(overlapErrors.join(', '))
       return
     }
 
-    setPendingSubmitPayload(payload)
-    setConfirmationDialogOpen(true)
-  }, [buildSubmitPayload, getActivePeriodOverlapErrors, validateForm, validateFutureEntryDates])
+    dispatchProcessContinueEvent('pse_submit', payload)
+  }, [buildSubmitPayload, changeMode, getActivePeriodOverlapErrors, validateForm, validateFutureEntryDates])
 
   const handleCancelClick = useCallback(() => {
     dispatchProcessContinueEvent('pse_abort', {})
@@ -683,7 +742,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                     effectiveStartDate: getFutureEntryDateError(stringValue)
                   }))
                 }}
-                min={minimumEntryDate}
+                min={minimumEffectiveStartDate}
                 outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_effectiveStartDatePicker"
               />
@@ -819,7 +878,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                     const stringValue = typeof value === 'string' ? value : ''
                     setStartDate(stringValue)
                   }}
-                  disabled
+                  disabled={loading || changeMode === 'UPDATE' || changeMode === 'INSERT'}
                   readOnly
                   outputFormat="iso"
                   data-testid="flw_updateWorkingConditions_startDatePicker"
@@ -873,11 +932,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
           </div>
         </AppActionForm>
       </div>
-      <UpdateWorkingConditionsChangeModeDialog
-        open={confirmationDialogOpen}
-        onOpenChange={open => (open ? setConfirmationDialogOpen(true) : closeConfirmationDialog())}
-        onConfirm={handleConfirmChangeMode}
-      />
     </div>
   )
 }
