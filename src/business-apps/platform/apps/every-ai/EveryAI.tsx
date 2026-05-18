@@ -3,7 +3,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { useFlowBot } from './hooks/useFlowBot'
 import { useVoiceInput } from './hooks/useVoiceInput'
+import { useVoiceInputHybrid } from './hooks/useVoiceInputHybrid'
 import { useVoiceSynthesis } from './hooks/useVoiceSynthesis'
+import { useAudioMode } from './hooks/useAudioMode'
 import { ChatInput } from './components/ChatInput'
 import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
@@ -75,6 +77,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   const lastNavigatedTurnIndexRef = useRef<number>(-1)
   const navigateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Audio sovereignty detection (server vs browser TTS/STT)
+  const { mode: audioMode, markSovereigntyBlocked, markServerAvailable } = useAudioMode()
+  const [sovereigntyToast, setSovereigntyToast] = useState(false)
+  const sovereigntyToastShownRef = useRef(false)
+
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
 
@@ -109,20 +116,66 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Handle sending voice transcript (defined before voiceInput hook)
   const handleVoiceSendRef = useRef<(text: string) => void>(() => {})
+  const clearVoiceTranscriptRef = useRef<() => void>(() => {})
 
-  // Voice input hook with onEnd callback to auto-send
-  // Using continuous: true with silenceDelay for natural conversation pauses
-  const voiceInput = useVoiceInput({
+  const voiceEndHandler = useCallback((finalTranscript: string) => {
+    const normalizedTranscript = finalTranscript.trim()
+    if (!normalizedTranscript) {
+      return
+    }
+
+    if (!isSpeechModeRef.current) {
+      clearVoiceTranscriptRef.current()
+      return
+    }
+
+    handleVoiceSendRef.current(normalizedTranscript)
+  }, [])
+
+  // Hybrid STT hook (browser STT for interim + Flowbot POST for final transcription)
+  const voiceInputHybrid = useVoiceInputHybrid({
+    accessToken,
+    language: 'en-US',
+    silenceDelay: 1500,
+    enabled: audioMode.stt === 'server',
+    onEnd: voiceEndHandler,
+    onSovereigntyBlocked: () => {
+      markSovereigntyBlocked('stt')
+      if (!sovereigntyToastShownRef.current) {
+        sovereigntyToastShownRef.current = true
+        setSovereigntyToast(true)
+        setTimeout(() => setSovereigntyToast(false), 5000)
+      }
+      setTimeout(() => {
+        if (isSpeechModeRef.current) {
+          voiceInputBrowser.startListening()
+        }
+      }, 200)
+    }
+  })
+
+  // Browser STT hook (Web Speech API fallback)
+  const voiceInputBrowser = useVoiceInput({
     language: 'en-US',
     continuous: true,
     interimResults: true,
-    silenceDelay: 1000, // Wait 1 second of silence before sending
-    onEnd: (finalTranscript: string) => {
-      if (finalTranscript.trim() && isSpeechModeRef.current) {
-        handleVoiceSendRef.current(finalTranscript)
-      }
-    }
+    silenceDelay: 1000,
+    onEnd: voiceEndHandler
   })
+
+  // Route to hybrid or browser STT based on sovereignty state
+  const voiceInput = audioMode.stt === 'server' ? voiceInputHybrid : voiceInputBrowser
+  const voiceInputRef = useRef(voiceInput)
+  useEffect(() => {
+    voiceInputRef.current = voiceInput
+  })
+
+  useEffect(() => {
+    clearVoiceTranscriptRef.current = () => {
+      voiceInputHybrid.resetTranscript()
+      voiceInputBrowser.resetTranscript()
+    }
+  }, [voiceInputHybrid.resetTranscript, voiceInputBrowser.resetTranscript])
 
   // Track when AI stopped speaking to ignore echo
   const aiStoppedSpeakingAtRef = useRef<number>(0)
@@ -134,19 +187,27 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     voice: 'nova',
     speed: 1.0,
     accessToken,
+    forceBrowserTTS: audioMode.tts === 'browser',
     onStart: () => {
-      voiceInput.cancelListening()
+      voiceInputRef.current.cancelListening()
     },
     onEnd: () => {
       aiStoppedSpeakingAtRef.current = Date.now()
       if (isSpeechModeRef.current) {
-        voiceInput.startListening()
+        voiceInputRef.current.startListening()
       }
     },
     onError: () => {
-      // TTS failed — restart listening so the user isn't stuck in "Ready" state
       if (isSpeechModeRef.current) {
-        voiceInput.startListening()
+        voiceInputRef.current.startListening()
+      }
+    },
+    onSovereigntyBlocked: () => {
+      markSovereigntyBlocked('tts')
+      if (!sovereigntyToastShownRef.current) {
+        sovereigntyToastShownRef.current = true
+        setSovereigntyToast(true)
+        setTimeout(() => setSovereigntyToast(false), 5000)
       }
     }
   })
@@ -167,13 +228,8 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     if (voiceInput.isListening || voiceSynthesis.isSpeaking || voiceSynthesis.isLoading || isLoading) return
 
     const restartTimer = setTimeout(() => {
-      if (
-        isSpeechModeRef.current &&
-        !voiceInput.isListening &&
-        !voiceSynthesis.isSpeaking &&
-        !voiceSynthesis.isLoading
-      ) {
-        voiceInput.startListening()
+      if (isSpeechModeRef.current && !voiceSynthesis.isSpeaking && !voiceSynthesis.isLoading) {
+        voiceInputRef.current.startListening()
       }
     }, 1200)
 
@@ -185,7 +241,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     if (isSpeechMode) {
       isSpeechModeRef.current = false // Set ref FIRST to prevent any queued operations
       setIsSpeechMode(false)
-      voiceInput.cancelListening()
+      voiceInputRef.current.cancelListening()
       voiceSynthesis.stop()
       // Force stop again after a small delay in case streaming is in progress
       setTimeout(() => {
@@ -199,17 +255,21 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       voiceForm.clearPendingFormSummary()
       voiceForm.setActiveForm(null) // Clear any active form registration
     } else {
+      // Re-enable server STT + TTS on manual hands-free start.
+      // If server is actually blocked, hooks will switch back to browser mode.
+      markServerAvailable('stt')
+      markServerAvailable('tts')
       setIsSpeechMode(true)
       isSpeechModeRef.current = true
       lastSpokenTurnIndexRef.current = conversation.length - 1
       voiceForm.setIsVoiceMode(true)
       setTimeout(() => {
         if (isSpeechModeRef.current) {
-          voiceInput.startListening()
+          voiceInputRef.current.startListening()
         }
       }, 200)
     }
-  }, [isSpeechMode, voiceInput, voiceSynthesis, conversation.length, voiceForm])
+  }, [isSpeechMode, voiceSynthesis, conversation.length, voiceForm, markServerAvailable])
 
   // Speak pending form summaries when a form appears in voice mode
   useEffect(() => {
@@ -389,7 +449,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             const submitHandler = voiceForm.activeForm.submitHandler
             voiceForm.setActiveForm(null)
             voiceForm.clearPendingFormSummary()
-            voiceSynthesis.speak('Submitting the form now.')
+            if (!isSpeechModeRef.current) {
+              voiceSynthesis.speak('Submitting the form now.')
+            }
             submitHandler()
             voiceInput.resetTranscript()
             return
@@ -909,6 +971,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                     }}
                   />
                 </>
+              )}
+              {sovereigntyToast && (
+                <div className="gba:mx-4 gba:mb-2 gba:rounded-lg gba:bg-info/10 gba:px-3 gba:py-2 gba:text-xs gba:text-info">
+                  Voice runs in local mode for your region policy.
+                </div>
               )}
               {/* Inner container - fully transparent, no blur so content behind shows through */}
               <div

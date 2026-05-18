@@ -21,6 +21,8 @@ interface UseVoiceInputOptions {
   continuous?: boolean
   interimResults?: boolean
   silenceDelay?: number // ms to wait after speech ends before triggering onEnd
+  /** When true, always use browser SpeechRecognition (skip future server STT). */
+  forceLocalSTT?: boolean
   onTranscript?: (transcript: string) => void
   onEnd?: (finalTranscript: string) => void
 }

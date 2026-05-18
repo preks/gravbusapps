@@ -22,13 +22,34 @@ interface UseVoiceSynthesisOptions {
   voice?: OpenAIVoice
   speed?: number // 0.25 to 4.0
   accessToken: string
+  forceBrowserTTS?: boolean
   onStart?: () => void
   onEnd?: () => void
   onError?: (error: string) => void
+  onSovereigntyBlocked?: () => void
+}
+
+function selectBrowserVoice(lang: string): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices()
+  return (
+    voices.find(v => v.lang.startsWith(lang) && v.localService) ||
+    voices.find(v => v.lang.startsWith(lang)) ||
+    voices[0] ||
+    null
+  )
 }
 
 export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
-  const { voice = 'nova', speed = 1.0, accessToken, onStart, onEnd, onError } = options
+  const {
+    voice = 'nova',
+    speed = 1.0,
+    accessToken,
+    forceBrowserTTS = false,
+    onStart,
+    onEnd,
+    onError,
+    onSovereigntyBlocked
+  } = options
 
   const [state, setState] = useState<VoiceSynthesisState>({
     isSpeaking: false,
@@ -86,6 +107,52 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
     }
   }, [])
 
+  // Browser-native TTS fallback (used when server is sovereignty-blocked)
+  const speakWithBrowserTTS = useCallback(
+    (text: string): Promise<void> => {
+      return new Promise(resolve => {
+        if (!('speechSynthesis' in window)) {
+          setState(prev => ({ ...prev, isLoading: false, isSpeaking: false, currentText: null }))
+          onEnd?.()
+          resolve()
+          return
+        }
+
+        window.speechSynthesis.cancel()
+        const utterance = new SpeechSynthesisUtterance(text)
+        const selectedVoice = selectBrowserVoice('en')
+        if (selectedVoice) {
+          utterance.voice = selectedVoice
+        }
+        utterance.rate = speed
+
+        utterance.onstart = () => {
+          setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }))
+          onStart?.()
+        }
+
+        utterance.onend = () => {
+          setState(prev => ({ ...prev, isSpeaking: false, progress: 1 }))
+          onEnd?.()
+          resolve()
+        }
+
+        utterance.onerror = event => {
+          if (event.error === 'canceled' || event.error === 'interrupted') {
+            resolve()
+            return
+          }
+          setState(prev => ({ ...prev, isLoading: false, isSpeaking: false, currentText: null }))
+          onError?.(`Browser TTS failed: ${event.error}`)
+          resolve()
+        }
+
+        window.speechSynthesis.speak(utterance)
+      })
+    },
+    [speed, onStart, onEnd, onError]
+  )
+
   // Internal speak function with streaming audio playback
   const speakTextInternal = useCallback(
     async (text: string): Promise<void> => {
@@ -98,11 +165,17 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         currentText: text
       }))
 
+      // Skip server if forced to browser mode (sovereignty policy cached)
+      if (forceBrowserTTS) {
+        await speakWithBrowserTTS(text)
+        return
+      }
+
       abortControllerRef.current = new AbortController()
 
       try {
         const baseUrl = resolveFlowbotBaseUrl()
-        const url = `${baseUrl}/flowbot/api/agent/tts`
+        const url = `${baseUrl}/flowbot/api/agent/voice/tts`
 
         const response = await fetch(url, {
           method: 'POST',
@@ -113,12 +186,27 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
           body: JSON.stringify({
             text,
             voice,
-            speed
+            speed,
+            model: 'tts',
+            response_format: 'mp3'
           }),
           signal: abortControllerRef.current.signal
         })
 
         if (!response.ok) {
+          // Detect sovereignty block — fallback to browser TTS
+          if (response.status === 403) {
+            try {
+              const body = await response.json()
+              if (body?.code === 'sovereignty_blocked' || body?.detail?.code === 'sovereignty_blocked') {
+                onSovereigntyBlocked?.()
+                await speakWithBrowserTTS(text)
+                return
+              }
+            } catch {
+              // JSON parse failed, treat as generic error
+            }
+          }
           throw new Error(`TTS request failed: ${response.statusText}`)
         }
 
@@ -156,7 +244,18 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         onError?.(errorMsg)
       }
     },
-    [accessToken, voice, speed, onStart, onEnd, onError, cleanupAudio]
+    [
+      accessToken,
+      voice,
+      speed,
+      forceBrowserTTS,
+      onStart,
+      onEnd,
+      onError,
+      onSovereigntyBlocked,
+      cleanupAudio,
+      speakWithBrowserTTS
+    ]
   )
 
   // Keep ref in sync so processQueue always uses latest speakTextInternal
@@ -423,6 +522,11 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
+    }
+
+    // Cancel browser TTS if active
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
     }
 
     // Stop audio
