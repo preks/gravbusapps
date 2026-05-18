@@ -485,14 +485,25 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         // Align submit payload with the ID-based relation shape used by other IRM forms.
         // The mapper adds GraphQL display objects like opportunityAccounts[].account, but the
         // payload builder expects UUID fields only and will convert accountId -> account itself.
+        const mappedOpportunityAccounts = rawInvestmentMappedFields.opportunityAccounts
+          ?.map((assoc: any) => {
+            const accountId = assoc.accountId || assoc.account?.id || assoc.account
+            if (!accountId) {
+              return null
+            }
+
+            return {
+              ...(assoc.id && { id: assoc.id }),
+              ...(assoc.version !== undefined && { version: assoc.version }),
+              accountId,
+              ...(assoc.accountTypeRef && { accountTypeRef: assoc.accountTypeRef })
+            }
+          })
+          .filter((assoc: any): assoc is NonNullable<typeof assoc> => assoc !== null)
+
         const investmentMappedFields = {
           ...rawInvestmentMappedFields,
-          opportunityAccounts: rawInvestmentMappedFields.opportunityAccounts?.map((assoc: any) => ({
-            ...(assoc.id && { id: assoc.id }),
-            ...(assoc.version !== undefined && { version: assoc.version }),
-            accountId: assoc.accountId || assoc.account?.id || assoc.account,
-            ...(assoc.accountTypeRef && { accountTypeRef: assoc.accountTypeRef })
-          }))
+          ...(mappedOpportunityAccounts !== undefined && { opportunityAccounts: mappedOpportunityAccounts })
         }
 
         // Convert investmentTypeId back to group/type for payload (HEAD approach)
@@ -500,9 +511,10 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         const { groupId, typeId } = mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
 
         const mergedData = {
+          // Start with mapped investment defaults, then keep current form values authoritative.
+          ...investmentMappedFields,
           ...data,
           ...prospectFields, // Add dynamic fields for non-divestment deals
-          ...investmentMappedFields, // Add mapped investment fields for divestment deals
           // Remove investmentTypeId from payload (not part of API)
           investmentTypeId: undefined,
           // Add group/type for payload
