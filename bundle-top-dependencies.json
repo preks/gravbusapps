@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12208,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12208/",
-    "chunkJsBytes": 1890881,
+    "bitbucketBuildNumber": 12210,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12210/",
+    "chunkJsBytes": 1894677,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1592458,
-        "gzip": 99053,
+        "rendered": 1596587,
+        "gzip": 99477,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1592458,
-            "gzip": 99053
+            "rendered": 1596587,
+            "gzip": 99477
           }
         ]
       },
@@ -88492,15 +88492,15 @@
     ]
   },
   "platform/apps/chat": {
-    "bitbucketBuildNumber": 12190,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12190/",
-    "chunkJsBytes": 3761561,
+    "bitbucketBuildNumber": 12210,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12210/",
+    "chunkJsBytes": 3772283,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 4271435,
-        "gzip": 1847159,
+        "rendered": 4292933,
+        "gzip": 1852249,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/chat/worklets/rnnoise-processor.ts?inline",
@@ -88553,8 +88553,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 146205,
-        "gzip": 30331,
+        "rendered": 148022,
+        "gzip": 30941,
         "leaves": [
           {
             "name": "src/common/network/org-directory/OrgDirectoryClient.ts",
@@ -90446,20 +90446,20 @@
     ]
   },
   "platform/apps/every-ai": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 970976,
+    "bitbucketBuildNumber": 12210,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12210/",
+    "chunkJsBytes": 984648,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 804423,
-        "gzip": 186379,
+        "rendered": 825927,
+        "gzip": 191471,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/hooks/useFlowBot.ts",
-            "rendered": 68139,
-            "gzip": 13530
+            "rendered": 68151,
+            "gzip": 13537
           },
           {
             "name": "src/business-apps/platform/apps/every-ai/components/ChatInput.tsx",
@@ -90596,6 +90596,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 26608,
+        "gzip": 5583,
+        "leaves": [
+          {
+            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
+            "rendered": 14228,
+            "gzip": 2503
+          },
+          {
+            "name": "src/common/components/entity-mentions/EntityMentionPopover.tsx",
+            "rendered": 8311,
+            "gzip": 1942
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 20128,
         "gzip": 3961,
@@ -90609,24 +90627,6 @@
             "name": "src/common/hooks/useFeature.ts",
             "rendered": 378,
             "gzip": 202
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/components",
-        "rendered": 20048,
-        "gzip": 4990,
-        "leaves": [
-          {
-            "name": "src/common/components/entity-mentions/EntityMentionPopover.tsx",
-            "rendered": 8311,
-            "gzip": 1942
-          },
-          {
-            "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 7668,
-            "gzip": 1910
           }
         ]
       },
@@ -108189,7 +108189,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-18T08:29:00.267Z",
+    "generatedAt": "2026-05-18T08:43:26.079Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
