@@ -17,14 +17,21 @@ export const buildPolicyDetailUrl = (policyId: string): string =>
 export interface PickedPolicy {
   id: string
   title: string
+  updatedAt?: string
 }
 
 export interface AddPoliciesModalProps {
   open: boolean
   onClose: () => void
   accessToken: string
-  /** Policy uuids already attached to the skill draft — pre-checked on open. */
+  /** Policy uuids already attached to the agent — pre-checked on open. */
   alreadySelected: string[]
+  /**
+   * IDs of policies that are already in the workspace Default Policies
+   * baseline. When provided, matching items show a "Default" badge so
+   * users know these are always available to the agent anyway.
+   */
+  workspaceDefaultIds?: Set<string>
   /**
    * Called with the full desired set of policies (id + title) when the user
    * clicks Apply. Title comes from the entry the user actually clicked, so the
@@ -39,16 +46,32 @@ interface PolicyOption {
   id: string
   title: string
   contentTypeName?: string
+  updatedAt?: string
 }
 
 function toPolicyOption(entry: ContentEntry): PolicyOption | null {
-  const raw = entry as unknown as { id?: string; title?: string; contentType?: { name?: string } }
+  const raw = entry as unknown as {
+    id?: string
+    title?: string
+    contentType?: { name?: string }
+    updatedAt?: string
+  }
   const id = String(raw?.id ?? '').trim()
   if (!id) return null
   return {
     id,
     title: String(raw?.title ?? '').trim() || id,
-    contentTypeName: raw?.contentType?.name
+    contentTypeName: raw?.contentType?.name,
+    updatedAt: raw?.updatedAt
+  }
+}
+
+function formatDate(iso?: string): string {
+  if (!iso) return ''
+  try {
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(iso))
+  } catch {
+    return ''
   }
 }
 
@@ -56,8 +79,10 @@ function toPolicyOption(entry: ContentEntry): PolicyOption | null {
  * Browse-and-pick modal for intranet ContentEntry items that live under
  * `/platform/content/intranet?tab=policies` (contentGroup = POLICY).
  *
- * Mirrors the AddToolsModal UX so authors get the same paged-checkbox
- * experience for policies that they already have for provider tools.
+ * Used by the agent configure page to populate the per-agent
+ * ``policy_refs`` allow-list. The picker itself is content-side only —
+ * it never talks to the agent or skill backends — so it stays a small
+ * pure ContentEntry browser regardless of who attaches the policies.
  */
 const SEARCH_DEBOUNCE_MS = 250
 
@@ -66,6 +91,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
   onClose,
   accessToken,
   alreadySelected,
+  workspaceDefaultIds,
   onAdd
 }) => {
   // Two-stage search: `searchInput` follows the keyboard immediately so the
@@ -75,23 +101,23 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
   const [search, setSearch] = useState('')
   const [offset, setOffset] = useState(0)
   const [localSelected, setLocalSelected] = useState<Set<string>>(new Set())
-  // Titles for every entry the user has scrolled past in this session. Pages
-  // turn this into a 1-shot cache so `handleAdd` can return titles for items
-  // selected on previous pages without a second fetch.
-  const [seenTitles, setSeenTitles] = useState<Record<string, string>>({})
+  // Metadata for every entry the user has scrolled past in this session.
+  // Pages turn this into a 1-shot cache so `handleAdd` can return titles and
+  // updatedAt for items selected on previous pages without a second fetch.
+  const [seenMeta, setSeenMeta] = useState<Record<string, { title: string; updatedAt?: string }>>({})
 
   useEffect(() => {
     if (!open) return
     setSearchInput('')
     setSearch('')
     setOffset(0)
-    setSeenTitles({})
+    setSeenMeta({})
     setLocalSelected(new Set(alreadySelected))
   }, [alreadySelected, open])
 
   useEffect(() => {
-    const handle = window.setTimeout(() => setSearch(searchInput), SEARCH_DEBOUNCE_MS)
-    return () => window.clearTimeout(handle)
+    const handle = globalThis.setTimeout(() => setSearch(searchInput), SEARCH_DEBOUNCE_MS)
+    return () => globalThis.clearTimeout(handle)
   }, [searchInput])
 
   useEffect(() => {
@@ -111,27 +137,44 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
     [search, offset]
   )
 
-  const { entries, isLoading, error, totalCount, refetch } = useContentEntries(queryParams as any, accessToken, {
-    fields: ['id', 'title', 'contentGroup', 'contentType', 'updatedAt'] as any,
-    relationLimit: 0,
-    relationOffset: 0
-  } as any)
+  // Stable reference for the third arg of useContentEntries. The hook
+  // pulls `options` into its useCallback deps, so an inline literal here
+  // would change identity every render → fetchEntries re-creates →
+  // useEffect re-fires → setState → re-render → infinite fetch loop
+  // (the exact symptom that floods the network logs when the host or
+  // backend is unhealthy).
+  const queryOptions = useMemo(
+    () =>
+      ({
+        fields: ['id', 'title', 'contentGroup', 'contentType', 'updatedAt', 'preview'],
+        relationLimit: 0,
+        relationOffset: 0
+      }) as any,
+    []
+  )
+
+  const { entries, isLoading, error, totalCount, refetch } = useContentEntries(
+    queryParams as any,
+    accessToken,
+    queryOptions
+  )
 
   const options = useMemo(() => {
     const list = Array.isArray(entries) ? entries : []
     return list.map(toPolicyOption).filter((p): p is PolicyOption => p !== null)
   }, [entries])
 
-  // Extend the seen-title cache whenever a new page lands, so toggling items
-  // across page boundaries doesn't drop the title we'd need at Apply time.
+  // Extend the seen-meta cache whenever a new page lands, so toggling items
+  // across page boundaries doesn't drop the title/date we'd need at Apply time.
   useEffect(() => {
     if (options.length === 0) return
-    setSeenTitles(prev => {
+    setSeenMeta(prev => {
       let changed = false
       const next = { ...prev }
       for (const o of options) {
-        if (next[o.id] !== o.title) {
-          next[o.id] = o.title
+        const existing = next[o.id]
+        if (!existing || existing.title !== o.title || existing.updatedAt !== o.updatedAt) {
+          next[o.id] = { title: o.title, updatedAt: o.updatedAt }
           changed = true
         }
       }
@@ -156,7 +199,8 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
   const handleAdd = () => {
     const enriched: PickedPolicy[] = [...localSelected].map(id => ({
       id,
-      title: seenTitles[id] ?? id
+      title: seenMeta[id]?.title ?? id,
+      updatedAt: seenMeta[id]?.updatedAt
     }))
     onAdd(enriched)
     onClose()
@@ -165,10 +209,10 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
   if (!open) return null
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-modal="true"
-      className="gba:fixed gba:inset-0 gba:z-[60] gba:flex gba:items-center gba:justify-center gba:bg-background/80 gba:backdrop-blur-sm gba:p-4"
+      className="gba:fixed gba:inset-0 gba:z-[60] gba:flex gba:items-center gba:justify-center gba:bg-background/80 gba:backdrop-blur-sm gba:p-4 gba:m-0 gba:max-w-none gba:w-full gba:h-full gba:border-0 gba:bg-transparent"
       data-testid="add-policies-modal"
     >
       <button
@@ -186,7 +230,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border">
           <div className="gba:flex gba:items-center gba:gap-2">
             <ShieldCheck className="gba:h-4 gba:w-4 gba:text-primary" />
-            <h3 className="gba:text-sm gba:font-semibold">Attach Intranet Policy to Skill</h3>
+            <h3 className="gba:text-sm gba:font-semibold">Attach Intranet Policy to Agent</h3>
           </div>
           <button
             type="button"
@@ -252,20 +296,13 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
                 const checked = localSelected.has(policy.id)
                 return (
                   <li key={policy.id}>
-                    <div
-                      role="button"
-                      tabIndex={0}
+                    <button
+                      type="button"
                       className={[
                         'gba:w-full gba:flex gba:items-start gba:gap-3 gba:rounded-lg gba:px-3 gba:py-2.5 gba:text-left gba:transition-colors',
                         checked ? 'gba:bg-primary/8' : 'gba:hover:bg-muted/40'
                       ].join(' ')}
                       onClick={() => toggleItem(policy.id)}
-                      onKeyDown={event => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          toggleItem(policy.id)
-                        }
-                      }}
                       data-testid={`add-policies-item-${policy.id}`}
                     >
                       <span
@@ -299,10 +336,20 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
                               {policy.contentTypeName}
                             </span>
                           )}
+                          {workspaceDefaultIds?.has(policy.id) && (
+                            <span
+                              className="gba:flex-shrink-0 gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary"
+                              title="Already in workspace Default Policies — available to all agents automatically"
+                            >
+                              Default
+                            </span>
+                          )}
                         </div>
-                        <p className="gba:text-[11px] gba:text-muted-foreground gba:font-mono gba:mt-0.5 gba:truncate">
-                          {policy.id}
-                        </p>
+                        {policy.updatedAt && (
+                          <p className="gba:text-[11px] gba:text-muted-foreground gba:mt-0.5">
+                            Updated {formatDate(policy.updatedAt)}
+                          </p>
+                        )}
                       </div>
                       <a
                         href={buildPolicyDetailUrl(policy.id)}
@@ -310,14 +357,13 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
                         rel="noopener noreferrer"
                         onClick={event => event.stopPropagation()}
                         onKeyDown={event => event.stopPropagation()}
-                        className="gba:flex-shrink-0 gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:px-1.5 gba:py-1 gba:text-[11px] gba:text-muted-foreground gba:hover:text-primary gba:hover:bg-primary/5"
-                        title="Open policy in a new tab"
+                        className="gba:flex-shrink-0 gba:inline-flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded gba:text-muted-foreground gba:hover:text-primary gba:hover:bg-primary/5"
+                        title={`Open policy in a new tab (ID: ${policy.id})`}
                         data-testid={`add-policies-item-open-${policy.id}`}
                       >
-                        <ArrowSquareOut className="gba:h-3.5 gba:w-3.5" />
-                        Open
+                        <ArrowSquareOut className="gba:h-4 gba:w-4" />
                       </a>
-                    </div>
+                    </button>
                   </li>
                 )
               })}
@@ -369,6 +415,6 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }

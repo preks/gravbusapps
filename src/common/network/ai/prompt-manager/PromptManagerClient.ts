@@ -1219,6 +1219,75 @@ export class PromptManagerClient extends RestClient {
     return this.put(`/agents/registry/${encodeURIComponent(agentId)}/skills`, { skill_ids: skillIds })
   }
 
+  /**
+   * Fetch the intranet policies attached to an agent. Titles are
+   * best-effort: when the gravity-platform GraphQL gateway is
+   * unreachable the backend falls back to ``title = policy_id`` so the
+   * UI always has something to render.
+   */
+  async getAgentPolicies(agentId: string): Promise<{
+    agent_id: string
+    source: string
+    /** False for agents whose ODM does not store per-agent policy refs
+     *  (e.g. AutonomousAgentODM). The UI should hide the Policies section
+     *  in that case and fall back to workspace-level default policies. */
+    supported?: boolean
+    policies: Array<{ policy_id: string; title: string }>
+  }> {
+    return this.get(`/agents/registry/${encodeURIComponent(agentId)}/policies`)
+  }
+
+  /**
+   * Replace the agent's policy allow-list. Each ref must be an intranet
+   * ContentEntry uuid (the backend rejects non-uuid input with 422).
+   */
+  async setAgentPolicies(
+    agentId: string,
+    policyRefs: string[]
+  ): Promise<{ agent_id: string; policy_refs: string[]; count: number }> {
+    return this.put(`/agents/registry/${encodeURIComponent(agentId)}/policies`, {
+      policy_refs: policyRefs
+    })
+  }
+
+  /**
+   * Fetch the WORKSPACE-LEVEL default policies — the always-on baseline
+   * that applies to every deep agent run in the workspace. When
+   * ``workspaceId`` is omitted the backend resolves the default
+   * workspace. Titles and updatedAt are sourced from the stored
+   * ``policy_meta`` field (written at the same time as ``policy_refs``)
+   * so the response never requires a GraphQL round-trip.
+   */
+  async getWorkspacePolicies(workspaceId?: string): Promise<{
+    workspace_id: string | null
+    workspace_name: string | null
+    policies: Array<{ policy_id: string; title: string; updated_at?: string }>
+  }> {
+    const params = workspaceId ? { workspaceId } : undefined
+    return this.get('/agents/workspace-policies', { params })
+  }
+
+  /**
+   * Replace the workspace-level default policies. Each policy entry must
+   * carry its title (and optionally updatedAt) from the intranet picker so
+   * the backend can store display metadata without a GraphQL call.
+   * The backend rejects non-uuid ``policy_id`` values with 422.
+   */
+  async setWorkspacePolicies(
+    policies: Array<{ policy_id: string; title: string; updated_at?: string }>,
+    workspaceId?: string
+  ): Promise<{
+    workspace_id: string
+    workspace_name: string
+    policies: Array<{ policy_id: string; title: string; updated_at?: string }>
+    count: number
+  }> {
+    const path = workspaceId
+      ? `/agents/workspace-policies?workspaceId=${encodeURIComponent(workspaceId)}`
+      : '/agents/workspace-policies'
+    return this.put(path, { policies })
+  }
+
   async archiveAgent(agentId: string): Promise<{ agent_id: string; source: string; status: string }> {
     return this.post(`/agents/registry/${encodeURIComponent(agentId)}/archive`, {})
   }

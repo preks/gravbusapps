@@ -15,7 +15,6 @@ jest.mock('@/common/network/functions/FunctionsServiceClient', () => ({
 
 const mockGetSkill = jest.fn()
 const mockListSkillFiles = jest.fn()
-const mockListSkillPolicies = jest.fn()
 const mockSaveSkillRaw = jest.fn()
 const mockDeleteSkillFile = jest.fn()
 const mockUploadSkillFiles = jest.fn()
@@ -24,7 +23,6 @@ jest.mock('../../../hooks/useEnterpriseAgentClient', () => {
   const stableClient = {
     getSkill: (...args: unknown[]) => mockGetSkill(...args),
     listSkillFiles: (...args: unknown[]) => mockListSkillFiles(...args),
-    listSkillPolicies: (...args: unknown[]) => mockListSkillPolicies(...args),
     saveSkillRaw: (...args: unknown[]) => mockSaveSkillRaw(...args),
     deleteSkillFile: (...args: unknown[]) => mockDeleteSkillFile(...args),
     uploadSkillFiles: (...args: unknown[]) => mockUploadSkillFiles(...args),
@@ -41,8 +39,6 @@ describe('SkillEditorPanel', () => {
   beforeEach(() => {
     mockGetSkill.mockReset()
     mockListSkillFiles.mockReset()
-    mockListSkillPolicies.mockReset()
-    mockListSkillPolicies.mockResolvedValue([])
     mockSaveSkillRaw.mockReset()
     mockDeleteSkillFile.mockReset()
     mockUploadSkillFiles.mockReset()

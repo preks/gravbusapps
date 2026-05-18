@@ -1,8 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { ArrowLeftIcon, LightbulbIcon, PlusIcon, SpinnerGapIcon, WrenchIcon, XIcon } from '@phosphor-icons/react'
+import {
+  ArrowLeftIcon,
+  ArrowSquareOutIcon,
+  LightbulbIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+  SpinnerGapIcon,
+  WrenchIcon,
+  XIcon
+} from '@phosphor-icons/react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { getSourceDisplay } from './agentSourceUtils'
+import { AddPoliciesModal, buildPolicyDetailUrl, type PickedPolicy } from './AddPoliciesModal'
 import type { FabricAgent } from './agentTypes'
 
 interface SkillOption {
@@ -24,7 +34,13 @@ interface AgentConfigViewProps {
 
 const formatAgentName = (name: string) => name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
-export const AgentConfigView: React.FC<AgentConfigViewProps> = ({ agent, accessToken, onBack, onSkillsSaved, onAgentUpdated }) => {
+export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
+  agent,
+  accessToken,
+  onBack,
+  onSkillsSaved,
+  onAgentUpdated
+}) => {
   const client = usePromptManagerClient(accessToken)
   const sourceDisplay = getSourceDisplay(agent.source)
 
@@ -38,6 +54,23 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({ agent, accessT
   // Tools state (read-only, from detail endpoint)
   const [tools, setTools] = useState<string[]>([])
 
+  // Policies state — per-agent intranet policy allow-list. The picker
+  // lives in AddPoliciesModal; the backend reconciles the full set on
+  // every save (see PUT /agents/registry/{id}/policies).
+  const [policies, setPolicies] = useState<Array<{ policy_id: string; title: string }>>([])
+  const [policiesLoading, setPoliciesLoading] = useState(true)
+  const [policiesError, setPoliciesError] = useState<string | null>(null)
+  // True when the agent's backing ODM supports per-agent policy_refs
+  // (currently only PromptODM). For AutonomousAgentODM the backend
+  // returns supported=false and we hide the entire section since
+  // those agents only honour workspace-level default policies.
+  const [policiesSupported, setPoliciesSupported] = useState(true)
+  // IDs of policies that are already covered by the workspace default
+  // baseline — used to show a "Default" badge so users understand
+  // attaching them here is redundant (the runtime deduplicates anyway).
+  const [workspaceDefaultIds, setWorkspaceDefaultIds] = useState<Set<string>>(new Set())
+  const [addPoliciesModalOpen, setAddPoliciesModalOpen] = useState(false)
+
   // Details state
   const [detailsName, setDetailsName] = useState(agent.name)
   const [detailsDescription, setDetailsDescription] = useState(agent.description)
@@ -50,71 +83,114 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({ agent, accessT
   const [savedTags, setSavedTags] = useState(agent.tags.join(', '))
   const detailsDirty = detailsName !== savedName || detailsDescription !== savedDescription || detailsTags !== savedTags
 
-  // Load skills, details and tools in parallel on mount
+  // Load skills, policies, details and tools in parallel on mount
   useEffect(() => {
     let cancelled = false
+
+    const applySkillsResult = (
+      result: PromiseSettledResult<
+        [
+          Awaited<ReturnType<typeof client.getAgentSkills>>,
+          SkillOption[],
+          Array<Omit<SkillOption, 'status' | 'is_active'>>
+        ]
+      >
+    ) => {
+      if (result.status !== 'fulfilled') {
+        setSkillsError(result.reason instanceof Error ? result.reason.message : 'Failed to load skills')
+        return
+      }
+      const [agentSkills, adminSkills, runtimeSkills] = result.value
+      const merged = new Map<string, SkillOption>()
+      for (const skill of adminSkills) merged.set(skill.skill_id, skill)
+      for (const skill of runtimeSkills) {
+        const existing = merged.get(skill.skill_id)
+        if (existing) {
+          if (skill.tool_refs?.length) existing.tool_refs = skill.tool_refs
+        } else {
+          merged.set(skill.skill_id, { ...skill, status: 'built_in', is_active: true })
+        }
+      }
+      const allSkills = [...merged.values()].sort((a, b) => a.skill_id.localeCompare(b.skill_id))
+      setAvailableSkills(
+        allSkills.filter(s => s.is_active === true || agentSkills.skills.some(a => a.skill_id === s.skill_id))
+      )
+      setSelectedSkillIds(new Set(agentSkills.skills.map(s => s.skill_id)))
+    }
+
+    const applyPoliciesResult = (
+      result: PromiseSettledResult<Awaited<ReturnType<typeof client.getAgentPolicies>>>,
+      workspaceResult: PromiseSettledResult<Awaited<ReturnType<typeof client.getWorkspacePolicies>>>
+    ) => {
+      if (result.status !== 'fulfilled') {
+        setPoliciesError(result.reason instanceof Error ? result.reason.message : 'Failed to load policies')
+        return
+      }
+      setPolicies(result.value.policies ?? [])
+      setPoliciesSupported(result.value.supported !== false)
+      if (workspaceResult.status === 'fulfilled') {
+        setWorkspaceDefaultIds(new Set((workspaceResult.value.policies ?? []).map(p => p.policy_id)))
+      }
+    }
+
+    const applyDetailsResult = (result: PromiseSettledResult<Awaited<ReturnType<typeof client.getAgentDetail>>>) => {
+      if (result.status !== 'fulfilled') {
+        setDetailsError(result.reason instanceof Error ? result.reason.message : 'Failed to load agent details')
+        return
+      }
+      const detail = result.value
+      setTools(detail.tools ?? [])
+      const loadedName = detail.name ?? agent.name
+      const loadedDesc = detail.description ?? agent.description
+      const loadedTags = (detail.tags ?? agent.tags).join(', ')
+      setDetailsName(loadedName)
+      setDetailsDescription(loadedDesc)
+      setDetailsTags(loadedTags)
+      setSavedName(loadedName)
+      setSavedDescription(loadedDesc)
+      setSavedTags(loadedTags)
+    }
+
     const load = async () => {
       setSkillsLoading(true)
       setSkillsError(null)
+      setPoliciesLoading(true)
+      setPoliciesError(null)
       setDetailsLoading(true)
       setDetailsError(null)
-      const [skillsResult, detailResult] = await Promise.allSettled([
+      const [skillsResult, policiesResult, workspaceResult, detailResult] = await Promise.allSettled([
         Promise.all([
           client.getAgentSkills(agent.id),
           client.get<SkillOption[]>('/admin/skills/').catch(() => [] as SkillOption[]),
           client.get<Array<Omit<SkillOption, 'status' | 'is_active'>>>('/skills/manifest').catch(() => [])
         ]),
+        client.getAgentPolicies(agent.id),
+        client.getWorkspacePolicies().catch(() => ({ workspace_id: null, workspace_name: null, policies: [] })),
         client.getAgentDetail(agent.id)
       ])
       if (cancelled) return
-
-      if (skillsResult.status === 'fulfilled') {
-        const [agentSkills, adminSkills, runtimeSkills] = skillsResult.value
-        const merged = new Map<string, SkillOption>()
-        for (const skill of adminSkills) merged.set(skill.skill_id, skill)
-        for (const skill of runtimeSkills) {
-          const existing = merged.get(skill.skill_id)
-          if (existing) {
-            if (skill.tool_refs?.length) existing.tool_refs = skill.tool_refs
-          } else {
-            merged.set(skill.skill_id, { ...skill, status: 'built_in', is_active: true })
-          }
-        }
-        const allSkills = [...merged.values()].sort((a, b) => a.skill_id.localeCompare(b.skill_id))
-        setAvailableSkills(
-          allSkills.filter(
-            skill => skill.is_active === true || agentSkills.skills.some(s => s.skill_id === skill.skill_id)
-          )
-        )
-        setSelectedSkillIds(new Set(agentSkills.skills.map(s => s.skill_id)))
-      } else {
-        setSkillsError(skillsResult.reason instanceof Error ? skillsResult.reason.message : 'Failed to load skills')
-      }
+      applySkillsResult(skillsResult)
       setSkillsLoading(false)
-
-      if (detailResult.status === 'fulfilled') {
-        const detail = detailResult.value
-        setTools(detail.tools ?? [])
-        const loadedName = detail.name ?? agent.name
-        const loadedDesc = detail.description ?? agent.description
-        const loadedTags = (detail.tags ?? agent.tags).join(', ')
-        setDetailsName(loadedName)
-        setDetailsDescription(loadedDesc)
-        setDetailsTags(loadedTags)
-        setSavedName(loadedName)
-        setSavedDescription(loadedDesc)
-        setSavedTags(loadedTags)
-      } else {
-        setDetailsError(detailResult.reason instanceof Error ? detailResult.reason.message : 'Failed to load agent details')
-      }
+      applyPoliciesResult(policiesResult, workspaceResult)
+      setPoliciesLoading(false)
+      applyDetailsResult(detailResult)
       setDetailsLoading(false)
     }
-    void load()
-    return () => { cancelled = true }
+
+    load().catch(err => setSkillsError(err instanceof Error ? err.message : 'Failed to load'))
+    return () => {
+      cancelled = true
+    }
   }, [client, agent.id])
 
-  const assignedSkills = useMemo(() => availableSkills.filter(s => selectedSkillIds.has(s.skill_id)), [availableSkills, selectedSkillIds])
-  const unassignedSkills = useMemo(() => availableSkills.filter(s => !selectedSkillIds.has(s.skill_id)), [availableSkills, selectedSkillIds])
+  const assignedSkills = useMemo(
+    () => availableSkills.filter(s => selectedSkillIds.has(s.skill_id)),
+    [availableSkills, selectedSkillIds]
+  )
+  const unassignedSkills = useMemo(
+    () => availableSkills.filter(s => !selectedSkillIds.has(s.skill_id)),
+    [availableSkills, selectedSkillIds]
+  )
 
   const toggleSkill = (skillId: string) => {
     const next = new Set(selectedSkillIds)
@@ -129,11 +205,62 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({ agent, accessT
     })
   }
 
+  // Persist the full policy allow-list. The PUT endpoint expects the
+  // canonical set (not a delta), so we always send the post-mutation
+  // ids and roll back optimistic state on failure.
+  const persistPolicies = useCallback(
+    async (
+      next: Array<{ policy_id: string; title: string }>,
+      previous: Array<{ policy_id: string; title: string }>
+    ) => {
+      setPolicies(next)
+      setPoliciesError(null)
+      try {
+        await client.setAgentPolicies(
+          agent.id,
+          next.map(p => p.policy_id)
+        )
+      } catch (err) {
+        setPolicies(previous)
+        setPoliciesError(err instanceof Error ? err.message : 'Failed to persist policies')
+      }
+    },
+    [agent.id, client]
+  )
+
+  // The modal returns the full desired set (already-attached + newly
+  // ticked) using its own `{ id, title }` shape. We only treat it as
+  // additive: removals happen through the X button on each chip, which
+  // keeps existing titles intact even if the user hasn't paginated to
+  // the page that holds them.
+  const handleApplyPolicies = useCallback(
+    (picked: PickedPolicy[]) => {
+      const seen = new Set(policies.map(p => p.policy_id))
+      const additions = picked.filter(p => !seen.has(p.id)).map(p => ({ policy_id: p.id, title: p.title }))
+      setAddPoliciesModalOpen(false)
+      if (additions.length === 0) return
+      persistPolicies([...policies, ...additions], policies).catch(() => {})
+    },
+    [persistPolicies, policies]
+  )
+
+  const handleRemovePolicy = useCallback(
+    (policyId: string) => {
+      const next = policies.filter(p => p.policy_id !== policyId)
+      if (next.length === policies.length) return
+      persistPolicies(next, policies).catch(() => {})
+    },
+    [persistPolicies, policies]
+  )
+
   const handleSaveDetails = async () => {
     setDetailsSaving(true)
     setDetailsError(null)
     try {
-      const tags = detailsTags.split(',').map(s => s.trim()).filter(Boolean)
+      const tags = detailsTags
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
       await client.updateAgentDetails(agent.id, {
         name: detailsName,
         description: detailsDescription,
@@ -165,7 +292,9 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({ agent, accessT
           </button>
           <div className="gba:flex gba:items-center gba:gap-2">
             <h1 className="gba:text-xl gba:font-semibold gba:text-foreground">{formatAgentName(agent.name)}</h1>
-            <span className={`gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${sourceDisplay.badgeClass}`}>
+            <span
+              className={`gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${sourceDisplay.badgeClass}`}
+            >
               {sourceDisplay.label}
             </span>
           </div>
@@ -197,45 +326,45 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({ agent, accessT
                 ) : (
                   <div className="gba:space-y-2">
                     {assignedSkills.map(skill => (
-                        <div
-                          key={skill.skill_id}
-                          className="gba:rounded-lg gba:border gba:border-primary gba:bg-primary/5 gba:p-3"
-                          data-testid={`config-skill-${skill.skill_id}`}
-                        >
-                          <div className="gba:flex gba:items-center gba:gap-3">
-                            <LightbulbIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-600 gba:shrink-0" />
-                            <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                              {skill.name || skill.skill_id}
+                      <div
+                        key={skill.skill_id}
+                        className="gba:rounded-lg gba:border gba:border-primary gba:bg-primary/5 gba:p-3"
+                        data-testid={`config-skill-${skill.skill_id}`}
+                      >
+                        <div className="gba:flex gba:items-center gba:gap-3">
+                          <LightbulbIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-600 gba:shrink-0" />
+                          <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
+                            {skill.name || skill.skill_id}
+                          </span>
+                          {skill.status === 'built_in' && (
+                            <span className="gba:shrink-0 gba:rounded gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
+                              Built-in
                             </span>
-                            {skill.status === 'built_in' && (
-                              <span className="gba:shrink-0 gba:rounded gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
-                                Built-in
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => toggleSkill(skill.skill_id)}
-                              className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10 gba:transition-colors"
-                              data-testid={`config-skill-remove-${skill.skill_id}`}
-                            >
-                              <XIcon className="gba:h-3.5 gba:w-3.5" />
-                            </button>
-                          </div>
-                          {skill.tool_refs && skill.tool_refs.length > 0 && (
-                            <div className="gba:mt-2 gba:ml-6.5 gba:flex gba:flex-wrap gba:gap-1.5">
-                              {skill.tool_refs.map(tool => (
-                                <span
-                                  key={tool}
-                                  className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:bg-muted/60 gba:px-2 gba:py-0.5 gba:text-xs gba:text-muted-foreground"
-                                >
-                                  <WrenchIcon className="gba:h-3 gba:w-3" />
-                                  {tool}
-                                </span>
-                              ))}
-                            </div>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => toggleSkill(skill.skill_id)}
+                            className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10 gba:transition-colors"
+                            data-testid={`config-skill-remove-${skill.skill_id}`}
+                          >
+                            <XIcon className="gba:h-3.5 gba:w-3.5" />
+                          </button>
                         </div>
-                      ))}
+                        {skill.tool_refs && skill.tool_refs.length > 0 && (
+                          <div className="gba:mt-2 gba:ml-6.5 gba:flex gba:flex-wrap gba:gap-1.5">
+                            {skill.tool_refs.map(tool => (
+                              <span
+                                key={tool}
+                                className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:bg-muted/60 gba:px-2 gba:py-0.5 gba:text-xs gba:text-muted-foreground"
+                              >
+                                <WrenchIcon className="gba:h-3 gba:w-3" />
+                                {tool}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -268,31 +397,31 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({ agent, accessT
                     ) : (
                       <div className="gba:space-y-1.5">
                         {unassignedSkills.map(skill => (
-                            <button
-                              key={skill.skill_id}
-                              type="button"
-                              onClick={() => toggleSkill(skill.skill_id)}
-                              className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:p-2.5 gba:text-left gba:hover:border-primary/50 gba:hover:bg-muted/30 gba:transition-colors"
-                              data-testid={`config-skill-pick-${skill.skill_id}`}
-                            >
-                              <LightbulbIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-600 gba:shrink-0" />
-                              <div className="gba:flex-1 gba:min-w-0">
-                                <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                                  {skill.name || skill.skill_id}
-                                </span>
-                                {skill.description && (
-                                  <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-1">
-                                    {skill.description}
-                                  </p>
-                                )}
-                              </div>
-                              {skill.status === 'built_in' && (
-                                <span className="gba:shrink-0 gba:rounded gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
-                                  Built-in
-                                </span>
+                          <button
+                            key={skill.skill_id}
+                            type="button"
+                            onClick={() => toggleSkill(skill.skill_id)}
+                            className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:p-2.5 gba:text-left gba:hover:border-primary/50 gba:hover:bg-muted/30 gba:transition-colors"
+                            data-testid={`config-skill-pick-${skill.skill_id}`}
+                          >
+                            <LightbulbIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-600 gba:shrink-0" />
+                            <div className="gba:flex-1 gba:min-w-0">
+                              <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
+                                {skill.name || skill.skill_id}
+                              </span>
+                              {skill.description && (
+                                <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-1">
+                                  {skill.description}
+                                </p>
                               )}
-                            </button>
-                          ))}
+                            </div>
+                            {skill.status === 'built_in' && (
+                              <span className="gba:shrink-0 gba:rounded gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
+                                Built-in
+                              </span>
+                            )}
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -300,6 +429,87 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({ agent, accessT
               </>
             )}
           </section>
+
+          {/* Policies Section (agent-level intranet policy allow-list).
+              Only rendered when the agent's ODM supports policy_refs —
+              autonomous agents fall back to workspace defaults. */}
+          {policiesSupported && (
+            <section data-testid="agent-config-policies">
+              <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-4">Policies</h2>
+
+              {policiesError && (
+                <div className="gba:rounded-lg gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:p-3 gba:text-sm gba:text-destructive gba:mb-3">
+                  {policiesError}
+                </div>
+              )}
+
+              {policiesLoading ? (
+                <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+                  <SpinnerGapIcon className="gba:h-6 gba:w-6 gba:animate-spin gba:text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="gba:space-y-3">
+                  {policies.length === 0 ? (
+                    <p className="gba:text-sm gba:text-muted-foreground gba:py-2">No policies attached.</p>
+                  ) : (
+                    <div className="gba:space-y-2">
+                      {policies.map(policy => {
+                        const isDefault = workspaceDefaultIds.has(policy.policy_id)
+                        return (
+                          <div
+                            key={policy.policy_id}
+                            className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:px-3 gba:py-2"
+                            data-testid={`config-policy-${policy.policy_id}`}
+                          >
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+                              <ShieldCheckIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
+                              <a
+                                href={buildPolicyDetailUrl(policy.policy_id)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="gba:text-sm gba:text-foreground gba:hover:underline gba:truncate gba:inline-flex gba:items-center gba:gap-1"
+                                title={policy.title}
+                              >
+                                <span className="gba:truncate">{policy.title || policy.policy_id}</span>
+                                <ArrowSquareOutIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                              </a>
+                              {isDefault && (
+                                <span
+                                  className="gba:flex-shrink-0 gba:rounded-full gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
+                                  title="Already in workspace Default Policies — runtime deduplicates automatically"
+                                >
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePolicy(policy.policy_id)}
+                              className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:shrink-0"
+                              data-testid={`config-policy-remove-${policy.policy_id}`}
+                              aria-label="Remove policy"
+                            >
+                              <XIcon className="gba:h-3.5 gba:w-3.5" />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setAddPoliciesModalOpen(true)}
+                    data-testid="config-policy-add-button"
+                  >
+                    <PlusIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" />
+                    Add Policy
+                  </Button>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Tools Section (read-only) */}
           <section data-testid="agent-config-tools">
@@ -353,8 +563,14 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({ agent, accessT
                 </div>
 
                 <div>
-                  <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">Description</label>
+                  <label
+                    htmlFor="details-description"
+                    className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1"
+                  >
+                    Description
+                  </label>
                   <textarea
+                    id="details-description"
                     value={detailsDescription}
                     onChange={e => setDetailsDescription(e.target.value)}
                     rows={3}
@@ -386,6 +602,17 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({ agent, accessT
           </section>
         </div>
       </div>
+
+      {addPoliciesModalOpen && policiesSupported && (
+        <AddPoliciesModal
+          open={addPoliciesModalOpen}
+          accessToken={accessToken}
+          alreadySelected={policies.map(p => p.policy_id)}
+          workspaceDefaultIds={workspaceDefaultIds}
+          onClose={() => setAddPoliciesModalOpen(false)}
+          onAdd={handleApplyPolicies}
+        />
+      )}
     </div>
   )
 }

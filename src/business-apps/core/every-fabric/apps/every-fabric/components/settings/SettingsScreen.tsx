@@ -10,6 +10,7 @@ import type { AgentSettings } from './agentSettings.types'
 import { loadSettings, persistSettings } from './agentSettings.utils'
 import { ConfigurationSection } from './components/ConfigurationSection'
 import { MemorySection } from './components/MemorySection'
+import { PoliciesSection } from './components/PoliciesSection'
 import { SkillsSection } from './components/SkillsSection'
 import { MetricsSection } from './components/MetricsSection'
 import { ToolsTab } from './ToolsTab'
@@ -125,6 +126,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         <div className="gba:flex-1 gba:overflow-y-auto">
           <div className="gba:max-w-5xl gba:mx-auto gba:px-4 sm:gba:px-6 lg:gba:px-8 gba:py-6 sm:gba:py-8 lg:gba:py-12">
             <ConfigurationSection settings={settings} updateSetting={updateSetting} />
+            <div className="gba:h-12 lg:gba:h-16" />
+            <PoliciesSection accessToken={accessToken} isOpen />
             <div className="gba:h-12 lg:gba:h-16" />
             <MemorySection client={client} isOpen />
             <div className="gba:h-12 lg:gba:h-16" />
