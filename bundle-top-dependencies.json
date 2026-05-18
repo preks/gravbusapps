@@ -5718,33 +5718,33 @@
     ]
   },
   "core/create/apps/custom-data-manager": {
-    "bitbucketBuildNumber": 12240,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12240/",
-    "chunkJsBytes": 275396,
+    "bitbucketBuildNumber": 12253,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12253/",
+    "chunkJsBytes": 279394,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 146737,
-        "gzip": 33402,
+        "rendered": 151652,
+        "gzip": 34399,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/custom-data-manager/components/ColumnEditor.tsx",
-            "rendered": 25458,
-            "gzip": 4400
+            "rendered": 26206,
+            "gzip": 4493
           },
           {
             "name": "src/business-apps/core/create/apps/custom-data-manager/components/DataTablePanel.tsx",
             "rendered": 13068,
-            "gzip": 2514
+            "gzip": 2515
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 110356,
-        "gzip": 33582,
+        "rendered": 113111,
+        "gzip": 34319,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
@@ -5775,7 +5775,7 @@
         "kind": "bucket",
         "name": "(src)/common/components",
         "rendered": 47818,
-        "gzip": 14805,
+        "gzip": 14806,
         "leaves": [
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -5829,12 +5829,12 @@
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15763,
-        "gzip": 3726,
+        "gzip": 3727,
         "leaves": [
           {
             "name": "src/components/share-entity/ShareEntityDialog.tsx",
             "rendered": 15763,
-            "gzip": 3726
+            "gzip": 3727
           }
         ]
       },
@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12251,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12251/",
-    "chunkJsBytes": 1894680,
+    "bitbucketBuildNumber": 12253,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12253/",
+    "chunkJsBytes": 1894684,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1596590,
-        "gzip": 99654,
+        "gzip": 99698,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1596590,
-            "gzip": 99654
+            "gzip": 99698
           }
         ]
       },
@@ -108189,7 +108189,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-18T15:06:02.181Z",
+    "generatedAt": "2026-05-18T15:24:44.993Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
