@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12197,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12197/",
-    "chunkJsBytes": 1890888,
+    "bitbucketBuildNumber": 12200,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12200/",
+    "chunkJsBytes": 1890891,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1592457,
-        "gzip": 99015,
+        "gzip": 99034,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1592457,
-            "gzip": 99015
+            "gzip": 99034
           }
         ]
       },
@@ -99875,9 +99875,9 @@
     ]
   },
   "hr/compensation-planning/apps/compensation-planning": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 915201,
+    "bitbucketBuildNumber": 12200,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12200/",
+    "chunkJsBytes": 915504,
     "top": [
       {
         "kind": "bucket",
@@ -99900,8 +99900,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 410598,
-        "gzip": 100826,
+        "rendered": 411022,
+        "gzip": 100912,
         "leaves": [
           {
             "name": "src/business-apps/hr/compensation-planning/apps/compensation-planning/_i18n/ro-RO.ftl?raw",
@@ -100151,9 +100151,9 @@
     ]
   },
   "hr/compensation-planning/apps/manager-compensation-planning": {
-    "bitbucketBuildNumber": 12103,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12103/",
-    "chunkJsBytes": 890535,
+    "bitbucketBuildNumber": 12200,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12200/",
+    "chunkJsBytes": 896082,
     "top": [
       {
         "kind": "bucket",
@@ -100176,8 +100176,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 366733,
-        "gzip": 95950,
+        "rendered": 377384,
+        "gzip": 97407,
         "leaves": [
           {
             "name": "src/business-apps/hr/compensation-planning/apps/compensation-planning/_i18n/ro-RO.ftl?raw",
@@ -107913,7 +107913,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-18T05:56:54.511Z",
+    "generatedAt": "2026-05-18T06:44:15.709Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
