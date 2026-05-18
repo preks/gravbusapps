@@ -44,6 +44,7 @@ export const Navigation = {
 
   // HR
   HR_EMPLOYEE_RECORD: `${NAVIGATION_BASE_PATH}/employee-record`,
+  HR_EMPLOYEE_DATA_IMPORT: `${NAVIGATION_BASE_PATH}/hr/data-import`,
   /** Self-service: same HR Development content as My Profile, dedicated route */
   /** Same URL shape as other Self-Service HR apps (e.g. My Time in hub: `/platform/hr/core/apps/my-time`). */
   HR_MY_DEVELOPMENT: `${NAVIGATION_BASE_PATH}/hr/core/apps/my-development`,
@@ -170,6 +171,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // HR
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
+  [Navigation.HR_EMPLOYEE_DATA_IMPORT]: 'hr/core/apps/data-import',
   [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
   [Navigation.HR_PERFORMANCE_TRACKING]: 'hr/core/apps/performance-tracking',
   [Navigation.HR_ADMIN_COCKPIT]: 'hr/core/apps/hr-admin-cockpit',

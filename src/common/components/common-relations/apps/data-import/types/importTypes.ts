@@ -104,7 +104,7 @@ export interface ImportConfig {
    * from Flowbot's expected `entity_type` value.
    */
   flowbotEntityType?: string
-  domain: 'customer' | 'investment' // Domain for endpoint routing
+  domain: 'customer' | 'investment' | 'hr' // Domain for endpoint routing
   targetFields: TargetFieldDefinition[]
   investmentPayloadKey?: string
   investmentReportPayloadKey?: 'equityInvestmentReport' | 'realEstateInvestmentReport' | 'liquidFundInvestmentReport'

@@ -85,7 +85,7 @@ export interface MapFromFileRequest {
   entity_type: string
   import_file: File
   model_kind?: string
-  domain?: 'crm' | 'irm'
+  domain?: 'crm' | 'irm' | 'hr'
   /**
    * Wrapper key Flowbot must use to nest the imported subtype payload
    * (e.g. `'liquidFundInvestment'`). Sourced from the
@@ -119,7 +119,7 @@ export interface MapFromFileResponse {
 
 export interface ExtractFromFileRequest {
   entity_type: string
-  domain?: 'crm' | 'irm'
+  domain?: 'crm' | 'irm' | 'hr'
   import_file: File
   model_kind?: string
   mapping_json: string
@@ -151,9 +151,10 @@ export interface ExtractFromFileResponse {
   csvQuality?: CsvQuality
 }
 
-export function toFlowbotDomain(domain?: string): 'crm' | 'irm' | undefined {
+export function toFlowbotDomain(domain?: string): 'crm' | 'irm' | 'hr' | undefined {
   if (domain === 'customer' || domain === 'crm') return 'crm'
   if (domain === 'investment' || domain === 'irm') return 'irm'
+  if (domain === 'hr') return 'hr'
   return undefined
 }
 

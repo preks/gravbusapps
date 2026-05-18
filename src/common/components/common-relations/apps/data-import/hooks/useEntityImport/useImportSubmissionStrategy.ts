@@ -11,6 +11,7 @@
 import { useMemo } from 'react'
 import type { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
 import { createCrmImportStrategy } from './crm'
+import { createHrImportStrategy } from './hr'
 import { createIrmImportStrategy } from './irm'
 import type { ImportSubmissionStrategy } from './types'
 
@@ -20,4 +21,8 @@ export function useCrmImportSubmissionStrategy(config: ImportConfig): ImportSubm
 
 export function useIrmImportSubmissionStrategy(config: ImportConfig): ImportSubmissionStrategy {
   return useMemo(() => createIrmImportStrategy(config), [config])
+}
+
+export function useHrImportSubmissionStrategy(config: ImportConfig): ImportSubmissionStrategy {
+  return useMemo(() => createHrImportStrategy(config), [config])
 }

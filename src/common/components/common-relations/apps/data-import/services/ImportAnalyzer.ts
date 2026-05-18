@@ -24,7 +24,7 @@ export class ImportAnalyzer {
   constructor(
     private readonly accessToken: string,
     private readonly entityType: string,
-    private readonly domain: 'customer' | 'investment'
+    private readonly domain: 'customer' | 'investment' | 'hr'
   ) {
     flowbotClient.setAccessToken(accessToken)
   }
