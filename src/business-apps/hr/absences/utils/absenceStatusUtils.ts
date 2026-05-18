@@ -1,6 +1,6 @@
 import dayjs from 'dayjs'
 import type { BadgeProps } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
  * Absence status utilities following the same pattern as expenses
@@ -69,6 +69,26 @@ const STATUS_CONFIG_MAP: Record<
   }
 }
 
+const IN_CANCELLATION_DEFAULT_LABEL_BY_LOCALE: Record<string, string> = {
+  de: 'Stornierung beantragt',
+  ro: 'Anulare solicitata',
+  en: 'In Cancellation'
+}
+
+const resolveInCancellationFallbackLabel = (): string => {
+  const activeLocale = (getCurrentActiveUserLocale() || 'en-US').toLowerCase()
+
+  if (activeLocale.startsWith('de')) {
+    return IN_CANCELLATION_DEFAULT_LABEL_BY_LOCALE.de
+  }
+
+  if (activeLocale.startsWith('ro')) {
+    return IN_CANCELLATION_DEFAULT_LABEL_BY_LOCALE.ro
+  }
+
+  return IN_CANCELLATION_DEFAULT_LABEL_BY_LOCALE.en
+}
+
 /**
  * Maps absence statuses to appropriate Badge display configuration
  * Based on the exact status mapping provided with correct labels and colors
@@ -101,8 +121,10 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
   const config = STATUS_CONFIG_MAP[upperStatus]
 
   if (config) {
+    const defaultLabel = upperStatus === 'IN_CANCELLATION' ? resolveInCancellationFallbackLabel() : config.defaultLabel
+
     return {
-      label: getTranslationFromI18nKeyAndLabel(config.i18nKey, config.defaultLabel),
+      label: getTranslationFromI18nKeyAndLabel(config.i18nKey, defaultLabel),
       variant: config.variant,
       color: config.color,
       type: config.type,
