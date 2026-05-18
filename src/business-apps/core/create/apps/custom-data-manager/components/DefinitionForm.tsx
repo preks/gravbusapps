@@ -31,7 +31,6 @@ import { SchemaPreview } from './SchemaPreview'
 import {
   prepareColumnsForPersistence,
   prepareColumnsForEditing,
-  toPascalCase,
   validateDefinitionForm
 } from '../utils/definitionFormUtils'
 import { createInitialColumns, ensureColumnUiIds, stripColumnUiIds, UiColumnDefinition } from '../utils/columnUiIds'
@@ -92,11 +91,15 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
     setError(null)
   }, [definition, open])
 
-  const generatedEntityPreview = definition?.entityName || toPascalCase(displayName) || '-'
-
   const handleSubmit = async () => {
     const normalizedDisplayName = String(displayName || '').trim()
-    const validationError = validateDefinitionForm({ displayName: normalizedDisplayName, columns })
+    const validationError = validateDefinitionForm({
+      displayName: normalizedDisplayName,
+      columns,
+      namespace,
+      definitions: allDefinitions ?? [],
+      currentDefinitionId: definition?.id
+    })
     if (validationError) {
       setError(validationError)
       return
@@ -109,8 +112,7 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
       const persistedColumns = stripColumnUiIds(prepareColumnsForPersistence(columns))
       if (isEdit) {
         const dto: UpdateDefinitionDto = {
-          entityName: definition.entityName,
-          displayName: normalizedDisplayName || undefined,
+          displayName: normalizedDisplayName,
           description: description || undefined,
           columns: persistedColumns
         }
@@ -118,9 +120,8 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
       } else {
         const dto: CreateDefinitionDto = {
           namespace,
-          entityName: toPascalCase(normalizedDisplayName),
           kind: 'CUSTOM_ENTITY',
-          displayName: normalizedDisplayName || undefined,
+          displayName: normalizedDisplayName,
           description: description || undefined,
           columns: persistedColumns
         }
@@ -208,28 +209,15 @@ export const DefinitionForm: React.FC<DefinitionFormProps> = ({
                 </p>
               </div>
 
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                {/* Generated Key */}
-                <div className="gba:space-y-2">
-                  <Label>Entity</Label>
-                  <div
-                    className="gba:flex gba:min-h-10 gba:items-center gba:rounded-md gba:border gba:bg-muted/30 gba:px-3 gba:font-mono gba:text-sm"
-                    data-testid={`${testId}-key-preview`}
-                  >
-                    {generatedEntityPreview}
-                  </div>
-                  <p className="gba:text-xs gba:text-muted-foreground">Derived by the Custom Flow Engine</p>
-                </div>
-
-                {/* Type */}
-                <div className="gba:space-y-2">
-                  <Label>Type</Label>
-                  <Badge variant="secondary" className="gba:gap-2 gba:w-fit">
-                    <Database className="gba:h-4 gba:w-4" />
-                    Entity
-                  </Badge>
-                  <p className="gba:text-xs gba:text-muted-foreground">Custom Data entity (requires promotion)</p>
-                </div>
+              <div className="gba:space-y-2">
+                <Label>Type</Label>
+                <Badge variant="secondary" className="gba:gap-2 gba:w-fit">
+                  <Database className="gba:h-4 gba:w-4" />
+                  Entity
+                </Badge>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  Custom Data entity. Technical names are managed by the backend.
+                </p>
               </div>
 
               {/* Display Name */}

@@ -1,6 +1,8 @@
 import { InputType, type ColumnDefinition } from '../types'
 import {
   getEditableReferenceFieldName,
+  getDuplicateDefinitionDisplayNameError,
+  normalizeEntityDisplayNameKey,
   getPersistedReferenceFieldNamePreview,
   prepareColumnsForPersistence,
   prepareColumnsForEditing,
@@ -18,6 +20,48 @@ function createReferenceColumn(name: string): ColumnDefinition {
 }
 
 describe('definitionFormUtils', () => {
+  it('normalizes display names for duplicate checks', () => {
+    expect(normalizeEntityDisplayNameKey('Asset Location')).toBe('assetlocation')
+    expect(normalizeEntityDisplayNameKey('AssetLocation')).toBe('assetlocation')
+    expect(normalizeEntityDisplayNameKey('asset location')).toBe('assetlocation')
+    expect(normalizeEntityDisplayNameKey('assET LOCation')).toBe('assetlocation')
+  })
+
+  it('detects duplicate display names after entity name normalization', () => {
+    const duplicateError = getDuplicateDefinitionDisplayNameError({
+      displayName: 'AssetLocation',
+      namespace: 'com.example',
+      definitions: [
+        {
+          id: 'asset-location',
+          namespace: 'com.example',
+          entityName: 'AssetLocation',
+          displayName: 'Asset Location'
+        }
+      ]
+    })
+
+    expect(duplicateError).toContain('Asset Location')
+  })
+
+  it('ignores the current definition when checking duplicate display names', () => {
+    const duplicateError = getDuplicateDefinitionDisplayNameError({
+      displayName: 'AssetLocation',
+      namespace: 'com.example',
+      currentDefinitionId: 'asset-location',
+      definitions: [
+        {
+          id: 'asset-location',
+          namespace: 'com.example',
+          entityName: 'AssetLocation',
+          displayName: 'Asset Location'
+        }
+      ]
+    })
+
+    expect(duplicateError).toBeNull()
+  })
+
   it('derives entity reference field names from labels in camelCase', () => {
     const normalizedColumn = syncColumnNameWithLabel({
       ...createReferenceColumn(''),

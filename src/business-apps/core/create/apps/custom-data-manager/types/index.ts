@@ -76,6 +76,33 @@ export interface CustomDataNamespace {
   updatedAt: string
 }
 
+export interface CustomDataNamespaceListParams {
+  offset: number
+  limit: number
+  q?: string
+  sort: string
+  returnTotalRecords?: boolean
+}
+
+export interface CustomDataNamespaceListResponse {
+  data: CustomDataNamespace[]
+  paging: {
+    offset: number
+    limit: number
+    totalRecords?: number
+  }
+  _links: {
+    self: string
+    prev?: string
+    next?: string
+  }
+  query: {
+    q?: string
+    sort: string
+    returnTotalRecords: boolean
+  }
+}
+
 export interface InternalEntityFieldDefinition {
   name: string
   displayName: string
@@ -118,15 +145,13 @@ export interface CreateNamespaceDto {
 
 export interface CreateDefinitionDto {
   namespace: string
-  entityName: string
   kind: DefinitionKind
-  displayName?: string
+  displayName: string
   description?: string
   columns: ColumnDefinition[]
 }
 
 export interface UpdateDefinitionDto {
-  entityName?: string
   displayName?: string
   description?: string
   columns?: ColumnDefinition[]

@@ -19,7 +19,7 @@ interface UseDefinitionsResult {
 /**
  * Hook for managing custom data definitions
  */
-export const useDefinitions = (accessToken: string, namespace?: string): UseDefinitionsResult => {
+export const useDefinitions = (accessToken: string, namespace: string): UseDefinitionsResult => {
   const client = useCustomDataClient(accessToken)
 
   const [definitions, setDefinitions] = useState<CustomDataDefinition[]>([])

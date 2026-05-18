@@ -4,6 +4,13 @@ import { InputType } from '../types'
 const ENTITY_REFERENCE_DATA_SOURCE_TYPES = new Set(['CUSTOM_ENTITY', 'INTERNAL_ENTITY'])
 const PUBLIC_FIELD_NAME_PATTERN = /^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$/
 
+interface DefinitionDisplayNameCandidate {
+  id?: string
+  namespace: string
+  entityName: string
+  displayName?: string | null
+}
+
 export function toPascalCase(value: string): string {
   const normalizedValue = String(value || '').trim()
   if (!normalizedValue) return ''
@@ -36,6 +43,40 @@ export function snakeToCamelCase(value: string): string {
   return `${firstPart.toLowerCase()}${remainingParts
     .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join('')}`
+}
+
+export function normalizeEntityDisplayNameKey(value: string): string {
+  return String(value || '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase()
+}
+
+export function getDuplicateDefinitionDisplayNameError(params: {
+  displayName: string
+  namespace: string
+  definitions: DefinitionDisplayNameCandidate[]
+  currentDefinitionId?: string
+}): string | null {
+  const normalizedDisplayNameKey = normalizeEntityDisplayNameKey(params.displayName)
+  if (!normalizedDisplayNameKey) {
+    return null
+  }
+
+  const duplicateDefinition = params.definitions.find(definition => {
+    if (definition.namespace !== params.namespace) {
+      return false
+    }
+    if (params.currentDefinitionId && definition.id === params.currentDefinitionId) {
+      return false
+    }
+    return normalizeEntityDisplayNameKey(definition.displayName || definition.entityName) === normalizedDisplayNameKey
+  })
+
+  if (!duplicateDefinition) {
+    return null
+  }
+
+  return `Entity display name must be unique in this namespace: ${duplicateDefinition.displayName || duplicateDefinition.entityName}`
 }
 
 export function isEntityReferenceColumn(column: ColumnDefinition): boolean {
@@ -143,9 +184,26 @@ export function getColumnNameValidationError(column: ColumnDefinition, columnInd
   return null
 }
 
-export function validateDefinitionForm(params: { displayName: string; columns: ColumnDefinition[] }): string | null {
+export function validateDefinitionForm(params: {
+  displayName: string
+  columns: ColumnDefinition[]
+  namespace?: string
+  definitions?: DefinitionDisplayNameCandidate[]
+  currentDefinitionId?: string
+}): string | null {
   const { displayName, columns } = params
   if (!displayName.trim()) return 'Display name is required'
+  if (params.namespace && params.definitions) {
+    const duplicateDisplayNameError = getDuplicateDefinitionDisplayNameError({
+      displayName,
+      namespace: params.namespace,
+      definitions: params.definitions,
+      currentDefinitionId: params.currentDefinitionId
+    })
+    if (duplicateDisplayNameError) {
+      return duplicateDisplayNameError
+    }
+  }
   if (columns.length === 0) return 'At least one column is required'
 
   // Validate each column

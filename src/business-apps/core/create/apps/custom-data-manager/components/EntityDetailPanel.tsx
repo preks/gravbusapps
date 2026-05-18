@@ -1,11 +1,12 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { Button, Badge, Input, Textarea, Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { X, Database, Rocket, Save, ChevronDown, ChevronUp } from 'lucide-react'
 import { TrashIcon } from '@phosphor-icons/react'
-import type { CustomDataDefinition, RowMutationResult, UpdateDefinitionDto } from '../types'
+import type { ColumnDefinition, CustomDataDefinition, RowMutationResult, UpdateDefinitionDto } from '../types'
 import { DataTablePanel } from './DataTablePanel'
 import { ColumnEditor } from './ColumnEditor'
 import { DeleteEntityDialog } from './DeleteEntityDialog'
+import type { SchemaEditorMode } from './SchemaEditorModeToggle'
 import { ensureColumnUiIds, stripColumnUiIds, type UiColumnDefinition } from '../utils/columnUiIds'
 import {
   prepareColumnsForPersistence,
@@ -29,7 +30,15 @@ interface EntityDetailPanelProps {
     values: Record<string, unknown>
   ) => Promise<RowMutationResult>
   onDeleteRow: (ns: string, entityName: string, rowId: string) => Promise<RowMutationResult>
+  schemaEditorMode: SchemaEditorMode
   'data-testid'?: string
+}
+
+function arePersistedColumnsEqual(
+  formColumns: ColumnDefinition[] | undefined,
+  definitionColumns: ColumnDefinition[] | undefined
+): boolean {
+  return JSON.stringify(formColumns ?? []) === JSON.stringify(definitionColumns ?? [])
 }
 
 export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
@@ -43,6 +52,7 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
   onCreateRow,
   onUpdateRow,
   onDeleteRow,
+  schemaEditorMode,
   'data-testid': testId = 'entity-detail-panel'
 }) => {
   const [displayName, setDisplayName] = useState(definition.displayName || '')
@@ -55,7 +65,6 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [hasChanges, setHasChanges] = useState(false)
   const [settingsExpanded, setSettingsExpanded] = useState(false)
   const definitionIdRef = useRef(definition.id)
 
@@ -66,41 +75,44 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
       setDisplayName(definition.displayName || '')
       setDescription(definition.description || '')
       setColumns(ensureColumnUiIds(prepareColumnsForEditing(definition.columns ?? [])))
-      setHasChanges(false)
       setDeleteError(null)
       setError(null)
       setSettingsExpanded(false)
     }
   }, [definition])
 
-  const markDirty = useCallback(() => setHasChanges(true), [])
+  const hasChanges = useMemo(() => {
+    if ((definition.displayName || '') !== (displayName || '')) {
+      return true
+    }
+    if ((definition.description || '') !== (description || '')) {
+      return true
+    }
+    const definitionColumnsForForm = prepareColumnsForEditing(definition.columns ?? [])
+    return !arePersistedColumnsEqual(stripColumnUiIds(columns), definitionColumnsForForm)
+  }, [columns, definition, description, displayName])
 
-  const handleDisplayNameChange = useCallback(
-    (value: string) => {
-      setDisplayName(value)
-      markDirty()
-    },
-    [markDirty]
-  )
+  const handleDisplayNameChange = useCallback((value: string) => {
+    setDisplayName(value)
+  }, [])
 
-  const handleDescriptionChange = useCallback(
-    (value: string) => {
-      setDescription(value)
-      markDirty()
-    },
-    [markDirty]
-  )
+  const handleDescriptionChange = useCallback((value: string) => {
+    setDescription(value)
+  }, [])
 
-  const handleColumnsChange = useCallback(
-    (cols: UiColumnDefinition[]) => {
-      setColumns(cols)
-      markDirty()
-    },
-    [markDirty]
-  )
+  const handleColumnsChange = useCallback((cols: UiColumnDefinition[]) => {
+    setColumns(cols)
+  }, [])
 
   const handleSave = useCallback(async () => {
-    const validationError = validateDefinitionForm({ displayName, columns })
+    const normalizedDisplayName = String(displayName || '').trim()
+    const validationError = validateDefinitionForm({
+      displayName: isPromoted ? normalizedDisplayName || definition.entityName : normalizedDisplayName,
+      columns,
+      namespace: definition.namespace,
+      definitions: isPromoted ? undefined : (allDefinitions ?? []),
+      currentDefinitionId: definition.id
+    })
     if (validationError) {
       setError(validationError)
       return
@@ -112,19 +124,19 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
     try {
       const persistedColumns = stripColumnUiIds(prepareColumnsForPersistence(columns))
       const dto: UpdateDefinitionDto = {
-        entityName: definition.entityName,
-        displayName: displayName || undefined,
         description: description || undefined,
         columns: persistedColumns
       }
+      if (!isPromoted) {
+        dto.displayName = normalizedDisplayName
+      }
       await onSave(dto, definition)
-      setHasChanges(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
       setIsSaving(false)
     }
-  }, [columns, definition, displayName, description, onSave])
+  }, [allDefinitions, columns, definition, displayName, description, isPromoted, onSave])
 
   const handleDelete = useCallback(async () => {
     setIsDeleting(true)
@@ -160,29 +172,30 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
             <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:flex-1">
               <Database className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
-              <Input
-                value={displayName}
-                onChange={e => handleDisplayNameChange(e.target.value)}
-                placeholder="Entity name..."
-                className="gba:h-7 gba:text-sm gba:font-semibold gba:border-none gba:bg-transparent gba:px-1 gba:focus-visible:bg-muted/50"
-                disabled={isPromoted}
-                data-testid={`${testId}-display-name`}
-              />
+              {isPromoted ? (
+                <h2 className="gba:truncate gba:text-sm gba:font-semibold" data-testid={`${testId}-display-name`}>
+                  {displayName || publicEntityName}
+                </h2>
+              ) : (
+                <Input
+                  value={displayName}
+                  onChange={e => handleDisplayNameChange(e.target.value)}
+                  placeholder="Entity name..."
+                  className="gba:h-7 gba:text-sm gba:font-semibold gba:border-none gba:bg-transparent gba:px-1 gba:focus-visible:bg-muted/50"
+                  data-testid={`${testId}-display-name`}
+                />
+              )}
             </div>
             <Button variant="ghost" size="iconSm" onClick={onClose} data-testid={`${testId}-close`}>
               <X className="gba:h-3.5 gba:w-3.5" />
             </Button>
           </div>
 
-          <div className="gba:flex gba:items-center gba:gap-2 gba:text-[10px] gba:text-muted-foreground gba:mb-2">
-            <span>Entity</span>
-            <span className="gba:font-mono">{publicEntityName || '-'}</span>
-            <span>|</span>
-            <span>NS</span>
-            <span className="gba:font-mono">{definition.namespace}</span>
-          </div>
-          {isPromoted && (
-            <div className="gba:text-[10px] gba:text-muted-foreground gba:mb-2">Names are locked after promotion.</div>
+          {schemaEditorMode === 'advanced' && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:text-[10px] gba:text-muted-foreground gba:mb-2">
+              <span>NS</span>
+              <span className="gba:font-mono">{definition.namespace}</span>
+            </div>
           )}
 
           <button
@@ -209,11 +222,6 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
             <Badge variant={isPromoted ? 'success' : 'warning'} className="gba:text-[10px] gba:px-1.5 gba:py-0">
               {isPromoted ? 'Promoted' : 'Draft'}
             </Badge>
-            {definition.deployState?.tableName && (
-              <span className="gba:text-[10px] gba:font-mono gba:text-muted-foreground">
-                {definition.deployState.tableName}
-              </span>
-            )}
             <div className="gba:flex-1" />
             {hasChanges && (
               <Button
@@ -270,6 +278,7 @@ export const EntityDetailPanel: React.FC<EntityDetailPanelProps> = ({
             currentNamespace={definition.namespace}
             availableNamespaces={availableNamespaces}
             customEntityOptions={customEntityOptions}
+            showTechnicalFieldNames={schemaEditorMode === 'advanced'}
             data-testid={`${testId}-column-editor`}
           />
 

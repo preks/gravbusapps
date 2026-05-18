@@ -6,6 +6,8 @@ import {
   type CustomDataSuggestionApplyResult,
   type CustomDataDefinition,
   type CustomDataNamespace,
+  type CustomDataNamespaceListParams,
+  type CustomDataNamespaceListResponse,
   type CustomDataSuggestionRequest,
   type CustomDataSuggestionStreamEvent,
   type EntitySchemaProposal,
@@ -16,10 +18,10 @@ import {
 } from '../types'
 
 interface CustomDataClient {
-  listNamespaces: () => Promise<CustomDataNamespace[]>
+  listNamespaces: (params: CustomDataNamespaceListParams) => Promise<CustomDataNamespaceListResponse>
   createNamespace: (dto: CreateNamespaceDto) => Promise<CustomDataNamespace>
   getNamespaceAggregate: (namespace: string, context?: string) => Promise<NamespaceAggregate>
-  listDefinitions: (namespace?: string) => Promise<CustomDataDefinition[]>
+  listDefinitions: (namespace: string) => Promise<CustomDataDefinition[]>
   getDefinition: (namespace: string, entity: string) => Promise<CustomDataDefinition>
   createDefinition: (dto: CreateDefinitionDto) => Promise<CustomDataDefinition>
   updateDefinition: (namespace: string, entity: string, dto: UpdateDefinitionDto) => Promise<CustomDataDefinition>
@@ -115,7 +117,20 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
   )
 
   const listNamespaces = useCallback(
-    async (): Promise<CustomDataNamespace[]> => fetchWithAuth<CustomDataNamespace[]>('/v1/custom-data/namespaces'),
+    async (params: CustomDataNamespaceListParams): Promise<CustomDataNamespaceListResponse> => {
+      const queryParams = new URLSearchParams()
+      queryParams.set('offset', String(params.offset))
+      queryParams.set('limit', String(params.limit))
+      queryParams.set('sort', params.sort)
+      if (params.q?.trim()) {
+        queryParams.set('q', params.q.trim())
+      }
+      if (params.returnTotalRecords !== undefined) {
+        queryParams.set('returnTotalRecords', String(params.returnTotalRecords))
+      }
+
+      return fetchWithAuth<CustomDataNamespaceListResponse>(`/v1/custom-data/namespaces?${queryParams.toString()}`)
+    },
     [fetchWithAuth]
   )
 
@@ -214,21 +229,9 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
   )
 
   const listDefinitions = useCallback(
-    async (namespace?: string): Promise<CustomDataDefinition[]> => {
-      if (namespace) {
-        return fetchWithAuth<CustomDataDefinition[]>(buildCustomEntityPath(namespace))
-      }
-
-      const namespaces = await listNamespaces()
-      const definitionsByNamespace = await Promise.all(
-        namespaces.map(currentNamespace =>
-          fetchWithAuth<CustomDataDefinition[]>(buildCustomEntityPath(currentNamespace.namespace))
-        )
-      )
-
-      return definitionsByNamespace.flat()
-    },
-    [fetchWithAuth, listNamespaces]
+    async (namespace: string): Promise<CustomDataDefinition[]> =>
+      fetchWithAuth<CustomDataDefinition[]>(buildCustomEntityPath(namespace)),
+    [fetchWithAuth]
   )
 
   const getDefinition = useCallback(
@@ -242,7 +245,6 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
       fetchWithAuth<CustomDataDefinition>(buildCustomEntityPath(dto.namespace || DEFAULT_NAMESPACE), {
         method: 'POST',
         body: JSON.stringify({
-          entityName: dto.entityName,
           displayName: dto.displayName,
           description: dto.description,
           columns: dto.columns

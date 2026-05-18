@@ -3,7 +3,11 @@ import { CreateLayout, Tabs, TabsList, TabsTrigger } from '@newwork/nw-design-sy
 import { Database, Terminal, GitBranch } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-import { useDefinitions } from './hooks/useDefinitions'
+import {
+  pushCustomDataManagerUrl,
+  readUrlSnapshot,
+  useCustomDataManagerUrlState
+} from './hooks/useCustomDataManagerUrlState'
 import { useNamespaces } from './hooks/useNamespaces'
 import { useNamespaceAggregate } from './hooks/useNamespaceAggregate'
 import { useCustomDataClient } from './hooks/useCustomDataClient'
@@ -13,12 +17,14 @@ import { CreateNamespaceDialog } from './components/CreateNamespaceDialog'
 import { CustomDataManagerListView } from './CustomDataManagerListView'
 import { EntityRelationCanvas } from './components/canvas/EntityRelationCanvas'
 import { EntityDetailPanel } from './components/EntityDetailPanel'
+import { SchemaEditorModeToggle, type SchemaEditorMode } from './components/SchemaEditorModeToggle'
 import { CustomDataChatPanel } from './components/CustomDataChatPanel'
 import { GraphiQLPanel } from './components/GraphiQLPanel'
 import { InternalEntityInfoPanel } from './components/InternalEntityInfoPanel'
 import { RelationshipInfoPanel, type SelectedRelationshipData } from './components/RelationshipInfoPanel'
 import type { DataInternalEntityNodeData as InternalEntityNodeData } from '@/common/components/flow/data-viewer'
 import { createInitialColumns, stripColumnUiIds } from './utils/columnUiIds'
+import { normalizeEntityDisplayNameKey } from './utils/definitionFormUtils'
 import type {
   CustomDataDefinition,
   CustomDataSuggestionApplyResult,
@@ -31,8 +37,30 @@ import type {
 type View = 'list' | 'canvas'
 type CanvasMode = 'graph' | 'graphql'
 
+const NEW_ENTITY_DISPLAY_NAME = 'New Entity'
+
 interface CustomDataManagerProps extends BusinessAppContextProps {
   'data-testid'?: string
+}
+
+function createUniqueNewEntityDisplayName(definitions: CustomDataDefinition[], namespace: string): string {
+  const definitionsInNamespace = definitions.filter(definition => definition.namespace === namespace)
+  const existingDisplayNames = new Set(
+    definitionsInNamespace.map(definition =>
+      normalizeEntityDisplayNameKey(definition.displayName || definition.entityName)
+    )
+  )
+
+  let suffix = 1
+  while (true) {
+    const displayName = suffix === 1 ? NEW_ENTITY_DISPLAY_NAME : `${NEW_ENTITY_DISPLAY_NAME} ${suffix}`
+
+    if (!existingDisplayNames.has(normalizeEntityDisplayNameKey(displayName))) {
+      return displayName
+    }
+
+    suffix += 1
+  }
 }
 
 export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
@@ -40,19 +68,30 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
   'data-testid': testId = 'custom-data-manager'
 }) => {
   const client = useCustomDataClient(accessToken)
-  const [view, setView] = useState<View>('list')
+  const [view, setView] = useState<View>(() => {
+    const snapshot = readUrlSnapshot()
+    return snapshot.namespace || snapshot.modelId ? 'canvas' : 'list'
+  })
   const [canvasMode, setCanvasMode] = useState<CanvasMode>('graph')
-  const [selectedNamespace, setSelectedNamespace] = useState<string>('default')
+  const [selectedNamespace, setSelectedNamespace] = useState<string>(() => {
+    const snapshot = readUrlSnapshot()
+    return snapshot.namespace || 'default'
+  })
   const [isCreateNamespaceOpen, setIsCreateNamespaceOpen] = useState(false)
   const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false)
+  const [schemaEditorMode, setSchemaEditorMode] = useState<SchemaEditorMode>('simple')
 
-  const { namespaces, createNamespace: createNamespaceApi } = useNamespaces(accessToken)
-  const allNamespaces = namespaces.length > 0 ? namespaces : [{ namespace: 'default', createdAt: '', updatedAt: '' }]
-
-  const { definitions, createDefinition, updateDefinition, refetch: refetchDefinitions } = useDefinitions(accessToken)
+  const {
+    namespaces,
+    isLoading: isLoadingNamespaces,
+    isLoadingMore: isLoadingMoreNamespaces,
+    hasNextPage: hasNextNamespacePage,
+    loadNextPage: loadNextNamespacePage,
+    createNamespace: createNamespaceApi
+  } = useNamespaces(accessToken)
   const { aggregate: selectedNamespaceAggregate, refetch: refetchNamespaceAggregate } = useNamespaceAggregate(
     accessToken,
-    selectedNamespace
+    view === 'canvas' ? selectedNamespace : undefined
   )
 
   const [selectedEntity, setSelectedEntity] = useState<CustomDataDefinition | null>(null)
@@ -61,20 +100,71 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
   const [promoteDefinition, setPromoteDefinition] = useState<CustomDataDefinition | null>(null)
   const [isPromoteNamespaceOpen, setIsPromoteNamespaceOpen] = useState(false)
 
+  const onUrlSnapshot = useCallback(
+    (snapshot: ReturnType<typeof readUrlSnapshot>) => {
+      if (!snapshot.namespace && !snapshot.modelId) {
+        setView('list')
+        setSelectedEntity(null)
+        setSelectedInternalEntity(null)
+        setSelectedRelationship(null)
+        setSchemaEditorMode('simple')
+        return
+      }
+
+      setView('canvas')
+      if (snapshot.namespace) {
+        setSelectedNamespace(snapshot.namespace)
+      }
+
+      if (snapshot.modelId) {
+        const definition = selectedNamespaceAggregate?.customEntities.find(
+          candidate => candidate.id === snapshot.modelId
+        )
+        setSelectedEntity(definition ?? null)
+        return
+      }
+
+      setSelectedEntity(null)
+    },
+    [selectedNamespaceAggregate]
+  )
+
+  useCustomDataManagerUrlState({ onUrlSnapshot })
+
   useEffect(() => {
     setSelectedEntity(null)
     setSelectedInternalEntity(null)
     setSelectedRelationship(null)
+    setSchemaEditorMode('simple')
   }, [selectedNamespace])
+
+  useEffect(() => {
+    const snapshot = readUrlSnapshot()
+    if (!snapshot.modelId || !selectedNamespaceAggregate) {
+      return
+    }
+
+    const definition = selectedNamespaceAggregate.customEntities.find(candidate => candidate.id === snapshot.modelId)
+    if (definition) {
+      setSelectedEntity(definition)
+      setSelectedNamespace(definition.namespace)
+      setView('canvas')
+    }
+  }, [selectedNamespaceAggregate])
 
   const handleSelectNamespace = useCallback((ns: string) => {
     setSelectedNamespace(ns)
     setView('canvas')
+    pushCustomDataManagerUrl({ namespace: ns, modelId: null })
   }, [])
 
   const handleBackToList = useCallback(() => {
     setView('list')
     setSelectedEntity(null)
+    setSelectedInternalEntity(null)
+    setSelectedRelationship(null)
+    setSchemaEditorMode('simple')
+    pushCustomDataManagerUrl({ namespace: null, modelId: null })
   }, [])
 
   const handleSelectEntity = useCallback((def: CustomDataDefinition | null) => {
@@ -96,43 +186,43 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
   }, [])
 
   const handleAddEntity = useCallback(async () => {
+    const displayName = createUniqueNewEntityDisplayName(
+      selectedNamespaceAggregate?.customEntities ?? [],
+      selectedNamespace
+    )
     try {
-      const created = await createDefinition({
+      const created = await client.createDefinition({
         namespace: selectedNamespace,
-        entityName: 'NewEntity',
         kind: 'CUSTOM_ENTITY',
-        displayName: 'New Entity',
+        displayName,
         columns: stripColumnUiIds(createInitialColumns())
       })
-      await refetchDefinitions()
       await refetchNamespaceAggregate()
       setSelectedEntity(created)
       setSelectedInternalEntity(null)
     } catch (err) {
       console.error('Failed to create entity:', err)
     }
-  }, [createDefinition, refetchDefinitions, refetchNamespaceAggregate, selectedNamespace])
+  }, [client, refetchNamespaceAggregate, selectedNamespace, selectedNamespaceAggregate])
 
   const handleSaveEntity = useCallback(
     async (dto: UpdateDefinitionDto, definition: CustomDataDefinition) => {
-      const updatedDefinition = await updateDefinition(definition, dto)
-      await refetchDefinitions()
+      const updatedDefinition = await client.updateDefinition(definition.namespace, definition.entityName, dto)
       await refetchNamespaceAggregate()
       setSelectedEntity(updatedDefinition)
     },
-    [updateDefinition, refetchDefinitions, refetchNamespaceAggregate]
+    [client, refetchNamespaceAggregate]
   )
 
   const handleDeleteEntity = useCallback(
     async (definition: CustomDataDefinition) => {
       await client.deleteDefinition(definition.namespace, definition.entityName)
-      await refetchDefinitions()
       await refetchNamespaceAggregate()
       setSelectedEntity(null)
       setSelectedInternalEntity(null)
       setSelectedRelationship(null)
     },
-    [client, refetchDefinitions, refetchNamespaceAggregate]
+    [client, refetchNamespaceAggregate]
   )
 
   const handleCreateNamespace = useCallback(
@@ -140,6 +230,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
       const created = await createNamespaceApi(dto)
       setSelectedNamespace(created.namespace)
       setView('canvas')
+      pushCustomDataManagerUrl({ namespace: created.namespace, modelId: null })
     },
     [createNamespaceApi]
   )
@@ -147,23 +238,21 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
   const handlePromote = useCallback(
     async (definition: CustomDataDefinition) => {
       const promoted = await client.promoteEntity(definition.namespace, definition.entityName)
-      await refetchDefinitions()
       await refetchNamespaceAggregate()
       if (selectedEntity?.id === definition.id) setSelectedEntity(promoted)
       return promoted
     },
-    [client, refetchDefinitions, refetchNamespaceAggregate, selectedEntity]
+    [client, refetchNamespaceAggregate, selectedEntity]
   )
 
   const handlePromoteNamespace = useCallback(async () => {
     const result = await client.promoteNamespace(selectedNamespace)
-    await refetchDefinitions()
     await refetchNamespaceAggregate()
     setSelectedEntity(null)
     setSelectedInternalEntity(null)
     setSelectedRelationship(null)
     return result
-  }, [client, refetchDefinitions, refetchNamespaceAggregate, selectedNamespace])
+  }, [client, refetchNamespaceAggregate, selectedNamespace])
 
   const handleAiGenerate = useCallback(
     (
@@ -181,12 +270,11 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
     [client, selectedNamespace]
   )
   const handleAiSuccess = useCallback(() => {
-    void refetchDefinitions()
     void refetchNamespaceAggregate()
     setSelectedEntity(null)
     setSelectedInternalEntity(null)
     setSelectedRelationship(null)
-  }, [refetchDefinitions, refetchNamespaceAggregate])
+  }, [refetchNamespaceAggregate])
 
   const handleOpenAiGenerator = useCallback(() => {
     if (view === 'list') {
@@ -195,7 +283,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
     setChatPanelCollapsed(false)
   }, [view])
 
-  const nsInfo = selectedNamespaceAggregate ?? allNamespaces.find(n => n.namespace === selectedNamespace)
+  const nsInfo = selectedNamespaceAggregate ?? namespaces.find(n => n.namespace === selectedNamespace)
   const namespaceEntities = selectedNamespaceAggregate?.customEntities ?? []
 
   return (
@@ -219,7 +307,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
           }
           canvasPanel={
             <div className="gba:relative gba:h-full gba:w-full gba:flex gba:flex-col">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:border-b gba:border-border gba:bg-background/80 gba:backdrop-blur-sm gba:shrink-0 gba:z-10">
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-3 gba:py-1.5 gba:border-b gba:border-border gba:bg-background/80 gba:backdrop-blur-sm gba:shrink-0 gba:z-10">
                 <Tabs value={canvasMode} onValueChange={v => setCanvasMode(v as CanvasMode)}>
                   <TabsList>
                     <TabsTrigger value="graph" startIcon={<GitBranch className="gba:h-3.5 gba:w-3.5" />}>
@@ -230,6 +318,11 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
+                <SchemaEditorModeToggle
+                  mode={schemaEditorMode}
+                  onChange={setSchemaEditorMode}
+                  data-testid={`${testId}-schema-mode-toggle`}
+                />
               </div>
               <div className="gba:flex-1 gba:min-h-0 gba:relative">
                 {canvasMode === 'graph' ? (
@@ -246,7 +339,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
                       selectedEntity ? (
                         <EntityDetailPanel
                           definition={selectedEntity}
-                          allDefinitions={definitions}
+                          allDefinitions={namespaceEntities}
                           accessToken={accessToken}
                           onClose={() => setSelectedEntity(null)}
                           onSave={(dto, definition) => handleSaveEntity(dto, definition)}
@@ -255,6 +348,7 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
                           onCreateRow={client.createRow}
                           onUpdateRow={client.updateRow}
                           onDeleteRow={client.deleteRow}
+                          schemaEditorMode={schemaEditorMode}
                           data-testid={`${testId}-detail-panel`}
                         />
                       ) : selectedInternalEntity ? (
@@ -301,7 +395,11 @@ export const CustomDataManager: React.FC<CustomDataManagerProps> = ({
         />
       ) : (
         <CustomDataManagerListView
-          namespaces={allNamespaces}
+          namespaces={namespaces}
+          isLoading={isLoadingNamespaces}
+          isLoadingMore={isLoadingMoreNamespaces}
+          hasNextPage={hasNextNamespacePage}
+          onLoadNextPage={loadNextNamespacePage}
           onSelectNamespace={handleSelectNamespace}
           onOpenCreateNamespace={() => setIsCreateNamespaceOpen(true)}
           onOpenAiGenerator={handleOpenAiGenerator}

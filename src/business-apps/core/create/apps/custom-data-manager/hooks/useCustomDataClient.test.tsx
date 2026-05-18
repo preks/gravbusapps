@@ -25,6 +25,62 @@ describe('useCustomDataClient', () => {
     global.TextDecoder = originalTextDecoder
   })
 
+  it('loads namespaces from the paginated collection endpoint', async () => {
+    const namespaceResponse = {
+      data: [
+        {
+          namespace: 'sales',
+          displayName: 'Sales',
+          description: null,
+          createdAt: '2026-05-18T18:00:00.000Z',
+          updatedAt: '2026-05-18T18:00:00.000Z'
+        }
+      ],
+      paging: {
+        offset: 0,
+        limit: 100,
+        totalRecords: 1
+      },
+      _links: {
+        self: '/api/v1/custom-data/namespaces?offset=0&limit=100&sort=%2Bnamespace&returnTotalRecords=true'
+      },
+      query: {
+        sort: '+namespace',
+        returnTotalRecords: true
+      }
+    }
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: {
+        get: jest.fn().mockReturnValue('application/json')
+      },
+      json: jest.fn().mockResolvedValue(namespaceResponse)
+    }) as typeof fetch
+
+    const { result } = renderHook(() => useCustomDataClient('token-123'))
+
+    await expect(
+      result.current.listNamespaces({
+        offset: 0,
+        limit: 100,
+        sort: '+namespace',
+        returnTotalRecords: true
+      })
+    ).resolves.toEqual(namespaceResponse)
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://flow-engine.test/v1/custom-data/namespaces?offset=0&limit=100&sort=%2Bnamespace&returnTotalRecords=true',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-123',
+          'Content-Type': 'application/json'
+        })
+      })
+    )
+  })
+
   it('parses SSE suggestion events in order', async () => {
     const encoder = new TextEncoder()
     const streamBody = new ReadableStream({

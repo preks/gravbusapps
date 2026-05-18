@@ -92,7 +92,7 @@ const COMPONENT_TYPE_META: Record<
     icon: Database,
     label: 'Data Model',
     color: 'gba:text-rose-600',
-    route: (id: string) => `/platform/create/data-models?modelId=${id}`
+    route: (id: string) => buildPlatformUrl(Navigation.CREATE_CUSTOM_DATA_MANAGER, { modelId: id })
   }
 }
 

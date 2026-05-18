@@ -46,8 +46,7 @@ export const SimpleTableRow: React.FC<SimpleTableRowProps> = ({
         let displayValue: string | undefined
         if (!isEditing && isInternalEntity) {
           const nestedKey = col.fieldName.replace(/Id$/, '') || col.fieldName
-          const resolvedKey = nestedKey === col.fieldName ? `${col.fieldName}Ref` : nestedKey
-          const nested = row[resolvedKey]
+          const nested = row[nestedKey]
           if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
             const entity = nested as Record<string, unknown>
             displayValue =

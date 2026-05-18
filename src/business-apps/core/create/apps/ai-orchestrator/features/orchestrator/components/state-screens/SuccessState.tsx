@@ -60,7 +60,7 @@ const componentTypeInfo: Record<
   data_model: {
     icon: Database,
     label: 'Data Model',
-    route: (id: string) => `/platform/create/data-models?modelId=${id}`
+    route: (id: string) => buildPlatformUrl(Navigation.CREATE_CUSTOM_DATA_MANAGER, { modelId: id })
   }
 }
 

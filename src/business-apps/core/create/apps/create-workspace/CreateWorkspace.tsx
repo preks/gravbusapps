@@ -130,7 +130,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       title: 'Data Models',
       description: 'Define and manage data structures. Create entities, relationships, and validation rules.',
       icon: Database,
-      href: buildPlatformUrl('/platform/create/data-models'),
+      href: buildPlatformUrl(Navigation.CREATE_CUSTOM_DATA_MANAGER),
       isComingSoon: true,
       badge: 'Coming Soon',
       accentColor: 'info'

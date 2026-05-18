@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Button, Card, CardContent, Badge } from '@newwork/nw-design-system'
+import React, { useEffect, useRef, useState } from 'react'
+import { Button, Card, CardContent, Badge, Spinner } from '@newwork/nw-design-system'
 import { Database, Plus, Sparkles, FolderOpen } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
 import type { CustomDataNamespace } from './types'
@@ -8,6 +8,10 @@ type ListSubView = 'create' | 'namespaces'
 
 interface CustomDataManagerListViewProps {
   namespaces: CustomDataNamespace[]
+  isLoading: boolean
+  isLoadingMore: boolean
+  hasNextPage: boolean
+  onLoadNextPage: () => void
   onSelectNamespace: (namespace: string) => void
   onOpenCreateNamespace: () => void
   onOpenAiGenerator: (namespace?: string) => void
@@ -16,6 +20,10 @@ interface CustomDataManagerListViewProps {
 
 export const CustomDataManagerListView: React.FC<CustomDataManagerListViewProps> = ({
   namespaces,
+  isLoading,
+  isLoadingMore,
+  hasNextPage,
+  onLoadNextPage,
   onSelectNamespace,
   onOpenCreateNamespace,
   onOpenAiGenerator,
@@ -88,7 +96,15 @@ export const CustomDataManagerListView: React.FC<CustomDataManagerListViewProps>
             {subView === 'create' ? (
               <CreateTabContent onOpenAiGenerator={onOpenAiGenerator} testId={testId} />
             ) : (
-              <NamespacesTabContent namespaces={namespaces} onSelectNamespace={onSelectNamespace} testId={testId} />
+              <NamespacesTabContent
+                namespaces={namespaces}
+                isLoading={isLoading}
+                isLoadingMore={isLoadingMore}
+                hasNextPage={hasNextPage}
+                onLoadNextPage={onLoadNextPage}
+                onSelectNamespace={onSelectNamespace}
+                testId={testId}
+              />
             )}
           </div>
         </div>
@@ -159,16 +175,65 @@ const CreateTabContent: React.FC<{
 
 const NamespacesTabContent: React.FC<{
   namespaces: CustomDataNamespace[]
+  isLoading: boolean
+  isLoadingMore: boolean
+  hasNextPage: boolean
+  onLoadNextPage: () => void
   onSelectNamespace: (ns: string) => void
   testId: string
-}> = ({ namespaces, onSelectNamespace, testId }) => (
-  <div className="gba:max-w-4xl gba:mx-auto gba:px-6 gba:py-6">
-    {namespaces.length === 0 ? (
-      <div className="gba:text-center gba:py-12">
-        <FolderOpen className="gba:h-12 gba:w-12 gba:mx-auto gba:text-muted-foreground gba:mb-3" />
-        <p className="gba:text-muted-foreground">No namespaces yet. Create one to get started.</p>
+}> = ({ namespaces, isLoading, isLoadingMore, hasNextPage, onLoadNextPage, onSelectNamespace, testId }) => {
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const sentinelElement = sentinelRef.current
+    if (!sentinelElement || !hasNextPage) {
+      return
+    }
+
+    const observer = new IntersectionObserver(entries => {
+      const [entry] = entries
+      if (entry.isIntersecting) {
+        onLoadNextPage()
+      }
+    })
+
+    observer.observe(sentinelElement)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [hasNextPage, onLoadNextPage])
+
+  if (isLoading && namespaces.length === 0) {
+    return (
+      <div className="gba:max-w-4xl gba:mx-auto gba:px-6 gba:py-6">
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+          <Spinner size="sm" />
+        </div>
       </div>
-    ) : (
+    )
+  }
+
+  if (namespaces.length === 0) {
+    return (
+      <div className="gba:max-w-4xl gba:mx-auto gba:px-6 gba:py-6">
+        <div className="gba:text-center gba:py-12">
+          <FolderOpen className="gba:h-12 gba:w-12 gba:mx-auto gba:text-muted-foreground gba:mb-3" />
+          <p className="gba:text-muted-foreground">No namespaces yet. Create one to get started.</p>
+        </div>
+      </div>
+    )
+  }
+
+  let namespacePageStatus = <span className="gba:text-xs gba:text-muted-foreground">All namespaces loaded</span>
+  if (isLoadingMore) {
+    namespacePageStatus = <Spinner size="sm" />
+  } else if (hasNextPage) {
+    namespacePageStatus = <span className="gba:text-xs gba:text-muted-foreground">Loading more namespaces...</span>
+  }
+
+  return (
+    <div className="gba:max-w-4xl gba:mx-auto gba:px-6 gba:py-6">
       <div className="gba:space-y-2">
         {namespaces.map(ns => {
           return (
@@ -196,7 +261,10 @@ const NamespacesTabContent: React.FC<{
             </Card>
           )
         })}
+        <div ref={sentinelRef} className="gba:flex gba:items-center gba:justify-center gba:py-3">
+          {namespacePageStatus}
+        </div>
       </div>
-    )}
-  </div>
-)
+    </div>
+  )
+}

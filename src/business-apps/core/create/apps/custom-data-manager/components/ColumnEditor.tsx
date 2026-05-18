@@ -40,6 +40,7 @@ interface ColumnEditorProps {
   currentNamespace: string
   availableNamespaces?: string[]
   customEntityOptions?: CustomEntityOption[]
+  showTechnicalFieldNames?: boolean
   'data-testid'?: string
 }
 
@@ -62,6 +63,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
   currentNamespace,
   availableNamespaces = [],
   customEntityOptions = [],
+  showTechnicalFieldNames = false,
   'data-testid': testId = 'column-editor'
 }) => {
   const { internalEntityTypes } = useInternalEntityTypes(accessToken)
@@ -291,6 +293,14 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                   <ChevronDown className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
                 )}
               </div>
+              {showTechnicalFieldNames && (
+                <p
+                  className="gba:px-2 gba:pb-1 gba:pl-7 gba:font-mono gba:text-[10px] gba:text-muted-foreground"
+                  data-testid={`${testId}-field-name-${index}`}
+                >
+                  Field: {column.fieldName || '-'}
+                </p>
+              )}
 
               {/* Expanded detail -- stacked fields */}
               {isExpanded && (
