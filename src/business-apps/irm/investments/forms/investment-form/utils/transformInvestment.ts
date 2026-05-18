@@ -76,8 +76,11 @@ export const transformInvestment = (
   }
 
   // Explicitly preserve investmentAccounts array for update mode prefill (same as investment-report-form)
+  // and ignore rows already marked inactive/deleted by backend.
   if (investment.investmentAccounts && mappedValues.investment) {
-    ;(mappedValues.investment as any).investmentAccounts = investment.investmentAccounts
+    ;(mappedValues.investment as any).investmentAccounts = investment.investmentAccounts.filter(
+      (account: any) => !account?.activeTo && account?.isDeleted !== true
+    )
   }
 
   // Explicitly preserve investment company for update mode prefill (InvestmentCompanySelect needs company object for initialCompany)
