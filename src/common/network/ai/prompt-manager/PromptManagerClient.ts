@@ -1233,6 +1233,7 @@ export class PromptManagerClient extends RestClient {
      *  in that case and fall back to workspace-level default policies. */
     supported?: boolean
     policies: Array<{ policy_id: string; title: string }>
+    excluded_policy_refs?: string[]
   }> {
     return this.get(`/agents/registry/${encodeURIComponent(agentId)}/policies`)
   }
@@ -1243,10 +1244,12 @@ export class PromptManagerClient extends RestClient {
    */
   async setAgentPolicies(
     agentId: string,
-    policyRefs: string[]
-  ): Promise<{ agent_id: string; policy_refs: string[]; count: number }> {
+    policyRefs: string[],
+    excludedPolicyRefs: string[] = []
+  ): Promise<{ agent_id: string; policy_refs: string[]; excluded_policy_refs: string[]; count: number }> {
     return this.put(`/agents/registry/${encodeURIComponent(agentId)}/policies`, {
-      policy_refs: policyRefs
+      policy_refs: policyRefs,
+      excluded_policy_refs: excludedPolicyRefs
     })
   }
 

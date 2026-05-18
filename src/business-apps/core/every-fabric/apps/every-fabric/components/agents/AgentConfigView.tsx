@@ -58,6 +58,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   // lives in AddPoliciesModal; the backend reconciles the full set on
   // every save (see PUT /agents/registry/{id}/policies).
   const [policies, setPolicies] = useState<Array<{ policy_id: string; title: string }>>([])
+  const [excludedPolicyIds, setExcludedPolicyIds] = useState<Set<string>>(new Set())
   const [policiesLoading, setPoliciesLoading] = useState(true)
   const [policiesError, setPoliciesError] = useState<string | null>(null)
   // True when the agent's backing ODM supports per-agent policy_refs
@@ -68,6 +69,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   // IDs of policies that are already covered by the workspace default
   // baseline — used to show a "Default" badge so users understand
   // attaching them here is redundant (the runtime deduplicates anyway).
+  const [workspacePolicies, setWorkspacePolicies] = useState<Array<{ policy_id: string; title: string }>>([])
   const [workspaceDefaultIds, setWorkspaceDefaultIds] = useState<Set<string>>(new Set())
   const [addPoliciesModalOpen, setAddPoliciesModalOpen] = useState(false)
 
@@ -127,8 +129,10 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
         return
       }
       setPolicies(result.value.policies ?? [])
+      setExcludedPolicyIds(new Set(result.value.excluded_policy_refs ?? []))
       setPoliciesSupported(result.value.supported !== false)
       if (workspaceResult.status === 'fulfilled') {
+        setWorkspacePolicies(workspaceResult.value.policies ?? [])
         setWorkspaceDefaultIds(new Set((workspaceResult.value.policies ?? []).map(p => p.policy_id)))
       }
     }
@@ -210,18 +214,23 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   // ids and roll back optimistic state on failure.
   const persistPolicies = useCallback(
     async (
-      next: Array<{ policy_id: string; title: string }>,
-      previous: Array<{ policy_id: string; title: string }>
+      nextPolicies: Array<{ policy_id: string; title: string }>,
+      nextExcluded: string[],
+      previousPolicies: Array<{ policy_id: string; title: string }>,
+      previousExcluded: Set<string>
     ) => {
-      setPolicies(next)
+      setPolicies(nextPolicies)
+      setExcludedPolicyIds(new Set(nextExcluded))
       setPoliciesError(null)
       try {
         await client.setAgentPolicies(
           agent.id,
-          next.map(p => p.policy_id)
+          nextPolicies.map(p => p.policy_id),
+          nextExcluded
         )
       } catch (err) {
-        setPolicies(previous)
+        setPolicies(previousPolicies)
+        setExcludedPolicyIds(previousExcluded)
         setPoliciesError(err instanceof Error ? err.message : 'Failed to persist policies')
       }
     },
@@ -235,23 +244,61 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   // the page that holds them.
   const handleApplyPolicies = useCallback(
     (picked: PickedPolicy[]) => {
-      const seen = new Set(policies.map(p => p.policy_id))
-      const additions = picked.filter(p => !seen.has(p.id)).map(p => ({ policy_id: p.id, title: p.title }))
+      const nextPolicies = [...policies]
+      const nextExcluded = new Set(excludedPolicyIds)
+      const explicitSeen = new Set(policies.map(p => p.policy_id))
+
+      let changed = false
+      for (const p of picked) {
+        if (workspaceDefaultIds.has(p.id)) {
+          if (nextExcluded.has(p.id)) {
+            nextExcluded.delete(p.id)
+            changed = true
+          }
+        } else {
+          if (!explicitSeen.has(p.id)) {
+            nextPolicies.push({ policy_id: p.id, title: p.title })
+            explicitSeen.add(p.id)
+            changed = true
+          }
+        }
+      }
       setAddPoliciesModalOpen(false)
-      if (additions.length === 0) return
-      persistPolicies([...policies, ...additions], policies).catch(() => {})
+      if (changed) {
+        persistPolicies(nextPolicies, Array.from(nextExcluded), policies, excludedPolicyIds).catch(() => {})
+      }
     },
-    [persistPolicies, policies]
+    [persistPolicies, policies, excludedPolicyIds, workspaceDefaultIds]
   )
 
   const handleRemovePolicy = useCallback(
-    (policyId: string) => {
-      const next = policies.filter(p => p.policy_id !== policyId)
-      if (next.length === policies.length) return
-      persistPolicies(next, policies).catch(() => {})
+    (policyId: string, isDefault?: boolean) => {
+      if (isDefault) {
+        const nextExcluded = new Set(excludedPolicyIds)
+        nextExcluded.add(policyId)
+        persistPolicies(policies, Array.from(nextExcluded), policies, excludedPolicyIds).catch(() => {})
+      } else {
+        const nextPolicies = policies.filter(p => p.policy_id !== policyId)
+        persistPolicies(nextPolicies, Array.from(excludedPolicyIds), policies, excludedPolicyIds).catch(() => {})
+      }
     },
-    [persistPolicies, policies]
+    [persistPolicies, policies, excludedPolicyIds]
   )
+
+  const effectivePolicies = useMemo(() => {
+    const list: Array<{ policy_id: string; title: string; isDefault: boolean }> = []
+    for (const wp of workspacePolicies) {
+      if (!excludedPolicyIds.has(wp.policy_id)) {
+        list.push({ ...wp, isDefault: true })
+      }
+    }
+    for (const p of policies) {
+      if (!workspaceDefaultIds.has(p.policy_id)) {
+        list.push({ ...p, isDefault: false })
+      }
+    }
+    return list
+  }, [workspacePolicies, excludedPolicyIds, policies, workspaceDefaultIds])
 
   const handleSaveDetails = async () => {
     setDetailsSaving(true)
@@ -435,7 +482,13 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
               autonomous agents fall back to workspace defaults. */}
           {policiesSupported && (
             <section data-testid="agent-config-policies">
-              <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-4">Policies</h2>
+              <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                <h2 className="gba:text-base gba:font-semibold gba:text-foreground">Policies</h2>
+              </div>
+              <p className="gba:text-xs gba:text-muted-foreground gba:mb-4">
+                Workspace default policies are inherited automatically. You can remove them for this specific agent if
+                they are not relevant.
+              </p>
 
               {policiesError && (
                 <div className="gba:rounded-lg gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:p-3 gba:text-sm gba:text-destructive gba:mb-3">
@@ -449,51 +502,48 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
                 </div>
               ) : (
                 <div className="gba:space-y-3">
-                  {policies.length === 0 ? (
+                  {effectivePolicies.length === 0 ? (
                     <p className="gba:text-sm gba:text-muted-foreground gba:py-2">No policies attached.</p>
                   ) : (
                     <div className="gba:space-y-2">
-                      {policies.map(policy => {
-                        const isDefault = workspaceDefaultIds.has(policy.policy_id)
-                        return (
-                          <div
-                            key={policy.policy_id}
-                            className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:px-3 gba:py-2"
-                            data-testid={`config-policy-${policy.policy_id}`}
-                          >
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
-                              <ShieldCheckIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
-                              <a
-                                href={buildPolicyDetailUrl(policy.policy_id)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="gba:text-sm gba:text-foreground gba:hover:underline gba:truncate gba:inline-flex gba:items-center gba:gap-1"
-                                title={policy.title}
-                              >
-                                <span className="gba:truncate">{policy.title || policy.policy_id}</span>
-                                <ArrowSquareOutIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-                              </a>
-                              {isDefault && (
-                                <span
-                                  className="gba:flex-shrink-0 gba:rounded-full gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
-                                  title="Already in workspace Default Policies — runtime deduplicates automatically"
-                                >
-                                  Default
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemovePolicy(policy.policy_id)}
-                              className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:shrink-0"
-                              data-testid={`config-policy-remove-${policy.policy_id}`}
-                              aria-label="Remove policy"
+                      {effectivePolicies.map(policy => (
+                        <div
+                          key={policy.policy_id}
+                          className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:px-3 gba:py-2"
+                          data-testid={`config-policy-${policy.policy_id}`}
+                        >
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+                            <ShieldCheckIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
+                            <a
+                              href={buildPolicyDetailUrl(policy.policy_id)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="gba:text-sm gba:text-foreground gba:hover:underline gba:truncate gba:inline-flex gba:items-center gba:gap-1"
+                              title={policy.title}
                             >
-                              <XIcon className="gba:h-3.5 gba:w-3.5" />
-                            </button>
+                              <span className="gba:truncate">{policy.title || policy.policy_id}</span>
+                              <ArrowSquareOutIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                            </a>
+                            {policy.isDefault && (
+                              <span
+                                className="gba:flex-shrink-0 gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary"
+                                title="Inherited from Workspace Defaults"
+                              >
+                                Workspace Default
+                              </span>
+                            )}
                           </div>
-                        )
-                      })}
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePolicy(policy.policy_id, policy.isDefault)}
+                            className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:shrink-0"
+                            data-testid={`config-policy-remove-${policy.policy_id}`}
+                            aria-label={policy.isDefault ? 'Exclude default policy' : 'Remove policy'}
+                          >
+                            <XIcon className="gba:h-3.5 gba:w-3.5" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -609,6 +659,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
           accessToken={accessToken}
           alreadySelected={policies.map(p => p.policy_id)}
           workspaceDefaultIds={workspaceDefaultIds}
+          excludedPolicyIds={excludedPolicyIds}
           onClose={() => setAddPoliciesModalOpen(false)}
           onAdd={handleApplyPolicies}
         />

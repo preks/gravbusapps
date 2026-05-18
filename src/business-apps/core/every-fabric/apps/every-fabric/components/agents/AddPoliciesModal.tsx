@@ -33,6 +33,12 @@ export interface AddPoliciesModalProps {
    */
   workspaceDefaultIds?: Set<string>
   /**
+   * IDs of policies that are excluded workspace defaults. If a policy is
+   * in workspaceDefaultIds but NOT in excludedPolicyIds, it is considered
+   * an active default and will be shown as checked and disabled.
+   */
+  excludedPolicyIds?: Set<string>
+  /**
    * Called with the full desired set of policies (id + title) when the user
    * clicks Apply. Title comes from the entry the user actually clicked, so the
    * parent can paint a friendly chip without waiting for a backend round-trip.
@@ -61,7 +67,7 @@ function toPolicyOption(entry: ContentEntry): PolicyOption | null {
   return {
     id,
     title: String(raw?.title ?? '').trim() || id,
-    contentTypeName: raw?.contentType?.name,
+    contentTypeName: raw?.contentType?.name || 'Policy',
     updatedAt: raw?.updatedAt
   }
 }
@@ -92,6 +98,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
   accessToken,
   alreadySelected,
   workspaceDefaultIds,
+  excludedPolicyIds,
   onAdd
 }) => {
   // Two-stage search: `searchInput` follows the keyboard immediately so the
@@ -293,16 +300,23 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
           {!isLoading && !error && options.length > 0 && (
             <ul className="gba:space-y-1 gba:py-1">
               {options.map(policy => {
-                const checked = localSelected.has(policy.id)
+                const isDefaultActive = workspaceDefaultIds?.has(policy.id) && !excludedPolicyIds?.has(policy.id)
+                const isDefaultExcluded = workspaceDefaultIds?.has(policy.id) && excludedPolicyIds?.has(policy.id)
+                const checked = localSelected.has(policy.id) || isDefaultActive
+
                 return (
                   <li key={policy.id}>
                     <button
                       type="button"
+                      disabled={isDefaultActive}
                       className={[
                         'gba:w-full gba:flex gba:items-start gba:gap-3 gba:rounded-lg gba:px-3 gba:py-2.5 gba:text-left gba:transition-colors',
-                        checked ? 'gba:bg-primary/8' : 'gba:hover:bg-muted/40'
+                        checked ? 'gba:bg-primary/8' : 'gba:hover:bg-muted/40',
+                        isDefaultActive ? 'gba:opacity-60 gba:cursor-not-allowed' : ''
                       ].join(' ')}
-                      onClick={() => toggleItem(policy.id)}
+                      onClick={() => {
+                        if (!isDefaultActive) toggleItem(policy.id)
+                      }}
                       data-testid={`add-policies-item-${policy.id}`}
                     >
                       <span
@@ -336,12 +350,20 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
                               {policy.contentTypeName}
                             </span>
                           )}
-                          {workspaceDefaultIds?.has(policy.id) && (
+                          {isDefaultActive && (
                             <span
                               className="gba:flex-shrink-0 gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary"
-                              title="Already in workspace Default Policies — available to all agents automatically"
+                              title="Inherited from Workspace Defaults. Remove from the agent's policy list to exclude it."
                             >
-                              Default
+                              Workspace Default
+                            </span>
+                          )}
+                          {isDefaultExcluded && (
+                            <span
+                              className="gba:flex-shrink-0 gba:rounded-full gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
+                              title="This default policy is currently excluded for this agent. Check to re-include it."
+                            >
+                              Excluded Default
                             </span>
                           )}
                         </div>
