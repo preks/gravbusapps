@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12253,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12253/",
-    "chunkJsBytes": 1894684,
+    "bitbucketBuildNumber": 12256,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12256/",
+    "chunkJsBytes": 1894682,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1596590,
-        "gzip": 99698,
+        "gzip": 99708,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1596590,
-            "gzip": 99698
+            "gzip": 99708
           }
         ]
       },
@@ -99875,9 +99875,9 @@
     ]
   },
   "hr/compensation-planning/apps/compensation-planning": {
-    "bitbucketBuildNumber": 12200,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12200/",
-    "chunkJsBytes": 915504,
+    "bitbucketBuildNumber": 12256,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12256/",
+    "chunkJsBytes": 919538,
     "top": [
       {
         "kind": "bucket",
@@ -99900,8 +99900,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 411022,
-        "gzip": 100912,
+        "rendered": 421752,
+        "gzip": 102917,
         "leaves": [
           {
             "name": "src/business-apps/hr/compensation-planning/apps/compensation-planning/_i18n/ro-RO.ftl?raw",
@@ -100151,8 +100151,8 @@
     ]
   },
   "hr/compensation-planning/apps/manager-compensation-planning": {
-    "bitbucketBuildNumber": 12200,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12200/",
+    "bitbucketBuildNumber": 12256,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12256/",
     "chunkJsBytes": 896082,
     "top": [
       {
@@ -108189,7 +108189,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-18T15:24:44.993Z",
+    "generatedAt": "2026-05-18T16:01:59.560Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
