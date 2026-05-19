@@ -29,7 +29,7 @@ const PROTECTED_BRANCHES = new Set(['develop', 'main', 'master'])
 function parseArgs(argv) {
   const options = {
     repo: process.cwd(),
-    base: 'develop',
+    base: 'origin/develop',
     delete: false,
     dryRun: false
   }
@@ -81,7 +81,7 @@ function printHelp() {
 
 Options:
   --repo <path>     Git repository path. Default: current directory.
-  --base <branch>   Base branch used for merge checks. Default: develop.
+  --base <branch>   Base branch used for merge checks. Default: origin/develop.
   --dry-run         Print branches that would be deleted. Default behavior.
   --delete          Delete matching local branches.`)
 }
