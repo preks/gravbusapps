@@ -100,6 +100,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
     Math.min(selectedWorkingConditionIndex, workingConditions.length - 1)
   )
   const workingCondition = workingConditions[selectedWorkingConditionSafeIndex]
+  const activeWorkingCondition = workingConditions[activeWorkingConditionIndex]
   const hasMultipleWorkingConditions = workingConditions.length > 1
   const isFirstWorkingCondition = selectedWorkingConditionSafeIndex <= 0
   const isLastWorkingCondition = selectedWorkingConditionSafeIndex >= workingConditions.length - 1
@@ -302,7 +303,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   const bankAccountData = getBankAccountData()
 
   // Employee country from working condition region (parentEntry = country)
-  const employeeCountryCode = employee.workingCondition?.[0]?.region?.parentEntry?.code ?? null
+  const employeeCountryCode = activeWorkingCondition?.region?.parentEntry?.code ?? null
   const isEmployeeInGermany = employeeCountryCode != null && String(employeeCountryCode).trim().toUpperCase() === 'DE'
 
   // Prepare tax information data (combined from both tabs)

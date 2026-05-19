@@ -88,40 +88,40 @@ These need active-row handling plus more local business logic or shared data-flo
 
 ### Employee Record Main Data
 
-- [ ] [src/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData.ts](src/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData.ts) - Central employee-record fetch; check ordering and active selection for contract-varying fields.
-- [ ] [src/business-apps/hr/core/details/employee-details/queries/EmployeeDetailsQueries.ts](src/business-apps/hr/core/details/employee-details/queries/EmployeeDetailsQueries.ts) - Check query supports active selection for contract and employment type.
-- [ ] [src/business-apps/hr/core/details/employee-details/hooks/useEmployeeDetailsData.ts](src/business-apps/hr/core/details/employee-details/hooks/useEmployeeDetailsData.ts) - Check data mapping preserves active-row information for contract-varying fields.
+- [x] [src/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData.ts](src/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData.ts) - Central employee-record fetch; check ordering and active selection for contract-varying fields.
+- [x] [src/business-apps/hr/core/details/employee-details/queries/EmployeeDetailsQueries.ts](src/business-apps/hr/core/details/employee-details/queries/EmployeeDetailsQueries.ts) - Check query supports active selection for contract and employment type.
+- [x] [src/business-apps/hr/core/details/employee-details/hooks/useEmployeeDetailsData.ts](src/business-apps/hr/core/details/employee-details/hooks/useEmployeeDetailsData.ts) - Check data mapping preserves active-row information for contract-varying fields.
 
 ### Employee Record Employment Tab
 
-- [ ] [src/business-apps/hr/core/apps/employee-record/components/tabs/EmploymentTab.tsx](src/business-apps/hr/core/apps/employee-record/components/tabs/EmploymentTab.tsx) - Check multiple contract navigation, active default selection, continuity warning, and remaining `workingCondition[0]` usage for region/country and other contract-varying fields.
+- [x] [src/business-apps/hr/core/apps/employee-record/components/tabs/EmploymentTab.tsx](src/business-apps/hr/core/apps/employee-record/components/tabs/EmploymentTab.tsx) - Check multiple contract navigation, active default selection, continuity warning, and remaining `workingCondition[0]` usage for region/country and other contract-varying fields.
 
 ### Manager Dashboard Contract Fields
 
-- [ ] [src/business-apps/hr/core/apps/manager-dashboard/hooks/useDirectReports.ts](src/business-apps/hr/core/apps/manager-dashboard/hooks/useDirectReports.ts) - Check active employment type mapping after the query returns multiple working conditions.
+- [x] [src/business-apps/hr/core/apps/manager-dashboard/hooks/useDirectReports.ts](src/business-apps/hr/core/apps/manager-dashboard/hooks/useDirectReports.ts) - Check active employment type mapping after the query returns multiple working conditions.
 
 ### My Team Time
 
-- [ ] [src/business-apps/hr/core/apps/my-team-time/queries/queries.ts](src/business-apps/hr/core/apps/my-team-time/queries/queries.ts) - Check member region query. Hire date remains employee-level cleanup.
-- [ ] [src/business-apps/hr/core/apps/my-team-time/utils/teamTimeDomain.ts](src/business-apps/hr/core/apps/my-team-time/utils/teamTimeDomain.ts) - Check region-based holidays use active region.
+- [x] [src/business-apps/hr/core/apps/my-team-time/queries/queries.ts](src/business-apps/hr/core/apps/my-team-time/queries/queries.ts) - Check member region query. Hire date remains employee-level cleanup.
+- [x] [src/business-apps/hr/core/apps/my-team-time/utils/teamTimeDomain.ts](src/business-apps/hr/core/apps/my-team-time/utils/teamTimeDomain.ts) - Check region-based holidays use active region.
 
 ### Salary / Compensation Forms
 
-- [ ] [src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryQueries.ts](src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryQueries.ts) - Check active region and current contract query. Hire date remains employee-level cleanup.
-- [ ] [src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryContext.tsx](src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryContext.tsx) - Check active region for country currency.
-- [ ] [src/business-apps/hr/compensation-planning/queries/compensationPlanningQueries.ts](src/business-apps/hr/compensation-planning/queries/compensationPlanningQueries.ts) - Check team member working condition query for contract-varying fields.
-- [ ] [src/business-apps/hr/compensation-planning/apps/manager-compensation-planning/hooks/useTeamCompensationData.ts](src/business-apps/hr/compensation-planning/apps/manager-compensation-planning/hooks/useTeamCompensationData.ts) - Check payroll-relevant contract filtering.
+- [x] [src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryQueries.ts](src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryQueries.ts) - Check active region and current contract query. Hire date remains employee-level cleanup.
+- [x] [src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryContext.tsx](src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryContext.tsx) - Check active region for country currency.
+- [x] [src/business-apps/hr/compensation-planning/queries/compensationPlanningQueries.ts](src/business-apps/hr/compensation-planning/queries/compensationPlanningQueries.ts) - Check team member working condition query for contract-varying fields.
+- [x] [src/business-apps/hr/compensation-planning/apps/manager-compensation-planning/hooks/useTeamCompensationData.ts](src/business-apps/hr/compensation-planning/apps/manager-compensation-planning/hooks/useTeamCompensationData.ts) - Check payroll-relevant contract filtering.
 
 ### Entitlements / Vacation Days
 
-- [ ] [src/business-apps/hr/core/forms/update-employee-entitlements/UpdateEmployeeEntitlementsQueries.ts](src/business-apps/hr/core/forms/update-employee-entitlements/UpdateEmployeeEntitlementsQueries.ts) - Check active vacation days query. Hire date remains employee-level cleanup.
-- [ ] [src/business-apps/hr/core/forms/update-employee-entitlements/context/UpdateEmployeeEntitlementsContext.tsx](src/business-apps/hr/core/forms/update-employee-entitlements/context/UpdateEmployeeEntitlementsContext.tsx) - Check active vacation days mapping.
-- [ ] [src/business-apps/hr/absences/forms/approve-employee-vacation/queries/vacationQueries.ts](src/business-apps/hr/absences/forms/approve-employee-vacation/queries/vacationQueries.ts) - Check vacation days from correct contract.
+- [x] [src/business-apps/hr/core/forms/update-employee-entitlements/UpdateEmployeeEntitlementsQueries.ts](src/business-apps/hr/core/forms/update-employee-entitlements/UpdateEmployeeEntitlementsQueries.ts) - Check active vacation days query. Hire date remains employee-level cleanup.
+- [x] [src/business-apps/hr/core/forms/update-employee-entitlements/context/UpdateEmployeeEntitlementsContext.tsx](src/business-apps/hr/core/forms/update-employee-entitlements/context/UpdateEmployeeEntitlementsContext.tsx) - Check active vacation days mapping.
+- [x] [src/business-apps/hr/absences/forms/approve-employee-vacation/queries/vacationQueries.ts](src/business-apps/hr/absences/forms/approve-employee-vacation/queries/vacationQueries.ts) - Check vacation days from correct contract.
 
 ### Platform Board / Registry
 
-- [ ] [src/business-apps/platform/apps/board-apps/queries/graphql.ts](src/business-apps/platform/apps/board-apps/queries/graphql.ts) - Check `limit: 1` by hire date vs active contract semantics for contract/employment fields.
-- [ ] [src/business-apps/platform/apps/board-apps/queries/entityRegistry.ts](src/business-apps/platform/apps/board-apps/queries/entityRegistry.ts) - Check `workingCondition.0.*` mappings for contract-varying fields.
+- [x] [src/business-apps/platform/apps/board-apps/queries/graphql.ts](src/business-apps/platform/apps/board-apps/queries/graphql.ts) - Check `limit: 1` by hire date vs active contract semantics for contract/employment fields.
+- [x] [src/business-apps/platform/apps/board-apps/queries/entityRegistry.ts](src/business-apps/platform/apps/board-apps/queries/entityRegistry.ts) - Check `workingCondition.0.*` mappings for contract-varying fields.
 
 ## Hard
 

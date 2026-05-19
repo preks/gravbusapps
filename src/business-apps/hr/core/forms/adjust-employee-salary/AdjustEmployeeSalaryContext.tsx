@@ -9,7 +9,6 @@ import {
   EMPLOYEE_WORKING_CONDITION_QUERY,
   EMPLOYEE_WORKING_HOURS_QUERY,
   EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY,
-  GET_EMPLOYEE_REGION_ID,
   GET_REGION_COUNTRY_ID,
   GET_COUNTRY_OBJECT_VALUE
 } from './AdjustEmployeeSalaryQueries'
@@ -59,6 +58,36 @@ function formatGraphQLDate(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+function dateKeyFromGraphQLValue(value: string): string {
+  return value.slice(0, 10)
+}
+
+function getActiveWorkingCondition(
+  workingConditions: EmployeeWorkingConditionResponse['EmployeeWorkingCondition'] | undefined,
+  targetDate: Date
+) {
+  if (!workingConditions?.length) {
+    return undefined
+  }
+
+  if (workingConditions.length === 1) {
+    return workingConditions[0]
+  }
+
+  const targetDateKey = formatGraphQLDate(targetDate)
+
+  return workingConditions.find(condition => {
+    const activeFromKey = condition.activeFrom ? dateKeyFromGraphQLValue(condition.activeFrom) : ''
+    const activeToKey = condition.activeTo ? dateKeyFromGraphQLValue(condition.activeTo) : ''
+
+    if (!activeFromKey) {
+      return false
+    }
+
+    return activeFromKey <= targetDateKey && (!activeToKey || activeToKey >= targetDateKey)
+  })
+}
+
 interface ProviderProps extends BusinessAppContextProps {
   children: React.ReactNode
 }
@@ -89,7 +118,8 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
     setError(null)
     try {
       const empVariables = { idEmployee: employeeId }
-      const today = formatGraphQLDate(new Date())
+      const now = new Date()
+      const today = formatGraphQLDate(now)
       const empVariablesWithDate = { idEmployee: employeeId, today }
 
       // Fetch all queries in parallel to prevent UI twitch
@@ -119,8 +149,8 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
       )
       const formMode: FormMode = hasValidSalary ? 'adjust' : 'assign'
 
-      // Extract hire date from working condition (first/most recent record)
-      const workingCondition = workingConditionData?.EmployeeWorkingCondition?.[0]
+      // Extract hire date from the active working condition.
+      const workingCondition = getActiveWorkingCondition(workingConditionData?.EmployeeWorkingCondition, now)
       const hireDate = workingCondition?.hireDate || null
 
       // Extract weekly hours from employee working hours (separate table)
@@ -134,10 +164,7 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
       let countryCurrencyRef: string | null = null
       let hasEmploymentRegion = false
       try {
-        const regionRes = await graphqlClient.request<{
-          Employee?: Array<{ workingCondition?: Array<{ region?: { id: string } }> }>
-        }>(GET_EMPLOYEE_REGION_ID, { employeeId })
-        const regionId = regionRes?.Employee?.[0]?.workingCondition?.[0]?.region?.id
+        const regionId = workingCondition?.region?.id
         hasEmploymentRegion = Boolean(regionId)
         if (regionId) {
           const countryRes = await graphqlClient.request<{ CatalogEntry?: Array<{ additionalValue3?: string }> }>(

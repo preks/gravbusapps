@@ -122,6 +122,8 @@ export const GET_EMPLOYEE_DETAILS = /*sql*/ `
           id
           version
           regionRef
+          activeFrom
+          activeTo
           probationEnd
           contractType {
             value

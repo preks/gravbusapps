@@ -211,7 +211,10 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
           objectValue
         }
       }
-      workingCondition {
+      workingCondition(
+        where: { isDeleted: { _eq: false } }
+        orderBy: [{ activeFrom: ASC }, { createdAt: ASC }]
+      ) {
         id
         version
         regionRef

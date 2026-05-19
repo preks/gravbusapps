@@ -32,8 +32,10 @@ query BoardGetEmployees($where: EmployeeBoolExp, $limit: Int, $offset: Int, $ord
       supervisor { id displayName }
       costCenter { id name }
     }
-    workingCondition(limit: 1, orderBy: {hireDate: DESC_NULLS_LAST}) {
+    workingCondition(where: {isDeleted: {_neq: true}}, orderBy: [{activeFrom: DESC}, {createdAt: DESC}]) {
       hireDate
+      activeFrom
+      activeTo
       exitDate
       contractType { value }
       employmentType { value }

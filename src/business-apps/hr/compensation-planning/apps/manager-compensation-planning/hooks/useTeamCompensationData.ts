@@ -55,6 +55,13 @@ interface OrganizationalUnitRelationshipResult {
   parent: OrganizationalUnitRef | null
 }
 
+interface EmployeeWorkingConditionResult {
+  hireDate: string | null
+  activeFrom: string | null
+  activeTo: string | null
+  contractType: { objectValue: unknown } | null
+}
+
 interface EmployeePositionResult {
   id: string
   employeeId: string
@@ -85,7 +92,7 @@ interface EmployeePositionResult {
     displayName: string
     picture: string | null
     pictureThumbnail: string | null
-    workingCondition: { hireDate: string | null } | null
+    workingCondition: EmployeeWorkingConditionResult[]
     workingHours: Array<{ weeklyHours: number | null; fullTimeEquivalent: number | null }>
   } | null
 }
@@ -144,6 +151,48 @@ function compensationBandPolicyKey(jobFamilyId: string, jobLevelId: string, geoZ
   return `${jobFamilyId}:${jobLevelId}:${geoZoneId}`
 }
 
+function dateKeyFromGraphQLValue(value: string): string {
+  return value.slice(0, 10)
+}
+
+function getActiveWorkingCondition(
+  workingConditions: EmployeeWorkingConditionResult[] | undefined,
+  targetDateKey: string
+): EmployeeWorkingConditionResult | undefined {
+  if (!workingConditions?.length) {
+    return undefined
+  }
+
+  if (workingConditions.length === 1) {
+    return workingConditions[0]
+  }
+
+  return workingConditions.find(condition => {
+    const activeFromKey = condition.activeFrom ? dateKeyFromGraphQLValue(condition.activeFrom) : ''
+    const activeToKey = condition.activeTo ? dateKeyFromGraphQLValue(condition.activeTo) : ''
+
+    if (!activeFromKey) {
+      return false
+    }
+
+    return activeFromKey <= targetDateKey && (!activeToKey || activeToKey >= targetDateKey)
+  })
+}
+
+function isPayrollRelevantContract(contractObjectValue: unknown): boolean {
+  if (!contractObjectValue || typeof contractObjectValue !== 'object') {
+    return false
+  }
+
+  const payrollRelevant = (contractObjectValue as Record<string, unknown>).payroll_relevant
+  return payrollRelevant === true || payrollRelevant === 'true'
+}
+
+function hasPayrollRelevantActiveWorkingCondition(pos: EmployeePositionResult, targetDateKey: string): boolean {
+  const activeWorkingCondition = getActiveWorkingCondition(pos.employee?.workingCondition, targetDateKey)
+  return isPayrollRelevantContract(activeWorkingCondition?.contractType?.objectValue)
+}
+
 function isManagerOrgUnitAssignment(pos: EmployeePositionResult): boolean {
   const assignments = pos.organizationalUnit?.organizationalUnitEmployee ?? []
   return assignments.some(
@@ -191,8 +240,10 @@ function buildTeamMemberFromPosition(
   lastRaiseMap: Map<string, { date: string; amount: number | null; percent: number | null }>,
   bonusTotalMap: Map<string, number>,
   parentOrgUnitByChildId: ReadonlyMap<string, OrganizationalUnitRef>,
-  resolveManagerOrgUnitToParent: boolean
+  resolveManagerOrgUnitToParent: boolean,
+  targetDateKey: string
 ): TeamMemberCompensationData {
+  const activeWorkingCondition = getActiveWorkingCondition(pos.employee?.workingCondition, targetDateKey)
   const salary = currentSalaryMap.get(pos.employeeId)
   const lastRaise = lastRaiseMap.get(pos.employeeId)
   const band = compensationBandForPosition(pos, bandByFamilyLevelAndGeoZoneId, geoZoneBySiteLocationId)
@@ -212,7 +263,7 @@ function buildTeamMemberFromPosition(
     jobFunction: null,
     orgUnitName: effectiveOrgUnit?.name ?? null,
     organizationalUnitId: effectiveOrgUnit?.id ?? pos.organizationalUnitId ?? null,
-    hireDate: pos.employee?.workingCondition?.hireDate ?? pos.hireDate,
+    hireDate: activeWorkingCondition?.hireDate ?? pos.hireDate,
     currentAnnualSalary: currentAnnual,
     currentMonthlySalary: salary?.monthlyGrossSalary ?? null,
     currentHourlySalary: salary?.hourlyGrossSalary ?? null,
@@ -240,22 +291,10 @@ interface UseTeamCompensationDataParams {
   enabled?: boolean
 }
 
-function buildEmployeeWhereForPosition(requirePayrollRelevantContractType: boolean): Record<string, unknown> {
-  const employee: Record<string, unknown> = {
+function buildEmployeeWhereForPosition(): Record<string, unknown> {
+  return {
     isDeleted: { _eq: false }
   }
-  if (requirePayrollRelevantContractType) {
-    employee.workingCondition = {
-      isDeleted: { _eq: false },
-      contractType: {
-        _or: [
-          { objectValue: { _contains: { payroll_relevant: true } } },
-          { objectValue: { _contains: { payroll_relevant: 'true' } } }
-        ]
-      }
-    }
-  }
-  return employee
 }
 
 function extractSiteLocations(response: SiteLocationResponse): SiteLocationResult[] {
@@ -274,6 +313,13 @@ function buildSiteLocationGeoZoneMap(siteLocations: SiteLocationResult[]): Map<s
     }
   }
   return map
+}
+
+function formatLocalDate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 async function resolveActiveStructureId(
@@ -336,6 +382,9 @@ export function useTeamCompensationData({
     setError(null)
 
     try {
+      const now = new Date()
+      const today = formatLocalDate(now)
+      const yearStart = `${now.getFullYear()}-01-01`
       const whereConditions: Record<string, unknown>[] = [
         { employee: buildEmployeeWhereForPosition(requirePayrollRelevantContractType) }
       ]
@@ -362,7 +411,9 @@ export function useTeamCompensationData({
           throw new Error(`Team member positions: ${m}`)
         })
 
-      const positions = positionsResult.EmployeePosition || []
+      const positions = requirePayrollRelevantContractType
+        ? (positionsResult.EmployeePosition || []).filter(pos => hasPayrollRelevantActiveWorkingCondition(pos, today))
+        : positionsResult.EmployeePosition || []
       if (positions.length === 0) {
         setTeamMembers([])
         setLoading(false)
@@ -429,11 +480,6 @@ export function useTeamCompensationData({
       }
 
       const employeeIds = [...new Set(positions.map(p => p.employeeId))]
-      const now = new Date()
-      const y = now.getFullYear()
-      const pad = (n: number) => String(n).padStart(2, '0')
-      const today = `${y}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-      const yearStart = `${y}-01-01`
 
       const [currentSalRes, historyRes, bonusRes] = await Promise.all([
         graphqlClient
@@ -469,7 +515,8 @@ export function useTeamCompensationData({
           lastRaiseMap,
           bonusTotalMap,
           parentOrgUnitByChildId,
-          resolveManagerOrgUnitToParent
+          resolveManagerOrgUnitToParent,
+          today
         )
       )
 

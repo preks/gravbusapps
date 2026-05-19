@@ -244,7 +244,7 @@ export const GET_APPROVED_ABSENCES_CURRENT_YEAR = `
  * Fetch employee details for vacation approval
  */
 export const GET_EMPLOYEE_FOR_VACATION_APPROVAL = `
-  query GetEmployeeForVacationApproval($employeeId: uuid!) {
+  query GetEmployeeForVacationApproval($employeeId: uuid!, $today: timestamp!) {
     Employee(where: { id: { _eq: $employeeId } }, limit: 1) {
       id
       firstName
@@ -259,7 +259,20 @@ export const GET_EMPLOYEE_FOR_VACATION_APPROVAL = `
           name
         }
       }
-      workingCondition {
+      workingCondition(
+        where: {
+          isDeleted: { _neq: true }
+          _or: [
+            { activeFrom: { _isNull: true }, activeTo: { _isNull: true } }
+            {
+              activeFrom: { _lte: $today }
+              _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: $today } }]
+            }
+          ]
+        }
+        orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
+        limit: 1
+      ) {
         vacationDays
       }
     }

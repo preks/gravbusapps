@@ -52,8 +52,13 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
         displayName
         picture
         pictureThumbnail
-        workingCondition {
+        workingCondition(where: { isDeleted: { _neq: true } }, orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]) {
           hireDate
+          activeFrom
+          activeTo
+          contractType {
+            objectValue
+          }
         }
         workingHours(orderBy: [{ activeFrom: DESC }], limit: 1) {
           weeklyHours
