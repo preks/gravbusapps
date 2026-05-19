@@ -909,8 +909,31 @@ function resolveAnalyticsEntity(context: CurrentPageContext): AnalyticsEntityInp
 }
 
 export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {}) {
-  const rawPageContext = getCurrentPageContext()
-  const currentPageContext = useMemo(() => rawPageContext, [JSON.stringify(rawPageContext)])
+  // The sidepanel that hosts EveryAI lives outside the routed area, so this hook
+  // does not naturally re-render when the host SPA navigates. Subscribing to
+  // `popstate` (which `navigateTo` already dispatches synthetically via
+  // `dispatchPopStateAfterHistoryUpdate`, see common/utils/navigationUtils.ts)
+  // and `hashchange` keeps `currentPageContext` aligned with the visible URL —
+  // otherwise we ship a stale `entity_name` / `id` to Flowbot's prompt builder
+  // and the model wrongly believes the user is still on a previously-opened
+  // entity page (the regression caught in AIML-921 follow-up).
+  const [currentPageContext, setCurrentPageContext] = useState<CurrentPageContext>(() => getCurrentPageContext())
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined') {
+      return undefined
+    }
+    const refresh = () => {
+      const next = getCurrentPageContext()
+      setCurrentPageContext(prev => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+    }
+    refresh()
+    globalThis.window.addEventListener('popstate', refresh)
+    globalThis.window.addEventListener('hashchange', refresh)
+    return () => {
+      globalThis.window.removeEventListener('popstate', refresh)
+      globalThis.window.removeEventListener('hashchange', refresh)
+    }
+  }, [])
   const prechatContextKey = useMemo(() => buildPrechatContextKey(currentPageContext), [currentPageContext])
   const isActive = options.isActive ?? true
 
@@ -1039,16 +1062,24 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     const url = typeof window !== 'undefined' ? window.location.href : ''
     const route = typeof window !== 'undefined' ? window.location.pathname : ''
 
+    // Always re-parse the live URL at send-time. `currentPageContext` is kept
+    // in React state for prechat caching / skills / analytics resolution, but
+    // the request payload itself must reflect the URL the user is on right
+    // *now* so Flowbot's prompt does not announce a stale "user is currently
+    // looking at <entity X>" — which would otherwise hijack the model's
+    // recommendations and trigger an unwanted main-window redirect.
+    const livePageContext = getCurrentPageContext()
+
     const baseCurrentPage = {
       url,
       route,
       view: undefined as string | undefined,
-      type: currentPageContext.type,
+      type: livePageContext.type,
       entity_name:
-        currentPageContext.type === 'entity' || currentPageContext.type === 'overview'
-          ? currentPageContext.entity_name
+        livePageContext.type === 'entity' || livePageContext.type === 'overview'
+          ? livePageContext.entity_name
           : undefined,
-      id: currentPageContext.type === 'entity' ? currentPageContext.id : undefined
+      id: livePageContext.type === 'entity' ? livePageContext.id : undefined
     }
 
     if (analyticsEntity?.id && analyticsEntity.type !== 'unknown') {
@@ -2091,19 +2122,24 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
     try {
       const form = new FormData()
-      // For prechat suggestions we only need lightweight page context without analytics
+      // For prechat suggestions we only need lightweight page context without analytics.
+      // Re-parse the live URL here too — see the same rationale in
+      // `buildCurrentPageContextPayload` above. Prechat fires when the
+      // sidepanel is reopened or the route changes; if React state is even
+      // briefly stale, we'd cache and surface suggestions for the wrong page.
       const url = typeof window !== 'undefined' ? window.location.href : ''
       const route = typeof window !== 'undefined' ? window.location.pathname : ''
+      const livePageContext = getCurrentPageContext()
       const baseCurrentPage = {
         url,
         route,
         view: undefined as string | undefined,
-        type: currentPageContext.type,
+        type: livePageContext.type,
         entity_name:
-          currentPageContext.type === 'entity' || currentPageContext.type === 'overview'
-            ? currentPageContext.entity_name
+          livePageContext.type === 'entity' || livePageContext.type === 'overview'
+            ? livePageContext.entity_name
             : undefined,
-        id: currentPageContext.type === 'entity' ? currentPageContext.id : undefined
+        id: livePageContext.type === 'entity' ? livePageContext.id : undefined
       }
       const prechatContext = prepareCurrentPageContext({
         currentPage: baseCurrentPage
