@@ -314,8 +314,7 @@ const FieldValueDisplay: React.FC<FieldValueDisplayProps> = ({ fieldKey, value, 
 
   return (
     <div
-      className={`gba:text-foreground ${compact ? 'gba:max-w-[300px] gba:truncate gba:text-sm' : 'gba:text-sm'}`}
-      title={compact ? formatFieldValue(fieldKey, value) : undefined}
+      className={`gba:text-foreground ${compact ? 'gba:max-w-[500px] gba:whitespace-pre-wrap gba:break-words gba:text-sm' : 'gba:text-sm'}`}
     >
       {formatFieldValue(fieldKey, value)}
     </div>
