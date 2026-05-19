@@ -449,7 +449,6 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
                   const action = actions.find(a => a.action.id === actionId)
                   if (!action) return null
                   return {
-                    id: `temp-${index}`,
                     flowItem: action.action,
                     permission: permissions?.[index] || 'execute',
                     rank: index

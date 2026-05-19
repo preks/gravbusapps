@@ -110,6 +110,18 @@ const componentFormSchema = z
 
 type ComponentFormData = z.infer<typeof componentFormSchema>
 
+const upperFirst = (value: string): string => {
+  if (!value) return ''
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`
+}
+
+const buildTaskFormSuffix = (process?: string, userTaskName?: string): string => {
+  const processName = process?.trim() || ''
+  const taskName = userTaskName?.trim() || ''
+  if (!processName) return ''
+  return `${processName}${upperFirst(taskName)}`
+}
+
 export const ComponentDialog: React.FC<ComponentDialogProps> = ({
   open,
   onOpenChange,
@@ -310,8 +322,11 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
                 ? normalizeScreenKeySuffixPreserveCase(data.keyOverride.trim())
                 : data.process?.trim() || ''
               screenKey = suffix ? `${prefix}_${suffix}` : `${prefix}_`
-            } else if (data.process) {
-              screenKey = `t${prefix}_${data.process}_${data.userTaskName || ''}`
+            } else if (data.process || data.keyOverride?.trim()) {
+              const suffix = data.keyOverride?.trim()
+                ? normalizeScreenKeySuffixPreserveCase(data.keyOverride.trim())
+                : buildTaskFormSuffix(data.process, data.userTaskName)
+              screenKey = suffix ? `t${prefix}_${suffix}` : `t${prefix}_`
             } else {
               const suffix = data.keyOverride?.trim() ? normalizeSystemScreenKeySuffix(data.keyOverride.trim()) : ''
               screenKey = suffix ? `${prefix}_${suffix}` : `${prefix}_`
@@ -383,8 +398,11 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
           : selectedProcess || ''
         return suffix ? `${prefix}_${suffix}` : `${prefix}_`
       }
-      if (selectedProcess) {
-        return `t${prefix}_${selectedProcess}_${userTaskName}`
+      if (selectedProcess || keyOverride?.trim()) {
+        const suffix = keyOverride?.trim()
+          ? normalizeScreenKeySuffixPreserveCase(keyOverride.trim())
+          : buildTaskFormSuffix(selectedProcess, userTaskName)
+        return suffix ? `t${prefix}_${suffix}` : `t${prefix}_`
       }
       const suffix = keyOverride?.trim() ? normalizeScreenKeySuffixPreserveCase(keyOverride.trim()) : ''
       return suffix ? `${prefix}_${suffix}` : `${prefix}_`

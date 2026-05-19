@@ -44,6 +44,7 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
 
       if (!contextActionsMap.has(contextId)) {
         contextActionsMap.set(contextId, {
+          assignmentId: assignment.id,
           context: assignment.context,
           actions: []
         })
@@ -53,6 +54,7 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
         assignment.assignments.forEach(entry => {
           if (entry.flowItem) {
             contextActionsMap.get(contextId)!.actions.push({
+              assignmentEntryId: entry.id,
               action: entry.flowItem,
               permission: entry.permission,
               rank: entry.rank,

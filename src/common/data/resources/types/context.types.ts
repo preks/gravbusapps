@@ -49,8 +49,10 @@ export interface GetContextsParams {
 import type { ActionDTO } from './action.types'
 
 export interface ContextWithActions {
+  assignmentId?: string
   context: ContextDTO
   actions: Array<{
+    assignmentEntryId?: string
     action: ActionDTO
     permission?: string
     rank?: number
