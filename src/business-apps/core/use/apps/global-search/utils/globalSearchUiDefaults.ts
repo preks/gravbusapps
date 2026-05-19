@@ -3,7 +3,7 @@
  * Keep aligned with search-service GLOBAL_SEARCH_CONFIGURATION.
  */
 export const GLOBAL_SEARCH_UI_DEFAULTS = {
-  minQueryLength: 2,
+  minQueryLength: 3,
   pageSize: 8,
   categorySelectionMode: 'MULTIPLE' as const,
   placeholder: 'Search in NEWWORK'
