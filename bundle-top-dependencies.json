@@ -16813,9 +16813,9 @@
     ]
   },
   "crm/core/forms/lead-form": {
-    "bitbucketBuildNumber": 12319,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12319/",
-    "chunkJsBytes": 291886,
+    "bitbucketBuildNumber": 12324,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12324/",
+    "chunkJsBytes": 291776,
     "top": [
       {
         "kind": "bucket",
@@ -16874,8 +16874,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 50015,
-        "gzip": 11737,
+        "rendered": 49711,
+        "gzip": 11672,
         "leaves": [
           {
             "name": "src/common/components/common-relations/form-segments/lead-information-segment/LeadInformationSegment.tsx",
@@ -16884,8 +16884,8 @@
           },
           {
             "name": "src/common/components/common-relations/form-segments/lead-company-segment/LeadAddressFields.tsx",
-            "rendered": 7809,
-            "gzip": 1282
+            "rendered": 7768,
+            "gzip": 1269
           }
         ]
       },
@@ -69698,9 +69698,9 @@
     ]
   },
   "irm/core/forms/lead-form": {
-    "bitbucketBuildNumber": 12319,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12319/",
-    "chunkJsBytes": 370216,
+    "bitbucketBuildNumber": 12324,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12324/",
+    "chunkJsBytes": 370242,
     "top": [
       {
         "kind": "bucket",
@@ -69759,8 +69759,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 89832,
-        "gzip": 22676,
+        "rendered": 89528,
+        "gzip": 22612,
         "leaves": [
           {
             "name": "src/common/components/investment/form-segments/dynamic-investment-segment/DynamicInvestmentSegment.tsx",
@@ -69862,13 +69862,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 10606,
-        "gzip": 2747,
+        "rendered": 10850,
+        "gzip": 2815,
         "leaves": [
           {
             "name": "src/business-apps/irm/core/forms/lead-form/LeadForm.tsx",
-            "rendered": 10606,
-            "gzip": 2747
+            "rendered": 10850,
+            "gzip": 2815
           }
         ]
       },
@@ -88229,20 +88229,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12319,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12319/",
-    "chunkJsBytes": 1898526,
+    "bitbucketBuildNumber": 12324,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12324/",
+    "chunkJsBytes": 1906406,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1600795,
-        "gzip": 99519,
+        "rendered": 1609385,
+        "gzip": 100279,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1600795,
-            "gzip": 99519
+            "rendered": 1609385,
+            "gzip": 100279
           }
         ]
       },
@@ -109053,7 +109053,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-19T14:30:47.993Z",
+    "generatedAt": "2026-05-19T14:56:10.963Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
