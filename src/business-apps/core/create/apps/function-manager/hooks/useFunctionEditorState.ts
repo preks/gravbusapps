@@ -156,7 +156,16 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     if (!inputSchemaParsed || typeof inputSchemaParsed !== 'object' || !('properties' in inputSchemaParsed)) {
       return {}
     }
-    return (inputSchemaParsed.properties as Record<string, unknown>) || {}
+    const raw = (inputSchemaParsed.properties as Record<string, unknown>) || {}
+    const normalized: Record<string, Record<string, unknown>> = {}
+    for (const [key, prop] of Object.entries(raw)) {
+      // JSON Schema property values must be objects; skip invalid entries while the user is typing
+      // (e.g. shorthand `"field": "string"`) so `'default' in prop` does not throw.
+      if (prop && typeof prop === 'object' && !Array.isArray(prop)) {
+        normalized[key] = prop as Record<string, unknown>
+      }
+    }
+    return normalized
   }, [inputSchemaParsed])
 
   const requiredFields = useMemo(() => {
@@ -217,10 +226,9 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     if (Object.keys(schemaProperties).length > 0) {
       const defaults: Record<string, unknown> = {}
       Object.entries(schemaProperties).forEach(([key, prop]) => {
-        const propObj = prop as Record<string, unknown>
-        if ('default' in propObj && propObj.default !== undefined) {
-          defaults[key] = propObj.default
-        } else if (propObj.type === 'array') {
+        if ('default' in prop && prop.default !== undefined) {
+          defaults[key] = prop.default
+        } else if (prop.type === 'array') {
           defaults[key] = []
         }
       })
