@@ -81,6 +81,7 @@ export const Navigation = {
   // Manage
   MANAGE_BRANDING: `${NAVIGATION_BASE_PATH}/manage/branding`,
   MANAGE_CATALOGS: `${NAVIGATION_BASE_PATH}/catalog-manager`,
+  MANAGE_GLOBAL_SEARCH_MANAGER: `${NAVIGATION_BASE_PATH}/manage/global-search-manager`,
   MANAGE_USERS: `${NAVIGATION_BASE_PATH}/manage/user-manager`,
 
   // Platform
@@ -209,6 +210,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // Manage
   [Navigation.MANAGE_BRANDING]: 'core/manage/apps/branding',
   [Navigation.MANAGE_CATALOGS]: 'core/manage/apps/catalog-manager',
+  [Navigation.MANAGE_GLOBAL_SEARCH_MANAGER]: 'core/manage/apps/global-search-manager',
   [Navigation.MANAGE_USERS]: 'core/manage/apps/user-manager',
 
   // Platform

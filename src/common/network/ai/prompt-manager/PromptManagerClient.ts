@@ -1,5 +1,5 @@
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
-import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
+import { assignBearerAuthorizationHeader, normalizeBearerAccessToken } from '@/common/network/HeaderUtils'
 import { RestClient } from '@/common/network/rest/RestClient'
 import type {
   AgentRegistryEntry,
@@ -722,32 +722,15 @@ export class PromptManagerClient extends RestClient {
     return error instanceof Error && error.message.includes(`REST request failed: ${status}`)
   }
 
-  private normalizeAccessToken(accessToken: unknown): string | null {
-    if (typeof accessToken !== 'string') return null
-    const trimmed = accessToken.trim()
-    if (!trimmed) return null
-    if (trimmed === '[object Object]') return null
-    if (trimmed.toLowerCase() === 'undefined' || trimmed.toLowerCase() === 'null') return null
-    if (trimmed.startsWith('Bearer ')) {
-      const raw = trimmed.slice('Bearer '.length).trim()
-      return raw || null
-    }
-    return trimmed
-  }
-
   setAccessToken(accessToken: string) {
     if (!this.headers) {
       this.headers = {}
     }
-    const normalized = this.normalizeAccessToken(accessToken)
-    if (!normalized) {
-      delete this.headers['Authorization']
-      if (typeof console !== 'undefined') {
-        console.warn('[PromptManagerClient] Invalid access token supplied; Authorization header cleared')
-      }
-      return
+    const trimmed = typeof accessToken === 'string' ? accessToken.trim() : ''
+    if (!normalizeBearerAccessToken(accessToken) && trimmed.length > 0 && typeof console !== 'undefined') {
+      console.warn('[PromptManagerClient] Invalid access token supplied; Authorization header cleared')
     }
-    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(normalized)
+    assignBearerAuthorizationHeader(this.headers, accessToken)
   }
 
   // --- Workspaces ---

@@ -5,7 +5,25 @@ import {
   type SidebarNavigationItem,
   type ShellSidebarBrand
 } from '@newwork/nw-design-system'
-import { PlayIcon, ArticleNyTimesIcon, ChatCircleIcon, HouseIcon, FolderIcon } from '@phosphor-icons/react'
+import {
+  PlayIcon,
+  ArticleNyTimesIcon,
+  ChatCircleIcon,
+  HouseIcon,
+  FolderIcon,
+  SparkleIcon,
+  GridFourIcon,
+  HandshakeIcon,
+  GlobeIcon,
+  CurrencyDollarIcon,
+  FlowArrowIcon,
+  UsersThreeIcon,
+  TrendUpIcon,
+  DatabaseIcon,
+  GearIcon,
+  WrenchIcon,
+  FlaskIcon
+} from '@phosphor-icons/react'
 import { NAVIGATION_BASE_PATH } from '@/common/utils/navigationUtils'
 import { type MenuConfiguration, resolveNodeConfiguration, renderConfiguredPhosphorIcon } from './menuConfiguration'
 
@@ -121,6 +139,41 @@ const getTypeIcon = (type: BusinessAppType) => {
   }
 }
 
+const getModuleIcon = (moduleKey: string): React.ReactNode => {
+  switch (moduleKey) {
+    case 'ai':
+      return <SparkleIcon size={16} />
+    case 'common':
+      return <GridFourIcon size={16} />
+    case 'core':
+      return <GridFourIcon size={16} />
+    case 'crm':
+      return <HandshakeIcon size={16} />
+    case 'every':
+      return <GlobeIcon size={16} />
+    case 'fin':
+      return <CurrencyDollarIcon size={16} />
+    case 'flow':
+      return <FlowArrowIcon size={16} />
+    case 'hr':
+      return <UsersThreeIcon size={16} />
+    case 'irm':
+      return <TrendUpIcon size={16} />
+    case 'mdm':
+      return <DatabaseIcon size={16} />
+    case 'platform':
+      return <GearIcon size={16} />
+    case 'sales-demo':
+      return <CurrencyDollarIcon size={16} />
+    case 'ser':
+      return <WrenchIcon size={16} />
+    case EXAMPLES_MODULE_ID:
+      return <FlaskIcon size={16} />
+    default:
+      return <FolderIcon size={16} />
+  }
+}
+
 export const IDEMenu: React.FC<IDEMenuProps> = ({
   businessApps,
   menuConfiguration,
@@ -206,7 +259,7 @@ export const IDEMenu: React.FC<IDEMenuProps> = ({
       return {
         id: `module:${moduleKey}`,
         label: moduleLabel,
-        icon: configuredModuleIcon ?? undefined,
+        icon: configuredModuleIcon ?? getModuleIcon(moduleKey),
         abbreviation: getMenuAbbreviation(moduleLabel),
         active: selectedApp?.module === moduleKey,
         children: sortedSubModuleEntries.map(([subModuleKey, subModuleApps]) =>

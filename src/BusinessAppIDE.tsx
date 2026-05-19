@@ -14,10 +14,10 @@ import { IDEHeader } from '@/components/ide-header'
 import type { TokenStatus, DensityOption } from '@/components/ide-header'
 import { IDEContextPanel } from '@/components/ide-context-panel'
 import {
-  GlobalSearchCommand,
   SettingsDialog,
   PublishConfirmDialog,
-  PerformanceWindow
+  PerformanceWindow,
+  GlobalSearchCommand
 } from '@/components/ide-header/components'
 import { IDERenderer } from '@/components/ide-renderer'
 import { IDEStartScreen } from './components/ide-start-screen'
@@ -1126,9 +1126,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
               <GlobalSearchCommand
                 open={searchCommandOpen}
                 onOpenChange={setSearchCommandOpen}
-                businessApps={businessApps}
-                menuConfiguration={menuConfiguration}
-                onAppSelect={handleAppSelect}
+                accessToken={accessToken || undefined}
               />
             </ShellProvider>
 

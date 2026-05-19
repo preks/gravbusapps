@@ -27,12 +27,12 @@ function resolveAccessTokenFromRefreshEvent(event: Event, fallbackAccessToken: s
 }
 
 export function useSyncClientAccessToken(client: AccessTokenAwareClient, accessToken?: string) {
-  if (accessToken) {
-    client.setAccessToken(accessToken)
-  }
+  client.setAccessToken(accessToken ?? '')
 
   useEffect(() => {
-    if (!accessToken) {
+    client.setAccessToken(accessToken ?? '')
+
+    if (!accessToken?.trim()) {
       return
     }
 

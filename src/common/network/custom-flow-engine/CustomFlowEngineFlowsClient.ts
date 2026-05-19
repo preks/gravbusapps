@@ -1,5 +1,5 @@
 import type { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
-import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
+import { assignBearerAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { RestClient } from '@/common/network/rest/RestClient'
 import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
@@ -103,7 +103,7 @@ export class CustomFlowEngineFlowsClient extends RestClient {
       this.headers = {}
     }
 
-    this.headers.Authorization = setAccessTokenToAuthorizationHeader(accessToken)
+    assignBearerAuthorizationHeader(this.headers, accessToken)
   }
 
   async sendFlowQuery(body: FlowQueryRequestBody): Promise<ReadableStream<Uint8Array> | null> {

@@ -162,6 +162,11 @@ export const GRAPHQL_API_URL = resolveServiceUrl('NEXT_PUBLIC_GRAPHQL_API_URL', 
   servicePath: '',
   apiPath: '/v1'
 })
+export const GLOBAL_SEARCH_API_URL = resolveServiceUrl('NEXT_PUBLIC_GLOBAL_SEARCH_API_URL', {
+  servicePath: '/global-search',
+  apiPath: '/api/v1'
+})
+
 export const INVESTMENT_RELATIONS_API_URL = resolveServiceUrl('NEXT_PUBLIC_INVESTMENT_RELATIONS_API_URL', {
   servicePath: '/processes/investment-relations',
   apiPath: ''

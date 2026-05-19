@@ -62,7 +62,7 @@
     "@newwork/assets": "^0.1.0",
     "@newwork/gravity-ui-catalog": "^7.10.29",
     "@newwork/icons": "^0.0.5",
-    "@newwork/nw-design-system": "^0.116.0-690",
+    "@newwork/nw-design-system": "^0.118.0-697",
     "@newwork/remote-component-loader": "^0.5.0",
     "@tiptap/core": "3.15.3",
     "@tiptap/extension-bubble-menu": "3.15.3",

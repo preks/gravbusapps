@@ -131,6 +131,7 @@ export interface AppActionProps {
   children?: React.ReactNode
   className?: string
   onDropdownOpen?: () => void
+  onActionExecute?: () => void
   onClick?: (e: React.MouseEvent) => void
   'data-testid'?: string
   prefixDataTestId?: string
@@ -168,6 +169,7 @@ const AppActionRenderer: React.FC<{
   children?: React.ReactNode
   onClick?: (e: React.MouseEvent) => void
   onDropdownOpen?: () => void
+  onActionExecute?: () => void
   autoExecute?: boolean
   'data-testid'?: string
 }> = props => {
@@ -194,11 +196,32 @@ const AppActionRenderer: React.FC<{
       }
     ]
   }, [combinedData, config.emptyStateBehavior, shouldShowLoading, t])
+  const executeAction = useCallback(
+    (action: ActionOption | undefined) => {
+      if (!action || action.disabled) {
+        return
+      }
+
+      action.onClick()
+      props.onActionExecute?.()
+    },
+    [props.onActionExecute]
+  )
+
+  const executableMenuActions = React.useMemo<ActionOption[]>(
+    () =>
+      translatedMenuActions.map(action => ({
+        ...action,
+        onClick: () => executeAction(action)
+      })),
+    [executeAction, translatedMenuActions]
+  )
+
   const executeFirstAction = useCallback(() => {
     if (combinedData[0]) {
-      combinedData[0].onClick?.()
+      executeAction(combinedData[0])
     }
-  }, [combinedData])
+  }, [combinedData, executeAction])
 
   const handleStandardClick = useCallback(
     (e: React.MouseEvent) => {
@@ -250,7 +273,7 @@ const AppActionRenderer: React.FC<{
     if (shouldShowMenu) {
       return (
         <ActionMenu
-          actions={translatedMenuActions}
+          actions={executableMenuActions}
           emptyStateBehavior={config.emptyStateBehavior}
           actionsLoading={shouldShowLoading}
           onOpenChange={open => {
@@ -319,6 +342,7 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
     children: propChildren,
     onClick,
     onDropdownOpen,
+    onActionExecute,
     'data-testid': customDataTestId,
     prefixDataTestId,
     // Primary API
@@ -465,6 +489,7 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
       className={className}
       onClick={onClick}
       onDropdownOpen={onDropdownOpen}
+      onActionExecute={onActionExecute}
       autoExecute={autoExecute}
       data-testid={customDataTestId}
     >
