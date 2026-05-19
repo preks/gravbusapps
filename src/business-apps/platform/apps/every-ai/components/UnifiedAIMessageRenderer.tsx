@@ -3,7 +3,7 @@ import type { ConversationTurn, OutputItem, ReasoningStepOutput } from '../types
 import { AgentPlanPanel } from './AgentPlanPanel'
 import { selectLatestPlanFromOutputs } from './agentPlanUtils'
 import { OutputItemRenderer, ReasoningStepsGroup } from './OutputRenderers'
-import { isTurnComplete, selectInlineReasoningStepIds } from './reasoningStepUtils'
+import { isTurnComplete, selectInlineReasoningStepIds, selectPreviousReasoningSteps } from './reasoningStepUtils'
 import { SparkleIcon } from '@phosphor-icons/react'
 
 interface UnifiedAIMessageRendererProps {
@@ -83,6 +83,15 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
   )
   const shouldGroupReasoning = turnIsComplete && reasoningSteps.length > 0
   const inlineStepIds = selectInlineReasoningStepIds(filteredOutputs, turnIsComplete)
+  // While the agent is still thinking we surface only the latest step inline,
+  // but we ALSO want the user to be able to revisit earlier steps at any
+  // moment — not only after the final answer. We render a small live-mode
+  // ReasoningStepsGroup containing every step except the active one, anchored
+  // at the position of the FIRST reasoning step in the output stream. The
+  // active step continues to render inline directly below.
+  const previousLiveSteps = selectPreviousReasoningSteps(filteredOutputs, turnIsComplete)
+  const shouldRenderLiveGroup = !turnIsComplete && previousLiveSteps.length > 0
+  let liveGroupRendered = false
   // While streaming, legacy ephemeral `tool` chips duplicate the description
   // we now render on the reasoning-step row itself (via `extractStepReason`).
   // They accumulate per tool call and only get pruned when the final answer
@@ -118,7 +127,16 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
 
         if (!turnIsComplete && outputType === 'reasoning_step') {
           const stepId = (output as ReasoningStepOutput).id
-          if (!inlineStepIds.has(stepId)) return null
+          if (!inlineStepIds.has(stepId)) {
+            // Anchor the live "Show previous steps" collapse at the first
+            // non-active reasoning step we encounter so it sits ABOVE the
+            // active step in document order.
+            if (shouldRenderLiveGroup && !liveGroupRendered) {
+              liveGroupRendered = true
+              return <ReasoningStepsGroup key="reasoning-live-group" steps={previousLiveSteps} variant="live" />
+            }
+            return null
+          }
         }
 
         if (hideLegacyToolChips && outputType === 'tool') {

@@ -7,7 +7,8 @@ import {
   formatReasoningDuration,
   isTurnComplete,
   prettifyJson,
-  selectInlineReasoningStepIds
+  selectInlineReasoningStepIds,
+  selectPreviousReasoningSteps
 } from '../reasoningStepUtils'
 
 describe('REASONING_KIND_LABEL', () => {
@@ -303,5 +304,48 @@ describe('selectInlineReasoningStepIds', () => {
   it('safely ignores null / undefined entries', () => {
     const items = [null, undefined, mkStep('x')]
     expect(selectInlineReasoningStepIds(items as OutputItem[], false).has('x')).toBe(true)
+  })
+})
+
+describe('selectPreviousReasoningSteps', () => {
+  const mkStep = (id: string): ReasoningStepOutput =>
+    ({
+      type: 'reasoning_step',
+      id,
+      kind: 'tool_call',
+      title: 'step',
+      status: 'running'
+    }) as ReasoningStepOutput
+
+  it('returns an empty list when the turn is complete', () => {
+    expect(selectPreviousReasoningSteps([mkStep('a'), mkStep('b')], true)).toEqual([])
+  })
+
+  it('returns an empty list when there is only one reasoning step', () => {
+    expect(selectPreviousReasoningSteps([mkStep('a')], false)).toEqual([])
+  })
+
+  it('returns every reasoning step except the latest one while streaming', () => {
+    const steps = [mkStep('a'), mkStep('b'), mkStep('c')]
+    const result = selectPreviousReasoningSteps(steps, false)
+    expect(result.map(s => s.id)).toEqual(['a', 'b'])
+  })
+
+  it('ignores non-reasoning entries between steps', () => {
+    const mixed: OutputItem[] = [
+      mkStep('a'),
+      { type: 'loading' } as OutputItem,
+      mkStep('b'),
+      { type: 'tool', name: 't', reason: 'r' } as OutputItem,
+      mkStep('c')
+    ]
+    const result = selectPreviousReasoningSteps(mixed, false)
+    expect(result.map(s => s.id)).toEqual(['a', 'b'])
+  })
+
+  it('safely ignores null / undefined entries', () => {
+    const items = [null, mkStep('a'), undefined, mkStep('b')]
+    const result = selectPreviousReasoningSteps(items as OutputItem[], false)
+    expect(result.map(s => s.id)).toEqual(['a'])
   })
 })

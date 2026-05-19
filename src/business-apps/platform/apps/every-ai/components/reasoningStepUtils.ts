@@ -151,6 +151,32 @@ export function selectInlineReasoningStepIds(
   return lastId ? new Set<string>([lastId]) : new Set<string>()
 }
 
+/**
+ * Return all reasoning steps from the current agent turn EXCEPT the latest
+ * one — only meaningful while the turn is still in progress.
+ *
+ * Used by `UnifiedAIMessageRenderer` to back a live "Show previous steps"
+ * collapse: the active step keeps rendering inline (so the user can watch
+ * the agent think), and earlier steps stay one click away even before the
+ * canonical answer arrives. Once the turn is complete we return an empty
+ * list — the final `ReasoningStepsGroup` (variant="final") takes over and
+ * folds the full trail, including the previously-active step.
+ */
+export function selectPreviousReasoningSteps(
+  outputs: ReadonlyArray<OutputItem | null | undefined>,
+  turnIsComplete: boolean
+): ReasoningStepOutput[] {
+  if (turnIsComplete) return []
+  const steps: ReasoningStepOutput[] = []
+  for (const output of outputs) {
+    if (output?.type === 'reasoning_step') {
+      steps.push(output as ReasoningStepOutput)
+    }
+  }
+  if (steps.length <= 1) return []
+  return steps.slice(0, -1)
+}
+
 export function extractCodeHint(
   kind: ReasoningStepKind,
   payload: unknown

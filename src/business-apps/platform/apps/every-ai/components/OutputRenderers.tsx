@@ -1325,13 +1325,26 @@ const ReasoningStepRenderer: React.FC<{ item: ReasoningStepOutput }> = ({ item }
 export const ReasoningStepsGroup: React.FC<{
   steps: ReasoningStepOutput[]
   defaultExpanded?: boolean
-}> = ({ steps, defaultExpanded = false }) => {
+  /**
+   * `final` (default) — shown after the agent finishes; collapses the entire
+   * reasoning trail behind "Show reasoning · N steps".
+   *
+   * `live` — shown WHILE the agent is still thinking; sits alongside the
+   * active step row and exposes only the previously-completed steps via
+   * "Show previous steps · N step(s)" so the user can revisit them without
+   * waiting for the final answer.
+   */
+  variant?: 'final' | 'live'
+}> = ({ steps, defaultExpanded = false, variant = 'final' }) => {
   const [expanded, setExpanded] = useState(defaultExpanded)
   if (steps.length === 0) return null
 
   const hasError = steps.some(s => s.status === 'error')
   const stillRunning = steps.some(s => s.status === 'running')
   const totalDuration = computeGroupDuration(steps)
+  const noun = variant === 'live' ? 'previous step' : 'step'
+  const showLabel = variant === 'live' ? 'Show previous steps' : 'Show reasoning'
+  const hideLabel = variant === 'live' ? 'Hide previous steps' : 'Hide reasoning'
 
   const summaryIcon = hasError ? (
     <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-destructive" aria-hidden />
@@ -1352,7 +1365,7 @@ export const ReasoningStepsGroup: React.FC<{
       >
         <span className="gba:flex gba:items-center">{summaryIcon}</span>
         <span className="gba:text-[11px] gba:font-medium">
-          {expanded ? 'Hide reasoning' : `Show reasoning · ${steps.length} step${steps.length === 1 ? '' : 's'}`}
+          {expanded ? hideLabel : `${showLabel} · ${steps.length} ${noun}${steps.length === 1 ? '' : 's'}`}
         </span>
         {totalDuration && !expanded && (
           <span className="gba:text-[11px] gba:text-muted-foreground/80">· {totalDuration}</span>
