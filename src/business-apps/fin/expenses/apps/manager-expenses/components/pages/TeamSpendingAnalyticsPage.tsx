@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { useCurrencyStore } from '../../store/useCurrencyStore'
-import { standardizeCurrencyRef } from '../../utils/currencyUtils'
+import { formatCurrency, standardizeCurrencyRef } from '../../utils/currencyUtils'
 import {
   Card,
   CardContent,
@@ -26,15 +26,18 @@ import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTeamSpendingAnalytics, DateRangeOption } from '../../hooks/useTeamSpendingAnalytics'
 import { LineChartComponent, PieChartComponent, BarChartComponent } from '../modals/charts'
-import StatusLegend from '../StatusLegend'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import StatusLegend, { buildEntityStatusLegendEntries } from '../StatusLegend'
 import {
-  formatCurrencyDisplay,
-  getExpenseItemStatusDisplayT,
+  advancePaymentFilterStatuses,
+  planFilterStatuses,
+  requestFilterStatuses
+} from '../../hooks/availableFilterStatuses'
+import {
   getExpenseRequestStatusDisplayT,
   getAdvancePaymentStatusDisplayT,
   getExpensePlanStatusDisplayT
 } from '../../utils'
+import { getExpenseItemStatusDisplayT } from '../../../personal-expenses/utils'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import CurrencyFilter from '../../components/currency-filter'
 import { useManagerExpensesOverview } from '../../hooks/useManagerExpensesOverview'
@@ -86,8 +89,35 @@ const resolveStatusColor = (type: string | undefined, fallbackColor: string): st
   return token ? resolveCssVar(token) : fallbackColor
 }
 
+/** Same statuses as personal expense items tab ({@link ExpenseItemsTab}). */
+const PERSONAL_EXPENSE_ITEM_STATUSES = [
+  'CREATED',
+  'ASSIGNED',
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'VERIFIED',
+  'BOOKED',
+  'PAID',
+  'TRANSFERRED'
+] as const
+
 const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ accessToken, userInfo }) => {
   const { t } = useTranslation(translations)
+
+  const expenseItemStatusLegend = useMemo(
+    () => buildEntityStatusLegendEntries('item', PERSONAL_EXPENSE_ITEM_STATUSES, t),
+    [t]
+  )
+  const expenseRequestStatusLegend = useMemo(
+    () => buildEntityStatusLegendEntries('request', requestFilterStatuses, t),
+    [t]
+  )
+  const expensePlanStatusLegend = useMemo(() => buildEntityStatusLegendEntries('plan', planFilterStatuses, t), [t])
+  const advancePaymentStatusLegend = useMemo(
+    () => buildEntityStatusLegendEntries('advance', advancePaymentFilterStatuses, t),
+    [t]
+  )
   // colors resolved within StatusLegend component
   // Use the global currency store
   const { primaryCurrency } = useCurrencyStore()
@@ -174,69 +204,44 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
     setDateRange(value as DateRangeOption)
   }
 
-  // Create widgets for summary statistics (use formatCurrencyDisplay for locale-aware formatting)
   const kpiCurrencyCode = (currencyFilter || primaryCurrency || 'EUR').split(':').pop() || 'EUR'
   const formatKpiAmount = (amount: number | null | undefined): string => {
-    return formatCurrencyDisplay(amount, kpiCurrencyCode)
+    return formatCurrency(amount ?? 0, kpiCurrencyCode)
   }
 
   // Create widgets for summary statistics
   const widgets: WidgetItem[] = [
     {
       key: 'total-expense-items',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.total_expense_items',
-        'Total Expense Items'
-      ),
+      title: t('team-analytics-total-expense-items'),
       value: formatKpiAmount(data?.totalExpenseAmount),
       color: 'var(--nw-primary)',
       valueIsString: true,
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.individual_expense_transactions',
-        'Individual expense transactions'
-      )
+      description: t('team-analytics-individual-expense-transactions')
     },
     {
       key: 'total-expense-requests',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.total_expense_requests',
-        'Total Expense Requests'
-      ),
+      title: t('team-analytics-total-expense-requests'),
       value: formatKpiAmount(data?.totalRequestAmount),
       color: 'var(--nw-success)',
       valueIsString: true,
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.submitted_expense_requests',
-        'Submitted expense requests'
-      )
+      description: t('team-analytics-submitted-expense-requests')
     },
     {
       key: 'total-expense-plans',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.total_expense_plans',
-        'Total Expense Plans'
-      ),
+      title: t('team-analytics-total-expense-plans'),
       value: formatKpiAmount(data?.totalPlanAmount),
       color: 'var(--nw-accent)',
       valueIsString: true,
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.planned_expense_budgets',
-        'Planned expense budgets'
-      )
+      description: t('team-analytics-planned-expense-budgets')
     },
     {
       key: 'total-advance-payments',
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
-        'Total Advance Payments'
-      ),
+      title: t('advance-payments-stats-total-title'),
       value: formatKpiAmount(data?.totalAdvanceAmount),
       color: 'var(--nw-warning)',
       valueIsString: true,
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.advance_payments_to_employees',
-        'Advance payments to employees'
-      )
+      description: t('team-analytics-advance-payments-to-employees')
     }
   ]
 
@@ -245,12 +250,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card data-testid="team-analytics-expense-items-monthly-chart-card">
           <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_items',
-                'Monthly Expense Items'
-              )}
-            </CardTitle>
+            <CardTitle>{t('team-analytics-monthly-expense-items')}</CardTitle>
           </CardHeader>
           <CardContent>
             <LineChartComponent
@@ -267,12 +267,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card data-testid="team-analytics-expense-items-status-chart-card">
           <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_items_by_status',
-                'Expense Items by Status'
-              )}
-            </CardTitle>
+            <CardTitle>{t('team-analytics-expense-items-by-status')}</CardTitle>
           </CardHeader>
           <CardContent>
             <BarChartComponent
@@ -286,7 +281,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               title=""
               barColor="var(--nw-chart-1)"
               valueType="count"
-              countLabel={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.items', 'items')}
+              countLabel={t('team-analytics-items-label')}
               getColor={entry => {
                 const code = entry.status || entry.name
                 const config = getExpenseItemStatusDisplayT(t, String(code))
@@ -295,7 +290,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               }}
               dataTestId="team-analytics-expense-items-status-chart"
             />
-            <StatusLegend id="expense-items-by-status" />
+            <StatusLegend id="expense-items-by-status" entries={expenseItemStatusLegend} />
           </CardContent>
         </Card>
 
@@ -303,12 +298,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
         <div className="lg:gba:col-span-2">
           <Card data-testid="team-analytics-expense-items-category-chart-card">
             <CardHeader>
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.expense_items_by_category',
-                  'Expense Items by Category'
-                )}
-              </CardTitle>
+              <CardTitle>{t('team-analytics-expense-items-by-category')}</CardTitle>
             </CardHeader>
             <CardContent>
               <PieChartComponent
@@ -331,12 +321,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
 
         <Card data-testid="team-analytics-expense-items-summary-card">
           <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.summary_statistics',
-                'Summary Statistics'
-              )}
-            </CardTitle>
+            <CardTitle>{t('team-analytics-summary-statistics')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="gba:space-y-4">
@@ -347,12 +332,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 >
                   {data?.expenseItemsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_expense_items',
-                    'Total Items'
-                  )}
-                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('team-analytics-total-expense-items')}</div>
               </div>
               <Separator />
               <div className="gba:text-center">
@@ -360,16 +340,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                   className="gba:text-2xl gba:font-bold gba:text-primary"
                   data-testid="team-analytics-expense-items-total-amount"
                 >
-                  {formatKpiAmount(
-                    Number((data?.totalExpenseAmount ?? 0).toFixed?.(2) ?? data?.totalExpenseAmount ?? 0)
-                  )}
+                  {formatKpiAmount(data?.totalExpenseAmount)}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                    'Total Amount'
-                  )}
-                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('team-analytics-total-amount')}</div>
               </div>
             </div>
           </CardContent>
@@ -382,13 +355,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
     <div className="gba:flex gba:flex-col gba:gap-6">
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card data-testid="team-analytics-expense-requests-monthly-chart-card">
-          <CardHeader className="gba:bg-muted">
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_requests',
-                'Monthly Expense Requests'
-              )}
-            </CardTitle>
+          <CardHeader>
+            <CardTitle>{t('team-analytics-monthly-expense-requests')}</CardTitle>
           </CardHeader>
           <CardContent>
             <LineChartComponent
@@ -402,13 +370,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
         </Card>
 
         <Card data-testid="team-analytics-expense-requests-status-counts-chart-card">
-          <CardHeader className="gba:bg-muted">
+          <CardHeader>
             <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status',
-                'Expense Requests by Status'
-              )}{' '}
-              ({getTranslationFromI18nKeyAndLabel('lowcoder:common.counts', 'Counts')})
+              {t('team-analytics-expense-requests-by-status')} ({t('team-analytics-counts')})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -423,10 +387,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               title=""
               barColor="var(--nw-chart-2)"
               valueType="count"
-              countLabel={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.requests',
-                'Requests'
-              )}
+              countLabel={t('team-analytics-requests-label')}
               getColor={entry => {
                 const code = entry.status || entry.name
                 const config = getExpenseRequestStatusDisplayT(t, String(code))
@@ -435,20 +396,16 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               }}
               dataTestId="team-analytics-expense-requests-status-counts-chart"
             />
-            <StatusLegend id="expense-requests-by-status-counts" />
+            <StatusLegend id="expense-requests-by-status-counts" entries={expenseRequestStatusLegend} />
           </CardContent>
         </Card>
       </div>
 
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card data-testid="team-analytics-expense-requests-status-amounts-chart-card">
-          <CardHeader className="gba:bg-muted">
+          <CardHeader>
             <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_requests_by_status',
-                'Expense Requests by Status'
-              )}{' '}
-              ({getTranslationFromI18nKeyAndLabel('lowcoder:common.amounts', 'Amounts')})
+              {t('team-analytics-expense-requests-by-status')} ({t('team-analytics-amounts')})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -476,19 +433,15 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 return resolveStatusColor(type, 'var(--nw-chart-2)')
               }}
               dataTestId="team-analytics-expense-requests-status-amounts-chart"
+              showLegend={false}
             />
-            <StatusLegend id="expense-requests-by-status-amounts" />
+            <StatusLegend id="expense-requests-by-status-amounts" entries={expenseRequestStatusLegend} />
           </CardContent>
         </Card>
 
         <Card data-testid="team-analytics-expense-requests-summary-card">
-          <CardHeader className="gba:bg-muted">
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.summary_statistics',
-                'Summary Statistics'
-              )}
-            </CardTitle>
+          <CardHeader>
+            <CardTitle>{t('team-analytics-summary-statistics')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="gba:space-y-4">
@@ -500,10 +453,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                   {data?.expenseRequestsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
                 </div>
                 <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_expense_requests',
-                    'Total Requests'
-                  )}
+                  {t('team-analytics-total-expense-requests')}
                 </div>
               </div>
               <Separator />
@@ -512,16 +462,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                   className="gba:text-2xl gba:font-bold gba:text-success"
                   data-testid="team-analytics-expense-requests-total-amount"
                 >
-                  {formatKpiAmount(
-                    Number((data?.totalRequestAmount ?? 0).toFixed?.(2) ?? data?.totalRequestAmount ?? 0)
-                  )}
+                  {formatKpiAmount(data?.totalRequestAmount)}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_amount',
-                    'Total Amount'
-                  )}
-                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('team-analytics-total-amount')}</div>
               </div>
             </div>
           </CardContent>
@@ -535,12 +478,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card data-testid="team-analytics-expense-plans-monthly-chart-card">
           <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_plans',
-                'Monthly Expense Plans'
-              )}
-            </CardTitle>
+            <CardTitle>{t('team-analytics-monthly-expense-plans')}</CardTitle>
           </CardHeader>
           <CardContent>
             <LineChartComponent
@@ -556,11 +494,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
         <Card data-testid="team-analytics-expense-plans-status-counts-chart-card">
           <CardHeader>
             <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_plans_by_status',
-                'Expense Plans by Status'
-              )}{' '}
-              {`(${getTranslationFromI18nKeyAndLabel('lowcoder:common.counts', 'Counts')})`}
+              {t('team-analytics-expense-plans-by-status')} {`(${t('team-analytics-counts')})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -575,7 +509,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               title=""
               barColor="var(--nw-chart-3)"
               valueType="count"
-              countLabel={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.plans', 'Plans')}
+              countLabel={t('team-analytics-plans-label')}
               getColor={entry => {
                 const code = entry.status || entry.name
                 const config = getExpensePlanStatusDisplayT(t, String(code))
@@ -584,7 +518,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               }}
               dataTestId="team-analytics-expense-plans-status-counts-chart"
             />
-            <StatusLegend id="expense-plans-by-status-counts" />
+            <StatusLegend id="expense-plans-by-status-counts" entries={expensePlanStatusLegend} />
           </CardContent>
         </Card>
       </div>
@@ -593,11 +527,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
         <Card data-testid="team-analytics-expense-plans-status-amounts-chart-card">
           <CardHeader>
             <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.expense_plans_by_status',
-                'Expense Plans by Status'
-              )}{' '}
-              {`(${getTranslationFromI18nKeyAndLabel('lowcoder:common.amounts', 'Amounts')})`}
+              {t('team-analytics-expense-plans-by-status')} {`(${t('team-analytics-amounts')})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -625,19 +555,15 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 return resolveStatusColor(type, 'var(--nw-chart-3)')
               }}
               dataTestId="team-analytics-expense-plans-status-amounts-chart"
+              showLegend={false}
             />
-            <StatusLegend id="expense-plans-by-status-amounts" />
+            <StatusLegend id="expense-plans-by-status-amounts" entries={expensePlanStatusLegend} />
           </CardContent>
         </Card>
 
         <Card data-testid="team-analytics-expense-plans-summary-card">
           <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.summary_statistics',
-                'Summary Statistics'
-              )}
-            </CardTitle>
+            <CardTitle>{t('team-analytics-summary-statistics')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="gba:space-y-4">
@@ -648,12 +574,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 >
                   {data?.expensePlansByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_expense_plans',
-                    'Total Plans'
-                  )}
-                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('team-analytics-total-expense-plans')}</div>
               </div>
               <Separator />
               <div className="gba:text-center">
@@ -661,14 +582,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                   className="gba:text-2xl gba:font-bold gba:text-warning"
                   data-testid="team-analytics-expense-plans-total-amount"
                 >
-                  {formatKpiAmount(Number((data?.totalPlanAmount ?? 0).toFixed?.(2) ?? data?.totalPlanAmount ?? 0))}
+                  {formatKpiAmount(data?.totalPlanAmount)}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_amount',
-                    'Total Amount'
-                  )}
-                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('team-analytics-total-amount')}</div>
               </div>
             </div>
           </CardContent>
@@ -682,12 +598,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-6">
         <Card data-testid="team-analytics-advance-payments-monthly-chart-card">
           <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.monthly_advance_payments',
-                'Monthly Advance Payments'
-              )}
-            </CardTitle>
+            <CardTitle>{t('team-analytics-monthly-advance-payments')}</CardTitle>
           </CardHeader>
           <CardContent>
             <LineChartComponent
@@ -703,11 +614,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
         <Card data-testid="team-analytics-advance-payments-status-counts-chart-card">
           <CardHeader>
             <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.advance_payments_by_status',
-                'Advance Payments by Status'
-              )}{' '}
-              {`(${getTranslationFromI18nKeyAndLabel('lowcoder:common.counts', 'Counts')})`}
+              {t('team-analytics-advance-payments-by-status')} {`(${t('team-analytics-counts')})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -722,10 +629,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               title=""
               barColor="var(--nw-chart-5)"
               valueType="count"
-              countLabel={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.payments',
-                'Payments'
-              )}
+              countLabel={t('team-analytics-payments-label')}
               getColor={entry => {
                 const code = entry.status || entry.name
                 const config = getAdvancePaymentStatusDisplayT(t, String(code))
@@ -734,7 +638,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               }}
               dataTestId="team-analytics-advance-payments-status-counts-chart"
             />
-            <StatusLegend id="advance-payments-by-status-counts" />
+            <StatusLegend id="advance-payments-by-status-counts" entries={advancePaymentStatusLegend} />
           </CardContent>
         </Card>
       </div>
@@ -743,11 +647,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
         <Card data-testid="team-analytics-advance-payments-status-amounts-chart-card">
           <CardHeader>
             <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.advance_payments_by_status',
-                'Advance Payments by Status'
-              )}{' '}
-              {`(${getTranslationFromI18nKeyAndLabel('lowcoder:common.amounts', 'Amounts')})`}
+              {t('team-analytics-advance-payments-by-status')} {`(${t('team-analytics-amounts')})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -775,19 +675,15 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 return resolveStatusColor(type, 'var(--nw-chart-1)')
               }}
               dataTestId="team-analytics-advance-payments-status-amounts-chart"
+              showLegend={false}
             />
-            <StatusLegend id="advance-payments-by-status-amounts" />
+            <StatusLegend id="advance-payments-by-status-amounts" entries={advancePaymentStatusLegend} />
           </CardContent>
         </Card>
 
         <Card data-testid="team-analytics-advance-payments-summary-card">
           <CardHeader>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.summary_statistics',
-                'Summary Statistics'
-              )}
-            </CardTitle>
+            <CardTitle>{t('team-analytics-summary-statistics')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="gba:space-y-4">
@@ -798,12 +694,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 >
                   {data?.advancePaymentsByStatus?.reduce((sum, item) => sum + item.count, 0) || 0}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
-                    'Total Payments'
-                  )}
-                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('advance-payments-stats-total-title')}</div>
               </div>
               <Separator />
               <div className="gba:text-center">
@@ -811,16 +702,9 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                   className="gba:text-2xl gba:font-bold gba:text-info"
                   data-testid="team-analytics-advance-payments-total-amount"
                 >
-                  {formatKpiAmount(
-                    Number((data?.totalAdvanceAmount ?? 0).toFixed?.(2) ?? data?.totalAdvanceAmount ?? 0)
-                  )}
+                  {formatKpiAmount(data?.totalAdvanceAmount)}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.dashboard_tab.total_amount',
-                    'Total Amount'
-                  )}
-                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('team-analytics-total-amount')}</div>
               </div>
             </div>
           </CardContent>
@@ -832,19 +716,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
   const renderFilters = () => (
     <Card className="gba:sticky gba:top-6" data-testid="team-analytics-filters-card">
       <CardHeader className="gba:pb-4">
-        <CardTitle className="gba:text-lg gba:font-semibold">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.filters_settings',
-            'Filters & Settings'
-          )}
-        </CardTitle>
+        <CardTitle className="gba:text-lg gba:font-semibold">{t('team-analytics-filters-settings')}</CardTitle>
       </CardHeader>
       <CardContent className="gba:space-y-8">
         {/* Date Range Filter */}
         <div className="gba:space-y-4">
-          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.date_range', 'Date Range')}
-          </Label>
+          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">{t('team-analytics-date-range')}</Label>
           <RadioGroup
             value={dateRange}
             onValueChange={handleDateRangeChange}
@@ -858,10 +735,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 data-testid="team-analytics-date-range-30-days"
               />
               <Label htmlFor="last-30-days" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.last_30_days',
-                  'Last 30 Days'
-                )}
+                {t('team-analytics-last-30-days')}
               </Label>
             </div>
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
@@ -871,10 +745,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 data-testid="team-analytics-date-range-90-days"
               />
               <Label htmlFor="last-90-days" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.last_90_days',
-                  'Last 90 Days'
-                )}
+                {t('team-analytics-last-90-days')}
               </Label>
             </div>
             <div className="gba:flex gba:items-center gba:space-x-3 gba:py-1">
@@ -884,10 +755,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 data-testid="team-analytics-date-range-current-year"
               />
               <Label htmlFor="current-year" className="gba:text-sm gba:leading-relaxed gba:cursor-pointer">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.current_year',
-                  'Current Year'
-                )}
+                {t('team-analytics-current-year')}
               </Label>
             </div>
             {/* Custom range option removed */}
@@ -899,18 +767,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
         {/* Location Filters */}
         <div className="gba:space-y-4">
           <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.location_filters',
-              'Location Filters'
-            )}
+            {t('team-analytics-location-filters')}
           </Label>
           <div className="gba:relative">
             <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
             <DebouncedInput
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.search_locations',
-                'Search locations...'
-              )}
+              placeholder={t('team-analytics-search-locations')}
               value={searchTerm}
               onChange={val => setSearchTerm(val)}
               className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
@@ -942,10 +804,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2"
                 data-testid="team-analytics-location-filters-empty"
               >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.no_locations_available',
-                  'No locations available'
-                )}
+                {t('team-analytics-no-locations')}
               </div>
             )}
           </div>
@@ -955,19 +814,14 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
 
         {/* Currency Filter */}
         <div className="gba:space-y-4">
-          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.currency', 'Currency')}
-          </Label>
+          <Label className="gba:text-sm gba:font-semibold gba:text-foreground">{t('team-analytics-currency')}</Label>
           <CurrencyFilter
             data-testid="team-analytics-currency-filter"
             value={currencyFilter}
             onChange={setCurrencyFilter}
             currencies={mergedCurrencies}
             showAllOption={false}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.currency_placeholder',
-              'Select Currency'
-            )}
+            placeholder={t('team-analytics-select-currency')}
             isLoading={isLoading || overview.isLoading}
           />
         </div>
@@ -977,18 +831,12 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
         {/* Department Filters */}
         <div className="gba:space-y-4">
           <Label className="gba:text-sm gba:font-semibold gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:team_expenses_page.dashboard_tab.department_filters',
-              'Department Filters'
-            )}
+            {t('team-analytics-department-filters')}
           </Label>
           <div className="gba:relative">
             <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:w-4 gba:h-4 gba:pointer-events-none" />
             <DebouncedInput
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.search_departments',
-                'Search departments...'
-              )}
+              placeholder={t('team-analytics-search-departments')}
               value={departmentSearchTerm}
               onChange={val => setDepartmentSearchTerm(val)}
               className="gba:pl-10 gba:h-10 gba:text-sm gba:border-input"
@@ -1023,10 +871,7 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
                 className="gba:text-sm gba:text-muted-foreground gba:italic gba:py-2"
                 data-testid="team-analytics-department-filters-empty"
               >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:team_expenses_page.dashboard_tab.no_departments_found',
-                  'No departments found'
-                )}
+                {t('team-analytics-no-departments')}
               </div>
             )}
           </div>
@@ -1038,14 +883,8 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
   return (
     <div data-testid="team-spending-analytics-page-container">
       <PageLayout
-        headerTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.team_spending_analysis',
-          'Team Spending Analysis'
-        )}
-        headerDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.team_spending_analytics_description',
-          'Comprehensive analysis of team spending patterns, trends, and budget allocations across all expense categories'
-        )}
+        headerTitle={t('dashboard-team-spending-analysis')}
+        headerDescription={t('dashboard-team-spending-analytics-description')}
         className="gba:min-h-screen"
       >
         {/* Layout with consistent sidebar spacing */}
@@ -1062,24 +901,18 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               error={error ? error : null}
               onRetry={() => globalThis.location?.reload?.()}
               skeletonCount={4}
-              emptyText={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.no_analytics_data',
-                'No analytics data available.'
-              )}
+              emptyText={t('team-analytics-no-data')}
               data-testid="team-spending-analytics-statistics"
             />
             <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground" data-testid="team-analytics-bucketing-note">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.dashboard_tab.bucketing_note',
-                'Note: Trip items are attributed to the month of the trip start date; expenses-type items use their own expense date.'
-              )}
+              {t('dashboard-bucketing-note')}
             </div>
 
             {/* Tabs */}
             {error ? (
               <Alert data-testid="team-spending-analytics-error-alert">
                 <AlertDescription>
-                  <strong>{getTranslationFromI18nKeyAndLabel('lowcoder:common.error_title', 'Error')}</strong> {error}
+                  <strong>{t('team-analytics-error-title')}</strong> {error}
                 </AlertDescription>
               </Alert>
             ) : (
@@ -1091,25 +924,16 @@ const TeamSpendingAnalyticsPage: React.FC<TeamSpendingAnalyticsPageProps> = ({ a
               >
                 <TabsList className="gba:grid gba:w-full gba:grid-cols-4" data-testid="team-analytics-tabs-list">
                   <TabsTrigger value="expense-items" data-testid="team-analytics-tab-expense-items">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items', 'Expense Items')}
+                    {t('team-analytics-tab-expense-items')}
                   </TabsTrigger>
                   <TabsTrigger value="expense-requests" data-testid="team-analytics-tab-expense-requests">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_list.flows_button.expense_requests',
-                      'Expense Requests'
-                    )}
+                    {t('team-expenses-tab-expense-requests')}
                   </TabsTrigger>
                   <TabsTrigger value="expense-plans" data-testid="team-analytics-tab-expense-plans">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-                      'Expense Plans'
-                    )}
+                    {t('team-expenses-tab-expense-plans')}
                   </TabsTrigger>
                   <TabsTrigger value="advance-payments" data-testid="team-analytics-tab-advance-payments">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:backoffice_expense_landing_page.advance_title',
-                      'Advance Payments'
-                    )}
+                    {t('team-expenses-tab-advance-payments')}
                   </TabsTrigger>
                 </TabsList>
 

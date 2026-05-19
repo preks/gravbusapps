@@ -4,8 +4,7 @@ import translations from '../../../_i18n'
 import { ListChecksIcon, ChartLineUpIcon, FileTextIcon, CalendarIcon, ClockAfternoonIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
-import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
-import { useCurrencyData } from '../../../hooks/useCurrencyData'
+import { extractCurrencyCode, standardizeCurrencyRef } from '../../../utils/currencyUtils'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import CurrencyFilter from '../../../components/currency-filter'
@@ -42,34 +41,11 @@ const getErrorMessage = getNormalizedErrorMessage
 const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   const { t } = useTranslation(translations)
   const { moduleColor } = props
-  // Get manager ID from props
-  const managerId = props.userInfo?.employeeDetails?.employeeId || props.userInfo?.id || ''
-  const accessToken = props.accessToken || ''
-
-  // Fetch dashboard-specific currency data
-  const {
-    availableCurrencies,
-    mostUsedCurrency,
-    isLoading: currenciesLoading
-  } = useCurrencyData(accessToken, managerId)
+  // Get manager ID from props (employee id is the supervisor key used in GraphQL filters)
+  const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
   // Local currency state for dashboard (independent from other pages)
   const [dashboardCurrency, setDashboardCurrency] = useState<string>('')
-
-  // Initialize dashboard currency with most used currency
-  useEffect(() => {
-    if (!dashboardCurrency && mostUsedCurrency) {
-      setDashboardCurrency(mostUsedCurrency)
-    }
-  }, [mostUsedCurrency, dashboardCurrency])
-
-  // Stabilize CurrencyFilter onChange handler
-  const handleCurrencyChange = useCallback(
-    (value: string | null) => {
-      setDashboardCurrency(value || mostUsedCurrency || 'EUR')
-    },
-    [mostUsedCurrency]
-  )
 
   // Windows for aggregates/trends (memoized so overview params stay stable)
   const { monthStart, monthEnd, yearStart } = useMemo(
@@ -81,11 +57,8 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     []
   )
 
-  // Page currency: use dashboard's own currency selection (memoized to prevent unnecessary recalculations)
-  const pageCurrency = useMemo(
-    () => dashboardCurrency || mostUsedCurrency || 'EUR',
-    [dashboardCurrency, mostUsedCurrency]
-  )
+  // Page currency: use dashboard selection, then EUR when it exists in team data, else first available
+  const pageCurrency = useMemo(() => dashboardCurrency, [dashboardCurrency])
 
   // Consolidated overview with dashboard's currency filter (memoized to prevent duplicate queries)
   const selectedCurrencyRef = useMemo(
@@ -114,8 +87,36 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   )
   const overview = useManagerExpensesOverview(props, overviewParams)
 
-  // Use the dashboard's currency for display
-  const displayCurrency = pageCurrency
+  // Currency options from the same overview query (DistinctCurrenciesFrom* fields are not currency-filtered)
+  const availableCurrencies = useMemo(() => {
+    const refs = overview.data?.distinctCurrencies ?? []
+    const codes = refs.map(ref => extractCurrencyCode(ref)).filter((code): code is string => Boolean(code))
+    return [...new Set(codes)].sort((a, b) => a.localeCompare(b))
+  }, [overview.data?.distinctCurrencies])
+
+  const currenciesLoading = overview.isLoading && availableCurrencies.length === 0
+
+  // Default selection once overview currencies are known (prefer EUR when the team uses it)
+  useEffect(() => {
+    if (dashboardCurrency || availableCurrencies.length === 0) {
+      return
+    }
+    const defaultCode = availableCurrencies.includes('EUR') ? 'EUR' : availableCurrencies[0]
+    if (defaultCode) {
+      setDashboardCurrency(defaultCode)
+    }
+  }, [availableCurrencies, dashboardCurrency])
+
+  // Stabilize CurrencyFilter onChange handler
+  const handleCurrencyChange = useCallback((value: string | null) => {
+    if (!value) {
+      return
+    }
+    setDashboardCurrency(value)
+  }, [])
+
+  // Use the dashboard's currency for display (fallback while overview initializes)
+  const displayCurrency = pageCurrency || availableCurrencies[0] || 'EUR'
 
   // For chart display, use the same currency as display
   const chartCurrency = displayCurrency
@@ -265,7 +266,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
         <div className="gba:flex gba:items-center gba:gap-2">
           <span className="gba:text-sm gba:font-medium">{t('dashboard-currency-label')}</span>
           <CurrencyFilter
-            value={pageCurrency}
+            value={displayCurrency}
             onChange={handleCurrencyChange}
             isLoading={currenciesLoading}
             currencies={availableCurrencies}

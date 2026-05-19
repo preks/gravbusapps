@@ -1,5 +1,5 @@
+/** Manager expense report table/export columns (Fluent `managerT` keys). */
 import type { ColumnDef } from '@tanstack/react-table'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   createCurrencyColumn,
   createDateColumn,
@@ -186,11 +186,19 @@ export function createExpenseReportTableColumns(
 ): ColumnDef<ReportItem>[] {
   const formatDate = createReportFormatDate()
   const formatCurrency = createFormatCurrency(null)
-  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
-  const titleHeader = t('lowcoder:expense_request_list.expense_plan_table.title', 'Title')
+  const titleHeader = managerT('expense-reports-column-title')
   const statusHeader = managerT('filter-status-group-title')
-  const employeeHeader = t('lowcoder:hr_absences.create_absence.employee', 'Employee')
-  const submissionHeader = t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date')
+  const employeeHeader = managerT('expense-reports-column-employee')
+  const submissionHeader = managerT('expense-reports-column-submission-date')
+  const requestNumberHeader = managerT('expense-reports-column-request-number')
+  const codeHeader = managerT('expense-reports-column-code')
+  const amountHeader = managerT('expense-reports-column-amount')
+  const totalAmountHeader = managerT('expense-reports-column-total-amount')
+  const categoryHeader = managerT('expense-reports-column-category')
+  const startDateHeader = managerT('expense-reports-column-start-date')
+  const endDateHeader = managerT('expense-reports-column-end-date')
+  const paymentMethodHeader = managerT('expense-reports-column-payment-method')
+  const costCenterHeader = managerT('expense-reports-column-cost-center')
 
   const asItemColumns = (cols: ColumnDef<ExpenseItemReport>[]) => cols as ColumnDef<ReportItem>[]
   const asPlanColumns = (cols: ColumnDef<ExpensePlanReport>[]) => cols as ColumnDef<ReportItem>[]
@@ -204,10 +212,7 @@ export function createExpenseReportTableColumns(
         createManagerReportStringCodeColumn<ExpenseItemReport, 'code'>({
           id: 'code',
           accessorKey: 'code',
-          header: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-            'Expense Code'
-          ),
+          header: requestNumberHeader,
           getCode: r => r.code,
           getTestId: id => `expense-reports-item-code-${id}`,
           size: DEFAULT_CODE_SIZES
@@ -220,7 +225,7 @@ export function createExpenseReportTableColumns(
         }),
         createCurrencyColumn<ExpenseItemReport>(
           'amount',
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
+          amountHeader,
           row => (typeof row.amount === 'number' ? row.amount : 0),
           row => row.currency ?? 'EUR',
           formatCurrency,
@@ -233,7 +238,7 @@ export function createExpenseReportTableColumns(
         {
           id: 'category',
           accessorKey: 'category',
-          header: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.category', 'Category'),
+          header: categoryHeader,
           ...sortOff,
           cell: ({ row }) => {
             const text = row.original.category?.trim() || REPORT_DASH
@@ -256,10 +261,7 @@ export function createExpenseReportTableColumns(
         createManagerReportStringCodeColumn<ExpensePlanReport, 'code'>({
           id: 'code',
           accessorKey: 'code',
-          header: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.expense_table.code',
-            'Plan Code'
-          ),
+          header: codeHeader,
           getCode: r => r.code,
           getTestId: id => `expense-reports-plan-code-${id}`,
           size: DEFAULT_CODE_SIZES
@@ -267,17 +269,14 @@ export function createExpenseReportTableColumns(
         createManagerReportStringCodeColumn<ExpensePlanReport, 'expenseRequestCode'>({
           id: 'expenseRequestCode',
           accessorKey: 'expenseRequestCode',
-          header: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-            'Request Code'
-          ),
+          header: requestNumberHeader,
           getCode: r => r.expenseRequestCode,
           getTestId: id => `expense-reports-plan-request-code-${id}`,
           size: { minSize: 100, size: 120 }
         }),
         createCurrencyColumn<ExpensePlanReport>(
           'totalAmount',
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_table.total_amount', 'Total amount'),
+          totalAmountHeader,
           row => (typeof row.totalAmount === 'number' ? row.totalAmount : 0),
           row => row.currency ?? 'EUR',
           formatCurrency,
@@ -296,18 +295,8 @@ export function createExpenseReportTableColumns(
         createManagerReportStatusColumn<ExpensePlanReport>(statusHeader, s =>
           getExpensePlanStatusDisplayT(managerT, s)
         ),
-        createDateColumn<ExpensePlanReport>(
-          'startDate',
-          getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.start_date', 'Start Date'),
-          'startDate',
-          { formatDate, ...sortOff }
-        ),
-        createDateColumn<ExpensePlanReport>(
-          'endDate',
-          getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.end_date', 'End Date'),
-          'endDate',
-          { formatDate, ...sortOff }
-        )
+        createDateColumn<ExpensePlanReport>('startDate', startDateHeader, 'startDate', { formatDate, ...sortOff }),
+        createDateColumn<ExpensePlanReport>('endDate', endDateHeader, 'endDate', { formatDate, ...sortOff })
       ])
     case ReportType.EXPENSE_REQUEST:
       return asRequestColumns([
@@ -315,10 +304,7 @@ export function createExpenseReportTableColumns(
         createManagerReportStringCodeColumn<ExpenseRequestReport, 'code'>({
           id: 'code',
           accessorKey: 'code',
-          header: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-            'Request Number'
-          ),
+          header: requestNumberHeader,
           getCode: r => r.code,
           getTestId: id => `expense-reports-request-code-${id}`,
           size: { minSize: 110, size: 130, maxSize: 180 }
@@ -326,10 +312,7 @@ export function createExpenseReportTableColumns(
         createManagerReportStringCodeColumn<ExpenseRequestReport, 'planCode'>({
           id: 'planCode',
           accessorKey: 'planCode',
-          header: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.expense_table.code',
-            'Plan Code'
-          ),
+          header: codeHeader,
           getCode: r => r.planCode,
           getTestId: id => `expense-reports-request-plancode-${id}`,
           size: { minSize: 100, size: 120 }
@@ -345,7 +328,7 @@ export function createExpenseReportTableColumns(
         ),
         createCurrencyColumn<ExpenseRequestReport>(
           'totalAmount',
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Total Amount'),
+          totalAmountHeader,
           row => (typeof row.totalAmount === 'number' ? row.totalAmount : 0),
           row => row.currency ?? 'EUR',
           formatCurrency,
@@ -362,10 +345,7 @@ export function createExpenseReportTableColumns(
         createManagerReportStringCodeColumn<AdvancePaymentReport, 'code'>({
           id: 'code',
           accessorKey: 'code',
-          header: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_calculation_rule.expense_table.code',
-            'Plan Code'
-          ),
+          header: codeHeader,
           getCode: r => r.code,
           getTestId: id => `expense-reports-advance-code-${id}`,
           size: DEFAULT_CODE_SIZES
@@ -381,7 +361,7 @@ export function createExpenseReportTableColumns(
         ),
         createCurrencyColumn<AdvancePaymentReport>(
           'amount',
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
+          amountHeader,
           row => (typeof row.amount === 'number' ? row.amount : 0),
           row => row.currency ?? 'EUR',
           formatCurrency,
@@ -394,7 +374,7 @@ export function createExpenseReportTableColumns(
         {
           id: 'paymentMethod',
           accessorKey: 'paymentMethod',
-          header: getTranslationFromI18nKeyAndLabel('lowcoder:payment_method', 'Payment Method'),
+          header: paymentMethodHeader,
           ...sortOff,
           cell: ({ row }) => {
             const label = formatPaymentMethodForExpenseTables(row.original.paymentMethod, REPORT_DASH)
@@ -412,7 +392,7 @@ export function createExpenseReportTableColumns(
         {
           id: 'costCenter',
           accessorKey: 'costCenter',
-          header: getTranslationFromI18nKeyAndLabel('lowcoder:cost_center', 'Cost Center'),
+          header: costCenterHeader,
           ...sortOff,
           cell: ({ row }) => (
             <span className="gba:text-sm" data-testid={`expense-reports-cell-costCenter-${row.original.id}`}>
@@ -437,8 +417,20 @@ export function getExportFieldsForReportType(
   managerT: (key: string) => string
 ): ExportField[] {
   if (!reportType) return []
-  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
   const statusColumnTitle = managerT('filter-status-group-title')
+  const titleHeader = managerT('expense-reports-column-title')
+  const requestNumberHeader = managerT('expense-reports-column-request-number')
+  const codeHeader = managerT('expense-reports-column-code')
+  const employeeHeader = managerT('expense-reports-column-employee')
+  const submissionHeader = managerT('expense-reports-column-submission-date')
+  const amountHeader = managerT('expense-reports-column-amount')
+  const totalAmountHeader = managerT('expense-reports-column-total-amount')
+  const categoryHeader = managerT('expense-reports-column-category')
+  const startDateHeader = managerT('expense-reports-column-start-date')
+  const endDateHeader = managerT('expense-reports-column-end-date')
+  const paymentMethodHeader = managerT('expense-reports-column-payment-method')
+  const costCenterHeader = managerT('expense-reports-column-cost-center')
+  const currencyHeader = managerT('expense-reports-column-currency')
   const insertCurrencyAfter = (rows: ExportField[], afterKey: string): ExportField[] => {
     if (rows.some(f => f.key === 'currency')) {
       return rows
@@ -450,7 +442,7 @@ export function getExportFieldsForReportType(
     const next = [...rows]
     next.splice(idx + 1, 0, {
       key: 'currency',
-      title: t('lowcoder:personal_expenses.currency', 'Currency')
+      title: currencyHeader
     })
     return next
   }
@@ -458,61 +450,52 @@ export function getExportFieldsForReportType(
   switch (reportType) {
     case ReportType.EXPENSE_ITEM: {
       const base: ExportField[] = [
-        { key: 'title', title: t('lowcoder:expense_request_list.expense_plan_table.title', 'Title') },
-        {
-          key: 'code',
-          title: t('lowcoder:expense_request_list.expense_request_filter.request_number_input', 'Expense Code')
-        },
-        { key: 'employeeName', title: t('lowcoder:hr_absences.create_absence.employee', 'Employee') },
-        { key: 'date', title: t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date') },
-        { key: 'amount', title: t('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount') },
-        { key: 'category', title: t('lowcoder:team_expenses_page.dashboard_tab.category', 'Category') },
+        { key: 'title', title: titleHeader },
+        { key: 'code', title: requestNumberHeader },
+        { key: 'employeeName', title: employeeHeader },
+        { key: 'date', title: submissionHeader },
+        { key: 'amount', title: amountHeader },
+        { key: 'category', title: categoryHeader },
         { key: 'status', title: statusColumnTitle }
       ]
       return insertCurrencyAfter(base, 'amount')
     }
     case ReportType.EXPENSE_PLAN: {
       const base: ExportField[] = [
-        { key: 'title', title: t('lowcoder:expense_request_list.expense_plan_table.title', 'Title') },
-        { key: 'code', title: t('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code') },
-        {
-          key: 'expenseRequestCode',
-          title: t('lowcoder:expense_request_list.expense_request_filter.request_number_input', 'Request Code')
-        },
-        { key: 'totalAmount', title: t('lowcoder:expense_plan_table.total_amount', 'Total amount') },
-        { key: 'employeeName', title: t('lowcoder:hr_absences.create_absence.employee', 'Employee') },
-        { key: 'createdAt', title: t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date') },
+        { key: 'title', title: titleHeader },
+        { key: 'code', title: codeHeader },
+        { key: 'expenseRequestCode', title: requestNumberHeader },
+        { key: 'totalAmount', title: totalAmountHeader },
+        { key: 'employeeName', title: employeeHeader },
+        { key: 'createdAt', title: submissionHeader },
         { key: 'status', title: statusColumnTitle },
-        { key: 'startDate', title: t('lowcoder:hr_absences.create_absence.start_date', 'Start Date') },
-        { key: 'endDate', title: t('lowcoder:hr_absences.create_absence.end_date', 'End Date') }
+        { key: 'startDate', title: startDateHeader },
+        { key: 'endDate', title: endDateHeader }
       ]
       return insertCurrencyAfter(base, 'totalAmount')
     }
     case ReportType.EXPENSE_REQUEST: {
       const base: ExportField[] = [
-        { key: 'title', title: t('lowcoder:expense_request_list.expense_plan_table.title', 'Title') },
-        {
-          key: 'code',
-          title: t('lowcoder:expense_request_list.expense_request_filter.request_number_input', 'Request Code')
-        },
-        { key: 'planCode', title: t('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code') },
-        { key: 'employeeName', title: t('lowcoder:hr_absences.create_absence.employee', 'Employee') },
-        { key: 'createdAt', title: t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date') },
+        { key: 'title', title: titleHeader },
+        { key: 'code', title: requestNumberHeader },
+        { key: 'planCode', title: codeHeader },
+        { key: 'employeeName', title: employeeHeader },
+        { key: 'createdAt', title: submissionHeader },
         { key: 'status', title: statusColumnTitle },
-        { key: 'totalAmount', title: t('lowcoder:expense_request_list.expense_plan_table.amount', 'Total Amount') }
+        { key: 'totalAmount', title: totalAmountHeader }
       ]
       return insertCurrencyAfter(base, 'totalAmount')
     }
     case ReportType.ADVANCE_PAYMENT: {
       const base: ExportField[] = [
-        { key: 'title', title: t('lowcoder:expense_request_list.expense_plan_table.title', 'Title') },
-        { key: 'employeeName', title: t('lowcoder:hr_absences.create_absence.employee', 'Employee') },
-        { key: 'code', title: t('lowcoder:expense_calculation_rule.expense_table.code', 'Plan Code') },
-        { key: 'requestDate', title: t('lowcoder:acknowledge_sick_leave.submission_date', 'Submission Date') },
+        { key: 'title', title: titleHeader },
+        { key: 'employeeName', title: employeeHeader },
+        { key: 'code', title: codeHeader },
+        { key: 'requestDate', title: submissionHeader },
         { key: 'status', title: statusColumnTitle },
-        { key: 'amount', title: t('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount') },
-        { key: 'paymentMethod', title: t('lowcoder:payment_method', 'Payment Method') },
-        { key: 'costCenter', title: t('lowcoder:cost_center', 'Cost Center') }
+        { key: 'amount', title: amountHeader },
+        { key: 'paymentMethod', title: paymentMethodHeader },
+        { key: 'costCenter', title: costCenterHeader }
       ]
       return insertCurrencyAfter(base, 'amount')
     }

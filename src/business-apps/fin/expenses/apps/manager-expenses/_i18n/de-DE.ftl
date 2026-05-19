@@ -18,6 +18,7 @@ dashboard-monthly-expense-trends = Monatliche Ausgabentrends
 dashboard-review-approvals = Genehmigungen prüfen
 dashboard-review-pending-expense-approvals = Ausstehende Spesengenehmigungen prüfen.
 dashboard-team-spending-analysis = Teamausgabenanalyse
+dashboard-team-spending-analytics-description = Umfassende Analyse der Ausgabemuster, Trends und Budgetzuweisungen des Teams in allen Ausgabenkategorien
 dashboard-view-spending-trends-and-reports = Ausgabentrends und Berichte anzeigen
 dashboard-expense-reports-action-title = Spesenberichte
 dashboard-generate-or-view-team-expense-reports = Team‑Ausgabenberichte erstellen oder anzeigen
@@ -38,6 +39,9 @@ dashboard-bucketing-note = Hinweis: Reisepositionen werden dem Monat des Reisebe
 dashboard-chart-amount-label = Betrag:
 dashboard-charts-empty-title = Keine Daten verfügbar
 dashboard-charts-empty-description = Für dieses Diagramm sind keine Daten zum Anzeigen verfügbar.
+dashboard-charts-tooltip-count = Anzahl
+dashboard-charts-tooltip-amount = Betrag
+dashboard-charts-tooltip-items = Elemente
 
 # Expense statuses (transl.txt — expense_statuses; expense-status-flow-open not in that object — matches personal-expenses flow label)
 
@@ -304,3 +308,139 @@ advance-payments-column-employee = Mitarbeiter
 advance-payments-column-creation-date = Erstellungsdatum
 advance-payments-column-amount = Betrag
 advance-payments-column-status = Status
+
+# Approvals page (transl.txt DE + original Lowcoder fallbacks where key is absent)
+
+approvals-review-title = Genehmigungen prüfen
+approvals-review-subheader = Überprüfen und bearbeiten Sie ausstehende Spesengenehmigungsanträge Ihres Teams
+approvals-list-title = Ausstehende Genehmigungen
+approvals-search-placeholder = Genehmigungen suchen
+approvals-empty-no-pending = Keine Genehmigungsanfragen offen
+approvals-empty-all-processed = Alle Genehmigungsanfragen wurden bearbeitet.
+
+approvals-tab-expense-plan = Ausgabenpläne
+approvals-tab-expense-request = Spesenabrechnungen
+approvals-tab-advance-payment = Vorauszahlungen
+approvals-tab-handout-payment = Handout-Zahlung
+approvals-tab-transfer-payment = Zahlung überweisen
+
+approvals-tab-expense-plan-desc = Review and approve expense plans from your team
+approvals-tab-expense-request-desc = Review and approve expense requests from your team
+approvals-tab-advance-payment-desc = Review and approve advance payment requests from your team
+approvals-tab-handout-payment-desc = Review and approve handout payment requests from your team
+approvals-tab-transfer-payment-desc = Review and approve transfer payment requests from your team
+
+approvals-column-date = Erstellungsdatum
+approvals-column-title = Spesenabrechnung
+approvals-column-task-group = Arbeitsgruppe
+approvals-task-group-expense-plan = Ausgabenplan
+approvals-task-group-request = Ausgabenanfrage
+approvals-task-group-advance-payment = Vorauszahlungsantrag
+approvals-task-group-transfer = Zahlung überweisen
+approvals-task-group-handout = Handout-Zahlung
+approvals-column-amount = Betrag
+
+approvals-approve-button = Genehmigen
+approvals-approve-selected-tasks = { $count ->
+    [one] 1 Aufgabe genehmigen
+   *[other] { $count } Aufgaben genehmigen
+}
+approvals-approving = Wird genehmigt...
+approvals-selection-error-title = Selection Error:
+approvals-error-title = Fehler:
+
+approvals-invalid-task-selection = Invalid task selection
+approvals-select-task-to-approve = Please select at least one task to approve
+approvals-task-type-mismatch = You can select only tasks that are the same type: { $groups }
+approvals-configuration-missing = Missing configuration or user information
+approvals-entity-id-missing = Could not find entity ID in task data for { $tabKey }
+approvals-could-not-find-task = Could not find original task data for { $taskId }
+approvals-process-instance-missing = Process instance ID not available
+approvals-user-id-missing = User ID not available
+approvals-network-get-failed = GET request failed
+approvals-network-post-failed = POST request failed
+approvals-unknown-error = Unknown error
+approvals-failed-to-approve = Failed to approve tasks
+
+approvals-toast-completed = Genehmigung abgeschlossen
+approvals-toast-completed-description = { $count ->
+    [one] 1 Aufgabe erfolgreich genehmigt
+   *[other] { $count } Aufgaben erfolgreich genehmigt
+}
+approvals-toast-partial-completed = Teilweise Genehmigung abgeschlossen
+approvals-toast-partial-completed-description = { $approvedCount } genehmigt · { $failedCount } fehlgeschlagen
+approvals-toast-all-failed = Alle Genehmigungen fehlgeschlagen
+approvals-toast-failed = Genehmigung fehlgeschlagen
+approvals-toast-error-details = Fehlerdetails
+
+# Team spending analytics page (transl.txt — team_expenses_page.dashboard_tab, advance_payments_tab, common, personal_expenses, expense_calculation_rule)
+
+team-analytics-total-expense-items = Gesamtanzahl Ausgabenposten
+team-analytics-individual-expense-transactions = Einzelne Spesenposten und Transaktionen
+team-analytics-total-expense-requests = Gesamtanzahl Ausgabenanfragen
+team-analytics-submitted-expense-requests = Eingereichte Spesenanträge
+team-analytics-total-expense-plans = Gesamtanzahl Ausgabenpläne
+team-analytics-planned-expense-budgets = Geplante Spesenbudgets
+team-analytics-advance-payments-to-employees = Vorschusszahlungen an Mitarbeiter
+team-analytics-monthly-expense-items = Monatliche Ausgabenposten
+team-analytics-expense-items-by-status = Ausgabenposten nach Status
+team-analytics-items-label = Positionen
+team-analytics-expense-items-by-category = Ausgabenposten nach Kategorie
+team-analytics-summary-statistics = Zusammenfassende Statistik
+team-analytics-total-amount = Gesamtbetrag
+team-analytics-monthly-expense-requests = Monatliche Ausgabenanfragen
+team-analytics-expense-requests-by-status = Ausgabenanfragen nach Status
+team-analytics-counts = Anzahl
+team-analytics-requests-label = Anfragen
+team-analytics-amounts = Beträge
+team-analytics-monthly-expense-plans = Monatliche Ausgabenpläne
+team-analytics-expense-plans-by-status = Ausgabenpläne nach Status
+team-analytics-plans-label = Pläne
+team-analytics-monthly-advance-payments = Monatliche Vorschüsse
+team-analytics-advance-payments-by-status = Vorschüsse nach Status
+team-analytics-payments-label = Zahlungen
+team-analytics-filters-settings = Filter und Einstellungen
+team-analytics-date-range = Zeitraum
+team-analytics-last-30-days = Letzte 30 Tage
+team-analytics-last-90-days = Letzte 90 Tage
+team-analytics-current-year = Aktuelles Jahr
+team-analytics-location-filters = Standortfilter
+team-analytics-search-locations = Standorte durchsuchen...
+team-analytics-no-locations = Keine Standorte verfügbar
+team-analytics-currency = Währung
+team-analytics-select-currency = Währung auswählen
+team-analytics-department-filters = Abteilungsfilter
+team-analytics-search-departments = Abteilungen durchsuchen...
+team-analytics-no-departments = Keine Abteilungen gefunden
+team-analytics-no-data = Keine Analysedaten verfügbar.
+team-analytics-tab-expense-items = Ausgabeposten
+team-analytics-error-title = Fehler
+
+# Expense reports page (transl.txt)
+
+expense-reports-title = Spesenberichte
+expense-reports-subheader = Umfassende Spesenberichte über verschiedene Kategorien und Zeiträume erstellen und herunterladen
+expense-reports-tab-expense-items = Ausgabeposten
+expense-reports-tab-expense-plans = Ausgabenpläne
+expense-reports-tab-expense-requests = Spesenabrechnungen
+expense-reports-tab-advance-payments = Vorauszahlungen
+expense-reports-data-label = Data
+expense-reports-search-placeholder = Berichtsdaten durchsuchen...
+expense-reports-download-report = Bericht herunterladen
+expense-reports-download-excel = Excel herunterladen
+expense-reports-empty = Keine Spesenberichte gefunden
+expense-reports-empty-hint = Versuchen Sie, einen anderen Berichtstyp auszuwählen oder Ihre Suche anzupassen.
+expense-reports-column-title = Titel
+expense-reports-column-request-number = Abrechnungsnummer
+expense-reports-column-code = Code
+expense-reports-column-employee = Mitarbeiter
+expense-reports-column-submission-date = Datum der Einreichung
+expense-reports-column-amount = Betrag
+expense-reports-column-total-amount = Gesamtbetrag
+expense-reports-column-category = Kategorie
+expense-reports-column-start-date = Startdatum
+expense-reports-column-end-date = Enddatum
+expense-reports-column-payment-method = Zahlungsmethode
+expense-reports-column-cost-center = Kostenstelle
+expense-reports-column-currency = Währung
+expense-reports-generated-allowance = Generierte Pauschale

@@ -5,9 +5,12 @@ import { ApprovalRequest, ValidTaskGroup, TaskSelectionValidation } from '../typ
  * According to requirements: Only tasks of the same type can be selected together
  * Valid groups: Approve Plan, Approve Request, Approve Advance Payment
  */
+type ApprovalTranslate = (key: string, params?: Record<string, string | number>) => string
+
 export const validateTaskSelection = (
   selectedTasks: ApprovalRequest[],
-  newTask: ApprovalRequest
+  newTask: ApprovalRequest,
+  t?: ApprovalTranslate
 ): TaskSelectionValidation => {
   // If no tasks selected yet, any task is valid
   if (selectedTasks.length === 0) {
@@ -29,11 +32,17 @@ export const validateTaskSelection = (
     }
   }
 
-  // If different groups, return validation error
+  const allowedGroups = getValidTaskGroups(selectedTasks[0].taskName)
+  const groupsLabel = t
+    ? allowedGroups.map(group => getApprovalTaskGroupDisplayT(t, group)).join(', ')
+    : allowedGroups.join(', ')
+
   return {
     isValid: false,
-    errorMessage: `You can select only tasks that are the same type: ${getValidTaskGroups(selectedTasks[0].taskName).join(', ')}`,
-    allowedGroups: getValidTaskGroups(selectedTasks[0].taskName)
+    errorMessage: t
+      ? t('approvals-task-type-mismatch', { groups: groupsLabel })
+      : `You can select only tasks that are the same type: ${groupsLabel}`,
+    allowedGroups
   }
 }
 
@@ -68,6 +77,24 @@ const getValidTaskGroups = (taskName: string): ValidTaskGroup[] => {
 export const isValidTaskGroup = (taskGroup: string): taskGroup is ValidTaskGroup => {
   const validGroups: ValidTaskGroup[] = ['Expense Plan', 'Request', 'Advance Payment Request', 'Transfer', 'Handout']
   return validGroups.includes(taskGroup as ValidTaskGroup)
+}
+
+const APPROVAL_TASK_GROUP_FLUENT_KEYS: Record<ValidTaskGroup, string> = {
+  'Expense Plan': 'approvals-task-group-expense-plan',
+  Request: 'approvals-task-group-request',
+  'Advance Payment Request': 'approvals-task-group-advance-payment',
+  Transfer: 'approvals-task-group-transfer',
+  Handout: 'approvals-task-group-handout'
+}
+
+/**
+ * Localized label for a task group shown in the approvals table.
+ */
+export const getApprovalTaskGroupDisplayT = (t: (key: string) => string, taskGroup: string): string => {
+  if (isValidTaskGroup(taskGroup)) {
+    return t(APPROVAL_TASK_GROUP_FLUENT_KEYS[taskGroup])
+  }
+  return taskGroup
 }
 
 /**

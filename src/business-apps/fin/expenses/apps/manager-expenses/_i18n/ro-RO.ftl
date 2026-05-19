@@ -18,6 +18,7 @@ dashboard-monthly-expense-trends = Tendințe lunare ale cheltuielilor
 dashboard-review-approvals = Revizuire aprobări
 dashboard-review-pending-expense-approvals = Revizuiește aprobările de cheltuieli în așteptare.
 dashboard-team-spending-analysis = Analiză cheltuieli echipă
+dashboard-team-spending-analytics-description = Analiză cuprinzătoare a modelelor de cheltuieli ale echipei, tendințelor și alocărilor bugetare pe toate categoriile de cheltuieli
 dashboard-view-spending-trends-and-reports = Vezi tendințe și rapoarte de cheltuieli
 dashboard-expense-reports-action-title = Rapoarte de Cheltuieli
 dashboard-generate-or-view-team-expense-reports = Generează sau vizualizează rapoartele de cheltuieli ale echipei
@@ -38,6 +39,9 @@ dashboard-bucketing-note = Notă: Articolele de călătorie sunt atribuite lunii
 dashboard-chart-amount-label = Sumă:
 dashboard-charts-empty-title = Nu sunt date disponibile
 dashboard-charts-empty-description = Nu există date de afișat pentru acest grafic.
+dashboard-charts-tooltip-count = Număr
+dashboard-charts-tooltip-amount = Sumă
+dashboard-charts-tooltip-items = Elemente
 
 # Expense statuses (transl.txt — expense_statuses; expense-status-flow-open not in that object — matches personal-expenses flow label)
 
@@ -221,7 +225,7 @@ expense-requests-column-end-date = Data de sfârșit
 expense-requests-column-employee = Angajat
 expense-requests-column-request-date = Data Solicitării
 expense-requests-column-amount = Suma
-expense-requests-column-status = Statut
+expense-requests-column-status = Status
 
 expense-requests-filter-request-type = Tipul Solicitării
 expense-requests-filter-request-date = Data Solicitării
@@ -303,4 +307,140 @@ advance-payments-column-end-date = Data de Sfârşit
 advance-payments-column-employee = Angajat
 advance-payments-column-creation-date = Data creării
 advance-payments-column-amount = Suma
-advance-payments-column-status = Statut
+advance-payments-column-status = Status
+
+# Approvals page (transl.txt RO + original Lowcoder fallbacks where key is absent)
+
+approvals-review-title = Revizuire aprobări
+approvals-review-subheader = Revizuiește și procesează cererile de aprobare a cheltuielilor în așteptare de la echipa ta
+approvals-list-title = Aprobări în așteptare
+approvals-search-placeholder = Caută aprobări
+approvals-empty-no-pending = Nicio cerere de aprobare în așteptare
+approvals-empty-all-processed = Toate cererile de aprobare au fost procesate.
+
+approvals-tab-expense-plan = Planuri de cheltuieli
+approvals-tab-expense-request = Solicitări Decont
+approvals-tab-advance-payment = Plăți în avans
+approvals-tab-handout-payment = Plata manuală
+approvals-tab-transfer-payment = Transfer de Plată
+
+approvals-tab-expense-plan-desc = Review and approve expense plans from your team
+approvals-tab-expense-request-desc = Review and approve expense requests from your team
+approvals-tab-advance-payment-desc = Review and approve advance payment requests from your team
+approvals-tab-handout-payment-desc = Review and approve handout payment requests from your team
+approvals-tab-transfer-payment-desc = Review and approve transfer payment requests from your team
+
+approvals-column-date = Data Creării
+approvals-column-title = Cerere
+approvals-column-task-group = Grupul taskului
+approvals-task-group-expense-plan = Plan de cheltuieli
+approvals-task-group-request = Cerere de cheltuieli
+approvals-task-group-advance-payment = Plată în avans
+approvals-task-group-transfer = Transfer de plată
+approvals-task-group-handout = Plată manuală
+approvals-column-amount = Sumă
+
+approvals-approve-button = Aprobați
+approvals-approve-selected-tasks = { $count ->
+    [one] Aprobați 1 task
+   *[other] Aprobați { $count } task-uri
+}
+approvals-approving = Se aprobă...
+approvals-selection-error-title = Selection Error:
+approvals-error-title = Eroare:
+
+approvals-invalid-task-selection = Invalid task selection
+approvals-select-task-to-approve = Please select at least one task to approve
+approvals-task-type-mismatch = You can select only tasks that are the same type: { $groups }
+approvals-configuration-missing = Missing configuration or user information
+approvals-entity-id-missing = Could not find entity ID in task data for { $tabKey }
+approvals-could-not-find-task = Could not find original task data for { $taskId }
+approvals-process-instance-missing = Process instance ID not available
+approvals-user-id-missing = User ID not available
+approvals-network-get-failed = GET request failed
+approvals-network-post-failed = POST request failed
+approvals-unknown-error = Unknown error
+approvals-failed-to-approve = Failed to approve tasks
+
+approvals-toast-completed = Aprobare finalizată
+approvals-toast-completed-description = { $count ->
+    [one] 1 task aprobat cu succes
+   *[other] { $count } task-uri aprobate cu succes
+}
+approvals-toast-partial-completed = Aprobare parțială finalizată
+approvals-toast-partial-completed-description = { $approvedCount } aprobate · { $failedCount } eșuate
+approvals-toast-all-failed = Toate aprobările au eșuat
+approvals-toast-failed = Aprobarea a eșuat
+approvals-toast-error-details = Detalii eroare
+
+# Team spending analytics page (transl.txt — team_expenses_page.dashboard_tab, advance_payments_tab, common, personal_expenses, expense_calculation_rule)
+
+team-analytics-total-expense-items = Total articole de cheltuieli
+team-analytics-individual-expense-transactions = Articole și tranzacții individuale de cheltuieli
+team-analytics-total-expense-requests = Total cereri de cheltuieli
+team-analytics-submitted-expense-requests = Cererile de cheltuieli trimise
+team-analytics-total-expense-plans = Total planuri de cheltuieli
+team-analytics-planned-expense-budgets = Bugete planificate pentru cheltuieli
+team-analytics-advance-payments-to-employees = Avansuri acordate angajaților
+team-analytics-monthly-expense-items = Articole lunare de cheltuieli
+team-analytics-expense-items-by-status = Articole de cheltuieli după status
+team-analytics-items-label = articole
+team-analytics-expense-items-by-category = Articole de cheltuieli pe categorie
+team-analytics-summary-statistics = Statistici sumare
+team-analytics-total-amount = Suma Totală
+team-analytics-monthly-expense-requests = Cereri lunare de cheltuieli
+team-analytics-expense-requests-by-status = Cereri de cheltuieli după status
+team-analytics-counts = Număruri
+team-analytics-requests-label = Cereri
+team-analytics-amounts = Sume
+team-analytics-monthly-expense-plans = Planuri lunare de cheltuieli
+team-analytics-expense-plans-by-status = Planuri de cheltuieli după status
+team-analytics-plans-label = Planuri
+team-analytics-monthly-advance-payments = Avansuri lunare
+team-analytics-advance-payments-by-status = Avansuri după status
+team-analytics-payments-label = Plăți
+team-analytics-filters-settings = Filtre și setări
+team-analytics-date-range = Interval de timp
+team-analytics-last-30-days = Ultimele 30 de zile
+team-analytics-last-90-days = Ultimele 90 de zile
+team-analytics-current-year = Anul curent
+team-analytics-location-filters = Filtre locație
+team-analytics-search-locations = Caută locații...
+team-analytics-no-locations = Nici o locație disponibilă
+team-analytics-currency = Monedă
+team-analytics-select-currency = Selectați Moneda
+team-analytics-department-filters = Filtre departament
+team-analytics-search-departments = Caută departamente...
+team-analytics-no-departments = Nu au fost găsite departamente
+team-analytics-no-data = Nu există date analitice disponibile.
+team-analytics-tab-expense-items = Elemente de cheltuieli
+team-analytics-error-title = Eroare
+
+# Expense reports page (transl.txt)
+
+expense-reports-title = Rapoarte de Cheltuieli
+expense-reports-subheader = Generează și descarcă rapoarte de cheltuieli complete pe diferite categorii și perioade de timp
+expense-reports-tab-expense-items = Elemente de cheltuieli
+expense-reports-tab-expense-plans = Planuri de cheltuieli
+expense-reports-tab-expense-requests = Solicitări Decont
+expense-reports-tab-advance-payments = Plăți în avans
+expense-reports-data-label = Data
+expense-reports-search-placeholder = Caută date de raport...
+expense-reports-download-report = Descarcă raport
+expense-reports-download-excel = Descarcă Excel
+expense-reports-empty = Nu au fost găsite rapoarte de cheltuieli
+expense-reports-empty-hint = Încearcă să selectezi un alt tip de raport sau să ajustezi căutarea.
+expense-reports-column-title = Scop
+expense-reports-column-request-number = Număr Cerere
+expense-reports-column-code = Cod
+expense-reports-column-employee = Angajat
+expense-reports-column-submission-date = Data Trimiterii
+expense-reports-column-amount = Sumă
+expense-reports-column-total-amount = Sumă Totală
+expense-reports-column-category = Categorie
+expense-reports-column-start-date = Dată de Început
+expense-reports-column-end-date = Data de Sfârşit
+expense-reports-column-payment-method = Metodă de plată
+expense-reports-column-cost-center = Centru de cost
+expense-reports-column-currency = Monedă
+expense-reports-generated-allowance = Diurnă generată

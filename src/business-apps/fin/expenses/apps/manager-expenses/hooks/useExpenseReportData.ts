@@ -393,6 +393,15 @@ export const useExpenseReportData = ({
         ? getExpenseItemStatusDisplayT(t, item.status)
         : { label: '-', type: 'draft' as const }
 
+      const rawTitle = typeof item.title === 'string' ? item.title.trim() : ''
+      const isAllowanceItem = item.expensePosition?.some(
+        (pos: { expenseGroup?: { value?: string | null } | null }) => pos?.expenseGroup?.value === 'Allowances'
+      )
+      const title =
+        isAllowanceItem && rawTitle.toLowerCase() === 'generated allowance'
+          ? t('expense-reports-generated-allowance')
+          : rawTitle
+
       return {
         id: item.id,
         code: item.expenseRequest?.code || '',
@@ -405,7 +414,7 @@ export const useExpenseReportData = ({
           item.expenseRequest?.requestTypeRef === 'ExpenseRequestType:v1:TRIP'
             ? item.expenseRequest?.startDate || ''
             : item.expenseDate || '',
-        title: item.title || '',
+        title,
         description: item.description || '',
         category: expenseGroupValue,
         amount: item.totalAmount || 0,

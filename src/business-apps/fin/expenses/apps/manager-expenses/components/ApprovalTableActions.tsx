@@ -1,7 +1,7 @@
 import React from 'react'
-import { Button, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Button, Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import { ApprovalRequest } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface ApprovalTableActionsProps {
   selectedTasks: ApprovalRequest[]
@@ -21,12 +21,18 @@ const ApprovalTableActions: React.FC<ApprovalTableActionsProps> = ({
   onApproveClick,
   dataTestIdPrefix
 }) => {
+  const { t } = useTranslation(translations)
+
+  const approveButtonLabel = isApproving
+    ? t('approvals-approving')
+    : t('approvals-approve-selected-tasks', { count: selectedTasks.length })
+
   return (
     <>
       {validationError && (
         <Alert className="gba:mb-4" data-testid={`${dataTestIdPrefix}-validation-error-alert`}>
           <AlertDescription>
-            <strong>Selection Error:</strong> {validationError}
+            <strong>{t('approvals-selection-error-title')}</strong> {validationError}
           </AlertDescription>
         </Alert>
       )}
@@ -40,12 +46,7 @@ const ApprovalTableActions: React.FC<ApprovalTableActionsProps> = ({
             disabled={isApproving}
             data-testid={`${dataTestIdPrefix}-approve-button`}
           >
-            {isApproving
-              ? 'Approving...'
-              : `${getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_request.approve_button',
-                  'Approve'
-                )} ${selectedTasks.length} Task${selectedTasks.length > 1 ? 's' : ''}`}
+            {approveButtonLabel}
           </Button>
         </div>
       )}
@@ -54,7 +55,7 @@ const ApprovalTableActions: React.FC<ApprovalTableActionsProps> = ({
       {approvalError && (
         <Alert variant="destructive" className="gba:mb-4">
           <AlertDescription>
-            <strong>Error:</strong> {approvalError}
+            <strong>{t('approvals-error-title')}</strong> {approvalError}
           </AlertDescription>
         </Alert>
       )}

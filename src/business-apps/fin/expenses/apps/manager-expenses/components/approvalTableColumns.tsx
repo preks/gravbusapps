@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Checkbox } from '@newwork/nw-design-system'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { FlowExecutionTask } from '@/common/network/flow-metrics/FlowMetricsClient'
 import { ApprovalRequest } from '../types'
 import {
@@ -10,6 +10,7 @@ import {
   createFormatCurrency
 } from '../../../common/columns/expenseColumnHelpers'
 import { getExpenseRequestStatusDisplayT } from '../utils'
+import { getApprovalTaskGroupDisplayT } from '../utils/taskValidation'
 
 const sortOff = { enableSorting: false as const }
 
@@ -48,24 +49,12 @@ export function createApprovalTableColumns(
 ): ColumnDef<ApprovalTableRow>[] {
   const formatCurrency = createFormatCurrency(null)
   const requestDateId = 'requestDate'
-  const requestDateLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:expense_plan_list.expense_plan_table.create_date',
-    'Date'
-  )
-  const titleHeader = getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.request', 'Title')
-  const taskGroupHeader = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:manager_expenses_landing_page.task_group',
-    'Task Group'
-  )
-  const amountHeader = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:expense_request_list.expense_plan_table.amount',
-    'Amount'
-  )
-  const employeeHeader = getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
-  const statusHeader = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:expense_request_list.expense_plan_table.status',
-    'Status'
-  )
+  const requestDateLabel = t('approvals-column-date')
+  const titleHeader = t('approvals-column-title')
+  const taskGroupHeader = t('approvals-column-task-group')
+  const amountHeader = t('approvals-column-amount')
+  const employeeHeader = t('expense-requests-column-employee')
+  const statusHeader = t('expense-requests-column-status')
 
   const selectColumn: ColumnDef<ApprovalTableRow> = {
     id: 'select',
@@ -147,15 +136,18 @@ export function createApprovalTableColumns(
     size: 160,
     maxSize: 200,
     meta: { className: 'gba:min-w-0' },
-    cell: ({ row }) => (
-      <div
-        className="gba:text-sm gba:text-muted-foreground gba:min-w-0 gba:truncate gba:max-w-full"
-        data-testid={`${chrome.dataTestIdPrefix}-task-group-${row.original.id}`}
-        title={row.original.approval.taskGroup}
-      >
-        {row.original.approval.taskGroup}
-      </div>
-    )
+    cell: ({ row }) => {
+      const taskGroupLabel = getApprovalTaskGroupDisplayT(t, row.original.approval.taskGroup)
+      return (
+        <div
+          className="gba:text-sm gba:text-muted-foreground gba:min-w-0 gba:truncate gba:max-w-full"
+          data-testid={`${chrome.dataTestIdPrefix}-task-group-${row.original.id}`}
+          title={taskGroupLabel}
+        >
+          {taskGroupLabel}
+        </div>
+      )
+    }
   }
 
   const amountColumn: ColumnDef<ApprovalTableRow> = {

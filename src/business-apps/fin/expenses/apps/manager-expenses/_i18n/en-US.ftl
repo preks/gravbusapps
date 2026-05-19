@@ -18,6 +18,7 @@ dashboard-monthly-expense-trends = Monthly Expense Trends
 dashboard-review-approvals = Review Approvals
 dashboard-review-pending-expense-approvals = Review pending expense approvals.
 dashboard-team-spending-analysis = Team Spending Analysis
+dashboard-team-spending-analytics-description = Comprehensive analysis of team spending patterns, trends, and budget allocations across all expense categories
 dashboard-view-spending-trends-and-reports = View spending trends and reports.
 dashboard-expense-reports-action-title = Expense Reports
 dashboard-generate-or-view-team-expense-reports = Generate or view team expense reports.
@@ -38,6 +39,9 @@ dashboard-bucketing-note = Note: Trip items are attributed to the month of the t
 dashboard-chart-amount-label = Amount:
 dashboard-charts-empty-title = No data available
 dashboard-charts-empty-description = There is no data to display for this chart.
+dashboard-charts-tooltip-count = Count
+dashboard-charts-tooltip-amount = Amount
+dashboard-charts-tooltip-items = Items
 
 # Expense statuses (transl.txt — expense_statuses; expense-status-flow-open not in that object — matches personal-expenses flow label)
 
@@ -304,3 +308,139 @@ advance-payments-column-employee = Employee
 advance-payments-column-creation-date = Creation Date
 advance-payments-column-amount = Amount
 advance-payments-column-status = Status
+
+# Approvals page (transl.txt + original Lowcoder fallbacks where key is absent)
+
+approvals-review-title = Review Approvals
+approvals-review-subheader = Review and process pending expense approval requests from your team
+approvals-list-title = Pending Approvals
+approvals-search-placeholder = Search Approvals
+approvals-empty-no-pending = No pending approval requests
+approvals-empty-all-processed = All approval requests have been processed.
+
+approvals-tab-expense-plan = Expense Plans
+approvals-tab-expense-request = Expense Requests
+approvals-tab-advance-payment = Advance Payments
+approvals-tab-handout-payment = Handout Payment
+approvals-tab-transfer-payment = Transfer Payment
+
+approvals-tab-expense-plan-desc = Review and approve expense plans from your team
+approvals-tab-expense-request-desc = Review and approve expense requests from your team
+approvals-tab-advance-payment-desc = Review and approve advance payment requests from your team
+approvals-tab-handout-payment-desc = Review and approve handout payment requests from your team
+approvals-tab-transfer-payment-desc = Review and approve transfer payment requests from your team
+
+approvals-column-date = Create Date
+approvals-column-title = Request
+approvals-column-task-group = Task Group
+approvals-task-group-expense-plan = Expense Plan
+approvals-task-group-request = Expense Request
+approvals-task-group-advance-payment = Advance Payment Request
+approvals-task-group-transfer = Transfer
+approvals-task-group-handout = Handout
+approvals-column-amount = Amount
+
+approvals-approve-button = Approve
+approvals-approve-selected-tasks = { $count ->
+    [one] Approve 1 task
+   *[other] Approve { $count } tasks
+}
+approvals-approving = Approving...
+approvals-selection-error-title = Selection Error:
+approvals-error-title = Error:
+
+approvals-invalid-task-selection = Invalid task selection
+approvals-select-task-to-approve = Please select at least one task to approve
+approvals-task-type-mismatch = You can select only tasks that are the same type: { $groups }
+approvals-configuration-missing = Missing configuration or user information
+approvals-entity-id-missing = Could not find entity ID in task data for { $tabKey }
+approvals-could-not-find-task = Could not find original task data for { $taskId }
+approvals-process-instance-missing = Process instance ID not available
+approvals-user-id-missing = User ID not available
+approvals-network-get-failed = GET request failed
+approvals-network-post-failed = POST request failed
+approvals-unknown-error = Unknown error
+approvals-failed-to-approve = Failed to approve tasks
+
+approvals-toast-completed = Approval completed
+approvals-toast-completed-description = { $count ->
+    [one] 1 task approved successfully
+   *[other] { $count } tasks approved successfully
+}
+approvals-toast-partial-completed = Partial approval completed
+approvals-toast-partial-completed-description = { $approvedCount } approved · { $failedCount } failed
+approvals-toast-all-failed = All approvals failed
+approvals-toast-failed = Approval failed
+approvals-toast-error-details = Error details
+
+# Team spending analytics page (transl.txt — team_expenses_page.dashboard_tab, advance_payments_tab, common, personal_expenses, expense_calculation_rule)
+
+team-analytics-total-expense-items = Total Expense Items
+team-analytics-individual-expense-transactions = Individual expense items and transactions
+team-analytics-total-expense-requests = Total Expense Requests
+team-analytics-submitted-expense-requests = Submitted expense requests
+team-analytics-total-expense-plans = Total Expense Plans
+team-analytics-planned-expense-budgets = Planned expense budgets
+team-analytics-advance-payments-to-employees = Advance payments to employees
+team-analytics-monthly-expense-items = Monthly Expense Items
+team-analytics-expense-items-by-status = Expense Items by Status
+team-analytics-items-label = items
+team-analytics-expense-items-by-category = Expense Items by Category
+team-analytics-summary-statistics = Summary statistics
+team-analytics-total-amount = Total Amount
+team-analytics-monthly-expense-requests = Monthly expense requests
+team-analytics-expense-requests-by-status = Expense Requests by Status
+team-analytics-counts = Counts
+team-analytics-requests-label = Requests
+team-analytics-amounts = Amounts
+team-analytics-monthly-expense-plans = Monthly expense plans
+team-analytics-expense-plans-by-status = Expense plans by status
+team-analytics-plans-label = Plans
+team-analytics-monthly-advance-payments = Monthly advance payments
+team-analytics-advance-payments-by-status = Advance payments by status
+team-analytics-payments-label = Payments
+team-analytics-filters-settings = Filters and settings
+team-analytics-date-range = Date range
+team-analytics-last-30-days = Last 30 days
+team-analytics-last-90-days = Last 90 days
+team-analytics-current-year = Current year
+team-analytics-location-filters = Location Filters
+team-analytics-search-locations = Search locations...
+team-analytics-no-locations = No locations available
+team-analytics-currency = Currency
+team-analytics-select-currency = Select Currency
+team-analytics-department-filters = Department Filters
+team-analytics-search-departments = Search departments...
+team-analytics-no-departments = No departments found
+team-analytics-no-data = No analytics data available.
+team-analytics-tab-expense-items = Expense Items
+team-analytics-error-title = Error
+
+# Expense reports page (transl.txt — expense_request_list, team_expenses_page.dashboard_tab, personal_expenses, employee_list, backoffice_expense_landing_page, hr_absences, acknowledge_sick_leave, expense_calculation_rule; root cost_center / payment_method)
+
+expense-reports-title = Expense Reports
+expense-reports-subheader = Generate and download comprehensive expense reports across different categories and time periods
+expense-reports-tab-expense-items = Expense Items
+expense-reports-tab-expense-plans = Expense Plans
+expense-reports-tab-expense-requests = Expense Requests
+expense-reports-tab-advance-payments = Advance Payments
+expense-reports-data-label = Data
+expense-reports-search-placeholder = Search report data...
+expense-reports-download-report = Download Report
+expense-reports-download-excel = Download Excel
+expense-reports-empty = No expense reports found
+expense-reports-empty-hint = Try selecting a different report type or adjusting your search.
+expense-reports-column-title = Title
+expense-reports-column-request-number = Request Number
+expense-reports-column-code = Code
+expense-reports-column-employee = Employee
+expense-reports-column-submission-date = Submission Date
+expense-reports-column-amount = Amount
+expense-reports-column-total-amount = Total Amount
+expense-reports-column-category = Category
+expense-reports-column-start-date = Start Date
+expense-reports-column-end-date = End Date
+expense-reports-column-payment-method = Payment Method
+expense-reports-column-cost-center = Cost Center
+expense-reports-column-currency = Currency
+expense-reports-generated-allowance = Generated Allowance

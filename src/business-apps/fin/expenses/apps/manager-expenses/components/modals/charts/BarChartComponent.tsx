@@ -7,12 +7,13 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { resolveCssVar } from './chartUtils'
+import translations from '../../../_i18n'
 
 interface BarChartProps {
   data: {
@@ -48,19 +49,17 @@ const BarChartComponent: React.FC<BarChartProps> = ({
   getColor,
   dataTestId
 }) => {
+  const { t } = useTranslation(translations)
   const resolvedBarColor = React.useMemo(() => resolveCssVar(barColor), [barColor])
 
   const chartConfig = React.useMemo(() => {
     const config: ChartConfig = {
       [barDataKey]: {
-        label:
-          valueType === 'count'
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.count', 'Count')
-            : getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.amount', 'Amount')
+        label: valueType === 'count' ? t('dashboard-charts-tooltip-count') : t('dashboard-charts-tooltip-amount')
       }
     }
     return config
-  }, [barDataKey, valueType])
+  }, [barDataKey, valueType, t])
 
   if (!data || data.length === 0) {
     return (
@@ -73,14 +72,9 @@ const BarChartComponent: React.FC<BarChartProps> = ({
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
             <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:charts.empty.title', 'No data available')}
+              {t('dashboard-charts-empty-title')}
             </div>
-            <div className="gba:text-muted-foreground gba:text-sm">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:charts.empty.description',
-                'There is no data to display for this chart.'
-              )}
-            </div>
+            <div className="gba:text-muted-foreground gba:text-sm">{t('dashboard-charts-empty-description')}</div>
           </div>
         </CardContent>
       </Card>
@@ -120,7 +114,7 @@ const BarChartComponent: React.FC<BarChartProps> = ({
                   formatter={(value: any) => {
                     if (valueType === 'count') {
                       const num = typeof value === 'number' ? value : Number(value ?? 0)
-                      const itemsLabel = getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.items', countLabel)
+                      const itemsLabel = countLabel || t('dashboard-charts-tooltip-items')
                       return `${num} ${itemsLabel}`
                     }
                     // For amount type, just return the formatted currency

@@ -51,31 +51,33 @@ export function ExpenseDataTable<T extends { id?: string }>(props: Readonly<Expe
   const safeTotalCount = normalizeTotalCountForDataTable(totalCount)
 
   return (
-    <DataTable<T>
-      data={data}
-      columns={columns}
-      loading={loading}
-      error={error ?? undefined}
-      totalCount={safeTotalCount}
-      sorting={sorting}
-      onSortingChange={onSortingChange}
-      pagination={pagination}
-      onPaginationChange={onPaginationChange}
-      rowsPerPage={rowsPerPage}
-      enablePagination
-      enableSorting
-      enableSelection={false}
-      enableColumnPinning
-      enableResizing={false}
-      tableLayout={tableLayout}
-      rowsPerPageOptions={[10, 20, 50, 100]}
-      showPageNumbers
-      maxVisiblePages={7}
-      emptyMessage={emptyMessage}
-      actions={actions}
-      onRowClick={onRowClick}
-      data-testid={dataTestId}
-    />
+    <div className="gba:w-full gba:min-w-0">
+      <DataTable<T>
+        data={data}
+        columns={columns}
+        loading={loading}
+        error={error ?? undefined}
+        totalCount={safeTotalCount}
+        sorting={sorting}
+        onSortingChange={onSortingChange}
+        pagination={pagination}
+        onPaginationChange={onPaginationChange}
+        rowsPerPage={rowsPerPage}
+        enablePagination
+        enableSorting
+        enableSelection={false}
+        enableColumnPinning
+        enableResizing={false}
+        tableLayout={tableLayout}
+        rowsPerPageOptions={[10, 20, 50, 100]}
+        showPageNumbers
+        maxVisiblePages={7}
+        emptyMessage={emptyMessage}
+        actions={actions}
+        onRowClick={onRowClick}
+        data-testid={dataTestId}
+      />
+    </div>
   )
 }
 

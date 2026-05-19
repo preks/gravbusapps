@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { DataDisplay, PageLayout, Toaster } from '@newwork/nw-design-system'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { DataDisplay, PageLayout, Toaster, useTranslation } from '@newwork/nw-design-system'
 import { XIcon } from '@phosphor-icons/react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -8,17 +8,18 @@ import { ApprovalRequest, ApprovalTabKey } from '../../types'
 import { useFlowExecutionTasks } from '../../hooks/useFlowExecutionTasks'
 import { APPROVAL_TABS, getTabByKey, getTabLabel } from '../../constants/approvalTabs'
 import ApprovalTable from '../ApprovalTable'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useApprovalTabCounts } from '../../hooks/useApprovalTabCounts'
 import { TaskDetailContent } from '@/business-apps/core/every/apps/every-box'
 import { mapFlowExecutionTaskToUnifiedTask } from '../../utils/flowTaskToUnifiedTask'
+import translations from '../../_i18n'
 
 type ApprovalsPageProps = BusinessAppContextProps
 
 const DATA_TEST_ID_PREFIX = 'approvals-page'
 
 const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
+  const { t } = useTranslation(translations)
   const [activeTab, setActiveTab] = useState<ApprovalTabKey>('expense-plan')
   const [selectedTasks, setSelectedTasks] = useState<ApprovalRequest[]>([])
   const [validationError, setValidationError] = useState<string | null>(null)
@@ -123,41 +124,21 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
 
   const unifiedTask = activeFlowTask ? mapFlowExecutionTaskToUnifiedTask(activeFlowTask) : null
 
-  const approvalListLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:team_expenses_page.dashboard_tab.approval_list',
-    'Pending approvals'
+  const tableEmptyMessage = useMemo(
+    () => `${t('approvals-empty-no-pending')}. ${t('approvals-empty-all-processed')}`,
+    [t]
   )
-  const searchPlaceholder = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:team_expenses_page.dashboard_tab.search_approvals',
-    'Search approvals...'
-  )
-  const tableEmptyMessage = [
-    getTranslationFromI18nKeyAndLabel(
-      'lowcoder:manager_expenses_landing_page.no_pending_approvals',
-      'No pending approval requests found'
-    ),
-    getTranslationFromI18nKeyAndLabel(
-      'lowcoder:manager_expenses_landing_page.all_approvals_processed',
-      'All approval requests have been processed.'
-    )
-  ].join(' ')
 
   return (
     <div data-testid="approvals-page-container">
       <PageLayout
-        headerTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.review_approvals',
-          'Approvals Review'
-        )}
-        headerDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.review_subheader',
-          'Review and process pending expense approval requests from your team'
-        )}
+        headerTitle={t('approvals-review-title')}
+        headerDescription={t('approvals-review-subheader')}
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
           items: APPROVAL_TABS.map(tab => {
-            const base = getTabLabel(tab.key)
+            const base = getTabLabel(tab.key, t)
             const count = isLoadingCounts ? '' : ` (${tabCounts[tab.key as ApprovalTabKey] || 0})`
             return {
               value: tab.key,
@@ -169,7 +150,9 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
       >
         <div className="gba:flex gba:gap-0" data-testid="approvals-page">
           <div
-            className={activeFlowTask ? 'gba:w-1/2 gba:min-w-0 gba:overflow-auto gba:px-6' : 'gba:flex-1 gba:px-6'}
+            className={
+              activeFlowTask ? 'gba:w-1/2 gba:min-w-0 gba:overflow-auto gba:px-6' : 'gba:flex-1 gba:min-w-0 gba:px-6'
+            }
             data-testid="approvals-table-panel"
           >
             <DataDisplay
@@ -177,13 +160,13 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
               titleSections={[
                 {
                   id: 'approvals-list',
-                  label: approvalListLabel,
+                  label: t('approvals-list-title'),
                   metadata: { count: totalCount, isLoading }
                 }
               ]}
               currentSection="approvals-list"
               searchValue={localSearchText}
-              searchPlaceholder={searchPlaceholder}
+              searchPlaceholder={t('approvals-search-placeholder')}
               onSearchChange={setLocalSearchText}
               toolbarDensity="default"
               enableLiveFiltering
@@ -218,7 +201,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
             </DataDisplay>
           </div>
 
-          {unifiedTask && (
+          {unifiedTask ? (
             <div
               className="gba:w-1/2 gba:border-l gba:border-border gba:flex gba:flex-col gba:h-[calc(100vh-200px)] gba:sticky gba:top-0"
               data-testid="approvals-detail-panel"
@@ -226,6 +209,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
               <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border">
                 <h3 className="gba:text-sm gba:font-semibold gba:truncate">{unifiedTask.title}</h3>
                 <button
+                  type="button"
                   onClick={handleDetailClose}
                   className="gba:p-1 gba:rounded gba:hover:bg-accent"
                   data-testid="approvals-detail-close-button"
@@ -246,7 +230,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = props => {
                 />
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </PageLayout>
       <Toaster position="bottom-right" />
