@@ -90,6 +90,7 @@ function runGit(repo, args, options = {}) {
   const result = spawnSync('git', ['-C', repo, ...args], {
     encoding: 'utf8',
     input: options.input,
+    maxBuffer: 50 * 1024 * 1024,
     stdio: options.stdio ?? 'pipe'
   })
 
@@ -135,7 +136,7 @@ function getCurrentBranch(repo) {
 }
 
 function getBaseCommits(repo, base) {
-  const result = runGit(repo, ['log', '--format=%H%x09%s', base])
+  const result = runGit(repo, ['log', '--format=%H%x09%s', '--grep=^Merged in ', base])
 
   if (result.code !== 0) {
     throw new Error(result.stderr || `Failed to read base branch log: ${base}`)
