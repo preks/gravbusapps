@@ -61,6 +61,7 @@ export const Navigation = {
   HR_RECRUITING_JOB_POSTING_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-posting-record`,
   HR_RECRUITING_JOB_CANDIDATE_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-candidate-record`,
   HR_RECRUITING_JOB_APPLICATION_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-application-record`,
+  HR_MONTHLY_COMPENSATION_CHANGES: `${NAVIGATION_BASE_PATH}/hr/core/apps/monthly-compensation-changes`,
 
   // Service
   SERVICE_DESK: `${NAVIGATION_BASE_PATH}/sales-demo/service-desk`,
@@ -188,6 +189,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.HR_RECRUITING_JOB_POSTING_RECORD]: 'hr/recruiting/records/job-posting-record',
   [Navigation.HR_RECRUITING_JOB_CANDIDATE_RECORD]: 'hr/recruiting/records/job-candidate-record',
   [Navigation.HR_RECRUITING_JOB_APPLICATION_RECORD]: 'hr/recruiting/records/job-application-record',
+  [Navigation.HR_MONTHLY_COMPENSATION_CHANGES]: 'hr/core/apps/monthly-compensation-changes',
 
   // Service
   [Navigation.SERVICE_DESK]: 'ser/apps/service-desk',
