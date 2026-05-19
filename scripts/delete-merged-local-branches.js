@@ -89,6 +89,7 @@ Options:
 function runGit(repo, args, options = {}) {
   const result = spawnSync('git', ['-C', repo, ...args], {
     encoding: 'utf8',
+    input: options.input,
     stdio: options.stdio ?? 'pipe'
   })
 
@@ -133,6 +134,30 @@ function getCurrentBranch(repo) {
   return result.stdout
 }
 
+function getBaseCommits(repo, base) {
+  const result = runGit(repo, ['log', '--format=%H%x09%s', base])
+
+  if (result.code !== 0) {
+    throw new Error(result.stderr || `Failed to read base branch log: ${base}`)
+  }
+
+  if (!result.stdout) {
+    return []
+  }
+
+  return result.stdout
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map(line => {
+      const [hash, ...subjectParts] = line.split('\t')
+
+      return {
+        hash,
+        subject: subjectParts.join('\t')
+      }
+    })
+}
+
 function assertBaseExists(repo, base) {
   const result = runGit(repo, ['rev-parse', '--verify', '--quiet', base])
 
@@ -141,7 +166,50 @@ function assertBaseExists(repo, base) {
   }
 }
 
-function getDeleteCandidate(repo, base, branch) {
+function getMatchingBitbucketSquashCommits(baseCommits, branch) {
+  const expectedSubjectStart = `Merged in ${branch} (pull request #`
+
+  return baseCommits.filter(commit => commit.subject.startsWith(expectedSubjectStart))
+}
+
+function getPatchIdForDiff(repo, fromRef, toRef) {
+  const diffResult = runGit(repo, ['diff', '--patch', fromRef, toRef])
+
+  if (diffResult.code !== 0) {
+    throw new Error(diffResult.stderr || `Failed to diff refs: ${fromRef} ${toRef}`)
+  }
+
+  if (!diffResult.stdout) {
+    return ''
+  }
+
+  const patchIdResult = runGit(repo, ['patch-id', '--stable'], {
+    input: diffResult.stdout
+  })
+
+  if (patchIdResult.code !== 0) {
+    throw new Error(patchIdResult.stderr || `Failed to compute patch id: ${fromRef} ${toRef}`)
+  }
+
+  return patchIdResult.stdout.split(/\s+/)[0] ?? ''
+}
+
+function hasEquivalentBitbucketSquashMerge(repo, baseCommits, branch) {
+  const matchingSquashCommits = getMatchingBitbucketSquashCommits(baseCommits, branch)
+
+  for (const squashCommit of matchingSquashCommits) {
+    const parentPatchId = getPatchIdForDiff(repo, `${squashCommit.hash}^`, squashCommit.hash)
+    const branchPatchId = getPatchIdForDiff(repo, `${squashCommit.hash}^`, branch)
+
+    if (parentPatchId && parentPatchId === branchPatchId) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function getDeleteCandidate(repo, base, branch, baseCommits) {
   const mergeResult = runGit(repo, ['merge-base', '--is-ancestor', branch, base])
 
   if (mergeResult.code === 0) {
@@ -155,20 +223,36 @@ function getDeleteCandidate(repo, base, branch) {
   const cherryResult = runGit(repo, ['cherry', base, branch])
 
   if (cherryResult.code !== 0 || !cherryResult.stdout) {
+    if (hasEquivalentBitbucketSquashMerge(repo, baseCommits, branch)) {
+      return {
+        branch,
+        match: 'bitbucket squash',
+        deleteCommand: `git branch -D ${branch}`
+      }
+    }
+
     return null
   }
 
   const hasUnmergedPatch = cherryResult.stdout.split(/\r?\n/).some(line => line.startsWith('+'))
 
-  if (hasUnmergedPatch) {
-    return null
+  if (!hasUnmergedPatch) {
+    return {
+      branch,
+      match: 'squash/cherry-pick',
+      deleteCommand: `git branch -D ${branch}`
+    }
   }
 
-  return {
-    branch,
-    match: 'squash/cherry-pick',
-    deleteCommand: `git branch -D ${branch}`
+  if (hasEquivalentBitbucketSquashMerge(repo, baseCommits, branch)) {
+    return {
+      branch,
+      match: 'bitbucket squash',
+      deleteCommand: `git branch -D ${branch}`
+    }
   }
+
+  return null
 }
 
 function printResults(options, currentBranch, results) {
@@ -213,8 +297,9 @@ function main() {
   const currentBranch = getCurrentBranch(options.repo)
   const protectedBranches = new Set([...PROTECTED_BRANCHES, currentBranch])
   const branches = getLocalBranches(options.repo).filter(branch => !protectedBranches.has(branch))
+  const baseCommits = getBaseCommits(options.repo, options.base)
   const results = branches
-    .map(branch => getDeleteCandidate(options.repo, options.base, branch))
+    .map(branch => getDeleteCandidate(options.repo, options.base, branch, baseCommits))
     .filter(Boolean)
     .sort((left, right) => left.branch.localeCompare(right.branch))
 
