@@ -42,6 +42,7 @@ export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpen
   const [showEdgeLabels, setShowEdgeLabels] = useState<boolean>(true)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
 
   const toggleLayer = useCallback((layer: MeshLayerKey) => {
     setActiveLayers(prev => {
@@ -90,6 +91,21 @@ export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpen
     return model.edges.filter(e => e.source === selectedNode.id)
   }, [model.edges, selectedNode])
 
+  const selectedNodeSkills = useMemo(() => {
+    if (!selectedNode) return []
+    const skillEdges = model.edges.filter(e => e.source === selectedNode.id && e.kind === 'skill_load')
+    return skillEdges.map(edge => {
+      const skillNode = model.nodes.find(n => n.id === edge.target)
+      return {
+        nodeId: edge.target,
+        name: skillNode?.label ?? edge.label ?? edge.target,
+        category: skillNode?.metadata?.category as string | undefined,
+        description: skillNode?.description,
+        wasAutoDetected: skillNode?.metadata?.was_auto_detected === true
+      }
+    })
+  }, [model.edges, model.nodes, selectedNode])
+
   const selectedEdge = useMemo<MeshEdge | null>(() => {
     if (!selectedEdgeId) return null
     return model.edges.find(e => e.id === selectedEdgeId) ?? null
@@ -108,9 +124,10 @@ export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpen
   // delegations exist between the same agent and target.
   const selectedEdgeCallInfo = useMemo(() => {
     if (!selectedEdge) return { index: 0, total: 0 }
-    const pairKey = [selectedEdge.source, selectedEdge.target].sort().join('::')
+    const pairKey = [selectedEdge.source, selectedEdge.target].sort((a, b) => a.localeCompare(b)).join('::')
     const peers = model.edges
-      .filter(e => [e.source, e.target].sort().join('::') === pairKey)
+      .filter(e => e.kind !== 'completion')
+      .filter(e => [e.source, e.target].sort((a, b) => a.localeCompare(b)).join('::') === pairKey)
       .sort((a, b) => a.seq - b.seq)
     const index = peers.findIndex(e => e.id === selectedEdge.id)
     return { index: index + 1, total: peers.length }
@@ -238,8 +255,11 @@ export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpen
                 durationMs={isLive ? 0 : clock.durationMs}
                 selectedNodeId={selectedNodeId}
                 showEdgeLabels={showEdgeLabels}
+                hoveredNodeId={hoveredNodeId}
                 onSelectNode={setSelectedNodeId}
                 onSelectEdge={handleSelectEdge}
+                onHoverNode={setHoveredNodeId}
+                onPaneClick={handleCloseEdge}
               />
               <div className="gba:absolute gba:top-3 gba:right-3 gba:z-10">
                 <MeshLayersToggle
@@ -256,7 +276,21 @@ export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpen
                     node={selectedNode}
                     inboundEdges={inboundEdges}
                     outboundEdges={outboundEdges}
+                    skills={selectedNodeSkills}
                     onClose={() => setSelectedNodeId(null)}
+                    onFocusSkill={nodeId => setSelectedNodeId(nodeId)}
+                  />
+                </div>
+              )}
+              {selectedEdge && (
+                <div className="gba:absolute gba:bottom-3 gba:right-3 gba:z-10">
+                  <MeshEdgeDetailModal
+                    edge={selectedEdge}
+                    source={selectedEdgeEndpoints.source}
+                    target={selectedEdgeEndpoints.target}
+                    callIndex={selectedEdgeCallInfo.index}
+                    callTotal={selectedEdgeCallInfo.total}
+                    onClose={handleCloseEdge}
                   />
                 </div>
               )}
@@ -275,17 +309,6 @@ export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpen
 
           <ReplayTimeline clock={clock} frames={model.frames} />
         </div>
-      )}
-
-      {selectedEdge && (
-        <MeshEdgeDetailModal
-          edge={selectedEdge}
-          source={selectedEdgeEndpoints.source}
-          target={selectedEdgeEndpoints.target}
-          callIndex={selectedEdgeCallInfo.index}
-          callTotal={selectedEdgeCallInfo.total}
-          onClose={handleCloseEdge}
-        />
       )}
     </div>
   )

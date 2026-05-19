@@ -28,7 +28,7 @@ interface KindStyle {
 
 const KIND_STYLE: Record<MeshNodeKind, KindStyle> = {
   orchestrator: {
-    label: 'Orchestrator',
+    label: 'Every',
     icon: CompassIcon,
     iconBg: 'gba:bg-primary/10',
     iconColor: 'gba:text-primary',

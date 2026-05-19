@@ -51,7 +51,7 @@ function isToolStepStarted(e: AgentStreamEvent): e is AgentStepStartedEvent {
 function buildDelegationTree(events: AgentStreamEvent[]): DelegationTreeResult {
   const root: DelegationNode = {
     id: '__root__',
-    name: 'Orchestrator',
+    name: 'Every',
     task: 'Session orchestration',
     status: 'running',
     kind: 'root',

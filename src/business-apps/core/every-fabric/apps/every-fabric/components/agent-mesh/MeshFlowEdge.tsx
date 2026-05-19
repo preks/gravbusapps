@@ -1,6 +1,12 @@
 import { memo } from 'react'
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react'
-import { BrainIcon, ChatTeardropTextIcon, HandshakeIcon, LightbulbIcon, WrenchIcon } from '@phosphor-icons/react'
+import {
+  ChatTeardropTextIcon,
+  HandshakeIcon,
+  LightbulbIcon,
+  TerminalWindowIcon,
+  WrenchIcon
+} from '@phosphor-icons/react'
 import type { MeshEdgeKind } from '../../utils/traceModel'
 
 /** Centre + visual radius of a node, in absolute graph coordinates. */
@@ -37,6 +43,8 @@ export interface MeshFlowEdgeData {
   bubbleIndex: number
   /** Total number of edges sharing the same node pair (>= 1). */
   bubbleTotal: number
+  /** True when a hover-highlight is active and this edge is NOT part of the highlighted set. */
+  isDimmed: boolean
   onSelect: () => void
 }
 
@@ -64,7 +72,7 @@ function BubbleIcon({ kind }: { kind: MeshEdgeKind }) {
     case 'tool_call':
       return <WrenchIcon className={className} weight="bold" />
     case 'expert_call':
-      return <BrainIcon className={className} weight="bold" />
+      return <TerminalWindowIcon className={className} weight="bold" />
     case 'skill_load':
       return <LightbulbIcon className={className} weight="bold" />
     case 'completion':
@@ -90,6 +98,7 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
     targetCenter: FALLBACK_ENDPOINT,
     bubbleIndex: 0,
     bubbleTotal: 1,
+    isDimmed: false,
     onSelect: () => {}
   }
 
@@ -123,9 +132,11 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
   const labelY = sy + (ty - sy) * t
 
   const strokeWidth = safeData.isActive ? 2.25 : 1.5
-  const strokeOpacity = safeData.isResolved && !safeData.isActive ? 0.55 : 0.95
+  const baseOpacity = safeData.isResolved && !safeData.isActive ? 0.55 : 0.95
+  const strokeOpacity = safeData.isDimmed ? 0.12 : baseOpacity
 
-  const showMovingDot = safeData.isActive || (!safeData.isResolved && !safeData.isFailed)
+  // Dots animate only while edge is unresolved (session in progress)
+  const showMovingDot = !safeData.isResolved && !safeData.isFailed
   const showBubble = safeData.showBubble && safeData.hasDetail
 
   return (

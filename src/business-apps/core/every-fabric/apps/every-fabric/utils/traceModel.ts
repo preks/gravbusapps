@@ -18,6 +18,7 @@
  */
 
 import type {
+  AgentChunkEvent,
   AgentDecisionEvent,
   AgentExpertCalledEvent,
   AgentExpertCompletedEvent,
@@ -245,6 +246,12 @@ class ModelBuilder {
   private readonly toolStepOwner = new Map<string, { source: string; toolNodeId: string; edgeId: string }>()
   /** Map step_id → spawn edge id so completions can resolve them. */
   private readonly delegationEdgeByStep = new Map<string, string>()
+  /** Map skill_id → expert node id (from expert_selected payloads). */
+  private readonly skillOwnerBySkillId = new Map<string, string>()
+  /** Map skill_id → expert name (from newwork_find_expert). Used for deferred edge rewiring. */
+  private readonly skillExpertNameBySkillId = new Map<string, string>()
+  /** Map expert name → node id (from expert_selected). Used to unify expert_selected and expert_called. */
+  private readonly expertNodeByName = new Map<string, string>()
   private baseMs = 0
   private terminal?: AgentTerminalEvent
 
@@ -252,7 +259,7 @@ class ModelBuilder {
     this.upsertNode({
       id: ORCHESTRATOR_NODE_ID,
       kind: 'orchestrator',
-      label: 'Orchestrator',
+      label: 'Every',
       description: 'Session orchestrator',
       firstSeenAt: '',
       lastSeenAt: '',
@@ -285,6 +292,14 @@ class ModelBuilder {
       const terminalStatus = this.terminal.status === 'failed' ? 'failed' : 'done'
       const orchestrator = this.nodes.get(ORCHESTRATOR_NODE_ID)
       if (orchestrator) orchestrator.status = terminalStatus
+
+      // Resolve all unresolved edges — session is finished
+      const terminalTs = this.terminal.timestamp ?? ''
+      for (const edge of this.edges) {
+        if (!edge.resolvedAt && edge.kind !== 'completion') {
+          edge.resolvedAt = terminalTs
+        }
+      }
     }
 
     const nodes = Array.from(this.nodes.values())
@@ -371,6 +386,10 @@ class ModelBuilder {
       })
       return
     }
+    if (event.type === 'agent_chunk' && event.chunk_kind === 'tool' && event.tool_name) {
+      this.handleToolChunk(event)
+      return
+    }
     if (event.type === 'artifact_created') {
       this.pushFrame({
         id: this.eventId(event, 'artifact'),
@@ -388,7 +407,21 @@ class ModelBuilder {
   private handleSpawn(event: AgentSubagentSpawnedEvent | AgentExpertCalledEvent): void {
     const kind: MeshNodeKind = event.type === 'expert_called' ? 'expert' : 'subagent'
     const label = resolveSpawnName(event)
-    const nodeId = `${kind}:${event.subagent_id ?? event.step_id ?? `${event.seq}-${label}`}`
+    // Reuse existing expert node by name (from expert_selected or prior expert_called)
+    let existingExpertNodeId: string | undefined
+    if (event.type === 'expert_called') {
+      existingExpertNodeId = this.expertNodeByName.get(label)
+      if (!existingExpertNodeId) {
+        // Fallback: find any existing expert node with the same label
+        for (const [id, node] of this.nodes) {
+          if (node.kind === 'expert' && node.label === label) {
+            existingExpertNodeId = id
+            break
+          }
+        }
+      }
+    }
+    const nodeId = existingExpertNodeId ?? `${kind}:${event.subagent_id ?? event.step_id ?? `${event.seq}-${label}`}`
     const parentId =
       ('parent_step_id' in event ? this.stepOwner.get(event.parent_step_id ?? '') : undefined) ?? this.currentScopeId()
 
@@ -406,6 +439,8 @@ class ModelBuilder {
       invocationCount: 1
     })
     this.bumpInvocationCount(nodeId)
+    // Register so subsequent calls to the same expert reuse this node
+    if (event.type === 'expert_called') this.expertNodeByName.set(label, nodeId)
 
     if (event.step_id) {
       this.stepOwner.set(event.step_id, nodeId)
@@ -424,6 +459,36 @@ class ModelBuilder {
       label: event.task_summary ?? label
     })
     if (event.step_id) this.delegationEdgeByStep.set(event.step_id, edgeId)
+
+    // Re-wire skill edges: if newwork_find_expert created skills before this expert existed,
+    // move edges from orchestrator to the expert node.
+    if (event.type === 'expert_called') {
+      for (const [skillId, expertName] of this.skillExpertNameBySkillId) {
+        if (expertName !== label) continue
+        const skillNodeId = `skill:${skillId}`
+        if (!this.nodes.has(skillNodeId)) continue
+        // Update ownership
+        this.skillOwnerBySkillId.set(skillId, nodeId)
+        // Remove orchestrator → skill edge
+        const orchIdx = this.edges.findIndex(
+          e => e.source === ORCHESTRATOR_NODE_ID && e.target === skillNodeId && e.kind === 'skill_load'
+        )
+        if (orchIdx !== -1) this.edges.splice(orchIdx, 1)
+        // Add expert → skill edge if not already present
+        if (!this.edges.some(e => e.source === nodeId && e.target === skillNodeId && e.kind === 'skill_load')) {
+          this.edges.push({
+            id: `${nodeId}->${skillNodeId}@rewire:${event.seq}`,
+            source: nodeId,
+            target: skillNodeId,
+            kind: 'skill_load',
+            seq: event.seq,
+            timestamp: event.timestamp,
+            label: skillId,
+            resolvedAt: event.timestamp
+          })
+        }
+      }
+    }
 
     this.pushFrame({
       id: this.eventId(event, 'spawn'),
@@ -472,6 +537,11 @@ class ModelBuilder {
         label: status === 'failed' ? 'Failed' : 'Completed',
         status
       })
+
+      // Extract skill_ids from expert completion output JSON
+      if (event.type === 'expert_completed' && event.output) {
+        this.extractSkillsFromOutput(nodeId, event.output, event)
+      }
     }
 
     this.pushFrame({
@@ -520,6 +590,46 @@ class ModelBuilder {
         label: toolName
       })
       this.toolStepOwner.set(event.step_id, { source: ownerId, toolNodeId, edgeId })
+
+      // Skill tool detection: create a skill node when agent calls skill_load/skill_read_file
+      if (
+        (toolName === 'skill_load' || toolName === 'skill_read_file' || toolName === 'skill_load_policy') &&
+        event.input
+      ) {
+        const skillId = (event.input.skill_id as string) ?? (event.input.name as string)
+        if (skillId) {
+          const skillNodeId = `skill:${skillId}`
+          if (!this.nodes.has(skillNodeId)) {
+            this.upsertNode({
+              id: skillNodeId,
+              kind: 'skill',
+              label: skillId,
+              firstSeenAt: event.timestamp,
+              lastSeenAt: event.timestamp,
+              firstSeenSeq: event.seq,
+              lastSeenSeq: event.seq,
+              status: 'done',
+              totalDurationMs: 0,
+              invocationCount: 1,
+              metadata: { category: 'runtime', was_auto_detected: false }
+            })
+          }
+          this.bumpInvocationCount(skillNodeId)
+          const skillEdgeId = `${ownerId}->${skillNodeId}@skill:${event.seq}`
+          if (!this.edges.some(e => e.id === skillEdgeId)) {
+            this.edges.push({
+              id: skillEdgeId,
+              source: ownerId,
+              target: skillNodeId,
+              kind: 'skill_load',
+              seq: event.seq,
+              timestamp: event.timestamp,
+              label: skillId,
+              resolvedAt: event.timestamp
+            })
+          }
+        }
+      }
 
       this.pushFrame({
         id: this.eventId(event, 'tool-start'),
@@ -572,6 +682,22 @@ class ModelBuilder {
       })
       this.toolStepOwner.delete(event.step_id)
 
+      // Extract skills from newwork_find_expert output (JSON array with skill_ids per expert)
+      if (toolNode?.label === 'newwork_find_expert' && event.output) {
+        this.extractSkillsFromFindExpert(event.output, event)
+      }
+
+      // Extract skills from newwork_ask_expert output (capability_gap JSON may contain skill context)
+      if (toolNode?.label === 'newwork_ask_expert' && event.output) {
+        const expertName =
+          ((event as Record<string, unknown>).expert_name as string | undefined) ??
+          (toolNode.metadata?.expert as string | undefined)
+        const expertNodeId = expertName ? this.expertNodeByName.get(expertName) : undefined
+        if (expertNodeId) {
+          this.extractSkillsFromOutput(expertNodeId, event.output, event)
+        }
+      }
+
       this.pushFrame({
         id: this.eventId(event, 'tool-end'),
         seq: event.seq,
@@ -603,8 +729,10 @@ class ModelBuilder {
   }
 
   private handleSkillLoaded(event: SkillLoadedEvent): void {
+    if (!event.skill?.skill_id) return
     const skillNodeId = `skill:${event.skill.skill_id}`
-    const ownerId = this.currentScopeId()
+    // Prefer the owning expert (from expert_selected) over the current scope
+    const ownerId = this.skillOwnerBySkillId.get(event.skill.skill_id) ?? this.currentScopeId()
     this.upsertNode({
       id: skillNodeId,
       kind: 'skill',
@@ -621,15 +749,22 @@ class ModelBuilder {
     })
     this.bumpInvocationCount(skillNodeId)
 
-    this.edges.push({
-      id: `${ownerId}->${skillNodeId}@${event.seq}`,
-      source: ownerId,
-      target: skillNodeId,
-      kind: 'skill_load',
-      seq: event.seq,
-      timestamp: event.timestamp,
-      label: event.skill.name
-    })
+    // Avoid duplicate edge if expert_selected already connected this skill
+    const hasDuplicateEdge = this.edges.some(
+      e => e.source === ownerId && e.target === skillNodeId && e.kind === 'skill_load'
+    )
+    if (!hasDuplicateEdge) {
+      this.edges.push({
+        id: `${ownerId}->${skillNodeId}@${event.seq}`,
+        source: ownerId,
+        target: skillNodeId,
+        kind: 'skill_load',
+        seq: event.seq,
+        timestamp: event.timestamp,
+        label: event.skill.name,
+        resolvedAt: event.timestamp
+      })
+    }
 
     this.pushFrame({
       id: this.eventId(event, 'skill-load'),
@@ -701,11 +836,14 @@ class ModelBuilder {
 
   private handleEnterpriseRuntime(event: EnterpriseRuntimeTraceEvent): void {
     if (event.type === 'expert_selected' && event.expert_id) {
-      const nodeId = `expert:${event.expert_id}`
+      const expertNodeId = `expert:${event.expert_id}`
+      const expertName = (event.payload?.name as string) || event.expert_id
+      this.expertNodeByName.set(expertName, expertNodeId)
       this.upsertNode({
-        id: nodeId,
+        id: expertNodeId,
         kind: 'expert',
-        label: event.expert_id,
+        label: expertName,
+        description: event.payload?.description as string | undefined,
         firstSeenAt: event.timestamp,
         lastSeenAt: event.timestamp,
         firstSeenSeq: event.seq,
@@ -714,6 +852,41 @@ class ModelBuilder {
         totalDurationMs: 0,
         invocationCount: 0
       })
+
+      // Create skill nodes from the expert's skill_ids when present
+      const skillIds = event.payload?.skill_ids
+      if (Array.isArray(skillIds) && skillIds.length > 0) {
+        for (const sid of skillIds) {
+          if (!sid) continue
+          this.skillOwnerBySkillId.set(String(sid), expertNodeId)
+          const skillNodeId = `skill:${sid}`
+          if (!this.nodes.has(skillNodeId)) {
+            this.upsertNode({
+              id: skillNodeId,
+              kind: 'skill',
+              label: String(sid),
+              firstSeenAt: event.timestamp,
+              lastSeenAt: event.timestamp,
+              firstSeenSeq: event.seq,
+              lastSeenSeq: event.seq,
+              status: 'done',
+              totalDurationMs: 0,
+              invocationCount: 1,
+              metadata: { category: 'enterprise', was_auto_detected: false }
+            })
+          }
+          this.edges.push({
+            id: `${expertNodeId}->${skillNodeId}@${event.seq}`,
+            source: expertNodeId,
+            target: skillNodeId,
+            kind: 'skill_load',
+            seq: event.seq,
+            timestamp: event.timestamp,
+            label: String(sid),
+            resolvedAt: event.timestamp
+          })
+        }
+      }
     } else if (event.type === 'tool_available' && event.tool_ref) {
       const nodeId = `tool:${event.tool_ref}`
       this.upsertNode({
@@ -728,6 +901,220 @@ class ModelBuilder {
         totalDurationMs: 0,
         invocationCount: 0
       })
+    }
+  }
+
+  private handleToolChunk(event: AgentChunkEvent): void {
+    const toolName = event.tool_name!
+    const ownerId = this.currentScopeId()
+    const toolNodeId = `tool:${toolName}`
+
+    this.upsertNode({
+      id: toolNodeId,
+      kind: 'tool',
+      label: toolName,
+      firstSeenAt: event.timestamp,
+      lastSeenAt: event.timestamp,
+      firstSeenSeq: event.seq,
+      lastSeenSeq: event.seq,
+      status: 'done',
+      totalDurationMs: 0,
+      invocationCount: 1
+    })
+    this.bumpInvocationCount(toolNodeId)
+
+    // Detect skill tool calls and also create a skill node
+    if (toolName === 'skill_load' || toolName === 'skill_read_file') {
+      const skillId = (event.tool_input?.skill_id as string) ?? (event.tool_input?.name as string)
+      if (skillId) {
+        const skillNodeId = `skill:${skillId}`
+        if (!this.nodes.has(skillNodeId)) {
+          this.upsertNode({
+            id: skillNodeId,
+            kind: 'skill',
+            label: skillId,
+            firstSeenAt: event.timestamp,
+            lastSeenAt: event.timestamp,
+            firstSeenSeq: event.seq,
+            lastSeenSeq: event.seq,
+            status: 'done',
+            totalDurationMs: 0,
+            invocationCount: 1,
+            metadata: { category: 'runtime', was_auto_detected: false }
+          })
+        }
+        this.bumpInvocationCount(skillNodeId)
+
+        // Edge from the current scope (the agent calling the skill tool) to the skill
+        const edgeId = `${ownerId}->${skillNodeId}@${event.seq}`
+        if (!this.edges.some(e => e.id === edgeId)) {
+          this.edges.push({
+            id: edgeId,
+            source: ownerId,
+            target: skillNodeId,
+            kind: 'skill_load',
+            seq: event.seq,
+            timestamp: event.timestamp,
+            label: skillId,
+            resolvedAt: event.timestamp
+          })
+        }
+      }
+    }
+
+    // Edge from scope to tool — agent_chunk is the result, so mark resolved immediately
+    if (!this.edges.some(e => e.source === ownerId && e.target === toolNodeId && e.kind === 'tool_call')) {
+      this.edges.push({
+        id: `${ownerId}->${toolNodeId}@${event.seq}`,
+        source: ownerId,
+        target: toolNodeId,
+        kind: 'tool_call',
+        seq: event.seq,
+        timestamp: event.timestamp,
+        label: toolName,
+        resolvedAt: event.timestamp
+      })
+    }
+
+    this.pushFrame({
+      id: this.eventId(event, 'tool'),
+      seq: event.seq,
+      timestamp: event.timestamp,
+      kind: 'tool',
+      nodeId: ownerId,
+      targetNodeId: toolNodeId,
+      title: `${toolName}`,
+      summary: event.content?.slice(0, 120) || undefined,
+      status: 'done',
+      event
+    })
+  }
+
+  /**
+   * Strip the <!--__envelope__:...--> marker emitted by ToolResultEnvelope.to_tool_output()
+   * so downstream JSON.parse sees clean payload.
+   */
+  private stripEnvelopeMarker(raw: string): string {
+    if (raw.startsWith('<!--__envelope__:')) {
+      const end = raw.indexOf('-->')
+      if (end !== -1) return raw.slice(end + 3).trimStart()
+    }
+    return raw
+  }
+
+  /**
+   * Parse newwork_find_expert output (JSON array of expert entries with skill_ids)
+   * and create skill nodes connected to respective expert nodes.
+   * Handles truncated output (backend caps at 500 chars) by extracting
+   * skill_ids via regex fallback when JSON.parse fails.
+   */
+  private extractSkillsFromFindExpert(output: string, event: { seq: number; timestamp: string }): void {
+    const cleaned = this.stripEnvelopeMarker(output)
+    let experts: Array<{ name?: string; skill_ids?: string[] }> = []
+    try {
+      const parsed = JSON.parse(cleaned)
+      experts = Array.isArray(parsed) ? parsed : []
+    } catch {
+      // Truncated JSON — extract skill_ids via regex as fallback
+      const re = /"name"\s*:\s*"([^"]+)"[^}]*?"skill_ids"\s*:\s*\[([^\]]*)\]/g
+      let match: RegExpExecArray | null
+      while ((match = re.exec(cleaned)) !== null) {
+        const name = match[1]
+        const ids = match[2].match(/"([^"]+)"/g)?.map(s => s.replace(/"/g, '')) ?? []
+        if (name && ids.length > 0) experts.push({ name, skill_ids: ids })
+      }
+    }
+    for (const entry of experts) {
+      const expertName = entry?.name
+      const skillIds = entry?.skill_ids
+      if (!expertName || !Array.isArray(skillIds) || skillIds.length === 0) continue
+      const expertNodeId = this.expertNodeByName.get(expertName)
+      const ownerId = expertNodeId ?? this.currentScopeId()
+      for (const sid of skillIds) {
+        if (!sid) continue
+        const skillNodeId = `skill:${sid}`
+        this.skillExpertNameBySkillId.set(sid, expertName)
+        if (!this.nodes.has(skillNodeId)) {
+          this.upsertNode({
+            id: skillNodeId,
+            kind: 'skill',
+            label: String(sid),
+            firstSeenAt: event.timestamp,
+            lastSeenAt: event.timestamp,
+            firstSeenSeq: event.seq,
+            lastSeenSeq: event.seq,
+            status: 'done',
+            totalDurationMs: 0,
+            invocationCount: 1,
+            metadata: { category: 'enterprise', was_auto_detected: false }
+          })
+        }
+        this.bumpInvocationCount(skillNodeId)
+        this.skillOwnerBySkillId.set(sid, ownerId)
+        if (!this.edges.some(e => e.source === ownerId && e.target === skillNodeId && e.kind === 'skill_load')) {
+          this.edges.push({
+            id: `${ownerId}->${skillNodeId}@find:${event.seq}`,
+            source: ownerId,
+            target: skillNodeId,
+            kind: 'skill_load',
+            seq: event.seq,
+            timestamp: event.timestamp,
+            label: String(sid),
+            resolvedAt: event.timestamp
+          })
+        }
+      }
+    }
+  }
+
+  /**
+   * Parse expert completion output JSON and create skill nodes if skill_ids found.
+   */
+  private extractSkillsFromOutput(
+    expertNodeId: string,
+    output: string,
+    event: { seq: number; timestamp: string }
+  ): void {
+    try {
+      const cleaned = this.stripEnvelopeMarker(output)
+      const parsed = JSON.parse(cleaned)
+      const skillIds = parsed?.skill_ids
+      if (!Array.isArray(skillIds) || skillIds.length === 0) return
+      for (const sid of skillIds) {
+        if (!sid) continue
+        const skillNodeId = `skill:${sid}`
+        if (!this.nodes.has(skillNodeId)) {
+          this.upsertNode({
+            id: skillNodeId,
+            kind: 'skill',
+            label: String(sid),
+            firstSeenAt: event.timestamp,
+            lastSeenAt: event.timestamp,
+            firstSeenSeq: event.seq,
+            lastSeenSeq: event.seq,
+            status: 'done',
+            totalDurationMs: 0,
+            invocationCount: 1,
+            metadata: { category: 'enterprise', was_auto_detected: false }
+          })
+        }
+        this.bumpInvocationCount(skillNodeId)
+        const edgeId = `${expertNodeId}->${skillNodeId}@skill-out:${event.seq}`
+        if (!this.edges.some(e => e.source === expertNodeId && e.target === skillNodeId && e.kind === 'skill_load')) {
+          this.edges.push({
+            id: edgeId,
+            source: expertNodeId,
+            target: skillNodeId,
+            kind: 'skill_load',
+            seq: event.seq,
+            timestamp: event.timestamp,
+            label: String(sid),
+            resolvedAt: event.timestamp
+          })
+        }
+      }
+    } catch {
+      // Output is not valid JSON or doesn't contain skill_ids
     }
   }
 
@@ -805,7 +1192,7 @@ export const EMPTY_TRACE_MODEL: TraceModel = {
     {
       id: ORCHESTRATOR_NODE_ID,
       kind: 'orchestrator',
-      label: 'Orchestrator',
+      label: 'Every',
       description: 'Session orchestrator',
       firstSeenAt: '',
       lastSeenAt: '',

@@ -1,11 +1,23 @@
-import { XIcon } from '@phosphor-icons/react'
+import { LightbulbIcon, XIcon } from '@phosphor-icons/react'
 import type { MeshEdge, MeshNode } from '../../utils/traceModel'
+
+interface SkillInfo {
+  nodeId: string
+  name: string
+  category?: string
+  description?: string
+  wasAutoDetected?: boolean
+}
 
 interface MeshNodeDetailPopoverProps {
   node: MeshNode
   inboundEdges: MeshEdge[]
   outboundEdges: MeshEdge[]
+  /** Skills loaded by this node (for agent/expert nodes). */
+  skills: SkillInfo[]
   onClose: () => void
+  /** Focus a skill node on the canvas. */
+  onFocusSkill?: (nodeId: string) => void
 }
 
 function formatDuration(ms: number): string | null {
@@ -28,7 +40,9 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
   node,
   inboundEdges,
   outboundEdges,
-  onClose
+  skills,
+  onClose,
+  onFocusSkill
 }) => {
   const duration = formatDuration(node.totalDurationMs)
 
@@ -116,6 +130,50 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
               </ul>
             </div>
           )}
+        </div>
+      )}
+
+      {skills.length > 0 && (
+        <div className="gba:border-t gba:border-border/40 gba:px-4 gba:py-3 gba:text-[11px]">
+          <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:mb-2">
+            Skills ({skills.length})
+          </p>
+          <ul className="gba:space-y-2">
+            {skills.map(skill => (
+              <li key={skill.nodeId}>
+                <button
+                  type="button"
+                  onClick={() => onFocusSkill?.(skill.nodeId)}
+                  className="gba:flex gba:items-start gba:gap-2 gba:w-full gba:text-left gba:rounded-md gba:p-1.5 gba:-mx-1.5 gba:hover:bg-muted/40 gba:transition-colors gba:group/skill"
+                  data-testid={`popover-skill-${skill.name}`}
+                >
+                  <span className="gba:flex gba:h-5 gba:w-5 gba:items-center gba:justify-center gba:rounded-md gba:bg-teal-500/10 gba:text-teal-600 dark:gba:text-teal-400 gba:shrink-0 gba:mt-px">
+                    <LightbulbIcon className="gba:h-3 gba:w-3" weight="bold" />
+                  </span>
+                  <div className="gba:min-w-0 gba:flex-1">
+                    <p className="gba:font-medium gba:text-foreground gba:truncate gba:group-hover/skill:text-primary gba:transition-colors">
+                      {skill.name}
+                    </p>
+                    {skill.category && (
+                      <span className="gba:text-[9px] gba:uppercase gba:tracking-wider gba:text-muted-foreground">
+                        {skill.category}
+                      </span>
+                    )}
+                    {skill.description && (
+                      <p className="gba:text-[10px] gba:text-muted-foreground gba:leading-snug gba:mt-0.5 gba:line-clamp-2">
+                        {skill.description}
+                      </p>
+                    )}
+                    {skill.wasAutoDetected && (
+                      <span className="gba:inline-flex gba:items-center gba:mt-1 gba:px-1.5 gba:py-0.5 gba:rounded-full gba:bg-emerald-500/10 gba:text-[9px] gba:font-medium gba:text-emerald-600 dark:gba:text-emerald-400">
+                        Auto-detected
+                      </span>
+                    )}
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

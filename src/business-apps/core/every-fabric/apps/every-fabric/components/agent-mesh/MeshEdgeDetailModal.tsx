@@ -30,7 +30,7 @@ const KIND_LABEL: Record<MeshEdgeKind, string> = {
 }
 
 function KindIcon({ kind }: { kind: MeshEdgeKind }) {
-  const className = 'gba:h-4 gba:w-4 gba:text-primary'
+  const className = 'gba:h-3.5 gba:w-3.5 gba:text-primary'
   switch (kind) {
     case 'tool_call':
       return <WrenchIcon className={className} weight="duotone" />
@@ -79,87 +79,69 @@ export const MeshEdgeDetailModal: React.FC<MeshEdgeDetailModalProps> = ({
 
   return (
     <div
-      className="gba:fixed gba:inset-0 gba:z-[60] gba:flex gba:items-center gba:justify-center gba:bg-background/70 gba:p-4 gba:backdrop-blur-sm"
-      onClick={onClose}
-      role="presentation"
-      data-testid="mesh-edge-detail-modal"
+      className="gba:w-[340px] gba:max-w-[calc(100vw-2rem)] gba:max-h-[50vh] gba:flex gba:flex-col gba:overflow-hidden gba:rounded-[1.25rem] gba:border gba:border-border/60 gba:bg-card gba:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_36px_-16px_rgba(15,23,42,0.18)]"
+      data-testid="mesh-edge-detail-panel"
+      role="dialog"
+      aria-label={`${KIND_LABEL[edge.kind]} message`}
     >
-      <div
-        className="gba:flex gba:max-h-[80vh] gba:w-full gba:max-w-[560px] gba:flex-col gba:overflow-hidden gba:rounded-2xl gba:border gba:border-border gba:bg-background gba:shadow-2xl"
-        onClick={event => event.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${KIND_LABEL[edge.kind]} message`}
-      >
-        <header className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:border-b gba:border-border/60 gba:px-5 gba:py-4">
-          <div className="gba:min-w-0">
-            <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.12em] gba:text-primary">
-              <KindIcon kind={edge.kind} />
-              {KIND_LABEL[edge.kind]}
-              {callTotal && callTotal > 1 && callIndex && (
-                <span className="gba:ml-1 gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:text-primary gba:tracking-normal">
-                  Call {callIndex} of {callTotal}
-                </span>
-              )}
-            </div>
-            <h2 className="gba:mt-1.5 gba:flex gba:items-center gba:gap-2 gba:text-[15px] gba:font-semibold gba:text-foreground">
-              <span className="gba:truncate" title={sourceName}>
-                {sourceName}
+      <header className="gba:flex gba:items-start gba:justify-between gba:gap-2 gba:px-4 gba:pt-3 gba:pb-2">
+        <div className="gba:min-w-0 gba:flex-1">
+          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.12em] gba:text-primary">
+            <KindIcon kind={edge.kind} />
+            {KIND_LABEL[edge.kind]}
+            {callTotal && callTotal > 1 && callIndex && (
+              <span className="gba:ml-1 gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:text-primary gba:tracking-normal">
+                {callIndex}/{callTotal}
               </span>
-              <ArrowRightIcon className="gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground" />
-              <span className="gba:truncate" title={targetName}>
-                {targetName}
-              </span>
-            </h2>
-            <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
-              {formatTimestamp(edge.timestamp)}
-              {edge.resolvedAt && (
-                <>
-                  {' · resolved '}
-                  {formatTimestamp(edge.resolvedAt)}
-                </>
-              )}
-            </p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close message detail"
-            className="gba:inline-flex gba:h-8 gba:w-8 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:border gba:border-border/60 gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground gba:transition-colors"
-            data-testid="mesh-edge-detail-close"
-          >
-            <XIcon className="gba:h-4 gba:w-4" />
-          </button>
-        </header>
-
-        <div className="gba:flex gba:min-h-0 gba:flex-1 gba:flex-col gba:gap-3 gba:overflow-y-auto gba:px-5 gba:py-4">
-          <section>
-            <h3 className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground">
-              Message
-            </h3>
-            <pre
-              className="gba:mt-2 gba:max-h-[40vh] gba:overflow-auto gba:whitespace-pre-wrap gba:break-words gba:rounded-xl gba:border gba:border-border/60 gba:bg-muted/30 gba:p-3 gba:font-mono gba:text-[12px] gba:leading-relaxed gba:text-foreground"
-              data-testid="mesh-edge-detail-body"
-            >
-              {edge.label?.trim() || '(No message body recorded for this edge.)'}
-            </pre>
-          </section>
-
-          {edge.status && (
-            <section className="gba:flex gba:items-center gba:gap-2 gba:text-[11px] gba:text-muted-foreground">
-              <span className="gba:font-semibold gba:uppercase gba:tracking-[0.1em]">Status</span>
-              <span
-                className={`gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] ${
-                  edge.status === 'failed'
-                    ? 'gba:bg-destructive/15 gba:text-destructive'
-                    : 'gba:bg-emerald-100 gba:text-emerald-700'
-                }`}
-              >
-                {edge.status}
-              </span>
-            </section>
-          )}
+          <h3 className="gba:mt-1 gba:flex gba:items-center gba:gap-1.5 gba:text-[13px] gba:font-semibold gba:text-foreground">
+            <span className="gba:truncate gba:max-w-[100px]" title={sourceName}>
+              {sourceName}
+            </span>
+            <ArrowRightIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground" />
+            <span className="gba:truncate gba:max-w-[100px]" title={targetName}>
+              {targetName}
+            </span>
+          </h3>
+          <p className="gba:mt-0.5 gba:text-[10px] gba:text-muted-foreground">
+            {formatTimestamp(edge.timestamp)}
+            {edge.resolvedAt && ` · ${formatTimestamp(edge.resolvedAt)}`}
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close message detail"
+          className="gba:inline-flex gba:h-7 gba:w-7 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+          data-testid="mesh-edge-detail-close"
+        >
+          <XIcon className="gba:h-3.5 gba:w-3.5" />
+        </button>
+      </header>
+
+      <div className="gba:flex gba:min-h-0 gba:flex-1 gba:flex-col gba:gap-2 gba:overflow-y-auto gba:px-4 gba:pb-3">
+        <pre
+          className="gba:max-h-[30vh] gba:overflow-auto gba:whitespace-pre-wrap gba:break-words gba:rounded-xl gba:border gba:border-border/40 gba:bg-muted/20 gba:p-3 gba:font-mono gba:text-[11px] gba:leading-relaxed gba:text-foreground"
+          data-testid="mesh-edge-detail-body"
+        >
+          {edge.label?.trim() || '(No message body recorded.)'}
+        </pre>
+
+        {edge.status && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:text-[11px] gba:text-muted-foreground gba:pt-1">
+            <span className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em]">Status</span>
+            <span
+              className={`gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:uppercase ${
+                edge.status === 'failed'
+                  ? 'gba:bg-destructive/15 gba:text-destructive'
+                  : 'gba:bg-emerald-100 gba:text-emerald-700'
+              }`}
+            >
+              {edge.status}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )

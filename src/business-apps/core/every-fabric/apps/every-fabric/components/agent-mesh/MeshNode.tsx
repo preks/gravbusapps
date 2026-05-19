@@ -24,7 +24,15 @@ export interface MeshNodeData {
   isActive: boolean
   /** Ghosted because the replay clock hasn't reached it yet. */
   isUpcoming: boolean
+  /** Skill names loaded by this agent (shown as dots below the label). */
+  skillNames: string[]
+  /** True when the canvas is in hover-highlight mode and this node is NOT part of the highlighted set. */
+  isDimmed: boolean
+  /** True when this node is part of the hover-highlighted skill path. */
+  isHighlighted: boolean
   onSelect: () => void
+  onHoverStart?: () => void
+  onHoverEnd?: () => void
 }
 
 function KindIcon({ kind, size }: { kind: MeshNodeKind; size: number }) {
@@ -63,32 +71,48 @@ function tinyInitials(label: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase()
 }
 
+const SKILL_DOT_COLORS = [
+  'gba:bg-teal-500',
+  'gba:bg-violet-500',
+  'gba:bg-amber-500',
+  'gba:bg-sky-500',
+  'gba:bg-rose-500'
+]
+const MAX_VISIBLE_DOTS = 5
+
 const MeshNodeBase = ({ data }: NodeProps<MeshNodeData>) => {
-  const { label, category, kind, status, size, isSelected, isActive, isUpcoming, onSelect } = data
+  const {
+    label,
+    category,
+    kind,
+    status,
+    size,
+    isSelected,
+    isActive,
+    isUpcoming,
+    skillNames,
+    isDimmed,
+    isHighlighted,
+    onSelect,
+    onHoverStart,
+    onHoverEnd
+  } = data
   const isTool = kind === 'tool'
   const showInitialsOnly = isTool && size <= 44
+  const isAgent = kind === 'orchestrator' || kind === 'subagent' || kind === 'expert'
+  const showSkillDots = isAgent && skillNames.length > 0
 
-  // CRITICAL — POSITIONING:
-  // The React Flow wrapper around this component is `size × size` (just the
-  // circle), centred on the layout coordinates via `nodeOrigin={[0.5, 0.5]}`
-  // in MeshGraph. Edges target that wrapper centre.
-  //
-  // The label below the circle can be up to 140px wide — wider than the
-  // circle (44–88px). If we let the button size to its widest child, the
-  // button becomes wider than the wrapper and `items-center` centres the
-  // circle within the BUTTON, which drifts horizontally relative to the
-  // wrapper. Edges then visibly miss the circle.
-  //
-  // Solution: position the button absolutely so its horizontal centre is
-  // locked to the wrapper's horizontal centre, and pin its top to the
-  // wrapper's top. The circle is the first flex child, so it occupies the
-  // wrapper exactly; label + category overflow below the wrapper visually,
-  // which is fine — fitView padding accounts for it.
+  const stopPan = (e: React.SyntheticEvent) => e.stopPropagation()
+
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`gba:group gba:absolute gba:left-1/2 gba:top-0 gba:flex gba:flex-col gba:items-center gba:-translate-x-1/2 gba:focus:outline-none ${isUpcoming ? 'gba:opacity-30' : ''}`}
+      onPointerDown={stopPan}
+      onMouseDown={stopPan}
+      onMouseEnter={onHoverStart}
+      onMouseLeave={onHoverEnd}
+      className={`gba:group gba:absolute gba:left-1/2 gba:top-0 gba:flex gba:flex-col gba:items-center gba:-translate-x-1/2 gba:focus:outline-none gba:transition-opacity gba:duration-200 ${isUpcoming ? 'gba:opacity-30' : isDimmed ? 'gba:opacity-20' : ''} ${isHighlighted ? 'gba:drop-shadow-[0_0_8px_rgba(var(--primary),0.4)]' : ''}`}
       data-testid={`mesh-node-${kind}-${label}`}
       data-mesh-active={isActive ? 'true' : 'false'}
       data-mesh-selected={isSelected ? 'true' : 'false'}
@@ -121,6 +145,28 @@ const MeshNodeBase = ({ data }: NodeProps<MeshNodeData>) => {
       {category && (
         <span className="gba:mt-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground">
           {category}
+        </span>
+      )}
+      {showSkillDots && (
+        <span
+          className="gba:mt-1.5 gba:flex gba:items-center gba:gap-1"
+          aria-label={`${skillNames.length} skill${skillNames.length === 1 ? '' : 's'}`}
+        >
+          {skillNames.slice(0, MAX_VISIBLE_DOTS).map((name, i) => (
+            <span
+              key={name}
+              title={name}
+              className={`gba:inline-block gba:h-2 gba:w-2 gba:rounded-full ${SKILL_DOT_COLORS[i % SKILL_DOT_COLORS.length]}`}
+            />
+          ))}
+          {skillNames.length > MAX_VISIBLE_DOTS && (
+            <span
+              className="gba:text-[9px] gba:font-medium gba:text-muted-foreground"
+              title={skillNames.slice(MAX_VISIBLE_DOTS).join(', ')}
+            >
+              +{skillNames.length - MAX_VISIBLE_DOTS}
+            </span>
+          )}
         </span>
       )}
       <Handle type="source" position={Position.Bottom} className="gba:invisible" />
