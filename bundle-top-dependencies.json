@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12279,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12279/",
-    "chunkJsBytes": 1894673,
+    "bitbucketBuildNumber": 12280,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12280/",
+    "chunkJsBytes": 1894715,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1596582,
-        "gzip": 99734,
+        "rendered": 1596629,
+        "gzip": 99752,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1596582,
-            "gzip": 99734
+            "rendered": 1596629,
+            "gzip": 99752
           }
         ]
       },
@@ -100427,15 +100427,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 12240,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12240/",
-    "chunkJsBytes": 799526,
+    "bitbucketBuildNumber": 12280,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12280/",
+    "chunkJsBytes": 809639,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1091935,
-        "gzip": 282062,
+        "rendered": 1110902,
+        "gzip": 285659,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/newwork-connect/components/connectorLogoPaths.ts",
@@ -100443,9 +100443,9 @@
             "gzip": 15214
           },
           {
-            "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/workspace/WorkspaceRightPanel.tsx",
-            "rendered": 29840,
-            "gzip": 6780
+            "name": "src/business-apps/core/every-fabric/apps/every-fabric/utils/traceModel.ts",
+            "rendered": 33022,
+            "gzip": 6171
           }
         ]
       },
@@ -100573,8 +100573,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
-        "rendered": 8602,
-        "gzip": 2944,
+        "rendered": 8601,
+        "gzip": 2943,
         "leaves": [
           {
             "name": "src/common/utils/serviceResolver.ts",
@@ -100583,8 +100583,8 @@
           },
           {
             "name": "src/common/utils/navigationUtils.ts",
-            "rendered": 3209,
-            "gzip": 1196
+            "rendered": 3208,
+            "gzip": 1195
           }
         ]
       },
@@ -108189,7 +108189,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-19T07:34:41.440Z",
+    "generatedAt": "2026-05-19T07:49:54.858Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
