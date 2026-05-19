@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12274,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12274/",
+    "bitbucketBuildNumber": 12276,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12276/",
     "chunkJsBytes": 1894671,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1596582,
-        "gzip": 99735,
+        "gzip": 99736,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1596582,
-            "gzip": 99735
+            "gzip": 99736
           }
         ]
       },
@@ -107263,20 +107263,20 @@
     ]
   },
   "platform/apps/work-home": {
-    "bitbucketBuildNumber": 12220,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12220/",
-    "chunkJsBytes": 1125482,
+    "bitbucketBuildNumber": 12276,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12276/",
+    "chunkJsBytes": 1125856,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 744259,
-        "gzip": 176913,
+        "rendered": 744873,
+        "gzip": 177051,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/hooks/useFlowBot.ts",
-            "rendered": 68139,
-            "gzip": 13530
+            "rendered": 68753,
+            "gzip": 13668
           },
           {
             "name": "src/business-apps/platform/apps/every-ai/components/ChatInput.tsx",
@@ -107517,7 +107517,7 @@
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
-        "rendered": 15027,
+        "rendered": 15026,
         "gzip": 4845,
         "leaves": [
           {
@@ -108189,7 +108189,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-19T06:47:08.380Z",
+    "generatedAt": "2026-05-19T07:02:24.138Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
