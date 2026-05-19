@@ -3,7 +3,56 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ArrowSquareOutIcon } from '@phosphor-icons/react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
-import EntityLink, { markdownUrlTransform } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
+import EntityLink, {
+  markdownUrlTransform,
+  SUPPORTED_PROTOCOLS
+} from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
+
+// Match bare entity URLs (e.g. `employee://uuid` or `account://uuid#fragment`) in raw text.
+// We sort protocols by length (longest first) so longer prefixes like `employee_asset` win over `employee`.
+const SORTED_PROTOCOLS = [...SUPPORTED_PROTOCOLS].sort((a, b) => b.length - a.length)
+const ENTITY_URL_REGEX = new RegExp(`\\b(${SORTED_PROTOCOLS.join('|')})://([\\w-]+(?:#[A-Za-z0-9+/=_-]+)?)`, 'g')
+
+/**
+ * Wrap bare entity URLs in markdown link syntax so they render as chips.
+ *
+ * - Skips URLs already inside a markdown link `[text](url)`.
+ * - Skips URLs inside inline code or fenced code blocks.
+ * - Uses a short fallback label (the entity id, truncated) so the chip still
+ *   renders nicely when the author dropped the URL alone into a sentence.
+ */
+function autoLinkEntityUrls(content: string): string {
+  if (!content || !content.includes('://')) return content
+
+  const codeBlocks: string[] = []
+  let withoutCodeBlocks = content.replace(/```[\s\S]*?```/g, match => {
+    codeBlocks.push(match)
+    return `\u0000CODE_BLOCK_${codeBlocks.length - 1}\u0000`
+  })
+
+  const inlineCode: string[] = []
+  withoutCodeBlocks = withoutCodeBlocks.replace(/`[^`\n]+`/g, match => {
+    inlineCode.push(match)
+    return `\u0000INLINE_CODE_${inlineCode.length - 1}\u0000`
+  })
+
+  const linked = withoutCodeBlocks.replace(ENTITY_URL_REGEX, (match, _protocol, idAndFragment, offset, full) => {
+    const before = full.slice(0, offset)
+    const lastOpenParen = before.lastIndexOf('(')
+    const lastCloseParen = before.lastIndexOf(')')
+    if (lastOpenParen > lastCloseParen) {
+      const beforeParen = before.slice(0, lastOpenParen)
+      if (/\]\s*$/.test(beforeParen)) return match
+    }
+    const idOnly = String(idAndFragment).split('#')[0]
+    const shortId = idOnly.length > 12 ? `${idOnly.slice(0, 8)}…` : idOnly
+    return `[${shortId}](${match})`
+  })
+
+  return linked
+    .replace(/\u0000INLINE_CODE_(\d+)\u0000/g, (_, i) => inlineCode[Number(i)] ?? '')
+    .replace(/\u0000CODE_BLOCK_(\d+)\u0000/g, (_, i) => codeBlocks[Number(i)] ?? '')
+}
 
 export interface MarkdownWithChipsRendererProps {
   content: string
@@ -390,6 +439,9 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
     [accessToken, variant, renderHttpLinksAsChips]
   )
 
+  // Auto-link bare entity URLs (e.g. `employee://uuid`) so they render as chips.
+  const processedContent = useMemo(() => autoLinkEntityUrls(content), [content])
+
   // Variant-specific prose classes
   const proseClasses = useMemo(() => {
     const baseClasses = 'gba:prose gba:max-w-none gba:text-foreground'
@@ -409,7 +461,7 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
     <MarkdownRenderContext.Provider value={markdownContextValue}>
       <div className={`${proseClasses} ${className}`} data-testid={testId || 'markdown-with-chips-renderer'}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={markdownUrlTransform} components={MARKDOWN_COMPONENTS}>
-          {content}
+          {processedContent}
         </ReactMarkdown>
       </div>
     </MarkdownRenderContext.Provider>
