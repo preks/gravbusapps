@@ -194,7 +194,7 @@ export class FunctionsServiceClient {
   private accessToken?: string
 
   constructor(accessToken?: string) {
-    const override = env('NEXT_PUBLIC_FUNCTIONS_SERVICE_API_URL')
+    const override = env('NEXT_PUBLIC_FUNCTIONS_API_URL')
     if (override && override.trim()) {
       const trimmed = override.endsWith('/') ? override.slice(0, -1) : override
       this.baseUrl = trimmed.endsWith('/api/v1') ? trimmed : trimmed + '/api/v1'
@@ -202,7 +202,7 @@ export class FunctionsServiceClient {
       const base = env('NEXT_PUBLIC_BASE_URL')
       if (!base || !base.trim()) {
         throw new Error(
-          'Missing Functions Service URL. Set NEXT_PUBLIC_FUNCTIONS_SERVICE_API_URL (full override) or NEXT_PUBLIC_BASE_URL (fallback).'
+          'Missing Functions Service URL. Set NEXT_PUBLIC_FUNCTIONS_API_URL (full override) or NEXT_PUBLIC_BASE_URL (fallback).'
         )
       }
       const functionsServiceUrl = base + '/functions'
