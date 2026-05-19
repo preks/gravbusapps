@@ -93,6 +93,7 @@ export const GET_HUB_EMPLOYEES = `
 export interface HubFilterOption {
   id: string
   name: string
+  parentEntryId?: string
 }
 
 export interface HubEmployeeOption {

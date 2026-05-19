@@ -3,6 +3,7 @@ import { useGraphQLClient } from '../../../../../../common/network/graphql/useGr
 import { useCatalogManagerClient } from '../../../../../../common/network/catalogs/useCatalogManagerClient'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../common/utils/windowUtils'
 import { GET_TEAM_EMPLOYEES_AND_ORG_UNITS } from '../queries/absenceQueries'
+import { LEGAL_ENTITY_NOT_DEFINED_FILTER_ID } from '../constants/routes'
 
 export interface UseAbsenceFiltersProps {
   accessToken: string
@@ -12,6 +13,13 @@ export interface UseAbsenceFiltersProps {
     status?: string
     department?: string
     departmentId?: string
+    departmentIds?: string[]
+    locationIds?: string[]
+    legalEntityIds?: string[]
+    managerIds?: string[]
+    employeeQuery?: string
+    absenceTypeIds?: string[]
+    statusIds?: string[]
   }
 }
 
@@ -57,9 +65,15 @@ const buildInitialSelectedFilters = (
   if (initialFilters?.status) {
     seeds.push(`status-${String(initialFilters.status).toUpperCase()}`)
   }
+  ;(initialFilters?.statusIds ?? []).forEach(statusId => {
+    seeds.push(`status-${String(statusId).toUpperCase()}`)
+  })
   if (initialFilters?.departmentId) {
     seeds.push(`department-${initialFilters.departmentId}`)
   }
+  ;(initialFilters?.departmentIds ?? []).forEach(departmentId => {
+    seeds.push(`department-${departmentId}`)
+  })
   if (initialFilters?.department === 'NO_DEPARTMENT_SPECIAL') {
     seeds.push('department-no-department')
   }
@@ -216,11 +230,71 @@ const applyCreationDateRangeFilter = (conditions: any, startDate?: string, endDa
   }
 }
 
+const appendAndCondition = (conditions: any, condition: Record<string, unknown>): void => {
+  if (!conditions._and) {
+    conditions._and = []
+  }
+  conditions._and.push(condition)
+}
+
+const applyGlobalScopeFilters = (
+  conditions: any,
+  initialFilters: UseAbsenceFiltersProps['initialFilters'] | undefined
+): void => {
+  if (!initialFilters) {
+    return
+  }
+
+  if (initialFilters.absenceTypeIds && initialFilters.absenceTypeIds.length > 0) {
+    appendAndCondition(conditions, { type: { id: { _in: initialFilters.absenceTypeIds } } })
+  }
+  if (initialFilters.statusIds && initialFilters.statusIds.length > 0) {
+    appendAndCondition(conditions, { status: { _in: initialFilters.statusIds } })
+  }
+  if (initialFilters.departmentIds && initialFilters.departmentIds.length > 0) {
+    appendAndCondition(conditions, {
+      employee: { employeePosition: { organizationalUnit: { id: { _in: initialFilters.departmentIds } } } }
+    })
+  }
+  if (initialFilters.locationIds && initialFilters.locationIds.length > 0) {
+    appendAndCondition(conditions, {
+      employee: { employeePosition: { siteLocationId: { _in: initialFilters.locationIds } } }
+    })
+  }
+  if (initialFilters.legalEntityIds && initialFilters.legalEntityIds.length > 0) {
+    const includeMissingLegalEntity = initialFilters.legalEntityIds.includes(LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
+    const definedLegalEntityIds = initialFilters.legalEntityIds.filter(id => id !== LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
+
+    if (includeMissingLegalEntity && definedLegalEntityIds.length > 0) {
+      appendAndCondition(conditions, {
+        employee: {
+          employeePosition: {
+            _or: [{ companyId: { _in: definedLegalEntityIds } }, { companyId: { _isNull: true } }]
+          }
+        }
+      })
+    } else if (includeMissingLegalEntity) {
+      appendAndCondition(conditions, {
+        employee: { employeePosition: { companyId: { _isNull: true } } }
+      })
+    } else {
+      appendAndCondition(conditions, {
+        employee: { employeePosition: { companyId: { _in: definedLegalEntityIds } } }
+      })
+    }
+  }
+  if (initialFilters.managerIds && initialFilters.managerIds.length > 0) {
+    appendAndCondition(conditions, {
+      employee: { employeePosition: { supervisorEmployeeId: { _in: initialFilters.managerIds } } }
+    })
+  }
+}
+
 export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFiltersProps): UseAbsenceFiltersReturn => {
   const graphQLClient = useGraphQLClient(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)
 
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialFilters?.employeeQuery ?? '')
   const [selectedFilters, setSelectedFilters] = useState<string[]>(() => buildInitialSelectedFilters(initialFilters))
 
   const [startDate, setStartDate] = useState<string | undefined>(initialFilters?.startDate)
@@ -324,9 +398,10 @@ export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFil
     applyEmployeeFilter(conditions, parsedFilters.employeeFilters)
     applyAbsenceDateRangeFilter(conditions, startDate, endDate)
     applyCreationDateRangeFilter(conditions, creationStartDate, creationEndDate)
+    applyGlobalScopeFilters(conditions, initialFilters)
 
     return conditions
-  }, [search, selectedFilters, startDate, endDate, creationStartDate, creationEndDate])
+  }, [search, selectedFilters, startDate, endDate, creationStartDate, creationEndDate, initialFilters])
 
   const getEmployeeFilters = useCallback(
     (searchTerm: string) => {

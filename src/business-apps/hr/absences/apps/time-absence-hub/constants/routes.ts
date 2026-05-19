@@ -4,7 +4,6 @@ export const HUB_VIEWS = [
   'attendance',
   'entitlements',
   'insights',
-  'reports',
   'absence-details',
   'entitlements-details'
 ] as const
@@ -44,6 +43,7 @@ export const TIME_SCOPES = ['current-year', 'quarter', 'month', 'everything', 'c
 export type TimeScope = (typeof TIME_SCOPES)[number]
 
 export const DEFAULT_TIME_SCOPE: TimeScope = 'current-year'
+export const LEGAL_ENTITY_NOT_DEFINED_FILTER_ID = 'LEGAL_ENTITY_NOT_DEFINED'
 
 export const isTimeScope = (value: string | null | undefined): value is TimeScope =>
   Boolean(value) && (TIME_SCOPES as readonly string[]).includes(value as string)

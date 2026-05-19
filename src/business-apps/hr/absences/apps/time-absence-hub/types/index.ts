@@ -24,7 +24,6 @@ export type ActiveTab =
   | 'attendance'
   | 'entitlements'
   | 'insights'
-  | 'reports'
   | 'absence-list'
   | 'calendar'
   | 'statistics'
@@ -86,6 +85,9 @@ export interface DashboardData {
     averageUsed: number
     totalVacationLiability: number
     totalVacationEntitlement: number
+    estimatedCostPerDay: number
+    totalLiabilityEstimate: number
+    currencyCode: string
   }
 
   isLoading: boolean

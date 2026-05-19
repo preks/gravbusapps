@@ -16,6 +16,7 @@ export interface HubGlobalFilters {
 
 export interface UseHubGlobalFiltersReturn {
   filters: HubGlobalFilters
+  setFilters: (filters: HubGlobalFilters) => void
   setTimeScope: (scope: TimeScope) => void
   setDateRange: (from?: string, to?: string) => void
   setDepartmentIds: (ids: string[]) => void
@@ -236,11 +237,19 @@ export const useHubGlobalFilters = (): UseHubGlobalFiltersReturn => {
     updateFilters(() => ({ ...DEFAULT_FILTERS }))
   }, [updateFilters])
 
+  const replaceFilters = useCallback(
+    (next: HubGlobalFilters) => {
+      updateFilters(() => ({ ...next }))
+    },
+    [updateFilters]
+  )
+
   const derivedDateRange = useMemo(() => computeDerivedDateRange(filters), [filters])
   const legacyTimeFilter = useMemo(() => mapTimeScopeToLegacy(filters.timeScope), [filters.timeScope])
 
   return {
     filters,
+    setFilters: replaceFilters,
     setTimeScope,
     setDateRange,
     setDepartmentIds,

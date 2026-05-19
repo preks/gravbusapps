@@ -39,6 +39,8 @@ interface EntitlementsDetailsProps extends BusinessAppContextProps {
   onNavigateBack: () => void
 }
 
+const VACATION_TYPE_ID = 'AbsenceType:v1:A001'
+
 // Helper functions
 const renderSortIcon = (field: string, sortField: string, sortOrder: 'asc' | 'desc' | '') => {
   if (sortField !== field) return null
@@ -89,6 +91,13 @@ interface DetailedEntitlement {
   status: string
 }
 
+interface EntitlementsSummaryStats {
+  totalEmployees: number
+  totalEntitlements: number
+  totalUsed: number
+  totalAvailable: number
+}
+
 type SortField =
   | 'employeeName'
   | 'organizationalUnit'
@@ -99,6 +108,31 @@ type SortField =
   | 'used'
   | 'available'
 type SortOrder = 'asc' | 'desc'
+
+const buildEntitlementsOrderBy = (sortField: SortField, sortOrder: SortOrder): Record<string, unknown>[] => {
+  const graphqlSortOrder = sortOrder.toUpperCase()
+
+  switch (sortField) {
+    case 'employeeName':
+      return [{ employee: { firstName: graphqlSortOrder } }, { employee: { lastName: graphqlSortOrder } }]
+    case 'organizationalUnit':
+      return [{ employee: { employeePosition: { organizationalUnit: { name: graphqlSortOrder } } } }]
+    case 'absenceType':
+      return [{ type: { value: graphqlSortOrder } }]
+    case 'entitlement':
+      return [{ total: graphqlSortOrder }]
+    case 'validFrom':
+      return [{ validFrom: graphqlSortOrder }]
+    case 'validTo':
+      return [{ validTo: graphqlSortOrder }]
+    case 'used':
+      return [{ approved: graphqlSortOrder }]
+    case 'available':
+      return [{ available: graphqlSortOrder }]
+    default:
+      return [{ employeeId: 'ASC' }]
+  }
+}
 
 interface EntitlementsTableProps {
   entitlements: DetailedEntitlement[]
@@ -465,6 +499,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [total, setTotal] = useState(0)
+  const [aggregateStats, setAggregateStats] = useState<EntitlementsSummaryStats | null>(null)
 
   // Get date filter for the current time filter
   const getDateFilters = () => {
@@ -508,7 +543,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     const departmentFilters = selectedFilters
       .filter(f => f.startsWith('department-'))
       .map(f => f.replace('department-', ''))
-    const typeFilters = selectedFilters.filter(f => f.startsWith('type-')).map(f => f.replace('type-', ''))
+    conditions.type = { id: { _eq: VACATION_TYPE_ID } }
 
     // FIXED: If employee filters are selected, use them instead of search for employees
     if (employeeFilters.length > 0) {
@@ -544,12 +579,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       }
     }
 
-    if (typeFilters.length > 0) {
-      // Filter by absence type IDs (from catalog)
-      const typeIds = typeFilters.map(f => f.replace('type-', ''))
-      conditions.type = { id: { _in: typeIds } }
-    }
-
     // Active employee positions filter - ADD TO _and instead of overwriting employee condition
     const currentDate = new Date().toISOString()
 
@@ -569,7 +598,10 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     // Date filters - ADD to existing _and array
     const dateFilters = getDateFilters()
     if (dateFilters) {
-      conditions._and.push({ validFrom: { _lte: dateFilters.endDate } }, { validTo: { _gte: dateFilters.startDate } })
+      conditions._and.push({ validFrom: { _lte: dateFilters.endDate } })
+      conditions._and.push({
+        _or: [{ validTo: { _isNull: true } }, { validTo: { _gte: dateFilters.startDate } }]
+      })
     }
 
     return conditions
@@ -612,6 +644,12 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
         EmployeeAbsenceEntitlementAggregate(where: $where) {
           aggregate {
             count
+            distinctEmployees: count(columns: [employeeId], distinct: true)
+            sum {
+              total
+              approved
+              available
+            }
           }
         }
       }
@@ -671,7 +709,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     }
   }, [currentPage])
 
-  // Search and filter effects - reset to page 1 and fetch
+  // Search, filter, page size and sort effects - reset to page 1 and fetch
   useEffect(() => {
     if (initialLoadDone.current) {
       if (currentPage === 1) {
@@ -681,7 +719,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
 
       setCurrentPage(1)
     }
-  }, [search, JSON.stringify(selectedFilters), pageSize])
+  }, [search, JSON.stringify(selectedFilters), pageSize, sortField, sortOrder])
 
   // Main data fetching function (like AbsenceList fetchAbsences)
   const fetchEntitlements = async () => {
@@ -697,32 +735,22 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       // Fetch entitlements data with GraphQL variables like AbsenceList
       const whereConditions = buildWhereConditions()
 
-      // Build order by clause (map sort fields to GraphQL field names)
-      const orderBy: any[] = []
-      if (sortField && sortOrder) {
-        const graphqlSortOrder = sortOrder.toUpperCase() // Convert to uppercase for GraphQL
-        if (sortField === 'employeeName') {
-          // For employee name, we can't sort directly since it's computed client-side
-          // Sort by employeeId instead (not ideal but functional)
-          orderBy.push({ employeeId: graphqlSortOrder })
-        } else if (sortField === 'organizationalUnit') {
-          // This field is also computed, skip sorting for now
-          orderBy.push({ employeeId: graphqlSortOrder })
-        } else if (sortField === 'absenceType') {
-          // Sort by type value
-          orderBy.push({ type: { value: graphqlSortOrder } })
-        } else {
-          // Direct mapping for other fields
-          orderBy.push({ [sortField]: graphqlSortOrder })
-        }
-      } else {
-        orderBy.push({ employeeId: 'ASC' })
-      }
+      const orderBy = buildEntitlementsOrderBy(sortField, sortOrder)
 
       const query = getDetailedEntitlementsQuery()
       const result = await graphQLClient.request<{
         EmployeeAbsenceEntitlement: any[]
-        EmployeeAbsenceEntitlementAggregate: { aggregate: { count: number } }
+        EmployeeAbsenceEntitlementAggregate: {
+          aggregate: {
+            count: number
+            distinctEmployees: number
+            sum?: {
+              total?: number
+              approved?: number
+              available?: number
+            }
+          }
+        }
       }>(query, {
         where: whereConditions,
         offset: (currentPage - 1) * pageSize,
@@ -763,10 +791,20 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       })
 
       setEntitlements(transformedData)
-      setTotal(result.EmployeeAbsenceEntitlementAggregate.aggregate.count)
+      const aggregate = result.EmployeeAbsenceEntitlementAggregate.aggregate
+      const sums = aggregate.sum
+
+      setTotal(aggregate.count)
+      setAggregateStats({
+        totalEmployees: Number(aggregate.distinctEmployees || 0),
+        totalEntitlements: Number(sums?.total || 0),
+        totalUsed: Number(sums?.approved || 0),
+        totalAvailable: Number(sums?.available || 0)
+      })
     } catch (err) {
       console.error('❌ Error loading entitlements:', err)
       setError(err instanceof Error ? err.message : 'Failed to load entitlements data')
+      setAggregateStats(null)
     } finally {
       setLoading(false)
     }
@@ -928,21 +966,18 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
 
   // Summary statistics based on filtered data
   const summaryStats = useMemo(() => {
-    if (total === 0) return null
-
-    const totalEmployees = new Set(entitlements.map(e => e.employeeId)).size
-    const totalEntitlements = entitlements.reduce((sum, e) => sum + e.entitlement, 0)
-    const totalUsed = entitlements.reduce((sum, e) => sum + e.used, 0)
-    const totalAvailable = entitlements.reduce((sum, e) => sum + e.available, 0)
+    if (!aggregateStats || total === 0) {
+      return null
+    }
 
     return {
-      totalEmployees,
-      totalEntitlements,
-      totalUsed,
-      totalAvailable,
-      utilizationRate: totalEntitlements > 0 ? ((totalUsed / totalEntitlements) * 100).toFixed(1) : '0'
+      ...aggregateStats,
+      utilizationRate:
+        aggregateStats.totalEntitlements > 0
+          ? ((aggregateStats.totalUsed / aggregateStats.totalEntitlements) * 100).toFixed(1)
+          : '0'
     }
-  }, [entitlements, total])
+  }, [aggregateStats, total])
 
   return (
     <div data-testid="entitlements-details-page" className="gba:p-4 gba:space-y-6">
@@ -991,7 +1026,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
             value={summaryStats.totalEmployees}
             description={getTranslationFromI18nKeyAndLabel(
               'lowcoder:time_absence_hub.entitlements.filtered_employees',
-              'Employees in current results'
+              'Employees in filtered dataset'
             )}
             icon={<UsersIcon size={20} />}
           />

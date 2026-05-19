@@ -72,7 +72,6 @@ const DEFAULT_SUB_TABS: Record<HubView, string> = {
   attendance: 'week',
   entitlements: 'overview',
   insights: 'trends',
-  reports: 'absence',
   'absence-details': '',
   'entitlements-details': ''
 }

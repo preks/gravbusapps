@@ -12,6 +12,7 @@ import {
 } from '../queries/OrgAttendanceQueries'
 import { GET_TEAM_CALENDAR_DAYS } from '../queries/CalendarViewQueries'
 import { HubGlobalFilters } from './useHubGlobalFilters'
+import { LEGAL_ENTITY_NOT_DEFINED_FILTER_ID } from '../constants/routes'
 
 const EMPLOYEE_ID_BATCH_SIZE = 200
 const ATTENDANCE_DATA_LOADER_VERSION = 3
@@ -27,7 +28,10 @@ const chunk = <T>(items: T[], size: number): T[][] => {
   return chunks
 }
 
-const buildEmployeeWhere = (structureId: string, filters: HubGlobalFilters): Record<string, unknown> => {
+export const buildEmployeeWhereForHubFilters = (
+  structureId: string,
+  filters: HubGlobalFilters
+): Record<string, unknown> => {
   const conditions: Record<string, unknown>[] = [{ isDeleted: { _eq: false } }]
 
   const employeePositionConditions: Record<string, unknown>[] = [{ structureId: { _eq: structureId } }]
@@ -35,7 +39,18 @@ const buildEmployeeWhere = (structureId: string, filters: HubGlobalFilters): Rec
     employeePositionConditions.push({ organizationalUnitId: { _in: filters.departmentIds } })
   }
   if (filters.legalEntityIds.length > 0) {
-    employeePositionConditions.push({ companyId: { _in: filters.legalEntityIds } })
+    const includeMissingLegalEntity = filters.legalEntityIds.includes(LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
+    const definedLegalEntityIds = filters.legalEntityIds.filter(id => id !== LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
+
+    if (includeMissingLegalEntity && definedLegalEntityIds.length > 0) {
+      employeePositionConditions.push({
+        _or: [{ companyId: { _in: definedLegalEntityIds } }, { companyId: { _isNull: true } }]
+      })
+    } else if (includeMissingLegalEntity) {
+      employeePositionConditions.push({ companyId: { _isNull: true } })
+    } else {
+      employeePositionConditions.push({ companyId: { _in: definedLegalEntityIds } })
+    }
   }
   if (filters.managerIds.length > 0) {
     employeePositionConditions.push({ supervisorEmployeeId: { _in: filters.managerIds } })
@@ -64,7 +79,7 @@ const mapHolidayData = (holidayData: Awaited<ReturnType<typeof fetchTeamHolidayD
       rows.push({
         employeeId,
         date,
-        name: namesByDate[date] ?? 'Holiday'
+        name: namesByDate[date] ?? 'Bank holiday'
       })
     })
   })
@@ -133,6 +148,8 @@ export const useOrgAttendanceData = ({
         le: filters.legalEntityIds,
         m: filters.managerIds,
         q: filters.employeeQuery,
+        t: filters.absenceTypeIds,
+        s: filters.statusIds,
         from: derivedDateRange?.dateFrom,
         to: derivedDateRange?.dateTo
       }),
@@ -153,7 +170,7 @@ export const useOrgAttendanceData = ({
       try {
         const employeesResponse = await graphqlClient.request<{ Employee: FilteredEmployee[] }>(
           GET_FILTERED_EMPLOYEE_IDS,
-          { where: buildEmployeeWhere(structureId, filters) }
+          { where: buildEmployeeWhereForHubFilters(structureId, filters) }
         )
 
         const employees = employeesResponse.Employee ?? []
@@ -208,13 +225,20 @@ export const useOrgAttendanceData = ({
 
         const attendance = attendanceBatches.flatMap(batch => batch.EmployeeAttendance ?? [])
         const absences = absenceBatches.flatMap(batch => batch.EmployeeAbsenceCalendarView ?? [])
+        const filteredAbsences = absences.filter(row => {
+          const status = String(row?.status ?? '')
+          const typeRef = String(row?.typeRef ?? '')
+          const matchesStatus = filters.statusIds.length === 0 || filters.statusIds.includes(status)
+          const matchesType = filters.absenceTypeIds.length === 0 || filters.absenceTypeIds.includes(typeRef)
+          return matchesStatus && matchesType
+        })
         const holidays = holidayData ? mapHolidayData(holidayData) : []
-        const visibleEmployees = filterEmployeesWithPeriodActivity(employees, attendance, absences, holidays)
+        const visibleEmployees = filterEmployeesWithPeriodActivity(employees, attendance, filteredAbsences, holidays)
 
         setState({
           employees: visibleEmployees,
           attendance,
-          absences,
+          absences: filteredAbsences,
           holidays,
           isLoading: false,
           error: null

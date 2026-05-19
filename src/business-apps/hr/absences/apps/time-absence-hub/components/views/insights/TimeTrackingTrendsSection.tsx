@@ -39,7 +39,7 @@ interface MetricCardProps {
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({ title, value, description }) => (
-  <Card className="gba:flex-1 gba:min-w-48">
+  <Card className="gba:flex-1 gba:min-w-48 gba:shadow-none">
     <CardContent className="gba:flex gba:flex-col gba:gap-1 gba:py-4">
       <span className="gba:text-xs gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
         {title}
@@ -70,7 +70,7 @@ export const TimeTrackingTrendsSection: React.FC<TimeTrackingTrendsSectionProps>
   }, [buckets])
 
   return (
-    <Card data-testid="time-absence-hub-time-tracking-trends">
+    <Card className="gba:shadow-none" data-testid="time-absence-hub-time-tracking-trends">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <TrendUpIcon size={18} />
@@ -194,7 +194,7 @@ interface ChartCardProps {
 }
 
 const ChartCard: React.FC<ChartCardProps> = ({ title, empty, emptyText, children }) => (
-  <Card className="gba:p-4">
+  <Card className="gba:p-4 gba:shadow-none">
     <h5 className="gba:text-sm gba:font-medium gba:mb-3">{title}</h5>
     {empty ? (
       <p className="gba:text-xs gba:text-muted-foreground gba:py-12 gba:text-center">{emptyText}</p>

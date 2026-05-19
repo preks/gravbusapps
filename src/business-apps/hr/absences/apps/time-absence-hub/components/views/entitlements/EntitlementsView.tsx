@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import React, { useEffect, useState } from 'react'
+import { Button, DataDisplay, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
 import { DownloadSimpleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -11,23 +11,29 @@ import {
   type ExcelColumn
 } from '@/common/utils/excelExportUtils'
 import UpdateEmployeeEntitlements from '@/business-apps/hr/core/forms/update-employee-entitlements'
+import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details'
 import { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
-import { EntitlementHealthFilter, useEntitlementsOverviewData } from '../../../hooks/useEntitlementsOverviewData'
-import { openEmployeeTimeTracking } from '../../../utils/hubNavigation'
-import { EntitlementsTable } from './EntitlementsTable'
+import {
+  EntitlementHealthFilter,
+  EntitlementsOverviewSortField,
+  EntitlementsOverviewSortOrder,
+  useEntitlementsOverviewData
+} from '../../../hooks/useEntitlementsOverviewData'
+import { EntitlementsTable, type EntitlementsTableProps } from './EntitlementsTable'
 import { OrgEntitlementRow } from '../../../queries/OrgEntitlementQueries'
 import { formatEntitlementNumber, getEntitlementEmployeeName, isEntitlementExpiringSoon } from './entitlementUtils'
+import { HubFilterOptionsState } from '../../../hooks/useHubFilterOptions'
+import { useHubDataDisplayFilters } from '../../../hooks/useHubDataDisplayFilters'
 
 interface EntitlementsViewProps extends BusinessAppContextProps {
   globalFilters: HubGlobalFilters
   derivedDateRange: { dateFrom: string; dateTo: string } | null
-  filterAction?: React.ReactNode
+  filterOptions: HubFilterOptionsState
+  onGlobalFiltersChange: (filters: HubGlobalFilters) => void
 }
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.entitlements.${key}`, fallback)
-
-const PAGE_SIZE = 50
 
 const buildExportColumns = (): ExcelColumn[] => [
   { header: tt('column_employee', 'Employee'), key: 'employee' },
@@ -85,11 +91,28 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
   userInfo,
   globalFilters,
   derivedDateRange,
-  filterAction
+  filterOptions,
+  onGlobalFiltersChange
 }) => {
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [updateEmployeeId, setUpdateEmployeeId] = useState<string | null>(null)
+  const [selectedEntitlementRow, setSelectedEntitlementRow] = useState<OrgEntitlementRow | null>(null)
+  const [sortField, setSortField] = useState<EntitlementsOverviewSortField>('validFrom')
+  const [sortOrder, setSortOrder] = useState<EntitlementsOverviewSortOrder>('DESC')
   const healthFilter: EntitlementHealthFilter = 'all'
+  const handleGlobalFiltersChange = React.useCallback(
+    (nextFilters: HubGlobalFilters) => {
+      setPage(1)
+      onGlobalFiltersChange(nextFilters)
+    },
+    [onGlobalFiltersChange]
+  )
+  const displayFilters = useHubDataDisplayFilters({
+    filters: globalFilters,
+    options: filterOptions,
+    onFiltersChange: handleGlobalFiltersChange
+  })
 
   const overview = useEntitlementsOverviewData({
     accessToken,
@@ -97,15 +120,48 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
     derivedDateRange,
     healthFilter,
     page,
-    pageSize: PAGE_SIZE
+    pageSize,
+    sortField,
+    sortOrder
   })
 
-  const totalPages = Math.max(1, Math.ceil(overview.total / PAGE_SIZE))
-  const pageInfoText = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:time_absence_hub.entitlements.page_info',
-    `Page ${page} of ${totalPages}`,
-    { page, totalPages }
-  )
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(overview.total / pageSize))
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [overview.total, page, pageSize])
+
+  const handleSort = (field: string) => {
+    const nextField = field as EntitlementsOverviewSortField
+    if (nextField === sortField) {
+      setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC')
+    } else {
+      setSortField(nextField)
+      setSortOrder('ASC')
+    }
+    setPage(1)
+  }
+
+  const entitlementsTableProps: EntitlementsTableProps = {
+    rows: overview.rows,
+    total: overview.total,
+    currentPage: page,
+    pageSize,
+    isLoading: overview.isLoading,
+    error: overview.error,
+    sortField,
+    sortOrder,
+    onSort: handleSort,
+    onPaginationChange: (nextPage, nextPageSize) => {
+      if (nextPageSize) {
+        setPageSize(nextPageSize)
+      }
+      setPage(nextPage)
+    },
+    onUpdateEntitlement: setUpdateEmployeeId,
+    onOpenEmployee: setSelectedEntitlementRow
+  }
 
   const handleExportExcel = async () => {
     const workbook = buildExcelWorkbook(
@@ -116,16 +172,47 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
     await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-entitlements', 'xlsx'))
   }
 
+  const selectedEmployeeId = selectedEntitlementRow?.employeeId ?? null
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const selectedFlags = selectedEntitlementRow ? buildFlags(selectedEntitlementRow, todayIso) : ''
+
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-entitlements-view">
-      <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+      <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
         <div>
           <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{tt('title', 'Entitlements')}</h2>
           <p className="gba:text-sm gba:text-muted-foreground">
-            {tt('description', 'Vacation entitlement balances for the selected filter scope.')}
+            {tt(
+              'page_intro',
+              'Review employee balances, validity periods and entitlement health across the organization.'
+            )}
           </p>
         </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
+      </div>
+
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'entitlements',
+            label: tt('title', 'Entitlements'),
+            metadata: {
+              count: overview.total,
+              isLoading: overview.isLoading,
+              subtitle: tt('subtitle_entitlements', 'entitlements')
+            }
+          }
+        ]}
+        currentSection="entitlements"
+        searchValue={displayFilters.searchValue}
+        searchPlaceholder={tt('search_placeholder', 'Search employee...')}
+        onSearchChange={displayFilters.onSearchChange}
+        filters={displayFilters.filtersObject}
+        filterConfiguration={displayFilters.filterConfiguration}
+        onFilterChange={displayFilters.onFilterChange}
+        enableLiveFiltering={true}
+        filterSheetTitle={displayFilters.filterSheetTitle}
+        filterSheetDescription={displayFilters.filterSheetDescription}
+        secondaryActions={
           <Button
             variant="outline"
             size="sm"
@@ -137,41 +224,11 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
             <DownloadSimpleIcon size={14} />
             {tt('export_excel', 'Export Excel')}
           </Button>
-          {filterAction}
-        </div>
-      </div>
-
-      <EntitlementsTable
-        rows={overview.rows}
-        isLoading={overview.isLoading}
-        error={overview.error}
-        onUpdateEntitlement={setUpdateEmployeeId}
-        onOpenEmployee={openEmployeeTimeTracking}
-      />
-
-      {overview.total > PAGE_SIZE && (
-        <div className="gba:flex gba:items-center gba:justify-end gba:gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage(prev => Math.max(1, prev - 1))}
-            data-testid="time-absence-hub-entitlements-prev-page"
-          >
-            {tt('pagination_previous', 'Previous')}
-          </Button>
-          <span className="gba:text-xs gba:text-muted-foreground">{pageInfoText}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
-            data-testid="time-absence-hub-entitlements-next-page"
-          >
-            {tt('pagination_next', 'Next')}
-          </Button>
-        </div>
-      )}
+        }
+        toolbarDensity="default"
+      >
+        <EntitlementsTable {...entitlementsTableProps} />
+      </DataDisplay>
 
       <Sheet open={Boolean(updateEmployeeId)} onOpenChange={open => !open && setUpdateEmployeeId(null)}>
         <SheetContent className="gba:w-full gba:max-w-3xl gba:overflow-y-auto">
@@ -189,8 +246,97 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
           )}
         </SheetContent>
       </Sheet>
+
+      <Sheet open={selectedEntitlementRow !== null} onOpenChange={open => !open && setSelectedEntitlementRow(null)}>
+        <SheetContent
+          side="right"
+          className="gba:flex gba:flex-col gba:p-0"
+          data-testid="entitlements-employee-details-sheet"
+        >
+          <SheetHeader className="gba:border-b gba:border-border gba:px-6 gba:py-4 gba:pr-14">
+            <SheetTitle className="gba:text-left">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:human_resources_page.employees_section.employee_details',
+                'Employee Details'
+              )}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:flex-1 gba:min-h-0" data-testid="entitlements-employee-details-content">
+            {selectedEmployeeId && (
+              <EmployeeDetails
+                employeeId={selectedEmployeeId}
+                accessToken={accessToken}
+                userInfo={userInfo}
+                summaryOnly
+                topContent={
+                  selectedEntitlementRow ? (
+                    <div
+                      className="gba:border gba:border-border gba:rounded-md gba:p-4 gba:space-y-3"
+                      data-testid="entitlements-employee-summary"
+                    >
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {tt('sheet_summary_title', 'Entitlement summary')}
+                      </p>
+                      <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:text-xs">
+                        <SummaryItem
+                          label={tt('column_type', 'Type')}
+                          value={selectedEntitlementRow.type?.value ?? '-'}
+                        />
+                        <SummaryItem
+                          label={tt('column_total', 'Total')}
+                          value={formatEntitlementNumber(selectedEntitlementRow.total)}
+                        />
+                        <SummaryItem
+                          label={tt('column_approved', 'Approved')}
+                          value={formatEntitlementNumber(selectedEntitlementRow.approved)}
+                        />
+                        <SummaryItem
+                          label={tt('column_pending', 'Pending')}
+                          value={formatEntitlementNumber(selectedEntitlementRow.pending)}
+                        />
+                        <SummaryItem
+                          label={tt('column_available', 'Available')}
+                          value={formatEntitlementNumber(selectedEntitlementRow.available)}
+                        />
+                        <SummaryItem label={tt('column_flags', 'Flags')} value={selectedFlags || '-'} />
+                        <SummaryItem
+                          label={tt('column_valid_from', 'Valid From')}
+                          value={formatSummaryDate(selectedEntitlementRow.validFrom)}
+                        />
+                        <SummaryItem
+                          label={tt('column_valid_to', 'Valid To')}
+                          value={formatSummaryDate(selectedEntitlementRow.validTo)}
+                        />
+                      </div>
+                    </div>
+                  ) : undefined
+                }
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }
+
+const formatSummaryDate = (value?: string | null): string => {
+  if (!value) {
+    return '-'
+  }
+  return value.slice(0, 10)
+}
+
+interface SummaryItemProps {
+  label: string
+  value: string
+}
+
+const SummaryItem: React.FC<SummaryItemProps> = ({ label, value }) => (
+  <div className="gba:rounded gba:bg-muted/40 gba:px-2 gba:py-1">
+    <span className="gba:block gba:text-muted-foreground">{label}</span>
+    <span className="gba:block gba:font-medium gba:text-foreground">{value}</span>
+  </div>
+)
 
 export default EntitlementsView

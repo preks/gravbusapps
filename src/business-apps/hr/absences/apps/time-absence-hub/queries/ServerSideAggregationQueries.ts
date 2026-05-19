@@ -1,5 +1,6 @@
 import { getDateFilters } from './DashboardQueries'
 import type { HubGlobalFilters } from '../hooks/useHubGlobalFilters'
+import { LEGAL_ENTITY_NOT_DEFINED_FILTER_ID } from '../constants/routes'
 
 type DashboardDateRange = { dateFrom: string; dateTo: string } | null | undefined
 
@@ -30,7 +31,18 @@ const buildEmployeePositionClauses = (filters?: HubGlobalFilters): string[] => {
     clauses.push(`{ organizationalUnitId: { _in: ${list(filters.departmentIds)} } }`)
   }
   if (filters.legalEntityIds.length > 0) {
-    clauses.push(`{ companyId: { _in: ${list(filters.legalEntityIds)} } }`)
+    const includeMissingLegalEntity = filters.legalEntityIds.includes(LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
+    const definedLegalEntityIds = filters.legalEntityIds.filter(id => id !== LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
+
+    if (includeMissingLegalEntity && definedLegalEntityIds.length > 0) {
+      clauses.push(
+        `{ _or: [{ companyId: { _in: ${list(definedLegalEntityIds)} } }, { companyId: { _isNull: true } }] }`
+      )
+    } else if (includeMissingLegalEntity) {
+      clauses.push('{ companyId: { _isNull: true } }')
+    } else {
+      clauses.push(`{ companyId: { _in: ${list(definedLegalEntityIds)} } }`)
+    }
   }
   if (filters.locationIds.length > 0) {
     clauses.push(`{ siteLocationId: { _in: ${list(filters.locationIds)} } }`)
@@ -40,16 +52,6 @@ const buildEmployeePositionClauses = (filters?: HubGlobalFilters): string[] => {
   }
   return clauses
 }
-
-const hasPopulationFilters = (filters?: HubGlobalFilters): boolean =>
-  Boolean(
-    filters &&
-      (filters.departmentIds.length > 0 ||
-        filters.legalEntityIds.length > 0 ||
-        filters.locationIds.length > 0 ||
-        filters.managerIds.length > 0 ||
-        Boolean(filters.employeeQuery))
-  )
 
 const buildEmployeeFilterClauses = (filters?: HubGlobalFilters): string[] => {
   if (!filters) return []
@@ -211,12 +213,11 @@ export const getVacationEntitlementsAggregationsQuery = (
           { isDeleted: { _eq: false } },
           { type: { parentEntryId: { _eq: "${vacationGroupId}" } } },
           {
-            _or: [
-              { validFrom: { _gte: "${dateFilters.startDate}" } },
-              { validTo: { _gte: "${dateFilters.startDate}" } },
-              { 
-                _and: [
-                  { validFrom: { _lte: "${dateFilters.endDate}" } },
+            _and: [
+              { validFrom: { _lte: "${dateFilters.endDate}" } },
+              {
+                _or: [
+                  { validTo: { _isNull: true } },
                   { validTo: { _gte: "${dateFilters.startDate}" } }
                 ]
               }
@@ -231,12 +232,11 @@ export const getVacationEntitlementsAggregationsQuery = (
         _and: [
           { isDeleted: { _eq: false } },
           {
-            _or: [
-              { validFrom: { _gte: "${dateFilters.startDate}" } },
-              { validTo: { _gte: "${dateFilters.startDate}" } },
-              { 
-                _and: [
-                  { validFrom: { _lte: "${dateFilters.endDate}" } },
+            _and: [
+              { validFrom: { _lte: "${dateFilters.endDate}" } },
+              {
+                _or: [
+                  { validTo: { _isNull: true } },
                   { validTo: { _gte: "${dateFilters.startDate}" } }
                 ]
               }
@@ -330,18 +330,49 @@ export const getCompleteAggregationsQuery = (
   const currentYear = new Date().getFullYear()
   const currentYearStart = `${currentYear}-01-01`
   const currentYearEnd = `${currentYear}-12-31`
-  const includeEntitlementSnapshot = !hasPopulationFilters(filters)
+  const today = new Date().toISOString().slice(0, 10)
+  // Always fetch the snapshot view so Time & Absence parity with My Absences is maintained.
+  // Population-filter scoping is applied client-side using allowedEmployeeIds.
+  const includeEntitlementSnapshot = true
   let vacationWhereCondition = ''
   const entitlementFilterClauses = buildEmployeeNestedFilterClauses(filters)
     .map(clause => `, ${clause}`)
     .join('')
+  const salaryFilterClauses = buildEmployeeNestedFilterClauses(filters)
+    .map(clause => `, ${clause}`)
+    .join('')
+  const salaryWhereCondition = `where: {
+    _and: [
+      { isDeleted: { _eq: false } },
+      {
+        _or: [
+          { requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" } },
+          { requestStatus: { _isNull: true } }
+        ]
+      },
+      { startDate: { _lte: "${today}" } },
+      {
+        _or: [
+          { endDate: { _isNull: true } },
+          { endDate: { _gte: "${today}" } }
+        ]
+      },
+      { employee: { employeePosition: { id: { _isNull: false } } } }
+      ${salaryFilterClauses}
+    ]
+  }`
   if (vacationGroupId) {
     vacationWhereCondition = `
     where: {
       _and: [
         { isDeleted: { _eq: false } },
         { validFrom: { _lte: "${currentYearEnd}" } },
-        { validTo: { _gte: "${currentYearStart}" } },
+        {
+          _or: [
+            { validTo: { _isNull: true } },
+            { validTo: { _gte: "${currentYearStart}" } }
+          ]
+        },
         { type: { id: { _eq: "AbsenceType:v1:A001" } } },
         { employee: { employeePosition: { id: { _isNull: false } } } }
         ${entitlementFilterClauses}
@@ -446,6 +477,20 @@ export const getCompleteAggregationsQuery = (
       }
     }
 
+    currentSalaries: EmployeeSalary(${salaryWhereCondition}, orderBy: [{ employeeId: ASC }, { startDate: DESC_NULLS_LAST }, { createdAt: DESC }], limit: 5000) {
+      id
+      employeeId
+      annualGrossSalary
+      monthlyGrossSalary
+      hourlyGrossSalary
+      startDate
+      endDate
+      currency {
+        code
+        value
+      }
+    }
+
     
     ${
       vacationGroupId
@@ -516,6 +561,7 @@ export const getCompleteAggregationsQuery = (
     EmployeeAbsenceEntitlement(${vacationWhereCondition}) {
       id
       total
+      available
       approved
       pending
       validFrom

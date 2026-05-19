@@ -1,36 +1,34 @@
 import React from 'react'
-import {
-  ActionButton,
-  Badge,
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@newwork/nw-design-system'
+import { Badge } from '@newwork/nw-design-system'
 import type { ActionOption } from '@newwork/nw-design-system'
+import { UserIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { statusVariant } from '@/business-apps/hr/absences/apps/personal-absences/utils/statusUtils'
+import {
+  EntitlementsOverviewSortField,
+  EntitlementsOverviewSortOrder
+} from '../../../hooks/useEntitlementsOverviewData'
 import { OrgEntitlementRow } from '../../../queries/OrgEntitlementQueries'
 import { formatEntitlementNumber, getEntitlementEmployeeName, isEntitlementExpiringSoon } from './entitlementUtils'
-import { ErrorStateCard, LoadingStateCard } from '../shared/DataStateCards'
+import { HubDataTable, type HubDataTableColumn } from '../shared/HubDataTable'
+import { HubRowActionMenu } from '../shared/HubRowActionMenu'
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.entitlements.${key}`, fallback)
 
-const HEADER_CELL_CLASS = 'gba:px-3 gba:py-3 gba:text-xs'
-const TEXT_CELL_CLASS = 'gba:px-3 gba:py-3 gba:text-sm gba:text-muted-foreground'
-const NUMBER_CELL_CLASS = 'gba:px-2 gba:py-3 gba:text-right gba:text-sm'
-
-interface EntitlementsTableProps {
+export interface EntitlementsTableProps {
   rows: OrgEntitlementRow[]
+  total: number
+  currentPage: number
+  pageSize: number
   isLoading: boolean
   error: string | null
+  sortField: EntitlementsOverviewSortField
+  sortOrder: EntitlementsOverviewSortOrder
+  onSort: (field: string) => void
+  onPaginationChange: (page: number, newPageSize?: number) => void
   onUpdateEntitlement: (employeeId: string) => void
-  onOpenEmployee: (employeeId: string) => void
+  onOpenEmployee: (row: OrgEntitlementRow) => void
 }
 
 const formatDate = (value?: string | null): string => {
@@ -42,179 +40,218 @@ const formatDate = (value?: string | null): string => {
 
 export const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
   rows,
+  total,
+  currentPage,
+  pageSize,
   isLoading,
   error,
+  sortField,
+  sortOrder,
+  onSort,
+  onPaginationChange,
   onUpdateEntitlement,
   onOpenEmployee
 }) => {
   const todayIso = new Date().toISOString().slice(0, 10)
-
-  if (error) {
-    return <ErrorStateCard message={error} />
-  }
-
-  if (isLoading) {
-    return <LoadingStateCard message={tt('table_loading', 'Loading entitlements...')} />
-  }
-
-  if (rows.length === 0) {
-    return (
-      <Card>
-        <CardContent className="gba:py-8 gba:text-center gba:text-sm gba:text-muted-foreground">
-          {tt('table_empty', 'No entitlements match the current filters.')}
-        </CardContent>
-      </Card>
-    )
-  }
+  const columns = getColumns(todayIso, onUpdateEntitlement)
 
   return (
-    <Card>
-      <CardContent className="gba:p-0">
-        <div className="gba:w-full gba:overflow-hidden">
-          <Table className="gba:w-full gba:table-fixed">
-            <TableHeader>
-              <TableRow>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-36`}>{tt('column_employee', 'Employee')}</TableHead>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-36`}>
-                  {tt('column_department', 'Department')}
-                </TableHead>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-28`}>{tt('column_location', 'Location')}</TableHead>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-24`}>{tt('column_type', 'Type')}</TableHead>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-14 gba:text-right`}>
-                  {tt('column_total', 'Total')}
-                </TableHead>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-16 gba:text-right`}>
-                  {tt('column_approved', 'Approved')}
-                </TableHead>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-16 gba:text-right`}>
-                  {tt('column_pending', 'Pending')}
-                </TableHead>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-16 gba:text-right`}>
-                  {tt('column_available', 'Available')}
-                </TableHead>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-32`}>{tt('column_valid', 'Valid')}</TableHead>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-20`}>{tt('column_flags', 'Flags')}</TableHead>
-                <TableHead className={`${HEADER_CELL_CLASS} gba:w-16 gba:text-right`}>
-                  {tt('column_actions', 'Actions')}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map(row => (
-                <EntitlementsTableRow
-                  key={row.id}
-                  row={row}
-                  todayIso={todayIso}
-                  onUpdateEntitlement={onUpdateEntitlement}
-                  onOpenEmployee={onOpenEmployee}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+    <HubDataTable
+      columns={columns}
+      rows={rows}
+      getRowKey={row => row.id}
+      loading={isLoading}
+      error={error}
+      total={total}
+      currentPage={currentPage}
+      pageSize={pageSize}
+      sortField={sortField}
+      sortOrder={sortOrder}
+      onSort={onSort}
+      onPaginationChange={onPaginationChange}
+      onRowClick={row => {
+        if (row.employeeId) {
+          onOpenEmployee(row)
+        }
+      }}
+      dataTestIdPrefix="entitlements-grid"
+      rowLabel={tt('row_label_entitlements', 'entitlements')}
+      emptyMessage={tt('table_empty', 'No entitlements match the current filters.')}
+    />
   )
 }
 
-interface EntitlementsTableRowProps {
-  row: OrgEntitlementRow
-  todayIso: string
+const getColumns = (
+  todayIso: string,
   onUpdateEntitlement: (employeeId: string) => void
-  onOpenEmployee: (employeeId: string) => void
-}
-
-const EntitlementsTableRow: React.FC<EntitlementsTableRowProps> = ({
-  row,
-  todayIso,
-  onUpdateEntitlement,
-  onOpenEmployee
-}) => {
-  const employeeName = getEntitlementEmployeeName(row, tt('unknown_employee', 'Unknown employee'))
-  const department = row.employee?.employeePosition?.organizationalUnit?.name ?? '-'
-  const location = row.employee?.employeePosition?.siteLocation?.name ?? '-'
-  const typeLabel = row.type?.value ?? '-'
-  const isNegative = (row.available ?? 0) < 0
-  const expired = Boolean(row.validTo && row.validTo < todayIso)
-  const expiring = isEntitlementExpiringSoon(row.validTo, todayIso)
-  const rowActions = React.useMemo<ActionOption[]>(
-    () => [
-      {
-        key: 'update-entitlement',
-        label: tt('action_update', 'Update entitlements'),
-        disabled: !row.employeeId,
-        onSelect: () => {
-          if (row.employeeId) {
-            onUpdateEntitlement(row.employeeId)
-          }
-        }
-      },
-      {
-        key: 'open-employee-record',
-        label: tt('action_open_employee', 'Open employee record'),
-        disabled: !row.employeeId,
-        onSelect: () => {
-          if (row.employeeId) {
-            onOpenEmployee(row.employeeId)
-          }
-        }
-      }
-    ],
-    [onOpenEmployee, onUpdateEntitlement, row.employeeId]
-  )
-
-  return (
-    <TableRow data-testid={`entitlements-row-${row.id}`}>
-      <TableCell className="gba:px-3 gba:py-3">
-        <span className="gba:block gba:truncate gba:text-sm gba:font-medium" title={employeeName}>
-          {employeeName}
-        </span>
-      </TableCell>
-      <TableCell className={TEXT_CELL_CLASS}>
+): HubDataTableColumn<OrgEntitlementRow>[] => [
+  {
+    key: 'employee',
+    header: tt('column_employee', 'Employee'),
+    sortableField: 'employeeName',
+    widthClassName: 'gba:w-32',
+    headerClassName: 'gba:px-3',
+    cellClassName: 'gba:px-2 gba:py-3',
+    renderCell: row => {
+      const employeeName = getEntitlementEmployeeName(row, tt('unknown_employee', 'Unknown employee'))
+      return (
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <UserIcon size={16} className="gba:text-muted-foreground" />
+          <span className="gba:block gba:truncate gba:text-sm gba:font-medium gba:text-foreground" title={employeeName}>
+            {employeeName}
+          </span>
+        </div>
+      )
+    }
+  },
+  {
+    key: 'department',
+    header: tt('column_department', 'Department'),
+    sortableField: 'departmentName',
+    widthClassName: 'gba:w-32',
+    headerClassName: 'gba:px-3',
+    cellClassName: 'gba:px-2 gba:py-3 gba:text-sm',
+    renderCell: row => {
+      const department = row.employee?.employeePosition?.organizationalUnit?.name ?? '-'
+      return (
         <span className="gba:block gba:truncate" title={department}>
           {department}
         </span>
-      </TableCell>
-      <TableCell className={TEXT_CELL_CLASS}>
+      )
+    }
+  },
+  {
+    key: 'location',
+    header: tt('column_location', 'Location'),
+    sortableField: 'locationName',
+    widthClassName: 'gba:w-24',
+    headerClassName: 'gba:px-2',
+    cellClassName: 'gba:px-2 gba:py-3 gba:text-sm',
+    renderCell: row => {
+      const location = row.employee?.employeePosition?.siteLocation?.name ?? '-'
+      return (
         <span className="gba:block gba:truncate" title={location}>
           {location}
         </span>
-      </TableCell>
-      <TableCell className="gba:px-3 gba:py-3 gba:text-sm">
+      )
+    }
+  },
+  {
+    key: 'type',
+    header: tt('column_type', 'Type'),
+    sortableField: 'typeName',
+    widthClassName: 'gba:w-20',
+    headerClassName: 'gba:px-2',
+    cellClassName: 'gba:px-2 gba:py-3 gba:text-sm',
+    renderCell: row => {
+      const typeLabel = row.type?.value ?? '-'
+      return (
         <span className="gba:block gba:truncate" title={typeLabel}>
           {typeLabel}
         </span>
-      </TableCell>
-      <TableCell className={NUMBER_CELL_CLASS}>{formatEntitlementNumber(row.total)}</TableCell>
-      <TableCell className={NUMBER_CELL_CLASS}>{formatEntitlementNumber(row.approved)}</TableCell>
-      <TableCell className={NUMBER_CELL_CLASS}>{formatEntitlementNumber(row.pending)}</TableCell>
-      <TableCell className={NUMBER_CELL_CLASS}>
+      )
+    }
+  },
+  {
+    key: 'total',
+    header: tt('column_total', 'Total'),
+    sortableField: 'total',
+    widthClassName: 'gba:w-18',
+    headerClassName: 'gba:px-2',
+    cellClassName: 'gba:px-1 gba:py-3 gba:text-right gba:text-sm',
+    renderCell: row => formatEntitlementNumber(row.total)
+  },
+  {
+    key: 'approved',
+    header: tt('column_approved', 'Approved'),
+    sortableField: 'approved',
+    widthClassName: 'gba:w-20',
+    headerClassName: 'gba:px-2',
+    cellClassName: 'gba:px-1 gba:py-3 gba:text-right gba:text-sm',
+    renderCell: row => formatEntitlementNumber(row.approved)
+  },
+  {
+    key: 'pending',
+    header: tt('column_pending', 'Pending'),
+    sortableField: 'pending',
+    widthClassName: 'gba:w-20',
+    headerClassName: 'gba:px-2',
+    cellClassName: 'gba:px-1 gba:py-3 gba:text-right gba:text-sm',
+    renderCell: row => formatEntitlementNumber(row.pending)
+  },
+  {
+    key: 'available',
+    header: tt('column_available', 'Available'),
+    sortableField: 'available',
+    widthClassName: 'gba:w-20',
+    headerClassName: 'gba:px-2',
+    cellClassName: 'gba:px-1 gba:py-3 gba:text-right gba:text-sm',
+    renderCell: row => {
+      const isNegative = (row.available ?? 0) < 0
+      return (
         <span className={isNegative ? 'gba:text-destructive gba:font-medium' : ''}>
           {formatEntitlementNumber(row.available)}
         </span>
-      </TableCell>
-      <TableCell className="gba:px-3 gba:py-3 gba:text-xs gba:text-muted-foreground">
-        <span className="gba:block gba:truncate" title={`${formatDate(row.validFrom)} - ${formatDate(row.validTo)}`}>
-          {formatDate(row.validFrom)} - {formatDate(row.validTo)}
-        </span>
-      </TableCell>
-      <TableCell className="gba:px-3 gba:py-3">
+      )
+    }
+  },
+  {
+    key: 'valid',
+    header: tt('column_valid', 'Valid'),
+    sortableField: 'validFrom',
+    widthClassName: 'gba:w-36',
+    headerClassName: 'gba:px-2',
+    cellClassName: 'gba:px-2 gba:py-3 gba:text-xs',
+    renderCell: row => (
+      <span className="gba:block gba:truncate" title={`${formatDate(row.validFrom)} - ${formatDate(row.validTo)}`}>
+        {formatDate(row.validFrom)} - {formatDate(row.validTo)}
+      </span>
+    )
+  },
+  {
+    key: 'flags',
+    header: tt('column_flags', 'Flags'),
+    widthClassName: 'gba:w-18',
+    headerClassName: 'gba:px-2',
+    cellClassName: 'gba:px-2 gba:py-3',
+    renderCell: row => {
+      const isNegative = (row.available ?? 0) < 0
+      const expired = Boolean(row.validTo && row.validTo < todayIso)
+      const expiring = isEntitlementExpiringSoon(row.validTo, todayIso)
+      return (
         <div className="gba:flex gba:flex-wrap gba:gap-1">
           {isNegative && <Badge variant={statusVariant('REJECTED')}>{tt('flag_negative', 'Negative')}</Badge>}
           {expired && <Badge variant={statusVariant('REJECTED')}>{tt('flag_expired', 'Expired')}</Badge>}
           {expiring && !expired && <Badge variant={statusVariant('PENDING')}>{tt('flag_expiring', 'Expiring')}</Badge>}
         </div>
-      </TableCell>
-      <TableCell className="gba:px-1 gba:py-3 gba:text-right">
-        <ActionButton
-          actions={rowActions}
-          size="icon"
-          emptyStateBehavior="enable"
-          data-testid={`entitlements-actions-${row.id}`}
-        />
-      </TableCell>
-    </TableRow>
-  )
-}
+      )
+    }
+  },
+  {
+    key: 'actions',
+    header: tt('column_actions', 'Actions'),
+    widthClassName: 'gba:w-16',
+    headerClassName: 'gba:pl-2 gba:pr-4',
+    cellClassName: 'gba:pl-2 gba:pr-4 gba:py-3 gba:text-right',
+    renderCell: row => (
+      <HubRowActionMenu
+        actions={[
+          {
+            key: 'update-entitlement',
+            label: tt('action_update', 'Update entitlements'),
+            disabled: !row.employeeId,
+            onClick: () => {
+              if (row.employeeId) {
+                onUpdateEntitlement(row.employeeId)
+              }
+            }
+          } satisfies ActionOption
+        ]}
+        ariaLabel={tt('action_menu', 'Entitlement actions')}
+        dataTestId={`entitlements-actions-${row.id}`}
+      />
+    )
+  }
+]
 
 export default EntitlementsTable

@@ -9,7 +9,7 @@ import { UseTimeAbsenceHubNavigationReturn } from '../hooks/useTimeAbsenceHubNav
 import { UseHubGlobalFiltersReturn } from '../hooks/useHubGlobalFilters'
 import { HubFilterOptionsState } from '../hooks/useHubFilterOptions'
 import HubGlobalFilters from './HubGlobalFilters'
-import { AbsencesView, AttendanceView, DashboardView, EntitlementsView, InsightsView, ReportsView } from './views'
+import { AbsencesView, AttendanceView, DashboardView, EntitlementsView, InsightsView } from './views'
 import { AbsenceDetails, EntitlementsDetails } from './pages'
 
 interface TimeAbsenceHubViewRendererProps extends BusinessAppContextProps {
@@ -25,6 +25,7 @@ const renderHubView = (
   navigation: UseTimeAbsenceHubNavigationReturn,
   globalFilters: UseHubGlobalFiltersReturn,
   dashboardData: any,
+  filterOptions: HubFilterOptionsState,
   filterAction: React.ReactNode
 ): React.ReactNode => {
   const baseProps = { ...context }
@@ -49,9 +50,10 @@ const renderHubView = (
           {...baseProps}
           activeSubTab={navigation.activeTab}
           onSubTabChange={navigation.setActiveTab}
-          dashboardData={dashboardData}
+          globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
-          filterAction={filterAction}
+          filterOptions={filterOptions}
+          onGlobalFiltersChange={globalFilters.setFilters}
         />
       )
     case 'attendance':
@@ -60,7 +62,8 @@ const renderHubView = (
           {...baseProps}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
-          filterAction={filterAction}
+          filterOptions={filterOptions}
+          onGlobalFiltersChange={globalFilters.setFilters}
         />
       )
     case 'entitlements':
@@ -69,22 +72,13 @@ const renderHubView = (
           {...baseProps}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
-          filterAction={filterAction}
+          filterOptions={filterOptions}
+          onGlobalFiltersChange={globalFilters.setFilters}
         />
       )
     case 'insights':
       return (
         <InsightsView
-          {...baseProps}
-          dashboardData={dashboardData}
-          globalFilters={globalFilters.filters}
-          derivedDateRange={globalFilters.derivedDateRange}
-          filterAction={filterAction}
-        />
-      )
-    case 'reports':
-      return (
-        <ReportsView
           {...baseProps}
           dashboardData={dashboardData}
           globalFilters={globalFilters.filters}
@@ -112,12 +106,13 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
     <Button
       variant="outline"
       size="sm"
-      className="gba:h-8 gba:w-8 gba:p-0"
+      className="gba:h-8 gba:gap-2 gba:px-3"
       aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.filters.open', 'Open filters')}
       onClick={() => setFilterDrawerOpen(true)}
       data-testid="time-absence-hub-open-filters"
     >
       <FunnelIcon size={16} />
+      <span>{getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.filters.label', 'Filter')}</span>
     </Button>
   )
 
@@ -162,6 +157,7 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
   return (
     <div data-testid="time-absence-hub-container">
       <PageLayout
+        onBack={null as unknown as () => void}
         headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.title', 'Time & Absence Hub')}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           'lowcoder:time_absence_hub.description',
@@ -189,11 +185,20 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
             onDepartmentsChange={globalFilters.setDepartmentIds}
             onLocationsChange={globalFilters.setLocationIds}
             onLegalEntitiesChange={globalFilters.setLegalEntityIds}
+            onAbsenceTypesChange={globalFilters.setAbsenceTypeIds}
             onManagersChange={globalFilters.setManagerIds}
             onEmployeeQueryChange={globalFilters.setEmployeeQuery}
             onReset={globalFilters.resetFilters}
           />
-          {renderHubView(navigation.currentView, context, navigation, globalFilters, dashboardData, filterAction)}
+          {renderHubView(
+            navigation.currentView,
+            context,
+            navigation,
+            globalFilters,
+            dashboardData,
+            filterOptions,
+            filterAction
+          )}
         </div>
       </PageLayout>
     </div>

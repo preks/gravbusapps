@@ -51,6 +51,7 @@ interface HubGlobalFiltersProps {
     departments: HubFilterOption[]
     locations: HubFilterOption[]
     legalEntities: HubFilterOption[]
+    absenceTypes: HubFilterOption[]
     managers: HubManagerOption[]
     employees: HubEmployeeOption[]
     isLoading: boolean
@@ -61,6 +62,7 @@ interface HubGlobalFiltersProps {
   onDepartmentsChange: (ids: string[]) => void
   onLocationsChange: (ids: string[]) => void
   onLegalEntitiesChange: (ids: string[]) => void
+  onAbsenceTypesChange: (ids: string[]) => void
   onManagersChange: (ids: string[]) => void
   onEmployeeQueryChange: (query: string) => void
   onReset: () => void
@@ -76,6 +78,7 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
   onDepartmentsChange,
   onLocationsChange,
   onLegalEntitiesChange,
+  onAbsenceTypesChange,
   onManagersChange,
   onEmployeeQueryChange,
   onReset
@@ -103,6 +106,10 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
   const legalEntityOptions = useMemo<ComboboxOption[]>(
     () => options.legalEntities.map(item => ({ value: item.id, label: item.name })),
     [options.legalEntities]
+  )
+  const absenceTypeOptions = useMemo<ComboboxOption[]>(
+    () => options.absenceTypes.map(item => ({ value: item.id, label: item.name })),
+    [options.absenceTypes]
   )
   const managerOptions = useMemo<ComboboxOption[]>(
     () =>
@@ -151,6 +158,7 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
     onDepartmentsChange(draftFilters.departmentIds)
     onLocationsChange(draftFilters.locationIds)
     onLegalEntitiesChange(draftFilters.legalEntityIds)
+    onAbsenceTypesChange(draftFilters.absenceTypeIds)
     onManagersChange(draftFilters.managerIds)
     onOpenChange(false)
   }
@@ -170,7 +178,10 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
         <SheetHeader className="gba:border-b gba:p-4">
           <SheetTitle>{tt('filters.drawer_title', 'Filter Time & Absence Hub')}</SheetTitle>
           <SheetDescription>
-            {tt('filters.drawer_description', 'Narrow hub data by time, organization, manager, and employee.')}
+            {tt(
+              'filters.drawer_description',
+              'Narrow hub data by time, organization, absence type, manager, and employee.'
+            )}
           </SheetDescription>
         </SheetHeader>
 
@@ -255,6 +266,20 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
               emptyText={tt('filters.no_options', 'No options')}
               disabled={options.isLoading || legalEntityOptions.length === 0}
               data-testid="time-absence-hub-legal-entity-select"
+            />
+          </DrawerField>
+
+          <DrawerField label={tt('filters.absence_type_label', 'Absence type')}>
+            <Combobox
+              mode="multiple"
+              options={absenceTypeOptions}
+              value={draftFilters.absenceTypeIds}
+              onValueChange={absenceTypeIds => updateDraft({ absenceTypeIds })}
+              placeholder={tt('filters.absence_type_placeholder', 'All absence types')}
+              searchPlaceholder={tt('filters.absence_type_search', 'Search absence types...')}
+              emptyText={tt('filters.no_options', 'No options')}
+              disabled={options.isLoading || absenceTypeOptions.length === 0}
+              data-testid="time-absence-hub-absence-type-select"
             />
           </DrawerField>
 

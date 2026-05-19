@@ -1,6 +1,4 @@
 import React from 'react'
-import { Card, CardContent } from '@newwork/nw-design-system'
-import { LightbulbIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { StatisticsTab } from '../../tabs/statistics-tab/StatisticsTab'
@@ -35,21 +33,19 @@ export const InsightsView: React.FC<InsightsViewProps> = ({
   })
 
   return (
-    <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-insights-view">
-      <Card>
-        <CardContent className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:p-4">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <LightbulbIcon size={18} className="gba:text-muted-foreground" />
-            <span className="gba:text-sm gba:text-muted-foreground">
-              {tt(
-                'page_intro',
-                'Absence statistics, time-tracking trends and combined health metrics. Time-tracking sections use the org-wide attendance batch loader.'
-              )}
-            </span>
-          </div>
-          {filterAction}
-        </CardContent>
-      </Card>
+    <div className="gba:space-y-8" data-testid="time-absence-hub-insights-view">
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+        <div>
+          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{tt('title', 'Insights')}</h2>
+          <p className="gba:text-sm gba:text-muted-foreground">
+            {tt(
+              'page_intro',
+              'Absence statistics, time-tracking trends and combined health metrics. Time-tracking sections use the org-wide attendance batch loader.'
+            )}
+          </p>
+        </div>
+        {filterAction}
+      </div>
 
       <StatisticsTab accessToken={accessToken} userInfo={userInfo} dashboardData={dashboardData} />
 

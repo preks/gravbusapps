@@ -87,7 +87,7 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = ({ ab
   const maxRowTotal = useMemo(() => Math.max(...rows.map(row => row.total), 0), [rows])
 
   return (
-    <Card>
+    <Card className="gba:shadow-none">
       <CardHeader className="gba:pb-2">
         <CardTitle className="gba:text-sm">
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.yoy_title', 'Year-over-Year Comparison')}

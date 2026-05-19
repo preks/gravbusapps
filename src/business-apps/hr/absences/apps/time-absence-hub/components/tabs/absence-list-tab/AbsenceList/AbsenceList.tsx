@@ -1,11 +1,11 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../../common/utils/windowUtils'
+import { toast } from 'sonner'
 import { AbsenceListTable } from './AbsenceListTable'
 import type { EnhancedAbsence } from '../../../../types'
 import { useAbsenceFilters, useAbsenceData } from '../../../../hooks'
 import { cancelEmployeeAbsence } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
-import { hasApprovedAbsenceCancellationExpired } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 interface AbsenceListProps extends BusinessAppContextProps {
   initialFilters?: {
@@ -14,8 +14,14 @@ interface AbsenceListProps extends BusinessAppContextProps {
     status?: string
     department?: string
     departmentId?: string
+    departmentIds?: string[]
+    locationIds?: string[]
+    legalEntityIds?: string[]
+    managerIds?: string[]
+    employeeQuery?: string
+    absenceTypeIds?: string[]
+    statusIds?: string[]
   }
-  headerAction?: React.ReactNode
   onDataChange?: (data: {
     absences: EnhancedAbsence[]
     total: number
@@ -31,7 +37,9 @@ interface AbsenceListProps extends BusinessAppContextProps {
 }
 
 export const AbsenceList: React.FC<AbsenceListProps> = props => {
-  const { accessToken, initialFilters, headerAction, onDataChange, onOpenEmployeeRecord } = props
+  const { accessToken, initialFilters, onDataChange, onOpenEmployeeRecord } = props
+  const [cancellingAbsenceId, setCancellingAbsenceId] = useState<string | null>(null)
+  const [locallyCancelledAbsenceIds, setLocallyCancelledAbsenceIds] = useState<Set<string>>(() => new Set())
 
   const filters = useAbsenceFilters({ accessToken, initialFilters })
   const data = useAbsenceData({
@@ -40,9 +48,36 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
     onDataChange
   })
 
+  const tt = (key: string, fallback: string) =>
+    getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.absences.${key}`, fallback)
+
+  const handleCancelAbsence = async (absence: EnhancedAbsence) => {
+    setCancellingAbsenceId(absence.id)
+
+    try {
+      await cancelEmployeeAbsence(accessToken, absence.cancelSnapshot)
+      setLocallyCancelledAbsenceIds(previousIds => new Set(previousIds).add(absence.id))
+      toast.success(tt('cancel_request_success', 'Absence request cancelled'))
+      void data.fetchAbsences()
+      globalThis.setTimeout(() => {
+        void data.fetchAbsences()
+      }, 3000)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : tt('cancel_request_error', 'Failed to cancel absence request')
+      toast.error(message)
+    } finally {
+      setCancellingAbsenceId(null)
+    }
+  }
+
   const absencesWithUpdatedGroups = useMemo(() => {
     return data.absences.map(absence => ({
       ...absence,
+      status: locallyCancelledAbsenceIds.has(absence.id) ? 'CANCELLED' : absence.status,
+      cancelSnapshot: locallyCancelledAbsenceIds.has(absence.id)
+        ? { ...absence.cancelSnapshot, status: 'CANCELLED' }
+        : absence.cancelSnapshot,
       groupName:
         (absence.type?.parentEntryId && filters.absenceGroups[absence.type.parentEntryId]) ||
         absence.type?.value ||
@@ -51,43 +86,10 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
           'Unknown Group'
         )
     }))
-  }, [data.absences, filters.absenceGroups])
-
-  const handleRequestCancellation = useCallback(
-    async (absence: EnhancedAbsence) => {
-      if (!accessToken) {
-        throw new Error('Access token missing')
-      }
-
-      if (hasApprovedAbsenceCancellationExpired(absence.endDate)) {
-        throw new Error(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:time_absence_hub.absence_list.request_cancellation_ended_error',
-            'Approved absences that have already ended can no longer be cancelled.'
-          )
-        )
-      }
-
-      await cancelEmployeeAbsence(accessToken, absence.cancelSnapshot)
-      await data.fetchAbsences()
-      globalThis.setTimeout(() => {
-        data.fetchAbsences().catch(() => {})
-      }, 3000)
-    },
-    [accessToken, data.fetchAbsences]
-  )
+  }, [data.absences, filters.absenceGroups, locallyCancelledAbsenceIds])
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="backoffice-absence-list-modern-content">
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-2 gba:pt-2">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absences', 'Absences')}
-          </h2>
-          <span className="gba:text-lg gba:font-semibold gba:text-muted-foreground">({data.total})</span>
-        </div>
-        {headerAction}
-      </div>
       <AbsenceListTable
         absences={absencesWithUpdatedGroups}
         loading={data.loading}
@@ -99,7 +101,8 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
         sortOrder={data.sortOrder}
         onSort={data.handleSort}
         onPaginationChange={data.handlePaginationChange}
-        onRequestCancellation={handleRequestCancellation}
+        cancellingAbsenceId={cancellingAbsenceId}
+        onCancelAbsence={handleCancelAbsence}
         onOpenEmployeeRecord={onOpenEmployeeRecord}
       />
     </div>

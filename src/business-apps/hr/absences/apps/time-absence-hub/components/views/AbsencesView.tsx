@@ -1,6 +1,15 @@
-import React, { useState } from 'react'
-import { DownloadSimpleIcon, ListBulletsIcon, CalendarBlankIcon } from '@phosphor-icons/react'
-import { Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import React, { useMemo, useState } from 'react'
+import { DownloadSimpleIcon } from '@phosphor-icons/react'
+import {
+  Button,
+  Combobox,
+  type ComboboxOption,
+  DataDisplay,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle
+} from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '../../../../../../../common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
@@ -13,32 +22,24 @@ import {
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { AbsenceList } from '../tabs/absence-list-tab/AbsenceList/AbsenceList'
 import { CalendarTab } from '../tabs/calendar-tab/CalendarTab'
-import { ABSENCES_SUB_TABS, AbsencesSubTab, isAbsencesSubTab } from '../../constants/routes'
+import { AbsencesSubTab, isAbsencesSubTab } from '../../constants/routes'
 import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details'
 import { EnhancedAbsence } from '../../types'
+import { HubGlobalFilters } from '../../hooks/useHubGlobalFilters'
+import { HubFilterOptionsState } from '../../hooks/useHubFilterOptions'
+import { useHubDataDisplayFilters } from '../../hooks/useHubDataDisplayFilters'
 
 interface AbsencesViewProps extends BusinessAppContextProps {
   activeSubTab?: string
   onSubTabChange?: (subTab: string) => void
-  dashboardData?: any
+  globalFilters: HubGlobalFilters
   derivedDateRange?: { dateFrom: string; dateTo: string } | null
-  filterAction?: React.ReactNode
+  filterOptions: HubFilterOptionsState
+  onGlobalFiltersChange: (filters: HubGlobalFilters) => void
 }
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.absences.${key}`, fallback)
-
-const buildSubTabLabel = (subTab: AbsencesSubTab): string => {
-  if (subTab === 'list') {
-    return tt('subtab_list', 'List')
-  }
-  return tt('subtab_calendar', 'Calendar')
-}
-
-const SUB_TAB_ICONS: Record<AbsencesSubTab, React.ReactElement> = {
-  list: <ListBulletsIcon size={16} />,
-  calendar: <CalendarBlankIcon size={16} />
-}
 
 const buildExportColumns = (): ExcelColumn[] => [
   { header: tt('export_column_employee', 'Employee'), key: 'employee' },
@@ -66,13 +67,26 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
   userInfo,
   activeSubTab,
   onSubTabChange,
-  dashboardData,
+  globalFilters,
   derivedDateRange,
-  filterAction
+  filterOptions,
+  onGlobalFiltersChange
 }) => {
   const currentSubTab: AbsencesSubTab = isAbsencesSubTab(activeSubTab) ? activeSubTab : 'list'
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [exportRows, setExportRows] = useState<EnhancedAbsence[]>([])
+  const [listTotal, setListTotal] = useState(0)
+  const [calendarDepartmentIds, setCalendarDepartmentIds] = useState<string[]>([])
+  const listFilters = useHubDataDisplayFilters({
+    filters: globalFilters,
+    options: filterOptions,
+    onFiltersChange: onGlobalFiltersChange
+  })
+
+  const calendarDepartmentComboboxOptions = useMemo<ComboboxOption[]>(
+    () => filterOptions.departments.map(option => ({ value: option.id, label: option.name })),
+    [filterOptions.departments]
+  )
 
   const handleSubTabChange = (next: AbsencesSubTab) => {
     onSubTabChange?.(next)
@@ -87,8 +101,8 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
     await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-absences', 'xlsx'))
   }
 
-  const listHeaderAction = (
-    <div className="gba:flex gba:items-center gba:gap-2">
+  const secondaryActions =
+    currentSubTab === 'list' ? (
       <Button
         variant="outline"
         size="sm"
@@ -100,47 +114,94 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
         <DownloadSimpleIcon size={14} />
         {tt('export_excel', 'Export Excel')}
       </Button>
-      {filterAction}
-    </div>
-  )
+    ) : (
+      <div className="gba:w-full gba:max-w-sm" data-testid="time-absence-hub-calendar-toolbar">
+        <Combobox
+          mode="multiple"
+          options={calendarDepartmentComboboxOptions}
+          value={calendarDepartmentIds}
+          onValueChange={setCalendarDepartmentIds}
+          placeholder={tt('calendar_department_placeholder', 'All departments')}
+          searchPlaceholder={tt('calendar_department_search', 'Search departments...')}
+          emptyText={tt('calendar_department_empty', 'No departments found')}
+          disabled={calendarDepartmentComboboxOptions.length === 0}
+          data-testid="time-absence-hub-calendar-department-select"
+        />
+      </div>
+    )
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-absences-view">
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-        <div className="gba:flex gba:items-center gba:gap-2" role="tablist">
-          {ABSENCES_SUB_TABS.map(subTab => (
-            <Button
-              key={subTab}
-              variant={currentSubTab === subTab ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => handleSubTabChange(subTab)}
-              data-testid={`time-absence-hub-absences-subtab-${subTab}`}
-            >
-              {SUB_TAB_ICONS[subTab]}
-              {buildSubTabLabel(subTab)}
-            </Button>
-          ))}
+      <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+        <div>
+          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{tt('title', 'Absences')}</h2>
+          <p className="gba:text-sm gba:text-muted-foreground">
+            {tt(
+              'page_intro',
+              'Review absence requests and switch to the team calendar for a broader view of time away.'
+            )}
+          </p>
         </div>
       </div>
 
-      {currentSubTab === 'list' && (
-        <AbsenceList
-          key={`${derivedDateRange?.dateFrom ?? 'no-from'}-${derivedDateRange?.dateTo ?? 'no-to'}`}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          initialFilters={{
-            startDate: derivedDateRange?.dateFrom,
-            endDate: derivedDateRange?.dateTo
-          }}
-          headerAction={listHeaderAction}
-          onDataChange={data => setExportRows(data.absences)}
-          onOpenEmployeeRecord={setSelectedEmployeeId}
-        />
-      )}
-
-      {currentSubTab === 'calendar' && (
-        <CalendarTab accessToken={accessToken} userInfo={userInfo} dashboardData={dashboardData} />
-      )}
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'list',
+            label: tt('subtab_list', 'List'),
+            metadata: {
+              count: listTotal,
+              subtitle: tt('title', 'Absences')
+            }
+          },
+          {
+            id: 'calendar',
+            label: tt('subtab_calendar', 'Calendar'),
+            metadata: {
+              subtitle: tt('calendar_title', 'Yearly team calendar')
+            }
+          }
+        ]}
+        currentSection={currentSubTab}
+        onSectionChange={value => handleSubTabChange(value as AbsencesSubTab)}
+        searchValue={currentSubTab === 'list' ? listFilters.searchValue : undefined}
+        searchPlaceholder={tt('search_placeholder', 'Search employee...')}
+        onSearchChange={currentSubTab === 'list' ? listFilters.onSearchChange : undefined}
+        filters={currentSubTab === 'list' ? listFilters.filtersObject : undefined}
+        filterConfiguration={currentSubTab === 'list' ? listFilters.filterConfiguration : undefined}
+        onFilterChange={currentSubTab === 'list' ? listFilters.onFilterChange : undefined}
+        enableLiveFiltering={currentSubTab === 'list'}
+        filterSheetTitle={listFilters.filterSheetTitle}
+        filterSheetDescription={listFilters.filterSheetDescription}
+        secondaryActions={secondaryActions}
+        toolbarDensity="default"
+      >
+        {currentSubTab === 'list' ? (
+          <AbsenceList
+            key={`${derivedDateRange?.dateFrom ?? 'no-from'}-${derivedDateRange?.dateTo ?? 'no-to'}-${JSON.stringify(globalFilters)}`}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            initialFilters={{
+              startDate: derivedDateRange?.dateFrom,
+              endDate: derivedDateRange?.dateTo,
+              departmentIds: globalFilters.departmentIds,
+              locationIds: globalFilters.locationIds,
+              legalEntityIds: globalFilters.legalEntityIds,
+              managerIds: globalFilters.managerIds,
+              employeeQuery: globalFilters.employeeQuery,
+              absenceTypeIds: globalFilters.absenceTypeIds,
+              statusIds: globalFilters.statusIds
+            }}
+            onDataChange={data => {
+              setExportRows(data.absences)
+              setListTotal(data.total)
+            }}
+            onOpenEmployeeRecord={setSelectedEmployeeId}
+          />
+        ) : (
+          <CalendarTab accessToken={accessToken} userInfo={userInfo} departmentIds={calendarDepartmentIds} />
+        )}
+      </DataDisplay>
 
       <Sheet open={selectedEmployeeId !== null} onOpenChange={open => !open && setSelectedEmployeeId(null)}>
         <SheetContent
