@@ -6342,9 +6342,9 @@
     ]
   },
   "core/create/apps/function-manager": {
-    "bitbucketBuildNumber": 12240,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12240/",
-    "chunkJsBytes": 530991,
+    "bitbucketBuildNumber": 12274,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12274/",
+    "chunkJsBytes": 531116,
     "top": [
       {
         "kind": "bucket",
@@ -6367,8 +6367,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 254708,
-        "gzip": 56798,
+        "rendered": 254890,
+        "gzip": 56846,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/function-manager/hooks/useFunctionAssistantChat.ts",
@@ -88234,20 +88234,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12267,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12267/",
+    "bitbucketBuildNumber": 12274,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12274/",
     "chunkJsBytes": 1894671,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1596582,
-        "gzip": 99716,
+        "gzip": 99735,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1596582,
-            "gzip": 99716
+            "gzip": 99735
           }
         ]
       },
@@ -108189,7 +108189,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-19T06:28:48.920Z",
+    "generatedAt": "2026-05-19T06:47:08.380Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
