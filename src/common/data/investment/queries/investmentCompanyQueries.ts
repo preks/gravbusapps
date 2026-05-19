@@ -8,6 +8,7 @@ import {
 } from './fragments/investmentFragments'
 import { INVESTMENT_COMPANY_REF } from './fragments/investmentReferenceFragments'
 import { INVESTMENT_COMPANY_DESCRIPTORS } from '../types/investmentCompanyTypes'
+import { INVESTMENT_ADDRESS_FRAGMENT } from '../types/investmentAddressTypes'
 
 export interface InvestmentCompanyQueryVariables extends BaseQueryVariables {
   currencyIds?: string[]
@@ -34,11 +35,26 @@ export const buildInvestmentCompanyQuery = (): string => `
   }
 `
 
+/**
+ * Root-level selection for company addresses (InvestmentCompany has no nested address relation).
+ */
+export const buildInvestmentCompanyAddressesByCompanyIdQueryBody = (): string => `
+  companyAddresses: InvestmentAddress(
+    where: {
+      isDeleted: { _eq: false }
+      investmentCompanyId: { _eq: $id }
+    }
+  ) {
+    ${INVESTMENT_ADDRESS_FRAGMENT}
+  }
+`
+
 export const buildInvestmentCompanyByIdQuery = (): string => `
   query GetInvestmentCompanyById($id: uuid!) {
     InvestmentCompanyByPk(id: $id) {
       ${INVESTMENT_COMPANY}
     }
+    ${buildInvestmentCompanyAddressesByCompanyIdQueryBody()}
   }
 `
 

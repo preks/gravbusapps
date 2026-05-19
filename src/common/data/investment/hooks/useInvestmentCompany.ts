@@ -64,7 +64,12 @@ export function useInvestmentCompany(
         combinedQuery,
         variables
       )
-      const company = result.InvestmentCompanyByPk ? toInvestmentCompany(result.InvestmentCompanyByPk) : null
+      const company = result.InvestmentCompanyByPk
+        ? toInvestmentCompany({
+            ...result.InvestmentCompanyByPk,
+            addresses: result.companyAddresses ?? []
+          })
+        : null
       const additionalData = Object.fromEntries(
         additionalQueries.map(additionalQuery => [additionalQuery.key, additionalQuery.data(result)])
       )

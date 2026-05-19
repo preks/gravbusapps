@@ -13,7 +13,6 @@ import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
 import { InvestmentAccountFields } from '../../types/investmentAccountTypes'
 import { InvestmentContactFields } from '../../types/investmentContactTypes'
-import { INVESTMENT_ADDRESS_FRAGMENT } from '../../types/investmentAddressTypes'
 import {
   INVESTMENT_ACCOUNT_REF,
   INVESTMENT_COMPANY_GROUP_REF,
@@ -75,12 +74,6 @@ export const INVESTMENT_COMPANY_GROUP_ASSOCIATION = `
 
 export const INVESTMENT_COMPANY = `
   ${INVESTMENT_COMPANY_REF}
-  investmentAddress(where: { isDeleted: { _eq: false } }) {
-    ${INVESTMENT_ADDRESS_FRAGMENT}
-  }
-  investmentDocument(where: { isDeleted: { _eq: false } }) {
-    ${INVESTMENT_DOCUMENT_REF}
-  }
   investmentCompanyExecutives(where: { isDeleted: { _eq: false } }) {
     ${INVESTMENT_COMPANY_EXECUTIVE}
   }

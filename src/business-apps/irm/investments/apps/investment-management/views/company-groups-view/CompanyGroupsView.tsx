@@ -12,14 +12,13 @@ import { InvestmentCompanyGraphDetails } from './components/InvestmentCompanyGra
 import { useInvestmentCompanyGroupGraph } from './hooks/useInvestmentCompanyGroupGraph'
 import translations from './_i18n'
 
-export type CompanyGroupsViewProps = BusinessAppContextProps
-
-const getInitialGroupId = (): string | undefined => {
-  if (globalThis.window === undefined) return undefined
-  return new URLSearchParams(globalThis.location.search).get('groupId') || undefined
+export type CompanyGroupsViewProps = BusinessAppContextProps & {
+  selectedGroupId?: string
+  onSelectGroup?: (groupId: string) => void
+  onBackFromGroup?: () => void
 }
 
-const updateGroupUrl = (groupId?: string) => {
+export const updateCompanyGroupUrl = (groupId?: string) => {
   if (globalThis.window === undefined) return
 
   const params = new URLSearchParams(globalThis.location.search)
@@ -84,10 +83,15 @@ const GroupCard: React.FC<{
   </div>
 )
 
-export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = context => {
+export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = ({
+  selectedGroupId: selectedGroupIdProp,
+  onSelectGroup,
+  onBackFromGroup,
+  ...context
+}) => {
   const { t } = useTranslation(translations)
-  const [selectedGroupId, setSelectedGroupId] = useState<string | undefined>(getInitialGroupId)
   const [selectedInvestmentCompanyId, setSelectedInvestmentCompanyId] = useState<string | undefined>()
+  const selectedGroupId = selectedGroupIdProp
   const { groups, loading, error } = useInvestmentCompanyGroups(context.accessToken || '', {
     limit: 100,
     orderBy: [{ field: 'name', direction: 'ASC_NULLS_LAST' }]
@@ -108,17 +112,18 @@ export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = context => {
     [t]
   )
 
-  const handleSelectGroup = useCallback((groupId: string) => {
-    setSelectedGroupId(groupId)
-    setSelectedInvestmentCompanyId(undefined)
-    updateGroupUrl(groupId)
-  }, [])
+  const handleSelectGroup = useCallback(
+    (groupId: string) => {
+      setSelectedInvestmentCompanyId(undefined)
+      onSelectGroup?.(groupId)
+    },
+    [onSelectGroup]
+  )
 
   const handleBackToGroups = useCallback(() => {
-    setSelectedGroupId(undefined)
     setSelectedInvestmentCompanyId(undefined)
-    updateGroupUrl()
-  }, [])
+    onBackFromGroup?.()
+  }, [onBackFromGroup])
 
   const handleSelectInvestmentCompany = useCallback((investmentCompanyId: string) => {
     setSelectedInvestmentCompanyId(investmentCompanyId)
@@ -131,37 +136,54 @@ export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = context => {
   } = useInvestmentCompanyGroupGraph(context.accessToken, selectedGroupId, handleSelectInvestmentCompany)
 
   if (selectedGroupId) {
+    const groupTitle = graph?.name || selectedGroup?.name || t('default-group-title')
+    const companiesCount = graph?.nodes.length ?? 0
+    const ownershipLinksCount = graph?.edges.length ?? 0
+
     return (
-      <div className="gba:flex gba:h-full gba:flex-col gba:gap-4 gba:p-6" data-testid="company-group-graph-view">
-        <div className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-3">
-          <div>
-            <Button variant="ghost" onClick={handleBackToGroups} data-testid="company-group-graph-back-button">
-              <ArrowLeftIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-              {t('groups-back-button')}
-            </Button>
-            <h2 className="gba:mt-3 gba:text-2xl gba:font-semibold gba:text-foreground">
-              {graph?.name || selectedGroup?.name || t('default-group-title')}
-            </h2>
-            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('graph-description')}</p>
+      <div className="gba:flex gba:h-full gba:flex-col gba:overflow-hidden" data-testid="company-group-graph-view">
+        <Card className="gba:flex gba:h-full gba:flex-col gba:overflow-hidden gba:rounded-none gba:border-0 gba:shadow-none">
+          <div
+            className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:gap-4 gba:border-b gba:border-border gba:bg-muted/30 gba:px-4 gba:py-2"
+            data-testid="company-group-graph-header"
+          >
+            <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToGroups}
+                data-testid="company-group-graph-back-button"
+                aria-label={t('groups-back-button')}
+              >
+                <ArrowLeftIcon className="gba:h-4 gba:w-4" />
+                <span className="gba:sr-only">{t('groups-back-button')}</span>
+              </Button>
+              <h2 className="gba:truncate gba:text-base gba:font-semibold gba:text-foreground">{groupTitle}</h2>
+            </div>
+            <div
+              className="gba:flex gba:shrink-0 gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground"
+              data-testid="company-group-graph-stats"
+            >
+              <span>
+                {companiesCount} {t('companies-count-label')}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span>
+                {ownershipLinksCount} {t('ownership-links-count-label')}
+              </span>
+            </div>
           </div>
-          <div className="gba:flex gba:gap-2 gba:text-sm gba:text-muted-foreground">
-            <span>
-              {graph?.nodes.length ?? 0} {t('companies-count-label')}
-            </span>
-            <span>
-              {graph?.edges.length ?? 0} {t('ownership-links-count-label')}
-            </span>
-          </div>
-        </div>
 
-        {graphError && (
-          <Card className="gba:border-destructive" data-testid="company-group-graph-error">
-            <CardContent className="gba:p-4 gba:text-sm gba:text-destructive">{graphError}</CardContent>
-          </Card>
-        )}
+          {graphError && (
+            <div
+              className="gba:shrink-0 gba:border-b gba:border-destructive gba:bg-destructive/10 gba:px-4 gba:py-2 gba:text-sm gba:text-destructive"
+              data-testid="company-group-graph-error"
+            >
+              {graphError}
+            </div>
+          )}
 
-        <Card className="gba:min-h-96 gba:flex-1 gba:overflow-hidden">
-          <CardContent className="gba:h-full gba:p-0">
+          <CardContent className="gba:relative gba:flex gba:min-h-0 gba:flex-1 gba:p-0">
             <InvestmentCompanyGroupGraphCanvas
               nodes={graph?.nodes || []}
               edges={graph?.edges || []}
@@ -211,16 +233,17 @@ export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = context => {
       )}
 
       {!loading && !error && groups.length > 0 && (
-        <div className="gba:grid gba:grid-cols-1 gba:gap-4 md:gba:grid-cols-2 xl:gba:grid-cols-3">
+        <div className="gba:grid gba:grid-cols-12 gba:gap-4">
           {groups.map(group => (
-            <GroupCard
-              key={group.id}
-              group={group}
-              isSelected={group.id === selectedGroupId}
-              onSelect={handleSelectGroup}
-              t={t}
-              accessToken={context.accessToken}
-            />
+            <div key={group.id} className="gba:col-span-4">
+              <GroupCard
+                group={group}
+                isSelected={group.id === selectedGroupId}
+                onSelect={handleSelectGroup}
+                t={t}
+                accessToken={context.accessToken}
+              />
+            </div>
           ))}
         </div>
       )}

@@ -236,7 +236,7 @@ const InvestmentCompanyGroupGraphCanvasInner: React.FC<InvestmentCompanyGroupGra
   return (
     <div
       ref={graphContainerRef}
-      className="gba:relative gba:h-full gba:min-h-96 gba:w-full gba:overflow-hidden gba:rounded-xl gba:bg-muted/30"
+      className="gba:relative gba:h-full gba:min-h-0 gba:w-full gba:overflow-hidden gba:bg-muted/30"
       data-testid="company-group-ownership-graph"
     >
       <InvestmentCompanyGraphToolbar

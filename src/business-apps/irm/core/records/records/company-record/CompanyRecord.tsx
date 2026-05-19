@@ -230,7 +230,6 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
       headerOverline={t('record-overline')}
       onBack={onBack}
       headerTitle={investmentCompanyName}
-      headerSubtitle={investmentCompany.description}
       headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
       headerActions={headerActions}
       views={subViewsConfig.items}

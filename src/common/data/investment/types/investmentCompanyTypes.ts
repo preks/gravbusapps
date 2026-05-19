@@ -44,6 +44,7 @@ export const InvestmentCompanyFields = {
   pictureThumbnail: 'pictureThumbnail',
   currencyRef: 'currencyRef',
   currency: 'currency',
+  // Addresses/documents live on InvestmentAddress / InvestmentDocument (via investmentCompanyId), not on InvestmentCompany
   addresses: 'investmentAddress',
   documents: 'investmentDocument',
   executives: 'investmentCompanyExecutives',
