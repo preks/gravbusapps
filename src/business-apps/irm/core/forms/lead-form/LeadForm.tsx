@@ -55,6 +55,13 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
 
   // Account search hook
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts({ accessToken, userInfo, additionalData })
+  const fetchLeadAccounts = useCallback(
+    async ({ search, limit }: { search: string; limit: number }) => {
+      const result = await fetchInvestmentAccounts({ search, limit })
+      return { accounts: result.InvestmentAccount || [] }
+    },
+    [fetchInvestmentAccounts]
+  )
 
   // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Create form instance - resolver will be updated dynamically
@@ -77,7 +84,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
     setExpandCompanySection
   } = useLeadAccountAutocomplete({
     form,
-    fetchAccounts: fetchInvestmentAccounts
+    fetchAccounts: fetchLeadAccounts
   })
 
   // Investment Types Hook - provides hierarchy and field definitions

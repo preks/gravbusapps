@@ -166,7 +166,6 @@ const LeadAddressFields: React.FC<LeadAddressFieldsProps> = ({ autoFilledFields,
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={COUNTRY}
-                  childField="regionRef"
                   value={field.value || ''}
                   onValueChange={value => {
                     field.onChange(value)
