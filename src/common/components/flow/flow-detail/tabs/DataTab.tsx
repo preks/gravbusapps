@@ -18,7 +18,9 @@ import { FileText, Download, Copy, AlertCircle } from 'lucide-react'
 import { useFlowProgressClient } from '@/common/network/flows/useFlowProgressClient'
 import type { StepDataRow, StepDataResponse } from '@/common/network/flows/useFlowProgressClient'
 import { useEmployeeAvatarsBatch } from '@/business-apps/core/every/apps/every-box/hooks/useEmployeeAvatarsBatch'
+import { MarkdownWithChipsRenderer } from '@/common/components/markdown'
 import { buildFileUrl } from '@/common/utils/fileUtils'
+import { buildPlatformUrl, Navigation } from '@/common/utils/navigationUtils'
 import type { StepAssignmentInfo } from '../types'
 import { useResolvedActorNames } from '../useResolvedActorNames'
 
@@ -62,6 +64,14 @@ interface FlowDetailData {
   timeInsights: TimeInsights
   durationHours?: number
   durationMinutes?: number
+  supportTags?: {
+    policyDocument?: string
+    policyDocumentTitle?: string
+    team?: string
+    teamName?: string
+    entity?: string
+    entityName?: string
+  }
 }
 
 interface FlowStep {
@@ -84,6 +94,12 @@ interface DataTabProps {
   flowSteps: FlowStep[]
   stepAssignmentsByStepIndex: Record<number, StepAssignmentInfo>
   accessToken?: string
+}
+
+interface SupportChip {
+  label: string
+  value: string
+  href?: string
 }
 
 interface NormalizedFileReference {
@@ -152,6 +168,19 @@ function formatFieldValue(key: string, value: any): string {
   if (key.toLowerCase().includes('email')) return stringValue.toLowerCase()
   if (key.toLowerCase().includes('phone')) return stringValue.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')
   return stringValue
+}
+
+function hasMarkdownLink(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  const normalized = value.trim()
+  if (!normalized) return false
+  return /\[[^\]]+\]\([^)]+\)/.test(normalized)
+}
+
+function normalizeMarkdownEntityProtocols(content: string): string {
+  // In flow step outputs, `document://` references policy/content entry IDs.
+  // Map it to `content_document://` so shared entity-link resolution opens content-record.
+  return content.replace(/document:\/\//g, 'content_document://')
 }
 
 function isFileLikeObject(value: unknown): value is Record<string, any> {
@@ -310,6 +339,23 @@ const FieldValueDisplay: React.FC<FieldValueDisplayProps> = ({ fieldKey, value, 
 
   if (fileReferences.length > 0) {
     return <FileValueDisplay files={fileReferences} accessToken={accessToken} compact={compact} />
+  }
+
+  if (hasMarkdownLink(value)) {
+    return (
+      <div
+        className={`gba:text-sm gba:whitespace-pre-wrap gba:break-words ${compact ? 'gba:max-w-[500px]' : ''}`}
+        data-testid={`flow-detail-markdown-field-${fieldKey}`}
+      >
+        <MarkdownWithChipsRenderer
+          content={normalizeMarkdownEntityProtocols(value)}
+          accessToken={accessToken}
+          variant="default"
+          className="gba:[&_p]:gba:mb-0 gba:[&_p+p]:gba:mt-1"
+          data-testid={`flow-detail-markdown-content-${fieldKey}`}
+        />
+      </div>
+    )
   }
 
   return (
@@ -512,6 +558,21 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, stepAssig
   )
   const actorNames = useResolvedActorNames(accessToken, assignmentUserIds)
   const { employeeMap } = useEmployeeAvatarsBatch(accessToken || '', assignmentUserIds)
+  const supportChips = useMemo<SupportChip[]>(() => {
+    const tags = flowData.supportTags
+    if (!tags) return []
+    return [
+      tags.policyDocument
+        ? {
+            label: 'Policy',
+            value: tags.policyDocumentTitle || tags.policyDocument,
+            href: buildPlatformUrl(Navigation.CONTENT_ENTRY_RECORD, { contentId: tags.policyDocument })
+          }
+        : null,
+      tags.team ? { label: 'Team', value: tags.teamName || tags.team } : null,
+      tags.entity ? { label: 'Entity', value: tags.entityName || tags.entity } : null
+    ].filter((chip): chip is SupportChip => Boolean(chip))
+  }, [flowData.supportTags])
 
   // Load step data for all steps (including non-completed) - only on tab selection
   const loadStepData = async () => {
@@ -616,6 +677,37 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, stepAssig
           Export Step Data
         </Button>
       </div>
+
+      {supportChips.length ? (
+        <div
+          className="gba:rounded-md gba:border gba:border-border gba:bg-muted/20 gba:px-3 gba:py-2"
+          data-testid="flow-detail-support-chips"
+        >
+          <div className="gba:mb-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
+            Support context for this workflow
+          </div>
+          <div className="gba:flex gba:flex-wrap gba:gap-2">
+            {supportChips.map(chip =>
+              chip.href ? (
+                <a
+                  key={`${chip.label}-${chip.value}`}
+                  href={chip.href}
+                  className="gba:inline-flex"
+                  data-testid={`flow-detail-support-chip-link-${chip.label.toLowerCase()}`}
+                >
+                  <Badge variant="secondary" className="gba:text-xs gba:cursor-pointer">
+                    {chip.label}: {chip.value}
+                  </Badge>
+                </a>
+              ) : (
+                <Badge key={`${chip.label}-${chip.value}`} variant="secondary" className="gba:text-xs">
+                  {chip.label}: {chip.value}
+                </Badge>
+              )
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {error && (
         <Alert variant="destructive">

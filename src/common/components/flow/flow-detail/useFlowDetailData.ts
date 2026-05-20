@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
+import { FlowTemplateClient } from '@/common/network/flows/FlowTemplateClient'
 import type { FlowDetailData, FlowDetailState, HistoryEvent, HistorySummary, StepAssignmentInfo } from './types'
 import { buildExecutionState, generateFallbackSteps, transformAuditEntry, transformFlowStep } from './utils'
+import type { FlowTags } from '@/business-apps/flow/types'
 
 function getWorkflowStatusMessage(status: string): string {
   if (status === 'RUNNING' || status === 'IN_PROGRESS') return 'On Track'
@@ -16,6 +18,18 @@ function getWorkflowStatusMessage(status: string): string {
 interface UseFlowDetailDataArgs {
   flowId: string
   accessToken?: string
+}
+
+function extractSupportTags(tags: FlowTags | undefined): FlowDetailData['supportTags'] {
+  if (!tags) return undefined
+  return {
+    policyDocument: tags.supportPolicyDocument,
+    policyDocumentTitle: tags.supportPolicyDocumentTitle,
+    team: tags.supportTeam,
+    teamName: tags.supportTeamName,
+    entity: tags.supportEntity,
+    entityName: tags.supportEntityName
+  }
 }
 
 export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs): FlowDetailState {
@@ -179,11 +193,26 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
           throw new Error('No progress data found')
         }
 
+        const parsedTemplateVersion = Number(progress.templateVersion)
+        let supportTags: FlowDetailData['supportTags']
+        if (progress.templateId) {
+          try {
+            const flowTemplateClient = new FlowTemplateClient(accessToken)
+            const flowTemplate = await flowTemplateClient.getTemplate(
+              progress.templateId,
+              Number.isFinite(parsedTemplateVersion) ? parsedTemplateVersion : undefined
+            )
+            supportTags = extractSupportTags(flowTemplate.tags)
+          } catch (templateError) {
+            console.warn('Failed to load template tags for flow detail support chips:', templateError)
+          }
+        }
+
         const normalizedFlowData: FlowDetailData = {
           flowId: progress.rootWorkflowId,
           flowName: progress.rootWorkflowName || 'Unknown Workflow',
           templateId: progress.templateId,
-          templateVersion: Number.isFinite(Number(progress.templateVersion)) ? Number(progress.templateVersion) : null,
+          templateVersion: Number.isFinite(parsedTemplateVersion) ? parsedTemplateVersion : null,
           status: progress.workflowStatus,
           startTime: progress.timeInsights?.workflowStartTime || new Date().toISOString(),
           updateTime: progress.timeInsights?.lastActivityTime || new Date().toISOString(),
@@ -222,7 +251,8 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
             : undefined,
           durationMinutes: progress.timeInsights?.avgStepDurationHours
             ? progress.timeInsights.daysRunning * 24 * 60
-            : undefined
+            : undefined,
+          supportTags
         }
 
         const nextFlowSteps = Array.isArray(flowDetails?.steps)
