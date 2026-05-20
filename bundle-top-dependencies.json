@@ -41682,8 +41682,8 @@
     ]
   },
   "hr/core/apps/human-resources": {
-    "bitbucketBuildNumber": 12329,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12329/",
+    "bitbucketBuildNumber": 12342,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12342/",
     "chunkJsBytes": 2598422,
     "top": [
       {
@@ -88229,20 +88229,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12337,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12337/",
-    "chunkJsBytes": 1913581,
+    "bitbucketBuildNumber": 12342,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12342/",
+    "chunkJsBytes": 1913626,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1617072,
-        "gzip": 100675,
+        "rendered": 1617117,
+        "gzip": 100815,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1617072,
-            "gzip": 100675
+            "rendered": 1617117,
+            "gzip": 100815
           }
         ]
       },
@@ -106410,9 +106410,9 @@
     ]
   },
   "hr/core/apps/workforce-management": {
-    "bitbucketBuildNumber": 12327,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12327/",
-    "chunkJsBytes": 856631,
+    "bitbucketBuildNumber": 12342,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12342/",
+    "chunkJsBytes": 856626,
     "top": [
       {
         "kind": "bucket",
@@ -107595,9 +107595,9 @@
     ]
   },
   "hr/core/apps/onboarding-cases": {
-    "bitbucketBuildNumber": 12327,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12327/",
-    "chunkJsBytes": 254349,
+    "bitbucketBuildNumber": 12342,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12342/",
+    "chunkJsBytes": 254344,
     "top": [
       {
         "kind": "bucket",
@@ -108794,33 +108794,33 @@
     ]
   },
   "hr/core/apps/monthly-compensation-changes": {
-    "bitbucketBuildNumber": 12327,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12327/",
-    "chunkJsBytes": 365159,
+    "bitbucketBuildNumber": 12342,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12342/",
+    "chunkJsBytes": 680645,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 367057,
-        "gzip": 108114,
+        "rendered": 696901,
+        "gzip": 290370,
         "leaves": [
           {
-            "name": "node_modules/@newwork/nw-design-system/dist/components/data-toolbar/internal/components/ToolbarFilterChips.js",
-            "rendered": 28647,
-            "gzip": 5400
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/fallback/decorative-dark.jpg.js",
+            "rendered": 232900,
+            "gzip": 125445
           },
           {
-            "name": "node_modules/@newwork/nw-design-system/dist/components/date-input/DateInput.js",
-            "rendered": 11516,
-            "gzip": 3070
+            "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/decorative-dark.webp.js",
+            "rendered": 58390,
+            "gzip": 42107
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 77469,
-        "gzip": 20604,
+        "rendered": 76982,
+        "gzip": 20553,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/monthly-compensation-changes/hooks/useMonthlyCompensationChangesPageModel.tsx",
@@ -108837,12 +108837,12 @@
       {
         "kind": "bucket",
         "name": "(src)/common/dev-report",
-        "rendered": 41543,
-        "gzip": 10137,
+        "rendered": 41545,
+        "gzip": 10138,
         "leaves": [
           {
             "name": "src/common/dev-report/DevReportDot.tsx",
-            "rendered": 27349,
+            "rendered": 27351,
             "gzip": 5056
           },
           {
@@ -108975,12 +108975,12 @@
         "kind": "bucket",
         "name": "(src)/common/wrapWithLocalizationProvider.tsx",
         "rendered": 451,
-        "gzip": 254,
+        "gzip": 253,
         "leaves": [
           {
             "name": "src/common/wrapWithLocalizationProvider.tsx",
             "rendered": 451,
-            "gzip": 254
+            "gzip": 253
           }
         ]
       },
@@ -109566,7 +109566,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-20T06:38:34.110Z",
+    "generatedAt": "2026-05-20T06:49:21.460Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
