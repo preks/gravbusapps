@@ -46,6 +46,11 @@ export enum CoreFeatureIntranetValue {
   Full = 'full'
 }
 
+export enum CoreFeatureHomeModeValue {
+  Office = 'OFFICE',
+  Demo = 'DEMO'
+}
+
 export enum HCMFeatureEmployeeProfileValue {
   ReadOnly = 'read-only',
   Full = 'full',
