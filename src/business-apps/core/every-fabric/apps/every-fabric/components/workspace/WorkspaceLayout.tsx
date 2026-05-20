@@ -102,7 +102,10 @@ export const WorkspaceLayout: React.FC = () => {
     streamingGreeting,
     streamingContent,
     streamingThinking,
-    statusHeadline,
+    statusHeadline: statusHeadlineRaw,
+    liveStatusHeadline,
+    planItems,
+    agentActivityLines,
     accessToken,
     isStreaming,
     isConnected,
@@ -232,10 +235,11 @@ export const WorkspaceLayout: React.FC = () => {
   )
   const suggestedFollowUps = useMemo(() => parseFollowUps(latestFinalAnswer), [latestFinalAnswer])
 
+  // Phase 4 UX: live_status (ephemeral pill text) wins over the persisted
+  // status headline, which in turn wins over the planner's current task text.
+  const statusHeadline = liveStatusHeadline ?? statusHeadlineRaw
   const streamingStatusHeadline = useMemo(() => {
-    // Prioritize real-time status from agent (skill matching, workspace prep, etc.)
     if (statusHeadline) return statusHeadline
-    // Fallback to the first in-progress (or next pending) todo in the Plan.
     return currentTodoText ?? null
   }, [statusHeadline, currentTodoText])
   useEffect(() => {
@@ -386,6 +390,7 @@ export const WorkspaceLayout: React.FC = () => {
                     sessionId={session.session_id}
                     messages={messages}
                     statusHeadline={streamingStatusHeadline}
+                    activityLines={agentActivityLines}
                     completedCount={completedCount}
                     totalCount={totalCount}
                     progressPercent={progressPercent}
@@ -477,6 +482,8 @@ export const WorkspaceLayout: React.FC = () => {
           streamingContent={streamingContent}
           streamingThinking={streamingThinking}
           statusHeadline={statusHeadline}
+          planItems={planItems}
+          activityLines={agentActivityLines}
           isStreaming={isStreaming}
           isWaitingForInput={isWaitingForInput}
           hasFixedFollowUps={showSuggestedFollowUps}

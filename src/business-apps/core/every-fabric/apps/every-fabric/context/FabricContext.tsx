@@ -8,6 +8,7 @@ import type {
   DeepAgentSession,
   MessageAttachmentRef,
   PendingComposerAttachment,
+  PlanItem,
   ReasoningEffort,
   SessionAttachment,
   SessionConfig,
@@ -48,6 +49,10 @@ interface FabricContextValue {
   streamingContent: string
   streamingThinking: string
   statusHeadline: string | null
+  liveStatusHeadline: string | null
+  ackHeadline: string | null
+  planItems: PlanItem[]
+  agentActivityLines: string[]
   isStreaming: boolean
   isConnected: boolean
   isWaitingForInput: boolean
@@ -385,6 +390,10 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     streamingContent,
     streamingThinking,
     statusHeadline,
+    liveStatusHeadline,
+    ackHeadline,
+    planItems,
+    agentActivityLines,
     isConnected,
     isStreaming,
     isWaitingForInput,
@@ -656,6 +665,10 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       streamingContent,
       streamingThinking,
       statusHeadline,
+      liveStatusHeadline,
+      ackHeadline,
+      planItems,
+      agentActivityLines,
       isStreaming,
       isConnected,
       isWaitingForInput,
@@ -713,6 +726,10 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       streamingContent,
       streamingThinking,
       statusHeadline,
+      liveStatusHeadline,
+      ackHeadline,
+      planItems,
+      agentActivityLines,
       isStreaming,
       isConnected,
       isWaitingForInput,

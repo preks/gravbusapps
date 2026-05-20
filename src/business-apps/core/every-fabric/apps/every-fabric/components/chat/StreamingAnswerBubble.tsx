@@ -1,8 +1,10 @@
 import * as React from 'react'
 import { StreamingMarkdown } from '@/common/components/markdown/StreamingMarkdown'
-import type { EnterprisePresentationMode } from '../../types/enterpriseAgent'
+import type { EnterprisePresentationMode, PlanItem } from '../../types/enterpriseAgent'
 import { ElegantStatusIndicator } from './ElegantStatusIndicator'
 import { AgentThinkingStream } from './AgentThinkingStream'
+import { AgentPlanReveal } from './AgentPlanReveal'
+import { StreamingPreviewBubble } from './StreamingPreviewBubble'
 import { useAnimatedGreeting } from './useAnimatedGreeting'
 
 interface StreamingAnswerBubbleProps {
@@ -11,6 +13,8 @@ interface StreamingAnswerBubbleProps {
   thinkingContent: string
   isStreaming: boolean
   statusMessage?: string | null
+  planItems?: PlanItem[]
+  activityLines?: readonly string[]
   presentationMode?: EnterprisePresentationMode
 }
 
@@ -53,6 +57,8 @@ interface StreamingAnswerContentProps {
   thinkingContent: string
   isStreaming: boolean
   statusMessage?: string | null
+  planItems?: PlanItem[]
+  activityLines?: readonly string[]
   presentationMode: EnterprisePresentationMode
 }
 
@@ -64,10 +70,20 @@ const StreamingAnswerContent: React.FC<StreamingAnswerContentProps> = ({
   thinkingContent,
   isStreaming,
   statusMessage,
+  planItems,
+  activityLines,
   presentationMode
 }) => {
   const streamingVariant = getStreamingVariant(presentationMode)
   const responseSpacingClass = getResponseSpacingClass(presentationMode, Boolean(greetingContent))
+  // The plan card only renders when the agent has actually produced a
+  // checklist; the static template ack ("Working on this. I'll draw on …")
+  // is no longer surfaced as a primary block — the activity ticker
+  // (StreamingPreviewBubble) and ElegantStatusIndicator carry that signal.
+  const hasPlanContent = Boolean(planItems && planItems.length > 0)
+  // Once the final answer is clearly streaming, collapse the plan reveal
+  // card to a thin recap line so the user's eyes land on the actual answer.
+  const isPlanCollapsing = Boolean(responseContent && responseContent.length > 40)
 
   return (
     <div className="gba:relative">
@@ -86,6 +102,8 @@ const StreamingAnswerContent: React.FC<StreamingAnswerContentProps> = ({
       ) : null}
       {thinkingContent ? <AgentThinkingStream thinkingText={thinkingContent} isStreaming={isStreaming} /> : null}
       {isStreaming ? <ElegantStatusIndicator statusText={statusMessage || 'Processing your request...'} /> : null}
+      <StreamingPreviewBubble activityLines={activityLines} isStreaming={isStreaming} />
+      {hasPlanContent ? <AgentPlanReveal items={planItems ?? []} isCollapsing={isPlanCollapsing} /> : null}
       {responseContent ? (
         <div className={responseSpacingClass}>
           <StreamingMarkdown content={responseContent} isStreaming={isStreaming} variant={streamingVariant} />
@@ -101,13 +119,22 @@ export const StreamingAnswerBubble: React.FC<StreamingAnswerBubbleProps> = ({
   thinkingContent,
   isStreaming,
   statusMessage,
+  planItems,
+  activityLines,
   presentationMode = 'default'
 }) => {
   const { animatedGreetingContent, isGreetingAnimating } = useAnimatedGreeting(greetingContent)
 
   if (!greetingContent && !responseContent && !isStreaming) return null
 
-  const hasVisibleContent = Boolean(greetingContent || responseContent || statusMessage || isStreaming)
+  const hasVisibleContent = Boolean(
+    greetingContent ||
+      responseContent ||
+      statusMessage ||
+      (planItems && planItems.length > 0) ||
+      (activityLines && activityLines.length > 0) ||
+      isStreaming
+  )
 
   return (
     <div
@@ -147,6 +174,8 @@ export const StreamingAnswerBubble: React.FC<StreamingAnswerBubbleProps> = ({
             thinkingContent={thinkingContent}
             isStreaming={isStreaming}
             statusMessage={statusMessage}
+            planItems={planItems}
+            activityLines={activityLines}
             presentationMode={presentationMode}
           />
         ) : (

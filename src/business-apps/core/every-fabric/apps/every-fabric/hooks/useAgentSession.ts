@@ -5,6 +5,8 @@ import type {
   ChatMessage,
   DeepAgentSession,
   MessageAttachmentRef,
+  PlanItem,
+  PlanItemStatus,
   SessionConfig,
   SkillLoadedEvent,
   StartSessionResponse
@@ -209,6 +211,58 @@ const looksLikeInternalErrorLeak = (content: string): boolean => {
 function sessionTraceOrEmpty(mergedSession: DeepAgentSession | null | undefined): AgentStreamEvent[] {
   return mergedSession?.trace ?? []
 }
+
+const humanizeActivityIdentifier = (raw: string): string => {
+  const trimmed = raw.trim().replace(/^newwork[_-]/i, '')
+  if (!trimmed) return raw.trim()
+  const spaced = trimmed
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!spaced) return raw.trim()
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
+const findTurnStartEpoch = (events: AgentStreamEvent[]): number => {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const e = events[i]
+    if (e.type === 'agent_chunk' && e.role === 'human') return toEpoch(e.timestamp)
+  }
+  return 0
+}
+
+const isResponseStreamStart = (e: AgentStreamEvent): boolean =>
+  e.type === 'agent_chunk' && e.role === 'ai' && e.chunk_kind === 'response_stream'
+
+const stepStartedActivityText = (e: AgentStreamEvent): string | null => {
+  if (e.type !== 'step_started') return null
+  const stepType = (e as { step_type?: string }).step_type
+  if (stepType === 'thinking') return 'Thinking through the next step'
+  const name = (e as { name?: string }).name
+  if (!name) return null
+  const friendly = humanizeActivityIdentifier(name)
+  return stepType === 'subagent' ? `Delegating to ${friendly}` : `Calling ${friendly}`
+}
+
+const eventActivityText = (e: AgentStreamEvent): string | null => {
+  if (e.type === 'agent_chunk' && (e.chunk_kind === 'status' || e.chunk_kind === 'live_status')) {
+    return e.content ?? null
+  }
+  if (e.type === 'step_started') return stepStartedActivityText(e)
+  if (e.type === 'expert_called') {
+    const name = (e as { name?: string; expert_name?: string }).expert_name ?? (e as { name?: string }).name
+    return name ? `Consulting ${humanizeActivityIdentifier(name)}` : null
+  }
+  if (e.type === 'decision') {
+    const title = (e as { title?: string }).title
+    return title ?? null
+  }
+  return null
+}
+
+const isTerminalSessionStatus = (status: DeepAgentSession['status'] | undefined): boolean =>
+  status === 'completed' || status === 'failed' || status === 'cancelled'
 
 function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string | null {
   const responseSnapshots = events
@@ -660,6 +714,179 @@ export const useAgentSession = (
     return null
   }, [events, mergedSession?.status])
 
+  // Phase 4 UX: live_status pill text (ephemeral, takes precedence over
+  // statusHeadline). Only counts events within the last 5 seconds so a stale
+  // "Calling X..." pill doesn't outlive the tool call itself.
+  const liveStatusHeadline = useMemo(() => {
+    if (
+      mergedSession?.status === 'completed' ||
+      mergedSession?.status === 'failed' ||
+      mergedSession?.status === 'cancelled'
+    ) {
+      return null
+    }
+
+    if (!events || events.length === 0) return null
+
+    const cutoff = Date.now() - 5000
+    const liveEvents = events
+      .filter((e): e is AgentChunkEvent => e.type === 'agent_chunk' && e.chunk_kind === 'live_status')
+      .filter(e => toEpoch(e.timestamp) >= cutoff)
+      .sort((a, b) => toEpoch(b.timestamp) - toEpoch(a.timestamp))
+
+    if (liveEvents.length > 0) {
+      return liveEvents[0].content.replace(/🔄\s*/, '')
+    }
+
+    return null
+  }, [events, mergedSession?.status])
+
+  // Composed display value — live_status wins when present, otherwise fall
+  // back to the existing persisted status headline.
+  const displayStatus = liveStatusHeadline ?? statusHeadline
+
+  // Phase 4+ UX: grounded reveal hook state.
+  // ack: the single template-built acknowledgement line emitted right after
+  // the router decides. Cleared when the session reaches a terminal state.
+  const ackHeadline = useMemo(() => {
+    if (
+      mergedSession?.status === 'completed' ||
+      mergedSession?.status === 'failed' ||
+      mergedSession?.status === 'cancelled'
+    ) {
+      return null
+    }
+    if (!events || events.length === 0) return null
+    const ackEvents = events
+      .filter((e): e is AgentChunkEvent => e.type === 'agent_chunk' && e.chunk_kind === 'ack')
+      .sort((a, b) => toEpoch(b.timestamp) - toEpoch(a.timestamp))
+    return ackEvents[0]?.content?.trim() || null
+  }, [events, mergedSession?.status])
+
+  // planItems: the agent's checklist. Source-of-truth precedence:
+  //   1. mergedSession.todos (authoritative; populated via REST refresh +
+  //      SSE write_todos/update_todos events). This is what the right
+  //      panel and bottom activity card already use, and it carries the
+  //      agent's rich descriptions and live status transitions.
+  //   2. Latest plan_reveal / plan_update SSE chunk (only useful in the
+  //      brief 0..3 second window before the agent has written its first
+  //      checklist - acts as an "initial sketch" placeholder).
+  const planItems = useMemo<PlanItem[]>(() => {
+    if (
+      mergedSession?.status === 'completed' ||
+      mergedSession?.status === 'failed' ||
+      mergedSession?.status === 'cancelled'
+    ) {
+      return []
+    }
+
+    const normalizeStatus = (raw: unknown): PlanItemStatus => {
+      const source = typeof raw === 'string' ? raw : 'pending'
+      const s = source.toLowerCase().replace(/[-\s]/g, '_')
+      if (s === 'in_progress' || s === 'inprogress' || s === 'active' || s === 'running') return 'in_progress'
+      if (s === 'done' || s === 'completed' || s === 'finished') return 'done'
+      if (s === 'failed' || s === 'error') return 'failed'
+      if (s === 'skipped' || s === 'cancelled') return 'skipped'
+      return 'pending'
+    }
+
+    const sessionTodos = mergedSession?.todos as unknown as
+      | Array<{ id?: string; text?: string; description?: string; content?: string; status?: string }>
+      | undefined
+    if (Array.isArray(sessionTodos) && sessionTodos.length > 0) {
+      const fromTodos = sessionTodos
+        .map((t, idx) => {
+          const label = String(t?.text || t?.description || t?.content || '').trim()
+          if (!label) return null
+          return {
+            id: String(t?.id || `todo-${idx + 1}`),
+            label,
+            status: normalizeStatus(t?.status)
+          }
+        })
+        .filter((x): x is PlanItem => x !== null)
+      if (fromTodos.length > 0) return fromTodos
+    }
+
+    if (!events || events.length === 0) return []
+    const planEvents = events
+      .filter(
+        (e): e is AgentChunkEvent =>
+          e.type === 'agent_chunk' && (e.chunk_kind === 'plan_reveal' || e.chunk_kind === 'plan_update')
+      )
+      .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
+    const latest = planEvents[planEvents.length - 1]
+    const rawItems = latest?.metadata?.items as
+      | Array<{ id?: string; label?: string; text?: string; status?: string }>
+      | undefined
+    if (!Array.isArray(rawItems)) return []
+    return rawItems
+      .map((it, idx) => {
+        const label = String(it?.label || it?.text || '').trim()
+        if (!label) return null
+        return {
+          id: String(it?.id || `plan-${idx + 1}`),
+          label,
+          status: normalizeStatus(it?.status)
+        }
+      })
+      .filter((x): x is PlanItem => x !== null)
+  }, [events, mergedSession?.status, mergedSession?.todos])
+
+  // Phase 4+ TTFT UX: agentActivityLines — a flowing 3-line "what the agent
+  // is doing right now" ticker derived ENTIRELY from real-time signals the
+  // backend already emits (no extra LLM call). Sources for the CURRENT turn:
+  //   - chunk_kind="status"      (progressive milestones from background.py)
+  //   - chunk_kind="live_status" (throttled real-time tool/expert pill text)
+  //   - step_started events      (humanised tool / subagent / thinking start)
+  //   - decision events          (router / pack / capability decisions)
+  // Consecutive duplicates are collapsed. The newest line is at the end of
+  // the array so the consumer can render them as a slide-up stack. Suppressed
+  // entirely once the real response_stream begins for this turn so the
+  // bubble can animate out before the answer renders.
+  const agentActivityLines = useMemo<string[]>(() => {
+    if (isTerminalSessionStatus(mergedSession?.status)) return []
+    if (!events || events.length === 0) return []
+
+    const turnStartEpoch = findTurnStartEpoch(events)
+    const rows: Array<{ ts: number; text: string }> = []
+    let firstResponseEpoch = Number.POSITIVE_INFINITY
+
+    // NOTE: do NOT treat `final` as response-start. The deterministic
+    // instant ack greeting ("Hi Ed, working on this now…") is emitted
+    // 4ms after the human chunk as chunk_kind="final" — using it to
+    // suppress would kill the ticker before the first status arrives.
+    // Only the real `response_stream` should end the ticker.
+    for (const e of events) {
+      const tsRaw = (e as { timestamp?: string }).timestamp
+      const ts = typeof tsRaw === 'string' ? toEpoch(tsRaw) : 0
+      if (ts < turnStartEpoch) continue
+
+      if (isResponseStreamStart(e)) {
+        if (ts < firstResponseEpoch) firstResponseEpoch = ts
+        continue
+      }
+
+      const text = eventActivityText(e)?.trim()
+      if (!text || looksLikeInternalErrorLeak(text)) continue
+      rows.push({ ts, text })
+    }
+
+    if (firstResponseEpoch !== Number.POSITIVE_INFINITY) return []
+
+    rows.sort((a, b) => a.ts - b.ts)
+
+    // Collapse consecutive duplicates so a noisy emitter does not flood the
+    // ticker with the same line.
+    const deduped: string[] = []
+    for (const row of rows) {
+      if (deduped[deduped.length - 1] === row.text) continue
+      deduped.push(row.text)
+    }
+
+    return deduped.slice(-3)
+  }, [events, mergedSession?.status])
+
   const startSession = useCallback(
     async (
       task: string,
@@ -750,6 +977,11 @@ export const useAgentSession = (
     streamingContent,
     streamingThinking,
     statusHeadline,
+    liveStatusHeadline,
+    displayStatus,
+    ackHeadline,
+    planItems,
+    agentActivityLines,
     isConnected,
     isStreaming:
       isAgentRunning || (!!mergedSession && (mergedSession.status === 'running' || mergedSession.status === 'pending')),

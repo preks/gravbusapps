@@ -222,7 +222,7 @@ const LandingFabricInput = ({
 }: LandingInputLayoutProps) => (
   <div className="gba:w-full" data-testid="fabric-input-landing">
     <HiddenFileInput fileInputRef={fileInputRef} handleFileChange={handleFileChange} />
-    <div className="gba:rounded-4xl gba:border gba:border-foreground/15 gba:bg-white gba:overflow-hidden gba:shadow-[0_12px_32px_rgba(15,23,42,0.05)] gba:transition-shadow gba:focus-within:border-foreground/20 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
+    <div className="gba:rounded-4xl gba:border gba:border-input gba:bg-white gba:overflow-hidden gba:shadow-[0_12px_32px_rgba(15,23,42,0.05)] gba:transition-shadow gba:focus-within:border-ring gba:focus-within:ring-1 gba:focus-within:ring-ring/20">
       <Textarea
         ref={textareaRef}
         value={value}
@@ -294,7 +294,7 @@ const WorkspaceFabricInput = ({
 }: WorkspaceInputLayoutProps) => (
   <div className="gba:w-full" data-testid="fabric-input-workspace">
     <HiddenFileInput fileInputRef={fileInputRef} handleFileChange={handleFileChange} />
-    <div className="gba:rounded-[1.75rem] gba:border gba:border-foreground/15 gba:bg-white gba:overflow-hidden gba:shadow-[0_6px_18px_rgba(15,23,42,0.035)] gba:transition-all gba:focus-within:border-foreground/20 gba:focus-within:ring-1 gba:focus-within:ring-foreground/5">
+    <div className="gba:rounded-[1.75rem] gba:border gba:border-input gba:bg-white gba:overflow-hidden gba:shadow-[0_6px_18px_rgba(15,23,42,0.035)] gba:transition-all gba:focus-within:border-ring gba:focus-within:ring-1 gba:focus-within:ring-ring/20">
       <Textarea
         ref={textareaRef}
         value={value}

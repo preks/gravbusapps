@@ -69,7 +69,7 @@ function activityFromAgentChunk(
       tool_name: toolName
     }
   }
-  if (chunkKind === 'status' && content) {
+  if ((chunkKind === 'status' || chunkKind === 'live_status') && content) {
     return {
       step: 'thinking',
       label: content.slice(0, 200),

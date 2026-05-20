@@ -12,13 +12,48 @@ import type {
   ChatMessageType,
   DeepAgentSession,
   MessageAttachmentRef,
-  SessionAttachment
+  SessionAttachment,
+  StructuredInputRequestEvent
 } from '../types/enterpriseAgent'
 import { resolveRendererType } from '../types/fabric'
 import { extractLatestTodosFromEvents, isTodoListToolName } from './fabricTodoStream'
 import { humanizeSkillId } from './skillUtils'
 
 export const FABRIC_LIVE_PLAN_MESSAGE_ID = 'fabric-live-plan'
+
+/**
+ * Build a clean one-line preview from an expert sub-agent's `output` field.
+ *
+ * Expert outputs frequently contain raw HTML (e.g. an email draft like
+ * `Subject: Welcome aboard\nHTML body:\n<p>Hi John...</p>`), embedded JSON
+ * envelopes, or other markup that reads as garbage in a single-line preview.
+ * We strip tags and collapse whitespace so the preview line shows readable
+ * text instead of literal angle brackets / line-break artifacts.
+ *
+ * This is preview-only — the full card branch (`output` rendered via
+ * `MarkdownWithChipsRenderer`) still gets the original payload.
+ */
+// Cap the input we run regex sanitization over to keep the work bounded and
+// avoid any pathological backtracking / DoS risk on very large strings.
+const SUMMARIZE_MAX_INPUT_CHARS = 4000
+
+const summarizeExpertOutput = (output: unknown, maxChars = 120): string | undefined => {
+  if (typeof output !== 'string') return undefined
+  const bounded = output.length > SUMMARIZE_MAX_INPUT_CHARS ? output.slice(0, SUMMARIZE_MAX_INPUT_CHARS) : output
+  const stripped = bounded
+    .replace(/<\/?(?:br|p|div|li|tr)\b[^>]{0,200}>/gi, ' ') // block-ish tags -> space
+    .replace(/<[^>]{1,200}>/g, '') // remaining tags -> nothing
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!stripped) return undefined
+  return stripped.length > maxChars ? `${stripped.slice(0, maxChars - 1).trimEnd()}…` : stripped
+}
 
 const terminalQuestion = (output: unknown, humanQuestion?: string | null): string => {
   if (typeof humanQuestion === 'string' && humanQuestion.trim()) return humanQuestion
@@ -130,6 +165,19 @@ const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
   }
 
   if (chunk.chunk_kind === 'response_stream') {
+    return null
+  }
+
+  // Phase 4 UX: live_status events feed the pill via liveStatusHeadline only.
+  // They must NOT enter the messages array (no transcript bubble, no stacking).
+  if (chunk.chunk_kind === 'live_status') {
+    return null
+  }
+
+  // Phase 4+ UX: ack / plan_reveal / plan_update feed the grounded plan
+  // reveal card via dedicated hook memos. None of these should enter the
+  // messages array (no transcript bubble, no row in lists).
+  if (chunk.chunk_kind === 'ack' || chunk.chunk_kind === 'plan_reveal' || chunk.chunk_kind === 'plan_update') {
     return null
   }
 
@@ -447,7 +495,7 @@ export function eventToMessage(
           task: event.task_summary ?? agentName,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
-          outputPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
+          outputPreview: summarizeExpertOutput(completed?.output)
         }
       }
     }
@@ -464,7 +512,7 @@ export function eventToMessage(
           task: event.task_summary ?? agentName,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
-          outputPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
+          outputPreview: summarizeExpertOutput(completed?.output)
         }
       }
     }
@@ -489,6 +537,13 @@ export function eventToMessage(
           timestamp: event.timestamp,
           presentationMode: event.presentation_mode,
           content: {
+            // Spread the full backend payload first so form-specific extras
+            // (e.g. `email_draft` / `email_accounts` for compose_email,
+            // `action_requests` / `review_configs` for tool_permission) are
+            // preserved. Without this the EmailComposerBubble would fall back
+            // to the generic StructuredInputForm (empty fields → useless
+            // Submit button) because `email_draft` was being dropped.
+            ...payload,
             type: 'structured_input_request',
             seq: event.seq,
             event_id: event.event_id,
@@ -500,7 +555,7 @@ export function eventToMessage(
             allow_partial_submit: Boolean(payload.allow_partial_submit),
             tool_ref: typeof payload.tool_ref === 'string' ? payload.tool_ref : undefined,
             request_status: event.request.status === 'pending' ? undefined : event.request.status
-          }
+          } as unknown as StructuredInputRequestEvent
         }
       }
       return {
@@ -573,10 +628,31 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
   const messages: ChatMessage[] = []
   const sortedEvents = sortAgentEventsBySeq(events)
   const stepCompletions = collectStepCompletions(sortedEvents)
+
+  // Backend emits HITL pauses twice: once as an explicit `hitl_requested`
+  // (or `structured_input_request`) event, and again as a `terminal` event
+  // with `status: 'waiting_for_human'`. Both have distinct event_ids, so
+  // dedupe-by-id can't catch them and the chat renders two identical
+  // "Agent has a question" bubbles. When an explicit HITL event exists in
+  // the same stream, suppress the terminal-derived HITL bubble — the
+  // explicit event carries richer info (title, description, fields).
+  const hasExplicitHitlEvent = sortedEvents.some(
+    e => e.type === 'hitl_requested' || e.type === 'structured_input_request'
+  )
+
+  // Same logical expert (same agent + same task) may be spawned several times
+  // (e.g. retries across HITL turns) with different `step_id`s, producing
+  // distinct messages that the user perceives as duplicates — and some of
+  // those spawns never receive a matching completion, leaving spinners spinning
+  // forever. We keep only the first occurrence and merge subsequent spawns'
+  // status into it so the richest outcome wins.
   const expertCallIndexByKey = new Map<string, number>()
   const shownArtifactKeys = new Set<string>()
 
   for (const event of sortedEvents) {
+    if (event.type === 'terminal' && event.status === 'waiting_for_human' && hasExplicitHitlEvent) {
+      continue
+    }
     const message = eventToMessage(event, stepCompletions, shownArtifactKeys)
     if (!message || seenIds.has(message.id)) continue
     if (dedupeExpertCall(message, messages, expertCallIndexByKey, seenIds)) continue

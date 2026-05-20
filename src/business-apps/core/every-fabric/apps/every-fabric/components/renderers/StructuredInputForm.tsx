@@ -48,8 +48,34 @@ interface FieldState {
   error?: string
 }
 
+/**
+ * Coerce the polymorphic options shape coming from the backend
+ * (string | {label, value}) into a stable {label, value} pair so the
+ * dropdown renders consistently. Plain strings are duplicated into both
+ * fields. Falsy items are dropped.
+ */
+const pickOptionField = (obj: { label?: unknown; value?: unknown }, preferred: 'label' | 'value'): string => {
+  const primary = obj[preferred]
+  if (typeof primary === 'string' && primary) return primary
+  const fallback = preferred === 'label' ? obj.value : obj.label
+  if (typeof fallback === 'string') return fallback
+  return ''
+}
+
+const toOption = (raw: unknown): { label: string; value: string } | null => {
+  if (typeof raw === 'string') {
+    return raw ? { label: raw, value: raw } : null
+  }
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as { label?: unknown; value?: unknown }
+  const label = pickOptionField(o, 'label')
+  const value = pickOptionField(o, 'value')
+  if (!label || !value) return null
+  return { label, value }
+}
+
 interface MultiselectOptionProps {
-  opt: string
+  opt: { label: string; value: string }
   fieldId: string
   stateValue: unknown
   isSubmitting: boolean
@@ -57,10 +83,10 @@ interface MultiselectOptionProps {
 }
 
 const MultiselectOptionRow: FC<MultiselectOptionProps> = ({ opt, fieldId, stateValue, isSubmitting, updateField }) => {
-  const selected = Array.isArray(stateValue) && stateValue.includes(opt)
+  const selected = Array.isArray(stateValue) && stateValue.includes(opt.value)
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const current = Array.isArray(stateValue) ? stateValue : []
-    const updated = e.target.checked ? [...current, opt] : current.filter(v => v !== opt)
+    const updated = e.target.checked ? [...current, opt.value] : current.filter(v => v !== opt.value)
     updateField(fieldId, updated)
   }
   return (
@@ -72,7 +98,7 @@ const MultiselectOptionRow: FC<MultiselectOptionProps> = ({ opt, fieldId, stateV
         disabled={isSubmitting}
         className="gba:h-4 gba:w-4"
       />
-      <span className="gba:text-sm gba:text-foreground">{opt}</span>
+      <span className="gba:text-sm gba:text-foreground">{opt.label}</span>
     </label>
   )
 }
@@ -287,27 +313,33 @@ export const StructuredInputForm = ({
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {field.options?.map(opt => (
-                    <SelectItem key={opt} value={opt}>
-                      {opt}
-                    </SelectItem>
-                  ))}
+                  {field.options
+                    ?.map(toOption)
+                    .filter((o): o is { label: string; value: string } => o !== null)
+                    .map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             )}
 
             {field.field_type === 'multiselect' && (
               <div className="gba:space-y-2">
-                {field.options?.map(opt => (
-                  <MultiselectOptionRow
-                    key={opt}
-                    opt={opt}
-                    fieldId={field.field_id}
-                    stateValue={state.value}
-                    isSubmitting={readOnly}
-                    updateField={updateField}
-                  />
-                ))}
+                {field.options
+                  ?.map(toOption)
+                  .filter((o): o is { label: string; value: string } => o !== null)
+                  .map(opt => (
+                    <MultiselectOptionRow
+                      key={opt.value}
+                      opt={opt}
+                      fieldId={field.field_id}
+                      stateValue={state.value}
+                      isSubmitting={readOnly}
+                      updateField={updateField}
+                    />
+                  ))}
               </div>
             )}
 

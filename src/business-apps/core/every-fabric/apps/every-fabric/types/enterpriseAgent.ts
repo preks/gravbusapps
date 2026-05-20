@@ -84,7 +84,25 @@ export interface TodoItem {
   duration_ms?: number
 }
 
-export type AgentStreamChunkKind = 'thinking' | 'final' | 'tool' | 'status' | 'response_stream' | 'agent_reasoning'
+export type AgentStreamChunkKind =
+  | 'thinking'
+  | 'final'
+  | 'tool'
+  | 'status'
+  | 'live_status'
+  | 'response_stream'
+  | 'agent_reasoning'
+  | 'ack'
+  | 'plan_reveal'
+  | 'plan_update'
+
+export type PlanItemStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'skipped'
+
+export interface PlanItem {
+  id: string
+  label: string
+  status: PlanItemStatus
+}
 
 export interface AgentChunkEvent {
   type: 'agent_chunk'
@@ -310,7 +328,11 @@ export interface InputFieldSchema {
   description?: string
   required: boolean
   default_value?: any
-  options?: string[]
+  // Backend now normalises options to {label, value} objects, but older
+  // sessions / hand-crafted forms may still send plain strings, so we accept
+  // both. Use the helper `normalizeFieldOptions` from messageUtils to coerce
+  // to a single shape before rendering.
+  options?: Array<string | { label: string; value: string }>
   placeholder?: string
   ai_generated?: boolean
   validation_pattern?: string
