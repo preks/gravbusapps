@@ -134,7 +134,7 @@ export function mapAgentSpec(spec: AgentSpec): PromptODM {
     agent_type: spec.agentType,
     system_content: spec.systemPrompt ? { template: spec.systemPrompt, parameters: [] } : null,
     user_content: { template: spec.userPromptTemplate ?? '', parameters: [] },
-    tools: Array.isArray(spec.tools) ? spec.tools.join(',') : '',
+    tools: spec.tools,
     model: { id: spec.modelId ?? '', collection: '' },
     version: 1,
     workspace: { id: '', collection: '' },
