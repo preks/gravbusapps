@@ -291,7 +291,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
   }
 
   const handleEmployeeClick = (employeeId: string) => {
-    navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }))
+    navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId }))
   }
 
   const renderContent = () => {
@@ -357,7 +357,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
             date: `${t('activities-timelineOccurred')}: ${dayjs(activity.occurredAt).format('MMM D, YYYY h:mm A')}`,
             actor: activity.ownerEmployee ? (
               <a
-                href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
+                href={buildPlatformUrl('/platform/employee-record', {
                   employeeId: activity.ownerEmployee.id
                 })}
                 onClick={e => {

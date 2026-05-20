@@ -153,7 +153,7 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
   }
 
   const handleEmployeeClick = (employeeId: string) => {
-    navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }))
+    navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId }))
   }
 
   return (
@@ -205,7 +205,7 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
                     ...(investmentId && { investmentId })
                   }
                   let toBuild: Record<string, any> = flat
-                  if (props.preSubmit && flat._pendingFiles?.length) {
+                  if (props.preSubmit) {
                     toBuild = await props.preSubmit(flat)
                   }
                   const payload = buildNotePayload ? buildNotePayload(toBuild) : toBuild
@@ -266,7 +266,7 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
                   <UserIcon size={12} />
                   {note.authorEmployee?.id && getAuthorName(note.authorEmployee) ? (
                     <a
-                      href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
+                      href={buildPlatformUrl('/platform/employee-record', {
                         employeeId: note.authorEmployee.id
                       })}
                       onClick={e => {
