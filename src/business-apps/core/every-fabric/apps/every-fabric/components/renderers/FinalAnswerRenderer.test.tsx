@@ -22,11 +22,6 @@ jest.mock('@/common/components/markdown/MarkdownWithChipsRenderer', () => ({
   }
 }))
 
-jest.mock('../artifacts/HtmlPreviewCard', () => ({
-  __esModule: true,
-  default: () => <div data-testid="html-preview-card" />
-}))
-
 jest.mock('@phosphor-icons/react', () => {
   const Stub = (props: any) => <span {...props} />
   return new Proxy(

@@ -96,14 +96,22 @@ export function parseChartConfig(content: Record<string, unknown>): SingleChartC
   if (!chartType || !Array.isArray(data) || data.length === 0) return null
   if (!validTypes.includes(chartType)) return null
 
+  const providedKeys = source.dataKeys as string[] | undefined
+  let dataKeys = Array.isArray(providedKeys) && providedKeys.length > 0 ? [...providedKeys] : ['value']
+  const firstRow = data[0]
+  if (firstRow && !dataKeys.some(key => key in firstRow)) {
+    const inferred = Object.keys(firstRow).filter(key => key !== 'name' && typeof firstRow[key] === 'number')
+    if (inferred.length > 0) dataKeys = inferred
+  }
+
   return {
     chartType: chartType as SingleChartConfig['chartType'],
     data,
     title: (content.title ?? source.title) as string | undefined,
     xAxisKey: (source.xAxisKey as string) ?? 'name',
-    yAxisKey: (source.yAxisKey as string) ?? 'value',
+    yAxisKey: (source.yAxisKey as string) ?? dataKeys[0] ?? 'value',
     colors: (source.colors as string[]) ?? DEFAULT_COLORS,
-    dataKeys: (source.dataKeys as string[]) ?? ['value'],
+    dataKeys,
     yAxisUnit: source.yAxisUnit as string | undefined,
     gradientFill: source.gradientFill as boolean | undefined
   }

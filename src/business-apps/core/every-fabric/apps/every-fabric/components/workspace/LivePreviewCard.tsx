@@ -17,8 +17,38 @@ import { SlideCanvasMiniPreview, SlideThumbnailGrid, useContainerWidth, type Sli
 import { ChartPreview } from './ChartPreview'
 import { DraftSlidesPreview } from './DraftPreviewCard'
 import { DocumentCanvasSurface } from './DocumentCanvasSurface'
+import { AutoHeightHtmlIframe } from '../artifacts/AutoHeightHtmlIframe'
+import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 
 const SLIDE_FALLBACK_WIDTH = 400
+
+function buildTimelineArtifactUrl(sessionId: string, artifactPath: string): string {
+  const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
+  return `${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/artifacts/${encodeURIComponent(artifactPath)}`
+}
+
+const TimelineHtmlPreview: React.FC<{
+  preview: ArtifactPreview
+  sessionId: string
+  headerExtra?: React.ReactNode
+}> = ({ preview, sessionId, headerExtra }) => {
+  const path = typeof preview.content?.path === 'string' ? preview.content.path : ''
+  if (!path || !sessionId) {
+    return (
+      <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
+        <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">Timeline path unavailable.</p>
+      </PanelCard>
+    )
+  }
+  const src = buildTimelineArtifactUrl(sessionId, path)
+  return (
+    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
+      <div className="gba:p-2">
+        <AutoHeightHtmlIframe src={src} title={preview.title || path} artifactName={path} />
+      </div>
+    </PanelCard>
+  )
+}
 
 interface MaximizeToggleProps {
   isMaximized: boolean
@@ -386,7 +416,9 @@ interface SlideCarouselState {
 function renderGenerating(
   preview: ArtifactPreview,
   carousel: SlideCarouselState,
-  headerExtra?: React.ReactNode
+  headerExtra?: React.ReactNode,
+  sessionId = '',
+  accessToken = ''
 ): React.ReactElement {
   if (preview.artifactType === 'slides') {
     return (
@@ -399,8 +431,11 @@ function renderGenerating(
       />
     )
   }
-  if (preview.artifactType === 'chart' && preview.content?.chartType) {
-    return <ChartPreview preview={preview} />
+  if (preview.artifactType === 'html') {
+    return <TimelineHtmlPreview preview={preview} sessionId={sessionId} headerExtra={headerExtra} />
+  }
+  if (preview.artifactType === 'chart') {
+    return <ChartPreview preview={preview} sessionId={sessionId} accessToken={accessToken} />
   }
   return <GeneratingSpinner preview={preview} headerExtra={headerExtra} />
 }
@@ -426,13 +461,21 @@ function renderDraftReady(
   return null
 }
 
-function renderReady(preview: ArtifactPreview, headerExtra?: React.ReactNode): React.ReactElement | null {
-  if (!preview.content) return null
-  if (preview.artifactType === 'slides' && Array.isArray(preview.content.slides)) {
+function renderReady(
+  preview: ArtifactPreview,
+  headerExtra?: React.ReactNode,
+  sessionId = '',
+  accessToken = ''
+): React.ReactElement | null {
+  if (!preview.content && preview.artifactType !== 'chart') return null
+  if (preview.artifactType === 'slides' && Array.isArray(preview.content?.slides)) {
     return <SlidesPreview preview={preview} slides={preview.content.slides as SlideData[]} headerExtra={headerExtra} />
   }
+  if (preview.artifactType === 'html') {
+    return <TimelineHtmlPreview preview={preview} sessionId={sessionId} headerExtra={headerExtra} />
+  }
   if (preview.artifactType === 'chart') {
-    return <ChartPreview preview={preview} />
+    return <ChartPreview preview={preview} sessionId={sessionId} accessToken={accessToken} />
   }
   return null
 }
@@ -485,7 +528,7 @@ export const LivePreviewCard: React.FC<LivePreviewCardProps> = ({
   const carousel: SlideCarouselState = { currentSlide, setCurrentSlide: updateSlide, userOverrideRef }
 
   if (preview.status === 'generating') {
-    return renderGenerating(preview, carousel, maximizeToggle)
+    return renderGenerating(preview, carousel, maximizeToggle, sessionId, accessToken)
   }
 
   if (preview.status === 'draft_ready' && preview.content) {
@@ -493,7 +536,7 @@ export const LivePreviewCard: React.FC<LivePreviewCardProps> = ({
   }
 
   if (preview.status === 'ready') {
-    return renderReady(preview, maximizeToggle)
+    return renderReady(preview, maximizeToggle, sessionId, accessToken)
   }
 
   return null

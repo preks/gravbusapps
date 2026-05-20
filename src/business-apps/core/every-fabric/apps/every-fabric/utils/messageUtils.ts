@@ -145,7 +145,7 @@ const toArtifactRefsFromMeta = (
     path: artifact.path || artifact.name,
     mime_type: artifact.mime_type ?? '',
     size: artifact.size ?? 0,
-    rendererType: resolveRendererType(artifact.mime_type, artifact.name)
+    rendererType: resolveRendererType(artifact.mime_type, artifact.path || artifact.name)
   }))
 
 const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
@@ -640,12 +640,6 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
     e => e.type === 'hitl_requested' || e.type === 'structured_input_request'
   )
 
-  // Same logical expert (same agent + same task) may be spawned several times
-  // (e.g. retries across HITL turns) with different `step_id`s, producing
-  // distinct messages that the user perceives as duplicates — and some of
-  // those spawns never receive a matching completion, leaving spinners spinning
-  // forever. We keep only the first occurrence and merge subsequent spawns'
-  // status into it so the richest outcome wins.
   const expertCallIndexByKey = new Map<string, number>()
   const shownArtifactKeys = new Set<string>()
 

@@ -3,9 +3,25 @@ import type { AgentStreamEvent, ArtifactPreviewEvent } from '../types/enterprise
 
 export type PreviewStatus = 'idle' | 'generating' | 'draft_ready' | 'ready' | 'error'
 
+/** SSE may send MIME strings from older backends; normalize to UI artifact types. */
+function normalizePreviewArtifactType(raw: string, pathHint = ''): ArtifactPreview['artifactType'] {
+  const lowered = raw.toLowerCase()
+  const path = pathHint.toLowerCase()
+  if (path.endsWith('.timeline.html') || lowered === 'html' || lowered.includes('text/html')) {
+    return 'html'
+  }
+  if (lowered === 'chart' || lowered === 'slides' || lowered === 'document' || lowered === 'note') {
+    return lowered
+  }
+  if (lowered.includes('chart') || lowered.includes('dashboard')) return 'chart'
+  if (lowered.includes('slides')) return 'slides'
+  if (lowered.includes('document')) return 'document'
+  return 'chart'
+}
+
 export interface ArtifactPreview {
   artifactId: string
-  artifactType: 'slides' | 'document' | 'note' | 'chart'
+  artifactType: 'slides' | 'document' | 'note' | 'chart' | 'html'
   title: string
   status: PreviewStatus
   content?: Record<string, unknown>
@@ -32,17 +48,20 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
       const ev = event as ArtifactPreviewEvent
       const existing = previewMap.get(ev.artifact_id)
 
+      const pathHint = typeof ev.content?.path === 'string' ? ev.content.path : ''
+      const artifactType = normalizePreviewArtifactType(ev.artifact_type, pathHint)
+
       if (ev.subtype === 'start') {
         previewMap.set(ev.artifact_id, {
           artifactId: ev.artifact_id,
-          artifactType: ev.artifact_type,
+          artifactType,
           title: ev.title,
           status: 'generating'
         })
       } else if (ev.subtype === 'progress') {
         previewMap.set(ev.artifact_id, {
           artifactId: ev.artifact_id,
-          artifactType: ev.artifact_type,
+          artifactType,
           title: ev.title || existing?.title || '',
           status: 'generating',
           content: ev.content
@@ -50,7 +69,7 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
       } else if (ev.subtype === 'draft_ready') {
         previewMap.set(ev.artifact_id, {
           artifactId: ev.artifact_id,
-          artifactType: ev.artifact_type,
+          artifactType,
           title: ev.title,
           status: 'draft_ready',
           content: ev.content
@@ -58,7 +77,7 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
       } else if (ev.subtype === 'complete') {
         previewMap.set(ev.artifact_id, {
           artifactId: ev.artifact_id,
-          artifactType: ev.artifact_type,
+          artifactType,
           title: ev.title,
           status: 'ready',
           content: ev.content
@@ -67,7 +86,7 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
         previewMap.set(ev.artifact_id, {
           ...(existing ?? {
             artifactId: ev.artifact_id,
-            artifactType: ev.artifact_type,
+            artifactType,
             title: ev.title,
             status: 'error' as const
           }),
@@ -91,7 +110,8 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
   // button) instead of squeezing it into the narrow ambient progress rail.
   // Only slides, documents, and notes need the wide canvas — charts and
   // dashboards fit comfortably in the narrow rail.
-  const WIDE_PREVIEW_TYPES = new Set(['slides', 'document', 'note'])
+  const WIDE_PREVIEW_TYPES = new Set(['slides', 'document', 'note', 'html'])
+
   const hasActivePreview = previews.some(
     p =>
       WIDE_PREVIEW_TYPES.has(p.artifactType) &&

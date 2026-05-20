@@ -17,7 +17,6 @@ import {
 } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
-import { chartRenderers, parseChartConfig, LineChartRenderer } from '../workspace/chartRenderers'
 import type {
   EnterprisePresentationMode,
   TodoItem,
@@ -25,6 +24,9 @@ import type {
   WorkspaceDocument
 } from '../../types/enterpriseAgent'
 import { formatDuration } from '../../utils/renderUtils'
+import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
+import { ChartInlineBody } from '../workspace/chartInlineBody'
+import { AutoHeightHtmlIframe } from '../artifacts/AutoHeightHtmlIframe'
 
 interface FinalAnswerArtifact {
   name: string
@@ -50,6 +52,8 @@ export interface FinalAnswerRendererProps {
   isInstant?: boolean
   /** Session ID used to construct artifact download URLs for inline previews. */
   sessionId?: string
+  /** Bearer token for authenticated artifact fetches in inline chart previews. */
+  accessToken?: string
   onViewArtifact?: (artifactName: string) => void
   presentationMode?: EnterprisePresentationMode
 }
@@ -170,6 +174,53 @@ interface ArtifactsListProps {
   onViewArtifact?: (artifactName: string) => void
 }
 
+/** Extract ### Summary body without regex (avoids Sonar S5852 ReDoS hotspot). */
+function extractSummarySection(output: string): string | null {
+  const lines = output.split('\n')
+  let summaryLine = -1
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (line.toLowerCase() === '### summary' || line.toLowerCase().startsWith('### summary ')) {
+      summaryLine = i
+      break
+    }
+  }
+  if (summaryLine === -1) return null
+
+  const bodyLines: string[] = []
+  for (let i = summaryLine + 1; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+    if (trimmed.startsWith('### ')) break
+    bodyLines.push(lines[i])
+  }
+  const body = bodyLines.join('\n').trim()
+  return body || null
+}
+
+/** When a dashboard or timeline artifact exists, hide redundant markdown from the orchestrator. */
+function compactOutputForChartDeliverable(output: string, hasVisualArtifacts: boolean): string {
+  if (!hasVisualArtifacts || !output.trim()) return output
+  const isChartDeliverable =
+    /chart rendered successfully/i.test(output) ||
+    /timeline rendered successfully/i.test(output) ||
+    /dashboard artifact/i.test(output) ||
+    /open the (dashboard |timeline )?artifact/i.test(output)
+  if (!isChartDeliverable) return output
+
+  const summaryBody = extractSummarySection(output)
+  if (summaryBody) {
+    return `### Summary\n\n${summaryBody}`
+  }
+
+  const firstParagraph = output
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('\n')
+  return firstParagraph || 'Dashboard ready — see the visualization below.'
+}
+
 function buildArtifactDownloadUrl(sessionId: string, artifactPath: string): string {
   const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
   return `${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/artifacts/${encodeURIComponent(artifactPath)}`
@@ -180,7 +231,8 @@ const HtmlArtifactPreviewCard: React.FC<{
   sessionId: string
   onViewArtifact?: (artifactName: string) => void
 }> = ({ artifact, sessionId, onViewArtifact }) => {
-  const downloadUrl = buildArtifactDownloadUrl(sessionId, artifact.path || artifact.name)
+  const artifactPath = artifact.path || artifact.name
+  const downloadUrl = buildArtifactDownloadUrl(sessionId, artifactPath)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   const handleDownloadPng = useCallback(
@@ -189,7 +241,9 @@ const HtmlArtifactPreviewCard: React.FC<{
       const iframe = iframeRef.current
       if (!iframe?.contentWindow) return
 
+      const expectedOrigin = new URL(downloadUrl, globalThis.location.href).origin
       const onMessage = (ev: MessageEvent) => {
+        if (ev.origin !== expectedOrigin) return
         if (ev.data?.type === 'capture-png-result' && ev.data.dataUrl) {
           globalThis.removeEventListener('message', onMessage)
           const link = document.createElement('a')
@@ -204,9 +258,9 @@ const HtmlArtifactPreviewCard: React.FC<{
       }
       globalThis.addEventListener('message', onMessage)
       setTimeout(() => globalThis.removeEventListener('message', onMessage), 10_000)
-      iframe.contentWindow.postMessage({ type: 'capture-png' }, downloadUrl)
+      iframe.contentWindow.postMessage({ type: 'capture-png' }, expectedOrigin)
     },
-    [artifact.name]
+    [artifact.name, downloadUrl]
   )
 
   const handleOpenNewTab = useCallback(
@@ -222,13 +276,11 @@ const HtmlArtifactPreviewCard: React.FC<{
       className="gba:w-full gba:max-w-full gba:min-w-0 gba:bg-white gba:text-left gba:group"
       data-testid={`enterprise-agent-final-artifact-${artifact.name}`}
     >
-      <iframe
-        ref={iframeRef}
+      <AutoHeightHtmlIframe
         src={downloadUrl}
         title={artifact.name}
-        sandbox="allow-scripts allow-same-origin"
-        className="gba:w-full gba:border-0 gba:bg-white gba:block"
-        style={{ height: 900 }}
+        iframeRef={iframeRef}
+        className="gba:bg-white gba:max-w-full"
       />
       <div className="gba:flex gba:items-center gba:justify-end gba:gap-1.5 gba:bg-white gba:px-2 gba:py-2">
         <button
@@ -263,136 +315,45 @@ const HtmlArtifactPreviewCard: React.FC<{
 const ChartArtifactPreviewCard: React.FC<{
   artifact: FinalAnswerArtifact
   sessionId: string
+  accessToken?: string
   onViewArtifact?: (artifactName: string) => void
-}> = ({ artifact, sessionId, onViewArtifact }) => {
+}> = ({ artifact, sessionId, accessToken, onViewArtifact }) => {
   const [chartData, setChartData] = useState<Record<string, unknown> | null>(null)
-  const url = buildArtifactDownloadUrl(sessionId, artifact.path || artifact.name)
+  const client = useEnterpriseAgentClient(accessToken ?? '')
+  const artifactPath = artifact.path || artifact.name
 
   useEffect(() => {
-    fetch(url)
-      .then(r => r.json())
-      .then(d => setChartData(d as Record<string, unknown>))
-      .catch(() => setChartData(null))
-  }, [url])
+    if (!sessionId || !accessToken) {
+      setChartData(null)
+      return
+    }
+    let cancelled = false
+    client
+      .getArtifactContent(sessionId, artifactPath)
+      .then(raw => {
+        if (!cancelled) setChartData(JSON.parse(raw) as Record<string, unknown>)
+      })
+      .catch(() => {
+        if (!cancelled) setChartData(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, artifactPath, client, sessionId])
 
   if (!chartData) return null
 
-  const sections = chartData.sections as
-    | Array<{
-        type: string
-        title?: string
-        chart?: Record<string, unknown>
-        charts?: Array<Record<string, unknown>>
-        content?: string
-        columns?: number
-      }>
-    | undefined
-
-  if (!Array.isArray(sections) || sections.length === 0) return null
-
   return (
-    <div className="gba:pt-4 gba:w-full gba:max-w-full gba:min-w-0" data-testid={`chart-preview-card-${artifact.name}`}>
-      <div className="gba:rounded-xl gba:border gba:border-border gba:overflow-hidden gba:bg-background gba:shadow-sm gba:p-5">
-        {chartData.title && (
-          <h3 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-4">{chartData.title as string}</h3>
-        )}
-        <div className="gba:space-y-5">
-          {(() => {
-            const elements: React.ReactNode[] = []
-            let chartBatch: Array<{ key: string; title?: string; parsed: ReturnType<typeof parseChartConfig> }> = []
-
-            const flushBatch = () => {
-              if (chartBatch.length === 0) return
-              if (chartBatch.length === 1) {
-                const { key, title, parsed } = chartBatch[0]
-                if (parsed) {
-                  const R = chartRenderers[parsed.chartType] ?? LineChartRenderer
-                  elements.push(
-                    <div key={key}>
-                      {(title || parsed.title) && (
-                        <h4 className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-2">
-                          {title || parsed.title}
-                        </h4>
-                      )}
-                      <R config={parsed} />
-                    </div>
-                  )
-                }
-              } else {
-                elements.push(
-                  <div
-                    key={`grid-${chartBatch[0].key}`}
-                    className="gba:grid gba:gap-4"
-                    style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
-                  >
-                    {chartBatch.map(({ key, title, parsed }) => {
-                      if (!parsed) return null
-                      const R = chartRenderers[parsed.chartType] ?? LineChartRenderer
-                      return (
-                        <div key={key}>
-                          {(title || parsed.title) && (
-                            <h5 className="gba:text-xs gba:font-semibold gba:mb-1">{title || parsed.title}</h5>
-                          )}
-                          <R config={parsed} />
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              }
-              chartBatch = []
-            }
-
-            sections.forEach((section, idx) => {
-              const key = `section-${section.title ?? idx}`
-              if (section.type === 'text' && section.content) {
-                flushBatch()
-                elements.push(
-                  <div key={key}>
-                    {section.title && (
-                      <h4 className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-2">{section.title}</h4>
-                    )}
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {new DOMParser().parseFromString(section.content, 'text/html').body.textContent ?? ''}
-                    </p>
-                  </div>
-                )
-              } else if (section.type === 'chart' && section.chart) {
-                const parsed = parseChartConfig(section.chart)
-                if (parsed) chartBatch.push({ key, title: section.title, parsed })
-              } else if (section.type === 'chart-grid' && section.charts) {
-                flushBatch()
-                const cols = section.columns ?? 2
-                elements.push(
-                  <div key={key}>
-                    {section.title && (
-                      <h4 className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-2">{section.title}</h4>
-                    )}
-                    <div className="gba:grid gba:gap-4" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-                      {section.charts.map(c => {
-                        const p = parseChartConfig(c)
-                        if (!p) return null
-                        const R = chartRenderers[p.chartType] ?? LineChartRenderer
-                        return (
-                          <div key={`${p.chartType}-${p.title ?? p.dataKeys?.[0] ?? ''}`}>
-                            {p.title && <h5 className="gba:text-xs gba:font-semibold gba:mb-1">{p.title}</h5>}
-                            <R config={p} />
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              }
-            })
-            flushBatch()
-            return elements
-          })()}
-        </div>
+    <div
+      className="gba:pt-4 gba:w-full gba:max-w-full gba:min-w-0 gba:overflow-hidden"
+      data-testid={`chart-preview-card-${artifact.name}`}
+    >
+      <div className="gba:rounded-xl gba:border gba:border-border gba:overflow-hidden gba:bg-background gba:shadow-sm gba:p-5 gba:max-w-full">
+        <ChartInlineBody data={chartData} />
         <div className="gba:flex gba:justify-end gba:pt-3 gba:mt-3 gba:border-t gba:border-border/50">
           <button
             type="button"
-            onClick={() => onViewArtifact?.(artifact.path || artifact.name)}
+            onClick={() => onViewArtifact?.(artifactPath)}
             className="gba:text-xs gba:font-medium gba:text-primary gba:hover:text-primary/80 gba:transition-colors gba:cursor-pointer gba:border-0 gba:bg-transparent"
           >
             Open full view
@@ -444,6 +405,7 @@ export const FinalAnswerRenderer = ({
   workspaceDocuments,
   isInstant,
   sessionId,
+  accessToken,
   onViewArtifact,
   presentationMode = 'default'
 }: FinalAnswerRendererProps) => {
@@ -468,6 +430,8 @@ export const FinalAnswerRenderer = ({
   const otherArtifacts = visibleArtifacts.filter(
     a => a.rendererType !== 'html' && a.rendererType !== 'chart' && a.rendererType !== 'dashboard'
   )
+  const hasVisualDeliverable = chartArtifacts.length > 0 || htmlArtifacts.length > 0
+  const displayOutput = compactOutputForChartDeliverable(output, hasVisualDeliverable)
   const [fullOutputVisible, setFullOutputVisible] = useState(true)
   const [actionsExpanded, setActionsExpanded] = useState(false)
   const todoCount = todos?.length ?? 0
@@ -541,7 +505,7 @@ export const FinalAnswerRenderer = ({
         </>
       ) : (
         <div className={markdownTopSpacingClass}>
-          <MarkdownWithChipsRenderer content={output} variant={markdownVariant} />
+          <MarkdownWithChipsRenderer content={displayOutput} variant={markdownVariant} />
         </div>
       )}
 
@@ -563,6 +527,7 @@ export const FinalAnswerRenderer = ({
             key={artifact.path || artifact.name}
             artifact={artifact}
             sessionId={sessionId}
+            accessToken={accessToken}
             onViewArtifact={onViewArtifact}
           />
         ))}

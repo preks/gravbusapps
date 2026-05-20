@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from 'react'
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react'
 import type { ArtifactFile } from '../../../types/fabric'
+import { AutoHeightHtmlIframe, isTimelineHtmlArtifact } from '../AutoHeightHtmlIframe'
 import CodeArtifact from './CodeArtifact'
 
 export interface HtmlArtifactProps {
@@ -18,11 +19,14 @@ const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode, if
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
 
-  const setIframeRef = useCallback((el: HTMLIFrameElement | null) => {
-    (internalIframeRef as React.MutableRefObject<HTMLIFrameElement | null>).current = el
-    if (typeof externalIframeRef === 'function') externalIframeRef(el)
-    else if (externalIframeRef) (externalIframeRef as React.MutableRefObject<HTMLIFrameElement | null>).current = el
-  }, [externalIframeRef])
+  const setIframeRef = useCallback(
+    (el: HTMLIFrameElement | null) => {
+      ;(internalIframeRef as React.MutableRefObject<HTMLIFrameElement | null>).current = el
+      if (typeof externalIframeRef === 'function') externalIframeRef(el)
+      else if (externalIframeRef) (externalIframeRef as React.MutableRefObject<HTMLIFrameElement | null>).current = el
+    },
+    [externalIframeRef]
+  )
 
   useEffect(() => {
     const container = containerRef.current
@@ -48,6 +52,20 @@ const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode, if
   }, [])
   if (viewMode === 'code' && content !== null) {
     return <CodeArtifact file={file} content={content} viewMode={viewMode} language="html" />
+  }
+
+  if (isTimelineHtmlArtifact(file.name)) {
+    return (
+      <div className="gba:w-full gba:overflow-hidden gba:bg-white gba:p-2" data-testid="fabric-html-artifact">
+        <AutoHeightHtmlIframe
+          src={file.downloadUrl}
+          title={file.name}
+          iframeRef={setIframeRef}
+          className="gba:bg-white"
+          data-testid="fabric-html-iframe"
+        />
+      </div>
+    )
   }
 
   return (

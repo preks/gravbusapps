@@ -461,6 +461,7 @@ const renderMessageBubbleContent = ({
           <FinalAnswerRenderer
             {...content}
             sessionId={sessionId}
+            accessToken={accessToken}
             onViewArtifact={onViewArtifact}
             presentationMode={presentationMode}
           />
