@@ -103,6 +103,11 @@ task-card-blink = Blink
 task-card-unknown-creator = Necunoscut
 task-card-untitled = Sarcină fără titlu
 task-card-pinned = Fixată
+task-card-cancel-vacation-request = Anulare cerere concediu
+task-card-cancel-sick-leave-request = Anulare cerere concediu medical
+task-card-cancel-special-leave-request = Anulare cerere concediu special
+task-card-cancel-request-for-type = Anulare cerere pentru "{$absenceType}"
+task-card-cancel-absence-request = Anulare cerere de absență
 
 # Task meta actions (Everybox-service)
 task-meta-pin = Fixează

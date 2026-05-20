@@ -9,6 +9,12 @@ export interface CancelEmployeeAbsenceSnapshot {
   additionalProperties?: unknown | null
   employeeId: string
   typeRef: string
+  type?: {
+    id?: string | null
+    value?: string | null
+  } | null
+  typeName?: string | null
+  absenceTypeName?: string | null
   startDate: string
   endDate: string
   cutHalfDayStart?: boolean | null

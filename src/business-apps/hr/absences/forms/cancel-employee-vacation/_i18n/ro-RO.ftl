@@ -2,6 +2,9 @@
 
 # Task Title
 task-title-cancel-vacation = Anulare cerere concediu
+task-title-cancel-sick-leave = Anulare cerere concediu medical
+task-title-cancel-special-leave = Anulare cerere concediu special
+task-title-cancel-request-for-type = Anulare cerere pentru "{$absenceType}"
 
 # Section Titles
 section-vacation-request-details = Detalii cerere concediu

@@ -19,6 +19,7 @@ import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { formatWorkingDaysAndHours } from '@/business-apps/hr/absences/utils/absenceDurationFormatter'
 import type { CancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
+import { resolveAbsenceCancellationTitleInfo } from '@/business-apps/hr/absences/utils/absenceCancellationTitle'
 import translations from './_i18n'
 
 interface CancelEmployeeVacationProps extends BusinessAppContextProps {
@@ -158,6 +159,28 @@ const CancelEmployeeVacation: React.FC<CancelEmployeeVacationProps> = ({
     absenceTypeRef: employeeAbsence?.typeRef
   })
 
+  const cancellationTaskTitle = useMemo(() => {
+    const titleInfo = resolveAbsenceCancellationTitleInfo(employeeAbsence?.typeRef, absenceTypeName)
+
+    if (!titleInfo) {
+      return t('task-title-cancel-vacation')
+    }
+    if (titleInfo.variant === 'vacation') {
+      return t('task-title-cancel-vacation')
+    }
+    if (titleInfo.variant === 'sickLeave') {
+      return t('task-title-cancel-sick-leave')
+    }
+    if (titleInfo.variant === 'specialLeave') {
+      return t('task-title-cancel-special-leave')
+    }
+    if (titleInfo.variant === 'requestForType' && titleInfo.absenceTypeName) {
+      return t('task-title-cancel-request-for-type', { absenceType: titleInfo.absenceTypeName })
+    }
+
+    return t('task-title-cancel-vacation')
+  }, [employeeAbsence?.typeRef, absenceTypeName, t])
+
   const requesterUserId = taskPayload?.requester?.id || taskPayload?.creatorId || employeeData?.userId
   const requesterName =
     creatorName ||
@@ -237,7 +260,7 @@ const CancelEmployeeVacation: React.FC<CancelEmployeeVacationProps> = ({
       data-testid="cancel-employee-vacation"
       header={
         <TaskDetailHeader
-          title={t('task-title-cancel-vacation')}
+          title={cancellationTaskTitle}
           showEmployeeInfo={true}
           employeeId={employeeAbsence?.employeeId}
           accessToken={accessToken}

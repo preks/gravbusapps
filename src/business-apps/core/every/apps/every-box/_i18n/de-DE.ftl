@@ -113,6 +113,11 @@ task-card-blink = Blink
 task-card-unknown-creator = Unbekannt
 task-card-untitled = Aufgabe ohne Titel
 task-card-pinned = Angeheftet
+task-card-cancel-vacation-request = Urlaubsantrag stornieren
+task-card-cancel-sick-leave-request = Krankmeldung stornieren
+task-card-cancel-special-leave-request = Sonderurlaubsantrag stornieren
+task-card-cancel-request-for-type = Antrag auf "{$absenceType}" stornieren
+task-card-cancel-absence-request = Abwesenheitsantrag stornieren
 
 # FlowCard Component
 flow-card-blink = Blink

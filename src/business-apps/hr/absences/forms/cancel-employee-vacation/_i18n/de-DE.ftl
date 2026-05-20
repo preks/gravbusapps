@@ -2,6 +2,9 @@
 
 # Task Title
 task-title-cancel-vacation = Urlaubsantrag stornieren
+task-title-cancel-sick-leave = Krankmeldung stornieren
+task-title-cancel-special-leave = Sonderurlaubsantrag stornieren
+task-title-cancel-request-for-type = Antrag auf "{$absenceType}" stornieren
 
 # Section Titles
 section-vacation-request-details = Details des Urlaubsantrags

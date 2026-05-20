@@ -2,6 +2,9 @@
 
 # Task Title
 task-title-cancel-vacation = Cancel Vacation Request
+task-title-cancel-sick-leave = Cancel Sick Leave Request
+task-title-cancel-special-leave = Cancel Special Leave Request
+task-title-cancel-request-for-type = Cancel Request for "{$absenceType}"
 
 # Section Titles
 section-vacation-request-details = Vacation Request Details

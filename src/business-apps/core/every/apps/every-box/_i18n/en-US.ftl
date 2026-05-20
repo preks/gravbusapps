@@ -113,6 +113,11 @@ task-card-blink = Blink
 task-card-unknown-creator = Unknown
 task-card-untitled = Untitled Task
 task-card-pinned = Pinned
+task-card-cancel-vacation-request = Cancel Vacation Request
+task-card-cancel-sick-leave-request = Cancel Sick Leave Request
+task-card-cancel-special-leave-request = Cancel Special Leave Request
+task-card-cancel-request-for-type = Cancel Request for "{$absenceType}"
+task-card-cancel-absence-request = Cancel Absence Request
 
 # FlowCard Component
 flow-card-blink = Blink

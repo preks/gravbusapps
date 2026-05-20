@@ -16,6 +16,8 @@ import type { AbsenceRow } from '../types/personalAbsences'
 import dayjs from 'dayjs'
 
 const PAGE_SIZE = 10
+const IN_CANCELLATION_STORAGE_KEY = 'personal-absences.in-cancellation-ids.v1'
+const IN_CANCELLATION_STORAGE_TTL_MS = 12 * 60 * 60 * 1000
 
 type PersonalAbsenceEntitlement = {
   type: {
@@ -75,34 +77,109 @@ const toNullableNumber = (value: unknown): number | null => {
   return Number.isFinite(numericValue) ? numericValue : null
 }
 
-const buildCancelEmployeeAbsenceSnapshot = (absence: any) => ({
-  id: absence.id,
-  version: Number(absence.version ?? 0),
-  businessKey: absence.businessKey ?? null,
-  recordState: absence.recordState ?? null,
-  activeTo: absence.activeTo ?? null,
-  additionalProperties: absence.additionalProperties ?? null,
-  employeeId: absence.employeeId || absence.employee?.id || '',
-  typeRef: absence.typeRef || '',
-  startDate: absence.startDate,
-  endDate: absence.endDate,
-  cutHalfDayStart: absence.cutHalfDayStart ?? false,
-  cutHalfDayEnd: absence.cutHalfDayEnd ?? false,
-  workingHours: toNullableNumber(absence.workingHours),
-  workingDays: toNullableNumber(absence.workingDays),
-  calendarDays: toNullableNumber(absence.calendarDays),
-  effectiveDays: toNullableNumber(absence.effectiveDays),
-  balance: toNullableNumber(absence.balance),
-  reason: absence.reason ?? null,
-  relative: absence.relative ?? null,
-  attachment: absence.attachment ?? null,
-  description: absence.description ?? '',
-  status: absence.status || '',
-  approverId: absence.approverId ?? null,
-  approvalNote: absence.approvalNote ?? null,
-  substituteEmployee: absence.substituteEmployeeId ?? null,
-  employeeDocument: absence.employeeDocumentId ?? null
-})
+const toLegacyStatus = (status?: string | null): string => {
+  const normalized = (status || '').toUpperCase()
+  if (normalized === 'TIME_PENDING') return 'PENDING'
+  if (normalized === 'TIME_APPROVED') return 'APPROVED'
+  if (normalized === 'TIME_CANCELLED') return 'CANCELLED'
+  if (normalized === 'TIME_REJECTED') return 'REJECTED'
+  return normalized
+}
+
+const loadPersistedInCancellationAbsenceIds = (): Set<string> => {
+  if (typeof window === 'undefined') {
+    return new Set()
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(IN_CANCELLATION_STORAGE_KEY)
+    if (!raw) {
+      return new Set()
+    }
+
+    const parsed = JSON.parse(raw) as Record<string, number>
+    const now = Date.now()
+    const validEntries = Object.entries(parsed).filter(([, timestamp]) => {
+      return Number.isFinite(timestamp) && now - Number(timestamp) < IN_CANCELLATION_STORAGE_TTL_MS
+    })
+
+    if (validEntries.length !== Object.keys(parsed).length) {
+      window.sessionStorage.setItem(IN_CANCELLATION_STORAGE_KEY, JSON.stringify(Object.fromEntries(validEntries)))
+    }
+
+    return new Set(validEntries.map(([absenceId]) => absenceId))
+  } catch {
+    return new Set()
+  }
+}
+
+const persistInCancellationAbsenceIds = (absenceIds: Set<string>): void => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    const now = Date.now()
+    const record: Record<string, number> = {}
+    absenceIds.forEach(absenceId => {
+      record[absenceId] = now
+    })
+    window.sessionStorage.setItem(IN_CANCELLATION_STORAGE_KEY, JSON.stringify(record))
+  } catch {
+    // Ignore storage errors; local state still works.
+  }
+}
+
+const resolveAbsenceTypeName = (absence: any): string | null => {
+  const candidates = [absence?.absenceTypeName, absence?.typeName, absence?.type?.value]
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim() !== '') {
+      return candidate.trim()
+    }
+  }
+  return null
+}
+
+const buildCancelEmployeeAbsenceSnapshot = (absence: any) => {
+  const absenceTypeName = resolveAbsenceTypeName(absence)
+
+  return {
+    id: absence.id,
+    version: Number(absence.version ?? 0),
+    businessKey: absence.businessKey ?? null,
+    recordState: absence.recordState ?? null,
+    activeTo: absence.activeTo ?? null,
+    additionalProperties: absence.additionalProperties ?? null,
+    employeeId: absence.employeeId || absence.employee?.id || '',
+    typeRef: absence.typeRef || '',
+    type: absence.type
+      ? {
+          id: absence.type.id ?? null,
+          value: absence.type.value ?? null
+        }
+      : null,
+    typeName: absenceTypeName,
+    absenceTypeName,
+    startDate: absence.startDate,
+    endDate: absence.endDate,
+    cutHalfDayStart: absence.cutHalfDayStart ?? false,
+    cutHalfDayEnd: absence.cutHalfDayEnd ?? false,
+    workingHours: toNullableNumber(absence.workingHours),
+    workingDays: toNullableNumber(absence.workingDays),
+    calendarDays: toNullableNumber(absence.calendarDays),
+    effectiveDays: toNullableNumber(absence.effectiveDays),
+    balance: toNullableNumber(absence.balance),
+    reason: absence.reason ?? null,
+    relative: absence.relative ?? null,
+    attachment: absence.attachment ?? null,
+    description: absence.description ?? '',
+    status: absence.status || '',
+    approverId: absence.approverId ?? null,
+    approvalNote: absence.approvalNote ?? null,
+    substituteEmployee: absence.substituteEmployeeId ?? null,
+    employeeDocument: absence.employeeDocumentId ?? null
+  }
+}
 
 const resolveAbsenceStatus = (
   absenceId: string,
@@ -110,9 +187,14 @@ const resolveAbsenceStatus = (
   cancelledIds: Set<string>,
   inCancellationIds: Set<string>
 ): string => {
+  const backendLegacyStatus = toLegacyStatus(backendStatus)
+
   if (cancelledIds.has(absenceId)) return 'CANCELLED'
-  if (inCancellationIds.has(absenceId)) return 'IN_CANCELLATION'
-  return backendStatus
+  if (backendLegacyStatus === 'CANCELLED' || backendLegacyStatus === 'REJECTED') {
+    return backendLegacyStatus
+  }
+  if (inCancellationIds.has(absenceId) && backendLegacyStatus === 'APPROVED') return 'IN_CANCELLATION'
+  return backendLegacyStatus || backendStatus
 }
 
 export function usePersonalAbsencesData(accessToken: string | undefined, employeeId: string | undefined) {
@@ -130,7 +212,9 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
   const [refreshTick, setRefreshTick] = useState(0)
   const [workingHours, setWorkingHours] = useState<any>(null)
   const [locallyCancelledAbsenceIds, setLocallyCancelledAbsenceIds] = useState<Set<string>>(() => new Set())
-  const [locallyInCancellationIds, setLocallyInCancellationIds] = useState<Set<string>>(() => new Set())
+  const [locallyInCancellationIds, setLocallyInCancellationIds] = useState<Set<string>>(() =>
+    loadPersistedInCancellationAbsenceIds()
+  )
 
   const { mapType } = useAbsenceTypeCatalog(accessToken)
   const { entitlements: rawSnapshotEntitlements, refetch: refetchSnapshot } = useEntitlementSnapshot(
@@ -274,6 +358,12 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
 
   const markAbsenceCancelled = useCallback((absenceId: string) => {
     setLocallyCancelledAbsenceIds(previous => new Set(previous).add(absenceId))
+    setLocallyInCancellationIds(previous => {
+      const next = new Set(previous)
+      next.delete(absenceId)
+      persistInCancellationAbsenceIds(next)
+      return next
+    })
     setAbsences(previous =>
       previous.map(absence => {
         if (absence.id !== absenceId) {
@@ -294,7 +384,11 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
   }, [])
 
   const markAbsenceInCancellation = useCallback((absenceId: string) => {
-    setLocallyInCancellationIds(previous => new Set(previous).add(absenceId))
+    setLocallyInCancellationIds(previous => {
+      const next = new Set(previous).add(absenceId)
+      persistInCancellationAbsenceIds(next)
+      return next
+    })
     setAbsences(previous =>
       previous.map(absence => {
         if (absence.id !== absenceId) {
@@ -364,19 +458,46 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
         activeUserLocale: getCurrentActiveUserLocale()
       })
       .then((res: any) => {
-        const rows = (res?.EmployeeAbsence || []).map((a: any) => {
+        const backendAbsences = res?.EmployeeAbsence || []
+        const backendTerminalIds = new Set(
+          backendAbsences
+            .filter((absence: any) => {
+              const status = toLegacyStatus(absence?.status)
+              return status === 'CANCELLED' || status === 'REJECTED' || status === 'IN_CANCELLATION'
+            })
+            .map((absence: any) => absence.id)
+        )
+
+        if (backendTerminalIds.size > 0) {
+          setLocallyInCancellationIds(previous => {
+            let changed = false
+            const next = new Set(previous)
+            backendTerminalIds.forEach(absenceId => {
+              if (next.delete(absenceId)) {
+                changed = true
+              }
+            })
+            if (changed) {
+              persistInCancellationAbsenceIds(next)
+            }
+            return changed ? next : previous
+          })
+        }
+
+        const rows = backendAbsences.map((a: any) => {
           const originalStatus = resolveAbsenceStatus(
             a.id,
             a.status || '',
             locallyCancelledAbsenceIds,
             locallyInCancellationIds
           )
+          const absenceTypeLabel = a.type ? getCatalogValue(a.type) || a.type?.value || '' : ''
           const employeeAbsence = buildCancelEmployeeAbsenceSnapshot(a)
 
           return {
             // Use effective days first because some approved absence types do not populate workingDays consistently.
             id: a.id,
-            type: a.type ? getCatalogValue(a.type) || '' : '',
+            type: absenceTypeLabel,
             typeId: a.type?.id || '',
             typeRef: a.typeRef || '',
             typeColor: a.type?.objectValue?.color || '6366f1',
@@ -390,6 +511,11 @@ export function usePersonalAbsencesData(accessToken: string | undefined, employe
             createdAt: a.createdAt,
             employeeAbsence: {
               ...employeeAbsence,
+              type: employeeAbsence.type
+                ? { ...employeeAbsence.type, value: absenceTypeLabel || employeeAbsence.type.value || null }
+                : null,
+              typeName: absenceTypeLabel || employeeAbsence.typeName || null,
+              absenceTypeName: absenceTypeLabel || employeeAbsence.absenceTypeName || null,
               status: originalStatus
             }
           }
