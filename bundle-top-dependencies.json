@@ -88310,20 +88310,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12381,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12381/",
-    "chunkJsBytes": 1916239,
+    "bitbucketBuildNumber": 12386,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12386/",
+    "chunkJsBytes": 1916234,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1619869,
-        "gzip": 101574,
+        "gzip": 101581,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1619869,
-            "gzip": 101574
+            "gzip": 101581
           }
         ]
       },
@@ -104151,9 +104151,9 @@
     ]
   },
   "hr/absences/apps/time-absence-hub": {
-    "bitbucketBuildNumber": 12337,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12337/",
-    "chunkJsBytes": 1010207,
+    "bitbucketBuildNumber": 12386,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12386/",
+    "chunkJsBytes": 1009725,
     "top": [
       {
         "kind": "bucket",
@@ -104176,8 +104176,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 592792,
-        "gzip": 139274,
+        "rendered": 591316,
+        "gzip": 138808,
         "leaves": [
           {
             "name": "src/business-apps/hr/absences/apps/time-absence-hub/components/pages/AbsenceDetails/AbsenceDetails.tsx",
@@ -104292,13 +104292,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 14603,
-        "gzip": 1942,
+        "rendered": 14737,
+        "gzip": 1956,
         "leaves": [
           {
             "name": "src/common/types/FlowRegistryTypes.ts",
-            "rendered": 14364,
-            "gzip": 1792
+            "rendered": 14498,
+            "gzip": 1806
           },
           {
             "name": "src/common/types/constants/FeatureHub.ts",
@@ -109683,7 +109683,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-20T12:23:14.360Z",
+    "generatedAt": "2026-05-20T13:03:47.122Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
