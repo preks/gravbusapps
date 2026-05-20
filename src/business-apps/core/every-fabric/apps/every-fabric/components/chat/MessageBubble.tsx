@@ -460,8 +460,8 @@ const renderMessageBubbleContent = ({
         >
           <FinalAnswerRenderer
             {...content}
-            onViewArtifact={onViewArtifact}
             sessionId={sessionId}
+            onViewArtifact={onViewArtifact}
             presentationMode={presentationMode}
           />
         </AnimatedMessageWrapper>

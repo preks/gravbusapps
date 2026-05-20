@@ -184,6 +184,12 @@ const chunkStreamKey = (chunk: AgentChunkEvent): string | null => {
   return typeof raw === 'string' && raw.trim().length > 0 ? raw : null
 }
 
+const looksLikeDashboardJson = (content: string): boolean => {
+  const trimmed = content.trimStart()
+  if (!trimmed.startsWith('{')) return false
+  return trimmed.includes('"sections"') || trimmed.includes('"chartType"') || /^\{"title"\s*:\s*"/.test(trimmed)
+}
+
 const looksLikeInternalErrorLeak = (content: string): boolean => {
   const normalized = content.toLowerCase()
   return (
@@ -222,7 +228,10 @@ function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string 
 
   const primarySnapshots = responseSnapshots.filter(snapshot => chunkStreamKey(snapshot) !== 'continuation')
   const preferredSnapshots = primarySnapshots.length > 0 ? primarySnapshots : responseSnapshots
-  const safeSnapshots = preferredSnapshots.filter(snapshot => !looksLikeInternalErrorLeak(snapshot.content.trim()))
+  const safeSnapshots = preferredSnapshots.filter(snapshot => {
+    const text = snapshot.content.trim()
+    return !looksLikeInternalErrorLeak(text) && !looksLikeDashboardJson(text)
+  })
   if (safeSnapshots.length === 0) {
     return ''
   }
@@ -288,6 +297,9 @@ function computeStreamingDisplayContent(
 
   const fromSnapshots = buildStreamingContentFromSnapshots(liveTurnEvents)
   if (fromSnapshots !== null) {
+    if (looksLikeDashboardJson(fromSnapshots)) {
+      return 'Generating chart…'
+    }
     return fromSnapshots
   }
 

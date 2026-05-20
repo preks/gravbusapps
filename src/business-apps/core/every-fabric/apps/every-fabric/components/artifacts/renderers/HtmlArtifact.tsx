@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type Ref } from 'react'
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react'
 import type { ArtifactFile } from '../../../types/fabric'
 import CodeArtifact from './CodeArtifact'
@@ -7,15 +7,22 @@ export interface HtmlArtifactProps {
   file: ArtifactFile
   content: string | null
   viewMode: 'preview' | 'code'
+  iframeRef?: Ref<HTMLIFrameElement>
 }
 
 const NATIVE_W = 1920
 const NATIVE_H = 1080
 
-const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode }) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null)
+const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode, iframeRef: externalIframeRef }) => {
+  const internalIframeRef = useRef<HTMLIFrameElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+
+  const setIframeRef = useCallback((el: HTMLIFrameElement | null) => {
+    (internalIframeRef as React.MutableRefObject<HTMLIFrameElement | null>).current = el
+    if (typeof externalIframeRef === 'function') externalIframeRef(el)
+    else if (externalIframeRef) (externalIframeRef as React.MutableRefObject<HTMLIFrameElement | null>).current = el
+  }, [externalIframeRef])
 
   useEffect(() => {
     const container = containerRef.current
@@ -31,7 +38,7 @@ const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode }) 
   }, [])
 
   const handleReplay = useCallback(() => {
-    const iframe = iframeRef.current
+    const iframe = internalIframeRef.current
     if (!iframe) return
     const src = iframe.src
     iframe.src = ''
@@ -39,7 +46,6 @@ const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode }) 
       iframe.src = src
     })
   }, [])
-
   if (viewMode === 'code' && content !== null) {
     return <CodeArtifact file={file} content={content} viewMode={viewMode} language="html" />
   }
@@ -51,7 +57,7 @@ const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode }) 
       data-testid="fabric-html-artifact"
     >
       <iframe
-        ref={iframeRef}
+        ref={setIframeRef}
         src={file.downloadUrl}
         title={file.name}
         sandbox="allow-scripts allow-same-origin"

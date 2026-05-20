@@ -6,11 +6,17 @@ import {
 } from '../../workspace/chartRenderers'
 import type { RendererProps } from './index'
 
+interface ChartGridItem {
+  type?: string
+  title?: string
+  chart?: SingleChartConfig
+}
+
 interface DashboardSection {
   type: 'chart' | 'chart-grid' | 'text'
   title?: string
   chart?: SingleChartConfig
-  charts?: SingleChartConfig[]
+  charts?: (SingleChartConfig | ChartGridItem)[]
   content?: string
   columns?: number
 }
@@ -65,38 +71,66 @@ const ChartArtifact: React.FC<RendererProps> = ({ content, viewMode }) => {
 
   const dashboard = parsed as DashboardConfig
   if (Array.isArray(dashboard.sections)) {
+    const elements: React.ReactNode[] = []
+    let chartBatch: Array<{ key: string | number; config: SingleChartConfig }> = []
+
+    const flushBatch = () => {
+      if (chartBatch.length === 0) return
+      if (chartBatch.length === 1) {
+        const { key, config } = chartBatch[0]
+        elements.push(<SingleChart key={key} config={config} />)
+      } else {
+        elements.push(
+          <div
+            key={`grid-${chartBatch[0].key}`}
+            className="gba:grid gba:gap-6"
+            style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
+          >
+            {chartBatch.map(({ key, config }) => (
+              <SingleChart key={key} config={config} />
+            ))}
+          </div>
+        )
+      }
+      chartBatch = []
+    }
+
+    dashboard.sections.forEach((section, idx) => {
+      if (section.type === 'chart' && section.chart) {
+        chartBatch.push({ key: section.title ?? idx, config: section.chart })
+      } else if (section.type === 'chart-grid' && section.charts) {
+        flushBatch()
+        elements.push(
+          <div
+            key={section.title ?? idx}
+            className="gba:grid gba:gap-6"
+            style={{ gridTemplateColumns: `repeat(${Math.min(section.columns ?? 2, section.charts.length)}, 1fr)` }}
+          >
+            {section.charts.map((item, chartIdx) => {
+              const config =
+                'chart' in item && item.chart
+                  ? { ...item.chart, title: item.title ?? item.chart.title }
+                  : (item as SingleChartConfig)
+              return <SingleChart key={config.title ?? chartIdx} config={config} />
+            })}
+          </div>
+        )
+      } else if (section.type === 'text' && section.content) {
+        flushBatch()
+        elements.push(
+          <section key={section.title ?? idx}>
+            {section.title && <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{section.title}</h3>}
+            <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">{section.content}</p>
+          </section>
+        )
+      }
+    })
+    flushBatch()
+
     return (
       <div className="gba:h-full gba:overflow-auto gba:p-6 gba:space-y-6">
         {dashboard.title && <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{dashboard.title}</h2>}
-        {dashboard.sections.map((section, idx) => {
-          if (section.type === 'chart' && section.chart) {
-            return <SingleChart key={section.title ?? idx} config={section.chart} />
-          }
-          if (section.type === 'chart-grid' && section.charts) {
-            return (
-              <div
-                key={section.title ?? idx}
-                className="gba:grid gba:gap-6"
-                style={{ gridTemplateColumns: `repeat(${Math.min(section.columns ?? 2, section.charts.length)}, 1fr)` }}
-              >
-                {section.charts.map((chart, chartIdx) => (
-                  <SingleChart key={chart.title ?? chartIdx} config={chart} />
-                ))}
-              </div>
-            )
-          }
-          if (section.type === 'text' && section.content) {
-            return (
-              <section key={section.title ?? idx}>
-                {section.title && (
-                  <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{section.title}</h3>
-                )}
-                <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">{section.content}</p>
-              </section>
-            )
-          }
-          return null
-        })}
+        {elements}
       </div>
     )
   }

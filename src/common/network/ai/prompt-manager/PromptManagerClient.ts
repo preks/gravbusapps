@@ -786,6 +786,10 @@ export class PromptManagerClient extends RestClient {
     return this.get<ProviderToolCatalogItem[]>('/enterprise-ai/tools/mcp')
   }
 
+  async getBuiltinProviderTools(): Promise<ProviderToolCatalogItem[]> {
+    return this.get<ProviderToolCatalogItem[]>('/enterprise-ai/tools/builtin')
+  }
+
   async invokeEnterpriseTool(toolRef: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     return this.post<Record<string, unknown>>('/enterprise-ai/tools/invoke', {
       tool_ref: toolRef,

@@ -245,7 +245,8 @@ const finalizeRunningMessagesOnTerminal = (events: AgentStreamEvent[], messages:
 
 function terminalCompletedToChatMessage(
   event: AgentTerminalEvent,
-  stepCompletions: Map<string, StepCompletion> | undefined
+  stepCompletions: Map<string, StepCompletion> | undefined,
+  previouslyShownArtifactKeys?: Set<string>
 ): ChatMessage {
   let qualityScore: number | undefined
   if (event.reflection) {
@@ -257,12 +258,12 @@ function terminalCompletedToChatMessage(
         .filter(s => !isDefinitionLookupTool(s.name))
         .map(s => ({ step: s.name ?? 'Tool call', tool: s.name, outcome: s.status ?? 'done' }))
     : undefined
-  const hasArtifacts = !!event.artifacts && event.artifacts.length > 0
+  const turnArtifacts = previouslyShownArtifactKeys
+    ? (event.artifacts ?? []).filter(a => !previouslyShownArtifactKeys.has(`${a.path}:${a.size ?? 0}`))
+    : (event.artifacts ?? [])
+  const hasArtifacts = turnArtifacts.length > 0
   const hasWorkspaceDocs = !!event.workspace_documents && event.workspace_documents.length > 0
   const hasActions = !!actionsPerformed && actionsPerformed.length > 0
-  // Instant replies (greeting / capability fast-path) come back with duration_ms=0
-  // and no side-effect artifacts; reveal them progressively so they don't slam
-  // into view like a wall of text.
   const isInstant = event.duration_ms === 0 && !hasArtifacts && !hasWorkspaceDocs && !hasActions
   return {
     id: event.event_id,
@@ -278,7 +279,7 @@ function terminalCompletedToChatMessage(
       actionsPerformed,
       durationMs: event.duration_ms,
       costSummary: event.cost_summary ?? undefined,
-      artifacts: toArtifactRefsFromMeta(event.artifacts),
+      artifacts: toArtifactRefsFromMeta(turnArtifacts),
       workspaceDocuments: event.workspace_documents,
       isInstant
     }
@@ -318,10 +319,11 @@ function terminalOtherToChatMessage(event: AgentTerminalEvent): ChatMessage {
 
 function terminalEventToChatMessage(
   event: AgentTerminalEvent,
-  stepCompletions?: Map<string, StepCompletion>
+  stepCompletions?: Map<string, StepCompletion>,
+  previouslyShownArtifactKeys?: Set<string>
 ): ChatMessage {
   if (event.status === 'completed') {
-    return terminalCompletedToChatMessage(event, stepCompletions)
+    return terminalCompletedToChatMessage(event, stepCompletions, previouslyShownArtifactKeys)
   }
   if (event.status === 'waiting_for_human') {
     return terminalWaitingToChatMessage(event)
@@ -391,7 +393,8 @@ function appendLivePlanIfNeeded(sortedEvents: AgentStreamEvent[], messages: Chat
 
 export function eventToMessage(
   event: AgentStreamEvent,
-  stepCompletions?: Map<string, StepCompletion>
+  stepCompletions?: Map<string, StepCompletion>,
+  previouslyShownArtifactKeys?: Set<string>
 ): ChatMessage | null {
   switch (event.type) {
     case 'agent_chunk':
@@ -510,7 +513,7 @@ export function eventToMessage(
     }
 
     case 'terminal':
-      return terminalEventToChatMessage(event, stepCompletions)
+      return terminalEventToChatMessage(event, stepCompletions, previouslyShownArtifactKeys)
 
     case 'error':
       return {
@@ -533,43 +536,54 @@ export function eventToMessage(
   }
 }
 
+function trackShownArtifacts(event: AgentStreamEvent, shownKeys: Set<string>): void {
+  if (event.type === 'terminal' && event.status === 'completed' && event.artifacts) {
+    for (const a of event.artifacts) {
+      if (a.path) shownKeys.add(`${a.path}:${a.size ?? 0}`)
+    }
+  }
+}
+
+function dedupeExpertCall(
+  message: ChatMessage,
+  messages: ChatMessage[],
+  expertCallIndexByKey: Map<string, number>,
+  seenIds: Set<string>
+): boolean {
+  if (message.type !== 'expert_call') return false
+  const content = message.content as ExpertCallContent
+  const key = expertCallDedupeKey(content)
+  const existingIdx = expertCallIndexByKey.get(key)
+  if (existingIdx !== undefined) {
+    const existing = messages[existingIdx]
+    const existingContent = existing.content as ExpertCallContent
+    messages[existingIdx] = {
+      ...existing,
+      content: mergeExpertCallContent(existingContent, content)
+    }
+    seenIds.add(message.id)
+    return true
+  }
+  expertCallIndexByKey.set(key, messages.length)
+  return false
+}
+
 export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessage[] {
   const seenIds = new Set<string>()
   const messages: ChatMessage[] = []
   const sortedEvents = sortAgentEventsBySeq(events)
   const stepCompletions = collectStepCompletions(sortedEvents)
-
-  // Same logical expert (same agent + same task) may be spawned several times
-  // (e.g. retries across HITL turns) with different `step_id`s, producing
-  // distinct messages that the user perceives as duplicates — and some of
-  // those spawns never receive a matching completion, leaving spinners spinning
-  // forever. We keep only the first occurrence and merge subsequent spawns'
-  // status into it so the richest outcome wins.
   const expertCallIndexByKey = new Map<string, number>()
+  const shownArtifactKeys = new Set<string>()
 
   for (const event of sortedEvents) {
-    const message = eventToMessage(event, stepCompletions)
+    const message = eventToMessage(event, stepCompletions, shownArtifactKeys)
     if (!message || seenIds.has(message.id)) continue
-
-    if (message.type === 'expert_call') {
-      const content = message.content as ExpertCallContent
-      const key = expertCallDedupeKey(content)
-      const existingIdx = expertCallIndexByKey.get(key)
-      if (existingIdx !== undefined) {
-        const existing = messages[existingIdx]
-        const existingContent = existing.content as ExpertCallContent
-        messages[existingIdx] = {
-          ...existing,
-          content: mergeExpertCallContent(existingContent, content)
-        }
-        seenIds.add(message.id)
-        continue
-      }
-      expertCallIndexByKey.set(key, messages.length)
-    }
+    if (dedupeExpertCall(message, messages, expertCallIndexByKey, seenIds)) continue
 
     seenIds.add(message.id)
     messages.push(message)
+    trackShownArtifacts(event, shownArtifactKeys)
   }
 
   finalizeRunningMessagesOnTerminal(sortedEvents, messages)

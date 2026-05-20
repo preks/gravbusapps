@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { ArrowsOutIcon, CheckIcon, CopyIcon, DownloadSimpleIcon, XIcon } from '@phosphor-icons/react'
+import { ArrowsOutIcon, CheckIcon, CopyIcon, DownloadSimpleIcon, ImageIcon, XIcon } from '@phosphor-icons/react'
 import type { ArtifactFile, ArtifactRendererType } from '../../types/fabric'
 
 // ─── Type metadata ────────────────────────────────────────────────────────────
@@ -64,6 +64,7 @@ export interface ArtifactToolbarProps {
   onViewModeChange: (mode: 'preview' | 'code') => void
   content: string | null
   onClose: () => void
+  onDownloadPng?: () => void
 }
 
 export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
@@ -71,7 +72,8 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
   viewMode,
   onViewModeChange,
   content,
-  onClose
+  onClose,
+  onDownloadPng
 }) => {
   const [copied, setCopied] = useState(false)
 
@@ -83,7 +85,6 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
     })
   }, [content])
 
-  // Code types don't have a meaningful "preview" toggle
   const canToggle = file.rendererType !== 'unknown'
 
   return (
@@ -128,6 +129,17 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
         >
           <DownloadSimpleIcon className="gba:h-3.5 gba:w-3.5" />
         </a>
+
+        {onDownloadPng && (
+          <button
+            onClick={onDownloadPng}
+            title="Download as PNG"
+            className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+            data-testid="fabric-toolbar-download-png"
+          >
+            <ImageIcon className="gba:h-3.5 gba:w-3.5" />
+          </button>
+        )}
 
         <a
           href={file.downloadUrl}

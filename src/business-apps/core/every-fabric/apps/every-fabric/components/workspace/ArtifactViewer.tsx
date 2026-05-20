@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ArtifactFile } from '../../types/fabric'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { ArtifactToolbar } from '../artifacts/ArtifactToolbar'
 import { renderers } from '../artifacts/renderers'
+import HtmlArtifact from '../artifacts/renderers/HtmlArtifact'
 
 // ─── Content fetcher ──────────────────────────────────────────────────────────
 
@@ -19,7 +20,6 @@ function useArtifactContent(file: ArtifactFile | null, accessToken: string) {
       return
     }
 
-    // HTML renders via iframe — no text fetch needed
     if (file.rendererType === 'html') {
       setContent(null)
       return
@@ -50,13 +50,12 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
   const isOpen = file !== null
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview')
   const { content, loading, error } = useArtifactContent(file, accessToken)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
 
-  // Reset view mode when a different artifact opens
   useEffect(() => {
     setViewMode('preview')
   }, [file?.name])
 
-  // Escape to close
   useEffect(() => {
     if (!isOpen) return
     const handler = (e: KeyboardEvent) => {
@@ -66,7 +65,30 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
     return () => globalThis.removeEventListener('keydown', handler)
   }, [isOpen, onClose])
 
-  const Renderer = file ? renderers[file.rendererType] : null
+  const handleDownloadPng = useCallback(() => {
+    const iframe = iframeRef.current
+    if (!iframe?.contentWindow) return
+
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.data?.type === 'capture-png-result' && ev.data.dataUrl) {
+        globalThis.removeEventListener('message', onMessage)
+        const link = document.createElement('a')
+        link.download = (file?.name ?? 'dashboard').replace(/\.html?$/i, '') + '.png'
+        link.href = ev.data.dataUrl
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+      } else if (ev.data?.type === 'capture-png-error') {
+        globalThis.removeEventListener('message', onMessage)
+      }
+    }
+    globalThis.addEventListener('message', onMessage)
+    setTimeout(() => globalThis.removeEventListener('message', onMessage), 10_000)
+    iframe.contentWindow.postMessage({ type: 'capture-png' }, file?.downloadUrl ?? '*')
+  }, [file?.name])
+
+  const isHtml = file?.rendererType === 'html'
+  const Renderer = file && !isHtml ? renderers[file.rendererType] : null
 
   return createPortal(
     <>
@@ -75,6 +97,7 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
         className={`gba:fixed gba:inset-0 gba:bg-slate-950/28 gba:backdrop-blur-[5px] gba:z-[9990] gba:transition-opacity gba:duration-200 ${
           isOpen ? 'gba:opacity-100 gba:pointer-events-auto' : 'gba:opacity-0 gba:pointer-events-none'
         }`}
+        style={{ zIndex: 9998 }}
         onClick={onClose}
       />
 
@@ -88,6 +111,7 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
             ? 'gba:translate-y-0 gba:scale-100 gba:opacity-100 gba:pointer-events-auto'
             : 'gba:translate-y-4 gba:scale-[0.985] gba:opacity-0 gba:pointer-events-none'
         }`}
+        style={{ zIndex: 9999 }}
       >
         {file && (
           <>
@@ -97,9 +121,12 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
               onViewModeChange={setViewMode}
               content={content}
               onClose={onClose}
+              onDownloadPng={isHtml ? handleDownloadPng : undefined}
             />
 
-            <div className="gba:flex-1 gba:overflow-hidden gba:relative">
+            <div
+              className={`gba:flex-1 gba:min-h-0 gba:relative ${isHtml ? 'gba:overflow-hidden' : 'gba:overflow-auto'}`}
+            >
               {loading && (
                 <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-card">
                   <div className="gba:h-6 gba:w-6 gba:rounded-full gba:border-2 gba:border-border gba:border-t-primary gba:animate-spin" />
@@ -119,11 +146,11 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
                 </div>
               )}
 
-              {!error && Renderer && (
-                <div className="gba:h-full gba:overflow-hidden">
-                  <Renderer file={file} content={content} viewMode={viewMode} />
-                </div>
+              {!error && isHtml && (
+                <HtmlArtifact file={file} content={content} viewMode={viewMode} iframeRef={iframeRef} />
               )}
+
+              {!error && Renderer && <Renderer file={file} content={content} viewMode={viewMode} />}
             </div>
           </>
         )}

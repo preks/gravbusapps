@@ -685,7 +685,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
 
   return (
     <div
-      className="gba:flex gba:h-full gba:max-h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:bg-transparent gba:px-0 sm:gba:px-1 gba:py-1 sm:gba:py-1.5 gba:space-y-2 sm:gba:space-y-3"
+      className="gba:flex gba:h-full gba:max-h-full gba:max-w-full gba:min-h-0 gba:min-w-0 gba:flex-col gba:overflow-y-auto gba:overflow-x-hidden gba:bg-transparent gba:px-0 sm:gba:px-1 gba:py-1 sm:gba:py-1.5 gba:space-y-2 sm:gba:space-y-3"
       data-testid="fabric-right-panel"
     >
       {showPreview && (

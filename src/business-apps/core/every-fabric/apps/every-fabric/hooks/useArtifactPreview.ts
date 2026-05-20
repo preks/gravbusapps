@@ -89,8 +89,13 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
   // An active preview also includes the terminal ``error`` state so the right
   // rail stays wide enough to render the designed failure card (with a retry
   // button) instead of squeezing it into the narrow ambient progress rail.
+  // Only slides, documents, and notes need the wide canvas — charts and
+  // dashboards fit comfortably in the narrow rail.
+  const WIDE_PREVIEW_TYPES = new Set(['slides', 'document', 'note'])
   const hasActivePreview = previews.some(
-    p => p.status === 'generating' || p.status === 'draft_ready' || p.status === 'ready' || p.status === 'error'
+    p =>
+      WIDE_PREVIEW_TYPES.has(p.artifactType) &&
+      (p.status === 'generating' || p.status === 'draft_ready' || p.status === 'ready' || p.status === 'error')
   )
 
   return { previews, latestPreview, hasActivePreview }

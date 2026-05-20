@@ -58,12 +58,13 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
     setLoading(true)
     setError(null)
     try {
-      const [flowbotTools, functionManagerTools, mcpTools] = await Promise.all([
+      const [flowbotTools, functionManagerTools, mcpTools, builtinTools] = await Promise.all([
         promptManagerClient.getFlowBotProviderTools().catch(() => [] as ProviderToolCatalogItem[]),
         promptManagerClient.getFunctionManagerTools().catch(() => [] as ProviderToolCatalogItem[]),
-        promptManagerClient.getMcpProviderTools().catch(() => [] as ProviderToolCatalogItem[])
+        promptManagerClient.getMcpProviderTools().catch(() => [] as ProviderToolCatalogItem[]),
+        promptManagerClient.getBuiltinProviderTools().catch(() => [] as ProviderToolCatalogItem[])
       ])
-      setTools([...flowbotTools, ...functionManagerTools, ...mcpTools].map(providerToToolOption))
+      setTools([...flowbotTools, ...functionManagerTools, ...mcpTools, ...builtinTools].map(providerToToolOption))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tools')
     } finally {
