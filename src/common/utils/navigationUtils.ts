@@ -94,7 +94,7 @@ export const Navigation = {
   /** Flow Launcher: library + my launches (deep-link with `?tab=my-launches&flowId=`). */
   FLOW_LAUNCHER: `${NAVIGATION_BASE_PATH}/apps/flow/apps/launcher`,
   /** Flow Detail: dedicated full-page view for a single flow instance (deep-link with `?flowId=`). */
-  FLOW_DETAIL: `${NAVIGATION_BASE_PATH}/apps/flow/detail`,
+  FLOW_DETAIL: `${NAVIGATION_BASE_PATH}/apps/flow/apps/detail`,
 
   // Office
   OFFICE: `${NAVIGATION_BASE_PATH}/every-office`,
