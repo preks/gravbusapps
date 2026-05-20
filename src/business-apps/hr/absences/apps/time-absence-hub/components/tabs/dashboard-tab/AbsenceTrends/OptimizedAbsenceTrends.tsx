@@ -16,46 +16,6 @@ const colorPalette = {
   totalLine: 'var(--nw-foreground)'
 }
 
-const MONTH_NAME_MAP: Record<string, string> = {
-  Jan: 'January',
-  Feb: 'February',
-  Mar: 'March',
-  Apr: 'April',
-  May: 'May',
-  Jun: 'June',
-  Jul: 'July',
-  Aug: 'August',
-  Sep: 'September',
-  Oct: 'October',
-  Nov: 'November',
-  Dec: 'December'
-}
-
-const parseMonthClickLabel = (monthLabel: string): { fullMonth: string; yearPart: number } => {
-  let monthPart = monthLabel
-  let yearPart = new Date().getFullYear()
-  const labelParts = monthLabel
-    .trim()
-    .split(' ')
-    .filter(part => part.length > 0)
-
-  if (labelParts.length >= 2) {
-    const [candidateMonth, candidateYear] = labelParts
-    const parsedYear = Number.parseInt(candidateYear, 10)
-    const hasValidYear = candidateYear.length === 4 && Number.isInteger(parsedYear)
-
-    if (hasValidYear) {
-      monthPart = candidateMonth
-      yearPart = parsedYear
-    }
-  }
-
-  return {
-    fullMonth: MONTH_NAME_MAP[monthPart] ?? monthPart,
-    yearPart
-  }
-}
-
 interface AbsenceTrendsLegendContentProps {
   absenceTypes: string[]
   getTypeColor: (type: string) => string
@@ -177,7 +137,7 @@ const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTyp
   )
 }
 
-const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboardData, onMonthClick }) => {
+const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboardData }) => {
   const { monthlyData, isLoading, error } = dashboardData
 
   // No need for additional GraphQL calls - monthlyData already contains the aggregated data
@@ -402,21 +362,9 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
       </CardHeader>
 
       <CardContent>
-        <div className="gba:h-96 gba:w-full gba:cursor-pointer">
+        <div className="gba:h-96 gba:w-full">
           <ResponsiveContainer>
-            <ComposedChart
-              data={chartData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              onClick={data => {
-                const monthLabel = typeof data?.activeLabel === 'string' ? data.activeLabel : null
-                if (!monthLabel || !onMonthClick) {
-                  return
-                }
-
-                const parsedLabel = parseMonthClickLabel(monthLabel)
-                onMonthClick(parsedLabel.fullMonth, parsedLabel.yearPart)
-              }}
-            >
+            <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
