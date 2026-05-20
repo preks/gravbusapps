@@ -72,7 +72,7 @@ export interface LegacyAiActionsProps extends BaseAiActionsProps {
 /**
  * Supported AI action types
  */
-export type AiActionType = 'summary' | 'meeting-planner' | 'booklet'
+export type AiActionType = 'summary' | 'meeting-planner' | 'booklet' | 'lead-scoring'
 
 /**
  * Hook configuration for enhanced API
@@ -102,6 +102,12 @@ export interface EnhancedAiActionsProps extends BaseAiActionsProps {
   requireAccessToken?: boolean
   /** Access token if required */
   accessToken?: string
+  /** Optional user info used by lead-scoring panel */
+  userInfo?: any
+  /** Optional additional data used by lead-scoring panel */
+  additionalData?: any
+  /** Optional callback invoked after embedded lead scoring completes */
+  onLeadScored?: () => void | Promise<void>
 }
 
 /**

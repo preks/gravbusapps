@@ -26,6 +26,9 @@ export interface LeadListLayoutProps<T extends Lead = Lead> {
 
   // Row actions
   actions?: (row: { original: T }) => React.ReactNode
+  selectedRows?: any[]
+  onSelectionChange?: (rows: any[]) => void
+  enableSelection?: boolean
 
   // Test ID
   dataTestId?: string
@@ -44,6 +47,9 @@ export function LeadListLayout<T extends Lead = Lead>(props: Readonly<LeadListLa
     onPaginationChange,
     onRowClick,
     actions,
+    selectedRows,
+    onSelectionChange,
+    enableSelection = false,
     dataTestId = 'lead-list-layout'
   } = props
 
@@ -86,7 +92,9 @@ export function LeadListLayout<T extends Lead = Lead>(props: Readonly<LeadListLa
       onPaginationChange={onPaginationChange}
       enablePagination
       enableSorting
-      enableSelection={false}
+      enableSelection={enableSelection}
+      selectedRows={selectedRows}
+      onSelectionChange={onSelectionChange}
       enableColumnPinning
       enableResizing={false}
       tableLayout="fixed"

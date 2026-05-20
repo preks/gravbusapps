@@ -4,6 +4,9 @@
 icp-settings-card-title = Ideale Kundenprofile
 icp-settings-card-description = ICP-Kriterien und Gewichtungen für die KI-ICP-Bewertung konfigurieren
 icp-settings-card-entry = Profile verwalten
+lead-scoring-settings-card-title = Lead-Bewertung
+lead-scoring-settings-card-description = Einzelne Leads oder Lead-Listen anhand Ihrer ICP-Profile bewerten
+lead-scoring-settings-card-entry = Lead-Bewertung öffnen
 
 # Page
 icp-page-title = Ideale Kundenprofile

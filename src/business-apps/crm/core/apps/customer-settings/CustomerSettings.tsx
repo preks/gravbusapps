@@ -25,6 +25,7 @@ import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPag
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import CampaignDataPage from './pages/campaign-data/CampaignDataPage'
 import IdealCustomerProfilesPage from './pages/ideal-customer-profiles/IdealCustomerProfilesPage'
+import { LeadScoringPage } from '@/business-apps/crm/core/features/lead-scoring'
 import MarketingComplianceDataPage from './pages/marketing-compliance-data/MarketingComplianceDataPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -217,6 +218,18 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       ]
     },
     {
+      title: tIcp('lead-scoring-settings-card-title'),
+      description: tIcp('lead-scoring-settings-card-description'),
+      icon: FunnelSimpleIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: tIcp('lead-scoring-settings-card-entry'),
+          onClick: () => handleInlinePageChange({ key: 'lead-scoring' })
+        }
+      ]
+    },
+    {
       title: t('crm.marketing_compliance', 'Marketing Compliance'),
       description: t('crm.marketing_compliance_description', 'Manage marketing opt-in sources and statuses'),
       icon: ShieldCheckIcon,
@@ -350,6 +363,18 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerIcpSettings`}
         onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'lead-scoring') {
+    return (
+      <LeadScoringPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerLeadScoringSettings`}
+        onBack={() => handleInlinePageChange(null)}
+        mode="both"
+        variant="page"
       />
     )
   }

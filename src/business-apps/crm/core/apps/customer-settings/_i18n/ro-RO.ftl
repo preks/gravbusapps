@@ -4,6 +4,9 @@
 icp-settings-card-title = Profiluri clienți ideali
 icp-settings-card-description = Configurați criteriile ICP și ponderile pentru scorizarea ICP cu AI
 icp-settings-card-entry = Gestionați profilurile
+lead-scoring-settings-card-title = Scorizare leaduri
+lead-scoring-settings-card-description = Scorizați leaduri individuale sau liste de leaduri folosind profilurile ICP
+lead-scoring-settings-card-entry = Deschideți Scorizarea leadurilor
 
 # Page
 icp-page-title = Profiluri clienți ideali

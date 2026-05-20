@@ -66,7 +66,13 @@ export type CustomerLeadQueryVariables = CommonLeadQueryVariables
  * CRM uses "Lead" as entity name (not "CustomerLead")
  */
 export const buildCustomerLeadQuery = (fields: typeof CustomerLeadFields = CustomerLeadFields): string => {
-  return buildLeadQuery('Lead', fields, buildCustomerLeadComplianceFields(fields))
+  const additionalFields = `
+    ${fields.aiLeadScore}
+    ${fields.aiLeadGrade}
+    ${buildCustomerLeadComplianceFields(fields)}
+  `
+
+  return buildLeadQuery('Lead', fields, additionalFields)
 }
 
 /**
@@ -96,6 +102,8 @@ export const buildCustomerLeadByIdQuery = (fields: typeof CustomerLeadFields = C
 
   // CRM-specific additional fields: salesCampaign, salesCampaignId, and compliance metadata
   const additionalFields = `
+    ${fields.aiLeadScore}
+    ${fields.aiLeadGrade}
     ${buildCustomerLeadComplianceFields(fields)}
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}

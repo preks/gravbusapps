@@ -4,6 +4,9 @@
 icp-settings-card-title = Ideal Customer Profiles
 icp-settings-card-description = Configure ICP criteria and weights for AI ICP scoring
 icp-settings-card-entry = Manage Profiles
+lead-scoring-settings-card-title = Lead Scoring
+lead-scoring-settings-card-description = Score individual leads or lead lists against your ICP profiles
+lead-scoring-settings-card-entry = Open Lead Scoring
 
 # Page
 icp-page-title = Ideal Customer Profiles

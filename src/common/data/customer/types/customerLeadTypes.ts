@@ -16,6 +16,8 @@ import { buildCustomerOpportunityPayload } from './customerOpportunityTypes'
 export interface CustomerLead extends Lead {
   account?: CustomerAccount
   activities?: CustomerActivity[]
+  aiLeadGrade?: string | null
+  aiLeadScore?: number | null
   contact?: CustomerContact
   convertedAccount?: CustomerAccount
   convertedContact?: CustomerContact
@@ -43,6 +45,8 @@ export interface CustomerLead extends Lead {
  */
 export const CustomerLeadFields = {
   ...LeadFields,
+  aiLeadGrade: 'aiLeadGrade',
+  aiLeadScore: 'aiLeadScore',
   // Override CRM-specific field names
   accountAnnualRevenueBand: 'annualRevenue',
   accountAnnualRevenueBandRef: 'annualRevenueRef',
@@ -78,6 +82,18 @@ export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
     key: 'notes',
     searchPaths: ['notes.noteTitle', 'notes.noteText'], // CRM uses "noteTitle"/"noteText"
     sortPaths: ['notes.noteTitle', 'notes.noteText'],
+    type: 'text'
+  },
+  {
+    key: 'aiLeadScore',
+    searchPaths: ['aiLeadScore'],
+    sortPath: 'aiLeadScore',
+    type: 'number'
+  },
+  {
+    key: 'aiLeadGrade',
+    searchPaths: ['aiLeadGrade'],
+    sortPath: 'aiLeadGrade',
     type: 'text'
   },
   {

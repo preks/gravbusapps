@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
@@ -84,6 +84,9 @@ export interface LeadLayoutProps<TLead extends Lead = Lead, TQueryVariables = an
   readonly onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
   readonly initialVisibleColumns?: string[]
   readonly onVisibleColumnsChange?: (columns: string[]) => void
+  readonly enableSelection?: boolean
+  readonly selectedRows?: any[]
+  readonly onSelectionChange?: (rows: any[]) => void
 }
 
 // Row Actions Component
@@ -134,7 +137,10 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
     initialSorting: initialSortingProp,
     onSortingChange: onSortingChangeProp,
     initialVisibleColumns: initialVisibleColumnsProp,
-    onVisibleColumnsChange: onVisibleColumnsChangeProp
+    onVisibleColumnsChange: onVisibleColumnsChangeProp,
+    enableSelection = false,
+    selectedRows,
+    onSelectionChange
   } = props
 
   // Prefer the directly-passed prop; fall back to config for backwards compatibility
@@ -280,6 +286,34 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
       setVisibleColumns(availableColumns.map(col => col.id))
     }
   }, [availableColumns, visibleColumns.length])
+
+  // Keep newly-introduced dynamic columns visible by default.
+  // Existing columns hidden by the user remain hidden.
+  const hasInitializedAvailableColumnsRef = useRef(false)
+  const previousAvailableColumnIdsRef = useRef<string[]>([])
+
+  useEffect(() => {
+    if (availableColumnIds.length === 0) {
+      return
+    }
+
+    if (!hasInitializedAvailableColumnsRef.current) {
+      hasInitializedAvailableColumnsRef.current = true
+      previousAvailableColumnIdsRef.current = availableColumnIds
+      return
+    }
+
+    const previousAvailableColumnIds = previousAvailableColumnIdsRef.current
+    const newlyAddedColumnIds = availableColumnIds.filter(columnId => !previousAvailableColumnIds.includes(columnId))
+
+    if (newlyAddedColumnIds.length > 0) {
+      setVisibleColumns(previousVisibleColumns =>
+        Array.from(new Set([...previousVisibleColumns, ...newlyAddedColumnIds]))
+      )
+    }
+
+    previousAvailableColumnIdsRef.current = availableColumnIds
+  }, [availableColumnIds])
 
   // Row actions - rendered internally
   // Row actions - rendered internally (only if actions are configured)
@@ -427,6 +461,9 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
           onSortingChange={handleSortingChange}
           pagination={pagination}
           onPaginationChange={setPagination}
+          enableSelection={enableSelection}
+          selectedRows={selectedRows}
+          onSelectionChange={onSelectionChange}
           actions={rowActions}
           onRowClick={handleRowClick}
           dataTestId={`${dataTestId}-list`}
