@@ -5,8 +5,10 @@ interface MeshLayersToggleProps {
   activeLayers: ReadonlySet<MeshLayerKey>
   countsByLayer: Record<MeshLayerKey, number>
   showLabels: boolean
+  mergeNodes: boolean
   onToggleLayer: (layer: MeshLayerKey) => void
   onToggleLabels: () => void
+  onToggleMerge: () => void
 }
 
 interface LayerRowProps {
@@ -40,8 +42,10 @@ export const MeshLayersToggle: React.FC<MeshLayersToggleProps> = ({
   activeLayers,
   countsByLayer,
   showLabels,
+  mergeNodes,
   onToggleLayer,
-  onToggleLabels
+  onToggleLabels,
+  onToggleMerge
 }) => {
   return (
     <div
@@ -72,6 +76,13 @@ export const MeshLayersToggle: React.FC<MeshLayersToggleProps> = ({
           checked={showLabels}
           testId="mesh-layers-toggle-labels"
           onChange={onToggleLabels}
+        />
+        <LayerRow
+          id="mesh-layer-merge"
+          label="Compact edges"
+          checked={mergeNodes}
+          testId="mesh-layers-toggle-merge"
+          onChange={onToggleMerge}
         />
       </div>
     </div>

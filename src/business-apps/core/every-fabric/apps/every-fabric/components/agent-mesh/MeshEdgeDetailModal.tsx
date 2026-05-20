@@ -3,6 +3,7 @@ import {
   ArrowRightIcon,
   BrainIcon,
   ChatTeardropTextIcon,
+  ClockIcon,
   HandshakeIcon,
   LightbulbIcon,
   WrenchIcon,
@@ -18,7 +19,9 @@ interface MeshEdgeDetailModalProps {
   callIndex?: number
   /** Total number of edges between the same node pair (>= 1). */
   callTotal?: number
+  sessionTitleMap?: Map<string, string>
   onClose: () => void
+  onDrillToSession?: (sessionId: string) => void
 }
 
 const KIND_LABEL: Record<MeshEdgeKind, string> = {
@@ -64,7 +67,9 @@ export const MeshEdgeDetailModal: React.FC<MeshEdgeDetailModalProps> = ({
   target,
   callIndex,
   callTotal,
-  onClose
+  sessionTitleMap,
+  onClose,
+  onDrillToSession
 }) => {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -142,7 +147,43 @@ export const MeshEdgeDetailModal: React.FC<MeshEdgeDetailModalProps> = ({
             </span>
           </div>
         )}
+
+        {onDrillToSession && hasSessionIds(edge) && (
+          <div className="gba:border-t gba:border-border/40 gba:pt-2 gba:mt-1">
+            <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:mb-1.5">
+              Sessions ({(edge as EdgeWithSessions).sampleSessionIds.length})
+            </p>
+            <ul className="gba:space-y-1">
+              {(edge as EdgeWithSessions).sampleSessionIds.slice(0, 5).map(sessionId => (
+                <li key={sessionId}>
+                  <button
+                    type="button"
+                    onClick={() => onDrillToSession(sessionId)}
+                    className="gba:flex gba:items-center gba:gap-2 gba:w-full gba:text-left gba:rounded-md gba:p-1.5 gba:-mx-1.5 gba:hover:bg-muted/40 gba:transition-colors gba:group/session"
+                    data-testid={`edge-session-${sessionId}`}
+                  >
+                    <ClockIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground gba:shrink-0" />
+                    <span className="gba:flex-1 gba:truncate gba:text-[11px] gba:text-foreground gba:group-hover/session:text-primary gba:transition-colors">
+                      {sessionTitleMap?.get(sessionId) || sessionId.slice(0, 8) + '…'}
+                    </span>
+                    <ArrowRightIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground/60 gba:shrink-0" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+interface EdgeWithSessions extends MeshEdge {
+  sampleSessionIds: string[]
+}
+
+function hasSessionIds(edge: MeshEdge): edge is EdgeWithSessions {
+  return (
+    Array.isArray((edge as EdgeWithSessions).sampleSessionIds) && (edge as EdgeWithSessions).sampleSessionIds.length > 0
   )
 }

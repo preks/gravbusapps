@@ -1,18 +1,19 @@
-import { useCallback, useMemo, useState } from 'react'
-import { ArrowLeftIcon, ArrowSquareOutIcon, GraphIcon, SpinnerGapIcon } from '@phosphor-icons/react'
+import { useCallback, useMemo } from 'react'
+import { GraphIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
 import { useFabric } from '../../context/FabricContext'
 import { useReplayClock } from '../../hooks/useReplayClock'
 import { useTraceModel } from '../../hooks/useTraceModel'
-import type { MeshDecision, MeshEdge, MeshNode } from '../../utils/traceModel'
-import { ALL_LAYERS, type MeshLayerKey, MESH_LAYERS } from './meshLayers'
+import type { MeshDecision } from '../../utils/traceModel'
+import { MESH_LAYERS, type MeshLayerKey } from './meshLayers'
+import { AgentMeshCanvas } from './AgentMeshCanvas'
+import { AgentMeshShell } from './AgentMeshShell'
 import { DecisionLogPanel } from './DecisionLogPanel'
-import { MeshEdgeDetailModal } from './MeshEdgeDetailModal'
-import { MeshGraph } from './MeshGraph'
-import { MeshLayersToggle } from './MeshLayersToggle'
-import { MeshNodeDetailPopover } from './MeshNodeDetailPopover'
-import { MeshStatusPill } from './MeshStatusPill'
 import { ReplayTimeline } from './ReplayTimeline'
+import type { MeshScope } from './meshScopes'
+import { getScopeSubtitle, getScopeTitle } from './meshScopes'
+import { useAgentMeshScope } from '../../hooks/useAgentMeshScope'
+import { AgentMeshAggregateView } from './AgentMeshAggregateView'
 
 interface AgentMeshScreenProps {
   onBack: () => void
@@ -21,15 +22,11 @@ interface AgentMeshScreenProps {
 
 const NON_LOG_FRAME_KINDS = new Set(['decision'])
 
-const HEADER_SUBTITLE = 'How your agents connect · replay the decision that produced a response'
-
 export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpenTraceExplorer }) => {
   const { session, events, isStreaming, activeSessionId } = useFabric()
+  const { scope, userId, setScope } = useAgentMeshScope()
 
   const { model, source } = useTraceModel({ liveEvents: events, session, isStreaming })
-  // `merged` means both REST trace and live SSE contributed at least one
-  // event — it's still a live session for replay-clock purposes. `rest` /
-  // `empty` are not live (replay-only).
   const isLive = isStreaming === true && (source === 'live' || source === 'merged')
 
   const clock = useReplayClock({
@@ -38,30 +35,8 @@ export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpen
     initialSpeed: 1
   })
 
-  const [activeLayers, setActiveLayers] = useState<Set<MeshLayerKey>>(() => new Set(ALL_LAYERS))
-  const [showEdgeLabels, setShowEdgeLabels] = useState<boolean>(true)
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
-
-  const toggleLayer = useCallback((layer: MeshLayerKey) => {
-    setActiveLayers(prev => {
-      const next = new Set(prev)
-      if (next.has(layer)) next.delete(layer)
-      else next.add(layer)
-      return next
-    })
-  }, [])
-
-  const toggleLabels = useCallback(() => setShowEdgeLabels(prev => !prev), [])
-
   const countsByLayer = useMemo<Record<MeshLayerKey, number>>(() => {
-    const result: Record<MeshLayerKey, number> = {
-      agents: 0,
-      experts: 0,
-      skills: 0,
-      tools: 0
-    }
+    const result: Record<MeshLayerKey, number> = { agents: 0, experts: 0, skills: 0, tools: 0 }
     for (const node of model.nodes) {
       for (const layer of MESH_LAYERS) {
         if (layer.kinds.includes(node.kind)) {
@@ -76,68 +51,6 @@ export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpen
   const reachableAgentCount = countsByLayer.agents + countsByLayer.experts
   const reachableToolCount = countsByLayer.tools + countsByLayer.skills
 
-  const selectedNode = useMemo<MeshNode | null>(() => {
-    if (!selectedNodeId) return null
-    return model.nodes.find(n => n.id === selectedNodeId) ?? null
-  }, [model.nodes, selectedNodeId])
-
-  const inboundEdges = useMemo<MeshEdge[]>(() => {
-    if (!selectedNode) return []
-    return model.edges.filter(e => e.target === selectedNode.id)
-  }, [model.edges, selectedNode])
-
-  const outboundEdges = useMemo<MeshEdge[]>(() => {
-    if (!selectedNode) return []
-    return model.edges.filter(e => e.source === selectedNode.id)
-  }, [model.edges, selectedNode])
-
-  const selectedNodeSkills = useMemo(() => {
-    if (!selectedNode) return []
-    const skillEdges = model.edges.filter(e => e.source === selectedNode.id && e.kind === 'skill_load')
-    return skillEdges.map(edge => {
-      const skillNode = model.nodes.find(n => n.id === edge.target)
-      return {
-        nodeId: edge.target,
-        name: skillNode?.label ?? edge.label ?? edge.target,
-        category: skillNode?.metadata?.category as string | undefined,
-        description: skillNode?.description,
-        wasAutoDetected: skillNode?.metadata?.was_auto_detected === true
-      }
-    })
-  }, [model.edges, model.nodes, selectedNode])
-
-  const selectedEdge = useMemo<MeshEdge | null>(() => {
-    if (!selectedEdgeId) return null
-    return model.edges.find(e => e.id === selectedEdgeId) ?? null
-  }, [model.edges, selectedEdgeId])
-
-  const selectedEdgeEndpoints = useMemo(() => {
-    if (!selectedEdge) return { source: undefined, target: undefined }
-    return {
-      source: model.nodes.find(n => n.id === selectedEdge.source),
-      target: model.nodes.find(n => n.id === selectedEdge.target)
-    }
-  }, [model.nodes, selectedEdge])
-
-  // Position of the selected edge among all edges that share the same node
-  // pair, so the modal can show "Call 2 of 3" when multiple tool calls /
-  // delegations exist between the same agent and target.
-  const selectedEdgeCallInfo = useMemo(() => {
-    if (!selectedEdge) return { index: 0, total: 0 }
-    const pairKey = [selectedEdge.source, selectedEdge.target].sort((a, b) => a.localeCompare(b)).join('::')
-    const peers = model.edges
-      .filter(e => e.kind !== 'completion')
-      .filter(e => [e.source, e.target].sort((a, b) => a.localeCompare(b)).join('::') === pairKey)
-      .sort((a, b) => a.seq - b.seq)
-    const index = peers.findIndex(e => e.id === selectedEdge.id)
-    return { index: index + 1, total: peers.length }
-  }, [model.edges, selectedEdge])
-
-  const handleSelectEdge = useCallback((edgeId: string) => {
-    setSelectedEdgeId(edgeId)
-  }, [])
-  const handleCloseEdge = useCallback(() => setSelectedEdgeId(null), [])
-
   const visibleFrames = useMemo(() => {
     if (isLive) return model.frames
     return model.frames.filter(frame => frame.offsetMs <= clock.positionMs + 1)
@@ -150,12 +63,19 @@ export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpen
     return model.decisions.filter(d => d.offsetMs <= clock.positionMs + 1)
   }, [model.decisions, isLive, clock.positionMs])
 
-  const handleSeekToDecision = useCallback(
-    (decision: MeshDecision) => {
-      clock.seek(decision.offsetMs)
-    },
-    [clock]
+  const handleSeekToDecision = useCallback((decision: MeshDecision) => clock.seek(decision.offsetMs), [clock])
+
+  const handleScopeChange = useCallback(
+    (newScope: MeshScope, newUserId?: string) => setScope(newScope, newUserId),
+    [setScope]
   )
+
+  const isEmpty = scope === 'session' && !activeSessionId && !session
+  const isLoading = scope === 'session' && !!activeSessionId && !session
+  const sessionTask = session?.input?.trim() ?? ''
+  const decisionTitle = sessionTask || 'Session decision simulation'
+
+  const showStatus = scope === 'session' && !isEmpty && !isLoading
 
   const renderEmptyState = () => (
     <div
@@ -186,130 +106,51 @@ export const AgentMeshScreen: React.FC<AgentMeshScreenProps> = ({ onBack, onOpen
     </div>
   )
 
-  const isEmpty = !activeSessionId && !session
-  const isLoading = !!activeSessionId && !session
-  const sessionTask = session?.input?.trim() ?? ''
-  const decisionTitle = sessionTask || 'Session decision simulation'
+  const renderSessionView = () => {
+    if (isEmpty) return renderEmptyState()
+    if (isLoading) return renderLoadingState()
+
+    return (
+      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:gap-4">
+        <div className="gba:grid gba:flex-1 gba:min-h-0 gba:grid-cols-1 gba:md:grid-cols-[minmax(0,1fr)_320px] gba:xl:grid-cols-[minmax(0,1fr)_380px] gba:gap-4">
+          <AgentMeshCanvas model={model} positionMs={clock.positionMs} durationMs={clock.durationMs} isLive={isLive} />
+          <DecisionLogPanel
+            title={decisionTitle}
+            summary={model.summary}
+            decisions={visibleDecisions}
+            logFrames={logFrames}
+            positionMs={clock.positionMs}
+            isLive={isLive}
+            onSeekToDecision={handleSeekToDecision}
+          />
+        </div>
+        <ReplayTimeline clock={clock} frames={model.frames} />
+      </div>
+    )
+  }
+
+  const renderContent = () => {
+    if (scope === 'session') return renderSessionView()
+    return <AgentMeshAggregateView scope={scope} userId={userId} />
+  }
+
+  const disabledScopes: MeshScope[] = userId ? [] : ['user']
 
   return (
-    <div
-      className="gba:flex gba:h-full gba:w-full gba:flex-col gba:bg-background gba:p-4 sm:gba:p-5 lg:gba:p-6"
-      data-testid="agent-mesh-screen"
+    <AgentMeshShell
+      scope={scope}
+      onScopeChange={handleScopeChange}
+      disabledScopes={disabledScopes}
+      title={getScopeTitle(scope, userId)}
+      subtitle={getScopeSubtitle(scope)}
+      agentCount={reachableAgentCount}
+      toolCount={reachableToolCount}
+      showStatus={showStatus}
+      onBack={onBack}
+      onOpenTraceExplorer={scope === 'session' ? onOpenTraceExplorer : undefined}
+      traceExplorerPositionMs={clock.positionMs}
     >
-      <header className="gba:flex gba:items-start gba:gap-4 gba:mb-4">
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label="Back to workspace"
-          className="gba:inline-flex gba:items-center gba:justify-center gba:h-9 gba:w-9 gba:shrink-0 gba:rounded-full gba:border gba:border-border/60 gba:bg-background gba:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:mt-1"
-          data-testid="agent-mesh-back"
-        >
-          <ArrowLeftIcon className="gba:h-4 gba:w-4" />
-        </button>
-        <div className="gba:min-w-0 gba:flex-1">
-          <h1 className="gba:text-[22px] gba:font-semibold gba:leading-tight gba:text-foreground">Agent Mesh</h1>
-          <p className="gba:mt-0.5 gba:text-[13px] gba:text-muted-foreground">{HEADER_SUBTITLE}</p>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
-          {!isEmpty && !isLoading && <MeshStatusPill agentCount={reachableAgentCount} toolCount={reachableToolCount} />}
-          {!isEmpty && !isLoading && onOpenTraceExplorer && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onOpenTraceExplorer(clock.positionMs)}
-              data-testid="mesh-open-trace-explorer"
-            >
-              <ArrowSquareOutIcon className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
-              Trace Explorer
-            </Button>
-          )}
-        </div>
-      </header>
-
-      {isEmpty ? (
-        renderEmptyState()
-      ) : isLoading ? (
-        renderLoadingState()
-      ) : (
-        <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:gap-4">
-          {/*
-           * Side-by-side layout: canvas left, Decision Simulation right.
-           *
-           * Tailwind v4 in this app uses prefix-FIRST variants
-           * (`gba:md:foo`, not `md:gba:foo`). Anything else is silently
-           * dropped, which previously left only `grid-cols-1` active and
-           * forced the panel below the canvas.
-           *
-           * - Below `md` (≤768px): single column — panel falls below the
-           *   canvas (mobile / narrow side-by-side IDE panes).
-           * - `md`–`xl`: panel collapses to 320px so the canvas keeps
-           *   room to render the full agent mesh.
-           * - `xl` (≥1280px) and above: panel grows to its preferred 380px.
-           */}
-          <div className="gba:grid gba:flex-1 gba:min-h-0 gba:grid-cols-1 gba:md:grid-cols-[minmax(0,1fr)_320px] gba:xl:grid-cols-[minmax(0,1fr)_380px] gba:gap-4">
-            <div className="gba:relative gba:min-h-[360px]">
-              <MeshGraph
-                model={model}
-                activeLayers={activeLayers}
-                positionMs={clock.positionMs}
-                durationMs={isLive ? 0 : clock.durationMs}
-                selectedNodeId={selectedNodeId}
-                showEdgeLabels={showEdgeLabels}
-                hoveredNodeId={hoveredNodeId}
-                onSelectNode={setSelectedNodeId}
-                onSelectEdge={handleSelectEdge}
-                onHoverNode={setHoveredNodeId}
-                onPaneClick={handleCloseEdge}
-              />
-              <div className="gba:absolute gba:top-3 gba:right-3 gba:z-10">
-                <MeshLayersToggle
-                  activeLayers={activeLayers}
-                  countsByLayer={countsByLayer}
-                  showLabels={showEdgeLabels}
-                  onToggleLayer={toggleLayer}
-                  onToggleLabels={toggleLabels}
-                />
-              </div>
-              {selectedNode && (
-                <div className="gba:absolute gba:bottom-3 gba:left-3 gba:z-10">
-                  <MeshNodeDetailPopover
-                    node={selectedNode}
-                    inboundEdges={inboundEdges}
-                    outboundEdges={outboundEdges}
-                    skills={selectedNodeSkills}
-                    onClose={() => setSelectedNodeId(null)}
-                    onFocusSkill={nodeId => setSelectedNodeId(nodeId)}
-                  />
-                </div>
-              )}
-              {selectedEdge && (
-                <div className="gba:absolute gba:bottom-3 gba:right-3 gba:z-10">
-                  <MeshEdgeDetailModal
-                    edge={selectedEdge}
-                    source={selectedEdgeEndpoints.source}
-                    target={selectedEdgeEndpoints.target}
-                    callIndex={selectedEdgeCallInfo.index}
-                    callTotal={selectedEdgeCallInfo.total}
-                    onClose={handleCloseEdge}
-                  />
-                </div>
-              )}
-            </div>
-
-            <DecisionLogPanel
-              title={decisionTitle}
-              summary={model.summary}
-              decisions={visibleDecisions}
-              logFrames={logFrames}
-              positionMs={clock.positionMs}
-              isLive={isLive}
-              onSeekToDecision={handleSeekToDecision}
-            />
-          </div>
-
-          <ReplayTimeline clock={clock} frames={model.frames} />
-        </div>
-      )}
-    </div>
+      {renderContent()}
+    </AgentMeshShell>
   )
 }

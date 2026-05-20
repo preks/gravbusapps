@@ -129,6 +129,28 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  const getMeshSessions = useCallback(
+    (params: {
+      scope: 'me' | 'user' | 'workspace'
+      userId?: string
+      limit?: number
+      status?: string
+      since?: string
+      until?: string
+    }) => {
+      const queryParams: Record<string, string> = { scope: params.scope }
+      if (params.userId) queryParams.userId = params.userId
+      if (params.limit) queryParams.limit = String(params.limit)
+      if (params.status) queryParams.status = params.status
+      if (params.since) queryParams.since = params.since
+      if (params.until) queryParams.until = params.until
+      return client.get<{ scope: string; count: number; items: DeepAgentSession[] }>('/deep-agent/sessions/mesh', {
+        params: queryParams
+      })
+    },
+    [client]
+  )
+
   const replyToInterrupt = useCallback(
     (
       sessionId: string,
@@ -535,6 +557,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       activateSession,
       getSession,
       getSessions,
+      getMeshSessions,
       replyToInterrupt,
       stopSession,
       getActiveSessions,
@@ -577,6 +600,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       activateSession,
       getSession,
       getSessions,
+      getMeshSessions,
       replyToInterrupt,
       stopSession,
       getActiveSessions,

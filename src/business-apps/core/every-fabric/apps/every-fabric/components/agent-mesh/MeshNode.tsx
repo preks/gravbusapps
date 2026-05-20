@@ -1,13 +1,7 @@
 import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import {
-  BrainIcon,
-  CompassIcon,
-  LightbulbIcon,
-  ShareNetworkIcon,
-  SquaresFourIcon,
-  WrenchIcon
-} from '@phosphor-icons/react'
+import { BrainIcon, CompassIcon, LightbulbIcon, WrenchIcon } from '@phosphor-icons/react'
+import { EveryIcon } from '@newwork/icons'
 import type { MeshNodeKind, MeshNodeStatus } from '../../utils/traceModel'
 
 export interface MeshNodeData {
@@ -40,9 +34,8 @@ function KindIcon({ kind, size }: { kind: MeshNodeKind; size: number }) {
   const style = { width: size * 0.42, height: size * 0.42 }
   switch (kind) {
     case 'orchestrator':
-      return <SquaresFourIcon className={className} style={style} weight="bold" />
+      return <EveryIcon className="gba:text-foreground/80" style={style} gradient="gba:bg-ai" />
     case 'subagent':
-      return <ShareNetworkIcon className={className} style={style} weight="bold" />
     case 'expert':
       return <BrainIcon className={className} style={style} weight="bold" />
     case 'skill':

@@ -38,6 +38,9 @@ export interface DeepAgentSession {
   session_id: string
   input: string
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'waiting_for_human'
+  user_id?: string
+  user_name?: string
+  workspace_id?: string
   presentation_mode?: EnterprisePresentationMode
   output?: string
   todos?: TodoItem[]
