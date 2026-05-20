@@ -89,6 +89,11 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
     [employeeSkills, searchTerm, categoryFilter, statusFilter, levelFilter, sortBy]
   )
 
+  const createSkillContext = useMemo(
+    () => ({ context: FlowContextName.createEmployeeSkill, contextData: { employeeId: employee?.id } }),
+    [employee?.id]
+  )
+
   const updateSkillContext = useMemo(
     () => ({ context: FlowContextName.updateEmployeeSkill, contextData: { employeeId: employee?.id } }),
     [employee?.id]
@@ -109,7 +114,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
           <AppAction
             variant="update-primary"
             data-testid="employee-skills-add-button"
-            contexts={[updateSkillContext]}
+            contexts={[createSkillContext]}
             prefixDataTestId="employee-skills-add"
             accessToken={accessToken}
             autoExecute={true}

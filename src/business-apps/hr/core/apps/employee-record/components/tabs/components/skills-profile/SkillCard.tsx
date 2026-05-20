@@ -12,6 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import { DotsThree } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import {
   EmployeeSkillItem,
   getVisibilityLabel,
@@ -20,10 +21,11 @@ import {
   isSkillVerified,
   parseSkillLevel
 } from './skillsProfile.utils'
+import { SkillVerificationDocumentLink } from './SkillVerificationDocumentLink'
 import { getSkillCategory, getTimeSince } from '../../../../utils/utils'
 
 interface UpdateSkillContext {
-  context: import('@/common/types/FlowRegistryTypes').FlowContextName
+  context: FlowContextName
   contextData: { employeeId?: string }
 }
 
@@ -37,6 +39,7 @@ interface SkillCardProps {
 export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, updateSkillContext, t }) => {
   const deactivateActivateTriggerRef = useRef<HTMLDivElement>(null)
   const attachVerificationTriggerRef = useRef<HTMLDivElement>(null)
+  const removeTriggerRef = useRef<HTMLDivElement>(null)
 
   const parsedLevel = parseSkillLevel(skill.level)
   const hasLevel = parsedLevel !== null
@@ -50,11 +53,11 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
 
   return (
     <Card
-      className={`gba:h-full gba:overflow-visible ${isActive ? '' : 'gba:bg-muted/50'}`}
+      className={`gba:h-full gba:overflow-visible ${isActive && !isPending ? '' : 'gba:bg-muted/50'}`}
       data-testid={`skills-profile-card-${skill.skill.id}`}
     >
       <CardContent className="gba:p-4 gba:space-y-4 gba:overflow-visible">
-        <div className={isActive ? '' : 'gba:opacity-60'}>
+        <div className={isActive && !isPending ? '' : 'gba:opacity-50'}>
           <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
             <div className="gba:min-w-0 gba:flex-1">
               <h4 className="gba:text-base gba:font-semibold gba:truncate">{skill.skill.name}</h4>
@@ -81,7 +84,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
             >
               {isVerified ? t('skills-status-verified') : t('skills-status-unverified')}
             </Badge>
-            {isPending && isActive && (
+            {isPending && (
               <Badge variant="warning" data-testid={`skills-profile-pending-${skill.skill.id}`}>
                 {t('skills-status-pending')}
               </Badge>
@@ -104,7 +107,10 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
             {skill.validFrom && isActive && (
               <div>{t('skills-active-since', { value: getTimeSince(skill.validFrom) })}</div>
             )}
-            {skill.validTo && <div>{t('skills-inactive-since', { value: getTimeSince(skill.validTo) })}</div>}
+            {skill.validTo && !isActive && (
+              <div>{t('skills-inactive-since', { value: getTimeSince(skill.validTo) })}</div>
+            )}
+            {isVerified && <SkillVerificationDocumentLink skill={skill} accessToken={accessToken} t={t} />}
           </div>
         </div>
 
@@ -132,6 +138,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
                 prefixDataTestId={`skills-profile-update-level-${skill.skill.id}`}
                 accessToken={accessToken}
                 autoExecute={true}
+                disabled={isPending}
               >
                 {hasLevel ? t('skills-action-update-level') : t('skills-action-set-level')}
               </AppAction>
@@ -143,6 +150,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
                     className="gba:shrink-0"
                     aria-label={t('skills-profile-more-actions')}
                     data-testid={`skills-profile-more-actions-${skill.skill.id}`}
+                    disabled={isPending}
                   >
                     <DotsThree className="gba:h-4 gba:w-4" />
                   </Button>
@@ -153,27 +161,40 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
                   className="gba:min-w-[13rem] gba:w-max gba:py-1"
                   style={{ maxHeight: 'none' }}
                 >
-                  {!isVerified && (
-                    <DropdownMenuItem
-                      className="gba:py-2 gba:px-3 gba:cursor-pointer"
-                      data-testid={`skills-profile-attach-verification-${skill.skill.id}`}
-                      onSelect={() => {
-                        attachVerificationTriggerRef.current?.querySelector('button')?.click()
-                      }}
-                    >
-                      <span className="gba:block gba:text-left gba:w-full">
-                        {t('skills-action-attach-verification')}
-                      </span>
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem
+                    className="gba:py-2 gba:px-3 gba:cursor-pointer"
+                    data-testid={`skills-profile-attach-verification-${skill.skill.id}`}
+                    disabled={isPending}
+                    onSelect={() => {
+                      if (isPending) return
+                      attachVerificationTriggerRef.current?.querySelector('button')?.click()
+                    }}
+                  >
+                    <span className="gba:block gba:text-left gba:w-full">
+                      {t(isVerified ? 'skills-action-change-verification' : 'skills-action-attach-verification')}
+                    </span>
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     className="gba:py-2 gba:px-3 gba:cursor-pointer"
                     data-testid={`skills-profile-toggle-active-${skill.skill.id}`}
+                    disabled={isPending}
                     onSelect={() => {
+                      if (isPending) return
                       deactivateActivateTriggerRef.current?.querySelector('button')?.click()
                     }}
                   >
                     <span className="gba:block gba:text-left gba:w-full">{t('skills-action-deactivate')}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="gba:py-2 gba:px-3 gba:cursor-pointer"
+                    data-testid={`skills-profile-remove-${skill.skill.id}`}
+                    disabled={isPending}
+                    onSelect={() => {
+                      if (isPending) return
+                      removeTriggerRef.current?.querySelector('button')?.click()
+                    }}
+                  >
+                    <span className="gba:block gba:text-left gba:w-full">{t('skills-action-remove')}</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -184,6 +205,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
               size="default"
               className="gba:shrink-0"
               data-testid={`skills-profile-activate-${skill.skill.id}`}
+              disabled={isPending}
               onClick={() => deactivateActivateTriggerRef.current?.querySelector('button')?.click()}
             >
               {t('skills-action-activate')}
@@ -211,7 +233,35 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
               ]}
               accessToken={accessToken}
               autoExecute={true}
+              disabled={isPending}
               prefixDataTestId={`skills-profile-toggle-active-${skill.skill.id}`}
+            >
+              <span />
+            </AppAction>
+          </div>
+          <div
+            ref={removeTriggerRef}
+            className="gba:fixed gba:opacity-0 gba:pointer-events-none gba:left-[-9999px] gba:top-0"
+            aria-hidden="true"
+          >
+            <AppAction
+              variant="update-secondary"
+              contexts={[
+                {
+                  context: FlowContextName.deleteEmployeeSkill,
+                  contextData: {
+                    ...updateSkillContext.contextData,
+                    mode: 'remove',
+                    skillId: skill.skill.id,
+                    employeeSkillId: skill.id,
+                    skillName: skill.skill.name
+                  }
+                }
+              ]}
+              accessToken={accessToken}
+              autoExecute={true}
+              disabled={isPending}
+              prefixDataTestId={`skills-profile-remove-${skill.skill.id}`}
             >
               <span />
             </AppAction>
@@ -237,6 +287,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
               ]}
               accessToken={accessToken}
               autoExecute={true}
+              disabled={isPending}
               prefixDataTestId={`skills-profile-attach-verification-${skill.skill.id}`}
             >
               <span />

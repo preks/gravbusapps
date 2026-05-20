@@ -95,7 +95,13 @@ export const useAddSkillFormController = ({
     if (flowFormParams?.mode === 'attachVerification') {
       return verificationFileList.length === 0
     }
-    if (flowFormParams?.mode === 'deactivate' || flowFormParams?.mode === 'activate') return false
+    if (
+      flowFormParams?.mode === 'deactivate' ||
+      flowFormParams?.mode === 'activate' ||
+      flowFormParams?.mode === 'remove'
+    ) {
+      return false
+    }
 
     const initialSkillMap = new Map<string, number>()
     existingSkillsList.forEach(s => {

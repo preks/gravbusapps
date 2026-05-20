@@ -1,9 +1,10 @@
-import { Employee } from '../../../../hooks/useEmployeeData'
+import { Employee, EmployeeSkillStatus } from '../../../../hooks/useEmployeeData'
 
 /**
  * Status and pending approval are derived from the employee_skill fields returned
  * by GET_EMPLOYEE_DATA (useEmployeeData.ts). The GraphQL selection must request:
- * recordState, processInstanceId, verificationDocumentId, verificationDocument{id}, validFrom, validTo.
+ * employeeSkillStatus, recordState, processInstanceId, verificationDocumentId,
+ * verificationDocument{id}, validFrom, validTo.
  * Visibility (acl) is optional; when present it is shown in the UI.
  */
 export const AGING_SKILL_DAYS_THRESHOLD = 180
@@ -26,6 +27,7 @@ export interface SkillSnapshotData {
   topSkills: EmployeeSkillItem[]
   verifiedCount: number
   activeCount: number
+  pendingCount: number
 }
 
 export const parseSkillLevel = (level: string | number | null | undefined): number | null => {
@@ -54,12 +56,8 @@ export const isSkillActive = (skill: EmployeeSkillItem, now = new Date()): boole
   return validToDate > now
 }
 
-const APPROVED_RECORD_STATES = new Set(['APPROVED', 'ACTIVE', 'COMPLETED'])
-
 export const isSkillPending = (skill: EmployeeSkillItem): boolean => {
-  if (!skill.processInstanceId) return false
-  const state = String(skill.recordState || '').toUpperCase()
-  return !APPROVED_RECORD_STATES.has(state)
+  return skill.employeeSkillStatus === EmployeeSkillStatus.PENDING_SKILL_STATUS
 }
 
 export const getVisibilityLabel = (acl: unknown): string => {
@@ -87,15 +85,17 @@ export const getSkillsSnapshotData = (skills: EmployeeSkillItem[]): SkillSnapsho
     .sort((a, b) => (parseSkillLevel(b.level) || 0) - (parseSkillLevel(a.level) || 0))
     .slice(0, 3)
 
-  const verifiedCount = validSkills.filter(isSkillVerified).length
-  const activeCount = validSkills.filter(skill => isSkillActive(skill)).length
+  const pendingCount = validSkills.filter(isSkillPending).length
+  const verifiedCount = validSkills.filter(skill => isSkillVerified(skill) && !isSkillPending(skill)).length
+  const activeCount = validSkills.filter(skill => isSkillActive(skill) && !isSkillPending(skill)).length
 
   return {
     strengthScore,
     leveledSkillCount: leveledSkills.length,
     topSkills,
     verifiedCount,
-    activeCount
+    activeCount,
+    pendingCount
   }
 }
 

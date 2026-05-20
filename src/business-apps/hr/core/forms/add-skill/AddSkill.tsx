@@ -8,17 +8,15 @@ import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import translations from '@/business-apps/hr/core/apps/employee-record/_i18n'
 import FormHeader from '../components/FormHeader'
 import { AddSkillProvider, useAddSkill } from './AddSkillContext'
-import { buildEmployeeSkillsPayload } from './utils/addSkillUtils'
+import {
+  buildCreateEmployeeSkillPayload,
+  buildDeleteEmployeeSkillPayload,
+  buildUpdateEmployeeSkillPayload
+} from './utils/addSkillUtils'
 import { AddSkillFormSections } from './components/AddSkillFormSections'
 import { useAddSkillFormController } from './hooks/useAddSkillFormController'
 import { ACCEPTED_VERIFICATION_FILE_TYPES, AddSkillFormValues, DOCUMENT_GROUP_DEVELOPMENT } from './addSkill.types'
 import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
-
-const clampLevel = (level: string | number | null | undefined) => {
-  if (level === null || level === undefined) return 1
-  const parsed = typeof level === 'string' ? Number.parseInt(level, 10) : level
-  return Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
-}
 
 const getFormTitle = (
   t: (key: string, args?: Record<string, unknown>) => string,
@@ -28,8 +26,15 @@ const getFormTitle = (
   if (flowFormParams?.mode === 'deactivate') return t('add-skill-form-deactivate-title')
   if (flowFormParams?.mode === 'activate') return t('add-skill-form-activate-title')
   if (flowFormParams?.mode === 'attachVerification') return t('add-skill-form-attach-verification-title')
+  if (flowFormParams?.mode === 'remove') return t('add-skill-form-remove-title')
   if (changeLevelParams) return t('skills-action-update-level')
   return t('add-skill-form-title')
+}
+
+const getProcessType = (flowFormParams: { mode?: string } | null | undefined): 'create' | 'update' | 'delete' => {
+  if (flowFormParams?.mode === 'remove') return 'delete'
+  if (flowFormParams?.mode === undefined) return 'create'
+  return 'update'
 }
 
 function toValidEmployeeDocumentId(value: unknown): string {
@@ -135,6 +140,10 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
   const watchedValidTo = form.watch('validTo')
 
   const isAttachVerificationSubmitDisabled = useMemo(() => {
+    if (flowFormParams?.mode === 'activate') {
+      return toDateInputValue(watchedValidTo).length === 0
+    }
+
     if (flowFormParams?.mode !== 'attachVerification') {
       return controller.isSubmitDisabled
     }
@@ -246,11 +255,11 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
       />
 
       <div
-        className="gba:flex gba:flex-col gba:[&>div[data-testid='add-skill-form']]:!pt-0"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='add-skill-form']]:pt-0!"
         data-testid="add-skill-form-content"
       >
         <AppActionForm
-          processType="update"
+          processType={getProcessType(flowFormParams)}
           form={form as any}
           formData={controller.normalizedDefaults}
           submitEventType="pse_submit"
@@ -273,7 +282,8 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
                     documentGroup: DOCUMENT_GROUP_DEVELOPMENT,
                     documentType: values.documentTypeId || null,
                     validTo: values.validTo ? new Date(values.validTo).toISOString() : null,
-                    deleteFirst: true
+                    deleteFirst: false,
+                    deleteRemovedDocuments: false
                   })
 
                   const uploadedVerificationDocumentId = shouldClearVerificationDocument
@@ -286,73 +296,55 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
           }
           onSubmit={async (values: AddSkillFormValues) => {
             const employeeId = ctxEmployeeId || values.targetEmployeeId
-            let selectedIds: string[]
-            const selectedLevels = new Map<string, number>()
-            let skillValidTo: Record<string, string | null> | undefined
-            let skillVerificationDocumentId: Record<string, string | null> | undefined
 
             if (flowFormParams?.mode === 'attachVerification') {
-              selectedIds = controller.existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
-              controller.existingSkillsList.forEach(s => {
-                if (s.skill?.id) selectedLevels.set(s.skill.id, clampLevel(s.level))
-              })
               const normalizedVerificationDocumentId =
                 typeof values.uploadedVerificationDocumentId === 'string' ? values.uploadedVerificationDocumentId : null
-              skillVerificationDocumentId = { [flowFormParams.skillId]: normalizedVerificationDocumentId }
-            } else if (flowFormParams?.mode === 'deactivate' || flowFormParams?.mode === 'activate') {
-              selectedIds = controller.existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
-              controller.existingSkillsList.forEach(s => {
-                if (s.skill?.id) selectedLevels.set(s.skill.id, clampLevel(s.level))
-              })
-              skillValidTo = {
-                [flowFormParams.skillId]:
-                  flowFormParams.mode === 'deactivate' ? new Date(Date.now() - 1000).toISOString() : null
-              }
-            } else if (changeLevelParams?.skillId) {
-              selectedIds = controller.existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
-              controller.existingSkillsList.forEach(s => {
-                if (s.skill?.id) selectedLevels.set(s.skill.id, clampLevel(s.level))
-              })
-              selectedLevels.set(
-                changeLevelParams.skillId,
-                controller.selectedSkills.find(s => s.id === changeLevelParams.skillId)?.level ?? 1
-              )
-            } else {
-              const existingToAssign = controller.skillsToAssign.filter(s => !s.isNew)
-              const newSkillsToCreate = controller.skillsToAssign.filter(s => s.isNew)
 
-              // Use activeSelectedSkills (reflects UI removes) instead of existingSkillsList (raw GraphQL)
-              const alreadyAssignedIds = controller.activeSelectedSkills.map(s => s.id)
-
-              selectedIds = [...alreadyAssignedIds, ...existingToAssign.map(s => s.id)]
-
-              // Levels: keep current level for already-assigned, use selected level for new
-              controller.activeSelectedSkills.forEach(s => selectedLevels.set(s.id, s.level || 1))
-              existingToAssign.forEach(s => selectedLevels.set(s.id, s.level || 1))
-
-              const newSkills =
-                newSkillsToCreate.length > 0 ? newSkillsToCreate.map(s => ({ name: s.name })) : undefined
-
-              return buildEmployeeSkillsPayload({
-                employeeId,
-                selectedSkillIds: selectedIds,
-                selectedSkillLevels: selectedLevels,
-                existingSkills: controller.existingSkillsList as any,
-                skillValidTo,
-                skillVerificationDocumentId,
-                ...(newSkills ? { newSkills } : {}),
-                event: 'pse_submit'
+              return buildUpdateEmployeeSkillPayload({
+                employeeSkillId: flowFormParams.employeeSkillId,
+                skillId: flowFormParams.skillId,
+                validTo: values.validTo || null,
+                verificationDocument: normalizedVerificationDocumentId,
+                previousVerificationDocument: selectedVerificationDocumentId || null,
+                existingSkills: controller.existingSkillsList as any
               })
             }
 
-            return buildEmployeeSkillsPayload({
+            if (flowFormParams?.mode === 'remove') {
+              return buildDeleteEmployeeSkillPayload(flowFormParams.employeeSkillId, flowFormParams.skillId)
+            }
+
+            if (flowFormParams?.mode === 'deactivate') {
+              return buildUpdateEmployeeSkillPayload({
+                employeeSkillId: flowFormParams.employeeSkillId,
+                skillId: flowFormParams.skillId,
+                validTo: new Date(Date.now() - 1000).toISOString().split('T')[0],
+                existingSkills: controller.existingSkillsList as any
+              })
+            }
+
+            if (flowFormParams?.mode === 'activate') {
+              return buildUpdateEmployeeSkillPayload({
+                employeeSkillId: flowFormParams.employeeSkillId,
+                skillId: flowFormParams.skillId,
+                validTo: values.validTo || null,
+                existingSkills: controller.existingSkillsList as any
+              })
+            }
+
+            if (changeLevelParams?.skillId) {
+              return buildUpdateEmployeeSkillPayload({
+                employeeSkillId: changeLevelParams.employeeSkillId,
+                skillId: changeLevelParams.skillId,
+                level: controller.selectedSkills.find(s => s.id === changeLevelParams.skillId)?.level ?? 1,
+                existingSkills: controller.existingSkillsList as any
+              })
+            }
+
+            return buildCreateEmployeeSkillPayload({
               employeeId,
-              selectedSkillIds: selectedIds,
-              selectedSkillLevels: selectedLevels,
-              existingSkills: controller.existingSkillsList as any,
-              skillValidTo,
-              skillVerificationDocumentId,
-              event: 'pse_submit'
+              skillsToAssign: controller.skillsToAssign
             })
           }}
           data-testid="add-skill-form"

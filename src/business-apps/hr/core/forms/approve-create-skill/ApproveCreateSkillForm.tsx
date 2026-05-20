@@ -6,6 +6,7 @@ import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useTranslation } from '@newwork/nw-design-system'
+import { DecisionReasonDialog } from '../components/DecisionReasonDialog'
 import approveCreateSkillTranslations from './_i18n/index'
 interface NewSkillItem {
   name: string
@@ -16,6 +17,9 @@ interface ApproveCreateSkillProps extends BusinessAppContextProps {
 export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = ({ additionalData, onClose, accessToken }) => {
   const { t } = useTranslation(approveCreateSkillTranslations)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [decisionAction, setDecisionAction] = useState<'approved' | 'rejected' | null>(null)
+  const [decisionReason, setDecisionReason] = useState('')
+  const [decisionReasonError, setDecisionReasonError] = useState<string | undefined>()
   const taskPayload = additionalData?.psi_taskPayload || {}
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
@@ -23,7 +27,9 @@ export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = ({ addition
   const taskTitle = processMetadata?.referenceTaskName ?? t('approve-create-skill-title')
   const creatorName = taskPayload?.creatorName ?? processMetadata?.creatorName
   const creatorUserId: string | undefined = processMetadata?.creatorUserId
-  const employeeSkills = taskPayload?.employeeSkills as { newSkills?: NewSkillItem[] } | undefined
+  const employeeSkills = (taskPayload?.employeeSkillAssignmentRequest ?? taskPayload?.employeeSkills) as
+    | { newSkills?: NewSkillItem[] }
+    | undefined
   const newSkills: NewSkillItem[] = employeeSkills?.newSkills ?? []
   const isEveryBoxContext = !!onClose
   const handleClose = () => {
@@ -33,7 +39,19 @@ export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = ({ addition
       dispatchProcessContinueEvent('pse_abort', { event: 'pse_abort' })
     }
   }
-  const handleApprove = async () => {
+  const openDecisionDialog = (action: 'approved' | 'rejected') => {
+    setDecisionAction(action)
+    setDecisionReason('')
+    setDecisionReasonError(undefined)
+  }
+  const handleDecisionDialogOpenChange = (open: boolean) => {
+    if (!open && !isSubmitting) {
+      setDecisionAction(null)
+      setDecisionReason('')
+      setDecisionReasonError(undefined)
+    }
+  }
+  const handleApproveDecision = async () => {
     setIsSubmitting(true)
     try {
       dispatchProcessContinueEvent('pse_approve', {
@@ -45,18 +63,32 @@ export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = ({ addition
       setIsSubmitting(false)
     }
   }
-  const handleReject = async () => {
+  const handleSubmitDecision = async () => {
+    if (decisionAction === null) {
+      return
+    }
+    const trimmedReason = decisionReason.trim()
+    if (!trimmedReason) {
+      setDecisionReasonError(t('approve-create-skill-decision-reason-required'))
+      return
+    }
     setIsSubmitting(true)
     try {
-      dispatchProcessContinueEvent('pse_reject', {
-        approval: 'rejected'
+      dispatchProcessContinueEvent(decisionAction === 'approved' ? 'pse_approve' : 'pse_reject', {
+        approval: decisionAction,
+        decisionReason: trimmedReason
       })
     } catch (err) {
-      console.error('Error rejecting skill creation:', err)
+      console.error('Error submitting skill creation decision:', err)
     } finally {
       setIsSubmitting(false)
+      setDecisionAction(null)
+      setDecisionReason('')
+      setDecisionReasonError(undefined)
     }
   }
+  const decisionDialogPrefix =
+    decisionAction === 'approved' ? 'approve-create-skill-reason' : 'reject-create-skill-reason'
   return (
     <TaskFormLayout
       data-testid="approve-create-skill-container"
@@ -77,7 +109,7 @@ export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = ({ addition
             actions={[
               {
                 label: t('approve-create-skill-reject'),
-                onClick: handleReject,
+                onClick: () => openDecisionDialog('rejected'),
                 variant: 'default' as const,
                 disabled: isSubmitting,
                 loading: isSubmitting,
@@ -87,7 +119,7 @@ export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = ({ addition
               },
               {
                 label: t('approve-create-skill-approve'),
-                onClick: handleApprove,
+                onClick: handleApproveDecision,
                 variant: 'default' as const,
                 disabled: isSubmitting,
                 loading: isSubmitting,
@@ -139,6 +171,31 @@ export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = ({ addition
           </div>
         )}
       </div>
+      <DecisionReasonDialog
+        open={decisionAction !== null}
+        title={
+          decisionAction === 'approved'
+            ? t('approve-create-skill-approve-reason-title')
+            : t('approve-create-skill-reject-reason-title')
+        }
+        description={t('approve-create-skill-decision-reason-description')}
+        label={t('approve-create-skill-decision-reason-label')}
+        placeholder={t('approve-create-skill-decision-reason-placeholder')}
+        confirmLabel={
+          decisionAction === 'approved' ? t('approve-create-skill-approve') : t('approve-create-skill-reject')
+        }
+        cancelLabel={t('approve-create-skill-decision-reason-cancel')}
+        reason={decisionReason}
+        errorText={decisionReasonError}
+        isSubmitting={isSubmitting}
+        dataTestIdPrefix={decisionDialogPrefix}
+        onReasonChange={value => {
+          setDecisionReason(value)
+          if (value.trim()) setDecisionReasonError(undefined)
+        }}
+        onOpenChange={handleDecisionDialogOpenChange}
+        onConfirm={handleSubmitDecision}
+      />
     </TaskFormLayout>
   )
 }

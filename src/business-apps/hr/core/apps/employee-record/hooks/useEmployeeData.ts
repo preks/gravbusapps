@@ -120,10 +120,15 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         level
         isDeleted
         recordState
+        employeeSkillStatus
         processInstanceId
         verificationDocumentId
         verificationDocument {
           id
+          employeeId
+          name
+          file
+          mimeType
         }
         additionalProperties
         synchronizedAt
@@ -498,15 +503,27 @@ export interface EmployeeData {
   EmployeePerformanceGoal: EmployeePerformanceGoal[]
 }
 
+export enum EmployeeSkillStatus {
+  UNKNOWN_SKILL_STATUS = 'UNKNOWN_SKILL_STATUS',
+  PENDING_SKILL_STATUS = 'PENDING_SKILL_STATUS',
+  APPROVED_SKILL_STATUS = 'APPROVED_SKILL_STATUS',
+  REJECTED_SKILL_STATUS = 'REJECTED_SKILL_STATUS'
+}
+
 interface EmployeeSkill {
   id: string
   level: string | null
   isDeleted: boolean
   recordState?: string | null
+  employeeSkillStatus?: EmployeeSkillStatus | null
   processInstanceId?: string | null
   verificationDocumentId?: string | null
   verificationDocument?: {
     id?: string | null
+    employeeId?: string | null
+    name?: string | null
+    file?: string | null
+    mimeType?: string | null
   } | null
   acl?: unknown
   additionalProperties?: unknown

@@ -79,6 +79,12 @@ export const SkillsSnapshot: React.FC<SkillsSnapshotProps & { children?: React.R
               {snapshot.activeCount}
             </span>
           </div>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <span className="gba:text-xs gba:text-muted-foreground">{t('skills-snapshot-pending')}</span>
+            <span className="gba:text-base gba:font-semibold" data-testid="skills-snapshot-pending-count">
+              {snapshot.pendingCount}
+            </span>
+          </div>
         </CardContent>
       </Card>
 
