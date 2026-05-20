@@ -1,7 +1,7 @@
 import detect from 'detect-port'
 import { execSync, spawn } from 'child_process'
 import readline from 'readline'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
 const DEFAULT_PORT = 3001
@@ -40,31 +40,6 @@ function isCursorRulesDeclared() {
   }
 }
 
-function warnIfNewerCursorRulesAvailable() {
-  if (!isCursorRulesDeclared()) {
-    return
-  }
-
-  const installedVersion = getInstalledCursorRulesVersion()
-  if (!installedVersion) {
-    return
-  }
-
-  try {
-    const latestVersion = execSync('npm view @newwork/cursor-rules version --silent', {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore']
-    }).trim()
-
-    if (latestVersion && latestVersion !== installedVersion) {
-      console.warn(
-        `WARNING: @newwork/cursor-rules update available: ${installedVersion} -> ${latestVersion}. Run: npm install -D @newwork/cursor-rules@latest`
-      )
-    }
-  } catch {
-    // Ignore version check failures (e.g., network issues).
-  }
-}
 
 function syncPlatformAssets() {
   try {
@@ -74,6 +49,25 @@ function syncPlatformAssets() {
       'WARNING: sync-platform-assets failed. Default chat background may 404. Run: npm run sync:platform-assets'
     )
   }
+}
+
+const CURSOR_RULES_BIN = join(process.cwd(), 'node_modules', '@newwork', 'cursor-rules', 'bin', 'cursor-rules.js')
+const CURSOR_RULES_STAMP = join(process.cwd(), '.cursor', 'rules', '.cursor-rules-sync-stamp')
+
+function getCursorRulesStamp() {
+  const version = getInstalledCursorRulesVersion()
+  if (!version) return null
+
+  const configPaths = ['cursor-rules.config.js', 'cursor-rules.config.cjs', 'cursor-rules.config.mjs']
+  let fingerprint = ''
+  for (const configPath of configPaths) {
+    const absolutePath = join(process.cwd(), configPath)
+    if (existsSync(absolutePath)) {
+      fingerprint += `${configPath}:${statSync(absolutePath).mtimeMs};`
+    }
+  }
+
+  return `${version}|${fingerprint || 'no-config'}`
 }
 
 function syncCursorRules() {
@@ -87,10 +81,29 @@ function syncCursorRules() {
     return
   }
 
+  if (!existsSync(CURSOR_RULES_BIN)) {
+    return
+  }
+
+  const currentStamp = getCursorRulesStamp()
+  if (currentStamp && existsSync(CURSOR_RULES_STAMP)) {
+    try {
+      if (readFileSync(CURSOR_RULES_STAMP, 'utf8').trim() === currentStamp) {
+        return
+      }
+    } catch {
+      // Continue with sync when stamp cannot be read.
+    }
+  }
+
   try {
-    execSync('npx --no-install cursor-rules sync --silent', {
+    execSync(`node "${CURSOR_RULES_BIN}" sync --silent`, {
       stdio: 'ignore'
     })
+    if (currentStamp) {
+      mkdirSync(join(process.cwd(), '.cursor', 'rules'), { recursive: true })
+      writeFileSync(CURSOR_RULES_STAMP, currentStamp)
+    }
   } catch {
     console.warn('WARNING: cursor-rules sync failed. Run manually: npx cursor-rules sync')
   }
@@ -132,7 +145,6 @@ function startDevServer(port) {
   installDependencies()
   syncPlatformAssets()
   syncCursorRules()
-  warnIfNewerCursorRulesAvailable()
 
   const command = `npm run cleanup:logs && vite --port ${port}`
 
