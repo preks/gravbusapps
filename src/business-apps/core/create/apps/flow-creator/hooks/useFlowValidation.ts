@@ -102,7 +102,7 @@ function validateOrphanNodes(nodes: StudioNode[], edges: FlowGraphEdge[]): Parti
 }
 
 function validateDecisionNodes(nodes: StudioNode[]): PartialIssue[] {
-  return nodes
+  const issues: PartialIssue[] = nodes
     .filter(n => n.type === 'decision' && n.config.nodeType === 'decision' && n.config.branches.length < 2)
     .map(n => ({
       nodeId: n.id,
@@ -110,6 +110,25 @@ function validateDecisionNodes(nodes: StudioNode[]): PartialIssue[] {
       message: `Decision "${n.label}" must have at least 2 branches`,
       rule: 'decision-min-branches'
     }))
+
+  for (const node of nodes) {
+    if (node.type !== 'decision' || node.config.nodeType !== 'decision') continue
+    if (node.config.decisionMode !== 'LOGIC') continue
+
+    const conditions = Array.isArray(node.config.logicConfig?.conditions) ? node.config.logicConfig.conditions : []
+    const hasCondition = conditions.some(condition => String(condition?.expression || '').trim().length > 0)
+
+    if (!hasCondition) {
+      issues.push({
+        nodeId: node.id,
+        severity: 'error',
+        message: `Logic decision "${node.label}" must define at least one condition`,
+        rule: 'logic-decision-needs-condition'
+      })
+    }
+  }
+
+  return issues
 }
 
 function extractPromptUserParams(template: string | undefined): string[] {

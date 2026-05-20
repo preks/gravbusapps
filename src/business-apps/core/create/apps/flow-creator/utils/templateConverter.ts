@@ -29,6 +29,71 @@ function safeString(value: unknown): string {
   return typeof value === 'string' ? value : String(value ?? '')
 }
 
+const BACKEND_INPUT_TYPES = new Set([
+  'NUMBER',
+  'TEXT',
+  'TEXTAREA',
+  'SELECT',
+  'MULTISELECT',
+  'CHECKBOX',
+  'DATE',
+  'DATETIME',
+  'FILE'
+])
+
+function normalizeInputType(value: unknown): string {
+  const raw = safeString(value).trim().toUpperCase()
+  if (raw === 'RADIO') return 'SELECT'
+  if (raw === 'SIGNATURE') return 'FILE'
+  return BACKEND_INPUT_TYPES.has(raw) ? raw : 'TEXT'
+}
+
+function normalizeInputOptions(options: unknown): Array<{ value: string; label: string }> | undefined {
+  if (!Array.isArray(options)) return undefined
+
+  const normalized = options
+    .map(option => {
+      if (typeof option === 'string' || typeof option === 'number' || typeof option === 'boolean') {
+        const value = safeString(option)
+        return { value, label: value }
+      }
+
+      if (!option || typeof option !== 'object') return null
+      const raw = option as Record<string, unknown>
+      const value = safeString(raw.value ?? raw.id ?? raw.key).trim()
+      const label = safeString(raw.label ?? raw.name ?? value).trim()
+      if (!value && !label) return null
+      return { value: value || label, label: label || value }
+    })
+    .filter((option): option is { value: string; label: string } => option != null)
+
+  return normalized.length > 0 ? normalized : undefined
+}
+
+function normalizeInputBlocks(form: unknown): any[] {
+  if (!Array.isArray(form)) return []
+
+  return form.map((field, index) => {
+    const raw = field && typeof field === 'object' ? (field as Record<string, unknown>) : {}
+    const type = normalizeInputType(raw.type)
+    const name = safeString(raw.name ?? raw.fieldName ?? `field_${index + 1}`).trim() || `field_${index + 1}`
+    const label = safeString(raw.label ?? name).trim() || name
+    const options = normalizeInputOptions(raw.options)
+
+    return {
+      type,
+      name,
+      label,
+      ...(typeof raw.fieldName === 'string' && raw.fieldName.trim() ? { fieldName: raw.fieldName } : {}),
+      ...(typeof raw.required === 'boolean' ? { required: raw.required } : {}),
+      ...(options ? { options } : {}),
+      ...(raw.dataSource && typeof raw.dataSource === 'object' ? { dataSource: raw.dataSource } : {}),
+      ...(typeof raw.value === 'string' ? { value: raw.value } : {}),
+      ...(typeof raw.readOnly === 'boolean' ? { readOnly: raw.readOnly } : {})
+    }
+  })
+}
+
 function buildForwardAdjacency(edges: FlowGraphEdge[]): Map<string, string[]> {
   const adjacency = new Map<string, string[]>()
   for (const e of edges) {
@@ -164,7 +229,7 @@ export function studioGraphToTemplate(
       // Back-end supports multiple triggers; studio currently picks one.
       triggers: [buildStartTrigger(startNode.id, cfg)]
     } as any
-    ;(start as any).form = Array.isArray(cfg.form) ? cfg.form : []
+    ;(start as any).form = normalizeInputBlocks(cfg.form)
   }
 
   // End configuration: summaryFields are persisted at template level.
@@ -193,7 +258,7 @@ export function studioGraphToTemplate(
         kind: cfg.kind,
         title: cfg.title ?? node.label,
         message: cfg.message,
-        form: Array.isArray(cfg.form) ? cfg.form : [],
+        form: normalizeInputBlocks(cfg.form),
         links: Array.isArray(cfg.links) ? cfg.links : undefined,
         assignment: cfg.assignment ?? { targets: null, assignmentMode: AssignmentMode.CLAIM },
         dueInMinutes: cfg.dueInMinutes,

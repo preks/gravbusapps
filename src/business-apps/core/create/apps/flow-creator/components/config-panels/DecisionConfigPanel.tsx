@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo } from 'react'
 import { GitBranch } from 'lucide-react'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
-import type { DecisionMode, DecisionNodeConfig, DesignerMode } from '../../types/studioTypes'
+import type { DecisionMode, DecisionNodeConfig, DesignerMode, FlowStudioUpdateOptions } from '../../types/studioTypes'
 import { AIDecisionConfig } from './decision/AIDecisionConfig'
 import { DecisionKindSelector } from './decision/DecisionKindSelector'
 import { DecisionOutcomesSection } from './decision/DecisionOutcomesSection'
@@ -55,8 +55,8 @@ export const DecisionConfigPanel: React.FC<DecisionConfigPanelProps> = ({
   )
 
   const update = useCallback(
-    (partial: Partial<DecisionNodeConfig>) => {
-      updateNodeConfig(nodeId, partial)
+    (partial: Partial<DecisionNodeConfig>, options?: FlowStudioUpdateOptions) => {
+      updateNodeConfig(nodeId, partial, options)
     },
     [nodeId, updateNodeConfig]
   )

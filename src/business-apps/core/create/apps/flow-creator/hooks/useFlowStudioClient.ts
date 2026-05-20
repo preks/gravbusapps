@@ -9,6 +9,7 @@ import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { useFlowStudioStore } from './useFlowStudioStore'
 import { studioGraphToTemplate, templateToStudioGraph } from '../utils/templateConverter'
 import { templateRequiresAdvancedMode } from '../utils/aiTemplateValidator'
+import { validateFlow } from './useFlowValidation'
 import type { FlowTemplate } from '@/common/data/flow/types/flowTemplate'
 
 interface FlowStudioClient {
@@ -65,6 +66,16 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
     setError(null)
 
     try {
+      const validationErrors = validateFlow(state.nodes, state.edges).filter(issue => issue.severity === 'error')
+      if (validationErrors.length > 0) {
+        throw new Error(
+          `Validation failed: ${validationErrors
+            .slice(0, 3)
+            .map(issue => issue.message)
+            .join('; ')}${validationErrors.length > 3 ? '...' : ''}`
+        )
+      }
+
       // Convert studio graph to the backend FlowTemplate format
       const template = studioGraphToTemplate(
         state.nodes,

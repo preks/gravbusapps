@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo } from 'react'
 import { Button, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { FileText, Plus } from 'lucide-react'
 import { InputType, type InputBlock } from '@/common/data/flow/types/flowTemplate'
-import type { DesignerMode } from '../../types/studioTypes'
+import type { DesignerMode, FlowStudioUpdateOptions } from '../../types/studioTypes'
 import { FormFieldEditor } from './FormFieldEditor'
 
 export function slugifyKey(raw: string): string {
@@ -161,12 +161,12 @@ interface EntityOption {
 
 interface FormBuilderProps {
   fields: InputBlock[]
-  onChange: (fields: InputBlock[]) => void
+  onChange: (fields: InputBlock[], options?: FlowStudioUpdateOptions) => void
   /**
    * Called when a field key (InputBlock.name) changes, so callers can rewrite any
    * existing expressions that reference that key.
    */
-  onFieldKeyRename?: (rename: { oldKey: string; newKey: string }) => void
+  onFieldKeyRename?: (rename: { oldKey: string; newKey: string }, options?: FlowStudioUpdateOptions) => void
   mode: DesignerMode
   /** Available catalogs for field data sources */
   catalogs?: CatalogOption[]
@@ -226,7 +226,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
       if (nextName && nextName !== currentName) {
         changed = true
         if (currentName) {
-          onFieldKeyRename?.({ oldKey: currentName, newKey: nextName })
+          onFieldKeyRename?.({ oldKey: currentName, newKey: nextName }, { markDirty: false })
         }
         return { ...field, name: nextName }
       }
@@ -235,7 +235,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
     })
 
     if (changed) {
-      onChange(normalizedFields)
+      onChange(normalizedFields, { markDirty: false })
     }
   }, [fields, onChange, onFieldKeyRename])
 

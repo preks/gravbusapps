@@ -3,7 +3,7 @@ import { Separator, useTranslation } from '@newwork/nw-design-system'
 import translations from '../../../_i18n'
 import { useFlowStudioStore } from '../../../hooks/useFlowStudioStore'
 import { useStudioExpressionSuggestions } from '../../../hooks/useStudioExpressionSuggestions'
-import type { DecisionNodeConfig, DesignerMode } from '../../../types/studioTypes'
+import type { DecisionNodeConfig, DesignerMode, FlowStudioUpdateOptions } from '../../../types/studioTypes'
 import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
 import { AssignmentMode } from '@/common/data/flow/types/flowTemplate'
 import type { TaskAssignment } from '@/common/network/flows/FlowTemplateClient'
@@ -15,7 +15,7 @@ import { TaskLinksSection } from '../task/TaskLinksSection'
 
 interface UserDecisionConfigProps {
   config: DecisionNodeConfig
-  update: (partial: Partial<DecisionNodeConfig>) => void
+  update: (partial: Partial<DecisionNodeConfig>, options?: FlowStudioUpdateOptions) => void
   mode: DesignerMode
   testId: string
   accessToken: string
@@ -76,19 +76,22 @@ export const UserDecisionConfig: React.FC<UserDecisionConfigProps> = ({
 
   useEffect(() => {
     if (config.userConfig) return
-    update({
-      userConfig: {
-        userDecisionType: 'APPROVAL',
-        title: defaultDecisionTitle,
-        message: 'Please select an outcome.',
-        options: [],
-        assignment: {
-          targets: { users: ['{{$orgchart.managerByUserId[$workflow.initiator]}}'] },
-          assignmentMode: AssignmentMode.ASSIGN_SINGLE,
-          allowReassignment: true
+    update(
+      {
+        userConfig: {
+          userDecisionType: 'APPROVAL',
+          title: defaultDecisionTitle,
+          message: 'Please select an outcome.',
+          options: [],
+          assignment: {
+            targets: { users: ['{{$orgchart.managerByUserId[$workflow.initiator]}}'] },
+            assignmentMode: AssignmentMode.ASSIGN_SINGLE,
+            allowReassignment: true
+          }
         }
-      }
-    })
+      },
+      { markDirty: false }
+    )
   }, [config.userConfig, defaultDecisionTitle, update])
 
   const baseUserConfig = useMemo(() => {

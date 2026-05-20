@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, waitFor } from '@testing-library/react'
-import type { DecisionNodeConfig } from '../../../types/studioTypes'
+import type { DecisionNodeConfig, FlowStudioUpdateOptions } from '../../../types/studioTypes'
 import { useDecisionBranchSanitizers } from './useDecisionBranchSanitizers'
 
 function SanitizerHarness({
@@ -8,7 +8,7 @@ function SanitizerHarness({
   onUpdate
 }: {
   config: DecisionNodeConfig
-  onUpdate: (partial: Partial<DecisionNodeConfig>) => void
+  onUpdate: (partial: Partial<DecisionNodeConfig>, options?: FlowStudioUpdateOptions) => void
 }) {
   useDecisionBranchSanitizers(config, onUpdate)
   return null
@@ -44,16 +44,19 @@ describe('useDecisionBranchSanitizers', () => {
     )
 
     await waitFor(() =>
-      expect(updateConfig).toHaveBeenCalledWith({
-        logicConfig: {
-          conditions: [
-            {
-              expression: "$steps.self.resultData.decisionResult == 'approve'",
-              branchId: 'approve-branch'
-            }
-          ]
-        }
-      })
+      expect(updateConfig).toHaveBeenCalledWith(
+        {
+          logicConfig: {
+            conditions: [
+              {
+                expression: "$steps.self.resultData.decisionResult == 'approve'",
+                branchId: 'approve-branch'
+              }
+            ]
+          }
+        },
+        { markDirty: false }
+      )
     )
   })
 
@@ -94,24 +97,27 @@ describe('useDecisionBranchSanitizers', () => {
     )
 
     await waitFor(() =>
-      expect(updateConfig).toHaveBeenCalledWith({
-        aiConfig: {
-          executor: 'TASK_EXPERT',
-          humanInstructions: 'Escalate to a reviewer.',
-          escalation: {
-            mode: 'USER',
-            assignment: { targets: null, assignmentMode: 'CLAIM' }
-          },
-          mapping: {
-            conditions: [
-              {
-                expression: "$steps.self.resultData.decisionResult == 'approve'",
-                branchId: 'approve-branch'
-              }
-            ]
+      expect(updateConfig).toHaveBeenCalledWith(
+        {
+          aiConfig: {
+            executor: 'TASK_EXPERT',
+            humanInstructions: 'Escalate to a reviewer.',
+            escalation: {
+              mode: 'USER',
+              assignment: { targets: null, assignmentMode: 'CLAIM' }
+            },
+            mapping: {
+              conditions: [
+                {
+                  expression: "$steps.self.resultData.decisionResult == 'approve'",
+                  branchId: 'approve-branch'
+                }
+              ]
+            }
           }
-        }
-      })
+        },
+        { markDirty: false }
+      )
     )
   })
 })

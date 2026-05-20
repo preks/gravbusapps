@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import type { DecisionNodeConfig } from '../../../types/studioTypes'
+import type { DecisionNodeConfig, FlowStudioUpdateOptions } from '../../../types/studioTypes'
 
 const sameOptionList = (
   a: Array<{ id: string; label: string }> | undefined,
@@ -16,7 +16,7 @@ const sameOptionList = (
 
 export function useDecisionBranchSanitizers(
   config: DecisionNodeConfig,
-  update: (partial: Partial<DecisionNodeConfig>) => void
+  update: (partial: Partial<DecisionNodeConfig>, options?: FlowStudioUpdateOptions) => void
 ) {
   useEffect(() => {
     const branches = Array.isArray(config.branches) ? config.branches : []
@@ -114,6 +114,6 @@ export function useDecisionBranchSanitizers(
       }
     }
 
-    if (Object.keys(next).length > 0) update(next)
+    if (Object.keys(next).length > 0) update(next, { markDirty: false })
   }, [config, update])
 }

@@ -119,6 +119,47 @@ describe('templateConverter', () => {
     expect(template.name).toBe('Renamed Flow')
   })
 
+  it('normalizes legacy form fields before saving to the backend', () => {
+    const task = makeTaskNode('task_1', 'Task 1')
+    ;(task.config as any).form = [
+      {
+        type: 'radio',
+        name: 42,
+        label: 'Choice',
+        required: 'yes',
+        options: ['Approve', { id: 'reject', label: 'Reject' }]
+      },
+      {
+        type: 'SIGNATURE',
+        label: 'Signature'
+      }
+    ]
+    const nodes: StudioNode[] = [makeStartNode(), task, makeEndNode()]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-task', source: START_ID, target: 'task_1', direction: 'forward' } as any,
+      { id: 'e-task-end', source: 'task_1', target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Normalized Flow') as any
+
+    expect(template.steps[0].form).toEqual([
+      {
+        type: 'SELECT',
+        name: '42',
+        label: 'Choice',
+        options: [
+          { value: 'Approve', label: 'Approve' },
+          { value: 'reject', label: 'Reject' }
+        ]
+      },
+      {
+        type: 'FILE',
+        name: 'field_2',
+        label: 'Signature'
+      }
+    ])
+  })
+
   it('serializes DECISION nodes into template.steps', () => {
     const nodes: StudioNode[] = [
       makeStartNode(),

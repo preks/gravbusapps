@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import type { TaskNodeConfig } from '../../../types/studioTypes'
+import type { FlowStudioUpdateOptions, TaskNodeConfig } from '../../../types/studioTypes'
 import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
 import { useStudioExpressionSuggestions } from '../../../hooks/useStudioExpressionSuggestions'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
@@ -13,7 +13,7 @@ import { TaskExpertSelectorSection } from '../shared/TaskExpertSelectorSection'
 
 interface AgentSelectorProps {
   config: TaskNodeConfig
-  update: (partial: Partial<TaskNodeConfig>) => void
+  update: (partial: Partial<TaskNodeConfig>, options?: FlowStudioUpdateOptions) => void
   studioData: FlowStudioData
   testId: string
 }
@@ -70,15 +70,18 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ config, update, st
     if (!selectedAgent?._id) return
     if (typeof config.agentConfig?.version === 'number') return
 
-    update({
-      agentConfig: {
-        ...config.agentConfig,
-        promptId: selectedAgent._id,
-        promptName: selectedAgent.name,
-        version: typeof selectedAgent.version === 'number' ? selectedAgent.version : undefined,
-        outputSchema: selectedAgent.response_schema ?? undefined
-      }
-    })
+    update(
+      {
+        agentConfig: {
+          ...config.agentConfig,
+          promptId: selectedAgent._id,
+          promptName: selectedAgent.name,
+          version: typeof selectedAgent.version === 'number' ? selectedAgent.version : undefined,
+          outputSchema: selectedAgent.response_schema ?? undefined
+        }
+      },
+      { markDirty: false }
+    )
   }, [config.agentConfig, config.stepType, selectedAgent, update])
 
   useEffect(() => {
@@ -142,13 +145,16 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ config, update, st
     const { map: userMap, changed: userChanged } = syncPromptParamMap(current.userParamsMap, params.user)
     const changed = systemChanged || userChanged
     if (changed) {
-      update({
-        agentConfig: {
-          ...current,
-          systemParamsMap: systemMap,
-          userParamsMap: userMap
-        }
-      })
+      update(
+        {
+          agentConfig: {
+            ...current,
+            systemParamsMap: systemMap,
+            userParamsMap: userMap
+          }
+        },
+        { markDirty: false }
+      )
     }
   }, [
     config.agentConfig,

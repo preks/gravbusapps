@@ -15,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Check, ChevronsUpDown, Cloud, Code2, ExternalLink, FolderOpen, Loader2 } from 'lucide-react'
 import translations from '../../../_i18n'
-import type { TaskNodeConfig } from '../../../types/studioTypes'
+import type { FlowStudioUpdateOptions, TaskNodeConfig } from '../../../types/studioTypes'
 import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
 import { useStudioExpressionSuggestions } from '../../../hooks/useStudioExpressionSuggestions'
 import { FlowStepType } from '@/common/data/flow/types/flowTemplate'
@@ -103,7 +103,7 @@ const FunctionParamRow: React.FC<FunctionParamRowProps> = ({
 
 interface FunctionSelectorProps {
   config: TaskNodeConfig
-  update: (partial: Partial<TaskNodeConfig>) => void
+  update: (partial: Partial<TaskNodeConfig>, options?: FlowStudioUpdateOptions) => void
   studioData: FlowStudioData
   testId: string
 }
@@ -202,15 +202,18 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
     if (!selectedFunction) return
     if (typeof config.functionConfig?.version === 'number') return
 
-    update({
-      functionConfig: {
-        ...config.functionConfig,
-        functionId: selectedFunction.id,
-        functionName: selectedFunction.name,
-        version: selectedFunction.latestVersion?.version,
-        outputSchema: selectedFunction.latestVersion?.outputSchema
-      }
-    })
+    update(
+      {
+        functionConfig: {
+          ...config.functionConfig,
+          functionId: selectedFunction.id,
+          functionName: selectedFunction.name,
+          version: selectedFunction.latestVersion?.version,
+          outputSchema: selectedFunction.latestVersion?.outputSchema
+        }
+      },
+      { markDirty: false }
+    )
   }, [config.functionConfig, config.stepType, selectedFunction, update])
 
   useEffect(() => {
@@ -272,12 +275,15 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
       }
     }
     if (changed) {
-      update({
-        functionConfig: {
-          ...current,
-          inputExpressionMap: map
-        }
-      })
+      update(
+        {
+          functionConfig: {
+            ...current,
+            inputExpressionMap: map
+          }
+        },
+        { markDirty: false }
+      )
     }
   }, [config.functionConfig, config.stepType, inputParams, update])
 

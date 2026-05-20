@@ -19,7 +19,7 @@ import {
 import { Play, Globe, Zap, Clock } from 'lucide-react'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
-import type { StartNodeConfig, DesignerMode, TriggerType } from '../../types/studioTypes'
+import type { StartNodeConfig, DesignerMode, FlowStudioUpdateOptions, TriggerType } from '../../types/studioTypes'
 import { FormBuilder } from '../form-builder'
 import type { InputBlock } from '@/common/data/flow/types/flowTemplate'
 import { FlowContextExpressionEditor } from '../shared/FlowContextExpressionEditor'
@@ -105,7 +105,7 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
   // Ensure we always have a stable trigger type (older templates may not set it).
   useEffect(() => {
     if (!config.triggerType || !triggerTypes.includes(config.triggerType)) {
-      updateNodeConfig(nodeId, { triggerType: 'MANUAL_FORM' })
+      updateNodeConfig(nodeId, { triggerType: 'MANUAL_FORM' }, { markDirty: false })
     }
   }, [config.triggerType, nodeId, triggerTypes, updateNodeConfig])
 
@@ -156,8 +156,12 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
           {config.triggerType === 'MANUAL_FORM' && (
             <FormBuilder
               fields={config.form ?? []}
-              onChange={(fields: InputBlock[]) => updateNodeConfig(nodeId, { form: fields })}
-              onFieldKeyRename={({ oldKey, newKey }) => rewriteExpressionsForStartFieldRename(oldKey, newKey)}
+              onChange={(fields: InputBlock[], options?: FlowStudioUpdateOptions) =>
+                updateNodeConfig(nodeId, { form: fields }, options)
+              }
+              onFieldKeyRename={({ oldKey, newKey }, options) =>
+                rewriteExpressionsForStartFieldRename(oldKey, newKey, options)
+              }
               mode={mode}
               catalogs={studioData.catalogs}
               catalogsLoading={studioData.catalogsLoading}
