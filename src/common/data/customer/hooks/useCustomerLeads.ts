@@ -47,9 +47,9 @@ export const useCustomerLeads = (context: BusinessAppContextProps) => {
       const query = buildCustomerLeadQuery()
 
       const whereCondition = buildCustomerLeadWhereCondition(variables)
-      const orderBy = buildCustomerLeadOrderBy(variables.orderBy || [])
+      let orderBy = buildCustomerLeadOrderBy(variables.orderBy || [])
       if (orderBy.length === 0) {
-        orderBy.push({ field: 'createdAt', direction: 'DESC_NULLS_LAST' })
+        orderBy = buildCustomerLeadOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
       }
 
       const graphQLVariables: Record<string, any> = {
@@ -163,9 +163,9 @@ export function useCustomerLeadsList(
         const query = buildCustomerLeadQuery()
 
         const whereCondition = buildCustomerLeadWhereCondition(vars)
-        const orderBy = buildCustomerLeadOrderBy(vars.orderBy || [])
+        let orderBy = buildCustomerLeadOrderBy(vars.orderBy || [])
         if (orderBy.length === 0) {
-          orderBy.push({ field: 'createdAt', direction: 'DESC_NULLS_LAST' })
+          orderBy = buildCustomerLeadOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
         }
 
         const graphQLVariables: Record<string, any> = {
@@ -210,9 +210,9 @@ export function useCustomerLeadsList(
       const vars = { ...stableVariables, ...queryVariables }
       const query = buildCustomerLeadQuery()
       const whereCondition = buildCustomerLeadWhereCondition(vars)
-      const orderBy = buildCustomerLeadOrderBy(vars.orderBy || [])
+      let orderBy = buildCustomerLeadOrderBy(vars.orderBy || [])
       if (orderBy.length === 0) {
-        orderBy.push({ field: 'createdAt', direction: 'DESC_NULLS_LAST' })
+        orderBy = buildCustomerLeadOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
       }
 
       const graphQLVariables: Record<string, any> = {
