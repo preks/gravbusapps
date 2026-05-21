@@ -13,7 +13,6 @@ import { Building2 } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { CatalogSelect } from '@/components/catalog-select'
 import { INVESTMENT_ACCOUNT_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
-
 export interface SelectOption {
   id: string
   value: string
@@ -484,11 +483,12 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
 
                 {/* Account type (IRM opportunity roles) — hidden for simple CRM pickers */}
                 {showAccountType ? (
-                  <div className="gba:w-48 gba:flex-shrink-0">
+                  <div className="gba:w-36 gba:flex-shrink-0 gba:min-w-0">
                     <CatalogSelect
                       catalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
                       value={accountValue.accountType || ''}
                       onValueChange={accountType => handleAccountTypeChange(index, accountType)}
+                      className="gba:w-full gba:min-w-0 gba:text-sm"
                       data-testid={formatDataTestId(dataTestId || 'account-list', `account-type-${index}`)}
                       placeholder="Select type..."
                     />

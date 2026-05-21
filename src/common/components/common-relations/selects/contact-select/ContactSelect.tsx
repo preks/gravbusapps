@@ -633,14 +633,16 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
 
                 {/* Contact Type Select - fixed width, never shrink */}
                 {showContactType ? (
-                  <div className="gba:w-48 gba:flex-shrink-0">
+                  <div className="gba:w-36 gba:flex-shrink-0 gba:min-w-0">
                     <Select
                       value={contactType || ''}
                       onValueChange={value => handleContactTypeChange(index, value)}
                       data-testid={formatDataTestId(dataTestId || 'contact-list', `contact-type-${index}`)}
                     >
-                      <SelectTrigger className="gba:w-full">
-                        <SelectValue placeholder="Select type..." />
+                      <SelectTrigger className="gba:w-full gba:min-w-0 gba:text-sm">
+                        <SelectValue placeholder="Select type..." className="gba:truncate">
+                          {contactType ? getContactTypeLabel(contactType, { compact: true }) : undefined}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={ContactType.PRIMARY_CONTACT}>

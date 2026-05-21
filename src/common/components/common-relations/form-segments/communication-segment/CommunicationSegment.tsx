@@ -28,11 +28,26 @@ export const DEFAULT_CONTACT_CHANNELS = [
   CommunicationChannelCode.XING
 ]
 
+const isHiddenChannelRef = (channelRef: string | undefined, hiddenChannelCodes: string[]): boolean => {
+  if (!channelRef || hiddenChannelCodes.length === 0) return false
+
+  const channelCode = channelRef.split(':').pop() || ''
+
+  return hiddenChannelCodes.some(
+    code =>
+      channelCode === code ||
+      channelCode.toLowerCase() === code.toLowerCase() ||
+      (code === CommunicationChannelCode.EMAIL && channelRef.includes(':EMAIL'))
+  )
+}
+
 interface CommunicationSegmentProps {
   businessAppContext?: BusinessAppContextProps
   customFields?: React.ReactNode
   // Default channel codes to pre-populate when no data exists
   defaultChannelCodes?: string[]
+  // Channel rows to render elsewhere (e.g. contact email in ContactInformationSegment)
+  hiddenChannelCodes?: string[]
 }
 
 // Separate component for each communication channel item
@@ -158,7 +173,8 @@ const CommunicationChannelItem: React.FC<{
 const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({
   businessAppContext,
   customFields,
-  defaultChannelCodes = DEFAULT_CONTACT_CHANNELS
+  defaultChannelCodes = DEFAULT_CONTACT_CHANNELS,
+  hiddenChannelCodes = []
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -197,14 +213,21 @@ const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({
 
   return (
     <div className="gba:space-y-4">
-      {fields.map((field, channelIndex) => (
-        <CommunicationChannelItem
-          key={field.id}
-          channelIndex={channelIndex}
-          businessAppContext={businessAppContext}
-          onRemove={() => handleRemoveChannel(channelIndex)}
-        />
-      ))}
+      {fields.map((field, channelIndex) => {
+        const channelRef = form.watch(`communicationChannels.${channelIndex}.communicationChannelRef`)
+        if (isHiddenChannelRef(channelRef, hiddenChannelCodes)) {
+          return null
+        }
+
+        return (
+          <CommunicationChannelItem
+            key={field.id}
+            channelIndex={channelIndex}
+            businessAppContext={businessAppContext}
+            onRemove={() => handleRemoveChannel(channelIndex)}
+          />
+        )
+      })}
 
       {/* Add Channel Button */}
       <Button

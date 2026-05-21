@@ -24,7 +24,6 @@ interface LeadPersonSegmentProps {
  * Contains:
  * - Academic Title (Catalog Select)
  * - Job Position (Text Input)
- * - Email (Text Input - flat field)
  * - Phone Number (Text Input - flat field)
  *
  * Used in Accordion
@@ -74,31 +73,8 @@ const LeadPersonSegment: React.FC<LeadPersonSegmentProps> = ({ customFields }) =
         )}
       />
 
-      {/* Email, Phone, Secondary Number - Grid */}
+      {/* Phone, Secondary Number - Grid */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('lead-segment-email')}</FormLabel>
-              <FormControl>
-                <Input
-                  type="email"
-                  placeholder={t('lead-segment-placeholder-enter')}
-                  data-testid="lead-segment-email"
-                  value={field.value || ''}
-                  onChange={e => field.onChange(e.target.value)}
-                  onBlur={field.onBlur}
-                  name={field.name}
-                  ref={field.ref}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         <FormField
           control={form.control}
           name="phoneNumber"

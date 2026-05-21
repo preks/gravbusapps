@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useState } from 'react'
+import { getEmailChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 import {
   FormField,
   FormItem,
@@ -67,6 +68,14 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+  const communicationChannels = form.watch('communicationChannels')
+
+  const emailChannelIndex = useMemo(() => {
+    if (!communicationChannels?.length) return -1
+    return communicationChannels.findIndex((channel: { communicationChannelRef?: string }) =>
+      Boolean(getEmailChannel([channel]))
+    )
+  }, [communicationChannels])
 
   // Inline-create dialog state for nested account drafts
   const [draftDialog, setDraftDialog] = useState<{ open: boolean; editIndex: number | null }>({
@@ -256,6 +265,31 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
           )}
         />
       </div>
+
+      {emailChannelIndex >= 0 && (
+        <FormField
+          control={form.control}
+          name={`communicationChannels.${emailChannelIndex}.value`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('contact-email-label')}</FormLabel>
+              <FormControl>
+                <Input
+                  type="email"
+                  placeholder={t('please-enter')}
+                  data-testid="contact-information-segment-email"
+                  value={field.value || ''}
+                  onChange={e => field.onChange(e.target.value)}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Job Position and Department - Side by side */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">

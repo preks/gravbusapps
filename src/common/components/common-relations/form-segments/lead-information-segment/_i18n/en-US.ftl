@@ -4,6 +4,7 @@
 lead-segment-owner = Owner
 lead-segment-first-name = First Name
 lead-segment-last-name = Last Name
+lead-segment-email = Email
 lead-segment-company-name = Company Name
 lead-segment-status = Status
 lead-segment-source = Source

@@ -3,7 +3,6 @@
 # Labels
 lead-segment-academic-title = Academic Title
 lead-segment-job-position = Job Position
-lead-segment-email = Email
 lead-segment-phone = Phone Number
 lead-segment-secondary-number = Secondary Number
 lead-segment-linkedin-url = LinkedIn URL

@@ -25,7 +25,7 @@ import { XIcon, PencilIcon, PlusIcon } from '@phosphor-icons/react'
 import { Building2 } from 'lucide-react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { ContactTypeLabels } from '@/common/data/relations/constants/contactConstants'
+import { ContactTypeLabels, getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import translations from './_i18n'
 
@@ -188,6 +188,7 @@ const AccountItem: React.FC<{
   const nameNode = (
     <h4
       className={`gba:text-sm gba:font-semibold gba:truncate ${isDraft ? 'gba:text-cyan-600' : ''}`}
+      title={accountData.name}
       data-testid={formatDataTestId(dataTestId || 'account-segment', `item-name-${accountIndex}`)}
     >
       {accountData.name}
@@ -199,9 +200,12 @@ const AccountItem: React.FC<{
       return (
         <Select value={value} onValueChange={v => onValueChange(v || '')} disabled={disabled}>
           <SelectTrigger
+            className="gba:w-full gba:min-w-0 gba:text-sm"
             data-testid={formatDataTestId(dataTestId || 'account-segment', `contact-type-${accountIndex}`)}
           >
-            <SelectValue placeholder="Select type..." />
+            <SelectValue placeholder="Select type..." className="gba:truncate">
+              {value ? getContactTypeLabel(value, { compact: true }) : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {Object.entries(ContactTypeLabels).map(([key, label]) => (
@@ -220,6 +224,7 @@ const AccountItem: React.FC<{
           catalogIdentifier={accountTypeCatalogIdentifier}
           value={value}
           onValueChange={v => onValueChange(Array.isArray(v) ? v[0] || '' : v || '')}
+          className="gba:w-full gba:min-w-0 gba:text-sm"
           data-testid={formatDataTestId(dataTestId || 'account-segment', `account-type-${accountIndex}`)}
           disabled={disabled}
         />
@@ -268,7 +273,7 @@ const AccountItem: React.FC<{
       </div>
 
       {/* Type Select (Account Type or Contact Type) */}
-      <div className="gba:w-48 gba:flex-shrink-0">
+      <div className="gba:w-36 gba:flex-shrink-0 gba:min-w-0">
         {onTypeChange ? (
           <FormItem>
             <FormControl>{renderTypeSelector(accountTypeValue, onTypeChange)}</FormControl>

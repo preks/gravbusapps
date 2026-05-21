@@ -4,6 +4,7 @@
 lead-segment-owner = Proprietar
 lead-segment-first-name = Prenume
 lead-segment-last-name = Nume
+lead-segment-email = Email
 lead-segment-company-name = Nume companie
 lead-segment-status = Status
 lead-segment-source = Sursă

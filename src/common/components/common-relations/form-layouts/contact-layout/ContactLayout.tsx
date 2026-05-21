@@ -4,6 +4,7 @@ import { useTranslation, Skeleton, FormSection } from '@newwork/nw-design-system
 import { ContactInformationSegment } from '../../form-segments/contact-information-segment'
 import { ContactDetailsSegment } from '../../form-segments/contact-details-segment'
 import { CommunicationSegment, DEFAULT_CONTACT_CHANNELS } from '../../form-segments/communication-segment'
+import { CommunicationChannelCode } from '@/common/data/relations/types/relationEnums'
 import type { InlineEntityCreateRenderProps } from '@/common/components/common-relations/popups/inline-entity-create-popup'
 import translations from './_i18n'
 
@@ -125,6 +126,7 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
           businessAppContext={businessAppContext}
           customFields={communicationCustomFields}
           defaultChannelCodes={DEFAULT_CONTACT_CHANNELS}
+          hiddenChannelCodes={[CommunicationChannelCode.EMAIL]}
         />
       </FormSection>
       {customSegments.map(segment => (
