@@ -1,5 +1,5 @@
-page-title = HR Admin Cockpit
-page-description = Data Quality & Completion
+hr-admin-cockpit-page-title = HR Admin Cockpit
+hr-admin-cockpit-page-description = Data Quality & Completion
 
 tab-overview = Overview
 tab-issues = Issues

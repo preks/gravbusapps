@@ -102,12 +102,19 @@ function buildRecordsTableColumns(t: (key: string) => string): ColumnDef<Employe
       id: 'employeeName',
       accessorKey: 'employeeName',
       header: t('col-employee'),
+      size: 280,
+      maxSize: 320,
       cell: ({ row }) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
+        <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
           <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full gba:bg-muted gba:shrink-0">
             <UserIcon className="gba:size-3.5 gba:text-muted-foreground" />
           </div>
-          <span className="gba:font-medium gba:text-sm">{row.original.employeeName}</span>
+          <span
+            className="gba:block gba:max-w-[220px] gba:truncate gba:font-medium gba:text-sm"
+            title={row.original.employeeName}
+          >
+            {row.original.employeeName}
+          </span>
         </div>
       )
     },
@@ -115,18 +122,32 @@ function buildRecordsTableColumns(t: (key: string) => string): ColumnDef<Employe
       id: 'legalEntity',
       accessorKey: 'legalEntity',
       header: t('col-legal-entity'),
-      cell: ({ row }) => <span className="gba:text-sm">{row.original.legalEntity ?? '-'}</span>
+      size: 190,
+      maxSize: 240,
+      cell: ({ row }) => (
+        <span className="gba:block gba:max-w-[180px] gba:truncate gba:text-sm" title={row.original.legalEntity ?? '-'}>
+          {row.original.legalEntity ?? '-'}
+        </span>
+      )
     },
     {
       id: 'location',
       accessorKey: 'location',
       header: t('col-location'),
-      cell: ({ row }) => <span className="gba:text-sm">{row.original.location ?? '-'}</span>
+      size: 180,
+      maxSize: 220,
+      cell: ({ row }) => (
+        <span className="gba:block gba:max-w-[170px] gba:truncate gba:text-sm" title={row.original.location ?? '-'}>
+          {row.original.location ?? '-'}
+        </span>
+      )
     },
     {
       id: 'missingFields',
       header: t('col-missing-fields'),
       enableSorting: false,
+      size: 360,
+      maxSize: 420,
       cell: ({ row }) => (
         <TooltipProvider>
           <div className="gba:flex gba:flex-wrap gba:gap-1">
@@ -152,6 +173,8 @@ function buildRecordsTableColumns(t: (key: string) => string): ColumnDef<Employe
       id: 'severity',
       accessorKey: 'severity',
       header: t('col-severity'),
+      size: 150,
+      maxSize: 170,
       cell: ({ row }) => (
         <StatusBadge
           size="sm"

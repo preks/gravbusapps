@@ -1,5 +1,5 @@
-page-title = HR Admin Cockpit
-page-description = Calitatea și completitudinea datelor
+hr-admin-cockpit-page-title = HR Admin Cockpit
+hr-admin-cockpit-page-description = Calitatea și completitudinea datelor
 
 tab-overview = Prezentare generală
 tab-issues = Probleme

@@ -1,5 +1,5 @@
-page-title = Monatliche Vergütungsänderungen
-page-description = Übersicht über Gehaltsanpassungen, Boni und Leistungsänderungen nach Monat
+monthly-compensation-changes-page-title = Monatliche Vergütungsänderungen
+monthly-compensation-changes-page-description = Übersicht über Gehaltsanpassungen, Boni und Leistungsänderungen nach Monat
 
 tab-compensation-changes = Vergütungsänderungen
 tab-active-benefits = Aktive Leistungen

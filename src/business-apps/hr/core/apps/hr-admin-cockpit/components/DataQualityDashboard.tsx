@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ShieldWarningIcon, UsersIcon } from '@phosphor-icons/react'
+import { ShieldWarningIcon, UsersIcon, WarningIcon } from '@phosphor-icons/react'
 import {
   Alert,
   AlertDescription,
@@ -98,8 +98,9 @@ export function DataQualityDashboard({ accessToken, model }: Readonly<DataQualit
 
   return (
     <PageLayout
-      headerTitle={t('page-title')}
-      headerDescription={t('page-description')}
+      headerIcon={WarningIcon}
+      headerTitle={t('hr-admin-cockpit-page-title')}
+      headerDescription={t('hr-admin-cockpit-page-description')}
       onBack={null as unknown as (() => void) | undefined}
       headerContent={<CompanyFilter accessToken={accessToken} />}
       headerSubViews={{

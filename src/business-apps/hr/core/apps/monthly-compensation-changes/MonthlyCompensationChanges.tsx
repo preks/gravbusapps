@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { PageLayout, useTranslation } from '@newwork/nw-design-system'
+import { InfoIcon } from '@phosphor-icons/react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import translations from './_i18n'
 import { ActiveBenefitsTab } from '@/business-apps/hr/core/apps/monthly-compensation-changes/components/ActiveBenefitsTab'
@@ -22,8 +23,9 @@ function MonthlyCompensationChangesPage({ accessToken }: MonthlyCompensationChan
 
   return (
     <PageLayout
-      headerTitle={t('page-title')}
-      headerDescription={t('page-description')}
+      headerIcon={InfoIcon}
+      headerTitle={t('monthly-compensation-changes-page-title')}
+      headerDescription={t('monthly-compensation-changes-page-description')}
       onBack={null as unknown as (() => void) | undefined}
       headerSubViews={{
         value: model.activeTab,

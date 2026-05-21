@@ -1,5 +1,5 @@
-page-title = Modificări Lunare de Compensații
-page-description = Prezentare generală a ajustărilor salariale, bonusurilor și modificărilor de beneficii pe lună
+monthly-compensation-changes-page-title = Modificări Lunare de Compensații
+monthly-compensation-changes-page-description = Prezentare generală a ajustărilor salariale, bonusurilor și modificărilor de beneficii pe lună
 
 tab-compensation-changes = Modificări Compensații
 tab-active-benefits = Beneficii Active

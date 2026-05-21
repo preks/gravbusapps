@@ -1,5 +1,5 @@
-page-title = Monthly Compensation Changes
-page-description = Overview of salary adjustments, bonuses, and benefit changes by month
+monthly-compensation-changes-page-title = Monthly Compensation Changes
+monthly-compensation-changes-page-description = Overview of salary adjustments, bonuses, and benefit changes by month
 
 tab-compensation-changes = Compensation Changes
 tab-active-benefits = Active Benefits
