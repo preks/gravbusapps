@@ -344,9 +344,44 @@ export type KanbanBoardData = {
   columns: KanbanColumn[]
 }
 
+export type InteractiveTableDataType = 'text' | 'number' | 'date' | 'boolean' | 'enum' | 'chip' | 'chip_list'
+
+export type ChipCellValue = {
+  id: string
+  label: string
+}
+
+export type InteractiveTableColumn = {
+  id: string
+  header: string
+  dataType: InteractiveTableDataType
+  entityType?: string
+  sortable?: boolean
+  filterable?: boolean
+  width?: number
+  align?: 'left' | 'right' | 'center'
+}
+
+export type InteractiveTableDefaultSort = {
+  columnId: string
+  direction: 'asc' | 'desc'
+}
+
+export type InteractiveTableData = {
+  type: 'interactiveTable'
+  title: string
+  description?: string
+  columns: InteractiveTableColumn[]
+  rows: Array<Record<string, string | number | boolean | ChipCellValue | ChipCellValue[] | null>>
+  defaultSort?: InteractiveTableDefaultSort
+  rowEntityType?: string
+  rowEntityIdColumn?: string
+}
+
 export type DisplayData =
   | TextBlockData
   | TableData
+  | InteractiveTableData
   | ScatterGraphData
   | BarGraphData
   | EntityData

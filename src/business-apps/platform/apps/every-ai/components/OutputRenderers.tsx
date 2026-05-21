@@ -37,6 +37,7 @@ import { WorkflowAnalyticsDisplay } from './displays/workflow-analytics'
 import { AssetSummaryDisplay } from './displays/asset-summary'
 import { TeamAvailabilityDisplay } from './displays/team-availability'
 import { FlowbotCalendarDisplay } from './displays/calendar/FlowbotCalendarDisplay'
+import { InteractiveTableDisplay } from './displays/interactive-table/InteractiveTableDisplay'
 import { ChatSnippetDisplay } from './displays/ChatSnippetDisplay'
 import {
   AreaChartDisplay,
@@ -914,6 +915,8 @@ function renderDisplayData(
       return <TextBlockDisplay key={idx} data={item} accessToken={accessToken} />
     case 'table':
       return <TableDisplay key={idx} data={item} accessToken={accessToken} />
+    case 'interactiveTable':
+      return <InteractiveTableDisplay key={idx} data={item} accessToken={accessToken} />
     case 'bar':
       return <BarGraphDisplay key={idx} data={item} />
     case 'scatter':
