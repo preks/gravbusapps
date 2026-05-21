@@ -26,6 +26,7 @@ import { useFabricSkills, type ActiveFabricSkill } from '../hooks/useFabricSkill
 import { useEnterpriseAgentClient } from '../hooks/useEnterpriseAgentClient'
 import { useModelOptions } from '../hooks/useModelOptions'
 import { useSessionUrlState } from '../hooks/useSessionUrlState'
+import { setFabricLogContext, clearFabricLogContext } from '../utils/diagnosticLogger'
 import { deriveActivityFromEvents } from '../utils/messageUtils'
 
 // ─── Context shape ─────────────────────────────────────────────────────────────
@@ -377,6 +378,19 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   useEffect(() => {
     updateUrl({ sessionId: activeSessionId })
   }, [activeSessionId, updateUrl])
+
+  // Keep the structured frontend log context aligned with the active
+  // session so any `fabricLog.*` call (and browserEcho-forwarded
+  // console output) carries the session id for backend correlation.
+  useEffect(() => {
+    setFabricLogContext({
+      session_id: activeSessionId,
+      user_id: userInfo?.id ?? null
+    })
+    return () => {
+      clearFabricLogContext()
+    }
+  }, [activeSessionId, userInfo?.id])
 
   // Session list management
   const { sessions, addSession, updateSession, removeSession } = useAgentSessions(accessToken)
