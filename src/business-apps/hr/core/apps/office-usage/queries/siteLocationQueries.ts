@@ -60,7 +60,7 @@ export const GET_SITE_LOCATIONS_BY_COMPANY = `
       }
     }
 
-    EmployeeSiteLocation(
+    EmployeeSiteLocation: SiteLocationEmployee(
       where: {
         _and: [
           { structureId: { _eq: $structureId } }

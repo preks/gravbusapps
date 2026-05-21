@@ -68,7 +68,7 @@ export const GET_OFFICE_ATTENDANCE = `
       }
     }
     
-    EmployeeSiteLocation(
+    EmployeeSiteLocation: SiteLocationEmployee(
       where: {
         _and: [
           { structureId: { _eq: $structureId } }
@@ -171,7 +171,7 @@ export const GET_OFFICE_ATTENDANCE_BY_COMPANY = `
       }
     }
 
-    EmployeeSiteLocation(
+    EmployeeSiteLocation: SiteLocationEmployee(
       where: {
         _and: [
           { structureId: { _eq: $structureId } }
@@ -269,7 +269,7 @@ export const GET_LIVE_PRESENCE = `
       }
     }
     
-    EmployeeSiteLocation(
+    EmployeeSiteLocation: SiteLocationEmployee(
       where: {
         _and: [
           { structureId: { _eq: $structureId } }
@@ -432,7 +432,7 @@ export const GET_LIVE_PRESENCE_BY_COMPANY = `
       }
     }
 
-    EmployeeSiteLocation(
+    EmployeeSiteLocation: SiteLocationEmployee(
       where: {
         _and: [
           { structureId: { _eq: $structureId } }
@@ -539,7 +539,7 @@ export const GET_EMPLOYEE_SITE_LOCATIONS_BY_EMPLOYEE_IDS = `
     $structureId: uuid!
     $employeeIds: [uuid!]!
   ) {
-    EmployeeSiteLocation(
+    EmployeeSiteLocation: SiteLocationEmployee(
       where: {
         _and: [
           { structureId: { _eq: $structureId } }
@@ -560,7 +560,7 @@ export const GET_EMPLOYEE_SITE_LOCATIONS_BY_EMPLOYEE_IDS_AND_COMPANY = `
     $companyIds: [uuid!]!
     $asOfTs: timestamp!
   ) {
-    EmployeeSiteLocation(
+    EmployeeSiteLocation: SiteLocationEmployee(
       where: {
         _and: [
           { structureId: { _eq: $structureId } }
