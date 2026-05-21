@@ -12,7 +12,6 @@ import {
   IconAvatar,
   Input,
   Label,
-  ScrollArea,
   Select,
   SelectContent,
   SelectItem,
@@ -233,82 +232,79 @@ export const ManageCalendarAccessDialog: React.FC<ManageCalendarAccessDialogProp
     }
 
     return (
-      <ScrollArea className="gba:max-h-80">
-        <div className="gba:divide-y gba:divide-border/50" data-testid="manage-calendar-access-members-list">
-          {members.map(member => {
-            const isCurrentUser = currentUserId === member.userId
-            const canModifyMember = !member.isOwner && !isCurrentUser
+      <div className="gba:divide-y gba:divide-border/50" data-testid="manage-calendar-access-members-list">
+        {members.map(member => {
+          const isCurrentUser = currentUserId === member.userId
+          const canModifyMember = !member.isOwner && !isCurrentUser
 
-            return (
-              <div
-                key={member.userId}
-                className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3"
-              >
-                <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
-                  <PersonAvatar label={getMemberName(member)} imageUrl={member.avatarUrl} />
-                  <div className="gba:min-w-0">
-                    <p className="gba:text-sm gba:font-medium gba:truncate">{getMemberName(member)}</p>
-                    {member.email && (
-                      <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{member.email}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
-                  {member.isOwner ? (
-                    <Badge variant="secondary">{t('calendar-sidebar-owner')}</Badge>
-                  ) : (
-                    <Select
-                      value={member.permission}
-                      onValueChange={value =>
-                        handlePermissionChange(member.userId, value as InternalCalendarPermission)
-                      }
-                      disabled={!canModifyMember || isSubmitting}
-                    >
-                      <SelectTrigger
-                        className="gba:w-40"
-                        data-testid={`manage-calendar-access-permission-select-${member.userId}`}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PERMISSION_OPTIONS.map(option => (
-                          <SelectItem key={option} value={option}>
-                            {t(`calendar-sidebar-permission-${option}`)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveMember(member.userId)}
-                    disabled={!canModifyMember || isSubmitting}
-                    data-testid={`manage-calendar-access-remove-button-${member.userId}`}
-                  >
-                    <TrashIcon className="gba:h-4 gba:w-4" />
-                  </Button>
+          return (
+            <div
+              key={member.userId}
+              className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3"
+            >
+              <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
+                <PersonAvatar label={getMemberName(member)} imageUrl={member.avatarUrl} />
+                <div className="gba:min-w-0">
+                  <p className="gba:text-sm gba:font-medium gba:truncate">{getMemberName(member)}</p>
+                  {member.email && <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{member.email}</p>}
                 </div>
               </div>
-            )
-          })}
 
-          {members.length === 0 && (
-            <div className="gba:p-4 gba:text-sm gba:text-muted-foreground" data-testid="manage-calendar-access-empty">
-              {t('calendar-sidebar-noMembers')}
+              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
+                {member.isOwner ? (
+                  <Badge variant="secondary">{t('calendar-sidebar-owner')}</Badge>
+                ) : (
+                  <Select
+                    value={member.permission}
+                    onValueChange={value => handlePermissionChange(member.userId, value as InternalCalendarPermission)}
+                    disabled={!canModifyMember || isSubmitting}
+                  >
+                    <SelectTrigger
+                      className="gba:w-40"
+                      data-testid={`manage-calendar-access-permission-select-${member.userId}`}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERMISSION_OPTIONS.map(option => (
+                        <SelectItem key={option} value={option}>
+                          {t(`calendar-sidebar-permission-${option}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleRemoveMember(member.userId)}
+                  disabled={!canModifyMember || isSubmitting}
+                  data-testid={`manage-calendar-access-remove-button-${member.userId}`}
+                >
+                  <TrashIcon className="gba:h-4 gba:w-4" />
+                </Button>
+              </div>
             </div>
-          )}
-        </div>
-      </ScrollArea>
+          )
+        })}
+
+        {members.length === 0 && (
+          <div className="gba:p-4 gba:text-sm gba:text-muted-foreground" data-testid="manage-calendar-access-empty">
+            {t('calendar-sidebar-noMembers')}
+          </div>
+        )}
+      </div>
     )
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && !isSubmitting && onClose()}>
-      <DialogContent className="gba:max-w-2xl" data-testid="manage-calendar-access-dialog">
-        <DialogHeader>
+      <DialogContent
+        className="gba:max-w-2xl gba:max-h-[85vh] gba:flex gba:flex-col gba:overflow-hidden"
+        data-testid="manage-calendar-access-dialog"
+      >
+        <DialogHeader className="gba:flex-shrink-0">
           <DialogTitle>{t('calendar-sidebar-manageAccess')}</DialogTitle>
           <DialogDescription>
             {calendar
@@ -317,11 +313,11 @@ export const ManageCalendarAccessDialog: React.FC<ManageCalendarAccessDialogProp
           </DialogDescription>
         </DialogHeader>
 
-        <div className="gba:space-y-4">
+        <div className="gba:flex-1 gba:min-h-0 gba:space-y-4 gba:overflow-y-auto gba:pr-1">
           <div className="gba:space-y-2">
             <Label htmlFor="calendar-member-search">{t('calendar-sidebar-addPeople')}</Label>
             <div className="gba:relative">
-              <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 -gba:translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
+              <MagnifyingGlassIcon className="gba:pointer-events-none gba:absolute gba:left-3 gba:top-1/2 gba:h-4 gba:w-4 gba:-translate-y-1/2 gba:text-muted-foreground" />
               <Input
                 id="calendar-member-search"
                 value={searchQuery}
@@ -391,13 +387,16 @@ export const ManageCalendarAccessDialog: React.FC<ManageCalendarAccessDialogProp
               <Badge variant="outline">{members.length}</Badge>
             </div>
 
-            <div className="gba:rounded-lg gba:border gba:border-border/50 gba:bg-background">
+            <div
+              className="gba:max-h-[min(360px,45vh)] gba:overflow-y-auto gba:overscroll-contain gba:rounded-lg gba:border gba:border-border/50 gba:bg-background"
+              data-testid="manage-calendar-access-members-scroll"
+            >
               {renderMembersPanel()}
             </div>
           </div>
         </div>
 
-        <DialogFooter className="gba:flex gba:gap-2">
+        <DialogFooter className="gba:flex-shrink-0 gba:gap-2 gba:border-t gba:border-border/50 gba:pt-4">
           <Button
             variant="secondary"
             onClick={onClose}

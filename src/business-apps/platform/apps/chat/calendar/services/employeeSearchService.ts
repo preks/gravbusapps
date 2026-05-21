@@ -3,7 +3,8 @@
  * Provides real employee search using GraphQL
  */
 
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
+import { env } from '@/common/env/EnvUtils'
 
 export interface CalendarEmployee {
   id: string
@@ -67,38 +68,12 @@ export const SEARCH_EMPLOYEES_QUERY = (variables: EmployeeSearchVariables = {}):
  * Service class for employee search operations
  */
 export class EmployeeSearchService {
-  private graphqlClient: ReturnType<typeof useGraphQLClient>
+  private graphqlClient: GraphQLClient
 
   constructor(accessToken: string) {
-    // Note: In actual usage, this should be called within a React component
-    // using the useGraphQLClient hook. For the service pattern, we'll create
-    // a standalone client.
-    this.graphqlClient = {
-      request: async <T>(query: string): Promise<T> => {
-        const baseUrl = import.meta.env.VITE_GRAPHQL_URL || 'https://newwork-dev.newwork.com/v1/graphql'
-
-        const response = await fetch(baseUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({ query })
-        })
-
-        if (!response.ok) {
-          throw new Error(`GraphQL request failed: ${response.status}`)
-        }
-
-        const result = await response.json()
-
-        if (result.errors?.length) {
-          throw new Error(result.errors[0].message)
-        }
-
-        return result.data as T
-      }
-    } as ReturnType<typeof useGraphQLClient>
+    const endpoint = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') ?? ''
+    this.graphqlClient = new GraphQLClient(endpoint)
+    this.graphqlClient.setAccessToken(accessToken)
   }
 
   /**
