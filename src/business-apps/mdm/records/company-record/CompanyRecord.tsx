@@ -36,8 +36,8 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
   const { t } = useTranslation(translations)
 
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof window === 'undefined') return 'overview'
-    const params = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return 'overview'
+    const params = new URLSearchParams(globalThis.window.location.search)
     return params.get('tab') || 'overview'
   })
 
@@ -46,26 +46,26 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
-    if (typeof window === 'undefined') return
-    const url = new URL(window.location.href)
+    if (typeof globalThis.window === 'undefined') return
+    const url = new URL(globalThis.window.location.href)
     url.searchParams.set('tab', value)
-    window.history.replaceState(null, '', url.toString())
+    globalThis.window.history.replaceState(null, '', url.toString())
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return
+    const params = new URLSearchParams(globalThis.window.location.search)
     if (!params.get('tab')) {
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.window.location.href)
       url.searchParams.set('tab', activeTab)
-      window.history.replaceState(null, '', url.toString())
+      globalThis.window.history.replaceState(null, '', url.toString())
     }
     const onPop = () => {
-      const next = new URLSearchParams(window.location.search).get('tab') || 'overview'
+      const next = new URLSearchParams(globalThis.window.location.search).get('tab') || 'overview'
       setActiveTab(next)
     }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
+    globalThis.window.addEventListener('popstate', onPop)
+    return () => globalThis.window.removeEventListener('popstate', onPop)
   }, [activeTab])
 
   // Listen for process completion events to refresh company data
@@ -99,12 +99,12 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
     ]
 
     eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+      globalThis.window.addEventListener(eventName, handleProcessCompletion as EventListener)
     })
 
     return () => {
       eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+        globalThis.window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
     }
   }, [companyId, refetch])
@@ -259,15 +259,18 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
 
 const CompanyRecord: React.FC<CompanyRecordProps> = props => {
   const { t } = useTranslation(translations)
-  const companyId = props.companyId || new URLSearchParams(window.location.search).get('companyId')
+  const companyId =
+    props.companyId ||
+    new URLSearchParams(globalThis.window.location.search).get('companyId') ||
+    'f4701dbb-9665-42f3-ab54-4e1d92d89ecd'
 
   const handleBack = () => {
     if (props.onBack) {
       props.onBack()
     } else {
       // Use browser history back
-      if (typeof window !== 'undefined' && window.history.length > 1) {
-        window.history.back()
+      if (typeof globalThis.window !== 'undefined' && globalThis.window.history.length > 1) {
+        globalThis.window.history.back()
       } else {
         // Fallback if no history available
         navigateTo(buildPlatformUrl('/platform/mdm/organizational-data', { view: 'companies' }))

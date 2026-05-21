@@ -30,6 +30,7 @@ export interface SlideSummary {
   sharedBy?: string
   permission?: SlidePermission
   isOwner?: boolean
+  isFavorite?: boolean
   spaceId?: string | null
   trashedAt?: string | null
 }

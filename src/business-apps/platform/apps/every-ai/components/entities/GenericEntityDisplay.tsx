@@ -17,6 +17,12 @@ export interface GenericEntityDisplayProps {
   /** Normalized entity link URL from backend with optional alternateId fragment */
   link?: string
   variant?: 'default' | 'decorative'
+  /** When set, replaces the default Sparkles / bolt icon */
+  icon?: React.ReactNode
+  /** When set (decorative variant), replaces the uppercase line above the title */
+  subtitle?: string
+  /** When set, title navigates via this handler instead of getEntityUrl */
+  onTitleClick?: () => void
 }
 
 /** Strip emoji characters from text for a cleaner presentation */
@@ -53,14 +59,17 @@ const GenericEntityDisplay: React.FC<GenericEntityDisplayProps> = ({
   textHuman,
   textTitle,
   link,
-  variant = 'default'
+  variant = 'default',
+  icon: customIcon,
+  subtitle: customSubtitle,
+  onTitleClick: customOnTitleClick
 }) => {
   const s = variantStyles[variant]
   const isDecorative = variant === 'decorative'
   const operationBadge = getOperationBadge(operation)
   const url = getEntityUrl(entity, id, link)
 
-  const handleTitleClick = () => {
+  const handleDefaultTitleClick = () => {
     if (!url) return
     navigateTo(url, { forceReload: true })
   }
@@ -69,7 +78,7 @@ const GenericEntityDisplay: React.FC<GenericEntityDisplayProps> = ({
   const content = isDecorative ? stripEmojis(rawContent) : rawContent
   const contentWithLineBreaks = content.replace(/\n/g, '  \n')
 
-  const icon = isDecorative ? (
+  const defaultIcon = isDecorative ? (
     <div className="gba:h-11 gba:w-11 gba:rounded-2xl gba:bg-decorative-foreground/10 gba:ring-1 gba:ring-decorative-foreground/20 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
       <Sparkles className="gba:w-5 gba:h-5 gba:text-decorative-foreground" strokeWidth={1.5} />
     </div>
@@ -81,26 +90,31 @@ const GenericEntityDisplay: React.FC<GenericEntityDisplayProps> = ({
     </div>
   )
 
+  const iconElement = customIcon ?? defaultIcon
+
   const displayTitle = textTitle || entity.replace(/_/g, ' ')
+  const subtitleLine = isDecorative ? (customSubtitle ?? entity.replace(/_/g, ' ')) : null
+
+  const titleIsButton = Boolean(customOnTitleClick || url)
 
   return (
     <Card className={s.card} data-testid={`entity-display-${entity}`}>
       <CardHeader className="gba:flex gba:flex-row gba:items-center gba:gap-3">
-        {icon}
+        {iconElement}
         <div className="gba:min-w-0 gba:flex-1">
-          {isDecorative && (
+          {isDecorative && subtitleLine !== null && (
             <p className="gba:text-xs gba:mb-0.5 gba:text-decorative-foreground/50 gba:font-medium gba:tracking-wide gba:uppercase">
-              {entity.replace(/_/g, ' ')}
+              {subtitleLine}
             </p>
           )}
           <CardTitle
             className={`gba:font-bold gba:tracking-tight ${isDecorative ? 'gba:text-lg' : 'gba:text-base'} ${s.title}`}
           >
-            {url ? (
+            {titleIsButton ? (
               <button
                 type="button"
                 className={`gba:text-left gba:transition-opacity ${isDecorative ? '' : 'gba:underline'} ${s.titleHover}`}
-                onClick={handleTitleClick}
+                onClick={customOnTitleClick ?? handleDefaultTitleClick}
                 data-testid={`entity-title-link-${entity}`}
               >
                 {displayTitle}

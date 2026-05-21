@@ -65,6 +65,8 @@ export interface ParticipantVideoTileProps {
   t?: (key: string) => string
   /** Whether the call view is minimized */
   isMinimized?: boolean
+  /** Whether the local camera video should be horizontally mirrored (selfie-view) */
+  isMirrored?: boolean
 }
 
 export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
@@ -88,8 +90,9 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
   onScreenShareFocus,
   videoRef,
   screenShareVideoRef,
-  prefixDataTestId = 'rtk-group-call'
+  prefixDataTestId = 'rtk-group-call',
   // t - not used
+  isMirrored = false
 }) => {
   const internalScreenShareVideoRef = useRef<HTMLVideoElement>(null)
 
@@ -186,7 +189,11 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
         autoPlay
         playsInline
         muted={isLocal}
-        className={hasVideoTrack ? 'gba:w-full gba:h-full gba:object-cover' : 'gba:hidden'}
+        className={
+          hasVideoTrack
+            ? `gba:w-full gba:h-full gba:object-cover${isLocal && isMirrored ? ' gba:scale-x-[-1]' : ''}`
+            : 'gba:hidden'
+        }
         data-testid={`${prefixDataTestId}-video-${peerId}`}
         onLoadedMetadata={() => {}}
         onLoadedData={() => {}}
@@ -270,6 +277,7 @@ export const MemoizedParticipantVideoTile = React.memo(ParticipantVideoTile, (pr
     prevProps.handRaisedOrderNumber === nextProps.handRaisedOrderNumber &&
     prevProps.isActiveSpeaker === nextProps.isActiveSpeaker &&
     prevProps.isMinimized === nextProps.isMinimized &&
+    prevProps.isMirrored === nextProps.isMirrored &&
     // Compare reactions array by length and content
     prevProps.reactions?.length === nextProps.reactions?.length &&
     JSON.stringify(prevProps.reactions) === JSON.stringify(nextProps.reactions)

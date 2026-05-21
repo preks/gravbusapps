@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
-import { useEmployeeById } from '@/common/data/employee/hooks/useEmployeeById'
-import type { EmployeeByIdData } from '@/common/data/employee/hooks/useEmployeeById'
+import { EmployeeOption } from '../types'
+import { useEmployeeHeaderByEmployeeId } from './useEmployeeHeaderByEmployeeId'
 import { getProcessIdFromEndpoint } from '@/business-apps/hr/core/forms/performance-evaluation-peer-approve/hooks/useNominatedPeersFromProcess'
 
 interface ProcessGetResponse {
@@ -13,7 +13,7 @@ interface ProcessGetResponse {
 
 export interface UseEmployeeFromProcessReturn {
   employeeId: string | null
-  employee: EmployeeByIdData | null
+  employee: EmployeeOption | null
   loading: boolean
   error: string | null
 }
@@ -79,7 +79,7 @@ export function useEmployeeFromProcess(
     fetchProcessAndSetEmployeeId()
   }, [fetchProcessAndSetEmployeeId])
 
-  const { employee: employeeById, loading: employeeLoading } = useEmployeeById({
+  const { employee: employeeById, loading: employeeLoading } = useEmployeeHeaderByEmployeeId({
     accessToken: accessToken ?? '',
     employeeId: employeeIdFromProcess ?? undefined
   })

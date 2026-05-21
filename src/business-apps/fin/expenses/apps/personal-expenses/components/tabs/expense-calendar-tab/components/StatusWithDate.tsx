@@ -48,18 +48,13 @@ const StatusWithDate: React.FC<StatusWithDateProps> = ({ type, status, value }) 
 
   return (
     <Tooltip title={tooltipContent} placement="topRight">
-      <span>
+      <span className="gba:flex gba:w-full gba:min-w-0 gba:justify-end">
         <Badge
           variant={(statusConfig as any).badgeVariant || 'outline'}
-          style={{
-            display: 'inline-block',
-            maxWidth: '90px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}
+          className="gba:min-w-0 gba:max-w-full"
+          data-testid="expense-calendar-status-pill"
         >
-          {label}
+          <span className="gba:block gba:min-w-0 gba:max-w-full gba:truncate">{label}</span>
         </Badge>
       </span>
     </Tooltip>

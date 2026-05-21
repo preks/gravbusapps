@@ -5,6 +5,7 @@ import { AccountInformationSegment } from '../../form-segments/account-informati
 import { CoreInformationSegment } from '../../form-segments/core-information-segment'
 import { AddressSegment } from '../../form-segments/address-segment'
 import { CommunicationSegment, DEFAULT_ACCOUNT_CHANNELS } from '../../form-segments/communication-segment'
+import type { InlineEntityCreateRenderProps } from '@/common/components/common-relations/popups/inline-entity-create-popup'
 import translations from './_i18n'
 
 interface AccountLayoutProps {
@@ -56,9 +57,9 @@ interface AccountLayoutProps {
   // Ref to store current file and thumbnail (for handlePreSubmit in form component)
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
 
-  // Context for prospective field label (determines non-prospective label)
-  // REQUIRED: Must be explicitly set to 'crm' or 'irm' to ensure correct labels
-  accountContext: 'crm' | 'irm'
+  // Render prop for the inline contact create/edit popup.
+  // When provided, enables draft-contact creation from the contacts field.
+  inlineContactCreate?: (props: InlineEntityCreateRenderProps) => React.ReactNode
 
   // Loading state - shows skeletons while data is being fetched
   loading?: boolean
@@ -80,7 +81,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   communicationCustomFields,
   customSegments = [],
   avatarFileRef,
-  accountContext,
+  inlineContactCreate,
   loading = false,
   isStepActive = true
 }) => {
@@ -127,7 +128,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         customFields={accountInformationCustomFields}
         avatarFileRef={avatarFileRef}
         accountPriorityCatalogIdentifier={accountPriorityCatalogIdentifier}
-        accountContext={accountContext}
+        inlineContactCreate={inlineContactCreate}
       />
 
       {/* Other Segments */}

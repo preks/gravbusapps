@@ -9,12 +9,13 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent
+  ChartLegendContent,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { resolveCssVar } from './chartUtils'
+import translations from '../../../_i18n'
 
 interface LineChartProps {
   data: {
@@ -43,8 +44,9 @@ const LineChartComponent: React.FC<LineChartProps> = ({
   currency = 'EUR',
   dataTestId
 }) => {
+  const { t } = useTranslation(translations)
   const resolvedLineColor = React.useMemo(() => resolveCssVar(lineColor), [lineColor])
-  const lineName = getTranslationFromI18nKeyAndLabel('lowcoder:charts.legend.amount', 'Amount')
+  const lineName = t('dashboard-charts-tooltip-amount')
 
   const chartConfig = React.useMemo(() => {
     const config: ChartConfig = {
@@ -53,7 +55,7 @@ const LineChartComponent: React.FC<LineChartProps> = ({
       }
     }
     return config
-  }, [lineDataKey, lineName])
+  }, [lineDataKey, lineName, t])
 
   if (!data || data.length === 0) {
     return (
@@ -66,14 +68,9 @@ const LineChartComponent: React.FC<LineChartProps> = ({
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
             <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:charts.empty.title', 'No data available')}
+              {t('dashboard-charts-empty-title')}
             </div>
-            <div className="gba:text-muted-foreground gba:text-sm">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:charts.empty.description',
-                'There is no data to display for this chart.'
-              )}
-            </div>
+            <div className="gba:text-muted-foreground gba:text-sm">{t('dashboard-charts-empty-description')}</div>
           </div>
         </CardContent>
       </Card>

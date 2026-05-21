@@ -20,7 +20,7 @@ export const useGetExpensePlanRecord = ({
   accessToken,
   expensePlanId
 }: UseGetExpensePlanRecordProps): UseGetExpensePlanRecordResult => {
-  const finalExpensePlanId = expensePlanId ?? ''
+  const finalExpensePlanId = expensePlanId?.trim() ?? ''
   const [expensePlan, setExpensePlan] = useState<ExpensePlanRecord | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +28,7 @@ export const useGetExpensePlanRecord = ({
   const graphqlClient = useGraphqlClient(accessToken)
 
   const fetchExpensePlan = useCallback(
-    async (expensePlanId: string) => {
+    async (id: string) => {
       if (!accessToken) {
         setError('No access token provided')
         return
@@ -39,7 +39,10 @@ export const useGetExpensePlanRecord = ({
         setError(null)
 
         const activeUserLocale = getCurrentActiveUserLocale()
-        const data = await graphqlClient.request(getExpensePlanRecordQuery, { expensePlanId, activeUserLocale })
+        const data = await graphqlClient.request(getExpensePlanRecordQuery, {
+          expensePlanId: id,
+          activeUserLocale
+        })
 
         if (!data?.expensePlan) {
           throw new Error('No expense plan data found')
@@ -48,7 +51,6 @@ export const useGetExpensePlanRecord = ({
         setExpensePlan(data.expensePlan as ExpensePlanRecord)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch expense plan')
-        console.error('Error fetching expense plan:', err)
       } finally {
         setLoading(false)
       }
@@ -56,7 +58,6 @@ export const useGetExpensePlanRecord = ({
     [accessToken, graphqlClient]
   )
 
-  // Fetch expense plan if ID is provided
   useEffect(() => {
     if (!finalExpensePlanId) {
       setError('No expense plan ID provided')

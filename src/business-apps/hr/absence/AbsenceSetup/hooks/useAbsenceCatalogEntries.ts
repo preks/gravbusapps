@@ -88,8 +88,26 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
       }
       const loadedEntries = await fetchEntries(queryParams)
       const nextEntries = loadedEntries.filter(entry => !isCatalogEntryDeleted(entry))
-      setEntries(nextEntries)
-      return nextEntries
+
+      // The localized list endpoint returns empty objectValue for entries whose
+      // canonical record was updated after initial creation. Re-fetch those entries
+      // individually from the single-entry endpoint to get the full objectValue.
+      const enriched = await Promise.all(
+        nextEntries.map(async entry => {
+          const ov = entry.objectValue
+          const isEmpty =
+            !ov || (typeof ov === 'object' && !Array.isArray(ov) && Object.keys(ov as object).length === 0)
+          if (!isEmpty) return entry
+          try {
+            return await client.getCatalogEntryById(entry.id)
+          } catch {
+            return entry
+          }
+        })
+      )
+
+      setEntries(enriched)
+      return enriched
     } catch (err) {
       const resolvedError = err instanceof Error ? err : new Error(`Failed to fetch ${catalogIdentifier} entries`)
       console.error(`[useAbsenceCatalogEntries] Failed to fetch ${catalogIdentifier}:`, resolvedError.message)
@@ -152,11 +170,20 @@ export const useAbsenceCatalogEntries = (accessToken: string, catalogIdentifier:
         translations: updates.translations ?? existingEntry.translations ?? []
       }
 
-      const updatedEntry = await client.updateCatalogEntry(catalogIdentifier, CATALOG_VERSION, entryId, updatePayload)
-      const mergedUpdatedEntry = mergeCatalogEntry(updatedEntry, existingEntry)
+      await client.updateCatalogEntry(catalogIdentifier, CATALOG_VERSION, entryId, updatePayload)
 
-      setEntries(prev => prev.map(item => (item.id === entryId ? mergedUpdatedEntry : item)))
-      return mergedUpdatedEntry
+      // Re-fetch the single entry to get the authoritative objectValue.
+      // The list endpoint returns localized copies with empty objectValue, so we
+      // must use the single-entry endpoint which always returns the full record.
+      let finalEntry: CatalogEntry
+      try {
+        finalEntry = await client.getCatalogEntryById(entryId)
+      } catch {
+        finalEntry = mergeCatalogEntry(updatePayload as CatalogEntry, existingEntry)
+      }
+
+      setEntries(prev => prev.map(item => (item.id === entryId ? finalEntry : item)))
+      return finalEntry
     },
     [catalogIdentifier, client, entries]
   )

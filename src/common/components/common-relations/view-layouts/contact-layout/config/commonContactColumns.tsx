@@ -1,14 +1,9 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { User, Calendar } from 'lucide-react'
+import { User, Calendar, Mail, Phone, Globe } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { type Contact, createContactDescriptors, ContactFields } from '@/common/data/relations/types/contactTypes'
-import {
-  getCommunicationChannelIcon,
-  formatCommunicationChannelValue
-} from '@/common/data/common/utils/communicationChannelUtils'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
-import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {
@@ -108,11 +103,9 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
   {
     id: 'communicationChannels',
     accessorFn: row => {
-      // Get all communication channels
+      // Future: all use communicationChannels
       if (row.communicationChannels?.length) {
-        const email = row.communicationChannels.find(
-          ch => ch.communicationChannel?.code === CommunicationChannelCode.EMAIL
-        )
+        const email = row.communicationChannels.find(ch => ch.communicationChannel?.type?.toLowerCase() === 'email')
         return safeString(email?.value)
       }
       return ''
@@ -124,41 +117,59 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
     enableResizing: false,
     enableSorting: false,
     cell: ({ row }) => {
-      const channels = (row.original.communicationChannels || []).filter(
-        channel =>
-          channel.communicationChannel?.code === CommunicationChannelCode.EMAIL ||
-          channel.communicationChannel?.code === CommunicationChannelCode.PHONE
-      )
+      const contactInfo = []
 
-      if (channels.length === 0) {
-        return <span className="gba:text-sm gba:text-muted-foreground">No contact info</span>
+      // Helper to get communication channel by type (lowercase: email, url, tel, text)
+      const getChannel = (type: string) => {
+        return row.original.communicationChannels?.find(
+          ch => ch.communicationChannel?.type?.toLowerCase() === type.toLowerCase()
+        )
       }
 
-      // Display ALL communication channels with proper icons based on type
-      return (
-        <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0">
-          {channels.slice(0, 3).map(channel => {
-            const type = channel.communicationChannel?.type
-            const value = channel.value
+      // Email from communicationChannels
+      const emailChannel = getChannel('email')
+      if (emailChannel?.value) {
+        contactInfo.push(
+          <div key="email" className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:min-w-0">
+            <Mail className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
+            <span className="gba:text-sm gba:truncate" title={safeString(emailChannel.value)}>
+              {safeString(emailChannel.value)}
+            </span>
+          </div>
+        )
+      }
 
-            if (!value) return null
+      // Phone from communicationChannels (type: tel)
+      const phoneChannel = getChannel('tel')
+      if (phoneChannel?.value) {
+        contactInfo.push(
+          <div key="phone" className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:min-w-0">
+            <Phone className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
+            <span className="gba:text-sm gba:truncate" title={safeString(phoneChannel.value)}>
+              {safeString(phoneChannel.value)}
+            </span>
+          </div>
+        )
+      }
 
-            const Icon = getCommunicationChannelIcon(type)
-            const displayValue = formatCommunicationChannelValue(type, value)
-            // Use combination of type and value for unique key
-            const key = `${type || 'unknown'}-${value}`
+      // Website from communicationChannels (type: url) or direct field
+      const websiteChannel = getChannel('url')
+      const websiteValue = websiteChannel?.value || (row.original as any).website
+      if (websiteValue) {
+        contactInfo.push(
+          <div key="website" className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+            <Globe className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
+            <span className="gba:text-sm gba:truncate" title={safeString(websiteValue)}>
+              {safeString(websiteValue)}
+            </span>
+          </div>
+        )
+      }
 
-            return (
-              <div key={key} className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
-                <Icon className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
-                <span className="gba:text-xs gba:truncate" title={value}>
-                  {displayValue}
-                </span>
-              </div>
-            )
-          })}
-          {channels.length > 3 && <span className="gba:text-xs gba:text-gray-500">+{channels.length - 3} more</span>}
-        </div>
+      return contactInfo.length > 0 ? (
+        <div className="gba:min-w-0">{contactInfo}</div>
+      ) : (
+        <span className="gba:text-sm gba:text-muted-foreground">No contact info</span>
       )
     }
   },
@@ -235,7 +246,7 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
           className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:group gba:bg-transparent gba:border-0 gba:p-0 gba:w-full gba:text-left"
           data-testid={`owner-link-${row.original.id}`}
         >
-          <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
+          <Avatar className="gba:w-8 gba:h-8 gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:outline-(--nw-color-primary-500) gba:transition-all">
             {imageUrl && <AvatarImage src={imageUrl} alt={ownerName} />}
             <AvatarFallback>
               {(() => {

@@ -82,6 +82,7 @@ const LevelSelect: React.FC<{ value: number; onChange: (value: number) => void; 
 function renderModeSection(
   mode: string | undefined,
   flowFormParams: any,
+  form: UseFormReturn<AddSkillFormValues>,
   t: (key: string, args?: Record<string, unknown>) => string
 ): React.ReactNode {
   if (mode === 'deactivate') {
@@ -97,12 +98,42 @@ function renderModeSection(
   }
   if (mode === 'activate') {
     return (
-      <p className="gba:text-muted-foreground gba:py-2" data-testid="add-skill-activate-message">
-        {t('add-skill-form-activate-message-prefix')}{' '}
+      <div className="gba:space-y-4" data-testid="add-skill-activate-section">
+        <p className="gba:text-muted-foreground gba:py-2" data-testid="add-skill-activate-message">
+          {t('add-skill-form-activate-message-prefix')}{' '}
+          <strong className="gba:font-bold gba:text-foreground">
+            {flowFormParams.skillName || flowFormParams.skillId}
+          </strong>{' '}
+          {t('add-skill-form-activate-message-suffix')}
+        </p>
+        <FormField
+          control={form.control}
+          name="validTo"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('add-skill-form-valid-to')} *</FormLabel>
+              <FormControl>
+                <Input
+                  type="date"
+                  value={field.value || ''}
+                  onChange={field.onChange}
+                  data-testid="add-skill-activate-valid-to"
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      </div>
+    )
+  }
+  if (mode === 'remove') {
+    return (
+      <p className="gba:text-muted-foreground gba:py-2" data-testid="add-skill-remove-message">
+        {t('add-skill-form-remove-message-prefix')}{' '}
         <strong className="gba:font-bold gba:text-foreground">
           {flowFormParams.skillName || flowFormParams.skillId}
         </strong>{' '}
-        {t('add-skill-form-activate-message-suffix')}
+        {t('add-skill-form-remove-message-suffix')}
       </p>
     )
   }
@@ -146,13 +177,9 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
   hasInitialVerificationDocumentCandidates = false
 }) => {
   const mode = flowFormParams?.mode
-  const isFlowMode = mode === 'deactivate' || mode === 'activate' || mode === 'attachVerification'
   const isChangeLevelMode = changeLevelParams != null
-  const isAddOrEditMode = !isFlowMode && !isChangeLevelMode
-  const showExistingList = activeSelectedSkills.length > 0 && isAddOrEditMode
-  const showEmptyMessage = isAddOrEditMode && activeSelectedSkills.length === 0
 
-  const modeContent = renderModeSection(mode, flowFormParams, t)
+  const modeContent = renderModeSection(mode, flowFormParams, form, t)
   if (modeContent) {
     return <div className="gba:flex-1 gba:space-y-3">{modeContent}</div>
   }
@@ -382,46 +409,6 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
                 statusLabel={t('add-skill-form-new-skill-badge')}
               />
             ))}
-        </div>
-      )}
-
-      {activeSelectedSkills.length > 0 && (
-        <span
-          className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-2 gba:mt-5"
-          data-testid="add-skill-employee-skills-label"
-        >
-          {t('add-skill-form-current-employee-skills-label')}
-        </span>
-      )}
-
-      {showExistingList && (
-        <div
-          className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[350px] gba:overflow-y-auto"
-          data-testid="add-skill-existing-container"
-        >
-          {activeSelectedSkills.map(skill => (
-            <SkillLevelRow
-              key={skill.id}
-              skillName={skill.name}
-              onRemove={() => handleRemoveSkill(skill.id)}
-              dataTestIdPrefix="add-skill-existing"
-              removeButtonTestId={`skill-level-row-remove-${skill.id}`}
-              rowId={skill.id}
-              levelContent={
-                <LevelSelect
-                  value={skill.level || 1}
-                  onChange={level => handleUpdateExistingSkillLevel(skill.id, level)}
-                  dataTestId={`skill-level-select-${skill.id}`}
-                />
-              }
-            />
-          ))}
-        </div>
-      )}
-
-      {showEmptyMessage && (
-        <div className="gba:text-sm gba:text-muted-foreground gba:py-2" data-testid="add-skill-no-current-skills">
-          {t('add-skill-form-no-current-skills')}
         </div>
       )}
     </div>

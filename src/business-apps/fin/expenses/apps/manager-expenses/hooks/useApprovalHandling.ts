@@ -3,8 +3,8 @@ import { ApprovalRequest } from '../types'
 import { createApprovalPayload } from '../utils/approvalPayloadCreator'
 import { getTabByKey } from '../constants/approvalTabs'
 import { env } from '@/common/env/EnvUtils'
-import { toast } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { toast, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 
 interface UseApprovalHandlingProps {
   selectedTasks: ApprovalRequest[]
@@ -13,7 +13,7 @@ interface UseApprovalHandlingProps {
   tabKey: string
   userInfo: any
   accessToken: string
-  onApprovalSuccess?: () => void // Callback after successful approval
+  onApprovalSuccess?: () => void
 }
 
 export const useApprovalHandling = ({
@@ -25,16 +25,15 @@ export const useApprovalHandling = ({
   accessToken,
   onApprovalSuccess
 }: UseApprovalHandlingProps) => {
+  const { t } = useTranslation(translations)
   const [isApproving, setIsApproving] = useState(false)
   const [approvalError, setApprovalError] = useState<string | null>(null)
   const [currentProgressIndex, setCurrentProgressIndex] = useState<number>(0)
   const [totalToApprove, setTotalToApprove] = useState<number>(0)
 
-  // Small delay between sequential requests to avoid backend concurrency conflicts
   const sequentialDelayMs = 150
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-  // Helpers to reduce cognitive complexity
   const getDomainForTab = (key: string): string =>
     key === 'transfer-payment' || key === 'handout-payment' ? 'cs-selgros' : 'employee-expense'
 
@@ -94,7 +93,7 @@ export const useApprovalHandling = ({
       case 'handout-payment':
         return p.advancePayment?.id
       case 'transfer-payment':
-        return p.transferPayment?.id || p.advancePayment?.id // Prefer transferPayment id, fallback for legacy payloads
+        return p.transferPayment?.id || p.advancePayment?.id
       default:
         return undefined
     }
@@ -132,22 +131,12 @@ export const useApprovalHandling = ({
       }
     })
     if (!getResponse.ok) {
-      throw new Error(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:network.get_failed',
-          `GET request failed: ${getResponse.status} ${getResponse.statusText}`
-        )
-      )
+      throw new Error(`${t('approvals-network-get-failed')}: ${getResponse.status} ${getResponse.statusText}`)
     }
     const taskData = await getResponse.json()
     const entityId = extractEntityIdFromTaskData(ctx.tabKeyLocal, taskData)
     if (!entityId) {
-      throw new Error(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:approvals.entity_id_missing',
-          `Could not find entity ID in task data for ${ctx.tabKeyLocal}`
-        )
-      )
+      throw new Error(t('approvals-entity-id-missing', { tabKey: ctx.tabKeyLocal }))
     }
     return entityId
   }
@@ -157,14 +146,11 @@ export const useApprovalHandling = ({
     tabConfig: any,
     approvalPayload: any
   ): Promise<{ ok: boolean; error?: string }> => {
-    const originalTask = rawTasks.find(t => t.id === task.id)
+    const originalTask = rawTasks.find(rt => rt.id === task.id)
     if (!originalTask) {
       return {
         ok: false,
-        error: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:approvals.could_not_find_task_data',
-          `Could not find original task data for ${task.id}`
-        )
+        error: t('approvals-could-not-find-task', { taskId: task.id })
       }
     }
 
@@ -173,25 +159,24 @@ export const useApprovalHandling = ({
     const taskInstanceId = task.id
     const taskName = originalTask.name || 'approveTask'
     const userId = userInfo?.id
-    if (!userId)
+    if (!userId) {
       return {
         ok: false,
-        error: getTranslationFromI18nKeyAndLabel('lowcoder:common.user_id_not_available', 'User ID not available')
+        error: t('approvals-user-id-missing')
       }
+    }
 
     let processInstanceId = extractProcessInstanceId(originalTask, processName, tabConfig.key)
     if (!processInstanceId) processInstanceId = task.id
-    if (!processInstanceId)
+    if (!processInstanceId) {
       return {
         ok: false,
-        error: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:approvals.process_instance_missing',
-          'Process instance ID not available'
-        )
+        error: t('approvals-process-instance-missing')
       }
+    }
 
     const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? ''
-    const selectedTask = selectedTasks.find(t => t.id === taskInstanceId)
+    const selectedTask = selectedTasks.find(st => st.id === taskInstanceId)
     const ctx: RequestContext = {
       baseUrl,
       domain,
@@ -219,10 +204,7 @@ export const useApprovalHandling = ({
       const responseText = await postResponse.text()
       return {
         ok: false,
-        error: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:network.post_failed',
-          `POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`
-        )
+        error: `${t('approvals-network-post-failed')}: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`
       }
     }
     await postResponse.json()
@@ -230,55 +212,35 @@ export const useApprovalHandling = ({
     return { ok: true }
   }
 
-  // --- Small helpers to reduce cognitive complexity in handleApproveClick ---
   const validatePreconditions = (tasks: ApprovalRequest[], key: string, user: any) => {
     if (tasks.length === 0) {
-      return {
-        error: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:manager_expenses_landing_page.select_task_to_approve',
-          'Please select at least one task to approve'
-        )
-      } as const
+      return { error: t('approvals-select-task-to-approve') } as const
     }
 
     const cfg = getTabByKey(key)
     if (!cfg || !user) {
-      return {
-        error: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:common.configuration_missing',
-          'Missing configuration or user information'
-        )
-      } as const
+      return { error: t('approvals-configuration-missing') } as const
     }
     return { tabConfig: cfg } as const
   }
 
   const showSummaryToasts = (approvedCount: number, failedTasks: Array<{ id: string; error: string }>) => {
     if (approvedCount > 0 && failedTasks.length === 0) {
-      toast.success(getTranslationFromI18nKeyAndLabel('lowcoder:approvals.approval_completed', 'Approval completed'), {
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:approvals.approved_successfully_count',
-          `${approvedCount} task${approvedCount > 1 ? 's' : ''} approved successfully`
-        ),
+      toast.success(t('approvals-toast-completed'), {
+        description: t('approvals-toast-completed-description', { count: approvedCount }),
         duration: 4000
       })
       return
     }
 
     if (approvedCount > 0 && failedTasks.length > 0) {
-      toast.success(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:approvals.partial_approval_completed',
-          'Partial approval completed'
-        ),
-        {
-          description: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approvals.partial_approval_summary',
-            `${approvedCount} approved · ${failedTasks.length} failed`
-          ),
-          duration: 5000
-        }
-      )
+      toast.success(t('approvals-toast-partial-completed'), {
+        description: t('approvals-toast-partial-completed-description', {
+          approvedCount,
+          failedCount: failedTasks.length
+        }),
+        duration: 5000
+      })
       return
     }
 
@@ -287,14 +249,13 @@ export const useApprovalHandling = ({
       const more = failedTasks.length - 1
       const details = more > 0 ? `${first.error} (+${more} more)` : first.error
       setApprovalError(details)
-      toast.error(getTranslationFromI18nKeyAndLabel('lowcoder:approvals.all_failed', 'All approvals failed'), {
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:approvals.error_details', details),
+      toast.error(t('approvals-toast-all-failed'), {
+        description: details,
         duration: 6000
       })
     }
   }
 
-  // Helper: Process all selected tasks sequentially
   const processSelectedTasks = async (
     tasks: ApprovalRequest[],
     tabConfig: any,
@@ -309,13 +270,10 @@ export const useApprovalHandling = ({
         if (result.ok) {
           approvedCount += 1
         } else {
-          failedTasks.push({ id: task.id, error: result.error || 'Unknown error' })
+          failedTasks.push({ id: task.id, error: result.error || t('approvals-unknown-error') })
         }
       } catch (err) {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.unknown_error', 'Unknown error')
+        const errorMessage = err instanceof Error ? err.message : t('approvals-unknown-error')
         failedTasks.push({ id: task.id, error: errorMessage })
       } finally {
         setCurrentProgressIndex(prev => prev + 1)
@@ -325,13 +283,11 @@ export const useApprovalHandling = ({
     return { approvedCount, failedTasks }
   }
 
-  // Helper: Handle post-approval cleanup and refresh
   const handlePostApproval = async (approvedCount: number) => {
     setSelectedTasks([])
     setApprovalError(null)
 
     if (approvedCount > 0 && onApprovalSuccess) {
-      // Add delay for transfer-payment to allow backend processing time
       if (tabKey === 'transfer-payment') {
         await delay(500)
       }
@@ -348,13 +304,7 @@ export const useApprovalHandling = ({
     setApprovalError(null)
 
     try {
-      const approvalPayload = createApprovalPayload(
-        selectedTasks,
-        tabConfig,
-        '', // No message since we removed the dialog
-        userInfo,
-        rawTasks
-      )
+      const approvalPayload = createApprovalPayload(selectedTasks, tabConfig, '', userInfo, rawTasks)
       setTotalToApprove(selectedTasks.length)
       setCurrentProgressIndex(0)
 
@@ -365,14 +315,11 @@ export const useApprovalHandling = ({
 
       return { success: true, approvedCount, failedCount: failedTasks.length }
     } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.failed_to_approve', 'Failed to approve tasks')
+      const errorMessage = err instanceof Error ? err.message : t('approvals-failed-to-approve')
       setApprovalError(errorMessage)
 
-      toast.error(getTranslationFromI18nKeyAndLabel('lowcoder:approvals.approval_failed', 'Approval failed'), {
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:approvals.error_details', errorMessage),
+      toast.error(t('approvals-toast-failed'), {
+        description: errorMessage,
         duration: 5000
       })
 

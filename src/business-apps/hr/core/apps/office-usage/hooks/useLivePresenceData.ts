@@ -1,7 +1,13 @@
 import { useMemo } from 'react'
 import { LivePresenceRecord, SiteLocationCapacity, LivePresenceLocationCard, LivePresenceEmployee } from '../types'
+import { formatDate } from '@/common/utils/windowUtils'
 
 export const useLivePresenceData = (presence: LivePresenceRecord[], locations: SiteLocationCapacity[]) => {
+  const formatPresenceTime = (value?: string): string => {
+    const formatted = formatDate(value, 'date.short', 'HH:mm')
+    return formatted || '-'
+  }
+
   // Group presence by location
   const locationCards = useMemo<LivePresenceLocationCard[]>(() => {
     if (presence.length === 0 || locations.length === 0) return []
@@ -21,8 +27,8 @@ export const useLivePresenceData = (presence: LivePresenceRecord[], locations: S
         jobTitle: record.employee.jobTitle,
         organizationalUnit: record.employee.organizationalUnit,
         siteLocationName: record.siteLocationName,
-        startTime: record.startTime || '',
-        expectedEndTime: record.expectedEndTime
+        startTime: formatPresenceTime(record.startTime),
+        expectedEndTime: record.expectedEndTime ? formatPresenceTime(record.expectedEndTime) : undefined
       }))
 
       const peopleDueLater: LivePresenceEmployee[] = []
@@ -50,8 +56,8 @@ export const useLivePresenceData = (presence: LivePresenceRecord[], locations: S
         jobTitle: record.employee.jobTitle,
         organizationalUnit: record.employee.organizationalUnit,
         siteLocationName: location?.name || record.siteLocationName,
-        startTime: record.startTime || '',
-        expectedEndTime: record.expectedEndTime
+        startTime: formatPresenceTime(record.startTime),
+        expectedEndTime: record.expectedEndTime ? formatPresenceTime(record.expectedEndTime) : undefined
       }
     })
   }, [presence, locations])

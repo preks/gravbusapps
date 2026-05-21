@@ -20,6 +20,5 @@ export type {
   OverviewCounts,
   OverviewConversionMetrics,
   OverviewTrendData,
-  GeographicDataPoint,
   GenericOverviewData as OverviewData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOverviewData'

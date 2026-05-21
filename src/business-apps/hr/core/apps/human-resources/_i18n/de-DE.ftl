@@ -1,11 +1,19 @@
 hr-analytics-salary-by-org-unit-description = Durchschnittsgehalt nach Organisationseinheit – Verteilung der Vergütung über Abteilungen
 ## Human Resources - German Translations
 
+# Page headers
+hr-reporting-insights-page-title = HR Reporting & Insights
+hr-reporting-insights-page-description = Entdecken Sie Workforce-Metriken, Trends und organisatorische Einblicke
+hr-workforce-management-page-title = Workforce Management
+hr-workforce-management-page-description = Verwalten Sie Mitarbeitende, Rollen und Stellen in Ihrer gesamten Organisation
+
 # Employees - Filters
 hr-employees-filters-organizational-units = Organisationseinheiten
 hr-employees-filters-employment-types = Beschäftigungsarten
 hr-employees-filters-contract-types = Vertragsarten
 hr-employees-filters-matrix-teams = Matrix-Teams
+hr-employees-filter-sheet-title = Mitarbeitende filtern
+hr-employees-filter-sheet-description = Grenzen Sie die Mitarbeiterliste nach Unternehmen, Organisationseinheit, Beschäftigungsart, Vertragsart und Matrix-Team ein.
 
 # Job Positions - Common
 hr-positions-vacant = Vakant
@@ -19,6 +27,12 @@ hr-positions-not-specified = Nicht angegeben
 hr-positions-filters-departments = Abteilungen
 hr-positions-filters-job-functions = Funktionen
 hr-positions-filters-job-profiles = Stellenprofile
+hr-positions-filter-sheet-title = Stellen filtern
+hr-positions-filter-sheet-description = Grenzen Sie die Stellenliste nach Unternehmen, Abteilung, Funktion und Stellenprofil ein.
+
+# Insights - Filters
+hr-insights-filter-sheet-title = Insights filtern
+hr-insights-filter-sheet-description = Grenzen Sie die Insights nach Unternehmen ein.
 
 # Analytics - Performance
 hr-analytics-loading-performance = Leistungsdaten werden geladen...
@@ -32,6 +46,23 @@ hr-analytics-entity-company = Unternehmen
 hr-analytics-entity-cost-center = Kostenstelle
 hr-analytics-entity-organizational-unit = Organisationseinheit
 hr-analytics-no-data-available = Keine Daten verfügbar
+
+# Analytics - Filters
+hr-analytics-filter-company-title = Unternehmen
+hr-analytics-filter-company-empty = Keine Unternehmen gefunden
+hr-analytics-filter-company-loading = Unternehmen werden geladen...
+hr-analytics-filter-company-error = Unternehmen konnten nicht geladen werden
+hr-analytics-filter-company-search-placeholder = Unternehmen suchen...
+hr-analytics-filter-sheet-title = Analytics filtern
+hr-analytics-filter-sheet-description = Grenzen Sie die Analysen nach Unternehmen ein.
+hr-analytics-filter-no-filters-configured = Keine Filter konfiguriert
+hr-analytics-filter-clear-all = Alle löschen
+hr-analytics-filter-cancel = Abbrechen
+hr-analytics-filter-apply-filters = Filter anwenden
+hr-analytics-filter-button = Filter
+hr-analytics-filter-previous = Zurück
+hr-analytics-filter-next = Weiter
+hr-analytics-filter-of = von
 
 # Analytics - Dashboard
 hr-analytics-dashboard-title = HR-Analyse-Dashboard
@@ -144,6 +175,17 @@ hr-analytics-avg-salary = Durchschnittsgehalt
 hr-analytics-average-salary = Durchschnittsgehalt
 hr-analytics-merit-increases = Leistungsbedingte Erhöhungen
 hr-analytics-average-increase = Durchschnittliche Erhöhung
+hr-analytics-compression-risk-score = Kompressionsrisiko-Score
+hr-analytics-total-pay-gap = Gesamtes Lohngefälle
+hr-analytics-unexplained-pay-gap = Unerklärtes Lohngefälle
+hr-analytics-market-alignment = Marktausrichtung
+hr-analytics-equity-health-score = Equity-Health-Score
+hr-analytics-compression-cases-found = { $count } Kompressionsfälle gefunden
+hr-analytics-employees-analyzed = { $count } Mitarbeitende analysiert
+hr-analytics-comp-ratio-footer = Comp-Ratio: { $value }
+hr-analytics-market-comparison-unavailable = Marktvergleich nicht verfügbar
+hr-analytics-equity-health-score-load-error = Fehler beim Laden des Equity-Health-Scores
+hr-analytics-equity-health-score-no-analysis = Keine abgeschlossene Equity-Health-Analyse gefunden
 hr-analytics-equity-health-score-title = Equity-Health-Score
 hr-analytics-equity-health-score-no-data-footer = Keine abgeschlossene Equity-Health-Analyse gefunden
 hr-analytics-equity-health-score-error-footer = Equity-Health-Score konnte nicht geladen werden
@@ -426,6 +468,7 @@ hr-analytics-not-available = n. v.
 
 # Data Filter (generic texts used in HR)
 hr-data-filter-loading = Wird geladen...
+hr-data-filter-loading-data = Daten werden geladen...
 hr-data-filter-error = Fehler beim Laden der Daten
 hr-data-filter-no-data = Keine Daten verfügbar
 hr-data-filter-error-loading-filters = Fehler beim Laden der Filter

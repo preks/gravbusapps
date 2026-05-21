@@ -136,11 +136,11 @@ export const PromoteNamespaceDialog: React.FC<PromoteNamespaceDialogProps> = ({
               <div className="gba:max-h-32 gba:overflow-auto gba:space-y-2">
                 {failedEntities.map(entityStatus => (
                   <div
-                    key={entityStatus.entityKey}
+                    key={entityStatus.entityName}
                     className="gba:rounded-md gba:border gba:border-border gba:p-2 gba:text-xs gba:space-y-1"
                   >
                     <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-                      <span className="gba:font-medium">{entityStatus.entityKey}</span>
+                      <span className="gba:font-medium">{entityStatus.entityName}</span>
                       <Badge variant={entityStatus.skipped ? 'secondary' : 'destructive'}>
                         {entityStatus.skipped ? 'Skipped' : 'Failed'}
                       </Badge>

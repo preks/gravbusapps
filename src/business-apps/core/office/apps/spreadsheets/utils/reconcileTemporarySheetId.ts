@@ -26,6 +26,24 @@ export function resolveReconciledSheetId(sheetId: string, createdSheetIdAliases:
   return createdSheetIdAliases.get(sheetId) ?? sheetId
 }
 
+/** Same logical sheet after applying temp→persisted alias map (single-hop). */
+export function areCanonicalSheetIdsEqual(a: string, b: string, aliases: ReadonlyMap<string, string>): boolean {
+  return resolveReconciledSheetId(a, aliases) === resolveReconciledSheetId(b, aliases)
+}
+
+/** True while POST /sheets for a new tab is in flight (persisted id not known yet). */
+export function isSheetCreationAwaitingPersistedId(params: {
+  pendingCreatedSheetSelection: { temporarySheetId: string; persistedSheetId: string | null } | null
+  effectiveSheetId: string
+  aliases: ReadonlyMap<string, string>
+}): boolean {
+  const { pendingCreatedSheetSelection, effectiveSheetId, aliases } = params
+  if (!pendingCreatedSheetSelection || pendingCreatedSheetSelection.persistedSheetId != null) {
+    return false
+  }
+  return areCanonicalSheetIdsEqual(effectiveSheetId, pendingCreatedSheetSelection.temporarySheetId, aliases)
+}
+
 function remapMapKey<T>(
   map: Map<string, T>,
   temporarySheetId: string,

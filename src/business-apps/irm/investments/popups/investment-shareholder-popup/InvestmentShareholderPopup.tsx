@@ -32,9 +32,10 @@ const prefixDataTestId = 'InvestmentShareholderPopup'
 // Shareholder schema
 const shareholderItemSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, 'Shareholder name is required'),
+  name: z.string().trim().min(1, 'Shareholder name is required'),
   stakePercentage: z
     .string()
+    .trim()
     .min(1, 'Stake percentage is required')
     .refine(val => !Number.isNaN(Number.parseFloat(val)) && Number.parseFloat(val) >= 0, {
       message: 'Must be a positive number'

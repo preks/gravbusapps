@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { startProcess } from '@/common/utils/start-process'
+import personalTranslations from '../../../../_i18n'
 import { useFilterSignatureReset, useSearchHandler } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
 import ExpenseRequestStatistics from '../statistics/ExpenseRequestStatistics'
 import { useGetExpenseRequests } from '../../../../hooks/useGetExpenseRequests'
@@ -11,12 +13,12 @@ import { getSelectedCurrencyRef, pickMostUsedCurrencyRef, type CurrencyStat } fr
 import { message } from 'antd'
 import { getRequestCardStrategies, preserveCurrencyAndReset } from '../utils/cardStrategies'
 import { buildExpenseRequestFetchFilters } from '../utils/buildExpenseRequestFetchFilters'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { expenseRequestDefaultSort, type ExpenseRequestTableSortOrder } from '../config/expenseRequestSortableColumns'
 import { useExpenseRequestsTabFetchEffect } from './useExpenseRequestsTabFetchEffect'
 import type { ExpenseRequestsTabProps } from '../types/expenseRequestsTab.types'
 
 export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
+  const { t } = useTranslation(personalTranslations)
   const contextProps = useMemo(
     () => ({
       accessToken: props.accessToken,
@@ -178,12 +180,7 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
     const employeeIdForProcess = contextProps.userInfo?.employeeDetails?.employeeId
     if (!employeeIdForProcess) {
       console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.')
-      message.warning(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.user_information_not_loaded',
-          'User information not loaded yet. Please wait a moment and try again.'
-        )
-      )
+      message.warning(t('personal-expenses-user-information-not-loaded'))
       return
     }
 
@@ -193,7 +190,7 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
       payload: { employeeId: employeeIdForProcess },
       builderType: 'NATIVE_SCREEN'
     })
-  }, [contextProps.userInfo?.employeeDetails?.employeeId])
+  }, [contextProps.userInfo?.employeeDetails?.employeeId, t])
 
   const handleTableChange = useCallback(
     (

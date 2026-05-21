@@ -45,7 +45,7 @@ import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 import { InvestmentLeadFields } from '../types/investmentLeadTypes'
 import { InvestmentNoteFields } from '../types/investmentNoteTypes'
 import { InvestmentTaskFields } from '../types/investmentTaskTypes'
-import { INVESTMENT_REF } from './fragments/investmentReferenceFragments'
+import { INVESTMENT_COMPANY_REF, INVESTMENT_REF } from './fragments/investmentReferenceFragments'
 
 /**
  * Investment Opportunity Query Variables Interface
@@ -89,7 +89,7 @@ export const buildInvestmentOpportunityQuery = (
       ${INVESTMENT_REF}
     }
     divestmentId
-    
+
     # IRM-specific Investment fields
     dealType
     investmentGroup {
@@ -124,7 +124,7 @@ export const buildInvestmentOpportunityQuery = (
     }
     sizeMeasurementUnitRef
   `
-  return buildOpportunityQuery('InvestmentOpportunity', fields, entityFields)
+  return buildOpportunityQuery('InvestmentOpportunity', fields as any, entityFields)
 }
 
 /**
@@ -193,7 +193,7 @@ export const buildInvestmentOpportunityByIdQuery = (
     ${fields.investments}(where: { isDeleted: { _eq: false } }) {
       ${INVESTMENT_REF}
     }
-    
+
     # IRM-specific Investment fields
     dealType
     investmentGroup {
@@ -229,7 +229,13 @@ export const buildInvestmentOpportunityByIdQuery = (
     sizeMeasurementUnitRef
   `
 
-  return buildOpportunityByIdQuery('InvestmentOpportunity', fields, relationBuilders, relationFields, entityFields)
+  return buildOpportunityByIdQuery(
+    'InvestmentOpportunity',
+    fields as any,
+    relationBuilders,
+    relationFields,
+    entityFields
+  )
 }
 
 /**
@@ -238,7 +244,7 @@ export const buildInvestmentOpportunityByIdQuery = (
 export const buildInvestmentOpportunitySearchQuery = (
   fields: typeof InvestmentOpportunityFields = InvestmentOpportunityFields
 ): string => {
-  return buildOpportunitySearchQuery('InvestmentOpportunity', fields)
+  return buildOpportunitySearchQuery('InvestmentOpportunity', fields as any)
 }
 
 /**

@@ -41,7 +41,6 @@ const CoreInformationSegment: React.FC<CoreInformationSegmentProps> = ({
                 <CatalogSelect
                   catalogIdentifier={LEGAL_FORM}
                   parentField="addresses.0.countryRef"
-                  requireSourceForEnable
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="core-information-segment-legal-form"

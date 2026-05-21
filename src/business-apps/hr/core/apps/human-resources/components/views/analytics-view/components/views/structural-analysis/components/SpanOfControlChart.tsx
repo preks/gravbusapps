@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Toolti
 import { SpanOfControlData, SpanOfControlSummary } from '../types/structuralTypes'
 import { useTranslation, SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS } from '../../../shared/analyticsChartSurfaceStyles'
 
 const { Text } = Typography
 
@@ -181,35 +182,42 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
         <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-span-of-control-distribution')}
         </h3>
-        <div className="gba:max-h-[640px] gba:overflow-y-auto gba:pr-2">
-          <ResponsiveContainer width="100%" height={Math.max(320, chartData.length * 28)}>
-            <BarChart layout="vertical" data={chartData} margin={{ top: 20, right: 30, left: 180, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                type="number"
-                allowDecimals={false}
-                label={{ value: t('hr-analytics-direct-reports'), position: 'insideBottom', offset: -5 }}
-              />
-              <YAxis type="category" dataKey="name" width={160} interval={0} />
-              <ReferenceLine
-                x={3}
-                stroke="var(--nw-warning)"
-                strokeDasharray="4 4"
-                label={{ value: '3', fill: 'var(--nw-warning)', position: 'top' }}
-              />
-              <ReferenceLine
-                x={7}
-                stroke="var(--nw-destructive)"
-                strokeDasharray="4 4"
-                label={{ value: '7', fill: 'var(--nw-destructive)', position: 'top' }}
-              />
-              <Tooltip
-                labelFormatter={(_, payload) => String(payload?.[0]?.payload?.fullName ?? '')}
-                formatter={value => [value, t('hr-analytics-direct-reports')]}
-              />
-              <Bar dataKey="directReports" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className={`gba:border gba:rounded-lg gba:shadow-sm gba:p-4 ${STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS}`}>
+          <div className="gba:max-h-[640px] gba:overflow-y-auto gba:pr-2">
+            <ResponsiveContainer width="100%" height={Math.max(320, chartData.length * 28)}>
+              <BarChart
+                layout="vertical"
+                data={chartData}
+                margin={{ top: 20, right: 30, left: 180, bottom: 20 }}
+                accessibilityLayer={false}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  type="number"
+                  allowDecimals={false}
+                  label={{ value: t('hr-analytics-direct-reports'), position: 'insideBottom', offset: -5 }}
+                />
+                <YAxis type="category" dataKey="name" width={160} interval={0} />
+                <ReferenceLine
+                  x={3}
+                  stroke="var(--nw-warning)"
+                  strokeDasharray="4 4"
+                  label={{ value: '3', fill: 'var(--nw-warning)', position: 'top' }}
+                />
+                <ReferenceLine
+                  x={7}
+                  stroke="var(--nw-destructive)"
+                  strokeDasharray="4 4"
+                  label={{ value: '7', fill: 'var(--nw-destructive)', position: 'top' }}
+                />
+                <Tooltip
+                  labelFormatter={(_, payload) => String(payload?.[0]?.payload?.fullName ?? '')}
+                  formatter={value => [value, t('hr-analytics-direct-reports')]}
+                />
+                <Bar dataKey="directReports" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 

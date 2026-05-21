@@ -24,15 +24,17 @@ function indexToExcelColumn(index: number): string {
   let num = index + 1
   while (num > 0) {
     const remainder = (num - 1) % 26
-    col = String.fromCharCode(65 + remainder) + col
+    col = String.fromCodePoint(65 + remainder) + col
     num = Math.floor((num - 1) / 26)
   }
   return col
 }
 
+export type UniverCellPrimitiveValue = string | number | boolean | null
+
 /** Univer cell data (minimal shape for value) */
 export interface UniverCellData {
-  v?: string | number | boolean | null
+  v?: UniverCellPrimitiveValue
   f?: string
   s?: unknown
   t?: number
@@ -93,7 +95,7 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
 }
 
 function hexToRgb(hex: string, fallback: string): string {
-  const cleaned = hex.replaceAll('#', '')
+  const cleaned = hex.replace(/#/g, '')
   if (cleaned.length === 6 || cleaned.length === 8) return `#${cleaned}`
   return fallback
 }
@@ -124,7 +126,11 @@ function normalizeColumnToken(value: string): string {
 
 function getRowIdentityCandidates(row: Record<string, unknown>): string[] {
   return Array.from(
-    new Set([row._id, row.id, row._rowUuid].map(value => (typeof value === 'string' ? value : '')).filter(Boolean))
+    new Set(
+      [row._rowUuid, row._id, row.id, row._clientRowId]
+        .map(value => (typeof value === 'string' ? value : ''))
+        .filter(Boolean)
+    )
   )
 }
 
@@ -194,8 +200,8 @@ function toFormulaCell(obj: Record<string, unknown>): UniverCellData | null {
   const cell: UniverCellData = {}
   if (obj.f && typeof obj.f === 'string') cell.f = obj.f.startsWith('=') ? obj.f : `=${obj.f}`
   const val = obj.v ?? obj.m
-  if (val !== undefined && val !== null) cell.v = val
-  else if (obj.m !== undefined) cell.v = obj.m
+  if (val !== undefined && val !== null) cell.v = val as UniverCellPrimitiveValue
+  else if (obj.m !== undefined) cell.v = obj.m as UniverCellPrimitiveValue
   const univerStyle = toUniverInlineStyle(obj)
   if (univerStyle) cell.s = univerStyle
   return Object.keys(cell).length > 0 ? cell : null
@@ -224,7 +230,7 @@ function resolveObjectRaw(
   linkColumn: boolean
 ): ObjectRawResolution {
   if (Array.isArray(raw)) {
-    return { type: 'cell', cell: { v: raw } }
+    return { type: 'cell', cell: { v: raw as unknown as UniverCellPrimitiveValue } }
   }
 
   const obj = raw as Record<string, unknown>
@@ -243,8 +249,8 @@ function toHyperlinkCell(raw: string, column: SpreadsheetColumn, linkColumn: boo
   if (!/^https?:\/\//i.test(raw)) {
     return null
   }
-  const safeUrl = raw.replaceAll('"', '""')
-  return { f: `=HYPERLINK("${safeUrl}","${getViewResponseLabel().replaceAll('"', '""')}")` }
+  const safeUrl = raw.replace(/"/g, '""')
+  return { f: `=HYPERLINK("${safeUrl}","${getViewResponseLabel().replace(/"/g, '""')}")` }
 }
 
 function getViewResponseLabel(): string {
@@ -265,7 +271,7 @@ function toImageCell(raw: string, column: SpreadsheetColumn, avatarColumn: boole
     return null
   }
 
-  const safeUrl = imageUrl.replaceAll('"', '""')
+  const safeUrl = imageUrl.replace(/"/g, '""')
   if (avatarColumn) {
     return { f: `=IMAGE("${safeUrl}", "", 3, 32, 32)` }
   }
@@ -452,7 +458,7 @@ export function workbookFormattingRichnessScore(snapshot: Record<string, unknown
   const cellData = worksheet.cellData as UniverSheetCellData | undefined
   if (!cellData || typeof cellData !== 'object') return score
   for (const rowKey of Object.keys(cellData)) {
-    const row = cellData[rowKey] ?? cellData[Number(rowKey)]
+    const row = cellData[Number(rowKey)] ?? cellData[String(rowKey) as unknown as number]
     if (!row || typeof row !== 'object') continue
     for (const colKey of Object.keys(row)) {
       const cell = (row as Record<string, UniverCellData | undefined>)[colKey]
@@ -490,9 +496,9 @@ export function mergeWorkbookFormattingFromDonor(
 
   for (const rowKey of Object.keys(baseCd)) {
     const ri = Number(rowKey)
-    const baseRow = (baseCd[ri] ?? baseCd[rowKey]) as Record<number, UniverCellData> | undefined
+    const baseRow = (baseCd[ri] ?? baseCd[Number(rowKey)]) as Record<number, UniverCellData> | undefined
     if (!baseRow || typeof baseRow !== 'object') continue
-    const donorRow = (donorCd[ri] ?? donorCd[rowKey]) as Record<number, UniverCellData> | undefined
+    const donorRow = (donorCd[ri] ?? donorCd[Number(rowKey)]) as Record<number, UniverCellData> | undefined
     if (!donorRow) continue
 
     for (const colKey of Object.keys(baseRow)) {
@@ -583,15 +589,59 @@ function shouldClearSnapshotCellValue(cell: UniverCellData | undefined): boolean
   return comparableUniverCellPayload(cell) !== ''
 }
 
+const SNAPSHOT_CELL_VALUE_KEYS = new Set(['v', 'f', 'm', 'p', 'ct', 'si', 'custom'])
+
 function clearSnapshotCellValuePreservingFormatting(cell: UniverCellData): UniverCellData | undefined {
   if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return undefined
   const next = { ...cell }
-  delete next.v
-  delete next.f
-  delete next.m
-  delete next.p
-  delete next.ct
+  for (const key of SNAPSHOT_CELL_VALUE_KEYS) {
+    delete next[key]
+  }
   return Object.keys(next).length > 0 ? next : undefined
+}
+
+/**
+ * Univer workbook snapshots are visual metadata during bootstrap. Strip scalar/formula/rich-text
+ * payloads so cached snapshots cannot resurrect values that no longer exist in canonical rows.
+ */
+export function stripWorkbookSnapshotValuesPreservingFormatting(
+  workbookSnapshot: Record<string, unknown>
+): Record<string, unknown> {
+  const cloned = cloneWorkbookSnapshotJson(workbookSnapshot)
+  const sheets = cloned.sheets as Record<string, Record<string, unknown>> | undefined
+  if (!sheets || typeof sheets !== 'object') return cloned
+
+  for (const worksheet of Object.values(sheets)) {
+    if (!worksheet || typeof worksheet !== 'object') continue
+    const cellData = worksheet.cellData as UniverSheetCellData | undefined
+    if (!cellData || typeof cellData !== 'object') continue
+
+    for (const rowKey of Object.keys(cellData)) {
+      const rowIndex = Number(rowKey)
+      if (Number.isNaN(rowIndex) || rowIndex < 0) continue
+      const rowCells = (cellData[rowIndex] ?? cellData[rowKey as unknown as number]) as
+        | Record<number, UniverCellData>
+        | undefined
+      if (!rowCells || typeof rowCells !== 'object') continue
+
+      for (const colKey of Object.keys(rowCells)) {
+        const colIndex = Number(colKey)
+        if (Number.isNaN(colIndex) || colIndex < 0) continue
+        const formattingOnly = clearSnapshotCellValuePreservingFormatting(rowCells[colIndex])
+        if (formattingOnly) {
+          rowCells[colIndex] = formattingOnly
+        } else {
+          delete rowCells[colIndex]
+        }
+      }
+
+      if (Object.keys(rowCells).length === 0) {
+        delete cellData[rowIndex]
+      }
+    }
+  }
+
+  return cloned
 }
 
 /**
@@ -612,9 +662,9 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
   if (!worksheet) {
     const order = cloned.sheetOrder as string[] | undefined
     if (Array.isArray(order) && order[0] && sheets[order[0]]) {
-      worksheet = sheets[order[0]] as Record<string, unknown>
+      worksheet = sheets[order[0]]
     } else {
-      worksheet = Object.values(sheets)[0] as Record<string, unknown> | undefined
+      worksheet = Object.values(sheets)[0]
     }
   }
   if (!worksheet) return cloned
@@ -688,7 +738,7 @@ export function snapshotTrackingHeaderMatchesColumnLabels(
   if (!cellData || typeof cellData !== 'object') return true
 
   const visibleColumns = columns.filter(c => c.isVisible !== false)
-  const rowCells = cellData[headerIdx] ?? cellData[String(headerIdx)]
+  const rowCells = cellData[Number(headerIdx)] ?? cellData[String(headerIdx) as unknown as number]
   if (!rowCells || typeof rowCells !== 'object') return false
 
   for (let colIndex = 0; colIndex < visibleColumns.length; colIndex++) {
@@ -967,8 +1017,8 @@ function upgradeImageFormula(cell: UniverCellData): void {
   if (typeof formula !== 'string') return
   const m = formula.match(OLD_IMAGE_FORMULA)
   if (m) {
-    const url = m[1].replaceAll('""', '"')
-    cell.f = `=IMAGE("${url.replaceAll('"', '""')}", "", 3, 32, 32)`
+    const url = m[1].replace(/""/g, '"')
+    cell.f = `=IMAGE("${url.replace(/"/g, '""')}", "", 3, 32, 32)`
   }
 }
 
@@ -1091,7 +1141,7 @@ export function toA1Reference(row: number, col: number): string {
   let column = col
   let letters = ''
   while (column >= 0) {
-    letters = String.fromCharCode((column % 26) + 65) + letters
+    letters = String.fromCodePoint((column % 26) + 65) + letters
     column = Math.floor(column / 26) - 1
   }
   return `${letters}${row + 1}`
@@ -1107,7 +1157,7 @@ export function parseA1Reference(cellRef: string): { row: number; col: number } 
   if (!Number.isFinite(row) || row < 0) return null
   let col = 0
   for (let i = 0; i < columnLetters.length; i++) {
-    col = col * 26 + (columnLetters.charCodeAt(i) - 64)
+    col = col * 26 + ((columnLetters.codePointAt(i) ?? 0) - 64)
   }
   return { row, col: col - 1 }
 }

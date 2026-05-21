@@ -19,10 +19,17 @@ import {
   TooltipTrigger,
   Popover,
   PopoverContent,
-  PopoverTrigger
+  PopoverTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
 } from '@newwork/nw-design-system'
 import { Plus, GripVertical, X, User, Link2 } from 'lucide-react'
-import type { KanbanData, KanbanCardColor, KanbanParticipant } from '../../shared/extensions/Kanban'
+import type { KanbanData, KanbanCardColor, KanbanColumn, KanbanParticipant } from '../../shared/extensions/Kanban'
+import { KANBAN_DEFAULT_COLUMN_IDS, KANBAN_PROTECTED_COLUMN_IDS } from '../../shared/extensions/kanbanConstants'
 import { KanbanAssigneeFilter } from './kanban/KanbanAssigneeFilter'
 import translations from '../_i18n'
 
@@ -42,6 +49,10 @@ const getCardColorClasses = (color?: KanbanCardColor) => {
   const colorDef = CARD_COLORS.find(c => c.id === color) || CARD_COLORS[0]
   return `${colorDef.bg} ${colorDef.border}`
 }
+
+const PROTECTED_COLUMN_ID_SET = new Set<string>(KANBAN_PROTECTED_COLUMN_IDS)
+
+const isProtectedColumn = (columnId: string) => PROTECTED_COLUMN_ID_SET.has(columnId)
 
 interface KanbanBoardProps {
   node: {
@@ -124,9 +135,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
     return {
       id: kanbanId,
       columns: [
-        { id: 'todo', title: t('kanban-column-todo'), cards: [] },
-        { id: 'in-progress', title: t('kanban-column-in-progress'), cards: [] },
-        { id: 'done', title: t('kanban-column-done'), cards: [] }
+        { id: KANBAN_DEFAULT_COLUMN_IDS.todo, title: t('kanban-column-todo'), cards: [] },
+        { id: KANBAN_DEFAULT_COLUMN_IDS.inProgress, title: t('kanban-column-in-progress'), cards: [] },
+        { id: KANBAN_DEFAULT_COLUMN_IDS.done, title: t('kanban-column-done'), cards: [] }
       ]
     }
   })()
@@ -139,6 +150,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
   const [newCardContent, setNewCardContent] = useState<Record<string, string>>({})
   const [editingColumnTitle, setEditingColumnTitle] = useState<Record<string, boolean>>({})
   const [columnTitleInput, setColumnTitleInput] = useState<Record<string, string>>({})
+  const [pendingDeleteCard, setPendingDeleteCard] = useState<{
+    cardId: string
+    columnId: string
+    content: string
+  } | null>(null)
+  const [pendingDeleteColumn, setPendingDeleteColumn] = useState<{ columnId: string; title: string } | null>(null)
   // Track which card's assignee popover is open (to close it after selection)
   const [openAssigneePopover, setOpenAssigneePopover] = useState<string | null>(null)
 
@@ -353,6 +370,29 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
     [data, persistData]
   )
 
+  const requestDeleteCard = useCallback(
+    (cardId: string, columnId: string) => {
+      const column = data.columns.find(col => col.id === columnId)
+      const card = column?.cards.find(entry => entry.id === cardId)
+
+      if (!card) return
+
+      setPendingDeleteCard({
+        cardId,
+        columnId,
+        content: card.content
+      })
+    },
+    [data.columns]
+  )
+
+  const confirmDeleteCard = useCallback(() => {
+    if (!pendingDeleteCard) return
+
+    handleDeleteCard(pendingDeleteCard.cardId, pendingDeleteCard.columnId)
+    setPendingDeleteCard(null)
+  }, [handleDeleteCard, pendingDeleteCard])
+
   // Direct assignment function - uses functional state update to avoid stale closure issues
   const assignCardToUser = useCallback(
     (cardId: string, columnId: string, participant: KanbanParticipant | null) => {
@@ -451,7 +491,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
 
   const handleDeleteColumn = useCallback(
     (columnId: string) => {
-      if (data.columns.length <= 1) return // Don't allow deleting the last column
+      const column = data.columns.find(col => col.id === columnId)
+
+      if (!column || isProtectedColumn(columnId) || column.cards.length > 0 || data.columns.length <= 1) {
+        return
+      }
 
       const newColumns = data.columns.filter(col => col.id !== columnId)
       persistData({
@@ -462,8 +506,43 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
     [data, persistData]
   )
 
+  const requestDeleteColumn = useCallback(
+    (columnId: string) => {
+      const column = data.columns.find(col => col.id === columnId)
+
+      if (!column || isProtectedColumn(columnId) || column.cards.length > 0 || data.columns.length <= 1) {
+        return
+      }
+
+      setPendingDeleteColumn({
+        columnId,
+        title: column.title
+      })
+    },
+    [data.columns]
+  )
+
+  const confirmDeleteColumn = useCallback(() => {
+    if (!pendingDeleteColumn) return
+
+    handleDeleteColumn(pendingDeleteColumn.columnId)
+    setPendingDeleteColumn(null)
+  }, [handleDeleteColumn, pendingDeleteColumn])
+
   // Helper to resolve assignee
   const getParticipant = (userId?: string) => availableParticipants.find(p => p.userId === userId)
+
+  const getColumnDeleteTooltip = (column: KanbanColumn) => {
+    if (isProtectedColumn(column.id)) {
+      return t('kanban-column-delete-protected')
+    }
+
+    if (column.cards.length > 0) {
+      return t('kanban-column-delete-non-empty')
+    }
+
+    return t('kanban-column-delete')
+  }
 
   // Prevent text selection when clicking inside the Kanban
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -499,322 +578,371 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
         />
 
         <div className="gba:flex gba:gap-3 gba:min-w-max">
-          {data.columns.map(column => (
-            <div
-              key={column.id}
-              className={`gba:flex-shrink-0 gba:w-56 gba:rounded-lg gba:p-2 gba:transition-all gba:duration-200 ${
-                draggedOverColumn === column.id ? 'gba:bg-primary/5 gba:ring-1 gba:ring-primary/30' : 'gba:bg-muted/40'
-              }`}
-              onDragOver={e => handleDragOver(e, column.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={e => handleDrop(e, column.id)}
-            >
-              {/* Column Header */}
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-1.5 gba:px-1">
-                {editingColumnTitle[column.id] ? (
-                  <Input
-                    value={columnTitleInput[column.id] || column.title}
-                    onChange={e => {
-                      setColumnTitleInput({ ...columnTitleInput, [column.id]: e.target.value })
-                    }}
-                    onBlur={() => {
-                      handleColumnTitleChange(column.id, columnTitleInput[column.id] || column.title)
-                      setEditingColumnTitle({ ...editingColumnTitle, [column.id]: false })
-                    }}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
+          {data.columns.map(column => {
+            const isBuiltInColumn = isProtectedColumn(column.id)
+            const canDeleteColumn = !isBuiltInColumn && column.cards.length === 0 && data.columns.length > 1
+            const showDeleteColumnButton = !isBuiltInColumn
+
+            return (
+              <div
+                key={column.id}
+                className={`gba:flex-shrink-0 gba:w-56 gba:rounded-lg gba:p-2 gba:transition-all gba:duration-200 ${
+                  draggedOverColumn === column.id
+                    ? 'gba:bg-primary/5 gba:ring-1 gba:ring-primary/30'
+                    : 'gba:bg-muted/40'
+                }`}
+                onDragOver={e => handleDragOver(e, column.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={e => handleDrop(e, column.id)}
+              >
+                {/* Column Header */}
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-1.5 gba:px-1">
+                  {editingColumnTitle[column.id] ? (
+                    <Input
+                      value={columnTitleInput[column.id] || column.title}
+                      onChange={e => {
+                        setColumnTitleInput({ ...columnTitleInput, [column.id]: e.target.value })
+                      }}
+                      onBlur={() => {
                         handleColumnTitleChange(column.id, columnTitleInput[column.id] || column.title)
                         setEditingColumnTitle({ ...editingColumnTitle, [column.id]: false })
-                      }
-                      if (e.key === 'Escape') {
-                        setEditingColumnTitle({ ...editingColumnTitle, [column.id]: false })
-                      }
-                    }}
-                    className="gba:h-6 gba:text-xs gba:font-medium"
-                    autoFocus
-                  />
-                ) : (
-                  <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-1 gba:min-w-0">
-                    <h3
-                      className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:cursor-pointer gba:truncate gba:flex-1 hover:gba:text-foreground gba:transition-colors"
-                      onClick={() => {
-                        setEditingColumnTitle({ ...editingColumnTitle, [column.id]: true })
-                        setColumnTitleInput({ ...columnTitleInput, [column.id]: column.title })
                       }}
-                    >
-                      {column.title}
-                    </h3>
-                    <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:bg-background gba:px-1.5 gba:py-0.5 gba:rounded-full">
-                      {assigneeFilterId
-                        ? column.cards.filter(c => c.assigneeId === assigneeFilterId).length
-                        : column.cards.length}
-                    </span>
-                    {data.columns.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="gba:h-4 gba:w-4 gba:opacity-0 hover:gba:opacity-100 gba:transition-opacity"
-                        onClick={() => handleDeleteColumn(column.id)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          handleColumnTitleChange(column.id, columnTitleInput[column.id] || column.title)
+                          setEditingColumnTitle({ ...editingColumnTitle, [column.id]: false })
+                        }
+                        if (e.key === 'Escape') {
+                          setEditingColumnTitle({ ...editingColumnTitle, [column.id]: false })
+                        }
+                      }}
+                      className="gba:h-6 gba:text-xs gba:font-medium"
+                      autoFocus
+                    />
+                  ) : (
+                    <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-1 gba:min-w-0">
+                      <h3
+                        className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:cursor-pointer gba:truncate gba:flex-1 hover:gba:text-foreground gba:transition-colors"
+                        onClick={() => {
+                          setEditingColumnTitle({ ...editingColumnTitle, [column.id]: true })
+                          setColumnTitleInput({ ...columnTitleInput, [column.id]: column.title })
+                        }}
                       >
-                        <X className="gba:w-2.5 gba:h-2.5" />
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Cards */}
-              <div className="gba:space-y-1 gba:min-h-[50px]">
-                {(assigneeFilterId ? column.cards.filter(c => c.assigneeId === assigneeFilterId) : column.cards).map(
-                  card => {
-                    const assigneeFromParticipants = getParticipant(card.assigneeId)
-                    const assignee = assigneeFromParticipants
-                      ? assigneeFromParticipants
-                      : card.assigneeId
-                        ? {
-                            userId: card.assigneeId,
-                            userName:
-                              card.assigneeName || t('kanban-user-fallback', { id: card.assigneeId.slice(0, 8) }),
-                            userAvatar: undefined,
-                            userColor: undefined
-                          }
-                        : undefined
-
-                    // Debug: log assignee resolution
-                    if (card.assigneeId) {
-                      console.debug('[KanbanBoard] Card render:', {
-                        cardId: card.id,
-                        assigneeId: card.assigneeId,
-                        assigneeName: card.assigneeName,
-                        foundInParticipants: !!assigneeFromParticipants,
-                        participantsCount: availableParticipants.length,
-                        participantIds: availableParticipants.map(p => p.userId),
-                        resolvedAssignee: assignee
-                          ? { userId: assignee.userId, userName: assignee.userName, hasAvatar: !!assignee.userAvatar }
-                          : null
-                      })
-                    }
-
-                    return (
-                      <div
-                        key={card.id}
-                        draggable
-                        onDragStart={e => handleDragStart(e, card.id, column.id)}
-                        className={`gba:group gba:rounded-md gba:px-2 gba:py-1.5 gba:cursor-grab active:gba:cursor-grabbing gba:transition-all gba:duration-150 gba:border hover:gba:border-border ${getCardColorClasses(card.color)} ${
-                          draggedCard?.cardId === card.id ? 'gba:opacity-40 gba:scale-95' : ''
-                        }`}
-                        data-testid={`kanban-card-${card.id}`}
-                      >
-                        <div className="gba:flex gba:items-start gba:gap-1">
-                          <div className="gba:mt-0.5 gba:flex-shrink-0 gba:opacity-30 group-hover:gba:opacity-60 gba:transition-opacity">
-                            <GripVertical className="gba:w-2.5 gba:h-2.5 gba:text-muted-foreground" />
-                          </div>
-                          {editingCard?.cardId === card.id && editingCard?.columnId === column.id ? (
-                            <div className="gba:flex-1">
-                              <Input
-                                value={newCardContent[card.id] || card.content}
-                                onChange={e => {
-                                  setNewCardContent({ ...newCardContent, [card.id]: e.target.value })
+                        {column.title}
+                      </h3>
+                      <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:bg-background gba:px-1.5 gba:py-0.5 gba:rounded-full">
+                        {assigneeFilterId
+                          ? column.cards.filter(c => c.assigneeId === assigneeFilterId).length
+                          : column.cards.length}
+                      </span>
+                      {showDeleteColumnButton && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="gba:inline-flex">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:transition-colors hover:gba:text-destructive disabled:gba:cursor-not-allowed disabled:gba:opacity-40"
+                                onPointerDown={e => {
+                                  e.stopPropagation()
                                 }}
-                                onBlur={() => {
-                                  handleCardContentChange(card.id, column.id, newCardContent[card.id] || card.content)
-                                  setEditingCard(null)
+                                onMouseDown={e => {
+                                  e.stopPropagation()
                                 }}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault()
+                                onClick={e => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  requestDeleteColumn(column.id)
+                                }}
+                                disabled={!canDeleteColumn}
+                                aria-label={t('kanban-column-delete')}
+                                data-testid={`kanban-column-delete-${column.id}`}
+                              >
+                                <X className="gba:w-2.5 gba:h-2.5" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="gba:text-[10px]">
+                            {getColumnDeleteTooltip(column)}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Cards */}
+                <div className="gba:space-y-1 gba:min-h-[50px]">
+                  {(assigneeFilterId ? column.cards.filter(c => c.assigneeId === assigneeFilterId) : column.cards).map(
+                    card => {
+                      const assigneeFromParticipants = getParticipant(card.assigneeId)
+                      const assignee = assigneeFromParticipants
+                        ? assigneeFromParticipants
+                        : card.assigneeId
+                          ? {
+                              userId: card.assigneeId,
+                              userName:
+                                card.assigneeName || t('kanban-user-fallback', { id: card.assigneeId.slice(0, 8) }),
+                              userAvatar: undefined,
+                              userColor: undefined
+                            }
+                          : undefined
+
+                      // Debug: log assignee resolution
+                      if (card.assigneeId) {
+                        console.debug('[KanbanBoard] Card render:', {
+                          cardId: card.id,
+                          assigneeId: card.assigneeId,
+                          assigneeName: card.assigneeName,
+                          foundInParticipants: !!assigneeFromParticipants,
+                          participantsCount: availableParticipants.length,
+                          participantIds: availableParticipants.map(p => p.userId),
+                          resolvedAssignee: assignee
+                            ? { userId: assignee.userId, userName: assignee.userName, hasAvatar: !!assignee.userAvatar }
+                            : null
+                        })
+                      }
+
+                      return (
+                        <div
+                          key={card.id}
+                          draggable
+                          onDragStart={e => handleDragStart(e, card.id, column.id)}
+                          className={`gba:group gba:rounded-md gba:px-2 gba:py-1.5 gba:cursor-grab active:gba:cursor-grabbing gba:transition-all gba:duration-150 gba:border hover:gba:border-border ${getCardColorClasses(card.color)} ${
+                            draggedCard?.cardId === card.id ? 'gba:opacity-40 gba:scale-95' : ''
+                          }`}
+                          data-testid={`kanban-card-${card.id}`}
+                        >
+                          <div className="gba:flex gba:items-start gba:gap-1">
+                            <div className="gba:mt-0.5 gba:flex-shrink-0 gba:opacity-30 group-hover:gba:opacity-60 gba:transition-opacity">
+                              <GripVertical className="gba:w-2.5 gba:h-2.5 gba:text-muted-foreground" />
+                            </div>
+                            {editingCard?.cardId === card.id && editingCard?.columnId === column.id ? (
+                              <div className="gba:flex-1">
+                                <Input
+                                  value={newCardContent[card.id] || card.content}
+                                  onChange={e => {
+                                    setNewCardContent({ ...newCardContent, [card.id]: e.target.value })
+                                  }}
+                                  onBlur={() => {
                                     handleCardContentChange(card.id, column.id, newCardContent[card.id] || card.content)
                                     setEditingCard(null)
-                                  }
-                                  if (e.key === 'Escape') {
-                                    setEditingCard(null)
-                                  }
-                                }}
-                                placeholder={t('kanban-placeholder-enter-content')}
-                                className="gba:text-sm gba:h-7"
-                                autoFocus
-                              />
-                            </div>
-                          ) : (
-                            <div className="gba:flex-1 gba:min-w-0">
-                              {/* Card content with avatar inline */}
-                              <div className="gba:flex gba:items-start gba:gap-1.5">
-                                {/* Assignee avatar - clickable with color picker inside */}
-                                <Popover
-                                  open={openAssigneePopover === card.id}
-                                  onOpenChange={open => setOpenAssigneePopover(open ? card.id : null)}
-                                >
-                                  <PopoverTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="gba:flex-shrink-0 gba:mt-0.5 gba:rounded-full gba:transition-opacity hover:gba:opacity-80"
-                                      draggable={false}
-                                      onClick={e => {
-                                        e.stopPropagation()
-                                        setOpenAssigneePopover(openAssigneePopover === card.id ? null : card.id)
-                                      }}
-                                      title={assignee ? assignee.userName : t('kanban-assign-customize')}
-                                    >
-                                      {card.assigneeId ? (
-                                        <div
-                                          className="gba:h-5 gba:w-5 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:overflow-hidden"
-                                          style={{ backgroundColor: assignee?.userColor || '#6366f1' }}
+                                  }}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault()
+                                      handleCardContentChange(
+                                        card.id,
+                                        column.id,
+                                        newCardContent[card.id] || card.content
+                                      )
+                                      setEditingCard(null)
+                                    }
+                                    if (e.key === 'Escape') {
+                                      setEditingCard(null)
+                                    }
+                                  }}
+                                  placeholder={t('kanban-placeholder-enter-content')}
+                                  className="gba:text-sm gba:h-7"
+                                  autoFocus
+                                />
+                              </div>
+                            ) : (
+                              <div className="gba:flex-1 gba:min-w-0">
+                                {/* Card content with avatar inline */}
+                                <div className="gba:flex gba:items-start gba:gap-1.5">
+                                  {/* Assignee avatar - clickable with color picker inside */}
+                                  <Popover
+                                    open={openAssigneePopover === card.id}
+                                    onOpenChange={open => setOpenAssigneePopover(open ? card.id : null)}
+                                  >
+                                    <PopoverTrigger asChild>
+                                      <button
+                                        type="button"
+                                        className="gba:flex-shrink-0 gba:mt-0.5 gba:rounded-full gba:transition-opacity hover:gba:opacity-80"
+                                        draggable={false}
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          setOpenAssigneePopover(openAssigneePopover === card.id ? null : card.id)
+                                        }}
+                                        title={assignee ? assignee.userName : t('kanban-assign-customize')}
+                                      >
+                                        {card.assigneeId ? (
+                                          <div
+                                            className="gba:h-5 gba:w-5 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:overflow-hidden"
+                                            style={{ backgroundColor: assignee?.userColor || '#6366f1' }}
+                                          >
+                                            {assignee?.userAvatar ? (
+                                              <img
+                                                src={assignee.userAvatar}
+                                                alt={assignee.userName || ''}
+                                                className="gba:w-full gba:h-full gba:object-cover"
+                                              />
+                                            ) : (
+                                              <span className="gba:text-[9px] gba:font-bold gba:text-primary-foreground">
+                                                {(assignee?.userName || card.assigneeName || '?')
+                                                  .charAt(0)
+                                                  .toUpperCase()}
+                                              </span>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <div className="gba:h-5 gba:w-5 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:opacity-50 group-hover:gba:opacity-80 gba:transition-opacity">
+                                            <User className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
+                                          </div>
+                                        )}
+                                      </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="gba:w-40 gba:p-1.5" align="start">
+                                      {/* Assignee section */}
+                                      <div className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:px-1 gba:pb-1">
+                                        Assign to
+                                      </div>
+                                      {card.assigneeId && (
+                                        <button
+                                          type="button"
+                                          className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:text-[10px] hover:gba:bg-muted gba:text-destructive"
+                                          onClick={e => {
+                                            e.stopPropagation()
+                                            assignCardToUser(card.id, column.id, null)
+                                          }}
+                                          draggable={false}
                                         >
-                                          {assignee?.userAvatar ? (
-                                            <img
-                                              src={assignee.userAvatar}
-                                              alt={assignee.userName || ''}
-                                              className="gba:w-full gba:h-full gba:object-cover"
-                                            />
-                                          ) : (
-                                            <span className="gba:text-[9px] gba:font-bold gba:text-primary-foreground">
-                                              {(assignee?.userName || card.assigneeName || '?').charAt(0).toUpperCase()}
-                                            </span>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <div className="gba:h-5 gba:w-5 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:opacity-50 group-hover:gba:opacity-80 gba:transition-opacity">
-                                          <User className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
+                                          <X className="gba:w-3 gba:h-3" />
+                                          {t('kanban-unassign')}
+                                        </button>
+                                      )}
+                                      {availableParticipants.map(p => (
+                                        <button
+                                          type="button"
+                                          key={p.userId}
+                                          className={`gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:text-[10px] hover:gba:bg-muted ${
+                                            card.assigneeId === p.userId ? 'gba:bg-muted' : ''
+                                          }`}
+                                          onClick={e => {
+                                            e.stopPropagation()
+                                            assignCardToUser(card.id, column.id, p)
+                                          }}
+                                          draggable={false}
+                                        >
+                                          <Avatar className="gba:h-4 gba:w-4">
+                                            {p.userAvatar ? <AvatarImage src={p.userAvatar} alt={p.userName} /> : null}
+                                            <AvatarFallback className="gba:text-[8px]">
+                                              {p.userName?.charAt(0)?.toUpperCase() || '?'}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <span className="gba:truncate">{p.userName}</span>
+                                        </button>
+                                      ))}
+                                      {availableParticipants.length === 0 && (
+                                        <div className="gba:px-2 gba:py-1 gba:text-[10px] gba:text-muted-foreground">
+                                          {t('kanban-no-participants')}
                                         </div>
                                       )}
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="gba:w-40 gba:p-1.5" align="start">
-                                    {/* Assignee section */}
-                                    <div className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:px-1 gba:pb-1">
-                                      Assign to
-                                    </div>
-                                    {card.assigneeId && (
-                                      <button
-                                        type="button"
-                                        className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:text-[10px] hover:gba:bg-muted gba:text-destructive"
-                                        onClick={e => {
-                                          e.stopPropagation()
-                                          assignCardToUser(card.id, column.id, null)
-                                        }}
-                                        draggable={false}
-                                      >
-                                        <X className="gba:w-3 gba:h-3" />
-                                        {t('kanban-unassign')}
-                                      </button>
-                                    )}
-                                    {availableParticipants.map(p => (
-                                      <button
-                                        type="button"
-                                        key={p.userId}
-                                        className={`gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:text-[10px] hover:gba:bg-muted ${
-                                          card.assigneeId === p.userId ? 'gba:bg-muted' : ''
-                                        }`}
-                                        onClick={e => {
-                                          e.stopPropagation()
-                                          assignCardToUser(card.id, column.id, p)
-                                        }}
-                                        draggable={false}
-                                      >
-                                        <Avatar className="gba:h-4 gba:w-4">
-                                          {p.userAvatar ? <AvatarImage src={p.userAvatar} alt={p.userName} /> : null}
-                                          <AvatarFallback className="gba:text-[8px]">
-                                            {p.userName?.charAt(0)?.toUpperCase() || '?'}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <span className="gba:truncate">{p.userName}</span>
-                                      </button>
-                                    ))}
-                                    {availableParticipants.length === 0 && (
-                                      <div className="gba:px-2 gba:py-1 gba:text-[10px] gba:text-muted-foreground">
-                                        {t('kanban-no-participants')}
-                                      </div>
-                                    )}
 
-                                    {/* Color picker section */}
-                                    <div className="gba:border-t gba:border-border/50 gba:mt-1.5 gba:pt-1.5">
-                                      <div className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:px-1 gba:pb-1">
-                                        {t('kanban-card-color')}
+                                      {/* Color picker section */}
+                                      <div className="gba:border-t gba:border-border/50 gba:mt-1.5 gba:pt-1.5">
+                                        <div className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:px-1 gba:pb-1">
+                                          {t('kanban-card-color')}
+                                        </div>
+                                        <div className="gba:grid gba:grid-cols-4 gba:gap-1 gba:px-1">
+                                          {CARD_COLORS.map(c => (
+                                            <Tooltip key={c.id}>
+                                              <TooltipTrigger asChild>
+                                                <button
+                                                  className={`gba:w-5 gba:h-5 gba:rounded gba:border ${c.bg} ${c.border} ${
+                                                    card.color === c.id || (!card.color && c.id === 'default')
+                                                      ? 'gba:ring-1 gba:ring-primary gba:ring-offset-1'
+                                                      : ''
+                                                  } gba:transition-all hover:gba:scale-110`}
+                                                  onClick={e => {
+                                                    e.stopPropagation()
+                                                    handleColorChange(card.id, column.id, c.id)
+                                                  }}
+                                                />
+                                              </TooltipTrigger>
+                                              <TooltipContent side="top" className="gba:text-[10px]">
+                                                {t(`kanban-color-${c.id}`)}
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          ))}
+                                        </div>
                                       </div>
-                                      <div className="gba:grid gba:grid-cols-4 gba:gap-1 gba:px-1">
-                                        {CARD_COLORS.map(c => (
-                                          <Tooltip key={c.id}>
-                                            <TooltipTrigger asChild>
-                                              <button
-                                                className={`gba:w-5 gba:h-5 gba:rounded gba:border ${c.bg} ${c.border} ${
-                                                  card.color === c.id || (!card.color && c.id === 'default')
-                                                    ? 'gba:ring-1 gba:ring-primary gba:ring-offset-1'
-                                                    : ''
-                                                } gba:transition-all hover:gba:scale-110`}
-                                                onClick={e => {
-                                                  e.stopPropagation()
-                                                  handleColorChange(card.id, column.id, c.id)
-                                                }}
-                                              />
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="gba:text-[10px]">
-                                              {t(`kanban-color-${c.id}`)}
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
+                                    </PopoverContent>
+                                  </Popover>
 
-                                {/* Link indicator for cards linked to task items */}
-                                {card.linkedTaskItemId && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className="gba:flex-shrink-0 gba:mt-0.5">
-                                        <Link2 className="gba:w-2.5 gba:h-2.5 gba:text-primary/60" />
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="gba:text-[10px]">
-                                      {t('kanban-linked-to-task')}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
-
-                                {/* Card text content */}
-                                <div
-                                  className="gba:flex-1 gba:text-sm gba:text-foreground gba:cursor-text gba:leading-snug gba:break-words"
-                                  onClick={() => {
-                                    setEditingCard({ cardId: card.id, columnId: column.id })
-                                    setNewCardContent({ ...newCardContent, [card.id]: card.content })
-                                  }}
-                                >
-                                  {card.content || (
-                                    <span className="gba:text-muted-foreground gba:italic">{t('kanban-empty')}</span>
+                                  {/* Link indicator for cards linked to task items */}
+                                  {card.linkedTaskItemId && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="gba:flex-shrink-0 gba:mt-0.5">
+                                          <Link2 className="gba:w-2.5 gba:h-2.5 gba:text-primary/60" />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="gba:text-[10px]">
+                                        {t('kanban-linked-to-task')}
+                                      </TooltipContent>
+                                    </Tooltip>
                                   )}
+
+                                  {/* Card text content */}
+                                  <div
+                                    className="gba:flex-1 gba:text-sm gba:text-foreground gba:cursor-text gba:leading-snug gba:break-words"
+                                    onClick={() => {
+                                      setEditingCard({ cardId: card.id, columnId: column.id })
+                                      setNewCardContent({ ...newCardContent, [card.id]: card.content })
+                                    }}
+                                  >
+                                    {card.content || (
+                                      <span className="gba:text-muted-foreground gba:italic">{t('kanban-empty')}</span>
+                                    )}
+                                  </div>
+
+                                  {/* Delete button */}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="gba:h-5 gba:w-5 gba:flex-shrink-0 gba:text-muted-foreground gba:transition-colors hover:gba:text-destructive gba:-mt-0.5"
+                                    draggable={false}
+                                    onPointerDown={e => {
+                                      e.stopPropagation()
+                                    }}
+                                    onMouseDown={e => {
+                                      e.stopPropagation()
+                                    }}
+                                    onClick={e => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      requestDeleteCard(card.id, column.id)
+                                    }}
+                                    aria-label={t('kanban-card-delete')}
+                                    data-testid={`kanban-card-delete-${card.id}`}
+                                  >
+                                    <X className="gba:w-2 gba:h-2" />
+                                  </Button>
                                 </div>
-
-                                {/* Delete button */}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="gba:h-4 gba:w-4 gba:flex-shrink-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:-mt-0.5"
-                                  onClick={() => handleDeleteCard(card.id, column.id)}
-                                >
-                                  <X className="gba:w-2 gba:h-2" />
-                                </Button>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  }
-                )}
-              </div>
+                      )
+                    }
+                  )}
+                </div>
 
-              {/* Add Card Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:w-full gba:mt-2 gba:h-7 gba:justify-start gba:text-muted-foreground gba:text-xs gba:px-2 hover:gba:bg-background/60"
-                onClick={() => handleAddCard(column.id)}
-              >
-                <Plus className="gba:w-2.5 gba:h-2.5 gba:mr-1" />
-                {t('kanban-add')}
-              </Button>
-            </div>
-          ))}
+                {/* Add Card Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gba:w-full gba:mt-2 gba:h-7 gba:justify-start gba:text-muted-foreground gba:text-xs gba:px-2 hover:gba:bg-background/60"
+                  onClick={() => handleAddCard(column.id)}
+                >
+                  <Plus className="gba:w-2.5 gba:h-2.5 gba:mr-1" />
+                  {t('kanban-add')}
+                </Button>
+              </div>
+            )
+          })}
 
           {/* Add Column Button */}
           <div className="gba:flex-shrink-0">
@@ -830,6 +958,46 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
           </div>
         </div>
       </div>
+      <Dialog open={!!pendingDeleteCard} onOpenChange={open => !open && setPendingDeleteCard(null)}>
+        <DialogContent className="gba:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('kanban-card-delete-title')}</DialogTitle>
+            <DialogDescription>
+              {pendingDeleteCard?.content
+                ? t('kanban-card-delete-description', { content: pendingDeleteCard.content })
+                : t('kanban-card-delete-description-empty')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDeleteCard(null)}>
+              {t('kanban-card-delete-cancel')}
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteCard}>
+              {t('kanban-card-delete-confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!pendingDeleteColumn} onOpenChange={open => !open && setPendingDeleteColumn(null)}>
+        <DialogContent className="gba:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('kanban-column-delete-title')}</DialogTitle>
+            <DialogDescription>
+              {pendingDeleteColumn
+                ? t('kanban-column-delete-description', { title: pendingDeleteColumn.title })
+                : t('kanban-column-delete-description-empty')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDeleteColumn(null)}>
+              {t('kanban-column-delete-cancel')}
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteColumn}>
+              {t('kanban-column-delete-confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </NodeViewWrapper>
   )
 }

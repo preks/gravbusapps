@@ -1,16 +1,17 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter'
 import { ExpenseStatus, getExpensePlanStatusFilterLabel } from '../utils'
 
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpensePlanCurrencies } from './useExpensePlanCurrencies'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import { createDateRangeFilterComponent } from './dateRangeFilterComponent'
 import { planFilterStatuses } from './availableFilterStatuses'
+import translations from '../_i18n'
 
 // Extend dayjs with required plugins
 dayjs.extend(weekday)
@@ -58,6 +59,7 @@ export const useExpensePlanFilters = ({
   managerId,
   userInfo
 }: UseExpensePlanFiltersProps = {}): UseExpensePlanFiltersReturn => {
+  const { t } = useTranslation(translations)
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([ExpenseStatus.PENDING])
   // Date range filters
@@ -181,42 +183,24 @@ export const useExpensePlanFilters = ({
 
   // Helper function to add date range label to map - reduces cognitive complexity
   const addDateRangeLabel = useCallback(
-    (
-      map: Record<string, string>,
-      range: [Date | null, Date | null] | null,
-      key: string,
-      labelKey: string,
-      defaultLabel: string
-    ) => {
+    (map: Record<string, string>, range: [Date | null, Date | null] | null, key: string, labelFluentKey: string) => {
       const dateLabel = formatDateRangeLabel(range)
       if (dateLabel) {
-        map[key] = `${getTranslationFromI18nKeyAndLabel(labelKey, defaultLabel)}: ${dateLabel}`
+        map[key] = `${t(labelFluentKey)}: ${dateLabel}`
       }
     },
-    [formatDateRangeLabel]
+    [formatDateRangeLabel, t]
   )
 
   // Helper function to build date range label map - reduces cognitive complexity
   const buildDateRangeLabels = useCallback(
     (map: Record<string, string>) => {
-      addDateRangeLabel(
-        map,
-        planDateRange,
-        'planDateRange',
-        'lowcoder:team_expenses_page.plan_details.plan_date',
-        'Plan Date'
-      )
-      addDateRangeLabel(map, startDateRange, 'startDateRange', 'lowcoder:personal_expenses.start_date', 'Start Date')
-      addDateRangeLabel(map, endDateRange, 'endDateRange', 'lowcoder:personal_expenses.end_date', 'End Date')
-      addDateRangeLabel(
-        map,
-        effectiveDateRange,
-        'effectiveDateRange',
-        'lowcoder:personal_expenses.effective_date',
-        'Effective Date'
-      )
+      addDateRangeLabel(map, planDateRange, 'planDateRange', 'expense-plans-filter-plan-date')
+      addDateRangeLabel(map, startDateRange, 'startDateRange', 'expense-plans-filter-start-date')
+      addDateRangeLabel(map, endDateRange, 'endDateRange', 'expense-plans-filter-end-date')
+      addDateRangeLabel(map, effectiveDateRange, 'effectiveDateRange', 'expense-plans-filter-effective-date')
     },
-    [addDateRangeLabel, planDateRange, startDateRange, endDateRange, effectiveDateRange]
+    [addDateRangeLabel, planDateRange, startDateRange, endDateRange, effectiveDateRange, t]
   )
 
   // Memoize filterLabelMap with stable dependencies
@@ -225,18 +209,18 @@ export const useExpensePlanFilters = ({
 
     // Add status filter labels
     for (const status of planFilterStatuses) {
-      map[status] = getExpensePlanStatusFilterLabel(status)
+      map[status] = getExpensePlanStatusFilterLabel(status, t)
     }
 
     // Add plan type filter labels
-    map['planType:EXPENSES'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
-    map['planType:TRIP'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+    map['planType:EXPENSES'] = t('expense-plans-filter-type-expense')
+    map['planType:TRIP'] = t('expense-plans-filter-type-trip')
 
     // Add date range labels if active
     buildDateRangeLabels(map)
 
     return map
-  }, [buildDateRangeLabels])
+  }, [buildDateRangeLabels, t])
 
   // Helper to check if date range is active
   const isDateRangeActive = useCallback((range: [Date | null, Date | null] | null): boolean => {
@@ -296,24 +280,48 @@ export const useExpensePlanFilters = ({
   )
 
   // Date range filter components
+  const dateRangePickerLabels = useMemo(
+    () => ({
+      start: t('expense-plans-filter-placeholder-start-date'),
+      end: t('expense-plans-filter-placeholder-end-date')
+    }),
+    [t]
+  )
+
   const EffectiveDateRangeFilterComponent = useMemo(
-    () => createDateRangeFilterComponent(effectiveDateRange, setEffectiveDateRange, { showTooltip: true }),
-    [effectiveDateRange]
+    () =>
+      createDateRangeFilterComponent(effectiveDateRange, setEffectiveDateRange, {
+        startPlaceholder: dateRangePickerLabels.start,
+        endPlaceholder: dateRangePickerLabels.end
+      }),
+    [effectiveDateRange, dateRangePickerLabels]
   )
 
   const StartDateRangeFilterComponent = useMemo(
-    () => createDateRangeFilterComponent(startDateRange, setStartDateRange),
-    [startDateRange]
+    () =>
+      createDateRangeFilterComponent(startDateRange, setStartDateRange, {
+        startPlaceholder: dateRangePickerLabels.start,
+        endPlaceholder: dateRangePickerLabels.end
+      }),
+    [startDateRange, dateRangePickerLabels]
   )
 
   const EndDateRangeFilterComponent = useMemo(
-    () => createDateRangeFilterComponent(endDateRange, setEndDateRange),
-    [endDateRange]
+    () =>
+      createDateRangeFilterComponent(endDateRange, setEndDateRange, {
+        startPlaceholder: dateRangePickerLabels.start,
+        endPlaceholder: dateRangePickerLabels.end
+      }),
+    [endDateRange, dateRangePickerLabels]
   )
 
   const PlanDateRangeFilterComponent = useMemo(
-    () => createDateRangeFilterComponent(planDateRange, setPlanDateRange),
-    [planDateRange]
+    () =>
+      createDateRangeFilterComponent(planDateRange, setPlanDateRange, {
+        startPlaceholder: dateRangePickerLabels.start,
+        endPlaceholder: dateRangePickerLabels.end
+      }),
+    [planDateRange, dateRangePickerLabels]
   )
 
   // Create filter groups for the DataFilter component
@@ -335,12 +343,12 @@ export const useExpensePlanFilters = ({
     const planTypeItems: DataFilter[] = [
       {
         id: 'planType:EXPENSES',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense'),
+        label: t('expense-plans-filter-type-expense'),
         selected: planTypeFilter.includes('planType:EXPENSES')
       },
       {
         id: 'planType:TRIP',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'),
+        label: t('expense-plans-filter-type-trip'),
         selected: planTypeFilter.includes('planType:TRIP')
       }
     ]
@@ -349,50 +357,47 @@ export const useExpensePlanFilters = ({
     return [
       {
         id: 'currencyGroup',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule.expense_table.currency',
-          'Currency'
-        ),
+        title: t('expense-plans-filter-group-currency'),
         filters: currencyItems,
         selectionMode: 'single'
       },
       {
         id: 'effectiveDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
+        title: t('expense-plans-filter-effective-date'),
         type: 'custom',
         customComponent: EffectiveDateRangeFilterComponent,
         hideSearch: true
       },
       {
         id: 'planDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date'),
+        title: t('expense-plans-filter-plan-date'),
         type: 'custom',
         customComponent: PlanDateRangeFilterComponent,
         hideSearch: true
       },
       {
         id: 'startDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
+        title: t('expense-plans-filter-start-date'),
         type: 'custom',
         customComponent: StartDateRangeFilterComponent,
         hideSearch: true
       },
       {
         id: 'endDateRange',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
+        title: t('expense-plans-filter-end-date'),
         type: 'custom',
         customComponent: EndDateRangeFilterComponent,
         hideSearch: true
       },
       {
         id: 'statusGroup',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+        title: t('filter-status-group-title'),
         filters: statusItems,
         selectionMode: 'multiple'
       },
       {
         id: 'planType',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+        title: t('expense-plans-filter-plan-type'),
         filters: planTypeItems,
         selectionMode: 'multiple'
       }
@@ -406,7 +411,8 @@ export const useExpensePlanFilters = ({
     EffectiveDateRangeFilterComponent,
     PlanDateRangeFilterComponent,
     StartDateRangeFilterComponent,
-    EndDateRangeFilterComponent
+    EndDateRangeFilterComponent,
+    t
   ])
 
   // Function to reset manual currency selection (useful for clearing filters)

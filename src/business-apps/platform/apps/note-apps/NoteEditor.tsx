@@ -18,7 +18,7 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
-import { Image } from '@tiptap/extension-image'
+import { CustomImage } from '@/components/tiptap-extensions/tiptap-custom-image'
 import { TaskList } from '@tiptap/extension-task-list'
 import { LinkedTaskItem } from '../shared/extensions/LinkedTaskItem'
 import { Typography } from '@tiptap/extension-typography'
@@ -52,6 +52,8 @@ import {
   Pin,
   Copy,
   Download,
+  Undo2,
+  Redo2,
   Bold,
   Italic,
   Underline as UnderlineIcon,
@@ -96,6 +98,7 @@ import { CommentPanel } from '../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../shared/components/InlineCommentPopover'
 import { Drawing } from '../shared/extensions/Drawing'
 import { Kanban, type KanbanData } from '../shared/extensions/Kanban'
+import { KANBAN_DEFAULT_COLUMN_IDS } from '../shared/extensions/kanbanConstants'
 import { useTaskKanbanSync } from './hooks/useTaskKanbanSync'
 import { HybridEditorCanvas } from '../shared/components/HybridEditorCanvas'
 import * as Y from 'yjs'
@@ -114,6 +117,12 @@ import {
   type EntityType
 } from './components/EntityMention'
 import { mergeAttributes } from '@tiptap/core'
+import { Table } from '@tiptap/extension-table'
+import { TableRow } from '@tiptap/extension-table-row'
+import { TableCell } from '@tiptap/extension-table-cell'
+import { TableHeader } from '@tiptap/extension-table-header'
+import { handleTiptapTabKey } from '@/components/tiptap-extensions/tiptapTabKeyHandler'
+import { NoteTableMenu } from './components/NoteTableMenu'
 import { FileText } from 'lucide-react'
 import type { Note, NoteColor } from './types'
 import { toast } from 'sonner'
@@ -136,6 +145,13 @@ import {
   type PanelCommentAnchor
 } from '../shared/utils/commentAnchors'
 import noteAppTranslations from './_i18n'
+import {
+  isNoteDriveImageProtectedSrc,
+  resolveNoteDriveImageProtectedSrc,
+  type UploadNoteDriveImageOptions
+} from './services/noteDriveImageUpload'
+import { useNoteEditorImageUpload } from './hooks/useNoteEditorImageUpload'
+import { ImageSquare } from '@phosphor-icons/react'
 
 // Note color mapping (labels via i18n key editor-color-{value})
 const noteColors: Array<{ value: NoteColor; class: string }> = [
@@ -268,12 +284,16 @@ export interface NoteEditorProps extends Partial<BusinessAppContextProps> {
   onShare?: () => void
   onDuplicate?: () => void
   onColorChange?: (color: NoteColor) => void
+  /** Applied when another collaborator changes note color (hub should patch list/current note). */
+  onRemoteNoteColor?: (color: NoteColor) => void
   isReadOnly?: boolean
   isTrashedNote?: boolean
   isSidebarCollapsed?: boolean
   onToggleSidebar?: () => void
   onTitleChanged?: (noteId: string, newTitle: string) => void
   onContentSaved?: (noteId: string) => void
+  /** Optional Drive folder id for uploads (not the same as note tree parent id). */
+  imageUploadDriveFolderId?: string | null
   'data-testid'?: string
 }
 
@@ -288,12 +308,14 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   onShare,
   onDuplicate,
   onColorChange,
+  onRemoteNoteColor,
   isReadOnly = false,
   isTrashedNote = false,
   isSidebarCollapsed,
   onToggleSidebar,
   onTitleChanged,
   onContentSaved,
+  imageUploadDriveFolderId,
   accessToken: accessTokenProp,
   userInfo,
   'data-testid': testId = 'note-editor'
@@ -328,6 +350,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const contentSavedTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const editorRef = useRef<any>(null)
+  const noteImageFileInputRef = useRef<HTMLInputElement>(null)
   const editorContainerRef = useRef<HTMLDivElement>(null)
 
   const noteIdRef = useRef(note.id)
@@ -536,6 +559,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const canOwnerUnlockNote = canUseLockActions && isNoteOwner && isLockedByOtherUser
 
   canEditNoteRef.current = canEditNote
+
+  const canInsertNoteImages = canEditNote && !isTrashedNote && Boolean(accessToken)
+  const driveUploadOptionsRef = useRef<UploadNoteDriveImageOptions>({})
+  useEffect(() => {
+    driveUploadOptionsRef.current = {
+      folderId: imageUploadDriveFolderId ?? undefined,
+      spaceId: note.spaceId
+    }
+  }, [imageUploadDriveFolderId, note.spaceId])
 
   const handleAcquireLock = useCallback(async () => {
     const success = await fileLock.acquireLock()
@@ -785,6 +817,25 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   }, [collaborationSocket, isTrashedNote, note.id, onTitleChanged])
 
+  useEffect(() => {
+    setNoteColor(note.color || 'default')
+  }, [note.color, note.id])
+
+  useEffect(() => {
+    if (!collaborationSocket || !note.id || isTrashedNote) return
+
+    const handleNoteColorUpdated = (event: { documentId: string; entityType?: string; color?: string }) => {
+      if (event.documentId !== note.id || event.entityType !== 'note') return
+      const next = (event.color || 'default') as NoteColor
+      onRemoteNoteColor?.(next)
+    }
+
+    collaborationSocket.on('note_color_updated', handleNoteColorUpdated)
+    return () => {
+      collaborationSocket.off('note_color_updated', handleNoteColorUpdated)
+    }
+  }, [collaborationSocket, isTrashedNote, note.id, onRemoteNoteColor])
+
   // Set awareness state
   useEffect(() => {
     if (!note.id || !currentUserId || !isYjsSynced) return
@@ -931,6 +982,40 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     return createMentionSuggestion(accessToken)
   }, [accessToken])
 
+  const noteImageAccessTokenRef = useRef(accessToken)
+  noteImageAccessTokenRef.current = accessToken
+
+  const noteCustomImageExtension = React.useMemo(
+    () =>
+      CustomImage.configure({
+        resize: true,
+        inline: false,
+        allowBase64: true,
+        getAccessToken: () => noteImageAccessTokenRef.current,
+        isProtectedSrc: isNoteDriveImageProtectedSrc,
+        resolveProtectedSrc: resolveNoteDriveImageProtectedSrc,
+        minSize: 50,
+        defaultAlign: 'center',
+        defaultWrapMode: 'inline',
+        defaultAnchorMode: 'inline',
+        defaultDisplay: 'block',
+        defaultDistance: 0
+      }),
+    []
+  )
+
+  const {
+    handlePaste: handleNoteImagePaste,
+    handleDrop: handleNoteImageDrop,
+    insertImagesFromFileList
+  } = useNoteEditorImageUpload({
+    editorRef,
+    accessToken,
+    canInsertImages: canInsertNoteImages,
+    driveUploadOptionsRef,
+    translate: key => String(t(key as never))
+  })
+
   const isCollaborationMode = Boolean(note.id && !isTrashedNote)
 
   // Initialize TipTap editor
@@ -960,7 +1045,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         Link.configure({
           openOnClick: false
         }),
-        Image,
+        noteCustomImageExtension,
         TaskList,
         LinkedTaskItem.configure({
           nested: true
@@ -1075,9 +1160,37 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }),
         Drawing,
         Kanban,
+        Table.configure({
+          resizable: false,
+          HTMLAttributes: {
+            class: 'note-editor-table'
+          }
+        }),
+        TableRow.configure({
+          HTMLAttributes: {
+            class: 'note-editor-table-row'
+          }
+        }),
+        TableHeader.configure({
+          HTMLAttributes: {
+            class: 'note-editor-table-header'
+          }
+        }),
+        TableCell.configure({
+          HTMLAttributes: {
+            class: 'note-editor-table-cell'
+          }
+        }),
         ...(collaborationExtension ? [collaborationExtension] : []),
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ],
+      editorProps: {
+        handleDOMEvents: {
+          keydown: (_view, event) => handleTiptapTabKey(event, editorRef.current)
+        },
+        handlePaste: handleNoteImagePaste,
+        handleDrop: handleNoteImageDrop
+      },
       content: isCollaborationMode ? '<p></p>' : note.content || '<p></p>',
       editable: canEditNote,
       onUpdate: () => {
@@ -1087,7 +1200,17 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
       }
     },
-    [note.id, note.content, ydoc, canEditNote, mentionSuggestion, isCollaborationMode]
+    [
+      note.id,
+      note.content,
+      ydoc,
+      canEditNote,
+      mentionSuggestion,
+      isCollaborationMode,
+      noteCustomImageExtension,
+      handleNoteImagePaste,
+      handleNoteImageDrop
+    ]
   )
 
   useEffect(() => {
@@ -1990,8 +2113,20 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   }, [editor, handleAddInlineComment, findKanbanBoards])
 
   // Handler for adding task(s) to Kanban - supports multiple items
+  const createDefaultKanbanData = useCallback(
+    (kanbanId: string): KanbanData => ({
+      id: kanbanId,
+      columns: [
+        { id: KANBAN_DEFAULT_COLUMN_IDS.todo, title: t('kanban-column-todo'), cards: [] },
+        { id: KANBAN_DEFAULT_COLUMN_IDS.inProgress, title: t('kanban-column-in-progress'), cards: [] },
+        { id: KANBAN_DEFAULT_COLUMN_IDS.done, title: t('kanban-column-done'), cards: [] }
+      ]
+    }),
+    [t]
+  )
+
   const handleAddTaskToKanban = useCallback(
-    (kanbanId: string, columnId: string = 'todo') => {
+    (kanbanId: string, columnId: string = KANBAN_DEFAULT_COLUMN_IDS.todo) => {
       if (!taskContextMenu) return
 
       const positions = taskContextMenu.taskItemPositions
@@ -2034,7 +2169,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     const kanbanId = `kanban-${Date.now()}`
 
     // First, create the Kanban board
-    const inserted = editor.chain().focus().insertKanban({ id: kanbanId }).run()
+    const inserted = editor
+      .chain()
+      .focus()
+      .insertKanban({ id: kanbanId, data: createDefaultKanbanData(kanbanId) })
+      .run()
 
     if (!inserted) {
       console.error('[NoteEditor] Failed to create Kanban')
@@ -2083,7 +2222,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }, 100)
 
     setTaskContextMenu(null)
-  }, [taskContextMenu, editor, addTaskToKanban])
+  }, [taskContextMenu, editor, addTaskToKanban, createDefaultKanbanData])
 
   // Color change handler
   const handleColorChange = useCallback(
@@ -2376,14 +2515,46 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         </div>
       </div>
 
-      {/* Editor Area */}
-      <div className="gba:flex-1 gba:flex gba:overflow-hidden">
-        <div className="gba:flex-1 gba:overflow-auto gba:relative">
+      {/* Editor Area — same as slides/whiteboard: flex row so the comments rail sits on the right */}
+      <div className="gba:flex-1 gba:flex gba:flex-row gba:overflow-hidden gba:min-h-0">
+        <div className="gba:flex-1 gba:min-w-0 gba:overflow-auto gba:relative">
           {/* Formatting Toolbar -- sticky inside scroll area for frosted glass blur */}
           {editor && canEditNote && (
             <div className="gba:sticky gba:top-0 gba:z-[9] gba:bg-sidebar/70 gba:backdrop-blur-md gba:backdrop-saturate-125 gba:px-6 gba:py-1.5 gba:border-b gba:border-sidebar-border/10">
               <div className="gba:max-w-3xl gba:lg:max-w-[48rem] gba:mx-auto gba:flex gba:items-center gba:gap-1 gba:flex-wrap">
                 <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().undo().run()}
+                        disabled={!editor.can().undo()}
+                        data-testid="note-editor-undo"
+                      >
+                        <Undo2 className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-undo')}</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        onClick={() => editor.chain().focus().redo().run()}
+                        disabled={!editor.can().redo()}
+                        data-testid="note-editor-redo"
+                      >
+                        <Redo2 className="gba:w-3.5 gba:h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-format-redo')}</TooltipContent>
+                  </Tooltip>
+
+                  <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -2435,6 +2606,40 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>{t('editor-format-strikethrough')}</TooltipContent>
+                  </Tooltip>
+
+                  <input
+                    ref={noteImageFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="gba:sr-only"
+                    aria-hidden
+                    tabIndex={-1}
+                    data-testid={`${testId}-image-file-input`}
+                    onChange={e => {
+                      const files = e.target.files
+                      if (files?.length) {
+                        insertImagesFromFileList(files)
+                      }
+                      e.target.value = ''
+                    }}
+                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-7 gba:w-7"
+                        disabled={!canInsertNoteImages}
+                        data-testid={`${testId}-insert-image`}
+                        onClick={() => noteImageFileInputRef.current?.click()}
+                      >
+                        <ImageSquare className="gba:w-3.5 gba:h-3.5" aria-hidden />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('editor-insert-image')}</TooltipContent>
                   </Tooltip>
 
                   <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
@@ -2552,6 +2757,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
                   <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
 
+                  <NoteTableMenu editor={editor} t={t} />
+
+                  <Separator orientation="vertical" className="gba:h-4 gba:mx-0.5" />
+
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -2579,7 +2788,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                         onClick={() => {
                           if (!editor || !isYjsSynced) return
                           const kanbanId = `kanban-${Date.now()}`
-                          editor.chain().focus().insertKanban({ id: kanbanId }).run()
+                          editor
+                            .chain()
+                            .focus()
+                            .insertKanban({ id: kanbanId, data: createDefaultKanbanData(kanbanId) })
+                            .run()
                         }}
                         data-testid="note-editor-insert-kanban"
                         disabled={!isYjsSynced}
@@ -2713,6 +2926,109 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             <ActionItemsList flows={actionItemFlows} data-testid={`${testId}-action-items-list`} />
           </div>
         )}
+
+        {/* Comments — rightmost rail (same ordering idea as slide editor: canvas … then comments) */}
+        {showComments ? (
+          <CommentPanel
+            comments={comments.comments}
+            unresolvedCount={comments.unresolvedCount}
+            isLoading={comments.isLoading}
+            onCreateComment={async (content, parentId, userName, userAvatar) => {
+              if (parentId) {
+                await comments.createComment({
+                  type: 'document',
+                  content,
+                  parentId,
+                  createdByName: userName,
+                  createdByAvatar: userAvatar
+                })
+                return
+              }
+
+              const anchor = panelCommentAnchorRef.current
+              if (isValidPanelCommentAnchor(anchor)) {
+                const anchorEditor = anchor.editor
+                const docSize = anchorEditor.state.doc.content.size
+                const from = Math.max(0, Math.min(anchor.from, docSize))
+                const to = Math.max(from, Math.min(anchor.to, docSize))
+
+                if (to > from) {
+                  const anchorSelectedText = anchor.selectedText.trim()
+                  const selectedText = anchorSelectedText || anchorEditor.state.doc.textBetween(from, to, '\n', ' ')
+                  const comment = await comments.createComment({
+                    type: 'inline',
+                    content,
+                    selectionStart: from,
+                    selectionEnd: to,
+                    selectedText,
+                    createdByName: userName,
+                    createdByAvatar: userAvatar
+                  })
+
+                  if (comment) {
+                    applyInlineCommentMark({ from, to }, comment)
+                  }
+
+                  panelCommentAnchorRef.current = null
+                  setPendingSelection(null)
+                  return
+                }
+              }
+
+              await comments.createComment({
+                type: 'document',
+                content,
+                createdByName: userName,
+                createdByAvatar: userAvatar
+              })
+              panelCommentAnchorRef.current = null
+              setPendingSelection(null)
+            }}
+            onUpdateComment={async (commentId, content) => {
+              await comments.updateComment(commentId, { content })
+            }}
+            onResolveComment={async commentId => {
+              await comments.resolveComment(commentId)
+            }}
+            onUnresolveComment={commentId => comments.unresolveComment(commentId)}
+            onDeleteComment={async commentId => {
+              await comments.deleteComment(commentId)
+            }}
+            onClose={() => {
+              setShowComments(false)
+              panelCommentAnchorRef.current = null
+              setPendingSelection(null)
+            }}
+            currentUserId={currentUserId || undefined}
+            currentUserName={currentUserName || undefined}
+            currentUserAvatar={currentUserAvatar || undefined}
+            onUnhighlight={commentId => {
+              if (!editor) return
+
+              const comment = comments.comments.find(entry => entry.id === commentId) || null
+              const selection = findInlineCommentSelection(editor, commentId, comment)
+              if (!selection) return
+
+              editor.chain().setTextSelection(selection).unsetInlineComment().run()
+            }}
+            onScrollToHighlight={commentId => {
+              if (!editor) return
+
+              const comment = comments.comments.find(entry => entry.id === commentId) || null
+              const selection = findInlineCommentSelection(editor, commentId, comment)
+              if (!selection) return
+
+              editor.chain().setTextSelection(selection).focus().run()
+
+              setTimeout(() => {
+                const element = document.querySelector(`[data-comment-id="${commentId}"]`)
+                element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }, 100)
+            }}
+            layout="docked"
+            data-testid="note-comment-panel"
+          />
+        ) : null}
       </div>
 
       {/* Action Items Panel (iPad/mobile) */}
@@ -2841,6 +3157,48 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           margin: 0;
         }
 
+        /* Tables — same as note-editor.css but scoped to .ProseMirror so borders work when remote host only loads main.css (split chunks may omit note-editor.css). */
+        .note-editor-content .ProseMirror table.note-editor-table {
+          --note-table-border: color-mix(in srgb, currentColor 35%, transparent);
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+          margin: 1.25em 0;
+          font-size: 0.9375rem;
+          background: transparent;
+        }
+
+        .note-editor-content .ProseMirror td.note-editor-table-cell,
+        .note-editor-content .ProseMirror th.note-editor-table-header {
+          position: relative;
+          border: 1px solid var(--note-table-border);
+          padding: 0.5em 0.65em;
+          vertical-align: top;
+          min-width: 3rem;
+          height: 2.5rem;
+          word-break: break-word;
+          background: transparent;
+        }
+
+        .note-editor-content .ProseMirror td.note-editor-table-cell > p,
+        .note-editor-content .ProseMirror th.note-editor-table-header > p {
+          margin-bottom: 0.35em;
+        }
+
+        .note-editor-content .ProseMirror td.note-editor-table-cell > p:last-child,
+        .note-editor-content .ProseMirror th.note-editor-table-header > p:last-child {
+          margin-bottom: 0;
+        }
+
+        .note-editor-content .ProseMirror .selectedCell::after {
+          z-index: 2;
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          content: '';
+          background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+        }
+
         .note-editor-content .ProseMirror ul[data-type="taskList"] {
           list-style: none;
           padding-left: 0;
@@ -2953,6 +3311,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           height: auto;
           border-radius: 0.75rem;
           margin: 1.5em 0;
+        }
+
+        .note-editor-content .ProseMirror .editor-image-figure {
+          max-width: 100%;
+          margin: 1.25em 0;
         }
 
         .note-editor-content .ProseMirror mark {
@@ -3151,108 +3514,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           isPublishing={publishing.isPublishing}
           entityType="note"
           data-testid="note-publish-dialog"
-        />
-      )}
-
-      {showComments && (
-        <CommentPanel
-          comments={comments.comments}
-          unresolvedCount={comments.unresolvedCount}
-          isLoading={comments.isLoading}
-          onCreateComment={async (content, parentId, userName, userAvatar) => {
-            if (parentId) {
-              await comments.createComment({
-                type: 'document',
-                content,
-                parentId,
-                createdByName: userName,
-                createdByAvatar: userAvatar
-              })
-              return
-            }
-
-            const anchor = panelCommentAnchorRef.current
-            if (isValidPanelCommentAnchor(anchor)) {
-              const anchorEditor = anchor.editor
-              const docSize = anchorEditor.state.doc.content.size
-              const from = Math.max(0, Math.min(anchor.from, docSize))
-              const to = Math.max(from, Math.min(anchor.to, docSize))
-
-              if (to > from) {
-                const anchorSelectedText = anchor.selectedText.trim()
-                const selectedText = anchorSelectedText || anchorEditor.state.doc.textBetween(from, to, '\n', ' ')
-                const comment = await comments.createComment({
-                  type: 'inline',
-                  content,
-                  selectionStart: from,
-                  selectionEnd: to,
-                  selectedText,
-                  createdByName: userName,
-                  createdByAvatar: userAvatar
-                })
-
-                if (comment) {
-                  applyInlineCommentMark({ from, to }, comment)
-                }
-
-                panelCommentAnchorRef.current = null
-                setPendingSelection(null)
-                return
-              }
-            }
-
-            await comments.createComment({
-              type: 'document',
-              content,
-              createdByName: userName,
-              createdByAvatar: userAvatar
-            })
-            panelCommentAnchorRef.current = null
-            setPendingSelection(null)
-          }}
-          onUpdateComment={async (commentId, content) => {
-            await comments.updateComment(commentId, { content })
-          }}
-          onResolveComment={async commentId => {
-            await comments.resolveComment(commentId)
-          }}
-          onUnresolveComment={commentId => comments.unresolveComment(commentId)}
-          onDeleteComment={async commentId => {
-            await comments.deleteComment(commentId)
-          }}
-          onClose={() => {
-            setShowComments(false)
-            panelCommentAnchorRef.current = null
-            setPendingSelection(null)
-          }}
-          currentUserId={currentUserId || undefined}
-          currentUserName={currentUserName || undefined}
-          currentUserAvatar={currentUserAvatar || undefined}
-          headerHeight={80}
-          onUnhighlight={commentId => {
-            if (!editor) return
-
-            const comment = comments.comments.find(entry => entry.id === commentId) || null
-            const selection = findInlineCommentSelection(editor, commentId, comment)
-            if (!selection) return
-
-            editor.chain().setTextSelection(selection).unsetInlineComment().run()
-          }}
-          onScrollToHighlight={commentId => {
-            if (!editor) return
-
-            const comment = comments.comments.find(entry => entry.id === commentId) || null
-            const selection = findInlineCommentSelection(editor, commentId, comment)
-            if (!selection) return
-
-            editor.chain().setTextSelection(selection).focus().run()
-
-            setTimeout(() => {
-              const element = document.querySelector(`[data-comment-id="${commentId}"]`)
-              element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            }, 100)
-          }}
-          data-testid="note-comment-panel"
         />
       )}
 

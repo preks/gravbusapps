@@ -12,13 +12,26 @@ import {
   CardContent,
   Button
 } from '@newwork/nw-design-system'
-import { ChartBarIcon, LightbulbIcon, ArrowClockwiseIcon, RobotIcon, CalendarIcon } from '@phosphor-icons/react'
+import {
+  ChartBarIcon,
+  LightbulbIcon,
+  ArrowClockwiseIcon,
+  RobotIcon,
+  CalendarIcon,
+  FunnelSimpleIcon
+} from '@phosphor-icons/react'
 import { Bot } from 'lucide-react'
 import { AiActionsProps, AiAction, EnhancedAiActionsProps } from './AiActionsTypes'
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { buildAiSummaryPrompt } from '@/common/utils/buildAiSummaryPrompt'
 import { buildAiMeetingPlannerPrompt } from '@/common/utils/buildAiMeetingPlannerPrompt'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { LeadScoringPage } from '@/business-apps/crm/core/features/lead-scoring'
+
+const noopAiHook = {
+  state: null,
+  generateSummary: async () => {}
+} as any
 
 /**
  * Helper to build actions from enhanced API features
@@ -82,6 +95,16 @@ function buildActionsFromFeatures(props: EnhancedAiActionsProps): AiAction[] {
           'crm.ai.booklet.emptyState',
           'Click to generate an M&A booklet from account documents'
         )
+      }
+    }),
+    'lead-scoring': () => ({
+      key: 'ai-lead-scoring',
+      label: getTranslationFromI18nKeyAndLabel('crm.ai.leadScoring', 'Lead Scoring'),
+      icon: <FunnelSimpleIcon size={16} />,
+      hook: noopAiHook,
+      config: {
+        entityType: props.entityType,
+        requireAccessToken: true
       }
     })
   }
@@ -148,6 +171,13 @@ export const AiActions: React.FC<AiActionsProps> = props => {
       return
     }
 
+    if (action.key === 'ai-lead-scoring') {
+      setActiveAction(action.key)
+      setIsProgrammaticallyOpening(true)
+      setIsPopoverOpen(true)
+      return
+    }
+
     // For other actions, use the popover behavior
     setActiveAction(action.key)
     setIsProgrammaticallyOpening(true)
@@ -174,6 +204,27 @@ export const AiActions: React.FC<AiActionsProps> = props => {
 
   // Render popover content for a specific action
   const renderActionPopover = (action: AiAction) => {
+    if (action.key === 'ai-lead-scoring' && isEnhancedApi && props.entityType === 'lead') {
+      return (
+        <div className="gba:max-h-screen gba:overflow-y-auto gba:p-2" data-testid={`${dataTestId}-lead-scoring-panel`}>
+          <LeadScoringPage
+            accessToken={props.accessToken || ''}
+            userInfo={props.userInfo}
+            additionalData={props.additionalData}
+            prefixDataTestId={`lead-ai-actions-${props.entityId}`}
+            mode="single"
+            variant="embedded"
+            fixedLeadId={props.entityId}
+            hideLeadIdInput
+            onScored={() => {
+              closePopover()
+              props.onLeadScored?.()
+            }}
+          />
+        </div>
+      )
+    }
+
     if (action.hook.state?.type === 'loading') {
       return (
         <div className="gba:w-96 gba:p-5" data-testid="ai-action-loading">
@@ -278,6 +329,7 @@ export const AiActions: React.FC<AiActionsProps> = props => {
   }
 
   const activeActionData = activeAction ? actions.find(a => a.key === activeAction) : null
+  const isLeadScoringPanel = activeAction === 'ai-lead-scoring'
 
   return (
     <Popover
@@ -313,11 +365,15 @@ export const AiActions: React.FC<AiActionsProps> = props => {
 
       {/* PopoverContent - shows content for the active action */}
       <PopoverContent
-        side="bottom"
-        align="end"
-        className="gba:w-auto gba:max-w-none gba:min-w-0 gba:p-0 gba:rounded-lg gba:overflow-visible gba:shadow-xl gba:border-0 gba:bg-gradient-to-bl gba:from-[var(--nw-color-white)] gba:to-[var(--nw-color-blue-200)] gba:min-w-[300px] gba:max-w-[600px]"
-        sideOffset={8}
-        avoidCollisions={true}
+        side={isLeadScoringPanel ? 'left' : 'bottom'}
+        align={isLeadScoringPanel ? 'start' : 'end'}
+        className={
+          isLeadScoringPanel
+            ? 'gba:z-50 gba:w-full gba:max-w-5xl gba:min-w-0 gba:p-0 gba:rounded-lg gba:shadow-xl gba:border gba:border-border gba:bg-card gba:max-h-screen gba:overflow-hidden'
+            : 'gba:w-auto gba:max-w-none gba:min-w-0 gba:p-0 gba:rounded-lg gba:overflow-visible gba:shadow-xl gba:border-0 gba:bg-gradient-to-bl gba:from-[var(--nw-color-white)] gba:to-[var(--nw-color-blue-200)] gba:min-w-[300px] gba:max-w-[600px]'
+        }
+        sideOffset={isLeadScoringPanel ? 4 : 8}
+        avoidCollisions={!isLeadScoringPanel}
         collisionPadding={20}
       >
         {activeActionData ? renderActionPopover(activeActionData) : <div className="gba:p-4">No active action</div>}

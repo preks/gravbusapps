@@ -18,6 +18,14 @@ const CATALOG_USAGE_SPECS: Record<string, CatalogUsageCheckSpec[]> = {
   SalesLeadRating: [{ table: 'LeadAggregate', refField: 'leadRatingRef', label: 'leads' }],
   SalesLeadStatus: [{ table: 'LeadAggregate', refField: 'leadStatusRef', label: 'leads' }],
   SalesLeadSource: [{ table: 'LeadAggregate', refField: 'leadSourceRef', label: 'leads' }],
+  MarketingOptInSource: [
+    { table: 'LeadAggregate', refField: 'optInSourceRef', label: 'leads' },
+    { table: 'ContactAggregate', refField: 'optInSourceRef', label: 'contacts' }
+  ],
+  MarketingOptInStatus: [
+    { table: 'LeadAggregate', refField: 'optInStatusRef', label: 'leads' },
+    { table: 'ContactAggregate', refField: 'optInStatusRef', label: 'contacts' }
+  ],
   CustomerAccountPriority: [{ table: 'AccountAggregate', refField: 'accountPriorityRef', label: 'accounts' }],
   CustomerAccountType: [
     { table: 'OpportunityAccountAggregate', refField: 'accountTypeRef', label: 'opportunity account links' }
@@ -105,6 +113,13 @@ const CATALOG_USAGE_SPECS: Record<string, CatalogUsageCheckSpec[]> = {
   InvestmentStakeType: [
     { table: 'InvestmentAggregate', refField: 'investmentStakeTypeRef', label: 'investments' },
     { table: 'InvestmentReportAggregate', refField: 'investmentStakeTypeRef', label: 'investment reports' }
+  ],
+  LegalEntityExecutiveType: [
+    {
+      table: 'InvestmentCompanyExecutiveAggregate',
+      refField: 'executiveTypeRef',
+      label: 'investment company executives'
+    }
   ],
   InvestmentDocumentGroup: [{ table: 'InvestmentDocumentAggregate', refField: 'documentGroupRef', label: 'documents' }],
   InvestmentDocumentType: [{ table: 'InvestmentDocumentAggregate', refField: 'documentTypeRef', label: 'documents' }],

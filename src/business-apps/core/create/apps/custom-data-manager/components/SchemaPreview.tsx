@@ -177,11 +177,11 @@ export const SchemaPreview: React.FC<SchemaPreviewProps> = ({ columns, 'data-tes
             <div key={column.uiId} className="gba:space-y-2">
               <Label className="gba:flex gba:items-center gba:gap-2">
                 {getFieldIcon(column.type)}
-                {column.label || column.name}
+                {column.label || column.fieldName}
                 {column.required && <span className="gba:text-destructive">*</span>}
               </Label>
               {renderField(column, index)}
-              <p className="gba:text-xs gba:text-muted-foreground gba:font-mono">Field key: {column.name}</p>
+              <p className="gba:text-xs gba:text-muted-foreground gba:font-mono">Field key: {column.fieldName}</p>
             </div>
           ))}
         </CardContent>

@@ -1,51 +1,33 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { ColumnConfig } from '../../../../../../common/types/columnTypes'
 
-const expensePlanAllColumns: ColumnConfig[] = [
-  {
-    id: 'code',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
-      'Plan Number'
-    )
-  },
-  { id: 'title', label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title') },
-  {
-    id: 'planDate',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')
-  },
-  {
-    id: 'startDate',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')
-  },
-  {
-    id: 'endDate',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
-  },
-  {
-    id: 'status',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
-  },
-  {
-    id: 'reimbursableAmount',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')
-  },
-  {
-    id: 'advancePaymentPaidAmount',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_plan_list.expense_plan_table.paid_advance',
-      'Paid Advance'
-    )
-  }
+const EXPENSE_PLAN_COLUMNS_META: ReadonlyArray<{ id: string; labelKey: string }> = [
+  { id: 'code', labelKey: 'expense-plans-column-plan-number' },
+  { id: 'title', labelKey: 'expense-items-column-title' },
+  { id: 'planDate', labelKey: 'expense-plans-column-plan-date' },
+  { id: 'startDate', labelKey: 'personal-expenses-filter-label-start-date' },
+  { id: 'endDate', labelKey: 'expense-plans-column-end-date' },
+  { id: 'status', labelKey: 'expense-items-column-status' },
+  { id: 'reimbursableAmount', labelKey: 'expense-items-column-reimbursable' },
+  { id: 'advancePaymentPaidAmount', labelKey: 'expense-plans-column-paid-advance' }
 ]
+
+/** Stable ids for default visibility state (order matches column definitions). */
+export const EXPENSE_PLAN_TABLE_COLUMN_IDS = EXPENSE_PLAN_COLUMNS_META.map(c => c.id)
 
 /** Columns that appear in the table but are not server-sortable. */
 const EXPENSE_PLAN_NON_SORTABLE_IDS = new Set<string>(['advancePaymentPaidAmount'])
 
-export const expensePlanAvailableColumns: ColumnConfig[] = expensePlanAllColumns
+function buildExpensePlanColumnConfigs(t: (key: string) => string): ColumnConfig[] {
+  return EXPENSE_PLAN_COLUMNS_META.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))
+}
 
-export const expensePlanSortableColumns: ColumnConfig[] = expensePlanAllColumns.filter(
-  c => !EXPENSE_PLAN_NON_SORTABLE_IDS.has(c.id)
-)
+/** Column picker + visibility: labels must use the same FTL keys as `createExpensePlanColumns`. */
+export function createExpensePlanAvailableColumns(t: (key: string) => string): ColumnConfig[] {
+  return buildExpensePlanColumnConfigs(t)
+}
+
+export function createExpensePlanSortableColumns(t: (key: string) => string): ColumnConfig[] {
+  return buildExpensePlanColumnConfigs(t).filter(c => !EXPENSE_PLAN_NON_SORTABLE_IDS.has(c.id))
+}
 
 export type { ColumnConfig as AvailableColumn } from '../../../../../../common/types/columnTypes'

@@ -1,0 +1,20 @@
+# Company Ownership Popup
+validation-company-required = Company is required
+validation-owner-required = Owner company is required
+validation-percentage-min = Percentage must be at least 0
+validation-percentage-max = Percentage must be at most 100
+validation-owner-different = Owner company must be different from company
+error-load-companies = Failed to load companies
+error-load-owner-companies = Failed to load owner companies
+update-button = Update Company Ownership
+create-button = Set Company Ownership
+company-label = Company
+company-placeholder = Select company
+company-search-placeholder = Search companies...
+company-empty = No companies found
+owner-label = Owner Company
+owner-placeholder = Select owner company
+owner-search-placeholder = Search owner companies...
+owner-empty = No companies found
+percentage-label = Ownership Percentage
+percentage-placeholder = Enter percentage (optional)

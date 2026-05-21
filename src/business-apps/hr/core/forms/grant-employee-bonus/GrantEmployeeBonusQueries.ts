@@ -44,10 +44,23 @@ export const EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY = `query fetchEmployeeBankAcco
 }
 `
 
-export const GET_EMPLOYEE_REGION_ID = `query GetEmployeeRegionId($employeeId: uuid!) {
+export const GET_EMPLOYEE_REGION_ID = `query GetEmployeeRegionId($employeeId: uuid!, $today: timestamptz!) {
   Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
     id
-    workingCondition {
+    workingCondition(
+      where: {
+        isDeleted: {_eq: false}
+        _or: [
+          {activeFrom: {_isNull: true}, activeTo: {_isNull: true}}
+          {
+            activeFrom: {_lte: $today}
+            _or: [{activeTo: {_isNull: true}}, {activeTo: {_gte: $today}}]
+          }
+        ]
+      }
+      orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
+      limit: 1
+    ) {
       region {
         id
       }

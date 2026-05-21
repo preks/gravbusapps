@@ -5,6 +5,7 @@
  */
 
 import { baseContactImportFields } from '@/common/data/relations/types/contactImportConfig'
+import { contactPreviewConfig } from '@/common/data/relations/types/entityPreviewConfigs'
 import { ImportConfig, TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
 
 // IRM-specific field
@@ -13,5 +14,6 @@ const investmentContactFields: TargetFieldDefinition[] = [{ value: 'userId', lab
 export const investmentContactImportConfig: ImportConfig = {
   entityType: 'contact',
   domain: 'investment',
-  targetFields: [...baseContactImportFields, ...investmentContactFields]
+  targetFields: [...baseContactImportFields, ...investmentContactFields],
+  preview: contactPreviewConfig
 }

@@ -1,7 +1,6 @@
 # Opportunity Information Segment Translations
 
 # Labels
-company-label = Unternehmen
 opportunity-owner-label = Inhaber
 opportunity-name-label = Opportunity-Name
 forecast-label = Prognose

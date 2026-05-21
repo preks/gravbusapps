@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent } from '@newwork/nw-design-system'
+import { Button, Card, CardContent } from '@newwork/nw-design-system'
 
 export interface AnalyticsTabErrorCardProps {
   /** e.g. "Employment-tab" */
@@ -28,44 +28,18 @@ const AnalyticsTabErrorCard: React.FC<AnalyticsTabErrorCardProps> = ({
   detail,
   retryLabel,
   onRetry,
-  className = 'gba:p-4',
-  variant = detail ? 'row' : 'centered'
+  className = 'gba:p-4'
 }) => (
   <div data-testid={dataTestId} className={className}>
-    <Card
-      className={
-        variant === 'centered'
-          ? 'gba:border-destructive-secondary'
-          : 'gba:border-destructive-secondary gba:bg-destructive-secondary/50'
-      }
-    >
-      <CardContent className="gba:p-6">
-        {variant === 'centered' ? (
-          <div className="gba:text-center">
-            <p className="gba:text-destructive gba:mb-4">{message}</p>
-            <button
-              type="button"
-              onClick={onRetry}
-              className="gba:px-4 gba:py-2 gba:bg-destructive gba:text-primary-foreground gba:rounded gba:hover:bg-destructive"
-            >
-              {retryLabel}
-            </button>
-          </div>
-        ) : (
-          <div className="gba:flex gba:items-center gba:gap-4">
-            <div className="gba:flex-1">
-              <h3 className="gba:text-destructive-secondary-foreground gba:font-medium gba:mb-2">{message}</h3>
-              {detail && <p className="gba:text-destructive-secondary-foreground">{detail}</p>}
-            </div>
-            <button
-              type="button"
-              onClick={onRetry}
-              className="gba:px-4 gba:py-2 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive-secondary"
-            >
-              {retryLabel}
-            </button>
-          </div>
-        )}
+    <Card>
+      <CardContent className="gba:p-0">
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
+          <div className="gba:text-destructive gba:text-lg gba:font-medium gba:mb-2">{message}</div>
+          {detail ? <div className="gba:text-muted-foreground gba:mb-4">{detail}</div> : null}
+          <Button variant="default" onClick={onRetry}>
+            {retryLabel}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   </div>

@@ -10,13 +10,50 @@ import type {
   AgentTerminalEvent,
   ChatMessage,
   ChatMessageType,
-  DeepAgentSession
+  DeepAgentSession,
+  MessageAttachmentRef,
+  SessionAttachment,
+  StructuredInputRequestEvent
 } from '../types/enterpriseAgent'
 import { resolveRendererType } from '../types/fabric'
 import { extractLatestTodosFromEvents, isTodoListToolName } from './fabricTodoStream'
 import { humanizeSkillId } from './skillUtils'
 
 export const FABRIC_LIVE_PLAN_MESSAGE_ID = 'fabric-live-plan'
+
+/**
+ * Build a clean one-line preview from an expert sub-agent's `output` field.
+ *
+ * Expert outputs frequently contain raw HTML (e.g. an email draft like
+ * `Subject: Welcome aboard\nHTML body:\n<p>Hi John...</p>`), embedded JSON
+ * envelopes, or other markup that reads as garbage in a single-line preview.
+ * We strip tags and collapse whitespace so the preview line shows readable
+ * text instead of literal angle brackets / line-break artifacts.
+ *
+ * This is preview-only — the full card branch (`output` rendered via
+ * `MarkdownWithChipsRenderer`) still gets the original payload.
+ */
+// Cap the input we run regex sanitization over to keep the work bounded and
+// avoid any pathological backtracking / DoS risk on very large strings.
+const SUMMARIZE_MAX_INPUT_CHARS = 4000
+
+const summarizeExpertOutput = (output: unknown, maxChars = 120): string | undefined => {
+  if (typeof output !== 'string') return undefined
+  const bounded = output.length > SUMMARIZE_MAX_INPUT_CHARS ? output.slice(0, SUMMARIZE_MAX_INPUT_CHARS) : output
+  const stripped = bounded
+    .replace(/<\/?(?:br|p|div|li|tr)\b[^>]{0,200}>/gi, ' ') // block-ish tags -> space
+    .replace(/<[^>]{1,200}>/g, '') // remaining tags -> nothing
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!stripped) return undefined
+  return stripped.length > maxChars ? `${stripped.slice(0, maxChars - 1).trimEnd()}…` : stripped
+}
 
 const terminalQuestion = (output: unknown, humanQuestion?: string | null): string => {
   if (typeof humanQuestion === 'string' && humanQuestion.trim()) return humanQuestion
@@ -108,20 +145,39 @@ const toArtifactRefsFromMeta = (
     path: artifact.path || artifact.name,
     mime_type: artifact.mime_type ?? '',
     size: artifact.size ?? 0,
-    rendererType: resolveRendererType(artifact.mime_type, artifact.name)
+    rendererType: resolveRendererType(artifact.mime_type, artifact.path || artifact.name)
   }))
 
 const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
   if (chunk.role === 'human') {
+    // Rehydrate attachment refs stored in the chunk metadata (set by reply endpoint).
+    const storedRefs = chunk.metadata?.attachment_refs
+    const attachments =
+      Array.isArray(storedRefs) && storedRefs.length > 0 ? (storedRefs as MessageAttachmentRef[]) : undefined
     return {
       id: chunk.event_id,
       type: 'user_input',
       timestamp: chunk.timestamp,
-      content: chunk.content
+      content: chunk.content,
+      presentationMode: chunk.presentation_mode,
+      ...(attachments ? { attachments } : {})
     }
   }
 
   if (chunk.chunk_kind === 'response_stream') {
+    return null
+  }
+
+  // Phase 4 UX: live_status events feed the pill via liveStatusHeadline only.
+  // They must NOT enter the messages array (no transcript bubble, no stacking).
+  if (chunk.chunk_kind === 'live_status') {
+    return null
+  }
+
+  // Phase 4+ UX: ack / plan_reveal / plan_update feed the grounded plan
+  // reveal card via dedicated hook memos. None of these should enter the
+  // messages array (no transcript bubble, no row in lists).
+  if (chunk.chunk_kind === 'ack' || chunk.chunk_kind === 'plan_reveal' || chunk.chunk_kind === 'plan_update') {
     return null
   }
 
@@ -133,6 +189,7 @@ const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
       type: isStatus ? 'agent_status' : 'agent_thinking',
       timestamp: chunk.timestamp,
       content: chunk.content,
+      presentationMode: chunk.presentation_mode,
       isStreaming: chunk.chunk_kind !== 'final'
     }
   }
@@ -158,6 +215,10 @@ const readEventSeq = (event?: AgentStreamEvent): number | undefined => {
 function toolCallMessageStatus(completed: StepCompletion | undefined): 'failed' | 'done' | 'running' {
   if (!completed) return 'running'
   return completed.status === 'failed' ? 'failed' : 'done'
+}
+
+function isDefinitionLookupTool(toolName?: string): boolean {
+  return typeof toolName === 'string' && toolName.startsWith('definition:')
 }
 
 type DelegationStatus = 'running' | 'done' | 'failed'
@@ -232,7 +293,8 @@ const finalizeRunningMessagesOnTerminal = (events: AgentStreamEvent[], messages:
 
 function terminalCompletedToChatMessage(
   event: AgentTerminalEvent,
-  stepCompletions: Map<string, StepCompletion> | undefined
+  stepCompletions: Map<string, StepCompletion> | undefined,
+  previouslyShownArtifactKeys?: Set<string>
 ): ChatMessage {
   let qualityScore: number | undefined
   if (event.reflection) {
@@ -240,29 +302,32 @@ function terminalCompletedToChatMessage(
   }
   const actionsPerformed = stepCompletions
     ? [...stepCompletions.values()]
-        .filter(s => s.type === 'step_completed')
+        .filter((s): s is AgentStepCompletedEvent => s.type === 'step_completed')
+        .filter(s => !isDefinitionLookupTool(s.name))
         .map(s => ({ step: s.name ?? 'Tool call', tool: s.name, outcome: s.status ?? 'done' }))
     : undefined
-  const hasArtifacts = !!event.artifacts && event.artifacts.length > 0
+  const turnArtifacts = previouslyShownArtifactKeys
+    ? (event.artifacts ?? []).filter(a => !previouslyShownArtifactKeys.has(`${a.path}:${a.size ?? 0}`))
+    : (event.artifacts ?? [])
+  const hasArtifacts = turnArtifacts.length > 0
   const hasWorkspaceDocs = !!event.workspace_documents && event.workspace_documents.length > 0
   const hasActions = !!actionsPerformed && actionsPerformed.length > 0
-  // Instant replies (greeting / capability fast-path) come back with duration_ms=0
-  // and no side-effect artifacts; reveal them progressively so they don't slam
-  // into view like a wall of text.
   const isInstant = event.duration_ms === 0 && !hasArtifacts && !hasWorkspaceDocs && !hasActions
   return {
     id: event.event_id,
     type: 'final_answer',
     timestamp: event.timestamp ?? new Date().toISOString(),
+    presentationMode: event.presentation_mode,
     content: {
       output: event.output ?? '',
+      presentationMode: event.presentation_mode,
       todos: event.todos,
       recommendations: event.reflection?.missing_steps?.join('\n'),
       qualityScore,
       actionsPerformed,
       durationMs: event.duration_ms,
       costSummary: event.cost_summary ?? undefined,
-      artifacts: toArtifactRefsFromMeta(event.artifacts),
+      artifacts: toArtifactRefsFromMeta(turnArtifacts),
       workspaceDocuments: event.workspace_documents,
       isInstant
     }
@@ -275,14 +340,16 @@ function terminalWaitingToChatMessage(event: AgentTerminalEvent): ChatMessage {
       id: event.event_id,
       type: 'structured_input_request',
       timestamp: event.timestamp ?? new Date().toISOString(),
-      content: event.structured_input_request
+      content: event.structured_input_request,
+      presentationMode: event.presentation_mode
     }
   }
   return {
     id: event.event_id,
     type: 'human_interrupt',
     timestamp: event.timestamp ?? new Date().toISOString(),
-    content: { question: terminalQuestion(event.output, event.human_question) }
+    content: { question: terminalQuestion(event.output, event.human_question) },
+    presentationMode: event.presentation_mode
   }
 }
 
@@ -293,16 +360,18 @@ function terminalOtherToChatMessage(event: AgentTerminalEvent): ChatMessage {
     timestamp: event.timestamp ?? new Date().toISOString(),
     content: {
       message: event.status === 'cancelled' ? 'Session was cancelled.' : (event.output ?? 'Session failed')
-    }
+    },
+    presentationMode: event.presentation_mode
   }
 }
 
 function terminalEventToChatMessage(
   event: AgentTerminalEvent,
-  stepCompletions?: Map<string, StepCompletion>
+  stepCompletions?: Map<string, StepCompletion>,
+  previouslyShownArtifactKeys?: Set<string>
 ): ChatMessage {
   if (event.status === 'completed') {
-    return terminalCompletedToChatMessage(event, stepCompletions)
+    return terminalCompletedToChatMessage(event, stepCompletions, previouslyShownArtifactKeys)
   }
   if (event.status === 'waiting_for_human') {
     return terminalWaitingToChatMessage(event)
@@ -372,7 +441,8 @@ function appendLivePlanIfNeeded(sortedEvents: AgentStreamEvent[], messages: Chat
 
 export function eventToMessage(
   event: AgentStreamEvent,
-  stepCompletions?: Map<string, StepCompletion>
+  stepCompletions?: Map<string, StepCompletion>,
+  previouslyShownArtifactKeys?: Set<string>
 ): ChatMessage | null {
   switch (event.type) {
     case 'agent_chunk':
@@ -425,7 +495,7 @@ export function eventToMessage(
           task: event.task_summary ?? agentName,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
-          outputPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
+          outputPreview: summarizeExpertOutput(completed?.output)
         }
       }
     }
@@ -442,7 +512,7 @@ export function eventToMessage(
           task: event.task_summary ?? agentName,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
-          outputPreview: completed?.output ? String(completed.output).slice(0, 120) : undefined
+          outputPreview: summarizeExpertOutput(completed?.output)
         }
       }
     }
@@ -452,7 +522,8 @@ export function eventToMessage(
         id: event.event_id,
         type: 'structured_input_request',
         timestamp: event.timestamp,
-        content: event
+        content: event,
+        presentationMode: event.presentation_mode
       }
     }
 
@@ -464,7 +535,15 @@ export function eventToMessage(
           id: event.event_id,
           type: 'structured_input_request',
           timestamp: event.timestamp,
+          presentationMode: event.presentation_mode,
           content: {
+            // Spread the full backend payload first so form-specific extras
+            // (e.g. `email_draft` / `email_accounts` for compose_email,
+            // `action_requests` / `review_configs` for tool_permission) are
+            // preserved. Without this the EmailComposerBubble would fall back
+            // to the generic StructuredInputForm (empty fields → useless
+            // Submit button) because `email_draft` was being dropped.
+            ...payload,
             type: 'structured_input_request',
             seq: event.seq,
             event_id: event.event_id,
@@ -476,19 +555,20 @@ export function eventToMessage(
             allow_partial_submit: Boolean(payload.allow_partial_submit),
             tool_ref: typeof payload.tool_ref === 'string' ? payload.tool_ref : undefined,
             request_status: event.request.status === 'pending' ? undefined : event.request.status
-          }
+          } as unknown as StructuredInputRequestEvent
         }
       }
       return {
         id: event.event_id,
         type: 'human_interrupt',
         timestamp: event.timestamp,
-        content: { question: event.request.description || event.request.title }
+        content: { question: event.request.description || event.request.title },
+        presentationMode: event.presentation_mode
       }
     }
 
     case 'terminal':
-      return terminalEventToChatMessage(event, stepCompletions)
+      return terminalEventToChatMessage(event, stepCompletions, previouslyShownArtifactKeys)
 
     case 'error':
       return {
@@ -511,43 +591,69 @@ export function eventToMessage(
   }
 }
 
+function trackShownArtifacts(event: AgentStreamEvent, shownKeys: Set<string>): void {
+  if (event.type === 'terminal' && event.status === 'completed' && event.artifacts) {
+    for (const a of event.artifacts) {
+      if (a.path) shownKeys.add(`${a.path}:${a.size ?? 0}`)
+    }
+  }
+}
+
+function dedupeExpertCall(
+  message: ChatMessage,
+  messages: ChatMessage[],
+  expertCallIndexByKey: Map<string, number>,
+  seenIds: Set<string>
+): boolean {
+  if (message.type !== 'expert_call') return false
+  const content = message.content as ExpertCallContent
+  const key = expertCallDedupeKey(content)
+  const existingIdx = expertCallIndexByKey.get(key)
+  if (existingIdx !== undefined) {
+    const existing = messages[existingIdx]
+    const existingContent = existing.content as ExpertCallContent
+    messages[existingIdx] = {
+      ...existing,
+      content: mergeExpertCallContent(existingContent, content)
+    }
+    seenIds.add(message.id)
+    return true
+  }
+  expertCallIndexByKey.set(key, messages.length)
+  return false
+}
+
 export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessage[] {
   const seenIds = new Set<string>()
   const messages: ChatMessage[] = []
   const sortedEvents = sortAgentEventsBySeq(events)
   const stepCompletions = collectStepCompletions(sortedEvents)
 
-  // Same logical expert (same agent + same task) may be spawned several times
-  // (e.g. retries across HITL turns) with different `step_id`s, producing
-  // distinct messages that the user perceives as duplicates — and some of
-  // those spawns never receive a matching completion, leaving spinners spinning
-  // forever. We keep only the first occurrence and merge subsequent spawns'
-  // status into it so the richest outcome wins.
+  // Backend emits HITL pauses twice: once as an explicit `hitl_requested`
+  // (or `structured_input_request`) event, and again as a `terminal` event
+  // with `status: 'waiting_for_human'`. Both have distinct event_ids, so
+  // dedupe-by-id can't catch them and the chat renders two identical
+  // "Agent has a question" bubbles. When an explicit HITL event exists in
+  // the same stream, suppress the terminal-derived HITL bubble — the
+  // explicit event carries richer info (title, description, fields).
+  const hasExplicitHitlEvent = sortedEvents.some(
+    e => e.type === 'hitl_requested' || e.type === 'structured_input_request'
+  )
+
   const expertCallIndexByKey = new Map<string, number>()
+  const shownArtifactKeys = new Set<string>()
 
   for (const event of sortedEvents) {
-    const message = eventToMessage(event, stepCompletions)
-    if (!message || seenIds.has(message.id)) continue
-
-    if (message.type === 'expert_call') {
-      const content = message.content as ExpertCallContent
-      const key = expertCallDedupeKey(content)
-      const existingIdx = expertCallIndexByKey.get(key)
-      if (existingIdx !== undefined) {
-        const existing = messages[existingIdx]
-        const existingContent = existing.content as ExpertCallContent
-        messages[existingIdx] = {
-          ...existing,
-          content: mergeExpertCallContent(existingContent, content)
-        }
-        seenIds.add(message.id)
-        continue
-      }
-      expertCallIndexByKey.set(key, messages.length)
+    if (event.type === 'terminal' && event.status === 'waiting_for_human' && hasExplicitHitlEvent) {
+      continue
     }
+    const message = eventToMessage(event, stepCompletions, shownArtifactKeys)
+    if (!message || seenIds.has(message.id)) continue
+    if (dedupeExpertCall(message, messages, expertCallIndexByKey, seenIds)) continue
 
     seenIds.add(message.id)
     messages.push(message)
+    trackShownArtifacts(event, shownArtifactKeys)
   }
 
   finalizeRunningMessagesOnTerminal(sortedEvents, messages)
@@ -597,6 +703,7 @@ function stepStartedActivity(
   stepCompletions: Map<string, StepCompletion>
 ): ActivityEvent | null {
   if (isTodoListToolName(e.name)) return null
+  if (isDefinitionLookupTool(e.name)) return null
   const completed = stepCompletions.get(e.step_id)
   const isMemoryTool = MEMORY_TOOLS.has(e.name ?? '')
   const isSkillLoad = e.name === 'skill_load'
@@ -614,8 +721,16 @@ function stepStartedActivity(
   }
 }
 
-function stepCompletedActivity(e: Extract<AgentStreamEvent, { type: 'step_completed' }>): ActivityEvent | null {
+function stepCompletedActivity(
+  e: Extract<AgentStreamEvent, { type: 'step_completed' }>,
+  startedStepIds: Set<string>
+): ActivityEvent | null {
   if (isTodoListToolName(e.name)) return null
+  if (isDefinitionLookupTool(e.name)) return null
+  // The started row already merges completion status and duration through
+  // collectStepCompletions(). Emitting the completion again makes one real
+  // tool call appear as two identical "tool — done" activity rows.
+  if (startedStepIds.has(e.step_id)) return null
   const isMemoryTool = MEMORY_TOOLS.has(e.name ?? '')
   // Memory tools already got a single summary row on start; we omit
   // the result row to keep the feed concise (the duration on the
@@ -668,6 +783,11 @@ function reflectionActivity(events: AgentStreamEvent[]): ActivityEvent | null {
 
 export function deriveActivityFromEvents(events: AgentStreamEvent[]): ActivityEvent[] {
   const stepCompletions = collectStepCompletions(events)
+  const startedStepIds = new Set(
+    events
+      .filter((e): e is Extract<AgentStreamEvent, { type: 'step_started' }> => e.type === 'step_started')
+      .map(e => e.step_id)
+  )
   const activityEvents: ActivityEvent[] = []
 
   for (const e of events) {
@@ -675,7 +795,7 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]): ActivityEv
     if (e.type === 'step_started') {
       row = stepStartedActivity(e, stepCompletions)
     } else if (e.type === 'step_completed') {
-      row = stepCompletedActivity(e)
+      row = stepCompletedActivity(e, startedStepIds)
     } else if (e.type === 'subagent_spawned' || e.type === 'expert_called') {
       row = delegationActivity(e, stepCompletions)
     }
@@ -688,11 +808,29 @@ export function deriveActivityFromEvents(events: AgentStreamEvent[]): ActivityEv
   return activityEvents
 }
 
+function sessionAttachmentsToRefs(
+  attachments?: Array<SessionAttachment | MessageAttachmentRef>
+): MessageAttachmentRef[] | undefined {
+  if (!attachments || attachments.length === 0) return undefined
+  return attachments.map(a => ({
+    id: a.id,
+    name: a.name,
+    mime_type: a.mime_type,
+    size: a.size,
+    indexing_status: a.indexing_status,
+    // preview_url is client-only and survives on MessageAttachmentRef snapshots;
+    // it won't be present on server-reloaded sessions (accepted limitation).
+    preview_url: a.preview_url
+  }))
+}
+
 export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
   // Derive messages from the trace - the server's authoritative record.
   // The trace is already in correct chronological/seq order from the backend.
   // Do NOT re-sort or add synthetic messages - trust the server order.
   const traceMessages = deriveMessagesFromEvents(session.trace ?? [])
+
+  const sessionAttachmentRefs = sessionAttachmentsToRefs(session.session_attachments)
 
   // If the trace doesn't include the initial user message (older sessions),
   // prepend it. But check if it's already in the trace first.
@@ -702,13 +840,34 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
     // Find the first seq in the trace to create a proper ID for sorting
     const firstSeq = readEventSeq(session.trace?.[0])
     const syntheticSeq = typeof firstSeq === 'number' ? firstSeq - 1 : 0
+    // Snapshot current session attachments onto the synthesised first
+    // user_input so the chip survives the brief window between
+    // `startSession()` returning and the real trace arriving. On full
+    // reload the trace doesn't carry per-turn attachments — that's the
+    // accepted Option-A limitation (see C4 in the doc-ux plan).
     const initialUserMessage: ChatMessage = {
       id: `${session.session_id}:${syntheticSeq}`,
       type: 'user_input',
       timestamp: session.created_at,
-      content: session.input
+      content: session.input,
+      ...(sessionAttachmentRefs ? { attachments: sessionAttachmentRefs } : {})
     }
     return [initialUserMessage, ...traceMessages]
+  }
+
+  // The trace has the initial user message but lacks attachment refs (they are
+  // not persisted in the server event stream). Enrich the first user_input
+  // message with the session's attachment list so the chips always render.
+  if (sessionAttachmentRefs && sessionAttachmentRefs.length > 0) {
+    let enriched = false
+    const enrichedMessages = traceMessages.map(msg => {
+      if (!enriched && msg.type === 'user_input' && !msg.attachments) {
+        enriched = true
+        return { ...msg, attachments: sessionAttachmentRefs }
+      }
+      return msg
+    })
+    return enrichedMessages
   }
 
   return traceMessages

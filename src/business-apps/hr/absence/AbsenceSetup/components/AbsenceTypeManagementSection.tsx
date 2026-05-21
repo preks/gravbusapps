@@ -1,4 +1,4 @@
-import { Layers } from 'lucide-react'
+import { SquaresFourIcon } from '@phosphor-icons/react'
 import {
   Card,
   CardContent,
@@ -35,7 +35,7 @@ export function AbsenceTypeManagementSection({
       <CardHeader className="gba:border-b gba:border-border gba:bg-muted/20">
         <div className="gba:flex gba:items-start gba:gap-4">
           <div className="gba:flex gba:h-11 gba:w-11 gba:items-center gba:justify-center gba:rounded-xl gba:bg-background">
-            <Layers className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
+            <SquaresFourIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
           </div>
           <div className="gba:min-w-0 gba:flex-1">
             <CardTitle>{t('absence-type-management-title')}</CardTitle>

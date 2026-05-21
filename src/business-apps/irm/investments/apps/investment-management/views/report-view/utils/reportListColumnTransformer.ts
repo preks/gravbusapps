@@ -17,7 +17,7 @@ import type { ColumnConfig } from '../hooks/useReportFilters'
 import type { UseFilterGroupsResult } from '@/common/data/common/hooks/useFilterGroups'
 import { INVESTMENT_REPORT_DESCRIPTORS } from '@/common/data/investment/types/investmentReportTypes'
 import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/utils/filterHelpers'
-import type { ReportSectionKind } from './subSectionHelpers'
+import { belongsToParent, shouldUseLiquidFundTypeSections, type ReportSectionKind } from './subSectionHelpers'
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -169,6 +169,18 @@ export const getAggregatedReportFields = (
   const groupEntry = catalogData?.investmentGroups?.find((e: any) => e.code === groupCode)
   const groupFields = getDisplayFields(groupEntry?.objectValue)
 
+  if (sectionCode === 'all') {
+    const investmentTypeEntries = (catalogData?.investmentTypes ?? []).filter((entry: any) =>
+      belongsToParent(entry, groupEntry)
+    )
+    const investmentTypeFields = investmentTypeEntries.flatMap((entry: any) => getDisplayFields(entry.objectValue))
+    const liquidFundTypeFields = shouldUseLiquidFundTypeSections(groupEntry, catalogData)
+      ? (catalogData?.investmentLiquidFundTypes ?? []).flatMap((entry: any) => getDisplayFields(entry.objectValue))
+      : []
+
+    return dedupeByColumnId([groupFields, investmentTypeFields, liquidFundTypeFields])
+  }
+
   if (sectionKind === 'liquidFundType' && sectionCode) {
     // LEVEL 1: most specific — liquid fund type
     const lfTypeEntry = catalogData?.investmentLiquidFundTypes?.find((e: any) => e.code === sectionCode)
@@ -211,6 +223,111 @@ const buildInvestmentFilterGroup = (): FilterGroup => ({
       config: {
         options: [],
         searchPlaceholder: 'Search investments…',
+        totalCount: 0,
+        hasMore: false
+      }
+    }
+  ]
+})
+
+const buildInvestmentTypeFilterGroup = (): FilterGroup => ({
+  id: 'investmentTypeIds-group',
+  label: 'Investment Type',
+  collapsible: true,
+  defaultExpanded: false,
+  filters: [
+    {
+      id: 'investmentTypeIds',
+      field: 'investmentTypeIds',
+      label: 'Investment Type',
+      type: 'multi-select',
+      config: {
+        options: [],
+        searchPlaceholder: 'Search investment types...',
+        totalCount: 0,
+        hasMore: false
+      }
+    }
+  ]
+})
+
+const buildLiquidFundTypeFilterGroup = (): FilterGroup => ({
+  id: 'investmentLiquidFundTypeIds-group',
+  label: 'Liquid Fund Type',
+  collapsible: true,
+  defaultExpanded: false,
+  filters: [
+    {
+      id: 'investmentLiquidFundTypeIds',
+      field: 'investmentLiquidFundTypeIds',
+      label: 'Liquid Fund Type',
+      type: 'multi-select',
+      config: {
+        options: [],
+        searchPlaceholder: 'Search liquid fund types...',
+        totalCount: 0,
+        hasMore: false
+      }
+    }
+  ]
+})
+
+const buildLinkedInvestmentOwnerFilterGroup = (): FilterGroup => ({
+  id: 'ownerEmployeeIds-group',
+  label: 'Owner',
+  collapsible: true,
+  defaultExpanded: true,
+  filters: [
+    {
+      id: 'ownerEmployeeIds',
+      field: 'ownerEmployeeIds',
+      label: 'Owner',
+      type: 'multi-select',
+      config: {
+        options: [],
+        searchPlaceholder: 'Search owners...',
+        totalCount: 0,
+        hasMore: false
+      }
+    }
+  ]
+})
+
+const buildLinkedInvestmentAccountFilterGroup = (): FilterGroup => ({
+  id: 'investmentAccountIds-group',
+  label: 'Account',
+  collapsible: true,
+  defaultExpanded: false,
+  filters: [
+    {
+      id: 'investmentAccountIds',
+      field: 'investmentAccountIds',
+      label: 'Account',
+      type: 'multi-select',
+      config: {
+        options: [],
+        searchPlaceholder: 'Search accounts...',
+        totalCount: 0,
+        hasMore: false
+      }
+    }
+  ]
+})
+
+const buildLinkedInvestmentStatusFilterGroup = (): FilterGroup => ({
+  id: 'linkedInvestmentStatusIds-group',
+  label: 'Status',
+  collapsible: true,
+  defaultExpanded: false,
+  filters: [
+    {
+      id: 'linkedInvestmentStatusIds',
+      field: 'linkedInvestmentStatusIds',
+      label: 'Status',
+      type: 'multi-select',
+      config: {
+        options: [],
+        searchPlaceholder: 'Search statuses...',
         totalCount: 0,
         hasMore: false
       }
@@ -286,6 +403,34 @@ export interface ReportListConfiguration {
   filterConfiguration: FilterConfiguration
 }
 
+interface BuildReportConfigurationOptions {
+  includeInvestmentTypeFilter?: boolean
+  includeLiquidFundTypeFilter?: boolean
+  includeInvestmentTypeColumn?: boolean
+  includeLiquidFundTypeColumn?: boolean
+}
+
+const getBaseFilterGroups = (options: BuildReportConfigurationOptions): FilterGroup[] => {
+  const groups: FilterGroup[] = []
+
+  if (options.includeInvestmentTypeFilter) {
+    groups.push(buildInvestmentTypeFilterGroup())
+  }
+
+  if (options.includeLiquidFundTypeFilter) {
+    groups.push(buildLiquidFundTypeFilterGroup())
+  }
+
+  groups.push(
+    buildInvestmentFilterGroup(),
+    buildLinkedInvestmentOwnerFilterGroup(),
+    buildLinkedInvestmentAccountFilterGroup(),
+    buildLinkedInvestmentStatusFilterGroup()
+  )
+
+  return groups
+}
+
 /**
  * Build column picker, sortable columns, and filter config from a resolved
  * list of catalog form fields.
@@ -297,13 +442,29 @@ export interface ReportListConfiguration {
 export const buildReportConfigurationFromFields = (
   fields: FormFieldLike[],
   entityPrefix: string,
-  filterGroups: UseFilterGroupsResult
+  filterGroups: UseFilterGroupsResult,
+  options: BuildReportConfigurationOptions = {}
 ): ReportListConfiguration => {
   const columnConfig: ColumnConfig[] = [...BASE_COLUMN_CONFIG]
   const sortableColumns: Array<{ id: string; label: string }> = [...BASE_SORTABLE_COLUMNS]
-  const filterGroupsList: FilterGroup[] = [buildInvestmentFilterGroup()]
-  const seenFilterIds = new Set<string>(['investmentIds'])
+  const filterGroupsList: FilterGroup[] = getBaseFilterGroups(options)
+  const seenFilterIds = new Set<string>([
+    ...(options.includeInvestmentTypeFilter ? ['investmentTypeIds'] : []),
+    ...(options.includeLiquidFundTypeFilter ? ['investmentLiquidFundTypeIds'] : []),
+    'investmentIds',
+    'ownerEmployeeIds',
+    'investmentAccountIds',
+    'linkedInvestmentStatusIds'
+  ])
   const seenSortIds = new Set<string>(['investment', 'date'])
+
+  if (options.includeInvestmentTypeColumn) {
+    columnConfig.push({ id: 'investmentType', label: 'Investment Type', visible: true })
+  }
+
+  if (options.includeLiquidFundTypeColumn) {
+    columnConfig.push({ id: 'investmentLiquidFundType', label: 'Liquid Fund Type', visible: true })
+  }
 
   for (const field of fields) {
     // Column picker — always include (no descriptor required)
@@ -369,5 +530,15 @@ export const buildReportConfiguration = (
   sectionKind?: ReportSectionKind
 ): ReportListConfiguration => {
   const fields = getAggregatedReportFields(groupCode, sectionCode, catalogData, sectionKind)
-  return buildReportConfigurationFromFields(fields, entityPrefix, filterGroups)
+  const groupEntry = catalogData?.investmentGroups?.find((entry: any) => entry.code === groupCode)
+  const isAllSection = sectionCode === 'all'
+  const includeLiquidFundType = isAllSection && shouldUseLiquidFundTypeSections(groupEntry, catalogData)
+  const options: BuildReportConfigurationOptions = {
+    includeInvestmentTypeFilter: isAllSection,
+    includeLiquidFundTypeFilter: includeLiquidFundType,
+    includeInvestmentTypeColumn: isAllSection,
+    includeLiquidFundTypeColumn: includeLiquidFundType
+  }
+
+  return buildReportConfigurationFromFields(fields, entityPrefix, filterGroups, options)
 }

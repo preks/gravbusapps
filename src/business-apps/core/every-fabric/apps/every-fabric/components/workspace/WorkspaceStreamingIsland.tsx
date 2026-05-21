@@ -2,6 +2,7 @@ import { BrainIcon, CaretDownIcon, CaretUpIcon, WifiHighIcon, WifiXIcon } from '
 import type { FC } from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMessage } from '../../types/enterpriseAgent'
+import { StreamingPreviewBubble } from '../chat/StreamingPreviewBubble'
 
 const THINKING_TAIL = 16
 const FADE_OUT_DURATION_MS = 300
@@ -31,6 +32,13 @@ interface WorkspaceStreamingIslandProps {
   messages: ChatMessage[]
   /** One line for current plan step / progress (Progress rail remains canonical for full list) */
   statusHeadline: string | null
+  /**
+   * Recent agent activity lines (oldest first, newest last) — derived from
+   * real-time status / live_status / step_started events. Feeds the flowing
+   * StreamingPreviewBubble inside the island so the user sees more context
+   * than the single status pill above.
+   */
+  activityLines?: readonly string[]
   completedCount: number
   totalCount: number
   progressPercent: number
@@ -42,20 +50,25 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
   sessionId,
   messages,
   statusHeadline,
+  activityLines,
   completedCount,
   totalCount,
   progressPercent,
   isConnected,
   isStreaming
 }) => {
-  const [expanded, setExpanded] = useState(true)
+  // Collapsed by default — the island shows a single thin pill above the
+  // composer with the current status, and the user can click it open if they
+  // want to see the thinking stream. Reset to collapsed whenever the active
+  // session changes so a new chat never starts expanded.
+  const [expanded, setExpanded] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [isFadingOut, setIsFadingOut] = useState(false)
   const thinkingScrollRef = useRef<HTMLDivElement>(null)
   const fadeOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    setExpanded(true)
+    setExpanded(false)
   }, [sessionId])
 
   useEffect(() => {
@@ -168,6 +181,7 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
               {statusHeadline}
             </p>
           ) : null}
+          <StreamingPreviewBubble activityLines={activityLines ?? []} isStreaming={isStreaming} variant="compact" />
         </div>
         <div className="gba:flex gba:shrink-0 gba:items-center gba:gap-1 gba:border-l gba:border-border/40 gba:pl-2">
           {isConnected ? (

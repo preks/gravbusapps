@@ -1,6 +1,7 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import ExpenseRequestDetails from '../details/ExpenseRequestDetails'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import personalTranslations from '../../../../_i18n'
 import { PrintPreviewDialog, DetailsSheet } from '../../../shared/TableSharedComponents'
 import { ExpenseRequestsDataBody } from './components/ExpenseRequestsDataBody'
 import { useExpenseRequestsTableModel } from '../hooks/useExpenseRequestsTableModel'
@@ -9,6 +10,7 @@ import type { ExpenseRequestsTableProps } from '../types/expenseRequestsTable.ty
 export type { ExpenseRequestsTableProps } from '../types/expenseRequestsTable.types'
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(props => {
+  const { t } = useTranslation(personalTranslations)
   const model = useExpenseRequestsTableModel(props)
 
   return (
@@ -18,13 +20,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       <DetailsSheet
         open={!!model.selectedItem}
         onOpenChange={open => !open && model.handleCloseDetails()}
-        title={
-          model.selectedItem?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-            'Expense Request Details'
-          )
-        }
+        title={model.selectedItem?.title || t('personal-expenses-expense-request-details-title')}
         testId="expense-request-details-sheet"
       >
         {model.selectedItem ? (
@@ -43,10 +39,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
           model.setPrintModalOpen(open)
           if (!open) model.setPrintPdfUrl('')
         }}
-        title={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.print_expense_request',
-          'Print Expense Request'
-        )}
+        title={t('personal-expenses-print-expense-request')}
         loading={model.printLoading}
         pdfUrl={model.printPdfUrl}
         testIdPrefix="expense-request"

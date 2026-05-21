@@ -147,6 +147,9 @@ export interface ExpenseRequestRecord {
     lastName?: string
     pictureThumbnail?: string
     employeePosition?: {
+      costCenter?: {
+        name: string
+      }
       supervisor?: {
         fullName: string
         firstName?: string

@@ -12,6 +12,8 @@ import { GeoZone } from '@/business-apps/mdm/apps/organizational-data/types/GeoZ
 import { FormWrapperModal } from '@/components/form-wrapper'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import {
   AddressAutocomplete,
   mapGeoapifyToFormValues,
@@ -73,6 +75,9 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { t } = useTranslation('master-data')
   const orgchartClient = useOrgchartClient(accessToken)
+  const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
+  const showAddressAutocompleteMap = Boolean(isDevEnabled)
+  const isAddressReadonly = showAddressAutocompleteMap
   const [regions, setRegions] = useState<Array<{ value: string; label: string; code: string }>>([])
   const [isLoadingRegions, setIsLoadingRegions] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -347,21 +352,23 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
           )}
         />
 
-        <AddressAutocomplete
-          form={form}
-          catalogs={{ countries, regions: getRegionsForCountry(getCountryCodeFromId(selectedCountryId)) }}
-          fieldNames={{
-            countryId: 'country',
-            regionId: 'region',
-            addressLines: 'addressLines',
-            postalCode: 'postalCode',
-            city: 'city',
-            latitude: 'latitude',
-            longitude: 'longitude'
-          }}
-          testIdPrefix={`${dataTestId}-address-autocomplete`}
-          resolveMappedAddress={resolveMappedAddress}
-        />
+        {showAddressAutocompleteMap && (
+          <AddressAutocomplete
+            form={form}
+            catalogs={{ countries, regions: getRegionsForCountry(getCountryCodeFromId(selectedCountryId)) }}
+            fieldNames={{
+              countryId: 'country',
+              regionId: 'region',
+              addressLines: 'addressLines',
+              postalCode: 'postalCode',
+              city: 'city',
+              latitude: 'latitude',
+              longitude: 'longitude'
+            }}
+            testIdPrefix={`${dataTestId}-address-autocomplete`}
+            resolveMappedAddress={resolveMappedAddress}
+          />
+        )}
 
         {/* Country Field */}
         <FormField
@@ -375,17 +382,38 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
             <FormItem>
               <FormLabel>{t('forms.siteLocation.fields.country.label', { defaultValue: 'Country' })} *</FormLabel>
               <FormControl>
-                <Input
-                  name={field.name}
-                  ref={field.ref}
-                  onBlur={field.onBlur}
-                  value={countriesOptions.find(country => country.value === field.value)?.label || ''}
-                  placeholder={t('forms.siteLocation.fields.country.placeholder', {
-                    defaultValue: 'Select country'
-                  })}
-                  readOnly
-                  data-testid={`${dataTestId}-country-input`}
-                />
+                {isAddressReadonly ? (
+                  <Input
+                    name={field.name}
+                    ref={field.ref}
+                    onBlur={field.onBlur}
+                    value={countriesOptions.find(country => country.value === field.value)?.label || ''}
+                    placeholder={t('forms.siteLocation.fields.country.placeholder', {
+                      defaultValue: 'Select country'
+                    })}
+                    readOnly
+                    data-testid={`${dataTestId}-country-input`}
+                  />
+                ) : (
+                  <Combobox
+                    options={countriesOptions}
+                    value={field.value}
+                    onValueChange={value => {
+                      field.onChange(value)
+                      form.setValue('region', '', { shouldDirty: true, shouldValidate: true })
+                    }}
+                    placeholder={t('forms.siteLocation.fields.country.placeholder', {
+                      defaultValue: 'Select country'
+                    })}
+                    searchPlaceholder={t('forms.siteLocation.fields.country.searchPlaceholder', {
+                      defaultValue: 'Search countries...'
+                    })}
+                    emptyText={t('forms.siteLocation.fields.country.emptyText', {
+                      defaultValue: 'No countries found.'
+                    })}
+                    data-testid={`${dataTestId}-country-combobox`}
+                  />
+                )}
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -419,7 +447,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
                     emptyText={t('forms.siteLocation.fields.region.emptyText', {
                       defaultValue: 'No regions found.'
                     })}
-                    disabled
+                    disabled={isAddressReadonly || isLoadingRegions}
                     data-testid={`${dataTestId}-region-combobox`}
                   />
                 </FormControl>
@@ -485,7 +513,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
                   placeholder={t('forms.siteLocation.fields.city.placeholder', {
                     defaultValue: 'Enter city'
                   })}
-                  readOnly
+                  readOnly={isAddressReadonly}
                   data-testid={`${dataTestId}-city-input`}
                 />
               </FormControl>
@@ -518,7 +546,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
                   placeholder={t('forms.siteLocation.fields.streetAddress.placeholder', {
                     defaultValue: 'Enter street address'
                   })}
-                  readOnly
+                  readOnly={isAddressReadonly}
                   data-testid={`${dataTestId}-street-address-input`}
                 />
               </FormControl>
@@ -611,7 +639,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
                   placeholder={t('forms.siteLocation.fields.postalCode.placeholder', {
                     defaultValue: 'Enter postal code'
                   })}
-                  readOnly
+                  readOnly={isAddressReadonly}
                   data-testid={`${dataTestId}-postal-code-input`}
                 />
               </FormControl>

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { FunctionsServiceClient } from '@/common/network/functions/FunctionsServiceClient'
-import { buildCredentialBindOptions, type CredentialBindOption } from '@/common/utils/credentialBindOptions'
+import { buildCredentialBindOptionsFromList, type CredentialBindOption } from '@/common/utils/credentialBindOptions'
 
-/** Loads standalone credentials + credential bundle slots for shared pickers (functions, connections, tools). */
+/** Loads credential field refs for shared pickers (functions, connections, tools). */
 export function useCredentialBindOptions(accessToken: string | undefined) {
   const [credentialBindOptions, setCredentialBindOptions] = useState<CredentialBindOption[]>([])
 
@@ -12,25 +12,13 @@ export function useCredentialBindOptions(accessToken: string | undefined) {
       return
     }
     const client = new FunctionsServiceClient(accessToken)
-    let secrets: Awaited<ReturnType<FunctionsServiceClient['listSecrets']>> = []
+    let list: Awaited<ReturnType<FunctionsServiceClient['listCredentials']>> = []
     try {
-      secrets = await client.listSecrets()
+      list = await client.listCredentials(undefined, true)
     } catch {
-      secrets = []
+      list = []
     }
-    let bundleItems: Awaited<ReturnType<FunctionsServiceClient['listSecretBundles']>>['items'] = []
-    try {
-      const bundlesPage = await client.listSecretBundles({ limit: 100, offset: 0, includeSlots: true })
-      bundleItems = bundlesPage?.items || []
-    } catch {
-      bundleItems = []
-    }
-    setCredentialBindOptions(
-      buildCredentialBindOptions(
-        (secrets || []).map(s => ({ id: s.id, displayName: s.displayName })),
-        bundleItems
-      )
-    )
+    setCredentialBindOptions(buildCredentialBindOptionsFromList(list || []))
   }, [accessToken])
 
   useEffect(() => {

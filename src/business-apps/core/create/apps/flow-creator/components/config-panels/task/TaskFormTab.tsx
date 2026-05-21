@@ -1,17 +1,17 @@
 import React from 'react'
 import { FormBuilder } from '../../form-builder'
 import type { InputBlock } from '@/common/data/flow/types/flowTemplate'
-import type { DesignerMode, TaskNodeConfig } from '../../../types/studioTypes'
+import type { DesignerMode, FlowStudioUpdateOptions, TaskNodeConfig } from '../../../types/studioTypes'
 import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
 
 interface TaskFormTabProps {
   mode: DesignerMode
   config: TaskNodeConfig
   studioData: FlowStudioData
-  update: (partial: Partial<TaskNodeConfig>) => void
+  update: (partial: Partial<TaskNodeConfig>, options?: FlowStudioUpdateOptions) => void
   title: string
   testId: string
-  onFieldKeyRename?: (rename: { oldKey: string; newKey: string }) => void
+  onFieldKeyRename?: (rename: { oldKey: string; newKey: string }, options?: FlowStudioUpdateOptions) => void
 }
 
 export const TaskFormTab: React.FC<TaskFormTabProps> = ({
@@ -26,7 +26,7 @@ export const TaskFormTab: React.FC<TaskFormTabProps> = ({
   return (
     <FormBuilder
       fields={config.form ?? []}
-      onChange={(fields: InputBlock[]) => update({ form: fields })}
+      onChange={(fields: InputBlock[], options?: FlowStudioUpdateOptions) => update({ form: fields }, options)}
       onFieldKeyRename={onFieldKeyRename}
       mode={mode}
       catalogs={studioData.catalogs}

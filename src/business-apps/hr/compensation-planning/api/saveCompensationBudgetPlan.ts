@@ -24,6 +24,7 @@ export interface SaveCompensationBudgetPlanCompanyRowInput {
   salaryBudgetAmount: number
   salaryBudgetPercent: number
   allocationAmount: number
+  budgetPlanStatus?: BudgetPlanStatusApi
   currentTotalSalaryCost: number
   currencyRef: string | null
 }
@@ -79,6 +80,7 @@ export function buildSaveCompensationBudgetPlanCompanyUpdateBody(
       salaryBudgetAmount: row.salaryBudgetAmount,
       salaryBudgetPercent: row.salaryBudgetPercent,
       allocationAmount: row.allocationAmount,
+      ...(row.budgetPlanStatus ? { budgetPlanStatus: row.budgetPlanStatus } : {}),
       currencyRef: row.currencyRef,
       currentTotalSalaryCost: row.currentTotalSalaryCost,
       compensationBudgetPlan: row.compensationBudgetPlanId,

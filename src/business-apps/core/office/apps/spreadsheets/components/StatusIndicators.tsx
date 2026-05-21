@@ -15,12 +15,12 @@ import {
 } from '@newwork/nw-design-system'
 import { Signal, Database, RefreshCw, Loader2 } from 'lucide-react'
 import { PresenceIndicator } from '../../../../../platform/apps/shared/components/PresenceIndicator'
-import type { CollaborationParticipant } from '../../../../../platform/apps/shared/hooks/useCollaboration'
+import type { DocumentParticipant } from '../../../../../platform/apps/shared/services/CollaborationClient'
 import translations from '../_i18n'
 
 export interface StatusIndicatorsProps {
   // Collaboration
-  headerParticipants: CollaborationParticipant[]
+  headerParticipants: DocumentParticipant[]
   isCollaborationConnected: boolean
 
   // Entity data source
@@ -43,21 +43,31 @@ export const StatusIndicators: React.FC<StatusIndicatorsProps> = ({
   'data-testid': testId = 'status-indicators'
 }) => {
   const { t } = useTranslation(translations)
+  const uniqueHeaderParticipants = React.useMemo(() => {
+    const seen = new Map<string, DocumentParticipant>()
+    for (const participant of headerParticipants) {
+      const key = participant.userId || participant.socketId
+      if (key && !seen.has(key)) {
+        seen.set(key, participant)
+      }
+    }
+    return [...seen.values()]
+  }, [headerParticipants])
 
   return (
     <div className="gba:flex gba:items-center gba:gap-2" data-testid={testId}>
       {/* Collaboration presence indicator - shows active users */}
-      {headerParticipants.length > 0 && (
+      {uniqueHeaderParticipants.length > 0 && (
         <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2 gba:pr-2 gba:border-r">
-          <PresenceIndicator participants={headerParticipants} maxVisible={3} size="sm" showLabel={false} />
+          <PresenceIndicator participants={uniqueHeaderParticipants} maxVisible={3} size="sm" showLabel={false} />
           <span className="gba:text-xs gba:text-muted-foreground">
-            {t('status-indicator-active-count', { count: headerParticipants.length })}
+            {t('status-indicator-active-count', { count: uniqueHeaderParticipants.length })}
           </span>
         </div>
       )}
 
       {/* Connection status indicator - shows when connected but alone */}
-      {headerParticipants.length === 0 && isCollaborationConnected && (
+      {uniqueHeaderParticipants.length === 0 && isCollaborationConnected && (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

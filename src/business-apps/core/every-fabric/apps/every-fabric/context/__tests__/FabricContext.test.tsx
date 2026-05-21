@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { FabricProvider, useFabric } from '../FabricContext'
 
 const mockStartSession = jest.fn()
+const mockActivateSession = jest.fn()
 const mockUseAgentSession = jest.fn()
 const mockAddSession = jest.fn()
 const mockUpdateSession = jest.fn()
@@ -58,6 +59,7 @@ describe('FabricContext session URL sync', () => {
   beforeEach(() => {
     window.history.pushState({}, '', '/platform/every-fabric')
     mockStartSession.mockReset()
+    mockActivateSession.mockReset()
     mockUseAgentSession.mockReset()
     mockAddSession.mockReset()
     mockUpdateSession.mockReset()
@@ -70,12 +72,18 @@ describe('FabricContext session URL sync', () => {
       streamingGreeting: '',
       streamingContent: '',
       statusHeadline: null,
+      liveStatusHeadline: null,
+      displayStatus: null,
+      ackHeadline: null,
+      planItems: [],
+      agentActivityLines: [],
       isConnected: false,
       isStreaming: false,
       isWaitingForInput: false,
       sessionLoadError: false,
       activeSkill: null,
       startSession: mockStartSession,
+      activateSession: mockActivateSession,
       reply: jest.fn(),
       retrySessionLoad: jest.fn()
     }))
@@ -136,6 +144,11 @@ describe('FabricContext session URL sync', () => {
       trace: []
     }
     mockStartSession.mockResolvedValue({
+      session_id: 'session-started',
+      status: 'running',
+      session: bootstrapSession
+    })
+    mockActivateSession.mockResolvedValue({
       session_id: 'session-started',
       status: 'running',
       session: bootstrapSession

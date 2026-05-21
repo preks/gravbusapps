@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import type { SpreadsheetApp } from '../../types'
-import { sortSpreadsheetRowsBySheetSettings, useSpreadsheetViewerState } from '../useSpreadsheetViewerState'
+import { sortSpreadsheetRowsBySheetSettings } from '../../utils/spreadsheetSheetRowSort'
+import { useSpreadsheetViewerState } from '../useSpreadsheetViewerState'
 
 describe('sortSpreadsheetRowsBySheetSettings', () => {
   it('falls back to backend row ids when persisted rows share a duplicate client row id', () => {
@@ -59,7 +60,7 @@ describe('useSpreadsheetViewerState', () => {
 
     const liveRows = [{ _id: 'row-1', a: 'live-univer-row' }]
     act(() => {
-      result.current.setLocalSheetData(liveRows)
+      result.current.localSheetDataRef.current = liveRows
     })
 
     const appWithAddedSheet: SpreadsheetApp = {
@@ -79,7 +80,7 @@ describe('useSpreadsheetViewerState', () => {
 
     rerender({ app: appWithAddedSheet })
 
-    expect(result.current.localSheetData).toEqual(liveRows)
+    expect(result.current.localSheetDataRef.current).toEqual(liveRows)
   })
 
   it('keeps the intended active sheet id during transient sheet replacement', () => {

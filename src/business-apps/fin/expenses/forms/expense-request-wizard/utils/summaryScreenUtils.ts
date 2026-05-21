@@ -1,5 +1,12 @@
 import { SCREEN_NAMES_ENUM } from '../constants/constants'
 import dayjs from 'dayjs'
+import {
+  applyEffectiveCostCenterToRows,
+  MANUAL_MAIN_COST_CENTER_ID_KEY,
+  resolveInheritedOrSelectedCostCenterId,
+  resolveItemCostCenterId,
+  resolveMainCostCenterId
+} from '../../shared/utils/effectiveCostCenter'
 
 interface ExpenseItem {
   id: any
@@ -27,8 +34,25 @@ export const createSummaryScreenLogObject = (
   employeeRuleId: string | null,
   currentTitle: string,
   expenseRequestData: any,
-  event: string
+  event: string,
+  mainCostCenterId?: string,
+  manualMainCostCenterId?: string
 ) => {
+  const effectiveCostCenterId =
+    mainCostCenterId ||
+    resolveMainCostCenterId(
+      expenseRequestData?.EmployeePosition,
+      initialRequest?.costCenterId || '',
+      initialRequest?.additionalProperties
+    )
+  const additionalProperties: Record<string, any> = { ...initialRequest?.additionalProperties }
+  if (manualMainCostCenterId !== undefined) {
+    if (manualMainCostCenterId) {
+      additionalProperties[MANUAL_MAIN_COST_CENTER_ID_KEY] = manualMainCostCenterId
+    } else {
+      delete additionalProperties[MANUAL_MAIN_COST_CENTER_ID_KEY]
+    }
+  }
   const expenseItemsArray: ExpenseItem[] = (expenseRequestData?.ExpenseItem || []).map((item: any) => ({
     id: item.id,
     version: item.version,
@@ -36,7 +60,7 @@ export const createSummaryScreenLogObject = (
     title: item.title || '',
     ruleId: item.expenseRuleId || '',
     expenseRequest: initialRequest?.id || '',
-    costCenter: item.costCenterId || '',
+    costCenter: resolveItemCostCenterId(item, effectiveCostCenterId, initialRequest?.costCenterId || ''),
     project: item.projectId || '',
     expenseGroupRef: item.expenseGroupRef || '',
     source: item.source || '',
@@ -57,7 +81,11 @@ export const createSummaryScreenLogObject = (
     project: item.projectId,
     expenseRule: item.expenseRuleId,
     expenseRequest: initialRequest?.id,
-    costCenter: item.costCenterId
+    costCenter: resolveInheritedOrSelectedCostCenterId(
+      item.costCenterId,
+      effectiveCostCenterId,
+      initialRequest?.costCenterId || ''
+    )
   }))
   return {
     stepKey: SCREEN_NAMES_ENUM.SUMMARY_TAB + '_' + event,
@@ -68,14 +96,14 @@ export const createSummaryScreenLogObject = (
       endDate: initialRequest?.endDate || '',
       expenseRule: employeeRuleId || '',
       version: initialRequest?.version || 0,
-      costCenter: initialRequest?.costCenterId || '',
+      costCenter: effectiveCostCenterId,
       employee: initialRequest?.employeeId || '',
       expensePlan: initialRequest?.expensePlanId || '',
       title: currentTitle || initialRequest?.title || '',
       status: initialRequest?.status,
       requestDate: initialRequest?.requestDate ? dayjs(initialRequest.requestDate).format('YYYY-MM-DD') : '',
       requestTypeRef: initialRequest?.requestTypeRef,
-      additionalProperties: initialRequest?.additionalProperties,
+      additionalProperties,
       currencyRef: initialRequest?.currency?.id || '',
       overnightAccommodation: !!expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation
     },
@@ -83,7 +111,10 @@ export const createSummaryScreenLogObject = (
       expenseItems: expenseItemsArray
     },
     expenseRequestTrips: {
-      expenseTrips: expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || []
+      expenseTrips: applyEffectiveCostCenterToRows(
+        expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip,
+        effectiveCostCenterId
+      )
     },
     travelBreakdownWrapper: {
       travelBreakdowns: travelBreakdowns

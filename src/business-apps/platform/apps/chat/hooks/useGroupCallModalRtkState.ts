@@ -2,7 +2,7 @@
  * useGroupCallModalRtkState - State and effects for GroupCallModalRtk (Realtime Kit group call UI).
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { getScreenShareTrack } from '../utils/groupCallModalUtils'
@@ -81,6 +81,10 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     gallerySize,
     setGallerySize
   } = sidebar
+
+  // Local camera mirror: default ON (selfie-view, like Teams)
+  const [isMirrorEnabled, setIsMirrorEnabled] = useState(true)
+  const toggleMirror = useCallback(() => setIsMirrorEnabled(prev => !prev), [])
 
   // Active speaker promotion to page 1 (gallery only): avoid shuffling; promote after T seconds
   const PROMOTE_AFTER_MS = 2500
@@ -739,7 +743,9 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     isOpen,
     firstRemotePeer,
     buildStreamFromPeer,
-    effectiveLocalIsScreenSharing
+    effectiveLocalIsScreenSharing,
+    isMirrorEnabled,
+    toggleMirror
   }
 }
 

@@ -27,13 +27,13 @@ describe('EntityRelationCanvas', () => {
           {
             id: 'def-1',
             namespace: 'sales',
-            key: 'asset',
+            entityName: 'Asset',
             kind: 'CUSTOM_ENTITY',
-            display_name: 'Asset',
-            columns_json: [],
-            publish_state: 'DRAFT',
-            created_at: '',
-            updated_at: ''
+            displayName: 'Asset',
+            columns: [],
+            publishState: 'DRAFT',
+            createdAt: '',
+            updatedAt: ''
           }
         ]}
         namespaceAggregate={null}

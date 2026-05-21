@@ -3,6 +3,7 @@ import { SunburstChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { SunburstNode } from '../types/structuralTypes'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS } from '../../../shared/analyticsChartSurfaceStyles'
 
 interface SunburstVisualizationProps {
   data: SunburstNode
@@ -96,36 +97,38 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
 
       <div>
         {hasValidData ? (
-          <ResponsiveContainer height={450} width="100%">
-            <SunburstChart
-              data={sunburstData}
-              startAngle={0}
-              endAngle={360}
-              fill="var(--nw-color-chart-1)"
-              innerRadius={10}
-              ringPadding={1}
-              stroke="var(--nw-color-primary-foreground)"
-              textOptions={{
-                fill: '#ffffff',
-                fontSize: 12 as any,
-                fontWeight: '600',
-                paintOrder: 'stroke fill',
-                stroke: 'rgba(0,0,0,0.7)',
-                // Ensure labels don't block hover on sectors
-                pointerEvents: 'none' as any
-              }}
-              dataKey="value"
-            >
-              <Tooltip
-                content={<SunburstTooltip />}
-                isAnimationActive={false}
-                wrapperStyle={{ transition: 'none' }}
-                allowEscapeViewBox={{ x: true, y: true }}
-                cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-                offset={0}
-              />
-            </SunburstChart>
-          </ResponsiveContainer>
+          <div className={`gba:border gba:rounded-lg gba:shadow-sm gba:p-4 ${STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS}`}>
+            <ResponsiveContainer height={450} width="100%">
+              <SunburstChart
+                data={sunburstData}
+                startAngle={0}
+                endAngle={360}
+                fill="var(--nw-color-chart-1)"
+                innerRadius={10}
+                ringPadding={1}
+                stroke="var(--nw-color-primary-foreground)"
+                textOptions={{
+                  fill: '#ffffff',
+                  fontSize: 12 as any,
+                  fontWeight: '600',
+                  paintOrder: 'stroke fill',
+                  stroke: 'rgba(0,0,0,0.7)',
+                  // Ensure labels don't block hover on sectors
+                  pointerEvents: 'none' as any
+                }}
+                dataKey="value"
+              >
+                <Tooltip
+                  content={<SunburstTooltip />}
+                  isAnimationActive={false}
+                  wrapperStyle={{ transition: 'none' }}
+                  allowEscapeViewBox={{ x: true, y: true }}
+                  cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                  offset={0}
+                />
+              </SunburstChart>
+            </ResponsiveContainer>
+          </div>
         ) : (
           <div className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-96 gba:text-muted-foreground">
             <div className="gba:text-4xl gba:mb-4 gba:text-muted">📊</div>

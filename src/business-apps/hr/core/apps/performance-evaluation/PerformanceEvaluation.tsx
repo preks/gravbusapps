@@ -3,8 +3,6 @@ import { PageLayout, useTranslation, toast, Spinner, Toaster } from '@newwork/nw
 import { ListChecks } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
-import { useFeature } from '@/common/hooks/useFeature'
-import { Feature } from '@/common/types/constants/FeatureHub'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import { startProcess, getPlatformContext } from '@/common/utils/start-process'
 import { OrgDirectoryClient } from '@/common/network/org-directory/OrgDirectoryClient'
@@ -56,7 +54,6 @@ enum PerformanceTabEnum {
 }
 
 export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
-  const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const { t } = useTranslation(translations)
   const {
     cycles: apiCycles,
@@ -470,10 +467,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
       }
     }
-  }
-
-  if (!devFeatureFlag) {
-    return null
   }
 
   if (hrBackoffice.loading) {

@@ -552,7 +552,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [isMovingAppsToTrash, setIsMovingAppsToTrash] = useState(false)
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const { favorites, setFavorites } = useSpreadsheetAppsHubFavorites()
+  const { favorites, toggleFavorite: toggleSpreadsheetFavorite } = useSpreadsheetAppsHubFavorites({ accessToken })
 
   // Data state
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
@@ -594,6 +594,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
 
+  const spreadsheetListOptions = useMemo(
+    () => (activeSection === 'favorites' ? { section: 'favorites' as const } : undefined),
+    [activeSection]
+  )
+
   // Hooks - Using file storage (database-backed) with localStorage fallback
   const {
     apps,
@@ -615,8 +620,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     updateRow,
     updateSheet,
     addSheet,
-    deleteSheet
-  } = useSpreadsheetApps(accessToken, currentUserId)
+    duplicateSheet,
+    deleteSheet,
+    applyCurrentAppLocalUpdate
+  } = useSpreadsheetApps(accessToken, currentUserId, spreadsheetListOptions)
 
   const trashList = useOfficeTrashList({
     accessToken: accessToken ?? '',
@@ -741,7 +748,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     apps,
     currentUserId,
     activeSection,
-    favorites,
     taskAppIds: new Set<string>([...pendingTaskAppIds, ...completedTaskAppIds]),
     searchQuery,
     sortBy,
@@ -1065,7 +1071,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         const sheetsWithData = await Promise.all(
           app.sheets.map(async sheet => ({
             ...sheet,
-            data: await SpreadsheetApiService.getRows(id, sheet.id)
+            data: await SpreadsheetApiService.getAllRows(id, sheet.id)
           }))
         )
 
@@ -1424,21 +1430,14 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   }, [createWithAiAbout, createWithAiTitle, resetCreateWithAiState])
 
   const toggleFavorite = useCallback(
-    (id: string, e?: React.MouseEvent) => {
+    async (id: string, e?: React.MouseEvent) => {
       e?.stopPropagation()
-      setFavorites(prev => {
-        const next = new Set(prev)
-        if (next.has(id)) {
-          next.delete(id)
-          toast.success(t('toast-removed-from-favorites'))
-        } else {
-          next.add(id)
-          toast.success(t('toast-added-to-favorites'))
-        }
-        return next
-      })
+      const wasFavorite = favorites.has(id)
+      await toggleSpreadsheetFavorite(id)
+      await refreshApps()
+      toast.success(t(wasFavorite ? 'toast-removed-from-favorites' : 'toast-added-to-favorites'))
     },
-    [t]
+    [favorites, refreshApps, t, toggleSpreadsheetFavorite]
   )
 
   const toggleSelectApp = useCallback(
@@ -1525,9 +1524,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onShare={isReadonlyTrashView ? undefined : () => handleShareApp(app.id)}
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
+            onLocalAppUpdate={canEdit ? applyCurrentAppLocalUpdate : undefined}
             onAppRefreshNeeded={isReadonlyTrashView ? undefined : handleAppRefreshNeeded}
             onSheetUpdate={canEdit ? updateSheet : undefined}
             onSheetAdd={canEdit ? addSheet : undefined}
+            onSheetDuplicate={canEdit ? duplicateSheet : undefined}
             onSheetDelete={canEdit ? deleteSheet : undefined}
             onRowAdd={canEdit ? addRow : undefined}
             onRowUpdate={canEdit ? updateRow : undefined}
@@ -1577,6 +1578,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       accessToken,
       addRow,
       addSheet,
+      duplicateSheet,
       deleteSheet,
       currentAppPermission,
       currentUserId,
@@ -2213,7 +2215,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           {paginatedApps.map(app => {
                             const isOwner = app.isOwner ?? app.createdBy === currentUserId
                             const isSelected = selectedApps.has(app.id)
-                            const isFavorite = favorites.has(app.id)
+                            const isFavorite = app.isFavorite ?? favorites.has(app.id)
                             const ownerInfo = app.createdBy ? ownerInfoMap.get(app.createdBy) : undefined
                             const sharedWith = sharedUsersMap.get(app.id) || []
 
@@ -2375,6 +2377,15 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                         <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                                         {t('action-open')}
                                       </DropdownMenuItem>
+                                      {previewEnabled && isOwner && (
+                                        <DropdownMenuItem
+                                          onClick={() => handleShareApp(app.id)}
+                                          data-testid={`${testId}-row-share-${app.id}`}
+                                        >
+                                          <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                          {t('action-share')}
+                                        </DropdownMenuItem>
+                                      )}
                                       {isOwner && sharedWith.length > 0 && (
                                         <DropdownMenuItem onClick={() => handleManageShares(app.id)}>
                                           <Users className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -2430,7 +2441,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         {paginatedApps.map(app => {
                           const isOwner = app.isOwner ?? app.createdBy === currentUserId
                           const isSelected = selectedApps.has(app.id)
-                          const isFavorite = favorites.has(app.id)
+                          const isFavorite = app.isFavorite ?? favorites.has(app.id)
 
                           return (
                             <Card
@@ -2512,7 +2523,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                 <Button size="sm" variant="secondary" onClick={() => handleOpenApp(app.id)}>
                                   {t('action-open')}
                                 </Button>
-                                {isOwner && (
+                                {previewEnabled && isOwner && (
                                   <Button size="sm" variant="ghost" onClick={() => handleShareApp(app.id)}>
                                     <Share2 className="gba:w-4 gba:h-4" />
                                   </Button>

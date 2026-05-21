@@ -26,7 +26,7 @@ import translations from '../../../_i18n'
 import { formatCurrency } from '../../../utils/currencyUtils'
 import { extractCurrencyCode } from '../../../utils/sharedUtils'
 import { useFilterData } from '../../../hooks/useFilterData'
-import { PiChartLineUp, PiFileText } from 'react-icons/pi'
+import { ChartLineUpIcon, FileTextIcon } from '@phosphor-icons/react'
 
 interface ExpenseDashboardTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -453,7 +453,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
     () => [
       {
         key: 'analytics',
-        icon: PiChartLineUp,
+        icon: ChartLineUpIcon,
         iconColor: 'gba:text-success',
         title: t('spending-analysis-title'),
         description: t('analytics-spending-cta'),
@@ -461,7 +461,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       },
       {
         key: 'reports',
-        icon: PiFileText,
+        icon: FileTextIcon,
         iconColor: 'gba:text-primary',
         title: t('expense-reports-title'),
         description: t('quick-actions-reports-cta'),

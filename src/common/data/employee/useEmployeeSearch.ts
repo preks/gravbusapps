@@ -24,8 +24,38 @@ export interface EmployeeLiteOption {
   userId?: string
   communication?: Array<{ value?: string; channelRef?: string }>
   pictureThumbnail?: string
+  organizationalUnitId?: string
   organizationalUnitName?: string
   jobPositionName?: string
+}
+
+export interface EmployeeLiteRow {
+  id?: string
+  displayName?: string
+  firstName?: string
+  lastName?: string
+  userId?: string
+  communication?: Array<{ value?: string; channelRef?: string }>
+  pictureThumbnail?: string
+  employeePosition?: {
+    organizationalUnit?: { id?: string; name?: string }
+    jobPosition?: { name?: string }
+  }
+}
+
+export function mapEmployeeRowToLite(e: EmployeeLiteRow): EmployeeLiteOption {
+  return {
+    id: e.id || '',
+    displayName: e.displayName || `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown',
+    firstName: e.firstName,
+    lastName: e.lastName,
+    userId: e.userId,
+    communication: e.communication,
+    pictureThumbnail: e.pictureThumbnail,
+    organizationalUnitId: e.employeePosition?.organizationalUnit?.id,
+    organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
+    jobPositionName: e.employeePosition?.jobPosition?.name
+  }
 }
 
 export const useEmployeeSearch = (accessToken?: string, initialEmployee?: EmployeeLiteOption | null) => {
@@ -81,17 +111,7 @@ export const useEmployeeSearch = (accessToken?: string, initialEmployee?: Employ
         const result = await promise
 
         // Pass communication through; filter with getWorkEmailFromCommunication at use sites only
-        const next = (result.Employee || []).map(e => ({
-          id: e.id,
-          displayName: e.displayName || `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown',
-          firstName: e.firstName,
-          lastName: e.lastName,
-          userId: e.userId,
-          communication: e.communication,
-          pictureThumbnail: e.pictureThumbnail,
-          organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
-          jobPositionName: e.employeePosition?.jobPosition?.name
-        })) as EmployeeLiteOption[]
+        const next = (result.Employee || []).map(mapEmployeeRowToLite)
 
         // Merge with previous (when appending) and pinned (ensure selected/hydrated items never disappear)
         setEmployees(prev => {
@@ -160,17 +180,7 @@ export const useEmployeeSearch = (accessToken?: string, initialEmployee?: Employ
         const result = await graphqlClient.request<{ Employee: any[] }>(query)
         const e = result.Employee?.[0]
         if (!e) return undefined
-        const record: EmployeeLiteOption = {
-          id: e.id,
-          displayName: e.displayName || `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown',
-          firstName: e.firstName,
-          lastName: e.lastName,
-          userId: e.userId,
-          communication: e.communication,
-          pictureThumbnail: e.pictureThumbnail,
-          organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
-          jobPositionName: e.employeePosition?.jobPosition?.name
-        }
+        const record = mapEmployeeRowToLite(e)
         // Pin and merge into list
         pinnedRef.current.set(record.id, record)
         setEmployees(prev => {

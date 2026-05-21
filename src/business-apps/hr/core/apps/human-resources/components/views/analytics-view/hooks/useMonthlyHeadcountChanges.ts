@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import { useQueryExecutionClient, Services } from '@/common/network/dataset'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
+import { fetchHeadcountMonthlyKpis } from './fetchHeadcountMonthlyKpis'
 
 export interface MonthlyHeadcountChange {
   month: string // e.g. '2024-06'
@@ -10,7 +13,53 @@ export interface MonthlyHeadcountChange {
   netChange: number
 }
 
+type TimeseriesRow = {
+  dateCategory?: string
+  date_category?: string
+  value?: number
+  hires?: number
+  exits?: number
+  net_change?: number
+  netChange?: number
+  [key: string]: unknown
+}
+
+function buildMonthlyHeadcountFromRows(rows: TimeseriesRow[], year: number): MonthlyHeadcountChange[] {
+  const months: MonthlyHeadcountChange[] = Array.from({ length: 12 }).map((_, m) => ({
+    month: dayjs(`${year}-01-01`).add(m, 'month').format('YYYY-MM'),
+    newHires: 0,
+    departures: 0,
+    netChange: 0
+  }))
+
+  const byMonth = new Map<string, MonthlyHeadcountChange>()
+  months.forEach(m => byMonth.set(m.month, m))
+
+  for (const row of rows) {
+    const dateStr = row.dateCategory ?? row.date_category
+    if (!dateStr) continue
+    const ym = dayjs(dateStr).format('YYYY-MM')
+    const target = byMonth.get(ym)
+    if (!target) continue
+    const hires = Number(row.hires ?? 0)
+    const exits = Number(row.exits ?? 0)
+    const netChange = Number(row.net_change ?? row.netChange ?? hires - exits)
+    if (Number.isFinite(hires)) target.newHires = hires
+    if (Number.isFinite(exits)) target.departures = exits
+    if (Number.isFinite(netChange)) target.netChange = netChange
+  }
+
+  for (const m of months) {
+    if (!m.netChange && (m.newHires || m.departures)) {
+      m.netChange = m.newHires - m.departures
+    }
+  }
+
+  return months
+}
+
 export const useMonthlyHeadcountChanges = (props: BusinessAppContextProps, year: number) => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [data, setData] = useState<MonthlyHeadcountChange[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<any>(null)
@@ -29,53 +78,17 @@ export const useMonthlyHeadcountChanges = (props: BusinessAppContextProps, year:
     setLoading(true)
     ;(async () => {
       try {
-        // Reuse the same data sources as Workforce Analytics → Monthly Hires & Departures
-        const [hiresRes, exitsRes, netChangeRes] = await Promise.all([
-          datasetClient.executeQuery('hiresPerMonth', QueryType.TIMESERIES, dateParams),
-          datasetClient.executeQuery('exitsPerMonth', QueryType.TIMESERIES, dateParams),
-          datasetClient.executeQuery('netHeadcountChange', QueryType.TIMESERIES, dateParams)
-        ])
+        const structureId = getCurrentActiveStructureId()
+        const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+        const filterParams: Record<string, string> = {}
+        if (structureId) filterParams.structureId = structureId
+        if (companyIdsParam) filterParams.companyIds = companyIdsParam
+        const queryParams: Record<string, string> = { ...dateParams, ...filterParams }
+        const cacheKey = `${props.accessToken}|headcountMonthlyKpis|${queryParams.startDate}|${queryParams.endDate}|${queryParams.structureId ?? ''}|${queryParams.companyIds ?? ''}`
+        const monthlyKpisRes = await fetchHeadcountMonthlyKpis(datasetClient, cacheKey, queryParams)
 
-        type TimeseriesRow = {
-          dateCategory?: string
-          date_category?: string
-          value?: number
-          [key: string]: any
-        }
-
-        const months: MonthlyHeadcountChange[] = Array.from({ length: 12 }).map((_, m) => ({
-          month: dayjs(`${year}-01-01`).add(m, 'month').format('YYYY-MM'),
-          newHires: 0,
-          departures: 0,
-          netChange: 0
-        }))
-
-        const byMonth = new Map<string, MonthlyHeadcountChange>()
-        months.forEach(m => byMonth.set(m.month, m))
-
-        const apply = (rows: TimeseriesRow[], key: 'newHires' | 'departures' | 'netChange') => {
-          for (const r of rows) {
-            const dateStr = r.dateCategory ?? r.date_category
-            if (!dateStr) continue
-            const ym = dayjs(dateStr).format('YYYY-MM')
-            const target = byMonth.get(ym)
-            if (!target) continue
-            const v = Number(r.value ?? 0)
-            if (!Number.isFinite(v)) continue
-            target[key] = v
-          }
-        }
-
-        apply((hiresRes?.data ?? []) as TimeseriesRow[], 'newHires')
-        apply((exitsRes?.data ?? []) as TimeseriesRow[], 'departures')
-        apply((netChangeRes?.data ?? []) as TimeseriesRow[], 'netChange')
-
-        // Fallback: if netChange query returns nothing, compute it
-        for (const m of months) {
-          if (!m.netChange && (m.newHires || m.departures)) {
-            m.netChange = m.newHires - m.departures
-          }
-        }
+        const rows = (monthlyKpisRes?.data ?? []) as TimeseriesRow[]
+        const months = buildMonthlyHeadcountFromRows(rows, year)
 
         setData(months)
         setError(null)
@@ -85,7 +98,7 @@ export const useMonthlyHeadcountChanges = (props: BusinessAppContextProps, year:
         setLoading(false)
       }
     })()
-  }, [props.accessToken, datasetClient, dateParams, year])
+  }, [props.accessToken, datasetClient, dateParams, year, selectedCompanyIds])
 
   return { data, loading, error }
 }

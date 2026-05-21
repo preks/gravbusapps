@@ -77,12 +77,12 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
 
   // Bulk action helpers
   const promotableCount = useMemo(() => {
-    return selectedDefinitions.filter(d => d.kind === 'CUSTOM_ENTITY' && d.publish_state !== 'PROMOTED_TRACKED').length
+    return selectedDefinitions.filter(d => d.kind === 'CUSTOM_ENTITY' && d.publishState !== 'PROMOTED_TRACKED').length
   }, [selectedDefinitions])
 
   const handleBulkPromote = useCallback(() => {
     const promotable = selectedDefinitions.filter(
-      d => d.kind === 'CUSTOM_ENTITY' && d.publish_state !== 'PROMOTED_TRACKED'
+      d => d.kind === 'CUSTOM_ENTITY' && d.publishState !== 'PROMOTED_TRACKED'
     )
     if (promotable.length > 0 && onBulkAction) {
       onBulkAction({ type: 'promote', definitions: promotable })
@@ -126,15 +126,15 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
   }
 
   const getStatusBadge = (definition: CustomDataDefinition) => {
-    const { publish_state } = definition
+    const { publishState } = definition
 
-    if (publish_state === 'PROMOTED_TRACKED') {
+    if (publishState === 'PROMOTED_TRACKED') {
       return <Badge variant="success">Promoted</Badge>
     }
-    if (publish_state === 'ERROR') {
+    if (publishState === 'ERROR') {
       return <Badge variant="destructive">Error</Badge>
     }
-    if (publish_state === 'DRAFT') {
+    if (publishState === 'DRAFT') {
       return <Badge variant="warning">Draft</Badge>
     }
 
@@ -229,15 +229,15 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
                     <Checkbox
                       checked={selectedIds.has(definition.id)}
                       onCheckedChange={() => toggleSelect(definition.id)}
-                      aria-label={`Select ${definition.display_name || definition.key}`}
+                      aria-label={`Select ${definition.displayName || definition.entityName}`}
                       data-testid={`${testId}-select-${definition.id}`}
                     />
                   </TableCell>
                   <TableCell>{getNamespaceBadge(definition.namespace)}</TableCell>
-                  <TableCell className="gba:font-mono gba:text-sm">{definition.key}</TableCell>
+                  <TableCell className="gba:font-mono gba:text-sm">{definition.entityName}</TableCell>
                   <TableCell>
                     <div>
-                      <div className="gba:font-medium">{definition.display_name || definition.key}</div>
+                      <div className="gba:font-medium">{definition.displayName || definition.entityName}</div>
                       {definition.description && (
                         <div className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[300px]">
                           {definition.description}
@@ -247,11 +247,11 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
                   </TableCell>
                   <TableCell>{getKindBadge()}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{definition.columns_json?.length || 0} fields</Badge>
+                    <Badge variant="outline">{definition.columns?.length || 0} fields</Badge>
                   </TableCell>
                   <TableCell>{getStatusBadge(definition)}</TableCell>
                   <TableCell className="gba:text-sm gba:text-muted-foreground">
-                    {formatDate(definition.updated_at)}
+                    {formatDate(definition.updatedAt)}
                   </TableCell>
                   <TableCell className="gba:text-right">
                     <span className="gba:inline-flex gba:justify-end gba:gap-1">
@@ -271,7 +271,7 @@ export const DefinitionsTable: React.FC<DefinitionsTableProps> = ({
                       >
                         <Edit2 className="gba:h-4 gba:w-4" />
                       </Button>
-                      {definition.kind === 'CUSTOM_ENTITY' && definition.publish_state !== 'PROMOTED_TRACKED' && (
+                      {definition.kind === 'CUSTOM_ENTITY' && definition.publishState !== 'PROMOTED_TRACKED' && (
                         <Button
                           variant="ghost"
                           size="icon"

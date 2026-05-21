@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
+import { GraphIcon, ListMagnifyingGlassIcon } from '@phosphor-icons/react'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
 import type { FabricSessionSummary } from '../../types/fabric'
 import { SidebarActiveSection } from './SidebarActiveSection'
 import { SidebarFooter } from './SidebarFooter'
 import { SidebarHeader } from './SidebarHeader'
+import { SidebarNavItem } from './SidebarNavItem'
 import { SidebarNewChatButton } from './SidebarNewChatButton'
 import { SidebarRecentsSection } from './SidebarRecentsSection'
 import { SidebarSearchBar } from './SidebarSearchBar'
@@ -15,7 +17,14 @@ import {
   SIDEBAR_ISLAND_SHELL_CLASS,
   SIDEBAR_WIDTH_TRANSITION_CLASS
 } from './sidebarLayout.constants'
-import { filterActiveByQuery, filterRecentsByQuery, splitSessions } from './sessionGrouping'
+import { SidebarFilterBar } from './SidebarFilterBar'
+import {
+  filterActiveByQuery,
+  filterRecentsByQuery,
+  filterRecentsByStatus,
+  splitSessions,
+  type RecentsStatusFilter
+} from './sessionGrouping'
 
 export interface SidebarProps {
   isCollapsed: boolean
@@ -39,6 +48,10 @@ export interface SidebarProps {
   onStopSession: (id: string) => void
   onOpenSettings: () => void
   onOpenScheduled: () => void
+  onOpenAgentMesh: () => void
+  isAgentMeshActive?: boolean
+  onOpenTraceExplorer: () => void
+  isTraceExplorerActive?: boolean
 }
 
 /**
@@ -66,9 +79,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteSession,
   onStopSession,
   onOpenSettings,
-  onOpenScheduled
+  onOpenScheduled,
+  onOpenAgentMesh,
+  isAgentMeshActive = false,
+  onOpenTraceExplorer,
+  isTraceExplorerActive = false
 }) => {
   const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<Set<RecentsStatusFilter> | null>(null)
 
   const { active, recents } = useMemo(
     () => splitSessions(historySessions, activeSessions),
@@ -76,7 +94,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   )
 
   const filteredActive = useMemo(() => filterActiveByQuery(active, query), [active, query])
-  const filteredRecents = useMemo(() => filterRecentsByQuery(recents, query), [recents, query])
+  const filteredRecents = useMemo(() => {
+    const byQuery = filterRecentsByQuery(recents, query)
+    return filterRecentsByStatus(byQuery, statusFilter)
+  }, [recents, query, statusFilter])
 
   const widthClass = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_CLASS : SIDEBAR_EXPANDED_WIDTH_CLASS
 
@@ -92,7 +113,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         <SidebarHeader isCollapsed={isCollapsed} onToggleCollapsed={onToggleCollapsed} />
         {showNewSessionCta && <SidebarNewChatButton isCollapsed={isCollapsed} onClick={onNewSession} />}
+
+        {/*
+         * Top-of-rail navigation. Currently only Agent Mesh — additional
+         * primary destinations (Trace Explorer, Library, …) plug in here as
+         * sibling `SidebarNavItem`s without changing the surrounding layout.
+         */}
+        <SidebarNavItem
+          icon={GraphIcon}
+          label="Agent Mesh"
+          badge="NEW"
+          isActive={isAgentMeshActive}
+          isCollapsed={isCollapsed}
+          onClick={onOpenAgentMesh}
+          testId="sidebar-nav-agent-mesh"
+        />
+        <SidebarNavItem
+          icon={ListMagnifyingGlassIcon}
+          label="Trace Explorer"
+          badge="NEW"
+          isActive={isTraceExplorerActive}
+          isCollapsed={isCollapsed}
+          onClick={onOpenTraceExplorer}
+          testId="sidebar-nav-trace-explorer"
+        />
+
+        <div className="gba:mx-3 gba:my-1.5 gba:border-t gba:border-border/40" />
+
         <SidebarSearchBar isCollapsed={isCollapsed} query={query} onChange={setQuery} onRequestExpand={onExpand} />
+        {!isCollapsed && <SidebarFilterBar activeFilters={statusFilter} onChange={setStatusFilter} />}
 
         {!isCollapsed && (
           <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:pb-1">
@@ -101,15 +150,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               activeSessionId={activeSessionId}
               onSelect={onSelectSession}
               onStop={onStopSession}
-              forceExpanded={query.trim().length > 0}
+              forceExpanded={query.trim().length > 0 || statusFilter !== null}
             />
             <SidebarRecentsSection
               sessions={filteredRecents}
               activeSessionId={activeSessionId}
               onSelect={onSelectSession}
               onDelete={onDeleteSession}
-              emptyHint={query ? 'No sessions match your search.' : undefined}
-              forceExpanded={query.trim().length > 0}
+              emptyHint={query || statusFilter ? 'No sessions match your search or filters.' : undefined}
+              forceExpanded={query.trim().length > 0 || statusFilter !== null}
             />
           </div>
         )}
@@ -122,7 +171,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onOpenSettings={onOpenSettings}
           onOpenScheduled={onOpenScheduled}
         />
-
       </div>
     </aside>
   )

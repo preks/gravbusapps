@@ -37,6 +37,9 @@ export interface EmployeeWorkingConditionResponse {
     hireDate: string | null
     activeFrom: string | null
     activeTo: string | null
+    region?: {
+      id: string
+    } | null
   }>
 }
 

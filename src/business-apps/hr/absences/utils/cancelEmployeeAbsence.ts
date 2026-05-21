@@ -9,6 +9,12 @@ export interface CancelEmployeeAbsenceSnapshot {
   additionalProperties?: unknown | null
   employeeId: string
   typeRef: string
+  type?: {
+    id?: string | null
+    value?: string | null
+  } | null
+  typeName?: string | null
+  absenceTypeName?: string | null
   startDate: string
   endDate: string
   cutHalfDayStart?: boolean | null
@@ -32,6 +38,20 @@ export interface CancelEmployeeAbsenceSnapshot {
 export interface CancelEmployeeAbsenceResponse {
   employeeAbsence?: CancelEmployeeAbsenceSnapshot
   [key: string]: unknown
+}
+
+const normalizeAbsenceStatusForCancellation = (status?: string): string => {
+  if (!status) {
+    return ''
+  }
+
+  const normalizedStatus = status.toUpperCase()
+  if (normalizedStatus === 'TIME_PENDING' || normalizedStatus === 'PENDING') return 'PENDING'
+  if (normalizedStatus === 'TIME_APPROVED' || normalizedStatus === 'APPROVED') return 'APPROVED'
+  if (normalizedStatus === 'PENDING_APPROVAL' || normalizedStatus === 'IN_APPROVAL') return 'PENDING'
+  if (normalizedStatus === 'TIME_CANCELLED') return 'CANCELLED'
+  if (normalizedStatus === 'TIME_REJECTED') return 'REJECTED'
+  return normalizedStatus
 }
 
 const parseCancelError = async (response: Response): Promise<string> => {
@@ -75,13 +95,18 @@ export const cancelEmployeeAbsence = async (
     throw new Error('Cannot cancel absence: missing required absence data')
   }
 
+  const normalizedEmployeeAbsence: CancelEmployeeAbsenceSnapshot = {
+    ...employeeAbsence,
+    status: normalizeAbsenceStatusForCancellation(employeeAbsence.status)
+  }
+
   const response = await fetch(`${EMPLOYEE_TIME_API_URL}/cancelEmployeeAbsence`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`
     },
-    body: JSON.stringify({ employeeAbsence })
+    body: JSON.stringify({ employeeAbsence: normalizedEmployeeAbsence })
   })
 
   if (!response.ok) {

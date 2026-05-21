@@ -4,6 +4,9 @@ import type {
   AgentStreamEvent,
   ChatMessage,
   DeepAgentSession,
+  MessageAttachmentRef,
+  PlanItem,
+  PlanItemStatus,
   SessionConfig,
   SkillLoadedEvent,
   StartSessionResponse
@@ -60,8 +63,14 @@ interface AgentExecutionClient {
     activeEnterpriseSkillId?: string,
     fallbackSkillId?: string
   ) => Promise<StartSessionResponse>
+  activateSession: (sessionId: string) => Promise<StartSessionResponse>
   getSession: (sessionId: string) => Promise<DeepAgentSession>
-  replyToInterrupt: (sessionId: string, message?: string, structuredInput?: Record<string, any>) => Promise<unknown>
+  replyToInterrupt: (
+    sessionId: string,
+    message?: string,
+    structuredInput?: Record<string, any>,
+    attachmentRefs?: Array<{ id: string; name: string; mime_type: string; size: number; indexing_status?: string }>
+  ) => Promise<unknown>
 }
 
 const readSessionUiCache = (sessionId: string | null): SessionUiStateCache | null => {
@@ -177,6 +186,12 @@ const chunkStreamKey = (chunk: AgentChunkEvent): string | null => {
   return typeof raw === 'string' && raw.trim().length > 0 ? raw : null
 }
 
+const looksLikeDashboardJson = (content: string): boolean => {
+  const trimmed = content.trimStart()
+  if (!trimmed.startsWith('{')) return false
+  return trimmed.includes('"sections"') || trimmed.includes('"chartType"') || /^\{"title"\s*:\s*"/.test(trimmed)
+}
+
 const looksLikeInternalErrorLeak = (content: string): boolean => {
   const normalized = content.toLowerCase()
   return (
@@ -197,6 +212,58 @@ function sessionTraceOrEmpty(mergedSession: DeepAgentSession | null | undefined)
   return mergedSession?.trace ?? []
 }
 
+const humanizeActivityIdentifier = (raw: string): string => {
+  const trimmed = raw.trim().replace(/^newwork[_-]/i, '')
+  if (!trimmed) return raw.trim()
+  const spaced = trimmed
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!spaced) return raw.trim()
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
+const findTurnStartEpoch = (events: AgentStreamEvent[]): number => {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const e = events[i]
+    if (e.type === 'agent_chunk' && e.role === 'human') return toEpoch(e.timestamp)
+  }
+  return 0
+}
+
+const isResponseStreamStart = (e: AgentStreamEvent): boolean =>
+  e.type === 'agent_chunk' && e.role === 'ai' && e.chunk_kind === 'response_stream'
+
+const stepStartedActivityText = (e: AgentStreamEvent): string | null => {
+  if (e.type !== 'step_started') return null
+  const stepType = (e as { step_type?: string }).step_type
+  if (stepType === 'thinking') return 'Thinking through the next step'
+  const name = (e as { name?: string }).name
+  if (!name) return null
+  const friendly = humanizeActivityIdentifier(name)
+  return stepType === 'subagent' ? `Delegating to ${friendly}` : `Calling ${friendly}`
+}
+
+const eventActivityText = (e: AgentStreamEvent): string | null => {
+  if (e.type === 'agent_chunk' && (e.chunk_kind === 'status' || e.chunk_kind === 'live_status')) {
+    return e.content ?? null
+  }
+  if (e.type === 'step_started') return stepStartedActivityText(e)
+  if (e.type === 'expert_called') {
+    const name = (e as { name?: string; expert_name?: string }).expert_name ?? (e as { name?: string }).name
+    return name ? `Consulting ${humanizeActivityIdentifier(name)}` : null
+  }
+  if (e.type === 'decision') {
+    const title = (e as { title?: string }).title
+    return title ?? null
+  }
+  return null
+}
+
+const isTerminalSessionStatus = (status: DeepAgentSession['status'] | undefined): boolean =>
+  status === 'completed' || status === 'failed' || status === 'cancelled'
+
 function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string | null {
   const responseSnapshots = events
     .filter(
@@ -215,7 +282,10 @@ function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string 
 
   const primarySnapshots = responseSnapshots.filter(snapshot => chunkStreamKey(snapshot) !== 'continuation')
   const preferredSnapshots = primarySnapshots.length > 0 ? primarySnapshots : responseSnapshots
-  const safeSnapshots = preferredSnapshots.filter(snapshot => !looksLikeInternalErrorLeak(snapshot.content.trim()))
+  const safeSnapshots = preferredSnapshots.filter(snapshot => {
+    const text = snapshot.content.trim()
+    return !looksLikeInternalErrorLeak(text) && !looksLikeDashboardJson(text)
+  })
   if (safeSnapshots.length === 0) {
     return ''
   }
@@ -264,7 +334,7 @@ function computeStreamingDisplayContent(
   isAgentRunning: boolean,
   mergedStatus: DeepAgentSession['status'] | undefined
 ): string {
-  const isActivelyRunning = isAgentRunning || mergedStatus === 'running'
+  const isActivelyRunning = isAgentRunning || mergedStatus === 'running' || mergedStatus === 'pending'
   if (!isActivelyRunning) {
     return ''
   }
@@ -281,6 +351,9 @@ function computeStreamingDisplayContent(
 
   const fromSnapshots = buildStreamingContentFromSnapshots(liveTurnEvents)
   if (fromSnapshots !== null) {
+    if (looksLikeDashboardJson(fromSnapshots)) {
+      return 'Generating chart…'
+    }
     return fromSnapshots
   }
 
@@ -320,6 +393,11 @@ export const useAgentSession = (
   // Track the event count at which we last processed a terminal, so the
   // terminal-detection effect ignores stale terminals after events are cleared.
   const processedTerminalAtRef = useRef<number>(-1)
+  // Accumulates blob preview URLs keyed by attachment ID across reply() calls.
+  // Used to enrich trace messages so the optimistic → trace transition is
+  // seamless: the ImageBlock keeps rendering from the blob URL rather than
+  // starting a proxy fetch after the optimistic message is removed.
+  const previewUrlByAttachmentId = useRef<Map<string, string>>(new Map())
 
   const fetchSession = useCallback(async () => {
     if (!sessionId) return null
@@ -459,6 +537,23 @@ export const useAgentSession = (
     const restSession = session ?? matchedBootstrapSession
     if (!restSession) return null
 
+    // Carry the bootstrap's session_attachments through whenever the REST
+    // session lacks them. Right after startSession the REST `getSession()`
+    // call typically returns before the flushed uploads land in the
+    // backend's session record, so its `session_attachments` is briefly
+    // empty even though the bootstrap captured the user's snapshot
+    // (including blob preview URLs). Without this carry-over the first
+    // user_input bubble loses its attachment chips/image until the
+    // backend catches up — exactly the optimistic-update bug.
+    const bootstrapAttachments = matchedBootstrapSession?.session_attachments
+    const restAttachments = session?.session_attachments
+    const mergedAttachments =
+      restAttachments && restAttachments.length > 0
+        ? restAttachments
+        : bootstrapAttachments && bootstrapAttachments.length > 0
+          ? bootstrapAttachments
+          : restAttachments
+
     // REST session status is AUTHORITATIVE for terminal states.
     // If REST says completed/failed/cancelled, that's the final answer.
     // SSE may have stale or intermediate terminal events (e.g. waiting_for_human)
@@ -467,7 +562,7 @@ export const useAgentSession = (
     const isRestTerminal = restStatus === 'completed' || restStatus === 'failed' || restStatus === 'cancelled'
 
     if (isRestTerminal) {
-      return restSession // REST is authoritative, no overlay needed
+      return { ...restSession, session_attachments: mergedAttachments }
     }
 
     // For non-terminal REST status, SSE terminal events provide real-time updates
@@ -475,7 +570,7 @@ export const useAgentSession = (
     for (const ev of events) {
       if (ev.type === 'terminal') status = ev.status
     }
-    return { ...restSession, status }
+    return { ...restSession, status, session_attachments: mergedAttachments }
   }, [session, matchedBootstrapSession, events])
 
   const messages: ChatMessage[] = useMemo(() => {
@@ -487,7 +582,29 @@ export const useAgentSession = (
     const isRestTerminal = restSession && isTerminalStatus(restSession.status)
 
     // Get authoritative messages from REST session trace
-    const traceMessages = mergedSession ? sessionToMessages(mergedSession) : []
+    const rawTraceMessages = mergedSession ? sessionToMessages(mergedSession) : []
+
+    // Re-hydrate attachment preview_urls from the in-session blob URL cache so
+    // the ImageBlock can render from a local blob instead of kicking off a proxy
+    // fetch after the optimistic message is removed. This is a ref read (not a
+    // reactive dep) — the enrichment is applied whenever the memo re-runs for
+    // other reasons (mergedSession update, optimisticMessages change, etc.).
+    const cachedUrls = previewUrlByAttachmentId.current
+    const traceMessages =
+      cachedUrls.size > 0
+        ? rawTraceMessages.map(msg => {
+            if (!msg.attachments?.length) return msg
+            let changed = false
+            const enrichedAtts = msg.attachments.map(att => {
+              if (att.preview_url) return att
+              const url = cachedUrls.get(att.id)
+              if (!url) return att
+              changed = true
+              return { ...att, preview_url: url }
+            })
+            return changed ? { ...msg, attachments: enrichedAtts } : msg
+          })
+        : rawTraceMessages
 
     if (isRestTerminal && !isAgentRunning) {
       // Session is complete - use REST trace as the single source of truth.
@@ -578,6 +695,10 @@ export const useAgentSession = (
       return null
     }
 
+    if (mergedSession?.status === 'pending') {
+      return 'Preparing your files and starting the session...'
+    }
+
     if (!events || events.length === 0) return null
 
     // Get latest status event from the stream
@@ -593,6 +714,179 @@ export const useAgentSession = (
     return null
   }, [events, mergedSession?.status])
 
+  // Phase 4 UX: live_status pill text (ephemeral, takes precedence over
+  // statusHeadline). Only counts events within the last 5 seconds so a stale
+  // "Calling X..." pill doesn't outlive the tool call itself.
+  const liveStatusHeadline = useMemo(() => {
+    if (
+      mergedSession?.status === 'completed' ||
+      mergedSession?.status === 'failed' ||
+      mergedSession?.status === 'cancelled'
+    ) {
+      return null
+    }
+
+    if (!events || events.length === 0) return null
+
+    const cutoff = Date.now() - 5000
+    const liveEvents = events
+      .filter((e): e is AgentChunkEvent => e.type === 'agent_chunk' && e.chunk_kind === 'live_status')
+      .filter(e => toEpoch(e.timestamp) >= cutoff)
+      .sort((a, b) => toEpoch(b.timestamp) - toEpoch(a.timestamp))
+
+    if (liveEvents.length > 0) {
+      return liveEvents[0].content.replace(/🔄\s*/, '')
+    }
+
+    return null
+  }, [events, mergedSession?.status])
+
+  // Composed display value — live_status wins when present, otherwise fall
+  // back to the existing persisted status headline.
+  const displayStatus = liveStatusHeadline ?? statusHeadline
+
+  // Phase 4+ UX: grounded reveal hook state.
+  // ack: the single template-built acknowledgement line emitted right after
+  // the router decides. Cleared when the session reaches a terminal state.
+  const ackHeadline = useMemo(() => {
+    if (
+      mergedSession?.status === 'completed' ||
+      mergedSession?.status === 'failed' ||
+      mergedSession?.status === 'cancelled'
+    ) {
+      return null
+    }
+    if (!events || events.length === 0) return null
+    const ackEvents = events
+      .filter((e): e is AgentChunkEvent => e.type === 'agent_chunk' && e.chunk_kind === 'ack')
+      .sort((a, b) => toEpoch(b.timestamp) - toEpoch(a.timestamp))
+    return ackEvents[0]?.content?.trim() || null
+  }, [events, mergedSession?.status])
+
+  // planItems: the agent's checklist. Source-of-truth precedence:
+  //   1. mergedSession.todos (authoritative; populated via REST refresh +
+  //      SSE write_todos/update_todos events). This is what the right
+  //      panel and bottom activity card already use, and it carries the
+  //      agent's rich descriptions and live status transitions.
+  //   2. Latest plan_reveal / plan_update SSE chunk (only useful in the
+  //      brief 0..3 second window before the agent has written its first
+  //      checklist - acts as an "initial sketch" placeholder).
+  const planItems = useMemo<PlanItem[]>(() => {
+    if (
+      mergedSession?.status === 'completed' ||
+      mergedSession?.status === 'failed' ||
+      mergedSession?.status === 'cancelled'
+    ) {
+      return []
+    }
+
+    const normalizeStatus = (raw: unknown): PlanItemStatus => {
+      const source = typeof raw === 'string' ? raw : 'pending'
+      const s = source.toLowerCase().replace(/[-\s]/g, '_')
+      if (s === 'in_progress' || s === 'inprogress' || s === 'active' || s === 'running') return 'in_progress'
+      if (s === 'done' || s === 'completed' || s === 'finished') return 'done'
+      if (s === 'failed' || s === 'error') return 'failed'
+      if (s === 'skipped' || s === 'cancelled') return 'skipped'
+      return 'pending'
+    }
+
+    const sessionTodos = mergedSession?.todos as unknown as
+      | Array<{ id?: string; text?: string; description?: string; content?: string; status?: string }>
+      | undefined
+    if (Array.isArray(sessionTodos) && sessionTodos.length > 0) {
+      const fromTodos = sessionTodos
+        .map((t, idx) => {
+          const label = String(t?.text || t?.description || t?.content || '').trim()
+          if (!label) return null
+          return {
+            id: String(t?.id || `todo-${idx + 1}`),
+            label,
+            status: normalizeStatus(t?.status)
+          }
+        })
+        .filter((x): x is PlanItem => x !== null)
+      if (fromTodos.length > 0) return fromTodos
+    }
+
+    if (!events || events.length === 0) return []
+    const planEvents = events
+      .filter(
+        (e): e is AgentChunkEvent =>
+          e.type === 'agent_chunk' && (e.chunk_kind === 'plan_reveal' || e.chunk_kind === 'plan_update')
+      )
+      .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
+    const latest = planEvents[planEvents.length - 1]
+    const rawItems = latest?.metadata?.items as
+      | Array<{ id?: string; label?: string; text?: string; status?: string }>
+      | undefined
+    if (!Array.isArray(rawItems)) return []
+    return rawItems
+      .map((it, idx) => {
+        const label = String(it?.label || it?.text || '').trim()
+        if (!label) return null
+        return {
+          id: String(it?.id || `plan-${idx + 1}`),
+          label,
+          status: normalizeStatus(it?.status)
+        }
+      })
+      .filter((x): x is PlanItem => x !== null)
+  }, [events, mergedSession?.status, mergedSession?.todos])
+
+  // Phase 4+ TTFT UX: agentActivityLines — a flowing 3-line "what the agent
+  // is doing right now" ticker derived ENTIRELY from real-time signals the
+  // backend already emits (no extra LLM call). Sources for the CURRENT turn:
+  //   - chunk_kind="status"      (progressive milestones from background.py)
+  //   - chunk_kind="live_status" (throttled real-time tool/expert pill text)
+  //   - step_started events      (humanised tool / subagent / thinking start)
+  //   - decision events          (router / pack / capability decisions)
+  // Consecutive duplicates are collapsed. The newest line is at the end of
+  // the array so the consumer can render them as a slide-up stack. Suppressed
+  // entirely once the real response_stream begins for this turn so the
+  // bubble can animate out before the answer renders.
+  const agentActivityLines = useMemo<string[]>(() => {
+    if (isTerminalSessionStatus(mergedSession?.status)) return []
+    if (!events || events.length === 0) return []
+
+    const turnStartEpoch = findTurnStartEpoch(events)
+    const rows: Array<{ ts: number; text: string }> = []
+    let firstResponseEpoch = Number.POSITIVE_INFINITY
+
+    // NOTE: do NOT treat `final` as response-start. The deterministic
+    // instant ack greeting ("Hi Ed, working on this now…") is emitted
+    // 4ms after the human chunk as chunk_kind="final" — using it to
+    // suppress would kill the ticker before the first status arrives.
+    // Only the real `response_stream` should end the ticker.
+    for (const e of events) {
+      const tsRaw = (e as { timestamp?: string }).timestamp
+      const ts = typeof tsRaw === 'string' ? toEpoch(tsRaw) : 0
+      if (ts < turnStartEpoch) continue
+
+      if (isResponseStreamStart(e)) {
+        if (ts < firstResponseEpoch) firstResponseEpoch = ts
+        continue
+      }
+
+      const text = eventActivityText(e)?.trim()
+      if (!text || looksLikeInternalErrorLeak(text)) continue
+      rows.push({ ts, text })
+    }
+
+    if (firstResponseEpoch !== Number.POSITIVE_INFINITY) return []
+
+    rows.sort((a, b) => a.ts - b.ts)
+
+    // Collapse consecutive duplicates so a noisy emitter does not flood the
+    // ticker with the same line.
+    const deduped: string[] = []
+    for (const row of rows) {
+      if (deduped[deduped.length - 1] === row.text) continue
+      deduped.push(row.text)
+    }
+
+    return deduped.slice(-3)
+  }, [events, mergedSession?.status])
+
   const startSession = useCallback(
     async (
       task: string,
@@ -606,29 +900,57 @@ export const useAgentSession = (
     [client]
   )
 
+  const activateSession = useCallback(
+    async (targetSessionId: string): Promise<StartSessionResponse> => client.activateSession(targetSessionId),
+    [client]
+  )
+
   const reply = useCallback(
-    async (message?: string, structuredInput?: Record<string, any>) => {
+    async (message?: string, structuredInput?: Record<string, any>, attachments?: MessageAttachmentRef[]) => {
       if (!sessionId) return
 
-      // Avoid TS control-flow narrowing on sessionRef inside the sync loop (ref updates after fetch).
-      const readRestStatus = (): DeepAgentSession['status'] | undefined => sessionRef.current?.status
+      // Cache any blob preview URLs from the snapshot immediately — before the
+      // REST sync wait — so the optimistic message and any subsequent trace
+      // message can render the image from a local blob URL instead of waiting
+      // for a proxy round-trip (see messages useMemo below).
+      if (attachments) {
+        for (const att of attachments) {
+          if (att.preview_url) {
+            previewUrlByAttachmentId.current.set(att.id, att.preview_url)
+          }
+        }
+      }
 
-      await waitForRestSyncWithWaitingHumanStream(eventsRef.current, readRestStatus, fetchSession)
-
+      // Show the user's message bubble immediately — before the REST sync wait
+      // — so there is zero perceived latency between pressing Send and seeing
+      // the message (with any attached image) appear in the chat.
       const optimisticId = `optimistic-${Date.now()}`
       if (message && !structuredInput) {
         const optimisticMessage: ChatMessage = {
           id: optimisticId,
           type: 'user_input',
           timestamp: new Date().toISOString(),
-          content: message
+          content: message,
+          ...(attachments && attachments.length > 0 ? { attachments } : {})
         }
         setOptimisticMessages(prev => [...prev, optimisticMessage])
       }
 
+      // Avoid TS control-flow narrowing on sessionRef inside the sync loop (ref updates after fetch).
+      const readRestStatus = (): DeepAgentSession['status'] | undefined => sessionRef.current?.status
+
+      await waitForRestSyncWithWaitingHumanStream(eventsRef.current, readRestStatus, fetchSession)
+
       setIsAgentRunning(true)
       setLastReplyTimestamp(Date.now()) // Mark when we sent a new reply to prevent showing stale content
-      const postInterrupt = () => client.replyToInterrupt(sessionId, message, structuredInput)
+      const attachmentRefs = attachments?.map(a => ({
+        id: a.id,
+        name: a.name,
+        mime_type: a.mime_type,
+        size: a.size,
+        indexing_status: a.indexing_status
+      }))
+      const postInterrupt = () => client.replyToInterrupt(sessionId, message, structuredInput, attachmentRefs)
 
       try {
         await postInterruptWith409Retry(postInterrupt, fetchSession)
@@ -655,12 +977,19 @@ export const useAgentSession = (
     streamingContent,
     streamingThinking,
     statusHeadline,
+    liveStatusHeadline,
+    displayStatus,
+    ackHeadline,
+    planItems,
+    agentActivityLines,
     isConnected,
-    isStreaming: isAgentRunning || (!!mergedSession && mergedSession.status === 'running'),
+    isStreaming:
+      isAgentRunning || (!!mergedSession && (mergedSession.status === 'running' || mergedSession.status === 'pending')),
     isWaitingForInput: mergedSession?.status === 'waiting_for_human',
     sessionLoadError,
     activeSkill,
     startSession,
+    activateSession,
     reply,
     retrySessionLoad: fetchSession
   }

@@ -63,16 +63,6 @@ export interface InvestmentViewKPIData extends BaseKPIData {
 }
 
 /**
- * Overview tab KPI data structure
- */
-export interface OverviewKPIData extends BaseKPIData {
-  totalPortfolioValue: number
-  totalInvestments: number
-  totalAmountInvested: number
-  activeInvestments: number
-}
-
-/**
  * Equity tab KPI data structure
  */
 export interface EquityKPIData extends BaseKPIData {

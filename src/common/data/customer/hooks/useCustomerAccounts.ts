@@ -91,6 +91,12 @@ export interface UseCustomerAccountsListResult {
   search: (searchTerm: string) => void
   loadMore: () => void
   refetch: () => Promise<void>
+  /**
+   * Imperative fetch that does NOT touch the hook's internal state.
+   * Use this when you need to fetch with arbitrary variables (e.g. drill-down panels)
+   * without affecting the combobox-style state managed by this hook.
+   */
+  fetchCustomerAccounts: (variables?: CustomerAccountQueryVariables) => Promise<CustomerAccountListData>
 }
 
 export function useCustomerAccountsList(
@@ -201,10 +207,42 @@ export function useCustomerAccountsList(
     await fetchPage(currentSearchRef.current, 0, false)
   }, [fetchPage])
 
+  const fetchCustomerAccounts = useCallback(
+    async (queryVariables?: CustomerAccountQueryVariables): Promise<CustomerAccountListData> => {
+      if (!context.accessToken) {
+        return { accounts: [], total: 0 }
+      }
+
+      const vars: CustomerAccountQueryVariables = { ...stableVariables, ...queryVariables }
+      const query = buildCustomerAccountQuery()
+      const whereCondition = buildCustomerAccountWhereCondition(vars)
+      const orderBy = buildCustomerAccountOrderBy(vars.orderBy || [])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: vars.limit ?? 50,
+        offset: vars.offset ?? 0,
+        where: whereCondition,
+        orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<CustomerAccountListQueryResponse>(query, graphQLVariables)
+        const accounts = result.Account.map(toCustomerAccount)
+        const total = result.AccountAggregate?.aggregate?.count || 0
+        return { accounts, total }
+      } catch (error) {
+        console.error('Error fetching customer accounts:', error instanceof Error ? error.message : error)
+        return { accounts: [], total: 0 }
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
   return {
     ...state,
     search,
     loadMore,
-    refetch
+    refetch,
+    fetchCustomerAccounts
   }
 }

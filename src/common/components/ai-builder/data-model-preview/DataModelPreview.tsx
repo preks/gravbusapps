@@ -51,7 +51,7 @@ export interface DataModelPreviewProps {
 function emptyRow(columns: DataModelPreviewColumn[]): RowValues {
   const row: RowValues = {}
   columns.forEach(col => {
-    row[col.name] = col.type === 'CHECKBOX' ? false : ''
+    row[col.fieldName] = col.type === 'CHECKBOX' ? false : ''
   })
   return row
 }
@@ -170,11 +170,6 @@ function formatReadValue(value: unknown, type: string): string {
 const SCALAR_COLUMN_TYPES = new Set(['TEXT', 'NUMBER', 'DATE', 'DATETIME', 'CHECKBOX', 'SELECT'])
 const INTERNAL_ENTITY_FALLBACK_FIELDS = ['id', 'code', 'displayName', 'type', 'description']
 
-function deriveNestedFieldName(columnName: string): string {
-  const stripped = columnName.replace(/Id$/, '').replace(/_id$/, '')
-  return stripped === columnName ? `${columnName}Ref` : stripped
-}
-
 function toStableRowKey(row: Record<string, unknown>, index: number): string {
   const id = row.id
   if (id == null) return `row-${index}`
@@ -207,7 +202,7 @@ function areColumnsEqual(left: DataModelPreviewColumn[], right: DataModelPreview
   return left.every((column, index) => {
     const rightColumn = right[index]
     return (
-      column.name === rightColumn?.name &&
+      column.fieldName === rightColumn?.fieldName &&
       column.label === rightColumn?.label &&
       column.type === rightColumn?.type &&
       column.required === rightColumn?.required &&
@@ -216,39 +211,18 @@ function areColumnsEqual(left: DataModelPreviewColumn[], right: DataModelPreview
   })
 }
 
-function toPascalCaseEntityKey(input: string): string {
-  const value = String(input || '').trim()
-  if (!value) return 'Entity'
-  const parts = value
-    .replace(/[^a-zA-Z0-9]+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-  const out = parts.map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('')
-  return out && /^[A-Za-z]/.test(out) ? out : `Entity${out}`
-}
-
-function buildEntityQueryNames(entityKey: string): { listPrimary: string; typeName: string } {
-  const typeName = toPascalCaseEntityKey(entityKey)
-  return {
-    listPrimary: typeName,
-    typeName
-  }
-}
-
 function buildListQuery(
-  key: string,
+  entityName: string,
   columns: DataModelPreviewColumn[],
   internalEntityFieldsByType: Record<string, string[]>
 ): { query: string; listFieldName: string; internalEntityFields: string[] } {
-  const queryNames = buildEntityQueryNames(key)
-  const scalarFields = columns.filter(c => SCALAR_COLUMN_TYPES.has(c.type)).map(c => c.name)
+  const scalarFields = columns.filter(c => SCALAR_COLUMN_TYPES.has(c.type)).map(c => c.fieldName)
   const fieldLines: string[] = ['id', ...scalarFields]
 
   const internalEntityFields: string[] = []
   for (const col of columns) {
     if (col.dataSource?.type === 'INTERNAL_ENTITY') {
-      const nestedName = deriveNestedFieldName(col.name)
+      const nestedName = col.fieldName
       const internalEntityType = String(col.dataSource.entity || '').trim()
       const preferredFields = internalEntityFieldsByType[internalEntityType] ?? []
       const selectedFields = INTERNAL_ENTITY_FALLBACK_FIELDS.filter(field => preferredFields.includes(field))
@@ -262,8 +236,8 @@ function buildListQuery(
 
   const fields = fieldLines.join('\n      ')
   return {
-    query: `{ ${queryNames.listPrimary} {\n      ${fields}\n    } }`,
-    listFieldName: queryNames.listPrimary,
+    query: `{ ${entityName} {\n      ${fields}\n    } }`,
+    listFieldName: entityName,
     internalEntityFields
   }
 }
@@ -272,15 +246,17 @@ type DataModelTab = 'structure' | 'data' | 'diagram'
 
 function definitionToGraphInput(def: DataModelPreviewDefinition, index: number): DataGraphEntityInput {
   return {
-    id: def.key || `entity-${index}`,
-    key: def.key,
-    displayName: def.display_name,
+    id: def.entityName || `entity-${index}`,
+    key: def.entityName,
+    displayName: def.displayName,
     columns: (def.columns ?? []).map(col => ({
-      name: col.name,
+      name: col.fieldName,
       type: col.type,
       label: col.label,
       required: col.required,
-      dataSource: col.dataSource ? { type: col.dataSource.type, entity: col.dataSource.entity } : undefined
+      dataSource: col.dataSource
+        ? { type: col.dataSource.type, entity: col.dataSource.entity, namespace: col.dataSource.namespace }
+        : undefined
     }))
   }
 }
@@ -296,7 +272,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<DataModelTab>('structure')
   const [columns, setColumns] = useState<DataModelPreviewColumn[]>(definition.columns ?? [])
-  const displayName = definition.display_name ?? definition.key ?? ''
+  const displayName = definition.displayName ?? definition.entityName ?? ''
   const [rows, setRows] = useState<RowState[]>([])
 
   const [existingRows, setExistingRows] = useState<Record<string, unknown>[]>([])
@@ -310,12 +286,11 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
   const [internalEntityFieldsByType, setInternalEntityFieldsByType] = useState<Record<string, string[]>>({})
 
   const isCatalog = definition.modelType === 'catalog'
-  const entityQueryNames = useMemo(() => buildEntityQueryNames(definition.key), [definition.key])
   const columnSignature = useMemo(
     () =>
       JSON.stringify(
         columns.map(column => ({
-          name: column.name,
+          fieldName: column.fieldName,
           type: column.type,
           dataSourceType: column.dataSource?.type ?? '',
           dataSourceEntity: column.dataSource?.entity ?? ''
@@ -332,8 +307,8 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
     [internalEntityFieldsByType]
   )
   const listQueryConfig = useMemo(
-    () => buildListQuery(definition.key, columns, internalEntityFieldsByType),
-    [definition.key, columnSignature, internalEntityFieldSignature]
+    () => buildListQuery(definition.entityName, columns, internalEntityFieldsByType),
+    [definition.entityName, columnSignature, internalEntityFieldSignature]
   )
 
   const graphqlClient = useMemo(
@@ -372,7 +347,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
     if (!graphqlClient) return
 
     try {
-      const schemaTypes = await graphqlClient.introspectEntityType(entityQueryNames.typeName)
+      const schemaTypes = await graphqlClient.introspectEntityType(definition.entityName)
       if (Object.keys(schemaTypes).length > 0) {
         const enrichedColumns = enrichColumnsWithSchemaTypes(definition.columns ?? [], schemaTypes)
         setColumns(prev => (areColumnsEqual(prev, enrichedColumns) ? prev : enrichedColumns))
@@ -380,7 +355,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
     } catch (error) {
       console.warn('Failed to fetch schema types, using definition types:', error)
     }
-  }, [graphqlClient, definition.columns, entityQueryNames.typeName])
+  }, [graphqlClient, definition.columns, definition.entityName])
 
   useEffect(() => {
     fetchSchemaTypes()
@@ -418,10 +393,10 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
     if (onCreateRow) return onCreateRow
     if (!mutationClient) return undefined
     return async (values: Record<string, unknown>) => {
-      await mutationClient.createRow({ definitionKey: definition.key, values, namespace: definition.namespace })
+      await mutationClient.createRow({ entityName: definition.entityName, values, namespace: definition.namespace })
       await fetchRows({ silent: true })
     }
-  }, [onCreateRow, mutationClient, definition.key, definition.namespace, fetchRows])
+  }, [onCreateRow, mutationClient, definition.entityName, definition.namespace, fetchRows])
 
   const effectiveOnUpdateRow = useMemo<
     ((rowId: string, values: Record<string, unknown>) => Promise<void>) | undefined
@@ -430,27 +405,27 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
     if (!mutationClient) return undefined
     return async (rowId: string, values: Record<string, unknown>) => {
       await mutationClient.updateRow({
-        definitionKey: definition.key,
+        entityName: definition.entityName,
         rowId,
         values,
         namespace: definition.namespace
       })
       await fetchRows({ silent: true })
     }
-  }, [onUpdateRow, mutationClient, definition.key, definition.namespace, fetchRows])
+  }, [onUpdateRow, mutationClient, definition.entityName, definition.namespace, fetchRows])
 
   const effectiveOnDeleteRow = useMemo<((rowId: string) => Promise<void>) | undefined>(() => {
     if (onDeleteRow) return onDeleteRow
     if (!mutationClient) return undefined
     return async (rowId: string) => {
       await mutationClient.deleteRow({
-        definitionKey: definition.key,
+        entityName: definition.entityName,
         rowId,
         namespace: definition.namespace
       })
       await fetchRows({ silent: true })
     }
-  }, [onDeleteRow, mutationClient, definition.key, definition.namespace, fetchRows])
+  }, [onDeleteRow, mutationClient, definition.entityName, definition.namespace, fetchRows])
 
   const convertCheckboxValue = Boolean
 
@@ -491,15 +466,15 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
       setEditingExistingId(rowKey)
       const values: RowValues = {}
       columns.forEach(col => {
-        const raw = row[col.name]
+        const raw = row[col.fieldName]
         if (col.type === 'CHECKBOX') {
-          values[col.name] = convertCheckboxValue(raw)
+          values[col.fieldName] = convertCheckboxValue(raw)
         } else if (col.type === 'DATE' || col.type === 'DATETIME') {
-          values[col.name] = convertDateValue(raw, col.type)
+          values[col.fieldName] = convertDateValue(raw, col.type)
         } else if (col.type === 'REFERENCE') {
-          values[col.name] = convertReferenceValue(raw)
+          values[col.fieldName] = convertReferenceValue(raw)
         } else {
-          values[col.name] = convertGenericValue(raw)
+          values[col.fieldName] = convertGenericValue(raw)
         }
       })
       setEditingValues(values)
@@ -650,12 +625,12 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
                 <ul className="gba:divide-y gba:divide-border">
                   {columns.map(col => (
                     <li
-                      key={col.name}
+                      key={col.fieldName}
                       className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3 gba:text-sm"
-                      data-testid={`${testId}-structure-field-${col.name}`}
+                      data-testid={`${testId}-structure-field-${col.fieldName}`}
                     >
                       <div className="gba:min-w-0 gba:flex-1">
-                        <span className="gba:font-medium gba:text-foreground">{col.label || col.name}</span>
+                        <span className="gba:font-medium gba:text-foreground">{col.label || col.fieldName}</span>
                         <span className="gba:text-muted-foreground gba:ml-2">{getColumnTypeLabel(col.type)}</span>
                       </div>
                       <Badge variant="outline" className="gba:text-xs gba:shrink-0">
@@ -744,7 +719,7 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
                     <table className="gba:w-full gba:text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
                       <colgroup>
                         {columns.map(col => (
-                          <col key={col.name} />
+                          <col key={col.fieldName} />
                         ))}
                         <col style={{ width: '120px' }} />
                       </colgroup>
@@ -752,11 +727,11 @@ const DataModelPreviewSingle: React.FC<DataModelPreviewSingleProps> = ({
                         <tr className="gba:bg-muted/50 gba:border-b gba:border-border">
                           {columns.map(col => (
                             <th
-                              key={col.name}
+                              key={col.fieldName}
                               className="gba:text-left gba:font-medium gba:px-3 gba:py-2.5 gba:text-foreground gba:overflow-hidden"
                             >
                               <div className="gba:truncate">
-                                {col.label || col.name}
+                                {col.label || col.fieldName}
                                 {col.required && <span className="gba:text-destructive gba:ml-0.5">*</span>}
                               </div>
                             </th>

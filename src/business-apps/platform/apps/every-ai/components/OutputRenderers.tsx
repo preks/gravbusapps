@@ -33,9 +33,11 @@ import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
 import { RemoteFormDisplay } from './displays/RemoteFormDisplay'
 import { CrmFunnelDisplay } from './displays/crm-funnel'
+import { WorkflowAnalyticsDisplay } from './displays/workflow-analytics'
 import { AssetSummaryDisplay } from './displays/asset-summary'
 import { TeamAvailabilityDisplay } from './displays/team-availability'
 import { FlowbotCalendarDisplay } from './displays/calendar/FlowbotCalendarDisplay'
+import { InteractiveTableDisplay } from './displays/interactive-table/InteractiveTableDisplay'
 import { ChatSnippetDisplay } from './displays/ChatSnippetDisplay'
 import {
   AreaChartDisplay,
@@ -54,6 +56,7 @@ import {
   REASONING_KIND_LABEL,
   REASONING_STATUS_STYLE,
   extractCodeHint,
+  extractStepReason,
   formatReasoningDuration,
   prettifyJson
 } from './reasoningStepUtils'
@@ -409,8 +412,8 @@ function renderEntity(item: EntityData, accessToken: string) {
           workflowId={item.id}
           accessToken={accessToken}
           operation={item.operation}
-          flowProposal={item.flow_proposal}
           textTitle={item.text_title}
+          textHuman={item.text_human}
           tool={item.tool}
           link={item.link}
           textFull={item.text_full}
@@ -901,12 +904,19 @@ export const FileDisplay: React.FC<FileDisplayProps> = ({ data, accessToken }) =
 }
 
 // Display Data Renderer
-function renderDisplayData(item: DisplayData, idx: number, accessToken: string) {
+function renderDisplayData(
+  item: DisplayData,
+  idx: number,
+  accessToken: string,
+  sendMessage?: (message: string) => void
+) {
   switch (item.type) {
     case 'textBlock':
       return <TextBlockDisplay key={idx} data={item} accessToken={accessToken} />
     case 'table':
       return <TableDisplay key={idx} data={item} accessToken={accessToken} />
+    case 'interactiveTable':
+      return <InteractiveTableDisplay key={idx} data={item} accessToken={accessToken} />
     case 'bar':
       return <BarGraphDisplay key={idx} data={item} />
     case 'scatter':
@@ -915,6 +925,8 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       return <CalendarDisplay key={idx} data={item} />
     case 'crmFunnel':
       return <CrmFunnelDisplay key={idx} data={item} />
+    case 'workflowAnalytics':
+      return <WorkflowAnalyticsDisplay key={idx} data={item} onFollowUpClick={sendMessage} />
     case 'assetSummary':
       return <AssetSummaryDisplay key={idx} data={item} />
     case 'teamAvailability':
@@ -972,7 +984,8 @@ export const AnswerOutputRenderer: React.FC<{
   data: AnswerOutput
   accessToken: string
   sessionId?: string
-}> = ({ data, accessToken, sessionId }) => {
+  sendMessage?: (message: string) => void
+}> = ({ data, accessToken, sessionId, sendMessage }) => {
   const [copied, setCopied] = useState(false)
   const [feedback, setFeedback] = useState<'like' | 'dislike' | null>(null)
   const [isSendingFeedback, setIsSendingFeedback] = useState(false)
@@ -1012,7 +1025,7 @@ export const AnswerOutputRenderer: React.FC<{
       data-testid="answer-output-renderer"
     >
       {deduplicatedData.map((item, idx) => (
-        <div key={idx}>{renderDisplayData(item, idx, accessToken)}</div>
+        <div key={idx}>{renderDisplayData(item, idx, accessToken, sendMessage)}</div>
       ))}
       <div className="gba:absolute gba:top-full gba:left-0 gba:mt-1 gba:flex gba:items-center gba:gap-2 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10">
         <Button
@@ -1220,6 +1233,7 @@ export const ReasoningStepDisplay: React.FC<{
   const kindLabel = REASONING_KIND_LABEL[step.kind] ?? 'Step'
   const statusClass = REASONING_STATUS_STYLE[step.status] ?? 'gba:text-muted-foreground'
   const duration = formatReasoningDuration(step.started_at, step.ended_at)
+  const description = extractStepReason(step)
   const statusIcon =
     step.status === 'running' ? (
       <span
@@ -1258,6 +1272,14 @@ export const ReasoningStepDisplay: React.FC<{
           ›
         </span>
       </button>
+      {description && (
+        <div
+          className="gba:text-xs gba:italic gba:text-muted-foreground gba:font-medium gba:pl-6 gba:pr-2 gba:break-words"
+          data-testid="reasoning-step-description"
+        >
+          {description}
+        </div>
+      )}
       {expanded && (
         <div
           className="gba:flex gba:flex-col gba:gap-2 gba:pl-6 gba:pr-2 gba:py-2 gba:border-l gba:border-border/60"
@@ -1306,13 +1328,26 @@ const ReasoningStepRenderer: React.FC<{ item: ReasoningStepOutput }> = ({ item }
 export const ReasoningStepsGroup: React.FC<{
   steps: ReasoningStepOutput[]
   defaultExpanded?: boolean
-}> = ({ steps, defaultExpanded = false }) => {
+  /**
+   * `final` (default) — shown after the agent finishes; collapses the entire
+   * reasoning trail behind "Show reasoning · N steps".
+   *
+   * `live` — shown WHILE the agent is still thinking; sits alongside the
+   * active step row and exposes only the previously-completed steps via
+   * "Show previous steps · N step(s)" so the user can revisit them without
+   * waiting for the final answer.
+   */
+  variant?: 'final' | 'live'
+}> = ({ steps, defaultExpanded = false, variant = 'final' }) => {
   const [expanded, setExpanded] = useState(defaultExpanded)
   if (steps.length === 0) return null
 
   const hasError = steps.some(s => s.status === 'error')
   const stillRunning = steps.some(s => s.status === 'running')
   const totalDuration = computeGroupDuration(steps)
+  const noun = variant === 'live' ? 'previous step' : 'step'
+  const showLabel = variant === 'live' ? 'Show previous steps' : 'Show reasoning'
+  const hideLabel = variant === 'live' ? 'Hide previous steps' : 'Hide reasoning'
 
   const summaryIcon = hasError ? (
     <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-destructive" aria-hidden />
@@ -1333,7 +1368,7 @@ export const ReasoningStepsGroup: React.FC<{
       >
         <span className="gba:flex gba:items-center">{summaryIcon}</span>
         <span className="gba:text-[11px] gba:font-medium">
-          {expanded ? 'Hide reasoning' : `Show reasoning · ${steps.length} step${steps.length === 1 ? '' : 's'}`}
+          {expanded ? hideLabel : `${showLabel} · ${steps.length} ${noun}${steps.length === 1 ? '' : 's'}`}
         </span>
         {totalDuration && !expanded && (
           <span className="gba:text-[11px] gba:text-muted-foreground/80">· {totalDuration}</span>
@@ -1391,7 +1426,14 @@ export const OutputItemRenderer: React.FC<{
 }) => {
   switch (item.type) {
     case 'answer':
-      return <AnswerOutputRenderer data={item} accessToken={accessToken} sessionId={sessionId} />
+      return (
+        <AnswerOutputRenderer
+          data={item}
+          accessToken={accessToken}
+          sessionId={sessionId}
+          sendMessage={sendMessage ? (msg: string) => sendMessage(msg, []) : undefined}
+        />
+      )
     case 'tool':
       return <ToolOutput name={item.name} reason={item.reason} />
     case 'reasoning_step':
@@ -1407,6 +1449,12 @@ export const OutputItemRenderer: React.FC<{
     case 'narration_attach':
       // Pure dispatch event: the hook moves the streaming bubble's text
       // into the matching reasoning step's `narration`. Nothing to render.
+      return null
+    case 'agent_plan':
+    case 'agent_plan_update':
+      // Plan snapshots are rendered at the turn level by
+      // UnifiedAIMessageRenderer (pinned above the answer). Nothing to do
+      // when they appear inline in the output stream.
       return null
     case 'document_stream_start':
       return <DocumentStreamStartDisplay data={item} />

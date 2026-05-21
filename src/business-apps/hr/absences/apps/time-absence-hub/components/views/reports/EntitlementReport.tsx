@@ -6,6 +6,7 @@ import { formatExportDate } from '@/common/utils/excelExportUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ORG_ENTITLEMENTS_OVERVIEW, OrgEntitlementRow } from '../../../queries/OrgEntitlementQueries'
 import { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
+import { LEGAL_ENTITY_NOT_DEFINED_FILTER_ID } from '../../../constants/routes'
 import { ReportExportActions } from './ReportExportActions'
 import { downloadRowsAsCsv, downloadRowsAsXlsx } from './reportExportUtils'
 
@@ -58,9 +59,26 @@ const buildWhereForExport = (
     })
   }
   if (filters.legalEntityIds.length > 0) {
-    conditions.push({
-      employee: { employeePosition: { companyId: { _in: filters.legalEntityIds } } }
-    })
+    const includeMissingLegalEntity = filters.legalEntityIds.includes(LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
+    const definedLegalEntityIds = filters.legalEntityIds.filter(id => id !== LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
+
+    if (includeMissingLegalEntity && definedLegalEntityIds.length > 0) {
+      conditions.push({
+        employee: {
+          employeePosition: {
+            _or: [{ companyId: { _in: definedLegalEntityIds } }, { companyId: { _isNull: true } }]
+          }
+        }
+      })
+    } else if (includeMissingLegalEntity) {
+      conditions.push({
+        employee: { employeePosition: { companyId: { _isNull: true } } }
+      })
+    } else {
+      conditions.push({
+        employee: { employeePosition: { companyId: { _in: definedLegalEntityIds } } }
+      })
+    }
   }
   if (filters.locationIds.length > 0) {
     conditions.push({

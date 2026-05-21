@@ -60,7 +60,7 @@ function PayGapExplanationPieChart({ data, loading = false, error = null }: Read
 
   return (
     <div
-      className="gba:w-full gba:h-full gba:bg-card gba:rounded-lg gba:p-6 gba:shadow-sm gba:border gba:border-border"
+      className="gba:w-full gba:h-full gba:bg-card gba:rounded-lg gba:p-6"
       data-testid="pay-gap-explanation-pie-chart"
     >
       <div className="gba:mb-4">

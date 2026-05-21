@@ -69,7 +69,7 @@ function activityFromAgentChunk(
       tool_name: toolName
     }
   }
-  if (chunkKind === 'status' && content) {
+  if ((chunkKind === 'status' || chunkKind === 'live_status') && content) {
     return {
       step: 'thinking',
       label: content.slice(0, 200),
@@ -190,6 +190,21 @@ function applySessionEvent(map: SessionMap, event: ActiveStreamSessionEvent): Se
       structured_input_request:
         event.request?.payload && typeof event.request.payload === 'object' ? event.request.payload : null
     })
+  }
+
+  if (event.type === 'hitl_resolved') {
+    const timestamp = typeof event.timestamp === 'string' ? event.timestamp : existing.updated_at
+    const nextSnapshot: ActiveSessionSnapshot = {
+      ...existing,
+      status: 'running',
+      pending_human_question: null,
+      pending_structured_input: null,
+      updated_at: timestamp ?? existing.updated_at,
+      current_activity: { step: 'thinking', label: 'Resuming...', started_at: timestamp ?? null }
+    }
+    const next = new Map(map)
+    next.set(sid, nextSnapshot)
+    return next
   }
 
   const timestamp = typeof event.timestamp === 'string' ? event.timestamp : existing.updated_at

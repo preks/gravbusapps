@@ -1,4 +1,5 @@
-import React, { useMemo, useCallback } from 'react'
+import React, { useMemo, useCallback, useState } from 'react'
+import { getEmailChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 import {
   FormField,
   FormItem,
@@ -14,6 +15,10 @@ import { EmployeeSelect } from '@/components/employee-select'
 import { AccountSegment } from '@/common/components/common-relations/form-segments/account-segment'
 import type { AccountSegmentOption } from '@/common/components/common-relations/form-segments/account-segment'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import type {
+  InlineEntityDraft,
+  InlineEntityCreateRenderProps
+} from '@/common/components/common-relations/popups/inline-entity-create-popup'
 import translations from './_i18n'
 
 interface ContactInformationSegmentProps {
@@ -43,6 +48,12 @@ interface ContactInformationSegmentProps {
 
   // Ref to store current file and thumbnail (for handlePreSubmit in form component)
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
+
+  // Render prop for the inline account create/edit popup.
+  // When provided, enables the "create new account" and "edit draft account" actions on
+  // the accounts field. The caller is responsible for rendering the popup with the
+  // correct module and business-app context — the segment only supplies dialog state.
+  inlineAccountCreate?: (props: InlineEntityCreateRenderProps) => React.ReactNode
 }
 
 const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
@@ -52,10 +63,87 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
   entityId,
   useAccounts,
   customFields,
-  avatarFileRef
+  avatarFileRef,
+  inlineAccountCreate
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+  const communicationChannels = form.watch('communicationChannels')
+
+  const emailChannelIndex = useMemo(() => {
+    if (!communicationChannels?.length) return -1
+    return communicationChannels.findIndex((channel: { communicationChannelRef?: string }) =>
+      Boolean(getEmailChannel([channel]))
+    )
+  }, [communicationChannels])
+
+  // Inline-create dialog state for nested account drafts
+  const [draftDialog, setDraftDialog] = useState<{ open: boolean; editIndex: number | null }>({
+    open: false,
+    editIndex: null
+  })
+
+  const businessAppContextValue = businessAppContext
+
+  const handleOpenCreateDraft = useCallback(() => {
+    setDraftDialog({ open: true, editIndex: null })
+  }, [])
+
+  const handleOpenEditDraft = useCallback((index: number) => {
+    setDraftDialog({ open: true, editIndex: index })
+  }, [])
+
+  const handleDialogOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      setDraftDialog(prev => ({ ...prev, open: true }))
+    } else {
+      setDraftDialog({ open: false, editIndex: null })
+    }
+  }, [])
+
+  const handleDraftConfirm = useCallback(
+    (draft: InlineEntityDraft) => {
+      // Build the draft entry: store full account payload nested + draft markers.
+      const draftEntry = {
+        __isDraft: true,
+        __draftId: draft.__draftId,
+        contactType: draft.contactType ?? null,
+        ...('account' in draft ? { account: draft.account } : {})
+      }
+
+      const current: any[] = (form.getValues('accountContacts') as any[]) || []
+
+      if (draftDialog.editIndex === null) {
+        form.setValue('accountContacts', [...current, draftEntry], { shouldDirty: true, shouldValidate: true })
+      } else {
+        const previous = current[draftDialog.editIndex] || {}
+        const nextAccountContacts = current.map((entry, index) =>
+          index === draftDialog.editIndex
+            ? {
+                ...previous,
+                ...draftEntry,
+                __draftId: previous.__draftId || draft.__draftId
+              }
+            : entry
+        )
+        form.setValue('accountContacts', nextAccountContacts, { shouldDirty: true, shouldValidate: true })
+      }
+    },
+    [draftDialog.editIndex, form]
+  )
+
+  const editDraftDefaults = useMemo(() => {
+    if (draftDialog.editIndex === null) return undefined
+    const entries: any[] = (form.getValues('accountContacts') as any[]) || []
+    const entry = entries[draftDialog.editIndex]
+    return entry?.account || undefined
+  }, [draftDialog.editIndex, form])
+
+  const editDraftId = useMemo(() => {
+    if (draftDialog.editIndex === null) return undefined
+    const entries: any[] = (form.getValues('accountContacts') as any[]) || []
+    return entries[draftDialog.editIndex]?.__draftId
+  }, [draftDialog.editIndex, form])
 
   // Transform accounts to AccountSegmentOption[]
   const accountOptions = useMemo<AccountSegmentOption[]>(() => {
@@ -178,6 +266,31 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
         />
       </div>
 
+      {emailChannelIndex >= 0 && (
+        <FormField
+          control={form.control}
+          name={`communicationChannels.${emailChannelIndex}.value`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('contact-email-label')}</FormLabel>
+              <FormControl>
+                <Input
+                  type="email"
+                  placeholder={t('please-enter')}
+                  data-testid="contact-information-segment-email"
+                  value={field.value || ''}
+                  onChange={e => field.onChange(e.target.value)}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
       {/* Job Position and Department - Side by side */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
         <FormField
@@ -257,26 +370,45 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
 
       {/* Account Selection - Multiple accounts with contact types */}
       {useAccounts && (
-        <FormItem>
-          <FormLabel>{t('contact-accounts-label')}</FormLabel>
-          <FormControl>
-            <AccountSegment
-              fieldArrayName="accountContacts"
-              accountIdFieldName="accountId"
-              accountTypeFieldName="contactType"
-              typeMode="contactType"
-              accountContacts={accountContacts}
-              accounts={accountOptions}
-              accountsLoading={useAccounts.loading}
-              accountsError={useAccounts.error}
-              searchAccounts={searchAccounts}
-              hasMore={useAccounts.hasMore}
-              onLoadMore={useAccounts.loadMore}
-              dataTestId="contact-information-segment-accounts"
-            />
-          </FormControl>
-        </FormItem>
+        <FormField
+          control={form.control}
+          name="accountContacts"
+          render={({ field }) => (
+            <FormItem className="gba:w-full gba:max-w-full gba:min-w-0 gba:overflow-hidden">
+              <FormLabel>{t('contact-accounts-label')}</FormLabel>
+              <FormControl className="gba:w-full gba:max-w-full gba:min-w-0">
+                <AccountSegment
+                  fieldArrayName="accountContacts"
+                  accountIdFieldName="accountId"
+                  accountTypeFieldName="contactType"
+                  typeMode="contactType"
+                  accountContacts={accountContacts}
+                  accountContactsValue={field.value || []}
+                  onAccountContactsChange={field.onChange}
+                  accounts={accountOptions}
+                  accountsLoading={useAccounts.loading}
+                  accountsError={useAccounts.error}
+                  searchAccounts={searchAccounts}
+                  hasMore={useAccounts.hasMore}
+                  onLoadMore={useAccounts.loadMore}
+                  dataTestId="contact-information-segment-accounts"
+                  onCreateNew={inlineAccountCreate && businessAppContextValue ? handleOpenCreateDraft : undefined}
+                  onEditDraft={inlineAccountCreate && businessAppContextValue ? handleOpenEditDraft : undefined}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
       )}
+
+      {inlineAccountCreate?.({
+        open: draftDialog.open,
+        onOpenChange: handleDialogOpenChange,
+        draftId: editDraftId,
+        defaultValues: editDraftDefaults,
+        onConfirm: handleDraftConfirm,
+        'data-testid': 'contact-information-segment-inline-create-account'
+      })}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
-import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
+import { assignBearerAuthorizationHeader, normalizeBearerAccessToken } from '@/common/network/HeaderUtils'
 import { RestClient } from '@/common/network/rest/RestClient'
 import type {
   AgentRegistryEntry,
@@ -80,6 +80,27 @@ export interface ProviderToolCatalogItem {
     tags?: string[]
   }
   annotations?: Record<string, unknown>
+}
+
+/**
+ * Stage 1 v2 provider-tool entry. Returned from
+ * GET /api/v2/provider-tools, which collapses the active flowbot +
+ * functions surface into a single response keyed by canonical name.
+ *
+ * Persistence rule: skill yaml continues to store ``tool_ref`` in
+ * Stage 1 — ``canonical_name`` is the LLM-facing display name only.
+ */
+export interface CanonicalProviderToolEntry {
+  tool_ref: string
+  canonical_name: string
+  source: 'flowbot' | 'functions'
+  description: string
+  input_schema: Record<string, unknown>
+  output_schema: Record<string, unknown>
+  capabilities: Record<string, unknown>
+  shadowed_by: string | null
+  /** False when entry is a static stub because live catalog was unreachable */
+  catalog_available: boolean
 }
 
 export interface DeepAgentDebugTrace {
@@ -722,32 +743,15 @@ export class PromptManagerClient extends RestClient {
     return error instanceof Error && error.message.includes(`REST request failed: ${status}`)
   }
 
-  private normalizeAccessToken(accessToken: unknown): string | null {
-    if (typeof accessToken !== 'string') return null
-    const trimmed = accessToken.trim()
-    if (!trimmed) return null
-    if (trimmed === '[object Object]') return null
-    if (trimmed.toLowerCase() === 'undefined' || trimmed.toLowerCase() === 'null') return null
-    if (trimmed.startsWith('Bearer ')) {
-      const raw = trimmed.slice('Bearer '.length).trim()
-      return raw || null
-    }
-    return trimmed
-  }
-
   setAccessToken(accessToken: string) {
     if (!this.headers) {
       this.headers = {}
     }
-    const normalized = this.normalizeAccessToken(accessToken)
-    if (!normalized) {
-      delete this.headers['Authorization']
-      if (typeof console !== 'undefined') {
-        console.warn('[PromptManagerClient] Invalid access token supplied; Authorization header cleared')
-      }
-      return
+    const trimmed = typeof accessToken === 'string' ? accessToken.trim() : ''
+    if (!normalizeBearerAccessToken(accessToken) && trimmed.length > 0 && typeof console !== 'undefined') {
+      console.warn('[PromptManagerClient] Invalid access token supplied; Authorization header cleared')
     }
-    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(normalized)
+    assignBearerAuthorizationHeader(this.headers, accessToken)
   }
 
   // --- Workspaces ---
@@ -797,6 +801,32 @@ export class PromptManagerClient extends RestClient {
 
   async getFunctionManagerTools(): Promise<ProviderToolCatalogItem[]> {
     return this.get<ProviderToolCatalogItem[]>('/enterprise-ai/tools/functions')
+  }
+
+  async getMcpProviderTools(): Promise<ProviderToolCatalogItem[]> {
+    return this.get<ProviderToolCatalogItem[]>('/enterprise-ai/tools/mcp')
+  }
+
+  async getBuiltinProviderTools(): Promise<ProviderToolCatalogItem[]> {
+    return this.get<ProviderToolCatalogItem[]>('/enterprise-ai/tools/builtin')
+  }
+
+  /**
+   * Stage 1 unified provider-tools view. Returns only active (non-shadowed)
+   * provider tools by default. Pass ``includeShadowed: true`` for the
+   * admin/debug surface — that variant should be gated by an admin-only
+   * check on the caller side.
+   *
+   * The base RestClient is mounted at ``/prompt-manager/api/v1``; the
+   * ``/../v2/...`` segment resolves through the standard URL parser to
+   * ``/prompt-manager/api/v2/provider-tools`` without requiring a second
+   * client instance with a different base URL.
+   */
+  async getCanonicalProviderTools(options: { includeShadowed?: boolean } = {}): Promise<CanonicalProviderToolEntry[]> {
+    const path = '/../v2/provider-tools'
+    return this.get<CanonicalProviderToolEntry[]>(path, {
+      params: options.includeShadowed ? { include_shadowed: true } : undefined
+    })
   }
 
   async invokeEnterpriseTool(toolRef: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -1179,6 +1209,7 @@ export class PromptManagerClient extends RestClient {
     agentType?: string
     division?: string
     search?: string
+    status?: string
     limit?: number
     offset?: number
   }): Promise<AgentRegistryEntry[]> {
@@ -1214,8 +1245,91 @@ export class PromptManagerClient extends RestClient {
     return this.put(`/agents/registry/${encodeURIComponent(agentId)}/skills`, { skill_ids: skillIds })
   }
 
+  /**
+   * Fetch the intranet policies attached to an agent. Titles are
+   * best-effort: when the gravity-platform GraphQL gateway is
+   * unreachable the backend falls back to ``title = policy_id`` so the
+   * UI always has something to render.
+   */
+  async getAgentPolicies(agentId: string): Promise<{
+    agent_id: string
+    source: string
+    /** False for agents whose ODM does not store per-agent policy refs
+     *  (e.g. AutonomousAgentODM). The UI should hide the Policies section
+     *  in that case and fall back to workspace-level default policies. */
+    supported?: boolean
+    policies: Array<{ policy_id: string; title: string }>
+    excluded_policy_refs?: string[]
+  }> {
+    return this.get(`/agents/registry/${encodeURIComponent(agentId)}/policies`)
+  }
+
+  /**
+   * Replace the agent's policy allow-list. Each ref must be an intranet
+   * ContentEntry uuid (the backend rejects non-uuid input with 422).
+   */
+  async setAgentPolicies(
+    agentId: string,
+    policyRefs: string[],
+    excludedPolicyRefs: string[] = []
+  ): Promise<{ agent_id: string; policy_refs: string[]; excluded_policy_refs: string[]; count: number }> {
+    return this.put(`/agents/registry/${encodeURIComponent(agentId)}/policies`, {
+      policy_refs: policyRefs,
+      excluded_policy_refs: excludedPolicyRefs
+    })
+  }
+
+  /**
+   * Fetch the WORKSPACE-LEVEL default policies — the always-on baseline
+   * that applies to every deep agent run in the workspace. When
+   * ``workspaceId`` is omitted the backend resolves the default
+   * workspace. Titles and updatedAt are sourced from the stored
+   * ``policy_meta`` field (written at the same time as ``policy_refs``)
+   * so the response never requires a GraphQL round-trip.
+   */
+  async getWorkspacePolicies(workspaceId?: string): Promise<{
+    workspace_id: string | null
+    workspace_name: string | null
+    policies: Array<{ policy_id: string; title: string; updated_at?: string }>
+  }> {
+    const params = workspaceId ? { workspaceId } : undefined
+    return this.get('/agents/workspace-policies', { params })
+  }
+
+  /**
+   * Replace the workspace-level default policies. Each policy entry must
+   * carry its title (and optionally updatedAt) from the intranet picker so
+   * the backend can store display metadata without a GraphQL call.
+   * The backend rejects non-uuid ``policy_id`` values with 422.
+   */
+  async setWorkspacePolicies(
+    policies: Array<{ policy_id: string; title: string; updated_at?: string }>,
+    workspaceId?: string
+  ): Promise<{
+    workspace_id: string
+    workspace_name: string
+    policies: Array<{ policy_id: string; title: string; updated_at?: string }>
+    count: number
+  }> {
+    const path = workspaceId
+      ? `/agents/workspace-policies?workspaceId=${encodeURIComponent(workspaceId)}`
+      : '/agents/workspace-policies'
+    return this.put(path, { policies })
+  }
+
   async archiveAgent(agentId: string): Promise<{ agent_id: string; source: string; status: string }> {
     return this.post(`/agents/registry/${encodeURIComponent(agentId)}/archive`, {})
+  }
+
+  async activateAgent(agentId: string): Promise<{ agent_id: string; source: string; status: string }> {
+    return this.post(`/agents/registry/${encodeURIComponent(agentId)}/activate`, {})
+  }
+
+  async updateAgentDetails(
+    agentId: string,
+    body: { name?: string; description?: string; tags?: string[] }
+  ): Promise<unknown> {
+    return this.patch(`/agents/registry/${encodeURIComponent(agentId)}`, body)
   }
 
   async updateAgentCard(

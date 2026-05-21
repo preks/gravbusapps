@@ -1,5 +1,6 @@
+import dayjs from 'dayjs'
 import type { BadgeProps } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
  * Absence status utilities following the same pattern as expenses
@@ -58,7 +59,34 @@ const STATUS_CONFIG_MAP: Record<
     variant: 'offline',
     color: 'var(--nw-offline)',
     type: 'cancelled'
+  },
+  IN_CANCELLATION: {
+    i18nKey: 'lowcoder:absence_statuses.in_cancellation',
+    defaultLabel: 'In Cancellation',
+    variant: 'warning',
+    color: 'var(--nw-warning)',
+    type: 'in-cancellation'
   }
+}
+
+const IN_CANCELLATION_DEFAULT_LABEL_BY_LOCALE: Record<string, string> = {
+  de: 'Stornierung beantragt',
+  ro: 'Anulare solicitata',
+  en: 'In Cancellation'
+}
+
+const resolveInCancellationFallbackLabel = (): string => {
+  const activeLocale = (getCurrentActiveUserLocale() || 'en-US').toLowerCase()
+
+  if (activeLocale.startsWith('de')) {
+    return IN_CANCELLATION_DEFAULT_LABEL_BY_LOCALE.de
+  }
+
+  if (activeLocale.startsWith('ro')) {
+    return IN_CANCELLATION_DEFAULT_LABEL_BY_LOCALE.ro
+  }
+
+  return IN_CANCELLATION_DEFAULT_LABEL_BY_LOCALE.en
 }
 
 /**
@@ -93,8 +121,10 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
   const config = STATUS_CONFIG_MAP[upperStatus]
 
   if (config) {
+    const defaultLabel = upperStatus === 'IN_CANCELLATION' ? resolveInCancellationFallbackLabel() : config.defaultLabel
+
     return {
-      label: getTranslationFromI18nKeyAndLabel(config.i18nKey, config.defaultLabel),
+      label: getTranslationFromI18nKeyAndLabel(config.i18nKey, defaultLabel),
       variant: config.variant,
       color: config.color,
       type: config.type,
@@ -228,7 +258,7 @@ export function getAbsenceStatusDisplay(status?: string): AbsenceStatusConfig {
  * @returns Array of all status configurations with original status values
  */
 export function getAllAbsenceStatusConfigs(): AbsenceStatusConfig[] {
-  const statuses = ['PLANNED', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']
+  const statuses = ['PLANNED', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'IN_CANCELLATION']
   return statuses.map(status => getAbsenceStatusConfig(status))
 }
 
@@ -250,6 +280,20 @@ export function isActiveAbsenceStatus(status?: string): boolean {
  */
 export function isApprovedAbsenceStatus(status?: string): boolean {
   return normalizeToLegacy(status) === 'APPROVED'
+}
+
+/**
+ * Check whether approved-absence cancellation is no longer allowed because the
+ * absence ended before today.
+ * @param endDate - The absence end date in ISO-like date format
+ * @returns True when the approved absence has fully ended
+ */
+export function hasApprovedAbsenceCancellationExpired(endDate?: string | null): boolean {
+  if (!endDate) {
+    return false
+  }
+
+  return dayjs(endDate).isBefore(dayjs(), 'day')
 }
 
 /**

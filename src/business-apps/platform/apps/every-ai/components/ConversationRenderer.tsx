@@ -15,6 +15,7 @@ interface ConversationRendererProps {
   sessionId?: string
   onCancelGeneration?: () => void
   isAgentGenerating?: boolean
+  hideInlinePlan?: boolean
 }
 
 export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
@@ -27,7 +28,8 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
   isVoiceMode = false,
   sessionId,
   onCancelGeneration,
-  isAgentGenerating = false
+  isAgentGenerating = false,
+  hideInlinePlan = false
 }) => {
   const [editingTurnIndex, setEditingTurnIndex] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
@@ -101,6 +103,7 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
             onCancelGeneration={onCancelGeneration}
             isAgentGenerating={isAgentGenerating}
             wrapInBubble={false}
+            hideInlinePlan={hideInlinePlan}
             userInfo={userInfo}
             data-testid="chat-agent-turn"
           />

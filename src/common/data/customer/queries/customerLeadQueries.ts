@@ -16,6 +16,7 @@ import {
 } from '@/common/data/relations/queries/leadQueries'
 import { CustomerLeadFields, CUSTOMER_LEAD_DESCRIPTORS } from '../types/customerLeadTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
 import {
@@ -39,6 +40,21 @@ import { CustomerAccountFields } from '../types/customerAccountTypes'
 import { CustomerContactFields } from '../types/customerContactTypes'
 import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 
+const buildCustomerLeadComplianceFields = (fields: typeof CustomerLeadFields): string => `
+  ${fields.doubleOptIn}
+  ${fields.doubleOptInDate}
+  ${fields.optInSource} {
+    ${CATALOG_ENTRY}
+  }
+  ${fields.optInSourceRef}
+  ${fields.optInStatus} {
+    ${CATALOG_ENTRY}
+  }
+  ${fields.optInStatusRef}
+  ${fields.singleOptIn}
+  ${fields.singleOptInDate}
+`
+
 /**
  * Customer Lead Query Variables Interface
  * Extends CommonLeadQueryVariables with CRM-specific filters
@@ -50,7 +66,13 @@ export type CustomerLeadQueryVariables = CommonLeadQueryVariables
  * CRM uses "Lead" as entity name (not "CustomerLead")
  */
 export const buildCustomerLeadQuery = (fields: typeof CustomerLeadFields = CustomerLeadFields): string => {
-  return buildLeadQuery('Lead', fields)
+  const additionalFields = `
+    ${fields.aiLeadScore}
+    ${fields.aiLeadGrade}
+    ${buildCustomerLeadComplianceFields(fields)}
+  `
+
+  return buildLeadQuery('Lead', fields, additionalFields)
 }
 
 /**
@@ -78,8 +100,11 @@ export const buildCustomerLeadByIdQuery = (fields: typeof CustomerLeadFields = C
     opportunityFields: CustomerOpportunityFields
   }
 
-  // CRM-specific additional fields: salesCampaign and salesCampaignId
+  // CRM-specific additional fields: salesCampaign, salesCampaignId, and compliance metadata
   const additionalFields = `
+    ${fields.aiLeadScore}
+    ${fields.aiLeadGrade}
+    ${buildCustomerLeadComplianceFields(fields)}
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}
     }

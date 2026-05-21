@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
-import type { TaskNodeConfig, DesignerMode } from '../../types/studioTypes'
+import type { TaskNodeConfig, DesignerMode, FlowStudioUpdateOptions } from '../../types/studioTypes'
 import { AssignmentMode, FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 import { TaskGeneralTab } from './task/TaskGeneralTab'
@@ -114,8 +114,8 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
   }, [config.stepType, config.functionConfig?.categoryHint, config.functionConfig?.functionId, studioData.functions])
 
   const update = useCallback(
-    (partial: Partial<TaskNodeConfig>) => {
-      updateNodeConfig(nodeId, partial)
+    (partial: Partial<TaskNodeConfig>, options?: FlowStudioUpdateOptions) => {
+      updateNodeConfig(nodeId, partial, options)
     },
     [nodeId, updateNodeConfig]
   )
@@ -375,8 +375,8 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
                   update={update}
                   title={t('config-form')}
                   testId={testId}
-                  onFieldKeyRename={({ oldKey, newKey }) =>
-                    rewriteExpressionsForTaskFieldRename(nodeId, oldKey, newKey)
+                  onFieldKeyRename={({ oldKey, newKey }, options) =>
+                    rewriteExpressionsForTaskFieldRename(nodeId, oldKey, newKey, options)
                   }
                 />
               </TabsContent>

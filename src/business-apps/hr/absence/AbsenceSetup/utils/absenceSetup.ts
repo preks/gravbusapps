@@ -32,6 +32,8 @@ export interface SetupSectionItem {
     label: string
     value: string
   }>
+  /** Optional secondary badges rendered alongside the status badge in the table row. */
+  tags?: Array<{ label: string; variant?: 'default' | 'secondary' | 'outline' | 'destructive' }>
 }
 
 export interface MockEntitlementSummary {
@@ -93,8 +95,8 @@ export const mockEntitlementSummaries: MockEntitlementSummary[] = [
           validation_amount: 5,
           carryover_approval: 'GENERAL',
           entitlement_amount: 21,
-          max_carryover_amount: 0,
-          max_carryover_percent: 0,
+          max_carryover_amount: '',
+          max_carryover_percent: '',
           validation_amount_unit: 'MONTH'
         }
       ],
@@ -125,8 +127,8 @@ export const mockEntitlementSummaries: MockEntitlementSummary[] = [
           validation_amount: 0,
           carryover_approval: 'NONE',
           entitlement_amount: 10,
-          max_carryover_amount: 0,
-          max_carryover_percent: 0,
+          max_carryover_amount: '',
+          max_carryover_percent: '',
           validation_amount_unit: 'MONTH'
         }
       ],

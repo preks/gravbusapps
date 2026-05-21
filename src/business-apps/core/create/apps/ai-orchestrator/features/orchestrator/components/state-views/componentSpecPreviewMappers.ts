@@ -49,18 +49,24 @@ export function mapDataModelSpec(spec: DataModelSpec): DataModelPreviewDefinitio
     }
 
     return {
-      name: f.name,
+      fieldName: f.name,
       label: f.label,
       type: mappedType,
       required: f.required,
-      options: mappedOptions
+      options: mappedOptions,
+      dataSource: f.referenceEntity
+        ? {
+            type: 'CUSTOM_ENTITY',
+            entity: f.referenceEntity
+          }
+        : undefined
     }
   })
 
   return {
-    key: spec.identifier,
+    entityName: spec.identifier,
     namespace: spec.namespace,
-    display_name: spec.name,
+    displayName: spec.name,
     description: spec.description,
     modelType: spec.modelType,
     columns: mappedColumns
@@ -128,7 +134,7 @@ export function mapAgentSpec(spec: AgentSpec): PromptODM {
     agent_type: spec.agentType,
     system_content: spec.systemPrompt ? { template: spec.systemPrompt, parameters: [] } : null,
     user_content: { template: spec.userPromptTemplate ?? '', parameters: [] },
-    tools: Array.isArray(spec.tools) ? spec.tools.join(',') : '',
+    tools: spec.tools,
     model: { id: spec.modelId ?? '', collection: '' },
     version: 1,
     workspace: { id: '', collection: '' },

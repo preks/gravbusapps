@@ -18,7 +18,6 @@ import { AccountSegment } from '@/common/components/common-relations/form-segmen
 import type { AccountSegmentOption } from '@/common/components/common-relations/form-segments/account-segment'
 import { ContactSegment } from '@/common/components/common-relations/form-segments/contact-segment'
 import type { ContactSegmentOption } from '@/common/components/common-relations/form-segments/contact-segment'
-import { CompanySelect } from '@/components/company-select'
 import translations from './_i18n'
 
 interface OpportunityInformationSegmentProps {
@@ -66,15 +65,12 @@ interface OpportunityInformationSegmentProps {
   accountTypeCatalogIdentifier?: string
   // Currency catalog identifier
   currencyCatalogIdentifier?: string
-  // Company from opportunity data (to display immediately)
-  company?: any
 }
 
 const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps> = ({
   businessAppContext,
   ownerEmployee,
   entityId,
-  company,
   opportunityAccounts,
   opportunityContacts,
   useAccounts,
@@ -156,29 +152,6 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
 
   return (
     <div className="gba:space-y-6 gba:w-full gba:max-w-full gba:overflow-hidden">
-      {/* Company */}
-      <FormField
-        control={form.control}
-        name="companyId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('company-label')}</FormLabel>
-            <FormControl>
-              <CompanySelect
-                value={field.value || null}
-                onValueChange={(v: string | null) => {
-                  field.onChange(v || '')
-                }}
-                businessAppContext={businessAppContext}
-                initialCompany={company}
-                data-testid="opportunity-information-segment-company"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
       {/* Owner */}
       <FormField
         control={form.control}
@@ -279,7 +252,6 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={currencyCatalogIdentifier}
-                  variant="combobox"
                   value={field.value || ''}
                   onValueChange={field.onChange}
                   data-testid="opportunity-segment-currency-select"

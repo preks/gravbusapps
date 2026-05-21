@@ -121,6 +121,7 @@ export interface DecisionPromptState {
  * Required persisted metadata for author identity and round-trip:
  * - createdBy: user id for user messages; 'orchestrator-system' for system messages
  * - messageId, createdAt/serverCreatedAt for restore/version flows
+ * - checkpointCreatedAt for restore state after tools finish
  * - editHistory for collaboration attribution
  * Adapters MUST preserve these fields when persisting; do not strip on save.
  */
@@ -142,6 +143,7 @@ export interface ChatMessage {
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
+  checkpointCreatedAt?: string
 }
 
 export interface AutoInitConfig {
@@ -532,7 +534,8 @@ export class BuilderClient {
           : undefined,
         messageId: message.messageId,
         createdAt: message.createdAt,
-        serverCreatedAt: message.serverCreatedAt
+        serverCreatedAt: message.serverCreatedAt,
+        checkpointCreatedAt: message.checkpointCreatedAt
       }
     })
 
@@ -930,7 +933,10 @@ export class BuilderClient {
     const payload = await response.json().catch(() => ({}))
     if (!response.ok || payload?.success === false) {
       if (response.status === 409 && Array.isArray(payload?.conflicts)) {
-        const firstConflicts = payload.conflicts.slice(0, 5).map((c: { filePath?: string }) => c?.filePath).filter(Boolean)
+        const firstConflicts = payload.conflicts
+          .slice(0, 5)
+          .map((c: { filePath?: string }) => c?.filePath)
+          .filter(Boolean)
         throw new Error(
           payload?.message ||
             `Upload conflict detected in ${payload.conflicts.length} file(s): ${firstConflicts.join(', ')}`
@@ -1504,8 +1510,7 @@ export class BuilderClient {
     useAgenticMode: boolean = true,
     buildEnabled: boolean = true,
     sessionId?: string,
-    llmProvider: 'claude' | 'openai' = 'claude',
-    customSystemPrompt?: string
+    llmProvider: 'claude' | 'openai' = 'claude'
   ): Promise<ReadableStream> {
     void useAgenticMode
     void buildEnabled
@@ -1547,8 +1552,7 @@ export class BuilderClient {
         repoId,
         sessionId,
         prompt: query,
-        conversationHistory: boundedHistory,
-        customSystemPrompt
+        conversationHistory: boundedHistory
       })
     })
 

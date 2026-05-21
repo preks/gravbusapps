@@ -2,10 +2,12 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient'
 import {
   GET_EMPLOYEE_ABSENCES,
+  type EmployeeAbsence,
   type GetEmployeeAbsencesVariables,
   type GetEmployeeAbsencesResponse
 } from '../queries/absenceQueries'
 import { EnhancedAbsence } from '../types'
+import { buildCancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/buildCancelEmployeeAbsenceSnapshot'
 
 type SortOrder = 'ASC' | 'DESC' | ''
 
@@ -100,18 +102,19 @@ const resolveGroupName = (
   return groups?.[parentEntryId] ?? fallback
 }
 
-const mapEnhancedAbsence = (absence: any, filters: UseAbsenceDataProps['filters']): EnhancedAbsence => {
+const mapEnhancedAbsence = (absence: EmployeeAbsence, filters: UseAbsenceDataProps['filters']): EnhancedAbsence => {
   const employee = absence.employee || {}
   const employeeName =
     employee.firstName || employee.lastName
       ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee'
       : 'Unknown Employee'
   const parentEntryId = absence.type?.parentEntryId
+  const employeeId = absence.employeeId || employee.id || ''
 
   return {
     ...absence,
     employee: {
-      id: employee.id || '',
+      id: employeeId,
       firstName: employee.firstName || '',
       lastName: employee.lastName || '',
       employeePosition: employee.employeePosition || null
@@ -124,7 +127,8 @@ const mapEnhancedAbsence = (absence: any, filters: UseAbsenceDataProps['filters'
       absence.type?.value || 'Unknown Group'
     ),
     typeName: absence.type?.value || 'Unknown Type',
-    color: extractColorFromObjectValue(absence.type?.parentEntry?.objectValue)
+    color: extractColorFromObjectValue(absence.type?.parentEntry?.objectValue),
+    cancelSnapshot: buildCancelEmployeeAbsenceSnapshot(absence)
   }
 }
 
@@ -178,7 +182,7 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
 
       const result = await graphQLClient.request<GetEmployeeAbsencesResponse>(GET_EMPLOYEE_ABSENCES, variables)
 
-      const enhancedAbsences: EnhancedAbsence[] = result.EmployeeAbsence.map((absence: any) =>
+      const enhancedAbsences: EnhancedAbsence[] = result.EmployeeAbsence.map(absence =>
         mapEnhancedAbsence(absence, currentFilters)
       )
 

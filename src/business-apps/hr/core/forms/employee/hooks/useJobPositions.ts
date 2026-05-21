@@ -71,6 +71,24 @@ export const useJobPositions = ({
     return filter
   }, [currentOrgUnitId])
 
+  const buildVacancyFilter = useCallback(() => {
+    const scopedNullAssignment = {
+      organizationalUnitEmployees: {
+        _and: [{ structureId: { _eq: structureId } }, { employeeId: { _isNull: true } }]
+      }
+    }
+
+    const scopedNonNullAssignment = {
+      organizationalUnitEmployees: {
+        _and: [{ structureId: { _eq: structureId } }, { employeeId: { _isNull: false } }]
+      }
+    }
+
+    return {
+      _and: [scopedNullAssignment, { _not: scopedNonNullAssignment }]
+    }
+  }, [structureId])
+
   // Reset data when search or organizationalUnitId changes
   useEffect(() => {
     if (currentSearch !== search || currentOrgUnitId !== organizationalUnitId) {
@@ -101,7 +119,7 @@ export const useJobPositions = ({
         structureId,
         offset,
         limit: POSITIONS_PER_PAGE,
-        vacant: true, // Only fetch vacant positions
+        vacancyFilter: buildVacancyFilter(),
         filter,
         search: searchTerm
       }
@@ -143,6 +161,7 @@ export const useJobPositions = ({
     currentSearch,
     currentOrgUnitId,
     buildFilter,
+    buildVacancyFilter,
     fetchJobPositionData,
     initialLoadDone
   ])

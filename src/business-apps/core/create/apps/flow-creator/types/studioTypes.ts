@@ -321,6 +321,10 @@ export interface FlowStudioSnapshot {
   edges: FlowGraphEdge[]
 }
 
+export interface FlowStudioUpdateOptions {
+  markDirty?: boolean
+}
+
 /** Actions for the studio store */
 export interface FlowStudioActions {
   // Mode
@@ -330,8 +334,8 @@ export interface FlowStudioActions {
   addNode: (type: FlowNodeType, position?: { x: number; y: number }) => string
   removeNode: (nodeId: string) => void
   requestDeleteNode: (nodeId: string) => void
-  updateNode: (nodeId: string, updates: Partial<StudioNode>) => void
-  updateNodeConfig: (nodeId: string, config: Partial<StudioNodeConfig>) => void
+  updateNode: (nodeId: string, updates: Partial<StudioNode>, options?: FlowStudioUpdateOptions) => void
+  updateNodeConfig: (nodeId: string, config: Partial<StudioNodeConfig>, options?: FlowStudioUpdateOptions) => void
   duplicateNode: (nodeId: string) => string | null
   selectNode: (nodeId: string | null) => void
   selectEdge: (edgeId: string | null) => void
@@ -374,8 +378,13 @@ export interface FlowStudioActions {
    * When a form field key changes, rewrite any expressions that reference it.
    * This keeps flow-context references stable when we auto-generate "speakable" keys.
    */
-  rewriteExpressionsForStartFieldRename: (oldKey: string, newKey: string) => void
-  rewriteExpressionsForTaskFieldRename: (taskNodeId: string, oldKey: string, newKey: string) => void
+  rewriteExpressionsForStartFieldRename: (oldKey: string, newKey: string, options?: FlowStudioUpdateOptions) => void
+  rewriteExpressionsForTaskFieldRename: (
+    taskNodeId: string,
+    oldKey: string,
+    newKey: string,
+    options?: FlowStudioUpdateOptions
+  ) => void
 
   // Confirmations
   confirmPendingDelete: () => void

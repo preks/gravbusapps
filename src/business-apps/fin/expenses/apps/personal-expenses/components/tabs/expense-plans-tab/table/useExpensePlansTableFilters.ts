@@ -17,6 +17,7 @@ export interface UseExpensePlansTableFiltersParams {
   selectedFilters: string[]
   filterLabelMap: Record<string, string>
   availableStatuses: string[]
+  t: (key: string) => string
   planDateRange?: [Date | null, Date | null] | null
   setPlanDateRange?: (range: [Date | null, Date | null] | null) => void
   effectiveDateRange?: [Date | null, Date | null] | null
@@ -54,15 +55,17 @@ export function useExpensePlansTableFilters({
   setFilters,
   onFiltersChange,
   currencyStats,
-  widgetTopDestinationFilterTokens = []
+  widgetTopDestinationFilterTokens = [],
+  t
 }: Readonly<UseExpensePlansTableFiltersParams>) {
   const filterConfiguration = useMemo(
     () =>
       createExpensePlanFilterConfig({
         statusOptions: availableStatuses,
-        filterLabelMap
+        filterLabelMap,
+        t
       }),
-    [availableStatuses, filterLabelMap]
+    [availableStatuses, filterLabelMap, t]
   )
 
   const filtersObject = useMemo(

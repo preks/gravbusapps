@@ -96,6 +96,70 @@ function makeJoinNode(id: string, label: string, forkReference: string): StudioN
 }
 
 describe('templateConverter', () => {
+  it('does not include a template id when converting a new flow', () => {
+    const nodes: StudioNode[] = [makeStartNode(), makeEndNode()]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-end', source: START_ID, target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'New Flow', 'desc', {}, 1) as any
+
+    expect(template.id).toBeUndefined()
+  })
+
+  it('preserves the existing template id when converting an existing flow update', () => {
+    const nodes: StudioNode[] = [makeStartNode(), makeEndNode()]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-end', source: START_ID, target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Renamed Flow', 'desc', {}, 2, 'flow_existing_id') as any
+
+    expect(template.id).toBe('flow_existing_id')
+    expect(template.name).toBe('Renamed Flow')
+  })
+
+  it('normalizes legacy form fields before saving to the backend', () => {
+    const task = makeTaskNode('task_1', 'Task 1')
+    ;(task.config as any).form = [
+      {
+        type: 'radio',
+        name: 42,
+        label: 'Choice',
+        required: 'yes',
+        options: ['Approve', { id: 'reject', label: 'Reject' }]
+      },
+      {
+        type: 'SIGNATURE',
+        label: 'Signature'
+      }
+    ]
+    const nodes: StudioNode[] = [makeStartNode(), task, makeEndNode()]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-task', source: START_ID, target: 'task_1', direction: 'forward' } as any,
+      { id: 'e-task-end', source: 'task_1', target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Normalized Flow') as any
+
+    expect(template.steps[0].form).toEqual([
+      {
+        type: 'SELECT',
+        name: '42',
+        label: 'Choice',
+        options: [
+          { value: 'Approve', label: 'Approve' },
+          { value: 'reject', label: 'Reject' }
+        ]
+      },
+      {
+        type: 'FILE',
+        name: 'field_2',
+        label: 'Signature'
+      }
+    ])
+  })
+
   it('serializes DECISION nodes into template.steps', () => {
     const nodes: StudioNode[] = [
       makeStartNode(),

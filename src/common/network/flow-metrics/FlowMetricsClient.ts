@@ -183,7 +183,7 @@ export class FlowMetricsClient extends RestClient {
       queryParams.filterTaskName = params.filterTaskName
     }
 
-    return this.get<FlowExecutionTasksResponse>(`/flow-executions/tasks/${businessKey}`, {
+    return this.get<FlowExecutionTasksResponse>(`/flow-executions/tasks/${encodeURIComponent(businessKey)}`, {
       params: queryParams
     })
   }

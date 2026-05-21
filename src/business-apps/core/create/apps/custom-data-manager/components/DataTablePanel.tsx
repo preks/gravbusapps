@@ -22,14 +22,14 @@ import { useEntityData } from '../hooks/useEntityData'
 interface DataTablePanelProps {
   definition: CustomDataDefinition
   accessToken: string
-  onCreateRow: (namespace: string, definitionKey: string, values: Record<string, unknown>) => Promise<RowMutationResult>
+  onCreateRow: (namespace: string, entityName: string, values: Record<string, unknown>) => Promise<RowMutationResult>
   onUpdateRow: (
     namespace: string,
-    definitionKey: string,
+    entityName: string,
     rowId: string,
     values: Record<string, unknown>
   ) => Promise<RowMutationResult>
-  onDeleteRow: (namespace: string, definitionKey: string, rowId: string) => Promise<RowMutationResult>
+  onDeleteRow: (namespace: string, entityName: string, rowId: string) => Promise<RowMutationResult>
   'data-testid'?: string
 }
 
@@ -51,9 +51,19 @@ export const DataTablePanel: React.FC<DataTablePanelProps> = ({
   const [mutating, setMutating] = useState(false)
   const [mutationError, setMutationError] = useState<string | null>(null)
 
-  const editableColumns = useMemo(() => definition.columns_json.filter(c => c.name !== 'id'), [definition.columns_json])
+  const publicEntityName = definition.entityName
+  const fieldKeyForColumn = useCallback((column: CustomDataDefinition['columns'][number]) => {
+    return column.fieldName
+  }, [])
+  const editableColumns = useMemo(
+    () => definition.columns.filter(column => fieldKeyForColumn(column) !== 'id'),
+    [definition.columns, fieldKeyForColumn]
+  )
 
-  const emptyValues = useMemo(() => Object.fromEntries(editableColumns.map(c => [c.name, ''])), [editableColumns])
+  const emptyValues = useMemo(
+    () => Object.fromEntries(editableColumns.map(column => [fieldKeyForColumn(column), ''])),
+    [editableColumns, fieldKeyForColumn]
+  )
 
   const startCreate = useCallback(() => {
     setEditing({ mode: 'create', values: { ...emptyValues } })
@@ -64,9 +74,10 @@ export const DataTablePanel: React.FC<DataTablePanelProps> = ({
     (row: Record<string, unknown>) => {
       const values: Record<string, string> = {}
       for (const col of editableColumns) {
-        const k = responseKeyForColumn(col.name)
+        const fieldKey = fieldKeyForColumn(col)
+        const k = responseKeyForColumn(fieldKey)
         const raw = row[k as keyof typeof row]
-        values[col.name] = raw != null ? String(raw) : ''
+        values[fieldKey] = raw != null ? String(raw) : ''
       }
       setEditing({ mode: 'update', rowId: String(row.id), values })
       setMutationError(null)
@@ -93,21 +104,22 @@ export const DataTablePanel: React.FC<DataTablePanelProps> = ({
     try {
       const parsedValues: Record<string, unknown> = {}
       for (const col of editableColumns) {
-        const raw = editing.values[col.name]
+        const fieldKey = fieldKeyForColumn(col)
+        const raw = editing.values[fieldKey]
         if (col.type === 'NUMBER') {
-          parsedValues[col.name] = raw ? Number(raw) : null
+          parsedValues[fieldKey] = raw ? Number(raw) : null
         } else if (col.type === 'CHECKBOX') {
-          parsedValues[col.name] = raw === 'true'
+          parsedValues[fieldKey] = raw === 'true'
         } else {
-          parsedValues[col.name] = raw || null
+          parsedValues[fieldKey] = raw || null
         }
       }
 
       let result: RowMutationResult
       if (editing.mode === 'create') {
-        result = await onCreateRow(definition.namespace, definition.key, parsedValues)
+        result = await onCreateRow(definition.namespace, publicEntityName, parsedValues)
       } else {
-        result = await onUpdateRow(definition.namespace, definition.key, editing.rowId, parsedValues)
+        result = await onUpdateRow(definition.namespace, publicEntityName, editing.rowId, parsedValues)
       }
 
       if (!result.success) {
@@ -121,14 +133,23 @@ export const DataTablePanel: React.FC<DataTablePanelProps> = ({
     } finally {
       setMutating(false)
     }
-  }, [editing, editableColumns, definition, onCreateRow, onUpdateRow, refetch])
+  }, [
+    editing,
+    editableColumns,
+    definition.namespace,
+    fieldKeyForColumn,
+    onCreateRow,
+    onUpdateRow,
+    publicEntityName,
+    refetch
+  ])
 
   const handleDelete = useCallback(
     async (rowId: string) => {
       setMutating(true)
       setMutationError(null)
       try {
-        const result = await onDeleteRow(definition.namespace, definition.key, rowId)
+        const result = await onDeleteRow(definition.namespace, publicEntityName, rowId)
         if (!result.success) {
           setMutationError(result.error ?? 'Delete failed')
           return
@@ -140,12 +161,18 @@ export const DataTablePanel: React.FC<DataTablePanelProps> = ({
         setMutating(false)
       }
     },
-    [definition, onDeleteRow, refetch]
+    [definition.namespace, onDeleteRow, publicEntityName, refetch]
   )
 
   const tableHeadings = useMemo(
-    () => [{ id: 'id' as const, label: 'ID' }, ...editableColumns.map(c => ({ id: c.name, label: c.label || c.name }))],
-    [editableColumns]
+    () => [
+      { id: 'id' as const, label: 'ID' },
+      ...editableColumns.map(column => ({
+        id: fieldKeyForColumn(column),
+        label: column.label || fieldKeyForColumn(column)
+      }))
+    ],
+    [editableColumns, fieldKeyForColumn]
   )
 
   const dataColumnCount = 1 + editableColumns.length
@@ -198,17 +225,20 @@ export const DataTablePanel: React.FC<DataTablePanelProps> = ({
               {editing?.mode === 'create' && (
                 <TableRow data-testid={`${testId}-new-row`}>
                   <TableCell className="gba:text-muted-foreground gba:text-xs">auto</TableCell>
-                  {editableColumns.map(col => (
-                    <TableCell key={col.name}>
-                      <Input
-                        value={editing.values[col.name] ?? ''}
-                        onChange={e => updateEditValue(col.name, e.target.value)}
-                        placeholder={col.label || col.name}
-                        className="gba:h-8 gba:text-sm"
-                        data-testid={`${testId}-new-${col.name}`}
-                      />
-                    </TableCell>
-                  ))}
+                  {editableColumns.map(col => {
+                    const fieldKey = fieldKeyForColumn(col)
+                    return (
+                      <TableCell key={fieldKey}>
+                        <Input
+                          value={editing.values[fieldKey] ?? ''}
+                          onChange={e => updateEditValue(fieldKey, e.target.value)}
+                          placeholder={col.label || fieldKey}
+                          className="gba:h-8 gba:text-sm"
+                          data-testid={`${testId}-new-${fieldKey}`}
+                        />
+                      </TableCell>
+                    )
+                  })}
                   <TableCell>
                     <div className="gba:flex gba:items-center gba:gap-1">
                       <Button
@@ -268,15 +298,16 @@ export const DataTablePanel: React.FC<DataTablePanelProps> = ({
                       {String(row.id).slice(0, 8)}...
                     </TableCell>
                     {editableColumns.map(col => {
-                      const displayValue = row[responseKeyForColumn(col.name) as keyof typeof row]
+                      const fieldKey = fieldKeyForColumn(col)
+                      const displayValue = row[responseKeyForColumn(fieldKey) as keyof typeof row]
                       return (
-                        <TableCell key={col.name}>
+                        <TableCell key={fieldKey}>
                           {isEditingThisRow ? (
                             <Input
-                              value={editing.values[col.name] ?? ''}
-                              onChange={e => updateEditValue(col.name, e.target.value)}
+                              value={editing.values[fieldKey] ?? ''}
+                              onChange={e => updateEditValue(fieldKey, e.target.value)}
                               className="gba:h-8 gba:text-sm"
-                              data-testid={`${testId}-edit-${col.name}`}
+                              data-testid={`${testId}-edit-${fieldKey}`}
                             />
                           ) : (
                             <span className="gba:text-sm">{displayValue != null ? String(displayValue) : ''}</span>

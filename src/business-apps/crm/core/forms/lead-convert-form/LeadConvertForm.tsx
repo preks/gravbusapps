@@ -115,7 +115,6 @@ const StepVisibilityGuard = ({ stepIndex, children }: StepVisibilityGuardProps) 
   return <>{children}</>
 }
 
-// CRM-specific schema extensions (adds salesCampaignId)
 const customerAccountSchema = accountSchema.extend({
   salesCampaignId: z.string().nullable().optional()
 })
@@ -479,7 +478,6 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
               accountInformationCustomFields={createCampaignSelectField(accountForm.control, 'salesCampaignId')}
               avatarFileRef={accountAvatarFileRef}
               isActive={isActive}
-              accountContext="crm"
             />
           </CatalogSelect.Provider>
         ))

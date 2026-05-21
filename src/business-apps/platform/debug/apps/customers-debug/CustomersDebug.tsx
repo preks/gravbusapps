@@ -128,9 +128,9 @@ const CustomersDebug: React.FC<CustomersDebugProps> = context => {
   const fetchCustomerLeads = async (variables: CustomerLeadQueryVariables = {}) => {
     const query = buildCustomerLeadQuery()
     const whereCondition = buildCustomerLeadWhereCondition(variables)
-    const orderBy = buildCustomerLeadOrderBy(variables.orderBy || [])
+    let orderBy = buildCustomerLeadOrderBy(variables.orderBy || [])
     if (orderBy.length === 0) {
-      orderBy.push({ field: 'createdAt', direction: 'DESC_NULLS_LAST' })
+      orderBy = buildCustomerLeadOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
     }
     const graphQLVariables: Record<string, any> = {
       limit: Math.min(variables.limit || 50, 100),

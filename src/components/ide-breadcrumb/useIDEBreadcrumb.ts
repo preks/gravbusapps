@@ -42,7 +42,9 @@ const CONTEXT_QUERY_PARAM_PRIORITY = [
   'campaignId',
   'taskId',
   'sessionId',
-  'id'
+  'id',
+  'namespace',
+  'modelId'
 ] as const
 
 type HistoryChangeMode = 'push' | 'replace' | 'pop'

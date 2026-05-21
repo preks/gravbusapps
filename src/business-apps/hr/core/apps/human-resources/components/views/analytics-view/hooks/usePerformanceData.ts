@@ -59,7 +59,7 @@ export const GET_WORKDAYS_BY_LOCATION = (variables: PerformanceDataVariables): s
       structureId
     }
     
-    EmployeeSiteLocation(
+    EmployeeSiteLocation: SiteLocationEmployee(
       where: {
         structureId: { _eq: $structureId }
         ${variables.entityId ? 'siteLocationId: { _eq: $entityId }' : ''}

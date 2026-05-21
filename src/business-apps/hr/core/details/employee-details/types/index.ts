@@ -57,6 +57,8 @@ export interface WorkingCondition {
   id: string
   version: number
   regionRef: string
+  activeFrom?: string | null
+  activeTo?: string | null
   probationEnd: string
   contractType: {
     value: string

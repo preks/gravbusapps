@@ -15,7 +15,6 @@ import type { AbsenceTypeVersionValidationErrors } from '../utils/absenceTypeVer
 import translations from '../_i18n'
 
 interface AbsenceTypeVersionBasicSectionProps {
-  entryId?: string
   absenceTypes: AbsenceType[]
   formValues: AbsenceTypeVersionFormValues
   validationErrors: AbsenceTypeVersionValidationErrors
@@ -66,7 +65,6 @@ const getFieldErrorClassName = (hasError: boolean) =>
   hasError ? 'gba:border-destructive focus:gba:border-destructive' : ''
 
 export function AbsenceTypeVersionBasicSection({
-  entryId,
   absenceTypes,
   formValues,
   validationErrors,
@@ -112,7 +110,7 @@ export function AbsenceTypeVersionBasicSection({
               placeholder={t('field-absence-type-placeholder')}
               searchPlaceholder={t('field-absence-type-search-placeholder')}
               emptyText={t('empty-absence-types')}
-              disabled={Boolean(entryId)}
+              disabled={false}
               data-testid="absence-type-version-type-select"
             />
             {selectedType?.parentEntryId ? (

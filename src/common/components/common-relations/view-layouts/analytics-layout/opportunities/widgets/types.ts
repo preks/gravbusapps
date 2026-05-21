@@ -4,6 +4,7 @@
 
 export interface StageItem {
   stage: string
+  stageRef?: string
   count: number
   value: number
 }
@@ -19,6 +20,7 @@ export interface OpportunitiesStageChartProps {
   pipelines?: Pipeline[]
   selectedPipelineId?: string
   onPipelineChange?: (pipelineId: string | undefined) => void
+  onStageClick?: (stage: string, stageRef: string) => void
 }
 
 /**

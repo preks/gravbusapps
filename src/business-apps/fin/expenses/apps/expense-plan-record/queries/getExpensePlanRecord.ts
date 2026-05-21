@@ -29,6 +29,9 @@ export const getExpensePlanRecordQuery = `
          lastName
          pictureThumbnail
          employeePosition{
+            costCenter {
+              name
+            }
             supervisor{
               fullName
               firstName   
@@ -57,8 +60,12 @@ export const getExpensePlanRecordQuery = `
           }
         }
         expensePlanItem(orderBy:{expenseDate:ASC,code:ASC}){
+          id
           code
           title
+          costCenter {
+            name
+          }
           currency {
            code
           }

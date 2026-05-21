@@ -1,46 +1,20 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { ColumnConfig } from '../../../../../../common/types/columnTypes'
 
-export const advancePaymentDefaultVisibleColumnIds: string[] = [
-  'expensePlan',
-  'planNumber',
-  'status',
-  'amount',
-  'advance',
-  'paymentMethod'
+const ADVANCE_PAYMENT_COLUMNS_META: ReadonlyArray<{ id: string; labelKey: string }> = [
+  { id: 'expensePlan', labelKey: 'personal-expenses-column-expense-plan' },
+  { id: 'planNumber', labelKey: 'expense-plans-column-plan-number' },
+  { id: 'status', labelKey: 'expense-items-column-status' },
+  { id: 'amount', labelKey: 'personal-expenses-column-amount' },
+  { id: 'advance', labelKey: 'personal-expenses-column-advance-payment' },
+  { id: 'paymentMethod', labelKey: 'personal-expenses-column-payment-method' }
 ]
 
-export const advancePaymentAvailableColumns: ColumnConfig[] = [
-  {
-    id: 'expensePlan',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:create_expense_request.initial_expense_plan_select_label',
-      'Expense Plan'
-    )
-  },
-  {
-    id: 'planNumber',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
-      'Plan Number'
-    )
-  },
-  { id: 'status', label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_table.status', 'Status') },
-  {
-    id: 'amount',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.amount', 'Amount')
-  },
-  {
-    id: 'advance',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance')
-  },
-  {
-    id: 'paymentMethod',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-      'Payment Method'
-    )
-  }
-]
+export const ADVANCE_PAYMENT_TABLE_COLUMN_IDS = ADVANCE_PAYMENT_COLUMNS_META.map(c => c.id)
+
+export const advancePaymentDefaultVisibleColumnIds = [...ADVANCE_PAYMENT_TABLE_COLUMN_IDS]
+
+export function createAdvancePaymentAvailableColumns(t: (key: string) => string): ColumnConfig[] {
+  return ADVANCE_PAYMENT_COLUMNS_META.map(({ id, labelKey }) => ({ id, label: t(labelKey) }))
+}
 
 export type { ColumnConfig as AvailableColumn } from '../../../../../../common/types/columnTypes'

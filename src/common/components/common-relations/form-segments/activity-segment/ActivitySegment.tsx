@@ -411,10 +411,10 @@ export default ActivitySegment
 
 // Zod schema colocated with ActivitySegment for convenient reuse/override
 export const activitySegmentSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  activityTypeRef: z.string().min(1, 'Activity type is required'),
-  occurredAt: z.preprocess(val => (val == null ? '' : val), z.string().min(1, 'Date is required')),
-  description: z.string().min(1, 'Description is required'),
+  title: z.string().trim().min(1, 'Title is required'),
+  activityTypeRef: z.string().trim().min(1, 'Activity type is required'),
+  occurredAt: z.preprocess(val => (val == null ? '' : val), z.string().trim().min(1, 'Date is required')),
+  description: z.string().trim().min(1, 'Description is required'),
   files: z.any().optional(),
   relatedEntityId: z.string().optional(),
   ownerEmployeeId: z.string().optional() // Added to support owner selection

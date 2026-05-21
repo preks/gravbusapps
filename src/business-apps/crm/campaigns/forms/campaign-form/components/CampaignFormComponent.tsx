@@ -7,6 +7,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  DateInput,
   Input,
   Textarea
 } from '@newwork/nw-design-system'
@@ -77,7 +78,7 @@ const CampaignFormComponent: React.FC = () => {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  Name <span style={{ color: 'var(--color-danger-500)' }}>*</span>
+                  Name <span className="gba:text-destructive">*</span>
                 </FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="Enter campaign name" data-testid="campaign-form-name-input" />
@@ -94,7 +95,7 @@ const CampaignFormComponent: React.FC = () => {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  Type <span style={{ color: 'var(--color-danger-500)' }}>*</span>
+                  Type <span className="gba:text-destructive">*</span>
                 </FormLabel>
                 <FormControl>
                   <CatalogSelect
@@ -117,10 +118,15 @@ const CampaignFormComponent: React.FC = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    Start Date <span style={{ color: 'var(--color-danger-500)' }}>*</span>
+                    Start Date <span className="gba:text-destructive">*</span>
                   </FormLabel>
                   <FormControl>
-                    <Input {...field} type="date" data-testid="campaign-form-start-input" />
+                    <DateInput
+                      type="date"
+                      value={field.value || ''}
+                      onChange={value => field.onChange(typeof value === 'string' ? value : '')}
+                      data-testid="campaign-form-start-input"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -133,10 +139,15 @@ const CampaignFormComponent: React.FC = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    End Date <span style={{ color: 'var(--color-danger-500)' }}>*</span>
+                    End Date <span className="gba:text-destructive">*</span>
                   </FormLabel>
                   <FormControl>
-                    <Input {...field} type="date" data-testid="campaign-form-end-input" />
+                    <DateInput
+                      type="date"
+                      value={field.value || ''}
+                      onChange={value => field.onChange(typeof value === 'string' ? value : '')}
+                      data-testid="campaign-form-end-input"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

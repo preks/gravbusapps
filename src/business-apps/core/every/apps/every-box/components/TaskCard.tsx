@@ -28,6 +28,7 @@ import { Pin } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
 import { base64ToDataURL } from '../utils/avatarUtils'
+import { resolveAbsenceCancellationTitleInfo } from '@/business-apps/hr/absences/utils/absenceCancellationTitle'
 
 dayjs.extend(relativeTime)
 dayjs.extend(localizedFormat)
@@ -51,12 +52,175 @@ interface TaskCardProps {
   locale: string
 }
 
-// Helper to get task title based on source
-const getTaskTitle = (task: UnifiedTask, t: (key: string) => string): string => {
-  if (task.source === 'kogito') {
-    return task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || t('task-card-untitled')
+const TYPE_REF_KEYS = new Set(['typeref', 'absencetyperef', 'absencetype', 'type_ref'])
+const TYPE_NAME_KEYS = new Set([
+  'typename',
+  'absencetypename',
+  'absencename',
+  'absencetypevalue',
+  'absencetypelabel',
+  'type_name'
+])
+
+const looksLikeTypeRefValue = (value: string): boolean => {
+  return /^A\d{3}$/i.test(value.trim())
+}
+
+const deepFindString = (
+  value: unknown,
+  matcher: (key: string, value: string) => boolean,
+  visited: Set<unknown> = new Set()
+): string => {
+  if (!value || typeof value !== 'object') return ''
+  if (visited.has(value)) return ''
+  visited.add(value)
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = deepFindString(item, matcher, visited)
+      if (found) return found
+    }
+    return ''
   }
-  return task.title || task.name || t('task-card-untitled')
+
+  const record = value as Record<string, unknown>
+  for (const [key, raw] of Object.entries(record)) {
+    const normalizedKey = key.toLowerCase()
+    if (typeof raw === 'string' && raw && matcher(normalizedKey, raw)) {
+      return raw
+    }
+    if (raw && typeof raw === 'object') {
+      const nested = deepFindString(raw, matcher, visited)
+      if (nested) return nested
+    }
+  }
+  return ''
+}
+
+const deepFindAbsenceTypeValue = (value: unknown, visited: Set<unknown> = new Set()): string => {
+  if (!value || typeof value !== 'object') return ''
+  if (visited.has(value)) return ''
+  visited.add(value)
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = deepFindAbsenceTypeValue(item, visited)
+      if (found) return found
+    }
+    return ''
+  }
+
+  const record = value as Record<string, unknown>
+  const rawTypeRef = record.typeRef
+  const typeRef = typeof rawTypeRef === 'string' ? rawTypeRef.trim() : ''
+  const type = record.type
+  const typeRecord = type && typeof type === 'object' ? (type as Record<string, unknown>) : null
+  const typeValue = typeRecord && typeof typeRecord.value === 'string' ? typeRecord.value.trim() : ''
+  if (typeRef && typeValue) {
+    return typeValue
+  }
+
+  for (const nestedValue of Object.values(record)) {
+    if (nestedValue && typeof nestedValue === 'object') {
+      const nested = deepFindAbsenceTypeValue(nestedValue, visited)
+      if (nested) return nested
+    }
+  }
+
+  return ''
+}
+
+const collectPayloadCandidates = (task: UnifiedTask): unknown[] => {
+  const meta = (task.sourceMetadata || {}) as Record<string, unknown>
+  return [
+    task.inputs,
+    meta.inputs,
+    meta.variables,
+    meta.processVariables,
+    meta.taskPayload,
+    meta.payload,
+    meta.data,
+    meta.context,
+    meta
+  ]
+}
+
+const extractCancellationTypeRef = (task: UnifiedTask): string => {
+  for (const candidate of collectPayloadCandidates(task)) {
+    const found = deepFindString(candidate, (key, val) => {
+      if (TYPE_REF_KEYS.has(key)) return true
+      return key.endsWith('typeref') && looksLikeTypeRefValue(val)
+    })
+    if (found) return found
+  }
+  return ''
+}
+
+const extractCancellationTypeName = (task: UnifiedTask): string => {
+  for (const candidate of collectPayloadCandidates(task)) {
+    const absenceTypeValue = deepFindAbsenceTypeValue(candidate)
+    if (absenceTypeValue) return absenceTypeValue
+
+    const found = deepFindString(candidate, key => TYPE_NAME_KEYS.has(key))
+    if (found) return found
+  }
+  return ''
+}
+
+const resolveCancellationTaskTitle = (
+  task: UnifiedTask,
+  t: (key: string, params?: Record<string, any>) => string
+): string | null => {
+  const identityText =
+    `${task.title || ''} ${task.name || ''} ${task.referenceTaskName || ''} ${task.sourceMetadata?.endpoint || ''}`.toLowerCase()
+  if (!identityText.includes('cancel')) {
+    return null
+  }
+
+  const typeRef = extractCancellationTypeRef(task)
+  const typeName = extractCancellationTypeName(task)
+  const titleInfo = resolveAbsenceCancellationTitleInfo(typeRef, typeName)
+  if (!titleInfo) {
+    const rawTitle = `${task.title || ''}`.toLowerCase()
+    if (rawTitle.includes('vacation') || rawTitle.includes('special leave') || rawTitle.includes('sick')) {
+      return t('task-card-cancel-absence-request')
+    }
+    return null
+  }
+
+  if (titleInfo.variant === 'vacation') {
+    return t('task-card-cancel-vacation-request')
+  }
+  if (titleInfo.variant === 'sickLeave') {
+    return t('task-card-cancel-sick-leave-request')
+  }
+  if (titleInfo.variant === 'specialLeave') {
+    return t('task-card-cancel-special-leave-request')
+  }
+  if (titleInfo.variant === 'requestForType' && titleInfo.absenceTypeName) {
+    return t('task-card-cancel-request-for-type', { absenceType: titleInfo.absenceTypeName })
+  }
+
+  return null
+}
+
+const normalizeCancellationTitleText = (title: string): string => {
+  return title.replace(/^Cancel Absence Request for\s+/i, 'Cancel Request for ')
+}
+
+// Helper to get task title based on source
+const getTaskTitle = (task: UnifiedTask, t: (key: string, params?: Record<string, any>) => string): string => {
+  const resolvedCancellationTitle = resolveCancellationTaskTitle(task, t)
+  if (resolvedCancellationTitle) {
+    return resolvedCancellationTitle
+  }
+
+  if (task.source === 'kogito') {
+    const title = task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || t('task-card-untitled')
+    return normalizeCancellationTitleText(title)
+  }
+  const title = task.title || task.name || t('task-card-untitled')
+  return normalizeCancellationTitleText(title)
 }
 
 // Helper to get creator ID from task metadata

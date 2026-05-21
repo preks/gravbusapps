@@ -1,6 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, useTranslation } from '@newwork/nw-design-system'
 import personalTranslations from '../../../../_i18n'
 
+type ExpenseItemTranslationsBundle = Record<'en-US' | 'de-DE' | 'ro-RO', string>
+
 export interface ExpenseItemMediaPreviewDialogsProps {
   previewOpen: boolean
   onPreviewOpenChange: (open: boolean) => void
@@ -8,6 +10,7 @@ export interface ExpenseItemMediaPreviewDialogsProps {
   pdfPreviewOpen: boolean
   onPdfPreviewOpenChange: (open: boolean) => void
   pdfPreviewUrl: string
+  translations?: ExpenseItemTranslationsBundle
 }
 
 export function ExpenseItemMediaPreviewDialogs({
@@ -16,9 +19,10 @@ export function ExpenseItemMediaPreviewDialogs({
   previewImage,
   pdfPreviewOpen,
   onPdfPreviewOpenChange,
-  pdfPreviewUrl
+  pdfPreviewUrl,
+  translations
 }: Readonly<ExpenseItemMediaPreviewDialogsProps>) {
-  const { t } = useTranslation(personalTranslations)
+  const { t } = useTranslation(translations ?? personalTranslations)
 
   return (
     <>

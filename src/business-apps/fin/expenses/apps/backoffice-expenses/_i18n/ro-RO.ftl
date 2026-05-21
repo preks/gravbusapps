@@ -47,6 +47,8 @@ filter-request-type-expense = Cheltuială
 filter-request-type-trip = Călătorie
 filter-search-employee = Caută angajat...
 filter-effective-date-info = Pentru tipul CĂLĂTORIE, se folosește data de început. Pentru tipul CHELTUIALĂ, se folosește data elementului de cheltuială.
+personal-expenses-date-placeholder-start = Data de început
+personal-expenses-date-placeholder-end = Data de sfârșit
 filter-report-filters = Filtre Raport
 
 # Filter Chip Labels
@@ -444,6 +446,19 @@ common-max = Max
 common-total = Total
 common-error = Eroare
 common-search-expense-requests = Caută în Cereri Decont
+
+# Shared ExpenseDetailsPanelContent — same message ids as the common component; text comes from existing backoffice keys
+expense-details-value-not-available = { common-not-available }
+expense-details-label-employee = { header-employee }
+expense-details-label-employee-code = { header-employee-code }
+expense-details-label-sap-number = { header-sap-number }
+personal-expenses-filter-label-start-date = { header-start-date }
+personal-expenses-filter-label-end-date = { header-end-date }
+expense-details-label-creation-date = { header-creation-date }
+expense-details-label-remaining-amount = { header-remaining-amount }
+expense-details-label-total-amount = { header-total-amount }
+expense-items-column-status = { header-status }
+expense-items-details-field-code = { detail-code }
 
 # Report Utils
 report-former-employee = Fost angajat

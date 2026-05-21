@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
+import { createChartTooltipFormatter } from '@/common/components/common-relations/view-layouts/analytics-layout/shared/lifecycleChartUtils'
 import {
   Card,
   CardContent,
@@ -91,6 +92,22 @@ export const RevenueTrendsChart: React.FC<RevenueTrendsChartProps> = ({
     []
   )
 
+  const formatCurrencyCallback = useCallback(
+    (value: number) =>
+      new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'EUR',
+        notation: 'compact',
+        maximumFractionDigits: 1
+      }).format(value),
+    []
+  )
+
+  const tooltipFormatter = useMemo(
+    () => createChartTooltipFormatter(chartConfig, formatCurrencyCallback),
+    [chartConfig, formatCurrencyCallback]
+  )
+
   const lineOptions = [
     {
       key: 'pipelineRevenue' as keyof typeof visibleLines,
@@ -112,14 +129,7 @@ export const RevenueTrendsChart: React.FC<RevenueTrendsChartProps> = ({
     onPipelineChange(pipelineId)
   }
 
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-      notation: 'compact',
-      maximumFractionDigits: 1
-    }).format(value)
-  }
+  const formatCurrency = formatCurrencyCallback
 
   const currentFilterLabel = TIME_FILTER_OPTIONS.find(option => option.value === timeFilter)?.label || 'Last 6 Months'
 
@@ -280,9 +290,8 @@ export const RevenueTrendsChart: React.FC<RevenueTrendsChartProps> = ({
                 tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
               />
               <ChartTooltip
-                content={
-                  <ChartTooltipContent labelKey="month" valueFormatter={value => formatCurrency(value as number)} />
-                }
+                cursor={false}
+                content={<ChartTooltipContent labelKey="month" formatter={tooltipFormatter} />}
               />
               <ChartLegend content={<ChartLegendContent />} />
               {visibleLines.pipelineRevenue && (

@@ -417,7 +417,38 @@ feedback-hub-section-received-title = Feedback Received ({ $total } total)
 feedback-hub-section-received-visible-title = Feedback Received ({ $visible } visible)
 feedback-hub-section-given-title = Feedback Given ({ $total } total)
 feedback-hub-ai-insights-button = AI Insights
+feedback-hub-analyze-feedback-button = Analyze Feedback
 feedback-hub-ai-insights-analyzing = Analyzing…
+
+# AI Insights Section
+feedback-hub-insights-section-title = AI Insights
+feedback-hub-insights-section-description = Personalized suggestions to help you grow and strengthen our feedback culture.
+feedback-hub-insights-how-it-works = How insights work
+feedback-hub-insight-why-this = Why this?
+feedback-hub-insight-pending-title = Respond to pending feedback request
+feedback-hub-insight-pending-description = You have { $count } feedback { $count ->
+    [one] request
+   *[other] requests
+  } waiting from colleagues. Completing it keeps your feedback cycle up to date.
+feedback-hub-insight-pending-reason = Based on { $count } pending { $count ->
+    [one] request
+   *[other] requests
+  }
+feedback-hub-insight-pending-cta = Review request
+feedback-hub-insight-imbalance-title = Balance your feedback activity
+feedback-hub-insight-imbalance-description = You received feedback in the last 30 days, but haven't given any. Balanced feedback builds stronger relationships.
+feedback-hub-insight-imbalance-reason = Based on { $received } feedback received and 0 feedback given in the last 30 days
+feedback-hub-insight-imbalance-cta = Give feedback
+feedback-hub-insight-low-activity-title = Start your feedback cycle
+feedback-hub-insight-low-activity-description = No feedback activity in the last 30 days. Regular feedback helps you and your colleagues grow.
+feedback-hub-insight-low-activity-reason = Based on no recent feedback activity in the last 30 days
+feedback-hub-insight-low-activity-cta = Request feedback
+feedback-hub-insight-recognition-title = Recognize recent collaboration
+feedback-hub-insight-recognition-description = You received positive feedback recently. Consider appreciating someone who supported your success.
+feedback-hub-insight-recognition-reason = Based on positive feedback received recently
+feedback-hub-insight-recognition-cta = Send appreciation
+feedback-hub-insight-healthy-title = Your feedback activity is on track
+feedback-hub-insight-healthy-reason = Based on recent activity across received and given feedback
 feedback-hub-ai-panel-title = AI Insights
 feedback-hub-ai-panel-analyzing = Analyzing { $count } feedback entries…
 feedback-hub-ai-panel-no-analysis = No analysis yet. Run analysis to see insights.
@@ -485,10 +516,11 @@ skills-snapshot-strength-footnote = Based on { $count } skills with assigned lev
 skills-snapshot-top-title = Top Skills
 skills-snapshot-top-description = Your highest-rated skills by level.
 skills-snapshot-needs-levels = Needs levels
-skills-snapshot-coverage-title = Verification / Active
-skills-snapshot-coverage-description = Count of verified and active skills.
+skills-snapshot-coverage-title = Verification / Active / Pending
+skills-snapshot-coverage-description = Count of verified, active, and pending skills.
 skills-snapshot-verified = Verified
 skills-snapshot-active = Active
+skills-snapshot-pending = Pending
 skills-filter-search-placeholder = Search skills...
 skills-filter-category-all = All categories
 skills-filter-status-all = All statuses
@@ -519,7 +551,11 @@ skills-inactive-since = Inactive since { $value }
 skills-action-update-level = Update Level
 skills-action-set-level = Set level
 skills-action-attach-verification = Attach Verification
+skills-action-change-verification = Change Verification
+skills-verification-document = Verification document
+skills-document-download-failed = Failed to download verification document.
 skills-action-deactivate = Deactivate
+skills-action-remove = Remove
 skills-action-reactivate = Reactivate
 skills-action-activate = Activate
 skills-development-next-actions = Next Best Actions
@@ -534,6 +570,12 @@ skills-development-job-profile-missing-one-suffix = .
 skills-development-job-profile-missing-prefix = Your role requires { $count } skills you don't have yet. Consider adding: 
 skills-development-job-profile-below-level-prefix = Your level for 
 skills-development-job-profile-below-level-suffix = is below the role's typical level ({ $employeeLevel } vs { $profileLevel }).
+
+# Skills AI Insight Card Titles
+skills-insight-verify-title = Verify your certifications
+skills-insight-fit-title = You match your role profile
+skills-insight-missing-title = Skills gap detected
+skills-insight-below-level-title = Skill level below target
 
 # Add Skill Form
 add-skill-form-title = Add Skill
@@ -550,12 +592,16 @@ add-skill-form-add-button = Add
 add-skill-form-skill-add-error = Failed to add skill
 add-skill-form-deactivate-title = Deactivate skill
 add-skill-form-activate-title = Activate skill
+add-skill-form-remove-title = Remove skill
 add-skill-form-deactivate-message = You will deactivate the skill { $skillName }.
 add-skill-form-deactivate-message-prefix = You will deactivate the skill 
 add-skill-form-deactivate-message-suffix = .
 add-skill-form-activate-message = You will activate the skill { $skillName }.
 add-skill-form-activate-message-prefix = You will activate the skill 
 add-skill-form-activate-message-suffix = .
+add-skill-form-remove-message = You will remove the skill { $skillName }.
+add-skill-form-remove-message-prefix = You will remove the skill 
+add-skill-form-remove-message-suffix = .
 add-skill-form-skill-deactivated-label = Deactivated
 add-skill-form-attach-verification-title = Attach verification document
 add-skill-form-attach-verification-message = Upload a document to verify the skill { $skillName }.
@@ -806,6 +852,8 @@ employment-label-workspace = Workspace
 employment-label-management-level = Management Level
 employment-label-cost-center = Cost Center
 employment-label-employment-type = Employment Type
+employment-label-employment-start-date = Valid From
+employment-label-employment-end-date = Valid To
 employment-label-hire-date = Hire Date
 employment-label-fixed-term-until = Fixed Term until
 employment-label-contract-type = Contract Type
@@ -835,6 +883,9 @@ employment-label-request-at-office = Request at tax office
 employment-label-last-updated = Last Updated
 employment-label-employee-tax-office = Employee's Tax Office
 employment-label-individual-free-amount = Individual Free Amount
+employment-working-conditions-previous = Previous
+employment-working-conditions-next = Next
+employment-working-conditions-period-not-continuous = This working condition period does not continue directly from the previous or into the next period.
 common-loading = Loading...
 common-yes = Yes
 common-no = No
@@ -922,3 +973,10 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Loading address form...
+
+# Change Relationship - Congratulations modal
+relationship-form-success-title = Congratulations!
+relationship-form-success-child-message-line1 = Congratulations on your growing family.
+relationship-form-success-child-message-line2 = Thank you for sharing this wonderful life update and keeping your information up to date.
+relationship-form-success-marriage-message = Congratulations on your wedding and thank you for updating your details
+relationship-form-success-ok = OK

@@ -2,11 +2,18 @@
  * Employee search + list for email AI quick-task assignees (controlled selection).
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Button, Label } from '@newwork/nw-design-system'
 import { Search, X } from 'lucide-react'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { assigneeIdFromEmployee, toAvatarSrc } from '../utils/emailSuggestionQuickTaskHelpers'
+
+export type EmailSuggestionAssigneePendingHintStatus = 'resolving' | 'unmatched' | 'ambiguous'
+
+export interface EmailSuggestionAssigneePendingHint {
+  status: EmailSuggestionAssigneePendingHintStatus
+  raw: string
+}
 
 export interface EmailSuggestionQuickTaskAssigneePickerLabels {
   assigneeLabel: string
@@ -15,6 +22,9 @@ export interface EmailSuggestionQuickTaskAssigneePickerLabels {
   empty: string
   loadMore: string
   removeAria: string
+  assigneePendingResolving: string
+  assigneePendingUnmatched: string
+  assigneePendingAmbiguous: string
 }
 
 export interface EmailSuggestionQuickTaskAssigneePickerProps {
@@ -23,6 +33,17 @@ export interface EmailSuggestionQuickTaskAssigneePickerProps {
   onSelectedEmployeesChange: (next: EmployeeLiteOption[]) => void
   readonly testIdPrefix: string
   readonly labels: EmailSuggestionQuickTaskAssigneePickerLabels
+  readonly initialSearchTerm?: string
+  readonly pendingHint?: EmailSuggestionAssigneePendingHint
+}
+
+function pendingHintLabel(
+  pendingHint: EmailSuggestionAssigneePendingHint,
+  labels: EmailSuggestionQuickTaskAssigneePickerLabels
+): string {
+  if (pendingHint.status === 'resolving') return labels.assigneePendingResolving
+  if (pendingHint.status === 'ambiguous') return labels.assigneePendingAmbiguous
+  return labels.assigneePendingUnmatched
 }
 
 export function EmailSuggestionQuickTaskAssigneePicker({
@@ -30,10 +51,22 @@ export function EmailSuggestionQuickTaskAssigneePicker({
   selectedEmployees,
   onSelectedEmployeesChange,
   testIdPrefix,
-  labels
+  labels,
+  initialSearchTerm,
+  pendingHint
 }: Readonly<EmailSuggestionQuickTaskAssigneePickerProps>): React.ReactElement {
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm ?? '')
+  const appliedInitialSearchTermRef = useRef<string | undefined>(initialSearchTerm)
   const { employees, loading, search, hasMore, loadMore } = useEmployeeSearch(accessToken)
+
+  useEffect(() => {
+    const nextInitialSearchTerm = initialSearchTerm?.trim()
+    if (!nextInitialSearchTerm || appliedInitialSearchTermRef.current === nextInitialSearchTerm || searchTerm.trim()) {
+      return
+    }
+    appliedInitialSearchTermRef.current = nextInitialSearchTerm
+    setSearchTerm(nextInitialSearchTerm)
+  }, [initialSearchTerm, searchTerm])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -66,6 +99,8 @@ export function EmailSuggestionQuickTaskAssigneePicker({
     },
     [onSelectedEmployeesChange, selectedEmployees]
   )
+
+  const pendingHintText = pendingHint ? pendingHintLabel(pendingHint, labels) : undefined
 
   let listContent: React.ReactNode
   if (loading && availableEmployees.length === 0) {
@@ -106,6 +141,18 @@ export function EmailSuggestionQuickTaskAssigneePicker({
 
   return (
     <div className="gba:space-y-3 gba:pt-1">
+      {pendingHintText && selectedEmployees.length === 0 ? (
+        <p
+          className={
+            pendingHint?.status === 'ambiguous'
+              ? 'gba:text-xs gba:text-amber-600'
+              : 'gba:text-xs gba:text-muted-foreground'
+          }
+          data-testid={`${testIdPrefix}-assignee-pending-hint`}
+        >
+          {pendingHintText}
+        </p>
+      ) : null}
       <div className="gba:space-y-2">
         <Label>{labels.assigneeLabel}</Label>
         {selectedEmployees.length > 0 && (

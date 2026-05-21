@@ -151,29 +151,10 @@ function pickLatestCompanyBudgetRowId(
   return sorted[0]?.id ?? null
 }
 
-/** One row per compensation cycle that has a company budget for this legal entity. */
-function buildCompensationPlanChoices(
-  options: CompanyBudgetPlanOption[],
-  planById: Map<string, ManagerCompensationBudgetPlanListItem>
+function buildCompensationPlanChoicesFromPlans(
+  plans: ManagerCompensationBudgetPlanListItem[]
 ): { id: string; name: string }[] {
-  const byPlanId = new Map<string, { id: string; name: string }>()
-  for (const opt of options) {
-    const plan = planById.get(opt.compensationBudgetPlanId)
-    if (!plan) {
-      continue
-    }
-    if (!byPlanId.has(plan.id)) {
-      byPlanId.set(plan.id, { id: plan.id, name: plan.name })
-    }
-  }
-  return [...byPlanId.values()].sort((a, b) => {
-    const pa = planById.get(a.id)
-    const pb = planById.get(b.id)
-    return comparePlanEffectiveDateAsc(
-      { effectiveDate: pa?.effectiveDate ?? null, label: a.name },
-      { effectiveDate: pb?.effectiveDate ?? null, label: b.name }
-    )
-  })
+  return plans.map(plan => ({ id: plan.id, name: plan.name }))
 }
 
 function pickCompanyBudgetRowIdForPlan(
@@ -286,6 +267,7 @@ export function useManagerTeamSalaryBudget(params: {
   >(() => new Map())
   const [managerOrganizationalUnitId, setManagerOrganizationalUnitId] = useState<string | null>(null)
   const [activeCompensationBudgetPlanId, setActiveCompensationBudgetPlanId] = useState<string | null>(null)
+  const [activeCompanyBudgetCurrencyRef, setActiveCompanyBudgetCurrencyRef] = useState<string | null>(null)
   const [compensationPlanChoices, setCompensationPlanChoices] = useState<{ id: string; name: string }[]>([])
 
   const clearBudgetPlanSlice = useCallback(() => {
@@ -293,7 +275,7 @@ export function useManagerTeamSalaryBudget(params: {
     setTotalOrgUnitAllocationAmount(null)
     setPlanOuRowIdByOrganizationalUnitId(new Map())
     setActiveCompensationBudgetPlanId(null)
-    setCompensationPlanChoices([])
+    setActiveCompanyBudgetCurrencyRef(null)
   }, [])
 
   const fetchBudgetTotal = useCallback(async () => {
@@ -304,6 +286,7 @@ export function useManagerTeamSalaryBudget(params: {
       setPlanOuRowIdByOrganizationalUnitId(new Map())
       setManagerOrganizationalUnitId(null)
       setActiveCompensationBudgetPlanId(null)
+      setActiveCompanyBudgetCurrencyRef(null)
       setCompensationPlanChoices([])
       return
     }
@@ -324,13 +307,14 @@ export function useManagerTeamSalaryBudget(params: {
       const planById = new Map(plans.map(p => [p.id, p]))
       const companyRows = (snapshot.compensationBudgetPlanCompanies ?? []).map(mapCompanyRow)
       const options = buildCompanyBudgetPlanOptions(companyRows, plans)
-      setCompensationPlanChoices(buildCompensationPlanChoices(options, planById))
+      setCompensationPlanChoices(buildCompensationPlanChoicesFromPlans(plans))
 
       if (selectedCompensationBudgetPlanId == null) {
         setActiveCompensationBudgetPlanId(null)
         setTotalSalaryBudget(null)
         setTotalOrgUnitAllocationAmount(null)
         setPlanOuRowIdByOrganizationalUnitId(new Map())
+        setActiveCompanyBudgetCurrencyRef(null)
         return
       }
 
@@ -343,6 +327,7 @@ export function useManagerTeamSalaryBudget(params: {
 
       const planIdForCompanyBudget = options.find(o => o.id === companyBudgetId)?.compensationBudgetPlanId ?? null
       setActiveCompensationBudgetPlanId(planIdForCompanyBudget)
+      setActiveCompanyBudgetCurrencyRef(companyRows.find(row => row.id === companyBudgetId)?.currencyRef ?? null)
 
       let relevantOuIds = orgUnitIdsFromTeamMembers(teamMembers)
       if (relevantOuIds.size === 0 && managerOu) {
@@ -353,6 +338,7 @@ export function useManagerTeamSalaryBudget(params: {
         setTotalSalaryBudget(null)
         setTotalOrgUnitAllocationAmount(null)
         setPlanOuRowIdByOrganizationalUnitId(new Map())
+        setActiveCompanyBudgetCurrencyRef(null)
         return
       }
 
@@ -375,6 +361,7 @@ export function useManagerTeamSalaryBudget(params: {
       setTotalOrgUnitAllocationAmount(null)
       setPlanOuRowIdByOrganizationalUnitId(new Map())
       setActiveCompensationBudgetPlanId(null)
+      setActiveCompanyBudgetCurrencyRef(null)
       setCompensationPlanChoices([])
     } finally {
       setLoadingBudget(false)
@@ -402,6 +389,7 @@ export function useManagerTeamSalaryBudget(params: {
     planOuRowIdByOrganizationalUnitId,
     managerOrganizationalUnitId,
     activeCompensationBudgetPlanId,
+    activeCompanyBudgetCurrencyRef,
     compensationPlanChoices
   }
 }

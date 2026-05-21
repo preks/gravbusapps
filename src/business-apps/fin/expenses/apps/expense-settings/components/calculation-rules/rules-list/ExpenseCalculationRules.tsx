@@ -6,7 +6,6 @@ import { DataControllerProps } from '@/components/dataController/DataController'
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDate as formatDateSafe } from '../../../utils/dateUtils'
 import { env } from '@/common/env/EnvUtils'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   Table,
   TableBody,
@@ -52,11 +51,10 @@ import {
 } from '@phosphor-icons/react'
 import CreateRuleDialog from './components/CreateRuleDialog'
 import DeleteRuleDialog from './components/DeleteRuleDialog'
-import { GET_EXPENSE_RULE_FLAGS } from './queries/ExpenseCalculationRules.queries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
 interface ExpenseCalculationRulesProps extends BusinessAppContextProps {
-  onRuleSelect?: (ruleId: string) => void
+  onRuleSelect: (ruleId: string) => void
 }
 
 const PREFIX = 'expense-calculation-rules'
@@ -105,7 +103,6 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
     setSelectedRow(null)
     setFlowModalOpen(true)
   }, [])
-  const graphqlClient = useGraphqlClient(props.accessToken)
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const handleHeaderSort = useCallback(
     (field: string) => {
@@ -120,55 +117,11 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
     [sortField, sortOrder, setSort]
   )
 
-  const buildRuleDetailsUrl = useCallback((row: any): string => {
-    const base = env('NEXT_PUBLIC_BASE_URL') || ''
-    const path = '/platform/landing_screen/srn_expenseCalculationRuleDetailsV2'
-
-    const params: [string, any][] = [
-      ['code', row?.code ?? ''],
-      ['name', row?.name ?? ''],
-      ['calculation', getCatalogValue(row?.calculationType) ?? ''],
-      ['activeFrom', row?.activeFrom ?? ''],
-      ['activeTo', row?.activeTo ?? ''],
-      ['standard', String(!!row?.standard)],
-      ['currency', row?.currency?.code ?? ''],
-      ['id', row?.id ?? ''],
-      ['version', String(row?.version ?? '')],
-      ['deductionLimit', String(!!row?.deductionLimit)],
-      ['taxesCode', row?.taxesCode ?? ''],
-      ['useLastCountry', String(!!row?.useLastCountry)],
-      ['nonpayableCode', row?.nonpayableCode ?? ''],
-      ['advancePaymentCode', row?.advancePaymentCode ?? ''],
-      ['ruleFlagId', JSON.stringify(row?.ruleFlagId ?? [])],
-      ['countryRef', row?.countryRef ?? ''],
-      ['useSingleCurrency', String(!!row?.useSingleCurrency)]
-    ]
-
-    const query = params.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')
-
-    return `${base}${path}?${query}`
-  }, [])
-
   const handleRowClick = useCallback(
-    async (row: any) => {
-      // If onRuleSelect callback is provided, use it instead of redirecting
-      if (onRuleSelect) {
-        onRuleSelect(row.id)
-        return
-      }
-
-      // Fallback to old redirect behavior for backwards compatibility
-      try {
-        const res = await graphqlClient.request<any>(GET_EXPENSE_RULE_FLAGS, { id: row.id })
-        const flagIds = (res?.ExpenseRuleFlag || []).map((f: any) => f?.expenseRuleId)
-        const url = buildRuleDetailsUrl({ ...row, ruleFlagId: flagIds })
-        window.location.href = url
-      } catch {
-        const url = buildRuleDetailsUrl({ ...row, ruleFlagId: [] })
-        window.location.href = url
-      }
+    (row: any) => {
+      onRuleSelect(row.id)
     },
-    [onRuleSelect, graphqlClient, GET_EXPENSE_RULE_FLAGS, buildRuleDetailsUrl]
+    [onRuleSelect]
   )
 
   const columns = useMemo(

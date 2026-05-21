@@ -3,7 +3,7 @@
  */
 
 import React from 'react'
-import { MonitorIcon, ImageIcon, HandIcon, SmileyIcon, DotsThreeIcon } from '@phosphor-icons/react'
+import { MonitorIcon, ImageIcon, HandIcon, SmileyIcon, DotsThreeIcon, SwapIcon } from '@phosphor-icons/react'
 import { Popover, PopoverContent, PopoverAnchor } from '@newwork/nw-design-system'
 import { ControlBarButton } from './ControlBarButton'
 import { ReactionsPicker } from './ReactionsPicker'
@@ -14,6 +14,8 @@ export interface CallControlsCenterSectionProps {
   isScreenSharing: boolean
   backgroundEnabled: boolean
   handRaised: boolean
+  isMirrorEnabled?: boolean
+  onToggleMirror?: () => void
   showDesktopLayout: boolean
   showMoreMenu: boolean
   mobileMenuOptionCount: number
@@ -37,6 +39,8 @@ export const CallControlsCenterSection: React.FC<CallControlsCenterSectionProps>
   isScreenSharing,
   backgroundEnabled,
   handRaised,
+  isMirrorEnabled,
+  onToggleMirror,
   showDesktopLayout,
   showMoreMenu,
   mobileMenuOptionCount,
@@ -89,6 +93,25 @@ export const CallControlsCenterSection: React.FC<CallControlsCenterSectionProps>
                   : t('groupCall-enableBackground') || 'Enable background'
               }
               data-testid={`${prefixDataTestId}-background-btn`}
+            />
+          )}
+          {onToggleMirror && callType === 'video' && (
+            <ControlBarButton
+              variant={isMirrorEnabled ? 'primary' : 'accent'}
+              size="desktop"
+              icon={<SwapIcon className={iconSizeDesktop} weight="fill" />}
+              onClick={onToggleMirror}
+              aria-label={
+                isMirrorEnabled
+                  ? t('groupCall-disableMirror') || 'Disable mirror'
+                  : t('groupCall-enableMirror') || 'Enable mirror'
+              }
+              title={
+                isMirrorEnabled
+                  ? t('groupCall-disableMirror') || 'Disable mirror'
+                  : t('groupCall-enableMirror') || 'Enable mirror'
+              }
+              data-testid={`${prefixDataTestId}-mirror-btn`}
             />
           )}
           {onToggleRaiseHand && (
@@ -153,6 +176,25 @@ export const CallControlsCenterSection: React.FC<CallControlsCenterSectionProps>
                   : t('groupCall-enableBackground') || 'Enable background'
               }
               data-testid={`${prefixDataTestId}-background-btn-mobile`}
+            />
+          )}
+          {onToggleMirror && callType === 'video' && (
+            <ControlBarButton
+              variant={isMirrorEnabled ? 'primary' : 'accent'}
+              size="mobile"
+              icon={<SwapIcon className={iconSizeMobile} weight="fill" />}
+              onClick={onToggleMirror}
+              aria-label={
+                isMirrorEnabled
+                  ? t('groupCall-disableMirror') || 'Disable mirror'
+                  : t('groupCall-enableMirror') || 'Enable mirror'
+              }
+              title={
+                isMirrorEnabled
+                  ? t('groupCall-disableMirror') || 'Disable mirror'
+                  : t('groupCall-enableMirror') || 'Enable mirror'
+              }
+              data-testid={`${prefixDataTestId}-mirror-btn-mobile`}
             />
           )}
           {onToggleRaiseHand && (
@@ -222,6 +264,8 @@ export const CallControlsCenterSection: React.FC<CallControlsCenterSectionProps>
               callType={callType}
               backgroundEnabled={backgroundEnabled}
               handRaised={handRaised}
+              isMirrorEnabled={isMirrorEnabled}
+              onToggleMirror={onToggleMirror}
               onToggleBackground={onToggleBackground}
               onToggleRaiseHand={onToggleRaiseHand}
               onSendReaction={onSendReaction}

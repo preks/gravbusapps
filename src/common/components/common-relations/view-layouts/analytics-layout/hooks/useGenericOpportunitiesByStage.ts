@@ -3,6 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface StageItem {
   stage: string
+  stageRef?: string
   count: number
   value: number
 }
@@ -33,6 +34,9 @@ export interface OpportunitiesByStageConfig {
   pipelineStageField: string // 'salesPipelineStage' or 'opportunityPipelineStage'
   pipelineStageRefField: string // 'salesPipelineStageRef' or 'opportunityPipelineStageRef'
   pipelineField: string // 'salesPipeline' or 'opportunityPipeline'
+  statusFilterField?: 'code' | 'type'
+  /** Additional raw GraphQL filter conditions (e.g. 'dealType: {_eq: "INVESTMENT_DEAL"}') */
+  additionalFilters?: string[]
 }
 
 /**
@@ -45,7 +49,8 @@ export interface OpportunitiesByStageConfig {
 export const useGenericOpportunitiesByStage = (
   accessToken: string,
   config: OpportunitiesByStageConfig,
-  pipelineId?: string
+  pipelineId?: string,
+  activeOnly = false
 ) => {
   const [data, setData] = useState<StageItem[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -54,14 +59,25 @@ export const useGenericOpportunitiesByStage = (
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!accessToken) return
+      if (!accessToken) {
+        setIsLoading(false)
+        return
+      }
       try {
         setIsLoading(true)
         setError(null)
 
         // Step 1: Get distinct stages for the selected pipeline
         const pipelineFilter = pipelineId ? `${config.pipelineField}: {id: {_eq: "${pipelineId}"}}` : ''
-        const whereClause = pipelineFilter ? `isDeleted: {_eq: false}, ${pipelineFilter}` : `isDeleted: {_eq: false}`
+        const statusField = config.statusFilterField ?? 'code'
+        const activeStatusFilter = activeOnly ? `opportunityStatus: {${statusField}: {_nin: ["WON", "LOST"]}}` : ''
+        const filters = [
+          'isDeleted: {_eq: false}',
+          pipelineFilter,
+          activeStatusFilter,
+          ...(config.additionalFilters || [])
+        ].filter(Boolean)
+        const whereClause = filters.join(', ')
 
         const distinctQuery = `
           query GetDistinctStages {
@@ -97,9 +113,8 @@ export const useGenericOpportunitiesByStage = (
             return `
               stage_${index}: ${config.opportunityAggregate}(
                 where: {
-                  isDeleted: {_eq: false},
+                  ${whereClause},
                   ${config.pipelineStageRefField}: {_eq: "${stageId}"}
-                  ${pipelineFilter ? ', ' + pipelineFilter : ''}
                 }
               ) {
                 aggregate {
@@ -131,6 +146,7 @@ export const useGenericOpportunitiesByStage = (
 
           return {
             stage: stageName,
+            stageRef: stageInfo?.id,
             count: aggregate?.count || 0,
             value: aggregate?.sum?.estimatedAmount || 0
           }
@@ -149,11 +165,14 @@ export const useGenericOpportunitiesByStage = (
     accessToken,
     graphqlClient,
     pipelineId,
+    activeOnly,
     config.opportunityEntity,
     config.opportunityAggregate,
     config.pipelineStageField,
     config.pipelineStageRefField,
-    config.pipelineField
+    config.pipelineField,
+    config.statusFilterField,
+    JSON.stringify(config.additionalFilters)
   ])
 
   return { data, isLoading, error }

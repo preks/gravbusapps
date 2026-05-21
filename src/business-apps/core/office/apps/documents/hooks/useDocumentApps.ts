@@ -77,6 +77,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
   })
 
   const lastQueryRef = useRef<ListQueryParams>({})
+  const latestRequestIdRef = useRef(0)
 
   const refreshDocuments = useCallback(
     async (queryOverride?: ListQueryParams) => {
@@ -87,6 +88,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
 
       const query = queryOverride ?? lastQueryRef.current
       lastQueryRef.current = query
+      const requestId = ++latestRequestIdRef.current
 
       try {
         setState(prev => ({ ...prev, isLoading: true, error: null }))
@@ -136,6 +138,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
           }
         })
 
+        if (requestId !== latestRequestIdRef.current) {
+          return
+        }
+
         setState(prev => ({
           ...prev,
           documents,
@@ -149,6 +155,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
           }
         }))
       } catch (error) {
+        if (requestId !== latestRequestIdRef.current) {
+          return
+        }
+
         console.error('[useDocumentApps] Failed to load documents:', error)
         setState(prev => ({
           ...prev,

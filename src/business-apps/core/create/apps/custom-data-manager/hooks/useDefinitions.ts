@@ -19,7 +19,7 @@ interface UseDefinitionsResult {
 /**
  * Hook for managing custom data definitions
  */
-export const useDefinitions = (accessToken: string, namespace?: string): UseDefinitionsResult => {
+export const useDefinitions = (accessToken: string, namespace: string): UseDefinitionsResult => {
   const client = useCustomDataClient(accessToken)
 
   const [definitions, setDefinitions] = useState<CustomDataDefinition[]>([])
@@ -60,7 +60,7 @@ export const useDefinitions = (accessToken: string, namespace?: string): UseDefi
 
   const updateDefinition = useCallback(
     async (definition: CustomDataDefinition, dto: UpdateDefinitionDto): Promise<CustomDataDefinition> => {
-      const updated = await client.updateDefinition(definition.namespace, definition.key, dto)
+      const updated = await client.updateDefinition(definition.namespace, definition.entityName, dto)
       setDefinitions(prev => prev.map(current => (current.id === definition.id ? updated : current)))
       if (selectedDefinition?.id === definition.id) {
         setSelectedDefinition(updated)

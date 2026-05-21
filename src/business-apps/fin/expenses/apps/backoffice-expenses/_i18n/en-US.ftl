@@ -47,6 +47,8 @@ filter-request-type-expense = Expense
 filter-request-type-trip = Trip
 filter-search-employee = Search employee...
 filter-effective-date-info = For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.
+personal-expenses-date-placeholder-start = Start date
+personal-expenses-date-placeholder-end = End date
 filter-report-filters = Report Filters
 
 # Filter Chip Labels
@@ -444,6 +446,19 @@ common-max = Max
 common-total = Total
 common-error = Error
 common-search-expense-requests = Search in Expense Requests
+
+# Shared ExpenseDetailsPanelContent — same message ids as the common component; text comes from existing backoffice keys
+expense-details-value-not-available = { common-not-available }
+expense-details-label-employee = { header-employee }
+expense-details-label-employee-code = { header-employee-code }
+expense-details-label-sap-number = { header-sap-number }
+personal-expenses-filter-label-start-date = { header-start-date }
+personal-expenses-filter-label-end-date = { header-end-date }
+expense-details-label-creation-date = { header-creation-date }
+expense-details-label-remaining-amount = { header-remaining-amount }
+expense-details-label-total-amount = { header-total-amount }
+expense-items-column-status = { header-status }
+expense-items-details-field-code = { detail-code }
 
 # Report Utils
 report-former-employee = Former employee

@@ -200,7 +200,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
         aria-modal="true"
         aria-label="Agent clarification"
         data-testid="fabric-clarification-prompt"
-        className={`gba:absolute gba:inset-x-0 gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:m-0 gba:pointer-events-none gba:max-h-none gba:w-full gba:max-w-none gba:border-0 gba:bg-transparent gba:p-0 gba:shadow-none gba:backdrop:bg-transparent gba:transition-all gba:duration-300 gba:ease-out ${chatOffsetClass} ${WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS} ${
+        className={`gba:absolute gba:inset-x-0 gba:top-auto gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:m-0 gba:pointer-events-none gba:max-h-none gba:w-full gba:max-w-none gba:border-0 gba:bg-transparent gba:p-0 gba:shadow-none gba:backdrop:bg-transparent gba:transition-all gba:duration-300 gba:ease-out ${chatOffsetClass} ${WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS} ${
           isOpen ? 'gba:translate-y-0 gba:opacity-100' : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
         }`}
         data-chat-offset={chatOffsetClass ? 'true' : 'false'}

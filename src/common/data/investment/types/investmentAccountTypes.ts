@@ -15,6 +15,7 @@ import {
   filterAddresses,
   filterAddressLines
 } from '@/common/data/common/utils/entityPayloadHelpers'
+import { splitAccountContactDrafts } from '@/common/data/common/utils/inlineDraftHelpers'
 import type { InvestmentReport } from './investmentTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
@@ -106,8 +107,16 @@ export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
 export const investmentAccountFormFields = { ...AccountFormFields } as const
 
 export const buildInvestmentAccountPayload = (account: Partial<InvestmentAccount>) => {
+  // Keep only existing selected associations under the parent account. Inline-created drafts
+  // are lifted to top-level `investmentContacts` by the form submit handler.
+  const { existingAccountContacts } = splitAccountContactDrafts(account.accountContacts as any[] | undefined)
+  const accountWithExistingAssociations: Partial<InvestmentAccount> = {
+    ...account,
+    accountContacts: existingAccountContacts as InvestmentAccount['accountContacts']
+  }
+
   // Build base payload using investmentAccountFormFields for field mapping
-  const payload = buildPayload(account, investmentAccountFormFields)
+  const payload = buildPayload(accountWithExistingAssociations, investmentAccountFormFields)
 
   // Filter communication channels
   const filteredChannels = filterCommunicationChannels(payload.communicationChannels)

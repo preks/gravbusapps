@@ -25,9 +25,11 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery($employeeId: uuid!, $activeUse
         name
       }
     }
-    workingCondition {
+    workingCondition(where: {isDeleted: {_neq: true}}, orderBy: [{activeFrom: DESC}, {createdAt: DESC}]) {
       hireDate
       vacationDays
+      activeFrom
+      activeTo
     }
   }
   EmployeeAbsenceEntitlement(

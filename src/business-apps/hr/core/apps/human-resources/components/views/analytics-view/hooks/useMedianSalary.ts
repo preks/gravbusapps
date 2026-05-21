@@ -70,8 +70,6 @@ export const useMedianSalary = (accessToken: string) => {
         setError(null)
       }
 
-      console.log('[useMedianSalary] Fetching employee salary data for median calculation')
-
       // Execute the GraphQL query
       const response = await graphQLClient.request<MedianSalaryResponse>(getMedianSalaryData)
 
@@ -82,9 +80,6 @@ export const useMedianSalary = (accessToken: string) => {
 
       const employeeData = response.EmployeeWorkingCondition
       const totalCount = response.EmployeeWorkingConditionAggregate.aggregate.count
-      const retrievedCount = employeeData.length
-
-      console.log(`[useMedianSalary] Retrieved ${retrievedCount} employee records out of ${totalCount} total employees`)
 
       if (totalCount === 0) {
         console.warn('[useMedianSalary] No employee data found with the current query filters')
@@ -113,10 +108,6 @@ export const useMedianSalary = (accessToken: string) => {
         setEmployeeCount(totalCount)
         setError(null)
       }
-
-      console.log(
-        `[useMedianSalary] Calculated median annual gross salary: ${roundedMedian} from ${totalCount} employees`
-      )
     } catch (err) {
       console.error('[useMedianSalary] Error fetching salary data:', err)
 

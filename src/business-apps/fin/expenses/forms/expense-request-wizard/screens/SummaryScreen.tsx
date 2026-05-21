@@ -1,7 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Row, Col, Pagination, Alert } from 'antd'
-import { useTranslation } from '@newwork/nw-design-system'
 import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
+import {
+  getCurrentActiveStructureId,
   getTranslationFromI18nKeyAndLabel,
   formatDate,
   getCatalogValue,
@@ -22,6 +31,14 @@ import { EVENTS } from '../../../utils/constants'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 import { SUMMARY_SCREEN_ITEM_LIST_LIMIT } from '../constants/constants'
 import { getPlanCardData } from '../../expense-request/utils/planUtils'
+import {
+  resolveEffectiveCostCenterId,
+  resolveEffectiveCostCenterName,
+  resolveManualMainCostCenterId
+} from '../../shared/utils/effectiveCostCenter'
+import { resolvePrimaryEmployeePosition } from '../../expense-request/utils/resolvePrimaryEmployeePosition'
+
+type CostCenterOption = { id: string; name: string; structureId?: string }
 
 /**
  * SummaryScreen component props
@@ -41,15 +58,75 @@ interface SummaryScreenProps extends BusinessAppContextProps {
  * @returns SummaryScreen component
  */
 const SummaryScreen: React.FC<SummaryScreenProps> = props => {
-  const { expenseRequestData, employeeRuleId, currentTitle } = useExpenseRequestWizardContext()
+  const { expenseRequestData, employeeRuleId, currentTitle, getUserCostCentersCached } =
+    useExpenseRequestWizardContext()
   const { hasFutureDates } = useExpenseRequestDateValidation()
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(props.additionalData)
   const { t: tForms } = useTranslation(expenseFormsTranslations)
   const requestData = expenseRequestData?.ExpenseRequestByPk
   const requestItemData = expenseRequestData?.ExpenseItem
   const expenseItems = noAllowanceItemsFunction(requestItemData)
+  const effectiveCostCenterId = resolveEffectiveCostCenterId(
+    expenseRequestData?.EmployeePosition,
+    requestData?.costCenterId || ''
+  )
+  const effectiveCostCenterName = resolveEffectiveCostCenterName(
+    expenseRequestData?.EmployeePosition,
+    requestData?.costCenter?.name || ''
+  )
+  const savedManualMainCostCenterId = resolveManualMainCostCenterId(requestData?.additionalProperties)
+  const initialMainCostCenterId = savedManualMainCostCenterId || effectiveCostCenterId
+  const [showMainCostCenterSelect, setShowMainCostCenterSelect] = useState(false)
+  const [mainCostCenters, setMainCostCenters] = useState<CostCenterOption[]>([])
+  const [selectedMainCostCenterId, setSelectedMainCostCenterId] = useState('')
+  const [draftMainCostCenterId, setDraftMainCostCenterId] = useState('')
   const missingOrgchartCostCenter =
     Boolean(expenseRequestData) && !hasEmployeeOrgchartCostCenter(expenseRequestData?.EmployeePosition)
+
+  const selectedMainCostCenter = useMemo(
+    () => mainCostCenters.find(costCenter => costCenter.id === selectedMainCostCenterId),
+    [mainCostCenters, selectedMainCostCenterId]
+  )
+  const mainCostCenterName =
+    selectedMainCostCenter?.name ||
+    (savedManualMainCostCenterId ? requestData?.costCenter?.name || '' : effectiveCostCenterName)
+  const mainCostCenterIdForPayload = showMainCostCenterSelect
+    ? draftMainCostCenterId || selectedMainCostCenterId
+    : selectedMainCostCenterId
+  let manualMainCostCenterIdForPayload: string | undefined
+  if (showMainCostCenterSelect) {
+    manualMainCostCenterIdForPayload =
+      mainCostCenterIdForPayload === effectiveCostCenterId ? '' : mainCostCenterIdForPayload
+  }
+
+  useEffect(() => {
+    setSelectedMainCostCenterId(initialMainCostCenterId)
+    setDraftMainCostCenterId(initialMainCostCenterId)
+  }, [initialMainCostCenterId, requestData?.id])
+
+  useEffect(() => {
+    const fetchMainCostCenters = async () => {
+      const positions = expenseRequestData?.EmployeePosition || []
+      const primaryPosition = resolvePrimaryEmployeePosition(positions, getCurrentActiveStructureId())
+      const structureId = primaryPosition?.structureId ?? positions[0]?.structureId ?? getCurrentActiveStructureId()
+      if (!structureId) {
+        setMainCostCenters([])
+        return
+      }
+
+      const response = await getUserCostCentersCached(structureId)
+      const costCenters = response?.userCostCenters || []
+      setMainCostCenters(
+        costCenters.map((costCenter: any) => ({
+          id: costCenter.id,
+          name: costCenter.name || '',
+          structureId: costCenter.structureId
+        }))
+      )
+    }
+
+    fetchMainCostCenters()
+  }, [expenseRequestData?.EmployeePosition, getUserCostCentersCached])
 
   const handleSave = useCallback(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
@@ -58,11 +135,13 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
         employeeRuleId,
         currentTitle,
         expenseRequestData,
-        EVENTS.SAVE
+        EVENTS.SAVE,
+        mainCostCenterIdForPayload,
+        manualMainCostCenterIdForPayload
       )
       dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject)
     }
-  }, [expenseRequestData, employeeRuleId, currentTitle])
+  }, [expenseRequestData, employeeRuleId, currentTitle, mainCostCenterIdForPayload, manualMainCostCenterIdForPayload])
 
   const handleSubmit = useCallback(() => {
     if (!expenseRequestData?.ExpenseRequestByPk) {
@@ -76,10 +155,12 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
       employeeRuleId,
       currentTitle,
       expenseRequestData,
-      EVENTS.SUBMIT
+      EVENTS.SUBMIT,
+      mainCostCenterIdForPayload,
+      manualMainCostCenterIdForPayload
     )
     dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, logObject)
-  }, [expenseRequestData, employeeRuleId, currentTitle])
+  }, [expenseRequestData, employeeRuleId, currentTitle, mainCostCenterIdForPayload, manualMainCostCenterIdForPayload])
 
   useEffect(() => {
     document.addEventListener('expense-request-save-summary', handleSave)
@@ -126,6 +207,17 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
 
   const handleExpensePageChange = (page: number) => {
     setExpenseCurrentPage(page)
+  }
+
+  const handleToggleMainCostCenterSelect = () => {
+    if (showMainCostCenterSelect) {
+      setDraftMainCostCenterId(selectedMainCostCenterId)
+      setShowMainCostCenterSelect(false)
+      return
+    }
+
+    setDraftMainCostCenterId(selectedMainCostCenterId || effectiveCostCenterId)
+    setShowMainCostCenterSelect(true)
   }
 
   // Get paginated data
@@ -183,22 +275,75 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
           </Row>
 
           <Row gutter={[24, 16]}>
-            <Col xs={24} md={12} className="gba:text-left">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span className="gba:font-normal" data-testid="expense-request-cost-center-label">
+            <Col xs={24} className="gba:text-left">
+              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1">
+                <span
+                  className="gba:font-normal gba:flex-shrink-0 gba:whitespace-nowrap gba:leading-none"
+                  data-testid="expense-request-cost-center-label"
+                >
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:expense_summary_request.id_cost_center_text_main_cost',
                     'Main Cost Center:'
                   )}
                 </span>
-                <span data-testid="expense-request-cost-center-value">
-                  {requestData?.costCenter?.name ||
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_summary_request.no_cost_center',
-                      'No cost center'
-                    )}
-                </span>
+                {showMainCostCenterSelect ? (
+                  <div
+                    className="gba:m-0 gba:inline-block gba:flex-none gba:self-center gba:p-0"
+                    data-testid="expense-request-main-cost-center-select-container"
+                  >
+                    <Select
+                      value={draftMainCostCenterId || undefined}
+                      onValueChange={setDraftMainCostCenterId}
+                      showClearButton={false}
+                    >
+                      <SelectTrigger
+                        id="expense-request-main-cost-center"
+                        size="sm"
+                        className="gba:w-max gba:max-w-xs gba:min-w-0 gba:!h-6 gba:!min-h-6 gba:!max-h-6 gba:!gap-1 gba:!py-0 gba:!px-1 gba:text-xs gba:leading-none gba:shadow-none [&_svg]:gba:h-3 [&_svg]:gba:w-3"
+                        data-testid="expense-request-main-cost-center-select"
+                        aria-label={getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
+                          'Cost Center'
+                        )}
+                      >
+                        <SelectValue
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_placeholder',
+                            'Select Cost Center'
+                          )}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mainCostCenters.map(costCenter => (
+                          <SelectItem key={costCenter.id} value={costCenter.id}>
+                            {costCenter.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <span
+                    className="gba:min-w-0 gba:flex-1 gba:text-left"
+                    data-testid="expense-request-cost-center-value"
+                  >
+                    {mainCostCenterName ||
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_summary_request.no_cost_center',
+                        'No cost center'
+                      )}
+                  </span>
+                )}
               </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="gba:mt-2"
+                data-testid="expense-request-change-main-cost-center-button"
+                onClick={handleToggleMainCostCenterSelect}
+              >
+                {showMainCostCenterSelect ? tForms('action-cancel') : tForms('action-change-main-cost-center')}
+              </Button>
             </Col>
           </Row>
         </div>

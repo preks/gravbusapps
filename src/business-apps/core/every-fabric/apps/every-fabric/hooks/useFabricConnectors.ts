@@ -20,7 +20,11 @@ export interface ExternalConnection {
 export interface UseFabricConnectorsReturn {
   availableConnectors: ExternalConnection[]
   activeConnectors: ExternalConnection[]
+  activeConnectionIds: Set<string>
   toggleConnector: (connectionId: string) => void
+  /** Seed the active set from an external list (e.g. loaded session state).
+   * Only applies if the current active set is empty to avoid overriding user choices. */
+  hydrateActiveIds: (ids: string[]) => void
   isLoading: boolean
   error: Error | null
 }
@@ -99,12 +103,21 @@ export const useFabricConnectors = (accessToken: string): UseFabricConnectorsRet
     })
   }, [])
 
+  const hydrateActiveIds = useCallback((ids: string[]) => {
+    setActiveConnectionIds(prev => {
+      if (prev.size > 0) return prev
+      return new Set(ids)
+    })
+  }, [])
+
   const activeConnectors = availableConnectors.filter(c => activeConnectionIds.has(c.connection_id))
 
   return {
     availableConnectors,
     activeConnectors,
+    activeConnectionIds,
     toggleConnector,
+    hydrateActiveIds,
     isLoading,
     error
   }

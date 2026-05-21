@@ -89,7 +89,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({
 
   // Helper function to get employee display
   const getEmployeeDisplay = (): string => {
-    const employee = jobPosition.employeePositions?.[0]
+    const employee = jobPosition.employeePositions?.find(employeePosition => Boolean(employeePosition?.employeeId))
     if (!employee)
       return getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.job_positions_section.vacant', 'Vacant')
 
@@ -97,7 +97,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({
   }
 
   // Check if position is vacant
-  const isVacant = !jobPosition.employeePositions || jobPosition.employeePositions.length === 0
+  const isVacant = !jobPosition.employeePositions?.some(employeePosition => Boolean(employeePosition?.employeeId))
 
   return (
     <div className="gba:p-6 gba:space-y-6 gba:relative">

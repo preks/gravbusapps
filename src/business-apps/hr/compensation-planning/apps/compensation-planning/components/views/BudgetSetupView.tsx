@@ -3,8 +3,11 @@ import { Alert, AlertDescription, AlertTitle, Button, Spinner, useTranslation } 
 import { ArrowLeftIcon } from '@phosphor-icons/react'
 import type { CompensationBudgetPlanCompanyRow } from '../../hooks/useBudgetSetupForCompany'
 import { useBudgetSetupForCompany } from '../../hooks/useBudgetSetupForCompany'
+import {
+  useCompanyCompensationSalaryBaseline,
+  useCompanyCompensationSalaryBaselineTotals
+} from '../../hooks/useCompanyCompensationSalaryBaseline'
 import { useCompensationPlanningStore } from '../../hooks/useCompensationPlanningStore'
-import { useOverviewCompanyStatisticsData } from '../../hooks/useOverviewCompanyStatisticsData'
 import { BudgetSetupCreatePlanDialog } from './BudgetSetupCreatePlanDialog'
 import type { CreatePlanFormValues } from './budgetSetupCreatePlanSchema'
 import type { BudgetSetupCompanyOption, BudgetSetupPlanTableRow } from './budgetSetupPlanTableRows'
@@ -12,6 +15,8 @@ import { BudgetSetupPlansTable } from './BudgetSetupPlansTable'
 import { BudgetSetupCycleOverview } from './BudgetSetupCycleOverview'
 import { OverviewOrgUnitSalaryCard } from './OverviewOrgUnitSalaryCard'
 import translations from '../../_i18n'
+
+const EXECUTED_STATUS = 'BUDGET_PLAN_EXECUTED'
 
 export interface BudgetSetupViewProps {
   accessToken: string
@@ -31,7 +36,11 @@ function BudgetSetupDepartmentsBreakdown({
   onBack,
   t
 }: Readonly<BudgetSetupDepartmentsBreakdownProps>) {
-  const overviewStats = useOverviewCompanyStatisticsData(accessToken, row.companyId, t('overview-org-unit-unassigned'))
+  const overviewStats = useCompanyCompensationSalaryBaseline(
+    accessToken,
+    row.companyId,
+    t('overview-org-unit-unassigned')
+  )
 
   return (
     <div className="gba:space-y-4" data-testid="budget-setup-departments-view">
@@ -96,6 +105,9 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
     updateCompanyBudgetRow
   } = useBudgetSetupForCompany(accessToken)
 
+  const selectedPlan = plans.find(plan => plan.id === selectedBudgetPlanId) ?? null
+  const isSelectedCycleExecuted = selectedPlan?.budgetPlanStatus === EXECUTED_STATUS
+
   const handleBudgetSetupDialogOpenChange = useCallback((open: boolean) => {
     setCreatePlanDialogOpen(open)
     if (!open) {
@@ -105,13 +117,16 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
 
   const handleEditCompanyBudgetRow = useCallback(
     (tableRow: BudgetSetupPlanTableRow) => {
+      if (isSelectedCycleExecuted) {
+        return
+      }
       const full = companyBudgetPlanRows.find(r => r.id === tableRow.id)
       if (full) {
         setEditingCompanyRow(full)
         setCreatePlanDialogOpen(true)
       }
     },
-    [companyBudgetPlanRows]
+    [companyBudgetPlanRows, isSelectedCycleExecuted]
   )
 
   const handleUpdateCompanyBudgetFromDialog = useCallback(
@@ -137,9 +152,26 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
     return currencyRef?.split(':').pop()?.trim() || 'EUR'
   }, [companyBudgetPlanRows, selectedCompanyRow])
 
-  const selectedPlan = plans.find(plan => plan.id === selectedBudgetPlanId) ?? null
+  const companyIdsInSelectedPlan = useMemo(
+    () =>
+      selectedBudgetPlanId == null
+        ? []
+        : [
+            ...new Set(
+              companyBudgetPlanRows
+                .filter(row => row.compensationBudgetPlanId === selectedBudgetPlanId)
+                .map(row => row.companyId)
+            )
+          ],
+    [companyBudgetPlanRows, selectedBudgetPlanId]
+  )
+  const {
+    totalSalaryByCompanyId,
+    loading: loadingCurrentSalaryTotals,
+    error: currentSalaryTotalsError
+  } = useCompanyCompensationSalaryBaselineTotals(accessToken, companyIdsInSelectedPlan, selectedBudgetPlanId != null)
 
-  const tableLoading = loadingPlans || loadingCompanyRowsList
+  const tableLoading = loadingPlans || loadingCompanyRowsList || loadingCurrentSalaryTotals
 
   const openDepartmentsBreakdown = useCallback((row: BudgetSetupPlanTableRow) => {
     setSelectedDepartmentsRow(row)
@@ -150,8 +182,11 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
       type="button"
       variant="default"
       className="gba:shrink-0"
-      disabled={creatingPlan}
+      disabled={creatingPlan || isSelectedCycleExecuted}
       onClick={() => {
+        if (isSelectedCycleExecuted) {
+          return
+        }
         setEditingCompanyRow(null)
         setCreatePlanDialogOpen(true)
       }}
@@ -214,11 +249,14 @@ export const BudgetSetupView: React.FC<BudgetSetupViewProps> = ({ accessToken, c
             companies={companies}
             showCompanyColumn
             loading={tableLoading}
-            error={null}
+            error={currentSalaryTotalsError}
             toolbarEnd={toolbarEnd}
             onEditRow={handleEditCompanyBudgetRow}
             onOpenDepartmentsBreakdown={openDepartmentsBreakdown}
             selectedCompensationPlanId={selectedBudgetPlanId}
+            editDisabled={isSelectedCycleExecuted}
+            showCycleColumn={false}
+            currentSalaryCostByCompanyId={totalSalaryByCompanyId}
           />
         </>
       )}

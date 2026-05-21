@@ -1,6 +1,21 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { CalendarIcon, UserIcon, UsersIcon, ClockIcon, WarningCircleIcon } from '@phosphor-icons/react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import {
+  CalendarIcon,
+  UserIcon,
+  UsersIcon,
+  ClockIcon,
+  WarningCircleIcon,
+  FunnelIcon,
+  DotsThreeVerticalIcon
+} from '@phosphor-icons/react'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  type FilterConfiguration,
+  useTranslation
+} from '@newwork/nw-design-system'
 import {
   Spinner,
   Alert,
@@ -22,9 +37,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { MoreHorizontal } from 'lucide-react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { format, addDays, parseISO, differenceInYears } from 'date-fns'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
@@ -33,6 +46,11 @@ import { GenerateDocumentDialog } from '@/business-apps/core/office/apps/documen
 import { DocumentApiService } from '@/business-apps/core/office/apps/documents/services/DocumentApiService'
 import { exportToWord } from '@/business-apps/core/office/apps/documents/utils/exportUtils'
 import { toast } from 'sonner'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { BackofficeFilterSheet } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeFilterSheet'
+import { CompanyFilterGroup } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/components/shared/CompanyFilterGroup'
+import { useActiveStructureCompanies } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useActiveStructureCompanies'
+import { HrAnalyticsFilterSummary } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/components/shared/HrAnalyticsFilterSummary'
 
 interface EmployeeInsight {
   id: string
@@ -110,6 +128,7 @@ interface UpcomingTerminationDatasetRow {
 }
 
 export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+  const { t } = useTranslation(hrTranslations)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [birthdays, setBirthdays] = useState<EmployeeInsight[]>([])
@@ -135,8 +154,62 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   const [generateDocEmployee, setGenerateDocEmployee] = useState<EmployeeInsight | null>(null)
   const [generateDocOpen, setGenerateDocOpen] = useState(false)
 
-  const client = useGraphqlClient(accessToken)
   const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
+  const structureId = getCurrentActiveStructureId()
+
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
+  const [filtersObject, setFiltersObject] = useState<Record<string, unknown>>({})
+
+  const selectedCompanyIds = useMemo(
+    () => ((filtersObject.companyIds as string[] | undefined) ?? []).filter(Boolean),
+    [filtersObject.companyIds]
+  )
+
+  const { companies: companyNodes } = useActiveStructureCompanies(accessToken)
+  const companyOptions = useMemo(() => (companyNodes ?? []).map(c => ({ id: c.id, label: c.name })), [companyNodes])
+
+  const selectedCompanies = useMemo(
+    () => companyOptions.filter(c => selectedCompanyIds.includes(c.id)).map(c => ({ id: c.id, name: c.label })),
+    [companyOptions, selectedCompanyIds]
+  )
+
+  const filterConfiguration = useMemo<FilterConfiguration>(
+    () => ({
+      id: 'hr-insights-filters',
+      name: t('hr-insights-filter-sheet-title'),
+      groups: [
+        {
+          id: 'company-group',
+          label: t('hr-analytics-filter-company-title'),
+          collapsible: true,
+          defaultExpanded: true,
+          filters: [
+            {
+              id: 'companyIds',
+              field: 'companyIds',
+              label: t('hr-analytics-filter-company-title'),
+              type: 'multi-select',
+              config: { options: companyOptions, showSearch: true, showSelectAll: true }
+            }
+          ]
+        }
+      ]
+    }),
+    [companyOptions, t]
+  )
+
+  const handleFilterChangeFromSheet = useCallback((next: Record<string, unknown>) => {
+    setFiltersObject(next)
+    setBirthdaysPage(1)
+    setAnniversariesPage(1)
+    setNewHiresPage(1)
+    setProbationPage(1)
+    setTerminationsPage(1)
+  }, [])
+
+  const clearSelectedCompanies = useCallback(() => {
+    handleFilterChangeFromSheet({})
+  }, [handleFilterChangeFromSheet])
 
   const entityDataMapForDoc = useMemo(() => {
     if (!generateDocEmployee) {
@@ -176,9 +249,16 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     try {
       const startDate = new Date().toISOString().slice(0, 10)
       const endDate = addDays(new Date(), 30).toISOString().slice(0, 10)
-      const birthdaysDataset = await datasetClient.executeQuery('upcomingBirthdaysEmployees', QueryType.DATASET, {
+      const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+      const commonParams: Record<string, string | number> = {
         startDate,
-        endDate,
+        endDate
+      }
+      if (structureId) commonParams.structureId = structureId
+      if (companyIdsParam) commonParams.companyIds = companyIdsParam
+
+      const birthdaysDataset = await datasetClient.executeQuery('upcomingBirthdaysEmployees', QueryType.DATASET, {
+        ...commonParams,
         page: birthdaysPage,
         pageSize: birthdaysPageSize
       })
@@ -204,8 +284,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         'upcomingAnniversariesEmployees',
         QueryType.DATASET,
         {
-          startDate,
-          endDate,
+          ...commonParams,
           page: anniversariesPage,
           pageSize: anniversariesPageSize
         }
@@ -229,8 +308,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       setAnniversariesHasNextPage(anniversaryRows.length === anniversariesPageSize)
 
       const newHiresDataset = await datasetClient.executeQuery('upcomingNewHiresEmployees', QueryType.DATASET, {
-        startDate,
-        endDate,
+        ...commonParams,
         page: newHiresPage,
         pageSize: newHiresPageSize
       })
@@ -253,8 +331,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       setNewHiresHasNextPage(newHireRows.length === newHiresPageSize)
 
       const probationDataset = await datasetClient.executeQuery('upcomingProbationEndsEmployees', QueryType.DATASET, {
-        startDate,
-        endDate,
+        ...commonParams,
         page: probationPage,
         pageSize: probationPageSize
       })
@@ -277,8 +354,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       setProbationHasNextPage(probationRows.length === probationPageSize)
 
       const terminationsDataset = await datasetClient.executeQuery('upcomingTerminationsEmployees', QueryType.DATASET, {
-        startDate,
-        endDate,
+        ...commonParams,
         page: terminationsPage,
         pageSize: terminationsPageSize
       })
@@ -317,7 +393,6 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   }, [
     birthdaysPage,
     birthdaysPageSize,
-    client,
     datasetClient,
     anniversariesPage,
     anniversariesPageSize,
@@ -326,7 +401,9 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     probationPage,
     probationPageSize,
     terminationsPage,
-    terminationsPageSize
+    terminationsPageSize,
+    selectedCompanyIds,
+    structureId
   ])
 
   useEffect(() => {
@@ -498,7 +575,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
                         className="gba:h-8 gba:w-8"
                         data-testid="hr-insights-row-menu"
                       >
-                        <MoreHorizontal className="gba:h-4 gba:w-4" />
+                        <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" aria-hidden="true" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -547,7 +624,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   }
 
   return (
-    <div className="gba:p-6">
+    <div>
       <Tabs value={activeSubTab} onValueChange={handleSubTabChange} className="gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-5">
           {viewOptions.map(option => (
@@ -567,7 +644,32 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           ))}
         </TabsList>
 
-        <TabsContent value="birthdays" className="gba:mt-6">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2">
+          <div className="gba:flex-1 gba:min-w-0">
+            <HrAnalyticsFilterSummary
+              selectedCompanies={selectedCompanies}
+              filtersLabel={t('hr-analytics-filter-button')}
+              companyLabel={t('hr-analytics-filter-company-title')}
+              clearAllLabel={t('hr-analytics-filter-clear-all')}
+              onRemoveCompany={() => {
+                // Component currently clears all via onClearAll, keep this a no-op for now.
+              }}
+              onClearAll={clearSelectedCompanies}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setFilterSheetOpen(true)}
+            data-testid="hr-insights-filter-button"
+            aria-label={t('hr-analytics-filter-button')}
+          >
+            <FunnelIcon className="gba:h-4 gba:w-4" aria-hidden="true" />
+          </Button>
+        </div>
+
+        <TabsContent value="birthdays">
           {renderEmployeeTable(
             birthdays,
             'birthDate',
@@ -598,7 +700,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           </div>
         </TabsContent>
 
-        <TabsContent value="anniversaries" className="gba:mt-6">
+        <TabsContent value="anniversaries">
           {renderEmployeeTable(
             anniversaries,
             'hireDate',
@@ -629,7 +731,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           </div>
         </TabsContent>
 
-        <TabsContent value="new-hires" className="gba:mt-6">
+        <TabsContent value="new-hires">
           {renderEmployeeTable(
             newHires,
             'hireDate',
@@ -660,7 +762,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           </div>
         </TabsContent>
 
-        <TabsContent value="probation-ends" className="gba:mt-6">
+        <TabsContent value="probation-ends">
           {renderEmployeeTable(
             probationEnds,
             'probationEnd',
@@ -691,7 +793,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           </div>
         </TabsContent>
 
-        <TabsContent value="terminations" className="gba:mt-6">
+        <TabsContent value="terminations">
           {renderEmployeeTable(
             terminations,
             'exitDate',
@@ -746,6 +848,37 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           }
         }}
         data-testid="hr-insights-generate-document-dialog"
+      />
+
+      <BackofficeFilterSheet
+        open={filterSheetOpen}
+        onOpenChange={setFilterSheetOpen}
+        configuration={filterConfiguration}
+        values={filtersObject}
+        onApply={handleFilterChangeFromSheet}
+        onChange={handleFilterChangeFromSheet}
+        title={t('hr-insights-filter-sheet-title')}
+        description={t('hr-insights-filter-sheet-description')}
+        noFiltersConfiguredLabel={t('hr-analytics-filter-no-filters-configured')}
+        clearAllLabel={t('hr-analytics-filter-clear-all')}
+        cancelLabel={t('hr-analytics-filter-cancel')}
+        applyFiltersLabel={t('hr-analytics-filter-apply-filters')}
+        customGroup={{
+          groupId: 'company-group',
+          valueKey: 'companyIds',
+          render: ({ selectedIds, onSelectedIdsChange }) => (
+            <CompanyFilterGroup
+              companies={companyOptions.map(c => ({ id: c.id, name: c.label }))}
+              selectedIds={selectedIds}
+              onSelectedIdsChange={onSelectedIdsChange}
+              searchPlaceholder={t('hr-analytics-filter-company-search-placeholder')}
+              previousLabel={t('hr-analytics-filter-previous')}
+              nextLabel={t('hr-analytics-filter-next')}
+              ofLabel={t('hr-analytics-filter-of')}
+              emptyLabel={t('hr-analytics-filter-company-empty')}
+            />
+          )
+        }}
       />
     </div>
   )

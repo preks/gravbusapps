@@ -33,7 +33,7 @@ const prefixDataTestId = 'investment-table-tile-component'
 
 // Form validation schema
 const tableTileFormSchema = z.object({
-  title: z.string().min(1, 'Title is required')
+  title: z.string().trim().min(1, 'Title is required')
 })
 
 type TableTileFormData = z.infer<typeof tableTileFormSchema>

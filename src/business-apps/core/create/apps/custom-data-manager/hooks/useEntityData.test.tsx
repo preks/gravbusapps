@@ -15,38 +15,29 @@ describe('useEntityData', () => {
   })
 
   it('queries rows through the TypeName root field', async () => {
-    global.fetch = jest
-      .fn()
-      .mockResolvedValueOnce({
-        json: jest.fn().mockResolvedValue({
-          data: { __type: { fields: [{ name: 'id' }, { name: 'assetName' }] } }
-        })
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      json: jest.fn().mockResolvedValue({
+        data: { Asset: [{ id: 'row-1', assetName: 'Laptop' }] }
       })
-      .mockResolvedValueOnce({
-        json: jest.fn().mockResolvedValue({
-          data: { Asset: [{ id: 'row-1', assetName: 'Laptop' }] }
-        })
-      }) as typeof fetch
+    }) as typeof fetch
 
     const definition = {
       id: 'asset-id',
       namespace: 'default',
-      key: 'asset',
+      entityName: 'Asset',
       kind: 'CUSTOM_ENTITY',
-      display_name: 'Asset',
-      columns_json: [{ type: 'TEXT', name: 'asset_name', label: 'Asset Name' }],
-      publish_state: 'PROMOTED_TRACKED',
-      created_at: '',
-      updated_at: ''
+      displayName: 'Asset',
+      columns: [{ type: 'TEXT', fieldName: 'assetName', label: 'Asset Name' }],
+      publishState: 'PROMOTED_TRACKED',
+      createdAt: '',
+      updatedAt: ''
     } as CustomDataDefinition
 
     const { result } = renderHook(() => useEntityData('token-123', definition))
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2))
-
-    expect(result.current.rows).toEqual([{ id: 'row-1', assetName: 'Laptop' }])
-    expect(global.fetch).toHaveBeenNthCalledWith(
-      2,
+    await waitFor(() => expect(result.current.rows).toEqual([{ id: 'row-1', assetName: 'Laptop' }]))
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(global.fetch).toHaveBeenCalledWith(
       'http://flow-engine.test/custom-data/graphql',
       expect.objectContaining({
         body: JSON.stringify({ query: `{ Asset { id\n    assetName } }` })

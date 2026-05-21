@@ -1,4 +1,5 @@
 import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
+import type { CancelEmployeeAbsenceSnapshot } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
 
 export type TimeFilter = 'current-year' | 'quarter' | 'month' | 'everything'
 
@@ -23,7 +24,6 @@ export type ActiveTab =
   | 'attendance'
   | 'entitlements'
   | 'insights'
-  | 'reports'
   | 'absence-list'
   | 'calendar'
   | 'statistics'
@@ -85,6 +85,9 @@ export interface DashboardData {
     averageUsed: number
     totalVacationLiability: number
     totalVacationEntitlement: number
+    estimatedCostPerDay: number
+    totalLiabilityEstimate: number
+    currencyCode: string
   }
 
   isLoading: boolean
@@ -120,6 +123,7 @@ export interface EnhancedAbsence {
   color?: string
   pictureThumbnail?: string
   createdAt?: string
+  cancelSnapshot: CancelEmployeeAbsenceSnapshot
 }
 
 export interface DateFilters {

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 /**
  * Response type for Probation Rate data query
@@ -12,6 +14,7 @@ type DatasetRow = { category?: string; value?: number }
  * @returns Object containing probationRate, employee counts, loading state, error, and refetch function
  */
 export const useProbationRate = (accessToken: string) => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   // Define all hooks at the top level to ensure consistent order
   const [probationRate, setProbationRate] = useState<number>(0)
   const [employeesInProbation, setEmployeesInProbation] = useState<number>(0)
@@ -46,7 +49,12 @@ export const useProbationRate = (accessToken: string) => {
       })
 
       // Fetch counts from dataset query 'probationRateData'
-      const resp = await datasetClient.executeQuery('probationRateData', QueryType.DATASET, {})
+      const structureId = getCurrentActiveStructureId()
+      const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+      const resp = await datasetClient.executeQuery('probationRateData', QueryType.DATASET, {
+        ...(structureId ? { structureId } : {}),
+        ...(companyIdsParam ? { companyIds: companyIdsParam } : {})
+      })
       let rows: DatasetRow[] = []
       if (Array.isArray(resp?.data)) {
         rows = resp.data
@@ -82,7 +90,7 @@ export const useProbationRate = (accessToken: string) => {
         setLoading(false)
       })
     }
-  }, [accessToken, datasetClient])
+  }, [accessToken, datasetClient, selectedCompanyIds])
 
   // Set up effect to fetch data and handle cleanup
   useEffect(() => {

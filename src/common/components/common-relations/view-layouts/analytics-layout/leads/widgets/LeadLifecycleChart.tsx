@@ -15,7 +15,12 @@ import {
 } from '@newwork/nw-design-system'
 import { AreaChart, Area, XAxis, YAxis } from 'recharts'
 import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
-import { TIME_FILTER_OPTIONS, formatLifecycleXAxisLabel, getCurrentFilterLabel } from '../../shared/lifecycleChartUtils'
+import {
+  TIME_FILTER_OPTIONS,
+  formatLifecycleXAxisLabel,
+  getCurrentFilterLabel,
+  createChartTooltipFormatter
+} from '../../shared/lifecycleChartUtils'
 import type { TimeFilter } from '../../shared/lifecycleChartUtils'
 import { LifecycleChartLoadingState } from '../../shared/LifecycleChartLoadingState'
 
@@ -24,6 +29,7 @@ export type { TimeFilter } from '../../shared/lifecycleChartUtils'
 
 export interface LeadsOverTimePoint {
   date: string
+  endDate: string
   count: number
   leadsCreated: number
   leadsConverted: number
@@ -36,6 +42,12 @@ export interface LeadLifecycleChartProps {
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
   moduleColor?: string
+  onPointClick?: (
+    label: string,
+    date: string,
+    endDate: string,
+    metric: 'leadsCreated' | 'leadsConverted' | 'leadsLost'
+  ) => void
 }
 
 export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
@@ -43,7 +55,8 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
   isLoading = false,
   selectedTimeFilter,
   onTimeFilterChange,
-  moduleColor
+  moduleColor,
+  onPointClick
 }) => {
   const [visibleLines, setVisibleLines] = useState({
     leadsCreated: true,
@@ -60,6 +73,8 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
     }),
     []
   )
+
+  const tooltipFormatter = useMemo(() => createChartTooltipFormatter(chartConfig), [chartConfig])
 
   // Non-hook logic can come after hooks but before early returns
   const lineOptions: Array<{ key: keyof typeof visibleLines; label: string }> = [
@@ -106,17 +121,29 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
     return (
       <ChartContainer
         config={chartConfig}
-        className="gba:h-[400px] gba:w-full gba:aspect-auto"
+        className={`gba:h-[400px] gba:w-full gba:aspect-auto gba:[&_.recharts-tooltip-cursor]:hidden${onPointClick ? ' gba:cursor-pointer' : ''}`}
         data-testid="LeadLifecycleChart-chart"
       >
-        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+        <AreaChart
+          data={chartData}
+          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          onClick={clickData => {
+            if (!onPointClick || clickData?.activeTooltipIndex == null) return
+            const point = chartData[clickData.activeTooltipIndex as number]
+            if (!point) return
+            const label = formatLifecycleXAxisLabel(point.date, selectedTimeFilter)
+            const metricFallback = visibleLines.leadsConverted ? 'leadsConverted' : 'leadsLost'
+            const metric = visibleLines.leadsCreated ? 'leadsCreated' : metricFallback
+            onPointClick(label, point.date, point.endDate, metric)
+          }}
+        >
           <XAxis
             dataKey="date"
             tickLine={false}
             tickFormatter={value => formatLifecycleXAxisLabel(value, selectedTimeFilter)}
           />
           <YAxis tickLine={false} />
-          <ChartTooltip content={<ChartTooltipContent labelKey="date" />} />
+          <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={tooltipFormatter} />} />
           <ChartLegend content={<ChartLegendContent />} />
           {visibleLines.leadsCreated && (
             <Area
@@ -127,6 +154,7 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
               fill={`var(--color-leadsCreated)`}
               fillOpacity={0.2}
               strokeWidth={2}
+              activeDot={{ r: 6 }}
             />
           )}
           {visibleLines.leadsConverted && (
@@ -138,6 +166,7 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
               fill={`var(--color-leadsConverted)`}
               fillOpacity={0.2}
               strokeWidth={2}
+              activeDot={{ r: 6 }}
             />
           )}
           {visibleLines.leadsLost && (
@@ -149,6 +178,7 @@ export const LeadLifecycleChart: React.FC<LeadLifecycleChartProps> = ({
               fill={`var(--color-leadsLost)`}
               fillOpacity={0.2}
               strokeWidth={2}
+              activeDot={{ r: 6 }}
             />
           )}
         </AreaChart>

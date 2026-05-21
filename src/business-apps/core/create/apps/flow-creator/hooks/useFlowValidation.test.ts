@@ -80,6 +80,24 @@ function makeDecisionTaskExpertNode(userParamsMap?: Record<string, string>): Stu
   }
 }
 
+function makeLogicDecisionNode(conditions: Array<{ expression: string; branchId: string }> = []): StudioNode {
+  return {
+    id: 'decision-logic',
+    type: 'decision',
+    label: 'Logic Decision',
+    config: {
+      nodeType: 'decision',
+      decisionMode: 'LOGIC',
+      branches: [
+        { id: 'approve-branch', label: 'Approve' },
+        { id: 'reject-branch', label: 'Reject' }
+      ],
+      defaultBranch: 'approve-branch',
+      logicConfig: { conditions }
+    } as any
+  }
+}
+
 function makeEdges(): FlowGraphEdge[] {
   return [
     { id: 'e-start-decision', source: START_ID, target: 'decision-ai', direction: 'forward' } as any,
@@ -132,5 +150,55 @@ describe('validateFlow', () => {
     )
 
     expect(issues.some(issue => issue.rule === 'decision-taskexpert-param-mapping')).toBe(false)
+  })
+
+  it('blocks logic decisions without conditions', () => {
+    const issues = validateFlow(
+      [makeStartNode(), makeLogicDecisionNode(), makeEndNode()],
+      [
+        { id: 'e-start-decision', source: START_ID, target: 'decision-logic', direction: 'forward' } as any,
+        {
+          id: 'approve-branch',
+          source: 'decision-logic',
+          target: END_ID,
+          direction: 'forward',
+          label: 'Approve'
+        } as any,
+        { id: 'reject-branch', source: 'decision-logic', target: END_ID, direction: 'forward', label: 'Reject' } as any
+      ]
+    )
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          nodeId: 'decision-logic',
+          severity: 'error',
+          rule: 'logic-decision-needs-condition'
+        })
+      ])
+    )
+  })
+
+  it('accepts logic decisions with at least one condition', () => {
+    const issues = validateFlow(
+      [
+        makeStartNode(),
+        makeLogicDecisionNode([{ expression: '$workflow.input.approved == true', branchId: 'approve-branch' }]),
+        makeEndNode()
+      ],
+      [
+        { id: 'e-start-decision', source: START_ID, target: 'decision-logic', direction: 'forward' } as any,
+        {
+          id: 'approve-branch',
+          source: 'decision-logic',
+          target: END_ID,
+          direction: 'forward',
+          label: 'Approve'
+        } as any,
+        { id: 'reject-branch', source: 'decision-logic', target: END_ID, direction: 'forward', label: 'Reject' } as any
+      ]
+    )
+
+    expect(issues.some(issue => issue.rule === 'logic-decision-needs-condition')).toBe(false)
   })
 })

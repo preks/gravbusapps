@@ -10,12 +10,9 @@ account-picture-label = Imagine cont
 account-information-segment-prospective = Prospect
 account-type-label = Categoria contului
 prospect-label = Prospect
-customer-label = Client
-portfolio-company-label = Companie de portofoliu
-prospect-description-crm = Client potențial cu angajament ridicat
-prospect-description-irm = Intrare potențială în portofoliu
-customer-description = Client activ cu relație de afaceri stabilită
-portfolio-description = Companie de portofoliu activă cu participații
+active-account-label = Activ
+prospect-description = Cont potențial aflat în curs de evaluare
+active-description = Cont activ cu o relație de afaceri stabilită
 
 # Company Information
 priority-label = Prioritate
@@ -32,4 +29,3 @@ contacts-placeholder = Căutați sau selectați contacte...
 # Common
 please-select = Vă rugăm să selectați...
 please-enter = Vă rugăm să introduceți...
-

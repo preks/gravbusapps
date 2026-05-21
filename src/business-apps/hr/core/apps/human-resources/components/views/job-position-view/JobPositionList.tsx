@@ -5,7 +5,6 @@ import JobPositionForm from '@/business-apps/hr/core/forms/job-position/JobPosit
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { PlusSquareIcon } from '@/components/dataController/DataController'
-import { DataContainer } from '@/components/layout/dataContainer'
 import {
   Button,
   Dialog,
@@ -16,17 +15,20 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { BriefcaseIcon } from '@phosphor-icons/react'
 import React, { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { JobPositionDetails } from './components/JobPositionDetails'
 import { JobPositionTable } from './components/JobPositionTable'
 import { ExtendedVacancyFilter, VacancyStatusToggle } from './components/VacancyStatusToggle'
-import { useJobPositionFilters } from './hooks/useJobPositionFilters'
 import { JobPosition, useJobPositionListData } from './hooks/useJobPositionListData'
 import { useMissingJobProfileCount } from './hooks/useMissingJobProfileCount'
 import { mapJobPositionListRowToFormJobPosition } from './utils/mapJobPositionListRowToFormJobPosition'
+import jobPositionTranslations from './_i18n'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { BackofficeDataDisplay } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeDataDisplay'
+import { useJobPositionListFilterSheet } from './hooks/useJobPositionListFilterSheet'
 
 /**
  * Job Position List page component. Renders the job position list module with a table view.
@@ -36,6 +38,8 @@ import { mapJobPositionListRowToFormJobPosition } from './utils/mapJobPositionLi
 export const JobPositionList: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
   const { accessToken } = props
   const { deleteJobPosition, mutationLoading: deleteJobPositionLoading } = useJobPositions(props)
+  const { t: tPositions } = useTranslation(jobPositionTranslations)
+  const { t: tHr } = useTranslation(hrTranslations)
   const [vacancyFilter, setVacancyFilter] = useState<ExtendedVacancyFilter>('vacant') // Default to vacant positions
   const [selectedJobPosition, setSelectedJobPosition] = useState<JobPosition | null>(null)
   const [createFormOpen, setCreateFormOpen] = useState(false)
@@ -48,20 +52,15 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC')
   const initialLoadDone = useRef(false)
 
-  // Use the centralized job position filters hook
-  const {
-    search,
-    setSearch,
-    selectedFilters,
-    setSelectedFilters,
-    filterGroups,
-    filterLabelMap,
-    addFilter,
-    removeFilter,
-    getFilters,
-    filtersInitialized,
-    enableFilters
-  } = useJobPositionFilters(accessToken)
+  const [search, setSearch] = useState('')
+
+  const { filtersObject, filterConfiguration, renderFilterSheet, handleFilterChangeFromDisplay } =
+    useJobPositionListFilterSheet({
+      accessToken,
+      tHr,
+      tPositions,
+      onAnyFilterChange: () => setCurrentPage(1)
+    })
 
   // Get missing job profile count for display in the filter button - ALWAYS LOADED
   const { count: missingJobProfileCount } = useMissingJobProfileCount(accessToken, true)
@@ -82,30 +81,55 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
     }
   }
 
-  // Adapter function for DataFilter component
-  const handleFilterChange = useCallback(
-    (filterId: string, selected: boolean) => {
-      // Enable filters when user first interacts with them (lazy loading)
-      enableFilters()
-      // Use the appropriate function directly
-      if (selected) {
-        addFilter(filterId)
-      } else {
-        removeFilter(filterId)
-      }
-    },
-    [addFilter, removeFilter, enableFilters]
+  const selectedCompanyIds = useMemo(
+    () => ((filtersObject.companyIds as string[] | undefined) ?? []).filter(Boolean),
+    [filtersObject.companyIds]
+  )
+  const selectedDepartments = useMemo(
+    () => ((filtersObject.departments as string[] | undefined) ?? []).filter(Boolean),
+    [filtersObject.departments]
+  )
+  const selectedJobFunctions = useMemo(
+    () => ((filtersObject.jobFunctions as string[] | undefined) ?? []).filter(Boolean),
+    [filtersObject.jobFunctions]
+  )
+  const selectedJobProfiles = useMemo(
+    () => ((filtersObject.jobProfiles as string[] | undefined) ?? []).filter(Boolean),
+    [filtersObject.jobProfiles]
+  )
+
+  const buildOverrideFilters = useCallback(
+    () => ({
+      search,
+      departments: selectedDepartments,
+      jobProfiles: selectedJobProfiles,
+      jobFunctions: selectedJobFunctions,
+      companyIds: selectedCompanyIds,
+      sortField,
+      sortOrder,
+      ...getFilterParams(vacancyFilter)
+    }),
+    [
+      search,
+      selectedDepartments,
+      selectedJobProfiles,
+      selectedJobFunctions,
+      selectedCompanyIds,
+      sortField,
+      sortOrder,
+      vacancyFilter
+    ]
   )
 
   // Get job position data with filters (computed inline to avoid dependency issues)
   const filterParams = getFilterParams(vacancyFilter)
-  const currentFilters = getFilters()
 
   const { jobPositions, total, loading, error, hasMore, loadMore, loadPage, retry } = useJobPositionListData({
     search,
-    departments: currentFilters.departments,
-    jobProfiles: currentFilters.jobProfiles,
-    jobFunctions: currentFilters.jobFunctions,
+    departments: selectedDepartments,
+    jobProfiles: selectedJobProfiles,
+    jobFunctions: selectedJobFunctions,
+    companyIds: selectedCompanyIds,
     ...filterParams, // vacant or missingJobProfile
     accessToken,
     sortField,
@@ -116,13 +140,11 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
   const handlePageChange = useCallback(
     (page: number) => {
       setCurrentPage(page)
-      const filters = getFilters()
       loadPage(page, pageSize, {
-        ...filters,
-        ...getFilterParams(vacancyFilter)
+        ...buildOverrideFilters()
       })
     },
-    [loadPage, pageSize, getFilters, vacancyFilter]
+    [loadPage, pageSize, buildOverrideFilters]
   )
 
   // Handle page size changes
@@ -130,13 +152,11 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
     (newPageSize: number) => {
       setPageSize(newPageSize)
       setCurrentPage(1)
-      const filters = getFilters()
       loadPage(1, newPageSize, {
-        ...filters,
-        ...getFilterParams(vacancyFilter)
+        ...buildOverrideFilters()
       })
     },
-    [loadPage, getFilters, vacancyFilter]
+    [loadPage, buildOverrideFilters]
   )
 
   // Handle sorting changes
@@ -158,12 +178,8 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
   React.useEffect(() => {
     if ((sortField || sortOrder) && initialLoadDone.current) {
       // Only reload if there's been a sorting change and initial load is done
-      const filters = getFilters()
       loadPage(1, pageSize, {
-        ...filters,
-        ...getFilterParams(vacancyFilter),
-        sortField,
-        sortOrder
+        ...buildOverrideFilters()
       })
     }
   }, [sortField, sortOrder, vacancyFilter]) // Only depend on primitive values to avoid loops
@@ -178,15 +194,13 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
 
   // Trigger search when filters change - reset to page 1
   useEffect(() => {
-    if (initialLoadDone.current && filtersInitialized) {
+    if (initialLoadDone.current) {
       setCurrentPage(1)
-      const filters = getFilters()
       loadPage(1, pageSize, {
-        ...filters,
-        ...getFilterParams(vacancyFilter)
+        ...buildOverrideFilters()
       }) // Reset to first page when filters change
     }
-  }, [search, selectedFilters, vacancyFilter, pageSize, filtersInitialized])
+  }, [search, filtersObject, vacancyFilter, pageSize])
 
   // Handle vacancy filter changes
   const handleVacancyFilterChange = useCallback((value: ExtendedVacancyFilter) => {
@@ -204,14 +218,10 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
   }, [])
 
   const refreshList = useCallback(() => {
-    const filters = getFilters()
     loadPage(currentPage, pageSize, {
-      ...filters,
-      ...getFilterParams(vacancyFilter),
-      sortField,
-      sortOrder
+      ...buildOverrideFilters()
     })
-  }, [loadPage, currentPage, pageSize, getFilters, vacancyFilter, sortField, sortOrder])
+  }, [loadPage, currentPage, pageSize, buildOverrideFilters])
 
   const setEditModalOpen: Dispatch<SetStateAction<boolean>> = useCallback(updater => {
     setEditFormOpen(prev => {
@@ -246,45 +256,38 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
     }
   }, [terminateRow, deleteJobPosition, selectedJobPosition, refreshList])
 
-  // Filter groups without vacancy status (handled separately)
-  const allFilterGroups = useMemo(() => filterGroups, [filterGroups])
-
-  // Combined filter label map (without vacancy status)
-  const allFilterLabelMap = useMemo(() => filterLabelMap, [filterLabelMap])
-
-  // Create filter array for DataController (without vacancy status)
-  const activeFilters = useMemo(() => selectedFilters, [selectedFilters])
-
   return (
     <div data-testid="job-position-list-content">
-      <DataContainer
-        dataControllerProps={{
-          search,
-          setSearch,
-          debounceDelay: 500,
-          filter: activeFilters,
-          setFilter: setSelectedFilters,
-          filterLabelMap: allFilterLabelMap,
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <BriefcaseIcon size={20} />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:human_resources_page.job_positions_section.tab_label',
-                    'Job Positions'
-                  )}
-                </span>
-                <span className="gba:text-muted-foreground">({total})</span>
-              </div>
-              <VacancyStatusToggle
-                value={vacancyFilter}
-                onChange={handleVacancyFilterChange}
-                missingJobProfileCount={missingJobProfileCount}
-              />
-            </div>
-          ),
-          actions: (
+      <BackofficeDataDisplay
+        className="gba:h-full"
+        titleSections={[
+          {
+            id: 'job-positions',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:human_resources_page.job_positions_section.tab_label',
+              'Job Positions'
+            ),
+            metadata: { count: total, isLoading: loading }
+          }
+        ]}
+        currentSection="job-positions"
+        searchValue={search}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.search', 'Search...')}
+        onSearchChange={value => {
+          setSearch(value)
+          setCurrentPage(1)
+        }}
+        filters={filtersObject}
+        filterConfiguration={filterConfiguration}
+        onFilterChange={handleFilterChangeFromDisplay}
+        renderFilterSheet={renderFilterSheet}
+        secondaryActions={
+          <div className="gba:flex gba:flex-row gba:items-center gba:gap-2">
+            <VacancyStatusToggle
+              value={vacancyFilter}
+              onChange={handleVacancyFilterChange}
+              missingJobProfileCount={missingJobProfileCount}
+            />
             <button
               className="gba:flex gba:flex-row gba:justify-center gba:items-center gba:px-3 gba:py-0 gba:h-8 gba:rounded gba:gap-1"
               data-testid="add-job-position-button"
@@ -298,40 +301,36 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
                 {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.employees_section.add', 'Add')}
               </span>
             </button>
-          )
-        }}
-        dataFilterProps={{
-          filterGroups: allFilterGroups,
-          onFilterChange: handleFilterChange
-        }}
-        dataBody={
-          <div data-testid="job-position-table-container" className="gba:h-full">
-            <JobPositionTable
-              jobPositions={jobPositions}
-              loading={loading}
-              error={error}
-              hasMore={hasMore}
-              loadMore={loadMore}
-              loadPage={loadPage}
-              retry={retry}
-              total={total}
-              onSelectJobPosition={handleSelectJobPosition}
-              selectedJobPositionId={selectedJobPosition?.id}
-              currentPage={currentPage}
-              pageSize={pageSize}
-              onPageChange={handlePageChange}
-              onPageSizeChange={handlePageSizeChange}
-              sortField={sortField}
-              sortOrder={sortOrder}
-              onSortingChange={handleSortingChange}
-              onEditJobPosition={handleOpenEditJobPosition}
-              onRequestTerminateJobPosition={handleRequestTerminate}
-              terminateMutationLoading={deleteJobPositionLoading}
-              terminatingJobPositionId={deleteJobPositionLoading && terminateRow ? terminateRow.id : null}
-            />
           </div>
         }
-      />
+        data-testid="job-position-list-data-display"
+      >
+        <div data-testid="job-position-table-container" className="gba:h-full">
+          <JobPositionTable
+            jobPositions={jobPositions}
+            loading={loading}
+            error={error}
+            hasMore={hasMore}
+            loadMore={loadMore}
+            loadPage={loadPage}
+            retry={retry}
+            total={total}
+            onSelectJobPosition={handleSelectJobPosition}
+            selectedJobPositionId={selectedJobPosition?.id}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onSortingChange={handleSortingChange}
+            onEditJobPosition={handleOpenEditJobPosition}
+            onRequestTerminateJobPosition={handleRequestTerminate}
+            terminateMutationLoading={deleteJobPositionLoading}
+            terminatingJobPositionId={deleteJobPositionLoading && terminateRow ? terminateRow.id : null}
+          />
+        </div>
+      </BackofficeDataDisplay>
       <Sheet open={selectedJobPosition !== null} onOpenChange={open => !open && handleCloseDetails()}>
         <SheetContent
           side="right"

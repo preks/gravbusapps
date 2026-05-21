@@ -23,7 +23,8 @@ export const OpportunitiesByStagePie: React.FC<OpportunitiesStageChartProps> = (
   moduleColor = 'default',
   pipelines = [],
   selectedPipelineId,
-  onPipelineChange
+  onPipelineChange,
+  onStageClick
 }) => {
   const dataKey = 'opportunities'
   const nameKey = 'stage'
@@ -36,7 +37,9 @@ export const OpportunitiesByStagePie: React.FC<OpportunitiesStageChartProps> = (
       return {
         [nameKey]: key,
         [dataKey]: item.count,
-        fill: `var(--color-${key})`
+        fill: `var(--color-${key})`,
+        stageRef: item.stageRef,
+        stageName: item.stage
       } as Record<string, string | number>
     })
   }, [data])
@@ -49,6 +52,11 @@ export const OpportunitiesByStagePie: React.FC<OpportunitiesStageChartProps> = (
       config[key] = { label: item.stage }
     })
     return config as ChartConfig
+  }, [data])
+
+  const stageNameByKey = useMemo(() => {
+    if (!data) return {} as Record<string, string>
+    return Object.fromEntries(data.map(item => [toChartKey(item.stage), item.stage]))
   }, [data])
 
   return (
@@ -82,8 +90,33 @@ export const OpportunitiesByStagePie: React.FC<OpportunitiesStageChartProps> = (
           className="[&_.recharts-pie-label-text]:fill-foreground gba:mx-auto gba:aspect-square gba:max-h-[400px] gba:pb-0"
         >
           <PieChart>
-            <Pie data={chartData} cx="50%" cy="40%" outerRadius={100} dataKey={dataKey} nameKey={nameKey} />
-            <ChartTooltip content={<ChartTooltipContent hideLabel labelKey={dataKey} nameKey={nameKey} />} />
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="40%"
+              outerRadius={100}
+              dataKey={dataKey}
+              nameKey={nameKey}
+              style={onStageClick ? { cursor: 'pointer' } : undefined}
+              onClick={(item: any) => {
+                if (onStageClick && item?.stageRef && item?.stageName) {
+                  onStageClick(item.stageName, item.stageRef)
+                }
+              }}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  hideLabel
+                  labelKey={dataKey}
+                  nameKey={nameKey}
+                  formatter={(value: number, name: string) => {
+                    const displayName = stageNameByKey[name] ?? name
+                    return [`${displayName} ${value}`, '']
+                  }}
+                />
+              }
+            />
             <ChartLegend content={<ChartLegendContent className="gba:flex-wrap gba:gap-4 [&>*]:whitespace-nowrap" />} />
           </PieChart>
         </ChartContainer>

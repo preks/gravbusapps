@@ -108,6 +108,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     error,
     importResult,
     csvQuality,
+    extractionWarnings,
     handleFileChange,
     analyzeWithAgent,
     convertData,
@@ -209,10 +210,13 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
         <ConversionResultStep
           convertedEntities={convertedEntities}
           targetFieldsConfig={config.targetFields}
+          config={config}
+          businessAppContext={context}
           entityType={entityTypeSingular}
           isLoading={isLoading}
           importResult={importResult}
           campaignName={campaignName || undefined}
+          extractionWarnings={extractionWarnings}
           csvQuality={csvQuality}
           onHardRepair={retryWithHardRepair}
           onDownloadJSON={downloadJSON}

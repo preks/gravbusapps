@@ -1,6 +1,5 @@
 import React from 'react'
 import { AppAction } from '@/components/app-action'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { RowActionsIcon, RowActionsWrapper } from '../../../../shared/TableSharedComponents'
 import { ADVANCE_PAYMENTS_TABLE_DATA_TEST_ID } from '../columns/advancePaymentColumns'
 import type { AdvancePayment } from '../../../../../hooks/useGetAdvancePayments'
@@ -8,6 +7,7 @@ import type { AdvancePayment } from '../../../../../hooks/useGetAdvancePayments'
 export interface AdvancePaymentRowActionsProps {
   record: AdvancePayment
   accessToken: string | undefined
+  t: (key: string) => string
   onViewDetails: (record: AdvancePayment) => void
   onViewExpensePlanDetails: (record: AdvancePayment) => void
   onViewExpenseRequestDetails: (record: AdvancePayment) => void
@@ -17,15 +17,13 @@ export interface AdvancePaymentRowActionsProps {
 export function AdvancePaymentRowActions({
   record,
   accessToken,
+  t,
   onViewDetails,
   onViewExpensePlanDetails,
   onViewExpenseRequestDetails,
   onGenerateDocument
 }: Readonly<AdvancePaymentRowActionsProps>) {
-  const navigationsCategory = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_list.flows_button.navigations',
-    'Navigations'
-  )
+  const navigationsCategory = t('expense-items-row-category-navigations')
 
   const expenseRequests = record.expensePlan?.expenseRequest
   const hasExpenseRequest =
@@ -39,10 +37,7 @@ export function AdvancePaymentRowActions({
           {
             category: navigationsCategory,
             key: 'view-advance-payment',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.view_advance_payment_details',
-              'View Advance Payment Details'
-            ),
+            label: t('personal-expenses-view-advance-payment-details'),
             onClick: (e?: React.MouseEvent) => {
               e?.stopPropagation()
               onViewDetails(record)
@@ -53,10 +48,7 @@ export function AdvancePaymentRowActions({
                 {
                   category: navigationsCategory,
                   key: 'view-plan-details',
-                  label: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
-                    'View Plan Details'
-                  ),
+                  label: t('expense-plans-row-view-plan-details'),
                   onClick: (e?: React.MouseEvent) => {
                     e?.stopPropagation()
                     onViewExpensePlanDetails(record)
@@ -69,10 +61,7 @@ export function AdvancePaymentRowActions({
                 {
                   category: navigationsCategory,
                   key: 'view-request-details',
-                  label: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                    'View Request Details'
-                  ),
+                  label: t('expense-plans-row-view-request-details'),
                   onClick: (e?: React.MouseEvent) => {
                     e?.stopPropagation()
                     onViewExpenseRequestDetails(record)
@@ -83,7 +72,7 @@ export function AdvancePaymentRowActions({
           {
             category: navigationsCategory,
             key: 'generate-document',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.generate_document', 'Generate document'),
+            label: t('personal-expenses-generate-document'),
             onClick: (e?: React.MouseEvent) => {
               e?.stopPropagation()
               onGenerateDocument(record)

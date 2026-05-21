@@ -29,18 +29,22 @@ const CURRENCY_CATALOG = 'Currency:v1'
 const equityInvestmentRoundSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(1, getTranslationFromI18nKeyAndLabel('investment.rounds.validation.nameRequired', 'Round name is required')),
   year: z
     .string()
+    .trim()
     .min(1, getTranslationFromI18nKeyAndLabel('investment.rounds.validation.yearRequired', 'Year is required')),
   preValue: z
     .string()
+    .trim()
     .min(
       1,
       getTranslationFromI18nKeyAndLabel('investment.rounds.validation.preValueRequired', 'Pre-value is required')
     ),
   investmentVolume: z
     .string()
+    .trim()
     .min(
       1,
       getTranslationFromI18nKeyAndLabel(
@@ -50,6 +54,7 @@ const equityInvestmentRoundSchema = z.object({
     ),
   roundSharePercentage: z
     .string()
+    .trim()
     .min(
       1,
       getTranslationFromI18nKeyAndLabel(
@@ -59,6 +64,7 @@ const equityInvestmentRoundSchema = z.object({
     ),
   currencyRef: z
     .string()
+    .trim()
     .min(1, getTranslationFromI18nKeyAndLabel('investment.rounds.validation.currencyRequired', 'Currency is required')),
   equityInvestment: z.string().optional(), // Will be provided via context or user selection
   investmentOpportunityId: z.string().optional(), // Link to originating opportunity

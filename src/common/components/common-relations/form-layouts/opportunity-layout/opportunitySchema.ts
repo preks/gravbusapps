@@ -9,10 +9,9 @@ export const OPPORTUNITY_VALIDATION_ERRORS = {
 
 // Base schema without refinements (allows extending)
 export const opportunitySchemaBase = z.object({
-  ownerEmployeeId: z.string().min(1, OPPORTUNITY_VALIDATION_ERRORS.OWNER_REQUIRED),
-  name: z.string().min(1, OPPORTUNITY_VALIDATION_ERRORS.NAME_REQUIRED),
+  ownerEmployeeId: z.string().trim().min(1, OPPORTUNITY_VALIDATION_ERRORS.OWNER_REQUIRED),
+  name: z.string().trim().min(1, OPPORTUNITY_VALIDATION_ERRORS.NAME_REQUIRED),
   accountId: z.string().nullable().optional(),
-  companyId: z.string().nullable().optional(),
   estimatedAmount: z.coerce.number().nullable().optional(),
   currencyRef: z.string().nullable().optional(),
   closeDate: z.string().nullable().optional(),

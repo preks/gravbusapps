@@ -1,12 +1,5 @@
 import React from 'react'
-import {
-  GaugeIcon,
-  ListBulletsIcon,
-  ClockIcon,
-  CalendarBlankIcon,
-  LightbulbIcon,
-  FileTextIcon
-} from '@phosphor-icons/react'
+import { GaugeIcon, ListBulletsIcon, ClockIcon, CalendarBlankIcon, LightbulbIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { HubView } from './routes'
 
@@ -41,10 +34,5 @@ export const HUB_VIEW_OPTIONS: ViewOption[] = [
     key: 'insights' satisfies HubView,
     label: getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.tab_insights', 'Insights'),
     icon: React.createElement(LightbulbIcon, { className: 'gba:h-5 gba:w-5' })
-  },
-  {
-    key: 'reports' satisfies HubView,
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.tab_reports', 'Reports'),
-    icon: React.createElement(FileTextIcon, { className: 'gba:h-5 gba:w-5' })
   }
 ]

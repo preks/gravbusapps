@@ -1,7 +1,8 @@
+import type { SortingState } from '@tanstack/react-table'
 import React, { useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action'
 import { RowActionsWrapper, RowActionsIcon } from '../../../../../common/components/table/RowActionComponents'
@@ -12,6 +13,7 @@ import { TableErrorState } from '../../../../../common/components/table/TableErr
 import { useTableSetup } from '../../../../../common/hooks/useTableSetup'
 import { usePrintPreview } from '../../../common/hooks/usePrintPreview'
 import { createExpenseRequestColumns } from './expenseRequestColumns'
+import translations from '../../../_i18n'
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   expenseRequests: ExpenseRequest[]
@@ -50,7 +52,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     onViewDetails
   } = props
 
-  const allColumns = useMemo(() => createExpenseRequestColumns(currencyFilter ?? null), [currencyFilter])
+  const { t } = useTranslation(translations)
+  const allColumns = useMemo(() => createExpenseRequestColumns(currencyFilter ?? null, t), [currencyFilter, t])
   const { contextProps, columns, pagination, handlePaginationChange } = useTableSetup(
     props,
     allColumns,
@@ -97,9 +100,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       }> = []
       if (hasValidStatus && hasDocument) {
         customActions.push({
-          category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+          category: t('expense-plans-row-category-actions'),
           key: 'print',
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.print', 'Print'),
+          label: t('expense-plans-row-print'),
           onClick: (e?: React.MouseEvent) => {
             e?.stopPropagation()
             handlePrintRequest(record)
@@ -107,12 +110,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         })
       }
       customActions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations', 'Navigations'),
+        category: t('expense-plans-row-category-navigations'),
         key: 'view-request-details',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.expense_request_flows.view_request_details',
-          'View Request Details'
-        ),
+        label: t('advance-payments-row-view-request-details'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           handleViewRequestDetails(record)
@@ -133,7 +133,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         </RowActionsWrapper>
       )
     },
-    [handlePrintRequest, handleViewRequestDetails, contextProps.accessToken]
+    [handlePrintRequest, handleViewRequestDetails, contextProps.accessToken, t]
   )
 
   const onRowClick = useCallback(
@@ -172,14 +172,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         onOpenChange={open => {
           if (!open) handlePrintClose()
         }}
-        title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
+        title={t('expense-requests-print-preview-title')}
         loading={printLoading}
         pdfUrl={printPdfUrl}
         testIdPrefix="print-request"
-        noDocumentDetailsMessage={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:print.no_document_details',
-          'This expense request does not have an associated document to print.'
-        )}
+        noDocumentDetailsMessage={t('expense-requests-print-no-document')}
       />
     </div>
   )

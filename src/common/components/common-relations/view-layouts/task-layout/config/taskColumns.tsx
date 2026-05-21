@@ -140,6 +140,7 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     accessorFn: row => getAssigneeDisplay(row.taskAssignees).name,
     header: 'Assigned To',
     size: 180,
+    enableSorting: false,
     cell: ({ row }) => {
       const assigneeInfo = getAssigneeDisplay(row.original.taskAssignees)
 

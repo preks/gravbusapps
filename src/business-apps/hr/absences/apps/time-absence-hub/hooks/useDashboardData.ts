@@ -47,7 +47,10 @@ export const useDashboardData = ({
       averageAvailable: 0,
       averageUsed: 0,
       totalVacationLiability: 0,
-      totalVacationEntitlement: 0
+      totalVacationEntitlement: 0,
+      estimatedCostPerDay: 0,
+      totalLiabilityEstimate: 0,
+      currencyCode: 'EUR'
     },
 
     isLoading: true,

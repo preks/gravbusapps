@@ -125,7 +125,6 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       ),
       value: totalAbsences,
       prefix: <UsersIcon />,
-      color: 'var(--nw-info)',
       description: buildTotalAbsencesDescription(),
       span: { xs: 24, sm: 12, lg: 6 }
     },
@@ -139,7 +138,6 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       suffix: ` ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}`,
       precision: 1,
       prefix: <CalendarIcon />,
-      color: 'var(--nw-success)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.average_absence_length',
         'Average absence length'
@@ -155,7 +153,6 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       value: approvalRate,
       suffix: '%',
       prefix: <PercentIcon />,
-      color: 'var(--nw-info)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.approved_vs_total_requests',
         'Approved vs total requests'
@@ -170,7 +167,6 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
       ),
       value: pendingAbsences,
       prefix: <ClockIcon />,
-      color: 'var(--nw-warning)',
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.awaiting_approval',
         'Awaiting approval'
@@ -227,28 +223,6 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     })
   }
 
-  const handleBarChartClick = (data: any) => {
-    if (!onNavigateToDetails || !data) return
-
-    const department = data.fullName || data.department
-    const departmentId = data.id
-    const dateRange = getDateRangeForTimeFilter()
-
-    if (department === 'No Department') {
-      onNavigateToDetails({
-        department: 'NO_DEPARTMENT_SPECIAL',
-        departmentId: undefined,
-        ...dateRange
-      })
-    } else {
-      onNavigateToDetails({
-        department: department,
-        departmentId: departmentId,
-        ...dateRange
-      })
-    }
-  }
-
   if (isLoading) {
     return (
       <div
@@ -290,10 +264,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
   }
 
   return (
-    <div
-      className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4"
-      data-testid="optimized-kpi-section-container"
-    >
+    <div className="gba:flex gba:flex-col gba:gap-4" data-testid="optimized-kpi-section-container">
       <div className="gba:col-span-full" data-testid="kpi-widgets">
         <WidgetGroup
           widgets={widgets}
@@ -308,18 +279,20 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
         />
       </div>
 
-      <DepartmentBarChart data={departmentChartData} onBarClick={handleBarChartClick} />
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
+        <DepartmentBarChart data={departmentChartData} />
 
-      <StatusPieChart
-        data={pieChartData}
-        totalAbsenceCount={totalAbsenceCount}
-        statusColors={statusColors}
-        onPieClick={handlePieChartClick}
-      />
+        <StatusPieChart
+          data={pieChartData}
+          totalAbsenceCount={totalAbsenceCount}
+          statusColors={statusColors}
+          onPieClick={handlePieChartClick}
+        />
 
-      <VacationEntitlementsCard entitlements={entitlements} onNavigateToEntitlements={onNavigateToEntitlements} />
+        <VacationEntitlementsCard entitlements={entitlements} onNavigateToEntitlements={onNavigateToEntitlements} />
 
-      <VacationLiabilityCard entitlements={entitlements} />
+        <VacationLiabilityCard entitlements={entitlements} />
+      </div>
     </div>
   )
 }

@@ -5,7 +5,7 @@ export interface JobPositionQueryVariables {
   structureId: string
   limit?: number
   offset?: number
-  vacant?: boolean
+  vacancyFilter: any // JobPositionBoolExp type
   filter: any // JobPositionBoolExp type
   search: string
   sortField?: string
@@ -18,7 +18,7 @@ export const JOB_POSITION_QUERY = `
     $structureId: uuid!,
     $limit: Int,
     $offset: Int,
-    $vacant: Boolean,
+    $vacancyFilter: JobPositionBoolExp!,
     $filter: JobPositionBoolExp!,
     $search: String!,
     $orderBy: [JobPositionOrderBy!]
@@ -28,10 +28,10 @@ export const JOB_POSITION_QUERY = `
         _and: [
           {
             organizationalUnitEmployees: {
-              structureId: { _eq: $structureId },
-              employeeId: { _isNull: $vacant }
+              structureId: { _eq: $structureId }
             }
           },
+          $vacancyFilter,
           { isDeleted: { _eq: false } },
           $filter,
           {
@@ -114,10 +114,10 @@ export const JOB_POSITION_QUERY = `
         _and: [
           {
             organizationalUnitEmployees: {
-              structureId: { _eq: $structureId },
-              employeeId: { _isNull: $vacant }
+              structureId: { _eq: $structureId }
             }
           },
+          $vacancyFilter,
           { isDeleted: { _eq: false } },
           $filter,
           {

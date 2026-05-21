@@ -58,7 +58,9 @@ export function buildBudgetSetupPlansTableColumns(
   t: TranslateFn,
   formatBudgetPlanStatus: (value: string | null | undefined) => string,
   onEditRow: (row: BudgetSetupPlanTableRow) => void,
-  showCompanyColumn = false
+  showCompanyColumn = false,
+  editDisabled = false,
+  showCycleColumn = true
 ): ColumnDef<BudgetSetupPlanTableRow>[] {
   const companyColumn: ColumnDef<BudgetSetupPlanTableRow>[] = showCompanyColumn
     ? [
@@ -74,17 +76,23 @@ export function buildBudgetSetupPlansTableColumns(
       ]
     : []
 
+  const cycleColumn: ColumnDef<BudgetSetupPlanTableRow>[] = showCycleColumn
+    ? [
+        {
+          id: 'budgetPlanLabel',
+          accessorKey: 'budgetPlanLabel',
+          header: budgetSetupColumnHeader(t, 'budget-setup-table-col-chosen-budget-plan'),
+          size: COL.chosenPlan.size,
+          minSize: COL.chosenPlan.minSize,
+          meta: { type: 'text' },
+          cell: ({ row }) => <span className={TABLE_BODY_LEFT}>{row.original.budgetPlanLabel}</span>
+        }
+      ]
+    : []
+
   return [
     ...companyColumn,
-    {
-      id: 'budgetPlanLabel',
-      accessorKey: 'budgetPlanLabel',
-      header: budgetSetupColumnHeader(t, 'budget-setup-table-col-chosen-budget-plan'),
-      size: COL.chosenPlan.size,
-      minSize: COL.chosenPlan.minSize,
-      meta: { type: 'text' },
-      cell: ({ row }) => <span className={TABLE_BODY_LEFT}>{row.original.budgetPlanLabel}</span>
-    },
+    ...cycleColumn,
     {
       id: 'companyBudgetStatus',
       accessorKey: 'companyBudgetStatus',
@@ -104,7 +112,7 @@ export function buildBudgetSetupPlansTableColumns(
         }
         return (
           <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
-            <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} />
+            <BudgetPlanStatusBadge status={v as BudgetPlanStatusApi} label={formatBudgetPlanStatus(v)} />
           </div>
         )
       }
@@ -185,8 +193,12 @@ export function buildBudgetSetupPlansTableColumns(
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
+                disabled={editDisabled}
                 onClick={event => {
                   event.stopPropagation()
+                  if (editDisabled) {
+                    return
+                  }
                   onEditRow(row.original)
                 }}
                 data-testid={`budget-setup-row-edit-${row.original.id}`}

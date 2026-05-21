@@ -16,12 +16,14 @@ import {
   MagnifyingGlassIcon,
   ArrowLeftIcon,
   UserIcon,
+  UserCircleIcon,
   BuildingIcon,
   TargetIcon,
   HandshakeIcon
 } from '@phosphor-icons/react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ActivityViewFilter, EntitySelectorProps } from '../../types'
+import { getAvatarSrc, getEmployeeAvatarSrc } from '../utils/avatarUtils'
 
 const DATA_TEST_ID_PREFIX = 'SalesActivity360-EntitySelector'
 
@@ -282,7 +284,7 @@ const getEntityConfig = (entityType: ActivityViewFilter) => {
       return {
         title: 'Select Contact',
         description: 'Choose a contact to view their activities',
-        icon: <UserIconCircle className="gba:w-6 gba:h-6" />,
+        icon: <UserCircleIcon className="gba:w-6 gba:h-6" />,
         searchPlaceholder: 'Search contacts...'
       }
     case 'by-lead':
@@ -344,7 +346,7 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({ accessToken, ent
                 id: e.id,
                 name: e.fullName || `${e.firstName || ''} ${e.lastName || ''}`.trim() || 'Unknown',
                 subtitle,
-                avatar: e.pictureThumbnail
+                avatar: getEmployeeAvatarSrc(e.pictureThumbnail)
               }
             }) || []
           break
@@ -494,16 +496,7 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({ accessToken, ent
                     data-testid={`${DATA_TEST_ID_PREFIX}-entity-${entity.id}`}
                   >
                     <Avatar className="gba:h-10 gba:w-10">
-                      {entity.avatar ? (
-                        <AvatarImage
-                          src={
-                            entity.avatar.startsWith('data:') || entity.avatar.startsWith('http')
-                              ? entity.avatar
-                              : `data:image/jpeg;base64,${entity.avatar}`
-                          }
-                          alt={entity.name}
-                        />
-                      ) : null}
+                      {entity.avatar ? <AvatarImage src={getAvatarSrc(entity.avatar)} alt={entity.name} /> : null}
                       <AvatarFallback className="gba:bg-primary/10 gba:text-primary">
                         {getInitials(entity.name)}
                       </AvatarFallback>

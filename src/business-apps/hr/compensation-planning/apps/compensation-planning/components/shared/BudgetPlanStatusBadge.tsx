@@ -1,6 +1,7 @@
 import React, { type ComponentProps } from 'react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
 import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
+import translations from '../../_i18n'
 
 type BudgetStatusBadgeVariant = NonNullable<ComponentProps<typeof Badge>['variant']>
 
@@ -12,17 +13,17 @@ const STATUS_VARIANTS: Record<BudgetPlanStatusApi, BudgetStatusBadgeVariant> = {
   BUDGET_PLAN_APPROVED: 'success',
   BUDGET_PLAN_REJECTED: 'destructive',
   BUDGET_PLAN_SENT_BACK: 'secondary',
-  BUDGET_PLAN_EXECUTED: 'success'
+  BUDGET_PLAN_EXECUTED: 'info'
 }
 
-const STATUS_LABELS: Record<BudgetPlanStatusApi, string> = {
-  UNKOWN_BUDGET_STATUS: 'Unknown',
-  BUDGET_PLAN_DRAFT: 'Draft',
-  BUDGET_PLAN_SUBMITTED: 'Submitted',
-  BUDGET_PLAN_APPROVED: 'Approved',
-  BUDGET_PLAN_REJECTED: 'Rejected',
-  BUDGET_PLAN_SENT_BACK: 'Sent Back',
-  BUDGET_PLAN_EXECUTED: 'Executed'
+const STATUS_LABEL_KEYS: Record<BudgetPlanStatusApi, string> = {
+  UNKOWN_BUDGET_STATUS: 'budget-plan-status-unknown',
+  BUDGET_PLAN_DRAFT: 'budget-plan-status-draft',
+  BUDGET_PLAN_SUBMITTED: 'budget-plan-status-submitted',
+  BUDGET_PLAN_APPROVED: 'budget-plan-status-approved',
+  BUDGET_PLAN_REJECTED: 'budget-plan-status-rejected',
+  BUDGET_PLAN_SENT_BACK: 'budget-plan-status-sent-back',
+  BUDGET_PLAN_EXECUTED: 'budget-plan-status-executed'
 }
 
 interface BudgetPlanStatusBadgeProps {
@@ -32,7 +33,9 @@ interface BudgetPlanStatusBadgeProps {
 }
 
 export const BudgetPlanStatusBadge: React.FC<BudgetPlanStatusBadgeProps> = ({ status, label }) => {
+  const { t } = useTranslation(translations)
   const variant = STATUS_VARIANTS[status as BudgetPlanStatusApi] ?? 'outline'
-  const labelText = label ?? STATUS_LABELS[status as BudgetPlanStatusApi] ?? status
+  const labelKey = STATUS_LABEL_KEYS[status as BudgetPlanStatusApi]
+  const labelText = label ?? (labelKey ? t(labelKey) : status)
   return <Badge variant={variant}>{labelText}</Badge>
 }

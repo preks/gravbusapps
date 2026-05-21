@@ -124,7 +124,7 @@ export function buildAdvancePaymentFilterConfiguration({
             field: 'dateRange',
             label: t('filter-date-range'),
             type: 'date',
-            config: createDateRangeConfig()
+            config: createDateRangeConfig(t)
           }
         ]
       },

@@ -37,17 +37,46 @@ interface ActiveStructureResponse {
   structure?: { structureId?: string }
 }
 
+interface OrganizationalUnitRef {
+  id: string
+  name: string
+}
+
+interface OrganizationalUnitEmployeeAssignment {
+  employeeId: string
+  role: string | null
+  managerLevel: string | null
+  isMain: boolean | null
+}
+
+interface OrganizationalUnitRelationshipResult {
+  childId: string
+  parentId: string | null
+  parent: OrganizationalUnitRef | null
+}
+
+interface EmployeeWorkingConditionResult {
+  hireDate: string | null
+  activeFrom: string | null
+  activeTo: string | null
+  contractType: { objectValue: unknown } | null
+}
+
 interface EmployeePositionResult {
   id: string
   employeeId: string
   firstName: string
   lastName: string
   hireDate: string | null
+  companyId: string | null
   organizationalUnitId: string | null
-  organizationalUnit: { id: string; name: string } | null
+  organizationalUnit:
+    | (OrganizationalUnitRef & { organizationalUnitEmployee?: OrganizationalUnitEmployeeAssignment[] })
+    | null
   siteLocationId: string | null
   supervisorEmployeeId: string | null
   jobPosition: {
+    id: string
     name: string
     jobFunction: { jobFamily: { id: string } | null } | null
     jobProfile: {
@@ -56,10 +85,14 @@ interface EmployeePositionResult {
     jobLevel: { id: string } | null
   } | null
   employee: {
+    id: string
     code: string
+    firstName: string | null
+    lastName: string | null
     displayName: string
+    picture: string | null
     pictureThumbnail: string | null
-    workingCondition: { hireDate: string | null } | null
+    workingCondition: EmployeeWorkingConditionResult[]
     workingHours: Array<{ weeklyHours: number | null; fullTimeEquivalent: number | null }>
   } | null
 }
@@ -118,6 +151,73 @@ function compensationBandPolicyKey(jobFamilyId: string, jobLevelId: string, geoZ
   return `${jobFamilyId}:${jobLevelId}:${geoZoneId}`
 }
 
+function dateKeyFromGraphQLValue(value: string): string {
+  return value.slice(0, 10)
+}
+
+function getActiveWorkingCondition(
+  workingConditions: EmployeeWorkingConditionResult[] | undefined,
+  targetDateKey: string
+): EmployeeWorkingConditionResult | undefined {
+  if (!workingConditions?.length) {
+    return undefined
+  }
+
+  if (workingConditions.length === 1) {
+    return workingConditions[0]
+  }
+
+  return workingConditions.find(condition => {
+    const activeFromKey = condition.activeFrom ? dateKeyFromGraphQLValue(condition.activeFrom) : ''
+    const activeToKey = condition.activeTo ? dateKeyFromGraphQLValue(condition.activeTo) : ''
+
+    if (!activeFromKey) {
+      return false
+    }
+
+    return activeFromKey <= targetDateKey && (!activeToKey || activeToKey >= targetDateKey)
+  })
+}
+
+function isPayrollRelevantContract(contractObjectValue: unknown): boolean {
+  if (!contractObjectValue || typeof contractObjectValue !== 'object') {
+    return false
+  }
+
+  const payrollRelevant = (contractObjectValue as Record<string, unknown>).payroll_relevant
+  return payrollRelevant === true || payrollRelevant === 'true'
+}
+
+function hasPayrollRelevantActiveWorkingCondition(pos: EmployeePositionResult, targetDateKey: string): boolean {
+  const activeWorkingCondition = getActiveWorkingCondition(pos.employee?.workingCondition, targetDateKey)
+  return isPayrollRelevantContract(activeWorkingCondition?.contractType?.objectValue)
+}
+
+function isManagerOrgUnitAssignment(pos: EmployeePositionResult): boolean {
+  const assignments = pos.organizationalUnit?.organizationalUnitEmployee ?? []
+  return assignments.some(
+    assignment =>
+      assignment.employeeId === pos.employeeId && (assignment.role?.trim().toLowerCase() ?? '') === 'manager'
+  )
+}
+
+function effectiveOrgUnitForPosition(
+  pos: EmployeePositionResult,
+  parentOrgUnitByChildId: ReadonlyMap<string, OrganizationalUnitRef>,
+  resolveManagerOrgUnitToParent: boolean
+): OrganizationalUnitRef | null {
+  if (!resolveManagerOrgUnitToParent || !isManagerOrgUnitAssignment(pos)) {
+    return pos.organizationalUnit
+  }
+
+  const directOrgUnitId = pos.organizationalUnitId?.trim()
+  if (!directOrgUnitId) {
+    return pos.organizationalUnit
+  }
+
+  return parentOrgUnitByChildId.get(directOrgUnitId) ?? pos.organizationalUnit
+}
+
 function compensationBandForPosition(
   pos: EmployeePositionResult,
   bandByFamilyLevelAndGeoZoneId: Map<string, CompensationBandGraphql | null>,
@@ -138,27 +238,32 @@ function buildTeamMemberFromPosition(
   geoZoneBySiteLocationId: Map<string, string>,
   currentSalaryMap: Map<string, SalaryResult>,
   lastRaiseMap: Map<string, { date: string; amount: number | null; percent: number | null }>,
-  bonusTotalMap: Map<string, number>
+  bonusTotalMap: Map<string, number>,
+  parentOrgUnitByChildId: ReadonlyMap<string, OrganizationalUnitRef>,
+  resolveManagerOrgUnitToParent: boolean,
+  targetDateKey: string
 ): TeamMemberCompensationData {
+  const activeWorkingCondition = getActiveWorkingCondition(pos.employee?.workingCondition, targetDateKey)
   const salary = currentSalaryMap.get(pos.employeeId)
   const lastRaise = lastRaiseMap.get(pos.employeeId)
   const band = compensationBandForPosition(pos, bandByFamilyLevelAndGeoZoneId, geoZoneBySiteLocationId)
   const currencyCode = salary?.currency?.code ?? band?.currency?.value ?? 'EUR'
   const bandData = band ? { minSalary: band.minSalary, maxSalary: band.maxSalary, payGrade: band.payGrade } : null
   const currentAnnual = salary?.annualGrossSalary ?? null
+  const effectiveOrgUnit = effectiveOrgUnitForPosition(pos, parentOrgUnitByChildId, resolveManagerOrgUnitToParent)
 
   return {
     employeeId: pos.employeeId,
     employeeCode: pos.employee?.code ?? '',
-    firstName: pos.firstName,
-    lastName: pos.lastName,
+    firstName: pos.employee?.firstName ?? pos.firstName,
+    lastName: pos.employee?.lastName ?? pos.lastName,
     displayName: pos.employee?.displayName ?? `${pos.firstName} ${pos.lastName}`,
     pictureThumbnail: pos.employee?.pictureThumbnail ?? undefined,
     jobPosition: pos.jobPosition?.name ?? null,
     jobFunction: null,
-    orgUnitName: pos.organizationalUnit?.name ?? null,
-    organizationalUnitId: pos.organizationalUnitId ?? null,
-    hireDate: pos.employee?.workingCondition?.hireDate ?? pos.hireDate,
+    orgUnitName: effectiveOrgUnit?.name ?? null,
+    organizationalUnitId: effectiveOrgUnit?.id ?? pos.organizationalUnitId ?? null,
+    hireDate: activeWorkingCondition?.hireDate ?? pos.hireDate,
     currentAnnualSalary: currentAnnual,
     currentMonthlySalary: salary?.monthlyGrossSalary ?? null,
     currentHourlySalary: salary?.hourlyGrossSalary ?? null,
@@ -177,29 +282,19 @@ function buildTeamMemberFromPosition(
 interface UseTeamCompensationDataParams {
   accessToken: string
   companyId?: string | null
+  companyIds?: string[]
   orgUnitId?: string | null
   supervisorEmployeeId?: string | null
   supervisorOnly?: boolean
   requirePayrollRelevantContractType?: boolean
+  resolveManagerOrgUnitToParent?: boolean
   enabled?: boolean
 }
 
-function buildEmployeeWhereForPosition(requirePayrollRelevantContractType: boolean): Record<string, unknown> {
-  const employee: Record<string, unknown> = {
+function buildEmployeeWhereForPosition(): Record<string, unknown> {
+  return {
     isDeleted: { _eq: false }
   }
-  if (requirePayrollRelevantContractType) {
-    employee.workingCondition = {
-      isDeleted: { _eq: false },
-      contractType: {
-        _or: [
-          { objectValue: { _contains: { payroll_relevant: true } } },
-          { objectValue: { _contains: { payroll_relevant: 'true' } } }
-        ]
-      }
-    }
-  }
-  return employee
 }
 
 function extractSiteLocations(response: SiteLocationResponse): SiteLocationResult[] {
@@ -218,6 +313,13 @@ function buildSiteLocationGeoZoneMap(siteLocations: SiteLocationResult[]): Map<s
     }
   }
   return map
+}
+
+function formatLocalDate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 async function resolveActiveStructureId(
@@ -241,10 +343,12 @@ async function resolveActiveStructureId(
 export function useTeamCompensationData({
   accessToken,
   companyId,
+  companyIds,
   orgUnitId,
   supervisorEmployeeId,
   supervisorOnly = false,
   requirePayrollRelevantContractType = false,
+  resolveManagerOrgUnitToParent = false,
   enabled = true
 }: UseTeamCompensationDataParams) {
   const [teamMembers, setTeamMembers] = useState<TeamMemberCompensationData[]>([])
@@ -262,8 +366,9 @@ export function useTeamCompensationData({
       return
     }
     if (!accessToken) return
+    const normalizedCompanyIds = [...new Set((companyIds ?? []).map(id => id.trim()).filter(Boolean))]
     if (supervisorOnly) {
-      if (!supervisorEmployeeId || !companyId) {
+      if (!supervisorEmployeeId) {
         setTeamMembers([])
         setLoading(false)
         setError(null)
@@ -277,25 +382,38 @@ export function useTeamCompensationData({
     setError(null)
 
     try {
+      const now = new Date()
+      const today = formatLocalDate(now)
+      const yearStart = `${now.getFullYear()}-01-01`
       const whereConditions: Record<string, unknown>[] = [
         { employee: buildEmployeeWhereForPosition(requirePayrollRelevantContractType) }
       ]
-      if (companyId) whereConditions.push({ companyId: { _eq: companyId } })
+      if (normalizedCompanyIds.length > 0) {
+        whereConditions.push({ companyId: { _in: normalizedCompanyIds } })
+      } else if (companyId) {
+        whereConditions.push({ companyId: { _eq: companyId } })
+      }
       if (orgUnitId) whereConditions.push({ organizationalUnitId: { _eq: orgUnitId } })
       if (supervisorEmployeeId) whereConditions.push({ supervisorEmployeeId: { _eq: supervisorEmployeeId } })
 
       const where = whereConditions.length === 1 ? whereConditions[0] : { _and: whereConditions }
+      const structureId = await resolveActiveStructureId(orgchartClient, accessToken)
+      const relationshipWhere =
+        resolveManagerOrgUnitToParent && structureId ? { structureId: { _eq: structureId } } : { id: { _isNull: true } }
 
       const positionsResult = await graphqlClient
         .request<{
           EmployeePosition: EmployeePositionResult[]
-        }>(GET_COMPENSATION_TEAM_MEMBERS, { where })
+          OrganizationalUnitRelationship: OrganizationalUnitRelationshipResult[]
+        }>(GET_COMPENSATION_TEAM_MEMBERS, { where, relationshipWhere })
         .catch((e: unknown) => {
           const m = e instanceof Error ? e.message : String(e)
           throw new Error(`Team member positions: ${m}`)
         })
 
-      const positions = positionsResult.EmployeePosition || []
+      const positions = requirePayrollRelevantContractType
+        ? (positionsResult.EmployeePosition || []).filter(pos => hasPayrollRelevantActiveWorkingCondition(pos, today))
+        : positionsResult.EmployeePosition || []
       if (positions.length === 0) {
         setTeamMembers([])
         setLoading(false)
@@ -311,7 +429,6 @@ export function useTeamCompensationData({
       const siteLocationIds = [
         ...new Set(positions.map(pos => pos.siteLocationId?.trim()).filter((id): id is string => Boolean(id)))
       ]
-      const structureId = await resolveActiveStructureId(orgchartClient, accessToken)
       const geoZoneBySiteLocationId =
         siteLocationIds.length > 0 && structureId
           ? await orgchartClient
@@ -328,6 +445,12 @@ export function useTeamCompensationData({
                 return new Map<string, string>()
               })
           : new Map<string, string>()
+      const parentOrgUnitByChildId = new Map<string, OrganizationalUnitRef>()
+      for (const relationship of positionsResult.OrganizationalUnitRelationship ?? []) {
+        if (relationship.parent) {
+          parentOrgUnitByChildId.set(relationship.childId, relationship.parent)
+        }
+      }
       const geoZoneIds = [
         ...new Set(
           positions
@@ -357,11 +480,6 @@ export function useTeamCompensationData({
       }
 
       const employeeIds = [...new Set(positions.map(p => p.employeeId))]
-      const now = new Date()
-      const y = now.getFullYear()
-      const pad = (n: number) => String(n).padStart(2, '0')
-      const today = `${y}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-      const yearStart = `${y}-01-01`
 
       const [currentSalRes, historyRes, bonusRes] = await Promise.all([
         graphqlClient
@@ -395,7 +513,10 @@ export function useTeamCompensationData({
           geoZoneBySiteLocationId,
           currentSalaryMap,
           lastRaiseMap,
-          bonusTotalMap
+          bonusTotalMap,
+          parentOrgUnitByChildId,
+          resolveManagerOrgUnitToParent,
+          today
         )
       )
 
@@ -411,10 +532,12 @@ export function useTeamCompensationData({
   }, [
     accessToken,
     companyId,
+    companyIds,
     orgUnitId,
     supervisorEmployeeId,
     supervisorOnly,
     requirePayrollRelevantContractType,
+    resolveManagerOrgUnitToParent,
     enabled,
     graphqlClient,
     orgchartClient

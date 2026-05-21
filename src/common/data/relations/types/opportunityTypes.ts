@@ -2,7 +2,6 @@ import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/c
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { CommunicationChannel } from '@/common/data/common/types/commonTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
-import type { Company } from '@/common/data/orgchart/types/companyTypes'
 
 export interface Opportunity extends BaseEntity {
   account?: any // DEPRECATED - Use opportunityAccounts junction table instead
@@ -11,8 +10,6 @@ export interface Opportunity extends BaseEntity {
   addresses?: any[] // IRM | CRM
   closeDate?: string // IRM | CRM
   code?: string // IRM | CRM
-  company?: Company // IRM | CRM
-  companyId?: string // IRM | CRM
   communicationChannels?: CommunicationChannel[] // IRM | CRM
   currency?: CatalogEntry // IRM | CRM
   currencyRef?: string // IRM | CRM
@@ -53,8 +50,6 @@ export const OpportunityFields = {
   addresses: 'addresses',
   closeDate: 'closeDate',
   code: 'code',
-  company: 'company',
-  companyId: 'companyId',
   communicationChannels: 'communicationChannels',
   currency: 'currency',
   currencyRef: 'currencyRef',
@@ -80,7 +75,9 @@ export const OpportunityFields = {
   ownerEmployeeId: 'ownerEmployeeId',
   rejectionReasons: 'rejectionReasons',
   tasks: 'tasks',
-  winningChance: 'winningChance'
+  winningChance: 'winningChance',
+  companyId: 'companyId', // CRM-only — override to undefined in IRM
+  company: 'company' // CRM-only — override to undefined in IRM
 } as const
 
 export type OpportunityFieldName = (typeof OpportunityFields)[keyof typeof OpportunityFields]
@@ -123,12 +120,6 @@ export const createOpportunityDescriptors = (
   },
   { key: 'closeDate', searchPaths: [fields.closeDate], sortPath: fields.closeDate, type: 'date' },
   { key: 'code', searchPaths: [fields.code], sortPath: fields.code, type: 'text' },
-  {
-    key: 'company',
-    searchPaths: [`${fields.company}.name`, `${fields.company}.code`],
-    sortPath: `${fields.company}.name`,
-    type: 'text'
-  },
   {
     key: 'communicationChannels',
     searchPaths: [`${fields.communicationChannels}.value`],
@@ -248,7 +239,6 @@ export const createOpportunityDescriptors = (
 
   // Filter IDs
   { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
-  { key: 'companyIds', path: fields.companyId, kind: 'inIds' },
   { key: 'currencyIds', path: fields.currencyRef, kind: 'inIds' },
   { key: 'opportunityPipelineIds', path: fields.opportunityPipelineRef, kind: 'inIds' },
   { key: 'opportunityPipelineStageIds', path: fields.opportunityPipelineStageRef, kind: 'inIds' },
@@ -414,7 +404,6 @@ export const opportunityFormFields = {
   businessKey: 'businessKey',
   closeDate: 'closeDate',
   code: 'code',
-  companyId: 'company',
   currencyRef: 'currencyRef',
   estimatedAmount: 'estimatedAmount',
   id: 'id',

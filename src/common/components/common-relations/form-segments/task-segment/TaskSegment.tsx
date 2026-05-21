@@ -527,16 +527,16 @@ const buildTaskSegmentSchema = (options?: {
   const multiAssigneeMode = options?.multiAssigneeMode === true // Single assignee by default; multi only for approval tasks
 
   const baseSchema = {
-    name: z.string().min(1, 'Name is required'),
+    name: z.string().trim().min(1, 'Name is required'),
     taskTiming: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
       message: 'Timing is required'
     }),
-    taskTypeRef: requireType ? z.string().min(1, 'Type is required') : z.string().optional(),
-    taskPriorityRef: z.string().min(1, 'Priority is required'),
+    taskTypeRef: requireType ? z.string().trim().min(1, 'Type is required') : z.string().optional(),
+    taskPriorityRef: z.string().trim().min(1, 'Priority is required'),
     taskStatusRef: z.string().optional(), // Backend computed, not required from user
-    relatedEntityId: requireEntity ? z.string().min(1, 'Related entity is required') : z.string().optional(),
+    relatedEntityId: requireEntity ? z.string().trim().min(1, 'Related entity is required') : z.string().optional(),
     description: z.string().optional(),
-    dueDate: z.preprocess(val => (val == null ? '' : val), z.string().min(1, 'Deadline is required')),
+    dueDate: z.preprocess(val => (val == null ? '' : val), z.string().trim().min(1, 'Deadline is required')),
     files: z.any().optional()
   }
 

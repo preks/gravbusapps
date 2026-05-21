@@ -33,6 +33,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, 
   const { absenceList } = useAbsenceData(employeeId, accessToken, EMPTY_ABSENCE_ENTITLEMENTS)
 
   const workingHours = useEmployeeWorkingHours(employee)
+  const employeeHireDate = employee?.workingCondition?.[0]?.hireDate
 
   const {
     allMonthEntries,
@@ -46,6 +47,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, 
   } = useTimeTrackingData({
     employeeId,
     accessToken,
+    hireDate: employeeHireDate,
     workingHours
   })
 

@@ -6,6 +6,8 @@ import {
   type CustomDataSuggestionApplyResult,
   type CustomDataDefinition,
   type CustomDataNamespace,
+  type CustomDataNamespaceListParams,
+  type CustomDataNamespaceListResponse,
   type CustomDataSuggestionRequest,
   type CustomDataSuggestionStreamEvent,
   type EntitySchemaProposal,
@@ -16,10 +18,10 @@ import {
 } from '../types'
 
 interface CustomDataClient {
-  listNamespaces: () => Promise<CustomDataNamespace[]>
+  listNamespaces: (params: CustomDataNamespaceListParams) => Promise<CustomDataNamespaceListResponse>
   createNamespace: (dto: CreateNamespaceDto) => Promise<CustomDataNamespace>
   getNamespaceAggregate: (namespace: string, context?: string) => Promise<NamespaceAggregate>
-  listDefinitions: (namespace?: string) => Promise<CustomDataDefinition[]>
+  listDefinitions: (namespace: string) => Promise<CustomDataDefinition[]>
   getDefinition: (namespace: string, entity: string) => Promise<CustomDataDefinition>
   createDefinition: (dto: CreateDefinitionDto) => Promise<CustomDataDefinition>
   updateDefinition: (namespace: string, entity: string, dto: UpdateDefinitionDto) => Promise<CustomDataDefinition>
@@ -39,14 +41,14 @@ interface CustomDataClient {
     proposal: EntitySchemaProposal,
     updatedBy?: string
   ) => Promise<CustomDataSuggestionApplyResult>
-  createRow: (namespace: string, definitionKey: string, values: Record<string, unknown>) => Promise<RowMutationResult>
+  createRow: (namespace: string, entityName: string, values: Record<string, unknown>) => Promise<RowMutationResult>
   updateRow: (
     namespace: string,
-    definitionKey: string,
+    entityName: string,
     rowId: string,
     values: Record<string, unknown>
   ) => Promise<RowMutationResult>
-  deleteRow: (namespace: string, definitionKey: string, rowId: string) => Promise<RowMutationResult>
+  deleteRow: (namespace: string, entityName: string, rowId: string) => Promise<RowMutationResult>
 }
 
 type RowMutationResponse = RowMutationResult
@@ -115,7 +117,20 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
   )
 
   const listNamespaces = useCallback(
-    async (): Promise<CustomDataNamespace[]> => fetchWithAuth<CustomDataNamespace[]>('/v1/custom-data/namespaces'),
+    async (params: CustomDataNamespaceListParams): Promise<CustomDataNamespaceListResponse> => {
+      const queryParams = new URLSearchParams()
+      queryParams.set('offset', String(params.offset))
+      queryParams.set('limit', String(params.limit))
+      queryParams.set('sort', params.sort)
+      if (params.q?.trim()) {
+        queryParams.set('q', params.q.trim())
+      }
+      if (params.returnTotalRecords !== undefined) {
+        queryParams.set('returnTotalRecords', String(params.returnTotalRecords))
+      }
+
+      return fetchWithAuth<CustomDataNamespaceListResponse>(`/v1/custom-data/namespaces?${queryParams.toString()}`)
+    },
     [fetchWithAuth]
   )
 
@@ -214,21 +229,9 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
   )
 
   const listDefinitions = useCallback(
-    async (namespace?: string): Promise<CustomDataDefinition[]> => {
-      if (namespace) {
-        return fetchWithAuth<CustomDataDefinition[]>(buildCustomEntityPath(namespace))
-      }
-
-      const namespaces = await listNamespaces()
-      const definitionsByNamespace = await Promise.all(
-        namespaces.map(currentNamespace =>
-          fetchWithAuth<CustomDataDefinition[]>(buildCustomEntityPath(currentNamespace.namespace))
-        )
-      )
-
-      return definitionsByNamespace.flat()
-    },
-    [fetchWithAuth, listNamespaces]
+    async (namespace: string): Promise<CustomDataDefinition[]> =>
+      fetchWithAuth<CustomDataDefinition[]>(buildCustomEntityPath(namespace)),
+    [fetchWithAuth]
   )
 
   const getDefinition = useCallback(
@@ -242,11 +245,9 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
       fetchWithAuth<CustomDataDefinition>(buildCustomEntityPath(dto.namespace || DEFAULT_NAMESPACE), {
         method: 'POST',
         body: JSON.stringify({
-          key: dto.key,
-          display_name: dto.display_name,
+          displayName: dto.displayName,
           description: dto.description,
-          columns_json: dto.columns_json,
-          created_by: dto.created_by
+          columns: dto.columns
         })
       }),
     [fetchWithAuth]
@@ -285,7 +286,7 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
         {
           method: 'POST',
           body: JSON.stringify({
-            ...(updatedBy ? { updated_by: updatedBy } : {})
+            ...(updatedBy ? { updatedBy } : {})
           })
         }
       ),
@@ -304,7 +305,7 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
           method: 'POST',
           body: JSON.stringify({
             proposal,
-            ...(updatedBy ? { updated_by: updatedBy } : {})
+            ...(updatedBy ? { updatedBy } : {})
           })
         }
       ),
@@ -312,9 +313,9 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
   )
 
   const createRow = useCallback(
-    async (namespace: string, definitionKey: string, values: Record<string, unknown>): Promise<RowMutationResult> => {
+    async (namespace: string, entityName: string, values: Record<string, unknown>): Promise<RowMutationResult> => {
       const response = await fetchWithAuth<ApiRowMutationResponse>(
-        `${buildCustomEntityPath(namespace, definitionKey)}/rows`,
+        `${buildCustomEntityPath(namespace, entityName)}/rows`,
         {
           method: 'POST',
           body: JSON.stringify({ values })
@@ -329,12 +330,12 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
   const updateRow = useCallback(
     async (
       namespace: string,
-      definitionKey: string,
+      entityName: string,
       rowId: string,
       values: Record<string, unknown>
     ): Promise<RowMutationResult> => {
       const response = await fetchWithAuth<ApiRowMutationResponse>(
-        `${buildCustomEntityPath(namespace, definitionKey)}/rows/${encodeURIComponent(rowId)}`,
+        `${buildCustomEntityPath(namespace, entityName)}/rows/${encodeURIComponent(rowId)}`,
         {
           method: 'PATCH',
           body: JSON.stringify({ values })
@@ -347,9 +348,9 @@ export const useCustomDataClient = (accessToken: string): CustomDataClient => {
   )
 
   const deleteRow = useCallback(
-    async (namespace: string, definitionKey: string, rowId: string): Promise<RowMutationResult> => {
+    async (namespace: string, entityName: string, rowId: string): Promise<RowMutationResult> => {
       const response = await fetchWithAuth<ApiRowMutationResponse>(
-        `${buildCustomEntityPath(namespace, definitionKey)}/rows/${encodeURIComponent(rowId)}`,
+        `${buildCustomEntityPath(namespace, entityName)}/rows/${encodeURIComponent(rowId)}`,
         {
           method: 'DELETE'
         }

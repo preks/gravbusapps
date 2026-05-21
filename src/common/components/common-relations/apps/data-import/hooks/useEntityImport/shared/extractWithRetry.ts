@@ -25,6 +25,7 @@ export interface ExtractWithRetryResult {
   records: Record<string, unknown>[]
   usedUiMappings: boolean
   csvQuality: CsvQuality | null
+  warnings: string[]
 }
 
 export async function extractWithRetry(
@@ -56,7 +57,12 @@ export async function extractWithRetry(
       requiredSubtypeKey,
       additionalPropertiesFields
     )
-    return { records: response.records, usedUiMappings: false, csvQuality: response.csvQuality ?? null }
+    return {
+      records: response.records,
+      usedUiMappings: false,
+      csvQuality: response.csvQuality ?? null,
+      warnings: response.warnings ?? []
+    }
   } catch (error) {
     if (config.domain === 'investment' && shouldRetryWithUiMappings(error)) {
       console.warn('[Import] extract-from-file targetField mismatch, retrying once with UI-prefixed mappings')
@@ -73,7 +79,12 @@ export async function extractWithRetry(
         requiredSubtypeKey,
         additionalPropertiesFields
       )
-      return { records: response.records, usedUiMappings: true, csvQuality: response.csvQuality ?? null }
+      return {
+        records: response.records,
+        usedUiMappings: true,
+        csvQuality: response.csvQuality ?? null,
+        warnings: response.warnings ?? []
+      }
     }
     throw error
   }

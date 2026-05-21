@@ -3,15 +3,23 @@ import { toast } from '@newwork/nw-design-system'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
 import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import { buildCatalogTranslations, isSystemCatalogEntry } from '@/business-apps/hr/core/utils/catalogEntryHelpers'
+import { useCompanySelection } from '@/business-apps/fin/expenses/apps/expense-settings/hooks/useCompanySelection'
 import type { AbsenceCatalogEntryPayload } from './useAbsenceCatalogEntries'
 import { useAbsenceSetupCatalogData } from './useAbsenceSetupCatalogData'
-import type { AbsenceEntitlementModalValues } from '../modals/AbsenceEntitlementModal'
-import type { AbsencePolicyModalValues } from '../modals/AbsencePolicyModal'
+import type { AbsenceEntitlementRecordValues } from '../components/AbsenceEntitlementRecord'
+import type { AbsencePolicyRecordValues } from '../components/AbsencePolicyRecord'
 import type { GenericCatalogEntryModalValues } from '../modals/GenericCatalogEntryModal'
 import type { AbsenceTypeModalValues } from '../modals/AbsenceTypeModal'
 import { getAbsenceTypeTitle, type AbsenceTypeVersionFormValues } from '../utils/absenceSetup'
 import { buildAbsenceTypeVersionPayload } from '../utils/absenceTypeVersionObjectValue'
 import { buildAbsenceSetupSectionCards, type AbsenceSetupSectionCardConfig } from '../utils/absenceSetupSectionCards'
+import { hasIdenticalEligibility } from '../utils/absenceEligibilityConflict'
+import {
+  getAbsenceEntitlementEditorState,
+  type AbsenceEntitlementObjectValue
+} from '../utils/absenceEntitlementObjectValue'
+import { getAbsencePolicyEditorState, type AbsencePolicyObjectValue } from '../utils/absencePolicyObjectValue'
+
 type GenericCatalogKey = 'AbsenceGroup' | 'AbsencePolicy'
 type TranslateFn = (key: string, values?: Record<string, string>) => string
 
@@ -98,18 +106,19 @@ interface PendingDeleteState {
 
 export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) => {
   const [isAbsenceTypeModalOpen, setIsAbsenceTypeModalOpen] = useState(false)
-  const [isAbsenceTypeVersionModalOpen, setIsAbsenceTypeVersionModalOpen] = useState(false)
-  const [isAbsenceEntitlementModalOpen, setIsAbsenceEntitlementModalOpen] = useState(false)
-  const [isAbsencePolicyModalOpen, setIsAbsencePolicyModalOpen] = useState(false)
   const [activeGenericCatalog, setActiveGenericCatalog] = useState<GenericCatalogKey | null>(null)
   const [selectedAbsenceType, setSelectedAbsenceType] = useState<AbsenceType | null>(null)
-  const [selectedVersionEntry, setSelectedVersionEntry] = useState<CatalogEntry | null>(null)
-  const [selectedEntitlement, setSelectedEntitlement] = useState<CatalogEntry | null>(null)
-  const [selectedPolicy, setSelectedPolicy] = useState<CatalogEntry | null>(null)
   const [selectedGenericEntry, setSelectedGenericEntry] = useState<CatalogEntry | null>(null)
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteState | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteErrorMessage, setDeleteErrorMessage] = useState('')
+
+  const {
+    companies,
+    isLoading: isLoadingCompanies,
+    search: searchCompanies,
+    loadMore: loadMoreCompanies
+  } = useCompanySelection({ accessToken })
 
   const {
     absenceTypes,
@@ -125,8 +134,14 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     absenceTypeVersionsCatalog,
     absenceEntitlementsCatalog,
     absencePoliciesCatalog,
-    genericCatalogConfigs
-  } = useAbsenceSetupCatalogData(accessToken, t)
+    genericCatalogConfigs,
+    employmentTypes,
+    contractTypes,
+    countries,
+    regionsByCountry,
+    regionsLoading,
+    fetchRegionsForCountry
+  } = useAbsenceSetupCatalogData(accessToken, t, companies)
 
   const openDeleteDialog = (
     entityLabel: string,
@@ -141,20 +156,6 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
   const closeAbsenceTypeModal = () => {
     setIsAbsenceTypeModalOpen(false)
     setSelectedAbsenceType(null)
-  }
-
-  const closeAbsenceTypeVersionModal = () => {
-    setIsAbsenceTypeVersionModalOpen(false)
-  }
-
-  const closeAbsenceEntitlementModal = () => {
-    setIsAbsenceEntitlementModalOpen(false)
-    setSelectedEntitlement(null)
-  }
-
-  const closeAbsencePolicyModal = () => {
-    setIsAbsencePolicyModalOpen(false)
-    setSelectedPolicy(null)
   }
 
   const closeGenericCatalogModal = () => {
@@ -191,23 +192,25 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     }
   }
 
-  const handleSaveAbsenceTypeVersion = async (formValues: AbsenceTypeVersionFormValues) => {
+  const handleSaveAbsenceTypeVersion = async (
+    formValues: AbsenceTypeVersionFormValues,
+    selectedVersionEntry: CatalogEntry | null,
+    onSuccess: () => void
+  ) => {
     const payload = buildAbsenceTypeVersionPayload(formValues, absenceTypes, Boolean(selectedVersionEntry?.id))
 
     try {
       if (selectedVersionEntry?.id) {
-        const updatedEntry = await absenceTypeVersionsCatalog.updateEntry(selectedVersionEntry.id, {
+        await absenceTypeVersionsCatalog.updateEntry(selectedVersionEntry.id, {
           value: payload.value,
           objectValue: payload.objectValue,
           translations: payload.translations
         })
-        setSelectedVersionEntry(updatedEntry)
       } else {
-        const createdEntry = await absenceTypeVersionsCatalog.createEntry(payload)
-        setSelectedVersionEntry(createdEntry)
+        await absenceTypeVersionsCatalog.createEntry(payload)
       }
       toast.success(t('save-catalog-entry-success', { entity: t('absence-type-version-entity-label') }))
-      closeAbsenceTypeVersionModal()
+      onSuccess()
     } catch (saveError) {
       const message =
         saveError instanceof Error
@@ -219,19 +222,11 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     }
   }
 
-  const handleSelectAbsenceTypeVersion = async (entry: CatalogEntry) => {
-    try {
-      await absenceTypeVersionsCatalog.getEntryById(entry.id)
-    } catch (loadError) {
-      const message =
-        loadError instanceof Error
-          ? loadError.message
-          : t('save-catalog-entry-error', { entity: t('absence-type-version-entity-label') })
-      console.error('Error loading absence type version details:', message)
-    }
-  }
-
-  const handleSaveAbsenceEntitlement = async (formValues: AbsenceEntitlementModalValues) => {
+  const handleSaveAbsenceEntitlement = async (
+    formValues: AbsenceEntitlementRecordValues,
+    selectedEntitlementId: string | null,
+    onSuccess: () => void
+  ) => {
     const normalizedCode = formValues.code.trim()
     const payload: AbsenceCatalogEntryPayload = {
       code: normalizedCode,
@@ -243,29 +238,47 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
 
     try {
       const hasDuplicateCode = absenceEntitlementsCatalog.entries.some(
-        entry =>
-          entry.id !== selectedEntitlement?.id && entry.code.trim().toLowerCase() === normalizedCode.toLowerCase()
+        entry => entry.id !== selectedEntitlementId && entry.code.trim().toLowerCase() === normalizedCode.toLowerCase()
       )
 
       if (hasDuplicateCode) {
         throw new Error(t('validation-duplicate-code', { code: normalizedCode }))
       }
 
-      if (selectedEntitlement?.id) {
-        await absenceEntitlementsCatalog.updateEntry(selectedEntitlement.id, {
-          id: selectedEntitlement.id,
-          code: selectedEntitlement.code,
-          value: payload.value,
-          type: selectedEntitlement.type,
-          objectValue: payload.objectValue,
-          localeCode: selectedEntitlement.localeCode || 'en-US',
-          translations: payload.translations
-        })
+      const newEntitlementSettings = getAbsenceEntitlementEditorState(formValues.objectValue).settings
+
+      const conflictingEntitlement = absenceEntitlementsCatalog.entries.find(entry => {
+        if (entry.id === selectedEntitlementId) return false
+        const state = getAbsenceEntitlementEditorState(entry.objectValue as AbsenceEntitlementObjectValue)
+        return hasIdenticalEligibility(newEntitlementSettings, state.settings)
+      })
+
+      if (conflictingEntitlement) {
+        throw new Error(
+          t('validation-duplicate-eligibility', {
+            name: conflictingEntitlement.value || conflictingEntitlement.code
+          })
+        )
+      }
+
+      if (selectedEntitlementId) {
+        const existingEntry = absenceEntitlementsCatalog.entries.find(e => e.id === selectedEntitlementId)
+        if (existingEntry) {
+          await absenceEntitlementsCatalog.updateEntry(selectedEntitlementId, {
+            id: existingEntry.id,
+            code: existingEntry.code,
+            value: payload.value,
+            type: existingEntry.type,
+            objectValue: payload.objectValue,
+            localeCode: existingEntry.localeCode || 'en-US',
+            translations: payload.translations
+          })
+        }
       } else {
         await absenceEntitlementsCatalog.createEntry(payload)
       }
       toast.success(t('save-catalog-entry-success', { entity: t('absence-entitlement-entity-label') }))
-      closeAbsenceEntitlementModal()
+      onSuccess()
     } catch (saveError) {
       const message =
         saveError instanceof Error
@@ -277,7 +290,11 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     }
   }
 
-  const handleSaveAbsencePolicy = async (formValues: AbsencePolicyModalValues) => {
+  const handleSaveAbsencePolicy = async (
+    formValues: AbsencePolicyRecordValues,
+    selectedPolicyId: string | null,
+    onSuccess: () => void
+  ) => {
     const payload: AbsenceCatalogEntryPayload = {
       code: formValues.code,
       value: formValues.translations.enUS,
@@ -287,21 +304,40 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     }
 
     try {
-      if (selectedPolicy?.id) {
-        await absencePoliciesCatalog.updateEntry(selectedPolicy.id, {
-          id: selectedPolicy.id,
-          code: selectedPolicy.code,
-          value: payload.value,
-          type: selectedPolicy.type,
-          objectValue: payload.objectValue,
-          localeCode: selectedPolicy.localeCode || 'en-US',
-          translations: payload.translations
-        })
+      const newPolicySettings = getAbsencePolicyEditorState(formValues.objectValue).settings
+
+      const conflictingPolicy = absencePoliciesCatalog.entries.find(entry => {
+        if (entry.id === selectedPolicyId) return false
+        const state = getAbsencePolicyEditorState(entry.objectValue as AbsencePolicyObjectValue)
+        return hasIdenticalEligibility(newPolicySettings, state.settings)
+      })
+
+      if (conflictingPolicy) {
+        throw new Error(
+          t('validation-duplicate-eligibility', {
+            name: conflictingPolicy.value || conflictingPolicy.code
+          })
+        )
+      }
+
+      if (selectedPolicyId) {
+        const existingEntry = absencePoliciesCatalog.entries.find(e => e.id === selectedPolicyId)
+        if (existingEntry) {
+          await absencePoliciesCatalog.updateEntry(selectedPolicyId, {
+            id: existingEntry.id,
+            code: existingEntry.code,
+            value: payload.value,
+            type: existingEntry.type,
+            objectValue: payload.objectValue,
+            localeCode: existingEntry.localeCode || 'en-US',
+            translations: payload.translations
+          })
+        }
       } else {
         await absencePoliciesCatalog.createEntry(payload)
       }
       toast.success(t('save-catalog-entry-success', { entity: t('absence-policy-entity-label') }))
-      closeAbsencePolicyModal()
+      onSuccess()
     } catch (saveError) {
       const message =
         saveError instanceof Error
@@ -419,39 +455,16 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
 
       openDeleteDialog(t('absence-type-entity-label'), absenceTypeName, () => deleteAbsenceType(entry.id))
     },
-    onAddAbsenceTypeVersion: () => {
-      setSelectedVersionEntry(null)
-      setIsAbsenceTypeVersionModalOpen(true)
-    },
-    onSelectAbsenceTypeVersion: handleSelectAbsenceTypeVersion,
-    onEditAbsenceTypeVersion: async entry => {
-      try {
-        const latestEntry = await absenceTypeVersionsCatalog.getEntryById(entry.id)
-        setSelectedVersionEntry(latestEntry)
-      } catch (loadError) {
-        const message =
-          loadError instanceof Error
-            ? loadError.message
-            : t('save-catalog-entry-error', { entity: t('absence-type-version-entity-label') })
-        console.error('Error loading absence type version entry:', message)
-        setSelectedVersionEntry(entry)
-      }
-
-      setIsAbsenceTypeVersionModalOpen(true)
-    },
+    onAddAbsenceTypeVersion: () => {},
+    onSelectAbsenceTypeVersion: undefined,
+    onEditAbsenceTypeVersion: () => {},
     onDeleteAbsenceTypeVersion: entry => {
       openDeleteDialog(t('absence-type-version-entity-label'), entry.value || entry.code, () =>
         absenceTypeVersionsCatalog.deleteEntry(entry.id)
       )
     },
-    onAddEntitlement: () => {
-      setSelectedEntitlement(null)
-      setIsAbsenceEntitlementModalOpen(true)
-    },
-    onEditEntitlement: entry => {
-      setSelectedEntitlement(entry)
-      setIsAbsenceEntitlementModalOpen(true)
-    },
+    onAddEntitlement: () => {},
+    onEditEntitlement: () => {},
     onDeleteEntitlement: entry => {
       openDeleteDialog(t('absence-entitlement-entity-label'), entry.value || entry.code, () =>
         absenceEntitlementsCatalog.deleteEntry(entry.id)
@@ -463,18 +476,9 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
         toast.error(t('catalog-readonly-message', { entity: config.entityLabel }))
         return
       }
-      if (catalogKey === 'AbsencePolicy') {
-        setSelectedPolicy(null)
-        setIsAbsencePolicyModalOpen(true)
-        return
-      }
-      setSelectedGenericEntry(null)
-      setActiveGenericCatalog(catalogKey)
     },
     onEditGenericCatalog: (catalogKey, entry) => {
       if (catalogKey === 'AbsencePolicy') {
-        setSelectedPolicy(entry)
-        setIsAbsencePolicyModalOpen(true)
         return
       }
       setSelectedGenericEntry(entry)
@@ -499,25 +503,28 @@ export const useAbsenceSetupController = (accessToken: string, t: TranslateFn) =
     absenceTypes,
     absenceGroups,
     absenceTypeVersions: absenceTypeVersionsCatalog.entries,
+    absenceEntitlements: absenceEntitlementsCatalog.entries,
+    absencePolicies: absencePoliciesCatalog.entries,
     isAbsenceTypeModalOpen,
-    isAbsenceTypeVersionModalOpen,
-    isAbsenceEntitlementModalOpen,
-    isAbsencePolicyModalOpen,
     isGenericCatalogModalOpen: Boolean(activeGenericCatalog),
     genericEntityLabel: activeGenericCatalog ? genericCatalogConfigs[activeGenericCatalog].entityLabel : '',
     selectedAbsenceType,
-    selectedVersionEntry,
-    selectedEntitlement,
-    selectedPolicy,
     selectedGenericEntry,
     sectionCards,
     pendingDelete,
     isDeleting,
     deleteErrorMessage,
+    employmentTypes,
+    contractTypes,
+    countries,
+    regionsByCountry,
+    regionsLoading,
+    fetchRegionsForCountry,
+    companies,
+    isLoadingCompanies,
+    searchCompanies,
+    loadMoreCompanies,
     closeAbsenceTypeModal,
-    closeAbsenceTypeVersionModal,
-    closeAbsenceEntitlementModal,
-    closeAbsencePolicyModal,
     closeGenericCatalogModal,
     handleSaveAbsenceType,
     handleSaveAbsenceTypeVersion,

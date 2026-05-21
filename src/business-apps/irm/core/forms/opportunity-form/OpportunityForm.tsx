@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
+import { InvestmentCompanySelect } from '@/components/investment-company-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 import {
@@ -63,7 +64,8 @@ const prefixDataTestId = 'InvestmentOpportunityForm'
 
 // Base investment opportunity schema (will be extended with investmentTypeId)
 const baseInvestmentOpportunitySchema = opportunitySchemaBase.extend({
-  investmentName: z.string().min(1, 'Investment Name is required'),
+  investmentCompanyId: z.string().nullable().optional(),
+  investmentName: z.string().trim().min(1, 'Investment Name is required'),
   dealType: z.string().nullable().optional()
 })
 
@@ -483,14 +485,25 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         // Align submit payload with the ID-based relation shape used by other IRM forms.
         // The mapper adds GraphQL display objects like opportunityAccounts[].account, but the
         // payload builder expects UUID fields only and will convert accountId -> account itself.
+        const mappedOpportunityAccounts = rawInvestmentMappedFields.opportunityAccounts
+          ?.map((assoc: any) => {
+            const accountId = assoc.accountId || assoc.account?.id || assoc.account
+            if (!accountId) {
+              return null
+            }
+
+            return {
+              ...(assoc.id && { id: assoc.id }),
+              ...(assoc.version !== undefined && { version: assoc.version }),
+              accountId,
+              ...(assoc.accountTypeRef && { accountTypeRef: assoc.accountTypeRef })
+            }
+          })
+          .filter((assoc: any): assoc is NonNullable<typeof assoc> => assoc !== null)
+
         const investmentMappedFields = {
           ...rawInvestmentMappedFields,
-          opportunityAccounts: rawInvestmentMappedFields.opportunityAccounts?.map((assoc: any) => ({
-            ...(assoc.id && { id: assoc.id }),
-            ...(assoc.version !== undefined && { version: assoc.version }),
-            accountId: assoc.accountId || assoc.account?.id || assoc.account,
-            ...(assoc.accountTypeRef && { accountTypeRef: assoc.accountTypeRef })
-          }))
+          ...(mappedOpportunityAccounts !== undefined && { opportunityAccounts: mappedOpportunityAccounts })
         }
 
         // Convert investmentTypeId back to group/type for payload (HEAD approach)
@@ -498,9 +511,10 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         const { groupId, typeId } = mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
 
         const mergedData = {
+          // Start with mapped investment defaults, then keep current form values authoritative.
+          ...investmentMappedFields,
           ...data,
           ...prospectFields, // Add dynamic fields for non-divestment deals
-          ...investmentMappedFields, // Add mapped investment fields for divestment deals
           // Remove investmentTypeId from payload (not part of API)
           investmentTypeId: undefined,
           // Add group/type for payload
@@ -543,6 +557,31 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   const handlePreSubmit = async (formData: any) => {
     return formData
   }
+
+  const companySelectField = useMemo(
+    () => (
+      <FormField
+        control={form.control}
+        name="investmentCompanyId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Company</FormLabel>
+            <FormControl>
+              <InvestmentCompanySelect
+                value={field.value || null}
+                onValueChange={(value: string | null) => field.onChange(value || '')}
+                businessAppContext={{ accessToken, userInfo, additionalData }}
+                initialCompany={opportunity?.investmentCompany}
+                data-testid={formatDataTestId(prefixDataTestId, 'company-select')}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    ),
+    [accessToken, additionalData, form.control, opportunity?.investmentCompany, userInfo]
+  )
 
   // Deal Type selector - hide if dealType is already set (from additionalData or opportunity)
   const dealTypeField = useMemo(() => {
@@ -678,6 +717,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
           accountTypeCatalogIdentifier={INVESTMENT_ACCOUNT_TYPE}
           opportunityInformationCustomFields={
             <>
+              {companySelectField}
               {dealTypeField}
               {investmentSelectorField}
             </>

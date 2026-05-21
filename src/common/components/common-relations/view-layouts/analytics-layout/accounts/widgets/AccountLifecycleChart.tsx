@@ -15,7 +15,12 @@ import {
 } from '@newwork/nw-design-system'
 import { AreaChart, Area, XAxis, YAxis } from 'recharts'
 import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
-import { TIME_FILTER_OPTIONS, formatLifecycleXAxisLabel, getCurrentFilterLabel } from '../../shared/lifecycleChartUtils'
+import {
+  TIME_FILTER_OPTIONS,
+  formatLifecycleXAxisLabel,
+  getCurrentFilterLabel,
+  createChartTooltipFormatter
+} from '../../shared/lifecycleChartUtils'
 import type { TimeFilter } from '../../shared/lifecycleChartUtils'
 import { LifecycleChartLoadingState } from '../../shared/LifecycleChartLoadingState'
 
@@ -25,15 +30,21 @@ export type { TimeFilter } from '../../shared/lifecycleChartUtils'
 interface AccountLifecycleChartProps {
   data: Array<{
     date: string
+    endDate: string
     count: number
     accountsCreated: number
     accountsWithOpportunities: number
-    accountsActive: number
   }>
   isLoading?: boolean
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
   moduleColor?: string
+  onPointClick?: (
+    label: string,
+    date: string,
+    endDate: string,
+    metric: 'accountsCreated' | 'accountsWithOpportunities'
+  ) => void
 }
 
 const DATA_TEST_ID_PREFIX = 'account-lifecycle-overview'
@@ -43,29 +54,29 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
   isLoading = false,
   selectedTimeFilter,
   onTimeFilterChange,
-  moduleColor = 'primary'
+  moduleColor = 'primary',
+  onPointClick
 }) => {
   const [visibleLines, setVisibleLines] = useState({
     accountsCreated: true,
-    accountsWithOpportunities: true,
-    accountsActive: true
+    accountsWithOpportunities: true
   })
 
   // Chart configuration - must be called before early return
   const chartConfig = useMemo(
     () => ({
       accountsCreated: { label: 'Accounts Created' },
-      accountsWithOpportunities: { label: 'Accounts with Opportunities' },
-      accountsActive: { label: 'Active Accounts' }
+      accountsWithOpportunities: { label: 'Accounts with Opportunities' }
     }),
     []
   )
 
+  const tooltipFormatter = useMemo(() => createChartTooltipFormatter(chartConfig), [chartConfig])
+
   // Non-hook logic can come after hooks but before early returns
   const lineOptions: Array<{ key: keyof typeof visibleLines; label: string }> = [
     { key: 'accountsCreated', label: 'Accounts Created' },
-    { key: 'accountsWithOpportunities', label: 'Accounts with Opportunities' },
-    { key: 'accountsActive', label: 'Active Accounts' }
+    { key: 'accountsWithOpportunities', label: 'Accounts with Opportunities' }
   ]
 
   const toggleLineVisibility = (lineKey: keyof typeof visibleLines) => {
@@ -108,17 +119,28 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
     return (
       <ChartContainer
         config={chartConfig}
-        className="gba:h-[400px] gba:w-full gba:aspect-auto"
+        className={`gba:h-[400px] gba:w-full gba:aspect-auto gba:[&_.recharts-tooltip-cursor]:hidden${onPointClick ? ' gba:cursor-pointer' : ''}`}
         data-testid={`${DATA_TEST_ID_PREFIX}-chart`}
       >
-        <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+        <AreaChart
+          data={chartData}
+          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          onClick={clickData => {
+            if (!onPointClick || clickData?.activeTooltipIndex == null) return
+            const point = chartData[clickData.activeTooltipIndex as number]
+            if (!point) return
+            const label = formatLifecycleXAxisLabel(point.date, selectedTimeFilter)
+            const metric = visibleLines.accountsCreated ? 'accountsCreated' : 'accountsWithOpportunities'
+            onPointClick(label, point.date, point.endDate, metric)
+          }}
+        >
           <XAxis
             dataKey="date"
             tickLine={false}
             tickFormatter={value => formatLifecycleXAxisLabel(value, selectedTimeFilter)}
           />
           <YAxis tickLine={false} />
-          <ChartTooltip content={<ChartTooltipContent labelKey="date" />} />
+          <ChartTooltip cursor={false} content={<ChartTooltipContent labelKey="date" formatter={tooltipFormatter} />} />
           <ChartLegend content={<ChartLegendContent />} />
           {visibleLines.accountsCreated && (
             <Area
@@ -129,6 +151,7 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
               fill={`var(--color-accountsCreated)`}
               fillOpacity={0.2}
               strokeWidth={2}
+              activeDot={{ r: 6 }}
             />
           )}
           {visibleLines.accountsWithOpportunities && (
@@ -140,17 +163,7 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
               fill={`var(--color-accountsWithOpportunities)`}
               fillOpacity={0.2}
               strokeWidth={2}
-            />
-          )}
-          {visibleLines.accountsActive && (
-            <Area
-              type="monotone"
-              dataKey="accountsActive"
-              name="accountsActive"
-              stroke={`var(--color-accountsActive)`}
-              fill={`var(--color-accountsActive)`}
-              fillOpacity={0.2}
-              strokeWidth={2}
+              activeDot={{ r: 6 }}
             />
           )}
         </AreaChart>

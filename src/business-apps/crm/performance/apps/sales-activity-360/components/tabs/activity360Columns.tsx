@@ -25,8 +25,9 @@ import {
   calculateActivityScore,
   getScoreBadgeVariant
 } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityScoreCalculator'
-import { navigateTo } from '@/common/utils/navigationUtils'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
+import { getEmployeeAvatarSrc } from '../utils/avatarUtils'
 
 // Format date with time
 const formatDateTime = (date: string | Date) => {
@@ -198,7 +199,7 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
           : ownerEmployee?.firstName || ownerEmployee?.lastName || 'Unknown')
 
       const employeeId = activity.ownerEmployeeId
-      const avatar = activity.ownerEmployee?.pictureThumbnail
+      const avatar = getEmployeeAvatarSrc(activity.ownerEmployee?.pictureThumbnail)
 
       const handleClick = (e: React.MouseEvent) => {
         if (employeeId) {
@@ -219,7 +220,7 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
               size="sm"
               className="gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:rounded-full"
             >
-              {avatar && <AvatarImage src={`data:image/jpeg;base64,${avatar}`} alt={fullName} />}
+              {avatar && <AvatarImage src={avatar} alt={fullName} />}
               <AvatarFallback>
                 <UserIcon className="gba:h-4 gba:w-4" />
               </AvatarFallback>
@@ -234,7 +235,7 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
       return (
         <div className="gba:flex gba:items-center gba:gap-2">
           <Avatar size="sm" className="gba:opacity-50">
-            {avatar && <AvatarImage src={`data:image/jpeg;base64,${avatar}`} alt={fullName} />}
+            {avatar && <AvatarImage src={avatar} alt={fullName} />}
             <AvatarFallback>
               <UserIcon className="gba:h-4 gba:w-4" />
             </AvatarFallback>
@@ -256,8 +257,8 @@ export const createActivity360Columns = (): ColumnDef<TeamSalesActivity>[] => [
         <ActivityTableReferenceCell
           activity={activity}
           onReferenceClick={handleEntityReferenceClick}
-          emptyVariant="unlinked"
-          unlinkedBadgeTestId={`activity360-badge-${activity.id}`}
+          emptyVariant="general"
+          dataTestId={`activity360-reference-${activity.id}`}
           singleReferenceButtonClassName="gba:px-3 gba:py-2 gba:w-full"
         />
       )

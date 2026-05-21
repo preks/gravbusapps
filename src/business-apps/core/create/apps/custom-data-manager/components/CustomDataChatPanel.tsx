@@ -157,7 +157,7 @@ const AssistantMessage: React.FC<{
 const ProposalPreview: React.FC<{ proposal: EntitySchemaProposal }> = ({ proposal }) => (
   <div className="gba:border gba:border-border gba:rounded-md gba:p-2 gba:space-y-1.5 gba:bg-muted/30">
     {proposal.entities.map(entity => (
-      <div key={entity.key} className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs">
+      <div key={entity.entityName} className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs">
         <Database className="gba:h-3 gba:w-3 gba:text-primary" />
         <span className="gba:font-medium">{entity.displayName}</span>
         <Badge variant="outline" className="gba:text-[9px] gba:px-1 gba:py-0">

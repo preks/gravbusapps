@@ -1,21 +1,32 @@
 import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
 
 export const GET_COMPENSATION_TEAM_MEMBERS = `
-  query GetCompensationTeamMembers($where: EmployeePositionBoolExp!) {
+  query GetCompensationTeamMembers(
+    $where: EmployeePositionBoolExp!
+    $relationshipWhere: OrganizationalUnitRelationshipBoolExp!
+  ) {
     EmployeePosition(where: $where) {
       id
       employeeId
       firstName
       lastName
       hireDate
+      companyId
       organizationalUnitId
       organizationalUnit {
         id
         name
+        organizationalUnitEmployee(where: { role: { _eq: "Manager" } }) {
+          employeeId
+          role
+          managerLevel
+          isMain
+        }
       }
       siteLocationId
       supervisorEmployeeId
       jobPosition {
+        id
         name
         jobFunction {
           jobFamily {
@@ -34,16 +45,51 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
         }
       }
       employee {
+        id
         code
+        firstName
+        lastName
         displayName
+        picture
         pictureThumbnail
-        workingCondition {
+        workingCondition(where: { isDeleted: { _neq: true } }, orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]) {
           hireDate
+          activeFrom
+          activeTo
+          contractType {
+            objectValue
+          }
         }
         workingHours(orderBy: [{ activeFrom: DESC }], limit: 1) {
           weeklyHours
           fullTimeEquivalent
         }
+      }
+    }
+    OrganizationalUnitRelationship(where: $relationshipWhere) {
+      childId
+      parentId
+      parent {
+        id
+        name
+      }
+    }
+  }
+`
+
+export const GET_COMPENSATION_COMPANY_BASELINE_POSITIONS = `
+  query GetCompensationCompanyBaselinePositions($where: EmployeePositionBoolExp!) {
+    EmployeePosition(where: $where, orderBy: [{ employeeId: ASC }, { organizationalUnitId: ASC }]) {
+      id
+      employeeId
+      companyId
+      organizationalUnitId
+      organizationalUnit {
+        id
+        name
+      }
+      employee {
+        id
       }
     }
   }

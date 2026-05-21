@@ -6,10 +6,10 @@ export type AccountsTimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'h
 
 export interface AccountsOverTimePoint {
   date: string
+  endDate: string
   count: number
   accountsCreated: number
   accountsWithOpportunities: number
-  accountsActive: number
 }
 
 export interface AccountsOverTimeConfig {
@@ -28,17 +28,6 @@ const buildOpportunityFilter = (config: AccountsOverTimeConfig): string => {
     return `${config.opportunityRelation}: {isDeleted: {_eq: false}}`
   }
   return `${config.opportunityRelation}: {id: {_isNull: false}}`
-}
-
-// Helper function to build active opportunity filter with date range
-const buildActiveOpportunityFilter = (config: AccountsOverTimeConfig, cutoffDate: string): string => {
-  if (config.isJunctionTable) {
-    return `${config.opportunityRelation}: {opportunity: {isDeleted: {_eq: false}, updatedAt: {_gte: "${cutoffDate}"}}}`
-  }
-  if (config.isOpportunityRelationList) {
-    return `${config.opportunityRelation}: {isDeleted: {_eq: false}, updatedAt: {_gte: "${cutoffDate}"}}`
-  }
-  return `${config.opportunityRelation}: {updatedAt: {_gte: "${cutoffDate}"}}`
 }
 
 /**
@@ -66,9 +55,8 @@ export const useGenericAccountsOverTime = (
 
         // Build aggregate queries for each period
         const periodAggregates = periods
-          .map((period: TimePeriod, index: number) => {
-            const ninetyDaysAgo = new Date(new Date(period.end).getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()
-            return `
+          .map(
+            (period: TimePeriod, index: number) => `
           # Accounts created in period ${index}
           accountsCreated_period${index}: ${config.accountEntity}Aggregate(
             where: {
@@ -77,25 +65,16 @@ export const useGenericAccountsOverTime = (
             }
           ) { aggregate { count } }
           
-          # Accounts with opportunities (cumulative up to period end)
+          # Accounts with opportunities created in this period
           accountsWithOpportunities_period${index}: ${config.accountEntity}Aggregate(
             where: {
               isDeleted: {_eq: false}
-              createdAt: {_lt: "${period.end}"}
+              createdAt: {_gte: "${period.start}", _lt: "${period.end}"}
               ${buildOpportunityFilter(config)}
             }
           ) { aggregate { count } }
-          
-          # Active accounts (accounts with opportunities in the last 90 days from period end)
-          accountsActive_period${index}: ${config.accountEntity}Aggregate(
-            where: {
-              isDeleted: {_eq: false}
-              createdAt: {_lt: "${period.end}"}
-              ${buildActiveOpportunityFilter(config, ninetyDaysAgo)}
-            }
-          ) { aggregate { count } }
         `
-          })
+          )
           .join('\n')
 
         const query = `
@@ -110,14 +89,13 @@ export const useGenericAccountsOverTime = (
         const transformedData: AccountsOverTimePoint[] = periods.map((period: TimePeriod, index: number) => {
           const accountsCreated = result[`accountsCreated_period${index}`]?.aggregate?.count || 0
           const accountsWithOpportunities = result[`accountsWithOpportunities_period${index}`]?.aggregate?.count || 0
-          const accountsActive = result[`accountsActive_period${index}`]?.aggregate?.count || 0
 
           return {
             date: period.start,
-            count: accountsCreated, // For backward compatibility
+            endDate: period.end,
+            count: accountsCreated,
             accountsCreated,
-            accountsWithOpportunities,
-            accountsActive
+            accountsWithOpportunities
           }
         })
 

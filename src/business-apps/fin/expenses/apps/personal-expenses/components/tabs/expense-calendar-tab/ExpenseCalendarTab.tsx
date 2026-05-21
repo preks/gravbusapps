@@ -5,7 +5,9 @@ import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetExpensePlans, ExpensePlan } from '../../../hooks/useGetExpensePlans'
 import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpenseRequests'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import personalTranslations from '../../../_i18n'
 import { useDebounce } from '@/common/hooks/useDebounce'
 //
 import CalendarHeader from './components/CalendarHeader'
@@ -35,6 +37,9 @@ dayjs.extend(updateLocale)
 // Status color is handled via nw-design-system Badge variants using existing mapping helpers
 
 const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
+  const { t } = useTranslation(personalTranslations)
+  const unknownStatusLabel = t('expense-calendar-status-unknown')
+
   // Get user locale and configure dayjs + Ant Design locales
   const userLocale = getCurrentActiveUserLocale() || 'en-US'
   const { dayjsLocale, antdLocale } = useCalendarLocale(userLocale)
@@ -195,7 +200,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
   useEffect(() => {
     if (rawExpensePlans && Array.isArray(rawExpensePlans)) {
       const transformedPlans = rawExpensePlans
-        .map(toCalendarItemFromPlan)
+        .map(plan => toCalendarItemFromPlan(plan, unknownStatusLabel))
         .filter((i): i is CalendarExpenseItem => i !== null)
       setCalendarPlanItems(transformedPlans)
 
@@ -206,7 +211,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
         monthCacheRef.current.set(monthKey, { ...cached, plans: transformedPlans })
       }
     }
-  }, [rawExpensePlans, monthKey])
+  }, [rawExpensePlans, monthKey, unknownStatusLabel])
 
   useEffect(() => {
     // Always fetch data for the current month to ensure data consistency
@@ -261,7 +266,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
   useEffect(() => {
     if (rawExpenseRequests && Array.isArray(rawExpenseRequests)) {
       const transformedRequests = rawExpenseRequests
-        .map(toCalendarItemFromRequest)
+        .map(request => toCalendarItemFromRequest(request, unknownStatusLabel))
         .filter((i): i is CalendarExpenseItem => i !== null)
       setCalendarRequestItems(transformedRequests)
 
@@ -272,7 +277,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
         monthCacheRef.current.set(monthKey, { ...cached, requests: transformedRequests })
       }
     }
-  }, [rawExpenseRequests, monthKey])
+  }, [rawExpenseRequests, monthKey, unknownStatusLabel])
 
   const dateCellRender = (value: Dayjs) => (
     <DayCellEvents
@@ -314,10 +319,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
       <FiltersBar active={activeFilters} toggle={toggleFilter} />
       {(isLoadingPlans || isLoadingRequests) && !hasCachedData && (
         <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Spin
-            tip={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.loading_data', 'Loading data...')}
-            size="large"
-          />
+          <Spin tip={t('expense-calendar-loading-data')} size="large" />
         </div>
       )}
       {(plansError || requestsError) && (

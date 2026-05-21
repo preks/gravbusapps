@@ -26,6 +26,9 @@ export interface BudgetSetupPlansTableProps {
   onOpenDepartmentsBreakdown?: (row: BudgetSetupPlanTableRow) => void
   /** Filters rows to this compensation cycle (toolbar selector). */
   selectedCompensationPlanId: string | null
+  editDisabled?: boolean
+  showCycleColumn?: boolean
+  currentSalaryCostByCompanyId?: ReadonlyMap<string, number>
 }
 
 export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
@@ -41,7 +44,10 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
   toolbarEnd,
   onEditRow,
   onOpenDepartmentsBreakdown,
-  selectedCompensationPlanId
+  selectedCompensationPlanId,
+  editDisabled = false,
+  showCycleColumn = true,
+  currentSalaryCostByCompanyId = new Map()
 }) => {
   const { t } = useTranslation(translations)
   const {
@@ -70,7 +76,10 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
     onEditRow,
     selectedCompensationPlanId,
     companies,
-    showCompanyColumn
+    showCompanyColumn,
+    editDisabled,
+    showCycleColumn,
+    currentSalaryCostByCompanyId
   )
 
   return (

@@ -2,6 +2,12 @@ import { SCREEN_NAMES_ENUM } from '../constants/constants'
 import dayjs from 'dayjs'
 import { noAllowanceItemsFunction } from './itemsScreenUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  applyEffectiveCostCenterToRows,
+  resolveInheritedOrSelectedCostCenterId,
+  resolveItemCostCenterId,
+  resolveMainCostCenterId
+} from '../../shared/utils/effectiveCostCenter'
 
 interface ExpenseItem {
   id: any
@@ -37,6 +43,11 @@ export const createAllowanceScreenLogObject = (
   existingDeductions: any[],
   event: string
 ) => {
+  const effectiveCostCenterId = resolveMainCostCenterId(
+    expenseRequestData?.EmployeePosition,
+    initialRequest?.costCenterId || '',
+    initialRequest?.additionalProperties
+  )
   // Map allowance items
   const allowanceItems: ExpenseItem[] = expenseItems.map(item => ({
     id: item.id,
@@ -44,7 +55,7 @@ export const createAllowanceScreenLogObject = (
     code: item.code || '',
     title: item.title || '',
     expenseRequest: initialRequest?.id || '',
-    costCenter: item.costCenterId || '',
+    costCenter: resolveItemCostCenterId(item, effectiveCostCenterId, initialRequest?.costCenterId || ''),
     project: item.projectId || '',
     expenseGroupRef: item.expenseGroupRef || '',
     source: item.source || '',
@@ -61,7 +72,7 @@ export const createAllowanceScreenLogObject = (
       title: item.title || '',
       ruleId: item.expenseRuleId || '',
       expenseRequest: initialRequest?.id || '',
-      costCenter: item.costCenterId || '',
+      costCenter: resolveItemCostCenterId(item, effectiveCostCenterId, initialRequest?.costCenterId || ''),
       project: item.projectId || '',
       expenseGroupRef: item.expenseGroupRef || '',
       source: item.source || '',
@@ -93,7 +104,11 @@ export const createAllowanceScreenLogObject = (
         expenseDate: item.expenseDate,
         travelRegionRef: item.travelRegionRef || existing?.travelRegionRef || '',
         expenseRequest: item.expenseRequestId ?? item.expenseRequest.id,
-        costCenter: item.costCenterId,
+        costCenter: resolveInheritedOrSelectedCostCenterId(
+          item.costCenterId,
+          effectiveCostCenterId,
+          initialRequest?.costCenterId || ''
+        ),
         project: item.projectId,
         id: deductionDay.id ?? null,
         version: deductionDay.id ? (deductionDay.version ?? 0) : 0
@@ -117,7 +132,7 @@ export const createAllowanceScreenLogObject = (
       endDate: initialRequest?.endDate || '',
       expenseRule: employeeRuleId || '',
       version: initialRequest?.version || 0,
-      costCenter: initialRequest?.costCenterId || '',
+      costCenter: effectiveCostCenterId,
       employee: initialRequest?.employeeId || '',
       expensePlan: initialRequest?.expensePlanId || '',
       title: currentTitle || initialRequest?.title || '',
@@ -132,7 +147,10 @@ export const createAllowanceScreenLogObject = (
       expenseItems: expenseItemsArray
     },
     expenseRequestTrips: {
-      expenseTrips: expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip || []
+      expenseTrips: applyEffectiveCostCenterToRows(
+        expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip,
+        effectiveCostCenterId
+      )
     },
     travelBreakdownWrapper: {
       travelBreakdowns: travelBreakdowns

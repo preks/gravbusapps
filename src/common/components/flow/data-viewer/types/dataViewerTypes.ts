@@ -9,7 +9,7 @@ export interface DataEntityColumn {
 }
 
 export interface DataEntityNodeData {
-  entityKey: string
+  entityName: string
   displayName?: string
   publishState?: string
   columns: DataEntityColumn[]

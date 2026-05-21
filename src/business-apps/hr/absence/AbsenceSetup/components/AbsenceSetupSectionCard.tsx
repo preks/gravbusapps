@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MagnifyingGlassIcon } from '@phosphor-icons/react'
-import { Info, Pencil, Plus, Trash2 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { InfoIcon, MagnifyingGlassIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
+import type { Icon as PhosphorIcon } from '@phosphor-icons/react'
 import {
   Alert,
   AlertDescription,
@@ -75,7 +74,7 @@ const compareSortValues = (
 }
 
 interface AbsenceSetupSectionCardProps {
-  icon: LucideIcon
+  icon: typeof PhosphorIcon
   title: string
   description: string
   addLabel: string
@@ -229,7 +228,7 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
                 data-testid={addButtonTestId}
                 className="gba:w-full gba:gap-2 gba:lg:w-auto"
               >
-                <Plus className="gba:h-4 gba:w-4" />
+                <PlusIcon className="gba:h-4 gba:w-4" />
                 {addLabel}
               </Button>
             </div>
@@ -324,7 +323,7 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
                       className={`gba:flex gba:w-full gba:flex-wrap gba:items-start gba:justify-between gba:gap-4 gba:rounded-xl gba:border gba:p-4 gba:text-left gba:transition-colors ${
                         item.id === selectedItem?.id
                           ? 'gba:border-primary gba:bg-primary/5'
-                          : 'gba:border-border gba:bg-background hover:gba:bg-muted/30'
+                          : 'gba:border-border gba:bg-background gba:hover:bg-muted/30'
                       } ${item.canEdit === false ? 'gba:opacity-80' : ''}`}
                       data-testid={`${cardTestId}-item-${item.id}`}
                     >
@@ -368,7 +367,7 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
                           data-testid={`${cardTestId}-edit-${item.id}`}
                           aria-label={editLabel}
                         >
-                          <Pencil className="gba:h-4 gba:w-4" />
+                          <PencilSimpleIcon className="gba:h-4 gba:w-4" />
                         </Button>
                         {showDeleteAction && (
                           <Button
@@ -384,7 +383,7 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
                             className="gba:text-destructive gba:hover:text-destructive"
                             aria-label={deleteLabel}
                           >
-                            <Trash2 className="gba:h-4 gba:w-4" />
+                            <TrashIcon className="gba:h-4 gba:w-4" />
                           </Button>
                         )}
                       </div>
@@ -400,7 +399,7 @@ export const AbsenceSetupSectionCard: React.FC<AbsenceSetupSectionCardProps> = (
                     <div className="gba:space-y-4">
                       <div className="gba:flex gba:items-start gba:gap-3">
                         <div className="gba:flex gba:h-10 gba:w-10 gba:items-center gba:justify-center gba:rounded-xl gba:bg-background">
-                          <Info className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                          <InfoIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
                         </div>
                         <div className="gba:min-w-0 gba:flex-1">
                           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">

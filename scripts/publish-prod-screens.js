@@ -12,7 +12,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import dotenv from '@dotenvx/dotenvx'
 import { BlobServiceClient } from '@azure/storage-blob'
-import { getAllNativeScreens, syncScreenFromDevToProd } from './api-client.js'
+import { getAllNativeScreens, syncScreenFromDevToProd, deleteProdNativeScreensByComponentPaths } from './api-client.js'
 import { getScreenDirectories } from './utils/screenDiscovery.js'
 import { compareScreenHashes, loadHashFile, saveHashFile, configureGit } from './utils/componentHashUtils.js'
 import { logPhase } from './utils/logPhase.js'
@@ -229,8 +229,13 @@ async function promoteReleaseCandidateScreen(screenPath) {
   return rcVersion
 }
 
-// Helper function to handle comprehensive screen synchronization
-async function handleComprehensiveScreenSyncForTarget(changedScreens, target, versionByComponentPath) {
+/**
+ * @param {string[]} changedScreens
+ * @param {object} target
+ * @param {Record<string, string>} versionByComponentPath
+ * @param {object[]} devScreens - full dev NATIVE_SCREEN list; caller must fetch once (e.g. per `publish-prod-screens` run)
+ */
+async function handleComprehensiveScreenSyncForTarget(changedScreens, target, versionByComponentPath, devScreens) {
   console.log('Starting comprehensive screen synchronization from dev to prod...')
   console.log(`Changed screens to process: ${changedScreens.length}`)
 
@@ -250,10 +255,6 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target, ve
   }
 
   try {
-    // Fetch all NATIVE_SCREEN screens from dev environment (done once for efficiency)
-    console.log('\nFetching all NATIVE_SCREEN screens from dev environment...')
-    const devScreens = await getAllNativeScreens(process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API, {})
-
     if (devScreens.length === 0) {
       console.log('   No NATIVE_SCREEN screens found in dev environment')
       return { success: true, processedScreens: 0, syncedScreens: 0, failedSyncScreens: [] }
@@ -304,6 +305,25 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target, ve
       console.log('   No screens match the changed component paths')
       return { success: true, processedScreens: 0, syncedScreens: 0, failedSyncScreens: [] }
     }
+
+    const pathsToPurge = [
+      ...new Set(
+        matchingScreens
+          .map(s => s.screenComponents?.formDefinition?.componentPath?.replace(/^\//, '').trim())
+          .filter(Boolean)
+      )
+    ]
+    const keysToPurge = [...new Set(matchingScreens.map(s => s.screenKey).filter(Boolean))]
+    console.log('\nPurging prod NATIVE_SCREEN rows before sync (componentPath ∪ dev screenKey):')
+    console.log(`   Paths: ${pathsToPurge.join(', ')}`)
+    console.log(`   Screen keys: ${keysToPurge.join(', ')}`)
+    const purge = await deleteProdNativeScreensByComponentPaths(
+      pathsToPurge,
+      target.services.screenManagementApi,
+      prodOauthConfig,
+      keysToPurge
+    )
+    console.log(`   Purged ${purge.deleted} prod screen(s) (${purge.matched} matched)`)
 
     let syncedScreens = 0
     let failedSyncScreens = []
@@ -577,9 +597,18 @@ async function main() {
   if (screensForSync.length > 0) {
     logPhase(`SCREEN SYNC (${screensForSync.length} promoted screen(s))`)
 
+    console.log('\nFetching all NATIVE_SCREEN screens from dev (once per publish-prod-screens run)...')
+    const devScreensForSync = await getAllNativeScreens(process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API, {})
+    console.log(`   Fetched ${devScreensForSync.length} dev NATIVE_SCREEN screen(s)`)
+
     for (const target of targets) {
       console.log(`\nTarget: ${target.label.toUpperCase()} | ScreenMgmt: ${target.services.screenManagementApi}`)
-      const result = await handleComprehensiveScreenSyncForTarget(screensForSync, target, rcVersionsByScreen)
+      const result = await handleComprehensiveScreenSyncForTarget(
+        screensForSync,
+        target,
+        rcVersionsByScreen,
+        devScreensForSync
+      )
       comprehensiveSyncResults.push({ label: target.label, result })
       if (result.success) {
         console.log(`[${target.label}] Comprehensive sync completed successfully.`)

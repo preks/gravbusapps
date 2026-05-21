@@ -52,7 +52,20 @@ export const useDatasetQuery = <T>(
         setError(null)
       }
 
-      const ds = await datasetClient.executeQuery(queryName, queryType, paramsRef.current)
+      const cacheKey = `${accessToken}|${queryType}|${queryName}|${paramsString}`
+      const inFlightRequests: Map<string, Promise<any>> = (useDatasetQuery as any).__inFlightRequests ||
+      ((useDatasetQuery as any).__inFlightRequests = new Map())
+
+      let requestPromise = inFlightRequests.get(cacheKey)
+      if (!requestPromise) {
+        requestPromise = datasetClient.executeQuery(queryName, queryType, paramsRef.current)
+        inFlightRequests.set(cacheKey, requestPromise)
+      }
+
+      const ds = await requestPromise.finally(() => {
+        // Only dedupe simultaneous requests; allow future explicit refetches.
+        inFlightRequests.delete(cacheKey)
+      })
 
       if (!ds?.data || !Array.isArray(ds.data)) {
         throw new Error(`[${errorPrefix}] Invalid response structure from dataset API`)

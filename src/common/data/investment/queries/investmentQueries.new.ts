@@ -6,8 +6,11 @@
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
-import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
-import { INVESTMENT_ACCOUNT_REF, INVESTMENT_OPPORTUNITY_REF } from './fragments/investmentReferenceFragments'
+import {
+  INVESTMENT_ACCOUNT_REF,
+  INVESTMENT_COMPANY_REF,
+  INVESTMENT_OPPORTUNITY_REF
+} from './fragments/investmentReferenceFragments'
 import { InvestmentFields } from '../types/investmentTypes.new'
 import { EquityInvestmentFields } from '../types/equityInvestmentTypes'
 import { RealEstateInvestmentFields } from '../types/realEstateInvestmentTypes'
@@ -62,7 +65,7 @@ export const INVESTMENT_QUERY_CONFIGS: Record<string, string[]> = {
     'acquisitionDate',
     'additionalProperties',
     'code',
-    'company',
+    'investmentCompany',
     'createdAt',
     'createdBy',
     'currency',
@@ -346,7 +349,13 @@ export const buildInvestmentFragment = (fields: string[]): string => {
     
     ${buildEntityReferenceField(fieldSet, 'investmentOpportunity', 'investmentOpportunityId', InvestmentFields.investmentOpportunity, INVESTMENT_OPPORTUNITY_REF)}
     
-    ${buildEntityReferenceField(fieldSet, 'company', 'companyId', InvestmentFields.company, COMPANY_REF)}
+    ${buildEntityReferenceField(
+      fieldSet,
+      'investmentCompany',
+      'investmentCompanyId',
+      InvestmentFields.investmentCompany,
+      INVESTMENT_COMPANY_REF
+    )}
     
     ${buildEntityReferenceField(fieldSet, 'loanRecipientInvestmentAccount', 'loanRecipientInvestmentAccountId', InvestmentFields.loanRecipientInvestmentAccount, INVESTMENT_ACCOUNT_REF)}
     

@@ -4,6 +4,7 @@ import type { WhiteboardSummary } from '../types'
 
 interface UseWhiteboardsOptions {
   accessToken: string
+  section?: 'favorites'
   search?: string
   includeShared?: boolean
   page?: number
@@ -28,6 +29,7 @@ interface UseWhiteboardsReturn {
 export function useWhiteboards(options: UseWhiteboardsOptions): UseWhiteboardsReturn {
   const {
     accessToken,
+    section,
     search,
     includeShared = true,
     page = 1,
@@ -51,7 +53,7 @@ export function useWhiteboards(options: UseWhiteboardsOptions): UseWhiteboardsRe
     setIsLoading(true)
     setError(null)
 
-    WhiteboardApiService.list(accessToken, { search, includeShared, page, limit, sortBy, sortOrder })
+    WhiteboardApiService.list(accessToken, { section, search, includeShared, page, limit, sortBy, sortOrder })
       .then(result => {
         if (cancelled) return
         setWhiteboards(result.items)
@@ -69,7 +71,7 @@ export function useWhiteboards(options: UseWhiteboardsOptions): UseWhiteboardsRe
     return () => {
       cancelled = true
     }
-  }, [accessToken, search, includeShared, page, limit, sortBy, sortOrder, refreshKey])
+  }, [accessToken, section, search, includeShared, page, limit, sortBy, sortOrder, refreshKey])
 
   const createWhiteboard = useCallback(
     async (title: string): Promise<string | null> => {

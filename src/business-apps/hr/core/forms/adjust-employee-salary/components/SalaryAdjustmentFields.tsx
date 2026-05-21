@@ -5,7 +5,6 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  DateInput,
   Select,
   SelectTrigger,
   SelectValue,
@@ -20,6 +19,7 @@ import type { AdjustEmployeeSalaryFormValues } from '../types'
 import { getCatalogValue } from '@/common/utils/windowUtils'
 import translations from '../../_i18n'
 import { SALARY_FORM_VALIDATION } from '../constants/salaryFormValidation'
+import EffectiveDateField from './EffectiveDateField'
 
 interface SalaryAdjustReasonEntry {
   id: string
@@ -86,60 +86,38 @@ const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({
   return (
     <>
       {/* Effective Date - Restrict to 6 months for adjustments, open for new assignments */}
-      <FormField
+      <EffectiveDateField
         control={control}
-        name={'effectiveDate' as Path<AdjustEmployeeSalaryFormValues>}
-        rules={{
-          required: t('adjust-salary-effective-date-required'),
-          validate: value => {
-            if (!value) return true
-            const selectedDate = new Date(value)
-            const sixMonthsAgo = new Date()
-            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-            sixMonthsAgo.setHours(0, 0, 0, 0)
-
-            // Only validate for adjust mode
-            if (!isAssignMode && selectedDate < sixMonthsAgo) {
-              return t('adjust-salary-effective-date-too-old', {
-                defaultValue: 'Effective date cannot be more than 6 months in the past'
+        label={t('adjust-salary-effective-date')}
+        requiredMessage={t('adjust-salary-effective-date-required')}
+        monthStartMessage={t('adjust-salary-effective-date-month-start', {
+          defaultValue: 'Only the first day of a month can be selected.'
+        })}
+        placeholder={placeholderSelect}
+        labelTestId="adjust-employee-salary-effective-date-label"
+        inputTestId="adjust-employee-salary-effective-date-input"
+        min={minDate}
+        helperText={
+          !isAssignMode
+            ? t('adjust-salary-effective-date-helper', {
+                defaultValue: 'Date must be within the last 6 months'
               })
-            }
-            return true
+            : undefined
+        }
+        extraValidate={value => {
+          const selectedDate = new Date(value)
+          const sixMonthsAgo = new Date()
+          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+          sixMonthsAgo.setHours(0, 0, 0, 0)
+
+          if (!isAssignMode && selectedDate < sixMonthsAgo) {
+            return t('adjust-salary-effective-date-too-old', {
+              defaultValue: 'Effective date cannot be more than 6 months in the past'
+            })
           }
+
+          return true
         }}
-        render={({ field, fieldState }) => (
-          <FormItem>
-            <FormLabel data-testid="adjust-employee-salary-effective-date-label">
-              {t('adjust-salary-effective-date')}
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <FormControl>
-              <div data-testid="adjust-employee-salary-effective-date-input">
-                <DateInput
-                  type="date"
-                  value={(field.value as string) || ''}
-                  onChange={(v: string | [string | null, string | null] | null) => {
-                    const value = typeof v === 'string' ? v : ''
-                    field.onChange(value)
-                    // Trigger validation immediately after calendar selection
-                    field.onBlur()
-                  }}
-                  placeholder={placeholderSelect}
-                  className="gba:w-full"
-                  min={minDate}
-                />
-              </div>
-            </FormControl>
-            {!isAssignMode && !fieldState.error && (
-              <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                {t('adjust-salary-effective-date-helper', {
-                  defaultValue: 'Date must be within the last 6 months'
-                })}
-              </p>
-            )}
-            <FormMessage />
-          </FormItem>
-        )}
       />
 
       {/* Reason */}

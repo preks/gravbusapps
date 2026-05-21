@@ -4,19 +4,20 @@ import { useGenericOpportunitiesByStage } from '@/common/components/common-relat
 /**
  * CRM-specific wrapper for useGenericOpportunitiesByStage
  */
-export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string) => {
+export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string, activeOnly = false) => {
   const config = useMemo(
     () => ({
       opportunityEntity: 'Opportunity',
       opportunityAggregate: 'OpportunityAggregate',
       pipelineStageField: 'salesPipelineStage',
       pipelineStageRefField: 'salesPipelineStageRef',
-      pipelineField: 'salesPipeline'
+      pipelineField: 'salesPipeline',
+      statusFilterField: 'code' as const
     }),
     []
   )
 
-  return useGenericOpportunitiesByStage(accessToken, config, pipelineId)
+  return useGenericOpportunitiesByStage(accessToken, config, pipelineId, activeOnly)
 }
 
 export type { StageItem } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericOpportunitiesByStage'

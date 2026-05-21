@@ -286,6 +286,8 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
                 accessToken={accessToken}
                 employeeId={employeeId}
                 userInfo={userInfo}
+                isSelfView={isSelfView}
+                employeeRecordHrBackoffice={employeeRecordHrBackoffice}
                 showChangeTaxDetailsButton={
                   !employeeRecordAllHrBackoffice.loading && employeeRecordAllHrBackoffice.hasPermission === true
                 }

@@ -90,6 +90,17 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
   const formatTime = (iso?: string) =>
     iso ? new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '-'
 
+  const getRowClassName = (entry: TimeEntry): string | undefined => {
+    const classes: string[] = []
+    if (entry.isPlaceholder || entry.isBeforeHireDate) {
+      classes.push('gba:text-muted-foreground')
+    }
+    if (entry.isBeforeHireDate) {
+      classes.push('gba:bg-muted gba:opacity-60')
+    }
+    return classes.length > 0 ? classes.join(' ') : undefined
+  }
+
   const formatDate = (iso: string): string => {
     const d = new Date(iso)
     const loc = String(locale || 'en-US').toLowerCase()
@@ -174,11 +185,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
             </TableRow>
           ) : (
             entries.map(e => (
-              <TableRow
-                key={e.id}
-                data-testid={`time-tracking-table-row-${e.id}`}
-                className={e.isPlaceholder ? 'gba:text-muted-foreground' : undefined}
-              >
+              <TableRow key={e.id} data-testid={`time-tracking-table-row-${e.id}`} className={getRowClassName(e)}>
                 <TableCell data-testid={`time-tracking-table-date-cell-${e.id}`}>
                   {formatDate(e.attendanceDateISO)}
                 </TableCell>
@@ -235,7 +242,10 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                   )}
                 </TableCell>
                 <TableCell className="gba:py-1.5 gba:px-2 gba:align-middle">
-                  {!e.isPlaceholder && e.status !== 'under_review' && e.status !== 'in_progress' ? (
+                  {!e.isPlaceholder &&
+                  !e.isBeforeHireDate &&
+                  e.status !== 'under_review' &&
+                  e.status !== 'in_progress' ? (
                     <div className="gba:flex gba:items-center gba:justify-start gba:scale-[0.65] gba:origin-left">
                       <AppActionButton
                         data-testid={`time-tracking-update-button-${e.id}`}

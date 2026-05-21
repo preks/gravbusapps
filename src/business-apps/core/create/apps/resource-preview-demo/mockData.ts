@@ -108,16 +108,16 @@ function buildFunctionMock(spec: NonNullable<ComponentSpec['functionSpec']>, id:
 
 function buildDataModelMock(spec: NonNullable<ComponentSpec['dataModelSpec']>): DemoMockResult {
   const columns = (spec.fields ?? []).map(f => ({
-    name: f.name,
+    fieldName: f.name,
     label: f.label,
     type: fieldTypeLabel(f.type),
     required: f.required,
     options: (f as { options?: { value: string; label: string }[] }).options
   }))
   const definition: DataModelPreviewDefinition = {
-    key: spec.identifier ?? spec.name.toLowerCase().split(/\s+/).join('_'),
+    entityName: spec.identifier,
     namespace: spec.namespace ?? 'default',
-    display_name: spec.name,
+    displayName: spec.name,
     description: spec.description,
     columns
   }

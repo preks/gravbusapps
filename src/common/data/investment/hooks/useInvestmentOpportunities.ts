@@ -65,6 +65,11 @@ export interface InvestmentOpportunityByIdData {
   opportunity?: InvestmentOpportunity
 }
 
+export interface InvestmentOpportunityListData {
+  opportunities: InvestmentOpportunity[]
+  total: number
+}
+
 export interface InvestmentOpportunityAggregateResponse {
   InvestmentOpportunityAggregate: {
     aggregate: {
@@ -92,6 +97,16 @@ function buildInvestmentOpportunityCustomConditions(
   variables: InvestmentOpportunityQueryVariables
 ): Record<string, any>[] {
   const conditions: Record<string, any>[] = []
+
+  // Exclude WON and LOST (open pipeline drill-down)
+  if (variables.activeOnly) {
+    conditions.push({ opportunityStatus: { type: { _nin: ['WON', 'LOST'] } } })
+  }
+
+  // Filter by specific status types (Won or Lost bucket drill-down)
+  if (variables.opportunityStatusTypesIn?.length) {
+    conditions.push({ opportunityStatus: { type: { _in: variables.opportunityStatusTypesIn } } })
+  }
 
   if (variables.dealType) {
     conditions.push({ dealType: { _eq: variables.dealType } })
@@ -180,7 +195,9 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
     async (variables: InvestmentOpportunityQueryVariables = {}) => {
       const query = buildInvestmentOpportunityQuery()
       const customConditions = buildInvestmentOpportunityCustomConditions(variables)
-      const whereCondition = buildInvestmentOpportunityWhereCondition(variables, [], customConditions)
+      const statusOverrideActive = variables.activeOnly || (variables.opportunityStatusTypesIn?.length ?? 0) > 0
+      const whereVariables = statusOverrideActive ? { ...variables, opportunityStatusIds: undefined } : variables
+      const whereCondition = buildInvestmentOpportunityWhereCondition(whereVariables, [], customConditions)
       const orderBy = buildInvestmentOpportunityOrderBy(variables.orderBy || [])
 
       const graphQLVariables: Record<string, any> = {
@@ -215,7 +232,9 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
   const fetchInvestmentOpportunityAggregates = useCallback(
     async (variables: InvestmentOpportunityQueryVariables = {}): Promise<InvestmentOpportunityAggregatesResult> => {
       const customConditions = buildInvestmentOpportunityCustomConditions(variables)
-      const whereCondition = buildInvestmentOpportunityWhereCondition(variables, [], customConditions)
+      const statusOverrideActive = variables.activeOnly || (variables.opportunityStatusTypesIn?.length ?? 0) > 0
+      const whereVariables = statusOverrideActive ? { ...variables, opportunityStatusIds: undefined } : variables
+      const whereCondition = buildInvestmentOpportunityWhereCondition(whereVariables, [], customConditions)
 
       try {
         const result = await graphqlClient.request<{
@@ -293,7 +312,15 @@ export interface UseInvestmentOpportunitiesListResult {
   total: number
   loading: boolean
   error: string | null
-  refetch: (variables?: InvestmentOpportunityQueryVariables) => Promise<void>
+  refetch: (variables?: InvestmentOpportunityQueryVariables) => Promise<InvestmentOpportunityListData>
+  /**
+   * Imperative fetch that does NOT touch the hook's internal state.
+   * Use this when you need to fetch with arbitrary variables (e.g. drill-down panels)
+   * without triggering parent re-renders from the hook's state updates.
+   */
+  fetchInvestmentOpportunities: (
+    variables?: InvestmentOpportunityQueryVariables
+  ) => Promise<InvestmentOpportunityListData>
 }
 
 export function useInvestmentOpportunitiesList(
@@ -313,10 +340,10 @@ export function useInvestmentOpportunitiesList(
   })
 
   const fetchOpportunities = useCallback(
-    async (queryVariables?: InvestmentOpportunityQueryVariables) => {
+    async (queryVariables?: InvestmentOpportunityQueryVariables): Promise<InvestmentOpportunityListData> => {
       if (!context.accessToken) {
         setState(prev => ({ ...prev, loading: false }))
-        return
+        return { opportunities: [], total: 0 }
       }
 
       setState(prev => ({ ...prev, loading: true, error: null }))
@@ -325,50 +352,11 @@ export function useInvestmentOpportunitiesList(
         const vars = { ...stableVariables, ...queryVariables }
         const query = buildInvestmentOpportunityQuery()
 
-        const customConditions: Record<string, any>[] = []
+        const customConditions = buildInvestmentOpportunityCustomConditions(vars)
+        const statusOverrideActive = vars.activeOnly || (vars.opportunityStatusTypesIn?.length ?? 0) > 0
+        const whereVariables = statusOverrideActive ? { ...vars, opportunityStatusIds: undefined } : vars
 
-        if (vars.dealType) {
-          customConditions.push({ dealType: { _eq: vars.dealType } })
-        }
-        if (vars.accountSearch?.trim()) {
-          customConditions.push({ account: { name: { _ilike: `%${vars.accountSearch.trim()}%` } } })
-        }
-
-        // Custom ranged filters for estimatedAmount (treat null as 0)
-        if (vars.estimatedAmountRanges?.length) {
-          const orConditions = vars.estimatedAmountRanges.flatMap(range => {
-            const conditions: any[] = []
-            const amountCondition: any = {}
-
-            if (range.min !== undefined) amountCondition._gte = range.min
-            if (range.max !== undefined) amountCondition._lte = range.max
-
-            if (Object.keys(amountCondition).length > 0) {
-              conditions.push({ estimatedAmount: amountCondition })
-            }
-
-            // If range includes 0, also include null values (null treated as 0)
-            const includesZero =
-              (range.min === undefined || range.min === 0) && (range.max === undefined || range.max >= 0)
-            if (includesZero) {
-              conditions.push({ estimatedAmount: { _isNull: true } })
-            }
-
-            return conditions
-          })
-          customConditions.push({ _or: orConditions })
-        }
-
-        if (vars.forecastedProfitBetween) {
-          customConditions.push({
-            forecastedProfitAmount: {
-              _gte: vars.forecastedProfitBetween[0],
-              _lte: vars.forecastedProfitBetween[1]
-            }
-          })
-        }
-
-        const whereCondition = buildInvestmentOpportunityWhereCondition(vars, [], customConditions)
+        const whereCondition = buildInvestmentOpportunityWhereCondition(whereVariables, [], customConditions)
         const orderBy = buildInvestmentOpportunityOrderBy(vars.orderBy || [])
 
         const graphQLVariables: Record<string, any> = {
@@ -383,6 +371,7 @@ export function useInvestmentOpportunitiesList(
         const total = result.InvestmentOpportunityAggregate?.aggregate?.count || 0
 
         setState({ opportunities, total, loading: false, error: null })
+        return { opportunities, total }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment opportunities'
 
@@ -393,6 +382,7 @@ export function useInvestmentOpportunitiesList(
           loading: false,
           error: errorMessage
         }))
+        return { opportunities: [], total: 0 }
       }
     },
     [context.accessToken, graphqlClient, stableVariables]
@@ -402,9 +392,46 @@ export function useInvestmentOpportunitiesList(
     fetchOpportunities()
   }, [fetchOpportunities])
 
+  const fetchInvestmentOpportunities = useCallback(
+    async (queryVariables?: InvestmentOpportunityQueryVariables): Promise<InvestmentOpportunityListData> => {
+      if (!context.accessToken) {
+        return { opportunities: [], total: 0 }
+      }
+
+      const vars = { ...stableVariables, ...queryVariables }
+      const query = buildInvestmentOpportunityQuery()
+      const customConditions = buildInvestmentOpportunityCustomConditions(vars)
+
+      const statusOverrideActive = vars.activeOnly || (vars.opportunityStatusTypesIn?.length ?? 0) > 0
+      const whereVariables = statusOverrideActive ? { ...vars, opportunityStatusIds: undefined } : vars
+
+      const whereCondition = buildInvestmentOpportunityWhereCondition(whereVariables, [], customConditions)
+      const orderBy = buildInvestmentOpportunityOrderBy(vars.orderBy || [])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(vars.limit ?? 50, 100),
+        offset: vars.offset ?? 0,
+        where: whereCondition,
+        orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<InvestmentOpportunityQueryResponse>(query, graphQLVariables)
+        const opportunities = result.InvestmentOpportunity.map(toInvestmentOpportunity)
+        const total = result.InvestmentOpportunityAggregate?.aggregate?.count || 0
+        return { opportunities, total }
+      } catch (error) {
+        console.error('Error fetching investment opportunities:', error instanceof Error ? error.message : error)
+        return { opportunities: [], total: 0 }
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
   return {
     ...state,
-    refetch: fetchOpportunities
+    refetch: fetchOpportunities,
+    fetchInvestmentOpportunities
   }
 }
 

@@ -13,6 +13,7 @@ of_planned = of { $planned }
 location_label = LOCATION
 location_not_clocked_in = Not Clocked In
 location_placeholder = Please clock in to determine location
+clock_in_before_hire_date = Clock-in is available from your hire date.
 location_address_review_warning = Address needs review for accurate location detection. Please update your home or office address.
 location_address_review_warning_home = Your home address is missing coordinates. Please update it for accurate location detection.
 location_address_review_warning_office = Your office address is missing coordinates. Ask an admin to update it for accurate location detection.

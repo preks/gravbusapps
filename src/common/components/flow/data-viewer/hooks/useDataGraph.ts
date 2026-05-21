@@ -145,7 +145,7 @@ export function buildDataGraph(entities: DataGraphEntityInput[], options?: DataG
     type: 'entity' as const,
     position: { x: 0, y: 0 },
     data: {
-      entityKey: entity.key,
+      entityName: entity.key,
       displayName: entity.displayName,
       publishState: entity.publishState,
       columns: entity.columns,

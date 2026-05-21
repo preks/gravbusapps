@@ -11,6 +11,33 @@ import { formatOrgUnitBudgetStatusLabelForDisplay } from './budgetSetupDisplayUt
 import type { TranslateFn } from './budgetSetupDisplayUtils'
 import { buildSubmissionsOrgUnitFilterConfiguration } from './buildSubmissionsOrgUnitFilterConfiguration'
 
+function parseOptionalNumberRange(value: unknown): { min?: number; max?: number } | null {
+  if (value == null || typeof value !== 'object') {
+    return null
+  }
+  const o = value as { min?: unknown; max?: unknown }
+  const min = typeof o.min === 'number' && !Number.isNaN(o.min) ? o.min : undefined
+  const max = typeof o.max === 'number' && !Number.isNaN(o.max) ? o.max : undefined
+  if (min === undefined && max === undefined) {
+    return null
+  }
+  return { min, max }
+}
+
+function matchesNumberRange(value: number | null, range: { min?: number; max?: number } | null): boolean {
+  if (range == null) {
+    return true
+  }
+  const n = value ?? 0
+  if (range.min !== undefined && n < range.min) {
+    return false
+  }
+  if (range.max !== undefined && n > range.max) {
+    return false
+  }
+  return true
+}
+
 export function useSubmissionsOrgUnitTableModel(
   t: TranslateFn,
   sourceRows: SubmissionsOrgUnitTableRow[],
@@ -21,6 +48,9 @@ export function useSubmissionsOrgUnitTableModel(
   const [searchInput, setSearchInput] = useState('')
   const debouncedSearch = useDebounce(searchInput, 300)
   const [selectedOrgUnitBudgetStatuses, setSelectedOrgUnitBudgetStatuses] = useState<string[]>([])
+  const [salaryBudgetAmountRange, setSalaryBudgetAmountRange] = useState<{ min?: number; max?: number } | null>(null)
+  const [allocationAmountRange, setAllocationAmountRange] = useState<{ min?: number; max?: number } | null>(null)
+  const [poolShareRange, setPoolShareRange] = useState<{ min?: number; max?: number } | null>(null)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'organizationalUnitName', desc: false }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => [
@@ -30,20 +60,23 @@ export function useSubmissionsOrgUnitTableModel(
   const formatStatus = useCallback((v: string) => formatOrgUnitBudgetStatusLabelForDisplay(v, t) || v, [t])
 
   const orgUnitBudgetStatusOptions = useMemo(() => {
-    const ids = new Set<string>()
+    const statusCounts = new Map<string, number>()
     for (const row of sourceRows) {
       if (row.budgetPlanStatus) {
-        ids.add(row.budgetPlanStatus)
+        statusCounts.set(row.budgetPlanStatus, (statusCounts.get(row.budgetPlanStatus) ?? 0) + 1)
       }
     }
-    return [...ids]
+    return [...statusCounts.keys()]
       .sort((a, b) => a.localeCompare(b))
-      .map(id => ({ id, label: formatOrgUnitBudgetStatusLabelForDisplay(id, t) || id }))
+      .map(id => {
+        const label = formatOrgUnitBudgetStatusLabelForDisplay(id, t) || id
+        return { id, label: `${label} (${statusCounts.get(id) ?? 0})` }
+      })
   }, [sourceRows, t])
 
   const filterConfiguration = useMemo(
-    () => buildSubmissionsOrgUnitFilterConfiguration(t, orgUnitBudgetStatusOptions),
-    [t, orgUnitBudgetStatusOptions]
+    () => buildSubmissionsOrgUnitFilterConfiguration(t, orgUnitBudgetStatusOptions, sourceRows),
+    [t, orgUnitBudgetStatusOptions, sourceRows]
   )
 
   const filteredRows = useMemo(() => {
@@ -72,12 +105,37 @@ export function useSubmissionsOrgUnitTableModel(
       list = list.filter(row => row.budgetPlanStatus != null && set.has(row.budgetPlanStatus))
     }
 
+    if (salaryBudgetAmountRange != null) {
+      list = list.filter(row => matchesNumberRange(row.salaryBudgetAmount, salaryBudgetAmountRange))
+    }
+
+    if (allocationAmountRange != null) {
+      list = list.filter(row => matchesNumberRange(row.allocationAmount, allocationAmountRange))
+    }
+
+    if (poolShareRange != null) {
+      list = list.filter(row => matchesNumberRange(row.allocationShareOfCompanyPoolPercent, poolShareRange))
+    }
+
     return list
-  }, [sourceRows, debouncedSearch, selectedOrgUnitBudgetStatuses, t])
+  }, [
+    sourceRows,
+    debouncedSearch,
+    selectedOrgUnitBudgetStatuses,
+    salaryBudgetAmountRange,
+    allocationAmountRange,
+    poolShareRange,
+    t
+  ])
 
   const hasActiveFilters = useMemo(
-    () => debouncedSearch.trim() !== '' || selectedOrgUnitBudgetStatuses.length > 0,
-    [debouncedSearch, selectedOrgUnitBudgetStatuses]
+    () =>
+      debouncedSearch.trim() !== '' ||
+      selectedOrgUnitBudgetStatuses.length > 0 ||
+      salaryBudgetAmountRange != null ||
+      allocationAmountRange != null ||
+      poolShareRange != null,
+    [allocationAmountRange, debouncedSearch, poolShareRange, salaryBudgetAmountRange, selectedOrgUnitBudgetStatuses]
   )
 
   const emptyMessage = useMemo(() => {
@@ -101,12 +159,24 @@ export function useSubmissionsOrgUnitTableModel(
     if (selectedOrgUnitBudgetStatuses.length > 0) {
       obj.orgUnitBudgetStatuses = selectedOrgUnitBudgetStatuses
     }
+    if (salaryBudgetAmountRange != null) {
+      obj.salaryBudgetAmount = { ...salaryBudgetAmountRange }
+    }
+    if (allocationAmountRange != null) {
+      obj.allocationAmount = { ...allocationAmountRange }
+    }
+    if (poolShareRange != null) {
+      obj.allocationShareOfCompanyPoolPercent = { ...poolShareRange }
+    }
     return obj
-  }, [selectedOrgUnitBudgetStatuses])
+  }, [allocationAmountRange, poolShareRange, salaryBudgetAmountRange, selectedOrgUnitBudgetStatuses])
 
   const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
     const statuses = (filters.orgUnitBudgetStatuses as string[] | undefined) ?? []
     setSelectedOrgUnitBudgetStatuses(statuses)
+    setSalaryBudgetAmountRange(parseOptionalNumberRange(filters.salaryBudgetAmount))
+    setAllocationAmountRange(parseOptionalNumberRange(filters.allocationAmount))
+    setPoolShareRange(parseOptionalNumberRange(filters.allocationShareOfCompanyPoolPercent))
   }, [])
 
   const columns = useMemo(
@@ -146,7 +216,14 @@ export function useSubmissionsOrgUnitTableModel(
 
   useEffect(() => {
     setPagination(p => ({ ...p, pageIndex: 0 }))
-  }, [debouncedSearch, selectedOrgUnitBudgetStatuses, sorting])
+  }, [
+    allocationAmountRange,
+    debouncedSearch,
+    poolShareRange,
+    salaryBudgetAmountRange,
+    selectedOrgUnitBudgetStatuses,
+    sorting
+  ])
 
   return {
     searchInput,

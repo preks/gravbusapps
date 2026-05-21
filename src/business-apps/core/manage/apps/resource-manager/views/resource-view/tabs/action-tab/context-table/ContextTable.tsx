@@ -106,7 +106,7 @@ export const ContextTable: React.FC<ContextTableProps> = ({
   // Editable state for contexts
   const contextEntries = useMemo(() => allContexts.map(item => item.context), [allContexts])
   const editableState = useEditableState<ContextDTO>(contextEntries)
-  const { createActionAssignment } = useUpdateActionAssignment(context)
+  const { createActionAssignment, updateActionAssignment } = useUpdateActionAssignment(context)
   const { updateContext } = useUpdateContext(context)
 
   // Handle add context - create draft row
@@ -197,10 +197,7 @@ export const ContextTable: React.FC<ContextTableProps> = ({
         if (isDraft) {
           // Create new context via API - Build full ContextDTO from draft + edits
           const draftContext = draftContexts.find(d => d.context.id === contextId)?.context
-          if (!draftContext) {
-            editableState.setSaving(contextId, false)
-            return
-          }
+          if (!draftContext) return
 
           // Get draft actions for this context
           const draftActionsForContext = draftActions.get(contextId) || []
@@ -229,96 +226,93 @@ export const ContextTable: React.FC<ContextTableProps> = ({
             newDrafts.delete(contextId)
             return { ...prev, editedEntries: newEdited, draftEntryIds: newDrafts }
           })
-        } else {
-          // Update existing context - Build full ContextDTO from original + edits
-          const originalContext = allContexts.find(c => c.context.id === contextId)?.context
-          if (!originalContext) {
-            editableState.setSaving(contextId, false)
-            return
-          }
-
-          // Merge original context with edits to create full ContextDTO
-          // Remove temp IDs from contextData, exclude rank from payload
-          const contextData = ((edits.contextData as ContextDataDTO[]) ?? originalContext.contextData ?? [])
-            .filter(data => data.contextDataName && data.contextDataType) // Only include valid entries
-            .map(data => {
-              // Keep real IDs, remove temp IDs
-              const result: any = {
-                contextDataName: data.contextDataName,
-                contextDataType: data.contextDataType,
-                mainContext: data.mainContext ?? false
-              }
-              // Only include id if it's not a temp ID
-              if (data.id && !data.id.startsWith('temp-')) {
-                result.id = data.id
-              }
-              return result
-            }) as ContextDataDTO[]
-
-          const fullContextData: Omit<ContextDTO, 'rank'> = {
-            id: originalContext.id,
-            contextName: (edits.contextName as string) ?? originalContext.contextName,
-            contextData: contextData,
-            permissionSchema: (edits.permissionSchema as string) ?? originalContext.permissionSchema,
-            version: originalContext.version ?? 0
-          }
-
-          const result = await updateContext(contextId, fullContextData)
-          if (result) {
-            // Get draft actions for this context
-            const draftActionsForContext = draftActions.get(contextId) || []
-
-            // If there are draft actions, create/update assignment
-            if (draftActionsForContext.length > 0) {
-              const context = allContexts.find(c => c.context.id === contextId)
-              if (context) {
-                // Build full context object with updated data
-                const fullContext: ContextDTO = {
-                  id: result.id,
-                  contextName: result.contextName,
-                  contextData: result.contextData || [],
-                  permissionSchema: result.permissionSchema,
-                  rank: result.rank ?? 0,
-                  version: result.version ?? 0
-                }
-
-                // Create assignment with existing actions + draft actions
-                const allAssignments = [
-                  ...(context.actions || []).map(a => ({
-                    id: `temp-${Date.now()}-existing-${a.action.id}`,
-                    flowItem: a.action,
-                    permission: a.permission || 'execute',
-                    rank: a.rank || 0
-                  })),
-                  ...draftActionsForContext.map((da, index) => ({
-                    id: `temp-${Date.now()}-new-${index}`,
-                    flowItem: da.action,
-                    permission: da.permission,
-                    rank: (context.actions?.length || 0) + index
-                  }))
-                ]
-
-                await createActionAssignment({
-                  context: fullContext,
-                  assignments: allAssignments
-                })
-              }
-
-              // Remove draft actions after saving
-              setDraftActions(prev => {
-                const newMap = new Map(prev)
-                newMap.delete(contextId)
-                return newMap
-              })
-            }
-
-            editableState.onDiscardEntry(contextId)
-            // Reload contexts to get updated data
-            await loadMore()
-          }
+          return
         }
+
+        const originalContext = allContexts.find(c => c.context.id === contextId)?.context
+        if (!originalContext) return
+
+        const contextData = ((edits.contextData as ContextDataDTO[]) ?? originalContext.contextData ?? [])
+          .filter(data => data.contextDataName && data.contextDataType)
+          .map(data => {
+            // Keep real IDs, remove temp IDs
+            const result: Partial<ContextDataDTO> = {
+              contextDataName: data.contextDataName,
+              contextDataType: data.contextDataType,
+              mainContext: data.mainContext ?? false
+            }
+            // Only include id if it's not a temp ID
+            if (data.id && !data.id.startsWith('temp-')) {
+              result.id = data.id
+            }
+            return result
+          }) as ContextDataDTO[]
+
+        const fullContextData: Omit<ContextDTO, 'rank'> = {
+          id: originalContext.id,
+          contextName: (edits.contextName as string) ?? originalContext.contextName,
+          contextData,
+          permissionSchema: (edits.permissionSchema as string) ?? originalContext.permissionSchema,
+          version: originalContext.version ?? 0
+        }
+
+        const result = await updateContext(contextId, fullContextData)
+        if (!result) return
+        // Get draft actions for this context
+        const draftActionsForContext = draftActions.get(contextId) || []
+        if (draftActionsForContext.length > 0) {
+          const persistedContext = contexts.find(c => c.context.id === contextId)
+          if (!persistedContext) {
+            throw new Error('Unable to find persisted context assignment')
+          }
+
+          const fullContext: ContextDTO = {
+            ...fullContextData,
+            rank: originalContext.rank ?? 0
+          }
+
+          const allAssignments = [
+            ...(persistedContext.actions || []).map(a => ({
+              id: a.assignmentEntryId,
+              flowItem: a.action,
+              permission: a.permission || 'execute',
+              rank: a.rank || 0
+            })),
+            ...draftActionsForContext.map((da, index) => ({
+              flowItem: da.action,
+              permission: da.permission,
+              rank: (persistedContext.actions?.length || 0) + index
+            }))
+          ]
+
+          const assignmentPayload = {
+            context: fullContext,
+            assignments: allAssignments
+          }
+
+          const assignmentResult = persistedContext.assignmentId
+            ? await updateActionAssignment(persistedContext.assignmentId, {
+                id: persistedContext.assignmentId,
+                ...assignmentPayload
+              })
+            : await createActionAssignment(assignmentPayload)
+
+          if (!assignmentResult) {
+            throw new Error('Failed to save action assignment')
+          }
+
+          setDraftActions(prev => {
+            const newMap = new Map(prev)
+            newMap.delete(contextId)
+            return newMap
+          })
+        }
+
+        editableState.onDiscardEntry(contextId)
+        // Reload contexts to get updated data
+        await loadMore()
       } catch {
-        // Error handled
+        // Error handled by mutation hooks
       } finally {
         editableState.setSaving(contextId, false)
       }
@@ -327,11 +321,14 @@ export const ContextTable: React.FC<ContextTableProps> = ({
       editableState,
       onCreateContext,
       setDraftContexts,
-      allContexts,
-      updateContext,
-      loadMore,
+      draftContexts,
       draftActions,
-      createActionAssignment
+      allContexts,
+      contexts,
+      updateContext,
+      updateActionAssignment,
+      createActionAssignment,
+      loadMore
     ]
   )
 
@@ -527,9 +524,24 @@ export const ContextTable: React.FC<ContextTableProps> = ({
           newMap.set(contextId, [...existing, ...uniqueNewActions])
           return newMap
         })
+
+        editableState.setState(prev => {
+          const newEdited = new Map(prev.editedEntries)
+          const currentEdits = newEdited.get(contextId) || {}
+          if (currentEdits.contextName === undefined) {
+            newEdited.set(contextId, {
+              ...currentEdits,
+              contextName: context.context.contextName
+            })
+          }
+          return {
+            ...prev,
+            editedEntries: newEdited
+          }
+        })
       }
     },
-    [actions, allContexts]
+    [actions, allContexts, editableState]
   )
 
   // Expanded Row Component with Drag & Drop

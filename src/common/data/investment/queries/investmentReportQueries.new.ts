@@ -5,8 +5,7 @@
  */
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
-import { COMPANY_REF } from '@/common/data/orgchart/queries/fragments/companyFragments'
-import { INVESTMENT_ACCOUNT_REF } from './fragments/investmentReferenceFragments'
+import { INVESTMENT_ACCOUNT_REF, INVESTMENT_COMPANY_REF } from './fragments/investmentReferenceFragments'
 import { InvestmentReportFields } from '../types/investmentReportTypes'
 import { InvestmentFields } from '../types/investmentTypes.new'
 import { LiquidFundInvestmentFields } from '../types/liquidFundInvestmentTypes'
@@ -200,10 +199,10 @@ const buildInvestmentFieldFragment = (fieldSet: Set<string>): string => {
       ownerEmployeeId
       
       # Company relationship
-      company {
-        ${COMPANY_REF}
+      investmentCompany {
+        ${INVESTMENT_COMPANY_REF}
       }
-      companyId
+      investmentCompanyId
       
       # Investment Account relationship (via junction table)
       # GraphQL field name: investmentAccounts (not investmentInvestmentAccounts)

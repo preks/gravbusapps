@@ -1,6 +1,5 @@
 export { useIrmAnalyticsData } from './useIrmAnalyticsData'
 export { useRevenueTrends, type RevenueTrendData } from './useRevenueTrends'
-export { usePipelineHealth, type PipelineHealthData } from './usePipelineHealth'
 export { useActivityHeatmap, type ActivityHeatmapData } from './useActivityHeatmap'
 export { usePipelines, type Pipeline } from './usePipelines'
 export { useOpportunityTrendData, type TimeFilter } from './useOpportunityTrendData'
@@ -13,3 +12,4 @@ export {
 export { useLeadsTrendData } from './useLeadsTrendData'
 export { useLeadsStaticData, type LeadsStaticData } from './useLeadsStaticData'
 export { useLeadsOverTime } from './useLeadsOverTime'
+export { useOpportunityStatusDistribution } from './useOpportunityStatusDistribution'

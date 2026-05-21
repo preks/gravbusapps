@@ -1,7 +1,8 @@
 import { InputType, type ColumnDefinition } from '../types'
 import {
-  buildUniqueDefinitionKey,
-  deriveDefinitionKeyFromDisplayName,
+  getEditableReferenceFieldName,
+  getDuplicateDefinitionDisplayNameError,
+  normalizeEntityDisplayNameKey,
   getPersistedReferenceFieldNamePreview,
   prepareColumnsForPersistence,
   prepareColumnsForEditing,
@@ -12,39 +13,71 @@ import {
 function createReferenceColumn(name: string): ColumnDefinition {
   return {
     type: InputType.SELECT,
-    name,
+    fieldName: name,
     label: 'Company',
-    dataSource: { type: 'CUSTOM_ENTITY', entity: 'company' }
+    dataSource: { type: 'CUSTOM_ENTITY', entity: 'Company' }
   }
 }
 
 describe('definitionFormUtils', () => {
-  it('derives entity keys from display names', () => {
-    expect(deriveDefinitionKeyFromDisplayName('Waterfall')).toBe('waterfall')
-    expect(deriveDefinitionKeyFromDisplayName(' Water Report ')).toBe('water_report')
+  it('normalizes display names for duplicate checks', () => {
+    expect(normalizeEntityDisplayNameKey('Asset Location')).toBe('assetlocation')
+    expect(normalizeEntityDisplayNameKey('AssetLocation')).toBe('assetlocation')
+    expect(normalizeEntityDisplayNameKey('asset location')).toBe('assetlocation')
+    expect(normalizeEntityDisplayNameKey('assET LOCation')).toBe('assetlocation')
   })
 
-  it('adds numeric suffixes when a derived key already exists', () => {
-    expect(buildUniqueDefinitionKey('New Entity', ['new_entity'])).toBe('new_entity_2')
-    expect(buildUniqueDefinitionKey('New Entity', ['new_entity', 'new_entity_2'])).toBe('new_entity_3')
+  it('detects duplicate display names after entity name normalization', () => {
+    const duplicateError = getDuplicateDefinitionDisplayNameError({
+      displayName: 'AssetLocation',
+      namespace: 'com.example',
+      definitions: [
+        {
+          id: 'asset-location',
+          namespace: 'com.example',
+          entityName: 'AssetLocation',
+          displayName: 'Asset Location'
+        }
+      ]
+    })
+
+    expect(duplicateError).toContain('Asset Location')
   })
 
-  it('derives entity reference field names from labels in snake_case', () => {
+  it('ignores the current definition when checking duplicate display names', () => {
+    const duplicateError = getDuplicateDefinitionDisplayNameError({
+      displayName: 'AssetLocation',
+      namespace: 'com.example',
+      currentDefinitionId: 'asset-location',
+      definitions: [
+        {
+          id: 'asset-location',
+          namespace: 'com.example',
+          entityName: 'AssetLocation',
+          displayName: 'Asset Location'
+        }
+      ]
+    })
+
+    expect(duplicateError).toBeNull()
+  })
+
+  it('derives entity reference field names from labels in camelCase', () => {
     const normalizedColumn = syncColumnNameWithLabel({
-      ...createReferenceColumn('company'),
+      ...createReferenceColumn(''),
       label: 'Company Name'
     })
 
-    expect(normalizedColumn.name).toBe('company_name')
+    expect(normalizedColumn.fieldName).toBe('companyName')
   })
 
-  it('rejects camelCase entity reference field names', () => {
+  it('accepts explicit reference field names with id suffixes', () => {
     const validationError = validateDefinitionForm({
       displayName: 'Jobs',
-      columns: [createReferenceColumn('companyId')]
+      columns: [{ ...createReferenceColumn('companyId'), label: 'CompanyId' }]
     })
 
-    expect(validationError).toContain("Use 'company' instead")
+    expect(validationError).toBeNull()
   })
 
   it('keeps natural words ending in id valid for entity reference field names', () => {
@@ -54,18 +87,18 @@ describe('definitionFormUtils', () => {
     })
 
     expect(validationError).toBeNull()
-    expect(getPersistedReferenceFieldNamePreview(createReferenceColumn('hybrid'))).toBe('hybrid_id')
+    expect(getPersistedReferenceFieldNamePreview(createReferenceColumn('hybrid'))).toBe('hybrid')
   })
 
-  it('shows persisted foreign key names as editable relationship names', () => {
-    const editableColumns = prepareColumnsForEditing([createReferenceColumn('company_id')])
+  it('shows persisted foreign key fields as editable relationship names', () => {
+    const editableColumns = prepareColumnsForEditing([createReferenceColumn('companyId')])
 
-    expect(editableColumns[0].name).toBe('company')
+    expect(getEditableReferenceFieldName(editableColumns[0])).toBe('companyId')
   })
 
   it('prepares entity reference field names for persistence', () => {
     const persistedColumns = prepareColumnsForPersistence([createReferenceColumn('company')])
 
-    expect(persistedColumns[0].name).toBe('company_id')
+    expect(persistedColumns[0].fieldName).toBe('company')
   })
 })

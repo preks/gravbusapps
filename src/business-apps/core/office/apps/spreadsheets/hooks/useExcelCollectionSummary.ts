@@ -32,7 +32,7 @@ const parseSummaryContent = (content: unknown): CollectionSummaryResponse => {
 async function ensureAppHasSheetData(copyAppId: string, app: SpreadsheetApp): Promise<void> {
   if (app.sheets?.length && app.sheets.some(s => (s.data?.length ?? 0) > 0)) return
   for (const sheet of app.sheets ?? []) {
-    const rows = await SpreadsheetApiService.getRows(copyAppId, sheet.id)
+    const rows = await SpreadsheetApiService.getAllRows(copyAppId, sheet.id)
     sheet.data = rows
   }
 }

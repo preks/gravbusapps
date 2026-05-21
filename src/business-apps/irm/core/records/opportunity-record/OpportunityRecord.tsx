@@ -584,26 +584,26 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           </AppAction>
         )}
         {/* Company Badge - Only show if company association exists */}
-        {opportunityData?.company?.id && (
+        {opportunityData?.investmentCompany?.id && (
           <button
             type="button"
             onClick={() => {
-              const companyId = opportunityData.company?.id
-              if (companyId) {
+              const investmentCompanyId = opportunityData.investmentCompany?.id
+              if (investmentCompanyId) {
                 navigateTo(
-                  buildPlatformUrl('/platform/mdm/company-record', {
-                    companyId
+                  buildPlatformUrl('/platform/irm/company-record', {
+                    investmentCompanyId
                   })
                 )
               }
             }}
             className="gba:bg-transparent gba:border-0 gba:p-0"
             data-testid="opportunity-company-link"
-            aria-label={`${getTranslationFromI18nKeyAndLabel('opportunity.legalEntity.ariaLabel', 'Navigate to legal entity')}: ${opportunityData.company.name}`}
+            aria-label={`${getTranslationFromI18nKeyAndLabel('opportunity.legalEntity.ariaLabel', 'Navigate to legal entity')}: ${opportunityData.investmentCompany?.name}`}
           >
             <Badge variant="outline" className="gba:cursor-pointer gba:hover:opacity-80">
               {getTranslationFromI18nKeyAndLabel('opportunity.legalEntity.label', 'Legal Entity')}:{' '}
-              {opportunityData.company.name}
+              {opportunityData.investmentCompany?.name}
             </Badge>
           </button>
         )}
@@ -671,7 +671,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     opportunityData?.opportunityForecast,
     opportunityData?.investments,
     opportunityData?.equityInvestmentRound,
-    opportunityData?.company,
     rejectionReasonsBadge,
     opportunityId,
     props.accessToken
@@ -804,6 +803,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     opportunityData?.opportunityStatus?.value
   ])
 
+  const shouldShowStageConditions = useMemo(() => {
+    const hasPipelineAndStage = Boolean(
+      opportunityData?.opportunityPipelineRef && opportunityData?.opportunityPipelineStageRef
+    )
+
+    return hasPipelineAndStage && (stageConditionStatuses ?? []).length > 0
+  }, [opportunityData?.opportunityPipelineRef, opportunityData?.opportunityPipelineStageRef, stageConditionStatuses])
+
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
@@ -849,274 +856,278 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
         icon: <UserIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
-          <>
-            {/* Account Information - 1/4 width */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
-              sections={[
-                {
-                  id: 'account-section',
-                  component: AccountSection,
-                  props: {
-                    ...props,
-                    // Transform junction table to include account type
-                    accounts:
-                      opportunityData?.opportunityAccounts
-                        ?.map(junction => ({
-                          ...junction.account,
-                          accountType: junction.accountType // Add catalog entry from junction table
-                        }))
-                        .filter(Boolean) || [],
-                    account: opportunityData?.opportunityAccounts?.[0]
-                      ? {
-                          ...opportunityData.opportunityAccounts[0].account,
-                          accountType: opportunityData.opportunityAccounts[0].accountType
-                        }
-                      : undefined,
-                    accountId: opportunityData?.opportunityAccounts?.[0]?.accountId,
-                    recordUrl: opportunityData?.opportunityAccounts?.[0]?.accountId
-                      ? buildPlatformUrl('/platform/irm/account-record', {
-                          accountId: opportunityData.opportunityAccounts[0].accountId,
-                          source: 'opportunity-relations',
-                          fromEntity: 'opportunities'
-                        })
-                      : undefined,
-                    actionButtonProps: {
-                      contextsArray: [FlowContextName.investmentAccountEntity],
-                      externalContextData: { accountId: opportunityData?.opportunityAccounts?.[0]?.accountId },
-                      prefixDataTestId: 'investment-opportunity-account-action'
-                    }
-                  }
-                }
-              ]}
-              data-testid="opportunity-account-section-wrapper"
-            />
-
-            {/* Contact Information - 1/4 width */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
-              sections={[
-                {
-                  id: 'contact-section',
-                  component: ContactSection,
-                  props: {
-                    ...props,
-                    contacts: opportunityData?.opportunityContacts
-                      ?.map((ioc: any) => ({
-                        ...ioc.contact,
-                        contactType: ioc.contactType
-                      }))
-                      .filter(Boolean),
-                    contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
-                    recordUrl: opportunityData?.opportunityContacts?.[0]?.contact?.id
-                      ? buildPlatformUrl('/platform/irm/contact-record', {
-                          contactId: opportunityData.opportunityContacts[0].contact.id,
-                          source: 'opportunity-relations',
-                          fromEntity: 'opportunities'
-                        })
-                      : undefined,
-                    actionButtonProps: {
-                      contextsArray: [FlowContextName.investmentContactEntity],
-                      externalContextData: {
-                        contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id
-                      },
-                      prefixDataTestId: 'investment-opportunity-contact-action'
-                    }
-                  }
-                }
-              ]}
-              data-testid="opportunity-contact-section-wrapper"
-            />
-
-            {/* Investment Information - 2/4 width (half) */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
-              sections={[
-                {
-                  id: 'investment-section',
-                  component: InvestmentSection,
-                  props:
-                    opportunityData?.dealType === 'DIVESTMENT_DEAL'
-                      ? {
-                          // DIVESTMENT_DEAL: Use full investment entity fetched separately
-                          // No fields prop - let InvestmentSection fetch from catalog (record: true)
-                          ...props,
-                          investment: (divestmentInvestment as Investment) || undefined,
-                          investments: divestmentInvestment ? [divestmentInvestment as Investment] : undefined,
-                          // recordUrl not needed - InvestmentSection auto-generates for real entities
-                          isLoading: loading || divestmentLoading,
-                          error: error,
-                          actionButtonProps: divestmentInvestment?.id
-                            ? {
-                                contextsArray: [FlowContextName.investmentEntity],
-                                externalContextData: { investmentId: divestmentInvestment.id },
-                                prefixDataTestId: 'opportunity-divestment-investment'
-                              }
-                            : undefined
-                        }
-                      : {
-                          // INVESTMENT_DEAL (and others): Keep existing behavior
-                          // Use synthetic investment built from opportunity + parent-provided fields
-                          ...props,
-                          investment: buildInvestmentFromOpportunity(opportunityData) || undefined,
-                          investments: opportunityData
-                            ? [buildInvestmentFromOpportunity(opportunityData)].filter(
-                                (inv): inv is NonNullable<typeof inv> => inv !== null
-                              )
-                            : undefined,
-                          fields: investmentFields,
-                          recordUrl: undefined, // No navigation - investment data is part of opportunity
-                          isLoading: loading,
-                          error: error
-                        }
-                }
-              ]}
-              data-testid="opportunity-investment-section-wrapper"
-            />
-
-            {/* Stage Conditions - 1/2 of left side, row span 2 - Only show if pipeline and stage are selected */}
-            {opportunityData?.opportunityPipelineRef && opportunityData?.opportunityPipelineStageRef && (
+          <div className="gba:col-span-12 gba:flex gba:flex-col gba:gap-4">
+            <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:lg:grid-cols-12">
+              {/* Account Information - 1/4 width */}
               <SectionWrapper
-                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2 gba:min-h-96 gba:max-h-96"
-                key={`condition-section-${opportunityId}-${stageConditionStatuses.length}-${stageConditionStatuses.filter(s => s.completed).length}`}
+                className="gba:min-h-96 gba:max-h-96 gba:lg:col-span-3"
                 sections={[
                   {
-                    id: 'condition-section',
-                    component: ConditionSection,
+                    id: 'account-section',
+                    component: AccountSection,
                     props: {
                       ...props,
-                      opportunity: opportunityData,
-                      stageConditionStatuses: stageConditionStatuses || [],
-                      stageConditionActionProps: {
-                        ...stageConditionActionProps,
-                        emptyStateBehavior: 'enable'
+                      // Transform junction table to include account type
+                      accounts:
+                        opportunityData?.opportunityAccounts
+                          ?.map(junction => ({
+                            ...junction.account,
+                            accountType: junction.accountType // Add catalog entry from junction table
+                          }))
+                          .filter(Boolean) || [],
+                      account: opportunityData?.opportunityAccounts?.[0]
+                        ? {
+                            ...opportunityData.opportunityAccounts[0].account,
+                            accountType: opportunityData.opportunityAccounts[0].accountType
+                          }
+                        : undefined,
+                      accountId: opportunityData?.opportunityAccounts?.[0]?.accountId,
+                      recordUrl: opportunityData?.opportunityAccounts?.[0]?.accountId
+                        ? buildPlatformUrl('/platform/irm/account-record', {
+                            accountId: opportunityData.opportunityAccounts[0].accountId,
+                            source: 'opportunity-relations',
+                            fromEntity: 'opportunities'
+                          })
+                        : undefined,
+                      actionButtonProps: {
+                        contextsArray: [FlowContextName.investmentAccountEntity],
+                        externalContextData: { accountId: opportunityData?.opportunityAccounts?.[0]?.accountId },
+                        prefixDataTestId: 'investment-opportunity-account-action'
                       }
                     }
                   }
                 ]}
-                data-testid="opportunity-condition-section-wrapper"
+                data-testid="opportunity-account-section-wrapper"
               />
-            )}
 
-            {/* Tasks/Approvals Tabbed - Adjust width based on whether stage conditions are visible */}
-            <SectionWrapper
-              className={
-                opportunityData?.opportunityPipelineRef && opportunityData?.opportunityPipelineStageRef
-                  ? 'gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2 gba:min-h-96 gba:max-h-96'
-                  : 'gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2 gba:min-h-96 gba:max-h-96'
-              }
-              sections={[
-                {
-                  id: 'tasks-section',
-                  component: TaskSection,
-                  props: {
-                    ...props,
-                    opportunityId: opportunityId,
-                    buildReferenceUrl,
-                    tasks: tasks,
-                    taskActionProps: {
-                      ...taskActionProps,
-                      emptyStateBehavior: 'enable'
-                    },
-                    taskEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentTaskEntity],
-                      externalContextData: { opportunityId },
-                      prefixDataTestId: 'opportunity-task-entity',
-                      emptyStateBehavior: 'enable'
-                    },
-                    typeCatalog: TASK_TYPE,
-                    priorityCatalog: TASK_PRIORITY,
-                    buildTaskPayload: buildInvestmentTaskPayload,
-                    defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-                    preSubmit: taskPreSubmit
+              {/* Contact Information - 1/4 width */}
+              <SectionWrapper
+                className="gba:min-h-96 gba:max-h-96 gba:lg:col-span-3"
+                sections={[
+                  {
+                    id: 'contact-section',
+                    component: ContactSection,
+                    props: {
+                      ...props,
+                      contacts: opportunityData?.opportunityContacts
+                        ?.map((ioc: any) => ({
+                          ...ioc.contact,
+                          contactType: ioc.contactType
+                        }))
+                        .filter(Boolean),
+                      contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
+                      recordUrl: opportunityData?.opportunityContacts?.[0]?.contact?.id
+                        ? buildPlatformUrl('/platform/irm/contact-record', {
+                            contactId: opportunityData.opportunityContacts[0].contact.id,
+                            source: 'opportunity-relations',
+                            fromEntity: 'opportunities'
+                          })
+                        : undefined,
+                      actionButtonProps: {
+                        contextsArray: [FlowContextName.investmentContactEntity],
+                        externalContextData: {
+                          contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id
+                        },
+                        prefixDataTestId: 'investment-opportunity-contact-action'
+                      }
+                    }
                   }
-                },
-                {
-                  id: 'approval-tasks-section',
-                  component: TaskSection,
-                  props: {
-                    ...props,
-                    opportunityId,
-                    sectionTitle: 'Approval Tasks',
-                    buildReferenceUrl,
-                    tasks: approvals,
-                    taskActionProps: {
-                      ...approvalActionProps,
-                      emptyStateBehavior: 'enable'
-                    },
-                    taskEntityActionProps: {
-                      ...approvalEntityActionProps,
-                      emptyStateBehavior: 'enable'
-                    },
-                    typeCatalog: TASK_TYPE,
-                    priorityCatalog: TASK_PRIORITY,
-                    buildTaskPayload: buildInvestmentTaskPayload,
-                    isApprovalTaskSection: true,
-                    approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
-                    defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-                    preSubmit: taskPreSubmit
-                  }
-                }
-              ]}
-              data-testid="opportunity-tasks-approvals-section-wrapper"
-            />
+                ]}
+                data-testid="opportunity-contact-section-wrapper"
+              />
 
-            {/* Activities & Notes - Right aligned, row span 2, matches individual card height - Adjust width based on whether stage conditions are visible */}
-            <SectionWrapper
-              className={
-                opportunityData?.opportunityPipelineRef && opportunityData?.opportunityPipelineStageRef
-                  ? 'gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2 gba:min-h-96 gba:max-h-96'
-                  : 'gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2 gba:min-h-96 gba:max-h-96'
-              }
-              sections={[
-                {
-                  id: 'activities-section',
-                  component: ActivitySection,
-                  props: {
-                    ...props,
-                    opportunityId,
-                    activities: activities,
-                    activitiesLoading: activitiesLoading,
-                    activitiesError: activitiesError,
-                    onReloadActivities: loadActivities,
-                    alignment: 'right',
-                    activitySectionActionProps: {
-                      ...activityActionProps,
-                      emptyStateBehavior: 'enable'
-                    },
-                    activityEntityActionProps: {
-                      ...activityEntityActionProps,
-                      emptyStateBehavior: 'enable'
-                    },
-                    activityTypeCatalog: ACTIVITY_TYPE,
-                    buildActivityPayload: buildInvestmentActivityPayload,
-                    preSubmit: activityPreSubmit,
-                    getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
+              {/* Investment Information - 2/4 width (half) */}
+              <SectionWrapper
+                className="gba:min-h-96 gba:h-full gba:lg:col-span-6"
+                sections={[
+                  {
+                    id: 'investment-section',
+                    component: InvestmentSection,
+                    props:
+                      opportunityData?.dealType === 'DIVESTMENT_DEAL'
+                        ? {
+                            // DIVESTMENT_DEAL: Use full investment entity fetched separately
+                            // No fields prop - let InvestmentSection fetch from catalog (record: true)
+                            ...props,
+                            investment: (divestmentInvestment as Investment) || undefined,
+                            investments: divestmentInvestment ? [divestmentInvestment as Investment] : undefined,
+                            // recordUrl not needed - InvestmentSection auto-generates for real entities
+                            isLoading: loading || divestmentLoading,
+                            error: error,
+                            actionButtonProps: divestmentInvestment?.id
+                              ? {
+                                  contextsArray: [FlowContextName.investmentEntity],
+                                  externalContextData: { investmentId: divestmentInvestment.id },
+                                  prefixDataTestId: 'opportunity-divestment-investment'
+                                }
+                              : undefined
+                          }
+                        : {
+                            // INVESTMENT_DEAL (and others): Keep existing behavior
+                            // Use synthetic investment built from opportunity + parent-provided fields
+                            ...props,
+                            investment: buildInvestmentFromOpportunity(opportunityData) || undefined,
+                            investments: opportunityData
+                              ? [buildInvestmentFromOpportunity(opportunityData)].filter(
+                                  (inv): inv is NonNullable<typeof inv> => inv !== null
+                                )
+                              : undefined,
+                            fields: investmentFields,
+                            recordUrl: undefined, // No navigation - investment data is part of opportunity
+                            isLoading: loading,
+                            error: error
+                          }
                   }
-                },
-                {
-                  id: 'notes-section',
-                  component: NoteSection,
-                  props: {
-                    ...props,
-                    opportunityId,
-                    notes: notes,
-                    noteActionProps: {
-                      ...noteActionProps,
-                      emptyStateBehavior: 'enable'
-                    },
-                    noteEntityActionProps: {
-                      ...noteEntityActionProps,
-                      emptyStateBehavior: 'enable'
-                    },
-                    buildNotePayload: buildInvestmentNotePayload,
-                    preSubmit: notePreSubmit
-                  }
+                ]}
+                data-testid="opportunity-investment-section-wrapper"
+              />
+            </div>
+
+            <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
+              {/* Stage Conditions - show when the selected pipeline has configured conditions */}
+              {shouldShowStageConditions && (
+                <SectionWrapper
+                  className="gba:min-h-96 gba:h-full gba:lg:col-span-4"
+                  key={`condition-section-${opportunityId}-${stageConditionStatuses.length}-${stageConditionStatuses.filter(s => s.completed).length}`}
+                  sections={[
+                    {
+                      id: 'condition-section',
+                      component: ConditionSection,
+                      props: {
+                        ...props,
+                        opportunity: opportunityData,
+                        stageConditionStatuses: stageConditionStatuses || [],
+                        stageConditionActionProps: {
+                          ...stageConditionActionProps,
+                          emptyStateBehavior: 'enable'
+                        }
+                      }
+                    }
+                  ]}
+                  data-testid="opportunity-condition-section-wrapper"
+                />
+              )}
+
+              {/* Tasks/Approvals Tabbed - Adjust width based on whether stage conditions are visible */}
+              <SectionWrapper
+                className={
+                  shouldShowStageConditions
+                    ? 'gba:min-h-96 gba:h-full gba:lg:col-span-4'
+                    : 'gba:min-h-96 gba:h-full gba:lg:col-span-6'
                 }
-              ]}
-              data-testid="opportunity-activities-notes-section-wrapper"
-            />
-          </>
+                sections={[
+                  {
+                    id: 'tasks-section',
+                    component: TaskSection,
+                    props: {
+                      ...props,
+                      opportunityId: opportunityId,
+                      buildReferenceUrl,
+                      tasks: tasks,
+                      taskActionProps: {
+                        ...taskActionProps,
+                        emptyStateBehavior: 'enable'
+                      },
+                      taskEntityActionProps: {
+                        contextsArray: [FlowContextName.investmentTaskEntity],
+                        externalContextData: { opportunityId },
+                        prefixDataTestId: 'opportunity-task-entity',
+                        emptyStateBehavior: 'enable'
+                      },
+                      typeCatalog: TASK_TYPE,
+                      priorityCatalog: TASK_PRIORITY,
+                      buildTaskPayload: buildInvestmentTaskPayload,
+                      defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                      preSubmit: taskPreSubmit
+                    }
+                  },
+                  {
+                    id: 'approval-tasks-section',
+                    component: TaskSection,
+                    props: {
+                      ...props,
+                      opportunityId,
+                      sectionTitle: 'Approval Tasks',
+                      buildReferenceUrl,
+                      tasks: approvals,
+                      taskActionProps: {
+                        ...approvalActionProps,
+                        emptyStateBehavior: 'enable'
+                      },
+                      taskEntityActionProps: {
+                        ...approvalEntityActionProps,
+                        emptyStateBehavior: 'enable'
+                      },
+                      typeCatalog: TASK_TYPE,
+                      priorityCatalog: TASK_PRIORITY,
+                      buildTaskPayload: buildInvestmentTaskPayload,
+                      isApprovalTaskSection: true,
+                      approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+                      defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                      preSubmit: taskPreSubmit
+                    }
+                  }
+                ]}
+                data-testid="opportunity-tasks-approvals-section-wrapper"
+              />
+
+              {/* Activities & Notes - Right aligned, row span 2, matches individual card height - Adjust width based on whether stage conditions are visible */}
+              <SectionWrapper
+                className={
+                  shouldShowStageConditions
+                    ? 'gba:min-h-96 gba:h-full gba:lg:col-span-4'
+                    : 'gba:min-h-96 gba:h-full gba:lg:col-span-6'
+                }
+                sections={[
+                  {
+                    id: 'activities-section',
+                    component: ActivitySection,
+                    props: {
+                      ...props,
+                      opportunityId,
+                      activities: activities,
+                      activitiesLoading: activitiesLoading,
+                      activitiesError: activitiesError,
+                      onReloadActivities: loadActivities,
+                      alignment: 'right',
+                      activitySectionActionProps: {
+                        ...activityActionProps,
+                        emptyStateBehavior: 'enable'
+                      },
+                      activityEntityActionProps: {
+                        ...activityEntityActionProps,
+                        emptyStateBehavior: 'enable'
+                      },
+                      activityTypeCatalog: ACTIVITY_TYPE,
+                      buildActivityPayload: buildInvestmentActivityPayload,
+                      preSubmit: activityPreSubmit,
+                      getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
+                    }
+                  },
+                  {
+                    id: 'notes-section',
+                    component: NoteSection,
+                    props: {
+                      ...props,
+                      opportunityId,
+                      notes: notes,
+                      noteActionProps: {
+                        ...noteActionProps,
+                        emptyStateBehavior: 'enable'
+                      },
+                      noteEntityActionProps: {
+                        ...noteEntityActionProps,
+                        emptyStateBehavior: 'enable'
+                      },
+                      buildNotePayload: buildInvestmentNotePayload,
+                      preSubmit: notePreSubmit
+                    }
+                  }
+                ]}
+                data-testid="opportunity-activities-notes-section-wrapper"
+              />
+            </div>
+          </div>
         )
       },
       {

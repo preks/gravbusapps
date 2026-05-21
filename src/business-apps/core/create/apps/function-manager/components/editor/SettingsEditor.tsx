@@ -14,7 +14,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Copy, Plus, Trash2 } from 'lucide-react'
 import { CredentialBindField } from '@/common/components/credential-bind/CredentialBindField'
-import type { CredentialBindOption } from '@/common/utils/credentialBindOptions'
+import { buildCredentialBindOptionsFromList, type CredentialBindOption } from '@/common/utils/credentialBindOptions'
 
 export type ConfigRow = {
   key: string
@@ -43,7 +43,7 @@ function fallbackEmptyRow(): ConfigRow {
   return settingsEditorFallbackRow
 }
 
-export type StoredSecretOption = { id: string; displayName: string }
+export type StoredSecretOption = { id: string; displayName: string; fieldKeys: string[] }
 
 export interface SettingsEditorProps {
   rows: ConfigRow[]
@@ -54,7 +54,7 @@ export interface SettingsEditorProps {
   isLoadingConnections?: boolean
   /** When defined (including `[]`), enables the credential picker; options come from `credentialBindOptions` when non-empty, else from this list. */
   storedSecrets?: StoredSecretOption[]
-  /** Merged picker list (standalone credentials + bundle slots). When defined and non-empty, used instead of mapping `storedSecrets` alone. */
+  /** Merged picker list (per-field `fncred:` refs). When defined and non-empty, used instead of deriving from `storedSecrets`. */
   credentialBindOptions?: CredentialBindOption[]
   'data-testid'?: string
 }
@@ -73,13 +73,10 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
   const safeRows = rows.length ? rows : [fallbackEmptyRow()]
   const secretsEnabled = storedSecrets !== undefined
   const bindOptions: CredentialBindOption[] = React.useMemo(() => {
-    const fromSecrets = (storedSecrets || []).map(s => ({ secretId: s.id, label: s.displayName }))
-    // Parent passes merged list (credentials + bundle slots). Empty array must not hide credentials
-    // when bundle fetch failed but secrets loaded (or legacy callers omit bundle slots).
     if (credentialBindOptions !== undefined && credentialBindOptions.length > 0) {
       return credentialBindOptions
     }
-    return fromSecrets
+    return buildCredentialBindOptionsFromList(storedSecrets || [])
   }, [credentialBindOptions, storedSecrets])
 
   const normalizedKeys = safeRows.map(r => String(r.key || '').trim())
@@ -150,9 +147,10 @@ export const SettingsEditor: React.FC<SettingsEditorProps> = ({
               {secretsEnabled ? (
                 <>
                   {' '}
-                  Create credentials and credential bundles from Function Manager’s top-level <strong>Credentials</strong>{' '}
-                  tab; here, bind a stored credential per row as an <span className="gba:font-mono">fnsecret:…</span>{' '}
-                  reference instead of plaintext in saved config.
+                  Create credentials from Function Manager’s top-level <strong>Credentials</strong> tab; here, bind a
+                  field as <span className="gba:font-mono">fncred:&lt;uuid&gt;:&lt;key&gt;</span> instead of putting
+                  secret text in saved settings. Field keys are short labels: letters, numbers, hyphen, underscore, or
+                  dot—no spaces.
                 </>
               ) : null}
             </div>

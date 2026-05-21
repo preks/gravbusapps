@@ -2,7 +2,16 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
+import {
+  Button,
+  Card,
+  CardContent,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { WarningIcon } from '@phosphor-icons/react'
 import { Employee } from '../../hooks/useEmployeeData'
 import { AppAction } from '@/components/app-action/AppAction'
 import translations from '../../_i18n'
@@ -14,12 +23,16 @@ import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTyp
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
 import { useTaxableChurchAffiliationCatalog } from '../../hooks/useTaxableChurchAffiliationCatalog'
 import { useEmploymentRegionLabel } from '../../hooks/useEmploymentRegionLabel'
+import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
+import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
 interface EmploymentTabProps {
   employee: Employee
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
   userInfo?: UserInfoProps // Current user info
+  isSelfView: boolean
+  employeeRecordHrBackoffice: ScopePermissionCheckResult
   /** When true, show the Change Tax Details edit button (HR role only). */
   showChangeTaxDetailsButton?: boolean
 }
@@ -28,9 +41,97 @@ interface EmploymentTabProps {
  * Employment Tab Component
  * Displays employment-related information about the employee
  */
-const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, showChangeTaxDetailsButton = false }) => {
+const EmploymentTab: React.FC<EmploymentTabProps> = ({
+  employee,
+  accessToken,
+  employeeId,
+  isSelfView,
+  employeeRecordHrBackoffice,
+  showChangeTaxDetailsButton = false
+}) => {
   const { t } = useTranslation(translations)
-  const workingCondition = employee.workingCondition?.[0]
+  const employeeIdForPermissions = employeeId || employee?.id
+  const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken)
+  const [selectedWorkingConditionIndex, setSelectedWorkingConditionIndex] = React.useState(0)
+  const workingConditions = React.useMemo(() => {
+    return [...(employee.workingCondition || [])].sort((a, b) => {
+      const firstDate = dayjs(a.activeFrom || a.hireDate)
+      const secondDate = dayjs(b.activeFrom || b.hireDate)
+
+      if (!firstDate.isValid() && !secondDate.isValid()) {
+        return 0
+      }
+
+      if (!firstDate.isValid()) {
+        return 1
+      }
+
+      if (!secondDate.isValid()) {
+        return -1
+      }
+
+      return firstDate.valueOf() - secondDate.valueOf()
+    })
+  }, [employee.workingCondition])
+  const activeWorkingConditionIndex = React.useMemo(() => {
+    const today = dayjs().startOf('day')
+    const activeIndex = workingConditions.findIndex(condition => {
+      if (!condition.activeFrom) {
+        return false
+      }
+
+      const activeFrom = dayjs(condition.activeFrom).startOf('day')
+      const activeTo = condition.activeTo ? dayjs(condition.activeTo).startOf('day') : null
+
+      if (!activeFrom.isValid()) {
+        return false
+      }
+
+      const startsTodayOrEarlier = !today.isBefore(activeFrom, 'day')
+      const endsTodayOrLater = !activeTo?.isValid() || !today.isAfter(activeTo, 'day')
+
+      return startsTodayOrEarlier && endsTodayOrLater
+    })
+
+    return Math.max(activeIndex, 0)
+  }, [workingConditions])
+  const selectedWorkingConditionSafeIndex = Math.max(
+    0,
+    Math.min(selectedWorkingConditionIndex, workingConditions.length - 1)
+  )
+  const workingCondition = workingConditions[selectedWorkingConditionSafeIndex]
+  const activeWorkingCondition = workingConditions[activeWorkingConditionIndex]
+  const hasMultipleWorkingConditions = workingConditions.length > 1
+  const isFirstWorkingCondition = selectedWorkingConditionSafeIndex <= 0
+  const isLastWorkingCondition = selectedWorkingConditionSafeIndex >= workingConditions.length - 1
+  const employmentPeriodIsNotContinuous = React.useMemo(() => {
+    const currentCondition = workingConditions[selectedWorkingConditionSafeIndex]
+    const previousCondition = workingConditions[selectedWorkingConditionSafeIndex - 1]
+    const nextCondition = workingConditions[selectedWorkingConditionSafeIndex + 1]
+    const currentStart = currentCondition?.activeFrom ? dayjs(currentCondition.activeFrom).startOf('day') : null
+    const currentEnd = currentCondition?.activeTo ? dayjs(currentCondition.activeTo).startOf('day') : null
+
+    if (previousCondition?.activeTo && currentStart?.isValid()) {
+      const previousEnd = dayjs(previousCondition.activeTo).startOf('day')
+      if (previousEnd.isValid() && !previousEnd.add(1, 'day').isSame(currentStart, 'day')) {
+        return true
+      }
+    }
+
+    if (nextCondition?.activeFrom && currentEnd?.isValid()) {
+      const nextStart = dayjs(nextCondition.activeFrom).startOf('day')
+      if (nextStart.isValid() && !currentEnd.add(1, 'day').isSame(nextStart, 'day')) {
+        return true
+      }
+    }
+
+    return false
+  }, [selectedWorkingConditionSafeIndex, workingConditions])
+
+  React.useEffect(() => {
+    setSelectedWorkingConditionIndex(activeWorkingConditionIndex)
+  }, [activeWorkingConditionIndex, employee.id, workingConditions.length])
+
   const primaryAddress = employee.addresses?.find(addr => addr.type === 'PRIMARY')
   const addressCountryId = primaryAddress?.country?.id ?? ''
   const regionLabelLinkedToAddress = useEmploymentRegionLabel(
@@ -89,6 +190,14 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
       {
         label: t('employment-label-employment-type'),
         value: getCatalogValue(workingCondition?.employmentType) || ''
+      },
+      {
+        label: t('employment-label-employment-start-date'),
+        value: workingCondition?.activeFrom ? dayjs(workingCondition.activeFrom).format('MMM D, YYYY') : ''
+      },
+      {
+        label: t('employment-label-employment-end-date'),
+        value: workingCondition?.activeTo ? dayjs(workingCondition.activeTo).format('MMM D, YYYY') : ''
       },
       {
         label: t('employment-label-hire-date'),
@@ -172,40 +281,29 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
 
   const workingHoursData = getWorkingHoursData()
 
-  // Prepare payroll data
-  const getPayrollData = () => {
+  const getBankAccountData = () => {
+    const primaryBankAccount = employee.bankAccounts?.[0]
+
     return [
       {
-        label: t('employment-label-salary-group'),
-        value: employee.employeePosition?.costCenter?.name || ''
-      },
-      {
-        label: t('employment-label-payment-method'),
-        value: 'Direct Deposit'
-      },
-      {
-        label: t('employment-label-bank-account'),
-        value: employee.bankAccounts?.[0]?.iban || ''
-      },
-      {
         label: t('employment-label-bank-name'),
-        value: employee.bankAccounts?.[0]?.bankName || ''
+        value: primaryBankAccount?.bankName || ''
       },
       {
         label: t('employment-label-account-holder'),
-        value: employee.bankAccounts?.[0]?.accountHolder || ''
+        value: primaryBankAccount?.accountHolder || ''
       },
       {
-        label: t('employment-label-full-time-equivalent'),
-        value: employee.fullTimeEquivalent?.toString() || ''
+        label: t('details-label-iban'),
+        value: primaryBankAccount?.iban || ''
       }
     ]
   }
 
-  const payrollData = getPayrollData()
+  const bankAccountData = getBankAccountData()
 
   // Employee country from working condition region (parentEntry = country)
-  const employeeCountryCode = employee.workingCondition?.[0]?.region?.parentEntry?.code ?? null
+  const employeeCountryCode = activeWorkingCondition?.region?.parentEntry?.code ?? null
   const isEmployeeInGermany = employeeCountryCode != null && String(employeeCountryCode).trim().toUpperCase() === 'DE'
 
   // Prepare tax information data (combined from both tabs)
@@ -296,23 +394,49 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
 
   const taxInformationData = getTaxInformationData()
 
+  const getMaskedValue = (value: string, sectionKey?: string) => {
+    if (!value || value.trim() === '') {
+      return '-'
+    }
+
+    if (isSelfView || employeeRecordHrBackoffice.hasPermission) {
+      return value
+    }
+
+    if (sectionKey && isSectionVisible('details', sectionKey)) {
+      return value
+    }
+
+    return '••••••••'
+  }
+
   // Helper function to render data items in a grid with 3 columns
-  const renderDataItems = (data: Array<{ label: string; value: string }>) => (
+  const renderDataItems = (data: Array<{ label: string; value: string; sectionKey?: string }>) => (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
-      {data.map(item => (
-        <div
-          key={`${item.label}-${item.value}`}
-          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors gba:min-w-0"
-          data-testid={`employment-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-        >
-          <span className="gba:text-xs gba:text-muted-foreground gba:mb-0.5 gba:truncate gba:block" title={item.label}>
-            {item.label}
-          </span>
-          <span className="gba:font-medium gba:text-sm gba:text-foreground gba:truncate gba:block" title={item.value}>
-            {item.value || '-'}
-          </span>
-        </div>
-      ))}
+      {data.map(item => {
+        const displayValue = item.sectionKey ? getMaskedValue(item.value, item.sectionKey) : item.value || '-'
+
+        return (
+          <div
+            key={`${item.label}-${item.value}`}
+            className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors gba:min-w-0"
+            data-testid={`employment-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+          >
+            <span
+              className="gba:text-xs gba:text-muted-foreground gba:mb-0.5 gba:truncate gba:block"
+              title={item.label}
+            >
+              {item.label}
+            </span>
+            <span
+              className="gba:font-medium gba:text-sm gba:text-foreground gba:truncate gba:block"
+              title={displayValue}
+            >
+              {displayValue}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 
@@ -345,16 +469,96 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-lg gba:font-semibold">{t('employment-working-conditions')}</h3>
               <AppAction
-                variant="update-secondary"
-                data-testid="employee-working-conditions-edit-button"
+                variant="create-secondary"
+                data-testid="employee-working-conditions-add-button"
                 contexts={[
-                  { context: FlowContextName.updateEmployeeWorkingCondition, contextData: { employeeId: employee?.id } }
+                  {
+                    context: FlowContextName.updateEmployeeWorkingCondition,
+                    contextData: { employeeId: employee?.id, changeMode: 'INSERT' }
+                  }
                 ]}
-                prefixDataTestId="employee-working-conditions-edit"
+                prefixDataTestId="employee-working-conditions-add"
                 accessToken={accessToken}
               />
             </div>
             {renderDataItems(workingConditionsData)}
+            {(workingCondition?.id || hasMultipleWorkingConditions) && (
+              <div
+                className="gba:mt-4 gba:flex gba:items-center gba:justify-between gba:gap-2"
+                data-testid="employment-working-conditions-actions"
+              >
+                <div
+                  className="gba:flex gba:items-center gba:gap-2"
+                  data-testid="employment-working-conditions-navigation"
+                >
+                  {hasMultipleWorkingConditions && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isFirstWorkingCondition}
+                        data-testid="employment-working-conditions-previous"
+                        onClick={() => setSelectedWorkingConditionIndex(prev => Math.max(0, prev - 1))}
+                      >
+                        {t('employment-working-conditions-previous')}
+                      </Button>
+                      <span
+                        className="gba:text-xs gba:text-muted-foreground"
+                        data-testid="employment-working-conditions-pagination-position"
+                      >
+                        {selectedWorkingConditionSafeIndex + 1} / {workingConditions.length}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isLastWorkingCondition}
+                        data-testid="employment-working-conditions-next"
+                        onClick={() =>
+                          setSelectedWorkingConditionIndex(prev => Math.min(workingConditions.length - 1, prev + 1))
+                        }
+                      >
+                        {t('employment-working-conditions-next')}
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className="gba:flex gba:items-center gba:gap-2" data-testid="employment-working-conditions-update">
+                  {employmentPeriodIsNotContinuous && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className="gba:inline-flex gba:items-center gba:text-warning"
+                          data-testid="employment-working-conditions-period-warning"
+                        >
+                          <WarningIcon size={16} />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('employment-working-conditions-period-not-continuous')}</TooltipContent>
+                    </Tooltip>
+                  )}
+                  {workingCondition?.id && (
+                    <AppAction
+                      variant="update-secondary"
+                      data-testid="employee-working-conditions-edit-button"
+                      contexts={[
+                        {
+                          context: FlowContextName.updateEmployeeWorkingCondition,
+                          contextData: {
+                            employeeId: employee?.id,
+                            workingConditionId: workingCondition.id,
+                            changeMode: 'UPDATE'
+                          }
+                        }
+                      ]}
+                      prefixDataTestId="employee-working-conditions-edit"
+                      accessToken={accessToken}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -377,11 +581,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
           </CardContent>
         </Card>
 
-        {/* Payroll Card */}
-        <Card data-testid="employment-section-payroll">
+        {/* Bank Account Card */}
+        <Card data-testid="employment-section-bank-account">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">{t('employment-payroll')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-label-bank-account')}</h3>
               <AppAction
                 variant="update-secondary"
                 data-testid="employment-bank-account-action-button"
@@ -392,7 +596,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, sh
                 accessToken={accessToken}
               />
             </div>
-            {renderDataItems(payrollData)}
+            {renderDataItems(bankAccountData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.bankAccount })))}
           </CardContent>
         </Card>
 

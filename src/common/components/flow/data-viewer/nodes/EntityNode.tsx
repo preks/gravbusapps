@@ -25,7 +25,7 @@ function typeLabel(col: DataEntityColumn): string {
 }
 
 export const EntityNode: React.FC<NodeProps> = memo(({ data, selected }) => {
-  const { displayName, entityKey, publishState, columns, isExternal } = data as DataEntityNodeData
+  const { displayName, entityName, publishState, columns, isExternal } = data as DataEntityNodeData
   const visibleColumns = columns.slice(0, DATA_VIEWER_ENTITY_MAX_VISIBLE_COLUMNS)
   const hiddenCount = columns.length - visibleColumns.length
 
@@ -40,7 +40,7 @@ export const EntityNode: React.FC<NodeProps> = memo(({ data, selected }) => {
   return (
     <div
       className={`gba:rounded-lg gba:border-2 gba:shadow-sm ${DATA_VIEWER_ENTITY_NODE_WIDTH_CLASS} gba:cursor-pointer gba:transition-all gba:duration-200 hover:gba:shadow-md ${borderClass} ${bgClass}`}
-      data-testid={`entity-node-${entityKey}`}
+      data-testid={`entity-node-${entityName}`}
     >
       <Handle type="target" position={Position.Top} style={HANDLE_STYLE} />
       <Handle type="target" position={Position.Left} id="left" style={HANDLE_STYLE} />
@@ -51,7 +51,7 @@ export const EntityNode: React.FC<NodeProps> = memo(({ data, selected }) => {
         <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
           <Database className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:shrink-0" />
           <span className="gba:font-semibold gba:text-xs gba:truncate gba:text-foreground">
-            {displayName || humanizeDataViewerLabel(entityKey) || entityKey}
+            {displayName || humanizeDataViewerLabel(entityName) || entityName}
           </span>
         </div>
         <div className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">

@@ -23,6 +23,7 @@ import {
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 export interface StructuralAnalysisIntegrationData {
   organizationalNodes: OrganizationalNode[]
@@ -34,8 +35,10 @@ export interface StructuralAnalysisIntegrationData {
   sunburstData: SunburstNode
   structuralStatistics: StructuralStatistics
 }
+const inFlightStructuralAnalysisRequests = new Map<string, Promise<StructuralAnalysisIntegrationData>>()
 
 export const useStructuralAnalysisDataIntegration = (context: BusinessAppContextProps) => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const { t } = useTranslation(hrTranslations)
   const [data, setData] = useState<StructuralAnalysisIntegrationData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -283,75 +286,86 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
 
     try {
       const structureId = getCurrentActiveStructureId()
-      if (!structureId) {
-        throw new Error('No structure ID available')
+      const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+      const filterParams: Record<string, string> = {}
+      if (structureId) filterParams.structureId = structureId
+      if (companyIdsParam) filterParams.companyIds = companyIdsParam
+      const fetchKey = JSON.stringify({
+        structureId: structureId ?? '',
+        companyIds: companyIdsParam,
+        hasDatasetClient: Boolean(datasetClient)
+      })
+      let requestPromise = inFlightStructuralAnalysisRequests.get(fetchKey)
+      if (!requestPromise) {
+        requestPromise = (async (): Promise<StructuralAnalysisIntegrationData> => {
+          // Execute datasets
+          let spanDistRows: DatasetRow[] = []
+          let reportingChainRows: ReportingChainDatasetRow[] = []
+          // Sunburst: we'll first try orgHierarchySunburstData (edges encoded in category), else fall back to GraphQL
+          let edgeRowsFromDataset: HierarchyEdgeRow[] = []
+          if (datasetClient) {
+            const [spanDistRes, sunburstRes, reportingChainsRes] = await Promise.all([
+              datasetClient.executeQuery('spanOfControlDistribution', QueryType.DATASET, filterParams),
+              datasetClient
+                .executeQuery('orgHierarchySunburstData', QueryType.DATASET, filterParams)
+                .catch(() => ({ data: [] })),
+              datasetClient
+                .executeQuery('reportingChainsDetails', QueryType.DATASET, { ...filterParams, pageSize: 50 })
+                .catch(() => ({ data: [] }))
+            ])
+            spanDistRows = toRows<DatasetRow>(spanDistRes)
+            reportingChainRows = toRows<ReportingChainDatasetRow>(reportingChainsRes)
+            const sunburstRows = toRows<SunburstDatasetRow>(sunburstRes)
+
+            if (Array.isArray(sunburstRows) && sunburstRows.length > 0) {
+              edgeRowsFromDataset = parseSunburstRowsToEdges(sunburstRows)
+            }
+          }
+
+          // Build organizational nodes from dataset edges only.
+          let organizationalNodes: OrganizationalNode[] = []
+          if (edgeRowsFromDataset.length > 0) {
+            organizationalNodes = buildNodesFromEdges(edgeRowsFromDataset)
+          }
+
+          // Generate analysis data (prefer dataset rows for span-of-control distribution)
+          const spanOfControlData: SpanOfControlData[] =
+            spanDistRows.length > 0
+              ? spanDistRows.map(r => mapSpanDistributionRowToSpanOfControl(r))
+              : generateSpanOfControlAnalysis(organizationalNodes, t)
+          const spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
+          const depthAnalysisData = generateDepthAnalysis(organizationalNodes)
+          const employeeCountByNodeId = new Map(organizationalNodes.map(node => [node.id, node.employeeCount]))
+          const reportingChainData: ReportingChainData[] =
+            reportingChainRows.length > 0
+              ? reportingChainRows.map(row => mapReportingChainDatasetRow(row, employeeCountByNodeId))
+              : generateReportingChainAnalysis(organizationalNodes)
+          const reportingChainSummary = generateReportingChainSummary(reportingChainData)
+          const sunburstData = generateSunburstData(organizationalNodes)
+
+          // Calculate overall statistics
+          const structuralStatistics = calculateStructuralStatistics(
+            organizationalNodes,
+            spanOfControlData,
+            reportingChainSummary
+          )
+
+          return {
+            organizationalNodes,
+            spanOfControlData,
+            spanOfControlSummary,
+            depthAnalysisData,
+            reportingChainData,
+            reportingChainSummary,
+            sunburstData,
+            structuralStatistics
+          }
+        })().finally(() => {
+          inFlightStructuralAnalysisRequests.delete(fetchKey)
+        })
+        inFlightStructuralAnalysisRequests.set(fetchKey, requestPromise)
       }
-
-      // Execute datasets
-      let spanDistRows: DatasetRow[] = []
-      let reportingChainRows: ReportingChainDatasetRow[] = []
-      // Sunburst: we'll first try orgHierarchySunburstData (edges encoded in category), else fall back to GraphQL
-      let edgeRowsFromDataset: HierarchyEdgeRow[] = []
-      if (datasetClient) {
-        const [spanDistRes, sunburstRes, reportingChainsRes] = await Promise.all([
-          datasetClient.executeQuery('spanOfControlDistribution', QueryType.DATASET, { structureId }),
-          datasetClient
-            .executeQuery('orgHierarchySunburstData', QueryType.DATASET, { structureId })
-            .catch(() => ({ data: [] })),
-          datasetClient
-            .executeQuery('reportingChainsDetails', QueryType.DATASET, { structureId, pageSize: 50 })
-            .catch(() => ({ data: [] }))
-        ])
-        spanDistRows = toRows<DatasetRow>(spanDistRes)
-        reportingChainRows = toRows<ReportingChainDatasetRow>(reportingChainsRes)
-        const sunburstRows = toRows<SunburstDatasetRow>(sunburstRes)
-
-        if (Array.isArray(sunburstRows) && sunburstRows.length > 0) {
-          edgeRowsFromDataset = parseSunburstRowsToEdges(sunburstRows)
-        }
-      }
-
-      // Build organizational nodes from dataset edges only.
-      let organizationalNodes: OrganizationalNode[] = []
-      if (edgeRowsFromDataset.length > 0) {
-        organizationalNodes = buildNodesFromEdges(edgeRowsFromDataset)
-      }
-
-      // No extra overrides needed when dataset provided edges + counts
-
-      // Generate analysis data (prefer dataset rows for span-of-control distribution)
-      const spanOfControlData: SpanOfControlData[] =
-        spanDistRows.length > 0
-          ? spanDistRows.map(r => mapSpanDistributionRowToSpanOfControl(r))
-          : generateSpanOfControlAnalysis(organizationalNodes)
-      const spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
-      const depthAnalysisData = generateDepthAnalysis(organizationalNodes)
-      const employeeCountByNodeId = new Map(organizationalNodes.map(node => [node.id, node.employeeCount]))
-      const reportingChainData: ReportingChainData[] =
-        reportingChainRows.length > 0
-          ? reportingChainRows.map(row => mapReportingChainDatasetRow(row, employeeCountByNodeId))
-          : generateReportingChainAnalysis(organizationalNodes)
-      const reportingChainSummary = generateReportingChainSummary(reportingChainData)
-      const sunburstData = generateSunburstData(organizationalNodes)
-
-      // Calculate overall statistics
-      const structuralStatistics = calculateStructuralStatistics(
-        organizationalNodes,
-        spanOfControlData,
-        reportingChainSummary
-      )
-
-      const integratedData: StructuralAnalysisIntegrationData = {
-        organizationalNodes,
-        spanOfControlData,
-        spanOfControlSummary,
-        depthAnalysisData,
-        reportingChainData,
-        reportingChainSummary,
-        sunburstData,
-        structuralStatistics
-      }
-
+      const integratedData = await requestPromise
       setData(integratedData)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
@@ -360,7 +374,7 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
     } finally {
       setIsLoading(false)
     }
-  }, [datasetClient, t])
+  }, [datasetClient, t, selectedCompanyIds])
 
   useEffect(() => {
     if (context.accessToken) {

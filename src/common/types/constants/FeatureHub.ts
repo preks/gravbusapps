@@ -1,5 +1,6 @@
 import {
   CoreFeatureCollaborationValue,
+  CoreFeatureHomeModeValue,
   CoreFeatureIntranetValue,
   HCMFeatureEmployeeProfileValue,
   OrgChartCapabilityModeValue,
@@ -27,6 +28,7 @@ const OrgChartFeature = {
 const CoreFeature = {
   Collaboration: { Key: 'core.collaboration.mode', Values: CoreFeatureCollaborationValue },
   Intranet: { Key: 'core.intranet.mode', Values: CoreFeatureIntranetValue },
+  HomeMode: { Key: 'core.home.mode', Values: CoreFeatureHomeModeValue },
   AiAgent: { Key: 'core.aiagent.enabled' },
   TeamChat: { Key: 'core.teamchat.enabled' },
   ChatTeam: { Key: 'core.chat.team.enabled' },
@@ -65,7 +67,8 @@ const PlatformFeature = {
   GlobalManagement: { Key: 'platform.global.manage.enabled' },
   FlowBot: { Key: 'platform.ai.flowbot.enabled' },
   DashboardLayout: { Key: 'platform.dashboard-layout.mode', Values: PlatformFeatureDashboardLayoutValue },
-  EveryAI: { Key: 'everyai.enabled' }
+  EveryAI: { Key: 'everyai.enabled' },
+  WorkHome: { Key: 'platform.work-home.enabled' }
 }
 
 const EveryBoxFeature = {

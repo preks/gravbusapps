@@ -9,6 +9,7 @@ import { formatCurrencyCell } from './budgetSetupPlanTableRows'
 import { formatDateOrDash, formatCurrencyRefForDisplay } from '../../utils/displayFormatUtils'
 import { BudgetPlanStatusBadge } from '../shared/BudgetPlanStatusBadge'
 import type { BudgetPlanStatusApi } from '../../../../types/budgetPlanGraphqlEnums'
+import { formatBudgetPlanStatusLabelForDisplay } from './budgetSetupDisplayUtils'
 
 interface BudgetSetupCycleOverviewProps {
   selectedPlan: CompensationBudgetPlanListItem
@@ -46,6 +47,44 @@ function getDisplayCurrency(rows: CompensationBudgetPlanCompanyRow[], fallbackCu
   return formatCurrencyRefForDisplay(rows.find(row => row.currencyRef?.trim())?.currencyRef) || fallbackCurrencyCode
 }
 
+function getDistinctDisplayCurrencies(
+  rows: CompensationBudgetPlanCompanyRow[],
+  fallbackCurrencyCode: string
+): string[] {
+  const currencies = new Set<string>()
+  for (const row of rows) {
+    currencies.add(formatCurrencyRefForDisplay(row.currencyRef) || fallbackCurrencyCode)
+  }
+  return [...currencies]
+}
+
+function formatCurrencyTotalsByCurrency(
+  rows: CompensationBudgetPlanCompanyRow[],
+  fallbackCurrencyCode: string,
+  pickAmount: (row: CompensationBudgetPlanCompanyRow) => number
+): string[] {
+  const totalsByCurrency = new Map<string, number>()
+  for (const row of rows) {
+    const currency = formatCurrencyRefForDisplay(row.currencyRef) || fallbackCurrencyCode
+    totalsByCurrency.set(currency, (totalsByCurrency.get(currency) ?? 0) + pickAmount(row))
+  }
+  return [...totalsByCurrency.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currency, total]) => formatCurrencyCell(total, currency))
+}
+
+function CurrencyTotalsValue({ values }: Readonly<{ values: string[] }>) {
+  return (
+    <span className="gba:block gba:space-y-1">
+      {values.map(value => (
+        <span key={value} className="gba:block">
+          {value}
+        </span>
+      ))}
+    </span>
+  )
+}
+
 export function BudgetSetupCycleOverview({
   selectedPlan,
   companyRows,
@@ -57,6 +96,11 @@ export function BudgetSetupCycleOverview({
     () => getDisplayCurrency(companyRows, fallbackCurrencyCode),
     [companyRows, fallbackCurrencyCode]
   )
+  const displayCurrencies = useMemo(
+    () => getDistinctDisplayCurrencies(companyRows, fallbackCurrencyCode),
+    [companyRows, fallbackCurrencyCode]
+  )
+  const hasMixedCurrencies = displayCurrencies.length > 1
 
   const totals = useMemo(
     () =>
@@ -75,6 +119,27 @@ export function BudgetSetupCycleOverview({
     [companyRows]
   )
 
+  const currentSalaryCostValue = hasMixedCurrencies ? (
+    <CurrencyTotalsValue
+      values={formatCurrencyTotalsByCurrency(companyRows, fallbackCurrencyCode, row => row.currentTotalSalaryCost)}
+    />
+  ) : (
+    formatCurrencyCell(totals.currentSalaryCost, displayCurrency)
+  )
+  const salaryBudgetValue = hasMixedCurrencies ? (
+    <CurrencyTotalsValue
+      values={formatCurrencyTotalsByCurrency(companyRows, fallbackCurrencyCode, row => row.salaryBudgetAmount)}
+    />
+  ) : (
+    formatCurrencyCell(totals.salaryBudget, displayCurrency)
+  )
+  const currentSalaryCostDescription = hasMixedCurrencies
+    ? t('budget-setup-cycle-mixed-currencies-desc')
+    : t('budget-setup-cycle-current-salary-cost-desc')
+  const salaryBudgetDescription = hasMixedCurrencies
+    ? t('budget-setup-cycle-mixed-currencies-desc')
+    : t('budget-setup-cycle-total-salary-budget-desc')
+
   return (
     <div className="gba:space-y-4" data-testid="budget-setup-cycle-overview">
       <Button
@@ -92,14 +157,17 @@ export function BudgetSetupCycleOverview({
         <CardContent className="gba:p-6">
           <CardTitle className="gba:text-base gba:font-semibold">{t('budget-setup-plan-section-title')}</CardTitle>
           <dl className="gba:mt-6 gba:grid gba:grid-cols-1 gba:gap-x-8 gba:gap-y-5 gba:sm:grid-cols-2 gba:lg:grid-cols-5">
-            <div className="gba:min-w-0 gba:lg:col-span-2">
+            <div className="gba:min-w-0">
               <dt className="gba:text-xs gba:text-muted-foreground">{t('budget-setup-field-plan-name')}</dt>
               <dd className="gba:mt-1 gba:text-sm gba:font-semibold gba:text-foreground">{selectedPlan.name}</dd>
             </div>
             <div className="gba:min-w-0">
               <dt className="gba:text-xs gba:text-muted-foreground">{t('budget-setup-field-plan-status')}</dt>
               <dd className="gba:mt-1">
-                <BudgetPlanStatusBadge status={selectedPlan.budgetPlanStatus as BudgetPlanStatusApi} />
+                <BudgetPlanStatusBadge
+                  status={selectedPlan.budgetPlanStatus as BudgetPlanStatusApi}
+                  label={formatBudgetPlanStatusLabelForDisplay(selectedPlan.budgetPlanStatus, t)}
+                />
               </dd>
             </div>
             <div className="gba:min-w-0">
@@ -133,14 +201,14 @@ export function BudgetSetupCycleOverview({
         />
         <CycleKpiCard
           label={t('budget-setup-cycle-current-salary-cost')}
-          value={formatCurrencyCell(totals.currentSalaryCost, displayCurrency)}
-          description={t('budget-setup-cycle-current-salary-cost-desc')}
+          value={currentSalaryCostValue}
+          description={currentSalaryCostDescription}
           icon={<CurrencyCircleDollarIcon className="gba:h-5 gba:w-5" />}
         />
         <CycleKpiCard
           label={t('budget-setup-cycle-total-salary-budget')}
-          value={formatCurrencyCell(totals.salaryBudget, displayCurrency)}
-          description={t('budget-setup-cycle-total-salary-budget-desc')}
+          value={salaryBudgetValue}
+          description={salaryBudgetDescription}
           icon={<ChartLineUpIcon className="gba:h-5 gba:w-5" />}
         />
       </div>

@@ -9,8 +9,11 @@ const PREFIX = 'AccountAiEnrich'
 
 interface AccountAiEnrichButtonProps {
   accessToken: string | undefined
-  /** Whether this is a CRM Account or an IRM InvestmentAccount form. */
-  accountContext: 'crm' | 'irm'
+  /**
+   * The entity kind string passed to the AI enrichment API (e.g. 'account', 'investment_account').
+   * Each domain supplies its own value; the component stays domain-agnostic.
+   */
+  entityKind: string
   /**
    * When true the button is hidden — typically passed when editing an
    * existing account, where we don't want to overwrite saved data.
@@ -97,7 +100,7 @@ type AddressScalarKey = (typeof ADDRESS_SCALAR_KEYS)[number]
  */
 const AccountAiEnrichButton: React.FC<AccountAiEnrichButtonProps> = ({
   accessToken,
-  accountContext,
+  entityKind,
   isEditMode = false
 }) => {
   const form = useFormContext<any>()
@@ -216,7 +219,7 @@ const AccountAiEnrichButton: React.FC<AccountAiEnrichButtonProps> = ({
 
     const response = await runEnrichment({
       companyName,
-      entityKind: accountContext === 'irm' ? 'investment_account' : 'account'
+      entityKind
     })
 
     if (!response) {
@@ -232,7 +235,7 @@ const AccountAiEnrichButton: React.FC<AccountAiEnrichButtonProps> = ({
     }
 
     toast.success(`Filled ${appliedCount} field${appliedCount === 1 ? '' : 's'} for "${companyName}".`)
-  }, [accountContext, applyResponse, companyName, hasCompanyName, isLoading, runEnrichment])
+  }, [entityKind, applyResponse, companyName, hasCompanyName, isLoading, runEnrichment])
 
   if (isEditMode) return null
 

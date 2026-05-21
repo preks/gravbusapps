@@ -54,28 +54,28 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
 
   // Filter out current entity and non-promoted entities
   const selectableEntities = availableEntities.filter(
-    e => e.id !== currentEntity.id && e.publish_state === 'PROMOTED_TRACKED'
+    e => e.id !== currentEntity.id && e.publishState === 'PROMOTED_TRACKED'
   )
 
   const isEntityRefColumn = (col: { type: string; dataSource?: { type: string } }) =>
     col.type === 'SELECT' && (col.dataSource?.type === 'CUSTOM_ENTITY' || col.dataSource?.type === 'INTERNAL_ENTITY')
 
   // Find foreign key columns based on relationship type
-  const currentEntityForeignKeyColumns = currentEntity.columns_json.filter(isEntityRefColumn)
+  const currentEntityForeignKeyColumns = currentEntity.columns.filter(isEntityRefColumn)
 
-  const isCustomEntity = selectableEntities.some(e => e.key === selectedEntityKey)
+  const isCustomEntity = selectableEntities.some(e => e.entityName === selectedEntityKey)
   const isInternalEntitySelected = selectedEntityKey.length > 0 && !isCustomEntity
 
   // Get foreign key columns from selected entity (for when current entity is parent)
-  const selectedEntity = availableEntities.find(e => e.key === selectedEntityKey)
-  const selectedEntityForeignKeyColumns = selectedEntity?.columns_json.filter(isEntityRefColumn) || []
+  const selectedEntity = availableEntities.find(e => e.entityName === selectedEntityKey)
+  const selectedEntityForeignKeyColumns = selectedEntity?.columns.filter(isEntityRefColumn) || []
 
   const entityComboboxOptions = useMemo(() => {
     const customOptions = selectableEntities.map(entity => ({
-      value: entity.key,
+      value: entity.entityName,
       label: (
         <div className="gba:flex gba:flex-col gba:min-w-0 gba:w-full">
-          <div className="gba:text-sm gba:font-medium gba:truncate">{entity.display_name || entity.key}</div>
+          <div className="gba:text-sm gba:font-medium gba:truncate">{entity.displayName || entity.entityName}</div>
           <div className="gba:text-xs gba:text-muted-foreground gba:truncate">Custom Entity</div>
         </div>
       )
@@ -126,7 +126,7 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
         relationship = {
           type: 'ONE_TO_MANY',
           sourceEntity: selectedEntityKey,
-          targetEntity: currentEntity.key,
+          targetEntity: currentEntity.entityName,
           foreignKeyColumn: foreignKeyColumn,
           cascadeDelete,
           targetKind
@@ -134,7 +134,7 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
       } else {
         relationship = {
           type: 'ONE_TO_MANY',
-          sourceEntity: currentEntity.key,
+          sourceEntity: currentEntity.entityName,
           targetEntity: selectedEntityKey,
           foreignKeyColumn: foreignKeyColumn,
           cascadeDelete,
@@ -151,7 +151,7 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
     }
   }, [relationType, selectedEntityKey, foreignKeyColumn, cascadeDelete, currentEntity, onCreateRelationship])
 
-  if (currentEntity.publish_state !== 'PROMOTED_TRACKED') {
+  if (currentEntity.publishState !== 'PROMOTED_TRACKED') {
     return (
       <Card>
         <CardHeader>
@@ -257,8 +257,8 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
               </Select>
               <p className="gba:text-xs gba:text-muted-foreground">
                 {relationType === 'parent'
-                  ? `${currentEntity.display_name || currentEntity.key} belongs to another entity`
-                  : `${currentEntity.display_name || currentEntity.key} has many of another entity`}
+                  ? `${currentEntity.displayName || currentEntity.entityName} belongs to another entity`
+                  : `${currentEntity.displayName || currentEntity.entityName} has many of another entity`}
               </p>
             </div>
 
@@ -300,7 +300,7 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
                       )
                     } else {
                       columns = selectedEntityForeignKeyColumns.filter(
-                        col => col.dataSource?.entity === currentEntity.key
+                        col => col.dataSource?.entity === currentEntity.entityName
                       )
                     }
 
@@ -313,8 +313,8 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
                     }
 
                     return columns.map((col, idx) => (
-                      <SelectItem key={`${col.name}-${idx}`} value={col.name}>
-                        {col.label} ({col.name})
+                      <SelectItem key={`${col.fieldName}-${idx}`} value={col.fieldName}>
+                        {col.label} ({col.fieldName})
                       </SelectItem>
                     ))
                   })()}
@@ -322,20 +322,20 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
               </Select>
               <p className="gba:text-xs gba:text-muted-foreground">
                 {relationType === 'parent'
-                  ? `The column in ${currentEntity.display_name || currentEntity.key} that references ${isInternalEntitySelected ? selectedEntityKey + ' (internal)' : selectedEntity?.display_name || selectedEntityKey}`
-                  : `The column in ${selectedEntity?.display_name || selectedEntityKey} that references ${currentEntity.display_name || currentEntity.key}`}
+                  ? `The column in ${currentEntity.displayName || currentEntity.entityName} that references ${isInternalEntitySelected ? selectedEntityKey + ' (internal)' : selectedEntity?.displayName || selectedEntityKey}`
+                  : `The column in ${selectedEntity?.displayName || selectedEntityKey} that references ${currentEntity.displayName || currentEntity.entityName}`}
               </p>
 
               {relationType === 'child' &&
-                selectedEntityForeignKeyColumns.filter(col => col.dataSource?.entity === currentEntity.key).length ===
-                  0 &&
+                selectedEntityForeignKeyColumns.filter(col => col.dataSource?.entity === currentEntity.entityName)
+                  .length === 0 &&
                 selectedEntityKey && (
                   <Alert variant="destructive" className="gba:mt-2">
                     <AlertCircle className="gba:h-4 gba:w-4" />
                     <AlertDescription className="gba:text-xs">
-                      The selected entity "{selectedEntity?.display_name || selectedEntityKey}" has no Dropdown column
-                      with data source referencing "{currentEntity.display_name || currentEntity.key}". Add one in the
-                      child entity first.
+                      The selected entity "{selectedEntity?.displayName || selectedEntityKey}" has no Dropdown column
+                      with data source referencing "{currentEntity.displayName || currentEntity.entityName}". Add one in
+                      the child entity first.
                     </AlertDescription>
                   </Alert>
                 )}

@@ -102,18 +102,8 @@ export const PremiumHeroWavingDotsCanvas: React.FC<PremiumHeroWavingDotsCanvasPr
     resize()
     window.addEventListener('resize', resize)
 
-    if (prefersReducedMotion()) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      drawFrame(0)
-      return () => {
-        window.removeEventListener('resize', resize)
-      }
-    }
-
-    let raf = 0
-    const t0 = performance.now()
-
     // Pre-render dot "stamps" for fast draws (neutral + slightly cool/blue for near folds).
+    // Must exist before drawFrame/drawDot run — including the prefers-reduced-motion static path.
     const stamp = document.createElement('canvas')
     const stampCool = document.createElement('canvas')
     const stampPad = 2
@@ -245,6 +235,17 @@ export const PremiumHeroWavingDotsCanvas: React.FC<PremiumHeroWavingDotsCanvasPr
 
       ctx.globalAlpha = 1
     }
+
+    if (prefersReducedMotion()) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      drawFrame(0)
+      return () => {
+        window.removeEventListener('resize', resize)
+      }
+    }
+
+    let raf = 0
+    const t0 = performance.now()
 
     const tick = (now: number) => {
       const t = (now - t0) / 1000

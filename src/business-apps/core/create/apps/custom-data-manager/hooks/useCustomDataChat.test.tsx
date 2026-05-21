@@ -7,10 +7,10 @@ describe('useCustomDataChat', () => {
     const proposal = {
       entities: [
         {
-          key: 'order',
+          entityName: 'Order',
           displayName: 'Order',
           description: 'Sales order',
-          columns: [{ type: InputType.TEXT, name: 'name', label: 'Name' }]
+          columns: [{ type: InputType.TEXT, fieldName: 'name', label: 'Name' }]
         }
       ],
       relationships: []
@@ -62,10 +62,10 @@ describe('useCustomDataChat', () => {
     const proposal = {
       entities: [
         {
-          key: 'order',
+          entityName: 'Order',
           displayName: 'Order',
           description: 'Sales order',
-          columns: [{ type: InputType.TEXT, name: 'name', label: 'Name' }]
+          columns: [{ type: InputType.TEXT, fieldName: 'name', label: 'Name' }]
         }
       ],
       relationships: []
@@ -83,10 +83,10 @@ describe('useCustomDataChat', () => {
     const onCreate = jest.fn().mockResolvedValue({
       success: true,
       namespace: 'sales',
-      createdEntityKeys: ['order'],
-      updatedEntityKeys: [],
-      deletedEntityKeys: [],
-      downgradedEntityKeys: [],
+      createdEntityNames: ['Order'],
+      updatedEntityNames: [],
+      deletedEntityNames: [],
+      downgradedEntityNames: [],
       proposal
     })
     const onSuccess = jest.fn()
@@ -113,7 +113,7 @@ describe('useCustomDataChat', () => {
         role: 'assistant',
         content: 'Applied model: 1 created, 0 updated, 0 deleted.',
         result: expect.objectContaining({
-          createdEntityKeys: ['order']
+          createdEntityNames: ['Order']
         })
       })
     )

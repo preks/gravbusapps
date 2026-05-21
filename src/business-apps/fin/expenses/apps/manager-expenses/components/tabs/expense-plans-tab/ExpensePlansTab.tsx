@@ -6,11 +6,9 @@ import {
   useSearchHandler,
   useCurrencyChangeHandler,
   useVisibleColumns,
-  useCurrencySecondaryAction,
-  useEmptyMessage
+  useCurrencySecondaryAction
 } from '../../../hooks/useTabState'
 import { DataDisplay, useTranslation } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import translations from '../../../_i18n'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
@@ -23,8 +21,7 @@ import ExpensePlanDetails from './ExpensePlanDetails'
 import { DetailsSheet } from '../../../common/components/DetailsSheet'
 import { createExpensePlanFilterConfig } from './config/expensePlanFilterConfig'
 import { EXPENSE_PLAN_DEFAULT_VISIBLE_COLUMN_IDS } from './config/expensePlanColumnDefinitions'
-import { expensePlanSortableColumns } from './config/expensePlanSortableColumns'
-import { expensePlanAvailableColumns } from './config/expensePlanAvailableColumns'
+import { buildExpensePlanSortableColumns } from './config/expensePlanSortableColumns'
 import { formatDateRangeForChip, applyDateRangeFromFilter } from '../../../../../common/utils/dateRangeFilterUtils'
 import {
   applyAmountRangeFromFilters,
@@ -182,8 +179,14 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   )
 
   const filterConfiguration = useMemo(
-    () => createExpensePlanFilterConfig({ statusOptions: planFilterStatuses, filterLabelMap }),
-    [filterLabelMap]
+    () =>
+      createExpensePlanFilterConfig({
+        statusOptions: planFilterStatuses,
+        filterLabelMap,
+        statusGroupLabel: t('filter-status-group-title'),
+        t
+      }),
+    [filterLabelMap, t]
   )
 
   const filtersObject = useMemo((): Record<string, unknown> => {
@@ -259,10 +262,13 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     totalAmountRange
   ])
 
-  const emptyMessage = useEmptyMessage(
-    hasActiveFilters,
-    'lowcoder:manager_expense_landing_page.no_plans_created_by_team',
-    'No expense plan created by your team yet.'
+  const expensePlanSortableColumns = useMemo(() => buildExpensePlanSortableColumns(t), [t])
+
+  const expensePlanAvailableColumns = expensePlanSortableColumns
+
+  const emptyMessage = useMemo(
+    () => (hasActiveFilters ? t('expense-plans-empty-filtered') : t('expense-plans-empty-no-team-plans')),
+    [hasActiveFilters, t]
   )
 
   const columnsFilteredByVisibility = useVisibleColumns(visibleColumns, expensePlanAvailableColumns)
@@ -286,16 +292,13 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         titleSections={[
           {
             id: 'list',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans'),
+            label: t('expense-plans-list-section-title'),
             metadata: { count: totalCount, isLoading: plansLoading }
           }
         ]}
         currentSection="list"
         searchValue={searchTerm}
-        searchPlaceholder={
-          getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
-          '...'
-        }
+        searchPlaceholder={t('expense-plans-search-placeholder')}
         onSearchChange={handleSearchChange}
         filters={filtersObject}
         filterConfiguration={filterConfiguration}
@@ -335,13 +338,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       <DetailsSheet
         open={!!selectedPlan}
         onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedPlan?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_plan.expense_subtitle_details',
-            'Expense Plan Details'
-          )
-        }
+        title={selectedPlan?.title || t('expense-plans-details-title')}
         testId="expense-plan-details-sheet"
         onClose={handleCloseDetails}
       >

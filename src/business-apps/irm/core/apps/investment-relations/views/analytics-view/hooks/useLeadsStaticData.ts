@@ -7,22 +7,17 @@ import {
 
 export type LeadsStaticData = GenericLeadsStaticData
 export type LeadSourceCatalogEntry = LeadCatalogEntry
-export type LeadRatingCatalogEntry = LeadCatalogEntry
 export type LeadStatusCatalogEntry = LeadCatalogEntry
 
 export const useLeadsStaticData = (accessToken: string) => {
   // Use shared generic hook with IRM-specific configuration
   return useGenericLeadsStaticData(accessToken, {
     entityName: 'InvestmentLead',
-    entityAggregate: 'InvestmentLeadAggregate',
-    includeTopOwners: false // IRM doesn't need top owners
+    entityAggregate: 'InvestmentLeadAggregate'
   })
 }
 
 export type {
   LeadSourceData,
-  LeadRatingData,
-  LeadStatusData,
-  LeadVelocityDataPoint,
-  LeadOwnerData
+  LeadStatusData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks/useGenericLeadsStaticData'

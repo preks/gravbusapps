@@ -45,6 +45,7 @@ export interface NoteTreeSidebarProps {
   onTogglePin?: (id: string) => void
   onCollapse: () => void
   onResizeStart: (e: React.MouseEvent) => void
+  handwritingNotesEnabled?: boolean
 }
 
 export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
@@ -70,7 +71,8 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
   onDelete,
   onTogglePin,
   onCollapse,
-  onResizeStart
+  onResizeStart,
+  handwritingNotesEnabled = true
 }) => {
   const { t } = useTranslation(translations)
 
@@ -137,13 +139,15 @@ export const NoteTreeSidebar: React.FC<NoteTreeSidebarProps> = ({
                   <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-text-description')}</div>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onCreateNote({ noteType: 'handwriting' })}>
-                <PenTool className="gba:w-4 gba:h-4 gba:mr-2" />
-                <div>
-                  <div className="gba:font-medium gba:text-sm">{t('menu-new-handwriting-title')}</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-handwriting-description')}</div>
-                </div>
-              </DropdownMenuItem>
+              {handwritingNotesEnabled ? (
+                <DropdownMenuItem onClick={() => onCreateNote({ noteType: 'handwriting' })}>
+                  <PenTool className="gba:w-4 gba:h-4 gba:mr-2" />
+                  <div>
+                    <div className="gba:font-medium gba:text-sm">{t('menu-new-handwriting-title')}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-handwriting-description')}</div>
+                  </div>
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onCreateFolder}>
                 <FolderPlus className="gba:w-4 gba:h-4 gba:mr-2" />

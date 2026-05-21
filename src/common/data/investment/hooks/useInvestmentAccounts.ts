@@ -333,6 +333,12 @@ export interface UseInvestmentAccountsListResult {
   refetch: (variables?: InvestmentAccountQueryVariables) => Promise<void>
   search: (searchTerm: string) => void
   loadMore: () => void
+  /**
+   * Imperative fetch that does NOT touch the hook's internal state.
+   * Use this when you need to fetch with arbitrary variables (e.g. drill-down panels)
+   * without affecting the combobox-style state managed by this hook.
+   */
+  fetchInvestmentAccounts: (variables?: InvestmentAccountQueryVariables) => Promise<InvestmentAccountQueryResponse>
 }
 
 export function useInvestmentAccountsList(
@@ -449,11 +455,47 @@ export function useInvestmentAccountsList(
     }
   }, [fetchPage, state.hasMore, state.loading])
 
+  const fetchInvestmentAccounts = useCallback(
+    async (queryVariables?: InvestmentAccountQueryVariables): Promise<InvestmentAccountQueryResponse> => {
+      const emptyResponse: InvestmentAccountQueryResponse = {
+        InvestmentAccount: [],
+        InvestmentAccountAggregate: { aggregate: { count: 0 } }
+      }
+
+      if (!context.accessToken) {
+        return emptyResponse
+      }
+
+      const vars: InvestmentAccountQueryVariables = { ...stableVariables, ...queryVariables }
+      const query = buildInvestmentAccountQuery()
+      const whereCondition = buildInvestmentAccountWhereCondition(vars)
+      const orderBy = buildInvestmentAccountOrderBy(vars.orderBy || [])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: vars.limit ?? 50,
+        offset: vars.offset ?? 0,
+        where: whereCondition,
+        orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<InvestmentAccountQueryResponse>(query, graphQLVariables)
+        const enhancedAccounts = result.InvestmentAccount.map(toInvestmentAccount)
+        return { ...result, InvestmentAccount: enhancedAccounts }
+      } catch (error) {
+        console.error('Error fetching investment accounts:', error instanceof Error ? error.message : error)
+        return emptyResponse
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
   return {
     ...state,
     refetch,
     search,
-    loadMore
+    loadMore,
+    fetchInvestmentAccounts
   }
 }
 

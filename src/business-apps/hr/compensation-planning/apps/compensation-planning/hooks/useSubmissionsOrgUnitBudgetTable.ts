@@ -209,6 +209,7 @@ export function useSubmissionsOrgUnitBudgetTable(
       teamOrgUnitNameById
     ]
   )
+  const companyBudgetRows = useMemo(() => [...companyRowById.values()], [companyRowById])
 
   const fetchData = useCallback(async () => {
     if (!accessToken || !companyId) {
@@ -315,6 +316,7 @@ export function useSubmissionsOrgUnitBudgetTable(
 
   return {
     rows: tableRows,
+    companyBudgetRows,
     loading: loadingGraphql || loadingOrgUnits,
     error,
     refetch,

@@ -1,58 +1,135 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import {
-  createDateRangeFilterGroup,
-  createExpenseTripMultiSelectOptions,
-  createNumberRangeFilterGroup,
-  createStatusFilterGroup
-} from '../../../../../../common/config/filterConfigHelpers'
 
 export interface ExpensePlanFilterConfigOptions {
   statusOptions: string[]
   filterLabelMap: Record<string, string>
+  t: (key: string) => string
+}
+
+function buildDateRangeConfig(t: (key: string) => string) {
+  return {
+    dateType: 'date' as const,
+    mode: 'range' as const,
+    placeholder: t('personal-expenses-date-placeholder-start'),
+    placeholderEnd: t('personal-expenses-date-placeholder-end'),
+    showClearButton: true
+  }
+}
+
+function buildDateRangeGroup(
+  t: (key: string) => string,
+  id: string,
+  field: string,
+  label: string,
+  groupInfo?: string
+): FilterConfiguration['groups'][number] {
+  const dateConfig = buildDateRangeConfig(t)
+  return {
+    id: `${id}-group`,
+    label,
+    ...(groupInfo ? { info: groupInfo } : {}),
+    collapsible: true,
+    defaultExpanded: false,
+    filters: [
+      {
+        id: field,
+        field,
+        label,
+        type: 'date',
+        config: dateConfig
+      }
+    ]
+  }
+}
+
+function buildNumberRangeGroup(
+  t: (key: string) => string,
+  groupId: string,
+  field: string,
+  label: string
+): FilterConfiguration['groups'][number] {
+  return {
+    id: `${groupId}-group`,
+    label,
+    collapsible: true,
+    defaultExpanded: false,
+    filters: [
+      {
+        id: field,
+        field,
+        label,
+        type: 'number',
+        config: {
+          mode: 'range' as const,
+          min: 0,
+          max: 10_000_000,
+          step: 0.01,
+          placeholderMin: t('expense-plans-filter-min-amount'),
+          placeholderMax: t('expense-plans-filter-max-amount')
+        }
+      }
+    ]
+  }
 }
 
 export function createExpensePlanFilterConfig({
   statusOptions,
-  filterLabelMap
+  filterLabelMap,
+  t
 }: ExpensePlanFilterConfigOptions): FilterConfiguration {
   const statusFilters = statusOptions.map(id => ({ id, label: filterLabelMap?.[id] ?? id }))
-  const planTypeOptions = createExpenseTripMultiSelectOptions(filterLabelMap, 'planType:EXPENSES', 'planType:TRIP')
+  const planTypeOptions = [
+    {
+      id: 'planType:EXPENSES',
+      label: filterLabelMap?.['planType:EXPENSES'] ?? t('personal-expenses-label-expense')
+    },
+    {
+      id: 'planType:TRIP',
+      label: filterLabelMap?.['planType:TRIP'] ?? t('personal-expenses-label-trip')
+    }
+  ]
 
-  const topDestinationLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:personal_expenses.top_destination',
-    'Top Destination'
-  )
+  const topDestinationLabel = t('expense-plans-filter-top-destination')
   const topDestinationOptions = Object.entries(filterLabelMap)
     .filter(([key]) => key.startsWith('topDestination:'))
     .map(([id, label]) => ({ id, label }))
 
   const groups: FilterConfiguration['groups'] = [
-    createDateRangeFilterGroup(
+    buildDateRangeGroup(
+      t,
       'effectiveDate',
       'effectiveDateRange',
-      'lowcoder:personal_expenses.effective_date',
-      'Effective Date'
+      t('personal-expenses-label-effective-date'),
+      t('personal-expenses-effective-date-filter-info')
     ),
-    createDateRangeFilterGroup(
-      'planDate',
-      'planDateRange',
-      'lowcoder:team_expenses_page.plan_details.plan_date',
-      'Plan Date'
-    ),
-    createDateRangeFilterGroup('startDate', 'startDateRange', 'lowcoder:personal_expenses.start_date', 'Start Date'),
-    createDateRangeFilterGroup('endDate', 'endDateRange', 'lowcoder:personal_expenses.end_date', 'End Date'),
-    createStatusFilterGroup(statusFilters),
+    buildDateRangeGroup(t, 'planDate', 'planDateRange', t('expense-plans-column-plan-date')),
+    buildDateRangeGroup(t, 'startDate', 'startDateRange', t('personal-expenses-filter-label-start-date')),
+    buildDateRangeGroup(t, 'endDate', 'endDateRange', t('personal-expenses-filter-label-end-date')),
+    {
+      id: 'status-group',
+      label: t('expense-items-column-status'),
+      collapsible: true,
+      defaultExpanded: true,
+      filters: [
+        {
+          id: 'statusIds',
+          field: 'statusIds',
+          label: t('expense-items-column-status'),
+          type: 'multi-select',
+          config: { options: statusFilters }
+        }
+      ]
+    },
     {
       id: 'planType-group',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+      label: t('personal-expenses-label-plan-type'),
       collapsible: true,
       defaultExpanded: false,
       filters: [
         {
           id: 'planTypeIds',
           field: 'planTypeIds',
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+          label: t('personal-expenses-label-plan-type'),
           type: 'multi-select',
           config: { options: planTypeOptions }
         },
@@ -65,18 +142,8 @@ export function createExpensePlanFilterConfig({
         }
       ]
     },
-    createNumberRangeFilterGroup(
-      'reimbursable-amount',
-      'reimbursableAmount',
-      'lowcoder:approve_expense_request.reimbursable',
-      'Reimbursable Amount'
-    ),
-    createNumberRangeFilterGroup(
-      'paid-advance',
-      'paidAdvance',
-      'lowcoder:expense_plan_list.expense_plan_table.paid_advance',
-      'Paid Advance'
-    )
+    buildNumberRangeGroup(t, 'reimbursable-amount', 'reimbursableAmount', t('expense-items-column-reimbursable')),
+    buildNumberRangeGroup(t, 'paid-advance', 'paidAdvance', t('expense-plans-filter-paid-advance'))
   ]
 
   return { id: 'expense-plans-filters', name: 'Expense Plans Filters', groups }

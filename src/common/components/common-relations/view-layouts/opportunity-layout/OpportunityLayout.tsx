@@ -50,7 +50,9 @@ const updateFilterOptions = (
 
   const filter = group.filters.find(f => f.id === filterId)
   if (filter?.config && 'options' in filter.config) {
-    filter.config.options = options
+    const existingOptions = (filter.config.options as Array<{ id: string; label: string }>) ?? []
+    const syntheticOptions = existingOptions.filter(o => o.id.startsWith('BUCKET:'))
+    filter.config.options = syntheticOptions.length > 0 ? [...syntheticOptions, ...options] : options
   }
 }
 
@@ -176,6 +178,8 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
   initialVisibleColumns?: string[]
   onVisibleColumnsChange?: (columns: string[]) => void
+  /** When true, only the list view is shown (board tab is hidden). */
+  hideBoard?: boolean
 }
 
 interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
@@ -405,6 +409,108 @@ function applyCurrencyToVars(
   return baseVars
 }
 
+function buildBoardFiltersObj(args: {
+  boardPipelineId: string
+  boardFilters: Record<string, any>
+  boardSearch: string
+  selectedCurrency: string
+  availableCurrencies: Array<{ id: string; code: string }>
+  currentEmployeeId?: string
+}): OpportunityBoardFilters {
+  const { boardPipelineId, boardFilters, boardSearch, selectedCurrency, availableCurrencies, currentEmployeeId } = args
+  const { opportunityFilter, ownerEmployeeIds } = determineOpportunityFilter(boardFilters, currentEmployeeId)
+
+  const boardFiltersObj: OpportunityBoardFilters = {
+    selectedPipelineId: boardPipelineId,
+    opportunityFilter,
+    selectedEmployeeIds: ownerEmployeeIds || [],
+    search: boardSearch.trim() || undefined
+  }
+
+  const selectedCurrencyObj =
+    selectedCurrency === 'ALL' ? undefined : availableCurrencies.find(c => c.code === selectedCurrency)
+  if (selectedCurrencyObj?.id) {
+    ;(boardFiltersObj as any).currencyIds = [selectedCurrencyObj.id]
+  }
+
+  return boardFiltersObj
+}
+
+interface SectionUiPropsArgs {
+  currentSection: 'list' | 'board'
+  searchTerm: string
+  boardSearch: string
+  handleSearch: (value: string) => void
+  setBoardSearch: (value: string) => void
+  sorting: Array<{ id: string; desc: boolean }>
+  handleSortingChange: (newSorting: Array<{ id: string; desc: boolean }>) => void
+  availableColumns: Array<{ id: string; label: string }>
+  visibleColumns: string[]
+  handleVisibleColumnsChange: (newColumns: string[]) => void
+  boardSecondaryActions: React.ReactNode
+  listSecondaryActions: React.ReactNode
+}
+
+function buildSectionUiProps(args: SectionUiPropsArgs) {
+  const isListSection = args.currentSection === 'list'
+  return {
+    isListSection,
+    searchValue: isListSection ? args.searchTerm : args.boardSearch,
+    searchPlaceholder: isListSection ? 'Search opportunities...' : 'Search board...',
+    onSearchChange: isListSection ? args.handleSearch : args.setBoardSearch,
+    sorting: isListSection ? args.sorting : undefined,
+    onSortingChange: isListSection ? args.handleSortingChange : undefined,
+    availableColumns: isListSection ? args.availableColumns : undefined,
+    visibleColumns: isListSection ? args.visibleColumns : undefined,
+    onVisibleColumnsChange: isListSection ? args.handleVisibleColumnsChange : undefined,
+    secondaryActions: isListSection ? args.listSecondaryActions : args.boardSecondaryActions,
+    enableLiveFiltering: !isListSection,
+    filterSheetTitle: isListSection ? 'Filter Opportunities' : 'Filter Board',
+    filterSheetDescription: isListSection
+      ? 'Apply filters to narrow down the opportunity list'
+      : 'Filter opportunities by owner'
+  }
+}
+
+function mapAvailableCurrencies(currencyOptions: unknown): Array<{ code: string; label: string; id: string }> {
+  const list = Array.isArray(currencyOptions) ? currencyOptions : []
+  return list
+    .filter((currency: any) => currency?.code !== 'ALL')
+    .map((currency: any) => ({ code: currency.code, label: currency.code, id: currency.id }))
+}
+
+interface OpportunityPrimaryActionProps {
+  customAction?: React.ReactNode
+  createContext?: FlowContextName
+  createContextData?: Record<string, any>
+  accessToken?: string
+}
+
+const OpportunityPrimaryAction: React.FC<OpportunityPrimaryActionProps> = ({
+  customAction,
+  createContext,
+  createContextData,
+  accessToken
+}) => {
+  if (customAction) return <>{customAction}</>
+  if (!createContext) return null
+
+  return (
+    <AppAction
+      contextsArray={[createContext]}
+      externalContextData={createContextData}
+      accessToken={accessToken}
+      data-testid="add-opportunity-action"
+      emptyStateBehavior="hide"
+    >
+      <Button size="sm" variant="default" data-testid="add-opportunity-button" type="button">
+        <Plus size={16} />
+        {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
+      </Button>
+    </AppAction>
+  )
+}
+
 function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQueryVariables = any>(
   props: OpportunityLayoutProps<TOpportunity, TQueryVariables>
 ): React.ReactElement {
@@ -426,7 +532,8 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     initialSorting: initialSortingProp,
     onSortingChange: onSortingChangeProp,
     initialVisibleColumns: initialVisibleColumnsProp,
-    onVisibleColumnsChange: onVisibleColumnsChangeProp
+    onVisibleColumnsChange: onVisibleColumnsChangeProp,
+    hideBoard = false
   } = props
   const { accessToken } = context
 
@@ -499,21 +606,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     returnFormat: 'full'
   })
 
-  const availableCurrencies = useMemo(
-    () =>
-      (Array.isArray(currencyOptions) ? currencyOptions : [])
-        .filter((currency: any) => {
-          // Filter out "ALL" as we add it manually in the filter dropdown
-          const currencyCode = currency?.code
-          return currencyCode !== 'ALL'
-        })
-        .map((currency: any) => ({
-          code: currency.code,
-          label: currency.code,
-          id: currency.id // Full catalog ID like "Currency:v1:EUR"
-        })),
-    [currencyOptions]
-  )
+  const availableCurrencies = useMemo(() => mapAvailableCurrencies(currencyOptions), [currencyOptions])
 
   // Board Employees (for owner filter in board view)
   const { employees: boardEmployees } = useBoardEmployees({
@@ -595,24 +688,14 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     setBoardError(null)
 
     try {
-      // Determine filter mode using helper
-      const currentEmployeeId = context.userInfo?.employeeDetails?.employeeId
-      const { opportunityFilter, ownerEmployeeIds } = determineOpportunityFilter(boardFilters, currentEmployeeId)
-
-      const boardFiltersObj: OpportunityBoardFilters = {
-        selectedPipelineId: boardPipelineId,
-        opportunityFilter,
-        selectedEmployeeIds: ownerEmployeeIds || [],
-        search: boardSearch.trim() || undefined
-      }
-
-      // Convert selected currency code to full catalog ID if not "ALL"
-      if (selectedCurrency !== 'ALL') {
-        const selectedCurrencyObj = availableCurrencies.find(c => c.code === selectedCurrency)
-        if (selectedCurrencyObj?.id) {
-          ;(boardFiltersObj as any).currencyIds = [selectedCurrencyObj.id]
-        }
-      }
+      const boardFiltersObj = buildBoardFiltersObj({
+        boardPipelineId,
+        boardFilters,
+        boardSearch,
+        selectedCurrency,
+        availableCurrencies,
+        currentEmployeeId: context.userInfo?.employeeDetails?.employeeId
+      })
 
       const result = await config.fetchOpportunitiesForBoard(boardFiltersObj)
       setBoardOpportunities(result.opportunities || [])
@@ -641,20 +724,14 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     }
   }, [pipelines, boardPipelineId])
 
-  // Initial parallel load: Load BOTH list and board data for badge counts
+  // Initial parallel load: Load BOTH list and board data for badge counts.
+  // Always load list; load board only when a pipeline is available.
   useEffect(() => {
     if (!accessToken || !isInitialLoad) return
 
-    const loadBothSections = async () => {
-      // Always load list; load board only when a pipeline is available
-      const tasks = [loadListData(true)]
-      if (boardPipelineId) {
-        tasks.push(loadBoardData())
-      }
-      await Promise.all(tasks)
-    }
-
-    loadBothSections()
+    const tasks: Array<Promise<unknown>> = [loadListData(true)]
+    if (boardPipelineId) tasks.push(loadBoardData())
+    Promise.all(tasks)
   }, [accessToken, isInitialLoad])
 
   // Reload list data when filters/search/sort change (only when list is active, skip initial load).
@@ -730,15 +807,13 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   const columns = useMemo(() => config.createColumns(), [config])
   const availableColumns = useMemo(() => deriveAvailableColumns(columns), [columns])
 
-  // Row actions - rendered internally
   // Row actions - rendered internally (only if actions are configured)
   const rowActions = useMemo(() => {
-    if (config.rowActionsContextArray && config.rowActionsContextArray.length > 0) {
-      return (row: { original: TOpportunity }) => (
-        <OpportunityRowActions row={row} config={config} accessToken={accessToken} />
-      )
-    }
-    return undefined
+    const hasRowActions = (config.rowActionsContextArray?.length ?? 0) > 0
+    if (!hasRowActions) return undefined
+    return (row: { original: TOpportunity }) => (
+      <OpportunityRowActions row={row} config={config} accessToken={accessToken} />
+    )
   }, [config, accessToken])
 
   // Board secondary actions: Pipeline selector + Currency filter
@@ -818,28 +893,68 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   }, [currentSection, availableColumns, config])
 
   // Extract primary action
-  const primaryActionElement = useMemo(() => {
-    if (customPrimaryAction) return customPrimaryAction
+  const primaryActionElement = useMemo(
+    () => (
+      <OpportunityPrimaryAction
+        customAction={customPrimaryAction}
+        createContext={config.flowContexts.createContext}
+        createContextData={config.flowContexts.createContextData}
+        accessToken={accessToken}
+      />
+    ),
+    [customPrimaryAction, config.flowContexts.createContext, config.flowContexts.createContextData, accessToken]
+  )
 
-    if (config.flowContexts.createContext) {
-      return (
-        <AppAction
-          contextsArray={[config.flowContexts.createContext]}
-          externalContextData={config.flowContexts.createContextData}
-          accessToken={accessToken}
-          data-testid="add-opportunity-action"
-          emptyStateBehavior="hide"
-        >
-          <Button size="sm" variant="default" data-testid="add-opportunity-button" type="button">
-            <Plus size={16} />
-            {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
-          </Button>
-        </AppAction>
-      )
+  const isListSection = currentSection === 'list'
+  const sectionUiProps = useMemo(
+    () =>
+      buildSectionUiProps({
+        currentSection,
+        searchTerm,
+        boardSearch,
+        handleSearch,
+        setBoardSearch,
+        sorting,
+        handleSortingChange,
+        availableColumns,
+        visibleColumns,
+        handleVisibleColumnsChange,
+        boardSecondaryActions,
+        listSecondaryActions
+      }),
+    [
+      currentSection,
+      searchTerm,
+      boardSearch,
+      handleSearch,
+      setBoardSearch,
+      sorting,
+      handleSortingChange,
+      availableColumns,
+      visibleColumns,
+      handleVisibleColumnsChange,
+      boardSecondaryActions,
+      listSecondaryActions
+    ]
+  )
+
+  const titleSections = useMemo(() => {
+    const sections = [
+      {
+        id: 'list',
+        label: getTranslationFromI18nKeyAndLabel('common:listView', 'List'),
+        metadata: { count: totalCount, isLoading }
+      }
+    ]
+    if (!hideBoard) {
+      sections.push({
+        id: 'board',
+        label: getTranslationFromI18nKeyAndLabel('common:boardView', 'Board'),
+        metadata: { count: boardTotalCount, isLoading: boardLoading }
+      })
     }
-
-    return undefined
-  }, [customPrimaryAction, config.flowContexts.createContext, config.flowContexts.createContextData, accessToken])
+    return sections
+  }, [hideBoard, totalCount, isLoading, boardTotalCount, boardLoading])
 
   // Convert selected currency code to full ID for statistics
   const selectedCurrencyId = useMemo(() => {
@@ -848,17 +963,27 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     return currencyObj?.id
   }, [selectedCurrency, availableCurrencies])
 
-  return (
-    <div data-testid={dataTestId}>
-      {/* Statistics */}
-      {config.renderStatistics ? (
+  const statisticsContent = useMemo(() => {
+    if (config.renderStatistics) {
+      return (
         <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrencyId, quickFilter)}</div>
-      ) : config.opportunityStatistics ? (
+      )
+    }
+    if (config.opportunityStatistics) {
+      return (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
           data-testid={`${dataTestId}-statistics`}
         />
-      ) : null}
+      )
+    }
+    return null
+  }, [config.renderStatistics, config.opportunityStatistics, selectedCurrencyId, quickFilter, dataTestId])
+
+  return (
+    <div data-testid={dataTestId}>
+      {/* Statistics */}
+      {statisticsContent}
 
       {/* Quick Filters */}
       {renderQuickFilters && (
@@ -874,29 +999,12 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       {/* DataDisplay with titleSections as Tabs */}
       <DataDisplay
         key={currentSection}
-        titleSections={[
-          {
-            id: 'list',
-            label: getTranslationFromI18nKeyAndLabel('common:listView', 'List'),
-            metadata: {
-              count: totalCount,
-              isLoading: isLoading
-            }
-          },
-          {
-            id: 'board',
-            label: getTranslationFromI18nKeyAndLabel('common:boardView', 'Board'),
-            metadata: {
-              count: boardTotalCount,
-              isLoading: boardLoading
-            }
-          }
-        ]}
+        titleSections={titleSections}
         currentSection={currentSection}
         onSectionChange={value => setCurrentSection(value as 'list' | 'board')}
-        searchValue={currentSection === 'list' ? searchTerm : boardSearch}
-        searchPlaceholder={currentSection === 'list' ? 'Search opportunities...' : 'Search board...'}
-        onSearchChange={currentSection === 'list' ? handleSearch : setBoardSearch}
+        searchValue={sectionUiProps.searchValue}
+        searchPlaceholder={sectionUiProps.searchPlaceholder}
+        onSearchChange={sectionUiProps.onSearchChange}
         filters={getFiltersForSection(currentSection, hideFilters, selectedFilters, boardFilters)}
         filterConfiguration={getFilterConfigForSection(
           currentSection,
@@ -910,24 +1018,20 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
           handleFilterUpdate,
           setBoardFilters
         )}
-        sorting={currentSection === 'list' ? sorting : undefined}
+        sorting={sectionUiProps.sorting}
         sortableColumns={listSortableColumns}
-        onSortingChange={currentSection === 'list' ? handleSortingChange : undefined}
-        availableColumns={currentSection === 'list' ? availableColumns : undefined}
-        visibleColumns={currentSection === 'list' ? visibleColumns : undefined}
-        onVisibleColumnsChange={currentSection === 'list' ? handleVisibleColumnsChange : undefined}
+        onSortingChange={sectionUiProps.onSortingChange}
+        availableColumns={sectionUiProps.availableColumns}
+        visibleColumns={sectionUiProps.visibleColumns}
+        onVisibleColumnsChange={sectionUiProps.onVisibleColumnsChange}
         primaryAction={primaryActionElement}
-        secondaryActions={currentSection === 'board' ? boardSecondaryActions : listSecondaryActions}
+        secondaryActions={sectionUiProps.secondaryActions}
         toolbarDensity="default"
-        enableLiveFiltering={currentSection === 'board'}
-        filterSheetTitle={currentSection === 'board' ? 'Filter Board' : 'Filter Opportunities'}
-        filterSheetDescription={
-          currentSection === 'board'
-            ? 'Filter opportunities by owner'
-            : 'Apply filters to narrow down the opportunity list'
-        }
+        enableLiveFiltering={sectionUiProps.enableLiveFiltering}
+        filterSheetTitle={sectionUiProps.filterSheetTitle}
+        filterSheetDescription={sectionUiProps.filterSheetDescription}
       >
-        {currentSection === 'list' ? (
+        {isListSection ? (
           <>
             <OpportunityListLayout<TOpportunity>
               data={opportunities}

@@ -1,10 +1,20 @@
 import React, { useMemo, useState } from 'react'
 import { Table } from 'antd'
-import { Card, CardHeader, CardTitle, CardContent, Icon, Sheet, SheetContent } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Icon,
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  useTranslation
+} from '@newwork/nw-design-system'
 import type { ColumnsType } from 'antd/es/table'
 import Pill from '@/components/pill'
 import { ExpenseRequestItem } from '../types/expenseRequestRecord.types'
-import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import { Check } from '@phosphor-icons/react'
 import { formatCurrencyDisplay } from '../../expense-plan-record/utils/currency'
@@ -13,6 +23,7 @@ import { ExpenseDetailsShell } from '../../../common/components/details-panel/Ex
 import { ExpenseItemDetails } from '../../personal-expenses/components/tabs/expense-items-tab/details/ExpenseItemDetails'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import ExpensePositionsSection from './ExpensePositionsSection'
+import expenseRequestRecordTranslations from '../_i18n'
 
 interface ExpenseRequestItemsProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   expenseRequestItems: ExpenseRequestItem[]
@@ -28,6 +39,7 @@ interface TableSummaryProps {
 }
 
 const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) => {
+  const { t } = useTranslation(expenseRequestRecordTranslations)
   let totalAmount = 0
   let totalReimbursable = 0
   let totalDeductible = 0
@@ -41,18 +53,16 @@ const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) =
   return (
     <Table.Summary fixed>
       <Table.Summary.Row>
-        <Table.Summary.Cell index={0} colSpan={5}>
-          <span className="gba:font-semibold">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
-          </span>
-        </Table.Summary.Cell>
-        <Table.Summary.Cell index={5} align="right">
-          <span className="gba:font-semibold">{formatAmount(totalAmount)}</span>
+        <Table.Summary.Cell index={0} colSpan={6}>
+          <span className="gba:font-semibold">{t('expense-request-record-total')}</span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={6} align="right">
-          <span>{formatAmount(totalReimbursable)}</span>
+          <span className="gba:font-semibold">{formatAmount(totalAmount)}</span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={7} align="right">
+          <span>{formatAmount(totalReimbursable)}</span>
+        </Table.Summary.Cell>
+        <Table.Summary.Cell index={8} align="right">
           <span>{formatAmount(totalDeductible)}</span>
         </Table.Summary.Cell>
       </Table.Summary.Row>
@@ -67,7 +77,26 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
   userInfo,
   expenseOwnerEmployeeId
 }) => {
+  const { t } = useTranslation(expenseRequestRecordTranslations)
   const loading = false
+
+  const getExpenseItemCostCenterLabel = (record: ExpenseRequestItem): string => {
+    const positions = record.expensePosition ?? []
+    if (positions.length > 1) {
+      const labels = positions.map(p => p.costCenter?.name?.trim() ?? '')
+      const distinctKeys = new Set(labels.map(label => label.toLowerCase()))
+      if (distinctKeys.size <= 1) {
+        const single = labels.find(label => label.length > 0) ?? ''
+        return single || '-'
+      }
+      return t('expense-request-record-item-cost-center-multiple')
+    }
+    if (positions.length === 1) {
+      const name = positions[0]?.costCenter?.name?.trim()
+      return name || '-'
+    }
+    return '-'
+  }
 
   // State for selected item and sheet visibility
   const [selectedItem, setSelectedItem] = useState<ExpenseRequestItem | null>(null)
@@ -96,17 +125,14 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
 
   const columns: ColumnsType<ExpenseRequestItem> = [
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Code'),
+      title: t('expense-request-record-column-code'),
       dataIndex: 'code',
       key: 'code',
       render: (code: string | null) => (code === null || code === '' ? '-' : code),
       width: 100
     },
     {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:calculation_rule_tab_custom_fields.custom_fields_modal.affected_expense_modal.title',
-        'Title'
-      ),
+      title: t('expense-request-record-column-title'),
       dataIndex: 'title',
       key: 'title',
       render: (text: string, record: ExpenseRequestItem) => {
@@ -114,17 +140,12 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
           record?.expenseGroup?.value === 'Allowances' &&
           typeof text === 'string' &&
           text.trim().toLowerCase() === 'generated allowance'
-        const displayTitle = isGeneratedAllowance
-          ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.generated_allowance', 'Generated Allowance')
-          : text
+        const displayTitle = isGeneratedAllowance ? t('expense-request-record-generated-allowance') : text
         return <span className="gba:font-semibold">{displayTitle}</span>
       }
     },
     {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.multi_position_item',
-        'Expense Group'
-      ),
+      title: t('expense-request-record-column-expense-group'),
       key: 'expenseGroup',
       render: (_: unknown, record: ExpenseRequestItem) => {
         const isAllowance = record?.expenseGroup?.value === 'Allowances'
@@ -132,7 +153,7 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
         const isMultipositionItem = record?.expensePosition?.length > 1
         if (isAllowance || onePositionItem) {
           const labelText = isAllowance
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.allowance', 'Allowance')
+            ? t('expense-request-record-allowance')
             : getCatalogValue(record?.expensePosition?.[0]?.expenseGroup) ||
               record?.expensePosition?.[0]?.expenseGroup?.value ||
               '-'
@@ -141,12 +162,7 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
         if (isMultipositionItem) {
           return (
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:font-semibold">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_type_item.multi_position_item',
-                  'Multi Position Item'
-                )}
-              </span>
+              <span className="gba:font-semibold">{t('expense-request-record-multi-position-item')}</span>
               <Icon icon={Check} size="sm" decorative />
             </div>
           )
@@ -154,7 +170,7 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
       }
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_class', 'Expense Class'),
+      title: t('expense-request-record-column-expense-class'),
       dataIndex: ['expenseClass', 'value'],
       key: 'expenseClass',
       render: (text: string, record) => {
@@ -164,23 +180,29 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
         // Normalize raw value before computing fallback
         const rawValue = (entry?.value ?? text ?? '').toString().trim()
         const isAllowance = rawValue.toLowerCase() === 'allowance'
-        const allowanceLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.allowance', 'Allowance')
+        const allowanceLabel = t('expense-request-record-allowance')
         const label = translated || (isAllowance ? allowanceLabel : '') || rawValue || '-'
         return <span>{label}</span>
       }
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
+      title: t('expense-request-record-items-column-cost-center'),
+      key: 'itemCostCenter',
+      render: (_: unknown, record: ExpenseRequestItem) => (
+        <span data-testid={`expense-request-item-cost-center-${record.id}`}>
+          {getExpenseItemCostCenterLabel(record)}
+        </span>
+      )
+    },
+    {
+      title: t('expense-request-record-column-date'),
       dataIndex: 'expenseDate',
       key: 'expenseDate',
       render: (date: string) => formatDateOnly(date),
       sorter: (a, b) => new Date(a.expenseDate).getTime() - new Date(b.expenseDate).getTime()
     },
     {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_list.expense_plan_table.total_amount',
-        'Total Amount'
-      ),
+      title: t('expense-request-record-total-amount'),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       align: 'right',
@@ -190,17 +212,14 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
       sorter: (a, b) => a.totalAmount - b.totalAmount
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable'),
+      title: t('expense-request-record-column-reimbursable'),
       dataIndex: 'reimbursableAmount',
       key: 'reimbursableAmount',
       align: 'right',
       render: (amount: number, record) => (amount ? formatAmount(amount, record?.currency?.code) : '-')
     },
     {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible',
-        'Deductible'
-      ),
+      title: t('expense-request-record-column-deductible'),
       dataIndex: 'deductibleAmount',
       key: 'deductibleAmount',
       align: 'right',
@@ -248,50 +267,38 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
     () => [
       {
         id: 'total-amount',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.expense_plan_table.total_amount',
-          'Total Amount'
-        ),
+        title: t('expense-request-record-total-amount'),
         value: formatAmount(summaryAmounts.total)
       },
       {
         id: 'reimbursable-amount',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable'),
+        title: t('expense-request-record-column-reimbursable'),
         value: formatAmount(summaryAmounts.reimbursable)
       },
       {
         id: 'non-reimbursable-amount',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_plan.item.nonReimbursableAmount',
-          'Non-Reimbursable'
-        ),
+        title: t('expense-request-record-non-reimbursable'),
         value: formatAmount(summaryAmounts.nonReimbursable)
       },
       {
         id: 'deductible-amount',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible',
-          'Deductible'
-        ),
+        title: t('expense-request-record-column-deductible'),
         value: formatAmount(summaryAmounts.deductible)
       },
       {
         id: 'non-deductible-amount',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.non_deductible', 'Non-Deductible'),
+        title: t('expense-request-record-non-deductible'),
         value: formatAmount(summaryAmounts.nonDeductible)
       }
     ],
-    [summaryAmounts, currencyCode]
+    [summaryAmounts, currencyCode, t]
   )
 
   return (
     <Card data-testid="expense-request-items" className="gba:p-0 gba:border-none">
       <CardHeader className="gba:px-0">
         <CardTitle className="gba:text-lg gba:font-semibold gba:mb-4">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_records.request.expense_request_items',
-            'Expense Request Items'
-          )}
+          {t('expense-request-record-expense-request-items')}
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:p-0">
@@ -319,19 +326,15 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
 
       {/* Expense Item Details Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <ExpenseDetailsShell
-            title={
-              selectedItem?.title ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.expense_item_details',
-                'Expense Item Details'
-              )
-            }
-          >
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none" aria-describedby={undefined}>
+          <SheetTitle className="gba:sr-only">
+            {selectedItem?.title || t('expense-request-record-expense-item-details')}
+          </SheetTitle>
+          <ExpenseDetailsShell title={selectedItem?.title || t('expense-request-record-expense-item-details')}>
             {selectedItem && accessToken ? (
               <>
                 <ExpenseItemDetails
+                  translations={expenseRequestRecordTranslations}
                   selectedItem={
                     {
                       ...selectedItem,
@@ -342,11 +345,11 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
                   onClose={handleCloseDetails}
                   accessToken={accessToken}
                   userInfo={
-                    expenseOwnerEmployeeId
+                    userInfo && expenseOwnerEmployeeId
                       ? {
                           ...userInfo,
                           employeeDetails: {
-                            ...userInfo?.employeeDetails,
+                            ...userInfo.employeeDetails,
                             employeeId: expenseOwnerEmployeeId
                           }
                         }

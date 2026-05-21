@@ -9,7 +9,7 @@ export interface EmployeeDetailsQueryVariables {
 }
 
 export const GET_EMPLOYEE_DETAILS = /*sql*/ `
-  query GetEmployeeDetails($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!) {
+  query GetEmployeeDetails($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!, $today: timestamptz!) {
     EmployeePosition(where: {
       employeeId: {_eq: $employeeId}
     }) {
@@ -105,10 +105,25 @@ export const GET_EMPLOYEE_DETAILS = /*sql*/ `
             id
           }
         }
-        workingCondition {
+        workingCondition(
+          where: {
+            isDeleted: {_eq: false}
+            _or: [
+              {activeFrom: {_isNull: true}, activeTo: {_isNull: true}}
+              {
+                activeFrom: {_lte: $today}
+                _or: [{activeTo: {_isNull: true}}, {activeTo: {_gte: $today}}]
+              }
+            ]
+          }
+          orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
+          limit: 1
+        ) {
           id
           version
           regionRef
+          activeFrom
+          activeTo
           probationEnd
           contractType {
             value
@@ -153,7 +168,8 @@ export const useGetEmployeeDetails = (context: BusinessAppContextProps) => {
       const result = await graphqlClient.request<EmployeeDetailsResponse>(query, {
         employeeId: variables.employeeId,
         structureId: variables.structureId,
-        hasStructureId: !!variables.structureId
+        hasStructureId: !!variables.structureId,
+        today: new Date().toISOString()
       })
       return result
     } catch (error) {

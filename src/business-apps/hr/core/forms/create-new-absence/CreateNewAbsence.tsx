@@ -8,7 +8,8 @@ import {
   Alert,
   Button,
   Textarea,
-  Label
+  Label,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { AbsenceDateRangePicker } from './components/AbsenceDateRangePicker'
 import { AlertCircle } from 'lucide-react'
@@ -34,6 +35,10 @@ import { useAbsencePrevalidate } from './hooks/useAbsencePrevalidate'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useAbsenceTypesByGroup } from './hooks/useAbsenceTypesByGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import translations from '../_i18n'
+
+const SICK_LEAVE_USER_TASK_AUTO_COMPLETE_DELAY_MS = 2000
 
 type Employee = {
   id: string
@@ -50,25 +55,107 @@ type CreateNewAbsenceFormValues = {
   comment: string
 }
 
+type LaunchContextValue = Record<string, unknown>
+
+type LaunchContext = {
+  employeeId?: string
+  startDate?: string
+  endDate?: string
+  absenceType?: string
+  flowType?: string
+  processName?: string
+}
+
+const toLaunchContextValue = (value: unknown): LaunchContextValue => {
+  return value && typeof value === 'object' ? (value as LaunchContextValue) : {}
+}
+
+const pickLaunchString = (sources: LaunchContextValue[], key: keyof LaunchContext): string | undefined => {
+  for (const source of sources) {
+    const value = source[key]
+    if (typeof value === 'string' && value.trim() !== '') {
+      return value
+    }
+  }
+
+  return undefined
+}
+
+const toInitialDate = (value?: string): Date | undefined => {
+  if (!value) {
+    return undefined
+  }
+
+  const parsedDate = new Date(value)
+  return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate
+}
+
 export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   const { accessToken, userInfo, additionalData } = props
   const client = useGraphQLClient(accessToken)
+  const { t } = useTranslation(translations)
   const structureId = getCurrentActiveStructureId()
 
-  const propStartDate = additionalData?.psi_taskPayload?.psi_initialParameters?.startDate
-  const propEndDate = additionalData?.psi_taskPayload?.psi_initialParameters?.endDate
+  const absenceTypeToProcessMap: Record<string, string> = {
+    'AbsenceType:v1:A001': 'createEmployeeVacation',
+    'AbsenceType:v1:A021': 'createEmployeeSickLeave',
+    'AbsenceType:v1:A050': 'createEmployeeSpecialLeave',
+    'AbsenceType:v1:A170': 'createEmployeeWorkLeave'
+  }
+  const flowTypeToProcessMap: Record<string, string> = {
+    vacation: 'createEmployeeVacation',
+    sickLeave: 'createEmployeeSickLeave',
+    specialLeave: 'createEmployeeSpecialLeave',
+    workLeave: 'createEmployeeWorkLeave'
+  }
+  const launchContext = useMemo<LaunchContext>(() => {
+    const taskPayload = toLaunchContextValue(additionalData?.psi_taskPayload)
+    const taskInitialParameters = toLaunchContextValue(taskPayload.psi_initialParameters)
+    const legacyTaskInitialParameters = toLaunchContextValue(taskPayload.initialParameters)
+    const standaloneInitialParameters = toLaunchContextValue(additionalData?.psi_initialParameters)
+    const externalContextData = toLaunchContextValue(additionalData?.externalContextData)
+    const contextData = toLaunchContextValue(additionalData?.contextData)
+    const flowContext = toLaunchContextValue(additionalData?.flowContext)
+    const directContext = toLaunchContextValue(additionalData)
 
-  const initialStartDate = propStartDate ? new Date(propStartDate) : undefined
-  const initialEndDate = propEndDate ? new Date(propEndDate) : undefined
+    const launchSources = [
+      taskInitialParameters,
+      legacyTaskInitialParameters,
+      taskPayload,
+      standaloneInitialParameters,
+      externalContextData,
+      contextData,
+      flowContext,
+      directContext
+    ]
 
-  const processName = additionalData?.psi_processMetadata?.processMetadata?.name
+    return {
+      employeeId: pickLaunchString(launchSources, 'employeeId'),
+      startDate: pickLaunchString(launchSources, 'startDate'),
+      endDate: pickLaunchString(launchSources, 'endDate'),
+      absenceType: pickLaunchString(launchSources, 'absenceType'),
+      flowType: pickLaunchString(launchSources, 'flowType'),
+      processName: pickLaunchString(launchSources, 'processName')
+    }
+  }, [additionalData])
+
+  const initialStartDate = toInitialDate(launchContext.startDate)
+  const initialEndDate = toInitialDate(launchContext.endDate)
+
+  const processName =
+    additionalData?.psi_processMetadata?.processName ||
+    additionalData?.psi_processMetadata?.processMetadata?.name ||
+    launchContext.processName ||
+    (launchContext.absenceType ? absenceTypeToProcessMap[launchContext.absenceType] : '') ||
+    (launchContext.flowType ? flowTypeToProcessMap[launchContext.flowType] : '') ||
+    ''
   const processToParentAbsenceTypeMap: Record<string, string> = {
     createEmployeeVacation: 'AbsenceType:v1:A001',
     createEmployeeSickLeave: 'AbsenceType:v1:A021',
     createEmployeeSpecialLeave: 'AbsenceType:v1:A050',
     createEmployeeWorkLeave: 'AbsenceType:v1:A170'
   }
-  const mappedParentType = processName && processToParentAbsenceTypeMap[processName]
+  const mappedParentType = launchContext.absenceType || (processName ? processToParentAbsenceTypeMap[processName] : '')
   const absenceType = mappedParentType || ''
   const isSickLeaveProcess = processName === 'createEmployeeSickLeave'
 
@@ -79,17 +166,28 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     pictureThumbnail?: string
     jobTitle?: string
   } | null>(null)
+  const [employeeHireDate, setEmployeeHireDate] = useState<Date | undefined>(undefined)
 
-  // Prioritize employeeId from task payload, then fall back to logged-in user's employeeId
+  // Prefer flow-provided employee context, then fall back to the logged-in employee.
   const employeeId = useMemo(() => {
-    return (
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-      userInfo?.employeeDetails?.employeeId ||
-      ''
-    )
-  }, [additionalData, userInfo?.employeeDetails?.employeeId])
+    return launchContext.employeeId || userInfo?.employeeDetails?.employeeId || ''
+  }, [launchContext.employeeId, userInfo?.employeeDetails?.employeeId])
 
   const { absenceTypes: types } = useAbsenceTypesByGroup(props, absenceType)
+
+  const toDateKey = useCallback((date?: Date): string | undefined => {
+    if (!date || Number.isNaN(date.getTime())) return undefined
+    return dayjs(date).format('YYYY-MM-DD')
+  }, [])
+
+  const isBeforeHireDate = useCallback(
+    (date?: Date): boolean => {
+      const dateKey = toDateKey(date)
+      const hireDateKey = toDateKey(employeeHireDate)
+      return Boolean(dateKey && hireDateKey && dateKey < hireDateKey)
+    },
+    [employeeHireDate, toDateKey]
+  )
 
   const initialFormValues: CreateNewAbsenceFormValues = {
     selectedType: '',
@@ -179,6 +277,8 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
           pictureThumbnail: res?.EmployeeByPk?.pictureThumbnail,
           jobTitle: res?.EmployeePosition?.[0]?.jobPosition?.name
         })
+        const hireDate = res?.EmployeeByPk?.workingCondition?.[0]?.hireDate
+        setEmployeeHireDate(hireDate ? new Date(hireDate) : undefined)
       })
       .catch(() => {
         // Silently fail if employee details can't be fetched
@@ -206,16 +306,27 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const isFormValid = useMemo(() => {
     if (isUpdateMode) {
-      return !!(formValuesState.selectedType && formValuesState.startDate && formValuesState.endDate)
+      return !!(
+        formValuesState.selectedType &&
+        formValuesState.startDate &&
+        formValuesState.endDate &&
+        !isBeforeHireDate(formValuesState.startDate) &&
+        !isBeforeHireDate(formValuesState.endDate)
+      )
     }
 
-    return isMandatoryFieldsCompleted
+    return (
+      isMandatoryFieldsCompleted &&
+      !isBeforeHireDate(formValuesState.startDate) &&
+      !isBeforeHireDate(formValuesState.endDate)
+    )
   }, [
     isUpdateMode,
     isMandatoryFieldsCompleted,
     formValuesState.selectedType,
     formValuesState.startDate,
-    formValuesState.endDate
+    formValuesState.endDate,
+    isBeforeHireDate
   ])
 
   const handleUpdateExisting = useCallback(() => {
@@ -325,29 +436,41 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               ...(employeeDocuments.length > 0 && { employeeDocuments })
             }
 
+      if (isSickLeaveProcess && !isUpdateMode) {
+        window.setTimeout(() => {
+          dispatchProcessContinueEvent('pse_submit', payload)
+        }, SICK_LEAVE_USER_TASK_AUTO_COMPLETE_DELAY_MS)
+      }
+
       return payload
     },
-    [employeeId, fileList, isUpdateMode, existingSickLeave, fileClient]
+    [employeeId, fileList, isUpdateMode, existingSickLeave, fileClient, isSickLeaveProcess]
   )
 
-  const validateForm = useCallback((formData: CreateNewAbsenceFormValues): string[] | null => {
-    const errors: string[] = []
+  const validateForm = useCallback(
+    (formData: CreateNewAbsenceFormValues): string[] | null => {
+      const errors: string[] = []
 
-    if (!formData.selectedType) {
-      errors.push('Type is required')
-    }
-    if (!formData.startDate) {
-      errors.push('Start date is required')
-    }
-    if (!formData.endDate) {
-      errors.push('End date is required')
-    }
-    if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
-      errors.push('End date must be after start date')
-    }
+      if (!formData.selectedType) {
+        errors.push('Type is required')
+      }
+      if (!formData.startDate) {
+        errors.push('Start date is required')
+      }
+      if (!formData.endDate) {
+        errors.push('End date is required')
+      }
+      if (formData.startDate && formData.endDate && formData.endDate < formData.startDate) {
+        errors.push('End date must be after start date')
+      }
+      if (isBeforeHireDate(formData.startDate) || isBeforeHireDate(formData.endDate)) {
+        errors.push(t('create-absence-date-before-hire-error'))
+      }
 
-    return errors.length > 0 ? errors : null
-  }, [])
+      return errors.length > 0 ? errors : null
+    },
+    [isBeforeHireDate, t]
+  )
 
   return (
     <div
@@ -482,6 +605,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   employeeId={employeeId}
                   selectedTypeRef={formValuesState.selectedType}
                   prevalidate={prevalidate}
+                  minDate={employeeHireDate}
                   data-testid="absence-date-range-input"
                 />
               </div>

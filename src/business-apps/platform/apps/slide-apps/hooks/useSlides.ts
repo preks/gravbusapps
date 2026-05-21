@@ -62,7 +62,11 @@ interface UseSlidesResult extends UseSlidesState {
   refreshSlides: () => Promise<void>
 }
 
-export function useSlides(accessToken: string | undefined): UseSlidesResult {
+interface UseSlidesListOptions {
+  section?: 'favorites'
+}
+
+export function useSlides(accessToken: string | undefined, listOptions?: UseSlidesListOptions): UseSlidesResult {
   const { t } = useTranslation(translations)
   const [state, setState] = useState<UseSlidesState>({
     slides: [],
@@ -90,7 +94,12 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
       let hasMore = true
 
       while (hasMore) {
-        const pageItems = await SlidesApiService.listSlides({ includeShared: true, limit: PAGE_SIZE, page })
+        const pageItems = await SlidesApiService.listSlides({
+          includeShared: true,
+          limit: PAGE_SIZE,
+          page,
+          section: listOptions?.section
+        })
         allSlides = [...allSlides, ...pageItems]
         hasMore = pageItems.length === PAGE_SIZE
         page++
@@ -106,7 +115,7 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
         error: err instanceof Error ? err.message : t('slides-error-load-failed')
       }))
     }
-  }, [accessToken, t])
+  }, [accessToken, listOptions?.section, t])
 
   useEffect(() => {
     refreshSlides()

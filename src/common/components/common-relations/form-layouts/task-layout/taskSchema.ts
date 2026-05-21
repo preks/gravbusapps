@@ -9,20 +9,20 @@ export const taskSchema = z.object({
   id: z.string().optional(),
   version: z.number().optional(),
   // Task specific fields
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().trim().min(1, 'Name is required'),
   code: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   taskTiming: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
     message: 'Timing is required'
   }),
-  dueDate: z.string().min(1, 'Deadline is required'),
+  dueDate: z.string().trim().min(1, 'Deadline is required'),
   startDate: z.string().nullable().optional(),
   endDate: z.string().nullable().optional(),
   templateStartDate: z.string().nullable().optional(),
 
   // Task catalog references
-  taskTypeRef: z.string().min(1, 'Type is required'),
-  taskPriorityRef: z.string().min(1, 'Priority is required'),
+  taskTypeRef: z.string().trim().min(1, 'Type is required'),
+  taskPriorityRef: z.string().trim().min(1, 'Priority is required'),
   taskStatusRef: z.string().nullable().optional(), // Backend computed, not required from user
   taskTemplateId: z.string().nullable().optional(),
 
@@ -80,7 +80,7 @@ export const taskSchema = z.object({
   // Legacy/helper fields
   files: z.any().optional(),
   _pendingFiles: z.array(z.instanceof(File)).optional(),
-  relatedEntityId: z.string().min(1, 'Related entity is required')
+  relatedEntityId: z.string().trim().min(1, 'Related entity is required')
 })
 
 export type TaskSchema = z.infer<typeof taskSchema>

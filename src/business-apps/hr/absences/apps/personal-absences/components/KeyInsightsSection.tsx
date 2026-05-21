@@ -54,7 +54,7 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
   return (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4" data-testid="key-insights-section">
       {/* Planned Absences Card */}
-      <Card className="gba:h-full gba:shadow-sm gba:p-6" data-testid="key-insights-section-planned-absences">
+      <Card className="gba:h-full gba:shadow-none gba:p-6" data-testid="key-insights-section-planned-absences">
         <div className="gba:flex gba:items-center">
           <span className="gba:text-sm gba:text-muted-foreground gba:font-medium" data-testid="planned-absences-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.planned_absences', 'Planned Absences')}
@@ -85,7 +85,7 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
         </div>
       </Card>
       {/* Avg Days Card */}
-      <Card className="gba:h-full gba:shadow-sm gba:p-6" data-testid="key-insights-section-avg-days-per-request">
+      <Card className="gba:h-full gba:shadow-none gba:p-6" data-testid="key-insights-section-avg-days-per-request">
         <div className="gba:flex gba:items-center">
           <span className="gba:text-sm gba:text-muted-foreground gba:font-medium" data-testid="avg-days-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.avg_days_per_request', 'Avg Days per Request')}
@@ -99,7 +99,7 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
         </div>
       </Card>
       {/* Approval Rate Card */}
-      <Card className="gba:h-full gba:shadow-sm gba:p-6" data-testid="key-insights-section-approval-rate">
+      <Card className="gba:h-full gba:shadow-none gba:p-6" data-testid="key-insights-section-approval-rate">
         <div className="gba:flex gba:items-center">
           <span className="gba:text-sm gba:text-muted-foreground gba:font-medium" data-testid="approval-rate-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.approval_rate', 'Approval Rate')}

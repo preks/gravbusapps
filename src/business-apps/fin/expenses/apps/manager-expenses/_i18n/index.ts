@@ -7,7 +7,7 @@ import roRO from './ro-RO.ftl?raw'
  * Use this for any manager-expenses screen (dashboard, advance payments, plans, requests, analytics, etc.).
  */
 export default {
-  enUS,
-  deDE,
-  roRO
+  'en-US': enUS,
+  'de-DE': deDE,
+  'ro-RO': roRO
 }

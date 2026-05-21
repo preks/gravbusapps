@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { isAllCurrencySelection } from '@/common/data/investment/utils/investmentCurrencySelection'
 
 /**
  * Timeline aggregate data structure for portfolio overview
@@ -9,7 +10,6 @@ export interface PortfolioTimelineYearData {
   year: string
   investmentGroup: string
   totalAmount: number
-  marketValue: number
   count: number
 }
 
@@ -38,7 +38,7 @@ const BUILD_PORTFOLIO_TIMELINE_QUERY = (years: string[], investmentGroups: strin
   const buildConditions = (year: string, investmentGroupRef: string) => {
     const conditions = [
       '{ isDeleted: { _eq: false } }',
-      currency ? `{ currency: { code: { _eq: "${currency}" } } }` : '',
+      isAllCurrencySelection(currency) ? '' : `{ currency: { code: { _eq: "${currency}" } } }`,
       `{ acquisitionDate: { _gte: "${year}-01-01", _lt: "${Number.parseInt(year) + 1}-01-01" } }`,
       `{ investmentGroupRef: { _eq: "${investmentGroupRef}" } }`
     ]
@@ -70,7 +70,6 @@ const BUILD_PORTFOLIO_TIMELINE_QUERY = (years: string[], investmentGroups: strin
           count
           sum {
             totalInvestmentAmount
-            investmentMarketValue
           }
         }
       }`
@@ -238,10 +237,7 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
 
           const result =
             await graphqlClient.request<
-              Record<
-                string,
-                { aggregate: { count: number; sum: { totalInvestmentAmount: number; investmentMarketValue: number } } }
-              >
+              Record<string, { aggregate: { count: number; sum: { totalInvestmentAmount: number } } }>
             >(query)
 
           // Step 4: Transform result into structured data
@@ -272,7 +268,6 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
                 year,
                 investmentGroup: groupInfo.investmentGroupValue,
                 totalAmount: value.aggregate.sum?.totalInvestmentAmount || 0,
-                marketValue: value.aggregate.sum?.investmentMarketValue || 0,
                 count: value.aggregate.count || 0
               }
               yearlyData.push(dataPoint)

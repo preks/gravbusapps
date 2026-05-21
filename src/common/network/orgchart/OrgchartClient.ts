@@ -1,6 +1,6 @@
 import { ORGCHART_API_URL } from '@/common/utils/serviceResolver'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
-import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
+import { assignBearerAuthorizationHeader } from '../HeaderUtils'
 import { RestClient, type RequestOptions } from '../rest/RestClient'
 
 type OrgchartQueryParams = Record<string, string | number | boolean>
@@ -40,7 +40,7 @@ export class OrgchartClient extends RestClient {
       this.headers = {}
     }
 
-    this.headers.Authorization = setAccessTokenToAuthorizationHeader(accessToken)
+    assignBearerAuthorizationHeader(this.headers, accessToken)
   }
 
   getStructuresActive<T = any>(params?: OrgchartQueryParams, options: RequestOptions = {}) {

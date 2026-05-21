@@ -62,8 +62,8 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
 
   if (!definition) return null
 
-  const isAlreadyPromoted = definition.publish_state === 'PROMOTED_TRACKED'
-  const tableName = definition.deploy_state?.tableName || `cde_${definition.key}`
+  const isAlreadyPromoted = definition.publishState === 'PROMOTED_TRACKED'
+  const tableName = definition.deployState?.tableName
 
   return (
     <Dialog open={open} onOpenChange={open => !open && handleClose()}>
@@ -79,8 +79,8 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
           </DialogTitle>
           <DialogDescription>
             {isAlreadyPromoted
-              ? 'Apply schema changes to the existing PostgreSQL table'
-              : 'Deploy this entity as a native PostgreSQL table'}
+              ? 'Apply schema changes to the existing custom data entity'
+              : 'Publish this custom data entity'}
           </DialogDescription>
         </DialogHeader>
 
@@ -88,25 +88,25 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
           {/* Definition Info */}
           <div className="gba:bg-muted/50 gba:rounded-lg gba:p-4 gba:space-y-3">
             <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:text-sm gba:font-medium">{definition.display_name || definition.key}</span>
+              <span className="gba:text-sm gba:font-medium">{definition.displayName || definition.entityName}</span>
               <Badge variant={isAlreadyPromoted ? 'success' : 'warning'}>
                 {isAlreadyPromoted ? 'Promoted' : 'Draft'}
               </Badge>
             </div>
             <div className="gba:text-xs gba:text-muted-foreground gba:space-y-1">
               <div className="gba:flex gba:justify-between">
-                <span>Key:</span>
-                <span className="gba:font-mono">{definition.key}</span>
+                <span>Entity:</span>
+                <span className="gba:font-mono">{definition.entityName}</span>
               </div>
               <div className="gba:flex gba:justify-between">
                 <span>Columns:</span>
-                <span>{definition.columns_json?.length || 0} fields</span>
+                <span>{definition.columns?.length || 0} fields</span>
               </div>
             </div>
           </div>
 
           {/* Already Promoted Status */}
-          {isAlreadyPromoted && definition.deploy_state && (
+          {isAlreadyPromoted && definition.deployState && (
             <Alert className="gba:bg-success-secondary gba:border-success">
               <Check className="gba:h-4 gba:w-4 gba:text-success" />
               <AlertDescription>
@@ -114,11 +114,11 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
                   <p className="gba:text-success-secondary-foreground">Entity is deployed and active.</p>
                   <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
                     <Table2 className="gba:h-3 gba:w-3" />
-                    <span className="gba:font-mono">{definition.deploy_state.tableName}</span>
+                    <span className="gba:font-mono">{tableName}</span>
                   </div>
-                  {definition.deploy_state.deployedAt && (
+                  {definition.deployState.deployedAt && (
                     <p className="gba:text-xs gba:text-muted-foreground">
-                      Deployed: {new Date(definition.deploy_state.deployedAt).toLocaleString()}
+                      Deployed: {new Date(definition.deployState.deployedAt).toLocaleString()}
                     </p>
                   )}
                 </div>
@@ -135,7 +135,7 @@ export const PromoteDialog: React.FC<PromoteDialogProps> = ({
                   {isAlreadyPromoted ? 'Schema re-deployed successfully!' : 'Entity promoted successfully!'}
                 </p>
                 <p className="gba:text-xs gba:mt-1">
-                  Table: <span className="gba:font-mono">{success.deploy_state?.tableName}</span>
+                  Table: <span className="gba:font-mono">{success.deployState?.tableName}</span>
                 </p>
               </AlertDescription>
             </Alert>

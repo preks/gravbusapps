@@ -1,5 +1,301 @@
 import { DashboardData } from '../types'
 import { groupAbsencesByDepartment, groupAbsencesByMonth, calculateVacationMetrics } from './index'
+import { calculateWorkingDays as calculateVacationWorkingDays } from '@/business-apps/hr/absences/utils/vacationCalculations'
+
+type SalaryRow = {
+  employeeId?: string
+  annualGrossSalary?: number | null
+  monthlyGrossSalary?: number | null
+  hourlyGrossSalary?: number | null
+  currency?: {
+    code?: string | null
+    value?: string | null
+  } | null
+}
+
+type FinancialImpactMetrics = {
+  estimatedCostPerDay: number
+  totalLiabilityEstimate: number
+  currencyCode: string
+}
+
+// Mirrors the snapshot rows returned by EntitlementUsageSnapshotView. Same shape used by My Absences.
+type SnapshotRow = {
+  employeeId?: string | null
+  typeRef?: string | null
+  totalEntitlement?: number | string | null
+  usedApproved?: number | string | null
+  usedPending?: number | string | null
+  remaining?: number | string | null
+}
+
+type SnapshotVacationMetrics = {
+  averageVacationDays: number
+  averageUsed: number
+  averagePending: number
+  averageAvailable: number
+  totalActiveEmployees: number
+  totalVacationLiability: number
+  totalVacationEntitlement: number
+}
+
+const DEFAULT_WORKING_DAYS_PER_YEAR = 260
+
+const toNumber = (value: number | string | null | undefined): number => {
+  if (value === null || value === undefined) {
+    return 0
+  }
+  const numeric = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(numeric) ? numeric : 0
+}
+
+const round2 = (value: number): number => Math.round(value * 100) / 100
+
+/**
+ * Compute org-level vacation metrics from the EntitlementUsageSnapshotView rows.
+ *
+ * Matches My Absences semantics:
+ *   - used      = sum(usedApproved)
+ *   - pending   = sum(usedPending)
+ *   - total     = sum(totalEntitlement)
+ *   - available = sum(remaining) when present, else max(0, total - used - pending)
+ *
+ * Averages are computed per distinct employeeId.
+ */
+const calculateVacationMetricsFromSnapshot = (
+  snapshotRows: SnapshotRow[],
+  fallbackEmployeeCount: number
+): SnapshotVacationMetrics => {
+  const totalsByEmployee = new Map<string, { total: number; used: number; pending: number; available: number }>()
+
+  snapshotRows.forEach(row => {
+    const employeeId = String(row?.employeeId ?? '')
+    if (!employeeId) {
+      return
+    }
+
+    const total = toNumber(row.totalEntitlement)
+    const used = toNumber(row.usedApproved)
+    const pending = toNumber(row.usedPending)
+    const rawRemaining = toNumber(row.remaining)
+    const available = rawRemaining > 0 ? rawRemaining : Math.max(0, total - used - pending)
+
+    const existing = totalsByEmployee.get(employeeId) || { total: 0, used: 0, pending: 0, available: 0 }
+    existing.total += total
+    existing.used += used
+    existing.pending += pending
+    existing.available += available
+    totalsByEmployee.set(employeeId, existing)
+  })
+
+  const employeesCount = totalsByEmployee.size > 0 ? totalsByEmployee.size : fallbackEmployeeCount
+  if (employeesCount === 0) {
+    return {
+      averageVacationDays: 0,
+      averageUsed: 0,
+      averagePending: 0,
+      averageAvailable: 0,
+      totalActiveEmployees: fallbackEmployeeCount,
+      totalVacationLiability: 0,
+      totalVacationEntitlement: 0
+    }
+  }
+
+  let totalEntitlement = 0
+  let totalUsed = 0
+  let totalPending = 0
+  let totalAvailable = 0
+  totalsByEmployee.forEach(entry => {
+    totalEntitlement += entry.total
+    totalUsed += entry.used
+    totalPending += entry.pending
+    totalAvailable += entry.available
+  })
+
+  return {
+    averageVacationDays: round2(totalEntitlement / employeesCount),
+    averageUsed: round2(totalUsed / employeesCount),
+    averagePending: round2(totalPending / employeesCount),
+    averageAvailable: round2(totalAvailable / employeesCount),
+    totalActiveEmployees: employeesCount,
+    totalVacationLiability: round2(totalAvailable),
+    totalVacationEntitlement: round2(totalEntitlement)
+  }
+}
+
+/**
+ * Build a per-employee "remaining vacation days" map from snapshot view rows.
+ * Used to compute the financial liability estimate with view-aligned semantics.
+ */
+const buildRemainingByEmployeeFromSnapshot = (snapshotRows: SnapshotRow[]): Map<string, number> => {
+  const remainingByEmployee = new Map<string, number>()
+
+  snapshotRows.forEach(row => {
+    const employeeId = String(row?.employeeId ?? '')
+    if (!employeeId) {
+      return
+    }
+
+    const total = toNumber(row.totalEntitlement)
+    const used = toNumber(row.usedApproved)
+    const pending = toNumber(row.usedPending)
+    const rawRemaining = toNumber(row.remaining)
+    const available = rawRemaining > 0 ? rawRemaining : Math.max(0, total - used - pending)
+
+    remainingByEmployee.set(employeeId, (remainingByEmployee.get(employeeId) || 0) + available)
+  })
+
+  return remainingByEmployee
+}
+
+const getRemainingEntitlementDays = (entitlement: any): number => {
+  const total = Number(entitlement?.total) || 0
+  const approved = Number(entitlement?.approved) || 0
+  const pending = Number(entitlement?.pending) || 0
+  const available =
+    entitlement?.available !== undefined ? Number(entitlement.available) || 0 : total - approved - pending
+
+  return Math.max(0, available)
+}
+
+const getAnnualSalaryAmount = (row: SalaryRow): number => {
+  const annualGrossSalary = Number(row.annualGrossSalary) || 0
+  if (annualGrossSalary > 0) {
+    return annualGrossSalary
+  }
+
+  const monthlyGrossSalary = Number(row.monthlyGrossSalary) || 0
+  if (monthlyGrossSalary > 0) {
+    return monthlyGrossSalary * 12
+  }
+
+  const hourlyGrossSalary = Number(row.hourlyGrossSalary) || 0
+  if (hourlyGrossSalary > 0) {
+    return hourlyGrossSalary * 2080
+  }
+
+  return 0
+}
+
+const getWorkingDaysPerYear = (): number => {
+  const currentYear = new Date().getFullYear()
+  const yearStart = `${currentYear}-01-01`
+  const yearEnd = `${currentYear}-12-31`
+  const workingDays = calculateVacationWorkingDays(yearStart, yearEnd)
+  return workingDays > 0 ? workingDays : DEFAULT_WORKING_DAYS_PER_YEAR
+}
+
+const resolveCurrencyCode = (codes: string[]): string => {
+  if (codes.length === 0) {
+    return 'EUR'
+  }
+
+  const frequencyByCode = new Map<string, number>()
+  codes.forEach(code => {
+    frequencyByCode.set(code, (frequencyByCode.get(code) || 0) + 1)
+  })
+
+  return (
+    Array.from(frequencyByCode.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+    codes.find(code => code.trim().length > 0) ||
+    'EUR'
+  )
+}
+
+const buildRemainingByEmployeeFromEntitlements = (
+  scopedEntitlements: any[],
+  allowedEmployeeIds: Set<string>
+): Map<string, number> => {
+  const remainingByEmployee = new Map<string, number>()
+
+  scopedEntitlements.forEach(entitlement => {
+    const employeeId = String(entitlement?.employee?.id ?? entitlement?.employeeId ?? '')
+    if (!employeeId) {
+      return
+    }
+
+    if (allowedEmployeeIds.size > 0 && !allowedEmployeeIds.has(employeeId)) {
+      return
+    }
+
+    const remaining = getRemainingEntitlementDays(entitlement)
+    remainingByEmployee.set(employeeId, (remainingByEmployee.get(employeeId) || 0) + remaining)
+  })
+
+  return remainingByEmployee
+}
+
+const calculateFinancialImpactMetrics = (
+  remainingByEmployee: Map<string, number>,
+  salaryRows: SalaryRow[]
+): FinancialImpactMetrics => {
+  if (remainingByEmployee.size === 0 || salaryRows.length === 0) {
+    return {
+      estimatedCostPerDay: 0,
+      totalLiabilityEstimate: 0,
+      currencyCode: 'EUR'
+    }
+  }
+
+  const latestSalaryByEmployee = new Map<string, SalaryRow>()
+  salaryRows.forEach(row => {
+    const employeeId = String(row?.employeeId ?? '')
+    if (!employeeId || latestSalaryByEmployee.has(employeeId)) {
+      return
+    }
+    latestSalaryByEmployee.set(employeeId, row)
+  })
+
+  if (latestSalaryByEmployee.size === 0) {
+    return {
+      estimatedCostPerDay: 0,
+      totalLiabilityEstimate: 0,
+      currencyCode: 'EUR'
+    }
+  }
+
+  const workingDaysPerYear = getWorkingDaysPerYear()
+  let totalCostPerDay = 0
+  let salaryCount = 0
+  let totalLiabilityEstimate = 0
+  const usedCurrencyCodes: string[] = []
+
+  remainingByEmployee.forEach((remainingDays, employeeId) => {
+    const salaryRow = latestSalaryByEmployee.get(employeeId)
+    if (!salaryRow) {
+      return
+    }
+
+    const annualSalary = getAnnualSalaryAmount(salaryRow)
+    if (annualSalary <= 0) {
+      return
+    }
+
+    const dailyCost = annualSalary / workingDaysPerYear
+    totalCostPerDay += dailyCost
+    salaryCount += 1
+    totalLiabilityEstimate += dailyCost * remainingDays
+
+    const currencyCode = salaryRow.currency?.code || null
+    if (currencyCode) {
+      usedCurrencyCodes.push(currencyCode)
+    }
+  })
+
+  if (salaryCount === 0) {
+    return {
+      estimatedCostPerDay: 0,
+      totalLiabilityEstimate: 0,
+      currencyCode: 'EUR'
+    }
+  }
+
+  return {
+    estimatedCostPerDay: Math.round((totalCostPerDay / salaryCount) * 100) / 100,
+    totalLiabilityEstimate: Math.round(totalLiabilityEstimate * 100) / 100,
+    currencyCode: resolveCurrencyCode(usedCurrencyCodes)
+  }
+}
 
 export const processCompleteServerSideAggregations = (
   aggregationResult: any,
@@ -40,31 +336,57 @@ export const processCompleteServerSideAggregations = (
     }
   ]
 
-  const rawEntitlements = aggregationResult?.EmployeeAbsenceEntitlement || []
-  const snapshotRows = aggregationResult?.entitlementSnapshot || []
-  const activeEmployeesCount = aggregationResult?.activeEmployeesCount?.aggregate?.count || 0
-  const vacationAbsenceBalance = aggregationResult?.vacationAbsenceBalance?.aggregate?.sum?.balance || 0
+  const rawEntitlements = Array.isArray(aggregationResult?.EmployeeAbsenceEntitlement)
+    ? aggregationResult.EmployeeAbsenceEntitlement
+    : []
+  const filteredEmployees = Array.isArray(aggregationResult?.filteredEmployees)
+    ? aggregationResult.filteredEmployees
+    : []
+  const allowedEmployeeIds = new Set<string>(
+    filteredEmployees
+      .map((row: any) => row?.employee?.id)
+      .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+  )
+  const scopedEntitlements =
+    allowedEmployeeIds.size > 0
+      ? rawEntitlements.filter((row: any) => {
+          const rowEmployeeId = String(row?.employee?.id ?? row?.employeeId ?? '')
+          return allowedEmployeeIds.has(rowEmployeeId)
+        })
+      : rawEntitlements
+  const entitlementEmployeeIds = new Set<string>(
+    scopedEntitlements
+      .map((row: any) => String(row?.employee?.id ?? row?.employeeId ?? ''))
+      .filter((id: string) => id.length > 0)
+  )
+  const fallbackActiveEmployeesCount = Number(aggregationResult?.activeEmployeesCount?.aggregate?.count || 0)
+  const entitlementEmployeesCount =
+    entitlementEmployeeIds.size > 0 ? entitlementEmployeeIds.size : fallbackActiveEmployeesCount
 
-  let entitlementsForMetrics = rawEntitlements
-  if (Array.isArray(snapshotRows) && snapshotRows.length > 0) {
-    const byEmployee: Record<string, { total: number; approved: number; pending: number }> = {}
-    snapshotRows.forEach((r: any) => {
-      const key = r.employeeId || 'unknown'
-      if (!byEmployee[key]) {
-        byEmployee[key] = { total: 0, approved: 0, pending: 0 }
-      }
-      byEmployee[key].total += Number(r.totalEntitlement) || 0
-      byEmployee[key].approved += Number(r.usedApproved) || 0
-      byEmployee[key].pending += Number(r.usedPending) || 0
-    })
-    entitlementsForMetrics = Object.values(byEmployee).map(v => ({
-      total: v.total,
-      approved: v.approved,
-      pending: v.pending
-    }))
-  }
+  // Prefer EntitlementUsageSnapshotView (same source as My Absences). Falls back to
+  // EmployeeAbsenceEntitlement-derived metrics when the view returns nothing for the
+  // current scope (e.g. population filter narrows it to zero employees).
+  const rawSnapshotRows: SnapshotRow[] = Array.isArray(aggregationResult?.entitlementSnapshot)
+    ? aggregationResult.entitlementSnapshot
+    : []
+  const scopedSnapshotRows =
+    allowedEmployeeIds.size > 0
+      ? rawSnapshotRows.filter(row => allowedEmployeeIds.has(String(row?.employeeId ?? '')))
+      : rawSnapshotRows
 
-  const vacationMetrics = calculateVacationMetrics(entitlementsForMetrics, activeEmployeesCount, vacationAbsenceBalance)
+  const fallbackVacationMetrics = calculateVacationMetrics(scopedEntitlements, entitlementEmployeesCount)
+  const snapshotVacationMetrics =
+    scopedSnapshotRows.length > 0
+      ? calculateVacationMetricsFromSnapshot(scopedSnapshotRows, entitlementEmployeesCount)
+      : null
+  const vacationMetrics = snapshotVacationMetrics ?? fallbackVacationMetrics
+
+  const salaryRows = Array.isArray(aggregationResult?.currentSalaries) ? aggregationResult.currentSalaries : []
+  const remainingByEmployee =
+    scopedSnapshotRows.length > 0
+      ? buildRemainingByEmployeeFromSnapshot(scopedSnapshotRows)
+      : buildRemainingByEmployeeFromEntitlements(scopedEntitlements, allowedEmployeeIds)
+  const financialImpactMetrics = calculateFinancialImpactMetrics(remainingByEmployee, salaryRows)
 
   const averageDuration = Math.round((aggregationResult.totalAbsences?.aggregate?.avg?.effectiveDays || 0) * 100) / 100
 
@@ -145,7 +467,10 @@ export const processCompleteServerSideAggregations = (
       averageAvailable: vacationMetrics.averageAvailable || 0,
       averageUsed: vacationMetrics.averageUsed,
       totalVacationLiability: vacationMetrics.totalVacationLiability || 0,
-      totalVacationEntitlement: vacationMetrics.totalVacationEntitlement || 0
+      totalVacationEntitlement: vacationMetrics.totalVacationEntitlement || 0,
+      estimatedCostPerDay: financialImpactMetrics.estimatedCostPerDay,
+      totalLiabilityEstimate: financialImpactMetrics.totalLiabilityEstimate,
+      currencyCode: financialImpactMetrics.currencyCode
     },
 
     isLoading: false,

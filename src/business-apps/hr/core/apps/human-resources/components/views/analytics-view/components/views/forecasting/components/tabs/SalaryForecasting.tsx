@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Typography } from 'antd'
-import { SectionKpiCards, KpiCardData, useTranslation, Icon, Card, CardContent } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useMonthlySalaryForecastEmployee } from '../../../../../hooks/useMonthlySalaryForecastEmployee'
@@ -22,6 +22,9 @@ import AnalyticsDataTable, {
   DIFFERENT_PERCENTAGE_BADGE,
   HIGHLIGHT_BADGE
 } from '../../../../shared/AnalyticsDataTable'
+import SelectableChartCard from '../../../../shared/SelectableChartCard'
+import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
+import AnalyticsTabLoadingState from '../../../../shared/AnalyticsTabLoadingState'
 
 const { Title, Text } = Typography
 
@@ -45,18 +48,26 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   // Fetch data for the full year (for the chart and KPI calculations) - start from beginning of current year
   const fullYearStart = today.startOf('year').format('YYYY-MM-DD')
   const fullYearEnd = yearEnd.format('YYYY-MM-DD')
-  const { data: fullYearData, loading: fullYearLoading } = useMonthlySalaryForecastEmployee(
-    props.accessToken,
-    fullYearStart,
-    fullYearEnd
-  )
-  const { data: salaryChangesData } = useMonthlySalaryChangesEmployees(props.accessToken, fullYearStart, fullYearEnd)
-  const { data: departmentSalaryData } = useMonthlySalaryByDepartment(props.accessToken, fullYearStart, fullYearEnd)
-  const { data: departmentContributionData } = useDepartmentContributionAnalysis(
-    props.accessToken,
-    fullYearStart,
-    fullYearEnd
-  )
+  const {
+    data: fullYearData,
+    loading: fullYearLoading,
+    error: fullYearError
+  } = useMonthlySalaryForecastEmployee(props.accessToken, fullYearStart, fullYearEnd)
+  const {
+    data: salaryChangesData,
+    loading: salaryChangesLoading,
+    error: salaryChangesError
+  } = useMonthlySalaryChangesEmployees(props.accessToken, fullYearStart, fullYearEnd)
+  const {
+    data: departmentSalaryData,
+    loading: departmentSalaryLoading,
+    error: departmentSalaryError
+  } = useMonthlySalaryByDepartment(props.accessToken, fullYearStart, fullYearEnd)
+  const {
+    data: departmentContributionData,
+    loading: departmentContributionLoading,
+    error: departmentContributionError
+  } = useDepartmentContributionAnalysis(props.accessToken, fullYearStart, fullYearEnd)
 
   // Calculate next month and 6-month data from full year data
   const nextMonthData = useMemo(() => {
@@ -72,7 +83,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     return fullYearData.filter(item => item.month >= nextMonthStr && item.month <= sixMonthsEndStr)
   }, [fullYearData, nextMonthStart, sixMonthsEnd])
 
-  const loading = fullYearLoading
+  const loading = fullYearLoading || salaryChangesLoading || departmentSalaryLoading || departmentContributionLoading
   const locale = getCurrentActiveUserLocale() ?? 'en-US'
 
   // Calculate Salary-related KPI metrics
@@ -296,6 +307,26 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     }
   ]
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
+  const firstError = fullYearError || salaryChangesError || departmentSalaryError || departmentContributionError
+
+  if (loading) {
+    return (
+      <AnalyticsTabLoadingState dataTestId={`${prefixDataTestId}-loading`} message={t('hr-data-filter-loading-data')} />
+    )
+  }
+
+  if (firstError) {
+    const errorDetail = firstError instanceof Error ? firstError.message : String(firstError)
+    return (
+      <AnalyticsTabErrorCard
+        dataTestId={`${prefixDataTestId}-error`}
+        message={t('hr-data-filter-error')}
+        detail={errorDetail}
+        retryLabel={t('common-retry')}
+        onRetry={() => globalThis.location.reload()}
+      />
+    )
+  }
 
   return (
     <div data-testid={prefixDataTestId} className="gba:flex gba:flex-col gba:gap-6">
@@ -321,69 +352,53 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       </div>
 
       <div className="gba:space-y-6">
-        <Card
-          data-testid={`${prefixDataTestId}-salary-forecast-card`}
-          className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
-            selectedChart === 'salary-forecast-chart' ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
-          }`}
-          onClick={() => handleChartClick('salary-forecast-chart')}
+        <SelectableChartCard
+          testId="salary-forecast-chart"
+          isSelected={selectedChart === 'salary-forecast-chart'}
+          onSelect={() => handleChartClick('salary-forecast-chart')}
+          title={chartConfigs[0].title}
+          tag={chartConfigs[0].tag}
+          description={chartConfigs[0].description}
+          selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
         >
-          <CardContent className="gba:p-4">
-            <SalaryForecastChart data={monthlyData} />
-            {selectedChart === 'salary-forecast-chart' && (
-              <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
-            )}
-          </CardContent>
-        </Card>
+          <SalaryForecastChart data={monthlyData} />
+        </SelectableChartCard>
 
-        <Card
-          data-testid={`${prefixDataTestId}-salary-changes-card`}
-          className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
-            selectedChart === 'salary-changes-chart' ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
-          }`}
-          onClick={() => handleChartClick('salary-changes-chart')}
+        <SelectableChartCard
+          testId="salary-changes-chart"
+          isSelected={selectedChart === 'salary-changes-chart'}
+          onSelect={() => handleChartClick('salary-changes-chart')}
+          title={chartConfigs[1].title}
+          tag={chartConfigs[1].tag}
+          description={chartConfigs[1].description}
+          selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
         >
-          <CardContent className="gba:p-4">
-            <SalaryChangesChart {...props} />
-            {selectedChart === 'salary-changes-chart' && (
-              <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
-            )}
-          </CardContent>
-        </Card>
+          <SalaryChangesChart {...props} />
+        </SelectableChartCard>
 
-        <Card
-          data-testid={`${prefixDataTestId}-department-salary-card`}
-          className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
-            selectedChart === 'department-salary-chart'
-              ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-              : 'gba:hover:shadow-lg'
-          }`}
-          onClick={() => handleChartClick('department-salary-chart')}
+        <SelectableChartCard
+          testId="department-salary-chart"
+          isSelected={selectedChart === 'department-salary-chart'}
+          onSelect={() => handleChartClick('department-salary-chart')}
+          title={chartConfigs[2].title}
+          tag={chartConfigs[2].tag}
+          description={chartConfigs[2].description}
+          selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
         >
-          <CardContent className="gba:p-4">
-            <DepartmentSalaryStackedBarChart {...props} />
-            {selectedChart === 'department-salary-chart' && (
-              <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
-            )}
-          </CardContent>
-        </Card>
+          <DepartmentSalaryStackedBarChart {...props} />
+        </SelectableChartCard>
 
-        <Card
-          data-testid={`${prefixDataTestId}-department-contribution-card`}
-          className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
-            selectedChart === 'department-contribution-chart'
-              ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-              : 'gba:hover:shadow-lg'
-          }`}
-          onClick={() => handleChartClick('department-contribution-chart')}
+        <SelectableChartCard
+          testId="department-contribution-chart"
+          isSelected={selectedChart === 'department-contribution-chart'}
+          onSelect={() => handleChartClick('department-contribution-chart')}
+          title={chartConfigs[3].title}
+          tag={chartConfigs[3].tag}
+          description={chartConfigs[3].description}
+          selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
         >
-          <CardContent className="gba:p-4">
-            <DepartmentContributionAnalysis {...props} />
-            {selectedChart === 'department-contribution-chart' && (
-              <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
-            )}
-          </CardContent>
-        </Card>
+          <DepartmentContributionAnalysis {...props} />
+        </SelectableChartCard>
       </div>
 
       <div ref={tableRef}>

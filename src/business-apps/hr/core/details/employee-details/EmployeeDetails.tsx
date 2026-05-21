@@ -37,6 +37,9 @@ import { MatrixUnitEmployee, EmployeeCapability, EmployeeSkill } from './types'
 export interface EmployeeDetailsProps extends BusinessAppContextProps {
   employeeId: string
   employeeData?: any
+  topContent?: React.ReactNode
+  hideActionButton?: boolean
+  summaryOnly?: boolean
 }
 
 interface ProfileInfoItemProps {
@@ -227,6 +230,9 @@ interface EmployeeDetailsContentProps {
   businessPhone: string
   managerName: string
   managerClickHandler?: () => void
+  topContent?: React.ReactNode
+  hideActionButton?: boolean
+  summaryOnly?: boolean
   t: (key: string) => string
   onChat: () => void
   onCall: () => void
@@ -241,6 +247,9 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
   businessPhone,
   managerName,
   managerClickHandler,
+  topContent,
+  hideActionButton,
+  summaryOnly,
   t,
   onChat,
   onCall,
@@ -253,7 +262,7 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
   return (
     <div className="gba:bg-white gba:h-full gba:overflow-auto">
       <div className="gba:p-6 gba:relative">
-        {accessToken && (
+        {accessToken && !hideActionButton && (
           <div className="gba:absolute gba:top-4 gba:right-2" onClick={e => e.stopPropagation()}>
             <AppAction
               variant="header"
@@ -337,199 +346,207 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
             </div>
           </div>
 
-          <div className="gba:border-t gba:border-border gba:pt-4">
-            <div className="gba:mb-6">
+          {topContent ? <div className="gba:mb-2">{topContent}</div> : null}
+
+          {!summaryOnly && (
+            <div className="gba:border-t gba:border-border gba:pt-4">
+              <div className="gba:mb-6">
+                <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">
+                  {t('employee-details-contact-information')}
+                </h4>
+                <div className="gba:space-y-2">
+                  {businessEmail ? (
+                    <a
+                      href={`mailto:${businessEmail}`}
+                      className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
+                    >
+                      <EnvelopeSimpleIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+                      {businessEmail}
+                    </a>
+                  ) : (
+                    <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
+                      <EnvelopeSimpleIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+                      {t('employee-details-no-email')}
+                    </div>
+                  )}
+
+                  {businessPhone ? (
+                    <a
+                      href={`tel:${businessPhone}`}
+                      className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
+                    >
+                      <PhoneIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+                      {formatPhoneNumber(businessPhone)}
+                    </a>
+                  ) : (
+                    <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
+                      <PhoneIcon className="gba:mr-2 gba:h-4 gba:w-4" />
+                      {t('employee-details-no-phone')}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">
-                {t('employee-details-contact-information')}
+                {t('employee-details-profile-information')}
               </h4>
-              <div className="gba:space-y-2">
-                {businessEmail ? (
-                  <a
-                    href={`mailto:${businessEmail}`}
-                    className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
-                  >
-                    <EnvelopeSimpleIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {businessEmail}
-                  </a>
-                ) : (
-                  <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
-                    <EnvelopeSimpleIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {t('employee-details-no-email')}
-                  </div>
-                )}
 
-                {businessPhone ? (
-                  <a
-                    href={`tel:${businessPhone}`}
-                    className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
-                  >
-                    <PhoneIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {formatPhoneNumber(businessPhone)}
-                  </a>
-                ) : (
-                  <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
-                    <PhoneIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {t('employee-details-no-phone')}
-                  </div>
-                )}
+              <div className="gba:space-y-1">
+                <ProfileInfoItem
+                  icon={<BuildingsIcon className="gba:h-4 gba:w-4" />}
+                  label={t('employee-details-organization')}
+                  value={employeeData.employeePosition?.organizationalUnit?.name || t('employee-details-not-assigned')}
+                  linkTo={
+                    employeeData.employeePosition?.organizationalUnitId
+                      ? `/orgchart/active/organization?organizationUnitId=${employeeData.employeePosition.organizationalUnitId}`
+                      : undefined
+                  }
+                />
+
+                <ProfileInfoItem
+                  icon={<UserIcon className="gba:h-4 gba:w-4" />}
+                  label={t('employee-details-manager')}
+                  value={managerName}
+                  onClick={managerClickHandler}
+                />
+
+                <ProfileInfoItem
+                  icon={<MapPinIcon className="gba:h-4 gba:w-4" />}
+                  label={t('employee-details-job-position')}
+                  value={employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
+                />
+
+                <ProfileInfoItem
+                  icon={<CurrencyDollarIcon className="gba:h-4 gba:w-4" />}
+                  label={t('employee-details-cost-center')}
+                  value={employeeData.employeePosition?.costCenter?.name || t('employee-details-not-assigned')}
+                  linkTo={
+                    employeeData.employeePosition?.costCenter?.id
+                      ? `/orgchart/active/finance?costCenterDataId=${employeeData.employeePosition.costCenter.id}`
+                      : undefined
+                  }
+                />
+
+                <ProfileInfoItem
+                  icon={<CalendarIcon className="gba:h-4 gba:w-4" />}
+                  label={t('employee-details-hire-date')}
+                  value={
+                    employeeData.workingCondition?.[0]?.hireDate
+                      ? `${formatDateLocalized(employeeData.workingCondition[0].hireDate)} - ${calculateTimeSince(employeeData, t)}`
+                      : t('employee-details-not-available')
+                  }
+                />
+
+                <ProfileInfoItem
+                  icon={<UserIcon className="gba:h-4 gba:w-4" />}
+                  label={t('employee-details-employment-type')}
+                  value={
+                    getCatalogValue(employeeData.workingCondition?.[0]?.employmentType) ||
+                    t('employee-details-not-specified')
+                  }
+                />
+
+                <ProfileInfoItem
+                  icon={<UserIcon className="gba:h-4 gba:w-4" />}
+                  label={t('employee-details-contract-type')}
+                  value={
+                    getCatalogValue(employeeData.workingCondition?.[0]?.contractType) ||
+                    t('employee-details-not-specified')
+                  }
+                />
+              </div>
+
+              <div className="gba:mt-6">
+                <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
+                  {t('employee-details-teams')}
+                </h4>
+                <div className="gba:flex gba:flex-wrap gba:gap-2">
+                  {employeeData.employeePosition?.matrixUnitEmployees &&
+                  Array.isArray(employeeData.employeePosition.matrixUnitEmployees) &&
+                  employeeData.employeePosition.matrixUnitEmployees.length > 0 ? (
+                    employeeData.employeePosition.matrixUnitEmployees
+                      .filter(
+                        (
+                          teamItem: any
+                        ): teamItem is MatrixUnitEmployee & { matrixUnit: { id: string; name: string } } =>
+                          !!(teamItem?.matrixUnit?.id && teamItem?.matrixUnit?.name)
+                      )
+                      .map((teamItem: any) => (
+                        <span
+                          key={teamItem.matrixUnit.id}
+                          className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-info-secondary gba:text-info-secondary-foreground"
+                        >
+                          {teamItem.matrixUnit.name}
+                        </span>
+                      ))
+                  ) : (
+                    <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-teams')}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="gba:mt-6">
+                <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
+                  {t('employee-details-capabilities')}
+                </h4>
+                <div className="gba:flex gba:flex-wrap gba:gap-2">
+                  {employeeData.employeePosition?.employeeCapabilities &&
+                  Array.isArray(employeeData.employeePosition.employeeCapabilities) &&
+                  employeeData.employeePosition.employeeCapabilities.length > 0 ? (
+                    employeeData.employeePosition.employeeCapabilities
+                      .filter(
+                        (capItem: any): capItem is EmployeeCapability & { capability: { id: string; name: string } } =>
+                          !!(capItem?.capability?.id && capItem?.capability?.name)
+                      )
+                      .map((capItem: any) => (
+                        <span
+                          key={capItem.capability.id}
+                          className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-success-secondary gba:text-success-secondary-foreground"
+                        >
+                          {capItem.capability.name}
+                        </span>
+                      ))
+                  ) : (
+                    <span className="gba:text-muted-foreground gba:text-sm">
+                      {t('employee-details-no-capabilities')}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="gba:mt-6">
+                <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
+                  {t('employee-details-skills')}
+                </h4>
+                <div className="gba:flex gba:flex-wrap gba:gap-2">
+                  {employeeData.skills && Array.isArray(employeeData.skills) && employeeData.skills.length > 0 ? (
+                    employeeData.skills
+                      .filter(
+                        (skillItem: any): skillItem is EmployeeSkill & { skill: { id: string; name: string } } =>
+                          !!(skillItem?.skill?.id && skillItem?.skill?.name)
+                      )
+                      .map((skillItem: any) => (
+                        <span
+                          key={skillItem.skill.id}
+                          className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${
+                            skillItem.level === 'Advanced'
+                              ? 'gba:bg-info-secondary gba:text-info-secondary-foreground'
+                              : 'gba:bg-muted gba:text-muted-foreground'
+                          }`}
+                        >
+                          {skillItem.skill.name}
+                          {skillItem.level === 'Advanced' && (
+                            <span className="gba:ml-1 gba:text-xs gba:font-semibold">★</span>
+                          )}
+                        </span>
+                      ))
+                  ) : (
+                    <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-skills')}</span>
+                  )}
+                </div>
               </div>
             </div>
-
-            <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">
-              {t('employee-details-profile-information')}
-            </h4>
-
-            <div className="gba:space-y-1">
-              <ProfileInfoItem
-                icon={<BuildingsIcon className="gba:h-4 gba:w-4" />}
-                label={t('employee-details-organization')}
-                value={employeeData.employeePosition?.organizationalUnit?.name || t('employee-details-not-assigned')}
-                linkTo={
-                  employeeData.employeePosition?.organizationalUnitId
-                    ? `/orgchart/active/organization?organizationUnitId=${employeeData.employeePosition.organizationalUnitId}`
-                    : undefined
-                }
-              />
-
-              <ProfileInfoItem
-                icon={<UserIcon className="gba:h-4 gba:w-4" />}
-                label={t('employee-details-manager')}
-                value={managerName}
-                onClick={managerClickHandler}
-              />
-
-              <ProfileInfoItem
-                icon={<MapPinIcon className="gba:h-4 gba:w-4" />}
-                label={t('employee-details-job-position')}
-                value={employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
-              />
-
-              <ProfileInfoItem
-                icon={<CurrencyDollarIcon className="gba:h-4 gba:w-4" />}
-                label={t('employee-details-cost-center')}
-                value={employeeData.employeePosition?.costCenter?.name || t('employee-details-not-assigned')}
-                linkTo={
-                  employeeData.employeePosition?.costCenter?.id
-                    ? `/orgchart/active/finance?costCenterDataId=${employeeData.employeePosition.costCenter.id}`
-                    : undefined
-                }
-              />
-
-              <ProfileInfoItem
-                icon={<CalendarIcon className="gba:h-4 gba:w-4" />}
-                label={t('employee-details-hire-date')}
-                value={
-                  employeeData.workingCondition?.[0]?.hireDate
-                    ? `${formatDateLocalized(employeeData.workingCondition[0].hireDate)} - ${calculateTimeSince(employeeData, t)}`
-                    : t('employee-details-not-available')
-                }
-              />
-
-              <ProfileInfoItem
-                icon={<UserIcon className="gba:h-4 gba:w-4" />}
-                label={t('employee-details-employment-type')}
-                value={
-                  getCatalogValue(employeeData.workingCondition?.[0]?.employmentType) ||
-                  t('employee-details-not-specified')
-                }
-              />
-
-              <ProfileInfoItem
-                icon={<UserIcon className="gba:h-4 gba:w-4" />}
-                label={t('employee-details-contract-type')}
-                value={
-                  getCatalogValue(employeeData.workingCondition?.[0]?.contractType) ||
-                  t('employee-details-not-specified')
-                }
-              />
-            </div>
-
-            <div className="gba:mt-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
-                {t('employee-details-teams')}
-              </h4>
-              <div className="gba:flex gba:flex-wrap gba:gap-2">
-                {employeeData.employeePosition?.matrixUnitEmployees &&
-                Array.isArray(employeeData.employeePosition.matrixUnitEmployees) &&
-                employeeData.employeePosition.matrixUnitEmployees.length > 0 ? (
-                  employeeData.employeePosition.matrixUnitEmployees
-                    .filter(
-                      (teamItem: any): teamItem is MatrixUnitEmployee & { matrixUnit: { id: string; name: string } } =>
-                        !!(teamItem?.matrixUnit?.id && teamItem?.matrixUnit?.name)
-                    )
-                    .map((teamItem: any) => (
-                      <span
-                        key={teamItem.matrixUnit.id}
-                        className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-info-secondary gba:text-info-secondary-foreground"
-                      >
-                        {teamItem.matrixUnit.name}
-                      </span>
-                    ))
-                ) : (
-                  <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-teams')}</span>
-                )}
-              </div>
-            </div>
-
-            <div className="gba:mt-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
-                {t('employee-details-capabilities')}
-              </h4>
-              <div className="gba:flex gba:flex-wrap gba:gap-2">
-                {employeeData.employeePosition?.employeeCapabilities &&
-                Array.isArray(employeeData.employeePosition.employeeCapabilities) &&
-                employeeData.employeePosition.employeeCapabilities.length > 0 ? (
-                  employeeData.employeePosition.employeeCapabilities
-                    .filter(
-                      (capItem: any): capItem is EmployeeCapability & { capability: { id: string; name: string } } =>
-                        !!(capItem?.capability?.id && capItem?.capability?.name)
-                    )
-                    .map((capItem: any) => (
-                      <span
-                        key={capItem.capability.id}
-                        className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:bg-success-secondary gba:text-success-secondary-foreground"
-                      >
-                        {capItem.capability.name}
-                      </span>
-                    ))
-                ) : (
-                  <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-capabilities')}</span>
-                )}
-              </div>
-            </div>
-
-            <div className="gba:mt-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
-                {t('employee-details-skills')}
-              </h4>
-              <div className="gba:flex gba:flex-wrap gba:gap-2">
-                {employeeData.skills && Array.isArray(employeeData.skills) && employeeData.skills.length > 0 ? (
-                  employeeData.skills
-                    .filter(
-                      (skillItem: any): skillItem is EmployeeSkill & { skill: { id: string; name: string } } =>
-                        !!(skillItem?.skill?.id && skillItem?.skill?.name)
-                    )
-                    .map((skillItem: any) => (
-                      <span
-                        key={skillItem.skill.id}
-                        className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium ${
-                          skillItem.level === 'Advanced'
-                            ? 'gba:bg-info-secondary gba:text-info-secondary-foreground'
-                            : 'gba:bg-muted gba:text-muted-foreground'
-                        }`}
-                      >
-                        {skillItem.skill.name}
-                        {skillItem.level === 'Advanced' && (
-                          <span className="gba:ml-1 gba:text-xs gba:font-semibold">★</span>
-                        )}
-                      </span>
-                    ))
-                ) : (
-                  <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-skills')}</span>
-                )}
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -541,7 +558,7 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
  * @returns {JSX.Element}
  */
 export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
-  const { employeeId, accessToken, employeeData: propEmployeeData } = context
+  const { employeeId, accessToken, employeeData: propEmployeeData, topContent, hideActionButton, summaryOnly } = context
   const { t } = useTranslation(employeeDetailsTranslations)
 
   // Only fetch data if not provided as prop
@@ -618,6 +635,9 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
       businessPhone={businessPhone}
       managerName={managerName}
       managerClickHandler={managerClickHandler}
+      topContent={topContent}
+      hideActionButton={hideActionButton}
+      summaryOnly={summaryOnly}
       t={t}
       onChat={handleChat}
       onCall={handleCall}

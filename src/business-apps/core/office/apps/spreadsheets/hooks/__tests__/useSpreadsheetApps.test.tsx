@@ -16,6 +16,7 @@ jest.mock('../../services/SpreadsheetApiService', () => ({
     getApp: jest.fn(),
     getTrashedPreview: jest.fn(),
     createSheet: jest.fn(),
+    duplicateSheet: jest.fn(),
     getAllRows: jest.fn()
   }
 }))
@@ -24,6 +25,7 @@ const mockedListApps = jest.mocked(SpreadsheetApiService.listApps)
 const mockedGetApp = jest.mocked(SpreadsheetApiService.getApp)
 const mockedGetTrashedPreview = jest.mocked(SpreadsheetApiService.getTrashedPreview)
 const mockedCreateSheet = jest.mocked(SpreadsheetApiService.createSheet)
+const mockedDuplicateSheet = jest.mocked(SpreadsheetApiService.duplicateSheet)
 const mockedGetAllRows = jest.mocked(SpreadsheetApiService.getAllRows)
 
 function createAppSummary(index: number): SpreadsheetAppSummary {
@@ -49,6 +51,7 @@ describe('useSpreadsheetApps pagination', () => {
     mockedGetApp.mockReset()
     mockedGetTrashedPreview.mockReset()
     mockedCreateSheet.mockReset()
+    mockedDuplicateSheet.mockReset()
     mockedGetAllRows.mockReset()
   })
 
@@ -176,5 +179,70 @@ describe('useSpreadsheetApps pagination', () => {
       expect(result.current.currentApp?.sheets.map(sheet => sheet.id)).toEqual(['sheet-1', 'real-sheet'])
     })
     expect(result.current.currentApp?.sheets.some(sheet => sheet.id === 'temp-sheet')).toBe(false)
+  })
+
+  it('duplicates a sheet through the dedicated duplicate API', async () => {
+    mockedListApps.mockResolvedValue([])
+    mockedGetApp.mockResolvedValue({
+      id: 'app-1',
+      name: 'Budget',
+      description: '',
+      icon: 'FileSpreadsheet',
+      status: 'draft',
+      createdAt: '2026-04-01T10:00:00.000Z',
+      updatedAt: '2026-04-01T10:00:00.000Z',
+      createdBy: 'user-1',
+      permission: 'owner',
+      sheets: [
+        {
+          id: 'sheet-1',
+          name: 'Sheet 1',
+          columns: [{ id: 'col-a', name: 'column_a', order: 0 }],
+          views: [],
+          data: [],
+          settings: {}
+        }
+      ]
+    } as any)
+    mockedDuplicateSheet.mockResolvedValue({
+      id: 'copy-sheet',
+      name: 'Sheet 1 Copy',
+      columns: [{ id: 'col-a', name: 'column_a', order: 0 }],
+      views: [],
+      data: [{ _id: 'row-1', column_a: 'Copied value' }],
+      settings: {}
+    } as any)
+    mockedGetAllRows.mockResolvedValue([])
+
+    const { result } = renderHook(() => useSpreadsheetApps('token', 'user-1'))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    await act(async () => {
+      await result.current.loadApp('app-1')
+    })
+
+    await act(async () => {
+      await result.current.duplicateSheet('app-1', 'sheet-1', {
+        id: 'copy-sheet',
+        name: 'Sheet 1 Copy',
+        visualWorksheetSnapshot: { id: 'copy-sheet', cellData: { 0: { 0: { s: 'style-red' } } } }
+      })
+    })
+
+    expect(mockedCreateSheet).not.toHaveBeenCalled()
+    expect(mockedDuplicateSheet).toHaveBeenCalledWith(
+      'app-1',
+      'sheet-1',
+      expect.objectContaining({
+        id: 'copy-sheet',
+        visualWorksheetSnapshot: { id: 'copy-sheet', cellData: { 0: { 0: { s: 'style-red' } } } }
+      })
+    )
+    expect(result.current.currentApp?.sheets.find(sheet => sheet.id === 'copy-sheet')?.data).toEqual([
+      { _id: 'row-1', column_a: 'Copied value' }
+    ])
   })
 })

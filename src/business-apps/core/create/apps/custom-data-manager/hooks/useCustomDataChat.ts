@@ -255,12 +255,12 @@ export function useCustomDataChat(
     try {
       const result = await onCreate(pendingProposal)
       const summaryParts = [
-        `${result.createdEntityKeys.length} created`,
-        `${result.updatedEntityKeys.length} updated`,
-        `${result.deletedEntityKeys.length} deleted`
+        `${result.createdEntityNames.length} created`,
+        `${result.updatedEntityNames.length} updated`,
+        `${result.deletedEntityNames.length} deleted`
       ]
-      if (result.downgradedEntityKeys.length > 0) {
-        summaryParts.push(`${result.downgradedEntityKeys.length} downgraded to draft`)
+      if (result.downgradedEntityNames.length > 0) {
+        summaryParts.push(`${result.downgradedEntityNames.length} downgraded to draft`)
       }
 
       setMessages(prev =>

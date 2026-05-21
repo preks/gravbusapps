@@ -26,17 +26,32 @@ export const ContactTypeLabels: Record<ContactType, string> = {
   [ContactType.SECONDARY_CONTACT]: 'Secondary Contact'
 }
 
+/** Shorter labels for compact row selects (dropdown items keep full ContactTypeLabels). */
+export const ContactTypeCompactLabels: Record<ContactType, string> = {
+  [ContactType.UNKNOWN_CONTACT]: 'Unknown',
+  [ContactType.FOUNDER_CONTACT]: 'Founder',
+  [ContactType.PRIMARY_CONTACT]: 'Primary',
+  [ContactType.SECONDARY_CONTACT]: 'Secondary'
+}
+
+export type ContactTypeLabelOptions = {
+  compact?: boolean
+}
+
 /**
  * Get label for a ContactType enum value
  * @param contactType - ContactType enum value or string
  * @returns Human-readable label or empty string if not found
  */
-export const getContactTypeLabel = (contactType: ContactType | string | null | undefined): string => {
+export const getContactTypeLabel = (
+  contactType: ContactType | string | null | undefined,
+  options?: ContactTypeLabelOptions
+): string => {
   if (!contactType) {
     return ''
   }
 
-  // Handle string values that match enum keys
+  const labels = options?.compact ? ContactTypeCompactLabels : ContactTypeLabels
   const typeKey = contactType
-  return ContactTypeLabels[typeKey as ContactType] || ''
+  return labels[typeKey as ContactType] || ''
 }

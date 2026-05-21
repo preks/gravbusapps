@@ -3,13 +3,15 @@
  */
 
 import React from 'react'
-import { ImageIcon, HandIcon } from '@phosphor-icons/react'
+import { ImageIcon, HandIcon, SwapIcon } from '@phosphor-icons/react'
 import { ReactionsPicker } from './ReactionsPicker'
 
 export interface MoreMenuContentProps {
   callType: 'audio' | 'video'
   backgroundEnabled: boolean
   handRaised: boolean
+  isMirrorEnabled?: boolean
+  onToggleMirror?: () => void
   onToggleBackground?: () => void
   onToggleRaiseHand?: () => void
   onSendReaction?: (emoji: string) => void
@@ -24,6 +26,8 @@ export const MoreMenuContent: React.FC<MoreMenuContentProps> = ({
   callType,
   backgroundEnabled,
   handRaised,
+  isMirrorEnabled,
+  onToggleMirror,
   onToggleBackground,
   onToggleRaiseHand,
   onSendReaction,
@@ -59,6 +63,31 @@ export const MoreMenuContent: React.FC<MoreMenuContentProps> = ({
             {backgroundEnabled
               ? t('groupCall-disableBackground') || 'Disable background effect'
               : t('groupCall-enableBackground') || 'Enable background effect'}
+          </span>
+        </button>
+      )}
+
+      {onToggleMirror && callType === 'video' && (
+        <button
+          type="button"
+          onClick={() => {
+            onToggleMirror()
+            onClose()
+          }}
+          className={`gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:rounded-xl hover:gba:bg-accent gba:transition-all gba:text-left gba:w-full ${
+            isMirrorEnabled ? 'gba:bg-primary/10 gba:ring-1 gba:ring-primary/20' : ''
+          }`}
+          data-testid={`${prefixDataTestId}-mirror-btn-mobile`}
+        >
+          <div
+            className={`gba:p-2 gba:rounded-lg ${isMirrorEnabled ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-accent'}`}
+          >
+            <SwapIcon className="gba:w-5 gba:h-5" weight="fill" />
+          </div>
+          <span className="gba:text-sm gba:font-medium">
+            {isMirrorEnabled
+              ? t('groupCall-disableMirror') || 'Disable mirror view'
+              : t('groupCall-enableMirror') || 'Enable mirror view'}
           </span>
         </button>
       )}

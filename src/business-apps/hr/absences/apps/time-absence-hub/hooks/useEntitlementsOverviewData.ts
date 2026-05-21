@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_ENTITLEMENT_EMPLOYEES_BY_IDS,
@@ -6,8 +6,20 @@ import {
   OrgEntitlementRow
 } from '../queries/OrgEntitlementQueries'
 import { HubGlobalFilters } from './useHubGlobalFilters'
+import { LEGAL_ENTITY_NOT_DEFINED_FILTER_ID } from '../constants/routes'
 
 export type EntitlementHealthFilter = 'all' | 'negative' | 'expiring' | 'expired'
+export type EntitlementsOverviewSortField =
+  | 'employeeName'
+  | 'departmentName'
+  | 'locationName'
+  | 'typeName'
+  | 'total'
+  | 'approved'
+  | 'pending'
+  | 'available'
+  | 'validFrom'
+export type EntitlementsOverviewSortOrder = 'ASC' | 'DESC'
 
 export interface UseEntitlementsOverviewDataParams {
   accessToken: string
@@ -16,6 +28,8 @@ export interface UseEntitlementsOverviewDataParams {
   healthFilter: EntitlementHealthFilter
   page: number
   pageSize: number
+  sortField: EntitlementsOverviewSortField
+  sortOrder: EntitlementsOverviewSortOrder
 }
 
 export interface UseEntitlementsOverviewDataReturn {
@@ -76,11 +90,30 @@ const buildWhere = (
     })
   }
   if (filters.legalEntityIds.length > 0) {
-    conditions.push({
-      employee: {
-        employeePosition: { companyId: { _in: filters.legalEntityIds } }
-      }
-    })
+    const includeMissingLegalEntity = filters.legalEntityIds.includes(LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
+    const definedLegalEntityIds = filters.legalEntityIds.filter(id => id !== LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
+
+    if (includeMissingLegalEntity && definedLegalEntityIds.length > 0) {
+      conditions.push({
+        employee: {
+          employeePosition: {
+            _or: [{ companyId: { _in: definedLegalEntityIds } }, { companyId: { _isNull: true } }]
+          }
+        }
+      })
+    } else if (includeMissingLegalEntity) {
+      conditions.push({
+        employee: {
+          employeePosition: { companyId: { _isNull: true } }
+        }
+      })
+    } else {
+      conditions.push({
+        employee: {
+          employeePosition: { companyId: { _in: definedLegalEntityIds } }
+        }
+      })
+    }
   }
   if (filters.locationIds.length > 0) {
     conditions.push({
@@ -101,11 +134,10 @@ const buildWhere = (
   }
   if (derivedDateRange) {
     conditions.push({
-      _or: [
-        { validFrom: { _gte: derivedDateRange.dateFrom, _lte: derivedDateRange.dateTo } },
-        { validTo: { _gte: derivedDateRange.dateFrom, _lte: derivedDateRange.dateTo } },
+      _and: [
+        { validFrom: { _lte: derivedDateRange.dateTo } },
         {
-          _and: [{ validFrom: { _lte: derivedDateRange.dateFrom } }, { validTo: { _gte: derivedDateRange.dateTo } }]
+          _or: [{ validTo: { _isNull: true } }, { validTo: { _gte: derivedDateRange.dateFrom } }]
         }
       ]
     })
@@ -133,13 +165,42 @@ const buildWhere = (
   return conditions.length > 0 ? { _and: conditions } : {}
 }
 
+const buildOrderBy = (
+  sortField: EntitlementsOverviewSortField,
+  sortOrder: EntitlementsOverviewSortOrder
+): Record<string, unknown>[] => {
+  switch (sortField) {
+    case 'employeeName':
+      return [{ employee: { firstName: sortOrder } }, { employee: { lastName: sortOrder } }]
+    case 'departmentName':
+      return [{ employee: { employeePosition: { organizationalUnit: { name: sortOrder } } } }]
+    case 'locationName':
+      return [{ employee: { employeePosition: { siteLocation: { name: sortOrder } } } }]
+    case 'typeName':
+      return [{ type: { value: sortOrder } }]
+    case 'total':
+      return [{ total: sortOrder }]
+    case 'approved':
+      return [{ approved: sortOrder }]
+    case 'pending':
+      return [{ pending: sortOrder }]
+    case 'available':
+      return [{ available: sortOrder }]
+    case 'validFrom':
+    default:
+      return [{ validFrom: sortOrder }]
+  }
+}
+
 export const useEntitlementsOverviewData = ({
   accessToken,
   filters,
   derivedDateRange,
   healthFilter,
   page,
-  pageSize
+  pageSize,
+  sortField,
+  sortOrder
 }: UseEntitlementsOverviewDataParams): UseEntitlementsOverviewDataReturn => {
   const [state, setState] = useState<UseEntitlementsOverviewDataReturn>({
     rows: [],
@@ -148,6 +209,7 @@ export const useEntitlementsOverviewData = ({
     error: null
   })
   const graphqlClient = useGraphQLClient(accessToken)
+  const hasLoadedOnceRef = useRef(false)
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), [])
 
@@ -164,23 +226,31 @@ export const useEntitlementsOverviewData = ({
         to: derivedDateRange?.dateTo,
         h: healthFilter,
         page,
-        pageSize
+        pageSize,
+        sortField,
+        sortOrder
       }),
-    [filters, derivedDateRange, healthFilter, page, pageSize]
+    [filters, derivedDateRange, healthFilter, page, pageSize, sortField, sortOrder]
   )
 
   useEffect(() => {
     if (!accessToken) {
+      hasLoadedOnceRef.current = false
       setState({ rows: [], total: 0, isLoading: false, error: null })
       return
     }
 
     let cancelled = false
-    setState(prev => ({ ...prev, isLoading: true, error: null }))
+    setState(prev => ({
+      ...prev,
+      isLoading: hasLoadedOnceRef.current ? prev.isLoading : true,
+      error: null
+    }))
 
     const fetchOverview = async () => {
       try {
         const where = buildWhere(filters, derivedDateRange, healthFilter, todayIso)
+        const orderBy = buildOrderBy(sortField, sortOrder)
         const response = await graphqlClient.request<{
           EmployeeAbsenceEntitlement: OrgEntitlementRow[]
           EmployeeAbsenceEntitlementAggregate: { aggregate: { count: number } }
@@ -188,7 +258,7 @@ export const useEntitlementsOverviewData = ({
           where,
           offset: (page - 1) * pageSize,
           limit: pageSize,
-          orderBy: [{ validFrom: 'DESC' }]
+          orderBy
         })
 
         if (cancelled) {
@@ -201,6 +271,7 @@ export const useEntitlementsOverviewData = ({
           return
         }
 
+        hasLoadedOnceRef.current = true
         setState({
           rows,
           total: response.EmployeeAbsenceEntitlementAggregate?.aggregate?.count ?? 0,
@@ -212,7 +283,13 @@ export const useEntitlementsOverviewData = ({
           return
         }
         const message = err instanceof Error ? err.message : 'Failed to load entitlements'
-        setState({ rows: [], total: 0, isLoading: false, error: message })
+        hasLoadedOnceRef.current = true
+        setState(prev => ({
+          rows: prev.rows,
+          total: prev.total,
+          isLoading: false,
+          error: message
+        }))
       }
     }
 

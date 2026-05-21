@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, Spin, Typography } from 'antd'
+import { Spin, Typography } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDepartmentContributionAnalysis } from '../../../../hooks/useDepartmentContributionAnalysis'
 import { useTranslation } from '@newwork/nw-design-system'
@@ -16,7 +16,11 @@ const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props 
   const { t } = useTranslation(hrTranslations)
 
   if (loading) {
-    return <Spin data-testid="department-contribution-analysis-loading" />
+    return (
+      <div className="gba:flex gba:h-full gba:items-center gba:justify-center">
+        <Spin data-testid="department-contribution-analysis-loading" />
+      </div>
+    )
   }
   if (error) {
     return (
@@ -33,11 +37,7 @@ const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props 
   const sorted = data
 
   return (
-    <Card
-      className="gba:shadow gba:rounded gba:p-4 gba:mb-6"
-      data-testid="department-contribution-analysis"
-      title={t('hr-analytics-department-contribution-analysis')}
-    >
+    <div className="gba:h-full gba:w-full" data-testid="department-contribution-analysis">
       <div className="gba:flex gba:flex-row gba:gap-16 gba:w-full gba:py-2">
         {/* Current Month Breakdown */}
         <div className="gba:w-1/2">
@@ -114,7 +114,7 @@ const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props 
           })}
         </div>
       </div>
-    </Card>
+    </div>
   )
 }
 

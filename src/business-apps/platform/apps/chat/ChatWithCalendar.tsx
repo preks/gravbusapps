@@ -522,63 +522,69 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         showBottomBorder
         className="gba:h-full gba:flex gba:flex-col"
       >
+        {/* TabSwitchList owns horizontal scroll (nw-design-system). No second overflow-x-auto on this strip —
+            nested x-auto caused stray vertical scroll on some browsers. */}
+        {/* w-full + min-w-0: flex default min-width:auto would stop the tab row shrinking in the platform
+            right sidebar; without that, inner overflow-x-auto never activates. */}
         <div
-          className={`gba:flex gba:bg-card gba:overflow-x-auto gba:scrollbar-hide ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
+          className={`gba:w-full gba:min-w-0 gba:max-w-full gba:bg-card gba:overflow-y-hidden ${isCompactMode ? 'gba:px-2 gba:py-1' : 'gba:px-6 gba:py-2'}`}
         >
-          <TabSwitchList className="gba:overflow-x-auto gba:scrollbar-hide">
-            {!isInSidepanel && (
-              <TabSwitchTrigger
-                value="dashboard"
-                startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
-                data-testid={`${prefixDataTestId}-dashboard-tab`}
-              >
-                {t('chat-tab-dashboard')}
-              </TabSwitchTrigger>
-            )}
-            {isChatAIEnabled && (
-              <TabSwitchTrigger
-                value="everyai"
-                startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
-                data-testid={`${prefixDataTestId}-everyai-tab`}
-              >
-                {t('chat-tab-everyai')}
-              </TabSwitchTrigger>
-            )}
-            {isTeamChatEnabled && (
-              <TabSwitchTrigger
-                value="chat"
-                startIcon={<MessageSquare className="gba:h-4 gba:w-4" />}
-                data-testid={`${prefixDataTestId}-chat-tab`}
-              >
-                {t('chat-tab-chat')}
-              </TabSwitchTrigger>
-            )}
-            {isTeamChatEnabled && (
-              <TabSwitchTrigger
-                value="calendar"
-                startIcon={<CalendarIcon className="gba:h-4 gba:w-4" />}
-                data-testid={`${prefixDataTestId}-calendar-tab`}
-              >
-                {t('chat-tab-calendar')}
-              </TabSwitchTrigger>
-            )}
-            {isChatAIEnabled && (
-              <TabSwitchTrigger
-                value="reminders"
-                startIcon={<Bell className="gba:h-4 gba:w-4" />}
-                endAdornment={
-                  overdueRemindersCount > 0 ? (
-                    <TabSwitchBadge variant="destructive" size="sm">
-                      {overdueRemindersCount}
-                    </TabSwitchBadge>
-                  ) : undefined
-                }
-                data-testid={`${prefixDataTestId}-reminders-tab`}
-              >
-                {t('chat-tab-reminders')}
-              </TabSwitchTrigger>
-            )}
-          </TabSwitchList>
+          <div className="gba:w-full gba:min-w-0">
+            <TabSwitchList>
+              {!isInSidepanel && (
+                <TabSwitchTrigger
+                  value="dashboard"
+                  startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
+                  data-testid={`${prefixDataTestId}-dashboard-tab`}
+                >
+                  {t('chat-tab-dashboard')}
+                </TabSwitchTrigger>
+              )}
+              {isChatAIEnabled && (
+                <TabSwitchTrigger
+                  value="everyai"
+                  startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
+                  data-testid={`${prefixDataTestId}-everyai-tab`}
+                >
+                  {t('chat-tab-everyai')}
+                </TabSwitchTrigger>
+              )}
+              {isTeamChatEnabled && (
+                <TabSwitchTrigger
+                  value="chat"
+                  startIcon={<MessageSquare className="gba:h-4 gba:w-4" />}
+                  data-testid={`${prefixDataTestId}-chat-tab`}
+                >
+                  {t('chat-tab-chat')}
+                </TabSwitchTrigger>
+              )}
+              {isTeamChatEnabled && (
+                <TabSwitchTrigger
+                  value="calendar"
+                  startIcon={<CalendarIcon className="gba:h-4 gba:w-4" />}
+                  data-testid={`${prefixDataTestId}-calendar-tab`}
+                >
+                  {t('chat-tab-calendar')}
+                </TabSwitchTrigger>
+              )}
+              {isChatAIEnabled && (
+                <TabSwitchTrigger
+                  value="reminders"
+                  startIcon={<Bell className="gba:h-4 gba:w-4" />}
+                  endAdornment={
+                    overdueRemindersCount > 0 ? (
+                      <TabSwitchBadge variant="destructive" size="sm">
+                        {overdueRemindersCount}
+                      </TabSwitchBadge>
+                    ) : undefined
+                  }
+                  data-testid={`${prefixDataTestId}-reminders-tab`}
+                >
+                  {t('chat-tab-reminders')}
+                </TabSwitchTrigger>
+              )}
+            </TabSwitchList>
+          </div>
         </div>
 
         {/* Use forceMount to keep all tabs mounted for call persistence.

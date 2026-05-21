@@ -21,7 +21,7 @@ export interface OpportunityData {
       }
     }
   }
-  company?: {
+  investmentCompany?: {
     id: string
     name: string
   }
@@ -94,7 +94,7 @@ const OPPORTUNITY_QUERY = `
           }
         }
       }
-      company {
+      investmentCompany {
         id
         name
       }

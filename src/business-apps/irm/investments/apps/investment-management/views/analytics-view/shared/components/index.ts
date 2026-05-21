@@ -7,3 +7,5 @@
 
 export { CurrencyFilter } from './CurrencyFilter'
 export type { CurrencyFilterProps } from './CurrencyFilter'
+export { AnalyticsChartTooltip } from './AnalyticsChartTooltip'
+export type { AnalyticsTooltipGroup, AnalyticsTooltipMetadata, AnalyticsTooltipMetric } from './AnalyticsChartTooltip'

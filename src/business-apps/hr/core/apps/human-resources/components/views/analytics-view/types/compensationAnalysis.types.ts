@@ -69,7 +69,6 @@ export interface CompensationGapExplanationResponse {
     analysisDate: string
     scope: string
     jobLevelId: string | null
-    jobPositionId: string | null
     totalEmployees: number
     totalGapPct: number
     unexplainedPct: number

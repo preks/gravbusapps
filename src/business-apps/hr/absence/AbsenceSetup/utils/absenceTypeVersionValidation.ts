@@ -1,4 +1,5 @@
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
+import type { AbsenceType } from '@/common/types/AbsenceTypeObjectType'
 import type { AbsenceTypeVersionFormValues } from './absenceSetup'
 import { getAbsenceTypeCodeForVersion } from './absenceTypeVersionObjectValue'
 
@@ -79,16 +80,20 @@ export const getFirstDayOfCurrentMonthIso = () => {
 export const validateAbsenceTypeVersion = ({
   values,
   entries,
+  absenceTypes,
   currentEntryId
 }: {
   values: AbsenceTypeVersionFormValues
   entries: CatalogEntry[]
+  absenceTypes: AbsenceType[]
   currentEntryId?: string
 }): AbsenceTypeVersionValidationErrors => {
   const errors: AbsenceTypeVersionValidationErrors = {}
   const normalizedVersion = values.version.trim().toLowerCase()
 
-  if (!values.code.trim()) {
+  const codeIsEmpty = !values.code.trim()
+  const codeNotInTypes = absenceTypes.length > 0 && !absenceTypes.some(t => t.code === values.code)
+  if (codeIsEmpty || codeNotInTypes) {
     errors.absenceType = 'validation-absence-type-required'
   }
 

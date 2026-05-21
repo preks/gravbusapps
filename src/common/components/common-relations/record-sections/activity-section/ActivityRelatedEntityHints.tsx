@@ -39,7 +39,7 @@ const KIND_LABEL_KEY: Record<ActivityRelatedEntityKind, string> = {
 }
 
 const CHIP_CLASS =
-  'gba:inline-flex gba:max-w-full gba:items-center gba:gap-2 gba:rounded-md gba:bg-muted/40 gba:px-2 gba:py-1 gba:text-muted-foreground'
+  'gba:inline-flex gba:max-w-[280px] gba:min-w-0 gba:items-center gba:gap-2 gba:overflow-hidden gba:rounded-md gba:bg-muted/40 gba:px-2 gba:py-1 gba:text-muted-foreground'
 
 export type ActivityRelatedEntityHintsProps = {
   activityId: string
@@ -53,7 +53,7 @@ export function ActivityRelatedEntityHints({ activityId, entities, t }: Readonly
   return (
     <TooltipProvider>
       <div
-        className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:-mt-0.5"
+        className="gba:flex gba:w-full gba:min-w-0 gba:flex-wrap gba:items-center gba:gap-2 gba:overflow-hidden gba:-mt-0.5"
         data-testid={`activity-related-entities-${activityId}`}
       >
         {entities.map(entity => {
@@ -82,7 +82,7 @@ export function ActivityRelatedEntityHints({ activityId, entities, t }: Readonly
                   )}
                 </AvatarFallback>
               </Avatar>
-              <span className="gba:min-w-0 gba:truncate gba:text-xs gba:font-medium gba:text-foreground">
+              <span className="gba:flex-1 gba:min-w-0 gba:truncate gba:text-xs gba:font-medium gba:text-foreground">
                 {displayName}
               </span>
               <Badge

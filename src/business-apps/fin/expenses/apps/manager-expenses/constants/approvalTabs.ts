@@ -1,5 +1,3 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-
 export interface ApprovalTabConfig {
   key: string
   label: string
@@ -7,67 +5,35 @@ export interface ApprovalTabConfig {
   description: string
 }
 
-// Function to get translated tab labels
-export const getTabLabel = (key: string): string => {
+export const getTabLabel = (key: string, t: (key: string) => string): string => {
   switch (key) {
     case 'expense-plan':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-        'Expense Plan'
-      )
+      return t('approvals-tab-expense-plan')
     case 'expense-request':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_list.flows_button.expense_requests',
-        'Expense Request'
-      )
+      return t('approvals-tab-expense-request')
     case 'advance-payment':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:backoffice_expense_landing_page.advance_title',
-        'Advance Payment'
-      )
+      return t('approvals-tab-advance-payment')
     case 'handout-payment':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_landing_page.handout_payment',
-        'Handout Payment'
-      )
+      return t('approvals-tab-handout-payment')
     case 'transfer-payment':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:transfer_expense_request.info_message_container.transfer_payment',
-        'Transfer Payment'
-      )
+      return t('approvals-tab-transfer-payment')
     default:
       return key
   }
 }
 
-// Function to get translated tab descriptions
-export const getTabDescription = (key: string): string => {
+export const getTabDescription = (key: string, t: (key: string) => string): string => {
   switch (key) {
     case 'expense-plan':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expenses_landing_page.expense_plan_description',
-        'Review and approve expense plans from your team'
-      )
+      return t('approvals-tab-expense-plan-desc')
     case 'expense-request':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expenses_landing_page.expense_request_description',
-        'Review and approve expense requests from your team'
-      )
+      return t('approvals-tab-expense-request-desc')
     case 'advance-payment':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expenses_landing_page.advance_payment_description',
-        'Review and approve advance payment requests from your team'
-      )
+      return t('approvals-tab-advance-payment-desc')
     case 'handout-payment':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expenses_landing_page.handout_payment_description',
-        'Review and approve handout payment requests from your team'
-      )
+      return t('approvals-tab-handout-payment-desc')
     case 'transfer-payment':
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expenses_landing_page.transfer_payment_description',
-        'Review and approve transfer payment requests from your team'
-      )
+      return t('approvals-tab-transfer-payment-desc')
     default:
       return ''
   }

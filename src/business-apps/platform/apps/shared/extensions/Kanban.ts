@@ -6,6 +6,7 @@
 import { Node, mergeAttributes } from '@tiptap/core'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import { KanbanBoard } from '../../note-apps/components/KanbanBoard'
+import { KANBAN_DEFAULT_COLUMN_IDS } from './kanbanConstants'
 
 export interface KanbanParticipant {
   userId: string
@@ -140,9 +141,9 @@ export const Kanban = Node.create<KanbanOptions>({
           const defaultData: KanbanData = {
             id: kanbanId,
             columns: [
-              { id: 'todo', title: 'To Do', cards: [] },
-              { id: 'in-progress', title: 'In Progress', cards: [] },
-              { id: 'done', title: 'Done', cards: [] }
+              { id: KANBAN_DEFAULT_COLUMN_IDS.todo, title: 'To Do', cards: [] },
+              { id: KANBAN_DEFAULT_COLUMN_IDS.inProgress, title: 'In Progress', cards: [] },
+              { id: KANBAN_DEFAULT_COLUMN_IDS.done, title: 'Done', cards: [] }
             ]
           }
 

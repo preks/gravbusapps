@@ -12,7 +12,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import type { ColumnDef as TanstackColumnDef, OnChangeFn, SortingState } from '@tanstack/react-table'
-import { PiDownload, PiFileText } from 'react-icons/pi'
+import { DownloadIcon, FileTextIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBackofficeExpenseReportData, ReportType } from '../../hooks/useBackofficeExpenseReportData'
 import { useDebounce } from '@/common/hooks/useDebounce'
@@ -309,7 +309,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
       <PageLayout
         headerTitle={t('expense-reports-title')}
         headerDescription={t('expense-reports-subheader')}
-        headerIcon={PiFileText as any}
+        headerIcon={FileTextIcon as any}
         className="gba:min-h-screen"
       >
         <div
@@ -383,7 +383,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                     className="gba:flex gba:items-center gba:gap-2"
                     data-testid="backoffice-expense-reports-download-button"
                   >
-                    <PiDownload className="gba:text-sm" />
+                    <DownloadIcon className="gba:text-sm" />
                     {t('report-download-csv')}
                   </Button>
                   <Button
@@ -392,7 +392,7 @@ const BackofficeExpenseReportsPage: React.FC<BusinessAppContextProps> = ({ acces
                     className="gba:flex gba:items-center gba:gap-2"
                     data-testid="backoffice-expense-reports-download-excel-button"
                   >
-                    <PiDownload className="gba:text-sm" />
+                    <DownloadIcon className="gba:text-sm" />
                     {t('report-download-excel')}
                   </Button>
                 </div>

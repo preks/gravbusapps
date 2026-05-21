@@ -611,7 +611,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
 
             {messages.map((message, idx) => {
               const canRestore =
-                !!onRestoreMessage && message.role === 'assistant' && !!message.messageId && !message.localOnly
+                !!onRestoreMessage && message.role === 'user' && !!message.messageId && !message.localOnly
               const canEdit = !!onEditMessage && message.role === 'user' && !!message.messageId && !message.localOnly
               return (
                 <div

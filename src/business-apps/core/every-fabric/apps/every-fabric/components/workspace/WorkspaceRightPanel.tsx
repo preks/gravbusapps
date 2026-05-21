@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   ArrowsClockwiseIcon,
   BrainIcon,
@@ -20,9 +20,11 @@ import {
 } from '@phosphor-icons/react'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import type { DecisionItem } from '../../hooks/useFabricDecisions'
-import type { ActivityEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
+import { useFabricDelegation, computeDelegationStats } from '../../hooks/useFabricDelegation'
+import type { ActivityEvent, AgentStreamEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
 import type { ArtifactFile, FabricSubAgent, FabricTaskNode } from '../../types/fabric'
 import { parseIsoTimestamp, toolCategoryColor } from '../../utils/renderUtils'
+import { CollaborationPanel } from './collaboration/CollaborationPanel'
 import { DecisionsCard } from './DecisionsCard'
 import { LivePreviewCard } from './LivePreviewCard'
 import { PanelCard } from './PanelCard'
@@ -415,6 +417,513 @@ const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
   )
 }
 
+interface DiagnosticsBundle {
+  schema_version?: string
+  session?: {
+    session_id?: string
+    status?: string
+    route?: string | null
+    ttft_ms?: number | null
+    duration_ms?: number | null
+  } | null
+  summary?: {
+    failed_tool_count?: number
+    repeated_tool_count?: number
+    hitl_pause_count?: number
+    slow_phase_count?: number
+    has_terminal_event?: boolean
+    has_metadata_timings?: boolean
+  } | null
+  slow_phases?: Array<{ name: string; ms: number; threshold_ms?: number }>
+  failed_tools?: Array<{ tool?: string; status?: string; error?: string | null }>
+  repeated_tools?: Array<{ tool?: string; count?: number }>
+  warnings?: string[]
+  langsmith?: {
+    enabled?: boolean
+    project?: string | null
+    filter?: string | null
+    console_url?: string | null
+  }
+}
+
+const _formatMs = (value?: number | null): string => {
+  if (value == null) return '—'
+  if (value >= 10_000) return `${(value / 1000).toFixed(1)}s`
+  return `${value}ms`
+}
+
+function formatAnalyzerLineValue(line: unknown): string | null {
+  if (typeof line === 'string') return line
+  if (typeof line === 'number' && !Number.isNaN(line)) return String(line)
+  return null
+}
+
+function formatAnalyzerObjectRecord(obj: Record<string, unknown>): string | null {
+  const path = typeof obj.path === 'string' ? obj.path : null
+  const note = typeof obj.note === 'string' ? obj.note : null
+  if (path && note) return `${path} — ${note}`
+  if (path) return path
+  if (note) return note
+
+  const file = typeof obj.file === 'string' ? obj.file : null
+  const line = formatAnalyzerLineValue(obj.line)
+  if (file && line) return `${file}:${line}`
+  if (file) return file
+  return null
+}
+
+function coerceAnalyzerDisplayItem(item: unknown): string {
+  if (item == null) return ''
+  if (typeof item === 'string') return item
+  if (typeof item === 'number' || typeof item === 'boolean') return String(item)
+  if (typeof item === 'object') {
+    const formatted = formatAnalyzerObjectRecord(item as Record<string, unknown>)
+    if (formatted) return formatted
+    try {
+      return JSON.stringify(item)
+    } catch {
+      return Object.prototype.toString.call(item)
+    }
+  }
+  return String(item)
+}
+
+function analyzerListItemKey(item: unknown): string {
+  if (typeof item === 'string') return `s:${item}`
+  if (typeof item === 'number' || typeof item === 'boolean') return `p:${item}`
+  if (typeof item === 'object' && item !== null) {
+    const obj = item as Record<string, unknown>
+    const path = typeof obj.path === 'string' ? obj.path : ''
+    const file = typeof obj.file === 'string' ? obj.file : ''
+    const line = formatAnalyzerLineValue(obj.line) ?? ''
+    if (path) return `path:${path}`
+    if (file) return `file:${file}:${line}`
+    try {
+      return `j:${JSON.stringify(item)}`
+    } catch {
+      return `o:${Object.prototype.toString.call(item)}`
+    }
+  }
+  return `u:${coerceAnalyzerDisplayItem(item)}`
+}
+
+const AnalyzerEvidenceList: React.FC<{ value: unknown }> = ({ value }) => {
+  if (value == null) return null
+  const items = Array.isArray(value) ? value : [value]
+  if (items.length === 0) return null
+  return (
+    <ul className="gba:mt-0.5 gba:space-y-0.5 gba:text-muted-foreground">
+      {items.map(item => (
+        <li key={analyzerListItemKey(item)} className="gba:font-mono gba:text-[11px]">
+          • {coerceAnalyzerDisplayItem(item)}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+const AnalyzerCard: React.FC<{
+  analysis: AnalyzerFinding
+  fromCache: boolean
+  onRerun: (e: React.MouseEvent) => void
+}> = ({ analysis, fromCache, onRerun }) => {
+  return (
+    <div className="gba:rounded-md gba:border gba:border-blue-200 gba:bg-blue-50/40 gba:p-2 gba:space-y-1.5 gba:text-[11px]">
+      <div className="gba:flex gba:items-center gba:justify-between">
+        <span className="gba:font-semibold gba:text-blue-900">AI analysis</span>
+        <span className="gba:flex gba:items-center gba:gap-2 gba:text-[10px] gba:text-muted-foreground">
+          {fromCache && analysis.cached_at ? (
+            <span>cached {new Date(analysis.cached_at).toLocaleTimeString()}</span>
+          ) : null}
+          <button
+            type="button"
+            onClick={onRerun}
+            className="gba:rounded gba:border gba:border-border gba:px-1.5 gba:py-0.5 gba:text-[10px] hover:gba:bg-muted"
+          >
+            Re-run
+          </button>
+        </span>
+      </div>
+      {analysis.root_cause ? (
+        <div>
+          <p className="gba:font-semibold gba:text-foreground">Root cause</p>
+          <p className="gba:text-foreground">{coerceAnalyzerDisplayItem(analysis.root_cause)}</p>
+        </div>
+      ) : null}
+      {analysis.affected_layer ? (
+        <div>
+          <p className="gba:font-semibold gba:text-foreground">Affected layer</p>
+          <p className="gba:font-mono gba:text-foreground">{coerceAnalyzerDisplayItem(analysis.affected_layer)}</p>
+        </div>
+      ) : null}
+      {analysis.evidence ? (
+        <div>
+          <p className="gba:font-semibold gba:text-foreground">Evidence</p>
+          <AnalyzerEvidenceList value={analysis.evidence} />
+        </div>
+      ) : null}
+      {analysis.code_locations ? (
+        <div>
+          <p className="gba:font-semibold gba:text-foreground">Code locations</p>
+          <AnalyzerEvidenceList value={analysis.code_locations} />
+        </div>
+      ) : null}
+      {analysis.suggested_fix ? (
+        <div>
+          <p className="gba:font-semibold gba:text-foreground">Suggested fix</p>
+          <p className="gba:text-foreground">{coerceAnalyzerDisplayItem(analysis.suggested_fix)}</p>
+        </div>
+      ) : null}
+      {analysis.test_command ? (
+        <div>
+          <p className="gba:font-semibold gba:text-foreground">Test command</p>
+          <pre className="gba:mt-0.5 gba:overflow-x-auto gba:rounded gba:bg-muted gba:p-1.5 gba:font-mono gba:text-[10px] gba:text-foreground">
+            {coerceAnalyzerDisplayItem(analysis.test_command)}
+          </pre>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+interface AnalyzerFinding {
+  enabled?: boolean
+  reason?: string
+  error?: string
+  root_cause?: string
+  affected_layer?: string
+  evidence?: string[] | string
+  code_locations?: string[] | string
+  suggested_fix?: string
+  test_command?: string
+  cached_at?: string
+  [k: string]: any
+}
+
+interface AnalyzeResponse {
+  session_id: string
+  analysis: AnalyzerFinding
+  from_cache: boolean
+}
+
+type AnalyzeState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'result'; data: AnalyzerFinding; fromCache: boolean }
+  | { kind: 'disabled'; reason?: string }
+  | { kind: 'error'; message: string }
+
+function sessionStatusTone(status?: string): string {
+  if (status === 'failed') return 'gba:bg-red-100 gba:text-red-800'
+  if (status === 'waiting_for_human') return 'gba:bg-amber-100 gba:text-amber-800'
+  if (status === 'completed') return 'gba:bg-emerald-100 gba:text-emerald-800'
+  return 'gba:bg-muted gba:text-muted-foreground'
+}
+
+function analyzeButtonTone(analyze: AnalyzeState): string {
+  if (analyze.kind === 'loading') return 'gba:border-border gba:bg-muted gba:text-muted-foreground'
+  if (analyze.kind === 'error') return 'gba:border-red-300 gba:bg-red-50 gba:text-red-800'
+  if (analyze.kind === 'result') return 'gba:border-blue-300 gba:bg-blue-50 gba:text-blue-800'
+  return 'gba:border-border gba:text-foreground hover:gba:bg-muted'
+}
+
+function analyzeButtonLabel(analyze: AnalyzeState): string {
+  if (analyze.kind === 'loading') return 'Analyzing...'
+  if (analyze.kind === 'result') {
+    return analyze.fromCache ? 'Explanation (cached)' : 'Explanation ready'
+  }
+  if (analyze.kind === 'error') return 'Analyze failed'
+  return 'Explain this session'
+}
+
+function copyButtonTone(copyState: 'idle' | 'copied' | 'error'): string {
+  if (copyState === 'copied') return 'gba:border-emerald-300 gba:bg-emerald-50 gba:text-emerald-800'
+  if (copyState === 'error') return 'gba:border-red-300 gba:bg-red-50 gba:text-red-800'
+  return 'gba:border-border gba:text-foreground hover:gba:bg-muted'
+}
+
+function copyButtonLabel(copyState: 'idle' | 'copied' | 'error'): string {
+  if (copyState === 'copied') return 'Copied!'
+  if (copyState === 'error') return 'Copy failed'
+  return 'Copy debug context'
+}
+
+function analyzeStateFromResponse(body: AnalyzeResponse): AnalyzeState {
+  const analysis = body.analysis || {}
+  if (analysis.enabled === false) {
+    return {
+      kind: 'disabled',
+      reason: analysis.reason || 'AI analyzer is disabled.'
+    }
+  }
+  if (analysis.error) {
+    return {
+      kind: 'error',
+      message: String(analysis.error)
+    }
+  }
+  return {
+    kind: 'result',
+    data: analysis,
+    fromCache: Boolean(body.from_cache)
+  }
+}
+
+async function fetchSessionAnalysis(
+  sessionId: string,
+  accessToken: string,
+  refresh: boolean
+): Promise<AnalyzeResponse> {
+  const base = PROMPT_MANAGER_API_URL.replace(/\/$/, '')
+  const qs = refresh ? '?refresh=true' : ''
+  const response = await fetch(
+    `${base}/admin/agent-diagnostics/session/${encodeURIComponent(sessionId)}/analyze${qs}`,
+    {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+    }
+  )
+  if (!response.ok) {
+    throw new Error(`Analyzer failed: ${response.status}`)
+  }
+  return response.json()
+}
+
+function openDebugContextInNewTab(text: string): boolean {
+  const win = globalThis.open('', '_blank')
+  if (!win) return false
+  const pre = win.document.createElement('pre')
+  pre.textContent = text
+  win.document.body.replaceChildren(pre)
+  return true
+}
+
+async function copyTextToClipboard(text: string): Promise<'copied' | 'error'> {
+  try {
+    if (navigator.clipboard && globalThis.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      return 'copied'
+    }
+    throw new Error('clipboard-unavailable')
+  } catch (clipboardErr) {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'
+      ta.style.top = '0'
+      ta.style.left = '0'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      await navigator.clipboard.writeText(text)
+      ta.remove()
+      return 'copied'
+    } catch (fallbackErr) {
+      if (openDebugContextInNewTab(text)) {
+        return 'copied'
+      }
+      console.error('[every-fabric] copy debug context failed', {
+        clipboardErr,
+        fallbackErr
+      })
+      return 'error'
+    }
+  }
+}
+
+const DiagnosticsSummary: React.FC<{
+  sessionId: string
+  diagnostics: DiagnosticsBundle
+  accessToken: string
+}> = ({ sessionId, diagnostics, accessToken }) => {
+  const session = diagnostics.session || {}
+  const summary = diagnostics.summary || {}
+  const slowPhases = diagnostics.slow_phases || []
+  const failedTools = diagnostics.failed_tools || []
+  const repeatedTools = diagnostics.repeated_tools || []
+  const warnings = diagnostics.warnings || []
+  const langsmith = diagnostics.langsmith || {}
+
+  const [copyState, setCopyState] = React.useState<'idle' | 'copied' | 'error'>('idle')
+  const [analyze, setAnalyze] = React.useState<AnalyzeState>({ kind: 'idle' })
+
+  const runAnalyzer = async (e: React.MouseEvent, opts: { refresh?: boolean } = {}) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setAnalyze({ kind: 'loading' })
+    try {
+      const body = await fetchSessionAnalysis(sessionId, accessToken, Boolean(opts.refresh))
+      setAnalyze(analyzeStateFromResponse(body))
+    } catch (err) {
+      setAnalyze({
+        kind: 'error',
+        message: err instanceof Error ? err.message : String(err)
+      })
+    }
+  }
+
+  const copyDebugContext = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    const text = JSON.stringify(
+      {
+        session_id: sessionId,
+        session,
+        summary,
+        slow_phases: slowPhases,
+        failed_tools: failedTools,
+        repeated_tools: repeatedTools,
+        warnings,
+        langsmith
+      },
+      null,
+      2
+    )
+
+    const result = await copyTextToClipboard(text)
+    setCopyState(result)
+    globalThis.setTimeout(() => setCopyState('idle'), 1800)
+  }
+
+  const statusTone = sessionStatusTone(session.status)
+
+  return (
+    <div className="gba:rounded-lg gba:border gba:border-border/60 gba:bg-muted/30 gba:p-2 gba:space-y-2">
+      <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5 gba:text-[11px]">
+        <span className={`gba:rounded-full gba:px-2 gba:py-0.5 gba:font-semibold ${statusTone}`}>
+          {session.status || 'unknown'}
+        </span>
+        {session.route && (
+          <span className="gba:rounded-full gba:bg-blue-100 gba:px-2 gba:py-0.5 gba:text-blue-800">
+            route:{session.route}
+          </span>
+        )}
+        <span className="gba:text-muted-foreground">ttft {_formatMs(session.ttft_ms)}</span>
+        <span className="gba:text-muted-foreground">dur {_formatMs(session.duration_ms)}</span>
+        {summary.failed_tool_count ? (
+          <span className="gba:rounded-full gba:bg-red-100 gba:px-2 gba:py-0.5 gba:text-red-800">
+            failed:{summary.failed_tool_count}
+          </span>
+        ) : null}
+        {summary.repeated_tool_count ? (
+          <span className="gba:rounded-full gba:bg-orange-100 gba:px-2 gba:py-0.5 gba:text-orange-800">
+            repeated:{summary.repeated_tool_count}
+          </span>
+        ) : null}
+        {summary.hitl_pause_count ? (
+          <span className="gba:rounded-full gba:bg-amber-100 gba:px-2 gba:py-0.5 gba:text-amber-800">
+            hitl:{summary.hitl_pause_count}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          onClick={e => runAnalyzer(e)}
+          disabled={analyze.kind === 'loading'}
+          className={`gba:ml-auto gba:rounded-full gba:border gba:px-2 gba:py-0.5 gba:text-[11px] gba:transition-colors ${analyzeButtonTone(analyze)}`}
+        >
+          {analyzeButtonLabel(analyze)}
+        </button>
+        <button
+          type="button"
+          onClick={copyDebugContext}
+          aria-live="polite"
+          className={`gba:rounded-full gba:border gba:px-2 gba:py-0.5 gba:text-[11px] gba:transition-colors ${copyButtonTone(copyState)}`}
+        >
+          {copyButtonLabel(copyState)}
+        </button>
+      </div>
+
+      {analyze.kind === 'disabled' && (
+        <p className="gba:rounded-md gba:bg-muted gba:px-2 gba:py-1.5 gba:text-[11px] gba:text-muted-foreground">
+          AI analyzer disabled. Set <code className="gba:font-mono">DEEP_AGENT_AI_ANALYZER_ENABLED=true</code> on
+          prompt-manager to enable.
+          {analyze.reason ? <span className="gba:ml-1">({analyze.reason})</span> : null}
+        </p>
+      )}
+
+      {analyze.kind === 'error' && (
+        <p className="gba:rounded-md gba:bg-red-50 gba:px-2 gba:py-1.5 gba:text-[11px] gba:text-red-800">
+          Analyzer error: {analyze.message}
+        </p>
+      )}
+
+      {analyze.kind === 'result' && (
+        <AnalyzerCard
+          analysis={analyze.data}
+          fromCache={analyze.fromCache}
+          onRerun={e => runAnalyzer(e, { refresh: true })}
+        />
+      )}
+
+      {slowPhases.length > 0 && (
+        <div className="gba:text-[11px]">
+          <p className="gba:font-semibold gba:text-foreground">Slow phases</p>
+          <ul className="gba:mt-0.5 gba:space-y-0.5">
+            {slowPhases.slice(0, 6).map(phase => (
+              <li key={phase.name} className="gba:font-mono gba:text-muted-foreground">
+                {phase.name}: {_formatMs(phase.ms)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {failedTools.length > 0 && (
+        <div className="gba:text-[11px]">
+          <p className="gba:font-semibold gba:text-red-800">Failed tools</p>
+          <ul className="gba:mt-0.5 gba:space-y-0.5">
+            {failedTools.slice(0, 4).map((ft, idx) => (
+              <li key={`${ft.tool}-${idx}`} className="gba:text-red-700">
+                <span className="gba:font-mono">{ft.tool || '—'}</span>
+                {ft.status ? <span className="gba:ml-1 gba:text-muted-foreground">({ft.status})</span> : null}
+                {ft.error ? <span className="gba:ml-1">— {ft.error}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {repeatedTools.length > 0 && (
+        <div className="gba:text-[11px]">
+          <p className="gba:font-semibold gba:text-orange-800">Repeated tool calls</p>
+          <ul className="gba:mt-0.5 gba:space-y-0.5">
+            {repeatedTools.slice(0, 4).map(rt => (
+              <li key={rt.tool} className="gba:text-orange-700">
+                <span className="gba:font-mono">{rt.tool}</span>
+                <span className="gba:ml-1">× {rt.count}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {warnings.length > 0 && (
+        <ul className="gba:text-[11px] gba:text-amber-800 gba:space-y-0.5">
+          {warnings.map(warning => (
+            <li key={warning}>• {warning}</li>
+          ))}
+        </ul>
+      )}
+
+      {langsmith.enabled && langsmith.console_url && (
+        <p className="gba:text-[11px] gba:text-muted-foreground">
+          LangSmith project{' '}
+          <a href={langsmith.console_url} target="_blank" rel="noreferrer" className="gba:underline">
+            {langsmith.project || 'open'}
+          </a>
+          {langsmith.filter && (
+            <code className="gba:ml-2 gba:rounded gba:bg-muted gba:px-1 gba:py-0.5 gba:font-mono gba:text-[10px]">
+              {langsmith.filter}
+            </code>
+          )}
+        </p>
+      )}
+    </div>
+  )
+}
+
 const DebugTraceCard: React.FC<{ sessionId: string; accessToken: string }> = ({ sessionId, accessToken }) => {
   const [trace, setTrace] = useState<Record<string, any> | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -480,7 +989,13 @@ const DebugTraceCard: React.FC<{ sessionId: string; accessToken: string }> = ({ 
   })()
 
   return (
-    <PanelCard title="Debug Trace" badge={interesting.length} summary={debugSummary} defaultOpen={false}>
+    <PanelCard
+      title="Debug Trace (dev only)"
+      badge={interesting.length}
+      summary={debugSummary}
+      defaultOpen={false}
+      subdued
+    >
       <div className="gba:max-h-96 gba:overflow-y-auto gba:px-4 gba:py-3 gba:space-y-2">
         {error && <p className="gba:text-xs gba:text-destructive">{error}</p>}
         {!trace && !error && <p className="gba:text-xs gba:text-muted-foreground">Loading debug trace...</p>}
@@ -506,6 +1021,9 @@ const DebugTraceCard: React.FC<{ sessionId: string; accessToken: string }> = ({ 
               Export
             </button>
           </div>
+        )}
+        {trace?.diagnostics && (
+          <DiagnosticsSummary sessionId={sessionId} diagnostics={trace.diagnostics} accessToken={accessToken} />
         )}
         {trace?.known_observability_gap && (
           <p className="gba:rounded-md gba:bg-amber-50 gba:px-3 gba:py-2 gba:text-[11px] gba:text-amber-800">
@@ -556,6 +1074,13 @@ const DebugTraceCard: React.FC<{ sessionId: string; accessToken: string }> = ({ 
                 {step.category && <span>{String(step.category)}</span>}
                 {step.correlation_id && <span className="gba:font-mono">corr:{String(step.correlation_id)}</span>}
               </div>
+              {(step.timestamp || step.duration_ms !== undefined) && (
+                <p className="gba:mt-1 gba:text-[10px] gba:text-muted-foreground/60">
+                  {step.timestamp ? formatActivityTimestamp(step.timestamp) : ''}
+                  {step.timestamp && step.duration_ms !== undefined ? ' · ' : ''}
+                  {step.duration_ms !== undefined ? `${(step.duration_ms / 1000).toFixed(2)}s` : ''}
+                </p>
+              )}
               {(step.reason ||
                 step.rationale ||
                 step.result_preview ||
@@ -626,6 +1151,7 @@ interface WorkspaceRightPanelProps {
   totalCount: number
   progressPercent: number
   activityEvents: ActivityEvent[]
+  agentStreamEvents: AgentStreamEvent[]
   decisions: DecisionItem[]
   artifacts: ArtifactFile[]
   workspaceDocs?: WorkspaceDocument[]
@@ -650,6 +1176,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   totalCount,
   progressPercent,
   activityEvents,
+  agentStreamEvents,
   decisions,
   artifacts,
   workspaceDocs,
@@ -663,6 +1190,8 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   isPreviewMaximized = false,
   onTogglePreviewMaximized
 }) => {
+  const delegation = useFabricDelegation(agentStreamEvents, { sessionId, accessToken, isStreaming })
+  const delegationStats = useMemo(() => computeDelegationStats(delegation.flatNodes), [delegation.flatNodes])
   const showPreview =
     !!latestPreview &&
     (latestPreview.status === 'generating' ||
@@ -672,7 +1201,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
 
   return (
     <div
-      className="gba:flex gba:h-full gba:max-h-full gba:min-h-0 gba:flex-col gba:overflow-y-auto gba:bg-transparent gba:px-0 sm:gba:px-1 gba:py-1 sm:gba:py-1.5 gba:space-y-2 sm:gba:space-y-3"
+      className="gba:flex gba:h-full gba:max-h-full gba:max-w-full gba:min-h-0 gba:min-w-0 gba:flex-col gba:overflow-y-auto gba:overflow-x-hidden gba:bg-transparent gba:px-0 sm:gba:px-1 gba:py-1 sm:gba:py-1.5 gba:space-y-2 sm:gba:space-y-3"
       data-testid="fabric-right-panel"
     >
       {showPreview && (
@@ -702,7 +1231,11 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
 
       {decisions.length > 0 && <DecisionsCard decisions={decisions} defaultCollapsed={showPreview} />}
 
-      <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
+      {delegation.hasMultipleAgents ? (
+        <CollaborationPanel root={delegation.rootNode} stats={delegationStats} defaultCollapsed={showPreview} />
+      ) : (
+        <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
+      )}
 
       {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} onView={onViewArtifact} />}
 

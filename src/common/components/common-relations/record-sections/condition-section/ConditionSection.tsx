@@ -43,14 +43,30 @@ const getEmployeeName = (employee: any): string => {
   return employee?.displayName || `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() || 'System'
 }
 
+const isConditionOverdue = (condition: TransformedCondition): boolean => {
+  if (condition.isCompleted || !condition.deadlineAt) {
+    return false
+  }
+
+  const deadlineTime = new Date(condition.deadlineAt).getTime()
+  return Number.isFinite(deadlineTime) && deadlineTime < Date.now()
+}
+
 // Memoized individual condition card component
 const ConditionCard = memo<ConditionCardProps>(
   ({ condition, isHovered, onMouseEnter, onMouseLeave, accessToken, contextsArray, externalContextData }) => {
+    const isOverdue = isConditionOverdue(condition)
+    const cardClassName =
+      'gba:p-4 gba:rounded-lg gba:border gba:bg-white gba:transition-colors gba:border-gray-200 hover:gba:bg-gray-50'
+    const deadlineClassName = `gba:items-center gba:flex-shrink-0 gba:text-xs gba:px-3 gba:py-1.5 gba:rounded-md gba:border ${
+      isOverdue
+        ? 'gba:text-destructive gba:bg-destructive/10 gba:border-destructive/30 gba:font-medium'
+        : 'gba:text-gray-500 gba:bg-gray-50'
+    }`
+    const deadlineIconClassName = isOverdue ? 'gba:text-destructive gba:mr-1.5' : 'gba:text-gray-400 gba:mr-1.5'
+
     return (
-      <div
-        key={condition.stageConditionStatusId}
-        className="gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 gba:bg-white hover:gba:bg-gray-50 gba:transition-colors"
-      >
+      <div key={condition.stageConditionStatusId} className={cardClassName}>
         <div className="gba:flex gba:items-start gba:gap-2">
           <AppActionMenu
             data-testid={`stage-condition-status-icon-${condition.stageConditionStatusId}`}
@@ -82,7 +98,7 @@ const ConditionCard = memo<ConditionCardProps>(
             </span>
           </AppActionMenu>
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
-            <h4 className="gba:text-sm gba:font-semibold gba:text-gray-800 gba:leading-5 gba:my-0">
+            <h4 className="gba:text-sm gba:font-semibold gba:leading-5 gba:my-0 gba:text-gray-800">
               {condition.title}
             </h4>
             {condition.description && (
@@ -99,16 +115,18 @@ const ConditionCard = memo<ConditionCardProps>(
             )}
           </div>
           {condition.deadlineAt && (
-            <div className="gba:hidden gba:lg:flex gba:items-center gba:flex-shrink-0 gba:text-xs gba:text-gray-500 gba:bg-gray-50 gba:px-3 gba:py-1.5 gba:rounded-md gba:border">
-              <CalendarBlankIcon size={20} weight="regular" className="gba:text-gray-400 gba:mr-1.5" />
+            <div className={`gba:hidden gba:lg:flex ${deadlineClassName}`}>
+              <CalendarBlankIcon size={20} weight="regular" className={deadlineIconClassName} />
               <span>{new Date(condition.deadlineAt).toLocaleDateString()}</span>
+              {isOverdue && <span className="gba:ml-1.5">(Overdue)</span>}
             </div>
           )}
         </div>
         {condition.deadlineAt && (
-          <div className="gba:hidden gba:sm:block gba:lg:hidden gba:mt-2 gba:ml-8 gba:flex gba:items-center gba:text-xs gba:text-gray-500">
-            <CalendarBlankIcon size={20} weight="regular" className="gba:text-gray-400 gba:mr-1.5" />
+          <div className={`gba:hidden gba:sm:flex gba:lg:hidden gba:mt-2 gba:ml-8 ${deadlineClassName}`}>
+            <CalendarBlankIcon size={20} weight="regular" className={deadlineIconClassName} />
             <span>{new Date(condition.deadlineAt).toLocaleDateString()}</span>
+            {isOverdue && <span className="gba:ml-1.5">(Overdue)</span>}
           </div>
         )}
 
@@ -154,6 +172,7 @@ const ConditionCard = memo<ConditionCardProps>(
     return (
       prevProps.condition.stageConditionStatusId === nextProps.condition.stageConditionStatusId &&
       prevProps.condition.isCompleted === nextProps.condition.isCompleted &&
+      prevProps.condition.deadlineAt === nextProps.condition.deadlineAt &&
       prevProps.condition.completedAt === nextProps.condition.completedAt &&
       prevProps.condition.completedBy === nextProps.condition.completedBy &&
       prevProps.isHovered === nextProps.isHovered &&
@@ -221,6 +240,7 @@ const ConditionSection: React.FC<ConditionSectionProps> = memo(
 
       // Sort: incomplete first, then completed (stable sort to prevent flickering)
       return [...stageConditions].sort((a, b) => {
+        if (isConditionOverdue(a) !== isConditionOverdue(b)) return isConditionOverdue(a) ? -1 : 1
         if (a.isCompleted === b.isCompleted) return 0
         return a.isCompleted ? 1 : -1
       })
@@ -259,9 +279,9 @@ const ConditionSection: React.FC<ConditionSectionProps> = memo(
                 <div className="gba:flex gba:justify-center gba:mb-3">
                   <QuestionIcon size={48} weight="regular" />
                 </div>
-                <p className="gba:text-sm gba:font-medium">No stage conditions configured</p>
+                <p className="gba:text-sm gba:font-medium">No conditions configured for this stage</p>
                 <p className="gba:text-xs gba:mt-1.5 gba:text-gray-400">
-                  Stage conditions will appear here when configured for the current pipeline stage
+                  Other stages in this pipeline may still have conditions
                 </p>
               </div>
             )}

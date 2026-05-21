@@ -44,11 +44,48 @@ export interface EvalsDashboardQueryParams {
   llm_model?: string
 }
 
+export type IcpScoringEntityType = 'lead' | 'opportunity'
+
+export interface IcpScoreRequest {
+  entity_type: IcpScoringEntityType
+  entity_id: string
+  icp_id: string
+}
+
+export interface BulkIcpScoreRequest {
+  entity_type: IcpScoringEntityType
+  entity_ids: string[]
+  icp_id: string
+}
+
+export interface IcpFieldScore {
+  field: string
+  icp_value?: string | number | boolean | null
+  entity_value?: string | number | boolean | null
+  score: number
+  method?: string | null
+  weight?: number | null
+}
+
+export interface IcpScoreResponse {
+  entity_type: IcpScoringEntityType
+  entity_id: string
+  account_id?: string | null
+  account_name?: string | null
+  overall_score: number
+  grade?: string | null
+  field_scores: IcpFieldScore[]
+  win_rate?: number | null
+  applied_criteria?: unknown[]
+  ignored_criteria?: unknown[]
+  warnings?: string[]
+}
+
 export interface MapFromFileRequest {
   entity_type: string
   import_file: File
   model_kind?: string
-  domain?: 'crm' | 'irm'
+  domain?: 'crm' | 'irm' | 'hr'
   /**
    * Wrapper key Flowbot must use to nest the imported subtype payload
    * (e.g. `'liquidFundInvestment'`). Sourced from the
@@ -82,7 +119,7 @@ export interface MapFromFileResponse {
 
 export interface ExtractFromFileRequest {
   entity_type: string
-  domain?: 'crm' | 'irm'
+  domain?: 'crm' | 'irm' | 'hr'
   import_file: File
   model_kind?: string
   mapping_json: string
@@ -114,9 +151,10 @@ export interface ExtractFromFileResponse {
   csvQuality?: CsvQuality
 }
 
-export function toFlowbotDomain(domain?: string): 'crm' | 'irm' | undefined {
+export function toFlowbotDomain(domain?: string): 'crm' | 'irm' | 'hr' | undefined {
   if (domain === 'customer' || domain === 'crm') return 'crm'
   if (domain === 'investment' || domain === 'irm') return 'irm'
+  if (domain === 'hr') return 'hr'
   return undefined
 }
 
@@ -264,6 +302,50 @@ export class FlowbotClient extends RestClient {
     >
 
     return this.get<T>('/flowbot/analytics/evals/dashboard', { ...options, params: cleanedParams })
+  }
+
+  public async scoreIcpEntity(
+    request: IcpScoreRequest,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<IcpScoreResponse> {
+    return this.post<IcpScoreResponse>('/flowbot/icp-scoring/score', request, options)
+  }
+
+  public async scoreIcpEntitiesBulk(
+    request: BulkIcpScoreRequest,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<IcpScoreResponse[]> {
+    return this.post<IcpScoreResponse[]>('/flowbot/icp-scoring/score/bulk', request, options)
+  }
+
+  public async scoreLeadWithIcp(
+    leadId: string,
+    icpId: string,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<IcpScoreResponse> {
+    return this.scoreIcpEntity(
+      {
+        entity_type: 'lead',
+        entity_id: leadId,
+        icp_id: icpId
+      },
+      options
+    )
+  }
+
+  public async scoreLeadsWithIcp(
+    leadIds: string[],
+    icpId: string,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<IcpScoreResponse[]> {
+    return this.scoreIcpEntitiesBulk(
+      {
+        entity_type: 'lead',
+        entity_ids: leadIds,
+        icp_id: icpId
+      },
+      options
+    )
   }
 
   public async mapFromFile(

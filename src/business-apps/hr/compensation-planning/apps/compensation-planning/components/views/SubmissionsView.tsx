@@ -5,10 +5,13 @@ import { buildPlatformUrl, navigateTo, Navigation } from '@/common/utils/navigat
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../../api/compensationBudgetRestConfig'
 import { executeEmployeeSalaryAdjustments } from '../../../../api/executeEmployeeSalaryAdjustments'
 import {
+  buildSaveCompensationBudgetPlanCompanyUpdateBody,
   saveCompensationBudgetPlan,
+  saveCompensationBudgetPlanCompany,
   saveCompensationBudgetPlanOrganizationalUnit
 } from '../../../../api/saveCompensationBudgetPlan'
 import { useTeamCompensationData } from '../../../manager-compensation-planning/hooks/useTeamCompensationData'
+import type { CompensationBudgetPlanCompanyRow } from '../../hooks/useBudgetSetupForCompany'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
 import { useSubmissionsOrgUnitBudgetTable } from '../../hooks/useSubmissionsOrgUnitBudgetTable'
 import { CompensationCycleSelector } from '../shared/CompensationCycleSelector'
@@ -17,7 +20,7 @@ import type { SubmissionsOrgUnitTableRow } from './submissionsOrgUnitTableRows'
 import translations from '../../_i18n'
 
 const REVIEW_SOURCE_DEPARTMENT_SUBMISSIONS = 'department-submissions' as const
-const SUBMITTED_STATUS = 'BUDGET_PLAN_SUBMITTED'
+const APPROVED_STATUS = 'BUDGET_PLAN_APPROVED'
 const EXECUTED_STATUS = 'BUDGET_PLAN_EXECUTED'
 
 function buildSalaryAdjustmentPayload(rows: SubmissionsOrgUnitTableRow[]) {
@@ -65,6 +68,21 @@ function buildExecutedCompensationPlanBody(plan: CompensationBudgetPlanRow) {
   }
 }
 
+function buildExecutedCompanyBudgetBody(row: CompensationBudgetPlanCompanyRow) {
+  return buildSaveCompensationBudgetPlanCompanyUpdateBody({
+    id: row.id,
+    version: row.version,
+    compensationBudgetPlanId: row.compensationBudgetPlanId,
+    companyId: row.companyId,
+    salaryBudgetAmount: row.salaryBudgetAmount,
+    salaryBudgetPercent: row.salaryBudgetPercent,
+    allocationAmount: row.allocationAmount,
+    budgetPlanStatus: EXECUTED_STATUS,
+    currentTotalSalaryCost: row.currentTotalSalaryCost,
+    currencyRef: row.currencyRef
+  })
+}
+
 export interface SubmissionsViewProps {
   accessToken: string
   companyId: string
@@ -106,7 +124,7 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({
 
   const currencyCode = teamMembers[0]?.currency ?? 'EUR'
 
-  const { rows, loading, error, hasCompanyBudgetRows, refetch } = useSubmissionsOrgUnitBudgetTable(
+  const { rows, companyBudgetRows, loading, error, hasCompanyBudgetRows, refetch } = useSubmissionsOrgUnitBudgetTable(
     accessToken,
     companyId,
     currencyCode,
@@ -114,9 +132,13 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({
     selectedCompensationPlanId
   )
 
-  const submittedRows = useMemo(() => rows.filter(row => row.budgetPlanStatus === SUBMITTED_STATUS), [rows])
+  const approvedRows = useMemo(() => rows.filter(row => row.budgetPlanStatus === APPROVED_STATUS), [rows])
 
-  const selectableRowIds = useMemo(() => new Set(submittedRows.map(row => row.id)), [submittedRows])
+  const selectableRowIds = useMemo(() => new Set(approvedRows.map(row => row.id)), [approvedRows])
+  const canExecuteSalaryAdjustments = useMemo(
+    () => rows.length > 0 && rows.every(row => row.budgetPlanStatus === APPROVED_STATUS),
+    [rows]
+  )
 
   useEffect(() => {
     setSelectedOrgUnitBudgetRowIds(prev => {
@@ -134,8 +156,8 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({
   }, [selectableRowIds])
 
   const selectedRows = useMemo(
-    () => submittedRows.filter(row => selectedOrgUnitBudgetRowIds.has(row.id)),
-    [selectedOrgUnitBudgetRowIds, submittedRows]
+    () => approvedRows.filter(row => selectedOrgUnitBudgetRowIds.has(row.id)),
+    [approvedRows, selectedOrgUnitBudgetRowIds]
   )
 
   const handleToggleSubmittedRow = useCallback(
@@ -177,6 +199,10 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({
       return
     }
 
+    if (!canExecuteSalaryAdjustments) {
+      return
+    }
+
     const rowsWithoutEffectiveDate = selectedRows.filter(row => row.effectiveDate == null || row.effectiveDate === '')
     if (rowsWithoutEffectiveDate.length > 0) {
       setSalaryAdjustmentError(t('submissions-execute-salary-adjustments-missing-effective-date'))
@@ -196,6 +222,12 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({
       for (const row of selectedRows) {
         await saveCompensationBudgetPlanOrganizationalUnit(restClient, accessToken, buildExecutedOrgUnitBudgetBody(row))
       }
+      const selectedCompanyBudgetIds = new Set(selectedRows.map(row => row.compensationBudgetPlanCompanyId))
+      for (const row of companyBudgetRows) {
+        if (selectedCompanyBudgetIds.has(row.id)) {
+          await saveCompensationBudgetPlanCompany(restClient, accessToken, buildExecutedCompanyBudgetBody(row))
+        }
+      }
       const selectedPlan = compensationPlans.find(plan => plan.id === selectedCompensationPlanId)
       if (selectedPlan) {
         await saveCompensationBudgetPlan(restClient, accessToken, buildExecutedCompensationPlanBody(selectedPlan))
@@ -212,7 +244,9 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({
     }
   }, [
     accessToken,
+    companyBudgetRows,
     compensationPlans,
+    canExecuteSalaryAdjustments,
     onCompensationPlansChanged,
     refetch,
     restClient,
@@ -269,6 +303,7 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({
         selection={salaryAdjustmentSelection}
         selectedCount={selectedRows.length}
         executingSalaryAdjustments={executingSalaryAdjustments}
+        canExecuteSalaryAdjustments={canExecuteSalaryAdjustments}
         salaryAdjustmentMessage={salaryAdjustmentMessage}
         salaryAdjustmentError={salaryAdjustmentError}
         onExecuteSalaryAdjustments={handleExecuteSalaryAdjustments}

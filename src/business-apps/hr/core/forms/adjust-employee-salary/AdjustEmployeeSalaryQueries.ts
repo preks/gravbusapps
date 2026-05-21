@@ -123,12 +123,14 @@ export const EMPLOYEE_WORKING_CONDITION_QUERY = `query fetchEmployeeWorkingCondi
       ]
     }
     orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
-    limit: 1
   ) {
     id
     hireDate
     activeFrom
     activeTo
+    region {
+      id
+    }
   }
 }
 `
@@ -160,19 +162,6 @@ export const EMPLOYEE_BANK_ACCOUNT_CURRENCY_QUERY = `query fetchEmployeeBankAcco
     limit: 1
   ) {
     currencyRef
-  }
-}
-`
-
-/** Employee's employment region id (from working condition) */
-export const GET_EMPLOYEE_REGION_ID = `query GetEmployeeRegionId($employeeId: uuid!) {
-  Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
-    id
-    workingCondition {
-      region {
-        id
-      }
-    }
   }
 }
 `

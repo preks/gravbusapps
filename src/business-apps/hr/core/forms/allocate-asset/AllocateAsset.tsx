@@ -215,7 +215,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         const today = new Date()
         today.setHours(0, 0, 0, 0)
 
-        // New allocation start must be on or after the latest return date (and today)
+        // New allocation start must be on or after the latest recorded return date
         let latestReturnDate: Date | null = null
         for (const allocation of existingAllocations) {
           if (allocation.isDeleted || !allocation.endDate) continue
@@ -226,9 +226,8 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
             latestReturnDate = end
           }
         }
-        const minAllowedStart = latestReturnDate && latestReturnDate > today ? latestReturnDate : today
-        if (newStart < minAllowedStart) {
-          const minDateStr = formatDate(minAllowedStart, 'date.short') ?? minAllowedStart.toLocaleDateString()
+        if (latestReturnDate && newStart < latestReturnDate) {
+          const minDateStr = formatDate(latestReturnDate, 'date.short') ?? latestReturnDate.toLocaleDateString()
           return getTranslationFromI18nKeyAndLabel(
             'lowcoder:hr_assets.start-date-not-before-last-return',
             `Allocation start date must be on or after the last return date (${minDateStr}).`

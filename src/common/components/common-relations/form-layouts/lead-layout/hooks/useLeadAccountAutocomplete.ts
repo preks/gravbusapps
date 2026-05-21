@@ -203,16 +203,15 @@ export function useLeadAccountAutocomplete({
           filledFields.push('locality')
         }
 
-        // CRITICAL: Set region FIRST (if available), CatalogSelect will auto-select country
-        // due to bidirectional relationship. Only set country if no region is available.
+        // Populate region/country directly to avoid bidirectional parent-child sync loops.
         if (firstAddress.regionRef) {
           updates.regionRef = firstAddress.regionRef
           filledFields.push('regionRef')
-          // Country will be auto-selected by CatalogSelect bidirectional logic
-          // Mark it as filled for visual highlighting
+          if (firstAddress.countryRef) {
+            updates.countryRef = firstAddress.countryRef
+          }
           filledFields.push('countryRef')
         } else if (firstAddress.countryRef) {
-          // Only set country if no region is available
           updates.countryRef = firstAddress.countryRef
           filledFields.push('countryRef')
         }
@@ -256,20 +255,6 @@ export function useLeadAccountAutocomplete({
 
       // Expand company section when account is selected
       setExpandCompanySection(true)
-
-      // If region was set, wait a bit for CatalogSelect to auto-select country, then mark it as auto-filled
-      if (filledFields.includes('regionRef')) {
-        setTimeout(() => {
-          const currentCountry = form.getValues('countryRef')
-          if (currentCountry) {
-            setAutoFilledFields(prev => {
-              const next = new Set(prev)
-              next.add('countryRef')
-              return next
-            })
-          }
-        }, 100)
-      }
     },
     [form]
   )

@@ -6,12 +6,32 @@ export interface GetEmployeeAbsencesVariables {
 }
 
 export interface EmployeeAbsence {
+  description?: string | null
   id: string
+  version?: number | null
+  businessKey?: string | null
+  recordState?: string | null
+  activeTo?: string | null
+  additionalProperties?: unknown | null
+  employeeId?: string | null
   startDate: string
   endDate: string
   status: string
+  typeRef?: string | null
+  cutHalfDayStart?: boolean | null
+  cutHalfDayEnd?: boolean | null
+  workingDays?: number | null
+  workingHours?: number | null
   calendarDays: number
   effectiveDays: number
+  balance?: number | null
+  reason?: string | null
+  relative?: string | null
+  attachment?: string | null
+  approverId?: string | null
+  approvalNote?: string | null
+  substituteEmployeeId?: string | null
+  employeeDocumentId?: string | null
   createdAt: string
   type: {
     id: string
@@ -55,12 +75,32 @@ export interface GetEmployeeAbsencesResponse {
 export const GET_EMPLOYEE_ABSENCES = `
   query GetEmployeeAbsences($where: EmployeeAbsenceBoolExp!, $offset: Int!, $limit: Int!, $orderBy: [EmployeeAbsenceOrderBy!]) {
     EmployeeAbsence(where: $where, offset: $offset, limit: $limit, orderBy: $orderBy) {
+      description
       id
+      version
+      businessKey
+      recordState
+      activeTo
+      additionalProperties
+      employeeId
       startDate
       endDate
       status
+      typeRef
+      cutHalfDayStart
+      cutHalfDayEnd
+      workingDays
+      workingHours
       calendarDays
       effectiveDays
+      balance
+      reason
+      relative
+      attachment
+      approverId
+      approvalNote
+      substituteEmployeeId
+      employeeDocumentId
       createdAt
       type {
         id

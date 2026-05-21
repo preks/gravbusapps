@@ -167,6 +167,7 @@ export const exportTimeHistoryPdf = async (params: {
   ) {
     const key = toLocalDateKey(cursor)
     const e = entryByDay.get(key)
+    const beforeHireDate = Boolean(e?.isBeforeHireDate)
     const weekday = cursor.toLocaleDateString(locale || 'en-US', { weekday: 'short' })
     const dayTypeText = e
       ? getDayTypeText(e)
@@ -175,14 +176,16 @@ export const exportTimeHistoryPdf = async (params: {
         : vacationSet.has(key)
           ? vacationText
           : ''
-    if (holidaySet.has(key)) bankHolidayDays.add(key)
-    if (vacationSet.has(key)) vacationDays.add(key)
+    if (!beforeHireDate && holidaySet.has(key)) bankHolidayDays.add(key)
+    if (!beforeHireDate && vacationSet.has(key)) vacationDays.add(key)
     if (e) {
       const plannedMin = parseDurationToMinutes(e.plannedTime)
       const effectiveMin = parseDurationToMinutes(e.effectiveTime)
-      totalPlannedMinutes += plannedMin
-      totalEffectiveMinutes += effectiveMin
-      if (effectiveMin > 0 || e.startTimeISO || e.endTimeISO) daysWorkedCount += 1
+      if (!beforeHireDate) {
+        totalPlannedMinutes += plannedMin
+        totalEffectiveMinutes += effectiveMin
+        if (effectiveMin > 0 || e.startTimeISO || e.endTimeISO) daysWorkedCount += 1
+      }
       rows.push([
         weekday,
         formatDateForReport(cursor),

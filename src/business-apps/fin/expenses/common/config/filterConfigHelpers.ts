@@ -1,12 +1,15 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export function createDateRangeConfig() {
+export function createDateRangeConfig(t?: (key: string) => string) {
+  const placeholder = t ? t('personal-expenses-date-placeholder-start') : 'Start date'
+  const placeholderEnd = t ? t('personal-expenses-date-placeholder-end') : 'End date'
+
   return {
     dateType: 'date' as const,
     mode: 'range' as const,
-    placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-    placeholderEnd: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date'),
+    placeholder,
+    placeholderEnd,
     showClearButton: true
   }
 }
@@ -15,11 +18,14 @@ export function createDateRangeFilterGroup(
   id: string,
   field: string,
   i18nKey: string,
-  fallback: string
+  fallback: string,
+  groupInfo?: string,
+  t?: (key: string) => string
 ): FilterConfiguration['groups'][number] {
   return {
     id: `${id}-group`,
     label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
+    ...(groupInfo ? { info: groupInfo } : {}),
     collapsible: true,
     defaultExpanded: false,
     filters: [
@@ -28,27 +34,26 @@ export function createDateRangeFilterGroup(
         field,
         label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
         type: 'date',
-        config: createDateRangeConfig()
+        config: createDateRangeConfig(t)
       }
     ]
   }
 }
 
-export function createStatusFilterGroup(
+export function createStatusFilterGroupWithLabel(
   statusFilters: Array<{ id: string; label: string }>,
-  i18nKey = 'lowcoder:expense_request_list.expense_plan_table.status',
-  fallback = 'Status'
+  groupLabel: string
 ): FilterConfiguration['groups'][number] {
   return {
     id: 'status-group',
-    label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
+    label: groupLabel,
     collapsible: true,
     defaultExpanded: true,
     filters: [
       {
         id: 'statusIds',
         field: 'statusIds',
-        label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
+        label: groupLabel,
         type: 'multi-select',
         config: { options: statusFilters }
       }
@@ -56,25 +61,115 @@ export function createStatusFilterGroup(
   }
 }
 
+/** Date-range filter group with Fluent label key + manager expense-plans date placeholders. */
+export function createFluentDateRangeFilterGroup(
+  t: (key: string) => string,
+  id: string,
+  field: string,
+  labelFluentKey: string,
+  groupInfo?: string
+): FilterConfiguration['groups'][number] {
+  const label = t(labelFluentKey)
+  return {
+    id: `${id}-group`,
+    label,
+    ...(groupInfo ? { info: groupInfo } : {}),
+    collapsible: true,
+    defaultExpanded: false,
+    filters: [
+      {
+        id: field,
+        field,
+        label,
+        type: 'date',
+        config: {
+          dateType: 'date' as const,
+          mode: 'range' as const,
+          placeholder: t('expense-plans-filter-placeholder-start-date'),
+          placeholderEnd: t('expense-plans-filter-placeholder-end-date'),
+          showClearButton: true
+        }
+      }
+    ]
+  }
+}
+
+/** Multi-select type filter with Fluent label key (manager expense requests / plans tabs). */
+export function createFluentTypeFilterGroup(
+  t: (key: string) => string,
+  id: string,
+  field: string,
+  labelFluentKey: string,
+  typeOptions: Array<{ id: string; label: string }>
+): FilterConfiguration['groups'][number] {
+  const label = t(labelFluentKey)
+  return {
+    id: `${id}-group`,
+    label,
+    collapsible: true,
+    defaultExpanded: false,
+    filters: [
+      {
+        id: field,
+        field,
+        label,
+        type: 'multi-select',
+        config: { options: typeOptions }
+      }
+    ]
+  }
+}
+
+/** Amount range filter with Fluent labels + expense-plans min/max placeholders (manager tabs). */
+export function createFluentExpenseAmountRangeFilterGroup(
+  t: (key: string) => string,
+  groupId: string,
+  field: string,
+  labelFluentKey: string
+): FilterConfiguration['groups'][number] {
+  const label = t(labelFluentKey)
+  return {
+    id: `${groupId}-group`,
+    label,
+    collapsible: true,
+    defaultExpanded: false,
+    filters: [
+      {
+        id: field,
+        field,
+        label,
+        type: 'number',
+        config: {
+          mode: 'range' as const,
+          min: 0,
+          max: 10_000_000,
+          step: 0.01,
+          placeholderMin: t('expense-plans-filter-amount-min'),
+          placeholderMax: t('expense-plans-filter-amount-max')
+        }
+      }
+    ]
+  }
+}
+
 /**
  * Expense vs Trip options for multi-select filters; option ids are tab-specific catalog tokens.
+ * Default labels use personal-expenses Fluent keys when the catalog map has no entry.
  */
 export function createExpenseTripMultiSelectOptions(
   filterLabelMap: Record<string, string> | undefined,
   expenseOptionId: string,
-  tripOptionId: string
+  tripOptionId: string,
+  t: (key: string) => string
 ): Array<{ id: string; label: string }> {
   return [
     {
       id: expenseOptionId,
-      label:
-        filterLabelMap?.[expenseOptionId] ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+      label: filterLabelMap?.[expenseOptionId] ?? t('personal-expenses-label-expense')
     },
     {
       id: tripOptionId,
-      label:
-        filterLabelMap?.[tripOptionId] ?? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+      label: filterLabelMap?.[tripOptionId] ?? t('personal-expenses-label-trip')
     }
   ]
 }
@@ -83,8 +178,12 @@ export function createNumberRangeFilterGroup(
   groupId: string,
   field: string,
   i18nKey: string,
-  fallback: string
+  fallback: string,
+  t?: (key: string) => string
 ): FilterConfiguration['groups'][number] {
+  const placeholderMin = t ? t('personal-expenses-filter-min-amount-plain') : 'Min amount'
+  const placeholderMax = t ? t('personal-expenses-filter-max-amount-plain') : 'Max amount'
+
   return {
     id: `${groupId}-group`,
     label: getTranslationFromI18nKeyAndLabel(i18nKey, fallback),
@@ -101,8 +200,8 @@ export function createNumberRangeFilterGroup(
           min: 0,
           max: 10_000_000,
           step: 0.01,
-          placeholderMin: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount', 'Min Amount'),
-          placeholderMax: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount', 'Max Amount')
+          placeholderMin,
+          placeholderMax
         }
       }
     ]

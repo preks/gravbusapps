@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ChatCircleDotsIcon, LayoutIcon, XIcon } from '@phosphor-icons/react'
+import { ArrowRightIcon, ChatCircleDotsIcon, LayoutIcon, PauseCircleIcon, XIcon } from '@phosphor-icons/react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFabric } from '../../context/FabricContext'
 import type { ChatMessage, SessionConfig } from '../../types/enterpriseAgent'
@@ -11,7 +11,6 @@ import { WorkspaceSkillIndicator } from './WorkspaceSkillIndicator'
 import { WorkspaceConnectorIndicator } from './WorkspaceConnectorIndicator'
 import { WorkspaceStreamingIsland } from './WorkspaceStreamingIsland'
 import { FabricInput } from '../landing/FabricInput'
-import { ConnectorPickerSheet } from '../connectors/ConnectorPickerSheet'
 import { useFabricConnectors } from '../../hooks/useFabricConnectors'
 import {
   WORKSPACE_CHAT_GUTTER_CLASS,
@@ -99,10 +98,14 @@ export const WorkspaceLayout: React.FC = () => {
   const {
     session,
     messages,
+    events,
     streamingGreeting,
     streamingContent,
     streamingThinking,
-    statusHeadline,
+    statusHeadline: statusHeadlineRaw,
+    liveStatusHeadline,
+    planItems,
+    agentActivityLines,
     accessToken,
     isStreaming,
     isConnected,
@@ -126,13 +129,23 @@ export const WorkspaceLayout: React.FC = () => {
     refreshArtifacts,
     reply,
     stopSession,
-    setActiveArtifactId
+    setActiveArtifactId,
+    sessionAttachments,
+    pendingSessionAttachments,
+    uploadSessionAttachment,
+    removeSessionAttachment,
+    modelOptions,
+    selectedModelId,
+    selectedReasoningEffort,
+    isLoadingModels,
+    setModelSelection
   } = useFabric()
 
   const {
     availableConnectors,
-    activeConnectors,
+    activeConnectionIds: hookActiveConnectionIds,
     toggleConnector,
+    hydrateActiveIds,
     isLoading: isLoadingConnectors
   } = useFabricConnectors(accessToken)
 
@@ -140,7 +153,6 @@ export const WorkspaceLayout: React.FC = () => {
   const [isPreviewMaximized, setIsPreviewMaximized] = useState(false)
   const [dismissedClarificationQuestion, setDismissedClarificationQuestion] = useState<string | null>(null)
   const [dismissedFollowUpMessageId, setDismissedFollowUpMessageId] = useState<string | null>(null)
-  const [isConnectorSheetOpen, setIsConnectorSheetOpen] = useState(false)
 
   // Drop the maximized state when there's no longer an active preview so the
   // panel doesn't ghost-stay wide once a session ends.
@@ -148,11 +160,28 @@ export const WorkspaceLayout: React.FC = () => {
     if (!hasActivePreview && isPreviewMaximized) setIsPreviewMaximized(false)
   }, [hasActivePreview, isPreviewMaximized])
 
+  // Seed the hook's active connector set from the persisted session state once
+  // it arrives. This ensures the composer submenu and condensed summary reflect
+  // the connectors that were actually used to start the current session.
+  useEffect(() => {
+    if (sessionConnectorIds.length > 0) {
+      hydrateActiveIds(sessionConnectorIds)
+    }
+  }, [sessionConnectorIds, hydrateActiveIds])
+
   // Compute session connectors from stored IDs and available connectors
   const sessionConnectors = useMemo(() => {
     if (!sessionConnectorIds.length || !availableConnectors.length) return []
     return availableConnectors.filter(c => sessionConnectorIds.includes(c.connection_id))
   }, [sessionConnectorIds, availableConnectors])
+
+  // The active connector IDs for the composer: prefer the hook's state (which
+  // may reflect user toggles within this workspace session) once hydrated;
+  // fall back to the raw session IDs if the hook hasn't loaded yet.
+  const composerActiveConnectorIds = useMemo(
+    () => (hookActiveConnectionIds.size > 0 ? hookActiveConnectionIds : new Set(sessionConnectorIds)),
+    [hookActiveConnectionIds, sessionConnectorIds]
+  )
 
   // When a live canvas preview kicks off, surface it automatically — even if the
   // user had manually collapsed the ambient rail — so the slide/document stream
@@ -186,6 +215,8 @@ export const WorkspaceLayout: React.FC = () => {
     !!currentClarificationQuestion &&
     !session?.structured_input_request &&
     dismissedClarificationQuestion !== currentClarificationQuestion
+  const canReopenClarification =
+    isWaitingForInput && !!currentClarificationQuestion && !showClarification && !session?.structured_input_request
   /** Keep composer in reply mode while waiting or while interrupt POST is in flight (modal may be dismissed). */
   const composerInterruptQuestion =
     !session?.structured_input_request && currentClarificationQuestion && (isWaitingForInput || isStreaming)
@@ -204,10 +235,11 @@ export const WorkspaceLayout: React.FC = () => {
   )
   const suggestedFollowUps = useMemo(() => parseFollowUps(latestFinalAnswer), [latestFinalAnswer])
 
+  // Phase 4 UX: live_status (ephemeral pill text) wins over the persisted
+  // status headline, which in turn wins over the planner's current task text.
+  const statusHeadline = liveStatusHeadline ?? statusHeadlineRaw
   const streamingStatusHeadline = useMemo(() => {
-    // Prioritize real-time status from agent (skill matching, workspace prep, etc.)
     if (statusHeadline) return statusHeadline
-    // Fallback to the first in-progress (or next pending) todo in the Plan.
     return currentTodoText ?? null
   }, [statusHeadline, currentTodoText])
   useEffect(() => {
@@ -248,11 +280,15 @@ export const WorkspaceLayout: React.FC = () => {
 
   if (!session) return null
 
-  const handleComposerSubmit = (
-    task: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- FabricInput forwards SessionConfig; workspace path ignores it
-    _config: SessionConfig
-  ) => reply(task)
+  const handleComposerSubmit = (task: string, config: SessionConfig) => {
+    // If the user changed the model since the session started, persist it.
+    // The context's setModelSelection already triggers the backend PATCH, so
+    // here we just ensure the local state is in sync.
+    if (config.model && config.model !== selectedModelId) {
+      setModelSelection(config.model, config.reasoning_effort ?? 'none')
+    }
+    return reply(task)
+  }
 
   const handleClarificationAnswer = (answer: string) => {
     // Immediately dismiss to close modal
@@ -354,12 +390,30 @@ export const WorkspaceLayout: React.FC = () => {
                     sessionId={session.session_id}
                     messages={messages}
                     statusHeadline={streamingStatusHeadline}
+                    activityLines={agentActivityLines}
                     completedCount={completedCount}
                     totalCount={totalCount}
                     progressPercent={progressPercent}
                     isConnected={isConnected}
                     isStreaming={isStreaming}
                   />
+                )}
+
+                {canReopenClarification && (
+                  <div className="gba:pointer-events-auto">
+                    <button
+                      type="button"
+                      onClick={() => setDismissedClarificationQuestion(null)}
+                      className="gba:flex gba:w-full gba:items-center gba:gap-2.5 gba:rounded-[1.25rem] gba:border gba:border-amber-200/80 gba:bg-amber-50/80 gba:px-4 gba:py-2.5 gba:text-left gba:transition-colors gba:hover:bg-amber-100/80"
+                      data-testid="fabric-reopen-clarification"
+                    >
+                      <PauseCircleIcon className="gba:h-4 gba:w-4 gba:text-amber-500 gba:shrink-0" weight="fill" />
+                      <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-amber-900">
+                        Agent is waiting for your input
+                      </span>
+                      <span className="gba:text-xs gba:font-semibold gba:text-amber-700">Show options</span>
+                    </button>
+                  </div>
                 )}
 
                 <div className="gba:pointer-events-auto">
@@ -371,9 +425,19 @@ export const WorkspaceLayout: React.FC = () => {
                     activeInterrupt={composerInterruptQuestion}
                     isRunning={isStreaming}
                     isDisabled={isStreaming && !isWaitingForInput}
-                    onConnectorsClick={() => setIsConnectorSheetOpen(true)}
-                    activeConnectors={activeConnectors}
-                    onRemoveConnector={toggleConnector}
+                    availableConnectors={availableConnectors}
+                    activeConnectorIds={composerActiveConnectorIds}
+                    onToggleConnector={toggleConnector}
+                    isLoadingConnectors={isLoadingConnectors}
+                    onUploadAttachment={uploadSessionAttachment}
+                    onRemoveAttachment={removeSessionAttachment}
+                    attachments={sessionAttachments}
+                    pendingAttachments={pendingSessionAttachments}
+                    modelSelectorModels={modelOptions}
+                    selectedModelId={selectedModelId}
+                    selectedEffort={selectedReasoningEffort}
+                    onModelChange={setModelSelection}
+                    isLoadingModels={isLoadingModels}
                   />
                 </div>
               </div>
@@ -394,6 +458,7 @@ export const WorkspaceLayout: React.FC = () => {
               totalCount={totalCount}
               progressPercent={progressPercent}
               activityEvents={activityEvents}
+              agentStreamEvents={events}
               decisions={decisions}
               artifacts={artifacts}
               workspaceDocs={workspaceDocs}
@@ -417,6 +482,8 @@ export const WorkspaceLayout: React.FC = () => {
           streamingContent={streamingContent}
           streamingThinking={streamingThinking}
           statusHeadline={statusHeadline}
+          planItems={planItems}
+          activityLines={agentActivityLines}
           isStreaming={isStreaming}
           isWaitingForInput={isWaitingForInput}
           hasFixedFollowUps={showSuggestedFollowUps}
@@ -425,6 +492,7 @@ export const WorkspaceLayout: React.FC = () => {
           onReply={reply}
           onViewArtifact={setActiveArtifactId}
           accessToken={accessToken}
+          presentationMode={session.presentation_mode}
         />
 
         {showClarification && (
@@ -440,15 +508,6 @@ export const WorkspaceLayout: React.FC = () => {
         {activeArtifact && (
           <ArtifactViewer file={activeArtifact} accessToken={accessToken} onClose={() => setActiveArtifactId(null)} />
         )}
-
-        <ConnectorPickerSheet
-          isOpen={isConnectorSheetOpen}
-          onClose={() => setIsConnectorSheetOpen(false)}
-          connectors={availableConnectors}
-          activeConnectorIds={new Set(activeConnectors.map(c => c.connection_id))}
-          onToggle={toggleConnector}
-          isLoading={isLoadingConnectors}
-        />
       </div>
     </div>
   )

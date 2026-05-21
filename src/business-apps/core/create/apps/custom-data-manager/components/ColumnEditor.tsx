@@ -15,21 +15,21 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Plus, Trash2, GripVertical, Info, Database, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, GripVertical, Info, Database, ChevronDown, ChevronUp } from 'lucide-react'
+import { TrashIcon } from '@phosphor-icons/react'
 import { InputType, InputOption } from '../types'
 import { useInternalEntityTypes } from '../hooks/useInternalEntityTypes'
 import type { UiColumnDefinition } from '../utils/columnUiIds'
 import { createNewColumn } from '../utils/columnUiIds'
 import {
   getColumnNameValidationError,
-  getPersistedReferenceFieldNamePreview,
   isEntityReferenceColumn,
   syncColumnNameWithLabel
 } from '../utils/definitionFormUtils'
 
 interface CustomEntityOption {
   namespace: string
-  key: string
+  entityName: string
   displayName?: string
 }
 
@@ -40,6 +40,7 @@ interface ColumnEditorProps {
   currentNamespace: string
   availableNamespaces?: string[]
   customEntityOptions?: CustomEntityOption[]
+  showTechnicalFieldNames?: boolean
   'data-testid'?: string
 }
 
@@ -62,6 +63,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
   currentNamespace,
   availableNamespaces = [],
   customEntityOptions = [],
+  showTechnicalFieldNames = false,
   'data-testid': testId = 'column-editor'
 }) => {
   const { internalEntityTypes } = useInternalEntityTypes(accessToken)
@@ -78,8 +80,8 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
     () =>
       customEntityOptions.map(entity => ({
         namespace: entity.namespace || 'default',
-        value: entity.key,
-        label: entity.displayName || entity.key
+        value: entity.entityName,
+        label: entity.displayName || entity.entityName
       })),
     [customEntityOptions]
   )
@@ -242,7 +244,6 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
           const optionsExpanded = expandedOptions[index]
           const isReferenceColumn = isEntityReferenceColumn(column)
           const columnNameValidationError = getColumnNameValidationError(column, index)
-          const persistedReferenceFieldNamePreview = getPersistedReferenceFieldNamePreview(column)
 
           return (
             <article
@@ -254,7 +255,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
               onDragEnd={handleDragEnd}
               className={`gba:border gba:rounded-lg gba:overflow-hidden ${isDragging ? 'gba:opacity-50 gba:bg-muted' : 'gba:bg-card'}`}
               data-testid={`${testId}-column-${index}`}
-              aria-label={`Column ${column.label || column.name}`}
+              aria-label={`Column ${column.label || column.fieldName}`}
             >
               {/* Compact header row -- always visible */}
               <div
@@ -268,7 +269,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                   <GripVertical className="gba:h-3.5 gba:w-3.5" />
                 </div>
                 <span className="gba:text-xs gba:font-medium gba:truncate gba:flex-1">
-                  {column.label || column.name || 'Untitled'}
+                  {column.label || column.fieldName || 'Untitled'}
                 </span>
                 <span className="gba:text-[10px] gba:text-muted-foreground gba:font-mono gba:shrink-0">
                   {typeLabel(column.type)}
@@ -276,7 +277,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                 {column.required && <span className="gba:text-[10px] gba:text-destructive gba:shrink-0">*</span>}
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="iconSm"
                   onClick={e => {
                     e.stopPropagation()
                     handleRemoveColumn(index)
@@ -284,7 +285,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                   className="gba:text-muted-foreground gba:hover:text-destructive gba:h-5 gba:w-5 gba:shrink-0"
                   data-testid={`${testId}-remove-${index}`}
                 >
-                  <Trash2 className="gba:h-3 gba:w-3" />
+                  <TrashIcon className="gba:h-3 gba:w-3" />
                 </Button>
                 {isExpanded ? (
                   <ChevronUp className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
@@ -292,6 +293,14 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                   <ChevronDown className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
                 )}
               </div>
+              {showTechnicalFieldNames && (
+                <p
+                  className="gba:px-2 gba:pb-1 gba:pl-7 gba:font-mono gba:text-[10px] gba:text-muted-foreground"
+                  data-testid={`${testId}-field-name-${index}`}
+                >
+                  Field: {column.fieldName || '-'}
+                </p>
+              )}
 
               {/* Expanded detail -- stacked fields */}
               {isExpanded && (
@@ -311,10 +320,8 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                     {columnNameValidationError ? (
                       <p className="gba:text-[10px] gba:text-destructive">{columnNameValidationError}</p>
                     ) : isReferenceColumn ? (
-                      <p className="gba:text-[10px] gba:text-muted-foreground gba:font-mono">
-                        {persistedReferenceFieldNamePreview
-                          ? `Stored as ${persistedReferenceFieldNamePreview}`
-                          : `Relationship field: ${column.name || 'relatedItems'}`}
+                      <p className="gba:text-[10px] gba:text-muted-foreground">
+                        Select the target entity; the backend derives writable and relation names.
                       </p>
                     ) : null}
                   </div>
@@ -405,6 +412,18 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({
                       )}
                     </div>
                   )}
+                  <div className="gba:flex gba:justify-end gba:border-t gba:border-border gba:pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRemoveColumn(index)}
+                      className="gba:h-7 gba:text-xs gba:text-destructive gba:hover:text-destructive"
+                      data-testid={`${testId}-remove-expanded-${index}`}
+                    >
+                      <TrashIcon className="gba:h-3 gba:w-3 gba:mr-1" />
+                      Remove column
+                    </Button>
+                  </div>
                 </div>
               )}
             </article>
@@ -621,12 +640,12 @@ const ManualOptions: React.FC<{
             />
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="iconSm"
               className="gba:h-6 gba:w-6 gba:shrink-0"
               onClick={() => onRemove(index, optIndex)}
               data-testid={`${testId}-remove-option-${index}-${optIndex}`}
             >
-              <Trash2 className="gba:h-2.5 gba:w-2.5" />
+              <TrashIcon className="gba:h-2.5 gba:w-2.5" />
             </Button>
           </div>
         ))}

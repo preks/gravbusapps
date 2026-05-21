@@ -48,6 +48,7 @@ __pycache__
 # Test coverage and cache
 coverage/
 .jest-cache/
+.eslintcache
 
 # Local dev tooling
 .claude/

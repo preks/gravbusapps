@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PerformanceEvaluationFormValues, EmployeeOption, EvaluationTopic } from '../types'
 import { useStructureEmployees } from '../hooks/useStructureEmployees'
-import { useEmployeeDetails } from '../hooks/useEmployeeDetails'
+import { useEmployeeHeaderByEmployeeId } from '../hooks/useEmployeeHeaderByEmployeeId'
 import { useEmployeeByUserId } from '../hooks/useEmployeeByUserId'
 import { useEmployeeFromProcess } from '../hooks/useEmployeeFromProcess'
 import { useEmployeeSkills } from '../hooks/useEmployeeSkills'
@@ -145,18 +145,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     loading: employeeFromProcessLoading,
     error: employeeFromProcessError
   } = useEmployeeFromProcess(businessAppContext?.accessToken, ad)
-
-  console.log('[EvalContext] useEmployeeFromProcess result:', {
-    employeeIdFromProcess,
-    employeeFromProcess: employeeFromProcess
-      ? {
-          id: (employeeFromProcess as any)?.employeeId ?? (employeeFromProcess as any)?.id,
-          name: (employeeFromProcess as any)?.employee?.displayName ?? (employeeFromProcess as any)?.name
-        }
-      : null,
-    loading: employeeFromProcessLoading,
-    error: employeeFromProcessError
-  })
 
   const transformCommentText = useCallback(
     async (
@@ -305,12 +293,12 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     return null
   }, [])
 
-  // Use the existing useEmployeeById hook for pre-selected employee (by employeeId)
+  // Use a minimal employeeId-based lookup for the form header.
   const {
     employee: preSelectedEmployeeById,
     loading: preSelectedEmployeeByIdLoading,
     error: preSelectedEmployeeByIdError
-  } = useEmployeeDetails(businessAppContext.accessToken, preSelectedEmployeeId)
+  } = useEmployeeHeaderByEmployeeId({ accessToken: businessAppContext.accessToken, employeeId: preSelectedEmployeeId })
 
   // Use the useEmployeeByUserId hook for pre-selected employee (by userId)
   const {

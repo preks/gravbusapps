@@ -97,11 +97,19 @@ export interface AttachVerificationSkillParams {
   skillName: string
 }
 
+export interface RemoveSkillParams {
+  mode: 'remove'
+  skillId: string
+  employeeSkillId: string
+  skillName: string
+}
+
 export type FlowFormParams =
   | ChangeLevelParams
   | DeactivateSkillParams
   | ActivateSkillParams
   | AttachVerificationSkillParams
+  | RemoveSkillParams
 
 interface AddSkillContextValue {
   data: AddSkillDataResponse | null
@@ -178,6 +186,7 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
     if (params.mode === 'deactivate') return { mode: 'deactivate', ...base }
     if (params.mode === 'activate') return { mode: 'activate', ...base }
     if (params.mode === 'attachVerification') return { mode: 'attachVerification', ...base }
+    if (params.mode === 'remove') return { mode: 'remove', ...base }
     return changeLevelParams
   }, [additionalData?.contextData, additionalData?.psi_taskPayload?.psi_initialParameters, changeLevelParams])
 

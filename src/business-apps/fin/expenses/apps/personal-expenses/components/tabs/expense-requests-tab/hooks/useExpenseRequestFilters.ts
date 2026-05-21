@@ -3,7 +3,6 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { getExpenseRequestStatusFilterLabel } from '../../../../utils'
 import personalTranslations from '../../../../_i18n'
 import type { ExpenseRequestWhereClause } from '../utils/expenseRequestWhereClause.types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildExpenseRequestWhereConditions } from '../utils/buildExpenseRequestWhereConditions'
 import { EXPENSE_REQUEST_FILTER_STATUSES } from '../utils/expenseRequestFilterConstants'
 import {
@@ -107,14 +106,8 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
       // 'last30days': 'Last 30 days',
       // 'last90days': 'Last 90 days',
       // 'last180days': 'Last 180 days',
-      'ExpenseRequestType:v1:EXPENSES': getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.expense',
-        'Expense'
-      ),
-      'ExpenseRequestType:v1:TRIP': getTranslationFromI18nKeyAndLabel(
-        'lowcoder:approve_expense_plan.tab_container.trip_header',
-        'Trip'
-      )
+      'ExpenseRequestType:v1:EXPENSES': t('personal-expenses-label-expense'),
+      'ExpenseRequestType:v1:TRIP': t('personal-expenses-label-trip')
     }
 
     // Add all status options using the same display names as the filter dropdown
@@ -125,30 +118,26 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
     // Add date range labels if active
     const requestDateLabel = formatDateRangeLabel(requestDateRange)
     if (requestDateLabel) {
-      labelMap['requestDateRange'] =
-        `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_date', 'Request Date')}: ${requestDateLabel}`
+      labelMap['requestDateRange'] = `${t('personal-expenses-label-request-date')}: ${requestDateLabel}`
     }
     const effectiveDateLabel = formatDateRangeLabel(effectiveDateRange)
     if (effectiveDateLabel) {
-      labelMap['effectiveDateRange'] =
-        `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date')}: ${effectiveDateLabel}`
+      labelMap['effectiveDateRange'] = `${t('personal-expenses-label-effective-date')}: ${effectiveDateLabel}`
     }
 
     const startDateLabel = formatDateRangeLabel(startDateRange)
     if (startDateLabel) {
-      labelMap['startDateRange'] =
-        `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date')}: ${startDateLabel}`
+      labelMap['startDateRange'] = `${t('personal-expenses-filter-label-start-date')}: ${startDateLabel}`
     }
 
     const endDateLabel = formatDateRangeLabel(endDateRange)
     if (endDateLabel) {
-      labelMap['endDateRange'] =
-        `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date')}: ${endDateLabel}`
+      labelMap['endDateRange'] = `${t('personal-expenses-filter-label-end-date')}: ${endDateLabel}`
     }
 
     const reimbursableChip = formatExpenseAmountRangeChipLabel(
       reimbursableAmountRange,
-      `${getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')}: `
+      `${t('expense-items-column-reimbursable')}: `
     )
     if (reimbursableChip) {
       labelMap['reimbursableAmountRange'] = reimbursableChip
@@ -156,7 +145,7 @@ export const useExpenseRequestFilters = (): UseExpenseRequestFiltersReturn => {
 
     const advanceChip = formatExpenseAmountRangeChipLabel(
       advanceAmountRange,
-      `${getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance')}: `
+      `${t('personal-expenses-column-advance-payment')}: `
     )
     if (advanceChip) {
       labelMap['advanceAmountRange'] = advanceChip

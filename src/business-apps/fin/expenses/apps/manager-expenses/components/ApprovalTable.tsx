@@ -1,16 +1,16 @@
 import React, { useCallback, useMemo } from 'react'
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FlowExecutionTask } from '@/common/network/flow-metrics/FlowMetricsClient'
 import { ApprovalRequest } from '../types'
 import { mapFlowTaskToApprovalRequest } from '../utils/flowTaskMapper'
 import { validateTaskSelection } from '../utils/taskValidation'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import ApprovalTableActions from './ApprovalTableActions'
 import { useApprovalHandling } from '../hooks/useApprovalHandling'
 import { ExpenseDataTable } from '../../../common/components/table/ExpenseDataTable'
 import { useTableSetup } from '../../../common/hooks/useTableSetup'
 import { type ApprovalTableRow, createApprovalTableColumns } from './approvalTableColumns'
+import translations from '../_i18n'
 
 interface ApprovalTableProps extends BusinessAppContextProps {
   tasks: FlowExecutionTask[]
@@ -54,6 +54,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   onRowClick,
   emptyMessage
 }) => {
+  const { t } = useTranslation(translations)
   const { isApproving, approvalError, handleApproveClick } = useApprovalHandling({
     selectedTasks,
     setSelectedTasks,
@@ -101,20 +102,14 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
         setSelectedTasks(selectedTasks.filter(s => s.id !== task.id))
         return
       }
-      const validation = validateTaskSelection(selectedTasks, task)
+      const validation = validateTaskSelection(selectedTasks, task, t)
       if (!validation.isValid) {
-        setValidationError(
-          validation.errorMessage ||
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:manager_expenses_landing_page.invalid_task_selection',
-              'Invalid task selection'
-            )
-        )
+        setValidationError(validation.errorMessage || t('approvals-invalid-task-selection'))
         return
       }
       setSelectedTasks([...selectedTasks, task])
     },
-    [selectedTasks, setSelectedTasks, setValidationError]
+    [selectedTasks, setSelectedTasks, setValidationError, t]
   )
 
   const handleRowClick = useCallback(
@@ -126,14 +121,17 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
 
   const allColumns = useMemo(
     () =>
-      createApprovalTableColumns({
-        dataTestIdPrefix,
-        allRequests,
-        selectedTasks,
-        onSelectAll: handleSelectAll,
-        onToggleRow: handleTaskSelection
-      }),
-    [dataTestIdPrefix, allRequests, handleSelectAll, handleTaskSelection, selectedTasks]
+      createApprovalTableColumns(
+        {
+          dataTestIdPrefix,
+          allRequests,
+          selectedTasks,
+          onSelectAll: handleSelectAll,
+          onToggleRow: handleTaskSelection
+        },
+        t
+      ),
+    [dataTestIdPrefix, allRequests, handleSelectAll, handleTaskSelection, selectedTasks, t]
   )
 
   const { columns, pagination, handlePaginationChange } = useTableSetup(
@@ -153,12 +151,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
 
   const handleApproveClickWithValidation = async () => {
     if (selectedTasks.length === 0) {
-      setValidationError(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:manager_expenses_landing_page.select_task_to_approve',
-          'Please select at least one task to approve'
-        )
-      )
+      setValidationError(t('approvals-select-task-to-approve'))
       return
     }
 
@@ -181,7 +174,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
       {error && (
         <Alert className="gba:mb-4" data-testid={`${dataTestIdPrefix}-error-alert`}>
           <AlertDescription>
-            <strong>Error:</strong> {error}
+            <strong>{t('approvals-error-title')}</strong> {error}
           </AlertDescription>
         </Alert>
       )}

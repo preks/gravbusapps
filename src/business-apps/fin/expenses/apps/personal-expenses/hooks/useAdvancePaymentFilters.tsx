@@ -215,19 +215,19 @@ export const useAdvancePaymentFilters = (): UseAdvancePaymentFiltersReturn => {
     })
 
     // Add range labels if active
-    const amountLabel = formatRangeLabel(amountRange, 'Amount')
+    const amountLabel = formatRangeLabel(amountRange, t('personal-expenses-column-amount'))
     if (amountLabel) {
       map['amountRange'] = amountLabel
     }
 
-    const advanceLabel = formatRangeLabel(advanceRange, 'Advance')
+    const advanceLabel = formatRangeLabel(advanceRange, t('personal-expenses-column-advance-payment'))
     if (advanceLabel) {
       map['advanceRange'] = advanceLabel
     }
 
     if (cardCreatedAtRange?.gte) {
       const d = new Date(cardCreatedAtRange.gte)
-      const month = getTranslatedMonthName(d)
+      const month = getTranslatedMonthName(d, t)
       const year = d.getFullYear()
       // Value only (toolbar chip pairs this with filter label "Created in" from filter config)
       map['cardCreatedAtRange'] = `${month} ${year}`

@@ -361,6 +361,10 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     const capitalizeFirst = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
     const screenKey = `frm_${processName}${capitalizeFirst(taskName)}`
 
+    console.log(
+      `[TaskDetailContent] Generated screenKey: "${screenKey}" (processName="${processName}", taskName="${taskName}", endpoint="${endpoint}")`
+    )
+
     return screenKey
   }, [])
 

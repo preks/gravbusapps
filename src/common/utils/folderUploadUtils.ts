@@ -32,6 +32,7 @@ export interface FolderUploadEntityIds {
   contact?: string
   opportunity?: string
   investment?: string
+  investmentCompany?: string
 }
 
 export interface FolderUploadPayload {
@@ -42,6 +43,7 @@ export interface FolderUploadPayload {
   contact: string | null
   opportunity: string | null
   investment: string | null
+  investmentCompany: string | null
   tree: FolderTreeNode[]
 }
 
@@ -112,6 +114,7 @@ export function buildFolderTree(files: FileList, entityIds: FolderUploadEntityId
     contact: entityIds.contact ?? null,
     opportunity: entityIds.opportunity ?? null,
     investment: entityIds.investment ?? null,
+    investmentCompany: entityIds.investmentCompany ?? null,
     tree: nodes
   }
 }

@@ -23,6 +23,7 @@ adjust-salary-currency-required = Währung ist erforderlich. Bitte wählen Sie e
 adjust-salary-effective-date-required = Gültigkeitsdatum ist erforderlich. Bitte wählen Sie ein Gültigkeitsdatum.
 adjust-salary-effective-date-too-old = Das Gültigkeitsdatum darf nicht mehr als 6 Monate in der Vergangenheit liegen
 adjust-salary-effective-date-helper = Das Datum muss innerhalb der letzten 6 Monate liegen
+adjust-salary-effective-date-month-start = Es kann nur der erste Tag eines Monats ausgewählt werden.
 adjust-salary-reason-required = Grund ist erforderlich. Bitte wählen Sie einen Grund.
 adjust-salary-frequency = Gehaltsanpassungstyp
 adjust-salary-frequency-required = Gehaltsanpassungstyp ist erforderlich. Bitte wählen Sie einen Gehaltsanpassungstyp.
@@ -52,6 +53,7 @@ assign-salary-expected-monthly-wage = Erwarteter Monatslohn
 assign-salary-expected-monthly-wage-description = Basierend auf den Arbeitszeiten des Mitarbeiters
 assign-salary-start-date = Startdatum
 assign-salary-start-date-required = Startdatum ist erforderlich. Bitte wählen Sie ein Startdatum.
+assign-salary-start-date-month-start = Es kann nur der erste Tag eines Monats ausgewählt werden.
 
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Gehaltsanpassungsprüfung für { $employeeName }
@@ -117,6 +119,7 @@ validation-payment-month-required = Zahlungsmonat ist erforderlich. Bitte wähle
 validation-payment-month-invalid = Bitte wählen Sie einen gültigen Zahlungsmonat aus.
 validation-fiscal-year-required = Geschäftsjahr ist erforderlich. Bitte geben Sie das Geschäftsjahr ein.
 validation-fiscal-year-range = Das Geschäftsjahr muss zwischen {$minYear} und {$maxYear} liegen.
+grant-bonus-payment-date-month-start-hint = Das übermittelte Datum ist immer der 1. Tag des Monats.
 
 # Month Names
 month-january = Januar
@@ -285,9 +288,24 @@ adjust-salary-process-title = Gehaltsanpassung
 adjust-salary-pending-status = Ausstehend
 
 # Update Working Conditions Form
+working-conditions-title = Arbeitsbedingungen aktualisieren
+working-conditions-employment-start-date = Gültig ab
+working-conditions-employment-end-date = Gültig bis
+working-conditions-employment-type = Beschäftigungsart
+working-conditions-contract-type = Vertragsart
+working-conditions-remote = Remote
+working-conditions-region = Region
+working-conditions-start-date = Startdatum
+working-conditions-probation-end-date = Ende der Probezeit
 working-conditions-probation-period = Probezeit
+working-conditions-select-remote = Remote auswählen
+working-conditions-select-region = Region auswählen
+working-conditions-future-entry-dates-required = Dieses Datum muss morgen oder später sein
+working-conditions-active-period-overlap = Der aktive Zeitraum der Arbeitsbedingungen überschneidet sich mit bestehenden Arbeitsbedingungen
+working-conditions-employment-end-before-start = Das Beschäftigungsende darf nicht vor dem Beschäftigungsbeginn liegen
 working-conditions-probation-end-before-start = Das Ende der Probezeit muss am Startdatum oder danach liegen.
 working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
+working-conditions-required = Bitte füllen Sie alle Pflichtfelder aus
 working-conditions-unit-day = { $count ->
     [one] Tag
    *[other] Tage
@@ -308,19 +326,27 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
 request-correction-date-absence-error = Dieses Datum ist ein Feiertag oder eine Abwesenheit und kann nicht für eine Korrekturanfrage verwendet werden.
+request-correction-date-before-hire-error = Dieses Datum liegt vor dem Eintrittsdatum des Mitarbeiters und kann nicht für eine Korrekturanfrage verwendet werden.
 request-correction-zero-planned-warning = Für dieses Datum sind keine Arbeitsstunden geplant. Eingetragene Zeiten werden als Überstunden gewertet.
 notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
 notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet
 notification-feedback-request-sent-success-on-behalf = Die Feedbackanfrage wurde gesendet
 feedback-request-missing-user-id = Einige ausgewaehlte Mitarbeiter haben keine User-ID. Bitte waehlen Sie sie erneut aus und versuchen Sie es erneut.
-entitlements-valid-from-month-start-hint = Das übermittelte Datum ist immer der erste Tag des ausgewählten Monats, unabhängig vom gewählten Datum.
+entitlements-valid-from-month-start-hint = Es kann nur der erste Tag eines Monats ausgewählt werden.
+entitlements-valid-from-minimum-hint = Der Anspruch kann ab { $monthYear } oder später beginnen.
 entitlements-valid-from = Gültig ab
 entitlements-update-title = Ansprüche anpassen
 entitlements-add-title = Anspruch hinzufügen
 entitlements-total = Jährlicher Anspruch / Kontingent
 entitlements-total-annual = Jährlicher Anspruch / Kontingent
 entitlements-effective-from = Gültig ab
+entitlements-effective-from-required = "Gültig ab" ist erforderlich. Bitte wählen Sie ein Datum aus.
+entitlements-effective-from-month = Monat
+entitlements-effective-from-month-invalid = Es kann nur der erste Tag eines Monats ausgewählt werden.
+entitlements-effective-from-year = Jahr
+entitlements-effective-from-year-placeholder = JJJJ
+entitlements-effective-from-year-invalid = Bitte geben Sie ein gültiges Jahr ein (z. B. 2026).
 entitlements-effective-to = Gültig bis
 entitlements-valid-from-hire-date-error = Das „Gültig ab”-Datum darf nicht vor dem Eintrittsdatum des Mitarbeiters liegen.
 entitlements-duplicate-error = Ein Anspruch mit demselben Typ und demselben Gültigkeitsdatum existiert bereits.
@@ -386,6 +412,7 @@ create-absence-days = Tage
 create-absence-effective-days-label = Effektive Tage
 create-absence-calendar-days-label = Kalendertage
 create-absence-end-date-after-start = Das Enddatum muss nach dem Startdatum liegen.
+create-absence-date-before-hire-error = Abwesenheitsdaten dürfen nicht vor dem Eintrittsdatum des Mitarbeiters liegen.
 create-absence-single-day-bank-holiday-blocked = Der gewählte Tag ist ein Feiertag. Sie können für dieses Datum keine eintägige Abwesenheit einreichen.
 create-absence-validation-failed = Validierung fehlgeschlagen. Bitte versuchen Sie es erneut.
 create-absence-bank-holidays-not-counted = { $count } Tage sind Feiertage und werden daher nicht berücksichtigt.

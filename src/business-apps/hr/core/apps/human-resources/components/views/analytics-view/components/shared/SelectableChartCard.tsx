@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, Badge } from '@newwork/nw-design-system'
 import { Typography } from 'antd'
+import { DEFAULT_CHART_SURFACE_CLASS } from './analyticsChartSurfaceStyles'
 
 const { Title, Text } = Typography
 
@@ -51,7 +52,7 @@ const SelectableChartCard: React.FC<SelectableChartCardProps> = ({
       {isSelected && selectedHint && <p className="gba:text-xs gba:text-info gba:mt-1">{selectedHint}</p>}
     </CardHeader>
     <CardContent>
-      <div className="gba:h-64">{children}</div>
+      <div className={`gba:h-64 ${DEFAULT_CHART_SURFACE_CLASS}`}>{children}</div>
     </CardContent>
   </Card>
 )

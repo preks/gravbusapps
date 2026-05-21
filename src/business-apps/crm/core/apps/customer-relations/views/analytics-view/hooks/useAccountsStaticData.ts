@@ -7,8 +7,6 @@ import { useGenericAccountsStaticData } from '@/common/components/common-relatio
 const CRM_ACCOUNTS_CONFIG = {
   accountEntity: 'Account',
   opportunityEntity: 'Opportunity',
-  industryField: 'industry',
-  sizeField: 'numberOfEmployees',
   opportunityRelation: 'opportunityAccounts',
   isOpportunityRelationList: false, // CRM uses singular relationship pattern
   isJunctionTable: true
@@ -21,7 +19,5 @@ export const useAccountsStaticData = (accessToken: string) => {
 export type {
   TopAccountData,
   MonthlyGrowthPoint,
-  AccountIndustryData,
-  AccountSizeData,
   AccountsStaticData
 } from '@/common/components/common-relations/view-layouts/analytics-layout/hooks'

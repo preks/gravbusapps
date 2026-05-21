@@ -20,6 +20,18 @@ function getElementId(yElement: Y.Map<unknown> | undefined): string | null {
   return typeof id === 'string' && id.length > 0 ? id : null
 }
 
+function getElementRecordId(element: WhiteboardElementRecord): string | null {
+  return typeof element.id === 'string' && element.id.length > 0 ? element.id : null
+}
+
+function getFrameId(element: WhiteboardElementRecord): string | null {
+  return typeof element.frameId === 'string' && element.frameId.length > 0 ? element.frameId : null
+}
+
+function isFrameElement(element: WhiteboardElementRecord): boolean {
+  return element.type === 'frame'
+}
+
 function createYElement(record: WhiteboardElementRecord): Y.Map<unknown> {
   const yElement = new Y.Map<unknown>()
   Object.entries(record).forEach(([key, value]) => {
@@ -99,15 +111,84 @@ export function dedupeWhiteboardElementRecords(
   return deduped
 }
 
+/**
+ * Excalidraw expects frame children to appear before their containing frame in the
+ * element array. If collaborative updates persist a different order, frames can
+ * render incorrectly or collapse during restore/replay.
+ */
+export function normalizeWhiteboardElementOrder(
+  elements: readonly WhiteboardElementRecord[]
+): WhiteboardElementRecord[] {
+  const deduped = dedupeWhiteboardElementRecords(elements)
+  const frameIds = new Set(
+    deduped
+      .filter(isFrameElement)
+      .map(getElementRecordId)
+      .filter((elementId): elementId is string => Boolean(elementId))
+  )
+  const childrenByFrameId = new Map<string, WhiteboardElementRecord[]>()
+
+  deduped.forEach(element => {
+    const frameId = getFrameId(element)
+    if (!frameId || !frameIds.has(frameId)) {
+      return
+    }
+
+    const currentChildren = childrenByFrameId.get(frameId) || []
+    currentChildren.push(element)
+    childrenByFrameId.set(frameId, currentChildren)
+  })
+
+  const normalized: WhiteboardElementRecord[] = []
+  const emittedIds = new Set<string>()
+  const activeFrameStack = new Set<string>()
+
+  const emitElement = (element: WhiteboardElementRecord) => {
+    const elementId = getElementRecordId(element)
+    if (elementId && emittedIds.has(elementId)) {
+      return
+    }
+
+    if (isFrameElement(element) && elementId) {
+      if (activeFrameStack.has(elementId)) {
+        return
+      }
+
+      activeFrameStack.add(elementId)
+      ;(childrenByFrameId.get(elementId) || []).forEach(child => {
+        emitElement(child)
+      })
+      activeFrameStack.delete(elementId)
+    }
+
+    normalized.push(element)
+    if (elementId) {
+      emittedIds.add(elementId)
+    }
+  }
+
+  deduped.forEach(element => {
+    const frameId = getFrameId(element)
+    if (frameId && frameIds.has(frameId)) {
+      return
+    }
+
+    emitElement(element)
+  })
+
+  return normalized
+}
+
 export function syncWhiteboardElements(
   yElements: Y.Array<Y.Map<unknown>>,
   elements: readonly WhiteboardElementRecord[]
 ): void {
   removeDuplicateOrInvalidElements(yElements)
+  const normalizedElements = normalizeWhiteboardElementOrder(elements)
   const desiredIds = new Set<string>()
 
-  elements.forEach((element, targetIndex) => {
-    const elementId = typeof element.id === 'string' ? element.id : null
+  normalizedElements.forEach((element, targetIndex) => {
+    const elementId = getElementRecordId(element)
     if (!elementId) {
       return
     }
@@ -244,5 +325,5 @@ export function readWhiteboardElements(yElements: Y.Array<Y.Map<unknown>>): Whit
     elements.push(element)
   })
 
-  return elements
+  return normalizeWhiteboardElementOrder(elements)
 }

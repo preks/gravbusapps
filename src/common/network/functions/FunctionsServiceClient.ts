@@ -147,90 +147,28 @@ export type FunctionAssistantDraftResponse = {
 
 export type FunctionExecutionLogEntry = { level: string; message: string }
 
-export type StoredSecretListItem = {
+export type CredentialListItem = {
   id: string
   displayName: string
   namespace?: string
   updatedAt?: string
+  fieldKeys?: string[]
 }
 
-export type SecretBundleSlotDto = {
-  slotId: string
-  slotKey: string
-  secretId: string
-}
-
-export type SecretBundleListItemDto = {
+export type CredentialDetailDto = {
   id: string
   displayName: string
   namespace: string
   updatedAt: string
-  slotCount: number
-  slots?: SecretBundleSlotDto[]
+  fieldKeys: string[]
+  fieldCount: number
 }
 
-export type SecretBundlesPageDto = {
-  items: SecretBundleListItemDto[]
-  total: number
-  limit: number
-  offset: number
-}
-
-export type SecretBundleDetailDto = SecretBundleListItemDto & { slots: SecretBundleSlotDto[] }
-
-export type BlockingBundleRefDto = { id: string; displayName: string }
-
-/** Returned in 409 responses when DELETE /secrets/:id is blocked. */
-export type SecretReferenceLocation = {
+export type CredentialReferenceLocation = {
   kind: 'function' | 'external_connection' | 'pm_tool'
   id: string
   field: string
   label?: string
-}
-
-export class FunctionsSecretDeleteConflictError extends Error {
-  readonly statusCode = 409
-  readonly locations: SecretReferenceLocation[]
-
-  constructor(message: string, locations: SecretReferenceLocation[]) {
-    super(message)
-    this.name = 'FunctionsSecretDeleteConflictError'
-    this.locations = locations
-  }
-}
-
-/** Returned when DELETE /secret-bundles/:id is blocked (other bundles or fnsecret refs). */
-export class FunctionsBundleDeleteConflictError extends Error {
-  readonly statusCode = 409
-  readonly blockingBundles?: BlockingBundleRefDto[]
-  readonly locations?: SecretReferenceLocation[]
-
-  constructor(
-    message: string,
-    body: { blockingBundles?: BlockingBundleRefDto[]; locations?: SecretReferenceLocation[] }
-  ) {
-    super(message)
-    this.name = 'FunctionsBundleDeleteConflictError'
-    this.blockingBundles = body.blockingBundles
-    this.locations = body.locations
-  }
-}
-
-export type MigrateSecretsTarget = 'functions_config' | 'external_connections' | 'tools' | 'all'
-
-export type MigrateSecretsOutcome = {
-  kind: string
-  id: string
-  field?: string
-  action: 'skipped' | 'would_migrate' | 'migrated' | 'error'
-  detail?: string
-}
-
-export type MigrateSecretsResponse = {
-  migrationRunId: string
-  dryRun: boolean
-  target: string
-  outcomes: MigrateSecretsOutcome[]
 }
 
 export type FunctionAssistantDraftStreamEvent =
@@ -256,7 +194,7 @@ export class FunctionsServiceClient {
   private accessToken?: string
 
   constructor(accessToken?: string) {
-    const override = env('NEXT_PUBLIC_FUNCTIONS_SERVICE_URL')
+    const override = env('NEXT_PUBLIC_FUNCTIONS_API_URL')
     if (override && override.trim()) {
       const trimmed = override.endsWith('/') ? override.slice(0, -1) : override
       this.baseUrl = trimmed.endsWith('/api/v1') ? trimmed : trimmed + '/api/v1'
@@ -264,7 +202,7 @@ export class FunctionsServiceClient {
       const base = env('NEXT_PUBLIC_BASE_URL')
       if (!base || !base.trim()) {
         throw new Error(
-          'Missing Functions Service URL. Set NEXT_PUBLIC_FUNCTIONS_SERVICE_URL (full override) or NEXT_PUBLIC_BASE_URL (fallback).'
+          'Missing Functions Service URL. Set NEXT_PUBLIC_FUNCTIONS_API_URL (full override) or NEXT_PUBLIC_BASE_URL (fallback).'
         )
       }
       const functionsServiceUrl = base + '/functions'
@@ -456,139 +394,88 @@ export class FunctionsServiceClient {
     return (await res.json()) as { id: string; version: number }
   }
 
-  async listSecrets(namespace?: string): Promise<StoredSecretListItem[]> {
-    const params = namespace !== undefined && namespace !== '' ? { namespace } : undefined
-    return await this.get<StoredSecretListItem[]>('/secrets', params as any)
+  async listCredentials(namespace?: string, includeFieldKeys = true): Promise<CredentialListItem[]> {
+    const params: Record<string, string> = {}
+    if (namespace !== undefined && namespace !== '') params.namespace = namespace
+    if (includeFieldKeys) params.includeFieldKeys = 'true'
+    return await this.get<CredentialListItem[]>('/credentials', params)
   }
 
-  async createSecret(input: {
+  async getCredential(credentialId: string): Promise<CredentialDetailDto> {
+    return await this.get<CredentialDetailDto>(`/credentials/${encodeURIComponent(credentialId)}`)
+  }
+
+  async getCredentialReferences(credentialId: string): Promise<{ locations: CredentialReferenceLocation[] }> {
+    return await this.get<{ locations: CredentialReferenceLocation[] }>(
+      `/credentials/${encodeURIComponent(credentialId)}/references`
+    )
+  }
+
+  async createCredential(input: {
     displayName: string
-    value: string
     namespace?: string
-    logicalName?: string
+    live: Record<string, string>
+    preview?: Record<string, string>
   }): Promise<{ id: string }> {
-    return await this.postJson<{ id: string }>('/secrets', {
+    return await this.postJson<{ id: string }>('/credentials', {
       displayName: input.displayName,
-      value: input.value,
       namespace: input.namespace,
-      logicalName: input.logicalName
+      live: input.live || {},
+      preview: input.preview ?? {}
     })
   }
 
-  async updateSecretMetadata(
-    secretId: string,
+  async updateCredentialDisplayName(
+    credentialId: string,
     input: { displayName: string }
   ): Promise<{ id: string; displayName: string }> {
-    return await this.patchJson<{ id: string; displayName: string }>(`/secrets/${encodeURIComponent(secretId)}`, {
-      displayName: input.displayName
-    })
+    return await this.patchJson<{ id: string; displayName: string }>(
+      `/credentials/${encodeURIComponent(credentialId)}`,
+      input
+    )
   }
 
-  /** Appends a new encrypted value version (same secret id / fnsecret ref). */
-  async appendSecretValue(secretId: string, input: { value: string }): Promise<{ version: number }> {
-    return await this.postJson<{ version: number }>(`/secrets/${encodeURIComponent(secretId)}/value`, {
-      value: input.value
-    })
+  async replaceCredentialFields(
+    credentialId: string,
+    fields: Record<string, string>,
+    options: { profile: 'live' | 'preview'; merge?: boolean; removeFieldKeys?: string[] }
+  ): Promise<{ version: number }> {
+    const removeFieldKeys = options.removeFieldKeys?.filter(Boolean)
+    return await this.postJson<{ version: number }>(
+      `/credentials/${encodeURIComponent(credentialId)}/fields`,
+      {
+        profile: options.profile,
+        fields,
+        merge: options.merge === true,
+        ...(removeFieldKeys?.length ? { removeFieldKeys } : {})
+      }
+    )
   }
 
-  /** Deletes metadata and ciphertext versions. Throws FunctionsSecretDeleteConflictError if still referenced (409). */
-  async deleteSecret(secretId: string): Promise<void> {
-    const res = await fetch(this.baseUrl + `/secrets/${encodeURIComponent(secretId)}`, {
+  async deleteCredential(credentialId: string): Promise<void> {
+    const res = await fetch(this.baseUrl + `/credentials/${encodeURIComponent(credentialId)}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders()
     })
-    if (res.status === 409) {
-      const text = await res.text()
-      let parsed: { message?: string; locations?: SecretReferenceLocation[] } = {}
-      try {
-        parsed = text ? (JSON.parse(text) as typeof parsed) : {}
-      } catch {
-        parsed = {}
-      }
-      throw new FunctionsSecretDeleteConflictError(
-        typeof parsed.message === 'string' && parsed.message.trim()
-          ? parsed.message.trim()
-          : 'Secret is still referenced',
-        Array.isArray(parsed.locations) ? (parsed.locations as SecretReferenceLocation[]) : []
-      )
-    }
     if (!res.ok) {
       const msg = await this.readErrorMessage(res)
-      throw new Error(msg || `DELETE /secrets failed: ${res.status}`)
+      throw new Error(msg || `DELETE /credentials failed: ${res.status}`)
     }
   }
 
-  async listSecretBundles(input?: {
-    limit?: number
-    offset?: number
-    namespace?: string
-    includeSlots?: boolean
-  }): Promise<SecretBundlesPageDto> {
-    const params: Record<string, string> = {}
-    if (input?.limit !== undefined) params.limit = String(input.limit)
-    if (input?.offset !== undefined) params.offset = String(input.offset)
-    if (input?.namespace) params.namespace = input.namespace
-    if (input?.includeSlots) params.includeSlots = 'true'
-    return await this.get<SecretBundlesPageDto>('/secret-bundles', params)
-  }
-
-  async getSecretBundle(bundleId: string): Promise<SecretBundleDetailDto> {
-    return await this.get<SecretBundleDetailDto>(`/secret-bundles/${encodeURIComponent(bundleId)}`)
-  }
-
-  async createSecretBundle(body: {
-    displayName: string
-    namespace?: string
-    slots: Array<{ slotKey: string; secretId: string }>
-  }): Promise<{ id: string }> {
-    return await this.postJson<{ id: string }>('/secret-bundles', body)
-  }
-
-  async updateSecretBundle(
-    bundleId: string,
-    body: { displayName?: string; slots?: Array<{ slotKey: string; secretId: string }> }
-  ): Promise<{ id: string }> {
-    return await this.patchJson<{ id: string }>(`/secret-bundles/${encodeURIComponent(bundleId)}`, body)
-  }
-
-  async deleteSecretBundle(bundleId: string): Promise<void> {
-    const res = await fetch(this.baseUrl + `/secret-bundles/${encodeURIComponent(bundleId)}`, {
-      method: 'DELETE',
-      headers: this.getAuthHeaders()
+  async resolveCredentialsBatch(
+    refs: string[],
+    credentialProfile?: 'live' | 'preview'
+  ): Promise<Record<string, string>> {
+    const data = await this.postJson<{ values: Record<string, string> }>('/credentials/resolve-batch', {
+      refs,
+      ...(credentialProfile ? { credentialProfile } : {})
     })
-    if (res.status === 409) {
-      const text = await res.text()
-      let parsed: {
-        message?: string
-        blockingBundles?: BlockingBundleRefDto[]
-        locations?: SecretReferenceLocation[]
-      } = {}
-      try {
-        parsed = text ? (JSON.parse(text) as typeof parsed) : {}
-      } catch {
-        parsed = {}
-      }
-      throw new FunctionsBundleDeleteConflictError(
-        typeof parsed.message === 'string' && parsed.message.trim()
-          ? parsed.message.trim()
-          : 'Cannot delete credential bundle',
-        {
-          blockingBundles: Array.isArray(parsed.blockingBundles) ? parsed.blockingBundles : undefined,
-          locations: Array.isArray(parsed.locations) ? (parsed.locations as SecretReferenceLocation[]) : undefined
-        }
-      )
-    }
-    if (!res.ok) {
-      const msg = await this.readErrorMessage(res)
-      throw new Error(msg || `DELETE /secret-bundles failed: ${res.status}`)
-    }
+    return data.values || {}
   }
 
-  async migrateSecrets(input: { target: MigrateSecretsTarget; dryRun?: boolean }): Promise<MigrateSecretsResponse> {
-    return await this.postJson<MigrateSecretsResponse>('/admin/secrets/migrate', {
-      target: input.target,
-      dryRun: Boolean(input.dryRun)
-    })
+  async listSecrets(namespace?: string): Promise<CredentialListItem[]> {
+    return this.listCredentials(namespace, true)
   }
 
   async testFunction(data: {
@@ -598,7 +485,7 @@ export class FunctionsServiceClient {
     outputSchema?: Record<string, unknown>
     config?: Record<string, string>
     connectionBinding?: FunctionConnectionBinding | null
-    /** Plaintext overrides merged after fnsecret resolution; not persisted. */
+    /** Plaintext overrides merged after fncred resolution; not persisted. */
     testConfigOverrides?: Record<string, string>
   }): Promise<{ result: unknown; logs?: FunctionExecutionLogEntry[] }> {
     const res = await fetch(this.baseUrl + '/test', {

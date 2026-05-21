@@ -1,9 +1,8 @@
 import React, { useMemo } from 'react'
-import { Typography, Spin } from 'antd'
-import { SectionKpiCards, KpiCardData, useTranslation, Icon, Card, CardContent } from '@newwork/nw-design-system'
+import { Typography } from 'antd'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
 import { UsersIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { DashboardProps, AnalyticsKpiData } from './types/analyticsTypes'
-import { useEmployeeCount } from '../../../hooks/useEmployeeCount'
 import { useNewHiresCount } from '../../../hooks/useNewHiresCount'
 import { useTurnoverRate } from '../../../hooks/useTurnoverRate'
 import { useCompensationMetrics } from '../../../hooks/useCompensationMetrics'
@@ -17,6 +16,9 @@ import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { useAnalyticsTableExport } from '../../../hooks/useAnalyticsTableExport'
 import { useChartTableSelection } from '../../../hooks/useChartTableSelection'
 import AnalyticsDataTable, { DIFFERENT_BADGE, HIGHLIGHT_BADGE } from '../../shared/AnalyticsDataTable'
+import SelectableChartCard from '../../shared/SelectableChartCard'
+import AnalyticsTabErrorCard from '../../shared/AnalyticsTabErrorCard'
+import AnalyticsTabLoadingState from '../../shared/AnalyticsTabLoadingState'
 
 const { Title, Text } = Typography
 
@@ -36,11 +38,6 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
   const { selectedChart, tableRef, handleChartClick } = useChartTableSelection()
 
   // Get data from custom hooks
-  const {
-    count: employeeCount,
-    diffYoY: employeeCountDiffYoY,
-    loading: employeeLoading
-  } = useEmployeeCount(accessToken)
   const { count: newHiresCount, loading: hiresLoading } = useNewHiresCount(accessToken)
   const { rate: turnoverRate, change: turnoverChange, loading: turnoverLoading } = useTurnoverRate(accessToken)
   const { averageSalary, loading: salaryLoading } = useCompensationMetrics(accessToken)
@@ -56,15 +53,26 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
     error: employeesByOrgUnitError
   } = useEmployeesByOrgUnit(accessToken)
 
+  const { employeeCount, employeeCountDiffYoY } = useMemo(() => {
+    const currentYear = new Date().getFullYear()
+    const byYear = new Map(employeesYearlyData.map(item => [item.year, item.count]))
+    const thisYear = Number(byYear.get(currentYear) ?? 0)
+    const lastYear = Number(byYear.get(currentYear - 1) ?? 0)
+    return {
+      employeeCount: thisYear,
+      employeeCountDiffYoY: thisYear - lastYear
+    }
+  }, [employeesYearlyData])
+
   // Combine loading states for simplicity
   const loading =
-    employeeLoading ||
     hiresLoading ||
     turnoverLoading ||
     salaryLoading ||
     employeesYearlyLoading ||
     hiresYearlyLoading ||
     employeesByOrgUnitLoading
+  const dashboardError = hiresYearlyError || employeesYearlyError || employeesByOrgUnitError
 
   // Format analytics KPI data
   const analyticsData: AnalyticsKpiData = useMemo(
@@ -228,9 +236,24 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
 
   if (loading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="hr-analytics-loading">
-        <Spin size="large" />
-      </div>
+      <AnalyticsTabLoadingState
+        dataTestId="hr-analytics-loading"
+        message={t('hr-data-filter-loading-data')}
+        className="gba:py-12"
+      />
+    )
+  }
+
+  if (dashboardError) {
+    return (
+      <AnalyticsTabErrorCard
+        dataTestId="hr-analytics-dashboard-error"
+        message={t('hr-analytics-data-error')}
+        detail={dashboardError.message}
+        retryLabel={t('common-retry')}
+        onRetry={() => globalThis.location.reload()}
+        className="gba:p-6"
+      />
     )
   }
 
@@ -254,66 +277,52 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
           <p className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
         </div>
 
-        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
-          <Card
-            data-testid="employees-per-year-chart-container"
-            className={`gba:col-span-1 gba:cursor-pointer gba:transition-all gba:duration-200 ${
-              selectedChart === 'employees-per-year-chart'
-                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-                : 'gba:hover:shadow-lg'
-            }`}
-            onClick={() => handleChartClick('employees-per-year-chart')}
+        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
+          <SelectableChartCard
+            testId="employees-per-year-chart"
+            isSelected={selectedChart === 'employees-per-year-chart'}
+            onSelect={() => handleChartClick('employees-per-year-chart')}
+            title={chartConfigs[0].title}
+            tag={chartConfigs[0].tag}
+            description={chartConfigs[0].description}
+            selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
           >
-            <CardContent className="gba:p-4">
-              <EmployeesPerYearChart
-                data={employeesYearlyData}
-                loading={employeesYearlyLoading}
-                error={employeesYearlyError}
+            <EmployeesPerYearChart
+              data={employeesYearlyData}
+              loading={employeesYearlyLoading}
+              error={employeesYearlyError}
+            />
+          </SelectableChartCard>
+
+          <SelectableChartCard
+            testId="hires-per-year-chart"
+            isSelected={selectedChart === 'hires-per-year-chart'}
+            onSelect={() => handleChartClick('hires-per-year-chart')}
+            title={chartConfigs[1].title}
+            tag={chartConfigs[1].tag}
+            description={chartConfigs[1].description}
+            selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
+          >
+            <HiresPerYearChart data={hiresData} loading={hiresYearlyLoading} error={hiresYearlyError} />
+          </SelectableChartCard>
+
+          <div className="gba:col-span-1 gba:md:col-span-2">
+            <SelectableChartCard
+              testId="employees-by-org-unit-chart"
+              isSelected={selectedChart === 'employees-by-org-unit-chart'}
+              onSelect={() => handleChartClick('employees-by-org-unit-chart')}
+              title={chartConfigs[2].title}
+              tag={chartConfigs[2].tag}
+              description={chartConfigs[2].description}
+              selectedHint={`✓ ${t('common-selected')} - ${t('hr-analytics-table-shown-below')}`}
+            >
+              <EmployeesByOrgUnitChart
+                data={employeesByOrgUnitData}
+                loading={employeesByOrgUnitLoading}
+                error={employeesByOrgUnitError}
               />
-              {selectedChart === 'employees-per-year-chart' && (
-                <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card
-            data-testid="hires-per-year-chart-container"
-            className={`gba:col-span-1 gba:cursor-pointer gba:transition-all gba:duration-200 ${
-              selectedChart === 'hires-per-year-chart'
-                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-                : 'gba:hover:shadow-lg'
-            }`}
-            onClick={() => handleChartClick('hires-per-year-chart')}
-          >
-            <CardContent className="gba:p-4">
-              <HiresPerYearChart data={hiresData} loading={hiresYearlyLoading} error={hiresYearlyError} />
-              {selectedChart === 'hires-per-year-chart' && (
-                <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card
-            data-testid="employees-by-org-unit-chart-container"
-            className={`gba:col-span-1 gba:md:col-span-2 gba:cursor-pointer gba:transition-all gba:duration-200 ${
-              selectedChart === 'employees-by-org-unit-chart'
-                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-                : 'gba:hover:shadow-lg'
-            }`}
-            onClick={() => handleChartClick('employees-by-org-unit-chart')}
-          >
-            <CardContent className="gba:p-4">
-              <EmployeesByOrgUnitChart accessToken={accessToken} />
-              {selectedChart === 'employees-by-org-unit-chart' && (
-                <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
-              )}
-              {employeesByOrgUnitError && (
-                <p className="gba:text-xs gba:text-destructive gba:mt-2">
-                  {String(employeesByOrgUnitError.message || employeesByOrgUnitError)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+            </SelectableChartCard>
+          </div>
         </div>
 
         <div ref={tableRef}>

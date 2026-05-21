@@ -113,6 +113,11 @@ task-card-blink = Blink
 task-card-unknown-creator = Unbekannt
 task-card-untitled = Aufgabe ohne Titel
 task-card-pinned = Angeheftet
+task-card-cancel-vacation-request = Urlaubsantrag stornieren
+task-card-cancel-sick-leave-request = Krankmeldung stornieren
+task-card-cancel-special-leave-request = Sonderurlaubsantrag stornieren
+task-card-cancel-request-for-type = Antrag auf "{$absenceType}" stornieren
+task-card-cancel-absence-request = Abwesenheitsantrag stornieren
 
 # FlowCard Component
 flow-card-blink = Blink
@@ -182,6 +187,7 @@ task-dialog-completing = Wird abgeschlossen...
 task-dialog-complete-task = Aufgabe abschließen
 task-dialog-missing-user-info = Aufgabe kann nicht abgeschlossen werden: Benutzerinformationen fehlen.
 task-dialog-lowcoder-screen = Lowcoder-Bildschirm
+task-dialog-no-screen-available = Für diese Aufgabe ist noch kein Formular konfiguriert. Bitte wenden Sie sich an Ihren Administrator.
 
 # CompletedView Component
 completed-search-placeholder = Erledigte Aufgaben suchen...

@@ -12,6 +12,7 @@ import { useChartTableSelection } from '../../../../../hooks/useChartTableSelect
 import { DIFFERENT_BADGE, HIGHLIGHT_BADGE } from '../../../../shared/AnalyticsDataTable'
 import type { AnalyticsTableData } from '../../../../shared/analyticsTabTypes'
 import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
+import AnalyticsTabLoadingState from '../../../../shared/AnalyticsTabLoadingState'
 import SelectableChartCard from '../../../../shared/SelectableChartCard'
 import AnalyticsTableSection from '../../../../shared/AnalyticsTableSection'
 import { renderPeriodValueCell } from '../../../../shared/analyticsTableRenderers'
@@ -115,6 +116,10 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
 
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
 
+  if (isLoading) {
+    return <AnalyticsTabLoadingState dataTestId="headcount-trends-loading" message={t('hr-data-filter-loading-data')} />
+  }
+
   if (error) {
     return (
       <AnalyticsTabErrorCard
@@ -134,7 +139,7 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
       <HeadcountStatistics statistics={statistics} isLoading={isLoading} dataTestId="headcount-trends" />
 
       {/* Interactive Charts Section */}
-      <div className="gba:mb-4">
+      <div className="gba:mt-6 gba:mb-4">
         <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('hr-analytics-workforce-charts')}</h3>
         <p className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
       </div>

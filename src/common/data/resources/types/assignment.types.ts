@@ -5,7 +5,7 @@ import type { ContextDTO } from './context.types'
 import { Paging } from './common.types'
 
 export interface ActionAssignmentEntryDTO {
-  id: string
+  id?: string
   permission?: string
   flowItem: ActionDTO // Backend sends FlowItemDTO, we map to ActionDTO
   translation?: Record<string, string>

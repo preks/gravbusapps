@@ -46,7 +46,7 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
   return (
     <Card
       title={getTranslationFromI18nKeyAndLabel('salary_changes', 'Salary Changes')}
-      className="gba:rounded gba:shadow-sm gba:border gba:border-border gba:mb-4"
+      className="gba:rounded gba:mb-4"
       data-testid="salary-changes-card"
     >
       <ResponsiveContainer width="100%" height={220}>

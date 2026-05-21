@@ -26,17 +26,6 @@ function buildFullPath(servicePath: string, apiPath: string): string {
   return `${trimmed}${a}`
 }
 
-/**
- * Custom Flow Engine (Conductor) REST base must include a single `/api` segment before paths like
- * `/entities`, `/templates/*`, `/custom-data/*`. Local overrides may already end with `/api`; hosted
- * URLs may be `.../flow-engine` without it — this avoids `/api/api/...` and fixes bare `.../3002`.
- */
-export function normalizeCustomFlowEngineApiBaseUrl(resolved: string): string {
-  const trimmed = resolved.replace(/\/+$/, '')
-  if (/\/api(?:\/|$)/.test(trimmed)) return trimmed
-  return `${trimmed}/api`
-}
-
 // ============================================================================
 // Gravity Platform (Next `gravity-platform` app: JSON under `/api/*`, static under `/platform/*`)
 // Used by remote bundles `platform/apps/setup` and `platform/apps/setup-add-employees`.
@@ -78,7 +67,7 @@ export function resolveServiceUrl(envVar: string, config: ServicePathConfig): st
     return serviceUrl
   }
 
-  let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
+  let baseUrl = env('NEXT_PUBLIC_API_SERVER') || ''
   while (baseUrl.length > 0 && baseUrl.endsWith('/')) {
     baseUrl = baseUrl.slice(0, -1)
   }
@@ -108,12 +97,10 @@ export const CHAT_WEB_SOCKET_URL = resolveServiceUrl('NEXT_PUBLIC_CHAT_WEB_SOCKE
   servicePath: '/chat-service',
   apiPath: ''
 })
-export const CUSTOM_FLOW_ENGINE_API_URL = normalizeCustomFlowEngineApiBaseUrl(
-  resolveServiceUrl('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL', {
-    servicePath: '/flow-engine',
-    apiPath: '/api'
-  })
-)
+export const CUSTOM_FLOW_ENGINE_API_URL = resolveServiceUrl('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL', {
+  servicePath: '/flow-engine',
+  apiPath: '/api'
+})
 export const CONTENT_API_URL = resolveServiceUrl('NEXT_PUBLIC_CONTENT_API_URL', {
   servicePath: '/processes/content',
   apiPath: ''
@@ -175,6 +162,11 @@ export const GRAPHQL_API_URL = resolveServiceUrl('NEXT_PUBLIC_GRAPHQL_API_URL', 
   servicePath: '',
   apiPath: '/v1'
 })
+export const GLOBAL_SEARCH_API_URL = resolveServiceUrl('NEXT_PUBLIC_GLOBAL_SEARCH_API_URL', {
+  servicePath: '/global-search',
+  apiPath: '/api/v1'
+})
+
 export const INVESTMENT_RELATIONS_API_URL = resolveServiceUrl('NEXT_PUBLIC_INVESTMENT_RELATIONS_API_URL', {
   servicePath: '/processes/investment-relations',
   apiPath: ''
@@ -202,7 +194,7 @@ export const SPREADSHEET_PROMPT_MANAGER_API_URL = resolveServiceUrl('NEXT_PUBLIC
 })
 /** Processes base (base + /processes). No env override; for FlowClient / useKogitoProcess only. */
 export const PROCESSES_BASE_URL = (() => {
-  let base = env('NEXT_PUBLIC_BASE_URL') || ''
+  let base = env('NEXT_PUBLIC_API_SERVER') || ''
   while (base.length > 0 && base.endsWith('/')) base = base.slice(0, -1)
   return `${base}/processes`
 })()

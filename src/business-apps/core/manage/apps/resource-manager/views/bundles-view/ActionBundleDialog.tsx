@@ -186,7 +186,7 @@ export const ActionBundleDialog: React.FC<ActionBundleDialogProps> = ({
     componentType === 'native-window' ? 'win_' : componentType === 'native-popup' ? 'pop_' : 'frm_'
   const screenKey = useMemo(() => {
     if (initialData?.screenKey != null && initialData.screenKey.trim()) return initialData.screenKey.trim()
-    const suffix = process || (name.trim() ? name.trim().toLowerCase().replace(/\s+/g, '-') : '')
+    const suffix = process || (name.trim() ? name.trim().replace(/\s+/g, '-') : '')
     return suffix ? `${screenKeyPrefix}${suffix}` : `${screenKeyPrefix}`
   }, [initialData?.screenKey, process, name, screenKeyPrefix])
 

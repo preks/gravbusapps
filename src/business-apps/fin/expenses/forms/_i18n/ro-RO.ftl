@@ -8,6 +8,8 @@ action-retry = Reîncearcă
 action-return = Returnează
 action-approve = Aprobă
 action-confirm = Confirmă
+action-cancel = Anulare
+action-change-main-cost-center = Modifică centrul de cost principal
 
 # ============================================
 # Common Status Labels
@@ -65,7 +67,7 @@ label-date-time = Data și ora
 label-trip-details = Detalii călătorie
 label-destination = Destinație
 label-start-location = Locație de plecare
-label-start-location-country = Locație de plecare (Țară)
+label-start-location-country = Locație de plecare
 label-region = Regiune
 label-expense-group = Grup de cheltuieli
 label-expense-class = Clasă de cheltuieli

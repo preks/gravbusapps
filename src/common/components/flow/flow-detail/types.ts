@@ -42,6 +42,14 @@ export interface FlowDetailData {
   timeInsights: TimeInsights
   durationHours?: number
   durationMinutes?: number
+  supportTags?: {
+    policyDocument?: string
+    policyDocumentTitle?: string
+    team?: string
+    teamName?: string
+    entity?: string
+    entityName?: string
+  }
 }
 
 export interface FlowStep {

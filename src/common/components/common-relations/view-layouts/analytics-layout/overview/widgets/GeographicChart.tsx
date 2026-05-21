@@ -16,6 +16,7 @@ import { GlobeIcon } from '@phosphor-icons/react'
 
 export interface GeographicData {
   country: string
+  countryId: string
   accounts: number
 }
 
@@ -23,6 +24,7 @@ export interface GeographicChartProps {
   data: GeographicData[]
   isLoading?: boolean
   moduleColor?: string
+  onCountryClick?: (country: string, countryId: string) => void
 }
 
 const toKey = (value: string): string =>
@@ -31,7 +33,12 @@ const toKey = (value: string): string =>
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
 
-export const GeographicChart: React.FC<GeographicChartProps> = ({ data, isLoading, moduleColor = 'default' }) => {
+export const GeographicChart: React.FC<GeographicChartProps> = ({
+  data,
+  isLoading,
+  moduleColor = 'default',
+  onCountryClick
+}) => {
   const dataKey = 'accounts'
   const nameKey = 'country'
 
@@ -43,6 +50,7 @@ export const GeographicChart: React.FC<GeographicChartProps> = ({ data, isLoadin
       return {
         [nameKey]: shortName,
         fullName: item.country,
+        countryId: item.countryId,
         [dataKey]: item.accounts,
         fill: `var(--color-${key})`
       } as Record<string, string | number>
@@ -128,7 +136,7 @@ export const GeographicChart: React.FC<GeographicChartProps> = ({ data, isLoadin
               <div className="gba:text-xs gba:text-gray-600">Accounts</div>
             </div>
           </div>
-          <div className="gba:h-48">
+          <div className={`gba:h-48 ${onCountryClick ? 'gba:cursor-pointer' : ''}`}>
             <ChartContainer config={chartConfig} className="gba:w-full gba:h-full">
               <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 15, left: 40, bottom: 5 }}>
                 <XAxis type="number" />
@@ -142,7 +150,19 @@ export const GeographicChart: React.FC<GeographicChartProps> = ({ data, isLoadin
                     />
                   }
                 />
-                <Bar dataKey={dataKey} radius={[0, 3, 3, 0]} fill="var(--color-primary)" />
+                <Bar
+                  dataKey={dataKey}
+                  radius={[0, 3, 3, 0]}
+                  fill="var(--color-primary)"
+                  onClick={
+                    onCountryClick
+                      ? (barData: Record<string, any>) => {
+                          onCountryClick(barData.fullName as string, barData.countryId as string)
+                        }
+                      : undefined
+                  }
+                  style={onCountryClick ? { cursor: 'pointer' } : undefined}
+                />
               </BarChart>
             </ChartContainer>
           </div>

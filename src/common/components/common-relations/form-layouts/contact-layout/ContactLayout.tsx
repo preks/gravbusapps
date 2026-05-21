@@ -4,6 +4,8 @@ import { useTranslation, Skeleton, FormSection } from '@newwork/nw-design-system
 import { ContactInformationSegment } from '../../form-segments/contact-information-segment'
 import { ContactDetailsSegment } from '../../form-segments/contact-details-segment'
 import { CommunicationSegment, DEFAULT_CONTACT_CHANNELS } from '../../form-segments/communication-segment'
+import { CommunicationChannelCode } from '@/common/data/relations/types/relationEnums'
+import type { InlineEntityCreateRenderProps } from '@/common/components/common-relations/popups/inline-entity-create-popup'
 import translations from './_i18n'
 
 interface ContactLayoutProps {
@@ -49,6 +51,11 @@ interface ContactLayoutProps {
 
   // Loading state - shows skeletons while data is being fetched
   loading?: boolean
+
+  // Render prop for the inline account create/edit popup.
+  // When provided, enables draft-account creation from the accounts field.
+  // The caller supplies module and businessAppContext; the segment supplies dialog state.
+  inlineAccountCreate?: (props: InlineEntityCreateRenderProps) => React.ReactNode
 }
 
 const ContactLayout: React.FC<ContactLayoutProps> = ({
@@ -62,7 +69,8 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
   communicationCustomFields,
   customSegments = [],
   avatarFileRef,
-  loading = false
+  loading = false,
+  inlineAccountCreate
 }) => {
   const { t } = useTranslation(translations)
 
@@ -106,6 +114,7 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
         useAccounts={useAccounts}
         customFields={contactInformationCustomFields}
         avatarFileRef={avatarFileRef}
+        inlineAccountCreate={inlineAccountCreate}
       />
 
       {/* Other Segments */}
@@ -117,6 +126,7 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
           businessAppContext={businessAppContext}
           customFields={communicationCustomFields}
           defaultChannelCodes={DEFAULT_CONTACT_CHANNELS}
+          hiddenChannelCodes={[CommunicationChannelCode.EMAIL]}
         />
       </FormSection>
       {customSegments.map(segment => (

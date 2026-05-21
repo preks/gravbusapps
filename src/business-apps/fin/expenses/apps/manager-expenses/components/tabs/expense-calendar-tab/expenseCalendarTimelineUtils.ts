@@ -1,5 +1,4 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { ExpenseStatus, getExpensePlanStatusDisplay, getExpenseRequestStatusDisplay } from '../../../utils'
+import { ExpenseStatus, getExpensePlanStatusDisplayT, getExpenseRequestStatusDisplayT } from '../../../utils'
 import type { ExpenseTimelineEvent, ExpenseTimelineItem, TeamEmployee } from './expenseCalendarTypes'
 
 export function mapToCalendarTimelineType(pillType: string): string {
@@ -40,19 +39,17 @@ export function buildTimelineItems(params: {
   allTeamMembers: TeamEmployee[]
   expensePlans: any[]
   expenseRequests: any[]
+  t: (key: string) => string
 }): ExpenseTimelineItem[] {
-  const { allTeamMembers, expensePlans, expenseRequests } = params
+  const { allTeamMembers, expensePlans, expenseRequests, t } = params
   const employeesMap = new Map<string, ExpenseTimelineItem>()
+  const unknownEmployeeLabel = t('expense-calendar-unknown-employee')
 
   for (const member of allTeamMembers) {
     if (!member.id) continue
     employeesMap.set(member.id, {
       id: member.id,
-      name:
-        member.fullName ||
-        member.displayName ||
-        `${member.firstName} ${member.lastName}` ||
-        getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
+      name: member.fullName || member.displayName || `${member.firstName} ${member.lastName}` || unknownEmployeeLabel,
       detail: member.employeePosition?.organizationalUnit?.name || member.department || ''
     })
   }
@@ -62,10 +59,7 @@ export function buildTimelineItems(params: {
     if (emp?.id && !employeesMap.has(emp.id)) {
       employeesMap.set(emp.id, {
         id: emp.id,
-        name:
-          emp.fullName ??
-          emp.displayName ??
-          getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
+        name: emp.fullName ?? emp.displayName ?? unknownEmployeeLabel,
         detail: emp.employeePosition?.organizationalUnit?.name ?? ''
       })
     }
@@ -76,10 +70,7 @@ export function buildTimelineItems(params: {
     if (emp?.id && !employeesMap.has(emp.id)) {
       employeesMap.set(emp.id, {
         id: emp.id,
-        name:
-          emp.fullName ??
-          emp.displayName ??
-          getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
+        name: emp.fullName ?? emp.displayName ?? unknownEmployeeLabel,
         detail: emp.employeePosition?.organizationalUnit?.name ?? ''
       })
     }
@@ -92,9 +83,12 @@ export function buildTimelineEvents(params: {
   expensePlans: any[]
   expenseRequests: any[]
   userLocale: string
+  t: (key: string) => string
 }): ExpenseTimelineEvent[] {
-  const { expensePlans, expenseRequests, userLocale } = params
+  const { expensePlans, expenseRequests, userLocale, t } = params
   const events: ExpenseTimelineEvent[] = []
+  const fallbackPlanTitle = t('expense-calendar-event-fallback-plan')
+  const fallbackRequestTitle = t('expense-calendar-event-fallback-request')
 
   for (const plan of expensePlans || []) {
     const fallbackDate = plan.planDate
@@ -102,7 +96,8 @@ export function buildTimelineEvents(params: {
     const eventEndDate = plan.endDate || fallbackDate
     if (!eventStartDate || !eventEndDate) continue
 
-    const statusDisplay = getExpensePlanStatusDisplay(plan.status as ExpenseStatus)
+    const statusDisplay = getExpensePlanStatusDisplayT(t, plan.status as ExpenseStatus)
+    const planTitle = plan.title || fallbackPlanTitle
     events.push({
       id: `plan-${plan.id}`,
       itemId: plan.employee?.id || 'unknown',
@@ -110,11 +105,11 @@ export function buildTimelineEvents(params: {
       endDate: new Date(eventEndDate).toISOString(),
       type: mapToCalendarTimelineType(statusDisplay.type),
       color: getColorForPillType(statusDisplay.type),
-      note: `${plan.title || 'Expense Plan'} - ${statusDisplay.label} (${new Date(eventStartDate).toLocaleDateString(
+      note: `${planTitle} - ${statusDisplay.label} (${new Date(eventStartDate).toLocaleDateString(
         userLocale
       )} - ${new Date(eventEndDate).toLocaleDateString(userLocale)})`,
       status: statusDisplay.label,
-      title: plan.title || 'Expense Plan',
+      title: planTitle,
       eventType: 'Plan'
     })
   }
@@ -126,7 +121,8 @@ export function buildTimelineEvents(params: {
     if (!eventStartDate || !eventEndDate) continue
     if (!request.employee?.id) continue
 
-    const statusDisplay = getExpenseRequestStatusDisplay(request.status as ExpenseStatus)
+    const statusDisplay = getExpenseRequestStatusDisplayT(t, request.status as ExpenseStatus)
+    const requestTitle = request.title || fallbackRequestTitle
     events.push({
       id: `request-${request.id}`,
       itemId: request.employee.id,
@@ -134,11 +130,11 @@ export function buildTimelineEvents(params: {
       endDate: new Date(eventEndDate).toISOString(),
       type: mapToCalendarTimelineType(statusDisplay.type),
       color: getColorForPillType(statusDisplay.type),
-      note: `${request.title || 'Expense Request'} - ${statusDisplay.label} (${new Date(
-        eventStartDate
-      ).toLocaleDateString(userLocale)} - ${new Date(eventEndDate).toLocaleDateString(userLocale)})`,
+      note: `${requestTitle} - ${statusDisplay.label} (${new Date(eventStartDate).toLocaleDateString(
+        userLocale
+      )} - ${new Date(eventEndDate).toLocaleDateString(userLocale)})`,
       status: statusDisplay.label,
-      title: request.title || 'Expense Request',
+      title: requestTitle,
       eventType: 'Request'
     })
   }
@@ -146,7 +142,7 @@ export function buildTimelineEvents(params: {
   return events
 }
 
-export function buildAllStatusesLegendItems(): Array<{ label: string; color: string }> {
+export function buildAllStatusesLegendItems(t: (key: string) => string): Array<{ label: string; color: string }> {
   const allStatusesInOrder: string[] = [
     ExpenseStatus.CREATED,
     ExpenseStatus.PREPARED,
@@ -166,10 +162,10 @@ export function buildAllStatusesLegendItems(): Array<{ label: string; color: str
 
   const uniqueByLabel = new Map<string, { label: string; type: string }>()
   for (const status of allStatusesInOrder) {
-    const requestDisplay = getExpenseRequestStatusDisplay(status)
+    const requestDisplay = getExpenseRequestStatusDisplayT(t, status)
     uniqueByLabel.set(requestDisplay.label, { label: requestDisplay.label, type: requestDisplay.type })
 
-    const planDisplay = getExpensePlanStatusDisplay(status)
+    const planDisplay = getExpensePlanStatusDisplayT(t, status)
     uniqueByLabel.set(planDisplay.label, { label: planDisplay.label, type: planDisplay.type })
   }
 

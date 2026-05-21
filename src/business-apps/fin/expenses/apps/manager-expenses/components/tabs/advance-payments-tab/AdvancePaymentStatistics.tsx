@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { AdvancePaymentStatistics as AdvancePaymentStatisticsData } from '../../../hooks/useMainViewAdvancePayments'
 import { WidgetItem } from '@/components/widget-group'
 import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
 import { ClockIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { ExpenseStatus } from '../../../utils'
+import translations from '../../../_i18n'
 
 /** Statuses that contribute to the first card (Total Advance Payments = paid/transferred only). */
 const STATUSES_FOR_TOTAL_CARD: string[] = [ExpenseStatus.PAID, ExpenseStatus.TRANSFERRED]
@@ -35,6 +36,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   activeFilter = [],
   onFilterChange
 }) => {
+  const { t } = useTranslation(translations)
   const displayCurrency = displayCurrencyProp ?? currencyFilter ?? 'EUR'
 
   const isTotalFilterActive =
@@ -65,38 +67,26 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     return [
       {
         key: 'total-advance-payment',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.advance_payments_tab.total_advance_payments',
-          'Total Advance Payments'
-        ),
+        title: t('advance-payments-stats-total-title'),
         value: advancePaymentStats.sumAmount
           ? formatCurrencyDisplay(advancePaymentStats.sumAmount, displayCurrency)
           : formatCurrencyDisplay(0, displayCurrency),
         color: isTotalFilterActive ? 'var(--nw-primary)' : 'var(--nw-success)',
         valueIsString: true,
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.advance_payments_tab.paid_and_transferred',
-          'Paid and transferred advance payments'
-        ),
+        description: t('advance-payments-stats-total-desc'),
         active: isTotalFilterActive,
         onClick: onFilterChange ? handleTotalCardClick : undefined
       },
       {
         key: 'pending-amount',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.expense_plans_tab.pending_amount',
-          'Pending Amount'
-        ),
+        title: t('advance-payments-stats-pending-title'),
         value: advancePaymentStats.pendingAmount
           ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, displayCurrency)
           : formatCurrencyDisplay(0, displayCurrency),
         prefix: <ClockIcon size={16} />,
         color: isPendingFilterActive ? 'var(--nw-primary)' : 'var(--nw-destructive)',
         valueIsString: true,
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.expense_plans_tab.awaiting_approval',
-          'Awaiting approval'
-        ),
+        description: t('advance-payments-stats-pending-desc'),
         active: isPendingFilterActive,
         onClick: onFilterChange ? handlePendingCardClick : undefined
       }
@@ -108,20 +98,18 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     isPendingFilterActive,
     onFilterChange,
     handleTotalCardClick,
-    handlePendingCardClick
+    handlePendingCardClick,
+    t
   ])
 
   return (
     <ManagerClickableWidgetGroup
       widgets={widgets}
       isLoading={statsLoading}
-      error={statsError ? 'Failed to load statistics' : undefined}
+      error={statsError ? t('advance-payments-stats-load-error') : undefined}
       onRetry={fetchAdvancePaymentStatistics}
       skeletonCount={2}
-      emptyText={getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.advance_payments_tab.no_statistics',
-        'No advance payment statistics available.'
-      )}
+      emptyText={t('advance-payments-stats-empty')}
       cardBackground="transparent"
       className="gba:py-0"
       data-testid="advance-payment-statistics"

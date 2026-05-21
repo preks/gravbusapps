@@ -7,17 +7,22 @@ import {
   TeamSalesActivity
 } from '@/business-apps/crm/performance/apps/sales-team-performance/components/team-performance-view/hooks/useTeamActivitiesData'
 import { createActivity360Columns } from './activity360Columns'
-import { DataTable, Button, DataDisplay, type FilterConfiguration, Spinner } from '@newwork/nw-design-system'
+import { Button, DataDisplay, type FilterConfiguration, Spinner } from '@newwork/nw-design-system'
 import {
+  ActivityListLayout,
   activitySortableColumns,
   activityAvailableColumns,
   activityFilterConfig
 } from '@/common/components/common-relations/view-layouts/activity-layout'
+import { useActivityExport } from '@/common/components/common-relations/view-layouts/activity-layout/hooks/useActivityExport'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { createActivityDescriptors } from '@/common/data/relations/types/activityTypes'
 import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/utils/filterHelpers'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
+import { ActivityDetailSheet } from '@/common/components/common-relations/detail-sheets/activity-detail-sheet'
+import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 
 interface Activity360ListTabProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   filter: ActivityViewFilter
@@ -50,6 +55,12 @@ const GET_ALL_EMPLOYEES = `
   }
 `
 
+const getExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
+  if (isExporting) return 'Exporting…'
+  if (totalCount === 0) return 'No data to export'
+  return `Export ${totalCount} activities as ${format}`
+}
+
 export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessToken, userInfo, filter, entityId }) => {
   const [search, setSearch] = useState('')
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
@@ -64,6 +75,7 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
   ])
   const [allEmployeeIds, setAllEmployeeIds] = useState<string[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(true)
+  const [selectedActivity, setSelectedActivity] = useState<TeamSalesActivity | null>(null)
 
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -111,6 +123,9 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
     }
     if (filter === 'by-opportunity' && entityId) {
       filters.opportunityId = [entityId]
+    }
+    if (filter === 'by-general') {
+      filters.unlinkedOnly = true
     }
 
     return filters
@@ -181,7 +196,7 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
   // Use team activities hook - skip if we don't have employee IDs loaded yet
   const shouldFetch = allEmployeeIds.length > 0
 
-  const { activities, total, loading, error, retry } = useTeamActivitiesData({
+  const { activities, total, loading, error, retry, fetchActivities } = useTeamActivitiesData({
     employeeIds: shouldFetch ? employeeIds : [],
     accessToken,
     userInfo,
@@ -195,6 +210,51 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
 
   // Create columns using GraphQL data directly (no teamMembers needed)
   const columns = useMemo(() => createActivity360Columns(), [])
+  const visibleActivityColumns = useMemo(
+    () => columns.filter(col => visibleColumns.includes(col.id as string)),
+    [columns, visibleColumns]
+  )
+
+  const { isExporting, handleExportCsv, handleExportExcel } = useActivityExport({
+    fetchActivities,
+    queryVariables: {},
+    totalCount: total,
+    filenamePrefix: 'sales-activity-360'
+  })
+
+  const exportButtons = useMemo(() => {
+    const disabled = isExporting || total === 0
+    const label = isExporting ? 'Exporting…' : null
+    const csvTitle = getExportButtonTitle(isExporting, total, 'CSV')
+    const excelTitle = getExportButtonTitle(isExporting, total, 'Excel')
+
+    return (
+      <>
+        <Button
+          onClick={handleExportCsv}
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          data-testid="sales-activity-360-export-csv-button"
+          title={csvTitle}
+        >
+          <DownloadIcon className="gba:mr-2" />
+          {label ?? 'CSV'}
+        </Button>
+        <Button
+          onClick={handleExportExcel}
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          data-testid="sales-activity-360-export-excel-button"
+          title={excelTitle}
+        >
+          <FileXlsIcon className="gba:mr-2" />
+          {label ?? 'Excel'}
+        </Button>
+      </>
+    )
+  }, [isExporting, total, handleExportCsv, handleExportExcel])
 
   const handleSearch = useCallback((value: string) => {
     setSearch(value)
@@ -204,6 +264,12 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
   const handleFilterChange = useCallback((filters: Record<string, any>) => {
     setSelectedFilters(filters)
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleActivityDetailClose = useCallback((open: boolean) => {
+    if (!open) {
+      setSelectedActivity(null)
+    }
   }, [])
 
   // Show loading while fetching employee IDs for "all" view
@@ -241,39 +307,37 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
         availableColumns={activityAvailableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
+        secondaryActions={exportButtons}
         toolbarDensity="default"
         filterSheetTitle="Filter Activities"
         filterSheetDescription="Apply filters to narrow down the activity list"
       >
-        <div className="gba:w-full gba:overflow-x-auto">
-          <DataTable<TeamSalesActivity>
-            data={activities}
-            columns={columns}
-            loading={loading}
-            totalCount={total}
-            pagination={pagination}
-            sorting={sorting}
-            onPaginationChange={setPagination}
-            onSortingChange={setSorting}
-            enablePagination
-            enableSorting
-            enableSelection={false}
-            enableResizing={false}
-            tableLayout="fixed"
-          />
-        </div>
+        <ActivityListLayout<TeamSalesActivity>
+          data={activities}
+          columns={visibleActivityColumns}
+          loading={loading}
+          error={error}
+          totalCount={total}
+          pagination={pagination}
+          sorting={sorting}
+          onPaginationChange={setPagination}
+          onSortingChange={setSorting}
+          onRowClick={setSelectedActivity}
+          onRetry={retry}
+          dataTestId="sales-activity-360-list"
+        />
       </DataDisplay>
 
-      {error && (
-        <div className="gba:flex gba:justify-center gba:p-4">
-          <div className="gba:text-center">
-            <p className="gba:text-destructive gba:text-sm gba:mb-2">{error}</p>
-            <Button variant="outline" size="sm" onClick={retry}>
-              Retry
-            </Button>
-          </div>
-        </div>
-      )}
+      <ActivityDetailSheet
+        activity={selectedActivity as any}
+        open={!!selectedActivity}
+        onOpenChange={handleActivityDetailClose}
+        buildReferenceUrl={(entityType, entityId) =>
+          buildCrmRelatedEntityRecordUrl(entityType as Parameters<typeof buildCrmRelatedEntityRecordUrl>[0], entityId)
+        }
+        accessToken={accessToken}
+        data-testid="sales-activity-360-activity-detail"
+      />
     </div>
   )
 }

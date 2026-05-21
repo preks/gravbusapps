@@ -1,6 +1,7 @@
 import React from 'react'
 import { Typography, Space } from 'antd'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import personalTranslations from '../../../../_i18n'
 
 export interface FiltersBarProps {
   active: { plan: boolean; request: boolean }
@@ -8,6 +9,8 @@ export interface FiltersBarProps {
 }
 
 const FiltersBar: React.FC<FiltersBarProps> = ({ active, toggle }) => {
+  const { t } = useTranslation(personalTranslations)
+
   return (
     <div
       data-testid="expense-calendar-wrapper"
@@ -21,7 +24,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({ active, toggle }) => {
       }}
     >
       <Typography.Title level={3} style={{ margin: 0 }} data-testid="expense-calendar-title">
-        {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_calendar', 'Expense Calendar')}
+        {t('expense-calendar-title')}
       </Typography.Title>
       <Space direction="horizontal" wrap>
         <Space
@@ -34,9 +37,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({ active, toggle }) => {
             className="gba:w-[14px] gba:h-[14px] gba:bg-info-secondary gba:border gba:border-border gba:rounded-sm"
             data-testid="filter-plan-color"
           />
-          <Typography.Text data-testid="filter-plan-label">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plans', 'Plans')}
-          </Typography.Text>
+          <Typography.Text data-testid="filter-plan-label">{t('expense-calendar-filter-plans')}</Typography.Text>
         </Space>
         <Space
           data-testid="filter-request"
@@ -48,9 +49,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({ active, toggle }) => {
             className="gba:w-[14px] gba:h-[14px] gba:bg-success-secondary gba:border gba:border-border gba:rounded-sm"
             data-testid="filter-request-color"
           />
-          <Typography.Text data-testid="filter-request-label">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requests', 'Requests')}
-          </Typography.Text>
+          <Typography.Text data-testid="filter-request-label">{t('expense-calendar-filter-requests')}</Typography.Text>
         </Space>
       </Space>
     </div>

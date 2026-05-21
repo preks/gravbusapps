@@ -155,6 +155,49 @@ export const buildFilePath = (entity: FileEntity, entityId: string | null, conte
   return `/${entity}/${entityId}/${context}`
 }
 
+export type AvatarFileRef = { current: { file: File; thumbnail: string } | null }
+
+type AvatarFileClient = {
+  uploadFile: (file: File, pathParams: any, queryParams: any) => Promise<{ fileInfo: any }>
+}
+
+/**
+ * Returns a pre-submit handler that uploads an avatar file and enriches formData
+ * with `picture` and `pictureThumbnail` fields. Pass-through when no avatar is staged.
+ */
+export const buildAvatarPreSubmit =
+  (
+    fileClient: AvatarFileClient,
+    avatarFileRef: AvatarFileRef,
+    fileEntity: FileEntity,
+    fileContext: FileContext,
+    appName: string,
+    getEntityId: (formData: Record<string, any>) => string | null
+  ) =>
+  async (formData: Record<string, any>) => {
+    const avatarData = avatarFileRef.current
+
+    if (!avatarData?.file || !avatarData?.thumbnail) {
+      return formData
+    }
+
+    try {
+      const folderPath = buildFilePath(fileEntity, getEntityId(formData), fileContext)
+      const pathParams = { accessScope: 'tenant' } as const
+      const queryParams = { appName, folderPath, mimeType: avatarData.file.type }
+      const uploadResponse = await fileClient.uploadFile(avatarData.file, pathParams, queryParams)
+
+      return {
+        ...formData,
+        picture: JSON.stringify(uploadResponse.fileInfo),
+        pictureThumbnail: avatarData.thumbnail
+      }
+    } catch (error) {
+      console.error('Failed to upload avatar:', error)
+      throw error
+    }
+  }
+
 /**
  * Generic interface for file upload results
  */

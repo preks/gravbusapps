@@ -85,8 +85,8 @@ export interface NoteSegmentSchema {
 }
 
 export const noteSegmentSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  text: z.string().min(1, 'Note text is required'),
+  title: z.string().trim().min(1, 'Title is required'),
+  text: z.string().trim().min(1, 'Note text is required'),
   reminderDate: z.string().optional(),
   relatedEntityId: z.string().optional()
 })

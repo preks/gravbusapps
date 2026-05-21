@@ -55,7 +55,8 @@ export const appActionPropsComparison = (prevProps: any, nextProps: any): boolea
     'staticFlowData',
     'loadingText',
     'noActionsText',
-    'shareContext'
+    'shareContext',
+    'onActionExecute'
   ] as const
 
   for (const key of propsToCompare) {

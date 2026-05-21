@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-const FEEDBACK_ANALYZER_EXPERT_ID = '699efff5ddbf12c3953b6686'
+const FEEDBACK_ANALYZER_PROMPT_NAME = 'employee_feedback_analyzer'
 
 export interface SentimentDistribution {
   positive: number
@@ -154,7 +154,13 @@ export const useFeedbackAnalysis = ({ accessToken }: UseFeedbackAnalysisProps) =
     const feedbackData = formatFeedbackForAnalyzer(entries)
     const locale = getCurrentActiveUserLocale()
     const language = new Intl.DisplayNames([locale], { type: 'language' }).of(locale.split('-')[0]) ?? locale
-    const response = await client.executePromptWithOptions(FEEDBACK_ANALYZER_EXPERT_ID, {
+    const promptsPage = await client.getPrompts({ promptName: FEEDBACK_ANALYZER_PROMPT_NAME, limit: 1 })
+    const taskExpertId = promptsPage?.data?.[0]?._id
+    if (!taskExpertId) {
+      throw new Error(`Prompt not found: ${FEEDBACK_ANALYZER_PROMPT_NAME}`)
+    }
+
+    const response = await client.executePromptWithOptions(taskExpertId, {
       userParams: {
         employee_name: employeeName,
         period,

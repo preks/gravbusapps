@@ -166,7 +166,10 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
 
   // Render employee cell with vacancy status
   const renderEmployeeCell = (jobPosition: JobPosition) => {
-    const isVacant = jobPosition.employeePositions.length === 0
+    const assignedEmployeePosition = jobPosition.employeePositions.find(employeePosition =>
+      Boolean(employeePosition?.employeeId)
+    )
+    const isVacant = !assignedEmployeePosition
 
     if (isVacant) {
       // Show vacant status using design system Badge
@@ -188,7 +191,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
     }
 
     // Show employee information when someone is assigned
-    const employeePosition = jobPosition.employeePositions[0]
+    const employeePosition = assignedEmployeePosition
     const { firstName, lastName, employee } = employeePosition
 
     // Generate initials and avatar props like in employee-directory

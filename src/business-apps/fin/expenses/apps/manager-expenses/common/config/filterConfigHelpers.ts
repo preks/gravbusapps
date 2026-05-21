@@ -4,8 +4,11 @@ import { createNumberRangeFilterGroup } from '../../../../common/config/filterCo
 export {
   createDateRangeConfig,
   createDateRangeFilterGroup,
+  createFluentDateRangeFilterGroup,
+  createFluentExpenseAmountRangeFilterGroup,
+  createFluentTypeFilterGroup,
   createNumberRangeFilterGroup,
-  createStatusFilterGroup,
+  createStatusFilterGroupWithLabel,
   createTypeFilterGroup
 } from '../../../../common/config/filterConfigHelpers'
 

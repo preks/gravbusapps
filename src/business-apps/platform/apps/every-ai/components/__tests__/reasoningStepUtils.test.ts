@@ -1,11 +1,14 @@
-import type { OutputItem } from '../../types/models'
+import type { OutputItem, ReasoningStepOutput } from '../../types/models'
 import {
   REASONING_KIND_LABEL,
   REASONING_STATUS_STYLE,
   extractCodeHint,
+  extractStepReason,
   formatReasoningDuration,
   isTurnComplete,
-  prettifyJson
+  prettifyJson,
+  selectInlineReasoningStepIds,
+  selectPreviousReasoningSteps
 } from '../reasoningStepUtils'
 
 describe('REASONING_KIND_LABEL', () => {
@@ -228,5 +231,121 @@ describe('isTurnComplete', () => {
   it('ignores null / undefined entries safely', () => {
     expect(isTurnComplete([null as unknown as OutputItem, undefined as unknown as OutputItem, finalAnswer])).toBe(true)
     expect(isTurnComplete([null as unknown as OutputItem, reasoningStep])).toBe(false)
+  })
+})
+
+describe('extractStepReason', () => {
+  const baseStep: ReasoningStepOutput = {
+    type: 'reasoning_step',
+    id: 'rs_1',
+    kind: 'tool_call',
+    title: 'lookup',
+    status: 'done'
+  } as ReasoningStepOutput
+
+  it('returns trimmed reason from args.reason', () => {
+    const step = { ...baseStep, args: { reason: '  Finding teammates of Mike  ' } } as ReasoningStepOutput
+    expect(extractStepReason(step)).toBe('Finding teammates of Mike')
+  })
+
+  it('prefers explicit narration over args.reason', () => {
+    const step = {
+      ...baseStep,
+      narration: 'Narration text',
+      args: { reason: 'Args reason' }
+    } as ReasoningStepOutput
+    expect(extractStepReason(step)).toBe('Narration text')
+  })
+
+  it('returns null when neither narration nor reason is present', () => {
+    expect(extractStepReason(baseStep)).toBeNull()
+    expect(extractStepReason({ ...baseStep, args: { query: 'test' } } as ReasoningStepOutput)).toBeNull()
+  })
+
+  it('returns null for empty/whitespace narration and reason', () => {
+    expect(extractStepReason({ ...baseStep, narration: '   ' } as ReasoningStepOutput)).toBeNull()
+    expect(extractStepReason({ ...baseStep, args: { reason: '' } } as ReasoningStepOutput)).toBeNull()
+  })
+
+  it('returns null when args is null or not an object', () => {
+    expect(extractStepReason({ ...baseStep, args: null } as unknown as ReasoningStepOutput)).toBeNull()
+    expect(extractStepReason({ ...baseStep, args: 42 } as unknown as ReasoningStepOutput)).toBeNull()
+  })
+})
+
+describe('selectInlineReasoningStepIds', () => {
+  const mkStep = (id: string): ReasoningStepOutput =>
+    ({
+      type: 'reasoning_step',
+      id,
+      kind: 'tool_call',
+      title: 'step',
+      status: 'running'
+    }) as ReasoningStepOutput
+
+  it('returns empty set when turn is complete', () => {
+    const steps = [mkStep('a'), mkStep('b')]
+    expect(selectInlineReasoningStepIds(steps, true).size).toBe(0)
+  })
+
+  it('selects only the last reasoning step while streaming', () => {
+    const steps: OutputItem[] = [mkStep('a'), mkStep('b'), mkStep('c')]
+    const result = selectInlineReasoningStepIds(steps, false)
+    expect(result.size).toBe(1)
+    expect(result.has('c')).toBe(true)
+    expect(result.has('a')).toBe(false)
+  })
+
+  it('returns empty set when there are no reasoning steps', () => {
+    const items: OutputItem[] = [{ type: 'loading' } as OutputItem]
+    expect(selectInlineReasoningStepIds(items, false).size).toBe(0)
+  })
+
+  it('safely ignores null / undefined entries', () => {
+    const items = [null, undefined, mkStep('x')]
+    expect(selectInlineReasoningStepIds(items as OutputItem[], false).has('x')).toBe(true)
+  })
+})
+
+describe('selectPreviousReasoningSteps', () => {
+  const mkStep = (id: string): ReasoningStepOutput =>
+    ({
+      type: 'reasoning_step',
+      id,
+      kind: 'tool_call',
+      title: 'step',
+      status: 'running'
+    }) as ReasoningStepOutput
+
+  it('returns an empty list when the turn is complete', () => {
+    expect(selectPreviousReasoningSteps([mkStep('a'), mkStep('b')], true)).toEqual([])
+  })
+
+  it('returns an empty list when there is only one reasoning step', () => {
+    expect(selectPreviousReasoningSteps([mkStep('a')], false)).toEqual([])
+  })
+
+  it('returns every reasoning step except the latest one while streaming', () => {
+    const steps = [mkStep('a'), mkStep('b'), mkStep('c')]
+    const result = selectPreviousReasoningSteps(steps, false)
+    expect(result.map(s => s.id)).toEqual(['a', 'b'])
+  })
+
+  it('ignores non-reasoning entries between steps', () => {
+    const mixed: OutputItem[] = [
+      mkStep('a'),
+      { type: 'loading' } as OutputItem,
+      mkStep('b'),
+      { type: 'tool', name: 't', reason: 'r' } as OutputItem,
+      mkStep('c')
+    ]
+    const result = selectPreviousReasoningSteps(mixed, false)
+    expect(result.map(s => s.id)).toEqual(['a', 'b'])
+  })
+
+  it('safely ignores null / undefined entries', () => {
+    const items = [null, mkStep('a'), undefined, mkStep('b')]
+    const result = selectPreviousReasoningSteps(items as OutputItem[], false)
+    expect(result.map(s => s.id)).toEqual(['a'])
   })
 })

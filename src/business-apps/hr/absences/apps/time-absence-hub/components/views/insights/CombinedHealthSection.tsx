@@ -39,7 +39,7 @@ interface ChartShellProps {
 }
 
 const ChartShell: React.FC<ChartShellProps> = ({ title, description, empty, emptyText, children }) => (
-  <Card className="gba:p-4 gba:flex-1 gba:min-w-80">
+  <Card className="gba:p-4 gba:flex-1 gba:min-w-80 gba:shadow-none">
     <h5 className="gba:text-sm gba:font-medium gba:m-0">{title}</h5>
     <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{description}</p>
     {empty ? (
@@ -92,7 +92,7 @@ export const CombinedHealthSection: React.FC<CombinedHealthSectionProps> = ({ at
   )
 
   return (
-    <Card data-testid="time-absence-hub-combined-health">
+    <Card className="gba:shadow-none" data-testid="time-absence-hub-combined-health">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <HeartbeatIcon size={18} />

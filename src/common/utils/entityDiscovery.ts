@@ -31,17 +31,17 @@ interface CustomDataNamespaceResponseItem {
 }
 
 interface CustomEntityColumn {
-  name?: string
+  fieldName?: string
 }
 
 interface CustomEntityDefinitionResponseItem {
   namespace?: string
-  key?: string
-  display_name?: string
+  entityName?: string
+  displayName?: string
   kind?: string
-  publish_state?: string
+  publishState?: string
   description?: string
-  columns_json?: CustomEntityColumn[]
+  columns?: CustomEntityColumn[]
 }
 
 const sortByReadableName = (left: DiscoveredEntityOption, right: DiscoveredEntityOption) =>
@@ -127,10 +127,10 @@ export async function fetchCustomEntityOptions(accessToken: string): Promise<Dis
     .flat()
     .filter(
       definition =>
-        definition.kind === 'CUSTOM_ENTITY' && definition.publish_state === 'PROMOTED_TRACKED' && definition.key
+        definition.kind === 'CUSTOM_ENTITY' && definition.publishState === 'PROMOTED_TRACKED' && definition.entityName
     )
   const duplicateKeyCounts = definitions.reduce<Record<string, number>>((accumulator, definition) => {
-    const key = String(definition.key || '').trim()
+    const key = String(definition.entityName || '').trim()
     if (key) {
       accumulator[key] = (accumulator[key] || 0) + 1
     }
@@ -139,13 +139,13 @@ export async function fetchCustomEntityOptions(accessToken: string): Promise<Dis
 
   return definitions
     .map(definition => ({
-      type: String(definition.key || '').trim(),
+      type: String(definition.entityName || '').trim(),
       name:
-        duplicateKeyCounts[String(definition.key || '').trim()] > 1
-          ? `${String(definition.display_name || definition.key || '').trim()} (${String(definition.namespace || 'default').trim() || 'default'})`
-          : String(definition.display_name || definition.key || '').trim(),
-      fields: (definition.columns_json ?? [])
-        .map(column => String(column.name || '').trim())
+        duplicateKeyCounts[String(definition.entityName || '').trim()] > 1
+          ? `${String(definition.displayName || definition.entityName || '').trim()} (${String(definition.namespace || 'default').trim() || 'default'})`
+          : String(definition.displayName || definition.entityName || '').trim(),
+      fields: (definition.columns ?? [])
+        .map(column => String(column.fieldName || '').trim())
         .filter(Boolean)
         .sort((left, right) => left.localeCompare(right)),
       kind: 'CUSTOM_ENTITY' as const,

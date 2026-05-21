@@ -39,6 +39,10 @@ export interface BackofficeFilterSheetProps {
   side?: 'left' | 'right' | 'top' | 'bottom'
   className?: string
   customGroup?: CustomGroupConfig
+  noFiltersConfiguredLabel?: string
+  clearAllLabel?: string
+  cancelLabel?: string
+  applyFiltersLabel?: string
 }
 
 export function BackofficeFilterSheet({
@@ -53,7 +57,11 @@ export function BackofficeFilterSheet({
   description = 'Configure filters for your data',
   side = 'right',
   className,
-  customGroup
+  customGroup,
+  noFiltersConfiguredLabel = 'No filters configured',
+  clearAllLabel = 'Clear All',
+  cancelLabel = 'Cancel',
+  applyFiltersLabel = 'Apply Filters'
 }: Readonly<BackofficeFilterSheetProps>) {
   const [draftValues, setDraftValues] = useState(valuesProp)
 
@@ -106,14 +114,6 @@ export function BackofficeFilterSheet({
     [updateDraftField]
   )
 
-  const handleCustomIdsChange = useCallback(
-    (ids: string[]) => {
-      if (!customGroup) return
-      updateDraftField(customGroup.valueKey, ids)
-    },
-    [customGroup, updateDraftField]
-  )
-
   const hasAnyActiveFilter = useMemo(
     () =>
       Object.values(draftValues).some(value =>
@@ -137,11 +137,11 @@ export function BackofficeFilterSheet({
         isExpanded={isExpanded}
         onToggle={collapsible ? () => toggleGroup(groupId) : undefined}
       >
-        {customGroup.render({
+        {customGroup?.render({
           selectedIds: Array.isArray(draftValues[customGroup.valueKey])
             ? (draftValues[customGroup.valueKey] as string[])
             : [],
-          onSelectedIdsChange: handleCustomIdsChange
+          onSelectedIdsChange: (ids: string[]) => updateDraftField(customGroup.valueKey, ids)
         })}
       </FilterGroupAccordion>
     ) : (
@@ -152,6 +152,7 @@ export function BackofficeFilterSheet({
         isExpanded={isExpanded}
         onToggle={collapsible ? () => toggleGroup(groupId) : undefined}
         context="filter-sheet"
+        className="gba:[&_label[for*='-option-']]:!h-auto gba:[&_label[for*='-option-']]:!items-start gba:[&_label[for*='-option-']]:!py-2 gba:[&_label[for*='-option-']]:!min-h-10 gba:[&_label[for*='-option-']_[role='checkbox']]:!self-start gba:[&_label[for*='-option-']_[role='checkbox']]:!mt-0.5 gba:[&_label[for*='-option-']_[role='checkbox']]:!translate-y-0 gba:[&_label[for*='-option-']_[data-slot='checkbox']]:!self-start gba:[&_label[for*='-option-']_[data-slot='checkbox']]:!mt-0.5 gba:[&_label[for*='-option-']_[data-slot='checkbox']]:!translate-y-0 gba:[&_label[for*='-option-']_span]:!block gba:[&_label[for*='-option-']_span]:!whitespace-normal gba:[&_label[for*='-option-']_span]:!text-clip gba:[&_label[for*='-option-']_span]:!overflow-visible gba:[&_label[for*='-option-']_span]:![overflow-wrap:anywhere]"
       />
     )
 
@@ -174,7 +175,7 @@ export function BackofficeFilterSheet({
           <div className="gba:space-y-2 gba:px-3 gba:pt-3 gba:pb-6">
             {groups.length === 0 ? (
               <div className="gba:p-8 gba:text-center gba:text-sm gba:text-muted-foreground">
-                <p>No filters configured</p>
+                <p>{noFiltersConfiguredLabel}</p>
               </div>
             ) : (
               groups.map((group, index) => renderGroup(group, index))
@@ -193,14 +194,14 @@ export function BackofficeFilterSheet({
                   onApply?.(cleared)
                 }}
               >
-                Clear All
+                {clearAllLabel}
               </Button>
             ) : (
               <div />
             )}
             <div className="gba:flex gba:items-center gba:gap-3">
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                Cancel
+                {cancelLabel}
               </Button>
               <Button
                 onClick={() => {
@@ -208,7 +209,7 @@ export function BackofficeFilterSheet({
                   onOpenChange(false)
                 }}
               >
-                Apply Filters
+                {applyFiltersLabel}
               </Button>
             </div>
           </div>

@@ -61,21 +61,16 @@ const getTodayAtStart = () => {
   return new Date(today.getFullYear(), today.getMonth(), today.getDate())
 }
 
+export const isActiveByValidTo = (validTo: string | undefined | null): boolean => {
+  if (!validTo) return true
+  const date = parseDateValue(validTo)
+  if (!date) return true
+  return date >= getTodayAtStart()
+}
+
 export const isAbsenceTypeVersionActive = (entry: CatalogEntry): boolean => {
   const objectValue = isObjectRecord(entry.objectValue) ? entry.objectValue : {}
-  const validFromDate = parseDateValue(toStringValue(objectValue.validFrom, ''))
-  const validToDate = parseDateValue(toStringValue(objectValue.validTo, ''))
-  const today = getTodayAtStart()
-
-  if (validFromDate && validFromDate > today) {
-    return false
-  }
-
-  if (validToDate && validToDate < today) {
-    return false
-  }
-
-  return true
+  return isActiveByValidTo(toStringValue(objectValue.validTo, ''))
 }
 
 export const canEditAbsenceTypeVersion = (entry: CatalogEntry): boolean => {
@@ -106,19 +101,19 @@ export const getAbsenceTypeVersionTitle = (
   const absenceTypeCode = getAbsenceTypeCodeForVersion(entry)
   const selectedType = absenceTypes.find(item => item.code === absenceTypeCode)
 
-  return selectedType?.value || selectedType?.code || entry.value || absenceTypeCode || fallbackTitle
+  return entry.value || selectedType?.value || selectedType?.code || absenceTypeCode || fallbackTitle
 }
 
 export const getAbsenceTypeCodeForVersion = (entry?: CatalogEntry): string => {
   const objectValue = isObjectRecord(entry?.objectValue) ? entry?.objectValue : undefined
   const parentCode = entry?.parentEntryId?.split(':').pop()?.trim()
 
-  if (typeof objectValue?.absenceTypeCode === 'string' && objectValue.absenceTypeCode) {
-    return objectValue.absenceTypeCode
-  }
-
   if (parentCode) {
     return parentCode
+  }
+
+  if (typeof objectValue?.absenceTypeCode === 'string' && objectValue.absenceTypeCode) {
+    return objectValue.absenceTypeCode
   }
 
   return entry?.code.split('-')[0] || ''
@@ -134,13 +129,18 @@ export const getAbsenceTypeVersionFormValues = (
 
   const objectValue = isObjectRecord(entry.objectValue) ? entry.objectValue : {}
   const { settings } = getAbsenceTypeObjectEditorState(entry.objectValue)
+  const translationValues = getCatalogTranslationValues(entry)
+
+  // If the en-US translation came back empty but the entry has a value, use it as fallback.
+  // This happens when the entry was fetched under a non-en-US locale.
+  const enUS = translationValues.enUS || entry.value || ''
 
   return {
     code: getAbsenceTypeCodeForVersion(entry),
     version: toStringValue(objectValue.version, defaultValues.version),
     validFrom: toStringValue(objectValue.validFrom, defaultValues.validFrom),
     validTo: toStringValue(objectValue.validTo, defaultValues.validTo),
-    translations: getCatalogTranslationValues(entry),
+    translations: { ...translationValues, enUS },
     settings
   }
 }

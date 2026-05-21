@@ -27,9 +27,9 @@ const prefixDataTestId = 'investment-liquidity-component'
 // Validation schema
 const liquidityItemSchema = z.object({
   id: z.string().optional(),
-  preference: z.string().min(1, 'Liquidity preference is required'),
-  interestMultiple: z.string().min(1, 'Interest/Multiple is required'),
-  amount: z.string().min(1, 'Amount is required')
+  preference: z.string().trim().min(1, 'Liquidity preference is required'),
+  interestMultiple: z.string().trim().min(1, 'Interest/Multiple is required'),
+  amount: z.string().trim().min(1, 'Amount is required')
 })
 
 const liquidityFormSchema = z.object({

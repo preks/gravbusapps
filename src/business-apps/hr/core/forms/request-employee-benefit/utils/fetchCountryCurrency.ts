@@ -1,4 +1,3 @@
-import { GraphQLClient } from 'graphql-request'
 import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 interface CountryCurrencyResult {
@@ -12,11 +11,15 @@ interface CountryObjectValue {
   currencyRef?: string
 }
 
+interface CountryCurrencyGraphQLClient {
+  request<T = any>(query: string, variables?: Record<string, any>): Promise<T>
+}
+
 /**
  * Fetches country currency from catalog entry
  */
 export const fetchCountryCurrency = async (
-  graphqlClient: GraphQLClient,
+  graphqlClient: CountryCurrencyGraphQLClient,
   countryId: string,
   getCurrencyQuery: string
 ): Promise<CountryCurrencyResult> => {

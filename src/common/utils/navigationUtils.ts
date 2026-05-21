@@ -24,10 +24,12 @@ export const Navigation = {
   IRM_INVESTMENT_RELATIONS: `${NAVIGATION_BASE_PATH}/irm/investment-relations`,
   IRM_INVESTMENT_SETTINGS: `${NAVIGATION_BASE_PATH}/irm/investment-settings`,
   IRM_INVESTMENT_DATA_IMPORT: `${NAVIGATION_BASE_PATH}/irm/data-import`,
+  IRM_COMPANY_MANAGEMENT: `${NAVIGATION_BASE_PATH}/irm/company-management`,
   IRM_INVESTMENT_ACCOUNT_RECORD: `${NAVIGATION_BASE_PATH}/irm/account-record`,
   IRM_INVESTMENT_CONTACT_RECORD: `${NAVIGATION_BASE_PATH}/irm/contact-record`,
   IRM_INVESTMENT_LEAD_RECORD: `${NAVIGATION_BASE_PATH}/irm/lead-record`,
   IRM_INVESTMENT_OPPORTUNITY_RECORD: `${NAVIGATION_BASE_PATH}/irm/opportunity-record`,
+  IRM_INVESTMENT_COMPANY_RECORD: `${NAVIGATION_BASE_PATH}/irm/company-record`,
   IRM_INVESTMENT_MANAGEMENT: `${NAVIGATION_BASE_PATH}/irm/investment-management`,
   IRM_INVESTMENT_PORTAL: `${NAVIGATION_BASE_PATH}/irm/investment-portal`,
   IRM_INVESTMENT_RECORD: `${NAVIGATION_BASE_PATH}/irm/investment-record`,
@@ -42,10 +44,12 @@ export const Navigation = {
 
   // HR
   HR_EMPLOYEE_RECORD: `${NAVIGATION_BASE_PATH}/employee-record`,
+  HR_EMPLOYEE_DATA_IMPORT: `${NAVIGATION_BASE_PATH}/hr/data-import`,
   /** Self-service: same HR Development content as My Profile, dedicated route */
   /** Same URL shape as other Self-Service HR apps (e.g. My Time in hub: `/platform/hr/core/apps/my-time`). */
   HR_MY_DEVELOPMENT: `${NAVIGATION_BASE_PATH}/hr/core/apps/my-development`,
   HR_PERFORMANCE_TRACKING: `${NAVIGATION_BASE_PATH}/hr/core/apps/performance-tracking`,
+  HR_ADMIN_COCKPIT: `${NAVIGATION_BASE_PATH}/hr/core/apps/hr-admin-cockpit`,
   /** HR compensation planning (overview, budget setup, distribution, department submissions). */
   HR_COMPENSATION_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation-planning/apps/compensation-planning`,
   /** Manager / supervisor team salary proposal workspace (compensation planning). */
@@ -57,6 +61,8 @@ export const Navigation = {
   HR_RECRUITING_JOB_POSTING_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-posting-record`,
   HR_RECRUITING_JOB_CANDIDATE_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-candidate-record`,
   HR_RECRUITING_JOB_APPLICATION_RECORD: `${NAVIGATION_BASE_PATH}/hr/recruiting/job-application-record`,
+  HR_MONTHLY_COMPENSATION_CHANGES: `${NAVIGATION_BASE_PATH}/hr/core/apps/monthly-compensation-changes`,
+  HR_SKILL_MANAGEMENT: `${NAVIGATION_BASE_PATH}/hr/core/apps/skill-management`,
 
   // Service
   SERVICE_DESK: `${NAVIGATION_BASE_PATH}/sales-demo/service-desk`,
@@ -67,7 +73,6 @@ export const Navigation = {
   MDM_LEAD_DATA: `${NAVIGATION_BASE_PATH}/mdm/lead-data`,
   MDM_OPERATION_DATA: `${NAVIGATION_BASE_PATH}/mdm/operation-data`,
   MDM_ENGAGEMENT_DATA: `${NAVIGATION_BASE_PATH}/mdm/engagement-data`,
-  MDM_COMPANY_RECORD: `${NAVIGATION_BASE_PATH}/mdm/company-record`,
 
   // Content
   CONTENT_PORTAL: `${NAVIGATION_BASE_PATH}/content/intranet`,
@@ -77,14 +82,20 @@ export const Navigation = {
   // Manage
   MANAGE_BRANDING: `${NAVIGATION_BASE_PATH}/manage/branding`,
   MANAGE_CATALOGS: `${NAVIGATION_BASE_PATH}/catalog-manager`,
+  MANAGE_GLOBAL_SEARCH_MANAGER: `${NAVIGATION_BASE_PATH}/manage/global-search-manager`,
   MANAGE_USERS: `${NAVIGATION_BASE_PATH}/manage/user-manager`,
 
   // Platform
+  PLATFORM_WORK_HOME: `${NAVIGATION_BASE_PATH}/work-home`,
   PLATFORM_TASK_MANAGER: `${NAVIGATION_BASE_PATH}/task-manager`,
   PLATFORM_TEAM_CHAT: `${NAVIGATION_BASE_PATH}/chat`,
   PLATFORM_AI_CHAT: `${NAVIGATION_BASE_PATH}/every-ai`,
   PLATFORM_DEBUGGER: `${NAVIGATION_BASE_PATH}/debugger`,
   PLATFORM_BOARDS: `${NAVIGATION_BASE_PATH}/boards`,
+  /** Flow Launcher: library + my launches (deep-link with `?tab=my-launches&flowId=`). */
+  FLOW_LAUNCHER: `${NAVIGATION_BASE_PATH}/apps/flow/apps/launcher`,
+  /** Flow Detail: dedicated full-page view for a single flow instance (deep-link with `?flowId=`). */
+  FLOW_DETAIL: `${NAVIGATION_BASE_PATH}/apps/flow/apps/detail`,
 
   // Office
   OFFICE: `${NAVIGATION_BASE_PATH}/every-office`,
@@ -103,6 +114,8 @@ export const Navigation = {
   // Core Apps
   EVERY_FABRIC: `${NAVIGATION_BASE_PATH}/every-fabric`,
   EVERY_FABRIC_SKILLS: `${NAVIGATION_BASE_PATH}/every-fabric/skills`,
+  EVERY_FABRIC_AGENT_MESH: `${NAVIGATION_BASE_PATH}/every-fabric/agent-mesh`,
+  EVERY_FABRIC_TRACE_EXPLORER: `${NAVIGATION_BASE_PATH}/every-fabric/trace-explorer`,
 
   // Create
   CREATE: `${NAVIGATION_BASE_PATH}/create`,
@@ -119,7 +132,8 @@ export const Navigation = {
   CREATE_DEBUG_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/generated-resource-urls`,
   CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS: `${NAVIGATION_BASE_PATH}/create/debug/apps/generated-resource-urls`,
   CREATE_PROMPT_MESH: `${NAVIGATION_BASE_PATH}/apps/agent-mesh`,
-  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/create/flow-studio`
+  CREATE_FLOW_CREATOR: `${NAVIGATION_BASE_PATH}/create/flow-studio`,
+  CREATE_CUSTOM_DATA_MANAGER: `${NAVIGATION_BASE_PATH}/create/custom-data-manager`
 } as const
 
 // Mapping of platform URLs to app paths (exported for BusinessAppIDE path resolution)
@@ -143,10 +157,12 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.IRM_INVESTMENT_RELATIONS]: 'irm/core/apps/investment-relations',
   [Navigation.IRM_INVESTMENT_SETTINGS]: 'irm/core/apps/investment-settings',
   [Navigation.IRM_INVESTMENT_DATA_IMPORT]: 'irm/core/apps/data-import',
+  [Navigation.IRM_COMPANY_MANAGEMENT]: 'irm/core/apps/company-management',
   [Navigation.IRM_INVESTMENT_ACCOUNT_RECORD]: 'irm/core/records/account-record',
   [Navigation.IRM_INVESTMENT_CONTACT_RECORD]: 'irm/core/records/contact-record',
   [Navigation.IRM_INVESTMENT_LEAD_RECORD]: 'irm/core/records/lead-record',
   [Navigation.IRM_INVESTMENT_OPPORTUNITY_RECORD]: 'irm/core/records/opportunity-record',
+  [Navigation.IRM_INVESTMENT_COMPANY_RECORD]: 'irm/core/records/records/company-record',
   [Navigation.IRM_INVESTMENT_MANAGEMENT]: 'irm/investments/apps/investment-management',
   [Navigation.IRM_INVESTMENT_PORTAL]: 'irm/investments/apps/investment-portal',
   [Navigation.IRM_INVESTMENT_RECORD]: 'irm/investments/records/investment-record',
@@ -161,8 +177,10 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // HR
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',
+  [Navigation.HR_EMPLOYEE_DATA_IMPORT]: 'hr/core/apps/data-import',
   [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
   [Navigation.HR_PERFORMANCE_TRACKING]: 'hr/core/apps/performance-tracking',
+  [Navigation.HR_ADMIN_COCKPIT]: 'hr/core/apps/hr-admin-cockpit',
   [Navigation.HR_COMPENSATION_PLANNING]: 'hr/compensation-planning/apps/compensation-planning',
   [Navigation.HR_COMPENSATION_MANAGER_PLANNING]: 'hr/compensation-planning/apps/manager-compensation-planning',
   [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
@@ -173,6 +191,8 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.HR_RECRUITING_JOB_POSTING_RECORD]: 'hr/recruiting/records/job-posting-record',
   [Navigation.HR_RECRUITING_JOB_CANDIDATE_RECORD]: 'hr/recruiting/records/job-candidate-record',
   [Navigation.HR_RECRUITING_JOB_APPLICATION_RECORD]: 'hr/recruiting/records/job-application-record',
+  [Navigation.HR_MONTHLY_COMPENSATION_CHANGES]: 'hr/core/apps/monthly-compensation-changes',
+  [Navigation.HR_SKILL_MANAGEMENT]: 'hr/core/apps/skill-management',
 
   // Service
   [Navigation.SERVICE_DESK]: 'ser/apps/service-desk',
@@ -183,7 +203,6 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.MDM_LEAD_DATA]: 'mdm/apps/lead-data',
   [Navigation.MDM_OPERATION_DATA]: 'mdm/apps/operation-data',
   [Navigation.MDM_ENGAGEMENT_DATA]: 'mdm/apps/engagement-data',
-  [Navigation.MDM_COMPANY_RECORD]: 'mdm/records/company-record',
 
   // Content
   [Navigation.CONTENT_PORTAL]: 'core/content/apps/content-portal',
@@ -193,14 +212,18 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // Manage
   [Navigation.MANAGE_BRANDING]: 'core/manage/apps/branding',
   [Navigation.MANAGE_CATALOGS]: 'core/manage/apps/catalog-manager',
+  [Navigation.MANAGE_GLOBAL_SEARCH_MANAGER]: 'core/manage/apps/global-search-manager',
   [Navigation.MANAGE_USERS]: 'core/manage/apps/user-manager',
 
   // Platform
+  [Navigation.PLATFORM_WORK_HOME]: 'platform/apps/work-home',
   [Navigation.PLATFORM_TASK_MANAGER]: 'core/every/apps/every-box',
   [Navigation.PLATFORM_TEAM_CHAT]: 'platform/apps/chat',
   [Navigation.PLATFORM_AI_CHAT]: 'platform/apps/every-ai',
   [Navigation.PLATFORM_DEBUGGER]: 'platform/apps/debugger',
   [Navigation.PLATFORM_BOARDS]: 'platform/apps/board-apps',
+  [Navigation.FLOW_LAUNCHER]: 'flow/apps/launcher',
+  [Navigation.FLOW_DETAIL]: 'flow/apps/detail',
 
   // Office
   [Navigation.OFFICE]: 'core/office/apps/office-launcher',
@@ -219,6 +242,8 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // EveryFabric
   [Navigation.EVERY_FABRIC]: 'core/every-fabric/apps/every-fabric',
   [Navigation.EVERY_FABRIC_SKILLS]: 'core/every-fabric/apps/every-fabric',
+  [Navigation.EVERY_FABRIC_AGENT_MESH]: 'core/every-fabric/apps/every-fabric',
+  [Navigation.EVERY_FABRIC_TRACE_EXPLORER]: 'core/every-fabric/apps/every-fabric',
 
   // Create
   [Navigation.CREATE]: 'core/create/apps/create-workspace',
@@ -235,7 +260,9 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CREATE_DEBUG_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
   [Navigation.CREATE_DEBUG_APPS_GENERATED_RESOURCE_URLS]: 'core/create/debug/apps/generated-resource-urls-debug',
   [Navigation.CREATE_PROMPT_MESH]: 'platform/apps/agent-mesh',
-  [Navigation.CREATE_FLOW_CREATOR]: 'core/create/apps/flow-creator'
+  [Navigation.CREATE_FLOW_CREATOR]: 'core/create/apps/flow-creator',
+  [Navigation.CREATE_CUSTOM_DATA_MANAGER]: 'core/create/apps/custom-data-manager',
+  [`${NAVIGATION_BASE_PATH}/create/data-models`]: 'core/create/apps/custom-data-manager'
 }
 
 /**

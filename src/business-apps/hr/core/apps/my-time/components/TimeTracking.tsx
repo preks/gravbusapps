@@ -9,11 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import { InterventionsTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/InterventionsTable'
+import timeTrackingTranslations from '../_i18n'
 import { useEmployeeWorkingHours } from '../utils/useEmployeeWorkingHours'
 import { HeroClockCard } from './HeroClockCard'
 import { LocationCard } from './LocationCard'
@@ -36,7 +38,10 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
   isSelfView,
   onNavigateToEveryAI
 }) => {
+  const { t } = useTranslation(timeTrackingTranslations)
   const workingHours = useEmployeeWorkingHours(employee)
+  const employeeHireDate = employee?.workingCondition?.[0]?.hireDate
+  const clockInBeforeHireDateMessage = t('clock_in_before_hire_date')
 
   const {
     isClockedIn,
@@ -55,8 +60,15 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
     isNearOffice,
     homeHasCoords,
     officeHasCoords,
+    isBeforeHireDateToday,
     updateLocationSelection
-  } = useTimeTrackingData({ employeeId, accessToken, workingHours })
+  } = useTimeTrackingData({
+    employeeId,
+    accessToken,
+    hireDate: employeeHireDate,
+    clockInBeforeHireDateMessage,
+    workingHours
+  })
 
   const [isLocationModalOpen, setIsLocationModalOpen] = React.useState(false)
 
@@ -74,6 +86,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
   }, [locationPrimaryLabel])
 
   const monthlyWorkedMinutes = monthlyWorkedUntilYesterdayMinutes + todayRecordedMinutes
+  const clockInDisabledReason = isBeforeHireDateToday ? clockInBeforeHireDateMessage : undefined
 
   return (
     <div data-testid="monthly-summary-container">
@@ -101,6 +114,8 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
           monthlyWorkedMinutes={monthlyWorkedMinutes}
           monthlyRequiredMinutes={monthlyRequiredMinutes}
           workingHours={workingHours}
+          isClockInDisabled={isBeforeHireDateToday}
+          clockInDisabledReason={clockInDisabledReason}
         />
 
         <div className="gba:flex gba:flex-col gba:gap-4">

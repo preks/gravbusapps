@@ -44,6 +44,13 @@ interface PreviewNamespaceContext {
   namespace: string
 }
 
+interface PreviewRuntimeContextParams {
+  accessToken?: string
+  userInfo?: any
+  namespaceContext: PreviewNamespaceContext
+  env: Record<string, string | undefined>
+}
+
 export function derivePreviewNamespaceContext(sessionNamespaceOrId: string): PreviewNamespaceContext {
   const rawSessionValue = (sessionNamespaceOrId || '').trim()
   const canonicalDraftNamespace = rawSessionValue.startsWith('draft_')
@@ -52,6 +59,25 @@ export function derivePreviewNamespaceContext(sessionNamespaceOrId: string): Pre
   return {
     sessionNamespace: canonicalDraftNamespace,
     namespace: canonicalDraftNamespace
+  }
+}
+
+export function buildPreviewRuntimeContextPayload({
+  accessToken,
+  userInfo,
+  namespaceContext,
+  env
+}: PreviewRuntimeContextParams) {
+  return {
+    accessToken,
+    userInfo,
+    additionalData: {
+      namespace: namespaceContext.namespace,
+      publishState: 'draft',
+      sessionNamespace: namespaceContext.sessionNamespace
+    },
+    env,
+    sentAt: Date.now()
   }
 }
 
@@ -212,31 +238,38 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
 
       setPreviewReady(true)
 
-      const nwEnvs = getRuntimeEnvsForIframe()
+      const publicRuntimeEnv = getRuntimeEnvsForIframe()
       const resolvedNamespaceContext = namespaceContext ?? derivePreviewNamespaceContext(sessionId)
-      const targetOrigin = typeof event.origin === 'string' ? event.origin : '*'
+      const targetOrigin = typeof event.origin === 'string' && event.origin !== 'null' ? event.origin : null
+      if (!targetOrigin) return
+      const previewRuntimeContext = buildPreviewRuntimeContextPayload({
+        accessToken,
+        userInfo,
+        namespaceContext: resolvedNamespaceContext,
+        env: publicRuntimeEnv
+      })
+      ;(source as Window).postMessage(
+        {
+          type: 'PREVIEW_RUNTIME_CONTEXT',
+          payload: previewRuntimeContext
+        },
+        targetOrigin
+      )
       ;(source as Window).postMessage(
         {
           type: 'BUSINESS_APP_CONTEXT',
           context: {
-            accessToken: accessToken,
-            userInfo: userInfo,
-            additionalData: {
-              namespace: resolvedNamespaceContext.namespace,
-              publishState: 'draft',
-              sessionNamespace: resolvedNamespaceContext.sessionNamespace
-            },
-            nwEnvs,
-            sentAt: Date.now()
+            ...previewRuntimeContext,
+            nwEnvs: publicRuntimeEnv
           }
         },
         targetOrigin
       )
-      console.log('[PreviewSandbox] Sent BUSINESS_APP_CONTEXT to iframe', {
+      console.log('[PreviewSandbox] Sent PREVIEW_RUNTIME_CONTEXT to iframe', {
         hasAccessToken: !!accessToken,
         hasUserInfo: !!userInfo,
         hasAdditionalDataNamespace: !!resolvedNamespaceContext.namespace,
-        nwEnvsKeys: Object.keys(nwEnvs || {})
+        envKeys: Object.keys(publicRuntimeEnv)
       })
     }
     globalThis.addEventListener('message', handleMessage)

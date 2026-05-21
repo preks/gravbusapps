@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { ExpenseStatus, getExpensePlanStatusFilterLabel } from '../utils'
 import dayjs from 'dayjs'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import personalTranslations from '../_i18n'
 import { expensePlanAvailableStatuses } from '../components/tabs/expense-plans-tab/config/expensePlanAvailableStatuses'
@@ -230,37 +229,33 @@ export const useExpensePlanFilters = () => {
     expensePlanAvailableStatuses.forEach(status => {
       map[status] = getExpensePlanStatusFilterLabel(status, t)
     })
-    map['planType:EXPENSES'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
-    map['planType:TRIP'] = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+    map['planType:EXPENSES'] = t('personal-expenses-label-expense')
+    map['planType:TRIP'] = t('personal-expenses-label-trip')
 
     // Add date range labels if active
     const planDateLabel = formatDateRangeLabel(planDateRange)
     if (planDateLabel) {
-      map['planDateRange'] =
-        `${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')}: ${planDateLabel}`
+      map['planDateRange'] = `${t('expense-plans-chip-prefix-plan-date')}: ${planDateLabel}`
     }
 
     const startDateLabel = formatDateRangeLabel(startDateRange)
     if (startDateLabel) {
-      map['startDateRange'] =
-        `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date')}: ${startDateLabel}`
+      map['startDateRange'] = `${t('expense-plans-chip-prefix-start-date')}: ${startDateLabel}`
     }
 
     const endDateLabel = formatDateRangeLabel(endDateRange)
     if (endDateLabel) {
-      map['endDateRange'] =
-        `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date')}: ${endDateLabel}`
+      map['endDateRange'] = `${t('expense-plans-chip-prefix-end-date')}: ${endDateLabel}`
     }
 
     const effectiveDateLabel = formatDateRangeLabel(effectiveDateRange)
     if (effectiveDateLabel) {
-      map['effectiveDateRange'] =
-        `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date')}: ${effectiveDateLabel}`
+      map['effectiveDateRange'] = `${t('expense-plans-chip-prefix-effective-date')}: ${effectiveDateLabel}`
     }
 
     const reimbursableChip = formatExpenseAmountRangeChipLabel(
       reimbursableAmountRange,
-      `${getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')}: `
+      `${t('expense-items-column-reimbursable')}: `
     )
     if (reimbursableChip) {
       map['reimbursableAmountRange'] = reimbursableChip
@@ -268,7 +263,7 @@ export const useExpensePlanFilters = () => {
 
     const paidAdvanceChip = formatExpenseAmountRangeChipLabel(
       paidAdvanceAmountRange,
-      `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.paid_advance', 'Paid Advance')}: `
+      `${t('expense-plans-column-paid-advance')}: `
     )
     if (paidAdvanceChip) {
       map['paidAdvanceAmountRange'] = paidAdvanceChip

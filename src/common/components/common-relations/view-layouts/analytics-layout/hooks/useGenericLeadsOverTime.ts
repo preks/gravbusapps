@@ -4,6 +4,7 @@ import { generateTimePeriods, TimeFilter } from '@/common/utils/analytics/dateRa
 
 export interface LeadsOverTimePoint {
   date: string
+  endDate: string
   count: number
   leadsCreated: number
   leadsConverted: number
@@ -154,7 +155,8 @@ export const useGenericLeadsOverTime = (
           const lostCount = countLeadsByStatusCode(result, allStatusCodes, 'LOST', prefix)
 
           return {
-            date: period.label, // Use period label directly
+            date: period.start,
+            endDate: period.end,
             count: totalLeads,
             leadsCreated: totalLeads,
             leadsConverted: convertedCount,

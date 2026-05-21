@@ -119,30 +119,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
 
   const addressData = getAddressData()
 
-  // Prepare bank account data
-  const getBankAccountData = () => {
-    const primaryBankAccount = employee.bankAccounts?.[0]
-
-    return [
-      {
-        label: t('details-label-bank-name'),
-        value: primaryBankAccount?.bankName || ''
-      },
-      {
-        label: t('details-label-account-holder'),
-        value: primaryBankAccount?.accountHolder || ''
-      },
-      {
-        label: t('details-label-iban'),
-        value: primaryBankAccount?.iban || ''
-      }
-    ]
-  }
-
-  const bankAccountData = getBankAccountData()
-
-  // Payroll data has been moved to EmploymentTab
-
   // Helper function to mask value if user doesn't have permission
   const getMaskedValue = (value: string, sectionKey: string) => {
     // Return dash for empty values regardless of permissions
@@ -252,26 +228,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           </CardContent>
         </Card>
 
-        {/* Bank Account Card - Always visible but values may be masked */}
-        <Card data-testid="details-section-bank">
-          <CardContent className="gba:p-4">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-lg gba:font-semibold">{t('details-bank-account')}</h3>
-              <AppAction
-                variant="update-secondary"
-                data-testid="bank-account-action-button"
-                contexts={[
-                  { context: FlowContextName.updateEmployeeBankAccount, contextData: { employeeId: employee?.id } }
-                ]}
-                prefixDataTestId="bank-account-action"
-                accessToken={accessToken}
-                autoExecute={true}
-              />
-            </div>
-            {renderDataItems(bankAccountData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.bankAccount })))}
-          </CardContent>
-        </Card>
-
         {/* Additional Attributes */}
         {(() => {
           const props = employee?.additionalProperties || {}
@@ -320,8 +276,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           isSelfView={isSelfView}
           employeeRecordHrBackoffice={employeeRecordHrBackoffice}
         />
-
-        {/* Payroll Data Card has been moved to EmploymentTab */}
       </div>
     </div>
   )

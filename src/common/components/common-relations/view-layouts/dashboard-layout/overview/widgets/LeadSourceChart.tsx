@@ -121,7 +121,7 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ items, totalLe
         <IconAvatar icon={ChartDonutIcon} variant={moduleColor as any} size="md" decorative={true} />
         <div className="gba:flex-1">
           <CardTitle>
-            {getTranslationFromI18nKeyAndLabel('leadSources.monthlyOpenLeads', 'Lead Sources - Monthly Open Leads')}
+            {getTranslationFromI18nKeyAndLabel('leadSources.monthlyLeads', 'Lead Sources - Monthly Leads')}
           </CardTitle>
           <CardDescription>
             {getTranslationFromI18nKeyAndLabel('leadSources.distributionBySource', 'Distribution by source')}

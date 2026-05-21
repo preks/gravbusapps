@@ -15,6 +15,7 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { DocumentAIClassification } from './DocumentAIClassification'
+import { useDocumentAIApply } from '../hooks/useDocumentAIClassification'
 
 export interface DocumentSegmentProps {
   // Mode and state
@@ -69,7 +70,6 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   aiSuggestion,
   aiLoading,
   aiError,
-  onApplyAiSuggestion,
   onFilesChange,
   'data-testid': dataTestId = 'document-segment'
 }) => {
@@ -78,6 +78,17 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
   const isUpdateMode = mode === 'update'
   const isRenameMode = mode === 'rename'
   const watchedFolder = form.watch('folder')
+
+  // Apply logic runs HERE (inside CatalogSelect.Provider context)
+  const { handleApplySuggestion } = useDocumentAIApply({
+    suggestion: aiSuggestion ?? null,
+    groupCatalogIdentifier,
+    typeCatalogIdentifier,
+    form,
+    isRenameMode,
+    watchedFolder,
+    enabled: enableAIClassification
+  })
 
   // Rename/Update folder mode - simple name field
   if (isRenameMode || (isUpdateMode && isFolder)) {
@@ -167,12 +178,12 @@ export const DocumentSegment: React.FC<DocumentSegmentProps> = ({
           )}
 
           {/* AI Classification Status */}
-          {enableAIClassification && onApplyAiSuggestion && (
+          {enableAIClassification && (
             <DocumentAIClassification
               suggestion={aiSuggestion || null}
               loading={aiLoading || false}
               error={aiError || null}
-              onApplySuggestion={onApplyAiSuggestion}
+              onApplySuggestion={handleApplySuggestion}
               data-testid={formatDataTestId(dataTestId, 'ai-classification')}
             />
           )}

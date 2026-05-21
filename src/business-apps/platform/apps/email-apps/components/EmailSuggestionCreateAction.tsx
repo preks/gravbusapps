@@ -26,7 +26,7 @@ import type { QuickTaskFormData } from '@/common/components/flow/flow-quick-task
 import type { EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { getCflowEndpoint } from '@/business-apps/core/every/apps/every-api/utils/config'
 import translations from '../_i18n'
-import type { EmailAccount, EmailMessage, EmailSummarizeSuggestion } from '../types'
+import type { EmailAccount, EmailAddress, EmailMessage, EmailSummarizeSuggestion } from '../types'
 import {
   buildSuggestionActivityContextData,
   buildSuggestionDescription,
@@ -37,6 +37,7 @@ import {
   resolveSuggestionIntegrationKind,
   type EmailSuggestionIntegrationKind
 } from '../utils/emailSuggestionIntegrationKind'
+import { useEmailSuggestionAssigneeResolution } from '../hooks/useEmailSuggestionAssigneeResolution'
 import {
   assigneeIdFromEmployee,
   buildQuickTaskMessage,
@@ -48,6 +49,117 @@ import { EmailSuggestionQuickTaskAssigneePicker } from './EmailSuggestionQuickTa
 import { EmailCrmEntityPicker } from './EmailCrmEntityPicker'
 import { buildActivityPayload } from './CrmEntityRow'
 import type { CrmEntityMatch } from '../hooks/useEmailCrmSuggestions'
+
+type TranslationFn = (key: string, vars?: Record<string, string | number>) => string
+
+function normalizeSearchValue(value: string | undefined): string {
+  return (value || '').trim().toLowerCase()
+}
+
+function recipientEmail(recipient: EmailAddress): string | undefined {
+  const email = recipient.address.trim()
+  return email.length > 0 ? email : undefined
+}
+
+function recipientMatchesHint(recipient: EmailAddress, hints: string[]): boolean {
+  const email = normalizeSearchValue(recipient.address)
+  const name = normalizeSearchValue(recipient.name)
+
+  return hints.some(hint => {
+    const normalizedHint = normalizeSearchValue(hint)
+    if (!normalizedHint) return false
+    if (email === normalizedHint) return true
+    return name === normalizedHint || name.startsWith(`${normalizedHint} `)
+  })
+}
+
+function firstRelevantRecipientEmail(message: EmailMessage, hints: string[]): string | undefined {
+  const recipients = [...message.toAddresses, ...message.ccAddresses, ...message.bccAddresses].filter(recipientEmail)
+  const matchingRecipient = recipients.find(recipient => recipientMatchesHint(recipient, hints))
+  return recipientEmail(matchingRecipient || recipients[0])
+}
+
+function buttonPresentation(variant: EmailSuggestionCreateActionProps['variant']): {
+  variant: 'outline' | 'secondary'
+  className: string
+} {
+  if (variant === 'thread') {
+    return {
+      variant: 'outline',
+      className: 'gba:border-decorative-foreground/30 gba:text-decorative-foreground gba:text-xs'
+    }
+  }
+
+  return {
+    variant: 'secondary',
+    className: 'gba:text-xs'
+  }
+}
+
+function openButtonLabel(kind: EmailSuggestionIntegrationKind, t: TranslationFn): string {
+  if (kind === 'quickTask') return t('email-suggestion-create-cta-quick-task')
+  return t('email-suggestion-create-cta-log-activity')
+}
+
+function dialogTitle(kind: EmailSuggestionIntegrationKind, t: TranslationFn): string {
+  if (kind === 'quickTask') return t('email-suggestion-create-dialog-title-quick-task')
+  return t('email-suggestion-create-dialog-title')
+}
+
+function dialogDescription(kind: EmailSuggestionIntegrationKind, t: TranslationFn): string {
+  if (kind === 'quickTask') return t('email-suggestion-create-dialog-description-quick-task')
+  return t('email-suggestion-create-dialog-description')
+}
+
+function assigneeResolutionHints(
+  assigneeResolution: ReturnType<typeof useEmailSuggestionAssigneeResolution>
+): string[] {
+  return [assigneeResolution.parsed?.email, assigneeResolution.parsed?.name, assigneeResolution.parsed?.raw].filter(
+    (hint): hint is string => Boolean(hint)
+  )
+}
+
+function assigneeResolutionSearchTerm(
+  assigneeResolution: ReturnType<typeof useEmailSuggestionAssigneeResolution>,
+  message: EmailMessage
+): string | undefined {
+  if (assigneeResolution.status !== 'ambiguous' && assigneeResolution.status !== 'unmatched') return undefined
+  return (
+    firstRelevantRecipientEmail(message, assigneeResolutionHints(assigneeResolution)) ||
+    assigneeResolution.parsed?.email
+  )
+}
+
+function assigneePendingHint(assigneeResolution: ReturnType<typeof useEmailSuggestionAssigneeResolution>):
+  | {
+      status: 'resolving' | 'ambiguous' | 'unmatched'
+      raw: string
+    }
+  | undefined {
+  if (!assigneeResolution.parsed) return undefined
+  if (assigneeResolution.status === 'loading') {
+    return { status: 'resolving', raw: assigneeResolution.parsed.raw }
+  }
+  if (assigneeResolution.status === 'ambiguous' || assigneeResolution.status === 'unmatched') {
+    return { status: assigneeResolution.status, raw: assigneeResolution.parsed.raw }
+  }
+  return undefined
+}
+
+function assigneeLabels(t: TranslationFn, assigneeResolution: ReturnType<typeof useEmailSuggestionAssigneeResolution>) {
+  const raw = assigneeResolution.parsed?.raw || ''
+  return {
+    assigneeLabel: t('email-suggestion-create-assignee-label'),
+    searchPlaceholder: t('email-suggestion-create-assignee-search-placeholder'),
+    loading: t('email-suggestion-create-assignee-loading'),
+    empty: t('email-suggestion-create-assignee-empty'),
+    loadMore: t('email-suggestion-create-assignee-load-more'),
+    removeAria: t('email-suggestion-create-assignee-remove'),
+    assigneePendingResolving: t('email-suggestion-create-assignee-resolving', { raw }),
+    assigneePendingUnmatched: t('email-suggestion-create-assignee-unmatched', { raw }),
+    assigneePendingAmbiguous: t('email-suggestion-create-assignee-ambiguous', { raw })
+  }
+}
 
 export interface EmailSuggestionCreateActionProps {
   suggestion: EmailSummarizeSuggestion
@@ -86,6 +198,11 @@ export const EmailSuggestionCreateAction: React.FC<EmailSuggestionCreateActionPr
   const kind: EmailSuggestionIntegrationKind = resolveSuggestionIntegrationKind(suggestion.integrationTarget)
   const confident = isSuggestionConfidentEnough(suggestion)
   const suggestionKey = stableEmailSuggestionKey(suggestion)
+  const metadataAssigneeUserIds = useMemo(
+    () => parseAssigneeUserIdsFromMetadata(suggestion.metadata),
+    [suggestion.metadata]
+  )
+  const metadataHasAssigneeUserIds = metadataAssigneeUserIds.length > 0
 
   const contextData = useMemo<Record<string, any>>(() => {
     if (kind !== 'quickTask' && selectedEntity) {
@@ -106,22 +223,35 @@ export const EmailSuggestionCreateAction: React.FC<EmailSuggestionCreateActionPr
     setSelectedEntity(null)
   }, [dialogOpen, suggestionKey])
 
-  const buttonVariant = variant === 'thread' ? 'outline' : 'secondary'
-  const buttonClass =
-    variant === 'thread'
-      ? 'gba:border-decorative-foreground/30 gba:text-decorative-foreground gba:text-xs'
-      : 'gba:text-xs'
+  const button = buttonPresentation(variant)
 
   useEffect(() => {
     if (!dialogOpen || kind !== 'quickTask') return
-    const ids = parseAssigneeUserIdsFromMetadata(suggestion.metadata)
-    const fromMeta: EmployeeLiteOption[] = ids.map(id => ({
+    if (metadataAssigneeUserIds.length === 0) {
+      setSelectedEmployees([])
+      return
+    }
+
+    const fromMeta: EmployeeLiteOption[] = metadataAssigneeUserIds.map(id => ({
       id,
       userId: id,
-      displayName: ids.length === 1 && suggestion.assignee ? suggestion.assignee : id
+      displayName: metadataAssigneeUserIds.length === 1 && suggestion.assignee ? suggestion.assignee : id
     }))
     setSelectedEmployees(fromMeta)
-  }, [dialogOpen, kind, suggestionKey, suggestion.metadata, suggestion.assignee])
+  }, [dialogOpen, kind, suggestionKey, metadataAssigneeUserIds, suggestion.assignee])
+
+  const assigneeResolution = useEmailSuggestionAssigneeResolution({
+    accessToken,
+    rawAssignee: suggestion.assignee,
+    enabled: dialogOpen && kind === 'quickTask' && !metadataHasAssigneeUserIds,
+    cacheKey: suggestionKey
+  })
+
+  useEffect(() => {
+    if (assigneeResolution.status !== 'matched' || !assigneeResolution.employee) return
+    if (selectedEmployees.length > 0) return
+    setSelectedEmployees([assigneeResolution.employee])
+  }, [assigneeResolution.status, assigneeResolution.employee, selectedEmployees.length])
 
   const handleQuickTaskConfirm = useCallback(async () => {
     if (!accessToken) {
@@ -217,35 +347,20 @@ export const EmailSuggestionCreateAction: React.FC<EmailSuggestionCreateActionPr
     )
   }
 
-  const openLabel =
-    kind === 'quickTask' ? t('email-suggestion-create-cta-quick-task') : t('email-suggestion-create-cta-log-activity')
-
-  const dialogTitle =
-    kind === 'quickTask'
-      ? t('email-suggestion-create-dialog-title-quick-task')
-      : t('email-suggestion-create-dialog-title')
-
-  const dialogDescription =
-    kind === 'quickTask'
-      ? t('email-suggestion-create-dialog-description-quick-task')
-      : t('email-suggestion-create-dialog-description')
-
-  const assigneeLabels = {
-    assigneeLabel: t('email-suggestion-create-assignee-label'),
-    searchPlaceholder: t('email-suggestion-create-assignee-search-placeholder'),
-    loading: t('email-suggestion-create-assignee-loading'),
-    empty: t('email-suggestion-create-assignee-empty'),
-    loadMore: t('email-suggestion-create-assignee-load-more'),
-    removeAria: t('email-suggestion-create-assignee-remove')
-  }
+  const openLabel = openButtonLabel(kind, t)
+  const title = dialogTitle(kind, t)
+  const description = dialogDescription(kind, t)
+  const labels = assigneeLabels(t, assigneeResolution)
+  const initialSearchTerm = assigneeResolutionSearchTerm(assigneeResolution, message)
+  const pendingHint = assigneePendingHint(assigneeResolution)
 
   return (
     <>
       <Button
         type="button"
-        variant={buttonVariant}
+        variant={button.variant}
         size="sm"
-        className={buttonClass}
+        className={button.className}
         onClick={() => setDialogOpen(true)}
         data-testid={`${testId}-open`}
       >
@@ -255,8 +370,8 @@ export const EmailSuggestionCreateAction: React.FC<EmailSuggestionCreateActionPr
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="gba:max-w-md gba:max-h-[90vh] gba:overflow-y-auto" data-testid={`${testId}-dialog`}>
           <DialogHeader>
-            <DialogTitle>{dialogTitle}</DialogTitle>
-            <DialogDescription>{dialogDescription}</DialogDescription>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
           <div className="gba:space-y-2 gba:text-sm gba:text-muted-foreground">
             <p className="gba:font-medium gba:text-foreground">{suggestion.title}</p>
@@ -269,7 +384,9 @@ export const EmailSuggestionCreateAction: React.FC<EmailSuggestionCreateActionPr
               selectedEmployees={selectedEmployees}
               onSelectedEmployeesChange={setSelectedEmployees}
               testIdPrefix={testId}
-              labels={assigneeLabels}
+              labels={labels}
+              initialSearchTerm={initialSearchTerm}
+              pendingHint={pendingHint}
             />
           ) : null}
 

@@ -21,6 +21,8 @@ interface UseVoiceInputOptions {
   continuous?: boolean
   interimResults?: boolean
   silenceDelay?: number // ms to wait after speech ends before triggering onEnd
+  /** When true, always use browser SpeechRecognition (skip future server STT). */
+  forceLocalSTT?: boolean
   onTranscript?: (transcript: string) => void
   onEnd?: (finalTranscript: string) => void
 }
@@ -202,6 +204,17 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       return
     }
 
+    // Tear down any existing recognition/stream/context to prevent resource leaks
+    if (recognitionRef.current) {
+      recognitionRef.current.onend = null
+      recognitionRef.current.onerror = null
+      recognitionRef.current.onresult = null
+      recognitionRef.current.abort()
+      recognitionRef.current = null
+    }
+    stopVolumeAnalysis()
+    stopNativeBridge()
+
     // Clear any pending send timeout (user started speaking again)
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current)
@@ -255,12 +268,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     }
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const normalizeTranscript = (value: string) =>
-        value
-          .toLowerCase()
-          .replace(/[^a-z0-9\s]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
+      const normalizeTranscript = (value: string) => value.toLowerCase().replace(/\s+/g, ' ').trim()
       const previousFinal = finalTranscriptRef.current
       const lastResult = event.results[event.results.length - 1]
       const lastText = lastResult?.[0]?.transcript ?? ''
@@ -368,6 +376,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     onEnd,
     startVolumeAnalysis,
     stopVolumeAnalysis,
+    stopNativeBridge,
     getNativeBridgeMode
   ])
 
@@ -467,6 +476,9 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
         if (onTranscript) {
           onTranscript(normalizedText)
         }
+        if (onEnd) {
+          onEnd(normalizedText)
+        }
       } else {
         setState(prev => ({
           ...prev,
@@ -480,7 +492,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     return () => {
       window.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     }
-  }, [onTranscript])
+  }, [onTranscript, onEnd])
 
   return {
     ...state,

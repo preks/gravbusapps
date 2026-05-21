@@ -10,6 +10,7 @@
  */
 
 import { ImportConfig, TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
+import { opportunityPreviewConfig } from '@/common/data/relations/types/entityPreviewConfigs'
 
 const irmOpportunityFields: TargetFieldDefinition[] = [
   // Basic Information
@@ -85,5 +86,6 @@ const irmOpportunityFields: TargetFieldDefinition[] = [
 export const investmentOpportunityImportConfig: ImportConfig = {
   entityType: 'opportunity',
   domain: 'investment',
-  targetFields: irmOpportunityFields
+  targetFields: irmOpportunityFields,
+  preview: opportunityPreviewConfig
 }

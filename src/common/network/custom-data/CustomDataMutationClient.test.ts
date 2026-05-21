@@ -8,8 +8,8 @@ describe('CustomDataMutationClient', () => {
       .mockResolvedValueOnce({ success: true, resultData: { id: 'row-1' } })
 
     const result = await client.createRow({
-      definitionKey: 'Asset',
-      values: { serial_number: 'SN-001' }
+      entityName: 'Asset',
+      values: { serialNumber: 'SN-001' }
     })
 
     expect(result).toEqual({ success: true, resultData: { id: 'row-1' } })
@@ -17,7 +17,7 @@ describe('CustomDataMutationClient', () => {
       1,
       '/v1/custom-data/namespaces/draft_ns/custom-entities/Asset/rows',
       expect.objectContaining({
-        values: { serial_number: 'SN-001' }
+        values: { serialNumber: 'SN-001' }
       })
     )
   })
@@ -27,7 +27,7 @@ describe('CustomDataMutationClient', () => {
     const patchMock = jest.spyOn(client as any, 'patch').mockResolvedValueOnce({ success: true })
 
     await client.updateRow({
-      definitionKey: 'Asset',
+      entityName: 'Asset',
       rowId: 'row-1',
       values: { serialNumber: 'SN-001' }
     })
@@ -45,7 +45,7 @@ describe('CustomDataMutationClient', () => {
     const deleteMock = jest.spyOn(client as any, 'delete').mockResolvedValueOnce({ success: true })
 
     await client.deleteRow({
-      definitionKey: 'Asset',
+      entityName: 'Asset',
       rowId: 'row-1'
     })
 

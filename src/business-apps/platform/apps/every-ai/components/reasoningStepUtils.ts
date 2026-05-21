@@ -5,7 +5,13 @@
  * pulling in the full ``OutputRenderers.tsx`` dependency tree (charts,
  * calendar, design-system primitives, …).
  */
-import type { AnswerOutput, OutputItem, ReasoningStepKind, ReasoningStepStatus } from '../types/models'
+import type {
+  AnswerOutput,
+  OutputItem,
+  ReasoningStepKind,
+  ReasoningStepOutput,
+  ReasoningStepStatus
+} from '../types/models'
 
 /**
  * Short, ALL-CAPS label shown next to the status icon. Lets the user
@@ -88,6 +94,87 @@ export function isTurnComplete(outputs: ReadonlyArray<OutputItem | null | undefi
     return true
   }
   return false
+}
+
+/**
+ * Extract the short, human-readable narration line attached to a reasoning
+ * step (e.g. "Finding teammates of Mike Krupskii in the AI & Machine Learning
+ * team"). The backend places it on `args.reason` for every tool call that
+ * carries a reason — the same content the legacy ephemeral `tool` chip
+ * renders.
+ *
+ * Rendering this directly on the step lets the description survive past
+ * the "Show reasoning" collapse: the legacy `tool` chip is pruned when
+ * the final answer arrives, but `reasoning_step` entries are persisted, so
+ * any narration we pin to them stays visible inside the expanded panel.
+ *
+ * Returns `null` when no usable narration is present (handoff steps,
+ * thought/RAG steps emitted via the reasoning bus, tool calls the model
+ * invoked without a `reason` arg, …) so the renderer can skip the row.
+ */
+export function extractStepReason(step: ReasoningStepOutput): string | null {
+  const explicit = step.narration
+  if (typeof explicit === 'string' && explicit.trim()) {
+    return explicit.trim()
+  }
+  const args = step.args
+  if (!args || typeof args !== 'object') return null
+  const reason = (args as Record<string, unknown>).reason
+  if (typeof reason !== 'string') return null
+  const trimmed = reason.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+/**
+ * Decide which reasoning steps from the current agent turn should render
+ * inline in the live chat flow.
+ *
+ * While the turn is still in progress we surface only the LATEST step (the
+ * one the agent is actively working on) so the chat stays calm — earlier
+ * steps remain in state and become visible together once the user clicks
+ * "Show reasoning" after the canonical answer arrives. Once the turn is
+ * complete, the inline render is skipped entirely: all steps are folded
+ * into the `ReasoningStepsGroup` collapse instead.
+ */
+export function selectInlineReasoningStepIds(
+  outputs: ReadonlyArray<OutputItem | null | undefined>,
+  turnIsComplete: boolean
+): ReadonlySet<string> {
+  if (turnIsComplete) return new Set<string>()
+  let lastId: string | null = null
+  for (const output of outputs) {
+    if (output?.type === 'reasoning_step') {
+      const id = (output as ReasoningStepOutput).id
+      if (typeof id === 'string') lastId = id
+    }
+  }
+  return lastId ? new Set<string>([lastId]) : new Set<string>()
+}
+
+/**
+ * Return all reasoning steps from the current agent turn EXCEPT the latest
+ * one — only meaningful while the turn is still in progress.
+ *
+ * Used by `UnifiedAIMessageRenderer` to back a live "Show previous steps"
+ * collapse: the active step keeps rendering inline (so the user can watch
+ * the agent think), and earlier steps stay one click away even before the
+ * canonical answer arrives. Once the turn is complete we return an empty
+ * list — the final `ReasoningStepsGroup` (variant="final") takes over and
+ * folds the full trail, including the previously-active step.
+ */
+export function selectPreviousReasoningSteps(
+  outputs: ReadonlyArray<OutputItem | null | undefined>,
+  turnIsComplete: boolean
+): ReasoningStepOutput[] {
+  if (turnIsComplete) return []
+  const steps: ReasoningStepOutput[] = []
+  for (const output of outputs) {
+    if (output?.type === 'reasoning_step') {
+      steps.push(output as ReasoningStepOutput)
+    }
+  }
+  if (steps.length <= 1) return []
+  return steps.slice(0, -1)
 }
 
 export function extractCodeHint(

@@ -2,47 +2,13 @@ import type { ColumnDefinition } from '../types'
 import { InputType } from '../types'
 
 const ENTITY_REFERENCE_DATA_SOURCE_TYPES = new Set(['CUSTOM_ENTITY', 'INTERNAL_ENTITY'])
-const COLUMN_NAME_PATTERN = /^[a-z][a-z0-9_]*$/
-const REDUNDANT_REFERENCE_ID_SUFFIX_PATTERN = /(?:_id|Id|ID)$/
+const PUBLIC_FIELD_NAME_PATTERN = /^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*$/
 
-export function sanitizeDefinitionKey(value: string): string {
-  return value
-    .toLowerCase()
-    .replaceAll(/\s+/g, '_')
-    .replaceAll(/[^a-z0-9_]/g, '')
-    .replace(/^_+|_+$/g, '')
-}
-
-export function deriveDefinitionKeyFromDisplayName(displayName: string): string {
-  return sanitizeDefinitionKey(displayName)
-}
-
-export function buildUniqueDefinitionKey(displayName: string, existingKeys: string[], currentKey?: string): string {
-  const derivedDefinitionKey = deriveDefinitionKeyFromDisplayName(displayName)
-  if (!derivedDefinitionKey) {
-    return ''
-  }
-
-  const currentDefinitionKey = String(currentKey || '').trim()
-  const conflictingKeys = new Set(
-    existingKeys
-      .map(existingKey => String(existingKey || '').trim())
-      .filter(existingKey => existingKey && existingKey !== currentDefinitionKey)
-  )
-
-  if (!conflictingKeys.has(derivedDefinitionKey)) {
-    return derivedDefinitionKey
-  }
-
-  let duplicateIndex = 2
-  let candidateDefinitionKey = `${derivedDefinitionKey}_${duplicateIndex}`
-
-  while (conflictingKeys.has(candidateDefinitionKey)) {
-    duplicateIndex += 1
-    candidateDefinitionKey = `${derivedDefinitionKey}_${duplicateIndex}`
-  }
-
-  return candidateDefinitionKey
+interface DefinitionDisplayNameCandidate {
+  id?: string
+  namespace: string
+  entityName: string
+  displayName?: string | null
 }
 
 export function toPascalCase(value: string): string {
@@ -79,16 +45,38 @@ export function snakeToCamelCase(value: string): string {
     .join('')}`
 }
 
-function stripRedundantReferenceIdSuffix(value: string): string {
-  if (value.endsWith('_id')) {
-    return value.slice(0, -3)
+export function normalizeEntityDisplayNameKey(value: string): string {
+  return String(value || '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase()
+}
+
+export function getDuplicateDefinitionDisplayNameError(params: {
+  displayName: string
+  namespace: string
+  definitions: DefinitionDisplayNameCandidate[]
+  currentDefinitionId?: string
+}): string | null {
+  const normalizedDisplayNameKey = normalizeEntityDisplayNameKey(params.displayName)
+  if (!normalizedDisplayNameKey) {
+    return null
   }
 
-  if (value.endsWith('Id') || value.endsWith('ID')) {
-    return value.slice(0, -2)
+  const duplicateDefinition = params.definitions.find(definition => {
+    if (definition.namespace !== params.namespace) {
+      return false
+    }
+    if (params.currentDefinitionId && definition.id === params.currentDefinitionId) {
+      return false
+    }
+    return normalizeEntityDisplayNameKey(definition.displayName || definition.entityName) === normalizedDisplayNameKey
+  })
+
+  if (!duplicateDefinition) {
+    return null
   }
 
-  return value
+  return `Entity display name must be unique in this namespace: ${duplicateDefinition.displayName || duplicateDefinition.entityName}`
 }
 
 export function isEntityReferenceColumn(column: ColumnDefinition): boolean {
@@ -105,38 +93,26 @@ export function isSingularEntityReferenceColumn(column: ColumnDefinition): boole
 }
 
 export function sanitizeReferenceFieldName(value: string): string {
-  return sanitizeDefinitionKey(value)
+  return value
 }
 
 export function hasRedundantReferenceIdSuffix(value: string): boolean {
-  return REDUNDANT_REFERENCE_ID_SUFFIX_PATTERN.test(value)
+  void value
+  return false
 }
 
 export function getReferenceFieldNameValidationError(value: string): string | null {
   const normalizedValue = String(value || '').trim()
 
   if (!normalizedValue) {
-    return 'Field name is required'
-  }
-
-  if (hasRedundantReferenceIdSuffix(normalizedValue)) {
-    const suggestedName = stripRedundantReferenceIdSuffix(normalizedValue) || 'company'
-    return `Do not append Id or _id to entity reference field names. Use '${sanitizeReferenceFieldName(suggestedName)}' instead`
-  }
-
-  if (!COLUMN_NAME_PATTERN.test(normalizedValue)) {
-    return 'Entity reference field names must use snake_case lowercase letters, numbers, and underscores'
+    return 'Reference target is required'
   }
 
   return null
 }
 
 export function normalizeColumnNameInput(column: ColumnDefinition, value: string): string {
-  if (isEntityReferenceColumn(column)) {
-    return sanitizeReferenceFieldName(value)
-  }
-
-  return sanitizeDefinitionKey(value)
+  return value
 }
 
 export function syncColumnNameWithLabel(column: ColumnDefinition): ColumnDefinition {
@@ -145,52 +121,34 @@ export function syncColumnNameWithLabel(column: ColumnDefinition): ColumnDefinit
     return column
   }
 
+  const nextFieldName = snakeToCamelCase(normalizedLabel)
+
   return {
     ...column,
-    name: normalizeColumnNameInput(column, normalizedLabel)
+    fieldName: column.fieldName || normalizeColumnNameInput(column, nextFieldName)
   }
 }
 
 export function getEditableReferenceFieldName(column: ColumnDefinition): string {
   if (!isEntityReferenceColumn(column)) {
-    return column.name
+    return column.fieldName || column.label
   }
 
-  if (column.name.endsWith('_id')) {
-    return column.name.slice(0, -3)
-  }
-
-  if (column.name.endsWith('Id') || column.name.endsWith('ID')) {
-    return sanitizeReferenceFieldName(column.name.slice(0, -2))
-  }
-
-  return column.name
+  return column.fieldName || column.label
 }
 
 export function prepareColumnsForEditing(columns: ColumnDefinition[]): ColumnDefinition[] {
-  return columns.map(column => {
-    if (!isEntityReferenceColumn(column)) {
-      return column
-    }
-
-    return {
-      ...column,
-      name: getEditableReferenceFieldName(column)
-    }
-  })
+  return columns.map(column => ({
+    ...column,
+    fieldName: column.fieldName || ''
+  }))
 }
 
 export function prepareColumnsForPersistence<T extends ColumnDefinition>(columns: T[]): T[] {
-  return columns.map(column => {
-    if (!isSingularEntityReferenceColumn(column)) {
-      return column
-    }
-
-    return {
-      ...column,
-      name: `${column.name}_id`
-    }
-  })
+  return columns.map(column => ({
+    ...column,
+    fieldName: column.fieldName
+  }))
 }
 
 export function getPersistedReferenceFieldNamePreview(column: ColumnDefinition): string | null {
@@ -198,40 +156,54 @@ export function getPersistedReferenceFieldNamePreview(column: ColumnDefinition):
     return null
   }
 
-  const editableReferenceFieldName = String(column.name || '').trim()
+  const editableReferenceFieldName = String(column.fieldName || column.label || '').trim()
   if (!editableReferenceFieldName) {
-    return 'company_id'
+    return 'companyId'
   }
 
-  return `${editableReferenceFieldName}_id`
+  return editableReferenceFieldName
 }
 
 export function getColumnNameValidationError(column: ColumnDefinition, columnIndex: number): string | null {
-  if (!column.name.trim()) {
-    return `Column ${columnIndex + 1}: Name is required`
+  if (!column.label.trim()) {
+    return `Column ${columnIndex + 1}: Label is required`
+  }
+  const fieldName = String(column.fieldName || '').trim()
+  if (!fieldName) {
+    return `Column ${columnIndex + 1}: Field name is required`
+  }
+  if (!PUBLIC_FIELD_NAME_PATTERN.test(fieldName)) {
+    return `Column ${columnIndex + 1}: Field name must be camelCase letters and numbers`
   }
 
   if (isEntityReferenceColumn(column)) {
-    const validationError = getReferenceFieldNameValidationError(column.name)
+    const validationError = getReferenceFieldNameValidationError(fieldName)
     return validationError ? `Column ${columnIndex + 1}: ${validationError}` : null
-  }
-
-  if (!COLUMN_NAME_PATTERN.test(column.name)) {
-    return `Column ${columnIndex + 1}: Name must start with a letter and contain only lowercase letters, numbers, and underscores`
   }
 
   return null
 }
 
-export function validateDefinitionForm(params: { displayName: string; columns: ColumnDefinition[] }): string | null {
+export function validateDefinitionForm(params: {
+  displayName: string
+  columns: ColumnDefinition[]
+  namespace?: string
+  definitions?: DefinitionDisplayNameCandidate[]
+  currentDefinitionId?: string
+}): string | null {
   const { displayName, columns } = params
-  const derivedDefinitionKey = deriveDefinitionKeyFromDisplayName(displayName)
-
   if (!displayName.trim()) return 'Display name is required'
-  if (!derivedDefinitionKey) return 'Display name must contain at least one letter or number'
-  if (derivedDefinitionKey.length < 3) return 'Display name must generate a key with at least 3 characters'
-  if (!/^[a-z][a-z0-9_]*$/.test(derivedDefinitionKey))
-    return 'Display name must generate a key that starts with a letter and contains only lowercase letters, numbers, and underscores'
+  if (params.namespace && params.definitions) {
+    const duplicateDisplayNameError = getDuplicateDefinitionDisplayNameError({
+      displayName,
+      namespace: params.namespace,
+      definitions: params.definitions,
+      currentDefinitionId: params.currentDefinitionId
+    })
+    if (duplicateDisplayNameError) {
+      return duplicateDisplayNameError
+    }
+  }
   if (columns.length === 0) return 'At least one column is required'
 
   // Validate each column
@@ -246,10 +218,16 @@ export function validateDefinitionForm(params: { displayName: string; columns: C
   }
 
   // Check for duplicate column names
-  const names = columns.map(c => c.name)
-  const duplicates = names.filter((name, index) => names.indexOf(name) !== index)
-  if (duplicates.length > 0) {
-    return `Duplicate column name: ${duplicates[0]}`
+  const labels = columns.map(c => c.label.trim())
+  const duplicateLabels = labels.filter((label, index) => labels.indexOf(label) !== index)
+  if (duplicateLabels.length > 0) {
+    return `Duplicate column label: ${duplicateLabels[0]}`
+  }
+
+  const fieldNames = columns.map(c => c.fieldName.trim())
+  const duplicateFieldNames = fieldNames.filter((fieldName, index) => fieldNames.indexOf(fieldName) !== index)
+  if (duplicateFieldNames.length > 0) {
+    return `Duplicate field name: ${duplicateFieldNames[0]}`
   }
 
   return null

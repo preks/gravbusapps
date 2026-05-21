@@ -12,9 +12,11 @@ import {
 } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useServicePortalCategories, type CategoryGroup } from '@/business-apps/ser/hooks/useServicePortalCategories'
-import { useFlowTemplateLibrary, type FlowTemplateLibraryItem } from '../hooks/useFlowTemplateLibrary'
+import { useFlowTemplateLibrary } from '../hooks/useFlowTemplateLibrary'
 import { FlowLibraryCategoryTile } from './FlowLibraryCategoryTile'
 import { FlowTemplateLibraryCard } from './FlowTemplateLibraryCard'
+import { computeItemsByCategory } from './flowLibraryUtils'
+
 export interface FlowLibraryTabProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   selectedCategoryId: string | null
   onCategorySelect: (categoryId: string) => void
@@ -22,31 +24,10 @@ export interface FlowLibraryTabProps extends Pick<BusinessAppContextProps, 'acce
   onViewTemplateDetails?: (templateId: string) => void
   'data-testid'?: string
 }
-type ItemsByCategory = {
-  byCategoryId: Map<string, FlowTemplateLibraryItem[]>
-  uncategorized: FlowTemplateLibraryItem[]
-}
+
 const matchesQuery = (value: string | undefined, query: string): boolean => {
   if (!query.trim()) return true
   return (value || '').toLowerCase().includes(query.toLowerCase())
-}
-const computeItemsByCategory = (items: FlowTemplateLibraryItem[], knownCategoryIds: Set<string>): ItemsByCategory => {
-  const byCategoryId = new Map<string, FlowTemplateLibraryItem[]>()
-  const uncategorized: FlowTemplateLibraryItem[] = []
-
-  items.forEach(item => {
-    const matching = item.serviceCategoryIds.filter(id => knownCategoryIds.has(id))
-    if (matching.length === 0) {
-      uncategorized.push(item)
-      return
-    }
-    matching.forEach(id => {
-      const prev = byCategoryId.get(id) || []
-      byCategoryId.set(id, [...prev, item])
-    })
-  })
-
-  return { byCategoryId, uncategorized }
 }
 
 const filterGroupsByQuery = (
@@ -85,9 +66,14 @@ export const FlowLibraryTab: React.FC<FlowLibraryTabProps> = ({
     error: categoriesError
   } = useServicePortalCategories({ accessToken })
 
-  const { items, isLoading, error, search, setSearch, hasNextPage, loadMore, totalCount } = useFlowTemplateLibrary(
+  const { items, isLoading, error, search, debouncedSearch, setSearch, hasNextPage, loadMore } = useFlowTemplateLibrary(
     accessToken,
-    { enabled: Boolean(accessToken), limit: 200, includeDrafts: true, onlyLatest: true }
+    {
+      enabled: Boolean(accessToken),
+      limit: 100,
+      includeDrafts: true,
+      onlyLatest: true
+    }
   )
 
   const knownCategoryIds = useMemo(() => new Set(categories.map(c => c.id)), [categories])
@@ -103,8 +89,8 @@ export const FlowLibraryTab: React.FC<FlowLibraryTabProps> = ({
   }, [byCategoryId, categories])
 
   const visibleGroups = useMemo(() => {
-    return filterGroupsByQuery(categoryGroups, search, categoryToCount)
-  }, [categoryGroups, categoryToCount, search])
+    return filterGroupsByQuery(categoryGroups, debouncedSearch, categoryToCount)
+  }, [categoryGroups, categoryToCount, debouncedSearch])
 
   const selectedItems = useMemo(() => {
     if (!selectedCategoryId) return []
@@ -155,7 +141,7 @@ export const FlowLibraryTab: React.FC<FlowLibraryTabProps> = ({
                 Showing {selectedItems.length} flow{selectedItems.length === 1 ? '' : 's'}
               </span>
             ) : (
-              <span>{totalCount > 0 ? `${totalCount} templates loaded` : 'Browse flow categories'}</span>
+              <span>{items.length > 0 ? `${items.length} templates loaded` : 'Browse flow categories'}</span>
             )}
           </div>
 

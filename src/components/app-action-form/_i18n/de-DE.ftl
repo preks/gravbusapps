@@ -12,6 +12,7 @@ process-button-previous = Zurück
 process-button-next = Weiter
 process-button-submit = Absenden
 process-error-title = Fehler
+process-error-generic = Der Vorgang konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.
 
 
 

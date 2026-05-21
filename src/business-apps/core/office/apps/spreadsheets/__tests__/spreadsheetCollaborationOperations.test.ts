@@ -59,10 +59,9 @@ function rowMatchesRemoteId(row: Record<string, unknown>, remoteRowId: string): 
   return candidateIds.includes(remoteRowId)
 }
 
-function viewerRowId(row: Record<string, unknown>): string {
-  const id = row._id ?? row.id
-  if (id == null) return ''
-  return String(id)
+function getClientRowId(row: Record<string, unknown>): string {
+  const clientRowId = row._clientRowId ?? row._id ?? row.id
+  return typeof clientRowId === 'string' ? clientRowId : ''
 }
 
 function replaceClientRowsWithCreatedRows(
@@ -71,14 +70,14 @@ function replaceClientRowsWithCreatedRows(
 ): Array<Record<string, unknown>> {
   const createdRowByClientId = new Map<string, Record<string, unknown>>()
   createdRows.forEach(row => {
-    const clientRowId = viewerRowId(row)
+    const clientRowId = getClientRowId(row)
     if (!clientRowId) return
     createdRowByClientId.set(clientRowId, row)
   })
 
   const replacedClientRowIds = new Set<string>()
   const nextRows = existingRows.map(row => {
-    const clientRowId = viewerRowId(row)
+    const clientRowId = getClientRowId(row)
     if (!clientRowId) return row
     const createdRow = createdRowByClientId.get(clientRowId)
     if (!createdRow) return row
@@ -87,7 +86,7 @@ function replaceClientRowsWithCreatedRows(
   })
 
   createdRows.forEach(row => {
-    const clientRowId = viewerRowId(row)
+    const clientRowId = getClientRowId(row)
     if (clientRowId && replacedClientRowIds.has(clientRowId)) return
     nextRows.push(row)
   })
@@ -103,7 +102,8 @@ function mapAddedRowsFromDeltaResult(result: Record<string, unknown>): Array<Rec
     if (clientRowId) {
       return {
         ...rowData,
-        _id: clientRowId,
+        _id: (entry.id as string) || 'generated',
+        _clientRowId: clientRowId,
         _rowUuid: (entry.id as string) || 'generated'
       }
     }
@@ -135,7 +135,7 @@ function applyColumnWidthsFromDimensions(
   columns: SpreadsheetColumn[],
   payload: {
     defaultColWidth: number
-    columnData: Record<string | number, { w?: number }>
+    columnData: Record<string | number, { w?: number; hd?: number }>
   }
 ): { nextColumns: SpreadsheetColumn[]; changedColumns: Array<{ columnId: string; width: number }> } | null {
   const changedColumns: Array<{ columnId: string; width: number }> = []
@@ -237,7 +237,18 @@ describe('spreadsheetCollaborationOperations', () => {
       const ctx = createUniverConversionContext(mockColumns, mockDataWithBackendIds)
       expect(ctx.rowIdToIndex.get('uuid-row-1')).toBe(0)
       expect(ctx.rowIdToIndex.get('row_0')).toBe(0)
-      expect(ctx.rowIndexToId.get(0)).toBe('row_0')
+      expect(ctx.rowIndexToId.get(0)).toBe('uuid-row-1')
+    })
+
+    it('uses persisted backend uuid as canonical rowIndex mapping when _id is a provisional client id', () => {
+      const persistedUuid = '660e8400-e29b-41d4-a716-446655440000'
+      const clientId = 'client_550e8400-e29b-41d4-a716-446655440000'
+      const ctx = createUniverConversionContext(mockColumns, [
+        { _id: clientId, _rowUuid: persistedUuid, ColumnA: 'x', ColumnB: 1 }
+      ])
+      expect(ctx.rowIndexToId.get(0)).toBe(persistedUuid)
+      expect(ctx.rowIdToIndex.get(clientId)).toBe(0)
+      expect(ctx.rowIdToIndex.get(persistedUuid)).toBe(0)
     })
 
     it('resolves colIndex by column name or id', () => {
@@ -513,7 +524,7 @@ describe('spreadsheetCollaborationOperations', () => {
 
       expect(replaceClientRowsWithCreatedRows(existingRows, addedRows)).toEqual([
         { _id: 'row_0', _rowUuid: 'uuid-row-0', ColumnA: 'existing' },
-        { _id: 'client_row_1', _rowUuid: 'uuid-row-1', _clientRowId: 'client_row_1', ColumnA: 'draft' }
+        { _id: 'uuid-row-1', _rowUuid: 'uuid-row-1', _clientRowId: 'client_row_1', ColumnA: 'draft' }
       ])
     })
 

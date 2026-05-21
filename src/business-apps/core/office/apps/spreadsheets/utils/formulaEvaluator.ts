@@ -5,6 +5,8 @@
  * Supports basic arithmetic, cell references, and common Excel functions.
  */
 
+import { parseA1Reference } from '../core'
+
 /**
  * Context for formula evaluation
  */
@@ -480,25 +482,17 @@ function getFallbackCellRangeValues(startRef: string, endRef: string, context: F
 }
 
 function parseCellReference(ref: string, context: FormulaContext): { colIndex: number; rowIndex: number } | null {
-  const excelMatch = /^([A-Z]+)(\d+)$/i.exec(ref)
-  if (excelMatch) {
-    const colLetter = excelMatch[1].toUpperCase()
-    const rowNum = Number.parseInt(excelMatch[2], 10) - 1
-
-    let colIndex = 0
-    for (let i = 0; i < colLetter.length; i++) {
-      colIndex = colIndex * 26 + ((colLetter.codePointAt(i) ?? 0) - 64)
-    }
-    colIndex -= 1
-
+  const a1 = parseA1Reference(ref)
+  if (a1) {
+    const { col: colIndex, row: rowIndex } = a1
     if (colIndex < 0 || colIndex >= context.columns.length) {
       return null
     }
-    if (rowNum < 0 || rowNum >= context.allRows.length) {
+    if (rowIndex < 0 || rowIndex >= context.allRows.length) {
       return null
     }
 
-    return { colIndex, rowIndex: rowNum }
+    return { colIndex, rowIndex }
   }
 
   const col = context.columns.find(

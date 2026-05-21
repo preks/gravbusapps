@@ -12,11 +12,11 @@ const TopSkillsContent: React.FC<{ topSkills: EmployeeSkillItem[]; t: SkillsSnap
   t
 }) => {
   if (topSkills.length === 0) {
-    return <p className="gba:text-sm gba:text-muted-foreground">{t('skills-snapshot-needs-levels')}</p>
+    return <p className="gba:text-xs gba:text-muted-foreground">{t('skills-snapshot-needs-levels')}</p>
   }
 
   return (
-    <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="skills-snapshot-top-skills-list">
+    <div className="gba:flex gba:flex-wrap gba:gap-1.5" data-testid="skills-snapshot-top-skills-list">
       {topSkills.map(skill => (
         <Badge key={skill.skill.id} variant="secondary" data-testid={`skills-snapshot-top-${skill.skill.id}`}>
           <span>{skill.skill.name}</span>
@@ -27,56 +27,68 @@ const TopSkillsContent: React.FC<{ topSkills: EmployeeSkillItem[]; t: SkillsSnap
   )
 }
 
-export const SkillsSnapshot: React.FC<SkillsSnapshotProps> = ({ snapshot, t }) => {
+export const SkillsSnapshot: React.FC<SkillsSnapshotProps & { children?: React.ReactNode }> = ({
+  snapshot,
+  t,
+  children
+}) => {
   return (
-    <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-4" data-testid="skills-snapshot-section">
+    <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-4 gba:gap-4" data-testid="skills-snapshot-section">
       <Card data-testid="skills-snapshot-strength-card">
-        <CardHeader className="gba:pb-2">
-          <CardTitle>{t('skills-snapshot-strength-title')}</CardTitle>
-          <CardDescription>{t('skills-snapshot-strength-description')}</CardDescription>
+        <CardHeader className="gba:px-4 gba:pt-3 gba:pb-1">
+          <CardTitle className="gba:text-sm gba:font-bold">{t('skills-snapshot-strength-title')}</CardTitle>
+          <CardDescription className="gba:text-xs">{t('skills-snapshot-strength-description')}</CardDescription>
         </CardHeader>
-        <CardContent className="gba:space-y-3">
-          <div className="gba:flex gba:items-end gba:gap-2">
-            <span className="gba:text-3xl gba:font-bold">{snapshot.strengthScore}</span>
-            <span className="gba:text-sm gba:text-muted-foreground">/100</span>
+        <CardContent className="gba:px-4 gba:pb-3 gba:pt-0 gba:space-y-2">
+          <div className="gba:flex gba:items-end gba:gap-1.5">
+            <span className="gba:text-2xl gba:font-bold">{snapshot.strengthScore}</span>
+            <span className="gba:text-xs gba:text-muted-foreground">/100</span>
           </div>
           <Progress value={snapshot.strengthScore} data-testid="skills-snapshot-strength-progress" />
-          <p className="gba:text-xs gba:text-muted-foreground">
+          <p className="gba:text-[11px] gba:text-muted-foreground">
             {t('skills-snapshot-strength-footnote', { count: snapshot.leveledSkillCount })}
           </p>
         </CardContent>
       </Card>
 
       <Card data-testid="skills-snapshot-top-card">
-        <CardHeader className="gba:pb-2">
-          <CardTitle>{t('skills-snapshot-top-title')}</CardTitle>
-          <CardDescription>{t('skills-snapshot-top-description')}</CardDescription>
+        <CardHeader className="gba:px-4 gba:pt-3 gba:pb-1">
+          <CardTitle className="gba:text-sm gba:font-bold">{t('skills-snapshot-top-title')}</CardTitle>
+          <CardDescription className="gba:text-xs">{t('skills-snapshot-top-description')}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="gba:px-4 gba:pb-3 gba:pt-0">
           <TopSkillsContent topSkills={snapshot.topSkills} t={t} />
         </CardContent>
       </Card>
 
       <Card data-testid="skills-snapshot-coverage-card">
-        <CardHeader className="gba:pb-2">
-          <CardTitle>{t('skills-snapshot-coverage-title')}</CardTitle>
-          <CardDescription>{t('skills-snapshot-coverage-description')}</CardDescription>
+        <CardHeader className="gba:px-4 gba:pt-3 gba:pb-1">
+          <CardTitle className="gba:text-sm gba:font-bold">{t('skills-snapshot-coverage-title')}</CardTitle>
+          <CardDescription className="gba:text-xs">{t('skills-snapshot-coverage-description')}</CardDescription>
         </CardHeader>
-        <CardContent className="gba:space-y-3">
+        <CardContent className="gba:px-4 gba:pb-3 gba:pt-0 gba:space-y-2">
           <div className="gba:flex gba:items-center gba:justify-between">
-            <span className="gba:text-sm gba:text-muted-foreground">{t('skills-snapshot-verified')}</span>
-            <span className="gba:text-lg gba:font-semibold" data-testid="skills-snapshot-verified-count">
+            <span className="gba:text-xs gba:text-muted-foreground">{t('skills-snapshot-verified')}</span>
+            <span className="gba:text-base gba:font-semibold" data-testid="skills-snapshot-verified-count">
               {snapshot.verifiedCount}
             </span>
           </div>
           <div className="gba:flex gba:items-center gba:justify-between">
-            <span className="gba:text-sm gba:text-muted-foreground">{t('skills-snapshot-active')}</span>
-            <span className="gba:text-lg gba:font-semibold" data-testid="skills-snapshot-active-count">
+            <span className="gba:text-xs gba:text-muted-foreground">{t('skills-snapshot-active')}</span>
+            <span className="gba:text-base gba:font-semibold" data-testid="skills-snapshot-active-count">
               {snapshot.activeCount}
+            </span>
+          </div>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <span className="gba:text-xs gba:text-muted-foreground">{t('skills-snapshot-pending')}</span>
+            <span className="gba:text-base gba:font-semibold" data-testid="skills-snapshot-pending-count">
+              {snapshot.pendingCount}
             </span>
           </div>
         </CardContent>
       </Card>
+
+      {children}
     </div>
   )
 }

@@ -29,7 +29,9 @@ const MDM_PIPELINE_URL = '/platform/mdm/pipeline-data'
 const FIN_BACKOFFICE_URL = '/platform/fin/expenses/backoffice-expenses'
 const FIN_PERSONAL_URL = '/platform/fin/expenses/personal-expenses'
 const HR_MANAGER_ABSENCES_URL = '/platform/hr/absences/manager-absences'
+const HR_SKILL_MANAGEMENT_URL = '/platform/hr/core/apps/skill-management'
 const SERVICE_DESK_URL = '/platform/sales-demo/service-desk'
+const FLOW_LAUNCHER_URL = '/platform/apps/flow/apps/launcher'
 
 const orgDataUrl = (tab: string) => `${ORG_DATA_URL}?tab=${tab}&entityId={id}`
 
@@ -320,7 +322,7 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
     )
   },
   service_workflow: {
-    urlTemplate: `${SERVICE_DESK_URL}?view=workflows&workflowId={id}`,
+    urlTemplate: `${FLOW_LAUNCHER_URL}?tab=my-launches&flowId={id}`,
     icon: DEFAULT_ICON
   },
   workflow_template: {
@@ -414,11 +416,11 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
     icon: DEFAULT_ICON
   },
   capability: {
-    urlTemplate: orgDataUrl('capabilities'),
+    urlTemplate: HR_SKILL_MANAGEMENT_URL,
     icon: DEFAULT_ICON
   },
   capability_group: {
-    urlTemplate: orgDataUrl('capabilities'),
+    urlTemplate: HR_SKILL_MANAGEMENT_URL,
     icon: DEFAULT_ICON
   },
   organizational_unit: {
@@ -438,7 +440,7 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
     icon: DEFAULT_ICON
   },
   skill: {
-    urlTemplate: orgDataUrl('capabilities'),
+    urlTemplate: HR_SKILL_MANAGEMENT_URL,
     icon: DEFAULT_ICON
   },
   product: {

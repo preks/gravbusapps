@@ -6,13 +6,13 @@ import { useEmployeeData } from './useEmployeeData'
 import { useSilentRefetchOnProcessCompletion } from './useSilentRefetchOnProcessCompletion'
 
 /**
- * Employee-record GraphQL bundle for the logged-in user's employee, plus dev flags and process refetch.
+ * Employee-record GraphQL bundle for the logged-in user's employee, plus feature flags and process refetch.
  * Use on self-service HR screens (e.g. My Development) to avoid duplicating structure id / employee id wiring.
  */
 export function useCurrentUserEmployeeRecordData(accessToken: string, userInfo: UserInfoProps | undefined) {
   const activeStructureId = getCurrentActiveStructureId() || ''
   const employeeId = userInfo?.employeeDetails?.employeeId || ''
-  const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
+  const hrDevelopmentFeatureFlag = useFeature<boolean>(Feature.HCM.HRDevelopment.Key)
 
   const { loading, error, employee, feedback, performanceGoals, silentRefetch } = useEmployeeData(
     accessToken,
@@ -30,6 +30,6 @@ export function useCurrentUserEmployeeRecordData(accessToken: string, userInfo: 
     employee,
     feedback,
     performanceGoals,
-    devFeatureFlag: devFeatureFlag as boolean
+    performanceEvaluationFeatureFlag: hrDevelopmentFeatureFlag === true
   }
 }

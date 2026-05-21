@@ -1,35 +1,30 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
-  createExpenseAmountRangeFilterGroup,
-  createStatusFilterGroup
-} from '../../../../common/config/filterConfigHelpers'
+  createFluentExpenseAmountRangeFilterGroup,
+  createStatusFilterGroupWithLabel
+} from '@/business-apps/fin/expenses/common/config/filterConfigHelpers'
 
 export interface AdvancePaymentFilterConfigOptions {
   statusOptions: string[]
   filterLabelMap: Record<string, string>
+  statusGroupLabel?: string
+  t: (key: string) => string
 }
 
 export function createAdvancePaymentFilterConfig({
   statusOptions,
-  filterLabelMap
+  filterLabelMap,
+  statusGroupLabel,
+  t
 }: AdvancePaymentFilterConfigOptions): FilterConfiguration {
   const statusFilters = statusOptions.map(id => ({ id, label: filterLabelMap?.[id] ?? id }))
 
   return {
     id: 'advance-payments-filters',
-    name: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:backoffice_expense_landing_page.advance_title',
-      'Advance Payments Filters'
-    ),
+    name: t('advance-payments-filter-config-name'),
     groups: [
-      createStatusFilterGroup(statusFilters, 'lowcoder:expense_item_list.expense_table.status', 'Status'),
-      createExpenseAmountRangeFilterGroup(
-        'advance-payment-amount',
-        'amount',
-        'lowcoder:advance_payment_table.amount_label',
-        'Amount'
-      )
+      createStatusFilterGroupWithLabel(statusFilters, statusGroupLabel ?? t('filter-status-group-title')),
+      createFluentExpenseAmountRangeFilterGroup(t, 'advance-payment-amount', 'amount', 'advance-payments-filter-amount')
     ]
   }
 }

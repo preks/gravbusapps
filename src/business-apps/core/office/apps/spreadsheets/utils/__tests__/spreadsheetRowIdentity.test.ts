@@ -1,0 +1,138 @@
+import {
+  buildRowIdentityDiagnostics,
+  buildUiToBackendRowIdMap,
+  getClientRowIdentity,
+  getViewerRowIdentityCandidates,
+  resolveBackendRowIdentityForViewerRow,
+  resolveBackendRowIdForViewerRow,
+  rowMatchesRemoteId
+} from '../spreadsheetRowIdentity'
+
+describe('spreadsheetRowIdentity', () => {
+  const isUuid = (value: string): boolean =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+
+  it('returns all stable viewer row identity candidates', () => {
+    expect(
+      getViewerRowIdentityCandidates({
+        _id: 'client_row_1',
+        id: '11111111-1111-4111-8111-111111111111',
+        _rowUuid: '11111111-1111-4111-8111-111111111111'
+      })
+    ).toEqual(['client_row_1', '11111111-1111-4111-8111-111111111111'])
+  })
+
+  it('resolves the explicit or inferred client row identity', () => {
+    expect(getClientRowIdentity({ _clientRowId: 'client_explicit' })).toBe('client_explicit')
+    expect(getClientRowIdentity({ _id: 'client_fallback' })).toBe('client_fallback')
+    expect(getClientRowIdentity({ _id: 'backend-id' })).toBe('')
+  })
+
+  it('resolves the persisted backend row id from known identity fields', () => {
+    expect(
+      resolveBackendRowIdForViewerRow(
+        {
+          _id: 'client_123',
+          _rowUuid: '11111111-1111-4111-8111-111111111111'
+        },
+        isUuid
+      )
+    ).toBe('11111111-1111-4111-8111-111111111111')
+  })
+
+  it('tracks which field provided the backend uuid', () => {
+    expect(
+      resolveBackendRowIdentityForViewerRow(
+        {
+          _id: 'client_123',
+          UUID: '11111111-1111-4111-8111-111111111111'
+        },
+        isUuid
+      )
+    ).toEqual({
+      backendRowUuid: '11111111-1111-4111-8111-111111111111',
+      identitySource: 'UUID'
+    })
+  })
+
+  it('matches remote ids against any known viewer-row identity field', () => {
+    expect(
+      rowMatchesRemoteId(
+        {
+          _id: 'client_123',
+          id: '11111111-1111-4111-8111-111111111111'
+        },
+        '11111111-1111-4111-8111-111111111111'
+      )
+    ).toBe(true)
+  })
+
+  it('builds a ui-to-backend row id map across all identity aliases', () => {
+    const rows = [
+      {
+        _id: 'client_123',
+        _clientRowId: 'client_123',
+        id: '11111111-1111-4111-8111-111111111111',
+        _rowUuid: '11111111-1111-4111-8111-111111111111'
+      },
+      {
+        _id: '22222222-2222-4222-8222-222222222222'
+      }
+    ]
+
+    expect(buildUiToBackendRowIdMap(rows, isUuid)).toEqual(
+      new Map([
+        ['client_123', '11111111-1111-4111-8111-111111111111'],
+        ['11111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111'],
+        ['22222222-2222-4222-8222-222222222222', '22222222-2222-4222-8222-222222222222']
+      ])
+    )
+  })
+
+  it('maps production-shaped persisted rows from stored client id to backend uuid', () => {
+    const rows = [
+      {
+        _id: 'client_ca02fcd9-4392-4f97-8d5d-d59c315bf374',
+        _clientRowId: 'client_ca02fcd9-4392-4f97-8d5d-d59c315bf374',
+        _rowUuid: '11111111-1111-4111-8111-111111111111',
+        _gridRowIndex: 3,
+        column_b: 5
+      }
+    ]
+
+    expect(buildUiToBackendRowIdMap(rows, isUuid).get('client_ca02fcd9-4392-4f97-8d5d-d59c315bf374')).toBe(
+      '11111111-1111-4111-8111-111111111111'
+    )
+  })
+
+  it('builds identity diagnostics without treating client _id as failure when backend uuid exists', () => {
+    const rows = [
+      {
+        _id: 'client_123',
+        _rowUuid: '11111111-1111-4111-8111-111111111111'
+      }
+    ]
+    const uiToBackend = buildUiToBackendRowIdMap(rows, isUuid)
+
+    expect(
+      buildRowIdentityDiagnostics({
+        uiRowIds: ['client_123'],
+        rows,
+        uiToBackend,
+        isUuid
+      })
+    ).toEqual([
+      {
+        uiRowId: 'client_123',
+        backendRowUuid: '11111111-1111-4111-8111-111111111111',
+        identitySource: '_rowUuid',
+        hasBackendUuid: true,
+        canRemap: true,
+        remapEntry: {
+          from: 'client_123',
+          to: '11111111-1111-4111-8111-111111111111'
+        }
+      }
+    ])
+  })
+})

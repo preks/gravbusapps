@@ -1,5 +1,5 @@
 export {
   expenseRequestDefaultSort,
-  expenseRequestSortableColumns,
+  createExpenseRequestSortableColumns,
   type ExpenseRequestTableSortOrder
 } from './expenseRequestColumnConfig'

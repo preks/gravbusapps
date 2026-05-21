@@ -32,4 +32,18 @@ describe('normalizeSpreadsheetColumnsForDisplay', () => {
     const next = normalizeSpreadsheetColumnsForDisplay(raw)
     expect(next[0].isVisible).toBe(true)
   })
+
+  it('sorts by order and reseats sequential indexes', () => {
+    const raw = [
+      base({ id: 'c3', name: 'c', label: 'C', order: 5 }),
+      base({ id: 'c1', name: 'a', label: 'A', order: 1 }),
+      base({ id: 'c2', name: 'b', label: 'B', order: 1 })
+    ]
+
+    expect(normalizeSpreadsheetColumnsForDisplay(raw)).toEqual([
+      expect.objectContaining({ id: 'c1', order: 0 }),
+      expect.objectContaining({ id: 'c2', order: 1 }),
+      expect.objectContaining({ id: 'c3', order: 2 })
+    ])
+  })
 })

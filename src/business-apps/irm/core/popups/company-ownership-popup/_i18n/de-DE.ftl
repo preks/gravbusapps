@@ -1,0 +1,20 @@
+# Company Ownership Popup
+validation-company-required = Gesellschaft ist erforderlich
+validation-owner-required = Eigentuemergesellschaft ist erforderlich
+validation-percentage-min = Prozentwert muss mindestens 0 sein
+validation-percentage-max = Prozentwert darf hoechstens 100 sein
+validation-owner-different = Eigentuemergesellschaft muss sich von der Gesellschaft unterscheiden
+error-load-companies = Gesellschaften konnten nicht geladen werden
+error-load-owner-companies = Eigentuemergesellschaften konnten nicht geladen werden
+update-button = Beteiligung aktualisieren
+create-button = Beteiligung festlegen
+company-label = Gesellschaft
+company-placeholder = Gesellschaft auswaehlen
+company-search-placeholder = Gesellschaften suchen...
+company-empty = Keine Gesellschaften gefunden
+owner-label = Eigentuemergesellschaft
+owner-placeholder = Eigentuemergesellschaft auswaehlen
+owner-search-placeholder = Eigentuemergesellschaften suchen...
+owner-empty = Keine Gesellschaften gefunden
+percentage-label = Beteiligungsprozentsatz
+percentage-placeholder = Prozentsatz eingeben (optional)

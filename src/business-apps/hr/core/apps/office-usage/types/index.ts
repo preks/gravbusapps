@@ -180,6 +180,7 @@ export interface OfficeUsageKPIs {
 
 export interface OfficeUsageProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  companyIds?: string[]
 }
 
 export interface UsageOverviewTabProps extends BusinessAppContextProps {

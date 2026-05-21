@@ -1,24 +1,6 @@
-import {
-  chartRenderers,
-  parseChartConfig,
-  LineChartRenderer,
-  type SingleChartConfig
-} from '../../workspace/chartRenderers'
+import React from 'react'
+import { ChartInlineBody } from '../../workspace/chartInlineBody'
 import type { RendererProps } from './index'
-
-interface DashboardSection {
-  type: 'chart' | 'chart-grid' | 'text'
-  title?: string
-  chart?: SingleChartConfig
-  charts?: SingleChartConfig[]
-  content?: string
-  columns?: number
-}
-
-interface DashboardConfig {
-  title?: string
-  sections?: DashboardSection[]
-}
 
 function parseJson(content: string | null): Record<string, unknown> | null {
   if (!content) return null
@@ -28,16 +10,6 @@ function parseJson(content: string | null): Record<string, unknown> | null {
   } catch {
     return null
   }
-}
-
-const SingleChart: React.FC<{ config: SingleChartConfig }> = ({ config }) => {
-  const Renderer = chartRenderers[config.chartType] ?? LineChartRenderer
-  return (
-    <div className="gba:min-h-56">
-      {config.title && <h3 className="gba:mb-3 gba:text-sm gba:font-semibold gba:text-foreground">{config.title}</h3>}
-      <Renderer config={config} />
-    </div>
-  )
 }
 
 const ChartArtifact: React.FC<RendererProps> = ({ content, viewMode }) => {
@@ -54,54 +26,11 @@ const ChartArtifact: React.FC<RendererProps> = ({ content, viewMode }) => {
     return <div className="gba:p-6 gba:text-sm gba:text-muted-foreground">No chart content available.</div>
   }
 
-  const single = parseChartConfig(parsed)
-  if (single) {
-    return (
-      <div className="gba:h-full gba:overflow-auto gba:p-6">
-        <SingleChart config={single} />
-      </div>
-    )
-  }
-
-  const dashboard = parsed as DashboardConfig
-  if (Array.isArray(dashboard.sections)) {
-    return (
-      <div className="gba:h-full gba:overflow-auto gba:p-6 gba:space-y-6">
-        {dashboard.title && <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{dashboard.title}</h2>}
-        {dashboard.sections.map((section, idx) => {
-          if (section.type === 'chart' && section.chart) {
-            return <SingleChart key={section.title ?? idx} config={section.chart} />
-          }
-          if (section.type === 'chart-grid' && section.charts) {
-            return (
-              <div
-                key={section.title ?? idx}
-                className="gba:grid gba:gap-6"
-                style={{ gridTemplateColumns: `repeat(${Math.min(section.columns ?? 2, section.charts.length)}, 1fr)` }}
-              >
-                {section.charts.map((chart, chartIdx) => (
-                  <SingleChart key={chart.title ?? chartIdx} config={chart} />
-                ))}
-              </div>
-            )
-          }
-          if (section.type === 'text' && section.content) {
-            return (
-              <section key={section.title ?? idx}>
-                {section.title && (
-                  <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{section.title}</h3>
-                )}
-                <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">{section.content}</p>
-              </section>
-            )
-          }
-          return null
-        })}
-      </div>
-    )
-  }
-
-  return <div className="gba:p-6 gba:text-sm gba:text-muted-foreground">Unsupported chart artifact shape.</div>
+  return (
+    <div className="gba:h-full gba:overflow-auto gba:p-6">
+      <ChartInlineBody data={parsed} />
+    </div>
+  )
 }
 
 export default ChartArtifact

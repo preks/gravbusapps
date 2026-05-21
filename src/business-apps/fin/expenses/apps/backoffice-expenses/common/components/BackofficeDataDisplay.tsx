@@ -1,4 +1,5 @@
 import { useMemo, useState, type ComponentProps, type ReactNode } from 'react'
+import { FunnelIcon } from '@phosphor-icons/react'
 import { cn } from '@/common/utils/cn'
 import { DataDisplay, DataToolbar, EscapeContextProvider } from '@newwork/nw-design-system'
 
@@ -6,6 +7,9 @@ type BaseDataDisplayProps = ComponentProps<typeof DataDisplay>
 
 export interface BackofficeDataDisplayProps extends BaseDataDisplayProps {
   renderFilterSheet?: (open: boolean, onOpenChange: (open: boolean) => void) => ReactNode
+  customFilterActionLabel?: string
+  hideToolbarGeneratedFilterChips?: boolean
+  customFilterSummary?: ReactNode
 }
 
 export function BackofficeDataDisplay({
@@ -43,7 +47,10 @@ export function BackofficeDataDisplay({
   secondaryActions,
   toolbarDensity = 'default',
   children,
-  renderFilterSheet
+  renderFilterSheet,
+  customFilterActionLabel,
+  hideToolbarGeneratedFilterChips = false,
+  customFilterSummary
 }: Readonly<BackofficeDataDisplayProps>) {
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
 
@@ -56,6 +63,23 @@ export function BackofficeDataDisplay({
   const currentSortId = primarySortEntry?.id ?? undefined
   const resolvedDirection = primarySortEntry?.desc ? 'desc' : 'asc'
   const currentSortDirection = primarySortEntry ? resolvedDirection : undefined
+  const effectiveFilterValues = hideToolbarGeneratedFilterChips ? {} : filters
+  const effectiveFilterConfiguration = hideToolbarGeneratedFilterChips ? undefined : filterConfiguration
+  const effectiveOnFilterChange = hideToolbarGeneratedFilterChips ? undefined : onFilterChange
+  const resolvedSecondaryActions = useMemo(() => {
+    if (!customFilterActionLabel || !filterConfiguration) {
+      return secondaryActions
+    }
+
+    const filterAction = {
+      id: 'filters',
+      label: customFilterActionLabel,
+      icon: FunnelIcon,
+      onClick: () => setFilterSheetOpen(true)
+    }
+
+    return Array.isArray(secondaryActions) ? [filterAction, ...secondaryActions] : [filterAction]
+  }, [customFilterActionLabel, filterConfiguration, secondaryActions])
 
   return (
     <EscapeContextProvider>
@@ -73,10 +97,10 @@ export function BackofficeDataDisplay({
           searchLoading={searchLoading}
           searchError={searchError}
           searchErrorText={searchErrorText}
-          filterValues={filters}
-          filterConfiguration={filterConfiguration}
-          onFilterChange={onFilterChange}
-          onFilterClick={filterConfiguration ? () => setFilterSheetOpen(true) : undefined}
+          filterValues={effectiveFilterValues}
+          filterConfiguration={effectiveFilterConfiguration}
+          onFilterChange={effectiveOnFilterChange}
+          onFilterClick={filterConfiguration && !customFilterActionLabel ? () => setFilterSheetOpen(true) : undefined}
           viewOptions={viewOptions}
           currentView={currentView}
           onViewChange={onViewChange}
@@ -110,12 +134,13 @@ export function BackofficeDataDisplay({
               : undefined
           }
           primaryAction={primaryAction}
-          secondaryActions={secondaryActions}
+          secondaryActions={resolvedSecondaryActions}
           selectedItemsCount={selectedCount}
           bulkActions={bulkActions}
           onSelectionClear={onClearSelection}
           density={toolbarDensity}
         />
+        {customFilterSummary}
         <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overflow-x-hidden">{children}</div>
         {renderFilterSheet?.(filterSheetOpen, setFilterSheetOpen)}
       </div>

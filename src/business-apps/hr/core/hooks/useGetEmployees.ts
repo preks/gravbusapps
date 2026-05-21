@@ -46,6 +46,8 @@ export interface Employee {
 export type EmployeeFilters = {
   alpha?: string | null
   search?: string
+  structureId?: string
+  companyIds?: string[]
   organizationalUnits?: string[]
   employmentTypes?: string[]
   contractTypes?: string[]
@@ -78,6 +80,29 @@ function extractTotalFromRows(rows: any[]): number | null {
   const parts = label.split('|')
   const totalParsed = parts.length === 2 ? Number(parts[1]) : Number.NaN
   return Number.isFinite(totalParsed) ? totalParsed : null
+}
+
+function setParamIfNonEmptyString(
+  params: Record<string, string | number | boolean>,
+  key: string,
+  value: string | undefined | null
+) {
+  const trimmed = value?.trim()
+  if (trimmed) {
+    params[key] = trimmed
+  }
+}
+
+function setParamIfNonEmptyCsv(
+  params: Record<string, string | number | boolean>,
+  key: string,
+  values: Array<string | undefined | null> | undefined
+) {
+  if (!values || values.length === 0) return
+  const csv = values.filter((v): v is string => typeof v === 'string' && v.trim().length > 0).join(',')
+  if (csv) {
+    params[key] = csv
+  }
 }
 
 function mapRowToEmployee(row: any): Employee {
@@ -120,8 +145,18 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [shouldClearData, setShouldClearData] = useState(false)
   const lastParamsRef = useRef<Record<string, string | number | boolean>>({})
-  const { alpha, search, organizationalUnits, employmentTypes, contractTypes, matrixTeams, sortField, sortOrder } =
-    filters
+  const {
+    alpha,
+    search,
+    structureId,
+    companyIds,
+    organizationalUnits,
+    employmentTypes,
+    contractTypes,
+    matrixTeams,
+    sortField,
+    sortOrder
+  } = filters
   const alphaFilter = alpha ? `${alpha}%` : `%`
   const searchFilter = search ? `%${search}%` : `%`
 
@@ -132,24 +167,18 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
         limit: limitParam,
         offset: offsetParam
       }
-      if (alpha && alpha.trim() !== '') {
-        params.alpha = alpha
-      }
-      if (search && search.trim() !== '') {
-        params.search = search
-      }
-      if (organizationalUnits && organizationalUnits.length > 0) {
-        params.orgUnitIds = organizationalUnits.join(',')
-      }
-      if (employmentTypes && employmentTypes.length > 0) {
-        params.employmentTypeRefs = employmentTypes.join(',')
-      }
-      if (matrixTeams && matrixTeams.length > 0) {
-        params.matrixTeamIds = matrixTeams.join(',')
-      }
+
+      setParamIfNonEmptyString(params, 'structureId', structureId)
+      setParamIfNonEmptyCsv(params, 'companyIds', companyIds)
+      setParamIfNonEmptyString(params, 'alpha', alpha)
+      setParamIfNonEmptyString(params, 'search', search)
+      setParamIfNonEmptyCsv(params, 'orgUnitIds', organizationalUnits)
+      setParamIfNonEmptyCsv(params, 'employmentTypeRefs', employmentTypes)
+      setParamIfNonEmptyCsv(params, 'contractTypeRefs', contractTypes)
+      setParamIfNonEmptyCsv(params, 'matrixTeamIds', matrixTeams)
       return params
     },
-    [alpha, search, organizationalUnits, employmentTypes, matrixTeams]
+    [alpha, companyIds, contractTypes, employmentTypes, matrixTeams, organizationalUnits, search, structureId]
   )
 
   // Reset pagination state on filter change
@@ -168,6 +197,8 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
   }, [
     alpha,
     search,
+    structureId,
+    JSON.stringify(companyIds),
     JSON.stringify(organizationalUnits),
     JSON.stringify(employmentTypes),
     JSON.stringify(contractTypes),

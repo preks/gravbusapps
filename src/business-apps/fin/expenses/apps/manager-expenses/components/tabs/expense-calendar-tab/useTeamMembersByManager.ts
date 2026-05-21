@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { GET_TEAM_MEMBERS_BY_MANAGER } from '../../../queries/expenseRequests'
 import type { TeamEmployee } from './expenseCalendarTypes'
+import translations from '../../../_i18n'
 
 export function useTeamMembersByManager(params: { managerId: string; accessToken?: string | null }) {
   const { managerId, accessToken } = params
+  const { t } = useTranslation(translations)
   const graphqlClient = useGraphQLClient(accessToken || '')
 
   const [allTeamMembers, setAllTeamMembers] = useState<TeamEmployee[]>([])
@@ -26,14 +28,14 @@ export function useTeamMembersByManager(params: { managerId: string; accessToken
         setAllTeamMembers(result.Employee || [])
       } catch (err) {
         console.error('Error fetching team members:', err)
-        setTeamMembersError(getTranslationFromI18nKeyAndLabel('lowcoder:common.error', 'Error loading team members'))
+        setTeamMembersError(t('expense-calendar-team-members-load-error'))
       } finally {
         setLoadingTeamMembers(false)
       }
     }
 
     fetchTeamMembers()
-  }, [managerId, accessToken, graphqlClient])
+  }, [managerId, accessToken, graphqlClient, t])
 
   return { allTeamMembers, loadingTeamMembers, teamMembersError }
 }

@@ -1,10 +1,11 @@
 import React, { useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ExpenseRequestStatisticsData } from '../../../hooks/useGetExpenseRequests'
 import { WidgetItem } from '@/components/widget-group'
 import ManagerClickableWidgetGroup from '../../ManagerClickableWidgetGroup'
 import { CurrencyPrefix } from '../../../common/components/CurrencyPrefix'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../../_i18n'
 
 const SUBMITTED_STATUSES = ['PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED']
 
@@ -27,6 +28,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   activeFilter = [],
   onFilterChange
 }) => {
+  const { t } = useTranslation(translations)
   const displayCurrency = displayCurrencyProp ?? 'EUR'
 
   const handleCardClick = useCallback(
@@ -52,83 +54,56 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ? [
             {
               key: 'pending-requests',
-              title: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_management_hub_manager.pending_requests_btn',
-                'Pending Requests'
-              ),
+              title: t('expense-requests-stats-pending-requests-title'),
               value: requestStats.pendingCount.toString(),
               prefix: <CurrencyPrefix currency={displayCurrency} />,
               valueIsString: true,
               color: isPendingActive ? 'var(--nw-primary)' : 'var(--nw-warning)',
-              description: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.expense_requests_tab.waiting_for_approval',
-                'Waiting for approval'
-              ),
+              description: t('expense-requests-stats-pending-requests-desc'),
               active: isPendingActive,
               onClick: () => handleCardClick('PENDING')
             },
             {
               key: 'pending-amount',
-              title: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.expense_plans_tab.pending_amount',
-                'Pending Amount'
-              ),
+              title: t('expense-requests-stats-pending-amount-title'),
               value: formatCurrencyDisplay(requestStats.pendingAmount || 0, displayCurrency),
               color: 'var(--nw-success)',
-              description: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.expense_requests_tab.total_pending_funds',
-                'Total Pending Reimbursement'
-              ),
+              description: t('expense-requests-stats-pending-amount-desc'),
               valueIsString: true
             },
             {
               key: 'total-requests-submitted',
-              title: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.expense_requests_tab.total_requests_submitted',
-                'Total Requests Submitted'
-              ),
+              title: t('expense-requests-stats-total-submitted-title'),
               value: requestStats.totalRequestsSubmitted.toString(),
               prefix: <CurrencyPrefix currency={displayCurrency} />,
               valueIsString: true,
               color: 'var(--nw-primary)',
-              description: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.expense_requests_tab.all_submitted_requests',
-                'All Submitted Requests'
-              ),
+              description: t('expense-requests-stats-total-submitted-desc'),
               active: isSubmittedActive,
               onClick: () => handleCardClick('', true)
             },
             {
               key: 'total-submitted-amount',
-              title: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.expense_requests_tab.total_submitted_amount',
-                'Total Submitted Amount'
-              ),
+              title: t('expense-requests-stats-total-amount-title'),
               value: formatCurrencyDisplay(requestStats.totalSubmittedAmount || 0, displayCurrency),
               color: activeFilter.length === 0 ? 'var(--nw-primary)' : 'var(--nw-accent)',
-              description: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.expense_requests_tab.all_expense_requests',
-                'All Expense Requests'
-              ),
+              description: t('expense-requests-stats-total-amount-desc'),
               valueIsString: true,
               active: activeFilter.length === 0
             }
           ]
         : [],
-    [requestStats, activeFilter, displayCurrency, handleCardClick, isPendingActive, isSubmittedActive]
+    [requestStats, activeFilter, displayCurrency, handleCardClick, isPendingActive, isSubmittedActive, t]
   )
 
   return (
     <ManagerClickableWidgetGroup
       widgets={widgets}
       isLoading={requestStatsLoading}
-      error={requestStatsError ? 'Failed to load statistics' : undefined}
+      error={requestStatsError ? t('expense-requests-stats-load-error') : undefined}
       onRetry={fetchRequestStatistics}
       skeletonCount={4}
-      emptyText={getTranslationFromI18nKeyAndLabel(
-        'lowcoder:personal_expenses.no_expense_request_statistics_available',
-        'No expense request statistics available.'
-      )}
+      emptyText={t('expense-requests-stats-empty')}
       cardBackground="muted"
       className="gba:py-0"
       data-testid="expense-request-statistics"

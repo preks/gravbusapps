@@ -170,7 +170,13 @@ export interface UseInvestmentLeadsListResult {
   total: number
   loading: boolean
   error: string | null
-  refetch: (variables?: InvestmentLeadQueryVariables) => Promise<void>
+  refetch: (variables?: InvestmentLeadQueryVariables) => Promise<InvestmentLeadListData>
+  /**
+   * Imperative fetch that does NOT touch the hook's internal state.
+   * Use this when you need to fetch with arbitrary variables (e.g. drill-down panels)
+   * without triggering parent re-renders from the hook's state updates.
+   */
+  fetchInvestmentLeads: (variables?: InvestmentLeadQueryVariables) => Promise<InvestmentLeadListData>
 }
 
 export function useInvestmentLeadsList(
@@ -190,10 +196,10 @@ export function useInvestmentLeadsList(
   })
 
   const fetchLeads = useCallback(
-    async (queryVariables?: InvestmentLeadQueryVariables) => {
+    async (queryVariables?: InvestmentLeadQueryVariables): Promise<InvestmentLeadListData> => {
       if (!context.accessToken) {
         setState(prev => ({ ...prev, loading: false }))
-        return
+        return { leads: [], total: 0 }
       }
 
       setState(prev => ({ ...prev, loading: true, error: null }))
@@ -220,6 +226,7 @@ export function useInvestmentLeadsList(
         const total = result.InvestmentLeadAggregate?.aggregate?.count || 0
 
         setState({ leads, total, loading: false, error: null })
+        return { leads, total }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment leads'
 
@@ -230,6 +237,7 @@ export function useInvestmentLeadsList(
           loading: false,
           error: errorMessage
         }))
+        return { leads: [], total: 0 }
       }
     },
     [context.accessToken, graphqlClient, stableVariables]
@@ -239,9 +247,44 @@ export function useInvestmentLeadsList(
     fetchLeads()
   }, [fetchLeads])
 
+  const fetchInvestmentLeads = useCallback(
+    async (queryVariables?: InvestmentLeadQueryVariables): Promise<InvestmentLeadListData> => {
+      if (!context.accessToken) {
+        return { leads: [], total: 0 }
+      }
+
+      const vars = { ...stableVariables, ...queryVariables }
+      const query = buildInvestmentLeadQuery()
+      const whereCondition = buildInvestmentLeadWhereCondition(vars)
+      const orderBy = buildInvestmentLeadOrderBy(vars.orderBy || [])
+      if (orderBy.length === 0) {
+        orderBy.push({ createdAt: 'DESC' } as any)
+      }
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(vars.limit ?? 50, 100),
+        offset: vars.offset ?? 0,
+        where: whereCondition,
+        orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<InvestmentLeadQueryResponse>(query, graphQLVariables)
+        const leads = result.InvestmentLead.map(toInvestmentLead)
+        const total = result.InvestmentLeadAggregate?.aggregate?.count || 0
+        return { leads, total }
+      } catch (error) {
+        console.error('Error fetching investment leads:', error instanceof Error ? error.message : error)
+        return { leads: [], total: 0 }
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
   return {
     ...state,
-    refetch: fetchLeads
+    refetch: fetchLeads,
+    fetchInvestmentLeads
   }
 }
 

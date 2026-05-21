@@ -2,6 +2,8 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 
@@ -14,6 +16,7 @@ import type { QuickAccessSection } from './components/NoteTreeQuickAccess'
 import type { PaperStyle, StrokeData } from './components/handwriting'
 
 import { useNotes } from './hooks/useNotes'
+import { useNoteAppsHubFavorites } from './hooks/useNoteAppsHubFavorites'
 import { useNoteTree } from './hooks/useNoteTree'
 import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
 import { useResizableSidebar } from './hooks/useResizableSidebar'
@@ -60,6 +63,9 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   'data-testid': testId = 'note-apps-hub'
 }) => {
   const { t } = useTranslation(translations)
+  /** Catalog key `preview.enabled` (Feature.Preview.Enabled.Key). Hide handwriting UI unless explicitly enabled. */
+  const previewFeatureRaw = useFeature<boolean | string>(Feature.Preview.Enabled.Key)
+  const previewEnabled = previewFeatureRaw === true || previewFeatureRaw === 'true'
 
   // View state
   const [currentView, setCurrentView] = useState<HubView>('list')
@@ -72,14 +78,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [folderBreadcrumbs, setFolderBreadcrumbs] = useState<Array<{ id: string; title: string }>>([])
-  const [favorites, setFavorites] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem('note-favorites')
-      return saved ? new Set(JSON.parse(saved)) : new Set()
-    } catch {
-      return new Set()
-    }
-  })
+  const [favoriteNotes, setFavoriteNotes] = useState<NoteSummary[]>([])
+  const { favorites, toggleFavorite: toggleNoteFavorite } = useNoteAppsHubFavorites({ accessToken })
 
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
@@ -122,7 +122,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     clearCurrentNote,
     refreshNotes,
     shareNote,
-    getSharedUsers
+    getSharedUsers,
+    patchNoteInState
   } = useNotes({ accessToken, userId: currentUserId, translate: t })
 
   const noteTree = useNoteTree({ autoLoad: true, t })
@@ -150,11 +151,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
 
-  // Persist favorites
-  useEffect(() => {
-    localStorage.setItem('note-favorites', JSON.stringify(Array.from(favorites)))
-  }, [favorites])
-
   useEffect(() => {
     const nextQuickAccess = SECTION_TO_QUICK_ACCESS[activeSection]
     if (nextQuickAccess !== activeQuickAccess) {
@@ -166,9 +162,9 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     (users: NoteShare[]): SharedNoteUser[] =>
       users.map(user => ({
         ...user,
-        userName: user.userName || user.userEmail || t('owner-unknown')
+        userName: user.userName || user.userEmail || ''
       })),
-    [t]
+    []
   )
 
   // Fetch owner info
@@ -238,6 +234,51 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     void loadTrashCount()
   }, [loadTrashCount])
 
+  useEffect(() => {
+    if (!accessToken) {
+      setFavoriteNotes([])
+      return
+    }
+
+    let cancelled = false
+
+    const loadFavoriteNotes = async () => {
+      try {
+        const PAGE_SIZE = 100
+        let page = 1
+        let hasMore = true
+        let nextFavoriteNotes: NoteSummary[] = []
+
+        while (hasMore) {
+          const result = await NoteApiService.listNotes({
+            section: 'favorites',
+            includeShared: true,
+            limit: PAGE_SIZE,
+            page
+          })
+          nextFavoriteNotes = [...nextFavoriteNotes, ...result.items]
+          hasMore = result.items.length === PAGE_SIZE
+          page += 1
+        }
+
+        if (!cancelled) {
+          setFavoriteNotes(nextFavoriteNotes)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setFavoriteNotes([])
+        }
+        console.error('[NoteAppsHub] Failed to load favorite notes:', error)
+      }
+    }
+
+    void loadFavoriteNotes()
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, favorites])
+
   // Categorise notes
   const { myNotes, sharedNotes, pinnedNotes, recentNotes } = useMemo(() => {
     const my: NoteSummary[] = []
@@ -265,13 +306,13 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const quickAccessCounts = useMemo(
     () => ({
       'all-notes': myNotes.filter(n => !isFolder(n)).length,
-      favorites: Array.from(favorites).filter(id => notes.some(n => n.id === id && !isFolder(n))).length,
+      favorites: favoriteNotes.filter(n => !isFolder(n)).length,
       pinned: pinnedNotes.filter(n => !isFolder(n)).length,
       shared: sharedNotes.filter(n => !isFolder(n)).length,
       recent: recentNotes.filter(n => !isFolder(n)).length,
       trash: trashCount
     }),
-    [myNotes, sharedNotes, pinnedNotes, recentNotes, favorites, notes, trashCount]
+    [favoriteNotes, myNotes, pinnedNotes, recentNotes, sharedNotes, trashCount]
   )
 
   // Filter + sort notes
@@ -298,7 +339,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     }
 
     if (activeQuickAccess === 'favorites') {
-      base = base.filter(n => favorites.has(n.id))
+      base = favoriteNotes
     }
 
     if (currentFolderId) {
@@ -345,7 +386,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     searchQuery,
     sortBy,
     sortOrder,
-    favorites,
+    favoriteNotes,
     currentFolderId
   ])
 
@@ -366,6 +407,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       paperStyle?: PaperStyle
       parentId?: string
     }) => {
+      if (options?.noteType === 'handwriting' && !previewEnabled) {
+        toast.error(t('handwriting-preview-disabled-toast'))
+        return
+      }
       const input: CreateNoteInput = {
         title: '',
         content: '<p></p>',
@@ -389,7 +434,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         noteTree.loadTree()
       }
     },
-    [createNote, loadNote, updateUrl, noteTree]
+    [createNote, loadNote, noteTree, previewEnabled, t, updateUrl]
   )
 
   const handleCreateFolder = useCallback(async () => {
@@ -629,6 +674,11 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   }, [clearCurrentNote, resetLoadAttempt, updateUrl])
 
   const isTrashedNote = Boolean(currentNote?.trashedAt)
+  const canEditCurrentNote = useMemo(() => {
+    if (!currentNote) return false
+    const p = currentNotePermission || 'owner'
+    return p === 'owner' || p === 'edit'
+  }, [currentNote, currentNotePermission])
   const canManageTrashedNote = Boolean(
     isTrashedNote &&
       currentNotePermission === 'owner' &&
@@ -679,21 +729,14 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   ])
 
   const toggleFavorite = useCallback(
-    (id: string, e?: React.MouseEvent) => {
+    async (id: string, e?: React.MouseEvent) => {
       e?.stopPropagation()
-      setFavorites(prev => {
-        const next = new Set(prev)
-        if (next.has(id)) {
-          next.delete(id)
-          toast.success(t('toast-favorite-removed'))
-        } else {
-          next.add(id)
-          toast.success(t('toast-favorite-added'))
-        }
-        return next
-      })
+      const wasFavorite = favorites.has(id)
+      await toggleNoteFavorite(id)
+      await refreshNotes()
+      toast.success(t(wasFavorite ? 'toast-favorite-removed' : 'toast-favorite-added'))
     },
-    [t]
+    [favorites, refreshNotes, t, toggleNoteFavorite]
   )
 
   const toggleSelectNote = useCallback((id: string, e?: React.MouseEvent) => {
@@ -810,6 +853,26 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     [noteTree]
   )
 
+  const handleNoteColorChange = useCallback(
+    (color: NoteColor) => {
+      const id = currentNote?.id
+      if (!id || isTrashedNote || !canEditCurrentNote) return
+      void updateNote(id, { color, createVersion: false })
+      noteTree.updateNodeColorOptimistic(id, color)
+    },
+    [canEditCurrentNote, currentNote?.id, isTrashedNote, noteTree, updateNote]
+  )
+
+  const handleRemoteNoteColor = useCallback(
+    (color: NoteColor) => {
+      const id = currentNote?.id
+      if (!id || isTrashedNote) return
+      patchNoteInState(id, { color })
+      noteTree.updateNodeColorOptimistic(id, color)
+    },
+    [currentNote?.id, isTrashedNote, noteTree, patchNoteInState]
+  )
+
   const breadcrumbs = useMemo(() => {
     if (currentView === 'list' && folderBreadcrumbs.length > 0) {
       return folderBreadcrumbs.map(b => ({
@@ -864,6 +927,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       onSelectNode={handleTreeSelect}
       onToggleExpand={noteTree.toggleExpand}
       onCreateNote={opts => handleCreateNew(opts)}
+      handwritingNotesEnabled={previewEnabled}
       onCreateFolder={handleCreateFolder}
       onDelete={handleDeleteNote}
       onTogglePin={handleTogglePin}
@@ -1035,6 +1099,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             onToggleSidebar={sidebar.toggleCollapsed}
             onTitleChanged={handleTitleChanged}
             onContentSaved={handleContentSaved}
+            onColorChange={!isTrashedNote && canEditCurrentNote ? handleNoteColorChange : undefined}
+            onRemoteNoteColor={!isTrashedNote ? handleRemoteNoteColor : undefined}
             accessToken={accessToken}
             userInfo={userInfo}
             data-testid={`${testId}-editor`}
@@ -1107,6 +1173,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         onClearSelection={handleClearSelection}
         onMoveToFolder={handleMoveToFolder}
         onRenameNote={handleRenameNote}
+        handwritingNotesEnabled={previewEnabled}
       />
 
       {/* Pagination */}

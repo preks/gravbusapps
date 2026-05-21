@@ -48,7 +48,12 @@ export const GET_TEAM_MEMBER_REGIONS = `
   query GetTeamMemberRegions($employeeIds: [uuid!]!, $activeUserLocale: String!) {
     Employee(where: { id: { _in: $employeeIds }, isDeleted: { _eq: false } }) {
       id
-      workingCondition {
+      workingCondition(
+        where: { isDeleted: { _eq: false } }
+        orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
+      ) {
+        activeFrom
+        activeTo
         region {
           id
           value

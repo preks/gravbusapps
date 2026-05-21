@@ -3,7 +3,14 @@ import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { ResponseType } from '@/common/network/rest/RestClient'
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
-import type { DeepAgentSession, SessionConfig, StartSessionResponse } from '../types/enterpriseAgent'
+import type {
+  DeepAgentSession,
+  ModelOptionsResponse,
+  ReasoningEffort,
+  SessionAttachment,
+  SessionConfig,
+  StartSessionResponse
+} from '../types/enterpriseAgent'
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
 import type { ActiveSessionsListResponse, ActiveSessionsSummaryResponse } from '../types/activeSession'
@@ -43,15 +50,24 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         config?.selectedEnterpriseSkill?.skill_id
       ].filter((value): value is string => Boolean(value))
       const selectedToolRefs = Array.from(new Set(config?.selectedEnterpriseSkill?.tool_refs ?? []))
+      const selectedExpertId = config?.selectedAgent?.id
+      const selectedExpertIds = selectedExpertId ? [selectedExpertId] : undefined
       return client.post<StartSessionResponse>('/deep-agent/sessions', {
         task,
         config,
         timezone,
+        presentation_mode: 'enterprise_agents',
         active_external_connection_ids: activeExternalConnectionIds,
+        expert_ids: selectedExpertIds,
         skill_ids: selectedSkillIds,
         tool_refs: selectedToolRefs
       })
     },
+    [client]
+  )
+
+  const activateSession = useCallback(
+    (sessionId: string) => client.post<StartSessionResponse>(`/deep-agent/sessions/${enc(sessionId)}/start`, {}),
     [client]
   )
 
@@ -113,8 +129,35 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  const getMeshSessions = useCallback(
+    (params: {
+      scope: 'me' | 'user' | 'workspace'
+      userId?: string
+      limit?: number
+      status?: string
+      since?: string
+      until?: string
+    }) => {
+      const queryParams: Record<string, string> = { scope: params.scope }
+      if (params.userId) queryParams.userId = params.userId
+      if (params.limit) queryParams.limit = String(params.limit)
+      if (params.status) queryParams.status = params.status
+      if (params.since) queryParams.since = params.since
+      if (params.until) queryParams.until = params.until
+      return client.get<{ scope: string; count: number; items: DeepAgentSession[] }>('/deep-agent/sessions/mesh', {
+        params: queryParams
+      })
+    },
+    [client]
+  )
+
   const replyToInterrupt = useCallback(
-    (sessionId: string, message?: string, structuredInput?: Record<string, any>) => {
+    (
+      sessionId: string,
+      message?: string,
+      structuredInput?: Record<string, any>,
+      attachmentRefs?: Array<{ id: string; name: string; mime_type: string; size: number; indexing_status?: string }>
+    ) => {
       const payload: Record<string, unknown> = {}
       if (structuredInput) {
         payload.structured_input = structuredInput
@@ -126,9 +169,29 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         console.error('[replyToInterrupt] Missing message and structured_input')
         throw new Error('Either message or structured_input must be provided')
       }
+      if (attachmentRefs && attachmentRefs.length > 0) {
+        payload.attachment_refs = attachmentRefs
+      }
       return client.post(`/deep-agent/sessions/${sessionId}/message`, payload)
     },
     [client]
+  )
+
+  const fetchAttachmentContent = useCallback(
+    async (sessionId: string, attachmentId: string): Promise<Blob> => {
+      const base = resolvePromptManagerBase()
+      const headers: Record<string, string> = {}
+      if (accessToken) {
+        headers.Authorization = setAccessTokenToAuthorizationHeader(accessToken)
+      }
+      const response = await fetch(
+        `${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(attachmentId)}/content`,
+        { method: 'GET', headers, credentials: 'same-origin', mode: 'cors' }
+      )
+      if (!response.ok) throw new Error(`Attachment fetch failed: ${response.status}`)
+      return response.blob()
+    },
+    [accessToken]
   )
 
   const stopSession = useCallback((sessionId: string) => client.delete(`/deep-agent/sessions/${sessionId}`), [client])
@@ -366,9 +429,14 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
 
   const getSkill = useCallback(
     (skillId: string) =>
-      client.get<{ skill_id: string; name: string; description: string; content: string; status: string }>(
-        `/admin/skills/${enc(skillId)}`
-      ),
+      client.get<{
+        skill_id: string
+        name: string
+        description: string
+        content: string
+        status: string
+        tool_refs?: string[]
+      }>(`/admin/skills/${enc(skillId)}`),
     [client]
   )
 
@@ -423,6 +491,14 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  const listArchivedSkills = useCallback(async () => {
+    const skills = await client.get<{ skill_id: string; name: string; description: string; status: string }[]>(
+      '/admin/skills/',
+      { params: { include_archived: 'true' } as Record<string, string> }
+    )
+    return skills.filter(s => s.status === 'archived')
+  }, [client])
+
   const enableSkill = useCallback(
     (skillId: string) => client.post<Record<string, unknown>>(`/admin/skills/${enc(skillId)}/enable`, {}),
     [client]
@@ -433,11 +509,60 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client]
   )
 
+  // ── Session attachments (RAG over composer uploads) ────────────────────
+  const uploadSessionAttachment = useCallback(
+    async (
+      sessionId: string,
+      file: File,
+      opts?: { spaceId?: string; folderId?: string }
+    ): Promise<SessionAttachment> => {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (opts?.spaceId) formData.append('spaceId', opts.spaceId)
+      if (opts?.folderId) formData.append('folderId', opts.folderId)
+      return client.post<SessionAttachment>(`/deep-agent/sessions/${enc(sessionId)}/attachments`, formData)
+    },
+    [client]
+  )
+
+  const listSessionAttachments = useCallback(
+    (sessionId: string) => client.get<SessionAttachment[]>(`/deep-agent/sessions/${enc(sessionId)}/attachments`),
+    [client]
+  )
+
+  const deleteSessionAttachment = useCallback(
+    (sessionId: string, attachmentId: string) =>
+      client.delete(`/deep-agent/sessions/${enc(sessionId)}/attachments/${enc(attachmentId)}`),
+    [client]
+  )
+
+  /**
+   * Fetch the server's curated list of user-selectable primary models.
+   * This is a read-only, unauthenticated-friendly endpoint — load once
+   * per app mount via a shared React hook that caches the result.
+   */
+  const getModelOptions = useCallback(() => client.get<ModelOptionsResponse>('/agent-sessions/model-options'), [client])
+
+  /**
+   * Persist a new model + reasoning-effort choice on an existing session.
+   * Applies to future turns only; does not interrupt any in-flight turn.
+   */
+  const updateSessionConfig = useCallback(
+    (sessionId: string, modelId: string, reasoningEffort: ReasoningEffort) =>
+      client.patch<{ session_id: string; model: string; reasoning_effort: string; effective_from: string }>(
+        `/agent-sessions/sessions/${enc(sessionId)}/config`,
+        { modelId, reasoningEffort }
+      ),
+    [client]
+  )
+
   return useMemo(
     () => ({
       startSession,
+      activateSession,
       getSession,
       getSessions,
+      getMeshSessions,
       replyToInterrupt,
       stopSession,
       getActiveSessions,
@@ -465,13 +590,22 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       submitSkillForReview,
       approveSkill,
       archiveSkill,
+      listArchivedSkills,
       enableSkill,
-      disableSkill
+      disableSkill,
+      uploadSessionAttachment,
+      listSessionAttachments,
+      deleteSessionAttachment,
+      fetchAttachmentContent,
+      getModelOptions,
+      updateSessionConfig
     }),
     [
       startSession,
+      activateSession,
       getSession,
       getSessions,
+      getMeshSessions,
       replyToInterrupt,
       stopSession,
       getActiveSessions,
@@ -499,8 +633,15 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       submitSkillForReview,
       approveSkill,
       archiveSkill,
+      listArchivedSkills,
       enableSkill,
-      disableSkill
+      disableSkill,
+      uploadSessionAttachment,
+      listSessionAttachments,
+      deleteSessionAttachment,
+      fetchAttachmentContent,
+      getModelOptions,
+      updateSessionConfig
     ]
   )
 }

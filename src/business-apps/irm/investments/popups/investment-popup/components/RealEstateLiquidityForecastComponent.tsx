@@ -9,6 +9,7 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
+  DateInput,
   Input,
   Button,
   Alert
@@ -32,14 +33,14 @@ const prefixDataTestId = 'investment-liquidity-forecast-component'
 // Validation schema
 const yearAmountSchema = z.object({
   id: z.string().optional(),
-  year: z.union([z.number().min(1900), z.string().min(1, 'Year is required')]),
-  amount: z.union([z.number(), z.string().min(1, 'Amount is required')])
+  year: z.union([z.number().min(1900), z.string().trim().min(1, 'Year is required')]),
+  amount: z.union([z.number(), z.string().trim().min(1, 'Amount is required')])
 })
 
 const liquidityForecastSchema = z.object({
   yearAmounts: z.array(yearAmountSchema).min(1, 'At least one year/amount pair is required'),
-  balancedCashflowDate: z.string().min(1, 'Balanced cashflow date is required'),
-  balancedAmount: z.union([z.number(), z.string().min(1, 'Balanced amount is required')])
+  balancedCashflowDate: z.string().trim().min(1, 'Balanced cashflow date is required'),
+  balancedAmount: z.union([z.number(), z.string().trim().min(1, 'Balanced amount is required')])
 })
 
 export const RealEstateLiquidityForecastComponent: React.FC<InvestmentLiquidityForecastComponentProps> = ({
@@ -354,9 +355,10 @@ export const RealEstateLiquidityForecastComponent: React.FC<InvestmentLiquidityF
                       <span className="gba:text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
+                      <DateInput
                         type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(typeof value === 'string' ? value : '')}
                         data-testid={formatDataTestId(prefixDataTestId, 'balanced-date-input')}
                       />
                     </FormControl>

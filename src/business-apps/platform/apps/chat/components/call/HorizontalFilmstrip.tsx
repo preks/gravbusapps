@@ -46,6 +46,8 @@ export interface HorizontalFilmstripProps {
   isMinimized?: boolean
   /** Callback when screen share is clicked to focus it */
   onScreenShareClick?: (peerId: string) => void
+  /** Whether local camera mirror is enabled */
+  isMirrorEnabled?: boolean
 }
 
 export const HorizontalFilmstrip: React.FC<HorizontalFilmstripProps> = ({
@@ -57,7 +59,8 @@ export const HorizontalFilmstrip: React.FC<HorizontalFilmstripProps> = ({
   t,
   prefixDataTestId = 'filmstrip',
   isMinimized = false,
-  onScreenShareClick
+  onScreenShareClick,
+  isMirrorEnabled = true
 }) => {
   if (participants.length === 0) {
     return null
@@ -108,6 +111,7 @@ export const HorizontalFilmstrip: React.FC<HorizontalFilmstripProps> = ({
               prefixDataTestId={`${prefixDataTestId}-participant`}
               t={t}
               isMinimized={isMinimized}
+              isMirrored={participant.isLocal && isMirrorEnabled}
             />
           </div>
         )

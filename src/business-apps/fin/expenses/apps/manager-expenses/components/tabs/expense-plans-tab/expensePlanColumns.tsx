@@ -9,15 +9,18 @@ import {
   renderTitleCodeCell,
   renderCodeCell
 } from '../../../common/columns/expenseColumnHelpers'
-import { getExpensePlanStatusDisplay, type ExpenseStatus } from '../../../utils'
+import { getExpensePlanStatusDisplayT, type ExpenseStatus } from '../../../utils'
 import type { ExpensePlan } from '../../../hooks/useMainViewExpensePlans'
-import { getExpensePlanColumnHeader } from './config/expensePlanColumnDefinitions'
+import { getExpensePlanColumnTitle } from './config/expensePlanColumnDefinitions'
 
 /**
  * Builds column definitions for the manager expense plans table.
  * currencyFilter: when set, all amount cells use this currency; otherwise each row uses its own.
  */
-export function createExpensePlanColumns(currencyFilter: string | null): ColumnDef<ExpensePlan>[] {
+export function createExpensePlanColumns(
+  currencyFilter: string | null,
+  t: (key: string) => string
+): ColumnDef<ExpensePlan>[] {
   const formatDate = createFormatDate()
   const formatCurrency = createFormatCurrency(currencyFilter)
 
@@ -25,7 +28,7 @@ export function createExpensePlanColumns(currencyFilter: string | null): ColumnD
     {
       id: 'title',
       accessorKey: 'title',
-      header: getExpensePlanColumnHeader('title'),
+      header: getExpensePlanColumnTitle(t, 'title'),
       size: 200,
       minSize: 160,
       maxSize: 320,
@@ -38,7 +41,7 @@ export function createExpensePlanColumns(currencyFilter: string | null): ColumnD
         Array.isArray(row.expenseRequest) && row.expenseRequest.length > 0
           ? (row.expenseRequest[0]?.code ?? null)
           : null,
-      header: getExpensePlanColumnHeader('requestCode'),
+      header: getExpensePlanColumnTitle(t, 'requestCode'),
       size: 120,
       minSize: 90,
       maxSize: 180,
@@ -50,26 +53,26 @@ export function createExpensePlanColumns(currencyFilter: string | null): ColumnD
         return renderCodeCell(code)
       }
     },
-    createDateColumn<ExpensePlan>('startDate', getExpensePlanColumnHeader('startDate'), 'startDate', { formatDate }),
-    createDateColumn<ExpensePlan>('endDate', getExpensePlanColumnHeader('endDate'), 'endDate', {
+    createDateColumn<ExpensePlan>('startDate', getExpensePlanColumnTitle(t, 'startDate'), 'startDate', { formatDate }),
+    createDateColumn<ExpensePlan>('endDate', getExpensePlanColumnTitle(t, 'endDate'), 'endDate', {
       formatDate
     }),
     createEmployeeColumn<ExpensePlan>(
       'employee',
-      getExpensePlanColumnHeader('employee'),
+      getExpensePlanColumnTitle(t, 'employee'),
       (row: ExpensePlan) => row.employee ?? null,
       { showEmployeeAvatar: false }
     ),
-    createDateColumn<ExpensePlan>('createdAt', getExpensePlanColumnHeader('createdAt'), 'createdAt', { formatDate }),
+    createDateColumn<ExpensePlan>('createdAt', getExpensePlanColumnTitle(t, 'createdAt'), 'createdAt', { formatDate }),
     createCurrencyColumn<ExpensePlan>(
       'totalAmount',
-      getExpensePlanColumnHeader('totalAmount'),
+      getExpensePlanColumnTitle(t, 'totalAmount'),
       (row: ExpensePlan) => (typeof row.totalAmount === 'number' ? row.totalAmount : 0),
       (row: ExpensePlan) => currencyFilter ?? row.currency ?? 'EUR',
       formatCurrency
     ),
-    createStatusBadgeColumn<ExpensePlan>('status', getExpensePlanColumnHeader('status'), (row: ExpensePlan) =>
-      getExpensePlanStatusDisplay(row.status as ExpenseStatus)
+    createStatusBadgeColumn<ExpensePlan>('status', getExpensePlanColumnTitle(t, 'status'), (row: ExpensePlan) =>
+      getExpensePlanStatusDisplayT(t, row.status as ExpenseStatus)
     )
   ]
 }

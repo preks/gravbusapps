@@ -58,9 +58,50 @@ export interface EntityQueryDef {
   needsStructureFilter?: boolean
 }
 
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function dateKeyFromGraphQLValue(value: string): string {
+  return value.slice(0, 10)
+}
+
+function getActiveWorkingCondition(records: unknown[]): unknown {
+  if (records.length === 0) {
+    return undefined
+  }
+
+  if (records.length === 1) {
+    return records[0]
+  }
+
+  const targetDateKey = formatLocalDate(new Date())
+
+  return records.find(record => {
+    if (record == null || typeof record !== 'object') {
+      return false
+    }
+
+    const condition = record as Record<string, unknown>
+    const activeFromKey = typeof condition.activeFrom === 'string' ? dateKeyFromGraphQLValue(condition.activeFrom) : ''
+    const activeToKey = typeof condition.activeTo === 'string' ? dateKeyFromGraphQLValue(condition.activeTo) : ''
+
+    if (!activeFromKey) {
+      return false
+    }
+
+    return activeFromKey <= targetDateKey && (!activeToKey || activeToKey >= targetDateKey)
+  })
+}
+
 /**
  * Resolve a dot-separated path against a nested object.
- * Supports numeric indices for arrays (e.g. "workingCondition.0.hireDate").
+ * Supports numeric indices for arrays (e.g. "workingCondition.0.hireDate")
+ * and "active" for working-condition history arrays.
  */
 export function resolvePath(obj: Record<string, unknown>, path: string): unknown {
   const parts = path.split('.')
@@ -68,8 +109,12 @@ export function resolvePath(obj: Record<string, unknown>, path: string): unknown
   for (const part of parts) {
     if (current == null || typeof current !== 'object') return undefined
     if (Array.isArray(current)) {
-      const idx = Number(part)
-      current = Number.isNaN(idx) ? undefined : current[idx]
+      if (part === 'active') {
+        current = getActiveWorkingCondition(current)
+      } else {
+        const idx = Number(part)
+        current = Number.isNaN(idx) ? undefined : current[idx]
+      }
     } else {
       current = (current as Record<string, unknown>)[part]
     }

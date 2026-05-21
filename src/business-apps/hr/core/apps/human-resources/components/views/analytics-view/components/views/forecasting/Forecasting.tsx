@@ -10,51 +10,49 @@ interface ForecastingProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
+const FORECASTING_VALID_TABS = ['salary', 'workforce'] as const
+const FORECASTING_DEFAULT_TAB = 'salary'
+
 export const Forecasting: React.FC<ForecastingProps> = props => {
   const { prefixDataTestId = 'Forecasting' } = props
   const { t } = useTranslation(hrTranslations)
-
-  // Define valid tabs
-  const validTabs = ['salary', 'workforce']
-  const defaultTab = 'salary'
-
-  // Get content from URL query parameter or use default
-  const getInitialTab = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const contentFromUrl = urlParams.get('content')
-
-    if (validTabs.includes(contentFromUrl ?? '')) {
-      return contentFromUrl!
-    } else {
-      // No valid content in URL, set default content in URL
-      const url = new URL(window.location.href)
-      url.searchParams.set('content', defaultTab)
-      window.history.replaceState({}, '', url.toString())
-      return defaultTab
-    }
-  }
-
-  const [activeTab, setActiveTab] = useState<string>(getInitialTab)
+  const [activeTab, setActiveTab] = useState<string>(FORECASTING_DEFAULT_TAB)
 
   // Update URL when content changes
   const handleTabChange = (key: string) => {
     setActiveTab(key)
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.location.href)
     url.searchParams.set('content', key)
-    window.history.pushState({}, '', url.toString())
+    globalThis.history.pushState({}, '', url.toString())
   }
 
   // Handle browser back/forward navigation
   useEffect(() => {
-    const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search)
+    const getTabFromUrl = () => {
+      const urlParams = new URLSearchParams(globalThis.location.search)
       const contentFromUrl = urlParams.get('content')
-      const newTab = validTabs.includes(contentFromUrl ?? '') ? contentFromUrl! : defaultTab
-      setActiveTab(newTab)
+      return FORECASTING_VALID_TABS.includes(contentFromUrl as (typeof FORECASTING_VALID_TABS)[number])
+        ? contentFromUrl!
+        : FORECASTING_DEFAULT_TAB
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    const initialTab = getTabFromUrl()
+    setActiveTab(initialTab)
+
+    if (initialTab === FORECASTING_DEFAULT_TAB) {
+      const url = new URL(globalThis.location.href)
+      if (url.searchParams.get('content') !== FORECASTING_DEFAULT_TAB) {
+        url.searchParams.set('content', FORECASTING_DEFAULT_TAB)
+        globalThis.history.replaceState({}, '', url.toString())
+      }
+    }
+
+    const handlePopState = () => {
+      setActiveTab(getTabFromUrl())
+    }
+
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [])
 
   return (

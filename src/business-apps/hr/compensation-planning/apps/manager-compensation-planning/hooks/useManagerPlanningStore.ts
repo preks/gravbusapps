@@ -13,12 +13,37 @@ export type ManagerTeamSortField =
 
 type SortDirection = 'asc' | 'desc'
 
+export interface ManagerSelectedPlanCompanyBudgetRow {
+  id: string
+  version: number
+  compensationBudgetPlanId: string
+  companyId: string
+  salaryBudgetAmount: number
+  salaryBudgetPercent: number
+  allocationAmount: number
+  bonusBudgetAmount: number
+  bonusBudgetPercent: number
+  budgetPlanStatus: string
+  currentTotalSalaryCost: number
+  distributionMethod: string
+  headcount: number
+  currencyRef: string | null
+}
+
+export interface ManagerSelectedPlanCompanyOption {
+  id: string
+  name: string
+  code: string | null
+}
+
 /** Sidebar filter ids: `employee:{uuid}` only (ranges use dedicated state). */
 interface ManagerPlanningState {
   searchQuery: string
   sortField: ManagerTeamSortField
   sortDirection: SortDirection
   selectedCompanyId: string | null
+  selectedPlanCompanyId: string | null
+  selectedOrgUnitId: string | null
   sidebarFilterIds: string[]
   /** Annual salary lower bound (inclusive); null = no minimum. */
   filterSalaryMin: number | null
@@ -36,10 +61,18 @@ interface ManagerPlanningState {
    * Cleared when the company changes. When null, team data and the distribution preview are not loaded until the user picks a cycle.
    */
   selectedCompensationPlanId: string | null
+  selectedPlanCompanyBudgetRows: ManagerSelectedPlanCompanyBudgetRow[]
+  selectedPlanCompanyBudgetRowsLoading: boolean
+  selectedPlanCompanyBudgetRowsError: string | null
+  selectedPlanCompanies: ManagerSelectedPlanCompanyOption[]
+  selectedPlanCompaniesLoading: boolean
+  selectedPlanCompaniesError: string | null
 
   setSearchQuery: (query: string) => void
   setSortFromTable: (field: string, order: 'ASC' | 'DESC' | '') => void
   setSelectedCompanyId: (id: string | null) => void
+  setSelectedPlanCompanyId: (id: string | null) => void
+  setSelectedOrgUnitId: (id: string | null) => void
   toggleSidebarFilter: (filterId: string, selected: boolean) => void
   /** Replaces all `employee:{id}` entries; keeps other sidebar ids (future use). */
   setEmployeeSidebarFilters: (employeeIds: string[]) => void
@@ -49,6 +82,12 @@ interface ManagerPlanningState {
   setPageSize: (size: number) => void
   setDistributionMethod: (method: DistributionMethod) => void
   setSelectedCompensationPlanId: (planId: string | null) => void
+  setSelectedPlanCompanyBudgetRows: (rows: ManagerSelectedPlanCompanyBudgetRow[]) => void
+  setSelectedPlanCompanyBudgetRowsLoading: (loading: boolean) => void
+  setSelectedPlanCompanyBudgetRowsError: (error: string | null) => void
+  setSelectedPlanCompanies: (companies: ManagerSelectedPlanCompanyOption[]) => void
+  setSelectedPlanCompaniesLoading: (loading: boolean) => void
+  setSelectedPlanCompaniesError: (error: string | null) => void
   resetTableUi: () => void
 }
 
@@ -61,11 +100,23 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
   sortField: DEFAULT_SORT_FIELD,
   sortDirection: DEFAULT_SORT_DIR,
   selectedCompanyId: null,
+  selectedPlanCompanyId: null,
+  selectedOrgUnitId: null,
   sidebarFilterIds: [],
+  filterSalaryMin: null,
+  filterSalaryMax: null,
+  filterLastRaiseFrom: null,
+  filterLastRaiseTo: null,
   currentPage: 1,
   pageSize: 10,
   distributionMethod: DEFAULT_DISTRIBUTION_METHOD,
   selectedCompensationPlanId: null,
+  selectedPlanCompanyBudgetRows: [],
+  selectedPlanCompanyBudgetRowsLoading: false,
+  selectedPlanCompanyBudgetRowsError: null,
+  selectedPlanCompanies: [],
+  selectedPlanCompaniesLoading: false,
+  selectedPlanCompaniesError: null,
 
   setSearchQuery: query => set({ searchQuery: query, currentPage: 1 }),
 
@@ -95,7 +146,15 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
   setSelectedCompanyId: id =>
     set({
       selectedCompanyId: id,
+      selectedPlanCompanyId: null,
       selectedCompensationPlanId: null,
+      selectedPlanCompanyBudgetRows: [],
+      selectedPlanCompanyBudgetRowsLoading: false,
+      selectedPlanCompanyBudgetRowsError: null,
+      selectedPlanCompanies: [],
+      selectedPlanCompaniesLoading: false,
+      selectedPlanCompaniesError: null,
+      selectedOrgUnitId: null,
       currentPage: 1,
       sidebarFilterIds: [],
       filterSalaryMin: null,
@@ -107,6 +166,14 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
       sortDirection: DEFAULT_SORT_DIR,
       pageSize: 10,
       distributionMethod: DEFAULT_DISTRIBUTION_METHOD
+    }),
+
+  setSelectedOrgUnitId: id =>
+    set({
+      selectedOrgUnitId: id,
+      currentPage: 1,
+      sidebarFilterIds: [],
+      searchQuery: ''
     }),
 
   toggleSidebarFilter: (filterId, selected) =>
@@ -146,7 +213,37 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
 
   setDistributionMethod: method => set({ distributionMethod: method }),
 
-  setSelectedCompensationPlanId: planId => set({ selectedCompensationPlanId: planId }),
+  setSelectedCompensationPlanId: planId =>
+    set({
+      selectedCompensationPlanId: planId,
+      selectedPlanCompanyId: null,
+      selectedPlanCompanyBudgetRows: [],
+      selectedPlanCompanyBudgetRowsLoading: false,
+      selectedPlanCompanyBudgetRowsError: null,
+      selectedPlanCompanies: [],
+      selectedPlanCompaniesLoading: false,
+      selectedPlanCompaniesError: null,
+      selectedOrgUnitId: null
+    }),
+
+  setSelectedPlanCompanyId: id =>
+    set({
+      selectedPlanCompanyId: id,
+      selectedOrgUnitId: null,
+      currentPage: 1
+    }),
+
+  setSelectedPlanCompanyBudgetRows: rows => set({ selectedPlanCompanyBudgetRows: rows }),
+
+  setSelectedPlanCompanyBudgetRowsLoading: loading => set({ selectedPlanCompanyBudgetRowsLoading: loading }),
+
+  setSelectedPlanCompanyBudgetRowsError: error => set({ selectedPlanCompanyBudgetRowsError: error }),
+
+  setSelectedPlanCompanies: companies => set({ selectedPlanCompanies: companies }),
+
+  setSelectedPlanCompaniesLoading: loading => set({ selectedPlanCompaniesLoading: loading }),
+
+  setSelectedPlanCompaniesError: error => set({ selectedPlanCompaniesError: error }),
 
   resetTableUi: () =>
     set({
@@ -158,6 +255,8 @@ export const useManagerPlanningStore = create<ManagerPlanningState>(set => ({
       filterSalaryMax: null,
       filterLastRaiseFrom: null,
       filterLastRaiseTo: null,
+      selectedPlanCompanyId: null,
+      selectedOrgUnitId: null,
       currentPage: 1,
       pageSize: 10,
       distributionMethod: DEFAULT_DISTRIBUTION_METHOD

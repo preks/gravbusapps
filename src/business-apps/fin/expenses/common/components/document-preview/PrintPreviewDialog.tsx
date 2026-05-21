@@ -57,6 +57,7 @@ export const PrintPreviewDialog = React.memo(function PrintPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        aria-describedby={undefined}
         className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md gba:max-h-[90vh]"
         data-testid={`${testIdPrefix}-print-modal`}
       >

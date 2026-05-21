@@ -18,7 +18,10 @@ const ENTITY_URL_PATTERNS = [
   { pattern: /\/platform\/irm\/investment-record\?[^#]*investmentId=([^&]+)/, entity_name: 'investment' },
   { pattern: /\/platform\/irm\/lead-record\?leadId=([^&]+)/, entity_name: 'investment_lead' },
   { pattern: /\/platform\/irm\/contact-record\?contactId=([^&]+)/, entity_name: 'investment_contact' },
-  { pattern: /\/platform\/irm\/company-record\?companyId=([^&]+)/, entity_name: 'investment_company' },
+  {
+    pattern: /\/platform\/irm\/company-record\?[^#]*investmentCompanyId=([^&]+)/,
+    entity_name: 'investment_company'
+  },
   { pattern: /\/platform\/irm\/account-record\?accountId=([^&]+)/, entity_name: 'investment_account' },
 
   // CRM entities (general patterns)
@@ -53,6 +56,7 @@ const ENTITY_URL_PATTERNS = [
 
   // Flow/Workflow entities
   { pattern: /\/platform\/create\/flow-studio\?[^#]*flowId=([^&#]+)/, entity_name: 'workflow_template' },
+  { pattern: /\/platform\/create\/flow-studio\?[^#]*draftId=([^&#]+)/, entity_name: 'workflow_template' },
 
   // Every-office entities
   { pattern: /\/platform\/every-office\/slides\?[^#]*slideId=([^&]+)/, entity_name: 'slide' },
@@ -83,8 +87,8 @@ const OVERVIEW_URL_PATTERNS = [
   { pattern: /\/platform\/irm\/investment-relations\?view=opportunities/, entity_name: 'investment_opportunity' },
   { pattern: /\/platform\/irm\/investment-relations\?view=leads/, entity_name: 'investment_lead' },
   { pattern: /\/platform\/irm\/investment-relations\?view=contacts/, entity_name: 'investment_contact' },
-  { pattern: /\/platform\/irm\/investment-relations\?view=companies/, entity_name: 'investment_company' },
   { pattern: /\/platform\/irm\/investment-relations\?view=accounts/, entity_name: 'investment_account' },
+  { pattern: /\/platform\/irm\/company-management/, entity_name: 'investment_company' },
 
   // IRM investment-management overviews
   { pattern: /\/platform\/irm\/investment-management\?view=investments/, entity_name: 'investment' },
@@ -126,9 +130,9 @@ const APP_ENTITY_PATTERNS = [
     idParams: ['contactId']
   },
   {
-    pattern: /investments\/records\/company-record$/,
+    pattern: /irm\/core\/records\/records\/company-record$/,
     entity_name: 'investment_company',
-    idParams: ['companyId']
+    idParams: ['investmentCompanyId']
   },
   {
     pattern: /investments\/records\/account-record$/,

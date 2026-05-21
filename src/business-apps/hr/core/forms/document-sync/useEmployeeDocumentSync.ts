@@ -62,6 +62,7 @@ interface SyncSubmitOptions {
   description?: string | null
   validTo?: string | null
   deleteFirst?: boolean
+  deleteRemovedDocuments?: boolean
 }
 
 interface SyncSubmitResult {
@@ -602,7 +603,8 @@ export function useEmployeeDocumentSync({
       documentName = null,
       description = null,
       validTo,
-      deleteFirst = true
+      deleteFirst = true,
+      deleteRemovedDocuments = true
     }: SyncSubmitOptions): Promise<SyncSubmitResult> => {
       if (!employeeId || !accessToken) {
         return {
@@ -626,7 +628,7 @@ export function useEmployeeDocumentSync({
       const filesToUpload = managedFiles.filter(file => file.originFileObj instanceof File)
 
       let deletedIds: string[] = []
-      if (deleteFirst && removedDocumentIds.length > 0) {
+      if (deleteRemovedDocuments && deleteFirst && removedDocumentIds.length > 0) {
         deletedIds = await deleteRemovedDocumentsForSync(accessToken, removedDocumentIds, documentRecordsById)
       }
 
@@ -653,7 +655,7 @@ export function useEmployeeDocumentSync({
         uploadFieldName
       })
 
-      if (!deleteFirst && removedDocumentIds.length > 0) {
+      if (deleteRemovedDocuments && !deleteFirst && removedDocumentIds.length > 0) {
         deletedIds = await deleteRemovedDocumentsForSync(accessToken, removedDocumentIds, documentRecordsById)
       }
 

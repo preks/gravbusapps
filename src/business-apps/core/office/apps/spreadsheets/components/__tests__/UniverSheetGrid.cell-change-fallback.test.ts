@@ -1,8 +1,10 @@
 import {
-  deriveCellMatrixFromRanges,
   enrichCellMatrixWithLiveFormulas,
-  isClearLikeMutationCommand
-} from '../UniverSheetGrid'
+  isCurrentFacadeWorksheet,
+  isClearLikeMutationCommand,
+  isImplicitClearLikeSetRangeMutation
+} from '../univerSheetGridShared'
+import { deriveCellMatrixFromRanges } from '../../utils/univerWorksheetCellRead'
 
 const makeWorksheet = (cells: Record<string, { v?: unknown; f?: string }>) => ({
   getRange: (row: number, col: number) => {
@@ -15,12 +17,61 @@ const makeWorksheet = (cells: Record<string, { v?: unknown; f?: string }>) => ({
 })
 
 describe('UniverSheetGrid fallback cell derivation', () => {
+  it('only treats a facade worksheet as readable when it is the current active worksheet', () => {
+    const activeSheet = { getSheetId: () => 'sheet-1' }
+    const inactiveSheet = { getSheetId: () => 'sheet-2' }
+
+    expect(isCurrentFacadeWorksheet(activeSheet, activeSheet, 'sheet-1')).toBe(true)
+    expect(isCurrentFacadeWorksheet(activeSheet, inactiveSheet, 'sheet-2')).toBe(false)
+    expect(isCurrentFacadeWorksheet(activeSheet, activeSheet, 'sheet-2')).toBe(false)
+  })
+
   it('treats clear-like commands as nulling mutations', () => {
     expect(isClearLikeMutationCommand('sheet.clear-range')).toBe(true)
     expect(isClearLikeMutationCommand('DeleteSelectionCommand')).toBe(true)
-    expect(isClearLikeMutationCommand('sheet.mutation.move-range')).toBe(true)
+    expect(isClearLikeMutationCommand('sheet.mutation.move-range')).toBe(false)
+    expect(isClearLikeMutationCommand('sheet.mutation.move-cell')).toBe(false)
+    expect(isClearLikeMutationCommand('sheet.mutation.move-row')).toBe(false)
     expect(isClearLikeMutationCommand('sheet.command.move-selection')).toBe(false)
     expect(isClearLikeMutationCommand('SetRangeValuesMutation')).toBe(false)
+  })
+
+  it('treats range-value events without explicit cell payloads as implicit clears', () => {
+    const ranges = [{ startRow: 0, endRow: 999, startColumn: 1, endColumn: 2 }]
+
+    expect(
+      isImplicitClearLikeSetRangeMutation({
+        commandId: 'sheet.mutation.set-range-values',
+        ranges
+      })
+    ).toBe(true)
+    expect(
+      isImplicitClearLikeSetRangeMutation({
+        commandId: 'sheet.mutation.set-range-values',
+        ranges,
+        payloadCellValue: { 0: { 1: { s: 'style-kept' } } }
+      })
+    ).toBe(true)
+    expect(
+      isImplicitClearLikeSetRangeMutation({
+        commandId: 'sheet.mutation.set-range-values',
+        ranges,
+        payloadCellValue: { 0: { 1: null }, 1: { 1: { v: null } } }
+      })
+    ).toBe(true)
+    expect(
+      isImplicitClearLikeSetRangeMutation({
+        commandId: 'sheet.mutation.set-range-values',
+        ranges,
+        payloadCellValue: { 0: { 1: { v: 'kept' } } }
+      })
+    ).toBe(false)
+    expect(
+      isImplicitClearLikeSetRangeMutation({
+        commandId: 'sheet.command.set-range-bold',
+        ranges
+      })
+    ).toBe(false)
   })
 
   it('preserves cleared cells as null when worksheet values are undefined', () => {

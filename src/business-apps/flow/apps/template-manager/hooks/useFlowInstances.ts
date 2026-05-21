@@ -9,8 +9,15 @@ import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { FlowEngineInstance } from '../types/instance'
 import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
+import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
 const CATALOG_NAME = 'FlowEngineInstances'
+
+const getCurrentPlatformApiUrl = (): string | null => {
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL')?.replace(/\/+$/, '')
+  return baseUrl ? `${baseUrl}/flow-engine/api` : null
+}
 
 /**
  * Get current platform instance (uses BASE_URL + "/flow-engine")
@@ -78,7 +85,12 @@ const getCurrentPlatformInstance = (): FlowEngineInstance | null => {
  */
 const getLocalDevelopmentInstance = (): FlowEngineInstance | null => {
   try {
-    const customUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL')
+    const currentPlatformApiUrl = getCurrentPlatformApiUrl()
+    if (CUSTOM_FLOW_ENGINE_API_URL === currentPlatformApiUrl) {
+      return null
+    }
+
+    const customUrl = getFlowEngineBaseUrl()
 
     if (!customUrl) {
       return null // No custom URL configured

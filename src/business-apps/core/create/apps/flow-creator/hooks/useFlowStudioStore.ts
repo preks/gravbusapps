@@ -135,6 +135,10 @@ function setDirtyGraph(
   set({ ...next, isDirty: true, redoStack: [], ...extra })
 }
 
+function isDeepEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
 function collectReachableNodes(edges: FlowGraphEdge[], startId: string): Set<string> {
   const adjacency = new Map<string, string[]>()
   for (const e of edges) {
@@ -243,16 +247,31 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
     if (!node || node.type === 'start' || node.type === 'end') return
     set({ pendingDelete: { kind: 'node', id: nodeId, label: node.label } })
   },
-  updateNode: (nodeId: string, updates: Partial<StudioNode>) => {
-    set({ nodes: get().nodes.map(n => (n.id === nodeId ? { ...n, ...updates } : n)), isDirty: true })
-  },
-  updateNodeConfig: (nodeId: string, config: Partial<StudioNodeConfig>) => {
-    set({
-      nodes: get().nodes.map(n =>
-        n.id === nodeId ? { ...n, config: { ...n.config, ...config } as StudioNodeConfig } : n
-      ),
-      isDirty: true
+  updateNode: (nodeId: string, updates: Partial<StudioNode>, options = {}) => {
+    const state = get()
+    let changed = false
+    const nodes = state.nodes.map(n => {
+      if (n.id !== nodeId) return n
+      const next = { ...n, ...updates }
+      if (isDeepEqual(n, next)) return n
+      changed = true
+      return next
     })
+    if (!changed) return
+    set({ nodes, isDirty: state.isDirty || (options.markDirty ?? true) })
+  },
+  updateNodeConfig: (nodeId: string, config: Partial<StudioNodeConfig>, options = {}) => {
+    const state = get()
+    let changed = false
+    const nodes = state.nodes.map(n => {
+      if (n.id !== nodeId) return n
+      const nextConfig = { ...n.config, ...config } as StudioNodeConfig
+      if (isDeepEqual(n.config, nextConfig)) return n
+      changed = true
+      return { ...n, config: nextConfig }
+    })
+    if (!changed) return
+    set({ nodes, isDirty: state.isDirty || (options.markDirty ?? true) })
   },
   duplicateNode: (nodeId: string) => {
     const state = get()
@@ -336,10 +355,18 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
   },
   updateEdge: (edgeId: string, updates: Partial<FlowGraphEdge>) => {
     const state = get()
+    let changed = false
     const next = normalizeGraph(
       state.nodes,
-      state.edges.map(e => (e.id === edgeId ? { ...e, ...updates } : e))
+      state.edges.map(e => {
+        if (e.id !== edgeId) return e
+        const nextEdge = { ...e, ...updates }
+        if (isDeepEqual(e, nextEdge)) return e
+        changed = true
+        return nextEdge
+      })
     )
+    if (!changed) return
     set({ ...next, isDirty: true })
   },
   confirmPendingDelete: () => {
@@ -449,13 +476,18 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
     return node.id
   },
   setTemplateMetadata: metadata => {
+    const state = get()
+    const nextName = metadata.name ?? state.templateName
+    const nextDescription = metadata.description ?? state.templateDescription
+    if (state.templateName === nextName && state.templateDescription === nextDescription) return
     set({
-      templateName: metadata.name ?? get().templateName,
-      templateDescription: metadata.description ?? get().templateDescription,
+      templateName: nextName,
+      templateDescription: nextDescription,
       isDirty: true
     })
   },
   setTemplateTags: (tags: FlowTags) => {
+    if (isDeepEqual(get().templateTags, tags)) return
     set({
       templateTags: tags,
       isDirty: true
@@ -518,7 +550,7 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
     })
   },
   markClean: () => set({ isDirty: false }),
-  rewriteExpressionsForStartFieldRename: (oldKey, newKey) => {
+  rewriteExpressionsForStartFieldRename: (oldKey, newKey, options = {}) => {
     const oldK = String(oldKey || '').trim()
     const newK = String(newKey || '').trim()
     if (!oldK || !newK || oldK === newK) return
@@ -531,22 +563,22 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
       `(\\$workflow\\.input\\.formData\\.)${escapeRegExp(oldK)}(?=$|[^a-zA-Z0-9_])`,
       'g'
     )
-    const { nodes, edges } = get()
+    const { nodes, edges, isDirty } = get()
     const next = rewriteExpressionStringsInGraph(nodes, edges, s => {
       if (!s.includes('$workflow.')) return s
       return s.replace(inputValuesPattern, `$1${newK}`).replace(legacyFormDataPattern, `$1${newK}`)
     })
     // Only set when something changed.
     if (next.nodes.every((n, i) => n === nodes[i]) && next.edges.every((e, i) => e === edges[i])) return
-    set({ ...next, isDirty: true })
+    set({ ...next, isDirty: isDirty || (options.markDirty ?? true) })
   },
-  rewriteExpressionsForTaskFieldRename: (taskNodeId, oldKey, newKey) => {
+  rewriteExpressionsForTaskFieldRename: (taskNodeId, oldKey, newKey, options = {}) => {
     const oldK = String(oldKey || '').trim()
     const newK = String(newKey || '').trim()
     const nodeId = String(taskNodeId || '').trim()
     if (!nodeId || !oldK || !newK || oldK === newK) return
 
-    const { nodes, edges } = get()
+    const { nodes, edges, isDirty } = get()
     const stepIndexByNodeId = buildStepIndexByNodeId(nodes, edges)
     const legacyTaskIndexByNodeId = buildLegacyTaskIndexByNodeId(nodes)
 
@@ -568,7 +600,7 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
       return out
     })
     if (next.nodes.every((n, i) => n === nodes[i]) && next.edges.every((e, i) => e === edges[i])) return
-    set({ ...next, isDirty: true })
+    set({ ...next, isDirty: isDirty || (options.markDirty ?? true) })
   },
   toGraphDefinition: (): FlowGraphDefinition => ({
     nodes: get().nodes.map(n => ({ id: n.id, type: n.type, label: n.label, metadata: nodeToMetadata(n) })),

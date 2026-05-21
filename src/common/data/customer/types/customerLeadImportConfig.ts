@@ -5,6 +5,7 @@
  */
 
 import { sharedLeadImportFields } from '@/common/data/relations/types/leadImportConfig'
+import { leadPreviewConfig } from '@/common/data/relations/types/entityPreviewConfigs'
 import { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
 
 export const customerLeadImportConfig: ImportConfig = {
@@ -26,6 +27,7 @@ export const customerLeadImportConfig: ImportConfig = {
     { value: 'leadSourceRef', label: 'Lead Source (Catalog)', type: 'catalog', catalog: 'SalesLeadSource' },
     { value: 'leadRatingRef', label: 'Lead Rating (Catalog)', type: 'catalog', catalog: 'SalesLeadRating' }
   ],
+  preview: leadPreviewConfig,
   enforcedSelects: [
     {
       id: 'leadStatus',

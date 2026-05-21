@@ -11,7 +11,7 @@ import {
   IconAvatar,
   HeaderSlot
 } from '@newwork/nw-design-system'
-import { UserIcon, FolderIcon, FlagIcon } from '@phosphor-icons/react'
+import { UserIcon, FolderIcon, FlagIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -29,6 +29,9 @@ import { useAiSummary } from './hooks/useAiSummary'
 import { StatusProgression } from './components/StatusProgression'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view/DocumentView'
+import ComplianceSection from '@/common/components/common-relations/record-sections/compliance-section/ComplianceSection'
+import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import { formatScoreValue, getGradeBadgeVariant } from '@/business-apps/crm/core/features/lead-scoring'
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
   leadId: string
@@ -255,8 +258,12 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     <AiActions
       entityType="lead"
       entityId={leadId}
-      features={['summary', 'meeting-planner']}
+      features={['summary', 'meeting-planner', 'lead-scoring']}
       hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+      accessToken={props.accessToken}
+      userInfo={props.userInfo}
+      additionalData={props.additionalData}
+      onLeadScored={fetchLeadData}
     />
   )
 
@@ -406,6 +413,29 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
               <DocumentView leadId={leadId} {...props} />
             </div>
           )
+        },
+        {
+          value: 'compliance',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.compliance', 'Compliance'),
+          icon: <CheckCircleIcon className="gba:mr-2" />,
+          content: (
+            <div className="gba:col-span-12">
+              <SectionWrapper
+                className="gba:min-h-96"
+                sections={[
+                  {
+                    id: 'compliance-section',
+                    component: ComplianceSection,
+                    props: {
+                      entity: leadData,
+                      'data-testid': 'lead-compliance-section'
+                    }
+                  }
+                ]}
+                data-testid="lead-compliance-section-wrapper"
+              />
+            </div>
+          )
         }
       ]
     }),
@@ -459,10 +489,25 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     )
   }
 
+  const hasAiScoreValue = leadData.aiLeadScore !== null && leadData.aiLeadScore !== undefined
+  const hasAiScoreBadge = hasAiScoreValue || Boolean(leadData.aiLeadGrade)
+  const aiScoreLabel = `${formatScoreValue(leadData.aiLeadScore)} · ${
+    leadData.aiLeadGrade || getTranslationFromI18nKeyAndLabel('crm.common.notAvailable', 'N/A')
+  }`
+
   // Create header title with sensitive badge
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
       <span>{leadName}</span>
+      {hasAiScoreBadge && (
+        <Badge
+          data-testid="lead-ai-score-badge"
+          variant={getGradeBadgeVariant(leadData.aiLeadGrade)}
+          className="gba:text-sm"
+        >
+          {aiScoreLabel}
+        </Badge>
+      )}
       {leadData?.sensitive === true && (
         <TooltipProvider>
           <Tooltip>

@@ -2,6 +2,7 @@
  * Shared utilities for lifecycle charts (Accounts, Leads, Contacts, Opportunities)
  * Extracted to reduce code duplication across chart components
  */
+import React from 'react'
 
 export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
@@ -41,4 +42,29 @@ export const formatLifecycleXAxisLabel = (value: string, selectedTimeFilter: Tim
  */
 export const getCurrentFilterLabel = (selectedTimeFilter: TimeFilter): string => {
   return TIME_FILTER_OPTIONS.find(option => option.key === selectedTimeFilter)?.label || 'Last 6 Months'
+}
+
+type ChartConfigMap = Record<string, { label?: string }>
+
+/**
+ * Creates a stable tooltip formatter function for recharts ChartTooltipContent.
+ * Define outside the parent component and pass the result as the `formatter` prop.
+ */
+export function createChartTooltipFormatter(
+  chartConfig: ChartConfigMap,
+  formatValue: (v: number) => string = v => v.toLocaleString()
+) {
+  return (value: unknown, name: string) => {
+    const label = chartConfig[name]?.label ?? name
+    const displayValue = typeof value === 'number' ? formatValue(value) : String(value)
+    return React.createElement(
+      React.Fragment,
+      null,
+      React.createElement('div', {
+        className: 'gba:shrink-0 gba:h-2.5 gba:w-2.5 gba:rounded-sm',
+        style: { backgroundColor: `var(--color-${name})` }
+      }),
+      React.createElement('span', null, `${label} ${displayValue}`)
+    )
+  }
 }

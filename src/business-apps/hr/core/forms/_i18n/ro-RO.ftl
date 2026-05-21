@@ -23,6 +23,7 @@ adjust-salary-currency-required = Moneda este obligatorie. Vă rugăm să select
 adjust-salary-effective-date-required = Data efectivă este obligatorie. Vă rugăm să selectați o dată efectivă.
 adjust-salary-effective-date-too-old = Data efectivă nu poate fi cu mai mult de 6 luni în trecut
 adjust-salary-effective-date-helper = Data trebuie să fie în ultimele 6 luni
+adjust-salary-effective-date-month-start = Se poate selecta doar prima zi a lunii.
 adjust-salary-reason-required = Motivul este obligatoriu. Vă rugăm să selectați un motiv.
 adjust-salary-frequency = Tip ajustare salariu
 adjust-salary-frequency-required = Tipul ajustării salariului este obligatoriu. Vă rugăm să selectați un tip de ajustare salariu.
@@ -52,6 +53,7 @@ assign-salary-expected-monthly-wage = Salariu lunar estimat
 assign-salary-expected-monthly-wage-description = Bazat pe orele de lucru ale angajatului
 assign-salary-start-date = Dată de început
 assign-salary-start-date-required = Data de început este obligatorie. Vă rugăm să selectați o dată de început.
+assign-salary-start-date-month-start = Se poate selecta doar prima zi a lunii.
 
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Revizuire ajustare salariu pentru { $employeeName }
@@ -117,6 +119,7 @@ validation-payment-month-required = Luna plății este obligatorie. Vă rugăm s
 validation-payment-month-invalid = Vă rugăm să selectați o lună de plată validă.
 validation-fiscal-year-required = Anul fiscal este obligatoriu. Vă rugăm să introduceți anul fiscal.
 validation-fiscal-year-range = Anul fiscal trebuie să fie între {$minYear} și {$maxYear}.
+grant-bonus-payment-date-month-start-hint = Data trimisă este întotdeauna ziua de 1 a lunii.
 
 # Month Names
 month-january = Ianuarie
@@ -285,9 +288,24 @@ adjust-salary-process-title = Ajustare salariu
 adjust-salary-pending-status = În așteptare
 
 # Update Working Conditions Form
+working-conditions-title = Actualizare condiții de muncă
+working-conditions-employment-start-date = Valabil de la
+working-conditions-employment-end-date = Valabil până la
+working-conditions-employment-type = Tip angajare
+working-conditions-contract-type = Tip contract
+working-conditions-remote = Remote
+working-conditions-region = Regiune
+working-conditions-start-date = Dată de început
+working-conditions-probation-end-date = Dată încheiere perioadă de probă
 working-conditions-probation-period = Perioadă de probă
+working-conditions-select-remote = Selectează remote
+working-conditions-select-region = Selectează regiunea
+working-conditions-future-entry-dates-required = Această dată trebuie să fie mâine sau mai târziu
+working-conditions-active-period-overlap = Perioada activă a condițiilor de muncă se suprapune cu o condiție de muncă existentă
+working-conditions-employment-end-before-start = Data de sfârșit a angajării nu poate fi înaintea datei de început
 working-conditions-probation-end-before-start = Data de încheiere a perioadei de probă trebuie să fie la sau după data de începere.
 working-conditions-probation-exception-warning = Ați modificat manual data de încheiere a perioadei de probă față de valoarea din contract. Vă rugăm să verificați.
+working-conditions-required = Vă rugăm să completați câmpurile obligatorii
 working-conditions-unit-day = { $count ->
     [one] Zi
    *[other] Zile
@@ -308,19 +326,27 @@ working-conditions-unit-year = { $count ->
 # Create Request Correction Form
 complete-notification = Cererea este trimisă către manager pentru aprobare
 request-correction-date-absence-error = Această dată este o sărbătoare sau o absență și nu poate fi folosită pentru o cerere de corectare.
+request-correction-date-before-hire-error = Această dată este înainte de data angajării și nu poate fi folosită pentru o cerere de corectare.
 request-correction-zero-planned-warning = Această dată nu are ore de lucru planificate. Timpul introdus va fi considerat ore suplimentare.
 notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
 notification-feedback-request-sent-success = Cererea ta de feedback a fost trimisă
 notification-feedback-request-sent-success-on-behalf = Cererea de feedback a fost trimisă
 feedback-request-missing-user-id = Unii angajati selectati nu au user ID. Selectati-i din nou si incercati din nou.
-entitlements-valid-from-month-start-hint = Data trimisa va fi intotdeauna prima zi a lunii selectate, indiferent de ziua aleasa.
+entitlements-valid-from-month-start-hint = Se poate selecta doar prima zi a lunii.
+entitlements-valid-from-minimum-hint = Dreptul poate începe din { $monthYear } sau mai târziu.
 entitlements-valid-from = Valabil de la
 entitlements-update-title = Actualizează drepturile
 entitlements-add-title = Adaugă drept
 entitlements-total = Drept / Alocare anuală
 entitlements-total-annual = Drept / Alocare anuală
 entitlements-effective-from = Efectiv de la
+entitlements-effective-from-required = Efectiv de la este obligatoriu. Te rugam sa selectezi o data efectiva.
+entitlements-effective-from-month = Lună
+entitlements-effective-from-month-invalid = Se poate selecta doar prima zi a lunii.
+entitlements-effective-from-year = An
+entitlements-effective-from-year-placeholder = AAAA
+entitlements-effective-from-year-invalid = Vă rugăm să introduceți un an valid (de ex. 2026).
 entitlements-effective-to = Efectiv pana la
 entitlements-valid-from-hire-date-error = Efectiv de la nu poate fi mai devreme decat data angajarii angajatului
 entitlements-duplicate-error = Exista deja un drept cu acelasi tip si aceeasi data de intrare in vigoare.
@@ -386,6 +412,7 @@ create-absence-days = zile
 create-absence-effective-days-label = Zile efective
 create-absence-calendar-days-label = Zile calendaristice
 create-absence-end-date-after-start = Data de încheiere trebuie să fie după data de început.
+create-absence-date-before-hire-error = Datele de absență nu pot fi înainte de data angajării.
 create-absence-single-day-bank-holiday-blocked = Ziua selectată este o sărbătoare legală. Nu puteți trimite o absență de o zi pentru această dată.
 create-absence-validation-failed = Validarea a eșuat. Vă rugăm să încercați din nou.
 create-absence-bank-holidays-not-counted = { $count } zile sunt zile libere legale și nu sunt luate în considerare.

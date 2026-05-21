@@ -21,6 +21,7 @@ export interface CalendarEventItem {
   color: string
   status: string
   type: string
+  typeRef?: string
   note?: string
 }
 
@@ -29,7 +30,9 @@ export function useBackofficeTeamCalendarDays(
   employeeIds: string[] | undefined,
   from?: string,
   to?: string,
-  mapType?: (code: string) => { label?: string; color?: string }
+  mapType?: (code: string) => { label?: string; color?: string },
+  statuses?: string[],
+  typeRefs?: string[]
 ) {
   const client = useGraphQLClient(accessToken)
   const [events, setEvents] = useState<CalendarEventItem[]>([])
@@ -37,7 +40,12 @@ export function useBackofficeTeamCalendarDays(
   const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
-    if (!client || !employeeIds || employeeIds.length === 0) return
+    if (!client || !employeeIds || employeeIds.length === 0) {
+      setEvents([])
+      setLoading(false)
+      setError(null)
+      return
+    }
     const fromDate = from || dayjs().startOf('month').format('YYYY-MM-DD')
     const toDate = to || dayjs().endOf('month').format('YYYY-MM-DD')
 
@@ -52,7 +60,12 @@ export function useBackofficeTeamCalendarDays(
       })
       .then(res => {
         const rows: ViewRow[] = res?.EmployeeAbsenceCalendarView || []
-        const mapped: CalendarEventItem[] = rows.map(r => {
+        const filteredRows = rows.filter(row => {
+          const matchesStatus = !statuses || statuses.length === 0 || statuses.includes(String(row?.status ?? ''))
+          const matchesType = !typeRefs || typeRefs.length === 0 || typeRefs.includes(String(row?.typeRef ?? ''))
+          return matchesStatus && matchesType
+        })
+        const mapped: CalendarEventItem[] = filteredRows.map(r => {
           const label = mapType ? mapType(r.typeRef)?.label || r.typeRef : r.typeRef
           // Represent each day as an event from day start to day start (CalendarTimeline will render a marker)
           const start = dayjs(r.dayDate).startOf('day').toISOString()
@@ -69,6 +82,7 @@ export function useBackofficeTeamCalendarDays(
             status: r.status,
             // Use the same semantic type strings as Manager calendar ('approved' | 'pending' | 'rejected' | 'cancelled')
             type: getAbsenceStatusType(r.status),
+            typeRef: r.typeRef,
             note: label
           }
         })
@@ -76,7 +90,15 @@ export function useBackofficeTeamCalendarDays(
       })
       .catch(err => setError(err as Error))
       .finally(() => setLoading(false))
-  }, [client, Array.isArray(employeeIds) ? employeeIds.join(',') : '', from, to, mapType])
+  }, [
+    client,
+    Array.isArray(employeeIds) ? employeeIds.join(',') : '',
+    from,
+    mapType,
+    to,
+    Array.isArray(statuses) ? statuses.join(',') : '',
+    Array.isArray(typeRefs) ? typeRefs.join(',') : ''
+  ])
 
   return useMemo(() => ({ events, loading, error }), [events, loading, error])
 }

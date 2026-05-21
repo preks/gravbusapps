@@ -92,14 +92,47 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
   const config = ENTITY_CONFIG[effectiveProtocol]
   if (!config) return null
 
-  // Workflow links must resolve to Flow Studio with flowId.
+  // Unsaved workflow drafts (chat handoff) open Flow Studio in draft mode,
+  // regardless of whether the link came in as service_workflow or workflow_template.
   if (effectiveProtocol === 'service_workflow' || effectiveProtocol === 'workflow_template') {
-    const flowId = embeddedParams.get('flowId') || embeddedParams.get('templateId') || effectiveId
-    if (flowId) {
+    const draftId = embeddedParams.get('draftId')
+    if (draftId) {
       return {
-        url: `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, { flowId })}#flows`,
+        url: `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, { draftId })}#manage`,
         protocol: effectiveProtocol,
-        id: flowId,
+        id: draftId,
+        alternateId: metadata?.alternateId,
+        icon: config.icon(),
+        variant: config.variant,
+        showBorder: config.showBorder
+      }
+    }
+  }
+
+  // Running workflow instances open in Flow Launcher (My launches detail).
+  if (effectiveProtocol === 'service_workflow') {
+    const instanceFlowId = embeddedParams.get('flowId') || embeddedParams.get('templateId') || effectiveId
+    if (instanceFlowId) {
+      return {
+        url: buildPlatformUrl(Navigation.FLOW_LAUNCHER, { tab: 'my-launches', flowId: instanceFlowId }),
+        protocol: effectiveProtocol,
+        id: instanceFlowId,
+        alternateId: metadata?.alternateId,
+        icon: config.icon(),
+        variant: config.variant,
+        showBorder: config.showBorder
+      }
+    }
+  }
+
+  // Workflow templates resolve to Flow Studio with flowId.
+  if (effectiveProtocol === 'workflow_template') {
+    const templateFlowId = embeddedParams.get('flowId') || embeddedParams.get('templateId') || effectiveId
+    if (templateFlowId) {
+      return {
+        url: `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, { flowId: templateFlowId })}#flows`,
+        protocol: effectiveProtocol,
+        id: templateFlowId,
         alternateId: metadata?.alternateId,
         icon: config.icon(),
         variant: config.variant,
@@ -147,6 +180,10 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
  * @returns The resolved platform URL or undefined if entity is unknown
  */
 export function getEntityUrl(entity: string, id: string, link?: string): string | undefined {
+  if (link?.includes('/platform/create/flow-studio')) {
+    return link
+  }
+
   // If link is provided, use unified resolution (handles alternateId and redirects)
   if (link) {
     const resolved = resolveEntityLink(link)
@@ -225,7 +262,7 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
   if (href) {
     const resolved = resolveEntityLink(href)
     if (resolved?.url) {
-      const forceWorkflowReload = resolved.protocol === 'service_workflow' || resolved.protocol === 'workflow_template'
+      const forceWorkflowReload = resolved.protocol === 'workflow_template'
       return (
         <BaseEntityLinkChip
           url={resolved.url}

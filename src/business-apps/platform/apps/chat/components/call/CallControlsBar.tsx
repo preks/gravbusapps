@@ -41,6 +41,8 @@ export interface CallControlsBarProps {
   onMicDeviceChange?: (deviceId: string) => void
   onCameraDeviceChange?: (deviceId: string) => void
   onSpeakerDeviceChange?: (deviceId: string) => void
+  isMirrorEnabled?: boolean
+  onToggleMirror?: () => void
   onToggleAudioSettings?: () => void
   sharedDeviceState?: {
     audioInputDevices: MediaDeviceInfo[]
@@ -78,6 +80,8 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   onMicDeviceChange,
   onCameraDeviceChange,
   onSpeakerDeviceChange,
+  isMirrorEnabled,
+  onToggleMirror,
   onToggleAudioSettings,
   sharedDeviceState,
   prefixDataTestId = 'rtk-group-call',
@@ -260,6 +264,8 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
           isScreenSharing={isScreenSharing}
           backgroundEnabled={backgroundEnabled}
           handRaised={handRaised}
+          isMirrorEnabled={isMirrorEnabled}
+          onToggleMirror={onToggleMirror}
           showDesktopLayout={showDesktopLayout}
           showMoreMenu={showMoreMenu}
           mobileMenuOptionCount={mobileMenuOptionCount}

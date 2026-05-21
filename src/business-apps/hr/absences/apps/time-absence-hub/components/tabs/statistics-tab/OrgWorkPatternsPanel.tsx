@@ -93,7 +93,7 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
   )
 
   return (
-    <Card>
+    <Card className="gba:shadow-none">
       <CardHeader className="gba:pb-2">
         <CardTitle className="gba:text-base">
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.work_patterns', 'Work Patterns')}
@@ -167,30 +167,7 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
             )})`}</div>
           </div>
         </div>
-        <div
-          className="gba:mt-4 gba:text-xs gba:bg-info-secondary gba:border gba:border-info gba:rounded gba:p-3"
-          data-testid="work-patterns-seasonal-insight"
-        >
-          {`${getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_hub.work_patterns_seasonal_insight',
-            'Seasonal Insight'
-          )}: ${getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_hub.work_patterns_peak_month',
-            'Peak month'
-          )} ${peakMonth.label} (${peakMonth.percent}% ${getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_hub.work_patterns_of_all_absences',
-            'of all absences'
-          )}) · ${getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_hub.work_patterns_lowest',
-            'Lowest'
-          )} ${lowMonth.label} (${lowMonth.percent}% ${getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_hub.work_patterns_of_all_absences',
-            'of all absences'
-          )}). ${getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_hub.work_patterns_staffing_recommendation',
-            'Consider staffing adjustments during peak periods.'
-          )}`}
-        </div>
+
         <div className="gba:mt-2 gba:text-xs gba:text-muted-foreground" data-testid="work-patterns-status-note">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:absence_hub.statuses_considered_approved_counts',

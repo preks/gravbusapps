@@ -118,6 +118,7 @@ function createFunctionEditorStateMock(overrides: Record<string, unknown> = {}) 
       lastResult: ''
     })),
     storedSecrets: [],
+    credentialBindOptions: [],
     refreshSecrets: jest.fn(),
     onCreateStoredSecret: jest.fn(),
     testOverrideRows: [newEmptyConfigRow()],

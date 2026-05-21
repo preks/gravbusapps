@@ -1,5 +1,6 @@
 import React from 'react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import personalTranslations from '../../../../_i18n'
 import ExpensePlanDetails from '../details/ExpensePlanDetails'
 import ExpenseRequestDetails from '../../expense-requests-tab/details/ExpenseRequestDetails'
 import { PrintPreviewDialog, DetailsSheet } from '../../../shared/TableSharedComponents'
@@ -10,6 +11,7 @@ import type { ExpensePlansTableProps } from './expensePlansTable.types'
 export type { ExpensePlansTableProps } from './expensePlansTable.types'
 
 const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => {
+  const { t } = useTranslation(personalTranslations)
   const {
     dataBodyProps,
     selectedItem,
@@ -31,13 +33,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       <DetailsSheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedItem?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_plan.expense_subtitle_details',
-            'Expense Plan Details'
-          )
-        }
+        title={selectedItem?.title || t('expense-plans-sheet-plan-title')}
         testId="expense-plan-details-sheet"
       >
         {selectedItem ? (
@@ -54,11 +50,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         open={!!selectedExpenseRequest}
         onOpenChange={open => !open && handleCloseDetails()}
         title={
-          (selectedExpenseRequest as { title?: string } | null)?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-            'Expense Request Details'
-          )
+          (selectedExpenseRequest as { title?: string } | null)?.title || t('expense-plans-sheet-expense-request-title')
         }
         testId="expense-request-details-sheet"
       >
@@ -80,7 +72,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
             setPrintPdfUrl('')
           }
         }}
-        title={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.print_expense_plan', 'Print Expense Plan')}
+        title={t('expense-plans-print-dialog-title')}
         loading={printLoading}
         pdfUrl={printPdfUrl}
         testIdPrefix="print-plan"

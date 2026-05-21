@@ -1,9 +1,13 @@
 import React from 'react'
-import { Card, Badge, Avatar } from '@newwork/nw-design-system'
-import { MapPin } from '@phosphor-icons/react'
+import { Card, Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { MapPinIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { LivePresenceLocationCard } from '../../types'
-import { getOccupancyBadgeVariant } from '../../utils/occupancyCalculations'
+import {
+  getOccupancyBadgeVariant,
+  getOccupancyBgColorClass,
+  getOccupancyStatus
+} from '../../utils/occupancyCalculations'
 
 interface LivePresenceCardsProps {
   locationCards: LivePresenceLocationCard[]
@@ -14,10 +18,23 @@ export const LivePresenceCards: React.FC<LivePresenceCardsProps> = ({
   locationCards,
   prefixDataTestId = 'live-presence-cards'
 }) => {
+  const getFallback = (displayName: string): string => {
+    const parts = displayName
+      .split(/\s+/)
+      .map(p => p.trim())
+      .filter(Boolean)
+
+    const first = parts[0]?.[0]
+    const second = parts[1]?.[0]
+
+    const initials = `${first ?? ''}${second ?? ''}`.toUpperCase()
+    return initials || '-'
+  }
+
   if (locationCards.length === 0) {
     return (
       <div className="gba:text-center gba:py-12" data-testid={`${prefixDataTestId}-empty`}>
-        <MapPin className="gba:w-12 gba:h-12 gba:mx-auto gba:text-muted-foreground gba:mb-4" />
+        <MapPinIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:text-muted-foreground gba:mb-4" />
         <p className="gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:office_usage.no_live_presence_data',
@@ -35,6 +52,10 @@ export const LivePresenceCards: React.FC<LivePresenceCardsProps> = ({
     >
       {locationCards.map(location => {
         const badgeVariant = getOccupancyBadgeVariant(location.currentOccupancyPercentage)
+        const isOverCapacity = location.capacity > 0 && location.currentOccupied > location.capacity
+        const occupancyStatus = getOccupancyStatus(location.currentOccupancyPercentage)
+        const statusDotBgClass = getOccupancyBgColorClass(occupancyStatus)
+        const ratioTextClassName = isOverCapacity ? 'gba:text-warning gba:font-semibold' : 'gba:text-muted-foreground'
 
         return (
           <Card
@@ -46,27 +67,20 @@ export const LivePresenceCards: React.FC<LivePresenceCardsProps> = ({
             <div className="gba:flex gba:items-start gba:justify-between gba:mb-4">
               <div className="gba:flex-1">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                  <MapPin className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                  <MapPinIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
                   <h4 className="gba:font-semibold gba:text-foreground">{location.siteLocationName}</h4>
                 </div>
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:text-sm gba:text-muted-foreground">
+                  {isOverCapacity && <WarningCircleIcon className="gba:w-4 gba:h-4 gba:text-warning" />}
+                  <span className={`gba:text-sm ${ratioTextClassName}`}>
                     {location.currentOccupied} / {location.capacity}
                   </span>
-                  <Badge variant={badgeVariant} className="gba:text-xs">
+                  <Badge variant={isOverCapacity ? 'warning' : badgeVariant} className="gba:text-xs">
                     {location.currentOccupancyPercentage.toFixed(0)}%
                   </Badge>
                 </div>
               </div>
-              <div
-                className={`gba:w-2 gba:h-2 gba:rounded-full ${
-                  location.currentOccupancyPercentage < 60
-                    ? 'gba:bg-green-500'
-                    : location.currentOccupancyPercentage < 80
-                      ? 'gba:bg-yellow-500'
-                      : 'gba:bg-red-500'
-                }`}
-              />
+              <div className={`gba:w-2 gba:h-2 gba:rounded-full ${statusDotBgClass}`} />
             </div>
 
             {/* In Office Now */}
@@ -83,12 +97,10 @@ export const LivePresenceCards: React.FC<LivePresenceCardsProps> = ({
                 <div className="gba:space-y-2">
                   {location.peopleInOfficeNow.slice(0, 5).map(person => (
                     <div key={person.employeeId} className="gba:flex gba:items-center gba:gap-2">
-                      <Avatar
-                        src={person.pictureUrl ? `data:image/jpeg;base64,${person.pictureUrl}` : undefined}
-                        alt={person.displayName}
-                        fallback={person.displayName.substring(0, 2).toUpperCase()}
-                        className="gba:w-8 gba:h-8"
-                      />
+                      <Avatar className="gba:w-8 gba:h-8">
+                        {person.pictureUrl && <AvatarImage src={`data:image/jpeg;base64,${person.pictureUrl}`} />}
+                        <AvatarFallback>{getFallback(person.displayName)}</AvatarFallback>
+                      </Avatar>
                       <div className="gba:flex-1 gba:min-w-0">
                         <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
                           {person.displayName}
@@ -121,12 +133,12 @@ export const LivePresenceCards: React.FC<LivePresenceCardsProps> = ({
                   {location.peopleDueLater.slice(0, 6).map(person => (
                     <Avatar
                       key={person.employeeId}
-                      src={person.pictureUrl ? `data:image/jpeg;base64,${person.pictureUrl}` : undefined}
-                      alt={person.displayName}
-                      fallback={person.displayName.substring(0, 2).toUpperCase()}
                       className="gba:w-6 gba:h-6"
                       title={`${person.displayName} - ${person.expectedStartTime}`}
-                    />
+                    >
+                      {person.pictureUrl && <AvatarImage src={`data:image/jpeg;base64,${person.pictureUrl}`} />}
+                      <AvatarFallback>{getFallback(person.displayName)}</AvatarFallback>
+                    </Avatar>
                   ))}
                 </div>
               </div>

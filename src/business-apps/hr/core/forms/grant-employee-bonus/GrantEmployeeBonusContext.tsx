@@ -89,7 +89,10 @@ export const GrantEmployeeBonusProvider: React.FC<ProviderProps> = ({
         try {
           const regionRes = await graphqlClient.request<{
             Employee?: Array<{ workingCondition?: Array<{ region?: { id: string } }> }>
-          }>(GET_EMPLOYEE_REGION_ID, { employeeId })
+          }>(GET_EMPLOYEE_REGION_ID, {
+            employeeId,
+            today: new Date().toISOString()
+          })
           const regionId = regionRes?.Employee?.[0]?.workingCondition?.[0]?.region?.id
           hasEmploymentRegion = Boolean(regionId)
           if (regionId) {

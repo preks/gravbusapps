@@ -40,9 +40,9 @@ export const customerOpportunitySchema = opportunitySchemaBase
   })
   .extend({
     // Override: Pipeline is REQUIRED in CRM
-    opportunityPipelineRef: z.string().min(1, CRM_VALIDATION_ERRORS.PIPELINE_REQUIRED),
+    opportunityPipelineRef: z.string().trim().min(1, CRM_VALIDATION_ERRORS.PIPELINE_REQUIRED),
     // Override: Stage is REQUIRED in CRM
-    opportunityPipelineStageRef: z.string().min(1, CRM_VALIDATION_ERRORS.STAGE_REQUIRED),
+    opportunityPipelineStageRef: z.string().trim().min(1, CRM_VALIDATION_ERRORS.STAGE_REQUIRED),
     // CRM-specific fields
     salesCampaignId: z.string().nullable().optional(),
     winningChance: z.coerce.number().min(0).max(100).nullable().optional()

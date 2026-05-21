@@ -93,25 +93,22 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
 
   return (
     <div className="gba:space-y-6" data-testid="employee-performance-evaluation-detail">
-      <div className="gba:space-y-1">
-        <h3 className="gba:text-2xl gba:font-bold">{t('performance-evaluation-detail-title')}</h3>
-        <p className="gba:text-muted-foreground">{t('performance-evaluation-detail-subtitle')}</p>
-      </div>
-
       <div
         className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-4 gba:gap-4"
         data-testid="employee-performance-evaluation-summary-cards"
       >
         <Card>
-          <CardHeader className="gba:pb-2">
-            <CardTitle>{t('performance-evaluation-summary-overall-progress')}</CardTitle>
+          <CardHeader className="gba:px-4 gba:pt-3 gba:pb-1">
+            <CardTitle className="gba:text-sm gba:font-bold">
+              {t('performance-evaluation-summary-overall-progress')}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="gba:space-y-3">
-            <div className="gba:flex gba:items-end gba:gap-2">
-              <span className="gba:text-3xl gba:font-bold">{overallNumericDisplay}</span>
-              <span className="gba:text-sm gba:text-muted-foreground">/{ratingScaleLimit}</span>
+          <CardContent className="gba:px-4 gba:pb-3 gba:pt-0 gba:space-y-2">
+            <div className="gba:flex gba:items-end gba:gap-1.5">
+              <span className="gba:text-2xl gba:font-bold">{overallNumericDisplay}</span>
+              <span className="gba:text-xs gba:text-muted-foreground">/{ratingScaleLimit}</span>
               {overallChangeBadge ? (
-                <span className={`gba:text-sm gba:font-medium ${overallChangeBadge.className}`}>
+                <span className={`gba:text-xs gba:font-medium ${overallChangeBadge.className}`}>
                   {overallChangeBadge.text}
                 </span>
               ) : null}
@@ -124,15 +121,17 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
         </Card>
 
         <Card>
-          <CardHeader className="gba:pb-2">
-            <CardTitle>{t('performance-evaluation-summary-company-values-average')}</CardTitle>
+          <CardHeader className="gba:px-4 gba:pt-3 gba:pb-1">
+            <CardTitle className="gba:text-sm gba:font-bold">
+              {t('performance-evaluation-summary-company-values-average')}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="gba:space-y-3">
-            <div className="gba:flex gba:items-end gba:gap-2">
-              <span className="gba:text-3xl gba:font-bold">{companyValuesAverageScore}</span>
-              <span className="gba:text-sm gba:text-muted-foreground">/{ratingScaleLimit}</span>
+          <CardContent className="gba:px-4 gba:pb-3 gba:pt-0 gba:space-y-2">
+            <div className="gba:flex gba:items-end gba:gap-1.5">
+              <span className="gba:text-2xl gba:font-bold">{companyValuesAverageScore}</span>
+              <span className="gba:text-xs gba:text-muted-foreground">/{ratingScaleLimit}</span>
               {companyValuesChangeBadge ? (
-                <span className={`gba:text-sm gba:font-medium ${companyValuesChangeBadge.className}`}>
+                <span className={`gba:text-xs gba:font-medium ${companyValuesChangeBadge.className}`}>
                   {companyValuesChangeBadge.text}
                 </span>
               ) : null}
@@ -145,15 +144,17 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
         </Card>
 
         <Card>
-          <CardHeader className="gba:pb-2">
-            <CardTitle>{t('performance-evaluation-summary-skills-average')}</CardTitle>
+          <CardHeader className="gba:px-4 gba:pt-3 gba:pb-1">
+            <CardTitle className="gba:text-sm gba:font-bold">
+              {t('performance-evaluation-summary-skills-average')}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="gba:space-y-3">
-            <div className="gba:flex gba:items-end gba:gap-2">
-              <span className="gba:text-3xl gba:font-bold">{skillsAverageScore}</span>
-              <span className="gba:text-sm gba:text-muted-foreground">/{ratingScaleLimit}</span>
+          <CardContent className="gba:px-4 gba:pb-3 gba:pt-0 gba:space-y-2">
+            <div className="gba:flex gba:items-end gba:gap-1.5">
+              <span className="gba:text-2xl gba:font-bold">{skillsAverageScore}</span>
+              <span className="gba:text-xs gba:text-muted-foreground">/{ratingScaleLimit}</span>
               {skillsChangeBadge ? (
-                <span className={`gba:text-sm gba:font-medium ${skillsChangeBadge.className}`}>
+                <span className={`gba:text-xs gba:font-medium ${skillsChangeBadge.className}`}>
                   {skillsChangeBadge.text}
                 </span>
               ) : null}
@@ -163,16 +164,18 @@ const PerformanceEvaluationDetailView: React.FC<PerformanceEvaluationDetailViewP
         </Card>
 
         <Card data-testid="employee-performance-evaluation-summary-review-card">
-          <CardHeader className="gba:pb-2">
-            <CardTitle>{t('performance-evaluation-summary-goals-title')}</CardTitle>
+          <CardHeader className="gba:px-4 gba:pt-3 gba:pb-1">
+            <CardTitle className="gba:text-sm gba:font-bold">
+              {t('performance-evaluation-summary-goals-title')}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="gba:space-y-3">
+          <CardContent className="gba:px-4 gba:pb-3 gba:pt-0 gba:space-y-2">
             <div
-              className="gba:flex gba:items-end gba:gap-2"
+              className="gba:flex gba:items-end gba:gap-1.5"
               data-testid="employee-performance-evaluation-goals-progress-summary"
             >
               <span
-                className="gba:text-3xl gba:font-bold"
+                className="gba:text-2xl gba:font-bold"
                 data-testid="employee-performance-evaluation-goals-progress-value"
               >
                 {cycleGoalsSummaryLoading ? '--' : `${cycleGoalsSummary.averageProgressPercent}%`}

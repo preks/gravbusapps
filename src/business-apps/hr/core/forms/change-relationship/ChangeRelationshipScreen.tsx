@@ -21,12 +21,37 @@ import dayjs from 'dayjs'
 import translations from '../../apps/employee-record/_i18n'
 
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
-import { CongratulationsModal } from './CongratulationsModal'
+import { CongratulationsModal, type CongratulationsModalVariant } from './CongratulationsModal'
 import { PhoneInput } from './components/PhoneInput'
 import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
 import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUploadField'
 
 const prefixDataTestId = 'ChangeRelationshipScreen'
+
+function getCongratulationsVariant(
+  relationshipTypeId: string,
+  relationshipTypeCodeById: Record<string, string>,
+  relationshipTypeLabelById: Record<string, string>
+): CongratulationsModalVariant | null {
+  const relationshipTypeText = [
+    relationshipTypeId,
+    relationshipTypeCodeById[relationshipTypeId],
+    relationshipTypeLabelById[relationshipTypeId]
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  if (relationshipTypeText.includes('marriage') || relationshipTypeText.includes('mariage')) {
+    return 'marriage'
+  }
+
+  if (relationshipTypeText.includes('child')) {
+    return 'child'
+  }
+
+  return null
+}
 
 function toValidEmployeeDocumentId(value: unknown): string {
   if (typeof value !== 'string') {
@@ -75,6 +100,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   )
   const isEditMode = Boolean(initialPayload?.relationship?.id)
   const [successOpen, setSuccessOpen] = useState(false)
+  const [congratulationsVariant, setCongratulationsVariant] = useState<CongratulationsModalVariant>('child')
   const preSubmitResolverRef = useRef<((payload: any) => void) | null>(null)
   const pendingPayloadRef = useRef<any>(null)
 
@@ -356,14 +382,17 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     }
 
     // Only show congratulations modal when adding a new Child or Marriage relationship
-    const selectedCode = (relationshipTypeCodeById[relationshipTypeId] || '').toLowerCase()
-    const shouldShowCongrats =
-      !isEditMode &&
-      (selectedCode.includes('child') || selectedCode.includes('marriage') || selectedCode.includes('mariage'))
+    const congratsVariant = getCongratulationsVariant(
+      relationshipTypeId,
+      relationshipTypeCodeById,
+      relationshipTypeLabelById
+    )
+    const shouldShowCongrats = !isEditMode && congratsVariant != null
 
     if (shouldShowCongrats) {
       // Show Congratulations modal first and resolve payload after user confirms
       pendingPayloadRef.current = relationshipChange
+      setCongratulationsVariant(congratsVariant)
       setSuccessOpen(true)
       return new Promise(resolve => {
         preSubmitResolverRef.current = resolve
@@ -612,6 +641,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       {/* Success modal */}
       <CongratulationsModal
         open={successOpen}
+        variant={congratulationsVariant}
         onConfirm={() => {
           const resolver = preSubmitResolverRef.current
           const payload = pendingPayloadRef.current || {}

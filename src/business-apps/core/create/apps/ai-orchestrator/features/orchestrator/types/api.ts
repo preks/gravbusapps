@@ -60,7 +60,6 @@ export interface TurnRequest {
   answers?: Record<string, string>
   versionType?: 'major' | 'minor'
   versionNote?: string
-  customSystemPrompt?: string
   createdBy?: AnalyzeRequest['createdBy']
 }
 

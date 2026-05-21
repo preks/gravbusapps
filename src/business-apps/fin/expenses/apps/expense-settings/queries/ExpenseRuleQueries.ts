@@ -382,6 +382,7 @@ export const GET_EMPLOYEES_FOR_ASSIGNMENT = (): string => {
     query GetEmployeesForAssignment(
       $where: EmployeePositionBoolExp
       $activeUserLocale: String!
+      $today: timestamptz!
       $limit: Int
       $offset: Int
     ) {
@@ -400,7 +401,20 @@ export const GET_EMPLOYEES_FOR_ASSIGNMENT = (): string => {
           id
           displayName
           
-          workingCondition {
+          workingCondition(
+            where: {
+              isDeleted: {_eq: false}
+              _or: [
+                {activeFrom: {_isNull: true}, activeTo: {_isNull: true}}
+                {
+                  activeFrom: {_lte: $today}
+                  _or: [{activeTo: {_isNull: true}}, {activeTo: {_gte: $today}}]
+                }
+              ]
+            }
+            orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
+            limit: 1
+          ) {
             contractType {
               id
               value
@@ -1191,6 +1205,7 @@ export const useGetEmployeesForAssignment = (context: BusinessAppContextProps) =
         const result = await graphqlClient.request<{ EmployeePosition: any[] }>(query, {
           where: whereConditions,
           activeUserLocale: getCurrentActiveUserLocale(),
+          today: new Date().toISOString(),
           limit,
           offset
         })

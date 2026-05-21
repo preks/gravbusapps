@@ -12,7 +12,6 @@ import { Employee, EmployeePerformanceGoal, EmployeeFeedback } from '../../hooks
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import translations from '../../_i18n'
-import SkillsTabOld from './SkillsTabOld'
 
 export type HrGrowthUrlMode = 'employeeRecord' | 'standalone'
 
@@ -20,7 +19,7 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   employee: Employee
   employeeId: string
   isSelfView: boolean
-  devFeatureFlag: boolean
+  performanceEvaluationFeatureFlag?: boolean
   employeePerformanceGoals?: EmployeePerformanceGoal[]
   feedback?: EmployeeFeedback[]
   /** `standalone`: My Development page — URL uses only `subView`, no `tab=hrGrowth`. */
@@ -48,9 +47,9 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   accessToken,
   userInfo,
   isSelfView,
-  devFeatureFlag,
   employeePerformanceGoals,
   feedback,
+  performanceEvaluationFeatureFlag = false,
   urlMode = 'employeeRecord'
 }) => {
   const { t } = useTranslation(translations)
@@ -121,7 +120,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    if (!devFeatureFlag && activeSubView === 'performanceEvaluation') {
+    if (!performanceEvaluationFeatureFlag && activeSubView === 'performanceEvaluation') {
       const newSubView = 'skills'
       setActiveSubView(newSubView)
       updateUrl(newSubView)
@@ -139,8 +138,8 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
       updateUrl(newSubView)
     }
   }, [
-    devFeatureFlag,
     activeSubView,
+    performanceEvaluationFeatureFlag,
     permissionsLoading,
     hasPerformancePermission,
     employeeRecordAllHrBackoffice.loading,
@@ -206,7 +205,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               </div>
             </TabsTrigger>
           )}
-          {devFeatureFlag && (
+          {performanceEvaluationFeatureFlag && (
             <TabsTrigger
               value="performanceEvaluation"
               data-testid="hr-growth-performance-evaluation-subtab"
@@ -221,17 +220,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
-          {devFeatureFlag ? (
-            <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
-          ) : (
-            <SkillsTabOld
-              employee={employee}
-              accessToken={accessToken}
-              employeeId={employeeId}
-              userInfo={userInfo}
-              devFeatureFlag={devFeatureFlag}
-            />
-          )}
+          <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
         </TabsContent>
 
         <TabsContent value="feedback" data-testid="hr-growth-feedback-content" className="gba:mt-4">
@@ -267,7 +256,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
           </TabsContent>
         )}
 
-        {devFeatureFlag && (
+        {performanceEvaluationFeatureFlag && (
           <TabsContent
             value="performanceEvaluation"
             data-testid="hr-growth-performance-evaluation-content"

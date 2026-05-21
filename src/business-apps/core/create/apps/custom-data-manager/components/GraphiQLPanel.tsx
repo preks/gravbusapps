@@ -3,12 +3,10 @@ import { GraphiQL } from 'graphiql'
 import { explorerPlugin } from '@graphiql/plugin-explorer'
 import type { Fetcher } from '@graphiql/toolkit'
 import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
-import { toPascalCase } from '../utils/definitionFormUtils'
-
 interface GraphiQLPanelProps {
   accessToken: string
   namespace: string
-  entityKey?: string
+  entityName?: string
   'data-testid'?: string
 }
 
@@ -17,7 +15,7 @@ const explorer = explorerPlugin()
 export const GraphiQLPanel: React.FC<GraphiQLPanelProps> = ({
   accessToken,
   namespace,
-  entityKey,
+  entityName,
   'data-testid': testId = 'graphiql-panel'
 }) => {
   const fetcher: Fetcher = useMemo(
@@ -38,12 +36,12 @@ export const GraphiQLPanel: React.FC<GraphiQLPanelProps> = ({
   )
 
   const defaultQuery = useMemo(() => {
-    if (!entityKey) {
+    if (!entityName) {
       return `# Click fields in the Explorer to build your query\n{\n  \n}`
     }
-    const queryName = toPascalCase(entityKey) || 'Entity'
+    const queryName = entityName || 'Entity'
     return `{\n  ${queryName} {\n    id\n  }\n}`
-  }, [entityKey])
+  }, [entityName])
 
   return (
     <div className="gba:h-full gba:w-full gba:overflow-hidden" data-testid={testId}>

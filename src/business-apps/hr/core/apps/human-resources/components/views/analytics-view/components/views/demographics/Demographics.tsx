@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button, Spinner, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDemographicsDataIntegration } from '../../../hooks/useDemographicsDataIntegration'
@@ -7,6 +7,8 @@ import DemographicsChartsView from './components/DemographicsChartsView'
 import DemographicsStatistics from './components/DemographicsStatistics'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { useEmployeeCount } from '../../../hooks/useEmployeeCount'
+import AnalyticsTabErrorCard from '../../shared/AnalyticsTabErrorCard'
+import AnalyticsTabLoadingState from '../../shared/AnalyticsTabLoadingState'
 
 const Demographics: React.FC<BusinessAppContextProps> = context => {
   const { demographicsData, statistics, isLoading, error, refetch } = useDemographicsDataIntegration(context)
@@ -19,47 +21,29 @@ const Demographics: React.FC<BusinessAppContextProps> = context => {
 
   if (error) {
     return (
-      <div
-        data-testid={`${prefixDataTestId}-error`}
-        className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-full gba:p-6 gba:rounded-lg"
-      >
-        <Card className="gba:border-destructive-secondary gba:bg-destructive-secondary">
-          <CardContent className="gba:p-6">
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex-1">
-                <h3 className="gba:text-destructive-secondary-foreground gba:font-medium gba:mb-2">
-                  {t('hr-analytics-failed-to-load-demographics')}
-                </h3>
-                <p className="gba:text-destructive-secondary-foreground">{error}</p>
-              </div>
-              <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
-                <ArrowClockwiseIcon />
-                {t('common-retry')}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <AnalyticsTabErrorCard
+        dataTestId={`${prefixDataTestId}-error`}
+        message={t('hr-analytics-failed-to-load-demographics')}
+        detail={error}
+        retryLabel={t('common-retry')}
+        onRetry={refetch}
+        className="gba:p-6"
+      />
     )
   }
 
   if (isLoading) {
     return (
-      <div
-        data-testid={`${prefixDataTestId}-loading`}
-        className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-full gba:p-6 gba:rounded-lg gba:flex gba:justify-center gba:items-center gba:flex-col"
-      >
-        <Spinner className="gba:w-8 gba:h-8" />
-        <p className="gba:mt-4 gba:text-muted-foreground">{t('hr-analytics-loading-demographics')}</p>
-      </div>
+      <AnalyticsTabLoadingState
+        dataTestId={`${prefixDataTestId}-loading`}
+        message={t('hr-data-filter-loading-data')}
+        className="gba:min-h-full gba:p-6 gba:rounded-lg"
+      />
     )
   }
 
   return (
-    <div
-      data-testid={prefixDataTestId}
-      className="gba:bg-gradient-to-b gba:from-gray-50 gba:to-gray-100 gba:min-h-full gba:p-6 gba:rounded-lg"
-    >
+    <div data-testid={prefixDataTestId} className="gba:min-h-full gba:p-6 gba:rounded-lg">
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4">

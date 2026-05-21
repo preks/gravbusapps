@@ -101,7 +101,8 @@ export const useTimeInterventions = ({ employeeId, accessToken, workingHours }: 
         try {
           const regionRes = await graphqlClient.request<any>(employeeRegionLookupQuery, {
             employeeId,
-            activeUserLocale: locale
+            activeUserLocale: locale,
+            today: new Date().toISOString()
           })
           const regionId: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
           if (regionId) {

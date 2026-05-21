@@ -48,7 +48,7 @@ interface LeadInformationSegmentProps {
  *
  * Contains:
  * - Owner (Employee Select)
- * - First Name, Last Name, Company (required)
+ * - First Name, Last Name, Email, Company (required)
  * - Status, Source, Rating (Catalog Selects)
  * - Sensitive (Checkbox)
  * - Custom fields slot (e.g., Sales Campaign for CRM)
@@ -134,6 +134,30 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
           )}
         />
       </div>
+
+      {/* Email */}
+      <FormField
+        control={form.control}
+        name="email"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('lead-segment-email')}</FormLabel>
+            <FormControl>
+              <Input
+                type="email"
+                placeholder={t('lead-segment-placeholder-enter')}
+                data-testid="lead-segment-email"
+                value={field.value || ''}
+                onChange={e => field.onChange(e.target.value)}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       {/* Company Name - Autocomplete with Account Search */}
       <FormField

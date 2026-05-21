@@ -86,6 +86,11 @@ function createFabricState(overrides: Record<string, unknown> = {}) {
     streamingContent: '',
     streamingThinking: '',
     statusHeadline: null,
+    liveStatusHeadline: null,
+    displayStatus: null,
+    ackHeadline: null,
+    planItems: [],
+    agentActivityLines: [],
     accessToken: 'token',
     isStreaming: false,
     isConnected: true,
@@ -122,7 +127,9 @@ describe('WorkspaceLayout right panel', () => {
     mockUseFabricConnectors.mockReturnValue({
       availableConnectors: [],
       activeConnectors: [],
+      activeConnectionIds: new Set(),
       toggleConnector: jest.fn(),
+      hydrateActiveIds: jest.fn(),
       isLoading: false
     })
   })

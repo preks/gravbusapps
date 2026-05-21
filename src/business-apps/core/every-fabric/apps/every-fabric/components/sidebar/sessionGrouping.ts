@@ -11,6 +11,14 @@ import { parseIsoTimestampMs } from '../../utils/renderUtils'
 /** Statuses that classify a session as "currently active" for UI purposes. */
 const ACTIVE_STATUSES = new Set(['running', 'pending', 'waiting_for_human'])
 
+/** Non-active statuses that appear in the Recents section and can be filtered. */
+export type RecentsStatusFilter = 'completed' | 'failed' | 'cancelled'
+export const RECENTS_STATUS_OPTIONS: { value: RecentsStatusFilter; label: string }[] = [
+  { value: 'completed', label: 'Done' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'cancelled', label: 'Cancelled' }
+]
+
 export interface RecentsGroup {
   label: 'Today' | 'Yesterday' | 'Earlier'
   sessions: FabricSessionSummary[]
@@ -95,5 +103,18 @@ export function filterActiveByQuery(sessions: ActiveSessionSnapshot[], query: st
 export function filterRecentsByQuery(sessions: FabricSessionSummary[], query: string): FabricSessionSummary[] {
   if (!query.trim()) return sessions
   const needle = query.trim().toLowerCase()
-  return sessions.filter(s => matchesQuery(s.input, needle))
+  return sessions.filter(s => {
+    if (matchesQuery(s.input, needle)) return true
+    if (matchesQuery(s.status, needle)) return true
+    if (matchesQuery(s.config?.selectedEnterpriseSkill?.name ?? null, needle)) return true
+    return false
+  })
+}
+
+export function filterRecentsByStatus(
+  sessions: FabricSessionSummary[],
+  statusFilter: Set<RecentsStatusFilter> | null
+): FabricSessionSummary[] {
+  if (!statusFilter || statusFilter.size === 0) return sessions
+  return sessions.filter(s => statusFilter.has(s.status as RecentsStatusFilter))
 }

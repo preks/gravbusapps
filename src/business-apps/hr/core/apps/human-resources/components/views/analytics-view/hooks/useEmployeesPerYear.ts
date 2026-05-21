@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import dayjs from 'dayjs'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 /**
  * Interface for yearly employee count data
@@ -17,6 +19,7 @@ export interface YearlyEmployeeData {
  * @returns Object containing employees per year data array, loading state, error, and refetch function
  */
 export const useEmployeesPerYear = (accessToken: string) => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [data, setData] = useState<YearlyEmployeeData[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
@@ -42,7 +45,13 @@ export const useEmployeesPerYear = (accessToken: string) => {
       }
 
       const years = 5
-      const result = await datasetClient.executeQuery('employeesPerYear', QueryType.TIMESERIES, { years })
+      const structureId = getCurrentActiveStructureId()
+      const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+      const params: Record<string, string | number | boolean> = { years }
+      if (structureId) params.structureId = structureId
+      if (companyIdsParam) params.companyIds = companyIdsParam
+
+      const result = await datasetClient.executeQuery('employeesPerYear', QueryType.TIMESERIES, params)
       const rows = (result?.data ?? []) as Array<{
         category?: string
         date_category?: string
@@ -73,7 +82,7 @@ export const useEmployeesPerYear = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, datasetClient])
+  }, [accessToken, datasetClient, selectedCompanyIds])
 
   useEffect(() => {
     isMounted.current = true

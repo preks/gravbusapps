@@ -6,7 +6,7 @@ import { EmployeeSelect } from '@/components/employee-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AccountSegment } from '@/common/components/common-relations/form-segments/account-segment'
 import type { AccountSegmentOption } from '@/common/components/common-relations/form-segments/account-segment'
-import { CompanySelect } from '@/components/company-select'
+import { InvestmentCompanySelect } from '@/components/investment-company-select'
 import { CURRENCY } from '@/common/constants/commonCatalogs'
 import { INVESTMENT_ACCOUNT_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -30,8 +30,8 @@ interface InvestmentInformationSegmentProps {
     refetch: (variables?: any) => Promise<void>
   }
 
-  // Company from investment data (to display immediately)
-  company?: any
+  // Investment company from investment data (to display immediately)
+  investmentCompany?: any
 
   // Entity ID (investment ID for edit mode)
   entityId?: string
@@ -68,7 +68,7 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
   businessAppContext,
   ownerEmployee,
   investmentAccounts,
-  company,
+  investmentCompany,
   useAccounts,
   entityId,
   investmentGroup,
@@ -119,18 +119,18 @@ const InvestmentInformationSegment: React.FC<InvestmentInformationSegmentProps> 
         {/* Company Selection */}
         <FormField
           control={form.control}
-          name="investment.companyId"
+          name="investment.investmentCompanyId"
           render={({ field }) => (
             <FormItem>
               <FormLabel>{getTranslationFromI18nKeyAndLabel('investment.form.company', 'Company')}</FormLabel>
               <FormControl>
-                <CompanySelect
+                <InvestmentCompanySelect
                   value={field.value || null}
                   onValueChange={(v: string | null) => {
                     field.onChange(v || '')
                   }}
                   businessAppContext={businessAppContext}
-                  initialCompany={company}
+                  initialCompany={investmentCompany}
                   data-testid={formatDataTestId(prefixDataTestId, 'CompanySelect')}
                   disabled={disabled}
                 />

@@ -8,6 +8,8 @@ action-retry = Erneut versuchen
 action-return = Zurückgeben
 action-approve = Genehmigen
 action-confirm = Bestätigen
+action-cancel = Abbrechen
+action-change-main-cost-center = Hauptkostenstelle ändern
 
 # ============================================
 # Common Status Labels
@@ -65,7 +67,7 @@ label-date-time = Datum & Uhrzeit
 label-trip-details = Reisedetails
 label-destination = Ziel
 label-start-location = Startort
-label-start-location-country = Startort (Land)
+label-start-location-country = Startort
 label-region = Region
 label-expense-group = Spesengruppe
 label-expense-class = Spesenklasse

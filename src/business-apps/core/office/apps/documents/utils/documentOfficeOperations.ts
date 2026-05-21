@@ -130,6 +130,7 @@ export function mapApiDocToSummary(doc: RecordData): DocumentSummary {
     approvalStatus: getApprovalStatusFromMetadata(doc),
     isShared: doc.isShared as boolean | undefined,
     sharedBy: doc.sharedBy as string | undefined,
+    isFavorite: doc.isFavorite as boolean | undefined,
     permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
     sharedCount: (doc.sharedCount as number) ?? 0,
     sharedPreviewUserIds: (doc.sharedPreviewUserIds as string[]) ?? [],

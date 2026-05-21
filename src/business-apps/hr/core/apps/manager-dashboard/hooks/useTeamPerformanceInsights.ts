@@ -6,7 +6,7 @@ import { TeamMemberSkills } from './useTeamSkills'
 import { TeamMemberFeedback } from './useTeamFeedbackOverview'
 import { TeamMemberEvaluation } from './useTeamEvaluations'
 
-const TEAM_PERFORMANCE_ANALYZER_EXPERT_ID = '69c26839397e75a824d38c59'
+const TEAM_PERFORMANCE_ANALYZER_PROMPT_NAME = 'team_performance_overview_analyzer'
 
 const CACHE_KEY_PREFIX = 'teamPerfInsights_'
 const CACHE_TTL = 60 * 60 * 1000 // 1 hour
@@ -323,7 +323,13 @@ export const useTeamPerformanceInsights = ({
 
       const periodDescription = formatAnalysisPeriodForPrompt(locale, snapshotParams.performanceCycle)
 
-      const response = await client.executePromptWithOptions(TEAM_PERFORMANCE_ANALYZER_EXPERT_ID, {
+      const promptsPage = await client.getPrompts({ promptName: TEAM_PERFORMANCE_ANALYZER_PROMPT_NAME, limit: 1 })
+      const taskExpertId = promptsPage?.data?.[0]?._id
+      if (!taskExpertId) {
+        throw new Error(`Prompt not found: ${TEAM_PERFORMANCE_ANALYZER_PROMPT_NAME}`)
+      }
+
+      const response = await client.executePromptWithOptions(taskExpertId, {
         userParams: {
           manager_name: snapshotParams.managerName,
           team_size: String(snapshotParams.teamSize),

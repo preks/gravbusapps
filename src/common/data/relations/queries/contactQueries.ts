@@ -52,6 +52,8 @@ export interface CommonContactQueryVariables extends BaseQueryVariables {
   salutationIds?: string[]
   birthDateFrom?: string
   birthDateTo?: string
+  /** Filter by contact type enum values (e.g. ['PRIMARY_CONTACT', 'SECONDARY_CONTACT']). */
+  contactTypes?: string[]
 }
 
 /**

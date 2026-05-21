@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Badge, Button } from '@newwork/nw-design-system'
 import {
+  ArrowSquareOutIcon,
   CaretDownIcon,
   CaretRightIcon,
   DownloadSimpleIcon,
@@ -11,11 +12,21 @@ import {
   FileJsIcon,
   FilePyIcon,
   FileTextIcon,
+  ImageIcon,
   PresentationIcon
 } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
-import type { TodoItem, ActionSummary, WorkspaceDocument } from '../../types/enterpriseAgent'
+import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
+import type {
+  EnterprisePresentationMode,
+  TodoItem,
+  ActionSummary,
+  WorkspaceDocument
+} from '../../types/enterpriseAgent'
 import { formatDuration } from '../../utils/renderUtils'
+import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
+import { ChartInlineBody } from '../workspace/chartInlineBody'
+import { AutoHeightHtmlIframe } from '../artifacts/AutoHeightHtmlIframe'
 
 interface FinalAnswerArtifact {
   name: string
@@ -39,7 +50,12 @@ export interface FinalAnswerRendererProps {
    * treatment since no real work was done.
    */
   isInstant?: boolean
+  /** Session ID used to construct artifact download URLs for inline previews. */
+  sessionId?: string
+  /** Bearer token for authenticated artifact fetches in inline chart previews. */
+  accessToken?: string
   onViewArtifact?: (artifactName: string) => void
+  presentationMode?: EnterprisePresentationMode
 }
 
 const getArtifactIcon = (rendererType: string) => {
@@ -158,8 +174,198 @@ interface ArtifactsListProps {
   onViewArtifact?: (artifactName: string) => void
 }
 
+/** Extract ### Summary body without regex (avoids Sonar S5852 ReDoS hotspot). */
+function extractSummarySection(output: string): string | null {
+  const lines = output.split('\n')
+  let summaryLine = -1
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (line.toLowerCase() === '### summary' || line.toLowerCase().startsWith('### summary ')) {
+      summaryLine = i
+      break
+    }
+  }
+  if (summaryLine === -1) return null
+
+  const bodyLines: string[] = []
+  for (let i = summaryLine + 1; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+    if (trimmed.startsWith('### ')) break
+    bodyLines.push(lines[i])
+  }
+  const body = bodyLines.join('\n').trim()
+  return body || null
+}
+
+/** When a dashboard or timeline artifact exists, hide redundant markdown from the orchestrator. */
+function compactOutputForChartDeliverable(output: string, hasVisualArtifacts: boolean): string {
+  if (!hasVisualArtifacts || !output.trim()) return output
+  const isChartDeliverable =
+    /chart rendered successfully/i.test(output) ||
+    /timeline rendered successfully/i.test(output) ||
+    /dashboard artifact/i.test(output) ||
+    /open the (dashboard |timeline )?artifact/i.test(output)
+  if (!isChartDeliverable) return output
+
+  const summaryBody = extractSummarySection(output)
+  if (summaryBody) {
+    return `### Summary\n\n${summaryBody}`
+  }
+
+  const firstParagraph = output
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('\n')
+  return firstParagraph || 'Dashboard ready — see the visualization below.'
+}
+
+function buildArtifactDownloadUrl(sessionId: string, artifactPath: string): string {
+  const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
+  return `${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/artifacts/${encodeURIComponent(artifactPath)}`
+}
+
+const HtmlArtifactPreviewCard: React.FC<{
+  artifact: FinalAnswerArtifact
+  sessionId: string
+  onViewArtifact?: (artifactName: string) => void
+}> = ({ artifact, sessionId, onViewArtifact }) => {
+  const artifactPath = artifact.path || artifact.name
+  const downloadUrl = buildArtifactDownloadUrl(sessionId, artifactPath)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  const handleDownloadPng = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      const iframe = iframeRef.current
+      if (!iframe?.contentWindow) return
+
+      const expectedOrigin = new URL(downloadUrl, globalThis.location.href).origin
+      const onMessage = (ev: MessageEvent) => {
+        if (ev.origin !== expectedOrigin) return
+        if (ev.data?.type === 'capture-png-result' && ev.data.dataUrl) {
+          globalThis.removeEventListener('message', onMessage)
+          const link = document.createElement('a')
+          link.download = artifact.name.replace(/\.html?$/i, '') + '.png'
+          link.href = ev.data.dataUrl
+          document.body.appendChild(link)
+          link.click()
+          link.remove()
+        } else if (ev.data?.type === 'capture-png-error') {
+          globalThis.removeEventListener('message', onMessage)
+        }
+      }
+      globalThis.addEventListener('message', onMessage)
+      setTimeout(() => globalThis.removeEventListener('message', onMessage), 10_000)
+      iframe.contentWindow.postMessage({ type: 'capture-png' }, expectedOrigin)
+    },
+    [artifact.name, downloadUrl]
+  )
+
+  const handleOpenNewTab = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      globalThis.open(downloadUrl, '_blank', 'noopener,noreferrer')
+    },
+    [downloadUrl]
+  )
+
+  return (
+    <div
+      className="gba:w-full gba:max-w-full gba:min-w-0 gba:bg-white gba:text-left gba:group"
+      data-testid={`enterprise-agent-final-artifact-${artifact.name}`}
+    >
+      <AutoHeightHtmlIframe
+        src={downloadUrl}
+        title={artifact.name}
+        iframeRef={iframeRef}
+        className="gba:bg-white gba:max-w-full"
+      />
+      <div className="gba:flex gba:items-center gba:justify-end gba:gap-1.5 gba:bg-white gba:px-2 gba:py-2">
+        <button
+          type="button"
+          onClick={handleDownloadPng}
+          title="Download as PNG"
+          className="gba:inline-flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:cursor-pointer gba:border-0 gba:bg-transparent"
+        >
+          <ImageIcon className="gba:h-3.5 gba:w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={handleOpenNewTab}
+          title="Open in new tab"
+          className="gba:inline-flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:cursor-pointer gba:border-0 gba:bg-transparent"
+        >
+          <ArrowSquareOutIcon className="gba:h-3.5 gba:w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onViewArtifact?.(artifact.path || artifact.name)}
+          title="Open full view"
+          className="gba:text-xs gba:font-medium gba:text-primary gba:hover:text-primary/80 gba:transition-colors gba:cursor-pointer gba:ml-1 gba:border-0 gba:bg-transparent"
+        >
+          Open
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const ChartArtifactPreviewCard: React.FC<{
+  artifact: FinalAnswerArtifact
+  sessionId: string
+  accessToken?: string
+  onViewArtifact?: (artifactName: string) => void
+}> = ({ artifact, sessionId, accessToken, onViewArtifact }) => {
+  const [chartData, setChartData] = useState<Record<string, unknown> | null>(null)
+  const client = useEnterpriseAgentClient(accessToken ?? '')
+  const artifactPath = artifact.path || artifact.name
+
+  useEffect(() => {
+    if (!sessionId || !accessToken) {
+      setChartData(null)
+      return
+    }
+    let cancelled = false
+    client
+      .getArtifactContent(sessionId, artifactPath)
+      .then(raw => {
+        if (!cancelled) setChartData(JSON.parse(raw) as Record<string, unknown>)
+      })
+      .catch(() => {
+        if (!cancelled) setChartData(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, artifactPath, client, sessionId])
+
+  if (!chartData) return null
+
+  return (
+    <div
+      className="gba:pt-4 gba:w-full gba:max-w-full gba:min-w-0 gba:overflow-hidden"
+      data-testid={`chart-preview-card-${artifact.name}`}
+    >
+      <div className="gba:rounded-xl gba:border gba:border-border gba:overflow-hidden gba:bg-background gba:shadow-sm gba:p-5 gba:max-w-full">
+        <ChartInlineBody data={chartData} />
+        <div className="gba:flex gba:justify-end gba:pt-3 gba:mt-3 gba:border-t gba:border-border/50">
+          <button
+            type="button"
+            onClick={() => onViewArtifact?.(artifactPath)}
+            className="gba:text-xs gba:font-medium gba:text-primary gba:hover:text-primary/80 gba:transition-colors gba:cursor-pointer gba:border-0 gba:bg-transparent"
+          >
+            Open full view
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const ArtifactsList: React.FC<ArtifactsListProps> = ({ artifacts, onViewArtifact }) => (
-  <div className="gba:pt-4 gba:space-y-2">
+  <div className="gba:pt-4 gba:space-y-2 gba:min-w-0 gba:max-w-full gba:overflow-hidden">
     {artifacts.map(artifact => (
       <button
         key={artifact.path || artifact.name}
@@ -198,8 +404,16 @@ export const FinalAnswerRenderer = ({
   artifacts,
   workspaceDocuments,
   isInstant,
-  onViewArtifact
+  sessionId,
+  accessToken,
+  onViewArtifact,
+  presentationMode = 'default'
 }: FinalAnswerRendererProps) => {
+  const markdownVariant = presentationMode === 'enterprise_agents' ? 'enterprise' : 'default'
+  // Enterprise sessions get a touch more vertical breathing room above the
+  // markdown body so headings/lists don't feel cramped against the bubble
+  // chrome. Non-enterprise keeps the existing rhythm.
+  const markdownTopSpacingClass = presentationMode === 'enterprise_agents' ? 'gba:pt-6' : 'gba:pt-5'
   const hasWorkspaceDocs = !!workspaceDocuments && workspaceDocuments.length > 0
   // Filter out leftover "ghost" artifacts produced by the agent: zero-byte
   // entries with no mime type are backend scaffolding that should never reach
@@ -211,6 +425,13 @@ export const FinalAnswerRenderer = ({
     return true
   })
   const visibleArtifacts = hasWorkspaceDocs ? [] : displayArtifacts
+  const htmlArtifacts = visibleArtifacts.filter(a => a.rendererType === 'html')
+  const chartArtifacts = visibleArtifacts.filter(a => a.rendererType === 'chart' || a.rendererType === 'dashboard')
+  const otherArtifacts = visibleArtifacts.filter(
+    a => a.rendererType !== 'html' && a.rendererType !== 'chart' && a.rendererType !== 'dashboard'
+  )
+  const hasVisualDeliverable = chartArtifacts.length > 0 || htmlArtifacts.length > 0
+  const displayOutput = compactOutputForChartDeliverable(output, hasVisualDeliverable)
   const [fullOutputVisible, setFullOutputVisible] = useState(true)
   const [actionsExpanded, setActionsExpanded] = useState(false)
   const todoCount = todos?.length ?? 0
@@ -234,6 +455,7 @@ export const FinalAnswerRenderer = ({
       className="gba:w-full gba:overflow-hidden"
       data-testid="enterprise-agent-final-answer"
       data-instant={isInstant ? 'true' : 'false'}
+      data-presentation-mode={presentationMode}
     >
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
         <span className="gba:text-[12px] gba:font-bold gba:tracking-[0.01em] gba:text-foreground">
@@ -275,19 +497,46 @@ export const FinalAnswerRenderer = ({
               </button>
               {fullOutputVisible && (
                 <div className="gba:pt-2">
-                  <MarkdownWithChipsRenderer content={output} />
+                  <MarkdownWithChipsRenderer content={output} variant={markdownVariant} />
                 </div>
               )}
             </div>
           )}
         </>
       ) : (
-        <div className="gba:pt-5">
-          <MarkdownWithChipsRenderer content={output} />
+        <div className={markdownTopSpacingClass}>
+          <MarkdownWithChipsRenderer content={displayOutput} variant={markdownVariant} />
         </div>
       )}
 
-      {visibleArtifacts.length > 0 && <ArtifactsList artifacts={visibleArtifacts} onViewArtifact={onViewArtifact} />}
+      {htmlArtifacts.length > 0 &&
+        sessionId &&
+        htmlArtifacts.map(artifact => (
+          <HtmlArtifactPreviewCard
+            key={artifact.path || artifact.name}
+            artifact={artifact}
+            sessionId={sessionId}
+            onViewArtifact={onViewArtifact}
+          />
+        ))}
+
+      {chartArtifacts.length > 0 &&
+        sessionId &&
+        chartArtifacts.map(artifact => (
+          <ChartArtifactPreviewCard
+            key={artifact.path || artifact.name}
+            artifact={artifact}
+            sessionId={sessionId}
+            accessToken={accessToken}
+            onViewArtifact={onViewArtifact}
+          />
+        ))}
+
+      {otherArtifacts.length > 0 && <ArtifactsList artifacts={otherArtifacts} onViewArtifact={onViewArtifact} />}
+
+      {htmlArtifacts.length > 0 && !sessionId && (
+        <ArtifactsList artifacts={htmlArtifacts} onViewArtifact={onViewArtifact} />
+      )}
 
       {actionsPerformed && actionsPerformed.length > 0 && (
         <ActionsTakenPanel

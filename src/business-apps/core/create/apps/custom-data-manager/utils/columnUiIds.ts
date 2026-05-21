@@ -4,7 +4,7 @@ import { InputType } from '../types'
 export type UiColumnDefinition = ColumnDefinition & { uiId: string }
 
 export function createUiId(): string {
-  // Use a stable, UI-only id for React keys; must not depend on the editable column.name
+  // Use a stable, UI-only id for React keys; must not depend on the editable field name.
   return `col_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
 }
 
@@ -28,7 +28,7 @@ export function createInitialColumns(): UiColumnDefinition[] {
     {
       uiId: createUiId(),
       type: InputType.TEXT,
-      name: 'name',
+      fieldName: 'name',
       label: 'Name',
       required: true
     }
@@ -40,7 +40,7 @@ export function createNewColumn(index: number): UiColumnDefinition {
   return {
     uiId: createUiId(),
     type: InputType.TEXT,
-    name: `field_${n}`,
+    fieldName: `field${n}`,
     label: `Field ${n}`,
     required: false
   }

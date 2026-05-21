@@ -22,13 +22,34 @@ interface UseVoiceSynthesisOptions {
   voice?: OpenAIVoice
   speed?: number // 0.25 to 4.0
   accessToken: string
+  forceBrowserTTS?: boolean
   onStart?: () => void
   onEnd?: () => void
   onError?: (error: string) => void
+  onSovereigntyBlocked?: () => void
+}
+
+function selectBrowserVoice(lang: string): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices()
+  return (
+    voices.find(v => v.lang.startsWith(lang) && v.localService) ||
+    voices.find(v => v.lang.startsWith(lang)) ||
+    voices[0] ||
+    null
+  )
 }
 
 export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
-  const { voice = 'nova', speed = 1.0, accessToken, onStart, onEnd, onError } = options
+  const {
+    voice = 'nova',
+    speed = 1.0,
+    accessToken,
+    forceBrowserTTS = false,
+    onStart,
+    onEnd,
+    onError,
+    onSovereigntyBlocked
+  } = options
 
   const [state, setState] = useState<VoiceSynthesisState>({
     isSpeaking: false,
@@ -43,9 +64,15 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
   const audioQueueRef = useRef<string[]>([])
   const isProcessingQueueRef = useRef(false)
   const suppressAudioErrorRef = useRef(false)
+  const speakTextInternalRef = useRef<(text: string) => Promise<void>>(async () => {})
+  const activeObjectUrlRef = useRef<string | null>(null)
 
   // Cleanup audio element
   const cleanupAudio = useCallback(() => {
+    if (activeObjectUrlRef.current) {
+      URL.revokeObjectURL(activeObjectUrlRef.current)
+      activeObjectUrlRef.current = null
+    }
     if (audioRef.current) {
       suppressAudioErrorRef.current = true
       audioRef.current.oncanplay = null
@@ -69,7 +96,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
     const text = audioQueueRef.current.shift()
 
     if (text) {
-      await speakTextInternal(text)
+      await speakTextInternalRef.current(text)
     }
 
     isProcessingQueueRef.current = false
@@ -79,6 +106,52 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
       processQueue()
     }
   }, [])
+
+  // Browser-native TTS fallback (used when server is sovereignty-blocked)
+  const speakWithBrowserTTS = useCallback(
+    (text: string): Promise<void> => {
+      return new Promise(resolve => {
+        if (!('speechSynthesis' in window)) {
+          setState(prev => ({ ...prev, isLoading: false, isSpeaking: false, currentText: null }))
+          onEnd?.()
+          resolve()
+          return
+        }
+
+        window.speechSynthesis.cancel()
+        const utterance = new SpeechSynthesisUtterance(text)
+        const selectedVoice = selectBrowserVoice('en')
+        if (selectedVoice) {
+          utterance.voice = selectedVoice
+        }
+        utterance.rate = speed
+
+        utterance.onstart = () => {
+          setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }))
+          onStart?.()
+        }
+
+        utterance.onend = () => {
+          setState(prev => ({ ...prev, isSpeaking: false, progress: 1 }))
+          onEnd?.()
+          resolve()
+        }
+
+        utterance.onerror = event => {
+          if (event.error === 'canceled' || event.error === 'interrupted') {
+            resolve()
+            return
+          }
+          setState(prev => ({ ...prev, isLoading: false, isSpeaking: false, currentText: null }))
+          onError?.(`Browser TTS failed: ${event.error}`)
+          resolve()
+        }
+
+        window.speechSynthesis.speak(utterance)
+      })
+    },
+    [speed, onStart, onEnd, onError]
+  )
 
   // Internal speak function with streaming audio playback
   const speakTextInternal = useCallback(
@@ -92,11 +165,17 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         currentText: text
       }))
 
+      // Skip server if forced to browser mode (sovereignty policy cached)
+      if (forceBrowserTTS) {
+        await speakWithBrowserTTS(text)
+        return
+      }
+
       abortControllerRef.current = new AbortController()
 
       try {
         const baseUrl = resolveFlowbotBaseUrl()
-        const url = `${baseUrl}/flowbot/api/agent/tts`
+        const url = `${baseUrl}/flowbot/api/agent/voice/tts`
 
         const response = await fetch(url, {
           method: 'POST',
@@ -107,12 +186,27 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
           body: JSON.stringify({
             text,
             voice,
-            speed
+            speed,
+            model: 'tts',
+            response_format: 'mp3'
           }),
           signal: abortControllerRef.current.signal
         })
 
         if (!response.ok) {
+          // Detect sovereignty block — fallback to browser TTS
+          if (response.status === 403) {
+            try {
+              const body = await response.json()
+              if (body?.code === 'sovereignty_blocked' || body?.detail?.code === 'sovereignty_blocked') {
+                onSovereigntyBlocked?.()
+                await speakWithBrowserTTS(text)
+                return
+              }
+            } catch {
+              // JSON parse failed, treat as generic error
+            }
+          }
           throw new Error(`TTS request failed: ${response.statusText}`)
         }
 
@@ -150,8 +244,22 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         onError?.(errorMsg)
       }
     },
-    [accessToken, voice, speed, onStart, onEnd, onError, cleanupAudio]
+    [
+      accessToken,
+      voice,
+      speed,
+      forceBrowserTTS,
+      onStart,
+      onEnd,
+      onError,
+      onSovereigntyBlocked,
+      cleanupAudio,
+      speakWithBrowserTTS
+    ]
   )
+
+  // Keep ref in sync so processQueue always uses latest speakTextInternal
+  speakTextInternalRef.current = speakTextInternal
 
   // Stream audio using MediaSource API - starts playing immediately
   const playWithStreaming = useCallback(
@@ -163,7 +271,9 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         const audio = new Audio()
         suppressAudioErrorRef.current = false
         audioRef.current = audio
-        audio.src = URL.createObjectURL(mediaSource)
+        const objectUrl = URL.createObjectURL(mediaSource)
+        activeObjectUrlRef.current = objectUrl
+        audio.src = objectUrl
 
         mediaSource.addEventListener('sourceopen', async () => {
           try {
@@ -176,9 +286,22 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
               const { done, value } = await reader.read()
 
               if (done) {
-                // End of stream
+                if (sourceBuffer.updating) {
+                  await new Promise<void>(r => {
+                    sourceBuffer.addEventListener('updateend', () => r(), { once: true })
+                  })
+                }
                 if (mediaSource.readyState === 'open') {
                   mediaSource.endOfStream()
+                }
+                // Short responses that never crossed 8KB threshold
+                if (!hasStartedPlaying) {
+                  hasStartedPlaying = true
+                  setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }))
+                  onStart?.()
+                  audio.play().catch(err => {
+                    console.warn('[TTS] Auto-play blocked:', err)
+                  })
                 }
                 return
               }
@@ -227,7 +350,10 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
             resolve()
             return
           }
-          URL.revokeObjectURL(audio.src)
+          if (activeObjectUrlRef.current) {
+            URL.revokeObjectURL(activeObjectUrlRef.current)
+            activeObjectUrlRef.current = null
+          }
           setState(prev => ({ ...prev, isSpeaking: false, progress: 1 }))
           onEnd?.()
           resolve()
@@ -242,7 +368,10 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
             resolve()
             return
           }
-          URL.revokeObjectURL(audio.src)
+          if (activeObjectUrlRef.current) {
+            URL.revokeObjectURL(activeObjectUrlRef.current)
+            activeObjectUrlRef.current = null
+          }
           setState(prev => ({
             ...prev,
             isLoading: false,
@@ -281,6 +410,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
       return new Promise((resolve, reject) => {
         cleanupAudio()
 
+        activeObjectUrlRef.current = audioUrl
         const audio = new Audio()
         suppressAudioErrorRef.current = false
         audioRef.current = audio
@@ -297,6 +427,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
           onStart?.()
           audio.play().catch(err => {
             console.warn('[TTS] Auto-play blocked:', err)
+            setState(prev => ({ ...prev, isSpeaking: false }))
             resolve()
           })
         }
@@ -312,7 +443,10 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
             resolve()
             return
           }
-          URL.revokeObjectURL(audioUrl)
+          if (activeObjectUrlRef.current) {
+            URL.revokeObjectURL(activeObjectUrlRef.current)
+            activeObjectUrlRef.current = null
+          }
           setState(prev => ({ ...prev, isSpeaking: false, progress: 1 }))
           onEnd?.()
           resolve()
@@ -335,7 +469,10 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
             normalizedType: normalizedBlob.type,
             size: normalizedBlob.size
           })
-          URL.revokeObjectURL(audioUrl)
+          if (activeObjectUrlRef.current) {
+            URL.revokeObjectURL(activeObjectUrlRef.current)
+            activeObjectUrlRef.current = null
+          }
           setState(prev => ({
             ...prev,
             isLoading: false,
@@ -387,6 +524,11 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
       abortControllerRef.current = null
     }
 
+    // Cancel browser TTS if active
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+
     // Stop audio
     cleanupAudio()
 
@@ -422,6 +564,8 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      audioQueueRef.current = []
+      isProcessingQueueRef.current = false
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }

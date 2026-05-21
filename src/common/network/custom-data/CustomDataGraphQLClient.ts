@@ -1,6 +1,5 @@
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
-import { FieldNameResolver } from './FieldNameResolver'
 
 type GraphQLResponse<T> = {
   data?: T
@@ -8,18 +7,6 @@ type GraphQLResponse<T> = {
 }
 
 type OrderDirection = 'ASC' | 'ASC_NULLS_FIRST' | 'ASC_NULLS_LAST' | 'DESC' | 'DESC_NULLS_FIRST' | 'DESC_NULLS_LAST'
-
-function toPascalCaseEntityKey(input: string): string {
-  const value = String(input || '').trim()
-  if (!value) return 'Entity'
-  const parts = value
-    .replace(/[^a-zA-Z0-9]+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-  const output = parts.map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join('')
-  return output && /^[A-Za-z]/.test(output) ? output : `Entity${output}`
-}
 
 export class CustomDataGraphQLClient {
   private endpoint: string
@@ -93,55 +80,10 @@ export class CustomDataGraphQLClient {
     if ((result as any).errors) {
       const errors = (result as any).errors
       console.error('Custom Data GraphQL errors:', errors)
-
-      // Try to provide helpful field name suggestions
-      const enhancedError = await this.enhanceFieldNameErrors(errors)
-
-      throw new Error(`GraphQL error: ${enhancedError}`)
+      throw new Error(`GraphQL error: ${JSON.stringify(errors)}`)
     }
 
     return (result as any).data as T
-  }
-
-  /**
-   * Enhance GraphQL errors with field name suggestions for common field mismatch errors.
-   */
-  private async enhanceFieldNameErrors(errors: any[]): Promise<string> {
-    const fieldErrorPattern = /Cannot query field "(\w+)" on type "(\w+)"/
-    const errorMessages: string[] = []
-
-    for (const err of errors) {
-      const message = err.message || JSON.stringify(err)
-      const match = message.match(fieldErrorPattern)
-
-      if (match) {
-        const [, requestedField, entityType] = match
-
-        try {
-          const resolver = new FieldNameResolver(this)
-          const suggestion = await resolver.suggestFieldName(entityType, requestedField)
-
-          if (suggestion.suggestedField) {
-            errorMessages.push(
-              `Cannot query field "${requestedField}" on type "${entityType}". ` +
-                `Did you mean "${suggestion.suggestedField}"? ` +
-                `(Available fields: ${suggestion.allAvailableFields.slice(0, 5).join(', ')}...)`
-            )
-          } else {
-            errorMessages.push(
-              `Cannot query field "${requestedField}" on type "${entityType}". ` +
-                `Available fields: ${suggestion.allAvailableFields.join(', ')}`
-            )
-          }
-        } catch {
-          errorMessages.push(message)
-        }
-      } else {
-        errorMessages.push(message)
-      }
-    }
-
-    return errorMessages.join('; ')
   }
 
   /**
@@ -149,7 +91,7 @@ export class CustomDataGraphQLClient {
    * The backend supports Hasura-like where BoolExp and per-entity OrderBy inputs.
    */
   async queryList<T = Record<string, unknown>[]>(
-    entityKey: string,
+    entityName: string,
     fields: string[],
     options?: {
       where?: Record<string, unknown>
@@ -158,7 +100,7 @@ export class CustomDataGraphQLClient {
       offset?: number
     }
   ): Promise<T> {
-    const typeName = toPascalCaseEntityKey(entityKey)
+    const typeName = entityName
     const listField = typeName
     const fieldStr = fields.join('\n      ')
 
@@ -194,8 +136,8 @@ export class CustomDataGraphQLClient {
     return result[listField] as T
   }
 
-  async queryByPk<T = Record<string, unknown>>(entityKey: string, id: string, fields: string[]): Promise<T | null> {
-    const typeName = toPascalCaseEntityKey(entityKey)
+  async queryByPk<T = Record<string, unknown>>(entityName: string, id: string, fields: string[]): Promise<T | null> {
+    const typeName = entityName
     const rootField = `${typeName}ByPk`
     const fieldStr = fields.join('\n      ')
     const query = `query ${rootField}($id: ID!) { ${rootField}(id: $id) {\n      ${fieldStr}\n    } }`
@@ -205,10 +147,10 @@ export class CustomDataGraphQLClient {
   }
 
   async queryAggregate<T = { aggregate: { count: number } }>(
-    entityKey: string,
+    entityName: string,
     options?: { where?: Record<string, unknown> }
   ): Promise<T> {
-    const typeName = toPascalCaseEntityKey(entityKey)
+    const typeName = entityName
     const rootField = `${typeName}Aggregate`
     const hasWhere = Boolean(options?.where)
     const query = `query ${rootField}${hasWhere ? `($where: ${typeName}BoolExp)` : ''} { ${rootField}${hasWhere ? '(where: $where)' : ''} {\n      aggregate {\n        count\n      }\n    } }`

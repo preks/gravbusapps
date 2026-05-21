@@ -7,3 +7,4 @@ export {
 } from './useNoteTreeDragDrop'
 export { useResizableSidebar, type UseResizableSidebarReturn } from './useResizableSidebar'
 export { useTaskKanbanSync } from './useTaskKanbanSync'
+export { useNoteEditorImageUpload } from './useNoteEditorImageUpload'

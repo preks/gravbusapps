@@ -1,1 +1,1 @@
-export { expensePlanSortableColumns } from './expensePlanTableColumns'
+export { createExpensePlanSortableColumns } from './expensePlanTableColumns'

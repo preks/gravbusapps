@@ -9,8 +9,7 @@ export const useOpportunityVelocityData = (accessToken: string) => {
     () => ({
       opportunityEntity: 'Opportunity',
       opportunityAggregate: 'OpportunityAggregate',
-      useWinningChance: true,
-      quickWinsFilter: 'winningChance: {_gte: 80}'
+      statusFilterField: 'code' as const
     }),
     []
   )

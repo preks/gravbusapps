@@ -2,13 +2,11 @@ import React from 'react'
 import { Button, Alert, AlertTitle, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { ChartBarIcon, HouseIcon, CurrencyDollarIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InvestmentKPICards } from '@/common/components/investment-kpi-cards'
-import { OVERVIEW_KPI_CONFIG } from '@/common/data/investment/kpis'
-import { useInvestmentPortfolioIntegration } from '../analytics-view/overview/hooks/useInvestmentPortfolioIntegration'
+import { usePortfolioAnalyticsKpis } from '../analytics-view/overview/hooks/usePortfolioAnalyticsKpis'
 import InvestmentBreakdownCard, { type InvestmentGroup } from './components/InvestmentBreakdownCard'
-import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useInvestmentGroupsAndTypes } from './hooks/useInvestmentGroupsAndTypes'
-import { CurrencyFilter } from '../analytics-view/shared/components'
 
 interface DashboardViewProps extends BusinessAppContextProps {
   moduleColor?: string
@@ -35,17 +33,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   moduleColor,
   onNavigateToInvestments
 }) => {
-  const [masterCurrency, setMasterCurrency] = React.useState<string>('EUR')
-
-  const { currencies: availableCurrenciesRaw } = useAvailableCurrencies(
-    { accessToken, userInfo },
-    { filters: { entity: 'Investment' }, returnFormat: 'codes' }
-  )
-  const availableCurrencies = availableCurrenciesRaw as string[]
-
   const { data: groupsData, error: groupsError, isLoading: groupsLoading } = useInvestmentGroupsAndTypes(accessToken)
 
-  const overviewKPIs = useInvestmentPortfolioIntegration({ accessToken, userInfo }, masterCurrency)
+  const overviewKPIs = usePortfolioAnalyticsKpis({ accessToken, userInfo }, 'all', true)
 
   // Build the group list from catalog — no investments needed here
   const investmentGroups: InvestmentGroup[] = React.useMemo(() => {
@@ -87,25 +77,23 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div data-testid="dashboard-content">
-      <div className="gba:flex gba:justify-end gba:items-center gba:mb-6">
-        <CurrencyFilter
-          value={masterCurrency}
-          onChange={setMasterCurrency}
-          currencies={availableCurrencies}
-          dataTestId="dashboard-master-currency-filter"
-        />
+      {/* Header */}
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+        <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:m-0">
+          {getTranslationFromI18nKeyAndLabel('dashboard.title', 'Investment Dashboard')}
+        </h1>
       </div>
 
       {/* Key Metrics Cards */}
       <div className="gba:mb-8">
         <InvestmentKPICards
-          config={OVERVIEW_KPI_CONFIG}
-          data={overviewKPIs.kpis}
-          previousData={overviewKPIs.previousKpis}
-          currencyCode={masterCurrency}
+          config={overviewKPIs.config}
+          data={overviewKPIs.data}
+          previousData={overviewKPIs.previousData}
+          currencyCode={overviewKPIs.currencyCode}
           isLoading={overviewKPIs.isLoading}
-          error={overviewKPIs.error ? new Error(overviewKPIs.error) : null}
-          onRetry={overviewKPIs.refetch}
+          error={overviewKPIs.error}
+          onRetry={overviewKPIs.onRetry}
           data-testid="dashboard-overview-kpis"
         />
       </div>
@@ -134,8 +122,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                   moduleColor as 'ext1' | 'ext2' | 'ext3' | 'ext4' | 'ext5' | 'ext6' | 'ext7' | 'ext8' | undefined
                 }
                 onNavigateToInvestmentType={handleNavigateToInvestmentType}
-                masterCurrency={masterCurrency}
-                availableCurrencies={availableCurrencies}
               />
             ))}
           </div>

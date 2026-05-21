@@ -97,7 +97,9 @@ export function buildExpenseRequestFilterConfiguration(params: {
   const baseConfiguration = createBackofficeExpenseRequestFilterConfig({
     statusOptions: statusOptionsForConfig.map(option => option.id),
     filterLabelMap,
-    departmentOptions: departmentOptionsForConfig
+    departmentOptions: departmentOptionsForConfig,
+    effectiveDateGroupInfo: t('filter-effective-date-info'),
+    t
   })
 
   const employeeGroup: FilterConfiguration['groups'][number] = {

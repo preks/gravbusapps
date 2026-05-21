@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 /**
  * Hook to calculate the Gap Rate - percentage of job positions without assigned employees
@@ -8,6 +9,7 @@ import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
  * @returns Object containing gap rate, vacant positions count, total positions count, loading state, and error
  */
 export function useGapRate(accessToken: string) {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [gapRate, setGapRate] = useState<number>(0)
   const [vacantPositions, setVacantPositions] = useState<number>(0)
   const [totalPositions, setTotalPositions] = useState<number>(0)
@@ -19,13 +21,20 @@ export function useGapRate(accessToken: string) {
 
   // Fetch job position data
   useEffect(() => {
-    if (!datasetClient) return
+    if (!datasetClient) {
+      setError(prev =>
+        prev?.message === 'Dataset client is not available' ? prev : new Error('Dataset client is not available')
+      )
+      setLoading(false)
+      return
+    }
 
     setLoading(true)
     setError(null)
 
     // Get the current structure ID from windowUtils
     const structureId = getCurrentActiveStructureId()
+    const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
 
     if (!structureId) {
       console.warn('[useGapRate] No active structure ID found')
@@ -37,8 +46,10 @@ export function useGapRate(accessToken: string) {
     // Log request
     console.info('[useGapRate] Fetching job position data for structure:', structureId)
 
+    const params: Record<string, string> = { structureId }
+    if (companyIdsParam) params.companyIds = companyIdsParam
     datasetClient
-      .executeQuery('jobPositionData', QueryType.DATASET, { structureId })
+      .executeQuery('jobPositionData', QueryType.DATASET, params)
       .then(result => {
         const rows = Array.isArray(result?.data) ? result.data : []
 
@@ -61,7 +72,7 @@ export function useGapRate(accessToken: string) {
         setError(err instanceof Error ? err : new Error('Failed to fetch job position data'))
         setLoading(false)
       })
-  }, [datasetClient])
+  }, [datasetClient, selectedCompanyIds])
 
   return {
     gapRate,

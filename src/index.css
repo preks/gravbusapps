@@ -31,8 +31,8 @@
 @import '@univerjs/preset-sheets-core/lib/index.css';
 @import '../node_modules/@excalidraw/excalidraw/dist/prod/index.css';
 @import '../src/business-apps/core/office/apps/whiteboards/styles/excalidrawWhiteLabel.css';
-@import 'graphiql/style.css';
-@import '@graphiql/plugin-explorer/style.css';
+@import '../node_modules/graphiql/dist/style.css';
+@import '../node_modules/@graphiql/plugin-explorer/dist/style.css';
 
 @import './business-apps/core/content/windows/content-entry-window/quillTable.css';
 

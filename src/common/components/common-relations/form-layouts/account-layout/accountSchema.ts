@@ -2,8 +2,8 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 export const accountSchema = z.object({
-  ownerEmployeeId: z.string().min(1, 'Owner is required'),
-  name: z.string().min(1, 'Account name is required'),
+  ownerEmployeeId: z.string().trim().min(1, 'Owner is required'),
+  name: z.string().trim().min(1, 'Account name is required'),
   legalFormRef: z.string().nullable().optional(),
   industryClassRef: z.string().nullable().optional(),
   accountPriorityRef: z.string().nullable().optional(),
@@ -48,13 +48,30 @@ export const accountSchema = z.object({
     .optional(),
   accountContacts: z
     .array(
-      z.object({
-        id: z.string().optional(),
-        version: z.number().optional(),
-        accountId: z.string().optional(),
-        contactId: z.string().optional(),
-        contactType: z.string().nullable().optional()
-      })
+      z
+        .object({
+          id: z.string().optional(),
+          version: z.number().optional(),
+          accountId: z.string().optional(),
+          contactId: z.string().optional(),
+          contactType: z.string().nullable().optional(),
+          // Inline-create draft markers: present only when the row was created via the
+          // inline "+ Create new" affordance and not yet persisted. The embedded entity
+          // payload is validated by the inline-create dialog before being added here.
+          __isDraft: z.boolean().optional(),
+          __draftId: z.string().optional(),
+          account: z.record(z.string(), z.any()).optional(),
+          contact: z.record(z.string(), z.any()).optional()
+        })
+        .refine(
+          entry =>
+            entry.__isDraft === true
+              ? Boolean(entry.account || entry.contact)
+              : Boolean(entry.accountId || entry.contactId || entry.id),
+          {
+            message: 'Each association must reference an existing entity or carry an inline-created draft'
+          }
+        )
     )
     .optional()
 })

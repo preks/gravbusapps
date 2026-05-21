@@ -19,7 +19,7 @@ const prefixDataTestId = 'investment-kpi-component'
 
 // Form validation schema
 const kpiFormSchema = z.object({
-  kpiValue: z.string().min(1, 'Value is required')
+  kpiValue: z.string().trim().min(1, 'Value is required')
 })
 
 // KPI labels mapping

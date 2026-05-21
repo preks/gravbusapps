@@ -3,14 +3,17 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { useFlowBot } from './hooks/useFlowBot'
 import { useVoiceInput } from './hooks/useVoiceInput'
+import { useVoiceInputHybrid } from './hooks/useVoiceInputHybrid'
 import { useVoiceSynthesis } from './hooks/useVoiceSynthesis'
+import { useAudioMode } from './hooks/useAudioMode'
 import { ChatInput } from './components/ChatInput'
 import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
+import { AgentPlanPanel } from './components/AgentPlanPanel'
+import { selectLatestAgentPlan } from './components/agentPlanUtils'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
-import { VoiceOverlay } from './components/voice/VoiceOverlay'
 import { ChatHistory } from './components/ChatHistory'
-import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
+import type { OutputItem, AnswerOutput, NavigationData, DisplayData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
 import { FlowProposalFileUploadProvider } from './context/FlowProposalFileUploadContext'
 import { HeroSection, DeepBlueNeuralBackground } from './components/HeroSection'
@@ -42,6 +45,24 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   )
 }
 
+const HANDS_FREE_HEAVY_DISPLAY_TYPES: Set<DisplayData['type']> = new Set([
+  'table',
+  'scatter',
+  'bar',
+  'lineChart',
+  'areaChart',
+  'stackedBarChart',
+  'pieChart',
+  'heatmap',
+  'gantt',
+  'treemap',
+  'kanbanBoard',
+  'crmFunnel',
+  'workflowAnalytics',
+  'assetSummary',
+  'teamAvailability'
+])
+
 /**
  * Inner component that uses the VoiceFormContext
  */
@@ -50,9 +71,16 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [isDesktopPlanLayout, setIsDesktopPlanLayout] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
   const lastNavigatedTurnIndexRef = useRef<number>(-1)
+  const navigateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Audio sovereignty detection (server vs browser TTS/STT)
+  const { mode: audioMode, markSovereigntyBlocked, markServerAvailable } = useAudioMode()
+  const [sovereigntyToast, setSovereigntyToast] = useState(false)
+  const sovereigntyToastShownRef = useRef(false)
 
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
@@ -88,20 +116,66 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Handle sending voice transcript (defined before voiceInput hook)
   const handleVoiceSendRef = useRef<(text: string) => void>(() => {})
+  const clearVoiceTranscriptRef = useRef<() => void>(() => {})
 
-  // Voice input hook with onEnd callback to auto-send
-  // Using continuous: true with silenceDelay for natural conversation pauses
-  const voiceInput = useVoiceInput({
+  const voiceEndHandler = useCallback((finalTranscript: string) => {
+    const normalizedTranscript = finalTranscript.trim()
+    if (!normalizedTranscript) {
+      return
+    }
+
+    if (!isSpeechModeRef.current) {
+      clearVoiceTranscriptRef.current()
+      return
+    }
+
+    handleVoiceSendRef.current(normalizedTranscript)
+  }, [])
+
+  // Hybrid STT hook (browser STT for interim + Flowbot POST for final transcription)
+  const voiceInputHybrid = useVoiceInputHybrid({
+    accessToken,
+    language: 'en-US',
+    silenceDelay: 1500,
+    enabled: audioMode.stt === 'server',
+    onEnd: voiceEndHandler,
+    onSovereigntyBlocked: () => {
+      markSovereigntyBlocked('stt')
+      if (!sovereigntyToastShownRef.current) {
+        sovereigntyToastShownRef.current = true
+        setSovereigntyToast(true)
+        setTimeout(() => setSovereigntyToast(false), 5000)
+      }
+      setTimeout(() => {
+        if (isSpeechModeRef.current) {
+          voiceInputBrowser.startListening()
+        }
+      }, 200)
+    }
+  })
+
+  // Browser STT hook (Web Speech API fallback)
+  const voiceInputBrowser = useVoiceInput({
     language: 'en-US',
     continuous: true,
     interimResults: true,
-    silenceDelay: 1000, // Wait 1 second of silence before sending
-    onEnd: (finalTranscript: string) => {
-      if (finalTranscript.trim() && isSpeechModeRef.current) {
-        handleVoiceSendRef.current(finalTranscript)
-      }
-    }
+    silenceDelay: 1000,
+    onEnd: voiceEndHandler
   })
+
+  // Route to hybrid or browser STT based on sovereignty state
+  const voiceInput = audioMode.stt === 'server' ? voiceInputHybrid : voiceInputBrowser
+  const voiceInputRef = useRef(voiceInput)
+  useEffect(() => {
+    voiceInputRef.current = voiceInput
+  })
+
+  useEffect(() => {
+    clearVoiceTranscriptRef.current = () => {
+      voiceInputHybrid.resetTranscript()
+      voiceInputBrowser.resetTranscript()
+    }
+  }, [voiceInputHybrid.resetTranscript, voiceInputBrowser.resetTranscript])
 
   // Track when AI stopped speaking to ignore echo
   const aiStoppedSpeakingAtRef = useRef<number>(0)
@@ -113,14 +187,27 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     voice: 'nova',
     speed: 1.0,
     accessToken,
+    forceBrowserTTS: audioMode.tts === 'browser',
     onStart: () => {
-      voiceInput.cancelListening()
+      voiceInputRef.current.cancelListening()
     },
     onEnd: () => {
-      // Record when AI stopped speaking (for echo filtering)
       aiStoppedSpeakingAtRef.current = Date.now()
       if (isSpeechModeRef.current) {
-        voiceInput.startListening()
+        voiceInputRef.current.startListening()
+      }
+    },
+    onError: () => {
+      if (isSpeechModeRef.current) {
+        voiceInputRef.current.startListening()
+      }
+    },
+    onSovereigntyBlocked: () => {
+      markSovereigntyBlocked('tts')
+      if (!sovereigntyToastShownRef.current) {
+        sovereigntyToastShownRef.current = true
+        setSovereigntyToast(true)
+        setTimeout(() => setSovereigntyToast(false), 5000)
       }
     }
   })
@@ -134,32 +221,55 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   }, [isSpeechMode, voiceSynthesis, voiceInput.interimTranscript, voiceInput.volume])
 
+  // Safety net: restart listening when hands-free mode is idle
+  // (not listening, not speaking, not loading) to recover from missed restart
+  useEffect(() => {
+    if (!isSpeechMode) return
+    if (voiceInput.isListening || voiceSynthesis.isSpeaking || voiceSynthesis.isLoading || isLoading) return
+
+    const restartTimer = setTimeout(() => {
+      if (isSpeechModeRef.current && !voiceSynthesis.isSpeaking && !voiceSynthesis.isLoading) {
+        voiceInputRef.current.startListening()
+      }
+    }, 1200)
+
+    return () => clearTimeout(restartTimer)
+  }, [isSpeechMode, voiceInput.isListening, voiceSynthesis.isSpeaking, voiceSynthesis.isLoading, isLoading])
+
   // Toggle speech mode
   const toggleSpeechMode = useCallback(() => {
     if (isSpeechMode) {
       isSpeechModeRef.current = false // Set ref FIRST to prevent any queued operations
       setIsSpeechMode(false)
-      voiceInput.cancelListening()
+      voiceInputRef.current.cancelListening()
       voiceSynthesis.stop()
       // Force stop again after a small delay in case streaming is in progress
       setTimeout(() => {
         voiceSynthesis.stop()
       }, 100)
+      if (navigateTimeoutRef.current) {
+        clearTimeout(navigateTimeoutRef.current)
+        navigateTimeoutRef.current = null
+      }
       voiceForm.setIsVoiceMode(false)
       voiceForm.clearPendingFormSummary()
       voiceForm.setActiveForm(null) // Clear any active form registration
     } else {
+      // Re-enable server STT + TTS on manual hands-free start.
+      // If server is actually blocked, hooks will switch back to browser mode.
+      markServerAvailable('stt')
+      markServerAvailable('tts')
       setIsSpeechMode(true)
       isSpeechModeRef.current = true
       lastSpokenTurnIndexRef.current = conversation.length - 1
       voiceForm.setIsVoiceMode(true)
       setTimeout(() => {
         if (isSpeechModeRef.current) {
-          voiceInput.startListening()
+          voiceInputRef.current.startListening()
         }
       }, 200)
     }
-  }, [isSpeechMode, voiceInput, voiceSynthesis, conversation.length, voiceForm])
+  }, [isSpeechMode, voiceSynthesis, conversation.length, voiceForm, markServerAvailable])
 
   // Speak pending form summaries when a form appears in voice mode
   useEffect(() => {
@@ -251,7 +361,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
           if (textParts.length > 0 && isSpeechModeRef.current) {
             const textToSpeak = textParts.join('. ')
-            const truncatedText = textToSpeak.length > 500 ? textToSpeak.substring(0, 500) + '...' : textToSpeak
+            let truncatedText = textToSpeak
+            if (textToSpeak.length > 500) {
+              const sentenceEnd = textToSpeak.substring(0, 500).lastIndexOf('. ')
+              truncatedText =
+                sentenceEnd > 100 ? textToSpeak.substring(0, sentenceEnd + 1) : textToSpeak.substring(0, 500)
+            }
             voiceSynthesis.speak(truncatedText)
             lastSpokenTurnIndexRef.current = i
             break // Only speak one response at a time
@@ -279,15 +394,34 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           if (navigationData?.url) {
             lastNavigatedTurnIndexRef.current = i
 
-            setTimeout(() => {
-              navigateTo(navigationData.url)
-            }, 1500) // Wait 1.5 seconds so they can hear the explanation
+            if (navigateTimeoutRef.current) {
+              clearTimeout(navigateTimeoutRef.current)
+            }
+            navigateTimeoutRef.current = setTimeout(() => {
+              navigateTimeoutRef.current = null
+              if (isSpeechModeRef.current) {
+                navigateTo(navigationData.url)
+              }
+            }, 1500)
             break
           }
         }
       }
     }
+
+    return () => {
+      if (navigateTimeoutRef.current) {
+        clearTimeout(navigateTimeoutRef.current)
+        navigateTimeoutRef.current = null
+      }
+    }
   }, [conversation, isSpeechMode])
+
+  // Reset spoken/navigated indices when session changes to prevent desync
+  useEffect(() => {
+    lastSpokenTurnIndexRef.current = -1
+    lastNavigatedTurnIndexRef.current = -1
+  }, [sessionId])
 
   // Handle sending voice transcript with form command detection
   const handleVoiceSend = useCallback(
@@ -315,7 +449,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             const submitHandler = voiceForm.activeForm.submitHandler
             voiceForm.setActiveForm(null)
             voiceForm.clearPendingFormSummary()
-            voiceSynthesis.speak('Submitting the form now.')
+            if (!isSpeechModeRef.current) {
+              voiceSynthesis.speak('Submitting the form now.')
+            }
             submitHandler()
             voiceInput.resetTranscript()
             return
@@ -363,7 +499,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               // Exit form mode so TTS is allowed to speak the response
               voiceForm.setActiveForm(null)
               voiceForm.clearPendingFormSummary()
-              sendMessage(cleanText, [], false, false)
+              sendMessage(cleanText, [], false, false, undefined, undefined, undefined, true)
               voiceInput.resetTranscript()
               return
             }
@@ -374,7 +510,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         }
 
         // No active form - send as regular chat message
-        sendMessage(cleanText, [], false, false)
+        sendMessage(cleanText, [], false, false, undefined, undefined, undefined, true)
         voiceInput.resetTranscript()
       }
     },
@@ -396,6 +532,46 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
     return conversation
   }, [conversation, isLoading])
+
+  const renderConversation = useMemo(() => {
+    if (!isSpeechMode) {
+      return extendedConversation
+    }
+
+    return extendedConversation.map(turn => {
+      if (turn.side !== 'agent') {
+        return turn
+      }
+
+      const normalizedOutputs = turn.outputs?.map(output => {
+        if (output.type !== 'answer') {
+          return output
+        }
+
+        const safeDisplayData = output.displayData.filter(item => !HANDS_FREE_HEAVY_DISPLAY_TYPES.has(item.type))
+        if (safeDisplayData.length > 0) {
+          return {
+            ...output,
+            displayData: safeDisplayData
+          }
+        }
+
+        const fallbackDisplayData: DisplayData[] = [
+          { type: 'textBlock', text: 'Done. I can continue with your next voice instruction.' }
+        ]
+
+        return {
+          ...output,
+          displayData: fallbackDisplayData
+        }
+      })
+
+      return {
+        ...turn,
+        outputs: normalizedOutputs ?? turn.outputs
+      }
+    })
+  }, [extendedConversation, isSpeechMode])
 
   // When the user loads older messages via "Load more", we need to keep the
   // viewport anchored at the same visual position instead of letting the
@@ -473,7 +649,16 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         setTimeout(() => {
           // Pass through exactly as resolved so empty string can still force
           // `addition_info` multipart field inclusion.
-          sendMessage(initialPrompt, [], false, false, initialAdditionInfo ?? undefined, initialSkills)
+          sendMessage(
+            initialPrompt,
+            [],
+            false,
+            false,
+            initialAdditionInfo ?? undefined,
+            initialSkills,
+            undefined,
+            false
+          )
         }, 300)
       }
     } catch (error) {
@@ -517,14 +702,29 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       if (!normalizedText || !isFinal) {
         return
       }
-      sendMessage(normalizedText, [], false, false)
+      // Route through handleVoiceSend for echo filtering and form command detection
+      handleVoiceSendRef.current(normalizedText)
     }
 
     window.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     return () => {
       window.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
     }
-  }, [sendMessage])
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const mediaQuery = window.matchMedia('(min-width: 1024px)')
+    const applyLayoutMode = () => setIsDesktopPlanLayout(mediaQuery.matches)
+
+    applyLayoutMode()
+    mediaQuery.addEventListener('change', applyLayoutMode)
+
+    return () => {
+      mediaQuery.removeEventListener('change', applyLayoutMode)
+    }
+  }, [])
 
   const handleSessionSelect = useCallback(
     async (sessionIdToLoad: string) => {
@@ -568,10 +768,31 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     isSearching: boolean,
     mentions?: Array<{ id: string; type: string; display: string }>
   ) => {
-    sendMessage(text, files, isThinking, isSearching, undefined, undefined, mentions)
+    sendMessage(text, files, isThinking, isSearching, undefined, undefined, mentions, false)
   }
 
+  const handleConversationSend = useCallback(
+    (userInputText: string, files: File[], isThinking: boolean = false, isSearching: boolean = false) => {
+      return sendMessage(
+        userInputText,
+        files,
+        isThinking,
+        isSearching,
+        undefined,
+        undefined,
+        undefined,
+        isSpeechModeRef.current
+      )
+    },
+    [sendMessage]
+  )
+
   const isEmptyState = conversation.length === 0 && !isLoading
+
+  // Single, conversation-wide plan panel pinned to the right of the chat.
+  // Scans the whole conversation so the panel persists across follow-up
+  // turns that don't re-emit a plan event.
+  const latestAgentPlan = useMemo(() => selectLatestAgentPlan(extendedConversation), [extendedConversation])
 
   // Mobile webview fix: the webview viewport can be wider than the device
   // screen (e.g. 671px vs 430px), causing content to be clipped on the right.
@@ -643,95 +864,67 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         />
       </div>
 
-      {/* Voice Mode Overlay */}
-      <VoiceOverlay
-        isVisible={isSpeechMode}
-        isListening={voiceInput.isListening}
-        isSpeaking={voiceSynthesis.isSpeaking}
-        isLoading={voiceSynthesis.isLoading || isLoading}
-        volume={voiceInput.volume}
-        transcript={voiceInput.transcript}
-        interimTranscript={voiceInput.interimTranscript}
-        currentSpeechText={voiceSynthesis.currentText}
-        activeForm={
-          voiceForm.activeForm
-            ? {
-                flowName: voiceForm.activeForm.flowName,
-                fields: Object.entries(voiceForm.activeForm.formData || {})
-                  .filter(([key, value]) => {
-                    if (value === undefined || value === null || value === '') return false
-                    if (key.toLowerCase().includes('version')) return false
-                    if (key === 'changeMode') return false
-                    // Skip UUID values (e.g., owner employee IDs)
-                    if (
-                      typeof value === 'string' &&
-                      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
-                    )
-                      return false
-                    // Skip fields that end with Id or Ref (like ownerEmployeeId)
-                    if (key.toLowerCase().endsWith('id') || key.toLowerCase().endsWith('ref')) return false
-                    return true
-                  })
-                  .map(([key, value]) => ({
-                    name: key
-                      .replace(/([A-Z])/g, ' $1')
-                      .replace(/_/g, ' ')
-                      .trim()
-                      .replace(/\b\w/g, c => c.toUpperCase()),
-                    value: typeof value === 'object' ? JSON.stringify(value) : String(value)
-                  }))
-              }
-            : null
-        }
-        onClose={toggleSpeechMode}
-        onStartListening={voiceInput.startListening}
-        onStopListening={voiceInput.stopListening}
-        onStopSpeaking={voiceSynthesis.stop}
-        onSendTranscript={handleVoiceSend}
-      />
-
       <FormSubmissionProvider>
         <FlowProposalFileUploadProvider upload={attachFilesForFlowProposalField}>
-          {/* Conversation Area with subtle gradient */}
-          <div
-            ref={scrollRef}
-            className="gba:flex-1 gba:overflow-y-auto gba:relative gba:z-10 gba:flex gba:flex-col"
-            data-testid="conversation-area"
-          >
-            {conversation.length === 0 && !isLoading ? (
-              <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-0">
-                <HeroSection data-testid="every-ai-hero" />
-              </div>
-            ) : (
-              <div className="gba:p-6">
-                {hasMoreHistory && (
-                  <div className="gba:flex gba:justify-center gba:pb-4">
-                    <Button
-                      onClick={handleLoadMoreHistory}
-                      variant="ghost"
-                      size="sm"
-                      disabled={isLoadingMoreHistory}
-                      className="gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
-                      data-testid="every-ai-load-more-history"
-                    >
-                      {isLoadingMoreHistory ? <Spinner size="sm" /> : 'Load older messages'}
-                    </Button>
-                  </div>
-                )}
-                <ConversationRenderer
-                  turns={extendedConversation}
-                  accessToken={accessToken}
-                  sendMessage={sendMessage}
-                  editMessage={editMessage}
-                  userInfo={userInfo}
-                  pictureThumbnail={pictureThumbnail}
-                  isVoiceMode={isSpeechMode}
-                  sessionId={sessionId ?? undefined}
-                  onCancelGeneration={cancelGeneration}
-                  isAgentGenerating={isLoading}
-                />
-              </div>
-            )}
+          {/* Conversation + side panel band */}
+          <div className="gba:flex-1 gba:flex gba:overflow-hidden gba:relative gba:z-10 gba:min-h-0">
+            {/* Conversation Area with subtle gradient */}
+            <div
+              ref={scrollRef}
+              className="gba:flex-1 gba:overflow-y-auto gba:flex gba:flex-col gba:min-w-0"
+              data-testid="conversation-area"
+            >
+              {conversation.length === 0 && !isLoading ? (
+                <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-0">
+                  <HeroSection data-testid="every-ai-hero" />
+                </div>
+              ) : (
+                <div className="gba:p-6">
+                  {hasMoreHistory && (
+                    <div className="gba:flex gba:justify-center gba:pb-4">
+                      <Button
+                        onClick={handleLoadMoreHistory}
+                        variant="ghost"
+                        size="sm"
+                        disabled={isLoadingMoreHistory}
+                        className="gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
+                        data-testid="every-ai-load-more-history"
+                      >
+                        {isLoadingMoreHistory ? <Spinner size="sm" /> : 'Load older messages'}
+                      </Button>
+                    </div>
+                  )}
+                  <ConversationRenderer
+                    turns={renderConversation}
+                    accessToken={accessToken}
+                    sendMessage={handleConversationSend}
+                    editMessage={editMessage}
+                    userInfo={userInfo}
+                    pictureThumbnail={pictureThumbnail}
+                    isVoiceMode={isSpeechMode}
+                    sessionId={sessionId ?? undefined}
+                    onCancelGeneration={cancelGeneration}
+                    isAgentGenerating={isLoading}
+                    hideInlinePlan={isDesktopPlanLayout && Boolean(latestAgentPlan)}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/*
+              Right-side plan panel. Only mounted when the agent has emitted
+              at least one plan event during the session, and never in the
+              empty state (the hero owns the visual real estate then).
+            */}
+            {latestAgentPlan && isDesktopPlanLayout && !isEmptyState ? (
+              <aside
+                className="gba:hidden gba:lg:flex gba:flex-col gba:w-80 gba:flex-shrink-0 gba:border-l gba:border-border gba:bg-background/60 gba:backdrop-blur-sm gba:overflow-y-auto gba:p-4"
+                data-testid="every-ai-plan-side-panel"
+                aria-label="Agent plan"
+              >
+                <AgentPlanPanel planId={latestAgentPlan.planId} items={latestAgentPlan.items} defaultExpanded />
+              </aside>
+            ) : null}
           </div>
 
           {/* Input Area - fully transparent, content behind shows through */}
@@ -779,6 +972,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   />
                 </>
               )}
+              {sovereigntyToast && (
+                <div className="gba:mx-4 gba:mb-2 gba:rounded-lg gba:bg-info/10 gba:px-3 gba:py-2 gba:text-xs gba:text-info">
+                  Voice runs in local mode for your region policy.
+                </div>
+              )}
               {/* Inner container - fully transparent, no blur so content behind shows through */}
               <div
                 className={isEmptyState ? 'gba:relative gba:rounded-[14px]' : ''}
@@ -796,7 +994,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   isSpeaking={voiceSynthesis.isSpeaking}
                   isVoiceLoading={voiceSynthesis.isLoading}
                   voiceVolume={voiceInput.volume}
+                  voiceTranscript={voiceInput.transcript}
+                  voiceInterimTranscript={voiceInput.interimTranscript}
+                  currentSpeechText={voiceSynthesis.currentText}
+                  voiceError={voiceSynthesis.error || voiceInput.error}
                   onToggleVoiceMode={toggleSpeechMode}
+                  onStartListening={voiceInput.startListening}
                   onStopSpeaking={voiceSynthesis.stop}
                   // Pre-upload files as soon as they are attached for faster first answers.
                   onFilesAttached={files => attachFiles(files)}

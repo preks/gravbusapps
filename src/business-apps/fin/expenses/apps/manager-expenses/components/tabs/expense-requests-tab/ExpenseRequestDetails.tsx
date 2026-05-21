@@ -1,49 +1,43 @@
 import React, { useMemo } from 'react'
-import { Separator, Button, Badge } from '@newwork/nw-design-system'
-import { getExpenseRequestStatusDisplay, formatCurrencyDisplay } from '../../../utils'
+import { Separator, Button, Badge, useTranslation } from '@newwork/nw-design-system'
+import { getExpenseRequestStatusDisplayT, formatCurrencyDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ArrowRightIcon, CheckCircleIcon, XCircleIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { ArrowRightIcon } from '@phosphor-icons/react'
+import { formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import TravelOrderAttachmentPreview from '../../../../../common/components/document-preview/TravelOrderAttachmentPreview'
 import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
 import { translateTypeValue, extractRequestTypeValue } from '../../../utils/typeUtils'
+import translations from '../../../_i18n'
 
 export interface ExpenseRequestDetailsProps extends BusinessAppContextProps {
   request: any
-  onApprove?: (requestId: string) => Promise<void>
-  onReject?: (requestId: string) => Promise<void>
 }
 
-const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
-  request,
-  onApprove,
-  onReject,
-  ...contextProps
-}) => {
+const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({ request, ...contextProps }) => {
+  const { t } = useTranslation(translations)
   // Call hooks unconditionally before any early returns
   const { printExpenseRequest } = useExpenseRequestFileService(contextProps)
 
   // Memoize headerRight before early return to ensure hooks are always called in same order
   const headerRight = useMemo(() => {
     if (!request) return null
-    const statusConfig = getExpenseRequestStatusDisplay(request.status)
+    const statusConfig = getExpenseRequestStatusDisplayT(t, request.status)
     return (
       <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-request-status-badge">
         {statusConfig.label}
       </Badge>
     )
-  }, [request?.status])
+  }, [request?.status, t])
 
   if (!request) return null
 
-  const canApprove = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED'
-  const canReject = request.status === 'IN_APPROVAL' || request.status === 'VERIFICATION_REQUIRED'
+  const notAvailable = t('expense-details-value-not-available')
 
   const getRequestType = (): string => {
     const typeValue = extractRequestTypeValue(request.requestType)
-    return typeValue || 'N/A'
+    return typeValue || notAvailable
   }
 
   const getPlanType = (): string | undefined => {
@@ -52,29 +46,26 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
   }
 
   const getDepartment = () => {
-    return request.employee?.employeePosition?.organizationalUnit?.name || 'N/A'
+    return request.employee?.employeePosition?.organizationalUnit?.name || notAvailable
   }
 
   const additionalFields = [
     {
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
-        'Request Type'
-      ),
-      value: translateTypeValue(getRequestType())
+      label: t('expense-plans-detail-request-type'),
+      value: translateTypeValue(getRequestType(), t)
     }
   ]
 
   const planTypeValue = getPlanType()
   if (planTypeValue) {
     additionalFields.push({
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
-      value: translateTypeValue(planTypeValue)
+      label: t('expense-plans-detail-plan-type'),
+      value: translateTypeValue(planTypeValue, t)
     })
   }
 
   additionalFields.push({
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee_list.organizational_unit', 'Department'),
+    label: t('expense-plans-detail-department'),
     value: getDepartment()
   })
 
@@ -82,6 +73,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
     <ExpenseDetailsPanelContent
       dataTestIdPrefix="expense-request-details"
       showHeader={false}
+      t={t}
       record={{
         title: request.title,
         code: request.code,
@@ -89,11 +81,11 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           request.employee?.fullName ||
           request.employee?.displayName ||
           `${request.employee?.firstName || ''} ${request.employee?.lastName || ''}`.trim() ||
-          'N/A',
+          notAvailable,
         employeeCode: request.employee?.code || undefined,
-        startDate: request.startDate ? formatDate(request.startDate, 'date.short') : 'N/A',
-        endDate: request.endDate ? formatDate(request.endDate, 'date.short') : 'N/A',
-        creationDate: request.createdAt ? formatDate(request.createdAt, 'date.short') : 'N/A',
+        startDate: request.startDate ? formatDate(request.startDate, 'date.short') : notAvailable,
+        endDate: request.endDate ? formatDate(request.endDate, 'date.short') : notAvailable,
+        creationDate: request.createdAt ? formatDate(request.createdAt, 'date.short') : notAvailable,
         totalRemainingAmount: request.totalRemainingAmount,
         totalAmount: typeof request.totalAmount === 'number' ? request.totalAmount : 0,
         currency: request.currency?.code || request.currencyRef || 'EUR'
@@ -112,28 +104,6 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
         <>
           <Separator />
           <div className="gba:flex gba:justify-end gba:gap-3 gba:mt-4">
-            {canApprove && onApprove && (
-              <Button
-                variant="default"
-                onClick={() => onApprove(request.id)}
-                className="gba:flex gba:items-center gba:gap-2 gba:bg-success gba:text-success-foreground hover:gba:bg-success/90"
-                data-testid="expense-request-approve-button"
-              >
-                {getTranslationFromI18nKeyAndLabel('expense_request_approve', 'Approve')}
-                <CheckCircleIcon className="gba:h-4 gba:w-4" />
-              </Button>
-            )}
-            {canReject && onReject && (
-              <Button
-                variant="destructive"
-                onClick={() => onReject(request.id)}
-                className="gba:flex gba:items-center gba:gap-2"
-                data-testid="expense-request-reject-button"
-              >
-                {getTranslationFromI18nKeyAndLabel('expense_request_reject', 'Reject')}
-                <XCircleIcon className="gba:h-4 gba:w-4" />
-              </Button>
-            )}
             <Button
               variant="default"
               onClick={() => {
@@ -146,10 +116,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
               data-testid="expense-request-view-details-button"
             >
               <ArrowRightIcon className="gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.plan_details.view_full_details',
-                'View Full Details'
-              )}
+              {t('expense-plans-detail-view-full')}
             </Button>
           </div>
         </>

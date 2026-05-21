@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EXPENSE_PLANS_BY_MANAGER } from '../queries/expensePlans'
@@ -8,12 +9,13 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getExpenseItemCategoryLabel } from '../../../common/utils/expenseItemCategoryLabel'
 import { GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER } from '../queries/advancePayments'
 import {
-  getExpenseItemStatusDisplay,
-  getExpenseRequestStatusDisplay,
-  getExpensePlanStatusDisplay,
-  getAdvancePaymentStatusDisplay
+  getExpenseItemStatusDisplayT,
+  getExpenseRequestStatusDisplayT,
+  getExpensePlanStatusDisplayT,
+  getAdvancePaymentStatusDisplayT
 } from '../utils'
 import { useManagerExpensesOverview } from './useManagerExpensesOverview'
+import translations from '../_i18n'
 
 // Define report types
 export enum ReportType {
@@ -124,6 +126,7 @@ export const useExpenseReportData = ({
   accessToken,
   userInfo
 }: BusinessAppContextProps): UseExpenseReportDataReturn => {
+  const { t } = useTranslation(translations)
   // Initialize GraphQL client
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -213,45 +216,53 @@ export const useExpenseReportData = ({
   )
 
   // Map overview lists to report row shapes
-  const mapRequestsFromOverview = useCallback((rows: any[]): ExpenseRequestReport[] => {
-    return (rows || []).map((request: any) => {
-      const statusDisplay = request.status
-        ? getExpenseRequestStatusDisplay(request.status)
-        : { label: '', type: 'draft' }
-      return {
-        id: request.id,
-        code: request.code || '',
-        planCode: request.expensePlan?.code || '',
-        title: request.title || '',
-        requestDate: request.requestDate || '',
-        createdAt: request.createdAt || '',
-        status: statusDisplay.label,
-        totalAmount: Number(request.totalAmount || 0),
-        currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
-        employeeName: buildEmployeeDisplayName(request.employee)
-      } as ExpenseRequestReport
-    })
-  }, [])
+  const mapRequestsFromOverview = useCallback(
+    (rows: any[]): ExpenseRequestReport[] => {
+      return (rows || []).map((request: any) => {
+        const statusDisplay = request.status
+          ? getExpenseRequestStatusDisplayT(t, request.status)
+          : { label: '', type: 'draft' }
+        return {
+          id: request.id,
+          code: request.code || '',
+          planCode: request.expensePlan?.code || '',
+          title: request.title || '',
+          requestDate: request.requestDate || '',
+          createdAt: request.createdAt || '',
+          status: statusDisplay.label,
+          totalAmount: Number(request.totalAmount || 0),
+          currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
+          employeeName: buildEmployeeDisplayName(request.employee)
+        } as ExpenseRequestReport
+      })
+    },
+    [t]
+  )
 
-  const mapPlansFromOverview = useCallback((rows: any[]): ExpensePlanReport[] => {
-    return (rows || []).map((plan: any) => {
-      const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
-      return {
-        id: plan.id,
-        code: plan.code || '',
-        title: plan.title || '',
-        startDate: plan.startDate || '',
-        endDate: plan.endDate || '',
-        status: statusDisplay.label,
-        totalAmount: Number(plan.totalAmount || 0),
-        currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
-        employeeName: buildEmployeeDisplayName(plan.employee),
-        expenseRequestCode:
-          Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0 ? plan.expenseRequest[0].code || '' : '',
-        createdAt: plan.createdAt || ''
-      } as ExpensePlanReport
-    })
-  }, [])
+  const mapPlansFromOverview = useCallback(
+    (rows: any[]): ExpensePlanReport[] => {
+      return (rows || []).map((plan: any) => {
+        const statusDisplay = plan.status ? getExpensePlanStatusDisplayT(t, plan.status) : { label: '', type: 'draft' }
+        return {
+          id: plan.id,
+          code: plan.code || '',
+          title: plan.title || '',
+          startDate: plan.startDate || '',
+          endDate: plan.endDate || '',
+          status: statusDisplay.label,
+          totalAmount: Number(plan.totalAmount || 0),
+          currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
+          employeeName: buildEmployeeDisplayName(plan.employee),
+          expenseRequestCode:
+            Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0
+              ? plan.expenseRequest[0].code || ''
+              : '',
+          createdAt: plan.createdAt || ''
+        } as ExpensePlanReport
+      })
+    },
+    [t]
+  )
 
   const offsetIsPastEnd = useCallback((rowCount: number, total: number, page: number, size: number) => {
     if (rowCount > 0) return false
@@ -259,23 +270,26 @@ export const useExpenseReportData = ({
     return (page - 1) * size >= total
   }, [])
 
-  const mapPaymentsFromOverview = useCallback((rows: any[]): AdvancePaymentReport[] => {
-    return (rows || []).map((p: any) => {
-      const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
-      return {
-        id: p.id,
-        code: p.expensePlan?.code || p.code || '',
-        title: p.expensePlan?.title || '',
-        requestDate: p.createdAt || '',
-        status: statusDisplay.label,
-        amount: Number(p.amount || 0),
-        employeeName: buildEmployeeDisplayName(p.expensePlan?.employee) || buildEmployeeDisplayName(p.employee),
-        paymentMethod: p.paymentMethod || undefined,
-        costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
-        currency: p.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
-      } as AdvancePaymentReport
-    })
-  }, [])
+  const mapPaymentsFromOverview = useCallback(
+    (rows: any[]): AdvancePaymentReport[] => {
+      return (rows || []).map((p: any) => {
+        const statusDisplay = p.status ? getAdvancePaymentStatusDisplayT(t, p.status) : { label: '', type: 'draft' }
+        return {
+          id: p.id,
+          code: p.expensePlan?.code || p.code || '',
+          title: p.expensePlan?.title || '',
+          requestDate: p.createdAt || '',
+          status: statusDisplay.label,
+          amount: Number(p.amount || 0),
+          employeeName: buildEmployeeDisplayName(p.expensePlan?.employee) || buildEmployeeDisplayName(p.employee),
+          paymentMethod: p.paymentMethod || undefined,
+          costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
+          currency: p.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
+        } as AdvancePaymentReport
+      })
+    },
+    [t]
+  )
 
   // Sync state with overview when not using the EXPENSE_ITEM report type
   useEffect(() => {
@@ -376,8 +390,17 @@ export const useExpenseReportData = ({
       const expenseGroupValue = getExpenseItemCategoryLabel(item, categoryWhenMissing)
 
       const statusDisplay = item.status
-        ? getExpenseItemStatusDisplay(item.status)
+        ? getExpenseItemStatusDisplayT(t, item.status)
         : { label: '-', type: 'draft' as const }
+
+      const rawTitle = typeof item.title === 'string' ? item.title.trim() : ''
+      const isAllowanceItem = item.expensePosition?.some(
+        (pos: { expenseGroup?: { value?: string | null } | null }) => pos?.expenseGroup?.value === 'Allowances'
+      )
+      const title =
+        isAllowanceItem && rawTitle.toLowerCase() === 'generated allowance'
+          ? t('expense-reports-generated-allowance')
+          : rawTitle
 
       return {
         id: item.id,
@@ -391,7 +414,7 @@ export const useExpenseReportData = ({
           item.expenseRequest?.requestTypeRef === 'ExpenseRequestType:v1:TRIP'
             ? item.expenseRequest?.startDate || ''
             : item.expenseDate || '',
-        title: item.title || '',
+        title,
         description: item.description || '',
         category: expenseGroupValue,
         amount: item.totalAmount || 0,
@@ -406,7 +429,7 @@ export const useExpenseReportData = ({
     if (!data?.ExpensePlan?.length) return []
 
     return data.ExpensePlan.map((plan: any) => {
-      const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
+      const statusDisplay = plan.status ? getExpensePlanStatusDisplayT(t, plan.status) : { label: '', type: 'draft' }
 
       return {
         id: plan.id,
@@ -431,7 +454,7 @@ export const useExpenseReportData = ({
 
     return data.ExpenseRequest.map((request: any) => {
       const statusDisplay = request.status
-        ? getExpenseRequestStatusDisplay(request.status)
+        ? getExpenseRequestStatusDisplayT(t, request.status)
         : { label: '', type: 'draft' }
 
       return {
@@ -483,7 +506,7 @@ export const useExpenseReportData = ({
   // (legacy list fetchers for plans/requests/payments removed; overview handles lists)
 
   const mapAdvancePaymentToReport = useCallback((p: any): AdvancePaymentReport => {
-    const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
+    const statusDisplay = p.status ? getAdvancePaymentStatusDisplayT(t, p.status) : { label: '', type: 'draft' }
     const currencyCode = p?.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
 
     return {

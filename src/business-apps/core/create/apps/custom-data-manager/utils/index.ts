@@ -1,1 +1,1 @@
-export { parseFile, generateKeyFromFilename, type ParsedFileResult } from './fileParser'
+export { parseFile, type ParsedFileResult } from './fileParser'

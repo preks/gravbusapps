@@ -1,4 +1,12 @@
-import type { JSONObject, JSONValue } from '@/common/types/i18nTypes'
+import type { JSONObject } from '@/common/types/i18nTypes'
+import type { EligibilitySettings } from './absenceEligibilityConflict'
+import {
+  isObjectRecord,
+  toBooleanValue,
+  toNumberValue,
+  toStringArray,
+  toStringValue
+} from './objectValueHelpers'
 
 export interface AbsencePolicyDetailSettings {
   description: string
@@ -9,6 +17,16 @@ export interface AbsencePolicyDetailSettings {
   policy_rule_category: string
   allowed_amount_time_unit: string
   periods_amount_time_unit: string
+}
+
+export type AbsencePolicyObjectSettings = EligibilitySettings
+
+export const defaultAbsencePolicyObjectSettings: AbsencePolicyObjectSettings = {
+  company_id: '',
+  standard: false,
+  allowed_countries: [],
+  allowed_contract_types: [],
+  allowed_employment_types: []
 }
 
 export interface AbsencePolicyObjectValue extends JSONObject {
@@ -22,6 +40,7 @@ export interface AbsencePolicyEditorDetail {
 }
 
 interface AbsencePolicyEditorState {
+  settings: AbsencePolicyObjectSettings
   details: AbsencePolicyEditorDetail[]
   extraObjectValue: JSONObject
 }
@@ -37,32 +56,37 @@ export const defaultAbsencePolicyDetailSettings: AbsencePolicyDetailSettings = {
   periods_amount_time_unit: 'MONTHS'
 }
 
-const isObjectRecord = (value: JSONValue | undefined): value is JSONObject =>
-  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-
-const toStringValue = (value: JSONValue | undefined, fallback: string): string => {
-  if (typeof value === 'string') return value
-  if (typeof value === 'number') return String(value)
-  return fallback
-}
-
-const toNumberValue = (value: string): number => {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : 0
-}
 
 export const getAbsencePolicyEditorState = (objectValue?: AbsencePolicyObjectValue): AbsencePolicyEditorState => {
   if (!isObjectRecord(objectValue)) {
     return {
+      settings: defaultAbsencePolicyObjectSettings,
       details: [],
       extraObjectValue: {}
     }
   }
 
-  const { details, ...extraObjectValue } = objectValue
+  const {
+    details,
+    company_id,
+    standard,
+    allowed_countries,
+    allowed_contract_types,
+    allowed_employment_types,
+    ...extraObjectValue
+  } = objectValue
+
+  const settings: AbsencePolicyObjectSettings = {
+    company_id: toStringValue(company_id, ''),
+    standard: toBooleanValue(standard, false),
+    allowed_countries: toStringArray(allowed_countries),
+    allowed_contract_types: toStringArray(allowed_contract_types),
+    allowed_employment_types: toStringArray(allowed_employment_types)
+  }
 
   if (!Array.isArray(details) || details.length === 0) {
     return {
+      settings,
       details: [],
       extraObjectValue
     }
@@ -113,16 +137,24 @@ export const getAbsencePolicyEditorState = (objectValue?: AbsencePolicyObjectVal
     .filter((detail): detail is AbsencePolicyEditorDetail => Boolean(detail))
 
   return {
+    settings,
     details: parsedDetails,
     extraObjectValue
   }
 }
 
 export const buildAbsencePolicyObjectValue = (
+  settings: AbsencePolicyObjectSettings,
   details: AbsencePolicyEditorDetail[],
   extraObjectValue: JSONObject
 ): AbsencePolicyObjectValue => ({
   ...extraObjectValue,
+  company_id: settings.company_id || undefined,
+  standard: settings.standard || undefined,
+  allowed_countries: settings.allowed_countries.length > 0 ? settings.allowed_countries : undefined,
+  allowed_contract_types: settings.allowed_contract_types.length > 0 ? settings.allowed_contract_types : undefined,
+  allowed_employment_types:
+    settings.allowed_employment_types.length > 0 ? settings.allowed_employment_types : undefined,
   details: details.map(detail => ({
     ...detail.extraDetailValue,
     description: detail.settings.description.trim(),

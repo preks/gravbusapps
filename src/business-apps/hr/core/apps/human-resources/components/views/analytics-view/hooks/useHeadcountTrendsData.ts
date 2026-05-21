@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
+import { fetchHeadcountMonthlyKpis } from './fetchHeadcountMonthlyKpis'
 
 export interface HeadcountTrendsData {
   currentHeadcount: Array<{
@@ -55,6 +58,7 @@ export interface UseHeadcountTrendsDataResponse {
 }
 
 export const useHeadcountTrendsData = (context: BusinessAppContextProps): UseHeadcountTrendsDataResponse => {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [data, setData] = useState<HeadcountTrendsData>({
     currentHeadcount: [],
     headcountOverTime: [],
@@ -121,54 +125,54 @@ export const useHeadcountTrendsData = (context: BusinessAppContextProps): UseHea
           startDate: startDateStr,
           endDate: endDate
         }
+        const structureId = getCurrentActiveStructureId()
+        const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+        const filterParams: Record<string, string> = {}
+        if (structureId) filterParams.structureId = structureId
+        if (companyIdsParam) filterParams.companyIds = companyIdsParam
+        const queryParams: Record<string, string> = { ...dateParams, ...filterParams }
 
         // Dedupe by token and date range
-        const fetchKey = `${context.accessToken}|${startDateStr}|${endDate}`
+        const fetchKey = `${context.accessToken}|${startDateStr}|${endDate}|${structureId ?? ''}|${companyIdsParam}`
         if (!force && lastFetchKeyRef.current === fetchKey) {
           setIsLoading(false)
           return
         }
         lastFetchKeyRef.current = fetchKey
 
-        console.log('[useHeadcountTrendsData] Using date range:', dateParams)
+        // Execute headcount + department queries in parallel.
+        const monthlyKpisCacheKey = `${context.accessToken}|headcountMonthlyKpis|${queryParams.startDate}|${queryParams.endDate}|${queryParams.structureId ?? ''}|${queryParams.companyIds ?? ''}`
+        const [currentHeadcountData, headcountMonthlyData, departmentData] = await Promise.all([
+          // Current total headcount (Query 17) - authoritative source
+          queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, filterParams),
 
-        // Execute all headcount queries in parallel
-        const [currentHeadcountData, headcountTimeData, hiresData, exitsData, netChangeData, departmentData] =
-          await Promise.all([
-            // Current total headcount (Query 17) - authoritative source
-            queryClient.executeQuery('totalEmployeeCount', QueryType.DATASET, {}),
+          // Combined monthly headcount KPIs (headcount + hires + exits + net change)
+          fetchHeadcountMonthlyKpis(queryClient, monthlyKpisCacheKey, queryParams),
 
-            // Total headcount over time (Query 20) - with date parameters
-            queryClient.executeQuery('totalHeadcountOverTime', QueryType.TIMESERIES, dateParams),
+          // Employees by department (existing Query 6)
+          queryClient.executeQuery('employeesByDepartment', QueryType.DATASET, filterParams)
+        ])
 
-            // Monthly hires (Query 18) - with date parameters
-            queryClient.executeQuery('hiresPerMonth', QueryType.TIMESERIES, dateParams),
-
-            // Monthly exits (Query 19) - with date parameters
-            queryClient.executeQuery('exitsPerMonth', QueryType.TIMESERIES, dateParams),
-
-            // Net headcount change (Query 22) - with date parameters
-            queryClient.executeQuery('netHeadcountChange', QueryType.TIMESERIES, dateParams),
-
-            // Employees by department (existing Query 6)
-            queryClient.executeQuery('employeesByDepartment', QueryType.DATASET, {})
-          ])
-
-        console.log('[useHeadcountTrendsData] Query results:', {
-          currentHeadcount: currentHeadcountData.data?.length,
-          headcountOverTime: headcountTimeData.data?.length,
-          monthlyHires: hiresData.data?.length,
-          monthlyExits: exitsData.data?.length,
-          netChange: netChangeData.data?.length,
-          departmentData: departmentData.data?.length
-        })
-
-        // Log raw data for debugging
-        console.log('[useHeadcountTrendsData] Raw data samples:', {
-          headcountSample: headcountTimeData.data?.slice(0, 2),
-          hiresSample: hiresData.data?.slice(0, 2),
-          exitsSample: exitsData.data?.slice(0, 2),
-          netChangeSample: netChangeData.data?.slice(0, 2)
+        type MonthlyKpiRow = {
+          category?: string
+          dateCategory?: string
+          date_category?: string
+          value?: number
+          hires?: number
+          exits?: number
+          net_change?: number
+          netChange?: number
+          [key: string]: unknown
+        }
+        const monthlyRows = ((headcountMonthlyData.data ?? []) as MonthlyKpiRow[]).map(item => {
+          const dateCategory = String(item.dateCategory ?? item.date_category ?? '')
+          return {
+            dateCategory,
+            headcount: Number(item.value ?? 0),
+            hires: Number(item.hires ?? 0),
+            exits: Number(item.exits ?? 0),
+            netChange: Number(item.net_change ?? item.netChange ?? Number(item.hires ?? 0) - Number(item.exits ?? 0))
+          }
         })
 
         const loadedData: HeadcountTrendsData = {
@@ -177,43 +181,32 @@ export const useHeadcountTrendsData = (context: BusinessAppContextProps): UseHea
               category: item.category,
               value: item.value
             })) || [],
-          headcountOverTime:
-            headcountTimeData.data?.map(item => ({
-              category: item.category,
-              dateCategory: item.dateCategory || '',
-              value: item.value
-            })) || [],
-          monthlyHires:
-            hiresData.data?.map(item => ({
-              category: item.category,
-              dateCategory: item.dateCategory || '',
-              value: item.value
-            })) || [],
-          monthlyExits:
-            exitsData.data?.map(item => ({
-              category: item.category,
-              dateCategory: item.dateCategory || '',
-              value: item.value
-            })) || [],
-          netChange:
-            netChangeData.data?.map(item => ({
-              category: item.category,
-              dateCategory: item.dateCategory || '',
-              value: item.value
-            })) || [],
+          headcountOverTime: monthlyRows.map(item => ({
+            category: 'Total Headcount',
+            dateCategory: item.dateCategory,
+            value: item.headcount
+          })),
+          monthlyHires: monthlyRows.map(item => ({
+            category: 'New Hires',
+            dateCategory: item.dateCategory,
+            value: item.hires
+          })),
+          monthlyExits: monthlyRows.map(item => ({
+            category: 'Departures',
+            dateCategory: item.dateCategory,
+            value: item.exits
+          })),
+          netChange: monthlyRows.map(item => ({
+            category: 'Net Change',
+            dateCategory: item.dateCategory,
+            value: item.netChange
+          })),
           departmentData:
             departmentData.data?.map(item => ({
               category: item.category,
               value: item.value
             })) || []
         }
-
-        console.log('[useHeadcountTrendsData] Transformed data:', {
-          headcountOverTime: loadedData.headcountOverTime.length,
-          monthlyHires: loadedData.monthlyHires.length,
-          monthlyExits: loadedData.monthlyExits.length,
-          netChange: loadedData.netChange.length
-        })
 
         setData(loadedData)
         setStatistics(calculateStatistics(loadedData))
@@ -223,7 +216,7 @@ export const useHeadcountTrendsData = (context: BusinessAppContextProps): UseHea
         setIsLoading(false)
       }
     },
-    [context.accessToken, calculateStatistics]
+    [context.accessToken, calculateStatistics, queryClient, selectedCompanyIds]
   )
 
   useEffect(() => {

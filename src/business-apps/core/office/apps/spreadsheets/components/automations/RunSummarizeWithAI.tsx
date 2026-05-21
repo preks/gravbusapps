@@ -64,7 +64,7 @@ async function hydrateSubmissionCopy(
 
   if (!app.sheets?.length || !app.sheets.some(s => (s.data?.length ?? 0) > 0)) {
     for (const sheet of app.sheets ?? []) {
-      const rows = await SpreadsheetApiService.getRows(appId, sheet.id)
+      const rows = await SpreadsheetApiService.getAllRows(appId, sheet.id)
       sheet.data = rows
     }
   }

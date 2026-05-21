@@ -7,10 +7,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
   Select,
   SelectContent,
   SelectItem,
@@ -19,7 +15,7 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { FlowDetailView } from '@/common/components/flow/flow-detail'
+import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useFlowList, type FlowSummary } from '@/common/data/flow/hooks/useFlowList'
 
@@ -63,8 +59,10 @@ export const MyLaunchesTab: React.FC<MyLaunchesTabProps> = ({
   const userId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>(ALL_STATUSES)
-  const [selectedFlow, setSelectedFlow] = useState<FlowSummary | null>(null)
-  const [detailsOpen, setDetailsOpen] = useState(false)
+
+  const openFlowDetails = (flowId: string) => {
+    navigateTo(buildPlatformUrl(Navigation.FLOW_DETAIL, { flowId }))
+  }
 
   const { flows, totalCount, loading, error, refetch } = useFlowList('initiated', userId, accessToken || '', {
     searchTerm: search.trim() ? search.trim() : undefined,
@@ -166,10 +164,7 @@ export const MyLaunchesTab: React.FC<MyLaunchesTabProps> = ({
                 key={flow.flowId}
                 type="button"
                 className="gba:block gba:w-full gba:text-left gba:!cursor-pointer"
-                onClick={() => {
-                  setSelectedFlow(flow)
-                  setDetailsOpen(true)
-                }}
+                onClick={() => openFlowDetails(flow.flowId)}
                 data-testid={`${testId}-flow-${idx}`}
               >
                 <Card className="gba:bg-background gba:border gba:border-border gba:hover:bg-accent/10 gba:transition-colors gba:!cursor-pointer">
@@ -204,29 +199,6 @@ export const MyLaunchesTab: React.FC<MyLaunchesTabProps> = ({
           </div>
         )}
       </CardContent>
-
-      <Dialog
-        open={detailsOpen}
-        onOpenChange={open => {
-          setDetailsOpen(open)
-          if (!open) setSelectedFlow(null)
-        }}
-      >
-        <DialogContent
-          className="gba:max-w-[92vw] gba:w-[92vw] gba:h-[92vh] gba:overflow-hidden gba:p-0"
-          data-testid={`${testId}-details-dialog`}
-        >
-          <DialogHeader className="gba:sr-only">
-            <DialogTitle>{selectedFlow?.flowName || selectedFlow?.templateName || 'Flow details'}</DialogTitle>
-          </DialogHeader>
-
-          <div className="gba:h-full gba:overflow-y-auto" data-testid={`${testId}-details-content`}>
-            {selectedFlow ? (
-              <FlowDetailView flowId={selectedFlow.flowId} accessToken={accessToken} showBackButton={false} />
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
     </Card>
   )
 }

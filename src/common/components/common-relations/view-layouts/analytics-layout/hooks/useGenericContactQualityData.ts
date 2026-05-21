@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface ContactQualityData {
-  overallScore: number
-  qualityDistribution: { category: string; count: number; percentage: number }[]
-  completenessMetrics: { metric: string; completed: number; total: number; percentage: number }[]
-  issuesSummary: { missingEmails: number; missingPhones: number; missingAccounts: number; duplicatePotential: number }
+  fieldCompleteness: { field: string; completed: number; missing: number }[]
+  accountCoverage: { category: string; count: number }[]
 }
 
 export interface ContactQualityConfig {
@@ -15,9 +13,8 @@ export interface ContactQualityConfig {
 }
 
 /**
- * Generic Contact Quality Data Hook using ONLY aggregate queries
- * Pattern: 100% aggregates - NO full record fetches!
- * Quality score based on 5 fields: firstName, lastName, email, phone, account
+ * Generic Contact Quality Data Hook using ONLY aggregate queries.
+ * Returns chart-ready aggregate counts without FE scoring or estimates.
  * Configurable for both CRM and IRM
  */
 export const useGenericContactQualityData = (accessToken: string, config: ContactQualityConfig) => {
@@ -47,14 +44,7 @@ export const useGenericContactQualityData = (accessToken: string, config: Contac
             : 'investmentAccountContact: { accountId: { _isNull: true } }'
 
         const query = `
-          query GetContactQualityData {
-            # Total contacts
-            totalContacts: ${config.contactAggregate}(
-              where: { isDeleted: { _eq: false } }
-            ) {
-              aggregate { count }
-            }
-
+          query GetContactCompletenessData {
             # Completeness aggregates - All fields used in quality scoring
             contactsWithEmail: ${config.contactAggregate}(
               where: {
@@ -101,7 +91,24 @@ export const useGenericContactQualityData = (accessToken: string, config: Contac
               aggregate { count }
             }
 
-            # Issues summary
+            missingFirstNames: ${config.contactAggregate}(
+              where: {
+                isDeleted: { _eq: false }
+                firstName: { _eq: "" }
+              }
+            ) {
+              aggregate { count }
+            }
+
+            missingLastNames: ${config.contactAggregate}(
+              where: {
+                isDeleted: { _eq: false }
+                lastName: { _eq: "" }
+              }
+            ) {
+              aggregate { count }
+            }
+
             missingEmails: ${config.contactAggregate}(
               where: {
                 isDeleted: { _eq: false }
@@ -133,97 +140,57 @@ export const useGenericContactQualityData = (accessToken: string, config: Contac
 
         const result = await graphqlClient.request<any>(query)
 
-        const totalContacts = result.totalContacts?.aggregate?.count || 0
         const contactsWithEmail = result.contactsWithEmail?.aggregate?.count || 0
         const contactsWithPhone = result.contactsWithPhone?.aggregate?.count || 0
         const contactsWithAccount = result.contactsWithAccount?.aggregate?.count || 0
         const contactsWithFirstName = result.contactsWithFirstName?.aggregate?.count || 0
         const contactsWithLastName = result.contactsWithLastName?.aggregate?.count || 0
+        const missingFirstNames = result.missingFirstNames?.aggregate?.count || 0
+        const missingLastNames = result.missingLastNames?.aggregate?.count || 0
         const missingEmails = result.missingEmails?.aggregate?.count || 0
         const missingPhones = result.missingPhones?.aggregate?.count || 0
         const missingAccounts = result.missingAccounts?.aggregate?.count || 0
 
-        // Calculate completeness metrics (100% from aggregates - no sample!)
-        const completenessMetrics = [
-          {
-            metric: 'Email Address',
-            completed: contactsWithEmail,
-            total: totalContacts,
-            percentage: totalContacts > 0 ? Math.round((contactsWithEmail / totalContacts) * 100) : 0
-          },
-          {
-            metric: 'Phone Number',
-            completed: contactsWithPhone,
-            total: totalContacts,
-            percentage: totalContacts > 0 ? Math.round((contactsWithPhone / totalContacts) * 100) : 0
-          },
-          {
-            metric: 'Account Link',
-            completed: contactsWithAccount,
-            total: totalContacts,
-            percentage: totalContacts > 0 ? Math.round((contactsWithAccount / totalContacts) * 100) : 0
-          }
-        ]
-
-        // Calculate overall quality score from aggregate completeness percentages
-        // Quality scoring: firstName(1) + lastName(1) + email(1) + phone(1) + account(2) = 6 points
         const fieldCompleteness = [
-          contactsWithFirstName / totalContacts, // 1 point
-          contactsWithLastName / totalContacts, // 1 point
-          contactsWithEmail / totalContacts, // 1 point
-          contactsWithPhone / totalContacts, // 1 point
-          contactsWithAccount / totalContacts, // 2 points (weighted)
-          contactsWithAccount / totalContacts // (counted twice for 2-point weight)
+          {
+            field: 'First Name',
+            completed: contactsWithFirstName,
+            missing: missingFirstNames
+          },
+          {
+            field: 'Last Name',
+            completed: contactsWithLastName,
+            missing: missingLastNames
+          },
+          {
+            field: 'Email Address',
+            completed: contactsWithEmail,
+            missing: missingEmails
+          },
+          {
+            field: 'Phone Number',
+            completed: contactsWithPhone,
+            missing: missingPhones
+          },
+          {
+            field: 'Account Link',
+            completed: contactsWithAccount,
+            missing: missingAccounts
+          }
         ]
 
-        // Average completeness across all fields (6 points total)
-        const avgCompleteness = fieldCompleteness.reduce((sum, val) => sum + val, 0) / 6
-        const overallScore = Math.round(avgCompleteness * 100)
-
-        // Estimate quality distribution based on aggregate completeness levels
-        // Excellent: High completeness in all fields (especially account)
-        const excellentPercentage = Math.min(avgCompleteness, contactsWithAccount / totalContacts) * 0.8
-        // Poor: Low average completeness
-        const poorPercentage = Math.max(0, 1 - avgCompleteness)
-        // Good/Fair: Split the middle range
-        const remainingPercentage = 1 - excellentPercentage - poorPercentage
-        const goodPercentage = remainingPercentage * 0.6
-        const fairPercentage = remainingPercentage * 0.4
-
-        const qualityDistribution = [
+        const accountCoverage = [
           {
-            category: 'Excellent',
-            count: Math.round(excellentPercentage * totalContacts),
-            percentage: Math.round(excellentPercentage * 100)
+            category: 'Linked to Account',
+            count: contactsWithAccount
           },
           {
-            category: 'Good',
-            count: Math.round(goodPercentage * totalContacts),
-            percentage: Math.round(goodPercentage * 100)
-          },
-          {
-            category: 'Fair',
-            count: Math.round(fairPercentage * totalContacts),
-            percentage: Math.round(fairPercentage * 100)
-          },
-          {
-            category: 'Poor',
-            count: Math.round(poorPercentage * totalContacts),
-            percentage: Math.round(poorPercentage * 100)
+            category: 'No Account',
+            count: missingAccounts
           }
-        ].filter(item => item.count > 0)
+        ]
 
-        // Estimate duplicates: assume 3% of contacts with emails might be duplicates
-        const estimatedDuplicates = contactsWithEmail > 0 ? Math.round(contactsWithEmail * 0.03) : 0
-
-        const issuesSummary = {
-          missingEmails,
-          missingPhones,
-          missingAccounts,
-          duplicatePotential: estimatedDuplicates
-        }
-
-        setData({ overallScore, qualityDistribution, completenessMetrics, issuesSummary })
+        setData({ fieldCompleteness, accountCoverage })
       } catch (err) {
         console.error('Error fetching contact quality data:', err)
       } finally {

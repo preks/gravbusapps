@@ -4,10 +4,10 @@ import {
   type FunctionCategory,
   type LatestFunctionItem,
   type ConnectorKind,
-  type FunctionConnectionBinding,
-  type SecretBundleListItemDto
+  type FunctionConnectionBinding
 } from '@/common/network/functions/FunctionsServiceClient'
-import { buildCredentialBindOptions } from '@/common/utils/credentialBindOptions'
+import { buildCredentialBindOptionsFromList } from '@/common/utils/credentialBindOptions'
+import { assertValidCredentialFieldKey } from '@/common/utils/fncredRef'
 import type { StoredSecretOption } from '../components/editor/SettingsEditor'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type {
@@ -95,30 +95,24 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   const [error, setError] = useState<string | null>(null)
 
   const [storedSecrets, setStoredSecrets] = useState<StoredSecretOption[]>([])
-  const [credentialBundleItems, setCredentialBundleItems] = useState<SecretBundleListItemDto[]>([])
 
   const credentialBindOptions = useMemo(
-    () => buildCredentialBindOptions(storedSecrets, credentialBundleItems),
-    [storedSecrets, credentialBundleItems]
+    () => buildCredentialBindOptionsFromList(storedSecrets),
+    [storedSecrets]
   )
 
   const refreshSecrets = useCallback(async () => {
     try {
-      const list = await client.listSecrets()
+      const list = await client.listCredentials(undefined, true)
       setStoredSecrets(
         (list || []).map(s => ({
           id: s.id,
-          displayName: s.displayName
+          displayName: s.displayName,
+          fieldKeys: Array.isArray(s.fieldKeys) ? s.fieldKeys : []
         }))
       )
     } catch {
       setStoredSecrets([])
-    }
-    try {
-      const bundlesPage = await client.listSecretBundles({ limit: 100, offset: 0, includeSlots: true })
-      setCredentialBundleItems(bundlesPage?.items || [])
-    } catch {
-      setCredentialBundleItems([])
     }
   }, [client])
 
@@ -127,17 +121,20 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
   }, [refreshSecrets])
 
   const onCreateStoredSecret = useCallback(
-    async (input: { displayName: string; value: string }) => {
-      await client.createSecret({
+    async (input: { displayName: string; fieldKey: string; value: string }) => {
+      const fieldKey = String(input.fieldKey || '').trim() || 'VALUE'
+      assertValidCredentialFieldKey(fieldKey)
+      await client.createCredential({
         displayName: input.displayName,
-        value: input.value
+        live: { [fieldKey]: input.value },
+        preview: {}
       })
       await refreshSecrets()
     },
     [client, refreshSecrets]
   )
 
-  // Test-only plaintext overrides (merged server-side after fnsecret resolve; not persisted)
+  // Test-only plaintext overrides (merged server-side after fncred resolution; not persisted)
   const [testOverrideRows, setTestOverrideRows] = useState<ConfigRow[]>(() => [newEmptyConfigRow()])
 
   // Testing state
@@ -159,7 +156,16 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     if (!inputSchemaParsed || typeof inputSchemaParsed !== 'object' || !('properties' in inputSchemaParsed)) {
       return {}
     }
-    return (inputSchemaParsed.properties as Record<string, unknown>) || {}
+    const raw = (inputSchemaParsed.properties as Record<string, unknown>) || {}
+    const normalized: Record<string, Record<string, unknown>> = {}
+    for (const [key, prop] of Object.entries(raw)) {
+      // JSON Schema property values must be objects; skip invalid entries while the user is typing
+      // (e.g. shorthand `"field": "string"`) so `'default' in prop` does not throw.
+      if (prop && typeof prop === 'object' && !Array.isArray(prop)) {
+        normalized[key] = prop as Record<string, unknown>
+      }
+    }
+    return normalized
   }, [inputSchemaParsed])
 
   const requiredFields = useMemo(() => {
@@ -220,10 +226,9 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
     if (Object.keys(schemaProperties).length > 0) {
       const defaults: Record<string, unknown> = {}
       Object.entries(schemaProperties).forEach(([key, prop]) => {
-        const propObj = prop as Record<string, unknown>
-        if ('default' in propObj && propObj.default !== undefined) {
-          defaults[key] = propObj.default
-        } else if (propObj.type === 'array') {
+        if ('default' in prop && prop.default !== undefined) {
+          defaults[key] = prop.default
+        } else if (prop.type === 'array') {
           defaults[key] = []
         }
       })

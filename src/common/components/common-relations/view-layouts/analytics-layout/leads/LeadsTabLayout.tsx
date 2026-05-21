@@ -1,13 +1,11 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UsersIcon, PercentIcon, ClockIcon, TrendUpIcon } from '@phosphor-icons/react'
+import { CheckCircleIcon, PercentIcon, TrendUpIcon, UsersIcon } from '@phosphor-icons/react'
 import { LeadLifecycleChart, TimeFilter } from './widgets/LeadLifecycleChart'
-import { LeadVelocityAnalysis } from './widgets/LeadVelocityAnalysis'
 import { LeadsBySourcePie } from './widgets/LeadsBySourcePie'
 import { LeadsByStatusPie } from './widgets/LeadsByStatusPie'
-import TopLeadOwners from './widgets/TopLeadOwners'
-import { LeadQualityMatrix } from './widgets/LeadQualityMatrix'
-import { LeadEngagementInsights } from './widgets/LeadEngagementInsights'
+import type { LeadDrillDownSelection } from '../hooks/useLeadDrillDownState'
+import type { LeadLifecyclePointSelection } from '../hooks/useLeadLifecycleDrillDownState'
 
 // Leads-specific trend data interface (matching archived version)
 interface LeadsTrendData {
@@ -31,76 +29,77 @@ export interface LeadsTabLayoutProps {
 
   // Required: Core KPIs
   totalLeads: number
+  convertedLeads: number
   conversionRate: number
-  avgTimeToConversion: number
   trendData?: LeadsTrendData | null
   trendLoading?: boolean
 
   // Required: Lead Lifecycle Chart
-  leadsOverTime: Array<{ date: string; count: number; leadsCreated: number; leadsConverted: number; leadsLost: number }>
+  leadsOverTime: Array<{
+    date: string
+    endDate: string
+    count: number
+    leadsCreated: number
+    leadsConverted: number
+    leadsLost: number
+  }>
   leadsOverTimeLoading?: boolean
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
 
-  // Optional: Lead Velocity Analysis (can be hidden)
-  velocityData?: {
-    avgTimeToConversion: number
-    conversionRate: number
-    volumeTrend: number
-    velocityTrendData: Array<{
-      month: string
-      date: string
-      leadsCreated: number
-      leadsConverted: number
-      conversionVelocity: number
-    }>
-  } | null
-  velocityLoading?: boolean
-
-  // Optional: Lead Quality Matrix (can be hidden)
-  leadQualityMatrix?: {
-    leadsBySource: Array<{ source: string; count: number; percentage?: number; conversionRate?: number }>
-    isLoading?: boolean
-  }
-
-  // Optional: Lead Engagement Insights (can be hidden)
-  leadEngagementInsights?: {
-    leadsByRating: Array<{ rating: string; count: number; percentage?: number }>
-    leadHealthIndicators: Array<{ label: string; value: number; status?: 'good' | 'warning' | 'bad' }>
-    highQualityPercentage: number
-    isLoading?: boolean
-  }
-
   // Optional: Distribution Charts (can be hidden)
-  leadsBySource?: Array<{ source: string; count: number; percentage?: number; conversionRate?: number }>
+  leadsBySource?: Array<{
+    source: string
+    sourceRef?: string
+    count: number
+    percentage?: number
+    conversionRate?: number
+  }>
   leadsBySourceLoading?: boolean
-  leadsByStatus?: Array<{ status: string; count: number }>
+  leadsByStatus?: Array<{ status: string; statusRef?: string; count: number }>
   leadsByStatusLoading?: boolean
 
   // Optional: Top Lead Owners (can be hidden)
-  topOwners?: Array<{ employeeId: string; employeeName: string; leadCount: number; conversionRate: number }>
+
+  // Optional: Lead drill-down (source / status pie chart click-through)
+  selectedLeadFilter?: LeadDrillDownSelection | null
+  onSourceClick?: (label: string, ref: string) => void
+  onStatusClick?: (label: string, ref: string) => void
+  renderLeadPanel?: (selection: LeadDrillDownSelection) => React.ReactNode
+
+  // Optional: Lead Lifecycle chart drill-down
+  onLifecyclePointClick?: (
+    label: string,
+    date: string,
+    endDate: string,
+    metric: 'leadsCreated' | 'leadsConverted' | 'leadsLost'
+  ) => void
+  selectedLeadLifecyclePoint?: LeadLifecyclePointSelection | null
+  renderLeadLifecycleDrillDown?: (selection: LeadLifecyclePointSelection) => React.ReactNode
 }
 
 export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   moduleColor = 'default',
   totalLeads,
+  convertedLeads,
   conversionRate,
-  avgTimeToConversion,
   trendData,
   trendLoading = false,
   leadsOverTime,
   leadsOverTimeLoading = false,
   selectedTimeFilter,
   onTimeFilterChange,
-  velocityData,
-  velocityLoading = false,
-  leadQualityMatrix,
-  leadEngagementInsights,
   leadsBySource,
   leadsBySourceLoading = false,
   leadsByStatus,
   leadsByStatusLoading = false,
-  topOwners
+  selectedLeadFilter,
+  onSourceClick,
+  onStatusClick,
+  renderLeadPanel,
+  onLifecyclePointClick,
+  selectedLeadLifecyclePoint,
+  renderLeadLifecycleDrillDown
 }) => {
   // Helper function to calculate trend with total description (matching archived version)
   const calculateTrendWithTotalDescription = (currentValue: number, previousValue: number) => {
@@ -147,6 +146,18 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
         : {})
     },
     {
+      key: 'converted-leads',
+      title: 'Converted Leads',
+      value: convertedLeads || 0,
+      prefix: <CheckCircleIcon size={16} />,
+      description: 'Leads converted to opportunities',
+      ...(trendData && !trendLoading
+        ? {
+            trend: calculateTrend(trendData.currentMonthConvertedLeads, trendData.previousMonthConvertedLeads)
+          }
+        : {})
+    },
+    {
       key: 'conversion-rate',
       title: 'Conversion Rate',
       value: conversionRate || 0,
@@ -160,33 +171,6 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
               value: `${Math.abs((conversionRate || 0) - trendData.actualConversionRateLastMonth).toFixed(1)}%`,
               positive: (conversionRate || 0) >= trendData.actualConversionRateLastMonth,
               description: `${(conversionRate || 0).toFixed(1)}% this month vs ${trendData.actualConversionRateLastMonth.toFixed(1)}% last month`
-            }
-          }
-        : {})
-    },
-    {
-      key: 'avg-conversion-time',
-      title: 'Avg. Conversion Time',
-      value: avgTimeToConversion || 0,
-      suffix: ' days',
-      prefix: <ClockIcon size={16} />,
-      description: 'Average time to convert leads',
-      // Compare current conversion time to last month's conversion time
-      ...(trendData && !trendLoading
-        ? {
-            trend: {
-              value:
-                (trendData.actualAvgConversionTimeLastMonth || 0) === 0
-                  ? (avgTimeToConversion || 0) > 0
-                    ? '100%'
-                    : '0%'
-                  : `${Math.abs(
-                      (((avgTimeToConversion || 0) - (trendData.actualAvgConversionTimeLastMonth || 0)) /
-                        trendData.actualAvgConversionTimeLastMonth) *
-                        100
-                    ).toFixed(1)}%`,
-              positive: (avgTimeToConversion || 0) <= (trendData.actualAvgConversionTimeLastMonth || 0), // Lower time is better
-              description: `${(avgTimeToConversion || 0).toFixed(1)} days this month vs ${(trendData.actualAvgConversionTimeLastMonth || 0).toFixed(1)} days last month`
             }
           }
         : {})
@@ -219,87 +203,40 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
       <LeadLifecycleChart
         key={`lead-lifecycle-${selectedTimeFilter}`}
         data={leadsOverTime}
-        isLoading={
-          leadsOverTimeLoading ||
-          velocityLoading ||
-          leadQualityMatrix?.isLoading ||
-          leadEngagementInsights?.isLoading ||
-          leadsBySourceLoading ||
-          leadsByStatusLoading
-        }
+        isLoading={leadsOverTimeLoading || leadsBySourceLoading || leadsByStatusLoading}
         selectedTimeFilter={selectedTimeFilter}
         onTimeFilterChange={onTimeFilterChange}
         moduleColor={moduleColor}
+        onPointClick={onLifecyclePointClick}
       />
 
-      {/* Optional: Velocity & Quality Analysis */}
-      {(velocityData || leadQualityMatrix) && (
-        <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-2 gba:gap-6">
-          {velocityData && (
-            <LeadVelocityAnalysis
-              avgTimeToConversion={velocityData.avgTimeToConversion || avgTimeToConversion}
-              conversionRate={velocityData.conversionRate || conversionRate}
-              volumeTrend={velocityData.volumeTrend || 0}
-              velocityTrendData={velocityData.velocityTrendData || []}
-              isLoading={velocityLoading}
-              moduleColor={moduleColor}
-            />
-          )}
-          {leadQualityMatrix && (
-            <LeadQualityMatrix
-              data={{
-                totalLeads,
-                conversionRate,
-                leadsBySource: leadQualityMatrix.leadsBySource.map(s => ({
-                  source: s.source,
-                  count: s.count,
-                  percentage: s.percentage || 0,
-                  conversionRate: s.conversionRate || 0
-                }))
-              }}
-              isLoading={leadQualityMatrix.isLoading}
-              moduleColor={moduleColor}
-            />
-          )}
-        </div>
-      )}
-
-      {/* Optional: Lead Engagement Insights */}
-      {leadEngagementInsights && (
-        <LeadEngagementInsights
-          leadsByRating={leadEngagementInsights.leadsByRating.map(r => ({
-            rating: r.rating,
-            count: r.count,
-            percentage: r.percentage || 0
-          }))}
-          leadHealthIndicators={leadEngagementInsights.leadHealthIndicators}
-          conversionRate={conversionRate}
-          avgTimeToConversion={avgTimeToConversion}
-          leadsOverTime={leadsOverTime}
-          highQualityPercentage={leadEngagementInsights.highQualityPercentage}
-          isLoading={leadEngagementInsights.isLoading}
-          moduleColor={moduleColor}
-        />
-      )}
+      {/* Lead Lifecycle chart drill-down panel */}
+      {selectedLeadLifecyclePoint && renderLeadLifecycleDrillDown?.(selectedLeadLifecyclePoint)}
 
       {/* Optional: Distribution Pie Charts */}
       {(leadsBySource || leadsByStatus) && (
         <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
           {leadsBySource && (
             <LeadsBySourcePie
-              data={leadsBySource.map(s => ({ source: s.source, count: s.count }))}
+              data={leadsBySource.map(s => ({ source: s.source, sourceRef: s.sourceRef, count: s.count }))}
               isLoading={leadsBySourceLoading}
               moduleColor={moduleColor}
+              onSliceClick={onSourceClick}
             />
           )}
           {leadsByStatus && (
-            <LeadsByStatusPie data={leadsByStatus} isLoading={leadsByStatusLoading} moduleColor={moduleColor} />
+            <LeadsByStatusPie
+              data={leadsByStatus}
+              isLoading={leadsByStatusLoading}
+              moduleColor={moduleColor}
+              onSliceClick={onStatusClick}
+            />
           )}
         </div>
       )}
 
-      {/* Optional: Top Lead Owners */}
-      {topOwners && topOwners.length > 0 && <TopLeadOwners owners={topOwners} moduleColor={moduleColor} />}
+      {/* Lead drill-down panel (source or status) */}
+      {selectedLeadFilter && renderLeadPanel?.(selectedLeadFilter)}
     </div>
   )
 }

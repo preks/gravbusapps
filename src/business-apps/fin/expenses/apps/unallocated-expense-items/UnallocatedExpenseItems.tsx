@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo } from 'react'
-import { PageLayout, Button, Spinner } from '@newwork/nw-design-system'
+import { PageLayout, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { ArrowLeftIcon } from '@phosphor-icons/react'
 import { WalletIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import UnallocatedExpenseItemsTable from './UnallocatedExpenseItemsTable'
+import personalTranslations from '../personal-expenses/_i18n'
 import { useExpenseItemsFilters } from '../personal-expenses/hooks/useExpenseItemsFilters'
 import { startProcess } from '@/common/utils/start-process'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
@@ -23,6 +23,7 @@ const ITEMS_TAB_AVAILABLE_STATUSES = [
 ] as const
 
 const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ accessToken, userInfo, additionalData }) => {
+  const { t } = useTranslation(personalTranslations)
   // Block rendering until platform injects context to avoid unauthorized fetches
   const isContextReady = Boolean(accessToken && userInfo?.employeeDetails?.employeeId)
   const availableStatuses = useMemo(() => [...ITEMS_TAB_AVAILABLE_STATUSES], [])
@@ -94,22 +95,13 @@ const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ acces
           data-testid="unallocated-expense-items-back-button"
         >
           <ArrowLeftIcon size={16} />
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_management_hub_backoffice.dashboard_btn',
-            'Back to Dashboard'
-          )}
+          {t('personal-expenses-back-to-dashboard')}
         </Button>
       </div>
       <PageLayout
         headerIcon={WalletIcon}
-        headerTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.unallocated_expenses',
-          'Unallocated Expenses'
-        )}
-        headerDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.unlinked_items',
-          'Expense items not linked to a request'
-        )}
+        headerTitle={t('dashboard-stat-unallocated-expenses')}
+        headerDescription={t('dashboard-stat-unlinked-items')}
         variant="default"
       >
         <UnallocatedExpenseItemsTable

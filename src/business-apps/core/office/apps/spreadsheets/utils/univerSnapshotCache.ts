@@ -1,7 +1,17 @@
-const SNAPSHOT_KEY_PREFIX = 'spreadsheet:univer:snapshot:v1'
-const INDEX_KEY_PREFIX = 'spreadsheet:univer:index:v1'
+/**
+ * When `localStorage` contains this key set to `'1'`, Univer workbook snapshot cache
+ * reads and writes are skipped (bootstrap goes remote/rows-only; checkpoints do not persist to cache).
+ * Independent of spreadsheet debug logging flags.
+ *
+ * Console: `localStorage.setItem('spreadsheet:disable-univer-workbook-cache', '1')` then reload.
+ * Re-enable: `localStorage.removeItem('spreadsheet:disable-univer-workbook-cache')`.
+ */
+export const SPREADSHEET_DISABLE_UNIVER_WORKBOOK_CACHE_KEY = 'spreadsheet:disable-univer-workbook-cache'
+
+const SNAPSHOT_KEY_PREFIX = 'spreadsheet:univer:workbook-snapshot:v2'
+const INDEX_KEY_PREFIX = 'spreadsheet:univer:workbook-index:v2'
 const DEFAULT_TTL_MS = 1000 * 60 * 60 * 24 * 7
-const DEFAULT_MAX_ENTRIES_PER_SHEET = 2
+const DEFAULT_MAX_ENTRIES_PER_APP = 2
 const DEFAULT_MAX_SNAPSHOT_BYTES = 4_500_000
 
 interface SnapshotIndexEntry {
@@ -12,7 +22,7 @@ interface SnapshotIndexEntry {
   sizeBytes: number
 }
 
-interface SnapshotSheetIndex {
+interface SnapshotAppIndex {
   latestVersion: number
   entries: SnapshotIndexEntry[]
 }
@@ -26,17 +36,23 @@ export interface SnapshotCacheReadResult {
 
 export interface SnapshotCacheWriteResult {
   stored: boolean
-  reason?: 'storage_unavailable' | 'invalid_payload' | 'payload_too_large' | 'quota_exceeded' | 'unknown_error'
+  reason?:
+    | 'storage_unavailable'
+    | 'invalid_payload'
+    | 'payload_too_large'
+    | 'quota_exceeded'
+    | 'unknown_error'
+    | 'cache_disabled'
   sizeBytes: number
   evictedKeys: number
 }
 
-function getSnapshotKey(appId: string, sheetId: string, version: number): string {
-  return `${SNAPSHOT_KEY_PREFIX}:${appId}:${sheetId}:v${version}`
+function getSnapshotKey(appId: string, version: number): string {
+  return `${SNAPSHOT_KEY_PREFIX}:${appId}:v${version}`
 }
 
-function getIndexKey(appId: string, sheetId: string): string {
-  return `${INDEX_KEY_PREFIX}:${appId}:${sheetId}`
+function getIndexKey(appId: string): string {
+  return `${INDEX_KEY_PREFIX}:${appId}`
 }
 
 function getSnapshotByteSize(json: string): number {
@@ -66,22 +82,82 @@ function isStorageAvailable(): boolean {
   }
 }
 
+function isUniverWorkbookCacheDisabledByFlag(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(SPREADSHEET_DISABLE_UNIVER_WORKBOOK_CACHE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 function isQuotaExceeded(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const maybeDom = error as { name?: string; code?: number }
   return maybeDom.name === 'QuotaExceededError' || maybeDom.code === 22
 }
 
-function loadSheetIndex(appId: string, sheetId: string): SnapshotSheetIndex {
-  const index = parseJsonObject<SnapshotSheetIndex>(window.localStorage.getItem(getIndexKey(appId, sheetId)))
+function loadAppIndex(appId: string): SnapshotAppIndex {
+  const index = parseJsonObject<SnapshotAppIndex>(window.localStorage.getItem(getIndexKey(appId)))
   if (!index || !Array.isArray(index.entries)) {
     return { latestVersion: 0, entries: [] }
   }
   return index
 }
 
-function saveSheetIndex(appId: string, sheetId: string, index: SnapshotSheetIndex): void {
-  window.localStorage.setItem(getIndexKey(appId, sheetId), JSON.stringify(index))
+function saveAppIndex(appId: string, index: SnapshotAppIndex): void {
+  window.localStorage.setItem(getIndexKey(appId), JSON.stringify(index))
+}
+
+/**
+ * Aggressively evict the oldest snapshot entries across ALL apps until the
+ * supplied predicate is satisfied or no more entries remain. Used as a last
+ * resort when `localStorage` quota is exhausted: shedding stale entries from
+ * other apps lets the current write succeed instead of silently failing on
+ * every save.
+ */
+function evictOldestEntriesUntil(shouldStop: () => boolean): number {
+  if (!isStorageAvailable()) return 0
+  let evicted = 0
+  type EvictionCandidate = { indexKey: string; entry: SnapshotIndexEntry }
+  const allEntries: EvictionCandidate[] = []
+
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i)
+    if (!key || !key.startsWith(INDEX_KEY_PREFIX)) continue
+    const index = parseJsonObject<SnapshotAppIndex>(window.localStorage.getItem(key))
+    if (!index || !Array.isArray(index.entries)) continue
+    for (const entry of index.entries) {
+      allEntries.push({ indexKey: key, entry })
+    }
+  }
+
+  allEntries.sort((a, b) => a.entry.savedAt - b.entry.savedAt)
+
+  for (const candidate of allEntries) {
+    if (shouldStop()) break
+    try {
+      window.localStorage.removeItem(candidate.entry.key)
+      evicted += 1
+      const index = parseJsonObject<SnapshotAppIndex>(window.localStorage.getItem(candidate.indexKey))
+      if (!index || !Array.isArray(index.entries)) continue
+      const nextEntries = index.entries.filter(e => e.key !== candidate.entry.key)
+      if (nextEntries.length === 0) {
+        window.localStorage.removeItem(candidate.indexKey)
+      } else {
+        window.localStorage.setItem(
+          candidate.indexKey,
+          JSON.stringify({
+            latestVersion: nextEntries[0]?.version ?? index.latestVersion,
+            entries: nextEntries
+          })
+        )
+      }
+    } catch {
+      // Continue evicting the next candidate.
+    }
+  }
+
+  return evicted
 }
 
 function cleanupExpiredEntries(nowMs: number): number {
@@ -90,7 +166,7 @@ function cleanupExpiredEntries(nowMs: number): number {
   for (let i = window.localStorage.length - 1; i >= 0; i--) {
     const key = window.localStorage.key(i)
     if (!key || !key.startsWith(INDEX_KEY_PREFIX)) continue
-    const index = parseJsonObject<SnapshotSheetIndex>(window.localStorage.getItem(key))
+    const index = parseJsonObject<SnapshotAppIndex>(window.localStorage.getItem(key))
     if (!index || !Array.isArray(index.entries)) continue
     const validEntries = index.entries.filter(entry => entry.expiresAt > nowMs)
     const removed = index.entries.filter(entry => entry.expiresAt <= nowMs)
@@ -102,7 +178,7 @@ function cleanupExpiredEntries(nowMs: number): number {
       window.localStorage.removeItem(key)
       continue
     }
-    const nextIndex: SnapshotSheetIndex = {
+    const nextIndex: SnapshotAppIndex = {
       latestVersion: validEntries[0].version,
       entries: validEntries
     }
@@ -112,30 +188,26 @@ function cleanupExpiredEntries(nowMs: number): number {
 }
 
 /**
- * Remove all cached snapshots for a specific sheet (e.g. after a version restore
+ * Remove all cached workbook snapshots for an app (e.g. after a version restore
  * so that the stale pre-restore snapshot is never served on the next load).
  */
-export function clearUniverSnapshotCache(appId: string, sheetId: string): void {
+export function clearUniverSnapshotCache(appId: string): void {
   if (!isStorageAvailable()) return
   try {
-    const index = loadSheetIndex(appId, sheetId)
+    const index = loadAppIndex(appId)
     for (const entry of index.entries) {
       window.localStorage.removeItem(entry.key)
     }
-    window.localStorage.removeItem(getIndexKey(appId, sheetId))
+    window.localStorage.removeItem(getIndexKey(appId))
   } catch {
     // Ignore — clearing is best-effort
   }
 }
 
-export function readLatestUniverSnapshot(
-  appId: string,
-  sheetId: string,
-  minVersion = 0
-): SnapshotCacheReadResult | null {
-  if (!isStorageAvailable()) return null
+export function readLatestUniverSnapshot(appId: string, minVersion = 0): SnapshotCacheReadResult | null {
+  if (!isStorageAvailable() || isUniverWorkbookCacheDisabledByFlag()) return null
   const nowMs = Date.now()
-  const index = loadSheetIndex(appId, sheetId)
+  const index = loadAppIndex(appId)
   const candidate = index.entries.find(entry => entry.expiresAt > nowMs && entry.version >= minVersion)
   if (!candidate) return null
   const parsed = parseJsonObject<Record<string, unknown>>(window.localStorage.getItem(candidate.key))
@@ -157,19 +229,15 @@ function readSnapshotEntry(
 }
 
 /**
- * Picks a cached Univer workbook for bootstrap when the server sheet version moved ahead of the last
- * successful snapshot HTTP save. A newer localStorage write at version &lt;= minVersion (e.g. emergency
- * cache written before `sheetVersionRef` caught up) can carry formatting that a stale v=minVersion entry
- * from the last remote fetch does not.
+ * Picks a cached Univer workbook for bootstrap.
+ * Prefer entries with snapshot version &gt;= canonical sheet `minVersion`.
+ * When none qualify, fall back to the newest lagging entry (formatting / emergency overlay only).
+ * Never replaces a qualifying primary entry with an older-version lag entry based on `savedAt` alone.
  */
-export function readUniverSnapshotCacheForBootstrap(
-  appId: string,
-  sheetId: string,
-  minVersion: number
-): SnapshotCacheReadResult | null {
-  if (!isStorageAvailable()) return null
+export function readUniverSnapshotCacheForBootstrap(appId: string, minVersion: number): SnapshotCacheReadResult | null {
+  if (!isStorageAvailable() || isUniverWorkbookCacheDisabledByFlag()) return null
   const nowMs = Date.now()
-  const index = loadSheetIndex(appId, sheetId)
+  const index = loadAppIndex(appId)
   const valid = index.entries.filter(e => e.expiresAt > nowMs)
   if (valid.length === 0) return null
 
@@ -183,23 +251,22 @@ export function readUniverSnapshotCacheForBootstrap(
   const primary = primaryEntry ? readSnapshotEntry(primaryEntry) : null
   const lag = lagEntry ? readSnapshotEntry(lagEntry) : null
 
-  if (lag && (!primary || lag.savedAt > primary.savedAt)) {
-    return { ...lag, source: 'localStorage' }
-  }
   if (primary) {
     return { ...primary, source: 'localStorage' }
+  }
+  if (lag) {
+    return { ...lag, source: 'localStorage' }
   }
   return null
 }
 
-/** All non-expired cached workbooks for a sheet (newest `savedAt` first), for formatting fallback on bootstrap. */
+/** All non-expired cached workbooks for an app (newest `savedAt` first), for formatting fallback on bootstrap. */
 export function listValidUniverSnapshotCacheEntries(
-  appId: string,
-  sheetId: string
+  appId: string
 ): Array<{ version: number; savedAt: number; snapshot: Record<string, unknown> }> {
-  if (!isStorageAvailable()) return []
+  if (!isStorageAvailable() || isUniverWorkbookCacheDisabledByFlag()) return []
   const nowMs = Date.now()
-  const index = loadSheetIndex(appId, sheetId)
+  const index = loadAppIndex(appId)
   return index.entries
     .filter(e => e.expiresAt > nowMs)
     .sort((a, b) => b.savedAt - a.savedAt || b.version - a.version)
@@ -213,17 +280,19 @@ export function listValidUniverSnapshotCacheEntries(
 
 export function writeUniverSnapshotCache(
   appId: string,
-  sheetId: string,
   version: number,
   snapshot: Record<string, unknown>,
   options?: {
     ttlMs?: number
-    maxEntriesPerSheet?: number
+    maxEntriesPerApp?: number
     maxSnapshotBytes?: number
   }
 ): SnapshotCacheWriteResult {
   if (!isStorageAvailable()) {
     return { stored: false, reason: 'storage_unavailable', sizeBytes: 0, evictedKeys: 0 }
+  }
+  if (isUniverWorkbookCacheDisabledByFlag()) {
+    return { stored: false, reason: 'cache_disabled', sizeBytes: 0, evictedKeys: 0 }
   }
 
   let serialized = ''
@@ -240,14 +309,14 @@ export function writeUniverSnapshotCache(
   }
 
   const ttlMs = options?.ttlMs ?? DEFAULT_TTL_MS
-  const maxEntriesPerSheet = options?.maxEntriesPerSheet ?? DEFAULT_MAX_ENTRIES_PER_SHEET
+  const maxEntriesPerApp = options?.maxEntriesPerApp ?? DEFAULT_MAX_ENTRIES_PER_APP
   const nowMs = Date.now()
-  const snapshotKey = getSnapshotKey(appId, sheetId, version)
+  const snapshotKey = getSnapshotKey(appId, version)
   let evictedKeys = 0
 
   const persist = () => {
     window.localStorage.setItem(snapshotKey, serialized)
-    const index = loadSheetIndex(appId, sheetId)
+    const index = loadAppIndex(appId)
     const nextEntries = [
       {
         version,
@@ -259,34 +328,55 @@ export function writeUniverSnapshotCache(
       ...index.entries.filter(entry => entry.version !== version && entry.expiresAt > nowMs)
     ]
       .sort((a, b) => b.version - a.version)
-      .slice(0, Math.max(1, maxEntriesPerSheet))
+      .slice(0, Math.max(1, maxEntriesPerApp))
     const removed = index.entries.filter(entry => !nextEntries.some(next => next.key === entry.key))
     for (const entry of removed) {
       window.localStorage.removeItem(entry.key)
       evictedKeys += 1
     }
-    saveSheetIndex(appId, sheetId, {
+    saveAppIndex(appId, {
       latestVersion: nextEntries[0]?.version ?? version,
       entries: nextEntries
     })
   }
 
-  try {
-    persist()
-    return { stored: true, sizeBytes, evictedKeys }
-  } catch (error) {
-    if (isQuotaExceeded(error)) {
-      evictedKeys += cleanupExpiredEntries(nowMs)
-      try {
-        persist()
-        return { stored: true, sizeBytes, evictedKeys }
-      } catch (retryError) {
-        if (isQuotaExceeded(retryError)) {
-          return { stored: false, reason: 'quota_exceeded', sizeBytes, evictedKeys }
-        }
+  const tryPersistOnce = (): SnapshotCacheWriteResult | null => {
+    try {
+      persist()
+      return { stored: true, sizeBytes, evictedKeys }
+    } catch (error) {
+      if (isQuotaExceeded(error)) return null
+      return { stored: false, reason: 'unknown_error', sizeBytes, evictedKeys }
+    }
+  }
+
+  const firstAttempt = tryPersistOnce()
+  if (firstAttempt) return firstAttempt
+
+  evictedKeys += cleanupExpiredEntries(nowMs)
+  const secondAttempt = tryPersistOnce()
+  if (secondAttempt) return secondAttempt
+
+  // Quota still exhausted: shed oldest entries across all apps until the
+  // current snapshot can be persisted. Without this, repeated save attempts
+  // would all log `quota_exceeded` and leave the cache permanently unusable.
+  let lastErrorIsQuota = true
+  let attempts = 0
+  while (lastErrorIsQuota && attempts < 8) {
+    const evicted = evictOldestEntriesUntil(() => false)
+    evictedKeys += evicted
+    if (evicted === 0) break
+    try {
+      persist()
+      return { stored: true, sizeBytes, evictedKeys }
+    } catch (retryError) {
+      lastErrorIsQuota = isQuotaExceeded(retryError)
+      attempts += 1
+      if (!lastErrorIsQuota) {
         return { stored: false, reason: 'unknown_error', sizeBytes, evictedKeys }
       }
     }
-    return { stored: false, reason: 'unknown_error', sizeBytes, evictedKeys }
   }
+
+  return { stored: false, reason: 'quota_exceeded', sizeBytes, evictedKeys }
 }

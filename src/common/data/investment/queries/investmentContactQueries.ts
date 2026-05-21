@@ -71,6 +71,12 @@ export interface InvestmentContactQueryVariables extends CommonContactQueryVaria
   missingEmail?: boolean
   hasPhone?: boolean
   missingPhone?: boolean
+  hasFirstName?: boolean
+  missingFirstName?: boolean
+  hasLastName?: boolean
+  missingLastName?: boolean
+  hasAccountLink?: boolean
+  missingAccountLink?: boolean
   birthDateFrom?: string
   birthDateTo?: string
   userIds?: string[] // Filter by Keycloak user IDs

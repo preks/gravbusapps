@@ -28,6 +28,9 @@ export const getExpenseRequestRecordQuery = `
         lastName
         picture
         employeePosition {
+          costCenter {
+            name
+          }
           supervisor {
             fullName
             firstName

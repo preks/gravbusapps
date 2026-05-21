@@ -34,6 +34,44 @@ export interface UpdateEmployeeEntitlementsContextState {
 
 const UpdateEmployeeEntitlementsContext = createContext<UpdateEmployeeEntitlementsContextState | undefined>(undefined)
 
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function dateKeyFromGraphQLValue(value: string): string {
+  return value.slice(0, 10)
+}
+
+function getActiveWorkingCondition<T extends { activeFrom?: string | null; activeTo?: string | null }>(
+  workingConditions: T[] | undefined,
+  targetDate = new Date()
+): T | undefined {
+  if (!workingConditions?.length) {
+    return undefined
+  }
+
+  if (workingConditions.length === 1) {
+    return workingConditions[0]
+  }
+
+  const targetDateKey = formatLocalDate(targetDate)
+
+  return workingConditions.find(condition => {
+    const activeFromKey = condition.activeFrom ? dateKeyFromGraphQLValue(condition.activeFrom) : ''
+    const activeToKey = condition.activeTo ? dateKeyFromGraphQLValue(condition.activeTo) : ''
+
+    if (!activeFromKey) {
+      return false
+    }
+
+    return activeFromKey <= targetDateKey && (!activeToKey || activeToKey >= targetDateKey)
+  })
+}
+
 export const useUpdateEmployeeEntitlementsContext = () => {
   const ctx = useContext(UpdateEmployeeEntitlementsContext)
   if (!ctx)
@@ -118,7 +156,9 @@ export function UpdateEmployeeEntitlementsProvider({
         setFixedEmployeeName(fullName)
         // employeePosition is an array, get the first one
         const position = Array.isArray(emp.employeePosition) ? emp.employeePosition[0] : emp.employeePosition
-        const workingCondition = Array.isArray(emp.workingCondition) ? emp.workingCondition[0] : emp.workingCondition
+        const workingCondition = Array.isArray(emp.workingCondition)
+          ? getActiveWorkingCondition(emp.workingCondition)
+          : emp.workingCondition
         setEmployeeHeaderInfo({
           firstName: emp.firstName,
           lastName: emp.lastName,

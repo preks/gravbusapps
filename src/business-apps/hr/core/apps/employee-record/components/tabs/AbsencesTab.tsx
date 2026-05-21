@@ -31,7 +31,7 @@ import AbsenceCalendar from './components/AbsenceCalendar'
 import AbsenceList from './components/AbsenceList'
 import Entitlements from './components/Entitlements'
 import AbsenceCharts from './components/AbsenceCharts'
-import { PiPlus } from 'react-icons/pi'
+import { PlusIcon } from '@phosphor-icons/react'
 import UpdateEmployeeEntitlements from '../../../../forms/update-employee-entitlements'
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
@@ -44,6 +44,18 @@ import { useEmployeeWeeklySchedule } from '../../hooks/useEmployeeWeeklySchedule
 import { useAbsencePrevalidate } from '../../hooks/useAbsencePrevalidate'
 import translations from './_i18n'
 import { AbsenceRequestMenuButton } from './components/AbsenceRequestMenuButton'
+import { cancelEmployeeAbsence } from '@/business-apps/hr/absences/utils/cancelEmployeeAbsence'
+import {
+  hasApprovedAbsenceCancellationExpired,
+  isApprovedAbsenceStatus,
+  getAbsenceStatusConfig,
+  getAbsenceStatusLabel
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import type { AbsenceListCardAbsence } from '../../queries/types'
+import { toast } from 'sonner'
+
+const IN_CANCELLATION_STORAGE_PREFIX = 'employee-record.absences.in-cancellation'
+const IN_CANCELLATION_STORAGE_TTL_MS = 12 * 60 * 60 * 1000
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -67,6 +79,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [hasHrBackoffice, setHasHrBackoffice] = useState<boolean>(false)
   const [isFetchingGroups, setIsFetchingGroups] = useState<boolean>(true)
   const [holidayDates, setHolidayDates] = useState<string[]>([])
+  const [cancellingAbsenceId, setCancellingAbsenceId] = useState<string | null>(null)
+  const [locallyInCancellationAbsenceIds, setLocallyInCancellationAbsenceIds] = useState<Set<string>>(new Set())
   const graphqlClient = useGraphQLClient(accessToken)
   const A001_TYPE_REF = 'AbsenceType:v1:A001'
   const [annualLeaveOverride, setAnnualLeaveOverride] = useState<{
@@ -79,6 +93,58 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }>
   >({})
   const [refreshTick, setRefreshTick] = useState(0)
+  const inCancellationStorageKey = employee?.id
+    ? `${IN_CANCELLATION_STORAGE_PREFIX}:${employee.id}`
+    : `${IN_CANCELLATION_STORAGE_PREFIX}:unknown`
+
+  const persistLocallyInCancellationAbsenceIds = React.useCallback(
+    (absenceIds: Set<string>) => {
+      if (typeof window === 'undefined') {
+        return
+      }
+
+      try {
+        const now = Date.now()
+        const payload: Record<string, number> = {}
+        absenceIds.forEach(absenceId => {
+          payload[absenceId] = now
+        })
+        window.sessionStorage.setItem(inCancellationStorageKey, JSON.stringify(payload))
+      } catch {
+        // Ignore storage failures and keep in-memory state.
+      }
+    },
+    [inCancellationStorageKey]
+  )
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setLocallyInCancellationAbsenceIds(new Set())
+      return
+    }
+
+    try {
+      const rawValue = window.sessionStorage.getItem(inCancellationStorageKey)
+      if (!rawValue) {
+        setLocallyInCancellationAbsenceIds(new Set())
+        return
+      }
+
+      const parsed = JSON.parse(rawValue) as Record<string, number>
+      const now = Date.now()
+      const validEntries = Object.entries(parsed).filter(([, timestamp]) => {
+        return Number.isFinite(timestamp) && now - Number(timestamp) < IN_CANCELLATION_STORAGE_TTL_MS
+      })
+
+      if (validEntries.length !== Object.keys(parsed).length) {
+        window.sessionStorage.setItem(inCancellationStorageKey, JSON.stringify(Object.fromEntries(validEntries)))
+      }
+
+      setLocallyInCancellationAbsenceIds(new Set(validEntries.map(([absenceId]) => absenceId)))
+    } catch {
+      setLocallyInCancellationAbsenceIds(new Set())
+    }
+  }, [inCancellationStorageKey])
 
   const startDateFormatted = selectedStartDate?.format('YYYY-MM-DD') ?? ''
   const endDateFormatted = selectedEndDate?.format('YYYY-MM-DD') ?? ''
@@ -94,6 +160,60 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     accessToken,
     employeeAbsenceEntitlement
   )
+
+  useEffect(() => {
+    if (absenceList.length === 0) {
+      return
+    }
+
+    setLocallyInCancellationAbsenceIds(previous => {
+      let changed = false
+      const next = new Set(previous)
+
+      absenceList.forEach(absence => {
+        if (!next.has(absence.id)) {
+          return
+        }
+
+        const normalizedStatus = (absence.originalStatus || '').toUpperCase()
+        if (
+          normalizedStatus === 'IN_CANCELLATION' ||
+          normalizedStatus === 'CANCELLED' ||
+          normalizedStatus === 'REJECTED'
+        ) {
+          next.delete(absence.id)
+          changed = true
+        }
+      })
+
+      if (changed) {
+        persistLocallyInCancellationAbsenceIds(next)
+      }
+
+      return changed ? next : previous
+    })
+  }, [absenceList, persistLocallyInCancellationAbsenceIds])
+
+  const displayedAbsenceList = React.useMemo(() => {
+    return absenceList.map(absence => {
+      const normalizedStatus = (absence.originalStatus || '').toUpperCase()
+      if (!locallyInCancellationAbsenceIds.has(absence.id) || normalizedStatus !== 'APPROVED') {
+        return absence
+      }
+
+      const inCancellationStatusConfig = getAbsenceStatusConfig('IN_CANCELLATION')
+      return {
+        ...absence,
+        originalStatus: 'IN_CANCELLATION',
+        status: getAbsenceStatusLabel('IN_CANCELLATION'),
+        statusColor: inCancellationStatusConfig.color,
+        employeeAbsence: {
+          ...absence.employeeAbsence,
+          status: 'IN_CANCELLATION'
+        }
+      }
+    })
+  }, [absenceList, locallyInCancellationAbsenceIds])
 
   // Refresh tab data and snapshot when a related process completes successfully
   useProcessCompletion({
@@ -346,6 +466,77 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     selectedEndDate?.format('YYYY-MM-DD') ?? null
   )
 
+  const handleRequestCancellation = async (absence: AbsenceListCardAbsence): Promise<boolean> => {
+    const requiresManagerApproval = isApprovedAbsenceStatus(absence.originalStatus)
+
+    if (requiresManagerApproval && hasApprovedAbsenceCancellationExpired(absence.endDate)) {
+      toast.error(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_absences.request_cancellation_ended_error',
+          'Approved absences that have already ended can no longer be cancelled.'
+        )
+      )
+      return false
+    }
+
+    setCancellingAbsenceId(absence.id)
+    const managerId =
+      employee?.employeePosition?.supervisor?.id || employee?.employeePosition?.supervisorEmployeeId || null
+    const payload = {
+      ...absence.employeeAbsence,
+      employeeId: absence.employeeAbsence.employeeId || employee?.id || '',
+      approverId: absence.employeeAbsence.approverId || managerId
+    }
+
+    try {
+      if (requiresManagerApproval && !payload.approverId) {
+        toast.error(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:personal_absences.request_cancellation_no_manager',
+            'No manager is assigned to this employee. Cancellation request cannot be sent.'
+          )
+        )
+        return false
+      }
+
+      await cancelEmployeeAbsence(accessToken, payload)
+      if (requiresManagerApproval) {
+        setLocallyInCancellationAbsenceIds(previous => {
+          const next = new Set(previous).add(absence.id)
+          persistLocallyInCancellationAbsenceIds(next)
+          return next
+        })
+        toast.success(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:personal_absences.request_cancellation_success',
+            'Cancellation request sent to manager for approval'
+          )
+        )
+      } else {
+        toast.success(
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_absences.cancel_request_success', 'Absence cancelled')
+        )
+      }
+      refetch?.()
+      globalThis.setTimeout(() => {
+        void refetch?.()
+      }, 3000)
+      return true
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : getTranslationFromI18nKeyAndLabel(
+              'lowcoder:personal_absences.cancel_request_error',
+              'Failed to request cancellation'
+            )
+      toast.error(message)
+      return false
+    } finally {
+      setCancellingAbsenceId(null)
+    }
+  }
+
   const tabsItems = [
     {
       key: 'calendar',
@@ -354,7 +545,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       children: (
         <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">
           <AbsenceCalendar
-            absenceList={absenceList}
+            absenceList={displayedAbsenceList}
             loading={loading}
             error={error}
             currentDate={currentDate}
@@ -382,13 +573,16 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       children: (
         <div className="gba:absenceList" data-testid="absencehub-absence-list">
           <AbsenceList
-            absenceList={absenceList}
+            absenceList={displayedAbsenceList}
             loading={loading}
             error={error}
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             pageSize={pageSize}
             setPageSize={setPageSize}
+            onRequestCancellation={handleRequestCancellation}
+            cancellingAbsenceId={cancellingAbsenceId}
+            accessToken={accessToken}
           />
         </div>
       )
@@ -458,7 +652,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   }
                 }}
               >
-                <PiPlus className="gba:h-5 gba:w-5" />
+                <PlusIcon className="gba:h-5 gba:w-5" />
                 {t('change-entitlement')}
               </div>
             )}
@@ -469,7 +663,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       <AbsenceCharts
         key={`absence-charts-${currentLocale}`}
         entitlements={mergedEntitlements}
-        absenceList={absenceList}
+        absenceList={displayedAbsenceList}
         loading={loading}
         error={error}
       />
@@ -499,7 +693,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   }
                 }}
               >
-                <PiPlus className="gba:h-5 gba:w-5" />
+                <PlusIcon className="gba:h-5 gba:w-5" />
                 {t('change-entitlement')}
               </div>
             )}

@@ -12,7 +12,7 @@ const TABLE_HEADER_RIGHT = `${TABLE_HEADER_CLASS} gba:block gba:w-full gba:text-
 const TABLE_BODY = 'gba:text-sm gba:font-normal gba:text-foreground gba:leading-normal'
 const TABLE_BODY_NUM = `${TABLE_BODY} gba:tabular-nums`
 const TABLE_BODY_NUM_RIGHT = `${TABLE_BODY_NUM} gba:block gba:w-full gba:text-right`
-const SUBMITTED_STATUS = 'BUDGET_PLAN_SUBMITTED'
+const APPROVED_STATUS = 'BUDGET_PLAN_APPROVED'
 
 function submissionsColumnHeader(t: TranslateFn, messageKey: string, align: 'left' | 'right' = 'left') {
   return function SubmissionsColumnHeaderLabel() {
@@ -62,7 +62,7 @@ function buildSelectionColumn(selection: SubmissionsOrgUnitSelectionParams): Col
     header: () => <span className="gba:sr-only">{translate('submissions-select-row-header')}</span>,
     cell: ({ row }) => {
       const r = row.original
-      const canSelect = selectableRowIds.has(r.id) && r.budgetPlanStatus === SUBMITTED_STATUS
+      const canSelect = selectableRowIds.has(r.id) && r.budgetPlanStatus === APPROVED_STATUS
       if (!canSelect) {
         return null
       }

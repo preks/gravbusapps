@@ -2,12 +2,15 @@
 
 # Settings hub card
 icp-settings-card-title = Profiluri clienți ideali
-icp-settings-card-description = Configurați criteriile ICP și ponderile pentru scorizarea leadurilor cu AI
+icp-settings-card-description = Configurați criteriile ICP și ponderile pentru scorizarea ICP cu AI
 icp-settings-card-entry = Gestionați profilurile
+lead-scoring-settings-card-title = Scorizare leaduri
+lead-scoring-settings-card-description = Scorizați leaduri individuale sau liste de leaduri folosind profilurile ICP
+lead-scoring-settings-card-entry = Deschideți Scorizarea leadurilor
 
 # Page
 icp-page-title = Profiluri clienți ideali
-icp-page-description = Definiți criteriile ICP și ponderile pentru scorizarea leadurilor cu AI.
+icp-page-description = Definiți criteriile ICP și ponderile pentru scorizarea ICP cu AI.
 
 # Sidebar
 icp-profiles-heading = Profiluri
@@ -27,7 +30,7 @@ icp-save-profile = Salvează profilul
 
 # Dialogs
 icp-dialog-new-profile-title = Profil nou
-icp-dialog-new-profile-description = Creează un nou profil pentru criterii ICP și scorizarea leadurilor.
+icp-dialog-new-profile-description = Creează un nou profil pentru criterii ICP și scorizare.
 icp-cancel = Anulare
 icp-create-profile = Creează
 icp-delete-confirm-message = „{ $name }” va fi eliminat definitiv.

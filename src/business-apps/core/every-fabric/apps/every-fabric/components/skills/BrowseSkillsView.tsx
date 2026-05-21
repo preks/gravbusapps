@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Archive,
+  ArrowCounterClockwise,
+  CaretDown,
+  CaretRight,
   CheckCircle,
   File as FileIcon,
   Folder,
@@ -79,9 +82,10 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
   const [manifest, setManifest] = useState<BrowseSkillManifestEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [transitioningId, setTransitioningId] = useState<string | null>(null)
+  const [archivedExpanded, setArchivedExpanded] = useState(false)
+  const [archivedSkills, setArchivedSkills] = useState<BrowseSkillManifestEntry[]>([])
+  const [archivedLoading, setArchivedLoading] = useState(false)
   const [expandedSkillId, setExpandedSkillId] = useState<string | null>(null)
   const [skillFiles, setSkillFiles] = useState<{ path: string; mime_type: string; size: number }[]>([])
   const [skillFilesLoading, setSkillFilesLoading] = useState(false)
@@ -119,7 +123,6 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
 
   useEffect(() => {
     setSearchQuery('')
-    setConfirmDeleteId(null)
     void loadManifest(hasFetchedManifestRef.current ? { background: true } : undefined)
   }, [loadManifest])
 
@@ -144,22 +147,55 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
     )
   }, [manifest, searchQuery])
 
-  const handleDeleteSkill = useCallback(
+  const handleArchiveSkill = useCallback(
     async (skillId: string) => {
-      setDeletingId(skillId)
-      setConfirmDeleteId(null)
+      const confirmed = window.confirm(
+        `Archive "${skillId}"? It will be hidden from agent selection and orchestration, but history is preserved.`
+      )
+      if (!confirmed) return
+      setTransitioningId(skillId)
       try {
-        await client.deleteSkill(skillId)
+        await client.archiveSkill(skillId)
         setManifest(prev => prev.filter(s => s.skill_id !== skillId))
-        showToast?.(`Skill "${skillId}" deleted`, 'success')
+        showToast?.(`Skill "${skillId}" archived`, 'success')
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
-        showToast?.(`Failed to delete skill: ${msg}`, 'error')
+        showToast?.(`Failed to archive skill: ${msg}`, 'error')
       } finally {
-        setDeletingId(null)
+        setTransitioningId(null)
       }
     },
     [client, showToast]
+  )
+
+  const loadArchivedSkills = useCallback(async () => {
+    setArchivedLoading(true)
+    try {
+      const skills = await client.listArchivedSkills()
+      setArchivedSkills(skills as BrowseSkillManifestEntry[])
+    } catch {
+      setArchivedSkills([])
+    } finally {
+      setArchivedLoading(false)
+    }
+  }, [client])
+
+  const handleRestoreSkill = useCallback(
+    async (skillId: string) => {
+      setTransitioningId(skillId)
+      try {
+        await client.enableSkill(skillId)
+        setArchivedSkills(prev => prev.filter(s => s.skill_id !== skillId))
+        showToast?.(`Skill "${skillId}" restored`, 'success')
+        void loadManifest({ background: true })
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        showToast?.(`Failed to restore skill: ${msg}`, 'error')
+      } finally {
+        setTransitioningId(null)
+      }
+    },
+    [client, showToast, loadManifest]
   )
 
   const handleToggleFiles = useCallback(
@@ -281,14 +317,13 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
   )
 
   const handleTransition = useCallback(
-    async (skillId: string, action: 'enable' | 'disable' | 'archive') => {
+    async (skillId: string, action: 'enable' | 'disable') => {
       setTransitioningId(skillId)
       try {
-        const labels = { enable: 'Enabled', disable: 'Disabled', archive: 'Archived' }
+        const labels = { enable: 'Enabled', disable: 'Disabled' }
         const fns = {
           enable: () => client.enableSkill(skillId),
-          disable: () => client.disableSkill(skillId),
-          archive: () => client.archiveSkill(skillId)
+          disable: () => client.disableSkill(skillId)
         }
         await fns[action]()
         showToast?.(`${labels[action]}: "${skillId}"`, 'success')
@@ -484,44 +519,6 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                     {isRuntimeOnly && (
                       <span className="gba:px-2 gba:py-1 gba:text-[11px] gba:text-muted-foreground">Runtime skill</span>
                     )}
-                    {s.skill_id !== 'skill-creator' && !isRuntimeOnly && (
-                      <>
-                        {confirmDeleteId === s.skill_id ? (
-                          <div className="gba:flex gba:items-center gba:gap-1">
-                            <button
-                              type="button"
-                              className="gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-destructive gba:bg-destructive/10 gba:hover:bg-destructive/20 gba:transition-colors"
-                              onClick={() => void handleDeleteSkill(s.skill_id)}
-                              data-testid={`browse-skills-confirm-delete-${s.skill_id}`}
-                            >
-                              Delete
-                            </button>
-                            <button
-                              type="button"
-                              className="gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:bg-muted gba:transition-colors"
-                              onClick={() => setConfirmDeleteId(null)}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10 gba:transition-colors"
-                            title={`Delete ${s.skill_id}`}
-                            disabled={deletingId === s.skill_id}
-                            data-testid={`browse-skills-delete-${s.skill_id}`}
-                            onClick={() => setConfirmDeleteId(s.skill_id)}
-                          >
-                            {deletingId === s.skill_id ? (
-                              <span className="gba:block gba:h-3 gba:w-3 gba:animate-spin gba:rounded-full gba:border gba:border-current gba:border-t-transparent" />
-                            ) : (
-                              <Trash className="gba:h-3 gba:w-3" />
-                            )}
-                          </button>
-                        )}
-                      </>
-                    )}
                   </div>
 
                   {s.skill_id !== 'skill-creator' && !isRuntimeOnly && s.status !== 'archived' && (
@@ -548,9 +545,10 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                       )}
                       <button
                         type="button"
-                        className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted gba:transition-colors"
+                        className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[11px] gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10 gba:transition-colors"
                         disabled={transitioningId === s.skill_id}
-                        onClick={() => void handleTransition(s.skill_id, 'archive')}
+                        onClick={() => void handleArchiveSkill(s.skill_id)}
+                        data-testid={`browse-skills-archive-${s.skill_id}`}
                       >
                         <Archive className="gba:h-3 gba:w-3" />
                         Archive
@@ -611,6 +609,66 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
           })}
         </div>
       )}
+
+      <div className="gba:mt-6" data-testid="archived-skills-section">
+        <button
+          type="button"
+          onClick={() => {
+            const next = !archivedExpanded
+            setArchivedExpanded(next)
+            if (next && archivedSkills.length === 0) void loadArchivedSkills()
+          }}
+          className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:font-semibold gba:text-foreground gba:hover:text-foreground/80 gba:transition-colors"
+          data-testid="archived-skills-toggle"
+        >
+          {archivedExpanded ? <CaretDown className="gba:h-4 gba:w-4" /> : <CaretRight className="gba:h-4 gba:w-4" />}
+          Archived Skills
+          {archivedSkills.length > 0 && (
+            <span className="gba:text-xs gba:font-normal gba:text-muted-foreground">({archivedSkills.length})</span>
+          )}
+        </button>
+        {archivedExpanded && (
+          <div className="gba:mt-3 gba:flex gba:flex-col gba:gap-2">
+            {archivedLoading ? (
+              <p className="gba:text-sm gba:text-muted-foreground gba:py-4 gba:text-center">Loading archived skills…</p>
+            ) : archivedSkills.length === 0 ? (
+              <p className="gba:text-sm gba:text-muted-foreground gba:py-4 gba:text-center">No archived skills.</p>
+            ) : (
+              archivedSkills.map(s => (
+                <div
+                  key={s.skill_id}
+                  className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:rounded-xl gba:border gba:border-border/60 gba:bg-muted/20 gba:p-3"
+                  data-testid={`archived-skill-${s.skill_id}`}
+                >
+                  <div className="gba:flex-1 gba:min-w-0">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <p className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:truncate">
+                        {s.name || s.skill_id}
+                      </p>
+                      <span className="gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-gray-100 gba:text-gray-600">
+                        Archived
+                      </span>
+                    </div>
+                    <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-0.5 gba:line-clamp-2">
+                      {s.description}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-[11px] gba:font-medium gba:text-green-700 gba:bg-green-50 gba:hover:bg-green-100 gba:transition-colors gba:shrink-0"
+                    disabled={transitioningId === s.skill_id}
+                    onClick={() => void handleRestoreSkill(s.skill_id)}
+                    data-testid={`restore-skill-${s.skill_id}`}
+                  >
+                    <ArrowCounterClockwise className="gba:h-3 gba:w-3" />
+                    Restore
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,4 +1,3 @@
-import React from 'react'
 import type { Dayjs } from 'dayjs'
 import type { CalendarExpenseItem } from '../types'
 import StatusWithDate from './StatusWithDate'
@@ -13,7 +12,17 @@ export interface DayCellEventsProps {
   onClick: (item: CalendarExpenseItem) => void
 }
 
-const DayCellEvents: React.FC<DayCellEventsProps> = ({ value, planItems, requestItems, active, onClick }) => {
+function getEventItemBackgroundClass(type: CalendarExpenseItem['type']): string {
+  if (type === 'plan') {
+    return 'gba:bg-info-secondary'
+  }
+  if (type === 'request') {
+    return 'gba:bg-success-secondary'
+  }
+  return 'gba:bg-muted'
+}
+
+function DayCellEvents({ value, planItems, requestItems, active, onClick }: DayCellEventsProps) {
   // Items removed - only show plans and requests
   const allAvailable = [...(active.plan ? planItems : []), ...(active.request ? requestItems : [])]
 
@@ -32,45 +41,32 @@ const DayCellEvents: React.FC<DayCellEventsProps> = ({ value, planItems, request
   }
 
   return (
-    <ul className="gba-events-list" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+    <ul className="gba-events-list gba:m-0 gba:list-none gba:min-w-0 gba:p-0">
       {itemsForDate.map(item => (
-        <li
-          key={item.id}
-          className="gba-event-item-card"
-          style={{
-            marginBottom: '4px',
-            padding: '4px',
-            border: '1px solid #f0f0f0',
-            borderRadius: '4px',
-            backgroundColor: item.type === 'plan' ? '#e6f7ff' : item.type === 'request' ? '#e6fffb' : '#fafafa',
-            cursor: 'pointer'
-          }}
-          onMouseDown={e => {
-            e.preventDefault()
-          }}
-          onClick={e => {
-            e.stopPropagation()
-            e.preventDefault()
-            onClick(item)
-          }}
-        >
-          <div
-            style={{
-              fontSize: '0.8em',
-              fontWeight: 'bold',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
+        <li key={item.id} className="gba:mb-1 gba:min-w-0">
+          <button
+            type="button"
+            className={`gba:event-item-card gba:w-full gba:min-w-0 gba:cursor-pointer gba:rounded gba:border gba:border-border gba:p-1 gba:text-left gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring ${getEventItemBackgroundClass(item.type)}`}
+            data-testid={`day-cell-event-${item.id}`}
+            onMouseDown={e => {
+              e.preventDefault()
+            }}
+            onClick={e => {
+              e.stopPropagation()
+              e.preventDefault()
+              onClick(item)
             }}
           >
-            {item.title}
-          </div>
-          {(!item.endDate || value.isSame(item.expenseDate, 'day') || item.type === 'expense') && (
-            <div style={{ fontSize: '0.75em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>{formatCurrencyDisplay(item.totalAmount, item.currencyCode)}</span>
-              <StatusWithDate type={item.type} status={item.status} value={value} />
-            </div>
-          )}
+            <div className="gba:truncate gba:text-xs gba:font-bold">{item.title}</div>
+            {(!item.endDate || value.isSame(item.expenseDate, 'day') || item.type === 'expense') && (
+              <div className="gba:flex gba:min-w-0 gba:flex-col gba:gap-1 gba:text-xs">
+                <span className="gba:truncate">{formatCurrencyDisplay(item.totalAmount, item.currencyCode)}</span>
+                <div className="gba:flex gba:w-full gba:min-w-0 gba:justify-end">
+                  <StatusWithDate type={item.type} status={item.status} value={value} />
+                </div>
+              </div>
+            )}
+          </button>
         </li>
       ))}
     </ul>

@@ -51,6 +51,15 @@ function resolveSocketTransports(enablePollingFallback: boolean) {
   return enablePollingFallback ? ['websocket', 'polling'] : ['websocket']
 }
 
+function isCollaborationDebugEnabled(explicitDebug?: boolean): boolean {
+  if (explicitDebug === true) return true
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem('nw-collab-debug') === 'true'
+  } catch {
+    return false
+  }
+}
+
 export class CollaborationClient {
   private socket: Socket | null = null
   private accessToken = ''
@@ -667,8 +676,7 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
   // Socket.io path: for localhost use default, for production include service path
   const socketPath = isLocalhost ? '/socket.io' : `${servicePath}/socket.io`
 
-  const debugEnabled =
-    isLocalhost || (typeof localStorage !== 'undefined' && localStorage.getItem('nw-collab-debug') === 'true')
+  const debugEnabled = isCollaborationDebugEnabled(options?.debug)
 
   if (debugEnabled) {
     console.log('[CollaborationClient] Creating client:')

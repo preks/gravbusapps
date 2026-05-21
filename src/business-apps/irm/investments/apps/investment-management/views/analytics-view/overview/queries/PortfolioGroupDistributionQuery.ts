@@ -1,6 +1,7 @@
 import { useCallback, useRef, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { isAllCurrencySelection } from '@/common/data/investment/utils/investmentCurrencySelection'
 
 export interface GroupDistributionData {
   group: string
@@ -107,7 +108,7 @@ const BUILD_GROUP_COUNT_DISTRIBUTION_QUERY = (groups: string[], currency: string
   const groupAliases = groups
     .map(group => {
       const alias = group.replaceAll(/[^a-zA-Z0-9]/g, '_')
-      const currencyCondition = currency === 'All' ? '' : `{ currency: { code: { _eq: "${currency}" } } }`
+      const currencyCondition = isAllCurrencySelection(currency) ? '' : `{ currency: { code: { _eq: "${currency}" } } }`
 
       return `
       ${alias}: InvestmentAggregate(
@@ -147,7 +148,7 @@ const BUILD_GROUP_AMOUNT_DISTRIBUTION_QUERY = (groups: string[], currency: strin
           _and: [
             { isDeleted: { _eq: false } }
             { investmentGroup: { value: { _eq: "${group}" } } }
-            { currency: { code: { _eq: "${currency}" } } }
+            ${isAllCurrencySelection(currency) ? '' : `{ currency: { code: { _eq: "${currency}" } } }`}
           ]
         }
       ) {

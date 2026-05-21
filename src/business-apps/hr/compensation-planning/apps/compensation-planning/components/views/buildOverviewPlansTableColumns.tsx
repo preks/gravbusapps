@@ -1,4 +1,3 @@
-import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import {
   Button,
@@ -68,7 +67,10 @@ export function buildOverviewPlansTableColumns(
       },
       cell: ({ row }) => (
         <div className="gba:flex gba:min-w-0 gba:w-full gba:justify-start gba:text-left gba:pl-2">
-          <BudgetPlanStatusBadge status={row.original.budgetPlanStatus as BudgetPlanStatusApi} />
+          <BudgetPlanStatusBadge
+            status={row.original.budgetPlanStatus as BudgetPlanStatusApi}
+            label={formatBudgetPlanStatusLabelForDisplay(row.original.budgetPlanStatus, t)}
+          />
         </div>
       )
     },
@@ -88,7 +90,7 @@ export function buildOverviewPlansTableColumns(
     },
     {
       id: 'effectiveDate',
-      accessorFn: row => sortTimestamp(row.original.effectiveDate),
+      accessorFn: row => sortTimestamp(row.effectiveDate),
       header: columnHeader(t, 'overview-plans-col-effective'),
       meta: LEFT_TEXT_COLUMN_META,
       cell: ({ row }) => <span className={TABLE_BODY_NUM_CELL}>{formatPlanDate(row.original.effectiveDate)}</span>

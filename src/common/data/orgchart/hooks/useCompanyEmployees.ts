@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
+import { COMMUNICATION_CHANNEL_EMAIL_REF } from '@/common/data/employee/constants/employeeConstants'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 
 export interface CompanyEmployee {
@@ -80,7 +81,15 @@ export function useCompanyEmployees(
               { employee: { firstName: searchPattern } },
               { employee: { lastName: searchPattern } },
               { employee: { displayName: searchPattern } },
-              { employee: { email: searchPattern } }
+              {
+                employee: {
+                  communication: {
+                    value: searchPattern,
+                    channelRef: { _eq: COMMUNICATION_CHANNEL_EMAIL_REF },
+                    isDeleted: { _eq: false }
+                  }
+                }
+              }
             ]
           })
         }

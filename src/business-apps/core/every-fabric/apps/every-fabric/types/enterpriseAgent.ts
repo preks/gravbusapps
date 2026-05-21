@@ -1,12 +1,53 @@
+export type SessionAttachmentStatus = 'pending' | 'ready' | 'failed'
+export type EnterprisePresentationMode = 'default' | 'enterprise_agents'
+
+export interface SessionAttachment {
+  id: string
+  name: string
+  mime_type: string
+  size: number
+  content_type: 'drive_file'
+  content_id: string
+  indexing_status: SessionAttachmentStatus
+  origin?: string
+  created_at?: string | null
+  source_app?: string | null
+  source_session_id?: string | null
+  /** Client-only blob URL for image preview thumbnails. Not sent to or received from the server. */
+  preview_url?: string
+}
+
+/** Local-only state used by the composer while uploads are in flight. */
+export interface PendingComposerAttachment {
+  /** Stable client id for keying / removal before the server assigns one. */
+  client_id: string
+  name: string
+  mime_type: string
+  size: number
+  /** 'uploading' = bytes still in flight; once the server returns we promote
+   * to 'pending' (server indexing) or 'failed'. */
+  state: 'uploading' | 'pending' | 'ready' | 'failed'
+  error?: string
+  attachment?: SessionAttachment
+  /** Blob URL for image preview thumbnails, created via URL.createObjectURL(). */
+  preview_url?: string
+}
+
 // Session
 export interface DeepAgentSession {
   session_id: string
   input: string
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'waiting_for_human'
+  user_id?: string
+  user_name?: string
+  workspace_id?: string
+  presentation_mode?: EnterprisePresentationMode
   output?: string
   todos?: TodoItem[]
   trace?: AgentStreamEvent[]
   artifacts?: SessionArtifactMeta[]
+  /** Full rows from the API and/or client bootstrap refs (see `MessageAttachmentRef`). */
+  session_attachments?: Array<SessionAttachment | MessageAttachmentRef>
   workspace_documents?: WorkspaceDocument[]
   reflection?: ReflectionResult
   quality_score?: number
@@ -34,6 +75,7 @@ export interface StartSessionResponse {
   status?: DeepAgentSession['status']
   user_id?: string
   workspace_id?: string
+  presentation_mode?: EnterprisePresentationMode
   session: DeepAgentSession
 }
 
@@ -45,13 +87,32 @@ export interface TodoItem {
   duration_ms?: number
 }
 
-export type AgentStreamChunkKind = 'thinking' | 'final' | 'tool' | 'status' | 'response_stream' | 'agent_reasoning'
+export type AgentStreamChunkKind =
+  | 'thinking'
+  | 'final'
+  | 'tool'
+  | 'status'
+  | 'live_status'
+  | 'response_stream'
+  | 'agent_reasoning'
+  | 'ack'
+  | 'plan_reveal'
+  | 'plan_update'
+
+export type PlanItemStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'skipped'
+
+export interface PlanItem {
+  id: string
+  label: string
+  status: PlanItemStatus
+}
 
 export interface AgentChunkEvent {
   type: 'agent_chunk'
   seq: number
   event_id: string
   role: 'ai' | 'tool' | 'human' | 'system' | 'unknown'
+  presentation_mode?: EnterprisePresentationMode
   content: string
   timestamp: string
   chunk_kind?: AgentStreamChunkKind
@@ -67,6 +128,7 @@ export interface AgentTerminalEvent {
   event_id: string
   timestamp?: string
   status: 'completed' | 'failed' | 'cancelled' | 'waiting_for_human'
+  presentation_mode?: EnterprisePresentationMode
   output?: string | null
   todos?: TodoItem[]
   reflection?: ReflectionResult | null
@@ -177,11 +239,14 @@ export interface StructuredInputRequestEvent {
   seq: number
   event_id: string
   timestamp: string
+  presentation_mode?: EnterprisePresentationMode
   form_id: string
   title: string
   description: string
   fields: InputFieldSchema[]
   allow_partial_submit: boolean
+  action_requests?: ToolPermissionActionRequest[]
+  review_configs?: ToolPermissionReviewConfig[]
   tool_ref?: string
   request_status?: 'pending' | 'approved' | 'rejected' | 'edited' | 'expired' | 'cancelled' | 'resumed'
   /**
@@ -191,11 +256,29 @@ export interface StructuredInputRequestEvent {
   email_draft?: ComposeEmailDraft
 }
 
+export interface ToolPermissionActionRequest {
+  name?: string
+  args?: Record<string, unknown>
+  arguments?: Record<string, unknown>
+  description?: string
+  canonical_function_name?: string
+  input_schema?: Record<string, unknown>
+  field_options?: Record<string, Array<{ label: string; value: string }>>
+  policy?: Record<string, unknown>
+}
+
+export interface ToolPermissionReviewConfig {
+  action_name: string
+  actionName?: string
+  allowed_decisions: Array<'approve' | 'edit' | 'reject'>
+}
+
 export interface HitlRequestedEvent {
   type: 'hitl_requested'
   seq: number
   event_id: string
   timestamp: string
+  presentation_mode?: EnterprisePresentationMode
   request: {
     request_id: string
     type: 'approval' | 'form' | 'email_draft' | 'tool_permission' | 'draft_review' | 'human_question'
@@ -248,7 +331,11 @@ export interface InputFieldSchema {
   description?: string
   required: boolean
   default_value?: any
-  options?: string[]
+  // Backend now normalises options to {label, value} objects, but older
+  // sessions / hand-crafted forms may still send plain strings, so we accept
+  // both. Use the helper `normalizeFieldOptions` from messageUtils to coerce
+  // to a single shape before rendering.
+  options?: Array<string | { label: string; value: string }>
   placeholder?: string
   ai_generated?: boolean
   validation_pattern?: string
@@ -417,11 +504,32 @@ export interface WorkspaceDocument {
 export interface SessionConfig {
   mode: 'deep' | 'autonomous'
   model?: string
+  reasoning_effort?: 'none' | 'low' | 'medium' | 'high'
   enable_memory: boolean
   enable_reflection: boolean | undefined
   max_iterations?: number
   selectedAgent?: SpecialistAgent
   selectedEnterpriseSkill?: EnterpriseSkill
+}
+
+// ── Model selector types ──────────────────────────────────────────────────────
+
+export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high'
+
+export interface ModelOption {
+  id: string
+  label: string
+  provider: string
+  context_window: number
+  supports_reasoning_effort: boolean
+  allowed_reasoning_efforts: ReasoningEffort[]
+  is_default: boolean
+}
+
+export interface ModelOptionsResponse {
+  default_model: string
+  default_reasoning_effort: ReasoningEffort
+  models: ModelOption[]
 }
 
 export interface EnterpriseSkill {
@@ -556,13 +664,37 @@ export type ChatMessageType =
   | 'final_answer'
   | 'error'
 
+/**
+ * Lightweight reference to a session attachment captured at the moment a
+ * `user_input` ChatMessage is emitted. We keep it minimal (id, name, mime,
+ * size, indexing_status) so the renderer doesn't need to re-resolve
+ * anything off the live attachment store — which would lose the chip on
+ * remove. Shaped to be a strict subset of `SessionAttachment` so a future
+ * Option-B backend echo (per-turn `attachment_ids` on the human chunk)
+ * can populate it without a refactor.
+ */
+export interface MessageAttachmentRef {
+  id: string
+  name: string
+  mime_type: string
+  size: number
+  indexing_status?: SessionAttachmentStatus
+  /** Client-only blob URL for image preview thumbnails. Not persisted or sent to server. */
+  preview_url?: string
+}
+
 export interface ChatMessage {
   id: string
   type: ChatMessageType
   timestamp: string
   content: unknown
+  presentationMode?: EnterprisePresentationMode
   isStreaming?: boolean
   isCollapsed?: boolean
+  /** Populated for `user_input` only — the attachments that were on the
+   * composer when the user pressed Send. On new turns, sent to the backend
+   * and stored in the human chunk metadata so they survive session reload. */
+  attachments?: MessageAttachmentRef[]
 }
 
 /** Present on `subagent_spawn` rows: lifecycle of the delegated expert/sub-agent. */

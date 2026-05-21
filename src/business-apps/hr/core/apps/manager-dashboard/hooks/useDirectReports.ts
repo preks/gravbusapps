@@ -68,7 +68,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
     try {
       // Query based on CalendarList.tsx pattern for getting direct reports
       const directReportsQuery = `
-        query GetDirectReports($managerId: uuid!) {
+        query GetDirectReports($managerId: uuid!, $today: timestamptz!) {
           Employee(
             where: {
               employeePosition: { supervisorEmployeeId: { _eq: $managerId } },
@@ -91,7 +91,20 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
                 name
               }
             }
-            workingCondition {
+            workingCondition(
+              where: {
+                isDeleted: {_eq: false}
+                _or: [
+                  {activeFrom: {_isNull: true}, activeTo: {_isNull: true}}
+                  {
+                    activeFrom: {_lte: $today}
+                    _or: [{activeTo: {_isNull: true}}, {activeTo: {_gte: $today}}]
+                  }
+                ]
+              }
+              orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
+              limit: 1
+            ) {
               hireDate
               employmentType {
                 value
@@ -144,7 +157,8 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
       const todayTimestamp = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString() // Format: YYYY-MM-DDTHH:mm:ss.sssZ
 
       const response = await graphQLClient.request(directReportsQuery, {
-        managerId
+        managerId,
+        today: new Date().toISOString()
       })
 
       if (response?.Employee && response.Employee.length > 0) {

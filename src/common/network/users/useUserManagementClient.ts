@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
 import { userManagementClient } from './UserManagementClient'
+import { useSyncClientAccessToken } from '../useSyncClientAccessToken'
 
 /**
  * React hook for accessing User Management API client
@@ -20,27 +20,7 @@ import { userManagementClient } from './UserManagementClient'
  * ```
  */
 export const useUserManagementClient = (accessToken: string) => {
-  // Set access token on the singleton client when it changes
-  useEffect(() => {
-    if (accessToken) {
-      userManagementClient.setAccessToken(accessToken)
-    }
-  }, [accessToken])
-
-  // Listen for token refresh events
-  useEffect(
-    function addRefreshedTokenToAuthorizationHeader() {
-      globalThis.addEventListener('com.newwork.token.shouldRefreshAuthorizationHeader', listener as EventListener)
-      return () => {
-        globalThis.removeEventListener('com.newwork.token.shouldRefreshAuthorizationHeader', listener as EventListener)
-      }
-
-      function listener() {
-        userManagementClient.setAccessToken(accessToken)
-      }
-    },
-    [accessToken]
-  )
+  useSyncClientAccessToken(userManagementClient, accessToken)
 
   return userManagementClient
 }

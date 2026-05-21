@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useEmployeeCount } from './useEmployeeCount'
 import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { useHrAnalyticsFilters } from '../context/HrAnalyticsFiltersContext'
 
 export interface ContractTypeDistribution {
   id: string
@@ -18,6 +19,7 @@ export interface ContractTypeDistribution {
  * @returns Contract type distribution data with counts and percentages
  */
 export function useContractTypeDistribution(accessToken: string) {
+  const { selectedCompanyIds } = useHrAnalyticsFilters()
   const [distribution, setDistribution] = useState<ContractTypeDistribution[]>([])
   const [error, setError] = useState<Error | null>(null)
   const [contractTypeDataLoading, setContractTypeDataLoading] = useState<boolean>(false)
@@ -38,20 +40,34 @@ export function useContractTypeDistribution(accessToken: string) {
 
   // Fetch contract type distribution data using Dataset
   useEffect(() => {
-    if (countLoading || !datasetClient) return
+    if (countLoading) return
+
+    if (!datasetClient) {
+      setContractTypeDataError(prev =>
+        prev?.message === 'Dataset client is not available' ? prev : new Error('Dataset client is not available')
+      )
+      setContractTypeDataLoading(false)
+      return
+    }
 
     const localeCode = getCurrentActiveUserLocale()
-    const fetchKey = `dataset|employeeContractTypeData|${accessToken}|${localeCode}`
+    const structureId = getCurrentActiveStructureId()
+    const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
+    const fetchKey = `dataset|employeeContractTypeData|${accessToken}|${localeCode}|${structureId ?? ''}|${companyIdsParam}`
     if (lastFetchKeyRef.current === fetchKey) {
       return
     }
     lastFetchKeyRef.current = fetchKey
 
     setContractTypeDataLoading(true)
+    setContractTypeDataError(null)
 
     let p = staticCache.get(fetchKey)
     if (!p) {
-      p = datasetClient.executeQuery('employeeContractTypeData', QueryType.DATASET, { localeCode })
+      const params: Record<string, string> = { localeCode }
+      if (structureId) params.structureId = structureId
+      if (companyIdsParam) params.companyIds = companyIdsParam
+      p = datasetClient.executeQuery('employeeContractTypeData', QueryType.DATASET, params)
       staticCache.set(fetchKey, p)
     }
 
@@ -84,7 +100,7 @@ export function useContractTypeDistribution(accessToken: string) {
       setContractTypeDataLoading(false)
       setContractTypeDataError(err)
     })
-  }, [accessToken, totalEmployees, countLoading, t])
+  }, [accessToken, totalEmployees, countLoading, datasetClient, t, selectedCompanyIds])
 
   // Combine all possible errors
   useEffect(() => {

@@ -1,12 +1,13 @@
 import React, { useMemo } from 'react'
 import { TabComponentProps, DashboardData } from '../../../types'
 
-import PersonalKeyInsightsSection from '../../../../personal-absences/components/KeyInsightsSection'
 import type { AbsenceListCardAbsence } from '../../../../personal-absences/types/absenceTypes'
 import OrgWorkPatternsPanel from './OrgWorkPatternsPanel'
 import { OrgYearComparisonCard } from './OrgYearComparisonCard'
 import dayjs from 'dayjs'
 import { Card, CardHeader, CardTitle, CardContent, Progress } from '@newwork/nw-design-system'
+import { CalendarCheckIcon, ClockIcon, PercentIcon } from '@phosphor-icons/react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
 
@@ -84,10 +85,82 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
     return entries
   }, [dashboardData?.rawAbsences, currentYear, mapType, userLocale])
 
+  const total = absences.length
+  const plannedAbsences = absences.filter(a => {
+    const type = (a.type || '').toLowerCase()
+    return type && !type.includes('sick') && !type.includes('unplanned')
+  }).length
+  const plannedPct = total ? Math.round((plannedAbsences / total) * 100) : 0
+  const unplannedPct = total ? 100 - plannedPct : 0
+
+  const absencesWithDuration = absences.filter(a => {
+    const num = parseFloat(a.duration)
+    return !Number.isNaN(num) && num > 0
+  })
+  const avgDaysPerRequest = absencesWithDuration.length
+    ? Number(
+        (
+          absencesWithDuration.reduce((sum, a) => sum + parseFloat(a.duration), 0) / absencesWithDuration.length
+        ).toFixed(1)
+      )
+    : 0
+
+  const approvedCount = absences.filter(a => (a.status || '').toLowerCase() === 'approved').length
+  const approvalRate = total ? Math.round((approvedCount / total) * 100) : 0
+
+  const insightsWidgets: WidgetItem[] = [
+    {
+      key: 'planned-absences',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.planned_absences', 'Planned Absences'),
+      value: plannedPct,
+      suffix: '%',
+      prefix: <CalendarCheckIcon />,
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_hub.vs_unplanned',
+        `vs ${unplannedPct}% unplanned (sick leave)`,
+        { unplannedPct }
+      ),
+      span: { xs: 24, sm: 12, lg: 8 }
+    },
+    {
+      key: 'avg-days-per-request',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.avg_days_per_request', 'Avg Days per Request'),
+      value: avgDaysPerRequest,
+      precision: 1,
+      prefix: <ClockIcon />,
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_hub.avg_days_scope',
+        'Based on Approved requests'
+      ),
+      span: { xs: 24, sm: 12, lg: 8 }
+    },
+    {
+      key: 'approval-rate',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.approval_rate', 'Approval Rate'),
+      value: approvalRate,
+      suffix: '%',
+      prefix: <PercentIcon />,
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:absence_hub.approval_status_scope',
+        'Statuses considered: APPROVED vs ALL STATUSES'
+      ),
+      span: { xs: 24, sm: 12, lg: 8 }
+    }
+  ]
+
   return (
     <div className="gba:statisticsRoot" data-testid="backoffice-statistics-tab">
-      <div className="gba:pb-6" data-testid="backoffice-statistics-key-insights">
-        <PersonalKeyInsightsSection absences={absences} />
+      <div data-testid="backoffice-statistics-key-insights">
+        <WidgetGroup
+          widgets={insightsWidgets}
+          skeletonCount={3}
+          cardsClassName="nw:lg:grid-cols-3"
+          emptyText={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.no_kpi_data_available',
+            'No KPI data available.'
+          )}
+          data-testid="insights-kpi-widgets"
+        />
       </div>
       {/* Work Patterns and Monthly Patterns side by side (custom panel) */}
       <div className="gba:statisticsSection" data-testid="backoffice-statistics-workpatterns-grid">
@@ -102,7 +175,7 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
           <OrgYearComparisonCard absences={absences} />
         </div>
         <div className="gba:statisticsSection" data-testid="backoffice-statistics-leave-type-distribution">
-          <Card>
+          <Card className="gba:shadow-none">
             <CardHeader className="gba:pb-2">
               <CardTitle className="gba:text-sm">
                 {getTranslationFromI18nKeyAndLabel(

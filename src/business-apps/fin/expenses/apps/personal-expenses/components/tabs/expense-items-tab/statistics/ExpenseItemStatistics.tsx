@@ -35,7 +35,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
   currencyCode: currencyCodeOverride
 }) => {
   const { t } = useTranslation(personalTranslations)
-  const currentMonthName = getTranslatedMonthName(new Date())
+  const currentMonthName = getTranslatedMonthName(new Date(), t)
   const currencyCode = useMemo(() => {
     if (currencyCodeOverride) return currencyCodeOverride
     const code = items?.find(it => it?.currency?.code)?.currency?.code as string | undefined

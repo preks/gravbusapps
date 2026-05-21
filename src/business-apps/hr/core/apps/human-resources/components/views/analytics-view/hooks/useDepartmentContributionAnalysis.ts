@@ -1,7 +1,6 @@
-import { useMemo } from 'react'
 import { QueryType } from '@/common/network/dataset'
 import { useDatasetQuery } from './useDatasetQuery'
-import dayjs from 'dayjs'
+import { useHrAnalyticsStructureDateParams } from './useHrAnalyticsStructureDateParams'
 
 /**
  * Department contribution analysis data structure
@@ -51,14 +50,7 @@ const transformDepartmentContribution = (rows: any[]): DepartmentContributionDat
  * @returns Object containing department contribution data, loading state, error, and refetch function
  */
 export const useDepartmentContributionAnalysis = (accessToken: string, startDate: string, endDate: string) => {
-  // Memoize params to avoid recreating object on every render
-  const params = useMemo(
-    () => ({
-      startDate: startDate || dayjs().startOf('year').format('YYYY-MM-DD'),
-      endDate: endDate || dayjs().endOf('year').format('YYYY-MM-DD')
-    }),
-    [startDate, endDate]
-  )
+  const params = useHrAnalyticsStructureDateParams(startDate, endDate)
 
   return useDatasetQuery<DepartmentContributionData>(
     accessToken,

@@ -14,10 +14,10 @@ import { IDEHeader } from '@/components/ide-header'
 import type { TokenStatus, DensityOption } from '@/components/ide-header'
 import { IDEContextPanel } from '@/components/ide-context-panel'
 import {
-  GlobalSearchCommand,
   SettingsDialog,
   PublishConfirmDialog,
-  PerformanceWindow
+  PerformanceWindow,
+  GlobalSearchCommand
 } from '@/components/ide-header/components'
 import { IDERenderer } from '@/components/ide-renderer'
 import { IDEStartScreen } from './components/ide-start-screen'
@@ -971,7 +971,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     refreshToken,
     isMsOAuthCallback
   } = useBusinessAuth()
-  const { userInfo: profileUserInfo, loading: profileLoading } = useUserProfileFromKeycloak(authToken, tokenParsed)
+  const { userInfo: profileUserInfo } = useUserProfileFromKeycloak(authToken, tokenParsed)
   const { wordmarkUrl: brandingWordmarkUrl, logomarkUrl: brandingLogomarkUrl } = useBrandingLogo(authToken)
 
   // When auth/profile become available, synchronize into IDE state and localStorage
@@ -1027,28 +1027,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     await refreshToken()
   }, [refreshToken])
 
-  // While authentication is initializing, show a minimal loading shell.
-  // Only block on profile loading when we do not have profile yet (avoids fullscreen "Signing in" on token refresh).
-  // Exception: if this is a Microsoft OAuth callback, render immediately so email app can handle it.
-  const hasSavedReturnPath = typeof window !== 'undefined' && sessionStorage.getItem('keycloak_return_path') != null
-  if (!authInitialized || (profileLoading && !profileUserInfo && !isMsOAuthCallback)) {
-    const loadingLabel = isMsOAuthCallback
-      ? 'Completing Microsoft sign-in…'
-      : hasSavedReturnPath
-        ? 'Loading…'
-        : 'Signing you in to NEWWORK…'
-    return (
-      <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
-        <LocalizationProvider locale={locale}>
-          <div className={densityClass}>
-            <div className="gba:h-screen gba:flex gba:items-center gba:justify-center">
-              <div className="gba:text-sm gba:text-muted-foreground">{loadingLabel}</div>
-            </div>
-          </div>
-        </LocalizationProvider>
-      </ThemeProvider>
-    )
-  }
+  if (!authInitialized && !isMsOAuthCallback) return null
 
   return (
     <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
@@ -1147,9 +1126,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
               <GlobalSearchCommand
                 open={searchCommandOpen}
                 onOpenChange={setSearchCommandOpen}
-                businessApps={businessApps}
-                menuConfiguration={menuConfiguration}
-                onAppSelect={handleAppSelect}
+                accessToken={accessToken || undefined}
               />
             </ShellProvider>
 

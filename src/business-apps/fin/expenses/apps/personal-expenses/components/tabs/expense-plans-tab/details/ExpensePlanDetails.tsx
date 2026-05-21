@@ -4,7 +4,7 @@ import { getExpensePlanStatusDisplayT, formatCurrencyDisplay } from '../../../..
 import personalTranslations from '../../../../_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ArrowRightIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action'
 import { generateExpensePlanActions } from '../../../../utils/expensePlanActions'
@@ -41,22 +41,24 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
 
   if (!selectedItem) return null
 
+  const notAvailable = t('expense-details-value-not-available')
+
   const formatTypeLabel = (value?: string) => {
-    if (!value) return 'N/A'
+    if (!value) return notAvailable
     const trimmed = String(value).trim()
-    if (!trimmed) return 'N/A'
+    if (!trimmed) return notAvailable
     return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase()
   }
 
   // Translate known plan/request type values; fallback to formatted text
   const translatePlanTypeValue = (raw?: string) => {
-    if (!raw) return 'N/A'
+    if (!raw) return notAvailable
     const code = raw.includes(':') ? raw.split(':').pop()?.toUpperCase() : raw.toUpperCase()
     switch (code) {
       case 'TRIP':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+        return t('personal-expenses-label-trip')
       case 'EXPENSE':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+        return t('personal-expenses-label-expense')
       default:
         return formatTypeLabel(raw)
     }
@@ -67,7 +69,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
     if (selectedItem.type?.value) return selectedItem.type.value
     if (selectedItem.requestType) return String(selectedItem.requestType)
     if (selectedItem.type) return String(selectedItem.type)
-    return 'N/A'
+    return notAvailable
   }
 
   const availableActions = generateExpensePlanActions(
@@ -77,22 +79,23 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
       accessToken: contextProps.accessToken || '',
       onClose: onClose
     },
-    { includeDetails: false }
+    { includeDetails: false, t }
   )
 
   return (
     <ExpenseDetailsPanelContent
       dataTestIdPrefix="expense-plan-details"
       showHeader={false}
+      t={t}
       record={{
         title: selectedItem.title,
         code: selectedItem.code,
         employee: undefined,
         employeeCode: undefined,
         sapNumber: undefined,
-        startDate: selectedItem.startDate ? formatDate(selectedItem.startDate, 'date.short') : 'N/A',
-        endDate: selectedItem.endDate ? formatDate(selectedItem.endDate, 'date.short') : 'N/A',
-        creationDate: selectedItem.createdAt ? formatDate(selectedItem.createdAt, 'date.short') : 'N/A',
+        startDate: selectedItem.startDate ? formatDate(selectedItem.startDate, 'date.short') : notAvailable,
+        endDate: selectedItem.endDate ? formatDate(selectedItem.endDate, 'date.short') : notAvailable,
+        creationDate: selectedItem.createdAt ? formatDate(selectedItem.createdAt, 'date.short') : notAvailable,
         totalRemainingAmount: selectedItem.totalRemainingAmount,
         totalAmount: typeof selectedItem.totalAmount === 'number' ? selectedItem.totalAmount : 0,
         currency: selectedItem.currency?.code || selectedItem.currencyRef || 'EUR'
@@ -124,7 +127,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
       }
       additionalFields={[
         {
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+          label: t('personal-expenses-label-plan-type'),
           value: translatePlanTypeValue(planTypeLabel ?? getPlanType())
         },
         // Only show Request Type if there's a linked expense request
@@ -133,15 +136,12 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
         selectedItem.expenseRequest.length > 0
           ? [
               {
-                label: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
-                  'Request Type'
-                ),
+                label: t('expense-plans-details-request-type'),
                 value: translatePlanTypeValue(
                   selectedItem.expenseRequest[0]?.requestType?.value ||
                     (selectedItem.expenseRequest[0]?.requestType
                       ? String(selectedItem.expenseRequest[0].requestType)
-                      : 'N/A')
+                      : notAvailable)
                 )
               }
             ]
@@ -171,10 +171,7 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
               data-testid="view-expense-plan-details-button"
             >
               <ArrowRightIcon className="gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_expenses_page.plan_details.view_full_details',
-                'View Full Details'
-              )}
+              {t('expense-plans-details-view-full-details')}
             </Button>
           </div>
         </>

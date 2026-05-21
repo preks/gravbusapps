@@ -90,7 +90,7 @@ export function useSlidesHubFiltering(params: UseSlidesHubFilteringParams): UseS
         baseSlides = sharedSlides
         break
       case 'favorites':
-        baseSlides = slides.filter(slide => favorites.has(slide.id))
+        baseSlides = slides
         break
       case 'recent':
         baseSlides = recentSlides

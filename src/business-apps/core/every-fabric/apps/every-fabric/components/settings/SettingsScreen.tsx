@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { ArrowLeftIcon, GearSixIcon, UsersThreeIcon, LightbulbIcon, WrenchIcon } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
@@ -10,6 +10,7 @@ import type { AgentSettings } from './agentSettings.types'
 import { loadSettings, persistSettings } from './agentSettings.utils'
 import { ConfigurationSection } from './components/ConfigurationSection'
 import { MemorySection } from './components/MemorySection'
+import { PoliciesSection } from './components/PoliciesSection'
 import { SkillsSection } from './components/SkillsSection'
 import { MetricsSection } from './components/MetricsSection'
 import { ToolsTab } from './ToolsTab'
@@ -38,22 +39,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 }) => {
   const client = useEnterpriseAgentClient(accessToken)
   const [settings, setSettings] = useState<AgentSettings>(loadSettings)
-  const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
 
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        await Promise.all([client.getMemory('*'), client.listEnterpriseSkills(), client.getSessions({ limit: 200 })])
-      } catch {
-        // Data loading errors are handled in individual sections
-      } finally {
-        setIsInitialLoading(false)
-      }
-    }
-
-    loadInitialData()
-  }, [client])
+  // Each tab/section loads its own data (MemorySection, SkillsSection, MetricsSection,
+  // SkillsScreen). A global preload here blocked the whole screen when any single
+  // request hung (e.g. GET /deep-agent/sessions?limit=200).
 
   const updateSetting = useCallback(<K extends keyof AgentSettings>(key: K, value: AgentSettings[K]) => {
     setSettings(prev => {
@@ -69,18 +59,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     },
     [settings.defaultSkillId, updateSetting]
   )
-
-  if (isInitialLoading) {
-    return (
-      <div
-        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-3"
-        data-testid="fabric-settings-loading"
-      >
-        <div className="gba:h-8 gba:w-8 gba:border-2 gba:border-primary gba:border-t-transparent gba:rounded-full gba:animate-spin" />
-        <p className="gba:text-sm gba:text-muted-foreground">Loading settings...</p>
-      </div>
-    )
-  }
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="fabric-settings-screen">
@@ -125,6 +103,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         <div className="gba:flex-1 gba:overflow-y-auto">
           <div className="gba:max-w-5xl gba:mx-auto gba:px-4 sm:gba:px-6 lg:gba:px-8 gba:py-6 sm:gba:py-8 lg:gba:py-12">
             <ConfigurationSection settings={settings} updateSetting={updateSetting} />
+            <div className="gba:h-12 lg:gba:h-16" />
+            <PoliciesSection accessToken={accessToken} isOpen />
             <div className="gba:h-12 lg:gba:h-16" />
             <MemorySection client={client} isOpen />
             <div className="gba:h-12 lg:gba:h-16" />

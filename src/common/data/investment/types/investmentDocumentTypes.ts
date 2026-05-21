@@ -15,6 +15,7 @@ import type { InvestmentLead } from './investmentLeadTypes'
 import type { InvestmentNote } from './investmentNoteTypes'
 import type { InvestmentOpportunity } from './investmentOpportunityTypes'
 import type { InvestmentTask } from './investmentTaskTypes'
+import type { InvestmentCompany } from './investmentCompanyTypes'
 
 export interface InvestmentDocument extends Document {
   account?: InvestmentAccount
@@ -23,6 +24,8 @@ export interface InvestmentDocument extends Document {
   contact?: InvestmentContact
   investment?: Investment
   investmentId?: string
+  investmentCompany?: InvestmentCompany
+  investmentCompanyId?: string
   investmentReportDocument?: InvestmentReportDocument // TODO unclear
   investmentReportDocumentId?: string // TODO unclear
   note?: InvestmentNote
@@ -40,19 +43,39 @@ export interface InvestmentDocument extends Document {
 export const InvestmentDocumentFields = {
   ...DocumentFields,
   investment: 'investment',
-  investmentId: 'investmentId'
+  investmentId: 'investmentId',
+  investmentCompany: 'investmentCompany',
+  investmentCompanyId: 'investmentCompanyId'
 }
 
 export const InvestmentDocumentFormFields = {
   ...DocumentFormFields,
-  investmentId: 'investment'
+  investmentId: 'investment',
+  investmentCompanyId: 'investmentCompany'
 }
 
 /**
  * Investment Document Descriptors
  * Uses createDocumentDescriptors with InvestmentDocumentFields mapping
  */
-export const INVESTMENT_DOCUMENT_DESCRIPTORS: Descriptor[] = [...createDocumentDescriptors(InvestmentDocumentFields)]
+export const INVESTMENT_DOCUMENT_DESCRIPTORS: Descriptor[] = [
+  ...createDocumentDescriptors(InvestmentDocumentFields),
+  {
+    key: 'investmentCompany',
+    searchPaths: [
+      `${InvestmentDocumentFields.investmentCompany}.name`,
+      `${InvestmentDocumentFields.investmentCompany}.code`
+    ],
+    sortPath: `${InvestmentDocumentFields.investmentCompany}.name`,
+    type: 'text'
+  },
+  {
+    key: 'investmentCompanyIds',
+    path: InvestmentDocumentFields.investmentCompanyId,
+    filterLabel: 'Investment Company',
+    kind: 'inIds'
+  }
+]
 
 export interface InvestmentReportDocument extends BaseEntity {
   id?: string
@@ -112,12 +135,14 @@ export const buildInvestmentDocumentPayload = (
       payload.mimeType = fileInfo.fileInfo.fileMetadata?.mimeType
     }
 
-    // Add entity associations (account, contact, lead, opportunity, investment)
+    // Add entity associations (account, contact, lead, opportunity, investment, investment company)
     if (doc.account) payload.account = doc.account
     if (doc.contact) payload.contact = doc.contact
     if (doc.lead) payload.lead = doc.lead
     if (doc.opportunity) payload.opportunity = doc.opportunity
     if (doc.investment) payload.investment = doc.investment
+    if (doc.investmentCompany) payload.investmentCompany = doc.investmentCompany
+    if (doc.investmentCompanyId) payload.investmentCompany = doc.investmentCompanyId
 
     // Add format/folder
     if (isUpdate) {

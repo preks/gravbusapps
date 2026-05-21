@@ -5,11 +5,12 @@ import { useGetPortfolioTimelineAggregate } from '../queries/PortfolioTimelineAg
 export interface PortfolioTimelineChartData {
   year: string
   total: number
-  totalMarketValue: number
   count: number
   yoyLabel: string
   [investmentGroup: string]: string | number // Dynamic investment group fields
 }
+
+export const getPortfolioTimelineGroupKey = (groupName: string) => groupName.toLowerCase().replace(/\s+/g, '')
 
 export interface PortfolioTimelineAggregateIntegration {
   timelineData: PortfolioTimelineChartData[]
@@ -90,36 +91,29 @@ export const usePortfolioTimelineAggregate = (
       const currentYear = new Date().getFullYear()
       const years = Array.from({ length: yearsCount }, (_, i) => (currentYear - yearsCount + 1 + i).toString())
 
-      // Helper function to create chart key from group name
-      const getChartKey = (groupName: string) => groupName.toLowerCase().replaceAll(/\s+/g, '')
-
       // Build timeline chart data
       const chartData: PortfolioTimelineChartData[] = years.map(year => {
         const entry: PortfolioTimelineChartData = {
           year,
           total: 0,
-          totalMarketValue: 0,
           count: 0,
           yoyLabel: '0%'
         }
 
         // Initialize all investment groups to 0 using chart keys
         for (const group of uniqueGroups) {
-          const chartKey = getChartKey(group)
+          const chartKey = getPortfolioTimelineGroupKey(group)
           entry[chartKey] = 0
           entry[`${chartKey}_count`] = 0
-          entry[`${chartKey}_marketValue`] = 0
         }
 
         // Fill in actual values from yearlyData using chart keys
         const filteredYearlyData = yearlyData.filter(d => d.year === year)
         for (const d of filteredYearlyData) {
-          const chartKey = getChartKey(d.investmentGroup)
+          const chartKey = getPortfolioTimelineGroupKey(d.investmentGroup)
           entry[chartKey] = d.totalAmount
           entry[`${chartKey}_count`] = d.count
-          entry[`${chartKey}_marketValue`] = d.marketValue
           entry.total += d.totalAmount
-          entry.totalMarketValue += d.marketValue
           entry.count += d.count
         }
 

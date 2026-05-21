@@ -12,6 +12,7 @@ process-button-previous = Înapoi
 process-button-next = Următor
 process-button-submit = Trimite
 process-error-title = Eroare
+process-error-generic = Procesul nu a putut fi finalizat. Vă rugăm să încercați din nou.
 
 
 

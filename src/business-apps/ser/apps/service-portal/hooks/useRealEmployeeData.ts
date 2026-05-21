@@ -45,7 +45,7 @@ export interface RealOrganizationalUnit {
 
 // GraphQL query to fetch employees for service requests
 const GET_EMPLOYEES_FOR_SERVICE_REQUESTS = `
-  query GetEmployeesForServiceRequests($structureId: uuid!, $limit: Int!, $search: String) {
+  query GetEmployeesForServiceRequests($structureId: uuid!, $limit: Int!, $search: String, $today: timestamptz!) {
     EmployeePosition(
       where: {
         structureId: { _eq: $structureId },
@@ -71,7 +71,20 @@ const GET_EMPLOYEES_FOR_SERVICE_REQUESTS = `
         communication(where: { type: { value: { _eq: "Email" } } }) {
           value
         }
-        workingCondition {
+        workingCondition(
+          where: {
+            isDeleted: {_eq: false}
+            _or: [
+              {activeFrom: {_isNull: true}, activeTo: {_isNull: true}}
+              {
+                activeFrom: {_lte: $today}
+                _or: [{activeTo: {_isNull: true}}, {activeTo: {_gte: $today}}]
+              }
+            ]
+          }
+          orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
+          limit: 1
+        ) {
           contractType {
             value
           }
@@ -221,7 +234,8 @@ export const useRealEmployeeData = (context: BusinessAppContextProps) => {
         const result = await graphqlClient.request(GET_EMPLOYEES_FOR_SERVICE_REQUESTS, {
           structureId,
           limit: 100,
-          search: searchPattern
+          search: searchPattern,
+          today: new Date().toISOString()
         })
 
         const employeeData: RealEmployeeData[] = result.EmployeePosition.filter(

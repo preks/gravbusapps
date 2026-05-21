@@ -200,14 +200,14 @@ export const JoinConfigPanel: React.FC<JoinConfigPanelProps> = ({
   // Normalize: Conductor currently supports ALL-only semantics in our generator.
   useEffect(() => {
     if (config.joinCondition !== 'ALL') {
-      updateNodeConfig(nodeId, { joinCondition: 'ALL' })
+      updateNodeConfig(nodeId, { joinCondition: 'ALL' }, { markDirty: false })
     }
   }, [config.joinCondition, nodeId, updateNodeConfig])
 
   // Auto-wire fork reference when only one fork exists.
   useEffect(() => {
     if (!config.forkReference && forkNodes.length === 1) {
-      updateNodeConfig(nodeId, { forkReference: forkNodes[0].id })
+      updateNodeConfig(nodeId, { forkReference: forkNodes[0].id }, { markDirty: false })
     }
   }, [config.forkReference, forkNodes, nodeId, updateNodeConfig])
 
@@ -220,7 +220,7 @@ export const JoinConfigPanel: React.FC<JoinConfigPanelProps> = ({
     )
     if (!derived) return
     if (config.forkReference !== derived) {
-      updateNodeConfig(nodeId, { forkReference: derived })
+      updateNodeConfig(nodeId, { forkReference: derived }, { markDirty: false })
     }
   }, [config.forkReference, edges, forkNodes, nodeId, updateNodeConfig])
 

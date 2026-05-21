@@ -35,7 +35,7 @@ const getTranslatedLabel = (entry: any): string => {
 
 const getSortOrder = (entry: any): number => Number.parseInt(entry?.additionalValue1 || '0', 10)
 
-const belongsToParent = (entry: any, parent: any): boolean => {
+export const belongsToParent = (entry: any, parent: any): boolean => {
   return (
     entry?.parentEntryId === parent?.id ||
     entry?.parentEntry?.id === parent?.id ||
@@ -82,6 +82,14 @@ const buildGroupSection = (groupCode: string, groupEntry?: any): SubSection => {
   }
 }
 
+export const buildAllReportSection = (): SubSection => ({
+  id: 'all',
+  code: 'all',
+  value: 'All',
+  label: 'All',
+  kind: 'group'
+})
+
 /**
  * Resolve report sub-sections from catalog data, matching the investment view
  * cascade: liquid fund subtype entries first when the group requires them,
@@ -91,10 +99,12 @@ export const resolveReportSubSections = (groupCode: string, catalogData: any): S
   const groupEntry = catalogData?.investmentGroups?.find((entry: any) => entry.code === groupCode)
 
   if (shouldUseLiquidFundTypeSections(groupEntry, catalogData)) {
-    return [...(catalogData.investmentLiquidFundTypes as any[])]
+    const sections = [...(catalogData.investmentLiquidFundTypes as any[])]
       .sort(sortCatalogEntries)
       .map(entry => buildSubSection(entry, 'liquidFundType'))
       .filter((section): section is SubSection => Boolean(section))
+
+    return [buildAllReportSection(), ...sections]
   }
 
   const investmentTypeEntries = (catalogData?.investmentTypes ?? []).filter((entry: any) =>
@@ -102,10 +112,12 @@ export const resolveReportSubSections = (groupCode: string, catalogData: any): S
   )
 
   if (investmentTypeEntries.length > 0) {
-    return [...investmentTypeEntries]
+    const sections = [...investmentTypeEntries]
       .sort(sortCatalogEntries)
       .map((entry: any) => buildSubSection(entry, 'investmentType'))
       .filter((section: SubSection | undefined): section is SubSection => Boolean(section))
+
+    return [buildAllReportSection(), ...sections]
   }
 
   return [buildGroupSection(groupCode, groupEntry)]

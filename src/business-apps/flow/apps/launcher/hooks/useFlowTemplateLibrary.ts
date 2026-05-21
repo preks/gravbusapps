@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FlowTemplateClient, FlowTriggerType, type FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import { dedupFlowTemplateLibraryItems } from '../components/flowLibraryUtils'
 
 export type FlowTemplateLibraryItem = {
   template: FlowTemplate
@@ -25,6 +26,7 @@ export type UseFlowTemplateLibraryResult = {
   isLoading: boolean
   error: string | null
   search: string
+  debouncedSearch: string
   setSearch: (value: string) => void
   totalCount: number
   hasNextPage: boolean
@@ -54,11 +56,13 @@ export const useFlowTemplateLibrary = (
   const { enabled = true, limit = 200, includeDrafts = true, onlyLatest = true, templateType } = options
 
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [templates, setTemplates] = useState<FlowTemplate[]>([])
   const [totalCount, setTotalCount] = useState(0)
-  const [offset, setOffset] = useState(0)
+  const [hasNextPage, setHasNextPage] = useState(false)
+  const [nextOffset, setNextOffset] = useState(0)
 
   const fetchPage = useCallback(
     async (nextOffset: number, mode: 'replace' | 'append') => {
@@ -78,22 +82,24 @@ export const useFlowTemplateLibrary = (
           onlyLatest,
           includeDrafts,
           templateType,
-          search: search.trim() ? search.trim() : undefined
+          search: debouncedSearch.trim() ? debouncedSearch.trim() : undefined
         })
 
         setTemplates(prev => (mode === 'append' ? [...prev, ...result.templates] : result.templates))
         setTotalCount(result.totalCount)
-        setOffset(result.offset)
+        setHasNextPage(result.hasMore)
+        setNextOffset(result.offset + result.templates.length)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load templates')
         setTemplates([])
         setTotalCount(0)
-        setOffset(0)
+        setHasNextPage(false)
+        setNextOffset(0)
       } finally {
         setIsLoading(false)
       }
     },
-    [accessToken, enabled, includeDrafts, limit, onlyLatest, search, templateType]
+    [accessToken, debouncedSearch, enabled, includeDrafts, limit, onlyLatest, templateType]
   )
 
   const refetch = useCallback(async () => {
@@ -101,24 +107,23 @@ export const useFlowTemplateLibrary = (
   }, [fetchPage])
 
   const loadMore = useCallback(async () => {
-    const nextOffset = offset + limit
     await fetchPage(nextOffset, 'append')
-  }, [fetchPage, limit, offset])
+  }, [fetchPage, nextOffset])
 
   useEffect(() => {
     const handle = setTimeout(() => {
-      void refetch()
+      setDebouncedSearch(search)
     }, 300)
     return () => clearTimeout(handle)
-  }, [refetch, search])
+  }, [search])
 
   useEffect(() => {
     if (!enabled) return
-    void refetch()
-  }, [enabled, refetch])
+    void fetchPage(0, 'replace')
+  }, [debouncedSearch, enabled, fetchPage])
 
   const items = useMemo((): FlowTemplateLibraryItem[] => {
-    return templates
+    const mapped = templates
       .filter((t): t is FlowTemplate & { id: string } => typeof t?.id === 'string' && t.id.trim().length > 0)
       .map(t => {
         const triggers = t.start?.triggers || []
@@ -143,18 +148,15 @@ export const useFlowTemplateLibrary = (
           serviceCategoryIds
         }
       })
+    return dedupFlowTemplateLibraryItems(mapped)
   }, [templates])
-
-  const hasNextPage = useMemo(() => {
-    if (totalCount <= 0) return false
-    return templates.length < totalCount
-  }, [templates.length, totalCount])
 
   return {
     items,
     isLoading,
     error,
     search,
+    debouncedSearch,
     setSearch,
     totalCount,
     hasNextPage,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useLayoutEffect } from 'react'
-import type { ChatMessage } from '../../types/enterpriseAgent'
+import type { ChatMessage, EnterprisePresentationMode, PlanItem } from '../../types/enterpriseAgent'
 import { MessageBubble } from '../chat/MessageBubble'
 import { StreamingAnswerBubble } from '../chat/StreamingAnswerBubble'
 import {
@@ -24,6 +24,8 @@ interface ConversationPanelProps {
   streamingContent: string
   streamingThinking: string
   statusHeadline: string | null
+  planItems?: PlanItem[]
+  activityLines?: readonly string[]
   isStreaming: boolean
   isWaitingForInput: boolean
   hasFixedFollowUps?: boolean
@@ -41,6 +43,7 @@ interface ConversationPanelProps {
   onViewArtifact?: (artifactName: string) => void
   composer?: React.ReactNode
   accessToken?: string
+  presentationMode?: EnterprisePresentationMode
 }
 
 const isTranscriptMessage = (message: ChatMessage) =>
@@ -140,6 +143,8 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   streamingContent,
   streamingThinking,
   statusHeadline,
+  planItems,
+  activityLines,
   isStreaming,
   hasFixedFollowUps = false,
   hasStreamingIsland = false,
@@ -147,7 +152,8 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   onReply,
   onViewArtifact,
   composer,
-  accessToken
+  accessToken,
+  presentationMode = 'default'
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -233,6 +239,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               onReply={onReply}
               onViewArtifact={onViewArtifact}
               accessToken={accessToken}
+              presentationMode={msg.presentationMode ?? presentationMode}
             />
           ))}
 
@@ -243,6 +250,9 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               thinkingContent={streamingThinking}
               isStreaming={isStreaming}
               statusMessage={statusHeadline}
+              planItems={planItems ?? []}
+              activityLines={activityLines ?? []}
+              presentationMode={presentationMode}
             />
           ) : null}
 
@@ -255,6 +265,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               onReply={onReply}
               onViewArtifact={onViewArtifact}
               accessToken={accessToken}
+              presentationMode={msg.presentationMode ?? presentationMode}
             />
           ))}
 

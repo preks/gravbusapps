@@ -103,6 +103,11 @@ task-card-blink = Blink
 task-card-unknown-creator = Necunoscut
 task-card-untitled = Sarcină fără titlu
 task-card-pinned = Fixată
+task-card-cancel-vacation-request = Anulare cerere concediu
+task-card-cancel-sick-leave-request = Anulare cerere concediu medical
+task-card-cancel-special-leave-request = Anulare cerere concediu special
+task-card-cancel-request-for-type = Anulare cerere pentru "{$absenceType}"
+task-card-cancel-absence-request = Anulare cerere de absență
 
 # Task meta actions (Everybox-service)
 task-meta-pin = Fixează
@@ -182,6 +187,7 @@ task-dialog-completing = Se finalizează...
 task-dialog-complete-task = Finalizează sarcina
 task-dialog-missing-user-info = Nu se poate finaliza sarcina: lipsesc informațiile utilizatorului.
 task-dialog-lowcoder-screen = Ecran Lowcoder
+task-dialog-no-screen-available = Nu există niciun formular configurat pentru această sarcină. Vă rugăm să contactați administratorul.
 
 # CompletedView Component
 completed-search-placeholder = Căutare sarcini finalizate...

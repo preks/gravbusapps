@@ -38,9 +38,10 @@ const prefixDataTestId = 'investment-chart-tile-component'
 // Pie chart validation schema
 const pieChartItemSchema = z.object({
   id: z.string(),
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().trim().min(1, 'Name is required'),
   percentage: z
     .string()
+    .trim()
     .min(1, 'Percentage is required')
     .refine(val => !Number.isNaN(Number.parseFloat(val)) && Number.parseFloat(val) >= 0, {
       message: 'Must be a positive number'
@@ -49,7 +50,7 @@ const pieChartItemSchema = z.object({
 
 const pieChartSchema = z
   .object({
-    title: z.string().min(1, 'Title is required'),
+    title: z.string().trim().min(1, 'Title is required'),
     chartType: z.literal('pie'),
     pieData: z.array(pieChartItemSchema).min(1, 'At least one item is required')
   })
@@ -67,15 +68,16 @@ const pieChartSchema = z
 // Bar chart validation schema
 const barChartAxisItemSchema = z.object({
   id: z.string(),
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().trim().min(1, 'Name is required'),
   amount: z
     .string()
+    .trim()
     .min(1, 'Amount is required')
     .refine(val => !Number.isNaN(Number.parseFloat(val)), { message: 'Must be a valid number' })
 })
 
 const barChartSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
+  title: z.string().trim().min(1, 'Title is required'),
   chartType: z.literal('bar'),
   barData: z.object({
     xAxisName: z.string().optional(),
@@ -87,7 +89,7 @@ const barChartSchema = z.object({
 
 // Line chart validation schema (same as bar chart)
 const lineChartSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
+  title: z.string().trim().min(1, 'Title is required'),
   chartType: z.literal('line'),
   lineData: z.object({
     xAxisName: z.string().optional(),

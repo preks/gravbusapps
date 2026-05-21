@@ -1,7 +1,6 @@
 import React from 'react'
 import { Button, Badge } from '@newwork/nw-design-system'
 import { X, ArrowLeftRight, ArrowRight } from 'lucide-react'
-import { snakeToCamelCase } from '../utils/definitionFormUtils'
 
 export interface SelectedRelationshipData {
   sourceEntityKey: string
@@ -32,8 +31,6 @@ export const RelationshipInfoPanel: React.FC<RelationshipInfoPanelProps> = ({
   const isInternal = data.relationshipType === 'INTERNAL_REF'
 
   const typeLabel = isManyToMany ? 'Many-to-Many' : isInternal ? 'Internal Reference' : 'One-to-Many'
-  const graphqlFieldName = snakeToCamelCase(data.foreignKeyColumn)
-
   return (
     <div
       className="gba:h-full gba:w-[420px] gba:max-w-full gba:bg-background gba:border-l gba:border-border gba:shadow-xl gba:flex gba:flex-col gba:animate-in gba:slide-in-from-right gba:duration-200"
@@ -94,12 +91,8 @@ export const RelationshipInfoPanel: React.FC<RelationshipInfoPanelProps> = ({
           </h4>
           <div className="gba:border gba:border-border gba:rounded-lg gba:overflow-hidden gba:divide-y gba:divide-border">
             <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2">
-              <span className="gba:text-xs gba:text-muted-foreground">DB Column</span>
+              <span className="gba:text-xs gba:text-muted-foreground">Field</span>
               <span className="gba:text-xs gba:font-mono">{data.foreignKeyColumn}</span>
-            </div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2">
-              <span className="gba:text-xs gba:text-muted-foreground">GraphQL Field</span>
-              <span className="gba:text-xs gba:font-mono">{graphqlFieldName || '-'}</span>
             </div>
             <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2">
               <span className="gba:text-xs gba:text-muted-foreground">Cardinality</span>

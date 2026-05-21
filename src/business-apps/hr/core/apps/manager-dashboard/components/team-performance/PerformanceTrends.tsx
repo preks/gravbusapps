@@ -16,10 +16,10 @@ import type { TooltipProps } from 'recharts'
 import type { TrendDataPoint, ScoreDistributionBand } from '../../utils/dashboardComputations'
 
 const TREND_COLORS = {
-  overall: 'var(--nw-color-primary-500)',
-  companyValues: 'var(--nw-color-decorative-500)',
-  skills: 'var(--nw-color-success-500)',
-  distribution: 'var(--nw-color-info-500)'
+  overall: 'var(--nw-chart-1)',
+  companyValues: 'var(--nw-chart-2)',
+  skills: 'var(--nw-chart-3)',
+  distribution: 'var(--nw-chart-4)'
 } as const
 
 interface PerformanceTrendsProps {
@@ -112,7 +112,7 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
                     name="Overall"
                     stroke={TREND_COLORS.overall}
                     strokeWidth={2}
-                    dot={{ r: 3 }}
+                    dot={{ r: 3, fill: TREND_COLORS.overall, stroke: TREND_COLORS.overall }}
                     connectNulls
                   />
                   <Line
@@ -121,7 +121,7 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
                     name="Company values"
                     stroke={TREND_COLORS.companyValues}
                     strokeWidth={2}
-                    dot={{ r: 3 }}
+                    dot={{ r: 3, fill: TREND_COLORS.companyValues, stroke: TREND_COLORS.companyValues }}
                     connectNulls
                   />
                   <Line
@@ -130,7 +130,7 @@ export const PerformanceTrends: React.FC<PerformanceTrendsProps> = ({
                     name="Skills"
                     stroke={TREND_COLORS.skills}
                     strokeWidth={2}
-                    dot={{ r: 3 }}
+                    dot={{ r: 3, fill: TREND_COLORS.skills, stroke: TREND_COLORS.skills }}
                     connectNulls
                   />
                 </LineChart>

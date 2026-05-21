@@ -70,7 +70,6 @@ import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import {
   filterFormFieldsForDocumentApproval,
-  getTaskAppTag,
   isAnyDocumentApprovalTask,
   isDocumentApprovalOutcomeTask,
   isDocumentApprovalTask as isDocumentApprovalTaskRecord,
@@ -281,40 +280,36 @@ function MeetingParticipantRow({
 }
 
 /**
- * Renders task message/description: scheduled_task as Markdown, meeting-invite with date/time in a div, else plain paragraph.
+ * Convert single newlines to markdown hard breaks (two trailing spaces + newline)
+ * so they render as visible line breaks. Double newlines (paragraph breaks) and
+ * newlines inside fenced code blocks are left untouched.
+ */
+function preserveNewlines(text: string): string {
+  const codeBlocks: string[] = []
+  let processed = text.replace(/```[\s\S]*?```/g, match => {
+    codeBlocks.push(match)
+    return `\u0000CB${codeBlocks.length - 1}\u0000`
+  })
+  // Turn single \n (not already preceded by two spaces) into a hard break.
+  // Skip double newlines — those are paragraph separators and already work.
+  processed = processed.replace(/(?<! {2})\n(?!\n)/g, '  \n')
+  return processed.replace(/\u0000CB(\d+)\u0000/g, (_, i) => codeBlocks[Number(i)] ?? '')
+}
+
+/**
+ * Renders task message/description as Markdown so authored formatting
+ * (newlines, lists, bold, links, etc.) is preserved across every task type.
  * Returns null when meeting-invite content is only the redundant "Complete Meeting Invitation:" title.
  */
 function renderTaskMessageContent(task: UnifiedTask, accessToken: string): React.ReactNode {
   const content = (task.message || task.description || '').trim()
+  if (!content) return null
   const isRedundantMeetingTitle = task.tags?.app === 'meeting-invite' && isRedundantMeetingTitleContent(content)
   if (isRedundantMeetingTitle) return null
-  if (task.tags?.app === 'scheduled_task') {
-    return <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-  }
-  if (
-    task.tags?.app === 'meeting-invite' &&
-    (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) &&
-    (task.message || task.description)
-  ) {
-    return (
-      <div className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-        <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-      </div>
-    )
-  }
-  // Document approval outcome messages are authored as Markdown by the
-  // document-service so the requester sees structured reviewer details
-  // (decision, reviewer name, timestamp, optional comment) instead of a
-  // single run-on paragraph.
-  if (task.tags?.app === 'document-approval-outcome' && (task.message || task.description)) {
-    return (
-      <div className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-        <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-      </div>
-    )
-  }
   return (
-    <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">{task.message || task.description}</p>
+    <div className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
+      <MarkdownRenderer content={preserveNewlines(content)} accessToken={accessToken} />
+    </div>
   )
 }
 
@@ -359,7 +354,6 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const isAnyCurrentDocumentApprovalTask = isAnyDocumentApprovalTask(task, entityLink)
   const documentApprovalOutcomeDecision = resolveDocumentApprovalDecision(task, entityLink)
   const visibleTaskForm = React.useMemo(() => filterFormFieldsForDocumentApproval(task, entityLink), [task, entityLink])
-  const taskAppTag = React.useMemo(() => getTaskAppTag(task), [task])
 
   // AI feature check
   const aiFeature = useFeature(Feature.EveryBox.AiEnabled.Key)
@@ -585,7 +579,6 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   ])
 
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
-  const isMarkdownMessageTask = taskAppTag === 'scheduled_task' || taskAppTag === 'spreadsheet-automation'
   // Check both task.tags and sourceMetadata.tags for glossary request detection
   const isGlossaryRequestTask =
     task.source === 'cflow' &&
@@ -1405,13 +1398,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             {/* Task instruction message - above links, dark and prominent */}
             {(task.message || task.description) && (
               <div className="gba:space-y-3">
-                {isMarkdownMessageTask ? (
-                  <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-                ) : (
-                  <p className="gba:text-base gba:leading-relaxed gba:font-medium gba:text-foreground">
-                    {task.message || task.description}
-                  </p>
-                )}
+                <div className="gba:text-base gba:leading-relaxed gba:font-medium gba:text-foreground">
+                  <MarkdownRenderer
+                    content={preserveNewlines(task.message || task.description || '')}
+                    accessToken={accessToken}
+                  />
+                </div>
                 {/* Blue hint explaining what to do */}
                 {!isCompleted && (otherLinks.length > 0 || documentLinks.length > 0) && (
                   <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-info-secondary gba:p-4">

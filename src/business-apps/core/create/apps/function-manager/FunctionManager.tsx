@@ -11,13 +11,16 @@ import {
 } from '@/common/network/functions/FunctionsServiceClient'
 import { deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import { FunctionEditor } from './components/FunctionEditor'
+import { CredentialEditorPage } from './components/CredentialEditorPage'
+import { CredentialsListPanel } from './components/CredentialsListPanel'
 import { useFunctionsData, type CategoryFilter } from './hooks/useFunctionsData'
+import { useTenantSecrets } from './hooks/useTenantSecrets'
 import { createFunctionsColumns } from './config/functionsColumns'
 import translations from './_i18n'
-import { FunctionManagerSecretsView } from './components/FunctionManagerSecretsView'
 import { tokenHasRole } from '@/common/utils/keycloakTokenRoles'
+import type { StoredSecretOption } from './components/editor/SettingsEditor'
 
-/** Matches functions-service + Keycloak: Create apps shell and secret CRUD for builders. */
+/** Matches functions-service + Keycloak: Create apps shell and credential CRUD for builders. */
 const APPS_CREATOR_ROLE = 'apps-creator'
 
 export interface FunctionManagerProps extends BusinessAppContextProps {
@@ -28,18 +31,23 @@ export interface FunctionManagerProps extends BusinessAppContextProps {
 const DATA_TEST_ID = 'FunctionManager'
 const FUNCTION_ID_PARAM = 'functionId'
 const FUNCTION_ID_NEW = 'new'
+const CREDENTIAL_ID_PARAM = 'credentialId'
+const CREDENTIAL_ID_NEW = 'new'
 const VIEW_PARAM = 'view'
 
 type ListView = 'functions' | 'credentials'
 
 function getListViewFromUrl(): ListView {
   if (typeof globalThis.window === 'undefined') return 'functions'
-  const v = new URLSearchParams(globalThis.location.search).get(VIEW_PARAM)?.trim()
+  const params = new URLSearchParams(globalThis.location.search)
+  const cred = params.get(CREDENTIAL_ID_PARAM)?.trim() ?? ''
+  if (cred) return 'credentials'
+  const v = params.get(VIEW_PARAM)?.trim()
   if (v === 'credentials' || v === 'secrets') return 'credentials'
   return 'functions'
 }
 
-/** Credentials tab aligns with API: `apps-creator`. Tenant migration UI stays `functions-secrets-manager` (see FunctionManagerSecretsView). */
+/** Credentials tab aligns with API: `apps-creator`. */
 function resolveListViewFromUrl(accessToken: string | undefined): ListView {
   const raw = getListViewFromUrl()
   if (raw === 'credentials' && !tokenHasRole(accessToken, APPS_CREATOR_ROLE)) {
@@ -63,14 +71,59 @@ function isFunctionIdNewFromUrl(): boolean {
   return id.toLowerCase() === FUNCTION_ID_NEW
 }
 
+function getCredentialIdFromUrl(): string | null {
+  if (typeof globalThis.window === 'undefined') return null
+  const id = new URLSearchParams(globalThis.location.search).get(CREDENTIAL_ID_PARAM)?.trim() ?? ''
+  if (!id || id.toLowerCase() === CREDENTIAL_ID_NEW) return null
+  return id
+}
+
+function isCredentialIdNewFromUrl(): boolean {
+  if (typeof globalThis.window === 'undefined') return false
+  const id = new URLSearchParams(globalThis.location.search).get(CREDENTIAL_ID_PARAM)?.trim() ?? ''
+  return id.toLowerCase() === CREDENTIAL_ID_NEW
+}
+
 function updateUrlWithFunctionId(functionId: string | null, push = false): void {
   if (typeof globalThis.window === 'undefined') return
   const urlParams = new URLSearchParams(globalThis.location.search)
   if (functionId) {
     urlParams.set(FUNCTION_ID_PARAM, functionId)
+    urlParams.delete(CREDENTIAL_ID_PARAM)
   } else {
     urlParams.delete(FUNCTION_ID_PARAM)
   }
+  const newUrl = `${globalThis.location.pathname}${urlParams.toString() ? `?${urlParams.toString()}` : ''}${globalThis.location.hash}`
+  if (push) {
+    globalThis.history.pushState({}, '', newUrl)
+  } else {
+    globalThis.history.replaceState({}, '', newUrl)
+  }
+}
+
+function updateUrlWithCredentialId(credentialId: string | null, push = false): void {
+  if (typeof globalThis.window === 'undefined') return
+  const urlParams = new URLSearchParams(globalThis.location.search)
+  if (credentialId) {
+    urlParams.set(CREDENTIAL_ID_PARAM, credentialId)
+    urlParams.set(VIEW_PARAM, 'credentials')
+    urlParams.delete(FUNCTION_ID_PARAM)
+  } else {
+    urlParams.delete(CREDENTIAL_ID_PARAM)
+  }
+  const newUrl = `${globalThis.location.pathname}${urlParams.toString() ? `?${urlParams.toString()}` : ''}${globalThis.location.hash}`
+  if (push) {
+    globalThis.history.pushState({}, '', newUrl)
+  } else {
+    globalThis.history.replaceState({}, '', newUrl)
+  }
+}
+
+function clearBothEditorIdsFromUrl(push = false): void {
+  if (typeof globalThis.window === 'undefined') return
+  const urlParams = new URLSearchParams(globalThis.location.search)
+  urlParams.delete(FUNCTION_ID_PARAM)
+  urlParams.delete(CREDENTIAL_ID_PARAM)
   const newUrl = `${globalThis.location.pathname}${urlParams.toString() ? `?${urlParams.toString()}` : ''}${globalThis.location.hash}`
   if (push) {
     globalThis.history.pushState({}, '', newUrl)
@@ -84,6 +137,8 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
   const showCredentialsTab = tokenHasRole(context.accessToken, APPS_CREATOR_ROLE)
   const [isCreateOpen, setIsCreateOpen] = React.useState(() => isFunctionIdNewFromUrl())
   const [editingFunctionId, setEditingFunctionId] = React.useState<string | null>(() => getFunctionIdFromUrl())
+  const [isCredentialCreateOpen, setIsCredentialCreateOpen] = React.useState(() => isCredentialIdNewFromUrl())
+  const [editingCredentialId, setEditingCredentialId] = React.useState<string | null>(() => getCredentialIdFromUrl())
   const [listView, setListView] = React.useState<ListView>(() => resolveListViewFromUrl(context.accessToken))
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'lastVersionAt', desc: true }])
 
@@ -104,6 +159,16 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     setVisibleColumns,
     refetch
   } = useFunctionsData(context.accessToken, sorting)
+
+  const {
+    storedSecrets,
+    secretsLoading,
+    refreshSecrets,
+    fetchCredentialReferences,
+    onCreateStoredSecret,
+    saveCredential,
+    deleteSecret
+  } = useTenantSecrets(context.accessToken)
 
   const categoryLabels: Record<CategoryFilter, string> = React.useMemo(
     () => ({
@@ -152,6 +217,8 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
   const handleRowClick = React.useCallback((fn: LatestFunctionItem) => {
     setEditingFunctionId(fn.id)
     setIsCreateOpen(false)
+    setIsCredentialCreateOpen(false)
+    setEditingCredentialId(null)
     updateUrlWithFunctionId(fn.id, true)
   }, [])
 
@@ -161,6 +228,9 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     ? (allItems.find(f => f.id === editingFunctionId) ?? data.find(f => f.id === editingFunctionId) ?? null)
     : null
 
+  const editingCredential =
+    editingCredentialId != null ? storedSecrets.find(s => s.id === editingCredentialId) ?? null : null
+
   // Clear editingFunctionId from URL only when the id is truly not in the loaded full list (invalid id).
   useEffect(() => {
     if (!loading && editingFunctionId && !editingFunction) {
@@ -169,10 +239,36 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     }
   }, [loading, editingFunctionId, editingFunction])
 
+  // Clear invalid credential deep links after the list has loaded.
+  useEffect(() => {
+    if (!showCredentialsTab || listView !== 'credentials') return
+    if (secretsLoading) return
+    if (isCredentialCreateOpen) return
+    if (!editingCredentialId) return
+    if (!storedSecrets.some(s => s.id === editingCredentialId)) {
+      setEditingCredentialId(null)
+      updateUrlWithCredentialId(null)
+    }
+  }, [
+    showCredentialsTab,
+    listView,
+    secretsLoading,
+    isCredentialCreateOpen,
+    editingCredentialId,
+    storedSecrets
+  ])
+
   // Normalize legacy ?view=secrets → ?view=credentials; strip credentials view from URL if user lacks apps-creator
   useEffect(() => {
     if (typeof globalThis.window === 'undefined') return
-    if (getFunctionIdFromUrl() || isFunctionIdNewFromUrl()) return
+    if (
+      getFunctionIdFromUrl() ||
+      isFunctionIdNewFromUrl() ||
+      getCredentialIdFromUrl() ||
+      isCredentialIdNewFromUrl()
+    ) {
+      return
+    }
     const url = new URL(globalThis.location.href)
     const v = url.searchParams.get(VIEW_PARAM)?.trim()
     if (v === 'secrets') {
@@ -193,6 +289,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     if (typeof globalThis.window === 'undefined') return
     const url = new URL(globalThis.location.href)
     url.searchParams.delete(VIEW_PARAM)
+    url.searchParams.delete(CREDENTIAL_ID_PARAM)
     globalThis.history.replaceState(null, '', url.toString())
   }, [showCredentialsTab, listView])
 
@@ -203,13 +300,19 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
       const isNew = isFunctionIdNewFromUrl()
       setEditingFunctionId(id)
       setIsCreateOpen(isNew)
-      if (!id && !isNew) setListView(resolveListViewFromUrl(context.accessToken))
+      const cid = getCredentialIdFromUrl()
+      const cNew = isCredentialIdNewFromUrl()
+      setEditingCredentialId(cid)
+      setIsCredentialCreateOpen(cNew)
+      setListView(resolveListViewFromUrl(context.accessToken))
     }
     globalThis.addEventListener('popstate', handlePopState)
     return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [context.accessToken])
 
   const openCreate = useCallback(() => {
+    setIsCredentialCreateOpen(false)
+    setEditingCredentialId(null)
     setIsCreateOpen(true)
     setEditingFunctionId(null)
     updateUrlWithFunctionId(FUNCTION_ID_NEW, true)
@@ -218,18 +321,43 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
   const closeEditorToList = useCallback(() => {
     setEditingFunctionId(null)
     setIsCreateOpen(false)
-    updateUrlWithFunctionId(null)
+    setIsCredentialCreateOpen(false)
+    setEditingCredentialId(null)
+    clearBothEditorIdsFromUrl()
     setListView(resolveListViewFromUrl(context.accessToken))
   }, [context.accessToken])
+
+  const closeCredentialEditorToList = useCallback(() => {
+    setIsCredentialCreateOpen(false)
+    setEditingCredentialId(null)
+    updateUrlWithCredentialId(null)
+  }, [])
+
+  const openCredentialCreate = useCallback(() => {
+    setListView('credentials')
+    setIsCredentialCreateOpen(true)
+    setEditingCredentialId(null)
+    updateUrlWithCredentialId(CREDENTIAL_ID_NEW, true)
+  }, [])
+
+  const handleCredentialRowClick = useCallback((row: StoredSecretOption) => {
+    setIsCredentialCreateOpen(false)
+    setEditingCredentialId(row.id)
+    setListView('credentials')
+    updateUrlWithCredentialId(row.id, true)
+  }, [])
 
   const navigateToTenantCredentials = useCallback(() => {
     if (!showCredentialsTab) return
     setEditingFunctionId(null)
     setIsCreateOpen(false)
+    setIsCredentialCreateOpen(false)
+    setEditingCredentialId(null)
     setListView('credentials')
     if (typeof globalThis.window === 'undefined') return
     const url = new URL(globalThis.location.href)
     url.searchParams.delete(FUNCTION_ID_PARAM)
+    url.searchParams.delete(CREDENTIAL_ID_PARAM)
     url.searchParams.set(VIEW_PARAM, 'credentials')
     globalThis.history.replaceState(null, '', url.toString())
   }, [showCredentialsTab])
@@ -240,8 +368,14 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
       setListView(next)
       if (typeof globalThis.window === 'undefined') return
       const url = new URL(globalThis.location.href)
-      if (next === 'functions') url.searchParams.delete(VIEW_PARAM)
-      else url.searchParams.set(VIEW_PARAM, 'credentials')
+      if (next === 'functions') {
+        url.searchParams.delete(VIEW_PARAM)
+        url.searchParams.delete(CREDENTIAL_ID_PARAM)
+        setIsCredentialCreateOpen(false)
+        setEditingCredentialId(null)
+      } else {
+        url.searchParams.set(VIEW_PARAM, 'credentials')
+      }
       globalThis.history.replaceState(null, '', url.toString())
     },
     [showCredentialsTab]
@@ -274,7 +408,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
         onOpenTenantCredentials={openCredentialsFromEditor}
         onSaved={() => {
           setIsCreateOpen(false)
-          updateUrlWithFunctionId(null)
+          clearBothEditorIdsFromUrl()
           setListView(resolveListViewFromUrl(context.accessToken))
           refetch()
         }}
@@ -296,12 +430,34 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
         onOpenTenantCredentials={openCredentialsFromEditor}
         onSaved={() => {
           setEditingFunctionId(null)
-          updateUrlWithFunctionId(null)
+          clearBothEditorIdsFromUrl()
           setListView(resolveListViewFromUrl(context.accessToken))
           refetch()
         }}
         className={className}
         data-testid={DATA_TEST_ID}
+      />
+    )
+  }
+
+  if (
+    listView === 'credentials' &&
+    showCredentialsTab &&
+    (isCredentialCreateOpen ||
+      (!secretsLoading && editingCredentialId !== null && editingCredential !== null))
+  ) {
+    return (
+      <CredentialEditorPage
+        mode={isCredentialCreateOpen ? 'create' : 'edit'}
+        credential={isCredentialCreateOpen ? null : editingCredential}
+        fetchCredentialReferences={fetchCredentialReferences}
+        onCreateStoredSecret={onCreateStoredSecret}
+        onSaveCredential={saveCredential}
+        onDeleteSecret={deleteSecret}
+        onBack={closeCredentialEditorToList}
+        onCreated={closeCredentialEditorToList}
+        className={className}
+        data-testid={`${DATA_TEST_ID}-credential-editor`}
       />
     )
   }
@@ -318,8 +474,15 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
       currentView={listView}
       onViewChange={handleListViewChange}
       canvasPanel={
-        listView === 'credentials' ? (
-          <FunctionManagerSecretsView accessToken={context.accessToken} />
+        listView === 'credentials' && showCredentialsTab ? (
+          <CredentialsListPanel
+            secrets={storedSecrets}
+            loading={secretsLoading}
+            onRefreshSecrets={refreshSecrets}
+            onRowClick={handleCredentialRowClick}
+            onNewCredential={openCredentialCreate}
+            data-testid="FunctionManager-credentials-panel"
+          />
         ) : (
           <DataDisplay
             titleSections={categoryTitleSections}

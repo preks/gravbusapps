@@ -11,6 +11,7 @@ import translations from '../../_i18n'
 import FeedbackToolbar from './feedback-hub/FeedbackToolbar'
 import FeedbackHubHeader from './feedback-hub/FeedbackHubHeader'
 import FeedbackHubKpiGrid from './feedback-hub/FeedbackHubKpiGrid'
+import FeedbackInsightsSection from './feedback-hub/FeedbackInsightsSection'
 import FeedbackListSection from './feedback-hub/FeedbackListSection'
 import FeedbackAnalysisPanel from './feedback-hub/FeedbackAnalysisPanel'
 import PendingRequestsSheet from './feedback-hub/PendingRequestsSheet'
@@ -185,6 +186,12 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
   return (
     <div className="gba:space-y-6" data-testid="feedback-tab">
+      <style>{`
+        @keyframes aiInsightsPulseGlow {
+          0%, 100% { box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35), 0 0 16px rgba(59, 130, 246, 0.12); }
+          50% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.55), 0 0 24px rgba(59, 130, 246, 0.2); }
+        }
+      `}</style>
       <FeedbackHubHeader
         t={t}
         employee={employee}
@@ -194,7 +201,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         canRequestFeedbackOnBehalf={canRequestFeedbackOnBehalf}
       />
 
-      <FeedbackHubKpiGrid
+      <FeedbackHubKpiGrid t={t} kpis={kpis} />
+
+      <FeedbackInsightsSection
         t={t}
         kpis={kpis}
         pendingRequestsCount={pendingRequestsCount}
@@ -205,6 +214,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           setShowPendingPanel(true)
         }}
         isSelfView={isSelfView}
+        receivedList={receivedList}
       />
 
       <FeedbackToolbar
@@ -273,6 +283,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 variant="outline"
                 size="sm"
                 className="gba:flex gba:items-center gba:gap-2"
+                style={{ animation: 'aiInsightsPulseGlow 2.5s ease-in-out infinite' }}
                 data-testid="analyze-received-insights-button"
                 disabled={receivedList.length === 0 || analyzingInsights.received}
                 onClick={handleOpenReceivedInsights}
@@ -284,7 +295,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 )}
                 {analyzingInsights.received
                   ? t('feedback-hub-ai-insights-analyzing')
-                  : t('feedback-hub-ai-insights-button')}
+                  : t('feedback-hub-analyze-feedback-button')}
               </Button>
             ) : undefined
           }
@@ -322,6 +333,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 variant="outline"
                 size="sm"
                 className="gba:flex gba:items-center gba:gap-2"
+                style={{ animation: 'aiInsightsPulseGlow 2.5s ease-in-out infinite' }}
                 data-testid="analyze-given-insights-button"
                 disabled={givenList.length === 0 || analyzingInsights.given}
                 onClick={handleOpenGivenInsights}
@@ -333,7 +345,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 )}
                 {analyzingInsights.given
                   ? t('feedback-hub-ai-insights-analyzing')
-                  : t('feedback-hub-ai-insights-button')}
+                  : t('feedback-hub-analyze-feedback-button')}
               </Button>
             }
             showBackContent={openInsights.given}

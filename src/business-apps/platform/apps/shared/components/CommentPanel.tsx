@@ -216,7 +216,7 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
     : messages.resolvedHere
 
   const containerClassName = isDocked
-    ? 'gba:h-full gba:w-96 gba:flex-shrink-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col'
+    ? 'gba:h-full gba:w-96 gba:max-w-full gba:min-w-0 gba:flex-shrink-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col'
     : 'gba:fixed gba:bottom-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col'
 
   const containerStyle: React.CSSProperties = isDocked

@@ -14,11 +14,29 @@ query GetEmployeeSkills($id: uuid!) {
       id
       version
       level
+      validFrom
+      validTo
+      verificationDocumentId
       skill {
         id
         name
       }
     }
+  }
+}
+`
+
+export const GET_EMPLOYEE_DOCUMENTS_BY_IDS = `
+query GetEmployeeDocumentsByIds($ids: [uuid!]!) {
+  EmployeeDocument(where: { id: { _in: $ids }, isDeleted: { _eq: false } }) {
+    id
+    version
+    employeeId
+    type
+    name
+    file
+    mimeType
+    fileSize
   }
 }
 `

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import '@newwork/nw-design-system/style'
-import { PageLayout } from '@newwork/nw-design-system'
+import { PageLayout, useTranslation } from '@newwork/nw-design-system'
 import { GaugeIcon, PathIcon, HandCoinsIcon, MoneyIcon, CalendarBlankIcon, WalletIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -10,7 +10,7 @@ import ExpensePlansTab from './components/tabs/expense-plans-tab'
 import AdvancePaymentsTab from './components/tabs/advance-payments-tab'
 import ExpenseCalendarTab from './components/tabs/expense-calendar-tab'
 import ExpenseRequestsTab from './components/tabs/expense-requests-tab'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from './_i18n'
 
 // Import page components
 import { ApprovalsPage, ExpenseReportsPage } from './components/pages'
@@ -53,47 +53,37 @@ const getTabFromUrl = (): ManagerTabKey => {
 export type ManagerExpensesProps = BusinessAppContextProps
 
 const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
+  const { t } = useTranslation(translations)
+
   const viewOptions = useMemo(
     () => [
       {
         key: 'dashboard',
         icon: GaugeIcon,
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.dashboard_btn',
-          'Dashboard'
-        )
+        label: t('team-expenses-tab-dashboard')
       },
       {
         key: 'expense-plans',
         icon: PathIcon,
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
-          'Expense Plans'
-        )
+        label: t('team-expenses-tab-expense-plans')
       },
       {
         key: 'advance-payments',
         icon: HandCoinsIcon,
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:backoffice_expense_landing_page.advance_title',
-          'Advance Payments'
-        )
+        label: t('team-expenses-tab-advance-payments')
       },
       {
         key: 'expense-requests',
         icon: MoneyIcon,
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Expense Requests')
+        label: t('team-expenses-tab-expense-requests')
       },
       {
         key: 'expense-calendar',
         icon: CalendarBlankIcon,
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.dashboard_tab.expense_calendar',
-          'Expense Calendar'
-        )
+        label: t('team-expenses-tab-expense-calendar')
       }
     ],
-    []
+    [t]
   )
 
   const hostViewParam = typeof props.additionalData?.view === 'string' ? props.additionalData.view : undefined
@@ -319,14 +309,8 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
     <div data-testid="manager-expenses-container">
       <PageLayout
         headerIcon={WalletIcon as any}
-        headerTitle={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.team_expenses_title',
-          'Team Expenses'
-        )}
-        headerDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:team_expenses_page.team_expenses_subheader',
-          'Manage team expenses, track expense plans, advance payments, and expense requests'
-        )}
+        headerTitle={t('team-expenses-page-title')}
+        headerDescription={t('team-expenses-page-subheader')}
         headerSubViews={headerSubViews}
         className="gba:min-h-screen"
       >

@@ -7,6 +7,8 @@ import {
   toRecordObject
 } from '../shared'
 
+const DEFAULT_REPORT_SCOPE = 'MONTHLY'
+
 const INVESTMENT_REPORT_FIELDS = [
   'id',
   'version',
@@ -51,15 +53,6 @@ const INVESTMENT_REPORT_FIELDS = [
   'investmentRoleReports'
 ] as const
 
-const REPORT_INVESTMENT_RELATION_BY_PAYLOAD_KEY: Record<
-  NonNullable<ImportConfig['investmentReportPayloadKey']>,
-  string
-> = {
-  equityInvestmentReport: 'equityInvestment',
-  realEstateInvestmentReport: 'realEstateInvestment',
-  liquidFundInvestmentReport: 'liquidFundInvestment'
-}
-
 function pickFields(source: Record<string, any>, fields: readonly string[]): Record<string, any> {
   const result: Record<string, any> = {}
   for (const field of fields) {
@@ -96,6 +89,10 @@ function normalizeInvestmentReport(record: Record<string, any>): Record<string, 
   if (investmentReport.investmentRoles && !investmentReport.investmentRoleReports) {
     investmentReport.investmentRoleReports = investmentReport.investmentRoles
   }
+  if (!investmentReport.scope) {
+    investmentReport.scope = DEFAULT_REPORT_SCOPE
+  }
+
   investmentReport.identification = parseJsonObjectString(investmentReport.identification)
   investmentReport.additionalProperties = parseJsonObjectString(investmentReport.additionalProperties)
   delete investmentReport.investmentId
@@ -107,17 +104,16 @@ function normalizeInvestmentReport(record: Record<string, any>): Record<string, 
 
 function normalizeSpecificReport(
   record: Record<string, any>,
-  payloadKey: NonNullable<ImportConfig['investmentReportPayloadKey']>,
-  investmentRef: unknown
+  payloadKey: NonNullable<ImportConfig['investmentReportPayloadKey']>
 ): Record<string, any> {
-  const relationKey = REPORT_INVESTMENT_RELATION_BY_PAYLOAD_KEY[payloadKey]
   const specificReport = {
     ...toRecordObject(record[payloadKey])
   }
 
-  if (investmentRef && !specificReport[relationKey]) {
-    specificReport[relationKey] = investmentRef
+  if (!specificReport.scope) {
+    specificReport.scope = DEFAULT_REPORT_SCOPE
   }
+
   specificReport.additionalProperties = parseJsonObjectString(specificReport.additionalProperties)
   specificReport.liquidityForecast = parseJsonObjectString(specificReport.liquidityForecast)
 
@@ -134,11 +130,10 @@ export function toInvestmentReportBatchPayload(
     const nested = nestFlatDottedKeys(entity)
     const normalized = normalizeEntityForImport(nested)
     const investmentReport = normalizeInvestmentReport(normalized)
-    const investmentRef = investmentReport.investment
     const request: Record<string, any> = { investmentReport }
 
     if (payloadKey) {
-      const specificReport = normalizeSpecificReport(normalized, payloadKey, investmentRef)
+      const specificReport = normalizeSpecificReport(normalized, payloadKey)
       if (Object.keys(specificReport).length > 0) {
         request[payloadKey] = specificReport
       }
@@ -147,5 +142,7 @@ export function toInvestmentReportBatchPayload(
     return request
   })
 
-  return { investmentReportRequests }
+  return {
+    investmentReportRequests: investmentReportRequests.filter(req => req.investmentReport.investment)
+  }
 }

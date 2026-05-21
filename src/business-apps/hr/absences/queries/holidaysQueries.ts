@@ -49,10 +49,23 @@ export const GET_EMPLOYMENT_REGION_HOLIDAYS = `
  * }
  */
 export const GET_EMPLOYEE_REGION = `
-  query GetEmployeeRegion($employeeId: uuid!, $activeUserLocale: String!) {
+  query GetEmployeeRegion($employeeId: uuid!, $activeUserLocale: String!, $today: timestamptz!) {
     employee: Employee(where: { id: { _eq: $employeeId }, isDeleted: { _eq: false } }) {
       id
-      workingCondition {
+      workingCondition(
+        where: {
+          isDeleted: { _eq: false }
+          _or: [
+            { activeFrom: { _isNull: true }, activeTo: { _isNull: true } }
+            {
+              activeFrom: { _lte: $today }
+              _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: $today } }]
+            }
+          ]
+        }
+        orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
+        limit: 1
+      ) {
         region {
           id
           value

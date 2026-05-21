@@ -1,0 +1,14 @@
+/**
+ * CalendarTimeline tooltips render in an Ant Design portal. Restore catalog label styling
+ * (guic-font-medium + guic-text-gray-700); From/To spans only ship guic-font-medium in catalog.
+ */
+body:has([data-testid='expense-calendar-timeline']) .vacation-event-popover .guic-max-w-xs > .guic-font-medium,
+body:has([data-testid='expense-calendar-timeline'])
+  .vacation-event-popover
+  .guic-max-w-xs
+  .guic-font-medium.guic-text-gray-700,
+body:has([data-testid='expense-calendar-timeline']) .vacation-event-popover .guic-max-w-xs span.guic-font-medium,
+body:has([data-testid='expense-calendar-timeline']) .vacation-event-popover .ant-tooltip-inner .guic-font-medium {
+  color: rgb(55 65 81);
+  font-weight: 500;
+}

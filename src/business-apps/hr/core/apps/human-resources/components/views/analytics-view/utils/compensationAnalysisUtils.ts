@@ -96,7 +96,7 @@ export const transformGapExplanation = async (
     totalEmployees: gap.totalEmployees,
     jobLevelId: gap.jobLevelId,
     jobLevelName: null, // Not available in current schema
-    jobPositionId: gap.jobPositionId,
+    jobPositionId: null,
     jobPositionName: null, // Not available in current schema
     payGapPercentage: gap.totalGapPct,
     tenureExplainedPercent: gap.tenureExplainedPct,

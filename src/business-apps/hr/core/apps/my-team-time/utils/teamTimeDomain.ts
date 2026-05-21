@@ -22,6 +22,8 @@ interface HolidayCatalogEntry {
 interface TeamMemberRegionRow {
   id: string
   workingCondition?: Array<{
+    activeFrom?: string | null
+    activeTo?: string | null
     region?: {
       id?: string
     }
@@ -110,6 +112,35 @@ const toRangeBoundaryTimestamp = (dateKey: string, boundary: 'start' | 'end'): s
 const isDateWithinRange = (dateKey: string, from: string, to: string): boolean => dateKey >= from && dateKey <= to
 
 export const getActiveLocale = (): string => getCurrentActiveUserLocale() || 'en-US'
+
+const getActiveWorkingCondition = <T extends { activeFrom?: string | null; activeTo?: string | null }>(
+  workingConditions: T[] | undefined,
+  targetDate = new Date()
+): T | undefined => {
+  if (!workingConditions?.length) {
+    return undefined
+  }
+
+  if (workingConditions.length === 1) {
+    return workingConditions[0]
+  }
+
+  const targetDateKey = toDateKey(targetDate)
+
+  return workingConditions.find(condition => {
+    const activeFromKey = condition.activeFrom ? toDateKey(condition.activeFrom) : ''
+    const activeToKey = condition.activeTo ? toDateKey(condition.activeTo) : ''
+
+    if (!activeFromKey) {
+      return false
+    }
+
+    const startsOnOrBeforeTarget = activeFromKey <= targetDateKey
+    const endsOnOrAfterTarget = !activeToKey || activeToKey >= targetDateKey
+
+    return startsOnOrBeforeTarget && endsOnOrAfterTarget
+  })
+}
 
 export const expandDateRange = (startDate: string, endDate: string, from: string, to: string): string[] => {
   const dates: string[] = []
@@ -292,7 +323,7 @@ export const fetchTeamHolidayData = async (
   const employeeIdsByRegion = new Map<string, string[]>()
 
   employeeRows.forEach(employee => {
-    const regionId = employee.workingCondition?.[0]?.region?.id
+    const regionId = getActiveWorkingCondition(employee.workingCondition)?.region?.id
     if (!regionId) {
       return
     }

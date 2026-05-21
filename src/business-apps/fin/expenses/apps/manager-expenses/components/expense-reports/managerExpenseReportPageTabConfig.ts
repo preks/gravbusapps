@@ -1,4 +1,3 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ReportType } from '../../hooks/useExpenseReportData'
 
 export interface ManagerExpenseReportTypeTab {
@@ -6,24 +5,21 @@ export interface ManagerExpenseReportTypeTab {
   name: string
 }
 
-export const getManagerExpenseReportTypeTabs = (): ManagerExpenseReportTypeTab[] => [
+export const getManagerExpenseReportTypeTabs = (t: (key: string) => string): ManagerExpenseReportTypeTab[] => [
   {
     key: ReportType.EXPENSE_ITEM,
-    name: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items', 'Expense Items')
+    name: t('expense-reports-tab-expense-items')
   },
   {
     key: ReportType.EXPENSE_PLAN,
-    name: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')
+    name: t('expense-reports-tab-expense-plans')
   },
   {
     key: ReportType.EXPENSE_REQUEST,
-    name: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')
+    name: t('expense-reports-tab-expense-requests')
   },
   {
     key: ReportType.ADVANCE_PAYMENT,
-    name: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:backoffice_expense_landing_page.advance_title',
-      'Advance Payments'
-    )
+    name: t('expense-reports-tab-advance-payments')
   }
 ]

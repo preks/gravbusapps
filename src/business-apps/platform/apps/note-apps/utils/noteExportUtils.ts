@@ -6,11 +6,97 @@
 
 import type { Note, NoteExportOptions } from '../types'
 
+/** Styles for exported HTML/PDF so `<table>` from the editor renders legibly outside the app shell. */
+const EXPORT_DOCUMENT_TABLE_STYLES = `
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        td, th { border: 1px solid #ddd; padding: 0.5em 0.65em; vertical-align: top; }
+        th { background: #f5f5f5; font-weight: 600; }
+`
+
+function normalizeTableRows(matrix: string[][]): string[][] {
+  if (matrix.length === 0) {
+    return []
+  }
+  const colCount = Math.max(...matrix.map(r => r.length))
+  return matrix.map(row => {
+    const next = [...row]
+    while (next.length < colCount) {
+      next.push('')
+    }
+    return next.slice(0, colCount)
+  })
+}
+
+function escapeMarkdownTableCell(text: string): string {
+  return text.replace(/\|/g, '\\|').replace(/\n/g, ' ').trim()
+}
+
+function htmlTableHtmlToPlain(tableHtml: string): string {
+  if (typeof DOMParser === 'undefined') {
+    return tableHtml
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  const doc = new DOMParser().parseFromString(tableHtml, 'text/html')
+  const table = doc.querySelector('table')
+  if (!table) {
+    return ''
+  }
+
+  const rows = Array.from(table.querySelectorAll('tr'))
+  return rows
+    .map(row => {
+      const cells = Array.from(row.querySelectorAll('th, td'))
+      return cells.map(c => (c.textContent || '').replace(/\s+/g, ' ').trim()).join('\t')
+    })
+    .join('\n')
+}
+
+function htmlTableHtmlToGfmMarkdown(tableHtml: string): string {
+  if (typeof DOMParser === 'undefined') {
+    return ''
+  }
+
+  const doc = new DOMParser().parseFromString(tableHtml, 'text/html')
+  const table = doc.querySelector('table')
+  if (!table) {
+    return ''
+  }
+
+  const rows = Array.from(table.querySelectorAll('tr'))
+  if (rows.length === 0) {
+    return ''
+  }
+
+  const matrix = rows.map(row => {
+    const cells = Array.from(row.querySelectorAll('th, td'))
+    return cells.map(c => escapeMarkdownTableCell(c.textContent || ''))
+  })
+
+  const normalized = normalizeTableRows(matrix)
+  const header = normalized[0]
+  const sep = header.map(() => '---')
+  const bodyRows = normalized.slice(1)
+
+  const lines = [
+    '| ' + header.join(' | ') + ' |',
+    '| ' + sep.join(' | ') + ' |',
+    ...bodyRows.map(row => '| ' + row.join(' | ') + ' |')
+  ]
+
+  return '\n\n' + lines.join('\n') + '\n\n'
+}
+
 /**
  * Convert HTML content to Markdown
  */
 export function htmlToMarkdown(html: string): string {
   let markdown = html
+
+  // Tables → GFM (must run before conversions that match `<p>` inside cells)
+  markdown = markdown.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, match => htmlTableHtmlToGfmMarkdown(match))
 
   // Replace headings
   markdown = markdown.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
@@ -120,6 +206,8 @@ export function htmlToPlainText(html: string): string {
   // Remove tags but keep structure
   let text = html
 
+  text = text.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, match => `\n${htmlTableHtmlToPlain(match)}\n`)
+
   // Add newlines for block elements
   text = text.replace(/<\/?(h[1-6]|p|div|br|li|ul|ol|blockquote|pre)[^>]*>/gi, '\n')
 
@@ -137,10 +225,10 @@ export function htmlToPlainText(html: string): string {
   text = text.replace(/&quot;/g, '"')
   text = text.replace(/&#39;/g, "'")
 
-  // Clean up whitespace
-  text = text.replace(/[ \t]+/g, ' ')
-  text = text.replace(/\n[ \t]+/g, '\n')
-  text = text.replace(/[ \t]+\n/g, '\n')
+  // Clean up whitespace (preserve tab characters used for exported table columns)
+  text = text.replace(/ +/g, ' ')
+  text = text.replace(/\n +/g, '\n')
+  text = text.replace(/ +\n/g, '\n')
   text = text.replace(/\n{3,}/g, '\n\n')
 
   return text.trim()
@@ -220,6 +308,7 @@ export function exportNote(note: Note, options: NoteExportOptions): string {
         pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; }
         blockquote { border-left: 4px solid #ddd; margin: 1em 0; padding-left: 1em; color: #666; }
         img { max-width: 100%; }
+        ${EXPORT_DOCUMENT_TABLE_STYLES}
     </style>
 </head>
 <body>
@@ -255,6 +344,7 @@ export function exportNote(note: Note, options: NoteExportOptions): string {
         h1 { font-size: 24pt; }
         h2 { font-size: 18pt; }
         h3 { font-size: 14pt; }
+        ${EXPORT_DOCUMENT_TABLE_STYLES}
     </style>
 </head>
 <body>

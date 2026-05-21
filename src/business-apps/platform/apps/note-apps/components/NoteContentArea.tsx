@@ -75,6 +75,7 @@ export interface NoteContentAreaProps {
   onClearSelection?: () => void
   onMoveToFolder?: (noteId: string, folderId: string) => void
   onRenameNote?: (noteId: string, newTitle: string) => void
+  handwritingNotesEnabled?: boolean
 }
 
 function getInitials(name: string): string {
@@ -139,7 +140,8 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
   onBulkPin,
   onClearSelection,
   onMoveToFolder,
-  onRenameNote
+  onRenameNote,
+  handwritingNotesEnabled = true
 }) => {
   const { t } = useTranslation(translations)
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
@@ -183,6 +185,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
         onCreateNote={onCreateNote}
         onCreateFolder={onCreateFolder}
         onRefresh={onRefresh}
+        handwritingNotesEnabled={handwritingNotesEnabled}
       />
 
       <div className="gba:flex-1 gba:overflow-auto">
@@ -262,7 +265,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                   : false
                 const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
                 const isSelected = selectedNotes.has(note.id)
-                const isFavorite = favorites.has(note.id)
+                const isFavorite = note.isFavorite ?? favorites.has(note.id)
                 const ownerInfo = note.ownerId ? ownerInfoMap.get(note.ownerId) : undefined
                 const isHandwriting =
                   note.noteType === 'handwriting' ||

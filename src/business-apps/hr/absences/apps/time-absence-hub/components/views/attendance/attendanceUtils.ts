@@ -1,5 +1,42 @@
-export const toMinutes = (value?: number | null): number =>
-  typeof value === 'number' && Number.isFinite(value) ? value : 0
+export const toMinutes = (value?: number | string | null): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value !== 'string') {
+    return 0
+  }
+
+  const raw = value.trim()
+  if (!raw) {
+    return 0
+  }
+
+  let normalized = raw
+  const isNegative = normalized.startsWith('-')
+  if (isNegative) {
+    normalized = normalized.slice(1).trim()
+  }
+
+  if (/^\d{1,2}:\d{2}$/.test(normalized)) {
+    const [hoursPart, minutesPart] = normalized.split(':').map(Number)
+    if (!Number.isNaN(hoursPart) && !Number.isNaN(minutesPart)) {
+      const total = hoursPart * 60 + minutesPart
+      return isNegative ? -total : total
+    }
+  }
+
+  let total = 0
+  normalized.split(/\s+/).forEach(token => {
+    if (/^\d+h$/i.test(token)) {
+      total += (Number.parseInt(token.slice(0, -1), 10) || 0) * 60
+    } else if (/^\d+m$/i.test(token)) {
+      total += Number.parseInt(token.slice(0, -1), 10) || 0
+    }
+  })
+
+  return isNegative ? -total : total
+}
 
 export const formatMinutes = (minutes?: number | null): string => {
   if ((!minutes && minutes !== 0) || !Number.isFinite(minutes)) {

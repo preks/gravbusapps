@@ -9,16 +9,39 @@ interface PanelCardProps {
   summary?: string
   extra?: React.ReactNode
   defaultOpen?: boolean
+  /** When true, the card is rendered with reduced visual weight (faded border, transparent background,
+   * dimmed title). Use for developer-only or auxiliary panels that should not draw the user's attention. */
+  subdued?: boolean
   children: React.ReactNode
 }
 
-export const PanelCard: React.FC<PanelCardProps> = ({ title, badge, summary, extra, defaultOpen = true, children }) => {
+export const PanelCard: React.FC<PanelCardProps> = ({
+  title,
+  badge,
+  summary,
+  extra,
+  defaultOpen = true,
+  subdued = false,
+  children
+}) => {
   const [open, setOpen] = useState(defaultOpen)
   const slug = title.toLowerCase().replace(/\s+/g, '-')
 
+  const containerClass = subdued
+    ? 'gba:group gba:flex gba:min-h-0 gba:shrink-0 gba:flex-col gba:rounded-[1.25rem] sm:gba:rounded-[1.5rem] gba:border gba:border-muted gba:bg-transparent gba:overflow-hidden'
+    : 'gba:group gba:flex gba:min-h-0 gba:shrink-0 gba:flex-col gba:rounded-[1.25rem] sm:gba:rounded-[1.5rem] gba:border gba:border-border/60 gba:bg-card gba:overflow-hidden gba:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-14px_rgba(15,23,42,0.10)] gba:transition-shadow gba:duration-200 gba:hover:shadow-[0_1px_2px_rgba(15,23,42,0.05),0_16px_36px_-16px_rgba(15,23,42,0.14)]'
+
+  const headerWrapperClass = subdued
+    ? 'gba:flex gba:min-h-0 gba:items-stretch gba:shrink-0'
+    : 'gba:flex gba:min-h-0 gba:items-stretch gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent gba:shrink-0'
+
+  const titleClass = subdued
+    ? 'gba:shrink-0 gba:text-[11px] gba:font-medium gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground/60'
+    : 'gba:shrink-0 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-foreground'
+
   return (
-    <div className="gba:group gba:flex gba:min-h-0 gba:shrink-0 gba:flex-col gba:rounded-[1.25rem] sm:gba:rounded-[1.5rem] gba:border gba:border-border/60 gba:bg-card gba:overflow-hidden gba:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-14px_rgba(15,23,42,0.10)] gba:transition-shadow gba:duration-200 gba:hover:shadow-[0_1px_2px_rgba(15,23,42,0.05),0_16px_36px_-16px_rgba(15,23,42,0.14)]">
-      <div className="gba:flex gba:min-h-0 gba:items-stretch gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent gba:shrink-0">
+    <div className={containerClass}>
+      <div className={headerWrapperClass}>
         <button
           type="button"
           aria-expanded={open}
@@ -27,9 +50,7 @@ export const PanelCard: React.FC<PanelCardProps> = ({ title, badge, summary, ext
           data-testid={`fabric-panel-card-${slug}`}
         >
           <div className="gba:flex gba:min-w-0 gba:flex-1 gba:items-center gba:gap-2">
-            <span className="gba:shrink-0 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-foreground">
-              {title}
-            </span>
+            <span className={titleClass}>{title}</span>
             {badge !== undefined && badge > 0 && (
               <span className="gba:inline-flex gba:shrink-0 gba:items-center gba:justify-center gba:min-w-[20px] gba:h-[18px] gba:px-1.5 gba:rounded-full gba:text-[10px] gba:font-semibold gba:bg-foreground/10 gba:text-foreground/70">
                 {badge}

@@ -6,7 +6,7 @@ export interface OverviewEntityConfig {
   accountEntity: string // "Account" | "InvestmentAccount"
   opportunityEntity: string // "Opportunity" | "InvestmentOpportunity"
   contactEntity: string // "Contact" | "InvestmentContact"
-  addressEntity: string // "CrmAddress" | "InvestmentAddress"
+  addressEntity?: string // "AccountAddress" | "InvestmentAccountAddress" - used for geographic chart
 }
 
 export interface OverviewCounts {
@@ -36,6 +36,7 @@ export interface OverviewTrendData {
 
 export interface GeographicDataPoint {
   country: string
+  countryId: string
   accounts: number // Count of distinct accounts per country
 }
 
@@ -45,11 +46,10 @@ export interface GenericOverviewData {
     conversionMetrics: OverviewConversionMetrics
   }
   overviewTrendData: OverviewTrendData
-  overviewGeographicData: GeographicDataPoint[]
 }
 
 export const useGenericOverviewData = (accessToken: string, config: OverviewEntityConfig, currencyCode?: string) => {
-  const [mainData, setMainData] = useState<Omit<GenericOverviewData, 'overviewGeographicData'> | null>(null)
+  const [mainData, setMainData] = useState<GenericOverviewData | null>(null)
   const [geographicData, setGeographicData] = useState<GeographicDataPoint[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -58,7 +58,7 @@ export const useGenericOverviewData = (accessToken: string, config: OverviewEnti
   // Effect 1: Fetch currency-INDEPENDENT geographic data (only runs when config changes, NOT currency)
   useEffect(() => {
     const fetchGeographicData = async () => {
-      if (!accessToken) return
+      if (!accessToken || !config.addressEntity) return
 
       try {
         // STEP 1: Get all distinct countries from account addresses
@@ -73,6 +73,7 @@ export const useGenericOverviewData = (accessToken: string, config: OverviewEnti
               }
             ) {
               country {
+                id
                 value
               }
             }
@@ -81,14 +82,17 @@ export const useGenericOverviewData = (accessToken: string, config: OverviewEnti
 
         const result = await graphqlClient.request(distinctCountriesQuery)
         const distinctCountries = result.distinctCountries || []
-        const countryValues = distinctCountries.map((addr: any) => addr.country?.value).filter(Boolean)
+        const countryEntries: Array<{ id: string; value: string }> = distinctCountries
+          .map((addr: any) => addr.country)
+          .filter((c: any) => c?.value && c?.id)
+        const countryValues = countryEntries.map(c => c.value)
 
         if (countryValues.length > 0) {
           try {
             // STEP 2: For each country, count how many DISTINCT accounts have addresses in that country
             const countryAggregateQueries = countryValues
               .map((country: string, index: number) => {
-                const safeCountry = country.replace(/"/g, '\\"').replace(/\\/g, '\\\\')
+                const safeCountry = country.replace(/"/g, String.raw`\"`).replace(/\\/g, String.raw`\\`)
                 return `country_${index}: ${config.addressEntity}Aggregate(
                   where: {
                     isDeleted: { _eq: false }
@@ -110,9 +114,10 @@ export const useGenericOverviewData = (accessToken: string, config: OverviewEnti
 
             const countryAggregateResult = await graphqlClient.request(countryAggregateQuery)
 
-            const geographicResult = countryValues
-              .map((country: string, index: number) => ({
-                country,
+            const geographicResult = countryEntries
+              .map((entry, index) => ({
+                country: entry.value,
+                countryId: entry.id,
                 accounts: countryAggregateResult[`country_${index}`]?.aggregate?.count || 0
               }))
               .filter((item: GeographicDataPoint) => item.accounts > 0)
@@ -383,13 +388,5 @@ export const useGenericOverviewData = (accessToken: string, config: OverviewEnti
     config.contactEntity
   ])
 
-  // Combine main data with geographic data at return level
-  const data: GenericOverviewData | null = mainData
-    ? {
-        ...mainData,
-        overviewGeographicData: geographicData
-      }
-    : null
-
-  return { data, isLoading, error }
+  return { data: mainData, geographicData, isLoading, error }
 }

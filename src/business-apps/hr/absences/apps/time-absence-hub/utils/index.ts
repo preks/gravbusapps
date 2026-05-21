@@ -204,55 +204,51 @@ export const getAbsenceGroupColor = (groupName: string): string => {
   return colorMap[groupName] || 'var(--nw-chart-6)'
 }
 
-// Vacation entitlements utilities (UPDATED - new calculation logic)
-export const calculateVacationMetrics = (
-  entitlements: any[],
-  activeEmployeesCount: number = 0,
-  vacationAbsenceBalance: number = 0
-) => {
-  if (entitlements.length === 0 || activeEmployeesCount === 0) {
+// Vacation entitlements utilities:
+// Keep KPI calculations aligned with entitlement-table semantics used in My Absence.
+export const calculateVacationMetrics = (entitlements: any[], entitlementEmployeesCount: number = 0) => {
+  if (entitlements.length === 0 || entitlementEmployeesCount === 0) {
     return {
       averageVacationDays: 0,
       averageUsed: 0,
       averagePending: 0,
       totalVacationLiability: 0,
-      totalActiveEmployees: activeEmployeesCount,
+      totalActiveEmployees: entitlementEmployeesCount,
       averageAvailable: 0
     }
   }
 
   const totals = entitlements.reduce(
-    (acc, entitlement) => ({
-      total: acc.total + (entitlement.total || 0),
-      used: acc.used + (entitlement.approved || 0),
-      pending: acc.pending + (entitlement.pending || 0)
-    }),
-    { total: 0, used: 0, pending: 0 }
+    (acc, entitlement) => {
+      const total = Number(entitlement?.total) || 0
+      const approved = Number(entitlement?.approved) || 0
+      const pending = Number(entitlement?.pending) || 0
+      const available =
+        entitlement?.available !== undefined ? Number(entitlement.available) || 0 : total - approved - pending
+
+      return {
+        total: acc.total + total,
+        used: acc.used + approved,
+        pending: acc.pending + pending,
+        available: acc.available + Math.max(0, available)
+      }
+    },
+    { total: 0, used: 0, pending: 0, available: 0 }
   )
 
-  // NEW LOGIC: Total vacation days = sum of total field from absence entitlements table (only for AbsenceType:v1:A001)
-  const totalVacationDays = totals.total // Sum of total field from entitlements
-  const totalVacationEntitlement = totals.total // Same as total vacation days
-  const averageVacationPerEmployee = entitlements.length > 0 ? totals.total / entitlements.length : 0
-
-  // NEW LOGIC: Average used per employee = total balance days from EmployeeAbsence / number of active employees
-  const averageUsed = activeEmployeesCount > 0 ? vacationAbsenceBalance / activeEmployeesCount : 0
-  const averagePending = Math.round((totals.pending / entitlements.length) * 100) / 100
-
-  // Calculate total liability (remaining vacation days) = sum of balance field from employee_absence
-  const totalRemaining = vacationAbsenceBalance // Sum of balance field from EmployeeAbsence table
-
-  // NEW LOGIC: Average available per employee = total vacation days / number of active employees
-  const averageAvailable = activeEmployeesCount > 0 ? totalVacationDays / activeEmployeesCount : 0
+  const averageVacationPerEmployee = totals.total / entitlementEmployeesCount
+  const averageUsed = totals.used / entitlementEmployeesCount
+  const averagePending = totals.pending / entitlementEmployeesCount
+  const averageAvailable = totals.available / entitlementEmployeesCount
 
   return {
     averageVacationDays: Math.round(averageVacationPerEmployee * 100) / 100,
     averageUsed: Math.round(averageUsed * 100) / 100,
-    averagePending,
+    averagePending: Math.round(averagePending * 100) / 100,
     averageAvailable: Math.round(averageAvailable * 100) / 100,
-    totalActiveEmployees: activeEmployeesCount,
-    totalVacationLiability: totalRemaining,
-    totalVacationEntitlement: Math.round(totalVacationEntitlement * 100) / 100
+    totalActiveEmployees: entitlementEmployeesCount,
+    totalVacationLiability: Math.round(totals.available * 100) / 100,
+    totalVacationEntitlement: Math.round(totals.total * 100) / 100
   }
 }
 

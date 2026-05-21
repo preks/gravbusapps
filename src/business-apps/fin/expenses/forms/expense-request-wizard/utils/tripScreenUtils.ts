@@ -14,6 +14,12 @@ import {
   getLatestRejectCommentFromCommentList,
   preserveTripIdsIfCountsMatch
 } from '../../shared/utils/tripScreenSharedUtils'
+import {
+  applyEffectiveCostCenterToRows,
+  resolveInheritedOrSelectedCostCenterId,
+  resolveItemCostCenterId,
+  resolveMainCostCenterId
+} from '../../shared/utils/effectiveCostCenter'
 
 export {
   createBorderCrossingTransformer,
@@ -56,6 +62,7 @@ export const createTripLogObject = (
   currentTitle: string,
   currentCurrency: string | null,
   event: string,
+  effectiveCostCenterId: string,
   overnightAccommodation?: boolean
 ): LogObject => {
   const startTripDateTime = combineDateTimeToISOString(startLocation.departureDate, startLocation.departureTime)
@@ -70,7 +77,7 @@ export const createTripLogObject = (
       expenseRule: employeeRuleId || '',
       version: initialRequest.version || 0,
       description: initialRequest.description || '',
-      costCenter: initialRequest.costCenterId || '',
+      costCenter: effectiveCostCenterId,
       employee: initialRequest.employeeId || '',
       expensePlan: initialRequest.expensePlanId || '',
       title: currentTitle || initialRequest.title || '',
@@ -102,6 +109,7 @@ const createTripPoint = (
   tripOrder: number,
   initialRequest: any,
   expenseRulesData: any,
+  effectiveCostCenterId: string,
   endLocation?: LocationData
 ): TripData => {
   const travelRegionRef =
@@ -120,7 +128,7 @@ const createTripPoint = (
     tripDateTime: combineDateTimeToISOString(departureDate, departureTime),
     pointType: pointType,
     tripDirection: tripDirection,
-    costCenter: initialRequest.costCenterId || '',
+    costCenter: effectiveCostCenterId,
     expensePlan: initialRequest.expensePlanId ? initialRequest.expensePlanId : '',
     tripOrder: tripOrder,
     travelRegionRef: travelRegionRef,
@@ -145,7 +153,8 @@ export const transformTrips = (
   destinations: LocationData[],
   endLocation: LocationData,
   initialRequest: any,
-  expenseRulesData: any
+  expenseRulesData: any,
+  effectiveCostCenterId: string
 ): TripData[] => {
   const tripsArray: TripData[] = []
   let tripOrderIndex = 1
@@ -156,7 +165,8 @@ export const transformTrips = (
       TripDirectionDefaultValue.go,
       tripOrderIndex,
       initialRequest,
-      expenseRulesData
+      expenseRulesData,
+      effectiveCostCenterId
     )
   )
 
@@ -179,6 +189,7 @@ export const transformTrips = (
           tripOrderIndex++,
           initialRequest,
           expenseRulesData,
+          effectiveCostCenterId,
           endLocation
         )
       )
@@ -192,7 +203,8 @@ export const transformTrips = (
       TripDirectionDefaultValue.back,
       tripOrderIndex,
       initialRequest,
-      expenseRulesData
+      expenseRulesData,
+      effectiveCostCenterId
     )
   )
 
@@ -294,6 +306,11 @@ export const handleTripSubmitAction = (
     )
     return false
   }
+  const effectiveCostCenterId = resolveMainCostCenterId(
+    expenseRequestData?.EmployeePosition,
+    initialRequest.costCenterId || '',
+    initialRequest.additionalProperties
+  )
   const logObject = createTripLogObject(
     startLocation,
     endLocation,
@@ -302,6 +319,7 @@ export const handleTripSubmitAction = (
     currentTitle,
     currentCurrency,
     event,
+    effectiveCostCenterId,
     overnightAccommodation
   )
   const requestItems: Array<{
@@ -328,7 +346,7 @@ export const handleTripSubmitAction = (
           title: item.title || '',
           ruleId: item.expenseRuleId || '',
           expenseRequest: initialRequest.id || '',
-          costCenter: item.costCenterId || '',
+          costCenter: resolveItemCostCenterId(item, effectiveCostCenterId, initialRequest.costCenterId || ''),
           project: item.projectId || '',
           expenseGroupRef: item.expenseGroupRef || '',
           source: item.source || '',
@@ -364,7 +382,7 @@ export const handleTripSubmitAction = (
         title: item.title || '',
         ruleId: item.expenseRuleId || '',
         expenseRequest: initialRequest.id || '',
-        costCenter: item.costCenterId || '',
+        costCenter: resolveItemCostCenterId(item, effectiveCostCenterId, initialRequest.costCenterId || ''),
         project: item.projectId || '',
         expenseGroupRef: item.expenseGroupRef || '',
         source: item.source || '',
@@ -379,7 +397,14 @@ export const handleTripSubmitAction = (
     expenseItems: combinedItems
   }
 
-  const tripsTransformer = transformTrips(startLocation, destinations, endLocation, initialRequest, expenseRulesData)
+  const tripsTransformer = transformTrips(
+    startLocation,
+    destinations,
+    endLocation,
+    initialRequest,
+    expenseRulesData,
+    effectiveCostCenterId
+  )
 
   const borderCrossTransformer = createBorderCrossingTransformer()
 
@@ -390,7 +415,9 @@ export const handleTripSubmitAction = (
   if (verifiedTrips) {
     verifiedTrips.forEach((element: TripData) => {
       const foundElement = checkTripExists(initialRequest.expenseRequestTrip, element.pointType, element)
-      arrayWithExistingTrips.push(foundElement || element)
+      arrayWithExistingTrips.push(
+        foundElement ? { ...element, id: foundElement.id, version: foundElement.version } : element
+      )
     })
   }
 
@@ -401,7 +428,9 @@ export const handleTripSubmitAction = (
       : arrayWithExistingTrips
 
   ;(logObject as LogObject).expenseRequestTrips = {
-    expenseTrips: verifiedTrips ? finalTrips : initialRequest.expenseRequestTrip || []
+    expenseTrips: verifiedTrips
+      ? finalTrips
+      : applyEffectiveCostCenterToRows(initialRequest.expenseRequestTrip, effectiveCostCenterId)
   }
   const travelBreakdowns: any[] = (expenseRequestData?.TravelBreakdown || []).map((item: any) => ({
     id: item.id,
@@ -415,7 +444,11 @@ export const handleTripSubmitAction = (
     project: item.projectId,
     expenseRule: item.expenseRuleId,
     expenseRequest: initialRequest?.id,
-    costCenter: item.costCenterId
+    costCenter: resolveInheritedOrSelectedCostCenterId(
+      item.costCenterId,
+      effectiveCostCenterId,
+      initialRequest?.costCenterId || ''
+    )
   }))
   ;(logObject as LogObject).travelBreakdownWrapper = {
     travelBreakdowns: travelBreakdowns

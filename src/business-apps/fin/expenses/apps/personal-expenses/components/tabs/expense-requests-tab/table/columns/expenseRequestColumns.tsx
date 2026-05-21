@@ -1,6 +1,7 @@
 import type { CellContext, ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
-import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
+import { expenseTableColumnHeader } from '@/business-apps/fin/expenses/common/columns/expenseColumnHelpers'
 import { formatCurrencyDisplay, getExpenseRequestStatusDisplayT } from '../../../../../utils'
 
 export const EXPENSE_REQUESTS_TABLE_DATA_TEST_ID = 'expense-requests'
@@ -86,10 +87,7 @@ export function createExpenseRequestColumns(t: (key: string) => string): ColumnD
     {
       id: 'code',
       accessorKey: 'code',
-      header: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-        'Request Number'
-      ),
+      header: expenseTableColumnHeader(t('expense-requests-column-request-number')),
       size: 120,
       sortDescFirst: false,
       cell: renderReqCodeCell
@@ -97,7 +95,7 @@ export function createExpenseRequestColumns(t: (key: string) => string): ColumnD
     {
       id: 'title',
       accessorKey: 'title',
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title'),
+      header: expenseTableColumnHeader(t('expense-requests-column-title')),
       size: 200,
       sortDescFirst: false,
       cell: renderReqTitleCell
@@ -105,10 +103,7 @@ export function createExpenseRequestColumns(t: (key: string) => string): ColumnD
     {
       id: 'requestDate',
       accessorKey: 'requestDate',
-      header: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:confirm_transfer_advance_payment.request_date_label',
-        'Request Date'
-      ),
+      header: expenseTableColumnHeader(t('personal-expenses-label-request-date')),
       size: 110,
       sortDescFirst: true,
       cell: renderReqRequestDateCell
@@ -116,10 +111,7 @@ export function createExpenseRequestColumns(t: (key: string) => string): ColumnD
     {
       id: 'startDate',
       accessorKey: 'startDate',
-      header: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_plan_list.expense_plan_table.start_date',
-        'Start Date'
-      ),
+      header: expenseTableColumnHeader(t('personal-expenses-filter-label-start-date')),
       size: 110,
       sortDescFirst: false,
       cell: renderReqStartDateCell
@@ -127,7 +119,7 @@ export function createExpenseRequestColumns(t: (key: string) => string): ColumnD
     {
       id: 'endDate',
       accessorFn: (row: ExpenseRequestRow) => row.endDate,
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date'),
+      header: expenseTableColumnHeader(t('expense-plans-column-end-date')),
       size: 110,
       sortDescFirst: false,
       cell: renderReqEndDateCell
@@ -135,7 +127,7 @@ export function createExpenseRequestColumns(t: (key: string) => string): ColumnD
     {
       id: 'status',
       accessorKey: 'status',
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+      header: expenseTableColumnHeader(t('expense-items-column-status')),
       size: 100,
       sortDescFirst: false,
       cell: renderReqStatusCell
@@ -143,7 +135,7 @@ export function createExpenseRequestColumns(t: (key: string) => string): ColumnD
     {
       id: 'reimbursableAmount',
       accessorFn: (row: ExpenseRequestRow) => row.reimbursableAmount,
-      header: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount'),
+      header: expenseTableColumnHeader(t('expense-items-column-reimbursable')),
       size: 140,
       sortDescFirst: false,
       meta: { align: 'right' as const },
@@ -152,10 +144,7 @@ export function createExpenseRequestColumns(t: (key: string) => string): ColumnD
     {
       id: 'advance',
       accessorFn: (row: ExpenseRequestRow) => row.expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount,
-      header: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_request_list.expense_table.advance',
-        'Advance'
-      ),
+      header: expenseTableColumnHeader(t('personal-expenses-column-advance-payment')),
       size: 120,
       enableSorting: false,
       meta: { align: 'right' as const },

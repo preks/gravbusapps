@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { isAllCurrencySelection } from '@/common/data/investment/utils/investmentCurrencySelection'
 
 /**
  * Cache for distinct investment statuses to avoid duplicate queries
@@ -91,7 +92,7 @@ const BUILD_STATUS_COUNT_DISTRIBUTION_QUERY = (
   const statusAggregates = statuses
     .map(status => {
       const sanitizedRef = status.statusRef.replaceAll(/\W/g, '_')
-      const currencyCondition = currency === 'All' ? '' : `currency: { code: { _eq: "${currency}" } }`
+      const currencyCondition = isAllCurrencySelection(currency) ? '' : `currency: { code: { _eq: "${currency}" } }`
 
       return `
       status_${sanitizedRef}: InvestmentAggregate(
@@ -131,7 +132,7 @@ const BUILD_STATUS_AMOUNT_DISTRIBUTION_QUERY = (
         where: {
           isDeleted: { _eq: false }
           investmentStatusRef: { _eq: "${status.statusRef}" }
-          currency: { code: { _eq: "${currency}" } }
+          ${isAllCurrencySelection(currency) ? '' : `currency: { code: { _eq: "${currency}" } }`}
         }
       ) {
         aggregate {

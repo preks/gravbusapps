@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import dayjs from 'dayjs'
 import {
+  Button,
   Select,
   SelectTrigger,
   SelectValue,
@@ -14,25 +15,128 @@ import {
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import FormHeader from '../components/FormHeader'
-import { useWorkingConditionsLookups } from './queries/UpdateWorkingConditionsQueries'
+import {
+  useWorkingConditionsLookups,
+  type WorkingConditionValidationRecord
+} from './queries/UpdateWorkingConditionsQueries'
 import flowSmall from '@/assets/icons/flowSmall.svg'
 import { truncateText } from '@/common/utils/textUtils'
 import translations from '../_i18n'
 
 const prefixDataTestId = 'UpdateWorkingConditionsScreen'
+type ChangeMode = 'UPDATE' | 'INSERT'
 
 const getDateInputValue = (value: string): string | undefined => (value ? value : undefined)
+const getTomorrowDate = (): string => dayjs().add(1, 'day').format('YYYY-MM-DD')
+const toInstantDate = (value: string): string | undefined => {
+  if (!value) return undefined
+
+  const date = dayjs(value)
+  return date.isValid() ? `${date.format('YYYY-MM-DD')}T00:00:00.000Z` : undefined
+}
+
+const toDateInputValue = (value?: string | null): string => {
+  if (!value) return ''
+  const timestampIndex = value.indexOf('T')
+  if (timestampIndex === -1) {
+    return value
+  }
+
+  const date = dayjs(value)
+  return date.isValid() ? date.format('YYYY-MM-DD') : value.substring(0, timestampIndex)
+}
+
+const getWorkingConditionChangeMode = (context: BusinessAppContextProps): ChangeMode => {
+  const additionalData = (context as any)?.additionalData
+  const externalContextData = additionalData?.externalContextData
+  const psiTaskPayload = additionalData?.psi_taskPayload
+  const initialParameters = psiTaskPayload?.psi_initialParameters
+  const changeMode =
+    externalContextData?.changeMode ||
+    additionalData?.changeMode ||
+    psiTaskPayload?.changeMode ||
+    initialParameters?.changeMode
+
+  return changeMode === 'INSERT' ? 'INSERT' : 'UPDATE'
+}
+
+const toDateTimestamp = (year: string, month: string, day: string): number | null => {
+  const date = dayjs(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`)
+
+  if (!date.isValid() || date.month() + 1 !== Number(month) || date.date() !== Number(day)) {
+    return null
+  }
+
+  const timestamp = date.startOf('day').valueOf()
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
+const getDateTimestamp = (value?: string | null): number | null => {
+  if (!value) {
+    return null
+  }
+
+  const trimmedValue = value.trim()
+  const slashDateMatch = trimmedValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+
+  if (slashDateMatch) {
+    const [, firstPart, secondPart, year] = slashDateMatch
+    const firstAsMonthTimestamp = toDateTimestamp(year, firstPart, secondPart)
+    const secondAsMonthTimestamp = toDateTimestamp(year, secondPart, firstPart)
+    const validTimestamps = [firstAsMonthTimestamp, secondAsMonthTimestamp].filter(
+      (timestamp): timestamp is number => timestamp !== null
+    )
+
+    return validTimestamps.length > 0 ? Math.max(...validTimestamps) : null
+  }
+
+  const timestamp = dayjs(trimmedValue).startOf('day').valueOf()
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
+interface EmployeeWorkingConditionSubmitPayload {
+  id?: string
+  version?: number
+  employmentTypeRef: string
+  contractTypeRef: string
+  remoteRef: string
+  regionRef: string
+  activeFrom?: string
+  activeTo?: string
+  hireDate?: string
+  probationEnd?: string
+  employeeId?: string
+  contractStatus: 'ACTIVE'
+}
+
+interface WorkingConditionsSubmitPayload {
+  employeeId?: string
+  event: 'pse_submit'
+  changeMode?: ChangeMode
+  employeeWorkingCondition: EmployeeWorkingConditionSubmitPayload
+}
+
+interface DateValidationErrors {
+  effectiveStartDate?: string
+  effectiveEndDate?: string
+}
+
+const hasDateValidationErrors = (errors: DateValidationErrors): boolean =>
+  Boolean(errors.effectiveStartDate || errors.effectiveEndDate)
 
 const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(translations)
+  const changeMode = useMemo(() => getWorkingConditionChangeMode(context), [context])
   const {
     employmentTypes,
     contractTypes,
     remoteOptions,
     regions,
     current,
+    defaultWorkingCondition,
+    workingConditionValidationRecords,
     jobTitle,
     firstName,
     lastName,
@@ -44,22 +148,31 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const [contractType, setContractType] = useState<string>('')
   const [remote, setRemote] = useState<string>('')
   const [region, setRegion] = useState<string>('')
+  const [effectiveStartDate, setEffectiveStartDate] = useState<string>('')
+  const [effectiveEndDate, setEffectiveEndDate] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [probationEndDate, setProbationEndDate] = useState<string>('')
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const [dateValidationErrors, setDateValidationErrors] = useState<DateValidationErrors>({})
   useEffect(() => {
     if (!current) {
       return
     }
 
-    const toDateInput = (val?: string | null): string => {
-      if (!val) return ''
-      const idx = val.indexOf('T')
-      return idx > 0 ? val.substring(0, idx) : val
+    setStartDate(toDateInputValue(current.startDate))
+    setEffectiveStartDate(toDateInputValue(current.activeFrom))
+    setEffectiveEndDate(toDateInputValue(current.activeTo))
+    setProbationEndDate(toDateInputValue(current.probationEndDate))
+  }, [current])
+
+  useEffect(() => {
+    if (changeMode !== 'INSERT' || !defaultWorkingCondition) {
+      return
     }
 
-    setStartDate(toDateInput(current.startDate))
-    setProbationEndDate(toDateInput(current.probationEndDate))
-  }, [current])
+    setStartDate(previousValue => previousValue || toDateInputValue(defaultWorkingCondition.startDate))
+    setProbationEndDate(previousValue => previousValue || toDateInputValue(defaultWorkingCondition.probationEndDate))
+  }, [changeMode, defaultWorkingCondition])
 
   useEffect(() => {
     if (!regionCatalogIsFull && !current?.regionRef && !region && Array.isArray(regions) && regions.length === 1) {
@@ -73,6 +186,23 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const selectedRegion = region || current?.regionRef || ''
   const currentStartDate = current?.startDate ? current.startDate.split('T')[0] : ''
   const currentContractTypeRef = current?.contractTypeRef || ''
+  const minimumEntryDate = useMemo(getTomorrowDate, [])
+  const minimumEffectiveStartDate = changeMode === 'UPDATE' ? startDate || undefined : minimumEntryDate
+  const effectiveEndMinDate = useMemo(() => {
+    if (changeMode === 'UPDATE') {
+      if (effectiveStartDate) {
+        return effectiveStartDate
+      }
+
+      return startDate || undefined
+    }
+
+    if (effectiveStartDate && effectiveStartDate > minimumEntryDate) {
+      return effectiveStartDate
+    }
+
+    return minimumEntryDate
+  }, [changeMode, effectiveStartDate, minimumEntryDate, startDate])
 
   useEffect(() => {
     if (employmentType) {
@@ -234,30 +364,45 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     return start.isValid() && probationEnd.isValid() && probationEnd.isBefore(start, 'day')
   }, [startDate, probationEndDate])
 
+  const isEffectiveEndBeforeStart = useMemo(() => {
+    if (!effectiveStartDate || !effectiveEndDate) return false
+    const effectiveStart = dayjs(effectiveStartDate)
+    const effectiveEnd = dayjs(effectiveEndDate)
+    return effectiveStart.isValid() && effectiveEnd.isValid() && effectiveEnd.isBefore(effectiveStart, 'day')
+  }, [effectiveStartDate, effectiveEndDate])
+
   const isValid = useMemo(() => {
     return (
-      Boolean(selectedEmploymentType && selectedContractType && selectedRemote && selectedRegion && startDate) &&
+      Boolean(
+        effectiveStartDate &&
+          selectedEmploymentType &&
+          selectedContractType &&
+          selectedRemote &&
+          selectedRegion &&
+          startDate
+      ) &&
+      !isEffectiveEndBeforeStart &&
       !isProbationEndBeforeStart
     )
   }, [
+    effectiveStartDate,
     selectedEmploymentType,
     selectedContractType,
     selectedRemote,
     selectedRegion,
     startDate,
+    isEffectiveEndBeforeStart,
     isProbationEndBeforeStart
   ])
 
-  const title = useMemo(
-    () => getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.title', 'Update Working Conditions'),
-    []
-  )
+  const title = useMemo(() => t('working-conditions-title'), [t])
 
   const hasChanges = useMemo(() => {
     if (!current) return true
     const curStart = current.startDate ? current.startDate.split('T')[0] : ''
     const curProb = current.probationEndDate ? current.probationEndDate.split('T')[0] : ''
     return (
+      Boolean(effectiveStartDate || effectiveEndDate) ||
       selectedEmploymentType !== (current.employmentTypeRef || '') ||
       selectedContractType !== (current.contractTypeRef || '') ||
       selectedRemote !== (current.remoteRef || '') ||
@@ -267,6 +412,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     )
   }, [
     current,
+    effectiveStartDate,
+    effectiveEndDate,
     selectedEmploymentType,
     selectedContractType,
     selectedRemote,
@@ -275,43 +422,225 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     probationEndDate
   ])
 
+  const futureDateErrorMessage = t('working-conditions-future-entry-dates-required')
+
+  const getFutureEntryDateError = useCallback(
+    (value: string): string | undefined => {
+      if (changeMode === 'UPDATE') {
+        return undefined
+      }
+
+      const minimumTimestamp = getDateTimestamp(minimumEntryDate)
+      const valueTimestamp = getDateTimestamp(value)
+
+      if (valueTimestamp !== null && minimumTimestamp !== null && valueTimestamp < minimumTimestamp) {
+        return futureDateErrorMessage
+      }
+
+      return undefined
+    },
+    [changeMode, futureDateErrorMessage, minimumEntryDate]
+  )
+
+  const getFutureEntryDateErrors = useCallback((): DateValidationErrors => {
+    const errors: DateValidationErrors = {}
+    errors.effectiveStartDate = getFutureEntryDateError(effectiveStartDate)
+    errors.effectiveEndDate = getFutureEntryDateError(effectiveEndDate)
+
+    return errors
+  }, [effectiveEndDate, effectiveStartDate, getFutureEntryDateError])
+
+  const validateFutureEntryDates = useCallback(() => {
+    const errors = getFutureEntryDateErrors()
+    setDateValidationErrors(errors)
+
+    if (hasDateValidationErrors(errors)) {
+      setValidationError(null)
+      return false
+    }
+
+    return true
+  }, [getFutureEntryDateErrors])
+
+  const hasWorkingConditionDateRange = useCallback(
+    (record: WorkingConditionValidationRecord): boolean =>
+      getDateTimestamp(record.activeFrom) !== null || getDateTimestamp(record.activeTo) !== null,
+    []
+  )
+
+  const hasActivePeriodOverlap = useCallback(
+    (
+      submittedRecord: EmployeeWorkingConditionSubmitPayload,
+      existingRecord: WorkingConditionValidationRecord,
+      changeMode?: ChangeMode
+    ): boolean => {
+      if (changeMode === 'UPDATE' && submittedRecord.id && existingRecord.id === submittedRecord.id) {
+        return false
+      }
+
+      if (!hasWorkingConditionDateRange(existingRecord)) {
+        return false
+      }
+
+      const submittedFrom = getDateTimestamp(submittedRecord.activeFrom)
+      const submittedTo = getDateTimestamp(submittedRecord.activeTo) ?? Number.POSITIVE_INFINITY
+      const existingFrom = getDateTimestamp(existingRecord.activeFrom) ?? Number.NEGATIVE_INFINITY
+      const existingTo = getDateTimestamp(existingRecord.activeTo) ?? Number.POSITIVE_INFINITY
+
+      if (submittedFrom === null) {
+        return false
+      }
+
+      const existingIsOpenEnded = getDateTimestamp(existingRecord.activeTo) === null
+      if (changeMode === 'INSERT' && existingIsOpenEnded && submittedFrom > existingFrom) {
+        return false
+      }
+
+      return submittedFrom <= existingTo && existingFrom <= submittedTo
+    },
+    [hasWorkingConditionDateRange]
+  )
+
+  const getOpenEndedWorkingConditionToClose = useCallback(
+    (newActiveFrom?: string): WorkingConditionValidationRecord | null => {
+      const submittedFrom = getDateTimestamp(newActiveFrom)
+      if (changeMode !== 'INSERT' || submittedFrom === null) {
+        return null
+      }
+
+      return workingConditionValidationRecords
+        .filter(record => {
+          const existingFrom = getDateTimestamp(record.activeFrom)
+          const existingTo = getDateTimestamp(record.activeTo)
+          return record.id && existingFrom !== null && existingTo === null && existingFrom < submittedFrom
+        })
+        .sort(
+          (first, second) => (getDateTimestamp(second.activeFrom) ?? 0) - (getDateTimestamp(first.activeFrom) ?? 0)
+        )[0]
+    },
+    [changeMode, workingConditionValidationRecords]
+  )
+
+  const getActivePeriodOverlapErrors = useCallback(
+    (payload: WorkingConditionsSubmitPayload, changeMode?: ChangeMode) => {
+      const hasOverlap = workingConditionValidationRecords.some(record =>
+        hasActivePeriodOverlap(payload.employeeWorkingCondition, record, changeMode)
+      )
+
+      if (!hasOverlap) {
+        return null
+      }
+
+      return [t('working-conditions-active-period-overlap')]
+    },
+    [hasActivePeriodOverlap, t, workingConditionValidationRecords]
+  )
+
+  const clearDateRelatedValidationError = useCallback(() => {
+    setValidationError(null)
+  }, [])
+
   const validateForm = () => {
+    if (isEffectiveEndBeforeStart) {
+      return [t('working-conditions-employment-end-before-start')]
+    }
     if (isProbationEndBeforeStart) {
       return [t('working-conditions-probation-end-before-start')]
     }
-    if (!selectedEmploymentType || !selectedContractType || !selectedRemote || !selectedRegion || !startDate) {
-      return [
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:working_conditions_form.required',
-          'Please complete required fields'
-        )
-      ]
+    if (
+      !effectiveStartDate ||
+      !selectedEmploymentType ||
+      !selectedContractType ||
+      !selectedRemote ||
+      !selectedRegion ||
+      !startDate
+    ) {
+      return [t('working-conditions-required')]
     }
     return null
   }
 
-  const handlePreSubmit = async () => {
+  const buildSubmitPayload = useCallback((): WorkingConditionsSubmitPayload => {
+    const additionalData = (context as any)?.additionalData
+    const externalContextData = additionalData?.externalContextData
+    const psiTaskPayload = additionalData?.psi_taskPayload
+    const initialParameters = psiTaskPayload?.psi_initialParameters
     const employeeId =
-      (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+      externalContextData?.employeeId ||
+      additionalData?.employeeId ||
+      psiTaskPayload?.employeeId ||
+      initialParameters?.employeeId ||
       context.userInfo?.employeeDetails?.employeeId
+
+    const workingConditionToClose = getOpenEndedWorkingConditionToClose(effectiveStartDate)
+    const payloadWorkingConditionId = changeMode === 'INSERT' ? workingConditionToClose?.id : current?.id
+    let payloadWorkingConditionVersion: number | undefined
+    if (changeMode === 'INSERT') {
+      payloadWorkingConditionVersion = workingConditionToClose?.version
+    } else if (typeof current?.version === 'number') {
+      payloadWorkingConditionVersion = current.version
+    }
 
     return {
       employeeId,
       event: 'pse_submit',
+      changeMode,
       employeeWorkingCondition: {
-        id: current?.id,
-        version: typeof current?.version === 'number' ? current?.version : undefined,
+        id: payloadWorkingConditionId,
+        version: payloadWorkingConditionVersion,
         employmentTypeRef: selectedEmploymentType,
         contractTypeRef: selectedContractType,
         remoteRef: selectedRemote,
         regionRef: selectedRegion,
-        hireDate: startDate || undefined,
-        probationEnd: probationEndDate || undefined,
+        activeFrom: toInstantDate(effectiveStartDate),
+        activeTo: toInstantDate(effectiveEndDate),
+        hireDate: toInstantDate(startDate),
+        probationEnd: toInstantDate(probationEndDate),
         employeeId,
         contractStatus: 'ACTIVE'
       }
     }
-  }
+  }, [
+    changeMode,
+    context,
+    current?.id,
+    current?.version,
+    effectiveEndDate,
+    effectiveStartDate,
+    getOpenEndedWorkingConditionToClose,
+    probationEndDate,
+    selectedContractType,
+    selectedEmploymentType,
+    selectedRegion,
+    selectedRemote,
+    startDate
+  ])
+
+  const handleSubmitClick = useCallback(() => {
+    if (!validateFutureEntryDates()) {
+      return
+    }
+
+    const errors = validateForm()
+    if (errors && errors.length > 0) {
+      setValidationError(errors.join(', '))
+      return
+    }
+
+    setValidationError(null)
+    const payload = buildSubmitPayload()
+    const overlapErrors = getActivePeriodOverlapErrors(payload, changeMode)
+    if (overlapErrors && overlapErrors.length > 0) {
+      setValidationError(overlapErrors.join(', '))
+      return
+    }
+
+    dispatchProcessContinueEvent('pse_submit', payload)
+  }, [buildSubmitPayload, changeMode, getActivePeriodOverlapErrors, validateForm, validateFutureEntryDates])
+
+  const handleCancelClick = useCallback(() => {
+    dispatchProcessContinueEvent('pse_abort', {})
+  }, [])
 
   if (loading) {
     return (
@@ -363,34 +692,114 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
           processType="update"
           formData={{}}
           onSubmit={data => data}
-          validateForm={validateForm}
-          handlePreSubmit={handlePreSubmit}
-          isSubmitDisabled={!isValid || !hasChanges}
-          submitEventType="pse_submit"
-          cancelEventType="pse_abort"
-          submitButtonTestId="flw_updateWorkingConditions_submitBtn"
-          cancelButtonTestId="flw_updateWorkingConditions_cancelBtn"
-          submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
-          cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+          disableFormSubmission
+          customActions={
+            <div
+              className="gba:flex gba:shrink-0 gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4"
+              data-testid="flw_updateWorkingConditions_customActions"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancelClick}
+                data-testid="flw_updateWorkingConditions_cancelBtn"
+              >
+                {t('action-cancel')}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmitClick}
+                disabled={!isValid || !hasChanges}
+                data-testid="flw_updateWorkingConditions_submitBtn"
+              >
+                {t('action-submit')}
+              </Button>
+            </div>
+          }
           data-testid={formatDataTestId(prefixDataTestId, 'Container')}
         >
           <div className="gba:py-6 gba:space-y-4">
-            <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:working_conditions_form.employmentType',
-                  'Employment Type'
-                )}
-                *
+            {validationError && (
+              <div
+                className="gba:text-sm gba:text-destructive"
+                data-testid="flw_updateWorkingConditions_validationError"
+              >
+                {validationError}
               </div>
+            )}
+
+            <div className="gba:space-y-2 gba:overflow-hidden">
+              <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-start-date')}*</div>
+              <DateInput
+                type="date"
+                value={getDateInputValue(effectiveStartDate)}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const stringValue = typeof value === 'string' ? value : ''
+                  setEffectiveStartDate(stringValue)
+                  clearDateRelatedValidationError()
+                  setDateValidationErrors(previousErrors => ({
+                    ...previousErrors,
+                    effectiveStartDate: getFutureEntryDateError(stringValue)
+                  }))
+                }}
+                min={minimumEffectiveStartDate}
+                outputFormat="iso"
+                data-testid="flw_updateWorkingConditions_effectiveStartDatePicker"
+              />
+              {dateValidationErrors.effectiveStartDate && (
+                <div
+                  className="gba:text-sm gba:text-destructive"
+                  data-testid="flw_updateWorkingConditions_effectiveStartDateFutureError"
+                >
+                  {dateValidationErrors.effectiveStartDate}
+                </div>
+              )}
+            </div>
+
+            <div className="gba:space-y-2 gba:overflow-hidden">
+              <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-end-date')}</div>
+              <DateInput
+                type="date"
+                value={getDateInputValue(effectiveEndDate)}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const stringValue = typeof value === 'string' ? value : ''
+                  setEffectiveEndDate(stringValue)
+                  clearDateRelatedValidationError()
+                  setDateValidationErrors(previousErrors => ({
+                    ...previousErrors,
+                    effectiveEndDate: getFutureEntryDateError(stringValue)
+                  }))
+                }}
+                min={effectiveEndMinDate}
+                outputFormat="iso"
+                data-testid="flw_updateWorkingConditions_effectiveEndDatePicker"
+              />
+              {dateValidationErrors.effectiveEndDate && (
+                <div
+                  className="gba:text-sm gba:text-destructive"
+                  data-testid="flw_updateWorkingConditions_effectiveEndDateFutureError"
+                >
+                  {dateValidationErrors.effectiveEndDate}
+                </div>
+              )}
+              {isEffectiveEndBeforeStart && (
+                <div
+                  className="gba:text-sm gba:text-destructive"
+                  data-testid="flw_updateWorkingConditions_effectiveEndBeforeStartError"
+                >
+                  {t('working-conditions-employment-end-before-start')}
+                </div>
+              )}
+            </div>
+
+            <div className="gba:space-y-2">
+              <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-type')}*</div>
               <Select value={selectedEmploymentType} onValueChange={setEmploymentType} disabled={loading}>
                 <SelectTrigger
                   className="gba:w-full gba:truncate"
                   data-testid="flw_updateWorkingConditions_employmentTypeSelect"
                 >
-                  <SelectValue
-                    placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Type')}
-                  />
+                  <SelectValue placeholder={t('placeholder-select')} />
                 </SelectTrigger>
                 <SelectContent>
                   {employmentTypes.map(o => (
@@ -403,17 +812,13 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
             </div>
 
             <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.contractType', 'Contract Type')}*
-              </div>
+              <div className="gba:text-sm gba:font-medium">{t('working-conditions-contract-type')}*</div>
               <Select value={selectedContractType} onValueChange={setContractType} disabled={loading}>
                 <SelectTrigger
                   className="gba:w-full gba:truncate"
                   data-testid="flw_updateWorkingConditions_contractTypeSelect"
                 >
-                  <SelectValue
-                    placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Type')}
-                  />
+                  <SelectValue placeholder={t('placeholder-select')} />
                 </SelectTrigger>
                 <SelectContent>
                   {contractTypes.map(o => (
@@ -426,17 +831,13 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
             </div>
 
             <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.remote', 'Remote')}*
-              </div>
+              <div className="gba:text-sm gba:font-medium">{t('working-conditions-remote')}*</div>
               <Select value={selectedRemote} onValueChange={setRemote} disabled={loading}>
                 <SelectTrigger
                   className="gba:w-full gba:truncate"
                   data-testid="flw_updateWorkingConditions_remoteSelect"
                 >
-                  <SelectValue
-                    placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select remote')}
-                  />
+                  <SelectValue placeholder={t('working-conditions-select-remote')} />
                 </SelectTrigger>
                 <SelectContent>
                   {remoteOptions.map(o => (
@@ -449,17 +850,13 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
             </div>
 
             <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.region', 'Region')}*
-              </div>
+              <div className="gba:text-sm gba:font-medium">{t('working-conditions-region')}*</div>
               <Select value={selectedRegion} onValueChange={setRegion}>
                 <SelectTrigger
                   className="gba:w-full gba:truncate"
                   data-testid="flw_updateWorkingConditions_regionSelect"
                 >
-                  <SelectValue
-                    placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Region')}
-                  />
+                  <SelectValue placeholder={t('working-conditions-select-region')} />
                 </SelectTrigger>
                 <SelectContent>
                   {regions.map(o => (
@@ -473,9 +870,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
             <div className="gba:flex gba:flex-col gba:gap-4">
               <div className="gba:space-y-2 gba:overflow-hidden">
-                <div className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.start_date', 'Start Date')}*
-                </div>
+                <div className="gba:text-sm gba:font-medium">{t('working-conditions-start-date')}*</div>
                 <DateInput
                   type="date"
                   value={getDateInputValue(startDate)}
@@ -483,6 +878,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                     const stringValue = typeof value === 'string' ? value : ''
                     setStartDate(stringValue)
                   }}
+                  disabled={loading || changeMode === 'UPDATE' || changeMode === 'INSERT'}
+                  readOnly
                   outputFormat="iso"
                   data-testid="flw_updateWorkingConditions_startDatePicker"
                 />
@@ -501,12 +898,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               )}
 
               <div className="gba:space-y-2 gba:overflow-hidden">
-                <div className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:working_conditions_form.probation_end_date',
-                    'Probation End Date'
-                  )}
-                </div>
+                <div className="gba:text-sm gba:font-medium">{t('working-conditions-probation-end-date')}</div>
                 <DateInput
                   type="date"
                   value={getDateInputValue(probationEndDate)}

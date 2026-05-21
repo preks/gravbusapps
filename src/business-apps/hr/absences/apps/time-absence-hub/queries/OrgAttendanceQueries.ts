@@ -70,9 +70,9 @@ export interface AttendanceRow {
   endTime?: string | null
   recordedTime?: number | null
   breakTime?: number | null
-  effectiveTime?: number | null
-  plannedTime?: number | null
-  differenceTime?: number | null
+  effectiveTime?: string | number | null
+  plannedTime?: string | number | null
+  differenceTime?: string | number | null
   manualOverride?: boolean | null
   attendanceLocation?: string | null
 }

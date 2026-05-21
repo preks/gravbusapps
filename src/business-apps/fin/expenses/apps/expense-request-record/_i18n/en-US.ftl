@@ -1,0 +1,77 @@
+# Expense request record (transl.txt)
+
+expense-request-record-title = Expense Request Record
+expense-request-record-expense-request-items = Expense Request Items
+expense-request-record-expense-item-details = Expense Item Details
+expense-request-record-missing-request-id = Missing Expense Request ID
+expense-request-record-request-not-found = Expense Request Not Found
+expense-request-record-no-request-found = No expense request found with provided ID
+expense-request-record-allowances = Allowances
+expense-request-record-comments = Comments
+expense-request-record-label-expense-request = Expense Request
+expense-request-record-comment-approved = Approved
+expense-request-record-comment-no-comments = No comments available
+expense-request-record-comment-status-changed = Status changed from: { $from } to: { $to }
+
+expense-request-record-system = System
+expense-request-record-non-deductible = Non-Deductible
+expense-request-record-travel-region = Travel Region
+expense-request-record-day-rate = Day Rate
+expense-request-record-overnight = Overnight
+expense-request-record-accommodation = Accommodation
+expense-request-record-confirmed = Confirmed
+expense-request-record-tab-items = Items
+expense-request-record-tab-allowances = Allowances
+expense-request-record-tab-trip = Trip
+
+expense-request-record-trip-section-title = Trip Details
+expense-request-record-trip-column-order = Order
+expense-request-record-trip-column-date-time = Date & Time
+expense-request-record-trip-column-direction = Trip Details
+expense-request-record-trip-column-destination = Destination
+expense-request-record-trip-column-start-location = Start Location
+expense-request-record-trip-column-country = Start Location
+expense-request-record-trip-column-region = Region
+expense-request-record-point-type-start = Start Point
+expense-request-record-point-type-end = Final Destination
+expense-request-record-point-type-destination = Destination
+expense-request-record-point-type-region-arrival = Destination
+expense-request-record-direction-outbound = Outbound
+expense-request-record-direction-return = Starting Location
+expense-request-record-view-table = Table
+expense-request-record-view-timeline = Timeline
+expense-request-record-tab-advance-payments = Advance Payments
+expense-request-record-duration = Duration
+expense-request-record-request-date = Request Date
+expense-request-record-decision-date = Decision Date
+expense-request-record-requester = Requester
+expense-request-record-manager = Manager
+expense-request-record-project = Project
+expense-request-record-total-amount = Total Amount
+expense-request-record-back = Back
+
+expense-request-record-column-code = Code
+expense-request-record-column-amount = Amount
+expense-request-record-column-status = Status
+expense-request-record-column-payment-method = Payment Method
+expense-request-record-column-transaction-date = Transaction Date
+expense-request-record-column-transaction-number = Transaction Number
+expense-request-record-payment-method-direct-deposit = Direct Deposit
+expense-request-record-payment-method-cash = Cash Payment
+expense-request-record-column-title = Title
+expense-request-record-column-expense-group = Expense Group
+expense-request-record-multi-position-item = Multi Position Item
+expense-request-record-expense-positions-title = Expense Positions
+expense-request-record-column-expense-class = Expense Class
+expense-request-record-column-date = Date
+expense-request-record-column-reimbursable = Reimbursable
+expense-request-record-column-deductible = Deductible
+expense-request-record-total = Total
+expense-request-record-generated-allowance = Generated Allowance
+expense-request-record-allowance = Allowance
+expense-request-record-non-reimbursable = Non-Reimbursable
+
+expense-request-record-cost-center-label = Cost Center
+expense-request-record-requester-cost-center-label = Requester Cost Center
+expense-request-record-items-column-cost-center = Cost Center
+expense-request-record-item-cost-center-multiple = Multiple
