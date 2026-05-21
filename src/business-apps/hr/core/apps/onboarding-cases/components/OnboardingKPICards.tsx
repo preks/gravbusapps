@@ -6,9 +6,10 @@
  */
 
 import React, { useMemo } from 'react'
-import { Card, CardContent, cn } from '@newwork/nw-design-system'
+import { Card, CardContent, cn, useTranslation } from '@newwork/nw-design-system'
 import { UserPlus, Users, CheckCircle, Clock, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { OnboardingKPICardsProps } from '../types'
+import translations from '../_i18n'
 
 interface KPICardData {
   title: string
@@ -66,6 +67,7 @@ const KPICard: React.FC<KPICardData> = ({ title, value, icon: Icon, trend, descr
 }
 
 export const OnboardingKPICards: React.FC<OnboardingKPICardsProps> = ({ analytics, isLoading }) => {
+  const { t } = useTranslation(translations)
   // Calculate onboarding-specific metrics from analytics
   const metrics = useMemo(() => {
     if (!analytics) {
@@ -104,43 +106,43 @@ export const OnboardingKPICards: React.FC<OnboardingKPICardsProps> = ({ analytic
 
   const kpiData: KPICardData[] = [
     {
-      title: 'Pending Starts',
+      title: t('hr-onboarding-kpi-pending-starts'),
       value: metrics.pendingStarts,
       icon: UserPlus,
       trend: 'neutral',
-      description: 'Starting soon',
+      description: t('hr-onboarding-kpi-pending-starts-desc'),
       variant: 'default'
     },
     {
-      title: 'Currently Onboarding',
+      title: t('hr-onboarding-kpi-currently-onboarding'),
       value: metrics.currentlyOnboarding,
       icon: Users,
       trend: metrics.currentlyOnboarding > 0 ? 'up' : 'neutral',
-      description: 'In progress',
+      description: t('hr-onboarding-kpi-currently-onboarding-desc'),
       variant: 'default'
     },
     {
-      title: 'Completed This Month',
+      title: t('hr-onboarding-kpi-completed-month'),
       value: metrics.completedThisMonth,
       icon: CheckCircle,
       trend: 'up',
-      description: 'Successfully onboarded',
+      description: t('hr-onboarding-kpi-completed-month-desc'),
       variant: 'success'
     },
     {
-      title: 'Avg. Onboarding Time',
+      title: t('hr-onboarding-kpi-avg-time'),
       value: metrics.averageDays > 0 ? `${metrics.averageDays}d` : '-',
       icon: Clock,
       trend: 'neutral',
-      description: 'Days to complete',
+      description: t('hr-onboarding-kpi-avg-time-desc'),
       variant: 'default'
     },
     {
-      title: 'Overdue Tasks',
+      title: t('hr-onboarding-kpi-overdue'),
       value: metrics.overdueCount,
       icon: AlertTriangle,
       trend: metrics.overdueCount > 0 ? 'down' : 'neutral',
-      description: 'Needs attention',
+      description: t('hr-onboarding-kpi-overdue-desc'),
       variant: metrics.overdueCount > 0 ? 'destructive' : 'default'
     }
   ]

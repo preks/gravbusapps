@@ -24,6 +24,7 @@ export interface EmployeeLiteOption {
   userId?: string
   communication?: Array<{ value?: string; channelRef?: string }>
   pictureThumbnail?: string
+  organizationalUnitId?: string
   organizationalUnitName?: string
   jobPositionName?: string
 }
@@ -37,7 +38,7 @@ export interface EmployeeLiteRow {
   communication?: Array<{ value?: string; channelRef?: string }>
   pictureThumbnail?: string
   employeePosition?: {
-    organizationalUnit?: { name?: string }
+    organizationalUnit?: { id?: string; name?: string }
     jobPosition?: { name?: string }
   }
 }
@@ -51,6 +52,7 @@ export function mapEmployeeRowToLite(e: EmployeeLiteRow): EmployeeLiteOption {
     userId: e.userId,
     communication: e.communication,
     pictureThumbnail: e.pictureThumbnail,
+    organizationalUnitId: e.employeePosition?.organizationalUnit?.id,
     organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
     jobPositionName: e.employeePosition?.jobPosition?.name
   }

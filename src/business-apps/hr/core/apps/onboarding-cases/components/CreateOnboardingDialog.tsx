@@ -13,15 +13,43 @@ import {
   DialogTitle,
   DialogFooter,
   Button,
+  DateInput,
   Label,
   Alert,
-  AlertDescription
+  AlertDescription,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Loader2, UserPlus, User } from 'lucide-react'
 import { CaseApiClient } from '@/business-apps/common/apps/case-management/services'
 import { EmployeeSelect } from '@/components/employee-select'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { CreateOnboardingDialogProps, OnboardingMetadata } from '../types'
+import translations from '../_i18n'
+
+const getTodayDateInputValue = () => new Date().toISOString().split('T')[0]
+const terminalOnboardingStatuses = new Set(['completed', 'cancelled', 'closed', 'resolved'])
+
+const isActiveOnboardingCaseForEmployee = (
+  metadata: Partial<OnboardingMetadata> | undefined,
+  employeeId: string,
+  employeeUserId?: string
+) => {
+  const status = String(metadata?.status || 'open').toLowerCase()
+  if (terminalOnboardingStatuses.has(status)) return false
+
+  const linkedToEmployee = metadata?.linkedEntities?.some(
+    entity => entity.type === 'employee' && entity.id === employeeId
+  )
+
+  return (
+    metadata?.employeeId === employeeId ||
+    Boolean(employeeUserId && metadata?.employeeUserId === employeeUserId) ||
+    linkedToEmployee
+  )
+}
+
+const getNativeCaseStatus = (metadata: Partial<OnboardingMetadata> | undefined) =>
+  String(metadata?.status || 'open').toLowerCase()
 
 export const CreateOnboardingDialog: React.FC<CreateOnboardingDialogProps> = ({
   open,
@@ -32,9 +60,11 @@ export const CreateOnboardingDialog: React.FC<CreateOnboardingDialogProps> = ({
   appTag,
   userId
 }) => {
+  const { t } = useTranslation(translations)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
+  const [startDate, setStartDate] = useState(getTodayDateInputValue)
   const { employees, loading: searchLoading, search, hasMore, loadMore } = useEmployeeSearch(context.accessToken)
 
   const selectedEmployee = useMemo(() => {
@@ -43,12 +73,17 @@ export const CreateOnboardingDialog: React.FC<CreateOnboardingDialogProps> = ({
 
   const resetForm = useCallback(() => {
     setSelectedEmployeeId(null)
+    setStartDate(getTodayDateInputValue())
     setError(null)
   }, [])
 
   const handleSubmit = async () => {
     if (!selectedEmployee) {
-      setError('Please select an employee for onboarding')
+      setError(t('hr-onboarding-validation-employee-required'))
+      return
+    }
+    if (!startDate) {
+      setError(t('hr-onboarding-validation-first-working-day-required'))
       return
     }
 
@@ -59,39 +94,71 @@ export const CreateOnboardingDialog: React.FC<CreateOnboardingDialogProps> = ({
       const client = new CaseApiClient(undefined, context.accessToken)
       const employeeName =
         selectedEmployee.displayName || `${selectedEmployee.firstName || ''} ${selectedEmployee.lastName || ''}`.trim()
-      const position = selectedEmployee.jobPositionName || '-'
-      const department = selectedEmployee.organizationalUnitName || '-'
-      const startDate = new Date().toISOString().split('T')[0]
+      const jobPositionName = selectedEmployee.jobPositionName || '-'
+      const organizationName = selectedEmployee.organizationalUnitName || '-'
+      const existingCases = await client.getCasesList({
+        tags: { app: appTag }
+      })
+      const activeCases = existingCases.cases.filter(caseItem => {
+        const metadata = caseItem.state.metadata as Partial<OnboardingMetadata> | undefined
+        return !terminalOnboardingStatuses.has(getNativeCaseStatus(metadata))
+      })
+      const existingActiveCase = (
+        await Promise.all(
+          activeCases.map(async caseItem => {
+            const metadata = caseItem.state.metadata as Partial<OnboardingMetadata> | undefined
+            if (isActiveOnboardingCaseForEmployee(metadata, selectedEmployee.id, selectedEmployee.userId)) {
+              return caseItem
+            }
 
-      // Create metadata for the onboarding case
-      const metadata: OnboardingMetadata = {
-        title: `Onboarding: ${employeeName}`,
-        description: `${position} - ${department}`,
-        priority: 'high',
-        status: 'open',
-        dueDate: startDate,
-        linkedEntities: [
-          {
-            type: 'employee',
-            id: selectedEmployee.id,
-            name: employeeName
-          }
-        ],
-        // Onboarding-specific fields
-        employeeName,
-        position,
-        department,
-        startDate,
-        workLocation: 'office',
-        onboardingStage: 'pre_arrival'
+            try {
+              const linkedEntities = await client.getLinkedEntities(caseItem.caseId)
+              return linkedEntities.some(entity => entity.type === 'employee' && entity.id === selectedEmployee.id)
+                ? caseItem
+                : null
+            } catch (entityError) {
+              console.error('Failed to check linked entities for onboarding duplicate:', entityError)
+              return null
+            }
+          })
+        )
+      ).find(Boolean)
+
+      if (existingActiveCase) {
+        setError(t('hr-onboarding-validation-duplicate-active-case', { employeeName }))
+        return
       }
 
-      // Create the case
+      const caseMetadata = {
+        title: `Onboarding: ${employeeName}`,
+        description: `${jobPositionName} - ${organizationName}`,
+        priority: 'high',
+        status: 'open',
+        dueDate: startDate
+      } as const
+
       const result = await client.createCase({
         initiator: userId,
         tags: { app: appTag },
-        metadata
+        metadata: caseMetadata
       })
+
+      await client.linkEntity(
+        result.caseId,
+        {
+          type: 'employee',
+          id: selectedEmployee.id,
+          name: employeeName,
+          metadata: {
+            employeeUserId: selectedEmployee.userId,
+            jobPositionName,
+            organizationalUnitId: selectedEmployee.organizationalUnitId,
+            organizationName,
+            startDate
+          }
+        },
+        userId
+      )
 
       // Auto-link flow templates if specified
       if (defaultFlowTemplates && defaultFlowTemplates.length > 0) {
@@ -104,8 +171,11 @@ export const CreateOnboardingDialog: React.FC<CreateOnboardingDialogProps> = ({
                 employeeId: selectedEmployee.id,
                 employeeUserId: selectedEmployee.userId,
                 employeeName,
-                position,
-                department,
+                position: jobPositionName,
+                department: organizationName,
+                jobPositionName,
+                organizationalUnitId: selectedEmployee.organizationalUnitId,
+                organizationName,
                 startDate,
                 workLocation: 'office'
               }
@@ -116,12 +186,11 @@ export const CreateOnboardingDialog: React.FC<CreateOnboardingDialogProps> = ({
         }
       }
 
-      // Notify parent of successful creation
-      onCaseCreated(result.caseId, metadata)
+      onCaseCreated(result.caseId)
       resetForm()
     } catch (err) {
       console.error('Failed to create onboarding case:', err)
-      setError(err instanceof Error ? err.message : 'Failed to create onboarding case')
+      setError(err instanceof Error ? err.message : t('hr-onboarding-validation-create-failed'))
     } finally {
       setIsSubmitting(false)
     }
@@ -140,7 +209,7 @@ export const CreateOnboardingDialog: React.FC<CreateOnboardingDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <UserPlus className="gba:h-5 gba:w-5 gba:text-primary" />
-            Start New Employee Onboarding
+            {t('hr-onboarding-create-title')}
           </DialogTitle>
         </DialogHeader>
 
@@ -154,12 +223,12 @@ export const CreateOnboardingDialog: React.FC<CreateOnboardingDialogProps> = ({
           <div className="gba:space-y-4">
             <h4 className="gba:font-medium gba:text-sm gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground">
               <User className="gba:h-4 gba:w-4" />
-              Employee
+              {t('hr-onboarding-common-employee')}
             </h4>
 
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium">
-                Select employee
+                {t('hr-onboarding-common-select-employee')}
                 <span className="gba:text-destructive gba:ml-1">*</span>
               </Label>
               <EmployeeSelect
@@ -167,12 +236,26 @@ export const CreateOnboardingDialog: React.FC<CreateOnboardingDialogProps> = ({
                 employees={employees}
                 onValueChange={setSelectedEmployeeId}
                 onSearch={search}
+                accessToken={context.accessToken}
                 loading={searchLoading}
                 hasMore={hasMore}
                 onLoadMore={loadMore}
-                placeholder="Select employee for onboarding"
-                searchPlaceholder="Search by name..."
+                placeholder={t('hr-onboarding-create-employee-select-placeholder')}
+                searchPlaceholder={t('hr-onboarding-create-employee-search-placeholder')}
                 data-testid="onboarding-employee-select"
+              />
+            </div>
+
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium">
+                {t('hr-onboarding-common-first-working-day')}
+                <span className="gba:text-destructive gba:ml-1">*</span>
+              </Label>
+              <DateInput
+                type="date"
+                value={startDate}
+                onChange={value => setStartDate(typeof value === 'string' ? value : '')}
+                data-testid="onboarding-start-date-input"
               />
             </div>
           </div>
@@ -180,11 +263,11 @@ export const CreateOnboardingDialog: React.FC<CreateOnboardingDialogProps> = ({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>
-            Cancel
+            {t('hr-onboarding-create-cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="gba:mr-2 gba:h-4 gba:w-4 gba:animate-spin" />}
-            Start Onboarding
+            {t('hr-onboarding-create-submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -2,10 +2,10 @@
  * Onboarding Details Panel
  *
  * Custom details panel for onboarding cases showing employee-specific information.
- * Displays onboarding stage progress, equipment checklist, and key contacts.
+ * Displays employee information, flow progress, and next onboarding steps.
  */
 
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Card,
   CardHeader,
@@ -15,34 +15,42 @@ import {
   Badge,
   Avatar,
   AvatarFallback,
-  cn
+  AvatarImage,
+  useTranslation
 } from '@newwork/nw-design-system'
-import {
-  Activity,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  Circle,
-  Clock,
-  FileText,
-  Mail,
-  MapPin,
-  MessageSquare,
-  Monitor,
-  Phone,
-  User,
-  UserCircle,
-  Users
-} from 'lucide-react'
+import { Activity, Building2, Calendar, CheckCircle2, Clock, FileText, MapPin, User, Users } from 'lucide-react'
 import { CaseActivityFeed } from '@/business-apps/common/apps/case-management/components/CaseActivityFeed'
-import {
-  OnboardingStage,
-  OnboardingDetailsPanelProps,
-  onboardingStageLabels,
-  getStageProgress,
-  equipmentOptions
-} from '../types'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { OnboardingDetailsPanelProps } from '../types'
 import type { LinkedFlow } from '@/business-apps/common/apps/case-management/types'
+import translations from '../_i18n'
+import { formatOnboardingFlowStatusLabel } from '../utils/onboardingStatusLabels'
+
+interface ParticipantEmployee {
+  id: string
+  userId: string
+  firstName?: string
+  lastName?: string
+  fullName?: string
+  displayName?: string
+  preferredName?: string
+  pictureThumbnail?: string
+}
+
+const GET_EMPLOYEES_BY_USER_IDS = `
+  query GetEmployeesByUserIds($userIds: [String!]!) {
+    Employee(where: { userId: { _in: $userIds } }) {
+      id
+      userId
+      firstName
+      lastName
+      fullName
+      displayName
+      preferredName
+      pictureThumbnail
+    }
+  }
+`
 
 // Info field component for displaying labeled values
 const InfoField: React.FC<{
@@ -59,162 +67,41 @@ const InfoField: React.FC<{
   </div>
 )
 
-// Stage tracker component
-const OnboardingStageTracker: React.FC<{
-  currentStage: OnboardingStage
-  startDate: string
-}> = ({ currentStage, startDate }) => {
-  const stages: OnboardingStage[] = ['pre_arrival', 'first_day', 'first_week', 'first_month', 'completed']
-  const currentIndex = stages.indexOf(currentStage)
-  const progress = getStageProgress(currentStage)
+const getProfileDisplayName = (employeeProfile: OnboardingDetailsPanelProps['employeeProfile'], fallbackName: string) =>
+  employeeProfile?.displayName ||
+  employeeProfile?.fullName ||
+  employeeProfile?.preferredName ||
+  [employeeProfile?.firstName, employeeProfile?.lastName].filter(Boolean).join(' ') ||
+  fallbackName
 
-  return (
-    <div className="gba:space-y-4">
-      <div className="gba:flex gba:items-center gba:justify-between gba:text-sm">
-        <span className="gba:text-muted-foreground">Progress</span>
-        <span className="gba:font-medium">{progress}%</span>
-      </div>
-      <Progress value={progress} className="gba:h-2" />
+const getParticipantDisplayName = (employee: ParticipantEmployee | undefined, fallbackUserId: string) =>
+  employee?.displayName ||
+  employee?.fullName ||
+  employee?.preferredName ||
+  [employee?.firstName, employee?.lastName].filter(Boolean).join(' ') ||
+  fallbackUserId
 
-      <div className="gba:flex gba:justify-between gba:mt-4">
-        {stages.map((stage, index) => {
-          const isCompleted = index < currentIndex
-          const isCurrent = index === currentIndex
-          const isPending = index > currentIndex
+const getInitials = (name: string) =>
+  name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'U'
 
-          return (
-            <div
-              key={stage}
-              className={cn('gba:flex gba:flex-col gba:items-center gba:gap-1', isPending && 'gba:opacity-50')}
-            >
-              <div
-                className={cn(
-                  'gba:w-8 gba:h-8 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:border-2',
-                  isCompleted && 'gba:bg-green-100 gba:border-green-500 gba:text-green-600',
-                  isCurrent && 'gba:bg-primary/10 gba:border-primary gba:text-primary',
-                  isPending && 'gba:bg-muted gba:border-muted-foreground/30 gba:text-muted-foreground'
-                )}
-              >
-                {isCompleted ? (
-                  <CheckCircle2 className="gba:h-4 gba:w-4" />
-                ) : (
-                  <Circle className={cn('gba:h-4 gba:w-4', isCurrent && 'gba:fill-current')} />
-                )}
-              </div>
-              <span
-                className={cn(
-                  'gba:text-[10px] gba:text-center gba:max-w-[60px]',
-                  isCurrent ? 'gba:font-medium' : 'gba:text-muted-foreground'
-                )}
-              >
-                {onboardingStageLabels[stage]}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-
-      <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">
-        Start Date: {new Date(startDate).toLocaleDateString()}
-      </p>
-    </div>
-  )
-}
-
-// Equipment checklist component
-const EquipmentChecklist: React.FC<{
-  requested?: string[]
-  completed?: string[]
-}> = ({ requested = [], completed = [] }) => {
-  if (requested.length === 0) {
-    return <p className="gba:text-sm gba:text-muted-foreground">No equipment requested</p>
-  }
-
-  return (
-    <div className="gba:space-y-2">
-      {requested.map(itemValue => {
-        const item = equipmentOptions.find(e => e.value === itemValue)
-        const isCompleted = completed.includes(itemValue)
-
-        return (
-          <div key={itemValue} className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:rounded-md gba:bg-muted/50">
-            <div
-              className={cn(
-                'gba:w-5 gba:h-5 gba:rounded-full gba:flex gba:items-center gba:justify-center',
-                isCompleted ? 'gba:bg-green-100 gba:text-green-600' : 'gba:bg-muted gba:text-muted-foreground'
-              )}
-            >
-              {isCompleted ? <CheckCircle2 className="gba:h-3 gba:w-3" /> : <Monitor className="gba:h-3 gba:w-3" />}
-            </div>
-            <span className={cn('gba:text-sm', isCompleted && 'gba:line-through gba:text-muted-foreground')}>
-              {item?.label || itemValue}
-            </span>
-            {isCompleted && (
-              <Badge variant="outline" className="gba:ml-auto gba:text-xs gba:text-green-600">
-                Delivered
-              </Badge>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// Contact card component
-const ContactCard: React.FC<{
-  role: string
-  employeeId?: string
-  context: OnboardingDetailsPanelProps['context']
-}> = ({ role, employeeId }) => {
-  // In production, this would fetch employee details
-  // For now, display placeholder
-
-  if (!employeeId) {
-    return (
-      <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-lg gba:bg-muted/50">
-        <Avatar className="gba:h-10 gba:w-10">
-          <AvatarFallback>
-            <UserCircle className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="gba:text-xs gba:text-muted-foreground">{role}</p>
-          <p className="gba:text-sm gba:text-muted-foreground/80">Not assigned</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-lg gba:bg-muted/50 hover:gba:bg-muted gba:transition-colors gba:cursor-pointer">
-      <Avatar className="gba:h-10 gba:w-10">
-        <AvatarFallback className="gba:bg-primary/10 gba:text-primary">
-          {employeeId.slice(0, 2).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-      <div className="gba:flex-1">
-        <p className="gba:text-xs gba:text-muted-foreground">{role}</p>
-        <p className="gba:text-sm gba:font-medium">{employeeId}</p>
-      </div>
-      <div className="gba:flex gba:gap-1">
-        <button className="gba:p-1.5 gba:rounded-md hover:gba:bg-background gba:transition-colors">
-          <Mail className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-        </button>
-        <button className="gba:p-1.5 gba:rounded-md hover:gba:bg-background gba:transition-colors">
-          <Phone className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-        </button>
-      </div>
-    </div>
-  )
+const getAvatarUrl = (pictureThumbnail: string | undefined) => {
+  if (!pictureThumbnail) return undefined
+  if (pictureThumbnail.startsWith('data:') || pictureThumbnail.startsWith('http')) return pictureThumbnail
+  return `data:image/png;base64,${pictureThumbnail}`
 }
 
 // Work location badge
 const WorkLocationBadge: React.FC<{ location: string }> = ({ location }) => {
+  const { t } = useTranslation(translations)
   const labels: Record<string, string> = {
-    office: 'Office',
-    remote: 'Remote',
-    hybrid: 'Hybrid'
+    office: t('hr-onboarding-create-location-office'),
+    remote: t('hr-onboarding-create-location-remote'),
+    hybrid: t('hr-onboarding-create-location-hybrid')
   }
 
   const variants: Record<string, 'default' | 'secondary' | 'outline'> = {
@@ -230,15 +117,36 @@ export const OnboardingDetailsPanel: React.FC<OnboardingDetailsPanelProps> = ({
   caseData,
   metadata,
   linkedFlows,
-  context
+  context,
+  employeeProfile,
+  isLoadingEmployeeProfile
 }) => {
+  const { t } = useTranslation(translations)
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const [participantsByUserId, setParticipantsByUserId] = useState<Record<string, ParticipantEmployee>>({})
+  const requestedParticipantUserIdsRef = useRef<Set<string>>(new Set())
   const formattedStartDate = useMemo(() => {
     if (!metadata.startDate) return '-'
     return new Date(metadata.startDate).toLocaleDateString()
   }, [metadata.startDate])
+  const formatFlowStatusLabel = (status: string | undefined) => formatOnboardingFlowStatusLabel(status, t)
+  const profileName = getProfileDisplayName(employeeProfile, metadata.employeeName)
+  const profilePosition =
+    employeeProfile?.employeePosition?.jobPosition?.name || metadata.jobPositionName || metadata.position
+  const profileOrganization =
+    employeeProfile?.employeePosition?.organizationalUnit?.name || metadata.organizationName || metadata.department
+  const profileAvatarUrl = getAvatarUrl(employeeProfile?.pictureThumbnail)
+  const profileSourceLabel = isLoadingEmployeeProfile
+    ? t('hr-onboarding-details-loading-profile')
+    : employeeProfile
+      ? t('hr-onboarding-details-live-profile')
+      : t('hr-onboarding-details-stored-snapshot')
 
   const activeFlows = linkedFlows.filter(flow => !flow.removedAt)
-  const notes = metadata.notes || []
+  const participantUserIds = useMemo(
+    () => [...new Set(activeFlows.flatMap(flow => flow.participants || []).filter(Boolean))],
+    [activeFlows]
+  )
   const isCompletedFlow = (flow: LinkedFlow) => {
     const status = String(flow.status || flow.flowStatus || '').toUpperCase()
     return status === 'COMPLETED' || status === 'DONE' || status === 'FINISHED'
@@ -253,7 +161,7 @@ export const OnboardingDetailsPanel: React.FC<OnboardingDetailsPanelProps> = ({
   const progressData = useMemo(() => {
     if (activeFlows.length === 0) {
       return {
-        percentage: getStageProgress(metadata.onboardingStage),
+        percentage: 0,
         completed: 0,
         total: 0
       }
@@ -270,7 +178,96 @@ export const OnboardingDetailsPanel: React.FC<OnboardingDetailsPanelProps> = ({
       completed: totalSteps > 0 ? completedSteps : activeFlows.filter(isCompletedFlow).length,
       total: totalSteps > 0 ? totalSteps : activeFlows.length
     }
-  }, [activeFlows, metadata.onboardingStage])
+  }, [activeFlows])
+
+  const flowSummary = useMemo(() => {
+    const completedFlows = activeFlows.filter(isCompletedFlow)
+    const latestFlow = [...activeFlows].sort((left, right) => {
+      const leftDate = new Date(left.startTime || left.addedAt || left.createdAt || 0).getTime()
+      const rightDate = new Date(right.startTime || right.addedAt || right.createdAt || 0).getTime()
+      return rightDate - leftDate
+    })[0]
+
+    return {
+      completedFlows: completedFlows.length,
+      activeFlowCount: activeFlows.length - completedFlows.length,
+      participantCount: participantUserIds.length,
+      latestFlow
+    }
+  }, [activeFlows, participantUserIds.length])
+
+  useEffect(() => {
+    const userIdsToLoad = participantUserIds.filter(
+      userId => !participantsByUserId[userId] && !requestedParticipantUserIdsRef.current.has(userId)
+    )
+
+    if (userIdsToLoad.length === 0) return
+    userIdsToLoad.forEach(userId => requestedParticipantUserIdsRef.current.add(userId))
+
+    void graphqlClient
+      .request<{ Employee: ParticipantEmployee[] }>(GET_EMPLOYEES_BY_USER_IDS, { userIds: userIdsToLoad })
+      .then(response => {
+        setParticipantsByUserId(previous => {
+          const next = { ...previous }
+          response.Employee.forEach(employee => {
+            next[employee.userId] = employee
+          })
+          return next
+        })
+      })
+      .catch(err => {
+        console.error('Failed to load onboarding participants:', err)
+      })
+  }, [graphqlClient, participantUserIds, participantsByUserId])
+
+  const nextSteps = useMemo(
+    () =>
+      activeFlows
+        .flatMap(flow => {
+          if (isCompletedFlow(flow)) return []
+
+          const flowName = flow.workflowName || flow.templateId || t('hr-onboarding-common-unnamed-flow')
+          const historyStep =
+            flow.stepHistory?.find(step => step.status === 'current') ||
+            flow.stepHistory?.find(step => step.status === 'pending')
+
+          if (historyStep) {
+            return [
+              {
+                id: `${flow.workflowId}-${historyStep.index}`,
+                title: historyStep.name,
+                flowName,
+                status: historyStep.status,
+                assignee: historyStep.assignee
+              }
+            ]
+          }
+
+          if (flow.currentStepName) {
+            return [
+              {
+                id: `${flow.workflowId}-current`,
+                title: flow.currentStepName,
+                flowName,
+                status: flow.currentStepStatus || 'current',
+                assignee: flow.currentAssignee
+              }
+            ]
+          }
+
+          return [
+            {
+              id: `${flow.workflowId}-progress`,
+              title: t('hr-onboarding-details-continue-flow'),
+              flowName,
+              status: getFlowProgress(flow) > 0 ? 'in progress' : 'not started',
+              assignee: undefined
+            }
+          ]
+        })
+        .slice(0, 5),
+    [activeFlows]
+  )
 
   return (
     <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:lg:grid-cols-12 gba:auto-rows-auto">
@@ -280,29 +277,48 @@ export const OnboardingDetailsPanel: React.FC<OnboardingDetailsPanelProps> = ({
             <CardHeader className="gba:pb-4">
               <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
                 <FileText className="gba:h-4 gba:w-4" />
-                Employee Information
+                {t('hr-onboarding-details-employee-info')}
               </CardTitle>
             </CardHeader>
             <CardContent className="gba:space-y-6">
+              <div className="gba:flex gba:items-center gba:gap-4 gba:rounded-lg gba:border gba:bg-muted/20 gba:p-4">
+                <Avatar className="gba:h-14 gba:w-14 gba:shrink-0">
+                  {profileAvatarUrl ? <AvatarImage src={profileAvatarUrl} alt={profileName} /> : null}
+                  <AvatarFallback className="gba:text-base">{getInitials(profileName)}</AvatarFallback>
+                </Avatar>
+                <div className="gba:min-w-0 gba:flex-1">
+                  <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+                    <p className="gba:truncate gba:text-base gba:font-semibold">{profileName}</p>
+                    <Badge variant="outline" className="gba:text-xs">
+                      {profileSourceLabel}
+                    </Badge>
+                  </div>
+                  <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
+                    {[profilePosition, profileOrganization].filter(value => value && value !== '-').join(' - ') ||
+                      t('hr-onboarding-details-no-position')}
+                  </p>
+                </div>
+              </div>
+
               <div className="gba:grid gba:grid-cols-2 gba:gap-x-6 gba:gap-y-4">
-                <InfoField label="Employee Name" value={metadata.employeeName} icon={User} />
-                <InfoField label="Position" value={metadata.position} icon={Building2} />
-                <InfoField label="Department" value={metadata.department} icon={Building2} />
-                <InfoField label="Start Date" value={formattedStartDate} icon={Calendar} />
+                <InfoField label={t('hr-onboarding-create-employee-name')} value={metadata.employeeName} icon={User} />
+                <InfoField label={t('hr-onboarding-common-position')} value={metadata.position} icon={Building2} />
+                <InfoField label={t('hr-onboarding-common-department')} value={metadata.department} icon={Building2} />
+                <InfoField label={t('hr-onboarding-common-start-date')} value={formattedStartDate} icon={Calendar} />
               </div>
 
               <div className="gba:grid gba:grid-cols-2 gba:gap-x-6">
                 <div className="gba:space-y-1">
                   <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
                     <MapPin className="gba:h-3.5 gba:w-3.5" />
-                    Work Location
+                    {t('hr-onboarding-common-work-location')}
                   </p>
                   <WorkLocationBadge location={metadata.workLocation} />
                 </div>
                 <div className="gba:space-y-1">
-                  <p className="gba:text-xs gba:text-muted-foreground">Onboarding Stage</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('hr-onboarding-common-case-status')}</p>
                   <Badge variant="outline" className="gba:capitalize">
-                    {onboardingStageLabels[metadata.onboardingStage] || metadata.onboardingStage}
+                    {metadata.status || 'open'}
                   </Badge>
                 </div>
               </div>
@@ -314,7 +330,7 @@ export const OnboardingDetailsPanel: React.FC<OnboardingDetailsPanelProps> = ({
               <CardTitle className="gba:flex gba:items-center gba:justify-between gba:text-base">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <Activity className="gba:h-4 gba:w-4" />
-                  Onboarding Tasks
+                  {t('hr-onboarding-details-onboarding-steps')}
                 </div>
                 <Badge variant="outline">{activeFlows.length} flows</Badge>
               </CardTitle>
@@ -323,15 +339,18 @@ export const OnboardingDetailsPanel: React.FC<OnboardingDetailsPanelProps> = ({
               {activeFlows.length === 0 ? (
                 <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
                   <Activity className="gba:h-10 gba:w-10 gba:mx-auto gba:mb-3 gba:opacity-30" />
-                  <p className="gba:text-sm gba:font-medium">No flows yet</p>
-                  <p className="gba:text-xs gba:mt-1">Flows will appear here once added</p>
+                  <p className="gba:text-sm gba:font-medium">{t('hr-onboarding-details-no-flows')}</p>
+                  <p className="gba:text-xs gba:mt-1">{t('hr-onboarding-details-no-flows-description')}</p>
                 </div>
               ) : (
                 <div className="gba:space-y-4">
                   <div className="gba:space-y-2">
                     <div className="gba:flex gba:items-center gba:justify-between gba:text-sm">
                       <span className="gba:text-muted-foreground">
-                        {progressData.completed}/{progressData.total} tasks
+                        {t('hr-onboarding-details-step-count', {
+                          completed: progressData.completed,
+                          total: progressData.total
+                        })}
                       </span>
                       <span className="gba:font-medium">{progressData.percentage}%</span>
                     </div>
@@ -350,7 +369,7 @@ export const OnboardingDetailsPanel: React.FC<OnboardingDetailsPanelProps> = ({
                             <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
                               <Activity className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
                               <span className="gba:text-sm gba:truncate">
-                                {flow.workflowName || flow.templateId || 'Unnamed Flow'}
+                                {flow.workflowName || flow.templateId || t('hr-onboarding-common-unnamed-flow')}
                               </span>
                             </div>
                             <span className="gba:text-xs gba:text-muted-foreground gba:shrink-0 gba:ml-2">
@@ -375,10 +394,25 @@ export const OnboardingDetailsPanel: React.FC<OnboardingDetailsPanelProps> = ({
 
         <Card>
           <CardHeader className="gba:pb-4">
-            <CardTitle className="gba:text-base">Onboarding Progress</CardTitle>
+            <CardTitle className="gba:text-base">{t('hr-onboarding-details-progress')}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <OnboardingStageTracker currentStage={metadata.onboardingStage} startDate={metadata.startDate} />
+          <CardContent className="gba:space-y-4">
+            <div className="gba:flex gba:items-center gba:justify-between gba:text-sm">
+              <span className="gba:text-muted-foreground">{t('hr-onboarding-details-flow-progress')}</span>
+              <span className="gba:font-medium">{progressData.percentage}%</span>
+            </div>
+            <Progress value={progressData.percentage} className="gba:h-2" />
+            <div className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-2 gba:text-xs gba:text-muted-foreground">
+              <span>
+                {t('hr-onboarding-details-steps-completed', {
+                  completed: progressData.completed,
+                  total: progressData.total
+                })}
+              </span>
+              <span>
+                {t('hr-onboarding-common-first-working-day')}: {formattedStartDate}
+              </span>
+            </div>
           </CardContent>
         </Card>
 
@@ -386,70 +420,131 @@ export const OnboardingDetailsPanel: React.FC<OnboardingDetailsPanelProps> = ({
           <Card>
             <CardHeader className="gba:pb-4">
               <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
-                <Monitor className="gba:h-4 gba:w-4" />
-                Equipment & Access
+                <Activity className="gba:h-4 gba:w-4" />
+                {t('hr-onboarding-details-flow-summary')}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <EquipmentChecklist requested={metadata.equipmentRequested} completed={metadata.equipmentCompleted} />
+            <CardContent className="gba:space-y-4">
+              <div className="gba:grid gba:grid-cols-3 gba:gap-3">
+                <div className="gba:rounded-lg gba:bg-muted/40 gba:p-3">
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('hr-onboarding-details-active')}</p>
+                  <p className="gba:mt-1 gba:text-lg gba:font-semibold">{flowSummary.activeFlowCount}</p>
+                </div>
+                <div className="gba:rounded-lg gba:bg-muted/40 gba:p-3">
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('hr-onboarding-common-completed')}</p>
+                  <p className="gba:mt-1 gba:text-lg gba:font-semibold">{flowSummary.completedFlows}</p>
+                </div>
+                <div className="gba:rounded-lg gba:bg-muted/40 gba:p-3">
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('hr-onboarding-details-people')}</p>
+                  <p className="gba:mt-1 gba:text-lg gba:font-semibold">{flowSummary.participantCount}</p>
+                </div>
+              </div>
+
+              <div className="gba:rounded-lg gba:border gba:bg-muted/20 gba:p-3">
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {t('hr-onboarding-details-latest-started-flow')}
+                </p>
+                <p className="gba:mt-1 gba:truncate gba:text-sm gba:font-medium">
+                  {flowSummary.latestFlow?.workflowName ||
+                    flowSummary.latestFlow?.templateId ||
+                    t('hr-onboarding-details-no-flows-started')}
+                </p>
+                {flowSummary.latestFlow?.addedAt ? (
+                  <p className="gba:mt-1 gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+                    <Clock className="gba:h-3 gba:w-3" />
+                    {new Date(flowSummary.latestFlow.addedAt).toLocaleString()}
+                  </p>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="gba:pb-4">
-              <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
-                <Users className="gba:h-4 gba:w-4" />
-                Key Contacts
+              <CardTitle className="gba:flex gba:items-center gba:justify-between gba:text-base">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <CheckCircle2 className="gba:h-4 gba:w-4" />
+                  {t('hr-onboarding-details-next-steps')}
+                </div>
+                <Badge variant="outline">{nextSteps.length}</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="gba:space-y-3">
-              <ContactCard role="Manager" employeeId={metadata.managerId} context={context} />
-              <ContactCard role="Onboarding Buddy" employeeId={metadata.mentorId} context={context} />
+            <CardContent>
+              {nextSteps.length === 0 ? (
+                <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
+                  <CheckCircle2 className="gba:h-10 gba:w-10 gba:mx-auto gba:mb-3 gba:opacity-30" />
+                  <p className="gba:text-sm gba:font-medium">{t('hr-onboarding-details-no-open-steps')}</p>
+                  <p className="gba:text-xs gba:mt-1">{t('hr-onboarding-details-no-open-steps-description')}</p>
+                </div>
+              ) : (
+                <div className="gba:space-y-3">
+                  {nextSteps.map(step => (
+                    <div key={step.id} className="gba:rounded-lg gba:border gba:bg-muted/20 gba:p-3">
+                      <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+                        <div className="gba:min-w-0">
+                          <p className="gba:truncate gba:text-sm gba:font-medium">{step.title}</p>
+                          <p className="gba:mt-1 gba:truncate gba:text-xs gba:text-muted-foreground">{step.flowName}</p>
+                        </div>
+                        <Badge variant="outline" className="gba:shrink-0 gba:capitalize">
+                          {formatFlowStatusLabel(step.status)}
+                        </Badge>
+                      </div>
+                      {step.assignee ? (
+                        <p className="gba:mt-2 gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+                          <Users className="gba:h-3 gba:w-3" />
+                          {t('hr-onboarding-details-assigned-to', { assignee: step.assignee })}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         <Card>
           <CardHeader className="gba:pb-4">
-            <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
-              <MessageSquare className="gba:h-4 gba:w-4" />
-              Recent Notes
+            <CardTitle className="gba:flex gba:items-center gba:justify-between gba:text-base">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Users className="gba:h-4 gba:w-4" />
+                {t('hr-onboarding-details-onboarding-participants')}
+              </div>
+              <Badge variant="outline">{flowSummary.participantCount}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {notes.length === 0 ? (
+            {flowSummary.participantCount === 0 ? (
               <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-                <MessageSquare className="gba:h-10 gba:w-10 gba:mx-auto gba:mb-3 gba:opacity-30" />
-                <p className="gba:text-sm gba:font-medium">No notes yet</p>
-                <p className="gba:text-xs gba:mt-1">Notes will appear here once added</p>
+                <Users className="gba:h-10 gba:w-10 gba:mx-auto gba:mb-3 gba:opacity-30" />
+                <p className="gba:text-sm gba:font-medium">{t('hr-onboarding-details-no-participants')}</p>
+                <p className="gba:text-xs gba:mt-1">{t('hr-onboarding-details-no-participants-description')}</p>
               </div>
             ) : (
-              <div className="gba:space-y-3">
-                {notes.slice(0, 3).map(note => (
-                  <div
-                    key={note.id}
-                    className="gba:flex gba:gap-3 gba:p-3 gba:rounded-lg gba:bg-muted/40 gba:border gba:border-border/50"
-                  >
-                    <Avatar className="gba:h-8 gba:w-8 gba:shrink-0">
-                      <AvatarFallback className="gba:text-xs">
-                        {note.createdBy.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="gba:flex-1 gba:min-w-0">
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                        <span className="gba:text-sm gba:font-medium gba:truncate">{note.createdBy}</span>
-                        <Badge variant="outline" className="gba:text-xs gba:capitalize">
-                          {note.visibility}
-                        </Badge>
-                        <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1 gba:ml-auto">
-                          <Clock className="gba:h-3 gba:w-3" />
-                          {new Date(note.createdAt).toLocaleDateString()}
-                        </span>
+              <div className="gba:grid gba:grid-cols-1 gba:gap-3 gba:md:grid-cols-2">
+                {participantUserIds.map(userId => {
+                  const participant = participantsByUserId[userId]
+                  const participantName = getParticipantDisplayName(participant, userId)
+                  const participantAvatarUrl = getAvatarUrl(participant?.pictureThumbnail)
+
+                  return (
+                    <div
+                      key={userId}
+                      className="gba:flex gba:items-center gba:gap-3 gba:rounded-lg gba:bg-muted/40 gba:p-3"
+                    >
+                      <Avatar className="gba:h-9 gba:w-9 gba:shrink-0">
+                        {participantAvatarUrl ? <AvatarImage src={participantAvatarUrl} alt={participantName} /> : null}
+                        <AvatarFallback className="gba:text-xs">{getInitials(participantName)}</AvatarFallback>
+                      </Avatar>
+                      <div className="gba:min-w-0">
+                        <p className="gba:truncate gba:text-sm gba:font-medium">{participantName}</p>
+                        <p className="gba:truncate gba:text-xs gba:text-muted-foreground">
+                          {participant ? t('hr-onboarding-details-flow-participant') : userId}
+                        </p>
                       </div>
-                      <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2">{note.content}</p>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>

@@ -9,6 +9,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertDescription,
   Avatar,
   AvatarFallback,
@@ -28,7 +36,8 @@ import {
   TimelineIndicator,
   TimelineItem,
   TimelineSeparator,
-  TimelineTitle
+  TimelineTitle,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Activity,
@@ -43,6 +52,7 @@ import {
   ListChecks,
   Play,
   RefreshCw,
+  Trash2,
   UserPlus,
   Users,
   Workflow
@@ -54,6 +64,7 @@ import type {
   Case,
   CaseAnalytics,
   CaseStatus,
+  LinkedEntity,
   LinkedFlow
 } from '@/business-apps/common/apps/case-management/types'
 import { FlowTemplateClient, type FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
@@ -67,7 +78,9 @@ import {
   OnboardingTasksTab
 } from './components'
 import { useOnboardingTasks } from './hooks/useOnboardingTasks'
-import { OnboardingMetadata, OnboardingStage, WorkLocation, getStageProgress, onboardingStageLabels } from './types'
+import { OnboardingMetadata, WorkLocation } from './types'
+import translations from './_i18n'
+import { formatOnboardingFlowStatusLabel } from './utils/onboardingStatusLabels'
 
 const ONBOARDING_APP_TAG = 'AppCatalog:1:HR_ONBOARDING'
 
@@ -86,7 +99,45 @@ const GET_EMPLOYEES_BY_USER_IDS = `
   }
 `
 
+const buildOnboardingEmployeeProfileQuery = (employeeId?: string, employeeUserId?: string) => {
+  const safeEmployeeId = employeeId?.replace(/"/g, '')
+  const safeEmployeeUserId = employeeUserId?.replace(/"/g, '')
+  const filters = [
+    safeEmployeeId ? `{ id: { _eq: "${safeEmployeeId}" } }` : null,
+    safeEmployeeUserId ? `{ userId: { _eq: "${safeEmployeeUserId}" } }` : null
+  ].filter(Boolean)
+
+  if (filters.length === 0) return null
+
+  const where = filters.length === 1 ? filters[0] : `{ _or: [${filters.join(', ')}] }`
+
+  return `
+    query GetOnboardingEmployeeProfile {
+      Employee(where: ${where}, limit: 1) {
+        id
+        userId
+        firstName
+        lastName
+        fullName
+        displayName
+        preferredName
+        pictureThumbnail
+        employeePosition {
+          jobPosition {
+            name
+          }
+          organizationalUnit {
+            id
+            name
+          }
+        }
+      }
+    }
+  `
+}
+
 type ViewState = 'dashboard' | 'list' | 'detail'
+type DetailViewState = 'overview' | 'flows' | 'tasks'
 
 interface FlowInitiatorEmployee {
   id: string
@@ -97,6 +148,13 @@ interface FlowInitiatorEmployee {
   displayName?: string
   preferredName?: string
   pictureThumbnail?: string
+}
+
+interface OnboardingEmployeeProfile extends FlowInitiatorEmployee {
+  employeePosition?: {
+    jobPosition?: { name?: string }
+    organizationalUnit?: { id?: string; name?: string }
+  }
 }
 
 export interface OnboardingCasesProps extends BusinessAppContextProps {
@@ -112,20 +170,28 @@ export interface OnboardingCasesProps extends BusinessAppContextProps {
  * Uses tag filtering to show only onboarding-related cases (AppCatalog:1:HR_ONBOARDING).
  */
 export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 'dashboard', ...contextProps }) => {
+  const { t } = useTranslation(translations)
   const [view, setView] = useState<ViewState>(initialView)
+  const [activeDetailView, setActiveDetailView] = useState<DetailViewState>('overview')
   const [cases, setCases] = useState<Case[]>([])
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
   const [selectedLinkedFlows, setSelectedLinkedFlows] = useState<LinkedFlow[]>([])
+  const [selectedLinkedEntities, setSelectedLinkedEntities] = useState<LinkedEntity[]>([])
   const [isLoadingSelectedFlows, setIsLoadingSelectedFlows] = useState(false)
   const [selectedFlowsError, setSelectedFlowsError] = useState<string | null>(null)
   const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null)
   const [templateDetailsById, setTemplateDetailsById] = useState<Record<string, FlowTemplate>>({})
   const [loadingTemplateDetailId, setLoadingTemplateDetailId] = useState<string | null>(null)
   const [flowInitiatorsByUserId, setFlowInitiatorsByUserId] = useState<Record<string, FlowInitiatorEmployee>>({})
+  const [selectedEmployeeProfile, setSelectedEmployeeProfile] = useState<OnboardingEmployeeProfile | null>(null)
+  const [isLoadingSelectedEmployeeProfile, setIsLoadingSelectedEmployeeProfile] = useState(false)
   const [onboardingTemplates, setOnboardingTemplates] = useState<FlowTemplate[]>([])
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
   const [templatesError, setTemplatesError] = useState<string | null>(null)
   const [startingTemplateId, setStartingTemplateId] = useState<string | null>(null)
+  const [flowStartError, setFlowStartError] = useState<string | null>(null)
+  const [deletingCaseId, setDeletingCaseId] = useState<string | null>(null)
+  const [casePendingRemoval, setCasePendingRemoval] = useState<Case | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -133,6 +199,7 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
   const client = useMemo(() => new CaseApiClient(undefined, contextProps.accessToken), [contextProps.accessToken])
   const graphqlClient = useGraphQLClient(contextProps.accessToken)
   const requestedInitiatorUserIdsRef = useRef<Set<string>>(new Set())
+  const startingFlowKeysRef = useRef<Set<string>>(new Set())
 
   const loadCases = useCallback(async () => {
     setIsLoading(true)
@@ -145,7 +212,7 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
       setCases(response.cases)
     } catch (err) {
       console.error('Failed to load onboarding cases:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load onboarding cases')
+      setError(t('hr-onboarding-main-load-cases-failed'))
     } finally {
       setIsLoading(false)
     }
@@ -170,7 +237,7 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
       setOnboardingTemplates(response.templates || [])
     } catch (err) {
       console.error('Failed to load onboarding templates:', err)
-      setTemplatesError(err instanceof Error ? err.message : 'Failed to load onboarding flows')
+      setTemplatesError(t('hr-onboarding-main-load-flows-failed'))
     } finally {
       setIsLoadingTemplates(false)
     }
@@ -216,6 +283,79 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
     [cases, selectedCaseId]
   )
 
+  useEffect(() => {
+    if (view !== 'detail' || !selectedCaseId) {
+      setSelectedLinkedEntities([])
+      return
+    }
+
+    let cancelled = false
+
+    void client
+      .getLinkedEntities(selectedCaseId)
+      .then(entities => {
+        if (!cancelled) {
+          setSelectedLinkedEntities(entities)
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          console.error('Failed to load onboarding linked entities:', err)
+          setSelectedLinkedEntities([])
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [client, selectedCaseId, view])
+
+  useEffect(() => {
+    if (view !== 'detail' || !selectedCase) {
+      setSelectedEmployeeProfile(null)
+      return
+    }
+
+    const metadata = selectedCase.state.metadata as Partial<OnboardingMetadata> | undefined
+    const linkedEmployee =
+      selectedLinkedEntities.find(entity => entity.type === 'employee') ||
+      metadata?.linkedEntities?.find(entity => entity.type === 'employee')
+    const linkedEmployeeMetadata = linkedEmployee?.metadata as { employeeUserId?: string; userId?: string } | undefined
+    const query = buildOnboardingEmployeeProfileQuery(
+      metadata?.employeeId || linkedEmployee?.id,
+      metadata?.employeeUserId || linkedEmployeeMetadata?.employeeUserId || linkedEmployeeMetadata?.userId
+    )
+
+    if (!query) {
+      setSelectedEmployeeProfile(null)
+      return
+    }
+
+    let cancelled = false
+    setIsLoadingSelectedEmployeeProfile(true)
+
+    void graphqlClient
+      .request<{ Employee: OnboardingEmployeeProfile[] }>(query)
+      .then(response => {
+        if (cancelled) return
+        setSelectedEmployeeProfile(response.Employee?.[0] || null)
+      })
+      .catch(err => {
+        if (cancelled) return
+        console.error('Failed to load onboarding employee profile:', err)
+        setSelectedEmployeeProfile(null)
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingSelectedEmployeeProfile(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [graphqlClient, selectedCase, selectedLinkedEntities, view])
+
   const selectedCaseLinkedFlows = useMemo(
     () => (selectedLinkedFlows.length > 0 ? selectedLinkedFlows : selectedCase?.state.linkedFlows || []),
     [selectedCase?.state.linkedFlows, selectedLinkedFlows]
@@ -229,8 +369,16 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
     () => activeSelectedFlows.map(flow => flow.workflowId).filter(Boolean),
     [activeSelectedFlows]
   )
+  const activeSelectedTemplateIds = useMemo(
+    () =>
+      activeSelectedFlows
+        .map(flow => flow.templateId)
+        .filter((templateId): templateId is string => Boolean(templateId)),
+    [activeSelectedFlows]
+  )
   const {
-    tasks: currentUserOnboardingTasks,
+    myTasks: currentUserOnboardingTasks,
+    allTasks: allCaseOnboardingTasks,
     isLoading: isLoadingCurrentUserTasks,
     claimingTaskId,
     error: currentUserTasksError,
@@ -241,8 +389,20 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
     userId: contextProps.userInfo?.id,
     appTag: ONBOARDING_APP_TAG,
     workflowIds: activeSelectedWorkflowIds,
-    enabled: view === 'detail' && Boolean(selectedCaseId)
+    templateIds: activeSelectedTemplateIds,
+    enabled: view === 'detail' && activeDetailView === 'tasks' && Boolean(selectedCaseId),
+    loadErrorMessage: t('hr-onboarding-tasks-load-failed'),
+    claimErrorMessage: t('hr-onboarding-tasks-claim-failed')
   })
+
+  const refreshSelectedCaseFlows = useCallback(
+    async (caseId: string) => {
+      const flows = await client.getLinkedFlows(caseId)
+      setSelectedLinkedFlows(flows)
+      return flows
+    },
+    [client]
+  )
 
   const loadSelectedCaseFlows = useCallback(
     async (caseId: string) => {
@@ -250,16 +410,15 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
       setSelectedFlowsError(null)
 
       try {
-        const flows = await client.getLinkedFlows(caseId)
-        setSelectedLinkedFlows(flows)
+        await refreshSelectedCaseFlows(caseId)
       } catch (err) {
         console.error('Failed to load linked onboarding flows:', err)
-        setSelectedFlowsError(err instanceof Error ? err.message : 'Failed to load onboarding flow progress')
+        setSelectedFlowsError(t('hr-onboarding-main-load-flow-progress-failed'))
       } finally {
         setIsLoadingSelectedFlows(false)
       }
     },
-    [client]
+    [refreshSelectedCaseFlows]
   )
 
   useEffect(() => {
@@ -303,11 +462,26 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
       })
   }, [activeSelectedFlows, flowInitiatorsByUserId, graphqlClient, view])
 
+  const getEmployeeNameFromCaseTitle = (title: string | undefined) => {
+    if (!title) return t('hr-onboarding-main-new-employee')
+    return title.replace(/^Onboarding:\s*/i, '').trim() || title
+  }
+
+  const getPositionFromDescription = (description: string | undefined) => description?.split(' - ')[0]?.trim() || '-'
+
+  const getDepartmentFromDescription = (description: string | undefined) => {
+    const parts = description?.split(' - ') || []
+    return parts.length > 1 ? parts.slice(1).join(' - ').trim() || '-' : '-'
+  }
+
   const getOnboardingMetadata = (caseItem: Case): OnboardingMetadata => {
     const metadata = caseItem.state.metadata as Partial<OnboardingMetadata> | undefined
+    const employeeName = metadata?.employeeName || getEmployeeNameFromCaseTitle(metadata?.title)
+    const position = metadata?.position || getPositionFromDescription(metadata?.description)
+    const department = metadata?.department || getDepartmentFromDescription(metadata?.description)
 
     return {
-      title: metadata?.title || 'Onboarding case',
+      title: metadata?.title || t('hr-onboarding-main-default-case-title'),
       description: metadata?.description,
       status: metadata?.status,
       priority: metadata?.priority,
@@ -317,12 +491,17 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
       linkedCases: metadata?.linkedCases,
       parentCaseId: metadata?.parentCaseId,
       notes: metadata?.notes,
-      employeeName: metadata?.employeeName || metadata?.title || 'New employee',
-      position: metadata?.position || '-',
-      department: metadata?.department || '-',
+      employeeId: metadata?.employeeId,
+      employeeUserId: metadata?.employeeUserId,
+      employeeName,
+      position,
+      department,
+      jobPositionId: metadata?.jobPositionId,
+      jobPositionName: metadata?.jobPositionName || position,
+      organizationalUnitId: metadata?.organizationalUnitId,
+      organizationName: metadata?.organizationName || department,
       managerId: metadata?.managerId,
       startDate: metadata?.startDate || metadata?.dueDate || caseItem.createdAt,
-      onboardingStage: (metadata?.onboardingStage || 'pre_arrival') as OnboardingStage,
       mentorId: metadata?.mentorId,
       workLocation: (metadata?.workLocation || 'office') as WorkLocation,
       equipmentRequested: metadata?.equipmentRequested,
@@ -338,21 +517,55 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
   const openCase = (caseId: string) => {
     const caseItem = cases.find(onboardingCase => onboardingCase.caseId === caseId)
     setSelectedLinkedFlows(caseItem?.state.linkedFlows || [])
+    setSelectedLinkedEntities([])
     setSelectedFlowsError(null)
+    setFlowStartError(null)
     setSelectedCaseId(caseId)
+    setActiveDetailView('overview')
     setView('detail')
   }
 
   const handleCaseCreated = (caseId: string) => {
     setIsCreateOpen(false)
     setSelectedCaseId(caseId)
+    setFlowStartError(null)
+    setActiveDetailView('overview')
     setView('detail')
     void loadCases()
   }
 
   const handleAddFlowToSelectedCase = async (caseId: string, request: AddFlowRequest) => {
     await client.addFlowToCase(caseId, request)
-    await Promise.all([loadCases(), loadSelectedCaseFlows(caseId)])
+  }
+
+  const requestRemoveCase = (event: React.MouseEvent, caseItem: Case) => {
+    event.stopPropagation()
+    setCasePendingRemoval(caseItem)
+  }
+
+  const handleRemoveCase = async () => {
+    if (!casePendingRemoval) return
+
+    setDeletingCaseId(casePendingRemoval.caseId)
+    setError(null)
+
+    try {
+      await client.deleteCase(casePendingRemoval.caseId, contextProps.userInfo?.id, false)
+      if (selectedCaseId === casePendingRemoval.caseId) {
+        setSelectedCaseId(null)
+        setSelectedLinkedFlows([])
+        setSelectedLinkedEntities([])
+        setActiveDetailView('overview')
+        setView(initialView)
+      }
+      setCasePendingRemoval(null)
+      await loadCases()
+    } catch (err) {
+      console.error('Failed to remove onboarding case:', err)
+      setError(t('hr-onboarding-main-remove-failed'))
+    } finally {
+      setDeletingCaseId(null)
+    }
   }
 
   const getTemplateOrder = (template: FlowTemplate, fallbackIndex: number) => {
@@ -381,11 +594,24 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
   }
 
   const getFlowStatusLabel = (flow: LinkedFlow | undefined) => {
-    if (!flow) return 'Not started'
-    const status = String(flow.status || flow.flowStatus || 'In progress')
-      .replace(/_/g, ' ')
+    if (!flow) return t('hr-onboarding-flow-status-pending')
+    return formatOnboardingFlowStatusLabel(flow.status || flow.flowStatus || 'IN_PROGRESS', t)
+  }
+
+  const getCaseStatusLabel = (status: string | undefined) => {
+    const normalized = String(status || 'open')
+      .replace(/_/g, '-')
       .toLowerCase()
-    return status.charAt(0).toUpperCase() + status.slice(1)
+    const knownStatusKeys: Record<string, string> = {
+      open: 'hr-onboarding-status-open',
+      'in-progress': 'hr-onboarding-status-in-progress',
+      blocked: 'hr-onboarding-status-blocked',
+      completed: 'hr-onboarding-status-completed',
+      cancelled: 'hr-onboarding-status-cancelled'
+    }
+    const translationKey = knownStatusKeys[normalized]
+    if (translationKey) return t(translationKey)
+    return String(status || 'open').replace(/_/g, ' ')
   }
 
   const getEmployeeDisplayName = (employee: FlowInitiatorEmployee | undefined, fallback: string | undefined) =>
@@ -394,7 +620,7 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
     employee?.preferredName ||
     [employee?.firstName, employee?.lastName].filter(Boolean).join(' ') ||
     fallback ||
-    'Unknown user'
+    t('hr-onboarding-common-unknown-user')
 
   const getInitials = (name: string) =>
     name
@@ -459,33 +685,88 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
       }))
     } catch (err) {
       console.error('Failed to load onboarding template details:', err)
-      setTemplatesError(err instanceof Error ? err.message : 'Failed to load flow details')
+      setTemplatesError(t('hr-onboarding-main-load-flow-details-failed'))
     } finally {
       setLoadingTemplateDetailId(null)
     }
   }
 
   const startTemplateForCase = async (caseItem: Case, metadata: OnboardingMetadata, template: FlowTemplate) => {
-    if (!template.id || startingTemplateId) return
+    if (!template.id) {
+      setFlowStartError(t('hr-onboarding-main-flow-template-missing'))
+      return
+    }
 
+    const flowKey = `${caseItem.caseId}:${template.id}`
+    if (startingFlowKeysRef.current.has(flowKey) || startingTemplateId) return
+
+    const existingLinkedFlow = getLinkedFlowForTemplate(activeSelectedFlows, template.id)
+    if (existingLinkedFlow) {
+      setFlowStartError(
+        t('hr-onboarding-main-flow-already-started-error', {
+          flowName: template.name || t('hr-onboarding-common-flow')
+        })
+      )
+      return
+    }
+
+    startingFlowKeysRef.current.add(flowKey)
     setStartingTemplateId(template.id)
+    setFlowStartError(null)
+    setSelectedFlowsError(null)
+
     try {
+      const latestFlows = await refreshSelectedCaseFlows(caseItem.caseId)
+      if (getLinkedFlowForTemplate(latestFlows, template.id)) {
+        setFlowStartError(
+          t('hr-onboarding-main-flow-already-started-error', {
+            flowName: template.name || t('hr-onboarding-common-flow')
+          })
+        )
+        return
+      }
+
       await handleAddFlowToSelectedCase(caseItem.caseId, {
         templateId: template.id,
         initiator: contextProps.userInfo?.id || 'system',
         inputValues: {
           caseId: caseItem.caseId,
+          employeeId: metadata.employeeId,
+          employeeUserId: metadata.employeeUserId,
           employeeName: metadata.employeeName,
           position: metadata.position,
           department: metadata.department,
+          jobPositionId: metadata.jobPositionId,
+          jobPositionName: metadata.jobPositionName,
+          organizationalUnitId: metadata.organizationalUnitId,
+          organizationName: metadata.organizationName,
           startDate: metadata.startDate,
           managerId: metadata.managerId,
           mentorId: metadata.mentorId,
           workLocation: metadata.workLocation
         }
       })
+
+      try {
+        await refreshSelectedCaseFlows(caseItem.caseId)
+      } catch (refreshErr) {
+        console.error('Failed to refresh onboarding flows after start:', refreshErr)
+        setSelectedFlowsError(
+          refreshErr instanceof Error ? refreshErr.message : t('hr-onboarding-main-flow-refresh-after-start-failed')
+        )
+      }
+    } catch (err) {
+      console.error('Failed to start onboarding flow:', err)
+      const message = err instanceof Error ? err.message : t('hr-onboarding-main-flow-start-failed')
+      setFlowStartError(
+        t('hr-onboarding-main-flow-start-failed', {
+          flowName: template.name || t('hr-onboarding-common-flow'),
+          message
+        })
+      )
     } finally {
-      setStartingTemplateId(null)
+      startingFlowKeysRef.current.delete(flowKey)
+      setStartingTemplateId(current => (current === template.id ? null : current))
     }
   }
 
@@ -517,20 +798,35 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                     <CardTitle className="gba:text-base">{metadata.employeeName}</CardTitle>
                     <p className="gba:text-sm gba:text-muted-foreground">{metadata.position}</p>
                   </div>
-                  <Badge variant="outline" className="gba:capitalize">
-                    {metadata.status || 'open'}
-                  </Badge>
+                  <div className="gba:flex gba:shrink-0 gba:items-center gba:gap-2">
+                    <Badge variant="outline" className="gba:capitalize">
+                      {getCaseStatusLabel(metadata.status)}
+                    </Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gba:h-8 gba:gap-1 gba:text-destructive hover:gba:text-destructive"
+                      onClick={event => requestRemoveCase(event, caseItem)}
+                      disabled={deletingCaseId === caseItem.caseId}
+                      aria-label={t('hr-onboarding-main-remove-description', { employeeName: metadata.employeeName })}
+                    >
+                      <Trash2 className="gba:h-3.5 gba:w-3.5" />
+                      {deletingCaseId === caseItem.caseId
+                        ? t('hr-onboarding-common-removing')
+                        : t('hr-onboarding-common-remove')}
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="gba:space-y-3">
                 <div className="gba:grid gba:grid-cols-2 gba:gap-3 gba:text-sm">
                   <div>
-                    <p className="gba:text-xs gba:text-muted-foreground">Department</p>
+                    <p className="gba:text-xs gba:text-muted-foreground">{t('hr-onboarding-common-department')}</p>
                     <p className="gba:font-medium">{metadata.department}</p>
                   </div>
                   <div>
-                    <p className="gba:text-xs gba:text-muted-foreground">Stage</p>
-                    <p className="gba:font-medium">{onboardingStageLabels[metadata.onboardingStage]}</p>
+                    <p className="gba:text-xs gba:text-muted-foreground">{t('hr-onboarding-common-status')}</p>
+                    <p className="gba:font-medium gba:capitalize">{getCaseStatusLabel(metadata.status)}</p>
                   </div>
                 </div>
                 <div className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:text-muted-foreground">
@@ -538,7 +834,7 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                     <Calendar className="gba:h-4 gba:w-4" />
                     {new Date(metadata.startDate).toLocaleDateString()}
                   </span>
-                  <span>{activeFlows.length} flows</span>
+                  <span>{t('hr-onboarding-main-flows-count', { count: activeFlows.length })}</span>
                 </div>
               </CardContent>
             </Card>
@@ -556,11 +852,56 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
     const flowProgress =
       activeFlows.length > 0
         ? Math.round(activeFlows.reduce((sum, flow) => sum + getFlowProgress(flow), 0) / activeFlows.length)
-        : getStageProgress(metadata.onboardingStage)
+        : 0
     const sortedTemplates = [...onboardingTemplates].sort(
       (left, right) => getTemplateOrder(left, 0) - getTemplateOrder(right, 0)
     )
     const formattedStartDate = new Date(metadata.startDate).toLocaleDateString()
+    const linkedEmployee = selectedLinkedEntities.find(entity => entity.type === 'employee')
+    const linkedEmployeeMetadata = linkedEmployee?.metadata as
+      | {
+          employeeUserId?: string
+          jobPositionName?: string
+          organizationalUnitId?: string
+          organizationName?: string
+          startDate?: string
+        }
+      | undefined
+    const liveEmployeeName = getEmployeeDisplayName(selectedEmployeeProfile || undefined, metadata.employeeName)
+    const liveJobPositionName =
+      selectedEmployeeProfile?.employeePosition?.jobPosition?.name ||
+      linkedEmployeeMetadata?.jobPositionName ||
+      metadata.jobPositionName ||
+      metadata.position
+    const liveOrganizationName =
+      selectedEmployeeProfile?.employeePosition?.organizationalUnit?.name ||
+      linkedEmployeeMetadata?.organizationName ||
+      metadata.organizationName ||
+      metadata.department
+    const displayMetadata: OnboardingMetadata = {
+      ...metadata,
+      employeeId: linkedEmployee?.id || metadata.employeeId,
+      employeeUserId: linkedEmployeeMetadata?.employeeUserId || metadata.employeeUserId,
+      employeeName: liveEmployeeName,
+      position: liveJobPositionName,
+      department: liveOrganizationName,
+      jobPositionName: liveJobPositionName,
+      organizationName: liveOrganizationName,
+      organizationalUnitId:
+        selectedEmployeeProfile?.employeePosition?.organizationalUnit?.id ||
+        linkedEmployeeMetadata?.organizationalUnitId ||
+        metadata.organizationalUnitId
+    }
+    const headerSubtitle = [liveJobPositionName, liveOrganizationName]
+      .filter(value => value && value !== '-')
+      .join(' - ')
+    const employeeAvatarUrl = getAvatarUrl(selectedEmployeeProfile?.pictureThumbnail)
+    const headerAvatar = (
+      <Avatar className="gba:h-16 gba:w-16">
+        {employeeAvatarUrl ? <AvatarImage src={employeeAvatarUrl} alt={liveEmployeeName} /> : null}
+        <AvatarFallback className="gba:text-lg">{getInitials(liveEmployeeName)}</AvatarFallback>
+      </Avatar>
+    )
 
     const headerActions = (
       <Button
@@ -570,7 +911,7 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
         disabled={isLoading || isLoadingSelectedFlows}
       >
         <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
-        Refresh
+        {t('hr-onboarding-common-refresh')}
       </Button>
     )
 
@@ -580,30 +921,28 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
         items: [
           {
             id: 'status',
-            label: 'Status',
+            label: t('hr-onboarding-common-status'),
             value: (
               <Badge variant="outline" className="gba:capitalize">
-                {metadata.status || 'open'}
+                {getCaseStatusLabel(metadata.status)}
               </Badge>
             ),
             icon: Flag
           },
           {
             id: 'start-date',
-            label: 'Start Date',
+            label: t('hr-onboarding-common-first-working-day'),
             value: formattedStartDate,
             icon: CalendarClock
           },
           {
-            id: 'stage',
-            label: 'Stage',
-            value: onboardingStageLabels[metadata.onboardingStage],
-            icon: Activity
-          },
-          {
             id: 'progress',
-            label: 'Progress',
-            value: `${flowProgress}% (${completedFlows.length} of ${activeFlows.length} flows)`,
+            label: t('hr-onboarding-common-progress'),
+            value: t('hr-onboarding-main-progress-value', {
+              percentage: flowProgress,
+              completed: completedFlows.length,
+              total: activeFlows.length
+            }),
             icon: Workflow
           }
         ]
@@ -614,9 +953,11 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
       <div className="gba:col-span-full">
         <OnboardingDetailsPanel
           caseData={selectedCase}
-          metadata={metadata}
+          metadata={displayMetadata}
           linkedFlows={linkedFlows}
           context={contextProps}
+          employeeProfile={selectedEmployeeProfile}
+          isLoadingEmployeeProfile={isLoadingSelectedEmployeeProfile}
         />
       </div>
     )
@@ -633,12 +974,20 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
             <AlertDescription>{selectedFlowsError}</AlertDescription>
           </Alert>
         ) : null}
+        {flowStartError ? (
+          <Alert variant="destructive">
+            <AlertDescription>{flowStartError}</AlertDescription>
+          </Alert>
+        ) : null}
 
         <Card>
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:justify-between gba:text-base">
               <span>
-                Onboarding Flows ({activeFlows.length}/{sortedTemplates.length || 0})
+                {t('hr-onboarding-main-onboarding-flows-title', {
+                  started: activeFlows.length,
+                  total: sortedTemplates.length || 0
+                })}
               </span>
               <Button
                 variant="outline"
@@ -647,22 +996,22 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                 disabled={isLoadingTemplates}
               >
                 <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
-                Refresh
+                {t('hr-onboarding-common-refresh')}
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoadingTemplates ? (
               <div className="gba:py-10 gba:text-center gba:text-sm gba:text-muted-foreground">
-                Loading onboarding flows...
+                {t('hr-onboarding-main-loading-flows')}
               </div>
             ) : isLoadingSelectedFlows ? (
               <div className="gba:py-10 gba:text-center gba:text-sm gba:text-muted-foreground">
-                Loading flow progress...
+                {t('hr-onboarding-main-loading-flow-progress')}
               </div>
             ) : sortedTemplates.length === 0 ? (
               <div className="gba:py-10 gba:text-center gba:text-sm gba:text-muted-foreground">
-                No onboarding flow templates found for this tag.
+                {t('hr-onboarding-main-no-templates')}
               </div>
             ) : (
               <div className="gba:grid gba:grid-cols-1 gba:items-start gba:md:grid-cols-2 gba:xl:grid-cols-3 gba:gap-3">
@@ -683,6 +1032,8 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                     : 0
                   const isStarted = Boolean(linkedFlow)
                   const isStarting = startingTemplateId === template.id
+                  const isStartDisabled =
+                    isStarted || Boolean(startingTemplateId) || !template.id || isLoadingSelectedFlows
                   const isExpanded = expandedTemplateId === template.id
                   const initiatorUserId = linkedFlow?.initiator || linkedFlow?.addedBy
                   const initiator = initiatorUserId ? flowInitiatorsByUserId[initiatorUserId] : undefined
@@ -719,21 +1070,30 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                             <h3 className="gba:text-sm gba:font-semibold gba:truncate">{template.name}</h3>
                           </div>
                           <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground gba:line-clamp-2">
-                            {template.description || `${stepCount} tasks`}
+                            {template.description ||
+                              t('hr-onboarding-details-step-count', { completed: stepCount, total: stepCount })}
                           </p>
                         </div>
                         <Button
                           size="icon"
                           variant={isStarted ? 'outline' : 'default'}
-                          disabled={isStarted || isStarting || !template.id}
+                          disabled={isStartDisabled}
                           onClick={event => {
                             event.stopPropagation()
-                            void startTemplateForCase(selectedCase, metadata, template)
+                            void startTemplateForCase(selectedCase, displayMetadata, template)
                           }}
-                          aria-label={isStarted ? 'Flow already started' : `Start ${template.name}`}
+                          aria-label={
+                            isStarted
+                              ? t('hr-onboarding-main-flow-already-started')
+                              : isStarting
+                                ? t('hr-onboarding-main-starting-flow', { flowName: template.name })
+                                : t('hr-onboarding-main-start-flow', { flowName: template.name })
+                          }
                         >
                           {isStarted ? (
                             <CheckCircle2 className="gba:h-4 gba:w-4" />
+                          ) : isStarting ? (
+                            <RefreshCw className="gba:h-4 gba:w-4 gba:animate-spin" />
                           ) : (
                             <Play className="gba:h-4 gba:w-4" />
                           )}
@@ -741,7 +1101,7 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                       </div>
 
                       <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-                        <span>{stepCount} tasks</span>
+                        <span>{t('hr-onboarding-details-step-count', { completed: stepCount, total: stepCount })}</span>
                         <Badge variant="outline">{getFlowStatusLabel(linkedFlow)}</Badge>
                       </div>
 
@@ -754,7 +1114,9 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                           </span>
                           {initiatorUserId ? (
                             <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
-                              <span className="gba:truncate">Started by {initiatorName}</span>
+                              <span className="gba:truncate">
+                                {t('hr-onboarding-main-started-by', { name: initiatorName })}
+                              </span>
                               <Avatar className="gba:h-5 gba:w-5 gba:shrink-0">
                                 {avatarUrl ? <AvatarImage src={avatarUrl} alt={initiatorName} /> : null}
                                 <AvatarFallback className="gba:text-[10px]">
@@ -768,14 +1130,16 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
 
                       {flowRuns.length > 1 ? (
                         <Badge variant="outline" className="gba:w-fit">
-                          Started {flowRuns.length} times
+                          {t('hr-onboarding-main-started-times', { count: flowRuns.length })}
                         </Badge>
                       ) : null}
 
                       {isExpanded ? (
                         <div className="gba:border-t gba:pt-3 gba:space-y-3">
                           {loadingTemplateDetailId === template.id ? (
-                            <div className="gba:text-xs gba:text-muted-foreground">Loading flow details...</div>
+                            <div className="gba:text-xs gba:text-muted-foreground">
+                              {t('hr-onboarding-main-loading-flow-details')}
+                            </div>
                           ) : templateSteps.length > 0 ? (
                             <Timeline progressive={false} className="gba:max-w-none gba:px-2">
                               {templateSteps.map((step, stepIndex) => {
@@ -794,7 +1158,7 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                                       <TimelineTitle className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
                                         <span className="gba:truncate">{step.title}</span>
                                         <Badge variant="outline" className="gba:capitalize">
-                                          {status}
+                                          {formatOnboardingFlowStatusLabel(status, t)}
                                         </Badge>
                                       </TimelineTitle>
                                       <TimelineIndicator className="gba:flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-full gba:border gba:bg-background">
@@ -831,7 +1195,7 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                                       <TimelineTitle className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
                                         <span className="gba:truncate">{step.name}</span>
                                         <Badge variant="outline" className="gba:capitalize">
-                                          {step.status}
+                                          {formatOnboardingFlowStatusLabel(step.status, t)}
                                         </Badge>
                                       </TimelineTitle>
                                       <TimelineIndicator className="gba:flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-full gba:border gba:bg-background">
@@ -846,15 +1210,25 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                                     </TimelineHeader>
                                     <TimelineContent className="gba:pb-5 gba:pr-4 gba:text-xs gba:text-muted-foreground">
                                       <div>
-                                        {step.assignee ? `Assigned to ${step.assignee}` : 'No assignee available'}
+                                        {step.assignee
+                                          ? t('hr-onboarding-main-assigned-to', { assignee: step.assignee })
+                                          : t('hr-onboarding-main-no-assignee')}
                                       </div>
                                       {(step.startedAt || step.completedAt) && (
                                         <div className="gba:mt-1 gba:flex gba:flex-wrap gba:gap-3">
                                           {step.startedAt ? (
-                                            <span>Started: {new Date(step.startedAt).toLocaleString()}</span>
+                                            <span>
+                                              {t('hr-onboarding-main-started-at', {
+                                                date: new Date(step.startedAt).toLocaleString()
+                                              })}
+                                            </span>
                                           ) : null}
                                           {step.completedAt ? (
-                                            <span>Completed: {new Date(step.completedAt).toLocaleString()}</span>
+                                            <span>
+                                              {t('hr-onboarding-main-completed-at', {
+                                                date: new Date(step.completedAt).toLocaleString()
+                                              })}
+                                            </span>
                                           ) : null}
                                         </div>
                                       )}
@@ -865,7 +1239,7 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
                             </Timeline>
                           ) : (
                             <div className="gba:text-xs gba:italic gba:text-muted-foreground">
-                              No task details available.
+                              {t('hr-onboarding-main-no-task-details')}
                             </div>
                           )}
                         </div>
@@ -884,7 +1258,8 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
       <div className="gba:col-span-full gba:space-y-4">
         <OnboardingTasksTab
           accessToken={contextProps.accessToken}
-          tasks={currentUserOnboardingTasks}
+          myTasks={currentUserOnboardingTasks}
+          allTasks={allCaseOnboardingTasks}
           linkedFlows={activeFlows}
           isLoading={isLoadingCurrentUserTasks}
           claimingTaskId={claimingTaskId}
@@ -898,30 +1273,33 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
     return (
       <div data-testid="onboarding-cases-container" className="gba:w-full gba:h-full">
         <RecordLayout
-          headerOverline="Employee Onboarding"
+          headerOverline={t('hr-onboarding-main-title')}
           onBack={() => setView(initialView)}
-          headerTitle={metadata.employeeName}
-          headerSubtitle={`${metadata.position} - ${metadata.department}`}
+          headerTitle={liveEmployeeName}
+          headerSubtitle={headerSubtitle || t('hr-onboarding-main-header-subtitle')}
+          headerAvatar={headerAvatar}
           headerActions={headerActions}
           headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+          currentView={activeDetailView}
+          onViewChange={value => setActiveDetailView(value as DetailViewState)}
           views={[
             {
               value: 'overview',
-              label: 'Overview',
+              label: t('hr-onboarding-common-overview'),
               icon: <LayoutDashboard className="gba:h-4 gba:w-4" />,
               content: overviewContent,
               contentClassName: 'gba:p-6 layout-content gba:grid gba:gap-6 gba:grid-cols-1'
             },
             {
               value: 'flows',
-              label: 'Flows',
+              label: t('hr-onboarding-common-flows'),
               icon: <Workflow className="gba:h-4 gba:w-4" />,
               content: flowsContent,
               contentClassName: 'gba:p-6 layout-content gba:grid gba:gap-6 gba:grid-cols-1'
             },
             {
               value: 'tasks',
-              label: 'Tasks',
+              label: t('hr-onboarding-common-tasks'),
               icon: <ListChecks className="gba:h-4 gba:w-4" />,
               content: tasksContent,
               contentClassName: 'gba:p-6 layout-content gba:grid gba:gap-6 gba:grid-cols-1'
@@ -932,25 +1310,28 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
     )
   }
 
+  const pendingRemovalMetadata = casePendingRemoval ? getOnboardingMetadata(casePendingRemoval) : null
+  const pendingRemovalActiveFlows = casePendingRemoval?.state.linkedFlows.filter(flow => !flow.removedAt).length || 0
+
   return (
     <div data-testid="onboarding-cases-container" className="gba:w-full gba:h-full gba:overflow-auto gba:p-6">
       <div className="gba:flex gba:items-start gba:justify-between gba:gap-4 gba:mb-6">
         <div>
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-2">
             <Users className="gba:h-4 gba:w-4" />
-            HR Onboarding
+            {t('hr-onboarding-main-overline')}
           </div>
-          <h1 className="gba:text-2xl gba:font-semibold">Employee Onboarding</h1>
-          <p className="gba:text-muted-foreground">Manage new employee onboarding cases and workflows.</p>
+          <h1 className="gba:text-2xl gba:font-semibold">{t('hr-onboarding-main-title')}</h1>
+          <p className="gba:text-muted-foreground">{t('hr-onboarding-main-description')}</p>
         </div>
         <div className="gba:flex gba:gap-2">
           <Button variant="outline" onClick={() => void loadCases()} disabled={isLoading}>
             <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
-            Refresh
+            {t('hr-onboarding-common-refresh')}
           </Button>
           <Button onClick={() => setIsCreateOpen(true)}>
             <UserPlus className="gba:h-4 gba:w-4 gba:mr-2" />
-            Start Onboarding
+            {t('hr-onboarding-main-start-button')}
           </Button>
         </div>
       </div>
@@ -975,6 +1356,37 @@ export const OnboardingCases: React.FC<OnboardingCasesProps> = ({ initialView = 
         appTag={ONBOARDING_APP_TAG}
         userId={contextProps.userInfo?.id}
       />
+
+      <AlertDialog open={Boolean(casePendingRemoval)} onOpenChange={open => !open && setCasePendingRemoval(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('hr-onboarding-main-remove-title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('hr-onboarding-main-remove-description', {
+                employeeName: pendingRemovalMetadata?.employeeName || t('hr-onboarding-main-new-employee')
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pendingRemovalActiveFlows > 0 ? (
+            <div className="gba:rounded-md gba:border gba:border-yellow-200 gba:bg-yellow-50 gba:p-4 gba:text-sm gba:text-yellow-800">
+              {t('hr-onboarding-main-remove-active-flows-warning', { count: pendingRemovalActiveFlows })}
+            </div>
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(deletingCaseId)}>{t('hr-onboarding-create-cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleRemoveCase()}
+              disabled={Boolean(deletingCaseId)}
+              className="gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90"
+            >
+              <Trash2 className="gba:h-4 gba:w-4 gba:mr-2" />
+              {deletingCaseId ? t('hr-onboarding-common-removing') : t('hr-onboarding-common-remove-case')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

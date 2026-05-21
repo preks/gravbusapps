@@ -39,20 +39,16 @@ export interface OnboardingTasksResponse {
 export class OnboardingTasksClient {
   constructor(private readonly accessToken: string) {}
 
-  async getCurrentUserTasks(userId: string, appTag: string): Promise<OnboardingTasksResponse> {
-    const params = new URLSearchParams()
-    params.set('tags.app', appTag)
+  private getHeaders(): HeadersInit {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${this.accessToken}`
+    }
+  }
 
-    const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/tasks/user/${userId}?${params.toString()}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.accessToken}`
-      }
-    })
-
+  private async parseTasksResponse(response: Response, errorMessage: string): Promise<OnboardingTasksResponse> {
     if (!response.ok) {
-      throw new Error(`Failed to load onboarding tasks: ${response.status} ${response.statusText}`)
+      throw new Error(`${errorMessage}: ${response.status} ${response.statusText}`)
     }
 
     const json = await response.json()
@@ -63,6 +59,18 @@ export class OnboardingTasksClient {
       tasks,
       totalCount: payload?.totalCount || tasks.length
     }
+  }
+
+  async getCurrentUserTasks(userId: string, appTag: string): Promise<OnboardingTasksResponse> {
+    const params = new URLSearchParams()
+    params.set('tags.app', appTag)
+
+    const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/tasks/user/${userId}?${params.toString()}`, {
+      method: 'GET',
+      headers: this.getHeaders()
+    })
+
+    return this.parseTasksResponse(response, 'Failed to load onboarding tasks')
   }
 
   async getCurrentUserCompletedTasks(userId: string, appTag: string): Promise<OnboardingTasksResponse> {
@@ -73,33 +81,47 @@ export class OnboardingTasksClient {
 
     const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/tasks/user/${userId}/completed?${params.toString()}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.accessToken}`
-      }
+      headers: this.getHeaders()
     })
 
-    if (!response.ok) {
-      throw new Error(`Failed to load completed onboarding tasks: ${response.status} ${response.statusText}`)
-    }
+    return this.parseTasksResponse(response, 'Failed to load completed onboarding tasks')
+  }
 
-    const json = await response.json()
-    const payload = json?.data || json
-    const tasks = payload?.tasks || []
+  async getTemplateTasks(templateId: string, appTag: string): Promise<OnboardingTasksResponse> {
+    const params = new URLSearchParams()
+    params.set('tags.app', appTag)
+    params.set('limit', '100')
+    params.set('offset', '0')
 
-    return {
-      tasks,
-      totalCount: payload?.totalCount || tasks.length
-    }
+    const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/tasks/template/${templateId}?${params.toString()}`, {
+      method: 'GET',
+      headers: this.getHeaders()
+    })
+
+    return this.parseTasksResponse(response, 'Failed to load template onboarding tasks')
+  }
+
+  async getTemplateCompletedTasks(templateId: string, appTag: string): Promise<OnboardingTasksResponse> {
+    const params = new URLSearchParams()
+    params.set('tags.app', appTag)
+    params.set('limit', '100')
+    params.set('offset', '0')
+
+    const response = await fetch(
+      `${CUSTOM_FLOW_ENGINE_API_URL}/tasks/template/${templateId}/completed?${params.toString()}`,
+      {
+        method: 'GET',
+        headers: this.getHeaders()
+      }
+    )
+
+    return this.parseTasksResponse(response, 'Failed to load completed template onboarding tasks')
   }
 
   async claimTask(taskId: string, userId: string): Promise<void> {
     const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/tasks/${taskId}/claim`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.accessToken}`
-      },
+      headers: this.getHeaders(),
       body: JSON.stringify({ userId })
     })
 

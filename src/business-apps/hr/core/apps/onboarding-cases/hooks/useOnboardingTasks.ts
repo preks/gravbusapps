@@ -6,16 +6,30 @@ interface UseOnboardingTasksParams {
   userId: string | undefined
   appTag: string
   workflowIds: string[]
+  templateIds: string[]
   enabled: boolean
+  loadErrorMessage: string
+  claimErrorMessage: string
 }
 
-export const useOnboardingTasks = ({ accessToken, userId, appTag, workflowIds, enabled }: UseOnboardingTasksParams) => {
-  const [tasks, setTasks] = useState<OnboardingTask[]>([])
+export const useOnboardingTasks = ({
+  accessToken,
+  userId,
+  appTag,
+  workflowIds,
+  templateIds,
+  enabled,
+  loadErrorMessage,
+  claimErrorMessage
+}: UseOnboardingTasksParams) => {
+  const [myTasks, setMyTasks] = useState<OnboardingTask[]>([])
+  const [allTasks, setAllTasks] = useState<OnboardingTask[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [claimingTaskId, setClaimingTaskId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const workflowIdSet = useMemo(() => new Set(workflowIds), [workflowIds])
+  const uniqueTemplateIds = useMemo(() => [...new Set(templateIds.filter(Boolean))], [templateIds])
 
   const getTaskWorkflowId = (task: OnboardingTask) => task.flowId || task.workflowId || task.requestId
 
@@ -31,8 +45,9 @@ export const useOnboardingTasks = ({ accessToken, userId, appTag, workflowIds, e
   )
 
   const loadTasks = useCallback(async () => {
-    if (!enabled || !accessToken || !userId) {
-      setTasks([])
+    if (!enabled || !accessToken) {
+      setMyTasks([])
+      setAllTasks([])
       return
     }
 
@@ -41,25 +56,37 @@ export const useOnboardingTasks = ({ accessToken, userId, appTag, workflowIds, e
 
     try {
       const client = new OnboardingTasksClient(accessToken)
-      const [activeResponse, completedResponse] = await Promise.all([
-        client.getCurrentUserTasks(userId, appTag),
-        client.getCurrentUserCompletedTasks(userId, appTag)
-      ])
-      const tasksById = new Map<string, OnboardingTask>()
+      const myTaskResponses = userId
+        ? await Promise.all([
+            client.getCurrentUserTasks(userId, appTag),
+            client.getCurrentUserCompletedTasks(userId, appTag)
+          ])
+        : []
+      const templateTaskResponses = await Promise.all(
+        uniqueTemplateIds.flatMap(templateId => [
+          client.getTemplateTasks(templateId, appTag),
+          client.getTemplateCompletedTasks(templateId, appTag)
+        ])
+      )
+      const myTasksById = new Map<string, OnboardingTask>()
+      const allTasksById = new Map<string, OnboardingTask>()
 
-      activeResponse.tasks.forEach(task => tasksById.set(task.id, task))
-      completedResponse.tasks.forEach(task => tasksById.set(task.id, task))
+      myTaskResponses.forEach(response => {
+        response.tasks.forEach(task => myTasksById.set(task.id, task))
+      })
+      templateTaskResponses.forEach(response => {
+        response.tasks.forEach(task => allTasksById.set(task.id, task))
+      })
 
-      const caseTasks = filterTasksForSelectedCase(Array.from(tasksById.values()))
-
-      setTasks(caseTasks)
+      setMyTasks(filterTasksForSelectedCase(Array.from(myTasksById.values())))
+      setAllTasks(filterTasksForSelectedCase(Array.from(allTasksById.values())))
     } catch (err) {
       console.error('Failed to load onboarding tasks:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load onboarding tasks')
+      setError(loadErrorMessage)
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, appTag, enabled, filterTasksForSelectedCase, userId])
+  }, [accessToken, appTag, enabled, filterTasksForSelectedCase, loadErrorMessage, uniqueTemplateIds, userId])
 
   useEffect(() => {
     void loadTasks()
@@ -78,16 +105,18 @@ export const useOnboardingTasks = ({ accessToken, userId, appTag, workflowIds, e
         await loadTasks()
       } catch (err) {
         console.error('Failed to claim onboarding task:', err)
-        setError(err instanceof Error ? err.message : 'Failed to claim onboarding task')
+        setError(claimErrorMessage)
       } finally {
         setClaimingTaskId(null)
       }
     },
-    [accessToken, loadTasks, userId]
+    [accessToken, claimErrorMessage, loadTasks, userId]
   )
 
   return {
-    tasks,
+    tasks: myTasks,
+    myTasks,
+    allTasks,
     isLoading,
     claimingTaskId,
     error,

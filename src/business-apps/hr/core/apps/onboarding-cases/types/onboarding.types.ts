@@ -10,11 +10,6 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Case, CaseAnalytics } from '@/business-apps/common/apps/case-management/types'
 
 /**
- * Onboarding stage progression
- */
-export type OnboardingStage = 'pre_arrival' | 'first_day' | 'first_week' | 'first_month' | 'completed'
-
-/**
  * Work location options
  */
 export type WorkLocation = 'office' | 'remote' | 'hybrid'
@@ -24,14 +19,19 @@ export type WorkLocation = 'office' | 'remote' | 'hybrid'
  */
 export interface OnboardingMetadata extends CaseMetadata {
   // Employee information
+  employeeId?: string
+  employeeUserId?: string
   employeeName: string
   position: string
   department: string
+  jobPositionId?: string
+  jobPositionName?: string
+  organizationalUnitId?: string
+  organizationName?: string
   managerId?: string
 
   // Onboarding details
   startDate: string
-  onboardingStage: OnboardingStage
   mentorId?: string
   workLocation: WorkLocation
 
@@ -64,7 +64,7 @@ export interface OnboardingFormData {
 export interface CreateOnboardingDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCaseCreated: (caseId: string, metadata?: OnboardingMetadata) => void
+  onCaseCreated: (caseId: string) => void
   defaultFlowTemplates?: string[]
   context: BusinessAppContextProps
   appTag: string
@@ -81,6 +81,19 @@ export interface OnboardingDetailsPanelProps {
   metadata: OnboardingMetadata
   linkedFlows: Case['state']['linkedFlows']
   context: BusinessAppContextProps
+  employeeProfile?: {
+    displayName?: string
+    fullName?: string
+    preferredName?: string
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+    employeePosition?: {
+      jobPosition?: { name?: string }
+      organizationalUnit?: { id?: string; name?: string }
+    }
+  } | null
+  isLoadingEmployeeProfile?: boolean
 }
 
 export interface OnboardingEmptyStateProps {
@@ -98,17 +111,6 @@ export const onboardingStatusOptions: StatusOption[] = [
   { value: 'completed', label: 'Onboarded', color: 'green' },
   { value: 'cancelled', label: 'Cancelled', color: 'gray' }
 ]
-
-/**
- * Onboarding stage display labels
- */
-export const onboardingStageLabels: Record<OnboardingStage, string> = {
-  pre_arrival: 'Pre-Arrival',
-  first_day: 'First Day',
-  first_week: 'First Week',
-  first_month: 'First Month',
-  completed: 'Completed'
-}
 
 /**
  * Equipment options for onboarding
@@ -139,27 +141,3 @@ export const accessOptions = [
   { value: 'erp', label: 'ERP System' },
   { value: 'hr_system', label: 'HR System' }
 ]
-
-/**
- * Get stage progress percentage
- */
-export const getStageProgress = (stage: OnboardingStage): number => {
-  const stageValues: Record<OnboardingStage, number> = {
-    pre_arrival: 10,
-    first_day: 30,
-    first_week: 50,
-    first_month: 80,
-    completed: 100
-  }
-  return stageValues[stage]
-}
-
-/**
- * Get next stage in progression
- */
-export const getNextStage = (current: OnboardingStage): OnboardingStage | null => {
-  const progression: OnboardingStage[] = ['pre_arrival', 'first_day', 'first_week', 'first_month', 'completed']
-  const currentIndex = progression.indexOf(current)
-  if (currentIndex === -1 || currentIndex === progression.length - 1) return null
-  return progression[currentIndex + 1]
-}
