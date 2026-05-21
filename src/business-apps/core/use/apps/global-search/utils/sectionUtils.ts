@@ -6,6 +6,9 @@ const hasPeopleCategory = (item: SearchItem): boolean =>
 const hasNavigationCategory = (item: SearchItem): boolean =>
   item.categoryIds.some(categoryId => categoryId.toUpperCase() === 'NAVIGATION')
 
+const hasWorkflowsCategory = (item: SearchItem): boolean =>
+  item.categoryIds.some(categoryId => categoryId.toUpperCase() === 'WORKFLOWS')
+
 /**
  * True for discovery trending rails that are entirely People hits (e.g. `trending-employees`).
  */
@@ -17,6 +20,12 @@ export const isPeopleTrendingSwimlaneSection = (section: SearchSection): boolean
  */
 export const isNavigationTrendingSection = (section: SearchSection): boolean =>
   section.kind === 'TRENDING' && section.items.length > 0 && section.items.every(hasNavigationCategory)
+
+/**
+ * True for discovery trending rails that are entirely Flow hits (e.g. `trending-flows`).
+ */
+export const isFlowsTrendingSection = (section: SearchSection): boolean =>
+  section.kind === 'TRENDING' && section.items.length > 0 && section.items.every(hasWorkflowsCategory)
 
 /**
  * True when this section should use the horizontal people swimlane (same UX as `people-swimlane`).
@@ -64,4 +73,5 @@ export const isHorizontalSwimlaneSection = (section: SearchSection): boolean =>
   section.kind === 'SUGGESTIONS' ||
   section.id === 'people-swimlane' ||
   isPeopleTrendingSwimlaneSection(section) ||
-  isNavigationTrendingSection(section)
+  isNavigationTrendingSection(section) ||
+  isFlowsTrendingSection(section)

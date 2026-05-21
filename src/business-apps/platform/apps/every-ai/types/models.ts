@@ -344,11 +344,24 @@ export type KanbanBoardData = {
   columns: KanbanColumn[]
 }
 
-export type InteractiveTableDataType = 'text' | 'number' | 'date' | 'boolean' | 'enum' | 'chip' | 'chip_list'
+export type InteractiveTableDataType =
+  | 'text'
+  | 'number'
+  | 'date'
+  | 'boolean'
+  | 'enum'
+  | 'chip'
+  | 'chip_list'
+  | 'currency'
 
 export type ChipCellValue = {
   id: string
   label: string
+}
+
+export type CurrencyCellValue = {
+  value: number
+  unit: string
 }
 
 export type InteractiveTableColumn = {
@@ -372,7 +385,7 @@ export type InteractiveTableData = {
   title: string
   description?: string
   columns: InteractiveTableColumn[]
-  rows: Array<Record<string, string | number | boolean | ChipCellValue | ChipCellValue[] | null>>
+  rows: Array<Record<string, string | number | boolean | ChipCellValue | ChipCellValue[] | CurrencyCellValue | null>>
   defaultSort?: InteractiveTableDefaultSort
   rowEntityType?: string
   rowEntityIdColumn?: string

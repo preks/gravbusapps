@@ -1,3 +1,4 @@
+import React from 'react'
 import { type MeshScope, MESH_SCOPES } from './meshScopes'
 
 interface MeshScopeSwitchProps {

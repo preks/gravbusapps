@@ -72,3 +72,25 @@ export function resolveSearchItemLeadIconName(item: SearchItem): string | undefi
 
   return undefined
 }
+
+export interface WorkflowLeadVisual {
+  iconName: string
+  iconClass: string
+  containerClass: string
+}
+
+/** Distinct from Pages (sky/indigo); teal/emerald matches flow product chrome. */
+export const WORKFLOW_LEAD_CONTAINER_CLASS = 'gba:bg-linear-to-br gba:from-teal-500 gba:to-emerald-600'
+export const WORKFLOW_LEAD_ICON_CLASS = 'gba:text-white'
+
+export function resolveWorkflowLeadVisual(item: SearchItem): WorkflowLeadVisual | null {
+  if (item.type !== 'WORKFLOW') {
+    return null
+  }
+
+  return {
+    iconName: 'FlowArrow',
+    iconClass: WORKFLOW_LEAD_ICON_CLASS,
+    containerClass: WORKFLOW_LEAD_CONTAINER_CLASS
+  }
+}

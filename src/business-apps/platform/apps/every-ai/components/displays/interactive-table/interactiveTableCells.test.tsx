@@ -49,6 +49,38 @@ describe('renderInteractiveTableCell', () => {
     expect(container.textContent).toContain('—')
   })
 
+  it('formats ISO strings in text columns (e.g. closeDate typed as text)', () => {
+    const column: InteractiveTableColumn = {
+      id: 'closeDate',
+      header: 'Close Date',
+      dataType: 'text'
+    }
+    render(<>{renderInteractiveTableCell(column, '2025-09-30T00:00:00', 'token')}</>)
+    expect(screen.queryByText('2025-09-30T00:00:00')).not.toBeInTheDocument()
+    expect(screen.getByTestId('interactive-table-date-cell')).toBeInTheDocument()
+  })
+
+  it('renders date cell without raw ISO string', () => {
+    const column: InteractiveTableColumn = {
+      id: 'closeDate',
+      header: 'Close Date',
+      dataType: 'date'
+    }
+    render(<>{renderInteractiveTableCell(column, '2025-09-30T00:00:00', 'token')}</>)
+    expect(screen.queryByText('2025-09-30T00:00:00')).not.toBeInTheDocument()
+    expect(screen.getByTestId('interactive-table-date-cell')).toBeInTheDocument()
+  })
+
+  it('renders currency cell with formatted amount', () => {
+    const column: InteractiveTableColumn = {
+      id: 'estimatedAmount',
+      header: 'Amount',
+      dataType: 'currency'
+    }
+    render(<>{renderInteractiveTableCell(column, { value: 400000, unit: 'EUR' }, 'token')}</>)
+    expect(screen.getByText(/400/)).toBeInTheDocument()
+  })
+
   it('renders chip_list with multiple links', () => {
     const column: InteractiveTableColumn = {
       id: 'skills',

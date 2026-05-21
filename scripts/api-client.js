@@ -262,7 +262,7 @@ function buildNativeProdScreenSyncBody(devScreen, buildVersion) {
  * @param {string} prodScreenManagementApi
  * @param {Object} prodOauthConfig
  * @param {string[]|null} screenKeysToPurge - dev screenKeys for this batch (optional)
- * @returns {{ deleted: number, matched: number }}
+ * @returns {{ deleted: number, matched: number, alreadyDeleted: number, failed: number, failures: Array<{ screenKey: string, id: string, error: string }> }}
  */
 async function deleteProdNativeScreensByComponentPaths(
   normalizedPaths,
@@ -283,12 +283,31 @@ async function deleteProdNativeScreensByComponentPaths(
     return false
   })
   let deleted = 0
+  let alreadyDeleted = 0
+  const failures = []
   for (const screen of matched) {
-    await deleteScreenInScreenManagement(screen.id, prodScreenManagementApi, prodOauthConfig)
-    deleted++
-    console.log(`   Purged prod screen screenKey=${screen.screenKey} id=${screen.id}`)
+    try {
+      await deleteScreenInScreenManagement(screen.id, prodScreenManagementApi, prodOauthConfig)
+      deleted++
+      console.log(`   Purged prod screen screenKey=${screen.screenKey} id=${screen.id}`)
+    } catch (error) {
+      if (error?.response?.status === 404) {
+        alreadyDeleted++
+        console.log(`   Screen already absent during purge screenKey=${screen.screenKey} id=${screen.id}`)
+        continue
+      }
+
+      failures.push({
+        screenKey: screen.screenKey,
+        id: screen.id,
+        error: error.message
+      })
+      console.log(
+        `   WARNING: Failed to purge prod screen screenKey=${screen.screenKey} id=${screen.id}: ${error.message}`
+      )
+    }
   }
-  return { deleted, matched: matched.length }
+  return { deleted, matched: matched.length, alreadyDeleted, failed: failures.length, failures }
 }
 
 /**

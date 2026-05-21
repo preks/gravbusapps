@@ -59,6 +59,8 @@ function toolNode(id: string, label: string): MeshNode {
     lastSeenAt: ts(0),
     firstSeenSeq: 1,
     lastSeenSeq: 1,
+    offsetMs: 0,
+    lastOffsetMs: 0,
     status: 'done',
     totalDurationMs: 0,
     invocationCount: 1

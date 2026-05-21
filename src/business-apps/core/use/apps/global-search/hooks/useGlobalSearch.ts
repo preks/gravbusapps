@@ -4,11 +4,13 @@ import type {
   GlobalSearchEventRequest,
   GlobalSearchResultSelectable,
   SearchCategory,
+  SearchCategorySelectionMode,
   SearchItem,
   SearchSection,
   SearchSuggestion
 } from '../types'
-import { GLOBAL_SEARCH_UI_DEFAULTS } from '../utils/globalSearchUiDefaults'
+import { isAllCategoryId } from '../utils'
+import { GLOBAL_SEARCH_UI_DEFAULTS, isGlobalSearchDiscoveryMode } from '../utils/globalSearchUiDefaults'
 import { flattenSelectableResults, globalSearchFetchErrorMessage, visibleCategoriesForChips } from '../utils'
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -49,14 +51,17 @@ export interface UseGlobalSearchOptions {
 export interface UseGlobalSearchResult {
   query: string
   setQuery: (query: string) => void
+  isDiscoveryMode: boolean
   isLoading: boolean
   errorMessage?: string
   categories: SearchCategory[]
   sections: SearchSection[]
   suggestions: string[]
   selectedCategoryIds: string[]
+  categorySelectionMode: SearchCategorySelectionMode
   selectableResults: GlobalSearchResultSelectable[]
   setSelectedCategories: (categoryId: string) => void
+  applyCategorySelection: (categoryIds: string[]) => void
   resetSearch: () => void
   runTarget: (item: SearchItem) => Promise<void>
 }
@@ -72,6 +77,7 @@ export const useGlobalSearch = ({ open, onOpenChange, adapter }: UseGlobalSearch
   const zeroQueryCategoriesRef = useRef<SearchCategory[]>([])
   const zeroQuerySectionsRef = useRef<SearchSection[]>([])
   const [suggestions, setSuggestions] = useState<string[]>([])
+  const zeroQuerySuggestionsRef = useRef<string[]>([])
   const [trackingToken, setTrackingToken] = useState<string | undefined>(undefined)
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [minQueryLength, setMinQueryLength] = useState(2)
@@ -82,11 +88,14 @@ export const useGlobalSearch = ({ open, onOpenChange, adapter }: UseGlobalSearch
 
   const selectableResults = useMemo(() => flattenSelectableResults(sections), [sections])
 
+  const isDiscoveryMode = useMemo(() => isGlobalSearchDiscoveryMode(query, minQueryLength), [query, minQueryLength])
+
   const resetSearch = useCallback(() => {
     setQuery('')
     setErrorMessage(undefined)
     setCategories(zeroQueryCategoriesRef.current)
     setSections(zeroQuerySectionsRef.current)
+    setSuggestions(zeroQuerySuggestionsRef.current)
     setSelectedCategoryIds([])
     zeroResultTrackingKeysRef.current.clear()
   }, [])
@@ -136,6 +145,7 @@ export const useGlobalSearch = ({ open, onOpenChange, adapter }: UseGlobalSearch
         setZeroQuerySections(zeroQueryResults.data)
         zeroQuerySectionsRef.current = zeroQueryResults.data
         setSections(zeroQueryResults.data)
+        zeroQuerySuggestionsRef.current = suggestionStrings
         setSuggestions(suggestionStrings)
         setTrackingToken(nextTrackingToken)
       } catch (error) {
@@ -180,6 +190,7 @@ export const useGlobalSearch = ({ open, onOpenChange, adapter }: UseGlobalSearch
       setIsLoading(false)
       setCategories(zeroQueryCategoriesRef.current)
       setSections(zeroQuerySections)
+      setSuggestions(trimmedQuery.length === 0 ? zeroQuerySuggestionsRef.current : [])
       return
     }
 
@@ -259,18 +270,29 @@ export const useGlobalSearch = ({ open, onOpenChange, adapter }: UseGlobalSearch
     }
   }, [adapter, debounceMs, minQueryLength, open, query, requestCategoryIds, zeroQuerySections])
 
+  const applyCategorySelection = useCallback((categoryIds: string[]) => {
+    if (categoryIds.length === 0 || categoryIds.some(isAllCategoryId)) {
+      setSelectedCategoryIds([])
+      return
+    }
+
+    setSelectedCategoryIds(categoryIds.filter(id => !isAllCategoryId(id)))
+  }, [])
+
   const setSelectedCategories = useCallback(
     (categoryId: string) => {
+      if (isAllCategoryId(categoryId)) {
+        setSelectedCategoryIds([])
+        return
+      }
+
+      if (categorySelectionMode === 'SINGLE') {
+        setSelectedCategoryIds([categoryId])
+        return
+      }
+
       setSelectedCategoryIds(previous => {
-        if (categoryId === 'all') {
-          return []
-        }
-
-        if (categorySelectionMode === 'SINGLE') {
-          return [categoryId]
-        }
-
-        const next = new Set(previous.filter(id => id !== 'all'))
+        const next = new Set(previous.filter(id => !isAllCategoryId(id)))
         if (next.has(categoryId)) {
           next.delete(categoryId)
         } else {
@@ -325,14 +347,17 @@ export const useGlobalSearch = ({ open, onOpenChange, adapter }: UseGlobalSearch
   return {
     query,
     setQuery,
+    isDiscoveryMode,
     isLoading: isLoading || (open && !hasLoadedInitialResults),
     errorMessage,
     categories,
     sections,
     suggestions,
     selectedCategoryIds,
+    categorySelectionMode,
     selectableResults,
     setSelectedCategories,
+    applyCategorySelection,
     resetSearch,
     runTarget
   }

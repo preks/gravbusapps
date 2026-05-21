@@ -1,5 +1,11 @@
 import type { SearchItem, SearchSection } from '../types'
-import { isHorizontalSwimlaneSection, isPeopleResultsSwimlaneSection, isPeopleTrendingSwimlaneSection } from '../utils'
+import {
+  isFlowsTrendingSection,
+  isHorizontalSwimlaneSection,
+  isNavigationTrendingSection,
+  isPeopleResultsSwimlaneSection,
+  isPeopleTrendingSwimlaneSection
+} from '../utils'
 
 const urlTarget = { kind: 'URL' as const, href: '/' }
 
@@ -129,6 +135,53 @@ describe('isPeopleTrendingSwimlaneSection', () => {
   })
 })
 
+function flowItem(id: string): SearchItem {
+  return {
+    id,
+    name: 'Onboarding',
+    type: 'WORKFLOW',
+    typeLabel: 'Flow',
+    categoryIds: ['WORKFLOWS'],
+    primaryTarget: urlTarget,
+    analytics: { provider: 'p', trackingId: 't', rank: 1 }
+  }
+}
+
+describe('isFlowsTrendingSection', () => {
+  it('is true for trending-flows with all WORKFLOWS items', () => {
+    const section: SearchSection = {
+      id: 'trending-flows',
+      kind: 'TRENDING',
+      title: 'Flows',
+      presentation: 'LIST',
+      items: [flowItem('1'), flowItem('2')]
+    }
+    expect(isFlowsTrendingSection(section)).toBe(true)
+    expect(isNavigationTrendingSection(section)).toBe(false)
+  })
+
+  it('is false for trending-pages', () => {
+    const section: SearchSection = {
+      id: 'trending-pages',
+      kind: 'TRENDING',
+      title: 'Pages',
+      presentation: 'LIST',
+      items: [
+        {
+          id: 'p1',
+          name: 'Dashboard',
+          type: 'PAGE',
+          typeLabel: 'Page',
+          categoryIds: ['NAVIGATION'],
+          primaryTarget: urlTarget,
+          analytics: { provider: 'p', trackingId: 't', rank: 1 }
+        }
+      ]
+    }
+    expect(isFlowsTrendingSection(section)).toBe(false)
+  })
+})
+
 describe('isHorizontalSwimlaneSection', () => {
   it('is true for RECENT sections', () => {
     const section: SearchSection = {
@@ -139,6 +192,17 @@ describe('isHorizontalSwimlaneSection', () => {
       items: [personItem('1'), personItem('2')]
     }
 
+    expect(isHorizontalSwimlaneSection(section)).toBe(true)
+  })
+
+  it('is true for flows trending section', () => {
+    const section: SearchSection = {
+      id: 'trending-flows',
+      kind: 'TRENDING',
+      title: 'Flows',
+      presentation: 'LIST',
+      items: [flowItem('1')]
+    }
     expect(isHorizontalSwimlaneSection(section)).toBe(true)
   })
 })

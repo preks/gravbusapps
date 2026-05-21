@@ -16,6 +16,12 @@
 # - Use with caution: this will publish every screen found in src/business-apps/
 # - Default: "false"
 #
+# PUBLISH_TARGET (production only):
+# - Selects which production target receives artifact promotion and screen sync
+# - all: primary/gravity and secondary/demo (default)
+# - primary: gravity only
+# - secondary: demo only
+#
 # Resource URL sync (production only):
 # - Resource URL sync is a separate manual step after production publish
 # - Publish always creates `published-screens.txt` artifact with successfully promoted screens
@@ -212,6 +218,7 @@ definitions:
         script:
           - bash scripts/ci-install-dependencies.sh
           - |
+            echo "Publishing target: ${PUBLISH_TARGET:-all}"
             if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
               echo "PUBLISH_ALL_SCREENS=true: Publishing ALL screens to production"
               echo "WARNING: This will publish every screen in the repository!"
@@ -342,6 +349,12 @@ pipelines:
             allowed-values:
               - "true"
               - "false"
+          - name: PUBLISH_TARGET
+            default: "all"
+            allowed-values:
+              - "all"
+              - "primary"
+              - "secondary"
       - step:
           name: Enforce develop/main branches for production publish
           runs-on:

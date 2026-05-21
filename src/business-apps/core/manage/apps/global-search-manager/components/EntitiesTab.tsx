@@ -4,10 +4,12 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -35,6 +37,7 @@ interface EntitiesTabProps {
 export const EntitiesTab: React.FC<EntitiesTabProps> = ({ client }) => {
   const [entities, setEntities] = useState<GlobalSearchEntityType[]>([])
   const [entitySeedMode, setEntitySeedMode] = useState<GlobalSearchEntitySeedMode>('UPSERT')
+  const [includeDeleted, setIncludeDeleted] = useState(false)
   const [dialogMode, setDialogMode] = useState<EntityDialogMode>('create')
   const [isEntityDialogOpen, setIsEntityDialogOpen] = useState(false)
   const [formValues, setFormValues] = useState<EntityFormValues>(entityToFormValues())
@@ -46,12 +49,12 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ client }) => {
   const loadEntities = useCallback(async () => {
     setErrorMessage(null)
     try {
-      const response = await client.getEntityTypes()
+      const response = await client.getEntityTypes({ withDeleted: includeDeleted })
       setEntities(response.data)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Loading entities failed')
     }
-  }, [client])
+  }, [client, includeDeleted])
 
   useEffect(() => {
     loadEntities().catch(() => undefined)
@@ -124,7 +127,9 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ client }) => {
   const seedEntities = async () => {
     if (
       entitySeedMode === 'RESET' &&
-      !globalThis.confirm('RESET deletes existing entity defaults before inserting. Continue?')
+      !globalThis.confirm(
+        'RESET soft-deletes all default entity types, then reapplies seed defaults (restores them). Continue?'
+      )
     )
       return
     try {
@@ -147,7 +152,7 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ client }) => {
               value={entitySeedMode}
               onValueChange={value => setEntitySeedMode(value as GlobalSearchEntitySeedMode)}
             >
-              <SelectTrigger className="gba:w-44">
+              <SelectTrigger className="gba:w-44" data-testid="global-search-manager-entity-seed-mode">
                 <SelectValue placeholder="Seed mode" />
               </SelectTrigger>
               <SelectContent>
@@ -158,6 +163,17 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ client }) => {
                 ))}
               </SelectContent>
             </Select>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Checkbox
+                id="global-search-manager-include-deleted"
+                checked={includeDeleted}
+                onCheckedChange={checked => setIncludeDeleted(checked === true)}
+                data-testid="global-search-manager-include-deleted"
+              />
+              <Label htmlFor="global-search-manager-include-deleted" className="gba:text-sm gba:font-normal">
+                With deleted
+              </Label>
+            </div>
             <Button variant="outline" onClick={() => seedEntities().catch(() => undefined)}>
               Seed Defaults
             </Button>
@@ -180,6 +196,7 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ client }) => {
               <TableHead>Label</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
+              {includeDeleted && <TableHead>Deleted</TableHead>}
               <TableHead>Kind</TableHead>
               <TableHead>ACL</TableHead>
               <TableHead />
@@ -196,6 +213,15 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ client }) => {
                     {entity.active ? 'active' : 'inactive'}
                   </Badge>
                 </TableCell>
+                {includeDeleted && (
+                  <TableCell>
+                    {entity.isDeleted ? (
+                      <Badge variant="destructive">deleted</Badge>
+                    ) : (
+                      <span className="gba:text-muted-foreground gba:text-sm">—</span>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell>{entity.kind}</TableCell>
                 <TableCell>{entity.accessControlType}</TableCell>
                 <TableCell>
