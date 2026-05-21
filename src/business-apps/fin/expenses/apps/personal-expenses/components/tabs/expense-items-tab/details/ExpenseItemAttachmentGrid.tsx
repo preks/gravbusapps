@@ -21,20 +21,24 @@ import personalTranslations from '../../../../_i18n'
 
 const THUMB_CLASS = 'gba:rounded-md gba:shadow gba:w-24 gba:h-24'
 
+type ExpenseItemTranslationsBundle = Record<'en-US' | 'de-DE' | 'ro-RO', string>
+
 export interface ExpenseItemAttachmentGridProps {
   fileLoading: boolean
   fileList: UploadFile[]
   onImagePreview: (fileUrl: string) => void
   onPdfPreview: (fileUrl: string) => void
+  translations?: ExpenseItemTranslationsBundle
 }
 
 export function ExpenseItemAttachmentGrid({
   fileLoading,
   fileList,
   onImagePreview,
-  onPdfPreview
+  onPdfPreview,
+  translations
 }: Readonly<ExpenseItemAttachmentGridProps>) {
-  const { t } = useTranslation(personalTranslations)
+  const { t } = useTranslation(translations ?? personalTranslations)
 
   const renderFilePreview = useCallback(
     (fileUrl: string, fileName: string, fileType: string, ext: string, idx: number) => {

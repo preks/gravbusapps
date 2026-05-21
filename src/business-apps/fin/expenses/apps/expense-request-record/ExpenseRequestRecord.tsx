@@ -26,7 +26,7 @@ import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGetExpenseRequestRecord } from './hooks/useGetExpenseRequestRecord'
-import { getExpenseRequestStatusDisplay } from './utils'
+import { getExpenseRequestStatusDisplayT } from '../../common/utils/statusDisplayUtils'
 import { formatCurrencyDisplay } from '../expense-plan-record/utils/currency'
 import { BackButton } from '@/components/back-button'
 import { useFileClient } from '@/common/network/files/useFileClient'
@@ -47,9 +47,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
   const expenseRequestId =
-    additionalData.expenseRequestId ||
-    new URLSearchParams(window.location.search).get('expenseRequestId') ||
-    'bfe6323f-236b-4245-9759-5215a6a97209'
+    additionalData.expenseRequestId || new URLSearchParams(window.location.search).get('expenseRequestId') || ''
 
   // Determine the back URL based on referrer or query parameter
   const getBackUrl = (): string => {
@@ -221,7 +219,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
       label: (
         <div className="gba:flex gba:items-center gba:gap-2">
           <PathIcon className="gba:text-xl" />
-          <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}</span>
+          <span>{t('expense-request-record-tab-items')}</span>
         </div>
       ),
       children: (
@@ -243,12 +241,15 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
             label: (
               <div className="gba:flex gba:items-center gba:gap-2">
                 <ClockIcon className="gba:text-xl" />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.allowances', 'Allowances')}
-                </span>
+                <span>{t('expense-request-record-allowances')}</span>
               </div>
             ),
-            children: <ExpenseRequestAllowances expenseAllowances={expenseRequest.expenseAllowance} />
+            children: (
+              <ExpenseRequestAllowances
+                expenseAllowances={expenseRequest.expenseAllowance}
+                currencyCode={expenseRequest?.currency?.code}
+              />
+            )
           }
         ]
       : []),
@@ -261,7 +262,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
             label: (
               <div className="gba:flex gba:items-center gba:gap-2">
                 <MapPinIcon className="gba:text-xl" />
-                <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')}</span>
+                <span>{t('expense-request-record-tab-trip')}</span>
               </div>
             ),
             children: <ExpenseRequestTrip expenseRequestTrips={expenseRequest.expenseRequestTrip} />
@@ -277,12 +278,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
             label: (
               <div className="gba:flex gba:items-center gba:gap-2">
                 <HandCoinsIcon className="gba:text-xl" />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_landing_page.advance_payments',
-                    'Advance Payments'
-                  )}
-                </span>
+                <span>{t('expense-request-record-tab-advance-payments')}</span>
               </div>
             ),
             children: <ExpenseRequestAdvancePayments advancePayments={expenseRequest.expensePlan.advancePayment} />
@@ -298,7 +294,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
             label: (
               <div className="gba:flex gba:items-center gba:gap-2">
                 <ChatCircleIcon className="gba:text-xl" />
-                <span>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.comments', 'Comments')}</span>
+                <span>{t('expense-request-record-comments')}</span>
               </div>
             ),
             children: <ExpenseRequestComments comments={expenseRequest.expenseRequestComment} />
@@ -322,8 +318,8 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
             </div>
           </div>
           <Pill
-            type={getExpenseRequestStatusDisplay(expenseRequest.status).type}
-            label={getExpenseRequestStatusDisplay(expenseRequest.status).label}
+            type={getExpenseRequestStatusDisplayT(t, expenseRequest.status).type}
+            label={getExpenseRequestStatusDisplayT(t, expenseRequest.status).label}
             className="gba:text-base"
             data-testid="expense-request-status-pill"
           />
@@ -332,8 +328,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
           <div className="gba:flex gba:items-center gba:mb-2">
             <CalendarIcon weight="duotone" className="gba:mr-2" />
             <span className="gba:text-sm">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}:{' '}
-              {formatDate(expenseRequest.startDate, 'date.short')} {' → '}
+              {t('expense-request-record-duration')}: {formatDate(expenseRequest.startDate, 'date.short')} {' → '}
               {formatDate(expenseRequest.endDate, 'date.short')}
             </span>
           </div>
@@ -341,26 +336,21 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
         <div className="gba:flex gba:items-center gba:mb-2">
           <ClockIcon className="gba:mr-2" />
           <span className="gba:text-sm">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:confirm_transfer_advance_payment.request_date_label',
-              'Request Date'
-            )}
-            : {expenseRequest?.requestDate ? formatDate(expenseRequest.requestDate, 'date.short') : '-'}
+            {t('expense-request-record-request-date')}:{' '}
+            {expenseRequest?.requestDate ? formatDate(expenseRequest.requestDate, 'date.short') : '-'}
           </span>
         </div>
         <div className="gba:flex gba:items-center gba:mb-4">
           <PathIcon className="gba:mr-2" />
           <span className="gba:text-sm">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.decision_date', 'Decision Date')}:{' '}
+            {t('expense-request-record-decision-date')}:{' '}
             {expenseRequest?.decisionDate ? formatDate(expenseRequest.decisionDate, 'date.short') : '-'}
           </span>
         </div>
         <span className="gba:block gba:mb-4">{expenseRequest.description ?? '-'}</span>
         <div className="gba:grid gba:grid-cols-1 gba:gap-1">
           <div>
-            <span className="gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requester', 'Requester')}:{' '}
-            </span>
+            <span className="gba:text-gray-500">{t('expense-request-record-requester')}: </span>
             <span>
               {expenseRequest?.employee?.fullName ??
                 expenseRequest?.employee?.firstName + ' ' + expenseRequest?.employee?.lastName}
@@ -368,13 +358,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
           </div>
           {expenseRequest?.employee?.employeePosition?.supervisor && (
             <div>
-              <span className="gba:text-gray-500">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.summary_layout.public_profile_container.manager',
-                  'Manager'
-                )}
-                :{' '}
-              </span>
+              <span className="gba:text-gray-500">{t('expense-request-record-manager')}: </span>
               <span>
                 {expenseRequest.employee.employeePosition.supervisor.fullName ??
                   expenseRequest.employee.employeePosition.supervisor.firstName +
@@ -388,19 +372,11 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
             <span>{expenseRequest?.employee?.employeePosition?.costCenter?.name ?? '-'}</span>
           </div>
           <div>
-            <span className="gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project')}:{' '}
-            </span>
+            <span className="gba:text-gray-500">{t('expense-request-record-project')}: </span>
             <span>{expenseRequest?.project?.name ?? '-'}</span>
           </div>
           <div>
-            <span className="gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                'Total Amount'
-              )}
-              :{' '}
-            </span>
+            <span className="gba:text-gray-500">{t('expense-request-record-total-amount')}: </span>
             <span>{formatCurrencyDisplay(expenseRequest?.totalAmount, expenseRequest?.currency?.code)}</span>
           </div>
         </div>
@@ -440,10 +416,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
     return (
       <PageLayout
         headerIcon={<WalletIcon weight="duotone" className="gba:text-primary" />}
-        headerLabel={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_records.request.title',
-          'Expense Request Record'
-        )}
+        headerLabel={t('expense-request-record-title')}
         headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" backUrl={backUrl} />}
         contentContainer={
           <div
@@ -464,23 +437,14 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
 
     if (!expenseRequestId) {
       // Case 1: No expense plan ID provided
-      errorTitle = getTranslationFromI18nKeyAndLabel('expense.plan.record.missing.title', 'Missing Expense Plan ID')
+      errorTitle = t('expense-request-record-missing-request-id')
     } else if (
       error &&
       (error.includes('No expense request data found') || error.includes('No expense request ID provided'))
     ) {
       // Case 2: Expense request not found with the provided ID
-      errorTitle = getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_records.request.request_not_found',
-        'Expense Request Not Found'
-      )
-      errorDescription =
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_records.request.no_request_found',
-          `No expense request found with ID:`
-        ) +
-        ' ' +
-        expenseRequestId
+      errorTitle = t('expense-request-record-request-not-found')
+      errorDescription = `${t('expense-request-record-no-request-found')} ${expenseRequestId}`
     } else {
       // Case 3: Other errors
       errorTitle = getTranslationFromI18nKeyAndLabel('lowcoder:general_notifications.error_title', 'Error')
@@ -489,10 +453,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
     return (
       <PageLayout
         headerIcon={<WalletIcon weight="duotone" className="gba:text-primary" />}
-        headerLabel={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_records.request.title',
-          'Expense Request Record'
-        )}
+        headerLabel={t('expense-request-record-title')}
         headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" backUrl={backUrl} />}
         contentContainer={
           <Alert variant="destructive" data-testid="expense-request-record-error">
@@ -507,10 +468,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
   return (
     <PageLayout
       headerIcon={<WalletIcon weight="duotone" className="gba:text-primary" />}
-      headerLabel={getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_records.request.title',
-        'Expense Request Record'
-      )}
+      headerLabel={t('expense-request-record-title')}
       headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" backUrl={backUrl} />}
       contentContainer={
         <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 'calc(100vh - 160px)' }}>

@@ -1,4 +1,75 @@
-# Expense request record — cost centers
+# Expense request record (transl.txt — German)
+
+expense-request-record-title = Ausgabeanfrage-Datensatz
+expense-request-record-expense-request-items = Ausgabenanfrage-Posten
+expense-request-record-expense-item-details = Postendetails
+expense-request-record-missing-request-id = Ausgabeanfrage-ID fehlt
+expense-request-record-request-not-found = Ausgabeanfrage nicht gefunden
+expense-request-record-no-request-found = Keine Ausgabeanfrage mit der angegebenen ID gefunden
+expense-request-record-allowances = Pauschalen
+expense-request-record-comments = Kommentare
+expense-request-record-label-expense-request = Ausgabeanfrage
+expense-request-record-comment-approved = Genehmigt
+expense-request-record-comment-no-comments = Keine Kommentare vorhanden
+expense-request-record-comment-status-changed = Status geändert von: { $from } zu: { $to }
+expense-request-record-system = System
+expense-request-record-non-deductible = Nicht abzugsfähig
+expense-request-record-travel-region = Reiseregion
+expense-request-record-day-rate = Tagessatz
+expense-request-record-overnight = Übernachtung
+expense-request-record-accommodation = Unterkunft
+expense-request-record-confirmed = Bestätigt
+expense-request-record-tab-items = Posten
+expense-request-record-tab-allowances = Pauschalen
+expense-request-record-tab-trip = Reise
+
+expense-request-record-trip-section-title = Details der Reise
+expense-request-record-trip-column-order = Reihenfolge
+expense-request-record-trip-column-date-time = Datum & Uhrzeit
+expense-request-record-trip-column-direction = Details der Reise
+expense-request-record-trip-column-destination = Reiseziel
+expense-request-record-trip-column-start-location = Startort
+expense-request-record-trip-column-country = Startort
+expense-request-record-trip-column-region = Region
+expense-request-record-point-type-start = Abreise
+expense-request-record-point-type-end = Zielort
+expense-request-record-point-type-destination = Reiseziel
+expense-request-record-point-type-region-arrival = Reiseziel
+expense-request-record-direction-outbound = Abreise
+expense-request-record-direction-return = Abreiseort
+expense-request-record-view-table = Tabelle
+expense-request-record-view-timeline = Zeitleiste
+expense-request-record-tab-advance-payments = Vorschüsse
+expense-request-record-duration = Dauer
+expense-request-record-request-date = Datum der Anfrage
+expense-request-record-decision-date = Entscheidungsdatum
+expense-request-record-requester = Antragsteller
+expense-request-record-manager = Manager
+expense-request-record-project = Projekt
+expense-request-record-total-amount = Gesamtbetrag
+expense-request-record-back = Zurück
+
+expense-request-record-column-code = Code
+expense-request-record-column-amount = Betrag
+expense-request-record-column-status = Status
+expense-request-record-column-payment-method = Zahlungsmethode
+expense-request-record-column-transaction-date = Transaktionsdatum
+expense-request-record-column-transaction-number = Transaktionsnummer
+expense-request-record-payment-method-direct-deposit = Direktüberweisung
+expense-request-record-payment-method-cash = Barzahlung
+expense-request-record-column-title = Titel
+expense-request-record-column-expense-group = Spesengruppe
+expense-request-record-multi-position-item = Mehrpositionen-Spesenposten
+expense-request-record-expense-positions-title = Ausgabenpositionen
+expense-request-record-column-expense-class = Spesenklasse
+expense-request-record-column-date = Datum
+expense-request-record-column-reimbursable = Erstattungsfähig
+expense-request-record-column-deductible = Abzugsfähig
+expense-request-record-total = Gesamtbetrag
+expense-request-record-generated-allowance = Generierte Pauschale
+expense-request-record-allowance = Pauschale
+expense-request-record-non-reimbursable = Nicht erstattungsfähig
+
 expense-request-record-cost-center-label = Kostenzentrum
 expense-request-record-requester-cost-center-label = Kostenzentrum des Antragstellers
 expense-request-record-items-column-cost-center = Kostenzentrum

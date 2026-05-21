@@ -116,33 +116,6 @@ dashboard-activity-plan-returned = Plan returnat
 # Expense Items Tab
 expense-items-date-label = Data
 
-# expense_statuses (legacy lowcoder)
-expense-status-prepared = Pregătit
-expense-status-draft = Ciornă
-expense-status-assigned = Alocat
-expense-status-in-approval = În Aprobare
-expense-status-approval-required = Aprobare Necesară
-expense-status-action-required = Acțiune Necesară
-expense-status-in-transit = În Tranzit
-expense-status-approved = Aprobat
-expense-status-verification-required = Verificare Necesară
-expense-status-booking-required = Înregistrare Necesară
-expense-status-transfer-required = Transfer Necesar
-expense-status-payment-required = Plată Necesară
-expense-status-paid = Plătit
-expense-status-revision-required = Revizuire Necesară
-expense-status-in-revision = În Revizuire
-expense-status-closed = Închis
-expense-status-verified = Verificat
-expense-status-booked = Înregistrat
-expense-status-transferred = Transferat
-expense-status-rejected = Respins
-expense-status-created = Creat
-expense-status-discarded = Renunțat
-expense-status-returned = Returnat
-expense-status-pending = În așteptare
-expense-status-flow-open = Deschis
-
 expense-items-no-rows = Nu s-au găsit elemente de cheltuieli. Creează primul element pentru a începe.
 expense-items-from-date = De la
 expense-items-to-date = Până la
@@ -162,19 +135,11 @@ expense-items-column-attachment = Atașament
 expense-items-column-reimbursable = Sumă rambursabilă
 expense-items-btn-add = Adăugați
 
-expense-items-row-category-actions = Acțiuni
-expense-items-row-category-navigations = Navigare
-expense-items-row-update-item = Actualizați Elemente de Cheltuială
-expense-items-row-delete-item = Ștergeți Elementul de Cheltuială
-expense-items-row-view-details = Vezi detaliile elementului de cheltuială
-
-expense-items-create-expense-request = Creați Cerere de Decont
 expense-items-delete-selection = Ștergeți selecția
 expense-items-breadcrumb = Elemente Cheltuială
 expense-items-search-placeholder = Căutați...
 expense-items-currency-label = Moneda
 expense-items-currency-all = Toate monedele
-expense-items-sheet-title = Detalii element cheltuială
 expense-items-error-loading-title = Eroare la încărcarea elementelor de cheltuieli
 expense-items-retry = Reîncearcă
 expense-items-user-not-loaded = Informațiile utilizatorului nu sunt încă încărcate. Vă rugăm să așteptați și să încercați din nou.
@@ -188,22 +153,6 @@ expense-items-stat-current-month-expenses = Cheltuieli din luna curentă
 expense-items-stat-pending-reimbursement = Rambursare în așteptare
 expense-items-stat-awaiting-processing = În așteptarea procesării
 expense-items-stat-empty = Nu există statistici pentru elementele de cheltuieli.
-expense-items-details-field-code = Cod
-expense-items-details-field-status = Status
-expense-items-details-field-expense-date = Dată cheltuială
-expense-items-details-field-invoice-date = Dată Facturare
-expense-items-details-field-description = Descriere
-expense-items-details-field-expense-class = Clasa de Cheltuieli
-expense-items-details-field-cost-center = Centru de Cost
-expense-items-details-field-amount = Sumă
-expense-items-media-image-preview = Image Preview
-expense-items-media-pdf-preview = PDF Preview
-expense-items-attachment-open = Deschideți
-expense-items-attachment-loading-receipt = Se procesează chitanța...
-expense-items-attachment-no-receipt = Nu este atașată nicio chitanță
-
-expense-items-assign-to-request-error = Nu se poate aloca la solicitare
-expense-items-assign-to-request-missing-currency = Lipsesc informațiile despre moneda articolului.
 
 delete-selection-discard-error-draft = Puteți renunța doar la elemente cu statusul "Creat" sau "Atribuit".
 
@@ -260,7 +209,7 @@ expense-plans-row-update-plan = Actualizare Plan
 expense-plans-row-print = Printare
 expense-plans-row-request-advance-payment = Solicitǎ Plata în Avans
 expense-plans-row-view-plan-details = Vizualizați detaliile planului
-expense-plans-row-view-request-details = Vizualizați Detaliile Solicitării
+expense-plans-row-view-request-details = Vizualizați detaliile solicitării
 
 expense-plans-primary-add = Adaugă
 
@@ -376,7 +325,7 @@ expense-plans-row-update-plan = Actualizare Plan
 expense-plans-row-print = Printare
 expense-plans-row-request-advance-payment = Solicitǎ Plata în Avans
 expense-plans-row-view-plan-details = Vizualizați detaliile planului
-expense-plans-row-view-request-details = Vizualizați Detaliile Solicitării
+expense-plans-row-view-request-details = Vizualizați detaliile solicitării
 
 expense-plans-primary-add = Adaugă
 

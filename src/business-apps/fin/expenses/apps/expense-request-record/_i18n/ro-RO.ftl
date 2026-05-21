@@ -1,4 +1,75 @@
-# Expense request record — cost centers
+# Expense request record (transl.txt — Romanian)
+
+expense-request-record-title = Înregistrare cerere de cheltuieli
+expense-request-record-expense-request-items = Elemente cerere de cheltuieli
+expense-request-record-expense-item-details = Detalii element cheltuială
+expense-request-record-missing-request-id = Lipsește ID-ul cererii de cheltuieli
+expense-request-record-request-not-found = Cerere de cheltuieli negăsită
+expense-request-record-no-request-found = Nu a fost găsită nicio cerere de cheltuieli cu ID-ul furnizat
+expense-request-record-allowances = Diurne
+expense-request-record-comments = Comentarii
+expense-request-record-label-expense-request = Cerere de cheltuieli
+expense-request-record-comment-approved = Aprobat
+expense-request-record-comment-no-comments = Nu există comentarii
+expense-request-record-comment-status-changed = Status schimbat de la: { $from } la: { $to }
+expense-request-record-system = Sistem
+expense-request-record-non-deductible = Nedeductibil
+expense-request-record-travel-region = Regiune de călătorie
+expense-request-record-day-rate = Diurnă zilnică
+expense-request-record-overnight = Peste noapte
+expense-request-record-accommodation = Cazare
+expense-request-record-confirmed = Confirmat
+expense-request-record-tab-items = Elemente
+expense-request-record-tab-allowances = Diurne
+expense-request-record-tab-trip = Călătorie
+
+expense-request-record-trip-section-title = Detalii călătorie
+expense-request-record-trip-column-order = Ordine
+expense-request-record-trip-column-date-time = Data și ora
+expense-request-record-trip-column-direction = Detalii călătorie
+expense-request-record-trip-column-destination = Destinație
+expense-request-record-trip-column-start-location = Locație de plecare
+expense-request-record-trip-column-country = Locație de plecare
+expense-request-record-trip-column-region = Regiune
+expense-request-record-point-type-start = Plecare
+expense-request-record-point-type-end = Destinație Finală
+expense-request-record-point-type-destination = Destinație
+expense-request-record-point-type-region-arrival = Destinație
+expense-request-record-direction-outbound = Dus
+expense-request-record-direction-return = Locație de Pornire
+expense-request-record-view-table = Tabel
+expense-request-record-view-timeline = Cronologie
+expense-request-record-tab-advance-payments = Plăți în Avans
+expense-request-record-duration = Durată
+expense-request-record-request-date = Data Solicitării
+expense-request-record-decision-date = Data deciziei
+expense-request-record-requester = Solicitant
+expense-request-record-manager = Manager
+expense-request-record-project = Proiect
+expense-request-record-total-amount = Sumă Totală
+expense-request-record-back = Înapoi
+
+expense-request-record-column-code = Cod
+expense-request-record-column-amount = Sumă
+expense-request-record-column-status = Statut
+expense-request-record-column-payment-method = Metodă de plată
+expense-request-record-column-transaction-date = Data tranzacției
+expense-request-record-column-transaction-number = Număr tranzacție
+expense-request-record-payment-method-direct-deposit = Transfer direct
+expense-request-record-payment-method-cash = Plată numerar
+expense-request-record-column-title = Scop
+expense-request-record-column-expense-group = Grup de Cheltuieli
+expense-request-record-multi-position-item = Articol multipoziție
+expense-request-record-expense-positions-title = Poziții de cheltuieli
+expense-request-record-column-expense-class = Clasificare cheltuială
+expense-request-record-column-date = Dată
+expense-request-record-column-reimbursable = Rambursabil
+expense-request-record-column-deductible = Deductibil
+expense-request-record-total = Sumă Totală
+expense-request-record-generated-allowance = Diurnă generată
+expense-request-record-allowance = Diurnă
+expense-request-record-non-reimbursable = Nerecuperabil
+
 expense-request-record-cost-center-label = Centru de cost
 expense-request-record-requester-cost-center-label = Centru de cost al solicitantului
 expense-request-record-items-column-cost-center = Centru de cost

@@ -125,33 +125,6 @@ dashboard-activity-plan-returned = Plan returned
 # Expense Items Tab
 expense-items-date-label = Date
 
-# expense_statuses (legacy lowcoder — filter chips & composites)
-expense-status-prepared = Prepared
-expense-status-draft = Draft
-expense-status-assigned = Assigned
-expense-status-in-approval = In Approval
-expense-status-approval-required = Approval Required
-expense-status-action-required = Action Required
-expense-status-in-transit = In Transit
-expense-status-approved = Approved
-expense-status-verification-required = Verification Required
-expense-status-booking-required = Booking Required
-expense-status-transfer-required = Transfer Required
-expense-status-payment-required = Payment Required
-expense-status-paid = Paid
-expense-status-revision-required = Revision Required
-expense-status-in-revision = In Revision
-expense-status-closed = Closed
-expense-status-verified = Verified
-expense-status-booked = Booked
-expense-status-transferred = Transferred
-expense-status-rejected = Rejected
-expense-status-created = Created
-expense-status-discarded = Discarded
-expense-status-returned = Returned
-expense-status-pending = Pending
-expense-status-flow-open = Open
-
 # Items list, filters, table (personal_expenses, expense_item_list, expense_request_list, employee_list, create_expense_request, approve_expense_request, expense_plan_list, travel_region_rule, create_expense_item)
 expense-items-no-rows = No expense items found. Create your first expense item to get started.
 expense-items-from-date = From
@@ -172,21 +145,12 @@ expense-items-column-attachment = Attachment
 expense-items-column-reimbursable = Reimbursable Amount
 expense-items-btn-add = Add
 
-# Row actions (employee_list.flows_button + create_expense_item + discard_expense_items + expense_item_request_card)
-expense-items-row-category-actions = Actions
-expense-items-row-category-navigations = Navigations
-expense-items-row-update-item = Update Expense Item
-expense-items-row-delete-item = Delete Expense Item
-expense-items-row-view-details = View Item Details
-
-expense-items-create-expense-request = Create Expense Request
 expense-items-delete-selection = Delete Selection
 expense-items-breadcrumb = Expense Items
 expense-items-search-placeholder = Search...
 # create_expense_item.change_expense_item_container.current_currency_label + manager_expense_landing_page.all_currencies (dropdown)
 expense-items-currency-label = Currency
 expense-items-currency-all = All Currencies
-expense-items-sheet-title = Expense Item Details
 expense-items-error-loading-title = Error Loading Expense Items
 expense-items-retry = Retry
 expense-items-user-not-loaded = User information not loaded yet. Please wait a moment and try again.
@@ -200,22 +164,6 @@ expense-items-stat-current-month-expenses = Current Month Expenses
 expense-items-stat-pending-reimbursement = Pending Reimbursement
 expense-items-stat-awaiting-processing = Awaiting processing
 expense-items-stat-empty = No expense item statistics available.
-expense-items-details-field-code = Code
-expense-items-details-field-status = Status
-expense-items-details-field-expense-date = Expense Date
-expense-items-details-field-invoice-date = Invoice Date
-expense-items-details-field-description = Description
-expense-items-details-field-expense-class = Expense Class
-expense-items-details-field-cost-center = Cost Center
-expense-items-details-field-amount = Amount
-expense-items-media-image-preview = Image Preview
-expense-items-media-pdf-preview = PDF Preview
-expense-items-attachment-open = Open
-expense-items-attachment-loading-receipt = Processing the receipt...
-expense-items-attachment-no-receipt = No receipt attached
-
-expense-items-assign-to-request-error = Cannot Assign to Request
-expense-items-assign-to-request-missing-currency = Item currency information is missing.
 
 delete-selection-discard-error-draft = You can only discard items with status "Created" or "Assigned".
 

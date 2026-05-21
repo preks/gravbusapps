@@ -20,7 +20,7 @@ export const useGetExpenseRequestRecord = ({
   accessToken,
   expenseRequestId
 }: UseGetExpenseRequestRecordProps): UseGetExpenseRequestRecordResult => {
-  const finalExpenseRequestId = expenseRequestId ?? 'bfe6323f-236b-4245-9759-5215a6a97209'
+  const finalExpenseRequestId = expenseRequestId?.trim() ?? ''
   const [expenseRequest, setExpenseRequest] = useState<ExpenseRequestRecord | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +28,7 @@ export const useGetExpenseRequestRecord = ({
   const graphqlClient = useGraphqlClient(accessToken)
 
   const fetchExpenseRequest = useCallback(
-    async (expenseRequestId: string) => {
+    async (id: string) => {
       if (!accessToken) {
         setError('No access token provided')
         return
@@ -39,7 +39,10 @@ export const useGetExpenseRequestRecord = ({
         setError(null)
 
         const activeUserLocale = getCurrentActiveUserLocale()
-        const data = await graphqlClient.request(getExpenseRequestRecordQuery, { expenseRequestId, activeUserLocale })
+        const data = await graphqlClient.request(getExpenseRequestRecordQuery, {
+          expenseRequestId: id,
+          activeUserLocale
+        })
 
         if (!data?.expenseRequest) {
           throw new Error('No expense request data found')
@@ -48,7 +51,6 @@ export const useGetExpenseRequestRecord = ({
         setExpenseRequest(data.expenseRequest as ExpenseRequestRecord)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch expense request')
-        console.error('Error fetching expense request:', err)
       } finally {
         setLoading(false)
       }
@@ -56,7 +58,6 @@ export const useGetExpenseRequestRecord = ({
     [accessToken, graphqlClient]
   )
 
-  // Fetch expense request if ID is provided
   useEffect(() => {
     if (!finalExpenseRequestId) {
       setError('No expense request ID provided')

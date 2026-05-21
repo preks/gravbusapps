@@ -1,10 +1,21 @@
 import React from 'react'
 import { Typography } from 'antd'
-import { Card, CardHeader, CardTitle, CardContent, Avatar, AvatarImage, Separator } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Avatar,
+  AvatarImage,
+  Separator,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { ExpenseRequestComment } from '../types/expenseRequestRecord.types'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
+import { formatExpenseRecordCommentText } from '@/business-apps/fin/expenses/common/utils/formatExpenseRecordComment'
 import { UserIcon, ChatsCircleIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
+import expenseRequestRecordTranslations from '../_i18n'
 
 interface ExpenseRequestCommentsProps {
   comments: ExpenseRequestComment[]
@@ -13,16 +24,20 @@ interface ExpenseRequestCommentsProps {
 const { Paragraph } = Typography
 
 const ExpenseRequestComments: React.FC<ExpenseRequestCommentsProps> = ({ comments }) => {
-  // Use shared formatDate util for display consistency
+  const { t } = useTranslation(expenseRequestRecordTranslations)
 
-  const getCommentText = (comment: ExpenseRequestComment) => {
-    if (comment.commentType === 'APPROVE_COMMENT' && comment.comment === '') {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:manager_expense_landing_page.upcoming_approved_badge',
-        'Approved'
-      )
+  const getCommentText = (comment: ExpenseRequestComment) =>
+    formatExpenseRecordCommentText(comment.comment, comment.commentType, t, {
+      approvedEmptyKey: 'expense-request-record-comment-approved',
+      statusChangedKey: 'expense-request-record-comment-status-changed',
+      entity: 'request'
+    })
+
+  const getCommentHeaderLabel = (comment: ExpenseRequestComment) => {
+    if (comment.commentType === 'SYSTEM_COMMENT') {
+      return t('expense-request-record-system')
     }
-    return comment.comment
+    return comment.authorEmployee?.fullName ?? ''
   }
 
   const getAvatarSrc = (thumbnail?: string) => {
@@ -30,29 +45,25 @@ const ExpenseRequestComments: React.FC<ExpenseRequestCommentsProps> = ({ comment
     return `data:image/png;base64,${thumbnail}`
   }
 
-  // Sort comments by date (newest first)
   const sortedComments = [...comments].sort((a, b) => dayjs(b.commentDate).unix() - dayjs(a.commentDate).unix())
 
   return (
     <Card data-testid="expense-request-comments" className="gba:border-none gba:px-6 gba:pt-4">
       <CardHeader className="gba:border-b gba:border-gray-200 gba:pb-3">
-        <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.comments', 'Comments')}</CardTitle>
+        <CardTitle>{t('expense-request-record-comments')}</CardTitle>
       </CardHeader>
       <CardContent>
         {sortedComments.length === 0 ? (
           <div className="gba:text-center gba:py-8">
             <ChatsCircleIcon size={32} className="gba:text-4xl gba:text-gray-300" />
             <Paragraph className="gba:mt-2 gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_overview.expense_history.expense_history_table.description',
-                'No comments available'
-              )}
+              {t('expense-request-record-comment-no-comments')}
             </Paragraph>
           </div>
         ) : (
           <div>
             {sortedComments.map((comment, index) => (
-              <div key={`comment-${index}`} className="gba:py-2">
+              <div key={`${comment.commentDate}-${comment.commentType}-${index}`} className="gba:py-2">
                 <div className="gba:flex gba:items-start gba:gap-4">
                   <Avatar>
                     {comment.commentType === 'SYSTEM_COMMENT' ? (
@@ -68,11 +79,7 @@ const ExpenseRequestComments: React.FC<ExpenseRequestCommentsProps> = ({ comment
                   </Avatar>
                   <div className="gba:flex-1">
                     <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-                      <span className="gba:font-semibold">
-                        {comment.commentType === 'SYSTEM_COMMENT'
-                          ? getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.system', 'System')
-                          : comment.authorEmployee?.fullName}
-                      </span>
+                      <span className="gba:font-semibold">{getCommentHeaderLabel(comment)}</span>
                       <span className="gba:text-gray-500">
                         {formatDate(comment.commentDate, 'date.short')}, {formatDate(comment.commentDate, 'time.short')}
                       </span>

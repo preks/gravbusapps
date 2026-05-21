@@ -12,7 +12,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import Pill from '@/components/pill'
 import { ExpensePlanItem } from '../types/expensePlanRecord.types'
-import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../utils/currency'
 import type { WidgetItem } from '@/components/widget-group'
 import { formatDate } from '@/common/utils/windowUtils'
@@ -46,14 +46,14 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
 
   const columns: ColumnsType<ExpensePlanItem> = [
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Code'),
+      title: t('expense-plan-record-column-code'),
       dataIndex: 'code',
       key: 'code',
       render: (code: string | null) => (code === null || code === '' ? '-' : code),
       width: 100
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title'),
+      title: t('expense-plan-record-column-title'),
       dataIndex: 'title',
       key: 'title',
       render: (text: string, record) => {
@@ -62,18 +62,13 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
           typeof text === 'string' &&
           text.trim().toLowerCase() === 'generated allowance'
 
-        const displayTitle = isGeneratedAllowance
-          ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.generated_allowance', 'Generated Allowance')
-          : text
+        const displayTitle = isGeneratedAllowance ? t('expense-plan-record-generated-allowance') : text
 
         return <span className="gba:font-semibold">{displayTitle}</span>
       }
     },
     {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_label',
-        'Expense Group'
-      ),
+      title: t('expense-plan-record-column-expense-group'),
       dataIndex: ['expenseGroup', 'value'],
       key: 'expenseGroup',
       render: (_: string, record: ExpensePlanItem) => {
@@ -82,7 +77,7 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       }
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_class', 'Expense Class'),
+      title: t('expense-plan-record-column-expense-class'),
       dataIndex: ['expenseClass', 'value'],
       key: 'expenseClass',
       render: (_: string, record: ExpensePlanItem) => {
@@ -99,17 +94,14 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       }
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
+      title: t('expense-plan-record-column-date'),
       dataIndex: 'expenseDate',
       key: 'expenseDate',
       render: (date: string) => formatDateOnly(date),
       sorter: (a, b) => new Date(a.expenseDate).getTime() - new Date(b.expenseDate).getTime()
     },
     {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_request_list.expense_plan_table.total_amount',
-        'Total Amount'
-      ),
+      title: t('expense-plan-record-total-amount'),
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       align: 'right',
@@ -119,17 +111,14 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       sorter: (a, b) => a.totalAmount - b.totalAmount
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable'),
+      title: t('expense-plan-record-column-reimbursable'),
       dataIndex: 'reimbursableAmount',
       key: 'reimbursableAmount',
       align: 'right',
       render: (amount: number, record) => (amount ? formatAmount(amount, record?.currency?.code) : '-')
     },
     {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible',
-        'Deductible'
-      ),
+      title: t('expense-plan-record-column-deductible'),
       dataIndex: 'deductibleAmount',
       key: 'deductibleAmount',
       align: 'right',
@@ -178,37 +167,31 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
     () => [
       {
         key: 'total-amount',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_request_list.expense_plan_table.total_amount',
-          'Total Amount'
-        ),
+        title: t('expense-plan-record-total-amount'),
         value: formatAmount(summaryAmounts.total),
         valueIsString: true
       },
       {
         key: 'reimbursable-amount',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.reimbursable', 'Reimbursable'),
+        title: t('expense-plan-record-column-reimbursable'),
         value: formatAmount(summaryAmounts.reimbursable),
         valueIsString: true
       },
       {
         key: 'non-reimbursable-amount',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.non-reimbursable', 'Non-Reimbursable'),
+        title: t('expense-plan-record-non-reimbursable'),
         value: formatAmount(summaryAmounts.nonReimbursable),
         valueIsString: true
       },
       {
         key: 'deductible-amount',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule_details.calculation_rule_tab_other_calculation.deductible',
-          'Deductible'
-        ),
+        title: t('expense-plan-record-column-deductible'),
         value: formatAmount(summaryAmounts.deductible),
         valueIsString: true
       },
       {
         key: 'non-deductible-amount',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.non_deductible', 'Non-Deductible'),
+        title: t('expense-plan-record-non-deductible'),
         value: formatAmount(summaryAmounts.nonDeductible),
         valueIsString: true
       }
@@ -219,7 +202,8 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       summaryAmounts.nonReimbursable,
       summaryAmounts.deductible,
       summaryAmounts.nonDeductible,
-      currencyCode
+      currencyCode,
+      t
     ]
   )
 
@@ -227,7 +211,7 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
     <Card data-testid="expense-plan-items" className="gba:p-0 gba:border-none">
       <CardHeader className="gba:px-0">
         <CardTitle className="gba:text-lg gba:font-semibold gba:mb-4">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.expense_plan_items', 'Expense Plan Items')}
+          {t('expense-plan-record-expense-plan-items')}
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:p-0">
@@ -264,9 +248,7 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
             <Table.Summary fixed>
               <Table.Summary.Row>
                 <Table.Summary.Cell index={0} colSpan={6}>
-                  <span className="gba:font-semibold">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
-                  </span>
+                  <span className="gba:font-semibold">{t('expense-plan-record-total')}</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={6} align="right">
                   <span className="gba:font-semibold">
