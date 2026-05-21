@@ -960,3 +960,10 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Se încarcă formularul de adresă...
+
+# Change Relationship - Congratulations modal
+relationship-form-success-title = Felicitări!
+relationship-form-success-child-message-line1 = Felicitări pentru mărirea familiei.
+relationship-form-success-child-message-line2 = Vă mulțumim că ne-ați împărtășit această veste minunată și că vă păstrați datele actualizate.
+relationship-form-success-marriage-message = Felicitări cu ocazia nunții și mulțumim că ați actualizat datele
+relationship-form-success-ok = OK

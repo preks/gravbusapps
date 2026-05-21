@@ -973,3 +973,10 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Loading address form...
+
+# Change Relationship - Congratulations modal
+relationship-form-success-title = Congratulations!
+relationship-form-success-child-message-line1 = Congratulations on your growing family.
+relationship-form-success-child-message-line2 = Thank you for sharing this wonderful life update and keeping your information up to date.
+relationship-form-success-marriage-message = Congratulations on your wedding and thank you for updating your details
+relationship-form-success-ok = OK
