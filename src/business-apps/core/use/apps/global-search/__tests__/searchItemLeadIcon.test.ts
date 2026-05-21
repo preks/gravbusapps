@@ -1,5 +1,5 @@
 import type { SearchItem } from '../types'
-import { resolveSearchItemLeadIconName } from '../utils'
+import { resolveSearchItemLeadIconName, resolveWorkflowLeadVisual } from '../utils'
 
 const baseItem: Pick<SearchItem, 'id' | 'name' | 'categoryIds' | 'primaryTarget' | 'analytics'> = {
   id: 'x',
@@ -67,5 +67,29 @@ describe('resolveSearchItemLeadIconName', () => {
       kind: 'FILE'
     }
     expect(resolveSearchItemLeadIconName(item)).toBe('File')
+  })
+})
+
+describe('resolveWorkflowLeadVisual', () => {
+  it('returns FlowArrow on teal gradient for WORKFLOW', () => {
+    const item: SearchItem = {
+      ...baseItem,
+      type: 'WORKFLOW',
+      typeLabel: 'Flow'
+    }
+    expect(resolveWorkflowLeadVisual(item)).toEqual({
+      iconName: 'FlowArrow',
+      iconClass: 'gba:text-white',
+      containerClass: 'gba:bg-linear-to-br gba:from-teal-500 gba:to-emerald-600'
+    })
+  })
+
+  it('returns null for non-workflow types', () => {
+    const item: SearchItem = {
+      ...baseItem,
+      type: 'PAGE',
+      typeLabel: 'Page'
+    }
+    expect(resolveWorkflowLeadVisual(item)).toBeNull()
   })
 })

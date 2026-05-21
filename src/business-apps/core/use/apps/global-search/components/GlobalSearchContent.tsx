@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useRef, useCallback } from 'react'
-import { Spinner } from '@newwork/nw-design-system'
+import { Chip, Spinner } from '@newwork/nw-design-system'
 import { useGlobalSearchContext } from './GlobalSearchProvider'
 import { GlobalSearchInput } from './GlobalSearchInput'
 import { GlobalSearchCategoryChips } from './GlobalSearchCategoryChips'
@@ -18,11 +18,44 @@ interface ResultsAreaProps {
   hasSections: boolean
   query: string
   sections: SearchSection[]
+  showSectionCounts: boolean
   activeItemId: string | undefined
   accessToken?: string
   executeItemTarget: (item: SearchItem) => Promise<void>
   executeTarget: (target: SearchTarget) => void
   closeSearch: () => void
+}
+
+interface SuggestionsProps {
+  suggestions: string[]
+  onSelectSuggestion: (suggestion: string) => void
+}
+
+const renderSuggestions = ({ suggestions, onSelectSuggestion }: SuggestionsProps): React.ReactNode => {
+  if (suggestions.length === 0) {
+    return null
+  }
+
+  return (
+    <div
+      className="no-scrollbar gba:flex gba:min-w-0 gba:w-full gba:gap-1.5 gba:overflow-x-auto gba:overflow-y-hidden gba:touch-pan-x"
+      data-testid="GlobalSearchSuggestions"
+    >
+      {suggestions.map(suggestion => (
+        <Chip
+          key={suggestion}
+          size="sm"
+          variant="default"
+          onClick={() => onSelectSuggestion(suggestion)}
+          data-testid={`GlobalSearchSuggestion-${suggestion}`}
+        >
+          <span className="gba:max-w-40 gba:truncate" title={suggestion}>
+            {suggestion}
+          </span>
+        </Chip>
+      ))}
+    </div>
+  )
 }
 
 const renderResultsArea = ({
@@ -31,6 +64,7 @@ const renderResultsArea = ({
   hasSections,
   query,
   sections,
+  showSectionCounts,
   activeItemId,
   accessToken,
   executeItemTarget,
@@ -50,6 +84,7 @@ const renderResultsArea = ({
     <>
       <GlobalSearchSectionRenderer
         sections={sections}
+        showSectionCounts={showSectionCounts}
         activeItemId={activeItemId}
         accessToken={accessToken}
         onSelectItem={item => {
@@ -97,17 +132,22 @@ export const GlobalSearchContent: React.FC = () => {
     accessToken,
     query,
     setQuery,
+    isDiscoveryMode,
     isLoading,
     errorMessage,
     categories,
     sections,
     suggestions,
     selectedCategoryIds,
+    categorySelectionMode,
     selectableResults,
     setSelectedCategories,
+    applyCategorySelection,
     executeItemTarget,
     executeTarget
   } = useGlobalSearchContext()
+
+  const showCounts = !isDiscoveryMode
 
   const closeSearch = useCallback(() => {
     onOpenChange(false)
@@ -185,26 +225,20 @@ export const GlobalSearchContent: React.FC = () => {
           placeholder={GLOBAL_SEARCH_UI_DEFAULTS.placeholder}
           isLoading={isLoading}
         />
-        <GlobalSearchCategoryChips
-          categories={categories}
-          selectedCategoryIds={selectedCategoryIds}
-          onSelectCategory={setSelectedCategories}
-        />
-        {suggestions.length > 0 && query.trim().length > 0 && (
-          <div className="gba:flex gba:flex-wrap gba:gap-1.5">
-            {suggestions.map(suggestion => (
-              <button
-                key={suggestion}
-                type="button"
-                className="gba:text-xs gba:px-2 gba:py-1 gba:rounded gba:bg-muted hover:gba:bg-accent"
-                onClick={() => setQuery(suggestion)}
-                data-testid={`GlobalSearchSuggestion-${suggestion}`}
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="gba:flex gba:flex-col gba:gap-3">
+          {renderSuggestions({
+            suggestions,
+            onSelectSuggestion: setQuery
+          })}
+          <GlobalSearchCategoryChips
+            categories={categories}
+            selectedCategoryIds={selectedCategoryIds}
+            categorySelectionMode={categorySelectionMode}
+            showCounts={showCounts}
+            onSelectCategory={setSelectedCategories}
+            onCategorySelectionChange={applyCategorySelection}
+          />
+        </div>
       </div>
 
       <div
@@ -219,6 +253,7 @@ export const GlobalSearchContent: React.FC = () => {
             hasSections,
             query,
             sections,
+            showSectionCounts: showCounts,
             activeItemId,
             accessToken,
             executeItemTarget,
@@ -229,7 +264,7 @@ export const GlobalSearchContent: React.FC = () => {
       </div>
 
       <div className="gba:border-t gba:border-border gba:px-4 gba:py-2 gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
-        <span>{selectableResults.length} results</span>
+        <span>{showCounts ? `${selectableResults.length} results` : '\u00a0'}</span>
         <div className="gba:flex gba:items-center gba:gap-3">
           <span>↑↓ navigate</span>
           <span>↵ select</span>

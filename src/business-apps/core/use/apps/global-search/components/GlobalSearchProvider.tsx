@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react'
 import type { GlobalSearchAdapter } from '../adapters'
 import { useGlobalSearch } from '../hooks'
-import type { SearchItem, SearchSection, SearchTarget } from '../types'
+import type { SearchCategorySelectionMode, SearchItem, SearchSection, SearchTarget } from '../types'
 import {
   dispatchSearchTarget,
   expandResultsSectionsByCategory,
@@ -41,13 +41,16 @@ interface GlobalSearchContextValue {
   accessToken?: string
   query: string
   setQuery: (query: string) => void
+  isDiscoveryMode: boolean
   isLoading: boolean
   errorMessage?: string
   categories: ReturnType<typeof useGlobalSearch>['categories']
   sections: ReturnType<typeof useGlobalSearch>['sections']
   suggestions: string[]
   selectedCategoryIds: string[]
+  categorySelectionMode: SearchCategorySelectionMode
   setSelectedCategories: (categoryId: string) => void
+  applyCategorySelection: (categoryIds: string[]) => void
   selectableResults: ReturnType<typeof useGlobalSearch>['selectableResults']
   executeItemTarget: (item: SearchItem) => Promise<void>
   executeTarget: (target: SearchTarget) => void
@@ -79,13 +82,16 @@ export const GlobalSearchProvider: React.FC<GlobalSearchProviderProps> = ({
   const {
     query,
     setQuery,
+    isDiscoveryMode,
     isLoading,
     errorMessage,
     categories,
     sections,
     suggestions,
     selectedCategoryIds,
+    categorySelectionMode,
     setSelectedCategories,
+    applyCategorySelection,
     runTarget
   } = useGlobalSearch({
     open,
@@ -104,11 +110,15 @@ export const GlobalSearchProvider: React.FC<GlobalSearchProviderProps> = ({
     return expandedSections
       .map(section => filterSectionByCategory(section, selectedSet, includeAllCategories))
       .filter(section => section.items.length > 0)
-      .map(section => ({
-        ...section,
-        total: section.items.length
-      }))
-  }, [expandedSections, selectedCategoryIds])
+      .map(section =>
+        isDiscoveryMode
+          ? section
+          : {
+              ...section,
+              total: section.items.length
+            }
+      )
+  }, [expandedSections, isDiscoveryMode, selectedCategoryIds])
 
   const resolvedSelectableResults = useMemo(() => flattenSelectableResults(resolvedSections), [resolvedSections])
 
@@ -164,13 +174,16 @@ export const GlobalSearchProvider: React.FC<GlobalSearchProviderProps> = ({
       accessToken,
       query,
       setQuery,
+      isDiscoveryMode,
       isLoading,
       errorMessage,
       categories,
       sections: resolvedSections,
       suggestions,
       selectedCategoryIds,
+      categorySelectionMode,
       setSelectedCategories,
+      applyCategorySelection,
       selectableResults: resolvedSelectableResults,
       executeItemTarget,
       executeTarget
@@ -181,13 +194,16 @@ export const GlobalSearchProvider: React.FC<GlobalSearchProviderProps> = ({
       accessToken,
       query,
       setQuery,
+      isDiscoveryMode,
       isLoading,
       errorMessage,
       categories,
       resolvedSections,
       suggestions,
       selectedCategoryIds,
+      categorySelectionMode,
       setSelectedCategories,
+      applyCategorySelection,
       resolvedSelectableResults,
       executeItemTarget,
       executeTarget

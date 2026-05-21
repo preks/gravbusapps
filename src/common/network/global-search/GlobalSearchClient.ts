@@ -50,6 +50,7 @@ export interface GlobalSearchEntityType {
   actionConfig: GlobalSearchEntityActionConfig
   accessControlType: GlobalSearchAccessControlType
   active: boolean
+  isDeleted?: boolean
   sortOrder: number
 }
 
@@ -368,8 +369,11 @@ export class GlobalSearchClient extends RestClient {
     return this.get<GlobalSearchJobView>(`/jobs/${encodeURIComponent(queue)}/${encodeURIComponent(jobId)}`)
   }
 
-  async getEntityTypes(): Promise<GlobalSearchEntityTypeListResponse> {
-    return this.get<GlobalSearchEntityTypeListResponse>('/entities')
+  async getEntityTypes(options?: { withDeleted?: boolean }): Promise<GlobalSearchEntityTypeListResponse> {
+    const withDeleted = options?.withDeleted === true
+    return this.get<GlobalSearchEntityTypeListResponse>('/entities', {
+      params: withDeleted ? { withDeleted: true } : undefined
+    })
   }
 
   async getEntityType(entityType: string): Promise<GlobalSearchEntityType> {

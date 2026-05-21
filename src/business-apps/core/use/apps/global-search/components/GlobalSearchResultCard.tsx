@@ -6,7 +6,7 @@ import { GlobalSearchActionSlot } from './GlobalSearchActionSlot'
 import { HighlightedText } from './HighlightedText'
 import * as PhosphorIcons from '@phosphor-icons/react'
 import { buildFileUrl } from '@/common/utils/fileUtils'
-import { resolveOfficeFileLeadVisual, resolveSearchItemLeadIconName } from '../utils'
+import { resolveOfficeFileLeadVisual, resolveSearchItemLeadIconName, resolveWorkflowLeadVisual } from '../utils'
 
 type GlobalSearchResultCardLayout = 'list' | 'swimlane' | 'peopleTopMatch'
 
@@ -54,7 +54,7 @@ const resolveContentClassName = (layout: GlobalSearchResultCardLayout): string =
 
 const resolveCardShellClass = (layout: GlobalSearchResultCardLayout): string => {
   if (layout === 'swimlane') {
-    return 'gba:flex-none gba:w-40 gba:min-h-36 gba:p-2.5 gba:rounded-lg'
+    return 'gba:flex-none gba:w-40 gba:h-30 gba:p-2.5 gba:rounded-lg'
   }
   if (layout === 'peopleTopMatch') {
     return 'gba:flex gba:items-stretch gba:gap-3 gba:px-3 gba:py-3 gba:rounded-lg'
@@ -259,7 +259,9 @@ export const GlobalSearchResultCard: React.FC<GlobalSearchResultCardProps> = ({
   const isPeopleTopMatchLayout = layout === 'peopleTopMatch'
   const isSwimlane = layout === 'swimlane'
   const isListLayout = !isSwimlane && !isPeopleTopMatchLayout
-  const shouldRenderIconLead = !isSwimlane && !isPeopleTopMatchLayout && leadingStyle === 'icon'
+  const workflowVisual = resolveWorkflowLeadVisual(item)
+  const shouldRenderIconLead =
+    !isSwimlane && !isPeopleTopMatchLayout && (leadingStyle === 'icon' || workflowVisual != null)
 
   const resolvedImageUrl = useResolvedImageUrl(item, accessToken)
   const [imageFailed, setImageFailed] = React.useState(false)
@@ -270,16 +272,20 @@ export const GlobalSearchResultCard: React.FC<GlobalSearchResultCardProps> = ({
   }, [resolvedImageUrl])
 
   const resolvedActionMenu = resolveActionMenu(item)
-
   const officeLeadIcon = resolveSearchItemLeadIconName(item)
   const preferInitialsForPeopleTopMatch = isPeopleTopMatchLayout && !item.media?.imageUrl && !item.media?.fileInfo?.path
-  const leadIconName = preferInitialsForPeopleTopMatch
-    ? officeLeadIcon
-    : (officeLeadIcon ?? item.media?.icon ?? item.media?.fallbackIcon)
+  const leadIconName =
+    workflowVisual?.iconName ??
+    (preferInitialsForPeopleTopMatch
+      ? officeLeadIcon
+      : (officeLeadIcon ?? item.media?.icon ?? item.media?.fallbackIcon))
   const officeFileVisual = resolveOfficeFileLeadVisual(officeLeadIcon)
-  const useOfficeFileTint = officeLeadIcon != null && officeFileVisual != null && leadIconName === officeLeadIcon
-  const leadShellClass = useOfficeFileTint ? officeFileVisual.containerClass : 'gba:bg-muted'
-  const leadPhosphorIconClass = useOfficeFileTint ? officeFileVisual.iconClass : 'gba:text-muted-foreground'
+  const useOfficeFileTint =
+    workflowVisual == null && officeLeadIcon != null && officeFileVisual != null && leadIconName === officeLeadIcon
+  const leadShellClass =
+    workflowVisual?.containerClass ?? (useOfficeFileTint ? officeFileVisual.containerClass : 'gba:bg-muted')
+  const leadPhosphorIconClass =
+    workflowVisual?.iconClass ?? (useOfficeFileTint ? officeFileVisual.iconClass : 'gba:text-muted-foreground')
 
   const isActionable = item.primaryTarget != null || item.type === 'QUERY' || item.id.startsWith('query:')
   const inactiveHoverClass = isActionable
@@ -293,6 +299,9 @@ export const GlobalSearchResultCard: React.FC<GlobalSearchResultCardProps> = ({
   const cardSurfaceClass = active
     ? 'gba:bg-accent gba:border-primary gba:ring-1 gba:ring-primary'
     : inactiveSurfaceClass
+  const swimlaneHoverClass = isSwimlane
+    ? 'gba:relative gba:origin-center gba:transition-transform gba:duration-150 gba:hover:scale-105 gba:hover:z-10'
+    : ''
 
   const contentClassName = resolveContentClassName(layout)
   const cardShellClass = resolveCardShellClass(layout)
@@ -338,7 +347,7 @@ export const GlobalSearchResultCard: React.FC<GlobalSearchResultCardProps> = ({
 
   return (
     <div
-      className={`gba:border gba:transition-colors gba:scroll-m-2 ${cardSurfaceClass} ${cardShellClass}`}
+      className={`gba:border gba:transition-colors gba:scroll-m-2 ${swimlaneHoverClass} ${cardSurfaceClass} ${cardShellClass}`}
       data-testid={`GlobalSearchResultCard-${item.id}`}
       data-search-item-id={item.id}
     >

@@ -8,3 +8,7 @@ export const GLOBAL_SEARCH_UI_DEFAULTS = {
   categorySelectionMode: 'MULTIPLE' as const,
   placeholder: 'Search in NEWWORK'
 }
+
+/** Discovery (zero-query) vs debounced search; same rule as GET /results vs runQuery. */
+export const isGlobalSearchDiscoveryMode = (query: string, minQueryLength: number): boolean =>
+  query.trim().length < minQueryLength
