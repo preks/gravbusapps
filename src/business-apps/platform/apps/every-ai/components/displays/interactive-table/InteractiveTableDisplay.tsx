@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, DataDisplay, DataTable } from '@newwork/nw-design-system'
-import type { InteractiveTableData, InteractiveTableColumn } from '../../../types/models'
+import type { CurrencyCellValue, InteractiveTableData, InteractiveTableColumn } from '../../../types/models'
+import { formatCurrencyCell } from './formatCurrencyCell'
+import { formatDateCell, isIsoDateLike } from './formatDateCell'
 import { renderInteractiveTableCell } from './interactiveTableCells'
-import { ensureDataTableRowIds, type TableRow } from './interactiveTableRowUtils'
+import { ensureDataTableRowIds, sortableValueForColumn, type TableRow } from './interactiveTableRowUtils'
 
 export interface InteractiveTableDisplayProps {
   data: InteractiveTableData
@@ -33,6 +35,17 @@ function rowMatchesSearch(row: TableRow, search: string, columns: InteractiveTab
             .toLowerCase()
             .includes(needle)
       )
+    }
+    if (col.dataType === 'currency' && typeof raw === 'object' && raw !== null && 'value' in raw) {
+      return formatCurrencyCell(raw as CurrencyCellValue)
+        .toLowerCase()
+        .includes(needle)
+    }
+    if (col.dataType === 'date' && typeof raw === 'string') {
+      return formatDateCell(raw).toLowerCase().includes(needle)
+    }
+    if (typeof raw === 'string' && isIsoDateLike(raw)) {
+      return formatDateCell(raw).toLowerCase().includes(needle)
     }
     return String(raw).toLowerCase().includes(needle)
   })
@@ -69,7 +82,17 @@ export const InteractiveTableDisplay: React.FC<InteractiveTableDisplayProps> = (
           accessorFn: (row: TableRow) => row[col.id],
           header: col.header,
           enableSorting: col.sortable !== false,
-          meta: { align: col.align ?? (col.dataType === 'number' ? 'right' : 'left') },
+          sortingFn: (rowA: { original: TableRow }, rowB: { original: TableRow }) => {
+            const a = sortableValueForColumn(col, rowA.original[col.id])
+            const b = sortableValueForColumn(col, rowB.original[col.id])
+            if (a === b) {
+              return 0
+            }
+            return a < b ? -1 : 1
+          },
+          meta: {
+            align: col.align ?? (col.dataType === 'number' || col.dataType === 'currency' ? 'right' : 'left')
+          },
           cell: ({ row }: { row: { getValue: (key: string) => unknown } }) =>
             renderInteractiveTableCell(col, row.getValue(col.id), accessToken)
         })),
@@ -101,7 +124,10 @@ export const InteractiveTableDisplay: React.FC<InteractiveTableDisplayProps> = (
       <CardContent className="gba:pt-0">
         <DataDisplay
           searchValue={search}
-          onSearchChange={setSearch}
+          onSearchChange={value => {
+            setSearch(value)
+            setPagination(prev => ({ ...prev, pageIndex: 0 }))
+          }}
           searchPlaceholder="Search table..."
           sorting={sorting}
           onSortingChange={setSorting}
@@ -114,7 +140,6 @@ export const InteractiveTableDisplay: React.FC<InteractiveTableDisplayProps> = (
           <DataTable<TableRow>
             data={filteredRows}
             columns={columns}
-            totalCount={filteredRows.length}
             sorting={sorting}
             onSortingChange={setSorting}
             pagination={pagination}
