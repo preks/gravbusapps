@@ -82,6 +82,27 @@ export interface ProviderToolCatalogItem {
   annotations?: Record<string, unknown>
 }
 
+/**
+ * Stage 1 v2 provider-tool entry. Returned from
+ * GET /api/v2/provider-tools, which collapses the active flowbot +
+ * functions surface into a single response keyed by canonical name.
+ *
+ * Persistence rule: skill yaml continues to store ``tool_ref`` in
+ * Stage 1 — ``canonical_name`` is the LLM-facing display name only.
+ */
+export interface CanonicalProviderToolEntry {
+  tool_ref: string
+  canonical_name: string
+  source: 'flowbot' | 'functions'
+  description: string
+  input_schema: Record<string, unknown>
+  output_schema: Record<string, unknown>
+  capabilities: Record<string, unknown>
+  shadowed_by: string | null
+  /** False when entry is a static stub because live catalog was unreachable */
+  catalog_available: boolean
+}
+
 export interface DeepAgentDebugTrace {
   session_id: string
   status: string
@@ -788,6 +809,24 @@ export class PromptManagerClient extends RestClient {
 
   async getBuiltinProviderTools(): Promise<ProviderToolCatalogItem[]> {
     return this.get<ProviderToolCatalogItem[]>('/enterprise-ai/tools/builtin')
+  }
+
+  /**
+   * Stage 1 unified provider-tools view. Returns only active (non-shadowed)
+   * provider tools by default. Pass ``includeShadowed: true`` for the
+   * admin/debug surface — that variant should be gated by an admin-only
+   * check on the caller side.
+   *
+   * The base RestClient is mounted at ``/prompt-manager/api/v1``; the
+   * ``/../v2/...`` segment resolves through the standard URL parser to
+   * ``/prompt-manager/api/v2/provider-tools`` without requiring a second
+   * client instance with a different base URL.
+   */
+  async getCanonicalProviderTools(options: { includeShadowed?: boolean } = {}): Promise<CanonicalProviderToolEntry[]> {
+    const path = '/../v2/provider-tools'
+    return this.get<CanonicalProviderToolEntry[]>(path, {
+      params: options.includeShadowed ? { include_shadowed: true } : undefined
+    })
   }
 
   async invokeEnterpriseTool(toolRef: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {

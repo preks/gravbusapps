@@ -97,8 +97,21 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
     Promise.all([client.getSkill(skillId), client.listSkillFiles(skillId)])
       .then(([doc, fileList]) => {
         if (cancelled || currentSkillRef.current !== skillId) return
-        setContent(doc.content)
-        setSavedContent(doc.content)
+        // If the YAML frontmatter has no tools: block but MongoDB tool_refs exist,
+        // inject them so the editor chips and AddToolsModal both reflect reality.
+        // We set savedContent to this same value so the editor opens in a clean
+        // (non-dirty) state — the YAML is now the canonical source.
+        let initialContent = doc.content
+        const dbToolRefs: string[] = Array.isArray(doc.tool_refs) ? doc.tool_refs : []
+        if (dbToolRefs.length > 0 && getToolsFromSkillDraft(initialContent).length === 0) {
+          let injected = initialContent
+          for (const ref of dbToolRefs) {
+            injected = addToolToSkillDraft(injected, ref)
+          }
+          initialContent = injected
+        }
+        setContent(initialContent)
+        setSavedContent(initialContent)
         setFiles(fileList)
       })
       .catch(() => {

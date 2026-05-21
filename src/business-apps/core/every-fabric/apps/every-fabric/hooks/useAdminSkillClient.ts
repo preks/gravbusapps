@@ -52,7 +52,11 @@ export function useAdminSkillClient(token: string) {
   const getAdminSkill = useCallback((skillId: string) => client.get<AdminSkill>(`/admin/skills/${skillId}`), [client])
 
   const listProviderTools = useCallback(async (): Promise<SkillTool[]> => {
-    const tools = await client.getFlowBotProviderTools().catch(() => [])
+    // Use the v2 unified endpoint, which returns the allowlisted canonical
+    // provider tools. Falls back to static stubs when the live FlowBot catalog
+    // is unreachable (e.g. 401 / network error), so the picker always shows
+    // the known tool names instead of an empty list.
+    const tools = await client.getCanonicalProviderTools().catch(() => [])
     return tools.map(tool => ({
       id: tool.tool_ref,
       name: tool.tool_ref,

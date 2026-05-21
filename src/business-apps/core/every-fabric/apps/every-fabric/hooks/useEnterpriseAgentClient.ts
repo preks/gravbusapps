@@ -429,9 +429,14 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
 
   const getSkill = useCallback(
     (skillId: string) =>
-      client.get<{ skill_id: string; name: string; description: string; content: string; status: string }>(
-        `/admin/skills/${enc(skillId)}`
-      ),
+      client.get<{
+        skill_id: string
+        name: string
+        description: string
+        content: string
+        status: string
+        tool_refs?: string[]
+      }>(`/admin/skills/${enc(skillId)}`),
     [client]
   )
 

@@ -2,7 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { MagnifyingGlass, X, ArrowClockwise } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import type { ProviderToolCatalogItem } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type {
+  CanonicalProviderToolEntry,
+  ProviderToolCatalogItem
+} from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
 export interface AddToolsModalProps {
   open: boolean
@@ -19,6 +22,7 @@ const PAGE_SIZE = 10
 interface ToolOption {
   id: string
   ref: string
+  /** LLM-facing canonical name when available, otherwise the original ref name. */
   name: string
   description?: string
   provider: string
@@ -29,6 +33,30 @@ interface ToolOption {
   inputSchema?: Record<string, unknown>
   outputSchema?: Record<string, unknown>
 }
+
+const readCapabilityString = (caps: Record<string, unknown> | undefined, key: string): string | undefined => {
+  const value = caps?.[key]
+  return typeof value === 'string' ? value : undefined
+}
+
+const readCapabilityBool = (caps: Record<string, unknown> | undefined, key: string): boolean | undefined => {
+  const value = caps?.[key]
+  return typeof value === 'boolean' ? value : undefined
+}
+
+const canonicalToToolOption = (entry: CanonicalProviderToolEntry): ToolOption => ({
+  id: entry.tool_ref,
+  ref: entry.tool_ref,
+  name: entry.canonical_name,
+  description: entry.description,
+  provider: entry.source === 'functions' ? 'tools' : entry.source,
+  riskLevel: readCapabilityString(entry.capabilities, 'risk_level'),
+  requiresAuth: readCapabilityBool(entry.capabilities, 'requires_auth'),
+  supportsHitl: readCapabilityBool(entry.capabilities, 'supports_hitl'),
+  supportsArtifacts: readCapabilityBool(entry.capabilities, 'supports_artifacts'),
+  inputSchema: entry.input_schema,
+  outputSchema: entry.output_schema
+})
 
 const providerToToolOption = (tool: ProviderToolCatalogItem): ToolOption => ({
   id: tool.tool_ref,
@@ -58,13 +86,20 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
     setLoading(true)
     setError(null)
     try {
-      const [flowbotTools, functionManagerTools, mcpTools, builtinTools] = await Promise.all([
-        promptManagerClient.getFlowBotProviderTools().catch(() => [] as ProviderToolCatalogItem[]),
-        promptManagerClient.getFunctionManagerTools().catch(() => [] as ProviderToolCatalogItem[]),
+      // Stage 1: the unified v2 endpoint owns flowbot + functions
+      // (renamed and allowlist-filtered). MCP and platform-builtin
+      // tools still come from the v1 endpoints because they have
+      // different lifecycles and are not yet in the canonical registry.
+      const [canonicalTools, mcpTools, builtinTools] = await Promise.all([
+        promptManagerClient.getCanonicalProviderTools().catch(() => [] as CanonicalProviderToolEntry[]),
         promptManagerClient.getMcpProviderTools().catch(() => [] as ProviderToolCatalogItem[]),
         promptManagerClient.getBuiltinProviderTools().catch(() => [] as ProviderToolCatalogItem[])
       ])
-      setTools([...flowbotTools, ...functionManagerTools, ...mcpTools, ...builtinTools].map(providerToToolOption))
+      setTools([
+        ...canonicalTools.map(canonicalToToolOption),
+        ...mcpTools.map(providerToToolOption),
+        ...builtinTools.map(providerToToolOption)
+      ])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tools')
     } finally {
