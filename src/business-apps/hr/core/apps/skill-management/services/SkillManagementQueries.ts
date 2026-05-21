@@ -7,6 +7,7 @@ query GetSkillsDirectory($limit: Int = 500, $offset: Int = 0) {
     offset: $offset
   ) {
     id
+    version
     name
     description
     activeTo

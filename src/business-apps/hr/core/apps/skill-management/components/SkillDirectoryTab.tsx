@@ -371,8 +371,14 @@ function SkillDirectoryTab({
   const handleUpdateSkill = useCallback(
     async (data: Record<string, unknown>) => {
       if (!editDialogOpen) return
+      const skillToEdit = skills.find(skill => skill.id === editDialogOpen)
+      if (!skillToEdit) return
+
       try {
-        await updateSkill(editDialogOpen, data as any)
+        await updateSkill(editDialogOpen, {
+          ...(data as any),
+          version: skillToEdit.version ?? undefined
+        })
         toast.success(t('toast-skill-updated', { name: String(data.name) }))
         setEditDialogOpen(null)
         onDataChange()
@@ -380,13 +386,13 @@ function SkillDirectoryTab({
         toast.error(t('toast-skill-error'))
       }
     },
-    [editDialogOpen, updateSkill, onDataChange, t]
+    [editDialogOpen, skills, updateSkill, onDataChange, t]
   )
 
   const handleDeleteSkill = useCallback(async () => {
     if (!deleteConfirmSkill) return
     try {
-      await deleteSkill(deleteConfirmSkill.id)
+      await deleteSkill(deleteConfirmSkill.id, deleteConfirmSkill.version ?? undefined)
       toast.success(t('toast-skill-deleted', { name: deleteConfirmSkill.name }))
       setDeleteConfirmSkill(null)
       if (selectedSkillId === deleteConfirmSkill.id) {

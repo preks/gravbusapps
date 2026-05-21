@@ -2,6 +2,7 @@ import type { FlowExecutionTask } from '@/common/network/flow-metrics/FlowMetric
 
 export interface SkillDirectoryRecord {
   id: string
+  version?: number | null
   name: string
   description?: string | null
   activeTo?: string | null
@@ -93,6 +94,7 @@ export interface SkillFormValues {
   description?: string
   levelScale?: number
   mandatory?: boolean
+  version?: number | null
 }
 
 export interface CategoryFormValues {

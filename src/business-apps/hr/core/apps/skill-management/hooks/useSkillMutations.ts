@@ -77,6 +77,7 @@ export function useSkillMutations(accessToken: string) {
             changeMode: 'UPDATE',
             skill: {
               id,
+              version: values.version,
               name: values.name,
               description: values.description,
               levelScale: values.levelScale,
@@ -94,12 +95,12 @@ export function useSkillMutations(accessToken: string) {
   )
 
   const deleteSkill = useCallback(
-    async (id: string) => {
+    async (id: string, version?: number | null) => {
       setCatalogLoading(true)
       try {
         const result = await restClient.post(
           '/saveSkill',
-          { changeMode: 'DELETE', skill: { id } },
+          { changeMode: 'DELETE', skill: { id, version } },
           { headers: getHeaders() }
         )
         return result
