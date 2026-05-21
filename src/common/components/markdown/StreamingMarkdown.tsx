@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
 import EntityLink, { markdownUrlTransform } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
+import { buildMarkdownTableCellBody } from './markdownTableCellUtils'
 
 export interface StreamingMarkdownProps {
   content: string
@@ -169,9 +170,19 @@ const MarkdownTableHeadCell: React.FC<{ children?: React.ReactNode }> = ({ child
   </TableHead>
 )
 
-const MarkdownTableCell: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
-  <TableCell className="gba:py-3 gba:px-4 gba:align-top gba:min-w-[120px] gba:text-foreground">{children}</TableCell>
-)
+const MarkdownTableCell: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+  const { cellContent, isEmpty, isLong, cellBody } = buildMarkdownTableCellBody({ children })
+  return (
+    <TableCell
+      className={`gba:py-3 gba:px-4 gba:align-top gba:min-w-[120px] gba:max-w-sm gba:whitespace-normal gba:wrap-break-word gba:text-foreground ${
+        isEmpty ? 'gba:text-muted-foreground/50 gba:italic' : ''
+      }`}
+      title={isLong ? cellContent : undefined}
+    >
+      {cellBody}
+    </TableCell>
+  )
+}
 
 const MarkdownStrong: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <strong className="gba:font-semibold gba:text-foreground">{children}</strong>
@@ -246,11 +257,19 @@ const EnterpriseMarkdownBlockquote: React.FC<{ children?: React.ReactNode }> = (
   </blockquote>
 )
 
-const EnterpriseMarkdownTableCell: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
-  <TableCell className="gba:py-3 gba:px-4 gba:align-top gba:min-w-[120px] gba:text-foreground gba:text-[14px] gba:leading-6">
-    {children}
-  </TableCell>
-)
+const EnterpriseMarkdownTableCell: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+  const { cellContent, isEmpty, isLong, cellBody } = buildMarkdownTableCellBody({ children })
+  return (
+    <TableCell
+      className={`gba:py-3 gba:px-4 gba:align-top gba:min-w-[120px] gba:max-w-sm gba:whitespace-normal gba:wrap-break-word gba:text-foreground gba:text-[14px] gba:leading-6 ${
+        isEmpty ? 'gba:text-muted-foreground/50 gba:italic' : ''
+      }`}
+      title={isLong ? cellContent : undefined}
+    >
+      {cellBody}
+    </TableCell>
+  )
+}
 
 const EnterpriseMarkdownTableHeadCell: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <TableHead className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground gba:py-3 gba:px-4 gba:whitespace-nowrap gba:align-top gba:min-w-[120px] gba:text-[13px] gba:tracking-[0.01em]">

@@ -7,6 +7,7 @@ import EntityLink, {
   markdownUrlTransform,
   SUPPORTED_PROTOCOLS
 } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
+import { buildMarkdownTableCellBody } from './markdownTableCellUtils'
 
 // Match bare entity URLs (e.g. `employee://uuid` or `account://uuid#fragment`) in raw text.
 // We sort protocols by length (longest first) so longer prefixes like `employee_asset` win over `employee`.
@@ -288,12 +289,6 @@ const renderMarkdownLink = (
   )
 }
 
-const getTableCellText = (children?: React.ReactNode): string =>
-  React.Children.toArray(children)
-    .map(child => (typeof child === 'string' || typeof child === 'number' ? String(child) : ''))
-    .join('')
-    .trim()
-
 const MarkdownLinkRenderer: React.FC<{ href?: string; children?: React.ReactNode }> = ({
   href,
   children,
@@ -304,21 +299,10 @@ const MarkdownLinkRenderer: React.FC<{ href?: string; children?: React.ReactNode
 }
 
 const MarkdownTableCellRenderer: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  const cellContent = getTableCellText(children)
-  const isEmpty = cellContent.length === 0
-  const isLong = cellContent.length > 200
+  const { cellContent, isEmpty, isLong, cellBody } = buildMarkdownTableCellBody({ children })
   const cellClassName = `gba:py-3 gba:px-4 gba:align-top gba:min-w-[120px] gba:max-w-sm gba:whitespace-normal gba:wrap-break-word ${
     isEmpty ? 'gba:text-muted-foreground/50 gba:italic' : 'gba:text-foreground'
   }`
-
-  let cellBody: React.ReactNode
-  if (isEmpty) {
-    cellBody = <span className="gba:text-xs">-</span>
-  } else if (isLong) {
-    cellBody = <div className="gba:max-h-32 gba:overflow-y-auto gba:wrap-break-word">{children}</div>
-  } else {
-    cellBody = <div className="gba:wrap-break-word">{children}</div>
-  }
 
   return (
     <TableCell className={cellClassName} title={isLong ? cellContent : undefined}>
