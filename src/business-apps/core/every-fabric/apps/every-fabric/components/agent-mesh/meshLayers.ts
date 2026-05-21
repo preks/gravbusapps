@@ -1,6 +1,6 @@
 import type { MeshNodeKind } from '../../utils/traceModel'
 
-export type MeshLayerKey = 'agents' | 'experts' | 'skills' | 'tools'
+export type MeshLayerKey = 'agents' | 'skills' | 'tools'
 
 export interface MeshLayerDescriptor {
   key: MeshLayerKey
@@ -10,8 +10,7 @@ export interface MeshLayerDescriptor {
 }
 
 export const MESH_LAYERS: MeshLayerDescriptor[] = [
-  { key: 'agents', label: 'Specialist agents', kinds: ['subagent'] },
-  { key: 'experts', label: 'Experts', kinds: ['expert'] },
+  { key: 'agents', label: 'Enterprise Agents', kinds: ['subagent', 'expert'] },
   { key: 'skills', label: 'Skills', kinds: ['skill'] },
   { key: 'tools', label: 'Tools & connectors', kinds: ['tool'] }
 ]

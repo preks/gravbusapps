@@ -51,6 +51,10 @@ export interface MeshNode {
   firstSeenSeq: number
   /** Last seq we recorded activity for. */
   lastSeenSeq: number
+  /** Relative offset (ms) from the session's first event; used for replay filtering. */
+  offsetMs: number
+  /** Relative offset (ms) of the last activity; used for "active" detection during replay. */
+  lastOffsetMs: number
   status: MeshNodeStatus
   /** Total ms spent (sum of step / delegation durations attributed to this node). */
   totalDurationMs: number
@@ -71,6 +75,8 @@ export interface MeshEdge {
   seq: number
   /** ISO timestamp of the originating event. */
   timestamp: string
+  /** Relative offset (ms) from the session's first event; used for replay filtering. */
+  offsetMs: number
   /** Short label rendered on hover (tool name, sub-task summary, …). */
   label?: string
   /** Set after the matching completion event — used to dim resolved edges. */
@@ -231,11 +237,13 @@ function isEnterpriseRuntime(e: AgentStreamEvent): e is EnterpriseRuntimeTraceEv
   return e.type === 'expert_selected' || e.type === 'tool_available'
 }
 
-type NodeAcc = MeshNode
+type NodeAcc = Omit<MeshNode, 'offsetMs' | 'lastOffsetMs'>
+
+type EdgeAcc = Omit<MeshEdge, 'offsetMs'>
 
 class ModelBuilder {
   private readonly nodes = new Map<string, NodeAcc>()
-  private readonly edges: MeshEdge[] = []
+  private readonly edges: EdgeAcc[] = []
   private readonly frames: TraceFrame[] = []
   private readonly decisions: MeshDecision[] = []
   /** Stack of currently-open agent scopes (orchestrator at bottom). */
@@ -302,10 +310,36 @@ class ModelBuilder {
       }
     }
 
-    const nodes = Array.from(this.nodes.values())
+    // Hydrate offsetMs on nodes and edges using the same baseMs as frames.
+    const nodes: MeshNode[] = Array.from(this.nodes.values()).map(n => ({
+      ...n,
+      offsetMs: safeOffset(n.firstSeenAt, this.baseMs),
+      lastOffsetMs: safeOffset(n.lastSeenAt, this.baseMs)
+    }))
+    const edges: MeshEdge[] = this.edges.map(e => ({
+      ...e,
+      offsetMs: safeOffset(e.timestamp, this.baseMs)
+    }))
+
     const startedAt = this.frames[0]?.timestamp ?? null
     const endedAt = this.frames[this.frames.length - 1]?.timestamp ?? null
-    const durationMs = startedAt && endedAt ? Math.max(0, Date.parse(endedAt) - Date.parse(startedAt)) : 0
+
+    // Duration must span the full offsetMs domain so the replay clock
+    // can reach every frame, decision, node and edge. offsetMs is relative
+    // to baseMs (the first event with a timestamp).
+    let durationMs = 0
+    for (const f of this.frames) {
+      if (f.offsetMs > durationMs) durationMs = f.offsetMs
+    }
+    for (const d of this.decisions) {
+      if (d.offsetMs > durationMs) durationMs = d.offsetMs
+    }
+    for (const n of nodes) {
+      if (n.lastOffsetMs > durationMs) durationMs = n.lastOffsetMs
+    }
+    for (const e of edges) {
+      if (e.offsetMs > durationMs) durationMs = e.offsetMs
+    }
 
     const summary: MeshSummary = {
       eventCount: sorted.length,
@@ -322,7 +356,7 @@ class ModelBuilder {
 
     return {
       nodes,
-      edges: this.edges,
+      edges,
       frames: this.frames,
       decisions: this.decisions,
       summary,
@@ -1198,6 +1232,8 @@ export const EMPTY_TRACE_MODEL: TraceModel = {
       lastSeenAt: '',
       firstSeenSeq: 0,
       lastSeenSeq: 0,
+      offsetMs: 0,
+      lastOffsetMs: 0,
       status: 'idle',
       totalDurationMs: 0,
       invocationCount: 0

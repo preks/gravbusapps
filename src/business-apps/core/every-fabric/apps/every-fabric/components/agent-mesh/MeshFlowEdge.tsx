@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { useContext } from 'react'
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react'
 import {
   ChatTeardropTextIcon,
@@ -8,6 +8,7 @@ import {
   WrenchIcon
 } from '@phosphor-icons/react'
 import type { MeshEdgeKind } from '../../utils/traceModel'
+import { ReplayClockContext } from './MeshGraph'
 
 /** Centre + visual radius of a node, in absolute graph coordinates. */
 export interface MeshEdgeEndpoint {
@@ -20,8 +21,8 @@ export interface MeshFlowEdgeData {
   kind: MeshEdgeKind
   /** Full message body (sub-task prompt, tool args summary, …). */
   label?: string
-  /** True while the replay clock is hovering this edge's frame. */
-  isActive: boolean
+  /** Relative offset (ms) from the session start — used for replay filtering. */
+  offsetMs: number
   /** True after the matching completion event arrived. */
   isResolved: boolean
   /** True when the closing event reported a failure. */
@@ -54,9 +55,10 @@ export interface MeshFlowEdgeData {
  * earlier inline-style approach produced an *invisible* line. Tailwind's
  * `stroke-*` / `text-*` classes correctly map to the gba theme variables.
  */
-const strokeClass = (data: MeshFlowEdgeData): string => {
+const strokeClassFor = (data: MeshFlowEdgeData, isUpcoming: boolean, isActive: boolean): string => {
+  if (isUpcoming) return 'gba:stroke-border'
   if (data.isFailed) return 'gba:stroke-destructive'
-  if (data.isActive) return 'gba:stroke-primary'
+  if (isActive) return 'gba:stroke-primary'
   if (data.isResolved) return 'gba:stroke-border'
   return 'gba:stroke-primary/70'
 }
@@ -86,10 +88,14 @@ function BubbleIcon({ kind }: { kind: MeshEdgeKind }) {
 /** Fallback used if the edge somehow renders before its data is wired up. */
 const FALLBACK_ENDPOINT: MeshEdgeEndpoint = { x: 0, y: 0, radius: 22 }
 
+const ACTIVE_WINDOW_MS = 500
+
 const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
+  const { positionMs, isLive } = useContext(ReplayClockContext)
+
   const safeData: MeshFlowEdgeData = data ?? {
     kind: 'delegation',
-    isActive: false,
+    offsetMs: 0,
     isResolved: false,
     isFailed: false,
     hasDetail: false,
@@ -101,6 +107,10 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
     isDimmed: false,
     onSelect: () => {}
   }
+
+  const cutoffMs = positionMs + 1
+  const isUpcoming = !isLive && safeData.offsetMs > cutoffMs
+  const isActive = !isLive && !isUpcoming && safeData.offsetMs >= positionMs - ACTIVE_WINDOW_MS
 
   // We compute the path *centre-to-centre*, then trim each end by the visual
   // radius of the corresponding circle. This bypasses React Flow's handle
@@ -131,22 +141,12 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
   const labelX = sx + (tx - sx) * t
   const labelY = sy + (ty - sy) * t
 
-  const strokeWidth = safeData.isActive ? 2.25 : 1.5
-  const baseOpacity = safeData.isResolved && !safeData.isActive ? 0.55 : 0.95
-  const strokeOpacity = safeData.isDimmed ? 0.12 : baseOpacity
-
-  // Dots animate only while edge is unresolved (session in progress)
-  const showMovingDot = !safeData.isResolved && !safeData.isFailed
-  const showBubble = safeData.showBubble && safeData.hasDetail
+  const showMovingDot = !safeData.isResolved && !safeData.isFailed && !isUpcoming
+  const showBubble = safeData.showBubble && safeData.hasDetail && !isUpcoming
 
   return (
     <>
-      <BaseEdge
-        id={id}
-        path={edgePath}
-        className={`${strokeClass(safeData)} gba:fill-none`}
-        style={{ strokeWidth, opacity: strokeOpacity }}
-      />
+      <BaseEdge id={id} path={edgePath} className={`${strokeClassFor(safeData, isUpcoming, isActive)} gba:fill-none`} />
       {showMovingDot && (
         <circle r={3.5} className={dotColorClass(safeData)} opacity={0.9}>
           <animateMotion dur="2.4s" repeatCount="indefinite" rotate="auto">
@@ -191,13 +191,13 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
               className={`gba:relative gba:flex gba:h-7 gba:w-7 gba:items-center gba:justify-center gba:rounded-full gba:border gba:bg-card gba:shadow-[0_2px_6px_rgba(15,23,42,0.12)] gba:transition-transform gba:duration-150 gba:ease-out gba:group-hover:scale-110 gba:group-active:scale-95 ${
                 safeData.isFailed
                   ? 'gba:border-destructive/60'
-                  : safeData.isActive
+                  : isActive
                     ? 'gba:border-primary'
                     : 'gba:border-primary/40'
               }`}
             >
               <BubbleIcon kind={safeData.kind} />
-              {safeData.isActive && (
+              {isActive && (
                 <span
                   className="gba:absolute gba:inset-0 gba:rounded-full gba:border gba:border-primary/60 gba:animate-ping"
                   aria-hidden
@@ -211,5 +211,4 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
   )
 }
 
-export const MeshFlowEdge = memo(MeshFlowEdgeBase)
-MeshFlowEdge.displayName = 'MeshFlowEdge'
+export const MeshFlowEdge = MeshFlowEdgeBase

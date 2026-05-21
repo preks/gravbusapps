@@ -22,6 +22,8 @@ const EMPTY_STATS: AggregateStats = {
   topTools: []
 }
 
+const POLL_INTERVAL_MS = 5_000
+
 export function useAgentMeshAggregateData(scope: Exclude<MeshScope, 'session'>, userId?: string) {
   const { accessToken, userInfo } = useFabric()
   const client = useEnterpriseAgentClient(accessToken)
@@ -51,32 +53,47 @@ export function useAgentMeshAggregateData(scope: Exclude<MeshScope, 'session'>, 
 
   const fetchKey = `${scope}:${userId ?? ''}`
 
-  const fetchData = useCallback(async () => {
-    if (!accessToken) return
-    setIsLoading(true)
-    setError(null)
-    try {
-      const backendScope = scope === 'company' ? 'workspace' : scope === 'me' ? 'me' : 'user'
-      const result = await client.getMeshSessions({
-        scope: backendScope,
-        userId: scope === 'user' ? userId : undefined,
-        limit: 100
-      })
-      setSessions(result.items)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      setError(message)
-      setSessions([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [accessToken, client, scope, userId])
+  const fetchData = useCallback(
+    async (silent = false) => {
+      if (!accessToken) return
+      if (!silent) {
+        setIsLoading(true)
+        setError(null)
+      }
+      try {
+        const backendScope = scope === 'company' ? 'workspace' : scope === 'me' ? 'me' : 'user'
+        const result = await client.getMeshSessions({
+          scope: backendScope,
+          userId: scope === 'user' ? userId : undefined,
+          limit: 100
+        })
+        setSessions(result.items)
+        if (!silent) setError(null)
+      } catch (err) {
+        if (!silent) {
+          const message = err instanceof Error ? err.message : 'Unknown error'
+          setError(message)
+          setSessions([])
+        }
+      } finally {
+        if (!silent) setIsLoading(false)
+      }
+    },
+    [accessToken, client, scope, userId]
+  )
 
   useEffect(() => {
     if (fetchedRef.current === fetchKey) return
     fetchedRef.current = fetchKey
-    void fetchData()
+    void fetchData(false)
   }, [fetchKey, fetchData])
+
+  // Background polling so aggregate views reflect new / running sessions.
+  useEffect(() => {
+    if (!accessToken) return
+    const id = setInterval(() => void fetchData(true), POLL_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [accessToken, fetchData])
 
   const model = useMemo<AggregateTraceModel | null>(() => {
     if (sessions.length === 0) return null
@@ -88,12 +105,23 @@ export function useAgentMeshAggregateData(scope: Exclude<MeshScope, 'session'>, 
     return buildAggregateStats(model, sessions)
   }, [model, sessions])
 
+  const sessionTitleMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const s of sessions) {
+      const title = s.input?.slice(0, 100)
+      if (s.session_id && title) map.set(s.session_id, title)
+    }
+    return map
+  }, [sessions])
+
   return {
     model: model ?? (EMPTY_TRACE_MODEL as unknown as AggregateTraceModel),
     isLoading,
     error,
     stats,
     sessions,
+    userNameMap,
+    sessionTitleMap,
     refresh: fetchData
   }
 }

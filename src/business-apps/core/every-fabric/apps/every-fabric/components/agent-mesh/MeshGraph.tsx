@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { createContext, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ReactFlow, type Edge, type Node, type ReactFlowInstance } from '@xyflow/react'
 import type { TraceModel } from '../../utils/traceModel'
 import { isKindVisible, type MeshLayerKey } from './meshLayers'
@@ -6,6 +6,18 @@ import { computeRadialLayout, KIND_CATEGORY, NODE_SIZE } from './meshLayout'
 import { MeshFlowEdge, type MeshFlowEdgeData } from './MeshFlowEdge'
 import { MeshNode, type MeshNodeData } from './MeshNode'
 import '@xyflow/react/dist/style.css'
+
+export interface ReplayClockState {
+  positionMs: number
+  durationMs: number
+  isLive: boolean
+}
+
+export const ReplayClockContext = createContext<ReplayClockState>({
+  positionMs: 0,
+  durationMs: 0,
+  isLive: true
+})
 
 const NODE_TYPES = { meshNode: MeshNode }
 const EDGE_TYPES = { meshEdge: MeshFlowEdge }
@@ -27,6 +39,8 @@ interface MeshGraphProps {
   showEdgeLabels?: boolean
   /** Node id currently being hovered — drives the skill highlight dim/glow effect. */
   hoveredNodeId: string | null
+  /** Edge-to-edge canvas used in fullscreen. Drops the rounded border + gradient. */
+  dense?: boolean
   onSelectNode: (nodeId: string | null) => void
   /** Open the message panel for a given edge id. */
   onSelectEdge: (edgeId: string) => void
@@ -60,18 +74,7 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
 
   const { byId: positions } = computeRadialLayout(visibleNodes, visibleEdges)
   const isLive = durationMs <= 0
-  const baseTimeMs = model.startedAt ? Date.parse(model.startedAt) : 0
-  const cutoffSeq = (() => {
-    if (isLive) return Number.POSITIVE_INFINITY
-    const target = baseTimeMs + positionMs
-    let candidate = -1
-    for (const frame of model.frames) {
-      const ts = Date.parse(frame.timestamp)
-      if (Number.isNaN(ts)) continue
-      if (ts <= target) candidate = Math.max(candidate, frame.seq)
-    }
-    return candidate
-  })()
+  const cutoffMs = positionMs + 1
 
   // Skill names per agent: collect from skill_load edges
   const skillNamesByAgent = new Map<string, string[]>()
@@ -101,12 +104,8 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
     const size = NODE_SIZE[node.kind]
     const pos = positions.get(node.id) ?? { x: 0, y: 0 }
     const reactFlowPos = { x: pos.x, y: pos.y }
-    const isUpcoming = !isLive && node.firstSeenSeq > cutoffSeq && node.kind !== 'orchestrator'
-    const recentlyActive =
-      !isLive &&
-      node.firstSeenSeq <= cutoffSeq &&
-      node.lastSeenSeq >= cutoffSeq &&
-      node.lastSeenSeq - node.firstSeenSeq >= 0
+    const isUpcoming = !isLive && node.offsetMs > cutoffMs && node.kind !== 'orchestrator'
+    const recentlyActive = !isLive && node.offsetMs <= cutoffMs && node.lastOffsetMs >= positionMs
     const isActive = isLive ? node.status === 'running' : recentlyActive
     const category =
       node.metadata?.category && typeof node.metadata.category === 'string'
@@ -139,9 +138,7 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
     }
   })
 
-  const filteredEdges = visibleEdges
-    .filter(edge => isLive || edge.seq <= cutoffSeq)
-    .filter(edge => edge.kind !== 'completion')
+  const filteredEdges = visibleEdges.filter(edge => edge.kind !== 'completion')
 
   const pairCounts = new Map<string, number>()
   const pairIndexes = new Map<string, number>()
@@ -150,15 +147,18 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
     pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1)
   }
 
+  const ACTIVE_WINDOW_MS = 500
   const flowEdges: Edge<MeshFlowEdgeData>[] = filteredEdges.map(edge => {
     const pairKey = [edge.source, edge.target].sort((a, b) => a.localeCompare(b)).join('::')
     const bubbleTotal = pairCounts.get(pairKey) ?? 1
     const bubbleIndex = pairIndexes.get(pairKey) ?? 0
     pairIndexes.set(pairKey, bubbleIndex + 1)
 
-    const isActive = !isLive && edge.seq === cutoffSeq
+    const edgeUpcoming = !isLive && edge.offsetMs > cutoffMs
+    const edgeActive = !isLive && !edgeUpcoming && edge.offsetMs >= positionMs - ACTIVE_WINDOW_MS
     const isFailed = edge.status === 'failed'
     const isResolved = !!edge.resolvedAt
+    const isDimmed = isHoverActive && !highlightedEdgeIds.has(edge.id)
     const hasDetail = !!edge.label && edge.label.trim().length > 0
     const sourcePos = positions.get(edge.source) ?? { x: 0, y: 0 }
     const targetPos = positions.get(edge.target) ?? { x: 0, y: 0 }
@@ -166,15 +166,23 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
     const targetNode = model.nodes.find(n => n.id === edge.target)
     const sourceRadius = sourceNode ? NODE_SIZE[sourceNode.kind] / 2 : 32
     const targetRadius = targetNode ? NODE_SIZE[targetNode.kind] / 2 : 32
+
+    // React Flow v12 reliably tracks top-level `style` changes on edges
+    // and applies them to the SVG <g> wrapper. This guarantees opacity
+    // updates even if the custom edge component's re-render is skipped
+    // by React Flow's internal memoization in production builds.
+    const wrapperOpacity = isDimmed ? 0.12 : edgeUpcoming ? 0.15 : isResolved && !edgeActive ? 0.55 : 0.95
+
     return {
       id: edge.id,
       source: edge.source,
       target: edge.target,
       type: 'meshEdge',
+      style: { opacity: wrapperOpacity, strokeWidth: edgeActive ? 2.25 : 1.5 },
       data: {
         kind: edge.kind,
         label: edge.label,
-        isActive,
+        offsetMs: edge.offsetMs,
         isResolved,
         isFailed,
         hasDetail,
@@ -183,7 +191,7 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
         bubbleIndex,
         bubbleTotal,
         showBubble: showEdgeLabels,
-        isDimmed: isHoverActive && !highlightedEdgeIds.has(edge.id),
+        isDimmed,
         onSelect: () => onSelectEdge(edge.id)
       },
       animated: false
@@ -221,6 +229,15 @@ const NODE_ORIGIN: [number, number] = [0.5, 0.5]
 export const MeshGraph: React.FC<MeshGraphProps> = props => {
   const { flowNodes, flowEdges } = useMemo(() => buildLayout(props), [props])
 
+  const replayClock = useMemo<ReplayClockState>(
+    () => ({
+      positionMs: props.positionMs,
+      durationMs: props.durationMs,
+      isLive: props.durationMs <= 0
+    }),
+    [props.positionMs, props.durationMs]
+  )
+
   const containerRef = useRef<HTMLDivElement | null>(null)
   const flowRef = useRef<ReactFlowInstance<MeshNodeData, MeshFlowEdgeData> | null>(null)
 
@@ -232,12 +249,18 @@ export const MeshGraph: React.FC<MeshGraphProps> = props => {
   }, [])
 
   // Re-fit whenever the graph's *shape* changes — number of nodes / edges, or
-  // a different selection that re-renders the layout. Doing it on every layout
-  // re-render keeps the visualisation centred as new agents come online.
-  const fingerprint = `${flowNodes.length}:${flowEdges.length}`
+  // the dense flag flips (entering / exiting fullscreen). Doing it on every
+  // layout re-render keeps the visualisation centred as new agents come online.
+  const fingerprint = `${flowNodes.length}:${flowEdges.length}:${props.dense ? 'd' : 'n'}`
   useEffect(() => {
     if (!flowRef.current) return
-    flowRef.current.fitView(FIT_VIEW_OPTIONS)
+    // Defer two frames so the container resize from a fullscreen toggle has settled
+    // before React Flow recalculates bounds.
+    const id1 = requestAnimationFrame(() => {
+      const id2 = requestAnimationFrame(() => flowRef.current?.fitView(FIT_VIEW_OPTIONS))
+      return () => cancelAnimationFrame(id2)
+    })
+    return () => cancelAnimationFrame(id1)
   }, [fingerprint])
 
   // Re-fit on container resize (sidebar collapse, window resize, panel
@@ -254,35 +277,37 @@ export const MeshGraph: React.FC<MeshGraphProps> = props => {
     return () => observer.disconnect()
   }, [])
 
+  const containerClass = props.dense
+    ? 'gba:relative gba:h-full gba:w-full gba:overflow-hidden gba:bg-background'
+    : 'gba:relative gba:h-full gba:w-full gba:rounded-[1.5rem] gba:border gba:border-border/60 gba:bg-gradient-to-br gba:from-background gba:to-muted/30 gba:overflow-hidden'
+
   return (
-    <div
-      ref={containerRef}
-      className="gba:relative gba:h-full gba:w-full gba:rounded-[1.5rem] gba:border gba:border-border/60 gba:bg-gradient-to-br gba:from-background gba:to-muted/30 gba:overflow-hidden"
-      data-testid="mesh-graph"
-    >
-      <ReactFlow
-        nodes={flowNodes}
-        edges={flowEdges}
-        nodeTypes={NODE_TYPES}
-        edgeTypes={EDGE_TYPES}
-        nodeOrigin={NODE_ORIGIN}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        selectNodesOnDrag={false}
-        panOnDrag
-        zoomOnScroll
-        zoomOnPinch
-        minZoom={0.3}
-        maxZoom={1.8}
-        fitView
-        fitViewOptions={FIT_VIEW_OPTIONS}
-        proOptions={{ hideAttribution: true }}
-        onInit={handleInit}
-        onPaneClick={() => {
-          props.onSelectNode(null)
-          props.onPaneClick?.()
-        }}
-      />
+    <div ref={containerRef} className={containerClass} data-testid="mesh-graph">
+      <ReplayClockContext.Provider value={replayClock}>
+        <ReactFlow
+          nodes={flowNodes}
+          edges={flowEdges}
+          nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
+          nodeOrigin={NODE_ORIGIN}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          selectNodesOnDrag={false}
+          panOnDrag
+          zoomOnScroll
+          zoomOnPinch
+          minZoom={0.3}
+          maxZoom={1.8}
+          fitView
+          fitViewOptions={FIT_VIEW_OPTIONS}
+          proOptions={{ hideAttribution: true }}
+          onInit={handleInit}
+          onPaneClick={() => {
+            props.onSelectNode(null)
+            props.onPaneClick?.()
+          }}
+        />
+      </ReplayClockContext.Provider>
     </div>
   )
 }

@@ -1,11 +1,11 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { GraphIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import type { MeshScope } from './meshScopes'
 import { useAgentMeshAggregateData } from '../../hooks/useAgentMeshAggregateData'
 import { useAgentMeshScope } from '../../hooks/useAgentMeshScope'
+import { useMeshTelemetry } from '../../hooks/useMeshTelemetry'
 import { AgentMeshCanvas } from './AgentMeshCanvas'
 import { AggregateOverviewPanel } from './AggregateOverviewPanel'
-import { useFabric } from '../../context/FabricContext'
 
 interface AgentMeshAggregateViewProps {
   scope: Exclude<MeshScope, 'session'>
@@ -13,19 +13,55 @@ interface AgentMeshAggregateViewProps {
 }
 
 export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ scope, userId }) => {
-  const { model, isLoading, error, stats } = useAgentMeshAggregateData(scope, userId)
-  const { setScope } = useAgentMeshScope()
-  const { selectSession } = useFabric()
-
-  const handleSelectUser = useCallback((selectedUserId: string) => setScope('user', selectedUserId), [setScope])
-
-  const handleSelectSession = useCallback(
-    (sessionId: string) => {
-      selectSession(sessionId)
-      setScope('session')
-    },
-    [selectSession, setScope]
+  const { model, isLoading, error, stats, sessions, userNameMap, sessionTitleMap } = useAgentMeshAggregateData(
+    scope,
+    userId
   )
+  const { pushSnapshot, isFullscreen } = useAgentMeshScope()
+  const { emit, hashIdentifier } = useMeshTelemetry()
+
+  // Map sessionId → userId so Company→Session drills can insert a User breadcrumb.
+  const sessionUserMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const s of sessions) {
+      if (s.session_id && s.user_id) map.set(s.session_id, s.user_id)
+    }
+    return map
+  }, [sessions])
+
+  const drillToUser = useCallback(
+    (selectedUserId: string, source: 'canvas' | 'panel') => {
+      const label = userNameMap?.get(selectedUserId)
+      emit({ type: 'mesh.scope_changed', from: scope, to: 'user', source })
+      pushSnapshot({ scope: 'user', userId: selectedUserId, label, fullscreen: isFullscreen })
+    },
+    [emit, isFullscreen, pushSnapshot, scope, userNameMap]
+  )
+
+  const drillToSession = useCallback(
+    (sessionId: string) => {
+      const sessionLabel = sessionTitleMap?.get(sessionId)
+      emit({ type: 'mesh.drill_to_session', origin: scope, sessionIdHash: hashIdentifier(sessionId) })
+
+      // When drilling from company scope, insert an intermediate User breadcrumb
+      // so the trail reads Company > UserName > SessionTitle.
+      if (scope === 'company') {
+        const ownerUserId = sessionUserMap.get(sessionId)
+        if (ownerUserId) {
+          const userLabel = userNameMap?.get(ownerUserId)
+          pushSnapshot({ scope: 'user', userId: ownerUserId, label: userLabel, fullscreen: isFullscreen })
+        }
+      }
+
+      pushSnapshot({ scope: 'session', sessionId, label: sessionLabel, fullscreen: isFullscreen })
+    },
+    [emit, hashIdentifier, isFullscreen, pushSnapshot, scope, sessionTitleMap, sessionUserMap, userNameMap]
+  )
+
+  const handleCanvasDrillUser = useCallback((id: string) => drillToUser(id, 'canvas'), [drillToUser])
+  const handleCanvasDrillSession = useCallback((id: string) => drillToSession(id), [drillToSession])
+  const handlePanelDrillUser = useCallback((id: string) => drillToUser(id, 'panel'), [drillToUser])
+  const handlePanelDrillSession = useCallback((id: string) => drillToSession(id), [drillToSession])
 
   if (isLoading) {
     return (
@@ -70,6 +106,20 @@ export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ 
     )
   }
 
+  if (isFullscreen) {
+    return (
+      <AgentMeshCanvas
+        model={model}
+        positionMs={0}
+        durationMs={0}
+        isLive={true}
+        dense
+        onDrillToUser={scope === 'company' ? handleCanvasDrillUser : undefined}
+        onDrillToSession={handleCanvasDrillSession}
+      />
+    )
+  }
+
   return (
     <div className="gba:flex gba:flex-1 gba:min-h-0 gba:gap-4">
       <div className="gba:grid gba:flex-1 gba:min-h-0 gba:grid-cols-1 gba:md:grid-cols-[minmax(0,1fr)_320px] gba:xl:grid-cols-[minmax(0,1fr)_380px] gba:gap-4">
@@ -78,14 +128,14 @@ export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ 
           positionMs={0}
           durationMs={0}
           isLive={true}
-          onDrillToUser={scope === 'company' ? handleSelectUser : undefined}
-          onDrillToSession={handleSelectSession}
+          onDrillToUser={scope === 'company' ? handleCanvasDrillUser : undefined}
+          onDrillToSession={handleCanvasDrillSession}
         />
         <AggregateOverviewPanel
           scope={scope}
           stats={stats}
-          onSelectUser={scope === 'company' ? handleSelectUser : undefined}
-          onSelectSession={handleSelectSession}
+          onSelectUser={scope === 'company' ? handlePanelDrillUser : undefined}
+          onSelectSession={handlePanelDrillSession}
         />
       </div>
     </div>
