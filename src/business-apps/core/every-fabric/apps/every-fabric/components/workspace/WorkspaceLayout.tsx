@@ -119,6 +119,7 @@ export const WorkspaceLayout: React.FC = () => {
     activityEvents,
     decisions,
     activeSkill,
+    cases,
     sessionConnectorIds,
     artifacts,
     workspaceDocs,
@@ -460,11 +461,11 @@ export const WorkspaceLayout: React.FC = () => {
               activityEvents={activityEvents}
               agentStreamEvents={events}
               decisions={decisions}
+              cases={cases}
               artifacts={artifacts}
               workspaceDocs={workspaceDocs}
               isConnected={isConnected}
               isStreaming={isStreaming}
-              onViewArtifact={setActiveArtifactId}
               latestPreview={latestPreview}
               accessToken={accessToken}
               sessionId={session.session_id}

@@ -148,6 +148,34 @@ const toArtifactRefsFromMeta = (
     rendererType: resolveRendererType(artifact.mime_type, artifact.path || artifact.name)
   }))
 
+function humanizeFieldId(fieldId: string): string {
+  return fieldId
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function structuredInputResponseToText(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (!trimmed.startsWith('{')) return null
+  try {
+    const payload = JSON.parse(trimmed) as {
+      type?: unknown
+      values?: unknown
+    }
+    if (payload.type !== 'structured_input_response' || !payload.values || typeof payload.values !== 'object') {
+      return null
+    }
+    const values = Object.entries(payload.values as Record<string, unknown>)
+    if (values.length === 0) return 'Submitted form response.'
+    const rendered = values.map(([key, value]) => `${humanizeFieldId(key)}: ${String(value)}`).join(', ')
+    return `Submitted confirmation: ${rendered}`
+  } catch {
+    return null
+  }
+}
+
 const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
   if (chunk.role === 'human') {
     // Rehydrate attachment refs stored in the chunk metadata (set by reply endpoint).
@@ -158,7 +186,7 @@ const chunkToMessage = (chunk: AgentChunkEvent): ChatMessage | null => {
       id: chunk.event_id,
       type: 'user_input',
       timestamp: chunk.timestamp,
-      content: chunk.content,
+      content: structuredInputResponseToText(chunk.content) ?? chunk.content,
       presentationMode: chunk.presentation_mode,
       ...(attachments ? { attachments } : {})
     }

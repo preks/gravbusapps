@@ -39,8 +39,12 @@ const dedupeKey = (event: AgentStreamEvent): string => {
  * is preserved first so that the REST trace (which is the persisted record
  * for completed sessions) wins on field-level differences in the rare case
  * the same event is sent by both sources.
+ *
+ * Exported so other derived hooks (e.g. `useFabricCases`) can share the
+ * exact REST + live merge semantics — keeping all derived state in
+ * lockstep on page reload.
  */
-function mergeEvents(a: AgentStreamEvent[], b: AgentStreamEvent[]): AgentStreamEvent[] {
+export function mergeEvents(a: AgentStreamEvent[], b: AgentStreamEvent[]): AgentStreamEvent[] {
   if (b.length === 0) return a
   if (a.length === 0) return b
   const seen = new Set<string>()

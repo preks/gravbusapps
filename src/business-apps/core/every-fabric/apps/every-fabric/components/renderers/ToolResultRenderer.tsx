@@ -11,6 +11,8 @@ import {
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { detectRendererType } from '../../utils/renderUtils'
 import { parseComposeEmailToolResult, type ComposeEmailOutcomePayload } from '../../utils/composeEmailTrace'
+import { parseActionCardToolResult } from '../../utils/actionCardTrace'
+import { ActionCard } from './ActionCard'
 
 export interface ToolResultRendererProps {
   callId: string
@@ -18,6 +20,7 @@ export interface ToolResultRendererProps {
   result: unknown
   durationMs: number
   cached: boolean
+  accessToken?: string
 }
 
 const formatTableCellValue = (value: unknown): string => {
@@ -90,9 +93,27 @@ function ComposeEmailResultCard({ payload }: { readonly payload: ComposeEmailOut
   )
 }
 
-export const ToolResultRenderer = ({ callId, toolName, result, durationMs, cached }: ToolResultRendererProps) => {
+export const ToolResultRenderer = ({
+  callId,
+  toolName,
+  result,
+  durationMs,
+  cached,
+  accessToken
+}: ToolResultRendererProps) => {
   const [expanded, setExpanded] = useState(false)
   const rendererType = detectRendererType(result)
+
+  // Generic action_card: any tool that emits the backend `ui.kind ===
+  // 'action_card'` payload renders as a clickable card with a status
+  // badge and a deep link. Use-case-agnostic; works for triggered
+  // workflows today and is the migration target for compose_email,
+  // schedule_meeting, send_notification, etc. Tool-name-specific
+  // branches below are kept only until those tools migrate.
+  const actionCardPayload = parseActionCardToolResult(result)
+  if (actionCardPayload) {
+    return <ActionCard payload={actionCardPayload} callId={callId} accessToken={accessToken} />
+  }
 
   if (toolName === 'compose_email') {
     const payload = parseComposeEmailToolResult(result)

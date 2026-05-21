@@ -260,6 +260,7 @@ const renderStructuredInputRequestBubble = (
         alreadySubmitted={alreadySubmitted}
         toolRef={formData.tool_ref}
         requestStatus={formData.request_status}
+        preview={formData.preview}
         onSubmit={(values, aiDelegated) => {
           if (onReply) {
             const structuredPayload = aiDelegated.length > 0 ? { ...values, _ai_should_fill: aiDelegated } : values
@@ -402,7 +403,7 @@ const renderMessageBubbleContent = ({
       const content = message.content as Parameters<typeof ToolResultRenderer>[0]
       return (
         <div className="gba:py-0.5" data-testid={`msg-${message.id}`}>
-          <ToolResultRenderer {...content} />
+          <ToolResultRenderer {...content} accessToken={accessToken} />
         </div>
       )
     }

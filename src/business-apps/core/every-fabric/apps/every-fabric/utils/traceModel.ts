@@ -22,6 +22,7 @@ import type {
   AgentDecisionEvent,
   AgentExpertCalledEvent,
   AgentExpertCompletedEvent,
+  AgentArtifactCreatedEvent,
   AgentStepCompletedEvent,
   AgentStepStartedEvent,
   AgentStreamEvent,
@@ -31,7 +32,8 @@ import type {
   CapabilityMissingEvent,
   EnterpriseRuntimeTraceEvent,
   HitlRequestedEvent,
-  SkillLoadedEvent
+  SkillLoadedEvent,
+  SkillScopedEvent
 } from '../types/enterpriseAgent'
 
 export type MeshNodeKind = 'orchestrator' | 'subagent' | 'expert' | 'skill' | 'tool'
@@ -187,7 +189,7 @@ function resolveSpawnName(event: AgentSubagentSpawnedEvent | AgentExpertCalledEv
   return (
     pickName('expert_name' in event ? event.expert_name : undefined) ??
     pickName('agent_name' in event ? event.agent_name : undefined) ??
-    pickName(event.name) ??
+    pickName('name' in event ? event.name : undefined) ??
     pickName(event.task_summary) ??
     (event.type === 'expert_called' ? 'Expert' : 'Sub-agent')
   )
@@ -220,6 +222,9 @@ function isExpertCompleted(e: AgentStreamEvent): e is AgentExpertCompletedEvent 
 }
 function isSkillLoaded(e: AgentStreamEvent): e is SkillLoadedEvent {
   return e.type === 'skill_loaded'
+}
+function isSkillScoped(e: AgentStreamEvent): e is SkillScopedEvent {
+  return e.type === 'skill_scoped'
 }
 function isDecision(e: AgentStreamEvent): e is AgentDecisionEvent {
   return e.type === 'decision'
@@ -388,6 +393,10 @@ class ModelBuilder {
       this.handleSkillLoaded(event)
       return
     }
+    if (isSkillScoped(event)) {
+      this.handleSkillScoped(event)
+      return
+    }
     if (isDecision(event)) {
       this.handleDecision(event)
       return
@@ -405,19 +414,7 @@ class ModelBuilder {
       return
     }
     if (isTerminal(event)) {
-      this.terminal = event
-      this.pushFrame({
-        id: this.eventId(event, 'terminal'),
-        seq: this.seq(event),
-        timestamp: this.timestamp(event),
-        kind: 'terminal',
-        nodeId: ORCHESTRATOR_NODE_ID,
-        title: `Session ${event.status}`,
-        summary: event.output?.slice(0, 160) ?? undefined,
-        durationMs: event.duration_ms ?? undefined,
-        status: event.status === 'failed' ? 'failed' : 'done',
-        event
-      })
+      this.handleTerminalEvent(event)
       return
     }
     if (event.type === 'agent_chunk' && event.chunk_kind === 'tool' && event.tool_name) {
@@ -425,17 +422,37 @@ class ModelBuilder {
       return
     }
     if (event.type === 'artifact_created') {
-      this.pushFrame({
-        id: this.eventId(event, 'artifact'),
-        seq: this.seq(event),
-        timestamp: this.timestamp(event),
-        kind: 'artifact',
-        nodeId: this.currentScopeId(),
-        title: `Created ${event.name}`,
-        summary: event.path,
-        event
-      })
+      this.handleArtifactCreated(event)
     }
+  }
+
+  private handleTerminalEvent(event: AgentTerminalEvent): void {
+    this.terminal = event
+    this.pushFrame({
+      id: this.eventId(event, 'terminal'),
+      seq: this.seq(event),
+      timestamp: this.timestamp(event),
+      kind: 'terminal',
+      nodeId: ORCHESTRATOR_NODE_ID,
+      title: `Session ${event.status}`,
+      summary: event.output?.slice(0, 160) ?? undefined,
+      durationMs: event.duration_ms ?? undefined,
+      status: event.status === 'failed' ? 'failed' : 'done',
+      event
+    })
+  }
+
+  private handleArtifactCreated(event: AgentArtifactCreatedEvent): void {
+    this.pushFrame({
+      id: this.eventId(event, 'artifact'),
+      seq: this.seq(event),
+      timestamp: this.timestamp(event),
+      kind: 'artifact',
+      nodeId: this.currentScopeId(),
+      title: `Created ${event.name}`,
+      summary: event.path,
+      event
+    })
   }
 
   private handleSpawn(event: AgentSubagentSpawnedEvent | AgentExpertCalledEvent): void {
@@ -695,56 +712,7 @@ class ModelBuilder {
   private handleStepCompleted(event: AgentStepCompletedEvent): void {
     const toolEntry = this.toolStepOwner.get(event.step_id)
     if (toolEntry) {
-      const toolNode = this.nodes.get(toolEntry.toolNodeId)
-      if (toolNode) {
-        toolNode.status = event.status === 'failed' ? 'failed' : 'done'
-        toolNode.lastSeenAt = event.timestamp
-        toolNode.lastSeenSeq = event.seq
-        if (typeof event.duration_ms === 'number') toolNode.totalDurationMs += event.duration_ms
-      }
-      const spawnEdge = this.edges.find(e => e.id === toolEntry.edgeId)
-      if (spawnEdge) spawnEdge.resolvedAt = event.timestamp
-      this.edges.push({
-        id: `${toolEntry.toolNodeId}->${toolEntry.source}@${event.seq}`,
-        source: toolEntry.toolNodeId,
-        target: toolEntry.source,
-        kind: 'completion',
-        seq: event.seq,
-        timestamp: event.timestamp,
-        label: event.status === 'failed' ? 'Failed' : 'Result',
-        status: event.status === 'failed' ? 'failed' : 'done'
-      })
-      this.toolStepOwner.delete(event.step_id)
-
-      // Extract skills from newwork_find_expert output (JSON array with skill_ids per expert)
-      if (toolNode?.label === 'newwork_find_expert' && event.output) {
-        this.extractSkillsFromFindExpert(event.output, event)
-      }
-
-      // Extract skills from newwork_ask_expert output (capability_gap JSON may contain skill context)
-      if (toolNode?.label === 'newwork_ask_expert' && event.output) {
-        const expertName =
-          ((event as Record<string, unknown>).expert_name as string | undefined) ??
-          (toolNode.metadata?.expert as string | undefined)
-        const expertNodeId = expertName ? this.expertNodeByName.get(expertName) : undefined
-        if (expertNodeId) {
-          this.extractSkillsFromOutput(expertNodeId, event.output, event)
-        }
-      }
-
-      this.pushFrame({
-        id: this.eventId(event, 'tool-end'),
-        seq: event.seq,
-        timestamp: event.timestamp,
-        kind: 'tool',
-        nodeId: toolEntry.source,
-        targetNodeId: toolEntry.toolNodeId,
-        title: `${event.name ?? toolNode?.label ?? 'tool'} → ${event.status ?? 'done'}`,
-        summary: typeof event.output === 'string' ? event.output.slice(0, 160) : undefined,
-        durationMs: event.duration_ms ?? undefined,
-        status: event.status === 'failed' ? 'failed' : 'done',
-        event
-      })
+      this.handleToolStepCompleted(event, toolEntry)
       return
     }
 
@@ -755,6 +723,69 @@ class ModelBuilder {
       kind: 'step',
       nodeId: this.currentScopeId(),
       title: event.name ?? 'Step completed',
+      summary: typeof event.output === 'string' ? event.output.slice(0, 160) : undefined,
+      durationMs: event.duration_ms ?? undefined,
+      status: event.status === 'failed' ? 'failed' : 'done',
+      event
+    })
+  }
+
+  private updateToolNodeOnCompletion(toolNode: MeshNode | undefined, event: AgentStepCompletedEvent): void {
+    if (!toolNode) return
+    toolNode.status = event.status === 'failed' ? 'failed' : 'done'
+    toolNode.lastSeenAt = event.timestamp
+    toolNode.lastSeenSeq = event.seq
+    if (typeof event.duration_ms === 'number') toolNode.totalDurationMs += event.duration_ms
+  }
+
+  private extractSkillsFromToolOutput(toolNode: MeshNode | undefined, event: AgentStepCompletedEvent): void {
+    if (!toolNode || !event.output) return
+    if (toolNode.label === 'newwork_find_expert') {
+      this.extractSkillsFromFindExpert(event.output, event)
+      return
+    }
+    if (toolNode.label === 'newwork_ask_expert') {
+      const expertName =
+        pickName('expert_name' in event ? (event as { expert_name?: string }).expert_name : undefined) ??
+        pickName(toolNode.metadata?.expert as string | undefined)
+      const expertNodeId = expertName ? this.expertNodeByName.get(expertName) : undefined
+      if (expertNodeId) {
+        this.extractSkillsFromOutput(expertNodeId, event.output, event)
+      }
+    }
+  }
+
+  private handleToolStepCompleted(
+    event: AgentStepCompletedEvent,
+    toolEntry: { source: string; toolNodeId: string; edgeId: string }
+  ): void {
+    const toolNode = this.nodes.get(toolEntry.toolNodeId)
+    this.updateToolNodeOnCompletion(toolNode, event)
+
+    const spawnEdge = this.edges.find(e => e.id === toolEntry.edgeId)
+    if (spawnEdge) spawnEdge.resolvedAt = event.timestamp
+    this.edges.push({
+      id: `${toolEntry.toolNodeId}->${toolEntry.source}@${event.seq}`,
+      source: toolEntry.toolNodeId,
+      target: toolEntry.source,
+      kind: 'completion',
+      seq: event.seq,
+      timestamp: event.timestamp,
+      label: event.status === 'failed' ? 'Failed' : 'Result',
+      status: event.status === 'failed' ? 'failed' : 'done'
+    })
+    this.toolStepOwner.delete(event.step_id)
+
+    this.extractSkillsFromToolOutput(toolNode, event)
+
+    this.pushFrame({
+      id: this.eventId(event, 'tool-end'),
+      seq: event.seq,
+      timestamp: event.timestamp,
+      kind: 'tool',
+      nodeId: toolEntry.source,
+      targetNodeId: toolEntry.toolNodeId,
+      title: `${event.name ?? toolNode?.label ?? 'tool'} → ${event.status ?? 'done'}`,
       summary: typeof event.output === 'string' ? event.output.slice(0, 160) : undefined,
       durationMs: event.duration_ms ?? undefined,
       status: event.status === 'failed' ? 'failed' : 'done',
@@ -810,6 +841,46 @@ class ModelBuilder {
       title: `Loaded skill ${event.skill.name}`,
       summary: event.skill.description,
       status: 'done',
+      event
+    })
+  }
+
+  /**
+   * Phase 3: ``skill_scoped`` is the session-level intent. Surface the
+   * skill node so the mesh shows it is available to the run, but do NOT
+   * create the ``skill_load`` edge — that stays exclusive to real body
+   * injections (factory preload completion or runtime ``skill_load``).
+   */
+  private handleSkillScoped(event: SkillScopedEvent): void {
+    if (!event.skill?.skill_id) return
+    const skillNodeId = `skill:${event.skill.skill_id}`
+    this.upsertNode({
+      id: skillNodeId,
+      kind: 'skill',
+      label: event.skill.name || event.skill.skill_id,
+      description: event.skill.description,
+      firstSeenAt: event.timestamp,
+      lastSeenAt: event.timestamp,
+      firstSeenSeq: event.seq,
+      lastSeenSeq: event.seq,
+      status: 'idle',
+      totalDurationMs: 0,
+      invocationCount: 0,
+      metadata: {
+        category: event.skill.category,
+        was_auto_detected: event.was_auto_detected,
+        scoped: true
+      }
+    })
+    this.pushFrame({
+      id: this.eventId(event, 'skill-scoped'),
+      seq: event.seq,
+      timestamp: event.timestamp,
+      kind: 'skill',
+      nodeId: this.currentScopeId(),
+      targetNodeId: skillNodeId,
+      title: `Scoped skill ${event.skill.name}`,
+      summary: event.skill.description,
       event
     })
   }

@@ -234,6 +234,46 @@ export interface AgentArtifactCreatedEvent {
   size: number
 }
 
+/**
+ * Lifecycle status chip rendered next to a row inside a `PreviewBlock`.
+ * Mirrors the backend `PreviewItem.status` enum in
+ * `prompt-manager/src/agents/deep/tools/ask_human.py`.
+ */
+export type PreviewItemStatus = 'pending' | 'in_progress' | 'done' | 'failed' | 'skipped'
+
+/** A single row inside a HITL `PreviewBlock`. Generic across all use cases. */
+export interface PreviewItem {
+  id?: string
+  label: string
+  detail?: string
+  status?: PreviewItemStatus
+  /**
+   * Free-form key/value bag for renderer-specific extras
+   * (e.g. `{ owner: 'IT', due: 'D-1' }` for a timeline row).
+   */
+  meta?: Record<string, string>
+}
+
+/**
+ * Optional structured preamble rendered ABOVE the form fields of a
+ * structured input request. Drives the "Plan / Timeline / Summary"
+ * UX inside HITL confirmation cards. Generic — any tool that raises
+ * a `StructuredHumanInterruptSignal` can attach a preview.
+ */
+export interface PreviewBlock {
+  kind: 'checklist' | 'timeline' | 'key_values' | 'markdown'
+  title?: string
+  items?: PreviewItem[]
+  markdown?: string
+  /**
+   * Optional Case Panel cross-link. When the same `case_id` has been
+   * declared by `case_panel_open`, the HITL bubble renders a
+   * "View live in side panel" link to scroll/focus the matching
+   * `CasePanel` card in the right sidebar.
+   */
+  case_id?: string
+}
+
 export interface StructuredInputRequestEvent {
   type: 'structured_input_request'
   seq: number
@@ -254,6 +294,13 @@ export interface StructuredInputRequestEvent {
    * email payload so the frontend can hydrate the EmailComposerBubble.
    */
   email_draft?: ComposeEmailDraft
+  /**
+   * Optional structured preamble (plan / timeline / checklist / key-value
+   * summary / markdown) rendered above the form fields. Generic across
+   * use cases; populated by tools that raise structured HITL signals when
+   * the user needs to read context before answering.
+   */
+  preview?: PreviewBlock
 }
 
 export interface ToolPermissionActionRequest {
@@ -344,6 +391,29 @@ export interface InputFieldSchema {
 
 export interface SkillLoadedEvent {
   type: 'skill_loaded'
+  seq: number
+  event_id: string
+  timestamp: string
+  skill: {
+    skill_id: string
+    name: string
+    category: string
+    description: string
+    icon?: string
+  }
+  was_auto_detected: boolean
+}
+
+/**
+ * Phase 3: ``skill_scoped`` is the session-level *intent* — the skill is
+ * available to the run (from the session contract, expert manifest, or
+ * routing match) but its body has not necessarily been injected into the
+ * system prompt yet. ``skill_loaded`` continues to mean the body actually
+ * landed in context (factory preload completed, or the agent called
+ * ``skill_load`` at runtime).
+ */
+export interface SkillScopedEvent {
+  type: 'skill_scoped'
   seq: number
   event_id: string
   timestamp: string
@@ -456,6 +526,7 @@ export type AgentStreamEvent =
   | HitlRequestedEvent
   | StructuredInputRequestEvent
   | SkillLoadedEvent
+  | SkillScopedEvent
   | SkillDetectionSkippedEvent
   | ArtifactPreviewEvent
   | AgentDecisionEvent
