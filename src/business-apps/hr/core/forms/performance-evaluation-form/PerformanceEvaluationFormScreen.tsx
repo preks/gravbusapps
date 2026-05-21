@@ -17,13 +17,7 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
   const taskPayload = (additionalData as any)?.psi_taskPayload
   const taskName = taskPayload?.TaskName
   const isPeerEvaluation = taskName === 'peerEvaluation'
-  const evaluatedEmployeeUserId = taskPayload?.employeeUserId ?? taskPayload?.CreatedBy
-
-  // For peer evaluation step: employee comes from employeeUserId (the evaluated employee's userId)
-  const { employeeId: evaluatedEmployeeId } = useEmployeeByUserId({
-    accessToken,
-    userId: isPeerEvaluation ? evaluatedEmployeeUserId : undefined
-  })
+  const peerEvaluationEmployeeId = isPeerEvaluation ? taskPayload?.employeeId : undefined
 
   // Extract employeeId from task payload (for manager/other flows)
   const employeeIdFromTaskPayload = taskPayload?.employeePerformanceEvaluation?.employee
@@ -47,8 +41,8 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
     userId: !isPeerEvaluation ? receiverId : undefined
   })
 
-  // Peer evaluation: use employeeUserId (resolved to employeeId). Otherwise use mapped receiverId or other fallbacks.
-  const finalEmployeeId = isPeerEvaluation ? evaluatedEmployeeId || employeeId : mappedEmployeeId || employeeId
+  // Peer evaluation: use employeeId from task payload directly. Otherwise use mapped receiverId or other fallbacks.
+  const finalEmployeeId = isPeerEvaluation ? peerEvaluationEmployeeId || employeeId : mappedEmployeeId || employeeId
 
   const handleSubmitEvaluation = async () => {
     // Evaluation submission is now handled by Kogito process via dispatchProcessContinueEvent
