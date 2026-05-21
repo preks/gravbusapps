@@ -50,6 +50,7 @@ const SCREEN_MANAGEMENT_SERVICE_API_PROD_SECONDARY =
   process.env.SCREEN_MANAGEMENT_SERVICE_API_PROD_2
 
 const RC_PREFIX = process.env.RC_PREFIX || 'release-candidates'
+const PUBLISH_TARGET = (process.env.PUBLISH_TARGET || 'all').trim().toLowerCase()
 
 // Production OAuth configuration
 const OAUTH_CLIENT_ID_PROD = process.env.OAUTH_CLIENT_ID_PROD
@@ -137,6 +138,31 @@ const SECONDARY_TARGET =
       }
     : null
 
+function normalizePublishTarget(target) {
+  if (target === 'gravity') return 'primary'
+  if (target === 'demo') return 'secondary'
+  return target
+}
+
+function resolvePublishTargets() {
+  const requestedTarget = normalizePublishTarget(PUBLISH_TARGET)
+  const availableTargets = [PRIMARY_TARGET]
+  if (SECONDARY_TARGET) availableTargets.push(SECONDARY_TARGET)
+
+  if (requestedTarget === 'all') return availableTargets
+
+  if (!['primary', 'secondary'].includes(requestedTarget)) {
+    throw new Error(`Invalid PUBLISH_TARGET "${PUBLISH_TARGET}". Use all, primary/gravity, or secondary/demo.`)
+  }
+
+  const selectedTarget = availableTargets.find(target => target.label === requestedTarget)
+  if (!selectedTarget) {
+    throw new Error(`PUBLISH_TARGET=${requestedTarget} requested, but that target is not configured.`)
+  }
+
+  return [selectedTarget]
+}
+
 // ============================================================================
 // Hash-based Publishing Utility Functions
 // ============================================================================
@@ -181,7 +207,7 @@ function extractRcVersionFromBlobName(blobName, rcDestinationPath) {
   return match ? match[1] : null
 }
 
-async function promoteReleaseCandidateScreen(screenPath) {
+async function promoteReleaseCandidateScreen(screenPath, artifactTargets) {
   const sourceAzure = PRIMARY_TARGET.azure
   if (!sourceAzure?.accountName || !sourceAzure?.sasToken || !sourceAzure?.containerName) {
     throw new Error('RC promotion requires primary Azure target configuration.')
@@ -212,18 +238,34 @@ async function promoteReleaseCandidateScreen(screenPath) {
 
   console.log(`Promoting RC for ${screenPath} (version ${rcVersion})`)
 
-  const targetBlobServiceUrl = `https://${sourceAzure.accountName}.blob.core.windows.net/?${sourceAzure.sasToken}`
-  const targetContainerClient = new BlobServiceClient(targetBlobServiceUrl).getContainerClient(
-    sourceAzure.containerName
-  )
+  const targetsWithAzure = artifactTargets.filter(target => target.azure)
 
-  for (const blob of rcBlobs) {
-    const destinationBlobName = blob.name.replace(`${RC_PREFIX}/`, '')
-    const sourceUrl = buildBlobUrl(sourceAzure.accountName, sourceAzure.containerName, blob.name, sourceAzure.sasToken)
-    const blockBlobClient = targetContainerClient.getBlockBlobClient(destinationBlobName)
-    const poller = await blockBlobClient.beginCopyFromURL(sourceUrl)
-    await poller.pollUntilDone()
-    console.log(`   Copied ${blob.name} -> ${destinationBlobName} (primary)`)
+  if (targetsWithAzure.length === 0) {
+    console.log(
+      '   WARNING: No selected target has Azure config; skipping artifact copy and syncing screen configs only.'
+    )
+  }
+
+  for (const target of targetsWithAzure) {
+    const targetAzure = target.azure
+    const targetBlobServiceUrl = `https://${targetAzure.accountName}.blob.core.windows.net/?${targetAzure.sasToken}`
+    const targetContainerClient = new BlobServiceClient(targetBlobServiceUrl).getContainerClient(
+      targetAzure.containerName
+    )
+
+    for (const blob of rcBlobs) {
+      const destinationBlobName = blob.name.replace(`${RC_PREFIX}/`, '')
+      const sourceUrl = buildBlobUrl(
+        sourceAzure.accountName,
+        sourceAzure.containerName,
+        blob.name,
+        sourceAzure.sasToken
+      )
+      const blockBlobClient = targetContainerClient.getBlockBlobClient(destinationBlobName)
+      const poller = await blockBlobClient.beginCopyFromURL(sourceUrl)
+      await poller.pollUntilDone()
+      console.log(`   Copied ${blob.name} -> ${destinationBlobName} (${target.label})`)
+    }
   }
 
   return rcVersion
@@ -323,7 +365,12 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target, ve
       prodOauthConfig,
       keysToPurge
     )
-    console.log(`   Purged ${purge.deleted} prod screen(s) (${purge.matched} matched)`)
+    console.log(
+      `   Purged ${purge.deleted} prod screen(s) (${purge.matched} matched, ${purge.alreadyDeleted || 0} already absent, ${purge.failed || 0} failed)`
+    )
+    if (purge.failed > 0) {
+      console.log('   WARNING: Continuing sync; screens whose old rows remain may fail individually with conflicts.')
+    }
 
     let syncedScreens = 0
     let failedSyncScreens = []
@@ -446,6 +493,7 @@ async function main() {
   console.log('Publish version: rc-per-screen')
   console.log('RC promotion: ENABLED')
   console.log(`Secondary target ${SECONDARY_TARGET ? 'DETECTED' : 'NOT configured'}`)
+  console.log(`Publish target: ${normalizePublishTarget(PUBLISH_TARGET)}`)
 
   // Determine which screens to publish
   let candidateScreens = []
@@ -504,8 +552,8 @@ async function main() {
 
   const changedScreens = candidateScreens
   const useHashComparison = !isManualScreenList // Skip hash comparison for manual deploys
-  const targets = [PRIMARY_TARGET]
-  if (SECONDARY_TARGET) targets.push(SECONDARY_TARGET)
+  const targets = resolvePublishTargets()
+  console.log(`Selected target(s): ${targets.map(target => target.label).join(', ')}`)
 
   const projectRootDirForHashes = path.resolve(__dirname, '..')
   const devHashFile = path.join(projectRootDirForHashes, 'component-hashes.json')
@@ -570,7 +618,7 @@ async function main() {
     console.log(`\nPublishing: ${screen}`)
 
     try {
-      const rcVersion = await promoteReleaseCandidateScreen(screen)
+      const rcVersion = await promoteReleaseCandidateScreen(screen, targets)
       rcVersionsByScreen[screen] = rcVersion
 
       successfulScreens.push(screen)
