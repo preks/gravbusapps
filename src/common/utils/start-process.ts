@@ -7,7 +7,7 @@ export interface ProcessStartInfo {
   processName: string
   payload?: { [key: string]: any }
   processInstanceId?: string
-  builderType?: 'NATIVE_SCREEN' | 'LOWCODER'
+  builderType?: 'NATIVE_SCREEN'
   skipScreen?: boolean
   targetDesktop?: string
   targetMobile?: string
@@ -38,7 +38,7 @@ export function startProcess({
   processName,
   payload,
   processInstanceId,
-  builderType = 'LOWCODER',
+  builderType = 'NATIVE_SCREEN',
   skipScreen = false,
   targetDesktop,
   targetMobile
