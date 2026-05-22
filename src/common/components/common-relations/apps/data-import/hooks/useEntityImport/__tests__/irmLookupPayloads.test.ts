@@ -100,4 +100,31 @@ describe('toInvestmentOpportunityPayload — lookup arrays from Flowbot', () => 
 
     expect(payload.ownerEmployee).toBe('employee-from-row')
   })
+
+  it('forwards investmentCompanyId as investmentCompany in the payload', () => {
+    const payload = toInvestmentOpportunityPayload(
+      {
+        name: 'Deal B',
+        investmentCompanyId: 'investment-company-uuid'
+      },
+      undefined
+    )
+
+    expect(payload.name).toBe('Deal B')
+    expect(payload.investmentCompany).toBe('investment-company-uuid')
+    expect(payload.investmentCompanyId).toBeUndefined()
+  })
+
+  it('omits investmentCompany when not provided by Flowbot', () => {
+    const payload = toInvestmentOpportunityPayload(
+      {
+        name: 'Deal C',
+        ownerEmployee: 'employee-resolved-id'
+      },
+      undefined
+    )
+
+    expect(payload.name).toBe('Deal C')
+    expect(payload.investmentCompany).toBeUndefined()
+  })
 })

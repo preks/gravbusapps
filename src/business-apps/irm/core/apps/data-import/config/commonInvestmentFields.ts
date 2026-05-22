@@ -73,5 +73,6 @@ export const COMMON_INVESTMENT_FIELDS: TargetFieldDefinition[] = [
   { value: 'investment.ownerEmployeeId', label: 'Owner Employee ID', type: 'direct' },
 
   // Relationships
+  { value: 'investment.investmentCompanyId', label: 'Investment Company ID', type: 'direct' },
   { value: 'investment.investmentAccountId', label: 'Investment Account ID', type: 'direct' }
 ]
