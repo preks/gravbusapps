@@ -79969,9 +79969,9 @@
     ]
   },
   "mdm/apps/compensation-data": {
-    "bitbucketBuildNumber": 12446,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12446/",
-    "chunkJsBytes": 229626,
+    "bitbucketBuildNumber": 12504,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12504/",
+    "chunkJsBytes": 234251,
     "top": [
       {
         "kind": "bucket",
@@ -79994,8 +79994,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/mdm",
-        "rendered": 87366,
-        "gzip": 23253,
+        "rendered": 87403,
+        "gzip": 23255,
         "leaves": [
           {
             "name": "src/business-apps/mdm/apps/compensation-data/components/tabs/CompensationBandPolicyTab.tsx",
@@ -80030,8 +80030,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 26117,
-        "gzip": 7164,
+        "rendered": 35464,
+        "gzip": 9210,
         "leaves": [
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -80039,9 +80039,9 @@
             "gzip": 2181
           },
           {
-            "name": "src/common/network/orgchart/OrgchartClient.ts",
-            "rendered": 6150,
-            "gzip": 1052
+            "name": "src/common/network/catalogs/CatalogManagerClient.ts",
+            "rendered": 8482,
+            "gzip": 1699
           }
         ]
       },
@@ -80153,6 +80153,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/business-apps/hr",
+        "rendered": 1681,
+        "gzip": 664,
+        "leaves": [
+          {
+            "name": "src/business-apps/hr/compensation-planning/apps/compensation-planning/hooks/useCurrencyCatalogOptions.ts",
+            "rendered": 1681,
+            "gzip": 664
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/providers",
         "rendered": 953,
         "gzip": 396,
@@ -80252,19 +80265,6 @@
             "name": "src/common/types/constants/FeatureHub.ts",
             "rendered": 148,
             "gzip": 113
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/runtime",
-        "rendered": 38,
-        "gzip": 58,
-        "leaves": [
-          {
-            "name": "src/common/runtime/globalNetworkInterceptorsBootstrap.ts",
-            "rendered": 38,
-            "gzip": 58
           }
         ]
       }
@@ -88310,20 +88310,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12503,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12503/",
-    "chunkJsBytes": 1922142,
+    "bitbucketBuildNumber": 12504,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12504/",
+    "chunkJsBytes": 1922105,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1626152,
-        "gzip": 102372,
+        "rendered": 1626109,
+        "gzip": 102357,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1626152,
-            "gzip": 102372
+            "rendered": 1626109,
+            "gzip": 102357
           }
         ]
       },
@@ -110074,7 +110074,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-22T11:12:11.031Z",
+    "generatedAt": "2026-05-22T11:55:07.415Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
