@@ -80,7 +80,15 @@ const getMonthTranslation = (monthName: string): string => {
   return monthName
 }
 
-const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTypes, getTypeColor, monthAggMap }) => {
+export const ServerBackedTooltip: React.FC<any> = ({
+  active,
+  payload,
+  label,
+  absenceTypes,
+  getTypeColor,
+  monthAggMap,
+  'data-testid': dataTestId
+}) => {
   if (!active || !payload?.length) return null
   const monthData = payload[0].payload
   const serverAgg = monthAggMap?.[String(label)] || null
@@ -90,7 +98,7 @@ const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTyp
   const distinctEmployees = serverAgg?.distinctEmployees ?? monthData.uniqueEmployees ?? 0
 
   return (
-    <div className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow">
+    <div data-testid={dataTestId} className="gba:bg-card gba:p-3 gba:border gba:rounded gba:shadow">
       <p className="gba:font-medium gba:mb-2">{getMonthTranslation(label)}</p>
       <p className="gba:text-sm gba:text-muted-foreground gba:mb-2">
         {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total', 'Total')}:{' '}
