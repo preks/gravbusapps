@@ -88310,20 +88310,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12504,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12504/",
-    "chunkJsBytes": 1922105,
+    "bitbucketBuildNumber": 12516,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12516/",
+    "chunkJsBytes": 1922150,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1626109,
-        "gzip": 102357,
+        "rendered": 1626171,
+        "gzip": 102443,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1626109,
-            "gzip": 102357
+            "rendered": 1626171,
+            "gzip": 102443
           }
         ]
       },
@@ -100503,15 +100503,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 12494,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12494/",
-    "chunkJsBytes": 935552,
+    "bitbucketBuildNumber": 12516,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12516/",
+    "chunkJsBytes": 945457,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1291495,
-        "gzip": 331903,
+        "rendered": 1309146,
+        "gzip": 335976,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/workspace/WorkspaceRightPanel.tsx",
@@ -109756,9 +109756,9 @@
     ]
   },
   "hr/core/apps/skill-management": {
-    "bitbucketBuildNumber": 12446,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12446/",
-    "chunkJsBytes": 592225,
+    "bitbucketBuildNumber": 12516,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12516/",
+    "chunkJsBytes": 592839,
     "top": [
       {
         "kind": "bucket",
@@ -109781,8 +109781,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 124666,
-        "gzip": 32876,
+        "rendered": 125940,
+        "gzip": 33084,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/skill-management/components/SkillDirectoryTab.tsx",
@@ -110074,7 +110074,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-22T11:55:07.415Z",
+    "generatedAt": "2026-05-22T16:39:01.489Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
