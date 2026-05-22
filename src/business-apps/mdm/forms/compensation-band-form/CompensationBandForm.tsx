@@ -1,3 +1,4 @@
+import { useCurrencyCatalogOptions } from '@/business-apps/hr/compensation-planning/apps/compensation-planning/hooks/useCurrencyCatalogOptions.ts'
 import { SetStateAction, Dispatch, useMemo, ReactNode, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext.ts'
 import { FormWrapperModal } from '@/components/form-wrapper'
@@ -49,7 +50,14 @@ export default function CompensationBandForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const { options: currencyOptions, loading: loadingCurrencies } = useCurrencyCatalogOptions(accessToken)
   const { createCompensationBand, updateCompensationBand } = useCompensationBandQueries(accessToken)
+
+  // Parse currency options from Catalog
+  const currencies = currencyOptions.map(option => ({
+    value: option.id,
+    label: option.label
+  }))
 
   // Use external state if provided, otherwise use internal
   const dialogOpen = open ?? internalOpen
@@ -77,7 +85,7 @@ export default function CompensationBandForm({
       compensationBand: {
         name: validatedValues.name,
         description: validatedValues.description || '',
-        currency: validatedValues.currencyRef,
+        currencyRef: validatedValues.currencyRef,
         minSalary: validatedValues.minSalary,
         maxSalary: validatedValues.maxSalary,
         ...(compensationBand ? { id: compensationBand.id, version: compensationBand.version } : {})
@@ -124,7 +132,7 @@ export default function CompensationBandForm({
         onCancel={onCancel}
         defaultValues={defaultValues}
         isEditing={!!compensationBand}
-        loading={loading}
+        loading={loading || loadingCurrencies}
         dataTestId={`${prefixDataTestId}-form-modal`}
         isDrawerActive={isDrawerActive}
         open={dialogOpen}
@@ -178,16 +186,11 @@ export default function CompensationBandForm({
           />
         </div>
 
-        {/* TODO: These options should be dynamic (from Catalog)*/}
         <SelectField<CompensationBandFormValues>
           name="currencyRef"
           label="Currency"
           required
-          options={[
-            { value: 'Currency:v1:EUR', label: 'Euro (EUR)' },
-            { value: 'Currency:v1:USD', label: 'US Dollar (USD)' },
-            { value: 'Currency:v1:RON', label: 'Romanian Leu (RON)' }
-          ]}
+          options={currencies}
           placeholder="Select currency"
           dataTestId={`${prefixDataTestId}-currency-select`}
         />
