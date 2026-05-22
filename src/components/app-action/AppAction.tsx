@@ -26,7 +26,8 @@ const actionVariants = {
     lazyLoad: true,
     emptyState: 'enable',
     autoExecute: false,
-    defaultChildren: <Icon icon={DotsThreeVerticalIcon} />
+    defaultChildren: <Icon icon={DotsThreeVerticalIcon} />,
+    defaultAriaLabelKey: 'app-action-aria-row-actions'
   },
 
   'list-item': {
@@ -36,7 +37,8 @@ const actionVariants = {
     lazyLoad: true,
     emptyState: 'enable',
     autoExecute: false,
-    defaultChildren: <Icon icon={DotsThreeVerticalIcon} />
+    defaultChildren: <Icon icon={DotsThreeVerticalIcon} />,
+    defaultAriaLabelKey: 'app-action-aria-item-actions'
   },
 
   header: {
@@ -46,7 +48,8 @@ const actionVariants = {
     lazyLoad: false,
     emptyState: 'hide',
     autoExecute: false,
-    defaultChildren: <Icon icon={DotsThreeVerticalIcon} />
+    defaultChildren: <Icon icon={DotsThreeVerticalIcon} />,
+    defaultAriaLabelKey: 'app-action-aria-open-menu'
   },
 
   'create-primary': {
@@ -65,7 +68,8 @@ const actionVariants = {
     lazyLoad: false,
     emptyState: 'hide',
     autoExecute: true,
-    defaultChildren: <Icon icon={PlusIcon} />
+    defaultChildren: <Icon icon={PlusIcon} />,
+    defaultAriaLabelKey: 'app-action-button-create'
   },
 
   'update-primary': {
@@ -84,7 +88,8 @@ const actionVariants = {
     lazyLoad: false,
     emptyState: 'hide',
     autoExecute: true,
-    defaultChildren: <Icon icon={PencilIcon} />
+    defaultChildren: <Icon icon={PencilIcon} />,
+    defaultAriaLabelKey: 'app-action-aria-edit'
   },
 
   'delete-primary': {
@@ -103,7 +108,8 @@ const actionVariants = {
     lazyLoad: false,
     emptyState: 'hide',
     autoExecute: true,
-    defaultChildren: <Icon icon={TrashIcon} />
+    defaultChildren: <Icon icon={TrashIcon} />,
+    defaultAriaLabelKey: 'app-action-button-delete'
   }
 } as const
 
@@ -135,6 +141,14 @@ export interface AppActionProps {
   onClick?: (e: React.MouseEvent) => void
   'data-testid'?: string
   prefixDataTestId?: string
+  /**
+   * Accessible name for icon-only triggers/buttons. Required for screen-reader
+   * users and voice-control users since icon variants render no visible text.
+   * If omitted, a sensible default from the variant is used (e.g. variant
+   * "header" → "Open actions menu"). Pass a context-specific label when the
+   * default is too generic (e.g. "Edit employee profile").
+   */
+  ariaLabel?: string
 
   // Deprecated API
   /** @deprecated Use contexts with contextData Array<{ context: FlowContextName | string, contextData: Record<string, any> }> instead */
@@ -172,8 +186,9 @@ const AppActionRenderer: React.FC<{
   onActionExecute?: () => void
   autoExecute?: boolean
   'data-testid'?: string
+  ariaLabel?: string
 }> = props => {
-  const { mode, config, autoExecute, children, disabled, onClick, 'data-testid': customDataTestId } = props
+  const { mode, config, autoExecute, children, disabled, onClick, ariaLabel, 'data-testid': customDataTestId } = props
   const { t } = useTranslation(translations)
 
   // Force immediate loading for trigger mode (no deferred loading)
@@ -289,6 +304,7 @@ const AppActionRenderer: React.FC<{
             disabled={disabled}
             className={props.className}
             data-testid={buttonTestId}
+            aria-label={ariaLabel}
             onClick={e => {
               e.stopPropagation()
               e.preventDefault()
@@ -311,6 +327,7 @@ const AppActionRenderer: React.FC<{
         onClick={handleStandardClick}
         className={props.className}
         data-testid={buttonTestId}
+        aria-label={ariaLabel}
       >
         {children}
       </Button>
@@ -356,7 +373,8 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
     staticFlowData: legacyStaticFlowData,
     deferMainContextRequestsUntilClick,
     autoExecuteSingleAction,
-    emptyStateBehavior
+    emptyStateBehavior,
+    ariaLabel: propAriaLabel
   } = props
 
   // Transform contexts to contextsArray and externalContextData
@@ -394,8 +412,15 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
   const buttonSize = propButtonSize ?? variantConfig?.buttonSize
   const buttonVariant =
     propButtonVariant ?? (variantConfig && 'buttonVariant' in variantConfig ? variantConfig.buttonVariant : undefined)
-
   const { t } = useTranslation(translations)
+  // Fall back to the variant's default aria-label so icon-only triggers always
+  // expose an accessible name to screen readers and voice-control users.
+  // The default is stored as a translation key so screen readers announce it
+  // in the user's language (en-US / de-DE / ro-RO).
+  const resolvedAriaLabel =
+    propAriaLabel ??
+    (variantConfig && 'defaultAriaLabelKey' in variantConfig ? t(variantConfig.defaultAriaLabelKey) : undefined)
+
   let children: React.ReactNode
   if (propChildren) {
     const isPrimaryVariant =
@@ -492,6 +517,7 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
       onActionExecute={onActionExecute}
       autoExecute={autoExecute}
       data-testid={customDataTestId}
+      ariaLabel={resolvedAriaLabel}
     >
       {children}
     </AppActionRenderer>
