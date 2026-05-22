@@ -251,12 +251,79 @@ function buildNativeProdScreenSyncBody(devScreen, buildVersion) {
 }
 
 /**
- * Delete prod NATIVE_SCREEN rows before comprehensive sync (union):
+ * Paginate GET /screen from Screen Management (optional builderType filter).
+ * @param {string|null} apiEndpoint
+ * @param {Object} oauthConfig
+ * @param {{ builderType?: string|null, logLabel?: string }} options
+ * @returns {Promise<Array>}
+ */
+async function fetchAllScreensPaginated(apiEndpoint = null, oauthConfig = {}, options = {}) {
+  const { builderType = null, logLabel = builderType ? `${builderType} screens` : 'screens (all builder types)' } =
+    options
+  const oauthClient = new OAuthClient(oauthConfig)
+  const accessToken = await oauthClient.getAccessToken()
+  const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
+
+  let allScreens = []
+  let offset = 0
+  const limit = 100
+  let hasMore = true
+
+  console.log(`Fetching all ${logLabel}...`)
+
+  while (hasMore) {
+    try {
+      const params = {
+        limit,
+        offset,
+        returnTotalRecords: offset === 0
+      }
+      if (builderType) {
+        params.builderType = builderType
+      }
+
+      const response = await http.get(`${screenManagementApi}/screen`, {
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${accessToken}`
+        },
+        params
+      })
+
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        const screens = response.data.data
+        allScreens = allScreens.concat(screens)
+        if (screens.length < limit) {
+          hasMore = false
+        } else {
+          offset += limit
+        }
+      } else {
+        hasMore = false
+      }
+    } catch (error) {
+      logAxiosError('screenManagement.fetchAllScreensPaginated.batch', error, {
+        offset,
+        limit,
+        screenManagementApi,
+        builderType
+      })
+      console.error(`Failed to fetch screens at offset ${offset}:`, error.message)
+      throw error
+    }
+  }
+
+  console.log(`Successfully fetched ${allScreens.length} total ${logLabel}`)
+  return allScreens
+}
+
+/**
+ * Delete prod rows (all builder types) before comprehensive sync (union):
  * - `formDefinition.componentPath` matches any normalized path from dev, OR
  * - `screenKey` is in `screenKeysToPurge` (dev keys for this publish batch).
  *
- * Screen-management enforces unique `screenKey` on create (`ApplicationScreenValidator.validateUniqueFields` /
- * `existsByScreenKey`); purge-by-key clears prod rows whose path did not match the path filter.
+ * Includes LOWCODER/FORM rows so POST create is not blocked by legacy rows after Mongo migration.
+ * Screen-management enforces unique `screenKey` on create (`existsByScreenKey`).
  *
  * @param {string[]} normalizedPaths - paths without leading slash (e.g. hr/core/forms/foo)
  * @param {string} prodScreenManagementApi
@@ -264,7 +331,7 @@ function buildNativeProdScreenSyncBody(devScreen, buildVersion) {
  * @param {string[]|null} screenKeysToPurge - dev screenKeys for this batch (optional)
  * @returns {{ deleted: number, matched: number, alreadyDeleted: number, failed: number, failures: Array<{ screenKey: string, id: string, error: string }> }}
  */
-async function deleteProdNativeScreensByComponentPaths(
+async function deleteProdScreensByComponentPaths(
   normalizedPaths,
   prodScreenManagementApi,
   prodOauthConfig,
@@ -273,27 +340,43 @@ async function deleteProdNativeScreensByComponentPaths(
   const paths = [...new Set((normalizedPaths || []).map(normalizeFormComponentPath).filter(Boolean))]
   const keySet = new Set((screenKeysToPurge || []).map(k => String(k || '').trim()).filter(Boolean))
 
-  if (paths.length === 0 && keySet.size === 0) return { deleted: 0, matched: 0 }
+  if (paths.length === 0 && keySet.size === 0) {
+    return { deleted: 0, matched: 0, alreadyDeleted: 0, failed: 0, failures: [] }
+  }
 
-  const allProd = await getAllNativeScreens(prodScreenManagementApi, prodOauthConfig)
-  const matched = allProd.filter(s => {
-    const key = s.screenKey ? String(s.screenKey).trim() : ''
-    if (key && keySet.has(key)) return true
-    if (paths.length > 0 && screenMatchesAnyPurgePath(s, paths)) return true
-    return false
+  const allProd = await fetchAllScreensPaginated(prodScreenManagementApi, prodOauthConfig, {
+    logLabel: 'screens for purge (all builder types)'
   })
+
+  const seenIds = new Set()
+  const matched = []
+  for (const screen of allProd) {
+    const id = screen.id != null ? String(screen.id) : ''
+    if (!id || seenIds.has(id)) continue
+
+    const key = screen.screenKey ? String(screen.screenKey).trim() : ''
+    const matches = (key && keySet.has(key)) || (paths.length > 0 && screenMatchesAnyPurgePath(screen, paths))
+    if (!matches) continue
+
+    seenIds.add(id)
+    matched.push(screen)
+  }
+
   let deleted = 0
   let alreadyDeleted = 0
   const failures = []
   for (const screen of matched) {
+    const builderType = screen.screenComponents?.builderType ?? 'unknown'
     try {
       await deleteScreenInScreenManagement(screen.id, prodScreenManagementApi, prodOauthConfig)
       deleted++
-      console.log(`   Purged prod screen screenKey=${screen.screenKey} id=${screen.id}`)
+      console.log(`   Purged prod screen screenKey=${screen.screenKey} builderType=${builderType} id=${screen.id}`)
     } catch (error) {
       if (error?.response?.status === 404) {
         alreadyDeleted++
-        console.log(`   Screen already absent during purge screenKey=${screen.screenKey} id=${screen.id}`)
+        console.log(
+          `   Screen already absent during purge screenKey=${screen.screenKey} builderType=${builderType} id=${screen.id}`
+        )
         continue
       }
 
@@ -303,11 +386,16 @@ async function deleteProdNativeScreensByComponentPaths(
         error: error.message
       })
       console.log(
-        `   WARNING: Failed to purge prod screen screenKey=${screen.screenKey} id=${screen.id}: ${error.message}`
+        `   WARNING: Failed to purge prod screen screenKey=${screen.screenKey} builderType=${builderType} id=${screen.id}: ${error.message}`
       )
     }
   }
   return { deleted, matched: matched.length, alreadyDeleted, failed: failures.length, failures }
+}
+
+/** @deprecated Use deleteProdScreensByComponentPaths */
+async function deleteProdNativeScreensByComponentPaths(...args) {
+  return deleteProdScreensByComponentPaths(...args)
 }
 
 /**
@@ -863,54 +951,10 @@ async function addFormAsUserTaskScreen(processName, taskName, azureDestinationPa
  */
 async function getAllNativeScreens(apiEndpoint = null, oauthConfig = {}) {
   try {
-    const oauthClient = new OAuthClient(oauthConfig)
-    const accessToken = await oauthClient.getAccessToken()
-    const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
-
-    let allScreens = []
-    let offset = 0
-    const limit = 100
-    let hasMore = true
-
-    console.log('Fetching all NATIVE_SCREEN screens...')
-
-    while (hasMore) {
-      try {
-        const response = await http.get(`${screenManagementApi}/screen`, {
-          headers: {
-            accept: 'application/json',
-            authorization: `Bearer ${accessToken}`
-          },
-          params: {
-            builderType: 'NATIVE_SCREEN',
-            limit: limit,
-            offset: offset,
-            returnTotalRecords: offset === 0 // Only get total on first request
-          }
-        })
-
-        if (response.data && response.data.data && Array.isArray(response.data.data)) {
-          const screens = response.data.data
-          allScreens = allScreens.concat(screens)
-
-          // Check if we have more data
-          if (screens.length < limit) {
-            hasMore = false
-          } else {
-            offset += limit
-          }
-        } else {
-          hasMore = false
-        }
-      } catch (error) {
-        logAxiosError('screenManagement.getAllNativeScreens.batch', error, { offset, limit, screenManagementApi })
-        console.error(`Failed to fetch screens at offset ${offset}:`, error.message)
-        throw error
-      }
-    }
-
-    console.log(`Successfully fetched ${allScreens.length} total NATIVE_SCREEN screens`)
-    return allScreens
+    return await fetchAllScreensPaginated(apiEndpoint, oauthConfig, {
+      builderType: 'NATIVE_SCREEN',
+      logLabel: 'NATIVE_SCREEN screens'
+    })
   } catch (error) {
     logAxiosError('screenManagement.getAllNativeScreens', error, { apiEndpoint })
     console.error('Failed to get all native screens:', error.message)
@@ -999,7 +1043,7 @@ async function syncResourceUrlWithSameId(devResourceUrl, prodNavigationApi, prod
 
 /**
  * Sync screen from dev to prod: POST create only.
- * Callers must purge prod first (path ∪ screenKey) so `screenKey` is free; see `deleteProdNativeScreensByComponentPaths`.
+ * Callers must purge prod first (path ∪ screenKey) so `screenKey` is free; see `deleteProdScreensByComponentPaths`.
  *
  * @param {Object} devScreen - The screen object from dev environment
  * @param {string} prodScreenManagementApi - Production screen management API endpoint
@@ -1070,6 +1114,7 @@ export {
   convertScreenKeyToUrl,
   syncResourceUrlWithSameId,
   syncScreenFromDevToProd,
+  deleteProdScreensByComponentPaths,
   deleteProdNativeScreensByComponentPaths,
   // helpers for prod publish
   deleteScreenInScreenManagement,
