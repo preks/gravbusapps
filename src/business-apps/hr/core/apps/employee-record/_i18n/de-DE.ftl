@@ -967,3 +967,10 @@ relationship-form-success-child-message-line1 = Herzlichen Glückwunsch zum Fami
 relationship-form-success-child-message-line2 = Vielen Dank, dass Sie diese schöne Lebensveränderung mit uns teilen und Ihre Daten aktuell halten.
 relationship-form-success-marriage-message = Herzlichen Glückwunsch zur Hochzeit und vielen Dank für die Aktualisierung der Daten
 relationship-form-success-ok = OK
+
+# Change Working Hours
+working-hours-standard-full-time-option = Standard-Vollzeit
+working-hours-standard-full-time-description = Montag bis Freitag mit jeweils 8 Stunden vorausfüllen.
+working-hours-customize-by-day-option = Nach Tag anpassen
+working-hours-customize-by-day-description = Geben Sie die Stunden für jeden Tag manuell ein.
+working-hours-distribute-evenly-action = Gleichmäßig verteilen

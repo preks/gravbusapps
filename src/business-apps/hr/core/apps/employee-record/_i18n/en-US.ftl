@@ -980,3 +980,10 @@ relationship-form-success-child-message-line1 = Congratulations on your growing 
 relationship-form-success-child-message-line2 = Thank you for sharing this wonderful life update and keeping your information up to date.
 relationship-form-success-marriage-message = Congratulations on your wedding and thank you for updating your details
 relationship-form-success-ok = OK
+
+# Change Working Hours
+working-hours-standard-full-time-option = Standard full time
+working-hours-standard-full-time-description = Prefill Monday to Friday with 8 hours.
+working-hours-customize-by-day-option = Customize by day
+working-hours-customize-by-day-description = Enter the hours for each day manually.
+working-hours-distribute-evenly-action = Distribute evenly
