@@ -13,6 +13,20 @@ interface EmployeeSkillForMerge {
   employee: { id: string }
 }
 
+function resolveEmployeeSkillVersion(skill: EmployeeSkillForMerge): number {
+  if (typeof skill.version === 'number') {
+    return skill.version
+  }
+  return 0
+}
+
+function resolveSkillVersion(version?: number | null): number {
+  if (typeof version === 'number') {
+    return version
+  }
+  return 0
+}
+
 export interface MergeProgress {
   current: number
   total: number
@@ -96,13 +110,14 @@ export function useSkillMerge(accessToken: string) {
               )
 
               for (const employeeSkill of nonConflicts) {
+                const employeeSkillVersion = resolveEmployeeSkillVersion(employeeSkill)
                 await restClient.post(
                   '/saveEmployeeSkill',
                   {
                     changeMode: 'UPDATE',
                     employeeSkill: {
                       id: employeeSkill.id,
-                      version: employeeSkill.version,
+                      version: employeeSkillVersion,
                       skill: proposal.targetSkill.id,
                       employeeId: employeeSkill.employee.id,
                       level: employeeSkill.level,
@@ -114,11 +129,19 @@ export function useSkillMerge(accessToken: string) {
               }
 
               for (const employeeSkill of conflicts) {
+                const employeeSkillVersion = resolveEmployeeSkillVersion(employeeSkill)
                 await restClient.post(
                   '/saveEmployeeSkill',
                   {
                     changeMode: 'DELETE',
-                    employeeSkill: { id: employeeSkill.id, version: employeeSkill.version }
+                    employeeSkill: {
+                      id: employeeSkill.id,
+                      version: employeeSkillVersion,
+                      skill: duplicate.id,
+                      employeeId: employeeSkill.employee.id,
+                      level: employeeSkill.level,
+                      employeeSkillStatus: employeeSkill.employeeSkillStatus
+                    }
                   },
                   headers
                 )
@@ -129,7 +152,7 @@ export function useSkillMerge(accessToken: string) {
               )
 
               const skillVersionResult = await graphqlClient.request(GET_SKILL_VERSION, { skillId: duplicate.id })
-              const skillVersion = skillVersionResult?.skill?.version
+              const skillVersion = resolveSkillVersion(skillVersionResult?.skill?.version)
 
               await restClient.post(
                 '/saveSkill',
