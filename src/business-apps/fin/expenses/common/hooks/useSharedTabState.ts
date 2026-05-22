@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { SortingState } from '@tanstack/react-table'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CurrencyDropdown } from '../components/CurrencyDropdown'
 
 /** Pushes `contentHeader` to the parent shell when it changes (e.g. statistics strip). */
@@ -83,14 +82,7 @@ export function useEmptyMessage(
   filteredEmptyLabel?: string
 ) {
   return useMemo(
-    () =>
-      hasActiveFilters
-        ? (filteredEmptyLabel ??
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
-            'No data available'
-          ))
-        : getTranslationFromI18nKeyAndLabel(noDataI18nKey, noDataFallback),
+    () => (hasActiveFilters ? (filteredEmptyLabel ?? 'No data available') : noDataFallback),
     [hasActiveFilters, noDataI18nKey, noDataFallback, filteredEmptyLabel]
   )
 }

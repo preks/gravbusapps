@@ -41,6 +41,8 @@ filter-to = To
 filter-status = Status
 filter-employee = Employee
 filter-amount = Amount
+expense-plans-filter-amount-min = Min amount
+expense-plans-filter-amount-max = Max amount
 filter-advance = Advance
 filter-request-type = Request Type
 filter-request-type-expense = Expense
@@ -486,6 +488,10 @@ error-failed-load-pdf = Failed to load PDF
 error-unknown = Unknown error occurred
 error-failed-load-expense-groups = Failed to load expense group data
 error-failed-load-filter-data = Failed to fetch filter data
+
+filter-amount-range = Amount Range
+filter-panel-expense-requests = Filter Expense Requests
+filter-department-label = Department
 
 # Insights & Reports
 quick-actions-title = Insights & Reports

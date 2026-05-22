@@ -29,6 +29,8 @@ interface QueryFilterState {
   readonly employeeFilter: string
   readonly amountMinFilter: string
   readonly amountMaxFilter: string
+  readonly remainingMinFilter: string
+  readonly remainingMaxFilter: string
   readonly departmentIds: string[]
   readonly currencyRef: string
   readonly effectiveDateRange: any[] | null
@@ -43,6 +45,8 @@ export function useExpenseRequestQueryBuilder(state: QueryFilterState) {
     employeeFilter,
     amountMinFilter,
     amountMaxFilter,
+    remainingMinFilter,
+    remainingMaxFilter,
     departmentIds,
     currencyRef,
     effectiveDateRange,
@@ -51,12 +55,19 @@ export function useExpenseRequestQueryBuilder(state: QueryFilterState) {
     searchText
   } = state
 
-  const buildAmountCondition = useCallback((): any => {
+  const buildTotalAmountCondition = useCallback((): any => {
     const result = buildNumericRangeCondition(amountMinFilter, amountMaxFilter, range => ({
-      reimbursableAmount: range
+      totalAmount: range
     }))
     return result.length > 0 ? result[0] : null
   }, [amountMinFilter, amountMaxFilter])
+
+  const buildRemainingAmountCondition = useCallback((): any => {
+    const result = buildNumericRangeCondition(remainingMinFilter, remainingMaxFilter, range => ({
+      totalRemainingAmount: range
+    }))
+    return result.length > 0 ? result[0] : null
+  }, [remainingMinFilter, remainingMaxFilter])
 
   const buildAllFilterConditions = useCallback((): any[] => {
     const conditions: any[] = []
@@ -67,7 +78,8 @@ export function useExpenseRequestQueryBuilder(state: QueryFilterState) {
 
     const employeeCond = buildEmployeeFilterCondition(employeeFilter)
     if (employeeCond.length > 0) conditions.push(employeeCond[0])
-    pushIfPresent(conditions, buildAmountCondition())
+    pushIfPresent(conditions, buildTotalAmountCondition())
+    pushIfPresent(conditions, buildRemainingAmountCondition())
     if (departmentIds.length > 0) {
       conditions.push({
         employee: { employeePosition: { organizationalUnitId: { _in: departmentIds } } }
@@ -91,7 +103,8 @@ export function useExpenseRequestQueryBuilder(state: QueryFilterState) {
   }, [
     statusFilter,
     employeeFilter,
-    buildAmountCondition,
+    buildTotalAmountCondition,
+    buildRemainingAmountCondition,
     departmentIds,
     currencyRef,
     effectiveDateRange,

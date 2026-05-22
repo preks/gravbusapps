@@ -315,6 +315,10 @@ personal-expenses-no-advance-payment-statistics = No advance payment statistics 
 personal-expenses-no-advance-payments-found = No advance payments found. Create your first advance payment to get started.
 personal-expenses-user-information-not-loaded = User information not loaded yet. Please wait a moment and try again.
 
+error-boundary-title = Something went wrong
+error-boundary-details = Error details
+error-boundary-retry = Try again
+
 # Expense Plans tab (legacy lowcoder keys; en-US from transl.txt)
 
 # List & empty state
@@ -440,3 +444,7 @@ personal-expenses-ready-for-processing = Ready for processing
 personal-expenses-no-advance-payment-statistics = No advance payment statistics available.
 personal-expenses-no-advance-payments-found = No advance payments found. Create your first advance payment to get started.
 personal-expenses-user-information-not-loaded = User information not loaded yet. Please wait a moment and try again.
+
+error-boundary-title = Something went wrong
+error-boundary-details = Error details
+error-boundary-retry = Try again

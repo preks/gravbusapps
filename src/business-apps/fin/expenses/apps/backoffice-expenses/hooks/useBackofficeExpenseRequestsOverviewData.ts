@@ -22,6 +22,8 @@ export interface BackofficeExpenseRequestsOverviewParams {
   statusFilter: string
   amountMinFilter: string
   amountMaxFilter: string
+  remainingMinFilter: string
+  remainingMaxFilter: string
   departmentFilter: string
   currencyRefFilter: string
   effectiveDateRangeFilter: { from?: string; to?: string } | null
@@ -32,9 +34,15 @@ export interface BackofficeExpenseRequestsOverviewParams {
   orderBy: unknown[]
 }
 
-function buildAmountFilterCondition(amountMin?: string, amountMax?: string): any[] {
+function buildTotalAmountFilterCondition(amountMin?: string, amountMax?: string): any[] {
   return buildNumericRangeCondition(amountMin, amountMax, amountConditions => ({
-    reimbursableAmount: amountConditions
+    totalAmount: amountConditions
+  }))
+}
+
+function buildRemainingAmountFilterCondition(remainingMin?: string, remainingMax?: string): any[] {
+  return buildNumericRangeCondition(remainingMin, remainingMax, amountConditions => ({
+    totalRemainingAmount: amountConditions
   }))
 }
 
@@ -99,6 +107,8 @@ function buildWhereConditions(
     | 'employeeFilter'
     | 'amountMinFilter'
     | 'amountMaxFilter'
+    | 'remainingMinFilter'
+    | 'remainingMaxFilter'
     | 'searchTerm'
     | 'departmentFilter'
     | 'currencyRefFilter'
@@ -112,6 +122,8 @@ function buildWhereConditions(
     employeeFilter,
     amountMinFilter,
     amountMaxFilter,
+    remainingMinFilter,
+    remainingMaxFilter,
     searchTerm,
     departmentFilter,
     currencyRefFilter,
@@ -127,7 +139,8 @@ function buildWhereConditions(
     { status: { _nin: excludedStatuses } },
     ...buildStatusFilterCondition(statusFilter),
     ...buildEmployeeFilterCondition(employeeFilter),
-    ...buildAmountFilterCondition(amountMinFilter, amountMaxFilter),
+    ...buildTotalAmountFilterCondition(amountMinFilter, amountMaxFilter),
+    ...buildRemainingAmountFilterCondition(remainingMinFilter, remainingMaxFilter),
     ...buildSearchCondition(searchTerm)
   ]
 
@@ -162,6 +175,8 @@ export function useBackofficeExpenseRequestsOverviewData(params: BackofficeExpen
     statusFilter,
     amountMinFilter,
     amountMaxFilter,
+    remainingMinFilter,
+    remainingMaxFilter,
     departmentFilter,
     currencyRefFilter,
     effectiveDateRangeFilter,
@@ -203,6 +218,8 @@ export function useBackofficeExpenseRequestsOverviewData(params: BackofficeExpen
         statusFilter,
         amountMinFilter,
         amountMaxFilter,
+        remainingMinFilter,
+        remainingMaxFilter,
         departmentFilter,
         currencyRefFilter,
         effectiveDateRange: effectiveDateRangeFilter,
@@ -234,6 +251,8 @@ export function useBackofficeExpenseRequestsOverviewData(params: BackofficeExpen
           employeeFilter,
           amountMinFilter,
           amountMaxFilter,
+          remainingMinFilter,
+          remainingMaxFilter,
           searchTerm,
           departmentFilter,
           currencyRefFilter,
@@ -283,6 +302,8 @@ export function useBackofficeExpenseRequestsOverviewData(params: BackofficeExpen
       statusFilter,
       amountMinFilter,
       amountMaxFilter,
+      remainingMinFilter,
+      remainingMaxFilter,
       departmentFilter,
       currencyRefFilter,
       effectiveDateRangeFilter,

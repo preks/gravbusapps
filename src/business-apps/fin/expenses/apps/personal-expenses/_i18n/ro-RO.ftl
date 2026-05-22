@@ -293,6 +293,10 @@ personal-expenses-no-advance-payment-statistics = Nu există statistici pentru p
 personal-expenses-no-advance-payments-found = Nu s-au găsit plăți în avans. Creează prima plată în avans pentru a începe.
 personal-expenses-user-information-not-loaded = Informațiile utilizatorului nu sunt încă încărcate. Vă rugăm să așteptați și să încercați din nou.
 
+error-boundary-title = Ceva nu a funcționat
+error-boundary-details = Detalii eroare
+error-boundary-retry = Încearcă din nou
+
 # Expense Plans tab (transl.txt ro)
 
 expense-plans-list-section-title = Planurile Mele de Cheltuieli
@@ -407,3 +411,7 @@ personal-expenses-ready-for-processing = Pregătit pentru procesare
 personal-expenses-no-advance-payment-statistics = Nu există statistici pentru plățile în avans.
 personal-expenses-no-advance-payments-found = Nu s-au găsit plăți în avans. Creează prima plată în avans pentru a începe.
 personal-expenses-user-information-not-loaded = Informațiile utilizatorului nu sunt încă încărcate. Vă rugăm să așteptați și să încercați din nou.
+
+error-boundary-title = Ceva nu a funcționat
+error-boundary-details = Detalii eroare
+error-boundary-retry = Încearcă din nou

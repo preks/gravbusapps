@@ -1,9 +1,8 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
-  createDateRangeFilterGroup,
-  createStatusFilterGroupWithLabel,
-  createTypeFilterGroup
+  createFluentDateRangeFilterGroup,
+  createFluentExpenseAmountRangeFilterGroup,
+  createStatusFilterGroupWithLabel
 } from '@/business-apps/fin/expenses/common/config/filterConfigHelpers'
 
 /**
@@ -19,6 +18,11 @@ export interface BackofficeExpenseRequestFilterConfigOptions {
   t: (key: string) => string
 }
 
+const BACKOFFICE_DATE_RANGE_PLACEHOLDERS = {
+  placeholderStartKey: 'personal-expenses-date-placeholder-start',
+  placeholderEndKey: 'personal-expenses-date-placeholder-end'
+}
+
 export function createBackofficeExpenseRequestFilterConfig({
   statusOptions,
   filterLabelMap,
@@ -27,44 +31,38 @@ export function createBackofficeExpenseRequestFilterConfig({
   t
 }: BackofficeExpenseRequestFilterConfigOptions): FilterConfiguration {
   const statusFilters = statusOptions.map(id => ({ id, label: filterLabelMap?.[id] ?? id }))
+  const departmentLabel = t('header-department')
   const requestTypeOptions = [
     {
       id: 'ExpenseRequestType:v1:EXPENSES',
-      label:
-        filterLabelMap?.['ExpenseRequestType:v1:EXPENSES'] ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+      label: filterLabelMap?.['ExpenseRequestType:v1:EXPENSES'] ?? t('filter-request-type-expense')
     },
     {
       id: 'ExpenseRequestType:v1:TRIP',
-      label:
-        filterLabelMap?.['ExpenseRequestType:v1:TRIP'] ??
-        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+      label: filterLabelMap?.['ExpenseRequestType:v1:TRIP'] ?? t('filter-request-type-trip')
     }
   ]
 
   const groups: FilterConfiguration['groups'] = [
-    createDateRangeFilterGroup(
+    createFluentDateRangeFilterGroup(
+      t,
       'effectiveDate',
       'effectiveDateRange',
-      'lowcoder:personal_expenses.effective_date',
-      'Effective Date',
+      'filter-effective-date',
       effectiveDateGroupInfo,
-      t
+      BACKOFFICE_DATE_RANGE_PLACEHOLDERS
     ),
-    createDateRangeFilterGroup(
+    createFluentDateRangeFilterGroup(
+      t,
       'requestDate',
       'requestDateRange',
-      'lowcoder:confirm_transfer_advance_payment.request_date_label',
-      'Request Date',
+      'filter-creation-date',
       undefined,
-      t
+      BACKOFFICE_DATE_RANGE_PLACEHOLDERS
     ),
     {
       id: 'department-group',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_list.employee_report_filter.department',
-        'Department'
-      ),
+      label: departmentLabel,
       collapsible: true,
       defaultExpanded: false,
       showSearchAbove: true,
@@ -72,59 +70,35 @@ export function createBackofficeExpenseRequestFilterConfig({
         {
           id: 'departmentIds',
           field: 'departmentIds',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_list.employee_report_filter.department',
-            'Department'
-          ),
+          label: departmentLabel,
           type: 'multi-select',
           config: { options: departmentOptions, showSearch: true }
         }
       ]
     },
     createStatusFilterGroupWithLabel(statusFilters, t('filter-status')),
-    createTypeFilterGroup(
-      'requestType',
-      'requestTypeIds',
-      'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
-      'Request Type',
-      requestTypeOptions
-    ),
     {
-      id: 'amount-group',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
+      id: 'requestType-group',
+      label: t('filter-request-type'),
       collapsible: true,
       defaultExpanded: false,
       filters: [
         {
-          id: 'amount',
-          field: 'amount',
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount_range', 'Amount Range'),
-          type: 'number',
-          config: {
-            mode: 'range',
-            min: 0,
-            max: 1000000,
-            step: 100,
-            placeholderMin: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_plan_list.expense_plan_table.min_amount',
-              'Min Amount'
-            ),
-            placeholderMax: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_plan_list.expense_plan_table.max_amount',
-              'Max Amount'
-            )
-          }
+          id: 'requestTypeIds',
+          field: 'requestTypeIds',
+          label: t('filter-request-type'),
+          type: 'multi-select',
+          config: { options: requestTypeOptions }
         }
       ]
-    }
+    },
+    createFluentExpenseAmountRangeFilterGroup(t, 'total-amount', 'totalAmount', 'filter-amount'),
+    createFluentExpenseAmountRangeFilterGroup(t, 'remaining-amount', 'totalRemainingAmount', 'header-remaining-amount')
   ]
 
   return {
     id: 'backoffice-expense-requests-filters',
-    name: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_request_list.expense_plan_table.title',
-      'Filter Expense Requests'
-    ),
+    name: t('filter-panel-expense-requests'),
     groups
   }
 }

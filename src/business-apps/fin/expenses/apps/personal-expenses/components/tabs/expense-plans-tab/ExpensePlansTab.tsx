@@ -57,7 +57,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     setPaidAdvanceAmountRange,
     filterLabelMap,
     addFilter,
-    removeFilter
+    removeFilter,
+    t
   } = useExpensePlanFilters()
 
   const {
@@ -99,7 +100,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       setDestinationFilter,
       activeWidget,
       setActiveWidget,
-      setSuppressCurrencyAutoSelect
+      setSuppressCurrencyAutoSelect,
+      t
     })
 
   const widgetTopDestinationFilterTokens = useMemo(

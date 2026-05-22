@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react'
-import { Input } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Input, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 
 export interface ExpenseAmountRangeFilterProps {
   amountRange?: { min?: number; max?: number } | null
@@ -14,12 +14,12 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
   amountRange,
   onAmountRangeChange,
   className = '',
-  placeholder = [
-    getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount', 'Min Amount'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount', 'Max Amount')
-  ],
+  placeholder: placeholderProp,
   dataTestIdPrefix
 }) => {
+  const { t } = useTranslation(translations)
+  const placeholder = placeholderProp ?? [t('filter-min-amount'), t('filter-max-amount')]
+
   const minFieldId = `${dataTestIdPrefix}-min-field`
   const maxFieldId = `${dataTestIdPrefix}-max-field`
 
@@ -76,7 +76,7 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
       <div className="gba:flex gba:items-center gba:gap-2">
         <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
           <label htmlFor={minFieldId} className="gba:text-xs gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount', 'Min Amount')}
+            {t('filter-min-amount')}
           </label>
           <Input
             id={minFieldId}
@@ -92,7 +92,7 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
         </div>
         <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
           <label htmlFor={maxFieldId} className="gba:text-xs gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount', 'Max Amount')}
+            {t('filter-max-amount')}
           </label>
           <Input
             id={maxFieldId}
@@ -114,7 +114,7 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
           className="gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:border gba:border-border gba:rounded-md gba:hover:bg-muted gba:self-start"
           data-testid={`${dataTestIdPrefix}-clear-button`}
         >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.clear', 'Clear')}
+          {t('filter-amount-clear')}
         </button>
       )}
     </div>

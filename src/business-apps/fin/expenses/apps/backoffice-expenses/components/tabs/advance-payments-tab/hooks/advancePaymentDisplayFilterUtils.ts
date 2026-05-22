@@ -1,6 +1,9 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { formatDateRangeForChip, type DateRange } from '../../../../../../common/utils/dateRangeFilterUtils'
-import { createDateRangeConfig } from '../../../../common/config/filterConfigHelpers'
+import {
+  createDateRangeConfig,
+  createFluentExpenseAmountRangeFilterGroup
+} from '../../../../common/config/filterConfigHelpers'
 import { buildStatusDisplayName } from '../../../../utils/sharedUtils'
 import { getAdvancePaymentStatusDisplay, type TranslateFn } from '../../../../utils/utils'
 import { ADVANCE_PAYMENT_REPORTER_FILTER_GROUP_ID } from '../constants/advancePaymentReporterFilter'
@@ -128,36 +131,8 @@ export function buildAdvancePaymentFilterConfiguration({
           }
         ]
       },
-      {
-        id: 'amount-group',
-        label: t('filter-amount'),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'amount',
-            field: 'amount',
-            label: t('filter-amount'),
-            type: 'number',
-            config: { mode: 'range', min: 0, step: 1 }
-          }
-        ]
-      },
-      {
-        id: 'advance-group',
-        label: t('filter-advance'),
-        collapsible: true,
-        defaultExpanded: false,
-        filters: [
-          {
-            id: 'advance',
-            field: 'advance',
-            label: t('filter-advance'),
-            type: 'number',
-            config: { mode: 'range', min: 0, step: 1 }
-          }
-        ]
-      }
+      createFluentExpenseAmountRangeFilterGroup(t, 'amount', 'amount', 'filter-amount'),
+      createFluentExpenseAmountRangeFilterGroup(t, 'advance', 'advance', 'filter-advance')
     ]
   }
 }

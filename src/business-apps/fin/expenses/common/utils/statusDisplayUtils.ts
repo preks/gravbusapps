@@ -1,5 +1,4 @@
 import { PillType } from '@/components/pill/Pill'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export enum ExpenseStatus {
   PREPARED = 'PREPARED',
@@ -93,39 +92,9 @@ const BASE_STATUS_MAP: Record<StatusKey, StatusLabelRow> = {
   Open: { fluentKey: 'expense-status-flow-open', fallback: 'Open', defaultType: 'draft' }
 } as const
 
-/** When `t` is absent, resolve labels via legacy host i18n (lowcoder / translation keys). */
-const LEGACY_I18N_BY_FLUENT_KEY: Record<string, string> = {
-  'expense-status-in-approval': 'lowcoder:expense_statuses.in_approval',
-  'expense-status-verification-required': 'lowcoder:expense_statuses.verification_required',
-  'expense-status-prepared': 'lowcoder:expense_statuses.prepared',
-  'expense-status-draft': 'lowcoder:expense_statuses.draft',
-  'expense-status-assigned': 'lowcoder:expense_statuses.assigned',
-  'expense-status-approved': 'lowcoder:expense_statuses.approved',
-  'expense-status-returned': 'lowcoder:expense_statuses.returned',
-  'expense-status-revision-required': 'lowcoder:expense_statuses.revision_required',
-  'expense-status-verified': 'lowcoder:expense_statuses.verified',
-  'expense-status-booked': 'lowcoder:expense_statuses.booked',
-  'expense-status-paid': 'lowcoder:expense_statuses.paid',
-  'expense-status-closed': 'lowcoder:expense_statuses.closed',
-  'expense-status-discarded': 'lowcoder:expense_statuses.discarded',
-  'expense-status-transferred': 'lowcoder:expense_statuses.transferred',
-  'expense-status-in-transit': 'lowcoder:expense_statuses.in_transit',
-  'expense-status-booking-required': 'lowcoder:expense_statuses.booking_required',
-  'expense-status-transfer-required': 'lowcoder:expense_statuses.transfer_required',
-  'expense-status-payment-required': 'lowcoder:expense_statuses.payment_required',
-  'expense-status-flow-open': 'translation:flow_status_open',
-  'expense-status-pending': 'lowcoder:expense_statuses.pending',
-  'expense-status-created': 'lowcoder:expense_statuses.created',
-  'expense-status-rejected': 'lowcoder:expense_statuses.rejected'
-}
-
 function resolveStatusLabel(fluentKey: string, fallback: string, t?: (key: string) => string): string {
   if (t) {
     return t(fluentKey)
-  }
-  const legacy = LEGACY_I18N_BY_FLUENT_KEY[fluentKey]
-  if (legacy) {
-    return getTranslationFromI18nKeyAndLabel(legacy, fallback)
   }
   return fallback
 }
@@ -251,11 +220,7 @@ function buildEntityStatusFilterLabel(entity: EntityKind, status: string, t?: (k
     const parenLabel = resolveStatusLabel(parenKey, formattedStatus, t)
     return statusFilterMainWithOptionalParen(statusConfig.label, parenLabel)
   }
-  const translatedStatus = getTranslationFromI18nKeyAndLabel(
-    `lowcoder:expense_statuses.${status.toLowerCase()}`,
-    formattedStatus
-  )
-  return statusFilterMainWithOptionalParen(statusConfig.label, translatedStatus)
+  return statusFilterMainWithOptionalParen(statusConfig.label, formattedStatus)
 }
 
 export function getExpenseRequestStatusFilterLabel(status: string, t?: (key: string) => string): string {

@@ -37,6 +37,8 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
   const [statusFilter, setStatusFilter] = useState<string>('BOOKED')
   const [amountMinFilter, setAmountMinFilter] = useState<string>('')
   const [amountMaxFilter, setAmountMaxFilter] = useState<string>('')
+  const [remainingMinFilter, setRemainingMinFilter] = useState<string>('')
+  const [remainingMaxFilter, setRemainingMaxFilter] = useState<string>('')
   const [departmentFilter, setDepartmentFilter] = useState<string>('')
   const [currencyRefFilter, setCurrencyRefFilter] = useState<string>('')
   const [effectiveDateRangeFilter, setEffectiveDateRangeFilter] = useState<{
@@ -59,6 +61,8 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
     statusFilter,
     amountMinFilter,
     amountMaxFilter,
+    remainingMinFilter,
+    remainingMaxFilter,
     departmentFilter,
     currencyRefFilter,
     effectiveDateRangeFilter,
@@ -118,6 +122,12 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
   const handleAmountFilter = useCallback((amountMin: string, amountMax: string) => {
     setAmountMinFilter(amountMin)
     setAmountMaxFilter(amountMax)
+    setCurrentPage(1)
+  }, [])
+
+  const handleRemainingAmountFilter = useCallback((remainingMin: string, remainingMax: string) => {
+    setRemainingMinFilter(remainingMin)
+    setRemainingMaxFilter(remainingMax)
     setCurrentPage(1)
   }, [])
 
@@ -249,6 +259,9 @@ export const useExpenseRequests = (context: BusinessAppContextProps, t: Translat
     applyOrderBy,
     amountMinFilter,
     amountMaxFilter,
+    remainingMinFilter,
+    remainingMaxFilter,
+    handleRemainingAmountFilter,
     processExpensePayment,
     setEffectiveDateRangeFilter,
     setRequestDateRangeFilter,

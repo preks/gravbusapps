@@ -1,7 +1,14 @@
 import React, { useMemo, useEffect, useCallback } from 'react'
+import {
+  useTranslation,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 import { useCurrencyStore } from '../../store/useCurrencyStore'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../_i18n'
 
 export interface CurrencyFilterProps {
   /**
@@ -69,14 +76,16 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
   currencies: propCurrencies,
   isLoading: propIsLoading,
   showAllOption = true,
-  placeholder = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:manager_expense_landing_page.all_currencies',
-    'All Currencies'
-  ),
+  placeholder: placeholderProp,
   className = '',
   'data-testid': dataTestId = 'currency-filter',
   disabled = false
 }) => {
+  const { t } = useTranslation(translations)
+  const placeholder = placeholderProp ?? t('currency-filter-all-currencies')
+  const loadingLabel = t('common-loading')
+  const emptyLabel = t('common-no-currencies')
+
   // Use the global currency store for consistent state across components
   const {
     primaryCurrency,
@@ -171,7 +180,7 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
     if (showLoadingState) {
       return (
         <SelectItem value="loading" data-testid={`${dataTestId}-option-loading`}>
-          {getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')}
+          {loadingLabel}
         </SelectItem>
       )
     }
@@ -179,7 +188,7 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
     if (showEmptyState) {
       return (
         <SelectItem value="empty" data-testid={`${dataTestId}-option-empty`}>
-          {getTranslationFromI18nKeyAndLabel('lowcoder:common.no_data', 'No currencies available')}
+          {emptyLabel}
         </SelectItem>
       )
     }
@@ -200,13 +209,7 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
         data-testid={dataTestId}
       >
         <SelectTrigger className="gba:flex gba:w-full gba:w-[140px] gba:h-9 gba:text-sm gba:border-input">
-          <SelectValue
-            placeholder={
-              showLoadingState
-                ? getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')
-                : placeholder
-            }
-          />
+          <SelectValue placeholder={showLoadingState ? loadingLabel : placeholder} />
         </SelectTrigger>
         <SelectContent>
           {showAllOption && (

@@ -293,6 +293,10 @@ personal-expenses-no-advance-payment-statistics = Keine Statistiken f체r Vorsch�
 personal-expenses-no-advance-payments-found = Keine Vorsch체sse gefunden. Erstellen Sie den ersten Vorschuss, um zu beginnen.
 personal-expenses-user-information-not-loaded = Benutzerinformationen nicht geladen. Bitte warten Sie einen Moment und versuchen Sie es erneut.
 
+error-boundary-title = Etwas ist schiefgelaufen
+error-boundary-details = Fehlerdetails
+error-boundary-retry = Erneut versuchen
+
 # Expense Plans tab (transl.txt de)
 
 expense-plans-list-section-title = Meine Ausgabenpl채ne
@@ -407,3 +411,7 @@ personal-expenses-ready-for-processing = Zur Verarbeitung bereit
 personal-expenses-no-advance-payment-statistics = Keine Statistiken f체r Vorsch체sse verf체gbar.
 personal-expenses-no-advance-payments-found = Keine Vorsch체sse gefunden. Erstellen Sie den ersten Vorschuss, um zu beginnen.
 personal-expenses-user-information-not-loaded = Benutzerinformationen nicht geladen. Bitte warten Sie einen Moment und versuchen Sie es erneut.
+
+error-boundary-title = Etwas ist schiefgelaufen
+error-boundary-details = Fehlerdetails
+error-boundary-retry = Erneut versuchen

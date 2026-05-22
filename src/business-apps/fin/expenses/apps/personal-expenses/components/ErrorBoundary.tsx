@@ -1,5 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { PersonalExpensesErrorFallback } from './PersonalExpensesErrorFallback'
 
 interface Props {
   children: ReactNode
@@ -28,23 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         this.props.fallback || (
-          <div className="gba:p-5 gba:border gba:border-destructive gba:rounded gba:bg-destructive/10">
-            <h3>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.something_went_wrong',
-                'Something went wrong'
-              )}
-            </h3>
-            <details>
-              <summary>
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error_details', 'Error details')}
-              </summary>
-              <pre>{this.state.error?.stack}</pre>
-            </details>
-            <button onClick={() => this.setState({ hasError: false })}>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again', 'Try again')}
-            </button>
-          </div>
+          <PersonalExpensesErrorFallback error={this.state.error} onRetry={() => this.setState({ hasError: false })} />
         )
       )
     }
