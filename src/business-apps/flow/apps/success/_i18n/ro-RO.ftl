@@ -202,6 +202,7 @@ templates-comparison-table-title = Tabel comparativ
 templates-comparison-table-description = Clasamentul metricilor pe flow pentru o comparatie mai profunda.
 performance-selected-empty-title = Nu exista inca analitica pentru acest flow
 performance-selected-empty-description = Flow-ul selectat nu are rulari in intervalul activ. Previzualizarea definitiei ramane disponibila, iar sectiunile analitice raman goale.
+performance-flow-data-select-hint = Selectati o rulare din „Fluxuri recente” pentru a inspecta datele de trigger si pas de mai jos.
 
 # Tasks
 tasks-title = Performanta sarcinilor

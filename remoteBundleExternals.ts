@@ -37,6 +37,8 @@ function isManualRemoteVendor(moduleId: string): boolean {
 }
 
 function fallbackIsRemoteVendorExternal(moduleId: string): boolean {
+  // Host remote-deps exposes only the main `zustand` entry (e.g. @xyflow/react needs zustand/traditional).
+  if (moduleId.startsWith('zustand/')) return false
   return fallbackRemoteVendors.some(vendor => moduleId === vendor || moduleId.startsWith(`${vendor}/`))
 }
 
@@ -80,6 +82,7 @@ function moduleSpecifierFromResolvedId(resolvedId: string): string | null {
 export function isRemoteBundleExternal(rawId: string): boolean {
   const id = stripQuery(rawId).replace(/\\/g, '/')
   if (!id || id.startsWith('\0') || id.startsWith('virtual:')) return false
+  if (id.startsWith('zustand/')) return false
   if (isManualRemoteVendor(rawId) || isManualRemoteVendor(id)) return true
   if (id.startsWith('@/')) return false
   if ((id.startsWith('./') || id.startsWith('../') || path.isAbsolute(id)) && !id.includes('node_modules')) {
@@ -95,6 +98,7 @@ export function isRemoteBundleExternal(rawId: string): boolean {
 
   const spec = moduleSpecifierFromResolvedId(id)
   if (spec) {
+    if (spec.startsWith('zustand/')) return false
     if (isManualRemoteVendor(spec)) return true
     return isRemoteVendorExternal(spec)
   }

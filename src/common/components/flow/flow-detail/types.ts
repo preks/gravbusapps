@@ -24,6 +24,15 @@ export interface TimeInsights {
   lastActivityTime?: string
 }
 
+export interface FlowTriggerData {
+  payload: Record<string, unknown>
+  triggerType?: string
+  triggerId?: string
+  initiatedAt?: string
+  initiatedBy?: string
+  initiatedById?: string
+}
+
 export interface FlowDetailData {
   flowId: string
   flowName: string
@@ -50,6 +59,7 @@ export interface FlowDetailData {
     entity?: string
     entityName?: string
   }
+  triggerData?: FlowTriggerData
 }
 
 export interface FlowStep {
