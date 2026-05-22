@@ -339,8 +339,11 @@ function terminalCompletedToChatMessage(
     : (event.artifacts ?? [])
   const hasArtifacts = turnArtifacts.length > 0
   const hasWorkspaceDocs = !!event.workspace_documents && event.workspace_documents.length > 0
+  const hasPdfAttachments = (event.session_attachments ?? []).some(
+    a => (a.mime_type || '').toLowerCase() === 'application/pdf'
+  )
   const hasActions = !!actionsPerformed && actionsPerformed.length > 0
-  const isInstant = event.duration_ms === 0 && !hasArtifacts && !hasWorkspaceDocs && !hasActions
+  const isInstant = event.duration_ms === 0 && !hasArtifacts && !hasWorkspaceDocs && !hasPdfAttachments && !hasActions
   return {
     id: event.event_id,
     type: 'final_answer',
@@ -357,6 +360,7 @@ function terminalCompletedToChatMessage(
       costSummary: event.cost_summary ?? undefined,
       artifacts: toArtifactRefsFromMeta(turnArtifacts),
       workspaceDocuments: event.workspace_documents,
+      sessionAttachments: event.session_attachments,
       isInstant
     }
   }
@@ -886,19 +890,54 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
   // The trace has the initial user message but lacks attachment refs (they are
   // not persisted in the server event stream). Enrich the first user_input
   // message with the session's attachment list so the chips always render.
+  let messages = traceMessages
   if (sessionAttachmentRefs && sessionAttachmentRefs.length > 0) {
     let enriched = false
-    const enrichedMessages = traceMessages.map(msg => {
+    messages = messages.map(msg => {
       if (!enriched && msg.type === 'user_input' && !msg.attachments) {
         enriched = true
         return { ...msg, attachments: sessionAttachmentRefs }
       }
       return msg
     })
-    return enrichedMessages
   }
 
-  return traceMessages
+  // Backfill `final_answer` rows whose terminal event was emitted before
+  // backend started embedding `session_attachments` / `workspace_documents`
+  // in the trace. Without this, reloading the session — or even the live
+  // first render against a not-yet-restarted prompt-manager — never
+  // surfaces the deliverable cards (workspace doc + PDF download) and we
+  // fall back to the LLM's plain-text markdown which has no clickable
+  // download. Server-loaded session has the authoritative attachment +
+  // workspace-document lists at the top level; copy them onto the last
+  // `final_answer` message so `FinalAnswerRenderer` can render the cards.
+  const fullSessionAttachments = session.session_attachments
+  const fullWorkspaceDocs = (session as { workspace_documents?: unknown }).workspace_documents
+  const hasFullAttachments = Array.isArray(fullSessionAttachments) && fullSessionAttachments.length > 0
+  const hasFullWorkspaceDocs = Array.isArray(fullWorkspaceDocs) && fullWorkspaceDocs.length > 0
+  if (hasFullAttachments || hasFullWorkspaceDocs) {
+    messages = messages.map(msg => {
+      if (msg.type !== 'final_answer') return msg
+      const content = (msg.content ?? {}) as Record<string, unknown>
+      const patch: Record<string, unknown> = {}
+      if (hasFullAttachments) {
+        const existing = content.sessionAttachments
+        if (!Array.isArray(existing) || existing.length === 0) {
+          patch.sessionAttachments = fullSessionAttachments
+        }
+      }
+      if (hasFullWorkspaceDocs) {
+        const existing = content.workspaceDocuments
+        if (!Array.isArray(existing) || existing.length === 0) {
+          patch.workspaceDocuments = fullWorkspaceDocs
+        }
+      }
+      if (Object.keys(patch).length === 0) return msg
+      return { ...msg, content: { ...content, ...patch } }
+    })
+  }
+
+  return messages
 }
 
 export function messageTypeLabel(type: ChatMessageType): string {

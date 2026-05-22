@@ -19,6 +19,7 @@ import { DraftSlidesPreview } from './DraftPreviewCard'
 import { DocumentCanvasSurface } from './DocumentCanvasSurface'
 import { AutoHeightHtmlIframe } from '../artifacts/AutoHeightHtmlIframe'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
+import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 
 const SLIDE_FALLBACK_WIDTH = 400
 
@@ -45,6 +46,88 @@ const TimelineHtmlPreview: React.FC<{
     <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
       <div className="gba:p-2">
         <AutoHeightHtmlIframe src={src} title={preview.title || path} artifactName={path} />
+      </div>
+    </PanelCard>
+  )
+}
+
+const PdfPreview: React.FC<{
+  preview: ArtifactPreview
+  sessionId: string
+  accessToken: string
+  headerExtra?: React.ReactNode
+}> = ({ preview, sessionId, accessToken, headerExtra }) => {
+  const client = useEnterpriseAgentClient(accessToken)
+  const attachmentId = typeof preview.content?.attachment_id === 'string' ? preview.content.attachment_id : ''
+  const fileName = typeof preview.content?.file_name === 'string' ? preview.content.file_name : preview.title
+
+  const [blobUrl, setBlobUrl] = useState<string>('')
+  const [error, setError] = useState<string>('')
+
+  useEffect(() => {
+    // The /attachments/{id}/content endpoint requires a Bearer token, which a
+    // raw <iframe src=…> can't send. Fetch via the authenticated client and
+    // hand the iframe a blob: URL instead. This mirrors the PdfExportCard fix
+    // in FinalAnswerRenderer.
+    if (!sessionId || !attachmentId) return
+    let revoked = false
+    let createdUrl = ''
+    setError('')
+    client
+      .fetchAttachmentContent(sessionId, attachmentId)
+      .then(blob => {
+        if (revoked) return
+        createdUrl = URL.createObjectURL(blob)
+        setBlobUrl(createdUrl)
+      })
+      .catch((err: unknown) => {
+        if (revoked) return
+        const detail = err instanceof Error ? err.message : 'unknown error'
+        setError(detail)
+      })
+    return () => {
+      revoked = true
+      if (createdUrl) URL.revokeObjectURL(createdUrl)
+    }
+  }, [client, sessionId, attachmentId])
+
+  let body: React.ReactElement
+  if (blobUrl) {
+    body = (
+      <iframe
+        src={blobUrl}
+        title={preview.title || fileName}
+        className="gba:h-[70vh] gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-background"
+        data-testid="fabric-live-preview-pdf-iframe"
+      />
+    )
+  } else if (error) {
+    body = <p className="gba:p-4 gba:text-xs gba:text-destructive">PDF preview failed: {error}</p>
+  } else if (!attachmentId) {
+    body = <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">PDF reference missing.</p>
+  } else {
+    body = <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">Loading PDF…</p>
+  }
+
+  return (
+    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
+      <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
+        {body}
+        <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-1">
+          <p className="gba:text-[11px] gba:text-muted-foreground gba:truncate">
+            {fileName} · attached to this session
+          </p>
+          {blobUrl && (
+            <a
+              href={blobUrl}
+              download={fileName}
+              className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-foreground gba:hover:bg-muted/40"
+              data-testid="fabric-live-preview-pdf-download"
+            >
+              Download PDF
+            </a>
+          )}
+        </div>
       </div>
     </PanelCard>
   )
@@ -476,6 +559,9 @@ function renderReady(
   }
   if (preview.artifactType === 'chart') {
     return <ChartPreview preview={preview} sessionId={sessionId} accessToken={accessToken} />
+  }
+  if (preview.artifactType === 'pdf') {
+    return <PdfPreview preview={preview} sessionId={sessionId} accessToken={accessToken} headerExtra={headerExtra} />
   }
   return null
 }

@@ -13,6 +13,7 @@ import { detectRendererType } from '../../utils/renderUtils'
 import { parseComposeEmailToolResult, type ComposeEmailOutcomePayload } from '../../utils/composeEmailTrace'
 import { parseActionCardToolResult } from '../../utils/actionCardTrace'
 import { ActionCard } from './ActionCard'
+import { DeliverableCardsList, parseDeliverableCardPayload } from './DeliverableCards'
 
 export interface ToolResultRendererProps {
   callId: string
@@ -20,6 +21,9 @@ export interface ToolResultRendererProps {
   result: unknown
   durationMs: number
   cached: boolean
+  /** Required to download session_attachment deliverables (PDFs, etc.). */
+  sessionId?: string
+  /** Bearer token for authenticated EntityLink / attachment fetches. */
   accessToken?: string
 }
 
@@ -99,6 +103,7 @@ export const ToolResultRenderer = ({
   result,
   durationMs,
   cached,
+  sessionId,
   accessToken
 }: ToolResultRendererProps) => {
   const [expanded, setExpanded] = useState(false)
@@ -113,6 +118,22 @@ export const ToolResultRenderer = ({
   const actionCardPayload = parseActionCardToolResult(result)
   if (actionCardPayload) {
     return <ActionCard payload={actionCardPayload} callId={callId} accessToken={accessToken} />
+  }
+
+  // Tools that opt into structured deliverables embed `ui.kind === 'deliverable_card'`
+  // alongside their existing JSON. Render the cards inline (no collapse) so the
+  // user sees a clickable "Open document" / "Download PDF" affordance rather than
+  // a JSON blob.
+  const deliverablePayload = parseDeliverableCardPayload(result)
+  if (deliverablePayload) {
+    return (
+      <div className="gba:max-w-3xl gba:space-y-2" data-testid={`enterprise-agent-tool-result-${callId}`}>
+        {deliverablePayload.agentSummary && (
+          <p className="gba:text-[12px] gba:text-muted-foreground">{deliverablePayload.agentSummary}</p>
+        )}
+        <DeliverableCardsList items={deliverablePayload.deliverables} sessionId={sessionId} accessToken={accessToken} />
+      </div>
+    )
   }
 
   if (toolName === 'compose_email') {

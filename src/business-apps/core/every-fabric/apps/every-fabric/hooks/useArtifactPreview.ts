@@ -10,6 +10,9 @@ function normalizePreviewArtifactType(raw: string, pathHint = ''): ArtifactPrevi
   if (path.endsWith('.timeline.html') || lowered === 'html' || lowered.includes('text/html')) {
     return 'html'
   }
+  if (lowered === 'pdf' || lowered.includes('application/pdf') || path.endsWith('.pdf')) {
+    return 'pdf'
+  }
   if (lowered === 'chart' || lowered === 'slides' || lowered === 'document' || lowered === 'note') {
     return lowered
   }
@@ -21,7 +24,7 @@ function normalizePreviewArtifactType(raw: string, pathHint = ''): ArtifactPrevi
 
 export interface ArtifactPreview {
   artifactId: string
-  artifactType: 'slides' | 'document' | 'note' | 'chart' | 'html'
+  artifactType: 'slides' | 'document' | 'note' | 'chart' | 'html' | 'pdf'
   title: string
   status: PreviewStatus
   content?: Record<string, unknown>
@@ -110,7 +113,7 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
   // button) instead of squeezing it into the narrow ambient progress rail.
   // Only slides, documents, and notes need the wide canvas — charts and
   // dashboards fit comfortably in the narrow rail.
-  const WIDE_PREVIEW_TYPES = new Set(['slides', 'document', 'note', 'html'])
+  const WIDE_PREVIEW_TYPES = new Set(['slides', 'document', 'note', 'html', 'pdf'])
 
   const hasActivePreview = previews.some(
     p =>

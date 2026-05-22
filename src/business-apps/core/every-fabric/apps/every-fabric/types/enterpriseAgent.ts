@@ -137,6 +137,7 @@ export interface AgentTerminalEvent {
   duration_ms?: number
   cost_summary?: CostSummary | null
   artifacts?: SessionArtifactMeta[]
+  session_attachments?: Array<SessionAttachment | MessageAttachmentRef>
   workspace_documents?: WorkspaceDocument[]
 }
 
@@ -341,6 +342,20 @@ export interface ComposeEmailRecipient {
   address: string
 }
 
+/**
+ * Server-resolved reference to a file already registered as a session
+ * attachment (e.g. the PDF emitted by `newwork_export_document_to_pdf`).
+ * The composer never carries bytes — `_resolve_email_attachments` on the
+ * backend turns each ref into the base64 `EmailAttachmentDto` shape that
+ * document-service expects.
+ */
+export interface ComposeEmailAttachmentRef {
+  id: string
+  name?: string
+  mime_type?: string
+  size?: number
+}
+
 export interface ComposeEmailDraft {
   to: ComposeEmailRecipient[]
   cc?: ComposeEmailRecipient[]
@@ -352,6 +367,7 @@ export interface ComposeEmailDraft {
   account_id?: string | null
   crm_entity_type?: string | null
   crm_entity_id?: string | null
+  attachments?: ComposeEmailAttachmentRef[] | null
 }
 
 export type ComposeEmailAction = 'send' | 'draft' | 'cancel'
@@ -369,6 +385,12 @@ export interface ComposeEmailSubmission {
   accountId?: string
   crmEntityType?: string
   crmEntityId?: string
+  /**
+   * The ids the user is willing to send (after × in the chip row removed
+   * any). Empty array / omitted → no attachments. The backend re-resolves
+   * each id against the session and downloads bytes server-side.
+   */
+  attachments?: ComposeEmailAttachmentRef[]
 }
 
 export interface InputFieldSchema {

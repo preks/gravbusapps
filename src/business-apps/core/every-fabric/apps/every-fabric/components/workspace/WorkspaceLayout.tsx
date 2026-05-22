@@ -70,6 +70,8 @@ function resolveArtifactLabel(artifactType: ArtifactPreview['artifactType']): st
       return 'document'
     case 'note':
       return 'note'
+    case 'pdf':
+      return 'PDF'
     default:
       return 'chart'
   }

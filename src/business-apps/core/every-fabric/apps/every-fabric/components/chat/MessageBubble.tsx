@@ -403,7 +403,7 @@ const renderMessageBubbleContent = ({
       const content = message.content as Parameters<typeof ToolResultRenderer>[0]
       return (
         <div className="gba:py-0.5" data-testid={`msg-${message.id}`}>
-          <ToolResultRenderer {...content} accessToken={accessToken} />
+          <ToolResultRenderer {...content} sessionId={sessionId} accessToken={accessToken} />
         </div>
       )
     }
