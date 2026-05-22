@@ -1,4 +1,5 @@
 import React from 'react'
+import { TrendUp } from '@phosphor-icons/react'
 
 /**
  * Icon configuration for different entity types
@@ -39,10 +40,10 @@ export const ENTITY_ICONS: Record<string, EntityIconConfig> = {
     iconColor: 'gba:text-success'
   },
   opportunity: {
-    icon: createIcon(
-      'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-      'gba:bg-ai-secondary',
-      'gba:text-ai'
+    icon: (
+      <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-ai-secondary gba:flex gba:items-center gba:justify-center">
+        <TrendUp className="gba:h-6 gba:w-6 gba:text-ai" />
+      </div>
     ),
     bgColor: 'gba:bg-ai-secondary',
     iconColor: 'gba:text-ai'
