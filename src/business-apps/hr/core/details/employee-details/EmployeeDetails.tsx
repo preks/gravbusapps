@@ -19,7 +19,7 @@ import {
   EnvelopeSimpleIcon
 } from '@phosphor-icons/react'
 import { useEmployeeDetailsData } from './hooks/useEmployeeDetailsData'
-import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import {
@@ -434,24 +434,6 @@ const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
                     employeeData.workingCondition?.[0]?.hireDate
                       ? `${formatDateLocalized(employeeData.workingCondition[0].hireDate)} - ${calculateTimeSince(employeeData, t)}`
                       : t('employee-details-not-available')
-                  }
-                />
-
-                <ProfileInfoItem
-                  icon={<UserIcon className="gba:h-4 gba:w-4" />}
-                  label={t('employee-details-employment-type')}
-                  value={
-                    getCatalogValue(employeeData.workingCondition?.[0]?.employmentType) ||
-                    t('employee-details-not-specified')
-                  }
-                />
-
-                <ProfileInfoItem
-                  icon={<UserIcon className="gba:h-4 gba:w-4" />}
-                  label={t('employee-details-contract-type')}
-                  value={
-                    getCatalogValue(employeeData.workingCondition?.[0]?.contractType) ||
-                    t('employee-details-not-specified')
                   }
                 />
               </div>
