@@ -107,7 +107,12 @@ export const GET_PAYROLL_EMPLOYEES = `
         pictureThumbnail
         additionalProperties
         updatedAt
-        workingCondition {
+        workingCondition(
+          where: {
+            isDeleted: { _eq: false }
+          }
+          orderBy: [{ activeFrom: ASC_NULLS_FIRST }, { createdAt: ASC }]
+        ) {
           id
           contractType {
             id
@@ -126,6 +131,8 @@ export const GET_PAYROLL_EMPLOYEES = `
           }
           hireDate
           exitDate
+          activeFrom
+          activeTo
           region {
             id
             value
