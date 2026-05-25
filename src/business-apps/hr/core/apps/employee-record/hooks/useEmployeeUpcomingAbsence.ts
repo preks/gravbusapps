@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 interface EmployeeAbsence {
   id: string
@@ -12,11 +13,15 @@ interface EmployeeAbsence {
   type: {
     value: string
     parentEntryId?: string
+    translations?: {
+      localeCode: string
+      value: string
+    }[]
   }
 }
 
 const getEmployeeUpcomingAbsence = `
-  query GetEmployeeUpcomingAbsence($employeeId: uuid!, $startDate: timestamp!) {
+  query GetEmployeeUpcomingAbsence($employeeId: uuid!, $startDate: timestamp!, $activeUserLocale: String!) {
     EmployeeAbsence(
      where: {
         employeeId: { _eq: $employeeId },
@@ -36,6 +41,10 @@ const getEmployeeUpcomingAbsence = `
       type {
         value
         parentEntryId
+        translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+          localeCode
+          value
+        }
       }
     }
   }
@@ -45,8 +54,21 @@ export const useEmployeeUpcomingAbsence = (accessToken: string, employeeId: stri
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [upcomingAbsence, setUpcomingAbsence] = useState<EmployeeAbsence[] | null>(null)
+  const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
 
   const graphqlClient = useGraphqlClient(accessToken)
+
+  useEffect(() => {
+    const checkLocale = () => {
+      const newLocale = getCurrentActiveUserLocale()
+      if (newLocale !== currentLocale) {
+        setCurrentLocale(newLocale)
+      }
+    }
+
+    const interval = setInterval(checkLocale, 1000)
+    return () => clearInterval(interval)
+  }, [currentLocale])
 
   useEffect(() => {
     const fetchUpcomingAbsence = async () => {
@@ -58,7 +80,8 @@ export const useEmployeeUpcomingAbsence = (accessToken: string, employeeId: stri
       try {
         const variables = {
           employeeId,
-          startDate: dayjs().format('YYYY-MM-DD')
+          startDate: dayjs().format('YYYY-MM-DD'),
+          activeUserLocale: currentLocale
         }
 
         const response = await graphqlClient.request(getEmployeeUpcomingAbsence, variables)
@@ -85,7 +108,7 @@ export const useEmployeeUpcomingAbsence = (accessToken: string, employeeId: stri
     }
 
     fetchUpcomingAbsence()
-  }, [accessToken, employeeId, graphqlClient])
+  }, [accessToken, employeeId, graphqlClient, currentLocale])
 
   return {
     loading,

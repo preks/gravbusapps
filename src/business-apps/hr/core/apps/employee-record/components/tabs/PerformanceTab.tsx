@@ -42,6 +42,7 @@ import { CheckCircleIcon, TargetIcon, Trash, TrendUpIcon, WarningCircleIcon } fr
 import { startProcess } from '@/common/utils/start-process'
 import { beginSilentSave, tryConsumeSilentSave } from '@/common/utils/silent-processes'
 import { FilterBar } from './components/CompactFilterBar'
+import { formatDate } from '@/common/utils/windowUtils'
 
 interface PerformanceTabProps {
   employee: Employee
@@ -112,6 +113,14 @@ interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
 }
 
 const normalizeProgress = (value: number) => Math.round(Math.max(0, Math.min(100, value)) * 100) / 100
+
+const formatPerformanceDate = (date: string, format: string) => {
+  return formatDate(date, format) ?? dayjs(date).format(format === 'date.monthDay' ? 'MMM D' : 'MMM D, YYYY')
+}
+
+const formatPerformanceDateTime = (date: string) => {
+  return formatDate(date, 'datetime.short') ?? dayjs(date).format('MMM D, YYYY HH:mm')
+}
 
 const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, userInfo, canDeleteGoals = false }) => {
   const { t } = useTranslation(translations)
@@ -459,46 +468,46 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     () => [
       {
         id: 'performance-total-goals',
-        title: 'Total goals',
+        title: t('performance-kpi-total-goals'),
         value: String(summary.total),
         icon: <Icon icon={TargetIcon} size="sm" decorative />,
         iconColor: 'var(--nw-info)',
-        footer: 'In selected cycle'
+        footer: t('performance-kpi-selected-cycle')
       },
       {
         id: 'performance-on-track-goals',
-        title: 'On track',
+        title: t('performance-kpi-on-track'),
         value: String(summary.onTrack),
         icon: <Icon icon={TrendUpIcon} size="sm" decorative />,
         iconColor: 'var(--nw-success)',
-        footer: 'Healthy progress'
+        footer: t('performance-kpi-healthy-progress')
       },
       {
         id: 'performance-at-risk-goals',
-        title: 'At risk',
+        title: t('performance-kpi-at-risk'),
         value: String(summary.atRisk),
         icon: <Icon icon={WarningCircleIcon} size="sm" decorative />,
         iconColor: 'var(--nw-warning)',
-        footer: 'Watch closely'
+        footer: t('performance-kpi-watch-closely')
       },
       {
         id: 'performance-behind-goals',
-        title: 'Behind target',
+        title: t('performance-kpi-behind-target'),
         value: String(summary.behind),
         icon: <Icon icon={WarningCircleIcon} size="sm" decorative />,
         iconColor: 'var(--nw-destructive)',
-        footer: 'Needs attention'
+        footer: t('performance-kpi-needs-attention')
       },
       {
         id: 'performance-achieved-goals',
-        title: 'Achieved',
+        title: t('performance-kpi-achieved'),
         value: String(summary.achieved),
         icon: <Icon icon={CheckCircleIcon} size="sm" decorative />,
         iconColor: 'var(--nw-decorative)',
-        footer: 'Completed goals'
+        footer: t('performance-kpi-completed-goals')
       }
     ],
-    [summary.total, summary.onTrack, summary.atRisk, summary.behind, summary.achieved]
+    [summary.total, summary.onTrack, summary.atRisk, summary.behind, summary.achieved, t]
   )
 
   useEffect(() => {
@@ -543,7 +552,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
       // Don't plot actual progress for future dates — only show what has happened so far
       const actual = date.isAfter(today) ? null : getProgressAtDate(events, date)
       return {
-        label: date.format('MMM D'),
+        label: formatPerformanceDate(date.toISOString(), 'date.monthDay'),
         ideal: getIdealProgressAtDate(startDate, dueDate, date),
         actual
       }
@@ -684,7 +693,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
     const optimisticUpdate: GoalUpdate = {
       id: `optimistic-${now}`,
       progressPercent: currentProgress,
-      comment: 'Goal marked as completed',
+      comment: t('performance-goal-marked-completed-comment'),
       updateTime: now,
       employee: { firstName: employee.firstName, lastName: employee.lastName }
     }
@@ -758,7 +767,17 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
       label: t('performance-status-behind-target'),
       color: 'gba:bg-destructive-secondary gba:text-destructive'
     },
-    COMPLETED: { label: 'Completed', color: 'gba:bg-info-secondary gba:text-info' }
+    COMPLETED: { label: t('performance-status-completed'), color: 'gba:bg-info-secondary gba:text-info' }
+  }
+
+  const getGoalTypeLabel = (goalType: GoalType) => {
+    const labels: Record<GoalType, string> = {
+      PERCENTAGE: t('performance-type-percentage'),
+      NUMERIC: t('performance-type-numeric'),
+      MILESTONE: t('performance-type-milestone')
+    }
+
+    return labels[goalType]
   }
 
   if (loading || cyclesLoading) {
@@ -797,8 +816,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
             <SelectContent>
               {sortedCycles.map(cycle => (
                 <SelectItem value={cycle.id} key={cycle.id}>
-                  {cycle.name} ({dayjs(cycle.evaluationPeriodStartDate || cycle.startDate).format('MMM D, YYYY')} -{' '}
-                  {dayjs(cycle.evaluationPeriodEndDate || cycle.endDate).format('MMM D, YYYY')})
+                  {cycle.name} (
+                  {formatPerformanceDate(cycle.evaluationPeriodStartDate || cycle.startDate, 'date.medium')} -{' '}
+                  {formatPerformanceDate(cycle.evaluationPeriodEndDate || cycle.endDate, 'date.medium')})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -841,12 +861,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
             search={{
               value: searchTerm,
               onChange: setSearchTerm,
-              placeholder: 'Search goals',
+              placeholder: t('performance-search-placeholder'),
               minWidthClassName: 'gba:min-w-[260px] gba:flex-1',
               'data-testid': 'performance-goals-search-input'
             }}
             clear={{
-              label: 'Clear',
+              label: t('performance-filter-clear'),
               onClick: () => {
                 setSearchTerm('')
                 setStatusFilter('ALL')
@@ -858,10 +878,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
           >
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="gba:min-w-[150px]" data-testid="performance-goals-status-filter">
-                <SelectValue placeholder="All status" />
+                <SelectValue placeholder={t('performance-filter-all-status')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All status</SelectItem>
+                <SelectItem value="ALL">{t('performance-filter-all-status')}</SelectItem>
                 {Object.entries(statusMap).map(([value, info]) => (
                   <SelectItem value={value} key={value}>
                     {info.label}
@@ -872,30 +892,35 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
 
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="gba:min-w-[150px]" data-testid="performance-goals-type-filter">
-                <SelectValue placeholder="All types" />
+                <SelectValue placeholder={t('performance-filter-all-types')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All types</SelectItem>
-                <SelectItem value="PERCENTAGE">Percentage</SelectItem>
-                <SelectItem value="NUMERIC">Numeric</SelectItem>
-                <SelectItem value="MILESTONE">Milestone</SelectItem>
+                <SelectItem value="ALL">{t('performance-filter-all-types')}</SelectItem>
+                <SelectItem value="PERCENTAGE">{t('performance-type-percentage')}</SelectItem>
+                <SelectItem value="NUMERIC">{t('performance-type-numeric')}</SelectItem>
+                <SelectItem value="MILESTONE">{t('performance-type-milestone')}</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="gba:min-w-[170px]" data-testid="performance-goals-sort-filter">
-                <SelectValue placeholder="Due date" />
+                <SelectValue placeholder={t('performance-sort-due-date')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="DUE_DATE">Due date</SelectItem>
-                <SelectItem value="STATUS">Status</SelectItem>
-                <SelectItem value="UPDATED_RECENTLY">Updated recently</SelectItem>
+                <SelectItem value="DUE_DATE">{t('performance-sort-due-date')}</SelectItem>
+                <SelectItem value="STATUS">{t('performance-sort-status')}</SelectItem>
+                <SelectItem value="UPDATED_RECENTLY">{t('performance-sort-updated-recently')}</SelectItem>
               </SelectContent>
             </Select>
           </FilterBar>
 
           {!containedGoals.length && !outOfCycleGoals.length ? (
-            <EmptyState title={t('performance-empty')} className="gba:py-10" data-testid="empty-goals-state" />
+            <EmptyState
+              title={t('performance-empty')}
+              description={t('performance-empty-description')}
+              className="gba:py-10"
+              data-testid="empty-goals-state"
+            />
           ) : (
             <div className="gba:space-y-3">
               {containedGoals.map(goal => (
@@ -917,13 +942,15 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                           {goal.title}
                         </div>
                         <div className="gba:text-xs gba:text-muted-foreground">
-                          Due {dayjs(goal.dueDate).format('MMM D, YYYY')}
+                          {t('performance-due-label', {
+                            date: formatPerformanceDate(goal.dueDate, 'date.medium')
+                          })}
                         </div>
                       </div>
                       <div className="gba:flex gba:flex-col gba:items-end gba:gap-1 gba:shrink-0">
                         <div className="gba:flex gba:items-center gba:gap-1">
                           <span className="gba:text-xs gba:text-muted-foreground gba:capitalize gba:lowercase">
-                            {getGoalType(goal).charAt(0) + getGoalType(goal).slice(1).toLowerCase()}
+                            {getGoalTypeLabel(getGoalType(goal))}
                           </span>
                           {canDeleteGoals && (
                             <button
@@ -933,7 +960,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                                 setGoalToDelete(goal)
                               }}
                               className="gba:p-1 gba:rounded gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10 gba:transition-colors"
-                              aria-label="Delete goal"
+                              aria-label={t('performance-delete-goal-aria')}
                             >
                               <Trash className="gba:w-3.5 gba:h-3.5" />
                             </button>
@@ -972,7 +999,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
               {outOfCycleGoals.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="gba:text-sm">Out-of-cycle goals</CardTitle>
+                    <CardTitle className="gba:text-sm">{t('performance-out-of-cycle-goals')}</CardTitle>
                   </CardHeader>
                   <CardContent className="gba:space-y-2">
                     {outOfCycleGoals.map(goal => (
@@ -983,7 +1010,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                         onClick={() => setSelectedGoalId(goal.id)}
                       >
                         <span>{goal.title}</span>
-                        <span className="gba:text-warning">Fix dates to edit</span>
+                        <span className="gba:text-warning">{t('performance-fix-dates-to-edit')}</span>
                       </button>
                     ))}
                   </CardContent>
@@ -1001,8 +1028,8 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                   <div>
                     <CardTitle>{selectedGoal.title}</CardTitle>
                     <div className="gba:text-sm gba:text-muted-foreground">
-                      {dayjs(selectedGoal.startDate).format('MMM D, YYYY')} -{' '}
-                      {dayjs(selectedGoal.dueDate).format('MMM D, YYYY')}
+                      {formatPerformanceDate(selectedGoal.startDate, 'date.medium')} -{' '}
+                      {formatPerformanceDate(selectedGoal.dueDate, 'date.medium')}
                     </div>
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
@@ -1012,7 +1039,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                         className="gba:h-8 gba:px-3 gba:rounded-md gba:bg-secondary gba:text-secondary-foreground gba:text-sm gba:whitespace-nowrap"
                         onClick={() => setShowCompletedModal(true)}
                       >
-                        Mark Completed
+                        {t('performance-mark-completed')}
                       </button>
                     )}
                     {canEditGoals &&
@@ -1075,12 +1102,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                   selectedCycleEndDate &&
                   !isGoalContainedInCycle(selectedGoal, selectedCycleStartDate, selectedCycleEndDate) && (
                     <div className="gba:text-sm gba:text-warning gba:bg-warning/10 gba:rounded-md gba:px-3 gba:py-2">
-                      This goal is outside the selected cycle and cannot be edited until dates are corrected.
+                      {t('performance-outside-cycle-warning')}
                     </div>
                   )}
 
                 <div className="gba:space-y-3">
-                  <div className="gba:text-sm gba:font-medium">Update Progress</div>
+                  <div className="gba:text-sm gba:font-medium">{t('performance-update-progress')}</div>
                   {getGoalType(selectedGoal) === 'PERCENTAGE' && (
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <Input
@@ -1098,13 +1125,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                   {getGoalType(selectedGoal) === 'NUMERIC' && (
                     <div className="gba:grid gba:grid-cols-2 gba:gap-3">
                       <div>
-                        <div className="gba:text-xs gba:text-muted-foreground">Target</div>
+                        <div className="gba:text-xs gba:text-muted-foreground">{t('performance-target')}</div>
                         <div className="gba:text-sm gba:mt-1">
                           {selectedGoal.targetValue ?? selectedGoal.additionalProperties?.numeric?.target ?? 0}
                         </div>
                       </div>
                       <div>
-                        <div className="gba:text-xs gba:text-muted-foreground">Current</div>
+                        <div className="gba:text-xs gba:text-muted-foreground">{t('performance-current')}</div>
                         <Input
                           type="number"
                           disabled={selectedGoal.status === 'ACHIEVED' || (selectedGoal.progressPercent || 0) >= 100}
@@ -1139,16 +1166,16 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                         )}
 
                         <div>
-                          <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">Details / Notes</div>
+                          <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
+                            {t('performance-details-notes')}
+                          </div>
                           <textarea
                             rows={3}
                             value={detailsInput}
                             disabled={isCompleted}
                             onChange={event => setDetailsInput(event.target.value)}
                             placeholder={
-                              isCompleted
-                                ? 'This goal is completed and can no longer be modified.'
-                                : 'Describe what you accomplished or any blockers…'
+                              isCompleted ? t('performance-completed-placeholder') : t('performance-notes-placeholder')
                             }
                             className={`gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:resize-none gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring ${isCompleted ? 'gba:opacity-50 gba:cursor-not-allowed' : ''}`}
                           />
@@ -1157,7 +1184,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                               className="gba:mt-1 gba:text-xs gba:text-destructive"
                               data-testid="performance-goal-update-comment-required"
                             >
-                              Please add a comment before saving this update.
+                              {t('performance-comment-required')}
                             </p>
                           )}
                         </div>
@@ -1169,7 +1196,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                             disabled={!detailsInput.trim()}
                             onClick={applyProgressUpdate}
                           >
-                            Save Update
+                            {t('performance-save-update')}
                           </button>
                         )}
                       </>
@@ -1179,19 +1206,19 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
 
                 <div className="gba:space-y-2">
                   <div className="gba:flex gba:items-center gba:justify-between">
-                    <div className="gba:text-sm gba:font-medium">Burnup Chart</div>
+                    <div className="gba:text-sm gba:font-medium">{t('performance-burnup-chart')}</div>
                     <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
                       <span className="gba:flex gba:items-center gba:gap-1">
                         <span className="gba:inline-block gba:w-4 gba:h-0.5 gba:bg-[var(--nw-chart-2)]" />
-                        Ideal
+                        {t('performance-chart-ideal')}
                       </span>
                       <span className="gba:flex gba:items-center gba:gap-1">
                         <span className="gba:inline-block gba:w-4 gba:h-0.5 gba:bg-[var(--nw-chart-1)]" />
-                        Actual
+                        {t('performance-chart-actual')}
                       </span>
                       <span className="gba:flex gba:items-center gba:gap-1">
                         <span className="gba:inline-block gba:w-4 gba:h-0.5 gba:border-t gba:border-dashed gba:border-warning" />
-                        Today
+                        {t('performance-chart-today')}
                       </span>
                     </div>
                   </div>
@@ -1204,18 +1231,24 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                         <RechartsTooltip
                           formatter={value => (typeof value === 'number' ? `${Math.round(value)}%` : '')}
                         />
-                        <Line dataKey="ideal" type="monotone" stroke="var(--nw-chart-2)" dot={false} name="Ideal" />
+                        <Line
+                          dataKey="ideal"
+                          type="monotone"
+                          stroke="var(--nw-chart-2)"
+                          dot={false}
+                          name={t('performance-chart-ideal')}
+                        />
                         <Line
                           dataKey="actual"
                           type="stepAfter"
                           stroke="var(--nw-chart-1)"
                           dot={false}
-                          name="Actual"
+                          name={t('performance-chart-actual')}
                           strokeWidth={2}
                           connectNulls={false}
                         />
                         <ReferenceLine
-                          x={dayjs().format('MMM D')}
+                          x={formatPerformanceDate(dayjs().toISOString(), 'date.monthDay')}
                           stroke="var(--nw-warning)"
                           strokeDasharray="3 3"
                           strokeWidth={2}
@@ -1237,7 +1270,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                   if (events.length === 0) return null
                   return (
                     <div className="gba:space-y-2">
-                      <div className="gba:text-sm gba:font-medium">Update History</div>
+                      <div className="gba:text-sm gba:font-medium">{t('performance-update-history')}</div>
                       <div className="gba:space-y-3">
                         {[...events].reverse().map((event, index) => (
                           <div key={index} className="gba:flex gba:gap-3">
@@ -1250,10 +1283,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                             <div className="gba:pb-3">
                               <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
                                 <span className="gba:text-xs gba:font-medium">
-                                  Progress → {Math.round(event.progress)}%
+                                  {t('performance-history-progress', { progress: Math.round(event.progress) })}
                                 </span>
                                 <span className="gba:text-xs gba:text-muted-foreground">
-                                  {dayjs(event.at).format('MMM D, YYYY HH:mm')}
+                                  {formatPerformanceDateTime(event.at)}
                                 </span>
                                 {event.author && (
                                   <span className="gba:text-xs gba:text-muted-foreground">· {event.author}</span>
@@ -1267,7 +1300,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                                   className="gba:text-xs gba:text-muted-foreground gba:mt-0.5"
                                   data-testid={`performance-goal-update-history-completed-${index}`}
                                 >
-                                  Completed: {event.completedMilestones.join(', ')}
+                                  {t('performance-history-completed', {
+                                    milestones: event.completedMilestones.join(', ')
+                                  })}
                                 </p>
                               ) : null}
                               {event.reopenedMilestones?.length ? (
@@ -1275,7 +1310,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                                   className="gba:text-xs gba:text-muted-foreground gba:mt-0.5"
                                   data-testid={`performance-goal-update-history-reopened-${index}`}
                                 >
-                                  Reopened: {event.reopenedMilestones.join(', ')}
+                                  {t('performance-history-reopened', {
+                                    milestones: event.reopenedMilestones.join(', ')
+                                  })}
                                 </p>
                               ) : null}
                             </div>
@@ -1290,9 +1327,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                 {showCompletedModal && (
                   <div className="gba:fixed gba:inset-0 gba:z-50 gba:flex gba:items-center gba:justify-center gba:bg-black/40">
                     <div className="gba:bg-background gba:rounded-lg gba:shadow-lg gba:p-6 gba:max-w-sm gba:w-full gba:mx-4 gba:space-y-4">
-                      <div className="gba:text-base gba:font-semibold">Mark as Completed?</div>
+                      <div className="gba:text-base gba:font-semibold">{t('performance-complete-dialog-title')}</div>
                       <p className="gba:text-sm gba:text-muted-foreground">
-                        You will no longer be able to modify this goal's progress.
+                        {t('performance-complete-dialog-description')}
                       </p>
                       <div className="gba:flex gba:gap-3 gba:justify-end">
                         <button
@@ -1300,14 +1337,14 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                           className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-secondary gba:text-secondary-foreground gba:text-sm"
                           onClick={() => setShowCompletedModal(false)}
                         >
-                          Cancel
+                          {t('action-cancel')}
                         </button>
                         <button
                           type="button"
                           className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-sm"
                           onClick={markGoalCompleted}
                         >
-                          Confirm
+                          {t('performance-confirm')}
                         </button>
                       </div>
                     </div>
@@ -1320,11 +1357,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
               <CardContent className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:px-6 gba:text-center">
                 <div className="gba:text-3xl gba:mb-4">🎯</div>
                 <div className="gba:text-base gba:font-medium gba:text-foreground gba:mb-1">
-                  Select a goal to view details
+                  {t('performance-select-goal-title')}
                 </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  Click on any goal from the list to see progress, chart, and update history.
-                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">{t('performance-select-goal-description')}</div>
               </CardContent>
             </Card>
           )}
@@ -1335,11 +1370,9 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
       {goalToDelete && (
         <div className="gba:fixed gba:inset-0 gba:z-50 gba:flex gba:items-center gba:justify-center gba:bg-black/40">
           <div className="gba:bg-background gba:rounded-lg gba:shadow-lg gba:p-6 gba:max-w-sm gba:w-full gba:mx-4 gba:space-y-4">
-            <div className="gba:text-base gba:font-semibold">Delete Goal?</div>
+            <div className="gba:text-base gba:font-semibold">{t('performance-delete-goal-title')}</div>
             <p className="gba:text-sm gba:text-muted-foreground">
-              Are you sure you want to delete{' '}
-              <span className="gba:font-medium gba:text-foreground">"{goalToDelete.title}"</span>? This action cannot be
-              undone.
+              {t('performance-delete-goal-description', { title: goalToDelete.title })}
             </p>
             <div className="gba:flex gba:gap-3 gba:justify-end">
               <button
@@ -1347,14 +1380,14 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                 className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-secondary gba:text-secondary-foreground gba:text-sm"
                 onClick={() => setGoalToDelete(null)}
               >
-                Cancel
+                {t('action-cancel')}
               </button>
               <button
                 type="button"
                 className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-destructive gba:text-destructive-foreground gba:text-sm"
                 onClick={confirmDeleteGoal}
               >
-                Delete
+                {t('performance-delete')}
               </button>
             </div>
           </div>
