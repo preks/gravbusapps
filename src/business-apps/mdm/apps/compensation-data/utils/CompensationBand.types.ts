@@ -33,8 +33,7 @@ export interface CompensationBandMutation {
   id?: string
   name: string
   description?: string
-  // Not currencyRef even though the BE declares currencyRef
-  currency?: string | null
+  currencyRef?: string | null
   minSalary: number
   maxSalary: number
   version?: number | null

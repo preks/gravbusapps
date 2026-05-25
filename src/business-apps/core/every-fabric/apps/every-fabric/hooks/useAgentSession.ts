@@ -192,20 +192,62 @@ const looksLikeDashboardJson = (content: string): boolean => {
   return trimmed.includes('"sections"') || trimmed.includes('"chartType"') || /^\{"title"\s*:\s*"/.test(trimmed)
 }
 
+const INTERNAL_ERROR_MARKERS: readonly string[] = [
+  "client error '400",
+  "client error '401",
+  "client error '403",
+  "client error '404",
+  "client error '500",
+  "client error '502",
+  "client error '503",
+  "client error '504",
+  'for more information check: https://developer.mozilla.org/',
+  'flow engine http error',
+  'functions service call failed',
+  'promptodm lookup failed',
+  'traceback (most recent call last)',
+  'exception:',
+  'error:'
+]
+
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+// Bounded quantifiers prevent catastrophic backtracking on malicious input.
+const EMAIL_RE = /[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{1,64}/
+const STACK_FRAME_RE = /(?:^|\n)[ \t]{1,8}at[ \t]{1,4}\S{1,256}/
+
+/**
+ * Returns true when the string clearly contains raw internals (JSON payload,
+ * UUID, email, stack frame, internal error blob, or anything implausibly long
+ * for a status line). Used to keep tool payloads, IDs, and errors out of the
+ * fading status pill, activity ticker, and agent thinking stream.
+ */
+export const looksLikeRawPayload = (content: string, maxLen = 200): boolean => {
+  if (!content) return false
+  const trimmed = content.trim()
+  if (!trimmed) return false
+  if (trimmed.length > maxLen) return true
+  const first = trimmed.charAt(0)
+  if (first === '{' || first === '[' || first === '<') return true
+  if (UUID_RE.test(trimmed)) return true
+  if (EMAIL_RE.test(trimmed)) return true
+  if (STACK_FRAME_RE.test(trimmed)) return true
+  const normalized = trimmed.toLowerCase()
+  for (const marker of INTERNAL_ERROR_MARKERS) {
+    if (normalized.includes(marker)) return true
+  }
+  return false
+}
+
+// The narrow legacy predicate is kept for the final-answer stream, which can
+// legitimately be long and may contain quoted JSON-looking snippets. It only
+// blocks recognised HTTP / internal error blobs.
 const looksLikeInternalErrorLeak = (content: string): boolean => {
+  if (!content) return false
   const normalized = content.toLowerCase()
-  return (
-    normalized.includes("client error '400 bad request'") ||
-    normalized.includes("client error '404 not found'") ||
-    normalized.includes("client error '500") ||
-    normalized.includes("client error '502") ||
-    normalized.includes("client error '503") ||
-    normalized.includes("client error '504") ||
-    normalized.includes('for more information check: https://developer.mozilla.org/') ||
-    normalized.includes('flow engine http error') ||
-    normalized.includes('functions service call failed') ||
-    normalized.includes('promptodm lookup failed')
-  )
+  for (const marker of INTERNAL_ERROR_MARKERS) {
+    if (normalized.includes(marker)) return true
+  }
+  return false
 }
 
 function sessionTraceOrEmpty(mergedSession: DeepAgentSession | null | undefined): AgentStreamEvent[] {
@@ -246,19 +288,61 @@ const stepStartedActivityText = (e: AgentStreamEvent): string | null => {
 }
 
 const eventActivityText = (e: AgentStreamEvent): string | null => {
+  let raw: string | null = null
   if (e.type === 'agent_chunk' && (e.chunk_kind === 'status' || e.chunk_kind === 'live_status')) {
-    return e.content ?? null
-  }
-  if (e.type === 'step_started') return stepStartedActivityText(e)
-  if (e.type === 'expert_called') {
+    raw = e.content ?? null
+  } else if (e.type === 'step_started') {
+    raw = stepStartedActivityText(e)
+  } else if (e.type === 'expert_called') {
     const name = (e as { name?: string; expert_name?: string }).expert_name ?? (e as { name?: string }).name
-    return name ? `Consulting ${humanizeActivityIdentifier(name)}` : null
-  }
-  if (e.type === 'decision') {
+    raw = name ? `Consulting ${humanizeActivityIdentifier(name)}` : null
+  } else if (e.type === 'decision') {
     const title = (e as { title?: string }).title
-    return title ?? null
+    raw = title ?? null
   }
-  return null
+
+  if (!raw) return null
+  // Defense in depth: even if the backend sanitizer slipped, never let raw
+  // payloads / IDs / errors render in the activity ticker or status pill.
+  if (looksLikeRawPayload(raw)) return null
+  return raw
+}
+
+interface ActivityRow {
+  ts: number
+  text: string
+}
+
+interface CollectedActivity {
+  rows: ActivityRow[]
+  responseStarted: boolean
+}
+
+const collectAgentActivityRows = (events: AgentStreamEvent[], turnStartEpoch: number): CollectedActivity => {
+  const rows: ActivityRow[] = []
+  let responseStarted = false
+  for (const e of events) {
+    const tsRaw = (e as { timestamp?: string }).timestamp
+    const ts = typeof tsRaw === 'string' ? toEpoch(tsRaw) : 0
+    if (ts < turnStartEpoch) continue
+    if (isResponseStreamStart(e)) {
+      responseStarted = true
+      continue
+    }
+    const text = eventActivityText(e)?.trim()
+    if (!text || looksLikeRawPayload(text)) continue
+    rows.push({ ts, text })
+  }
+  return { rows, responseStarted }
+}
+
+const dedupeConsecutive = (values: string[]): string[] => {
+  const out: string[] = []
+  for (const v of values) {
+    if (out[out.length - 1] === v) continue
+    out.push(v)
+  }
+  return out
 }
 
 const isTerminalSessionStatus = (status: DeepAgentSession['status'] | undefined): boolean =>
@@ -506,7 +590,13 @@ export const useAgentSession = (
 
   useEffect(() => {
     if (events.length === 0) return
-    const skillEvent = events.find((e): e is SkillLoadedEvent => e.type === 'skill_loaded')
+    // Phase 3: prefer `skill_loaded` (body actually injected) but fall
+    // back to `skill_scoped` (session-start intent) so the side panel
+    // populates as soon as the run knows which skill is in play.
+    const isSkillEvent = (e: (typeof events)[number]): e is SkillLoadedEvent =>
+      e.type === 'skill_loaded' || e.type === 'skill_scoped'
+    const loaded = events.find((e): e is SkillLoadedEvent => e.type === 'skill_loaded')
+    const skillEvent = loaded ?? events.find(isSkillEvent)
     if (skillEvent?.skill) {
       setActiveSkill({
         skill_id: skillEvent.skill.skill_id,
@@ -672,10 +762,13 @@ export const useAgentSession = (
           typeof entry.content === 'string' &&
           entry.content.trim().length > 0
       )
+      // Reasoning can legitimately be long; gate only on payload-shape markers
+      // (JSON / UUID / email / stack frame / internal error) so a leaked tool
+      // body never renders as the agent's thinking.
+      .filter(entry => !looksLikeRawPayload(entry.content, Number.MAX_SAFE_INTEGER))
       .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
 
     if (thinkingSnapshots.length > 0) {
-      // Get the latest/longest thinking snapshot (cumulative mode)
       const latestThinking = thinkingSnapshots[thinkingSnapshots.length - 1]
       return latestThinking.content.trim()
     }
@@ -701,14 +794,15 @@ export const useAgentSession = (
 
     if (!events || events.length === 0) return null
 
-    // Get latest status event from the stream
     const statusEvents = events
       .filter((e): e is AgentChunkEvent => e.type === 'agent_chunk' && e.chunk_kind === 'status')
       .sort((a, b) => toEpoch(b.timestamp) - toEpoch(a.timestamp))
 
-    if (statusEvents.length > 0) {
-      // Remove emoji prefix if present (backend adds 🔄)
-      return statusEvents[0].content.replace(/🔄\s*/, '')
+    for (const evt of statusEvents) {
+      const text = (evt.content ?? '').replace(/🔄\s*/, '')
+      if (!text) continue
+      if (looksLikeRawPayload(text)) continue
+      return text
     }
 
     return null
@@ -734,8 +828,11 @@ export const useAgentSession = (
       .filter(e => toEpoch(e.timestamp) >= cutoff)
       .sort((a, b) => toEpoch(b.timestamp) - toEpoch(a.timestamp))
 
-    if (liveEvents.length > 0) {
-      return liveEvents[0].content.replace(/🔄\s*/, '')
+    for (const evt of liveEvents) {
+      const text = (evt.content ?? '').replace(/🔄\s*/, '')
+      if (!text) continue
+      if (looksLikeRawPayload(text)) continue
+      return text
     }
 
     return null
@@ -849,42 +946,11 @@ export const useAgentSession = (
     if (!events || events.length === 0) return []
 
     const turnStartEpoch = findTurnStartEpoch(events)
-    const rows: Array<{ ts: number; text: string }> = []
-    let firstResponseEpoch = Number.POSITIVE_INFINITY
+    const collected = collectAgentActivityRows(events, turnStartEpoch)
+    if (collected.responseStarted) return []
 
-    // NOTE: do NOT treat `final` as response-start. The deterministic
-    // instant ack greeting ("Hi Ed, working on this now…") is emitted
-    // 4ms after the human chunk as chunk_kind="final" — using it to
-    // suppress would kill the ticker before the first status arrives.
-    // Only the real `response_stream` should end the ticker.
-    for (const e of events) {
-      const tsRaw = (e as { timestamp?: string }).timestamp
-      const ts = typeof tsRaw === 'string' ? toEpoch(tsRaw) : 0
-      if (ts < turnStartEpoch) continue
-
-      if (isResponseStreamStart(e)) {
-        if (ts < firstResponseEpoch) firstResponseEpoch = ts
-        continue
-      }
-
-      const text = eventActivityText(e)?.trim()
-      if (!text || looksLikeInternalErrorLeak(text)) continue
-      rows.push({ ts, text })
-    }
-
-    if (firstResponseEpoch !== Number.POSITIVE_INFINITY) return []
-
-    rows.sort((a, b) => a.ts - b.ts)
-
-    // Collapse consecutive duplicates so a noisy emitter does not flood the
-    // ticker with the same line.
-    const deduped: string[] = []
-    for (const row of rows) {
-      if (deduped[deduped.length - 1] === row.text) continue
-      deduped.push(row.text)
-    }
-
-    return deduped.slice(-3)
+    collected.rows.sort((a, b) => a.ts - b.ts)
+    return dedupeConsecutive(collected.rows.map(r => r.text)).slice(-3)
   }, [events, mergedSession?.status])
 
   const startSession = useCallback(

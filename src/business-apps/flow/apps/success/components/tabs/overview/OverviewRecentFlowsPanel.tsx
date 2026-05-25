@@ -33,6 +33,7 @@ interface OverviewRecentFlowsPanelProps {
   onPreviousPage: () => void
   onNextPage: () => void
   onSelectFlow: (flow: FlowSuccessFlowListItem) => void
+  selectedFlowId?: string | null
   title?: string
   description?: string
   showSearch?: boolean
@@ -56,6 +57,7 @@ export const OverviewRecentFlowsPanel: React.FC<OverviewRecentFlowsPanelProps> =
   onPreviousPage,
   onNextPage,
   onSelectFlow,
+  selectedFlowId,
   title,
   description,
   showSearch = true,
@@ -131,9 +133,14 @@ export const OverviewRecentFlowsPanel: React.FC<OverviewRecentFlowsPanelProps> =
                   <button
                     key={flow.flowId}
                     type="button"
-                    className="gba:flex gba:w-full gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:p-4 gba:text-left gba:transition-colors gba:hover:bg-muted/50"
+                    className={`gba:flex gba:w-full gba:gap-3 gba:rounded-lg gba:border gba:p-4 gba:text-left gba:transition-colors ${
+                      selectedFlowId === flow.flowId
+                        ? 'gba:border-primary gba:bg-primary/5 gba:ring-1 gba:ring-primary/20'
+                        : 'gba:border-border gba:bg-background gba:hover:bg-muted/50'
+                    }`}
                     onClick={() => onSelectFlow(flow)}
                     data-testid={`${testId}-row-${index}`}
+                    aria-pressed={selectedFlowId === flow.flowId}
                   >
                     <div className="gba:flex gba:h-10 gba:w-10 gba:flex-shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted">
                       <Workflow className="gba:h-4 gba:w-4 gba:text-muted-foreground" />

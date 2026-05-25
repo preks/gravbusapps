@@ -11,6 +11,9 @@ import {
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { detectRendererType } from '../../utils/renderUtils'
 import { parseComposeEmailToolResult, type ComposeEmailOutcomePayload } from '../../utils/composeEmailTrace'
+import { parseActionCardToolResult } from '../../utils/actionCardTrace'
+import { ActionCard } from './ActionCard'
+import { DeliverableCardsList, parseDeliverableCardPayload } from './DeliverableCards'
 
 export interface ToolResultRendererProps {
   callId: string
@@ -18,6 +21,10 @@ export interface ToolResultRendererProps {
   result: unknown
   durationMs: number
   cached: boolean
+  /** Required to download session_attachment deliverables (PDFs, etc.). */
+  sessionId?: string
+  /** Bearer token for authenticated EntityLink / attachment fetches. */
+  accessToken?: string
 }
 
 const formatTableCellValue = (value: unknown): string => {
@@ -90,9 +97,44 @@ function ComposeEmailResultCard({ payload }: { readonly payload: ComposeEmailOut
   )
 }
 
-export const ToolResultRenderer = ({ callId, toolName, result, durationMs, cached }: ToolResultRendererProps) => {
+export const ToolResultRenderer = ({
+  callId,
+  toolName,
+  result,
+  durationMs,
+  cached,
+  sessionId,
+  accessToken
+}: ToolResultRendererProps) => {
   const [expanded, setExpanded] = useState(false)
   const rendererType = detectRendererType(result)
+
+  // Generic action_card: any tool that emits the backend `ui.kind ===
+  // 'action_card'` payload renders as a clickable card with a status
+  // badge and a deep link. Use-case-agnostic; works for triggered
+  // workflows today and is the migration target for compose_email,
+  // schedule_meeting, send_notification, etc. Tool-name-specific
+  // branches below are kept only until those tools migrate.
+  const actionCardPayload = parseActionCardToolResult(result)
+  if (actionCardPayload) {
+    return <ActionCard payload={actionCardPayload} callId={callId} accessToken={accessToken} />
+  }
+
+  // Tools that opt into structured deliverables embed `ui.kind === 'deliverable_card'`
+  // alongside their existing JSON. Render the cards inline (no collapse) so the
+  // user sees a clickable "Open document" / "Download PDF" affordance rather than
+  // a JSON blob.
+  const deliverablePayload = parseDeliverableCardPayload(result)
+  if (deliverablePayload) {
+    return (
+      <div className="gba:max-w-3xl gba:space-y-2" data-testid={`enterprise-agent-tool-result-${callId}`}>
+        {deliverablePayload.agentSummary && (
+          <p className="gba:text-[12px] gba:text-muted-foreground">{deliverablePayload.agentSummary}</p>
+        )}
+        <DeliverableCardsList items={deliverablePayload.deliverables} sessionId={sessionId} accessToken={accessToken} />
+      </div>
+    )
+  }
 
   if (toolName === 'compose_email') {
     const payload = parseComposeEmailToolResult(result)

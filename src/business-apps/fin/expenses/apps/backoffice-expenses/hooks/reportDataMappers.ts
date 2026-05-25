@@ -33,8 +33,8 @@ import {
 
 const REPORT_DASH = '-'
 
-function formatAdvancePaymentMethodForReport(raw: unknown): string {
-  return formatPaymentMethodForExpenseTables(raw, REPORT_DASH)
+function formatAdvancePaymentMethodForReport(raw: unknown, t: TranslateFn): string {
+  return formatPaymentMethodForExpenseTables(raw, REPORT_DASH, t)
 }
 
 type NameResolver = (candidates: Array<string | undefined | null>, employeeNameById: Record<string, string>) => string
@@ -142,7 +142,7 @@ export const mapPaymentsFromOverview = (
         buildEmployeeDisplayName(p.employee) ||
         resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
       departmentName: resolveDepartmentName([p.expensePlan?.employeeId, p.createdBy, p.expensePlan?.createdBy]),
-      paymentMethod: formatAdvancePaymentMethodForReport(p.paymentMethod),
+      paymentMethod: formatAdvancePaymentMethodForReport(p.paymentMethod, t),
       costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
       currency: extractCurrencyCode(p.currencyRef)
     } as AdvancePaymentReport
@@ -245,7 +245,7 @@ export const mapAdvancePaymentToReport = (
     amount: coerceReportAmount(p.amount),
     employeeName: resolveDisplayName([p.expensePlan?.employeeId, p.createdBy], employeeNameById),
     departmentName: resolveDepartmentName([p.expensePlan?.employeeId, p.createdBy, p.expensePlan?.createdBy]),
-    paymentMethod: formatAdvancePaymentMethodForReport(p.paymentMethod),
+    paymentMethod: formatAdvancePaymentMethodForReport(p.paymentMethod, t),
     costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
     currency: extractCurrencyCode(p.currencyRef)
   }

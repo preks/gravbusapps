@@ -136,8 +136,9 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
           size="icon"
           className="gba:h-8 gba:w-8 gba:flex-shrink-0"
           data-testid="new-chat-button"
+          aria-label="Start a new chat"
         >
-          <Plus className="gba:w-4 gba:h-4" />
+          <Plus className="gba:w-4 gba:h-4" aria-hidden="true" />
         </Button>
       </div>
 
@@ -167,71 +168,78 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
           </div>
         ) : (
           <div className="gba:py-1">
-            {filteredSessions.map(session => (
-              <div
-                key={session.id}
-                onClick={() => onSessionSelect(session.id)}
-                className={`
-                  gba:w-full gba:flex gba:items-center gba:text-left gba:transition-all gba:duration-150 gba:relative gba:group gba:cursor-pointer gba:mx-1 gba:rounded-lg
-                  gba:gap-3 gba:px-3 gba:py-2.5
-                  ${currentSessionId === session.id ? 'gba:bg-primary/10 gba:text-primary' : 'gba:hover:bg-muted/80'}
-                `}
-                style={{ width: 'calc(100% - 8px)' }}
-                data-testid={`chat-history-item-${session.id}`}
-                role="button"
-                tabIndex={0}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onSessionSelect(session.id)
-                  }
-                }}
-              >
-                <div className="gba:relative gba:flex-shrink-0">
-                  <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                    <ChatsCircle className="gba:w-5 gba:h-5 gba:text-primary" weight="fill" />
-                  </div>
-                  {currentSessionId === session.id && (
-                    <div className="gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:rounded-full gba:bg-success gba:border-2 gba:border-background" />
-                  )}
-                </div>
-
-                <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <span className="gba:font-medium gba:text-sm gba:truncate gba:text-foreground">
-                      {session.title || session.shortInfo || `Chat ${session.id.slice(0, 8)}`}
-                    </span>
-                    {currentSessionId === session.id && (
-                      <span className="gba:text-[10px] gba:text-success gba:uppercase">Active</span>
-                    )}
-                  </div>
-                  {session.shortInfo && (
-                    <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
-                      {session.shortInfo}
-                    </p>
-                  )}
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <span className="gba:text-xs gba:text-muted-foreground">
-                      {formatDate(session.updatedAt)} • {formatTime(session.updatedAt)}
-                    </span>
-                    {session.messageCount > 0 && (
-                      <span className="gba:text-xs gba:text-muted-foreground">{session.messageCount} messages</span>
-                    )}
-                  </div>
-                </div>
-                <div className="gba:flex gba:items-center">
-                  <Button
-                    onClick={e => handleDeleteSession(session.id, e)}
-                    variant="ghost"
-                    size="icon"
-                    className="gba:h-7 gba:w-7 gba:opacity-50 hover:gba:opacity-100 gba:text-muted-foreground hover:gba:text-destructive"
-                    data-testid={`chat-history-delete-${session.id}`}
+            {filteredSessions.map(session => {
+              const sessionTitle = session.title || session.shortInfo || `Chat ${session.id.slice(0, 8)}`
+              const isActiveSession = currentSessionId === session.id
+              return (
+                <div
+                  key={session.id}
+                  className={`
+                    gba:w-full gba:flex gba:items-center gba:transition-all gba:duration-150 gba:relative gba:group gba:mx-1 gba:rounded-lg
+                    gba:gap-3 gba:px-3 gba:py-2.5
+                    ${isActiveSession ? 'gba:bg-primary/10 gba:text-primary' : 'gba:hover:bg-muted/80'}
+                  `}
+                  style={{ width: 'calc(100% - 8px)' }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => onSessionSelect(session.id)}
+                    className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0 gba:text-left gba:bg-transparent gba:border-0 gba:p-0 gba:cursor-pointer gba:focus:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-primary/60 gba:rounded-md"
+                    data-testid={`chat-history-item-${session.id}`}
+                    aria-label={`Open chat: ${sessionTitle}`}
+                    aria-current={isActiveSession ? 'true' : undefined}
                   >
-                    <Trash className="gba:w-3.5 gba:h-3.5" />
-                  </Button>
+                    <div className="gba:relative gba:flex-shrink-0">
+                      <div className="gba:w-10 gba:h-10 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+                        <ChatsCircle className="gba:w-5 gba:h-5 gba:text-primary" weight="fill" aria-hidden="true" />
+                      </div>
+                      {isActiveSession && (
+                        <div
+                          className="gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:rounded-full gba:bg-success gba:border-2 gba:border-background"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+
+                    <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span className="gba:font-medium gba:text-sm gba:truncate gba:text-foreground">
+                          {sessionTitle}
+                        </span>
+                        {isActiveSession && (
+                          <span className="gba:text-[10px] gba:text-success gba:uppercase">Active</span>
+                        )}
+                      </div>
+                      {session.shortInfo && (
+                        <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
+                          {session.shortInfo}
+                        </p>
+                      )}
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span className="gba:text-xs gba:text-muted-foreground">
+                          {formatDate(session.updatedAt)} • {formatTime(session.updatedAt)}
+                        </span>
+                        {session.messageCount > 0 && (
+                          <span className="gba:text-xs gba:text-muted-foreground">{session.messageCount} messages</span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                  <div className="gba:flex gba:items-center">
+                    <Button
+                      onClick={e => handleDeleteSession(session.id, e)}
+                      variant="ghost"
+                      size="icon"
+                      className="gba:h-7 gba:w-7 gba:opacity-50 hover:gba:opacity-100 gba:text-muted-foreground hover:gba:text-destructive"
+                      data-testid={`chat-history-delete-${session.id}`}
+                      aria-label={`Delete chat: ${sessionTitle}`}
+                    >
+                      <Trash className="gba:w-3.5 gba:h-3.5" aria-hidden="true" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             {hasMore && !searchQuery && (
               <div className="gba:px-3 gba:py-3 gba:flex gba:justify-center">

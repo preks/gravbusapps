@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { FlowTemplateClient } from '@/common/network/flows/FlowTemplateClient'
-import type { FlowDetailData, FlowDetailState, HistoryEvent, HistorySummary, StepAssignmentInfo } from './types'
+import type {
+  FlowDetailData,
+  FlowDetailState,
+  FlowTriggerData,
+  HistoryEvent,
+  HistorySummary,
+  StepAssignmentInfo
+} from './types'
 import { buildExecutionState, generateFallbackSteps, transformAuditEntry, transformFlowStep } from './utils'
 import type { FlowTags } from '@/business-apps/flow/types'
 
@@ -29,6 +36,62 @@ function extractSupportTags(tags: FlowTags | undefined): FlowDetailData['support
     teamName: tags.supportTeamName,
     entity: tags.supportEntity,
     entityName: tags.supportEntityName
+  }
+}
+
+const WORKFLOW_INPUT_INTERNAL_KEYS = new Set(['stepAssignments', 'runtimeParameters', 'context', 'initiator'])
+
+function pruneWorkflowInput(workflowInput: Record<string, unknown>): Record<string, unknown> {
+  const pruned: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(workflowInput)) {
+    if (!WORKFLOW_INPUT_INTERNAL_KEYS.has(key)) {
+      pruned[key] = value
+    }
+  }
+  return pruned
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function extractTriggerData(
+  workflowInput: unknown,
+  flowDetail: Pick<FlowDetailData, 'startTime' | 'initiatedBy' | 'initiatedById'>
+): FlowTriggerData | undefined {
+  if (!isRecord(workflowInput)) {
+    return undefined
+  }
+
+  let payload: Record<string, unknown> | undefined
+
+  if (workflowInput.eventData !== undefined && isRecord(workflowInput.eventData)) {
+    payload = workflowInput.eventData
+  } else if (workflowInput.inputData !== undefined && isRecord(workflowInput.inputData)) {
+    payload = workflowInput.inputData
+  } else if (workflowInput.inputValues !== undefined && isRecord(workflowInput.inputValues)) {
+    payload = workflowInput.inputValues
+  } else {
+    const pruned = pruneWorkflowInput(workflowInput)
+    if (Object.keys(pruned).length > 0) {
+      payload = pruned
+    }
+  }
+
+  if (!payload || Object.keys(payload).length === 0) {
+    return undefined
+  }
+
+  const runtimeParameters = isRecord(workflowInput.runtimeParameters) ? workflowInput.runtimeParameters : undefined
+  const trigger = runtimeParameters && isRecord(runtimeParameters.trigger) ? runtimeParameters.trigger : undefined
+
+  return {
+    payload,
+    triggerType: typeof trigger?.type === 'string' ? trigger.type : undefined,
+    triggerId: typeof trigger?.triggerId === 'string' ? trigger.triggerId : undefined,
+    initiatedAt: flowDetail.startTime,
+    initiatedBy: flowDetail.initiatedBy,
+    initiatedById: flowDetail.initiatedById
   }
 }
 
@@ -254,6 +317,12 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
             : undefined,
           supportTags
         }
+
+        normalizedFlowData.triggerData = extractTriggerData(workflowInput, {
+          startTime: normalizedFlowData.startTime,
+          initiatedBy: normalizedFlowData.initiatedBy,
+          initiatedById: normalizedFlowData.initiatedById
+        })
 
         const nextFlowSteps = Array.isArray(flowDetails?.steps)
           ? flowDetails.steps.map(transformFlowStep)

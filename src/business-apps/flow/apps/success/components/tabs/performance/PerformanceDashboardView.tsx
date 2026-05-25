@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { Info, Layers3 } from 'lucide-react'
-import { FlowDetailView } from '@/common/components/flow'
 import { ReadonlyTemplateFlowCanvas } from '@/common/components/flow'
+import { PerformanceDashboardFlowDataPanel } from './PerformanceDashboardFlowDataPanel'
 import translations from '../../../_i18n'
 import { useFlowsList } from '../../../hooks/useFlowAnalytics'
 import {
@@ -60,7 +60,12 @@ export const PerformanceDashboardView: React.FC<PerformanceDashboardViewProps> =
   const [flowsSearch, setFlowsSearch] = useState('')
   const [flowsStatus, setFlowsStatus] = useState<string>('ALL')
   const [flowsPage, setFlowsPage] = useState(0)
-  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null)
+  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    const fromUrl = new URLSearchParams(window.location.search).get('flowId')?.trim()
+    return fromUrl || null
+  })
+  const userClearedFlowSelectionRef = useRef(false)
   const flowsPageSize = 6
   const timeframeRange = useMemo(() => getSuccessTimeframeDateRange(timeframe), [timeframe])
   const {
@@ -90,18 +95,15 @@ export const PerformanceDashboardView: React.FC<PerformanceDashboardViewProps> =
 
   useEffect(() => {
     setFlowsPage(0)
+    setSelectedFlowId(null)
+    userClearedFlowSelectionRef.current = false
   }, [timeframe, scopedTemplateId])
 
-  if (selectedFlowId) {
-    return (
-      <FlowDetailView
-        flowId={selectedFlowId}
-        onBack={() => setSelectedFlowId(null)}
-        showBackButton
-        accessToken={accessToken}
-      />
-    )
-  }
+  useEffect(() => {
+    if (userClearedFlowSelectionRef.current || selectedFlowId) return
+    const firstFlowId = recentFlows[0]?.flowId
+    if (firstFlowId) setSelectedFlowId(firstFlowId)
+  }, [recentFlows, selectedFlowId])
 
   if (!scopedTemplateId) {
     return (
@@ -163,6 +165,7 @@ export const PerformanceDashboardView: React.FC<PerformanceDashboardViewProps> =
           onPreviousPage={() => setFlowsPage(Math.max(0, flowsPage - 1))}
           onNextPage={() => setFlowsPage(flowsPage + 1)}
           onSelectFlow={flow => setSelectedFlowId(flow.flowId)}
+          selectedFlowId={selectedFlowId}
           data-testid={`${testId}-recent-flows`}
         />
         <div id="performance-preview">
@@ -177,6 +180,24 @@ export const PerformanceDashboardView: React.FC<PerformanceDashboardViewProps> =
           />
         </div>
       </div>
+
+      {selectedFlowId ? (
+        <PerformanceDashboardFlowDataPanel
+          flowId={selectedFlowId}
+          accessToken={accessToken}
+          onBack={() => {
+            userClearedFlowSelectionRef.current = true
+            setSelectedFlowId(null)
+          }}
+          data-testid={`${testId}-flow-data`}
+        />
+      ) : (
+        <Card className="gba:border-dashed gba:border-border gba:bg-muted/10" data-testid={`${testId}-flow-data-hint`}>
+          <CardContent className="gba:p-5 gba:text-sm gba:text-muted-foreground">
+            {recentFlows.length ? t('performance-flow-data-select-hint') : t('overview-no-flows')}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:xl:grid-cols-2">
         <div id="performance-activity" className="gba:h-full">

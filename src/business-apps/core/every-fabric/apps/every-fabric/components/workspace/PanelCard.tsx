@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CaretDownIcon, CaretUpIcon } from '@phosphor-icons/react'
 
 interface PanelCardProps {
@@ -26,6 +26,10 @@ export const PanelCard: React.FC<PanelCardProps> = ({
 }) => {
   const [open, setOpen] = useState(defaultOpen)
   const slug = title.toLowerCase().replace(/\s+/g, '-')
+
+  useEffect(() => {
+    setOpen(defaultOpen)
+  }, [defaultOpen])
 
   const containerClass = subdued
     ? 'gba:group gba:flex gba:min-h-0 gba:shrink-0 gba:flex-col gba:rounded-[1.25rem] sm:gba:rounded-[1.5rem] gba:border gba:border-muted gba:bg-transparent gba:overflow-hidden'

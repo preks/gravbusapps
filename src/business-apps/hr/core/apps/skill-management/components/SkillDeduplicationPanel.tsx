@@ -70,19 +70,27 @@ function ProposalCard({
       </div>
 
       <div className="gba:space-y-2">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:font-semibold">{proposal.targetSkill.name}</span>
-          <Badge variant="outline">
+        <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
+          <span className="gba:min-w-0 gba:flex-1 gba:text-sm gba:font-semibold gba:leading-5 gba:whitespace-normal gba:break-words">
+            {proposal.targetSkill.name}
+          </span>
+          <Badge variant="outline" className="gba:shrink-0 gba:whitespace-nowrap gba:mt-0.5">
             {t('dedup-employees-count', { count: String(getEmployeeCount(proposal.targetSkill)) })}
           </Badge>
-          <Badge variant="secondary">{t('dedup-target-label')}</Badge>
+          <Badge variant="secondary" className="gba:shrink-0 gba:whitespace-nowrap gba:mt-0.5">
+            {t('dedup-target-label')}
+          </Badge>
         </div>
 
         {proposal.duplicates.map(dup => (
-          <div key={dup.id} className="gba:flex gba:items-center gba:gap-2 gba:pl-4">
-            <ArrowRightIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-            <span className="gba:text-sm gba:text-muted-foreground">{dup.name}</span>
-            <Badge variant="outline">{t('dedup-employees-count', { count: String(getEmployeeCount(dup)) })}</Badge>
+          <div key={dup.id} className="gba:flex gba:items-start gba:gap-2 gba:pl-4 gba:min-w-0">
+            <ArrowRightIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0 gba:mt-1" />
+            <span className="gba:min-w-0 gba:flex-1 gba:text-sm gba:text-muted-foreground gba:leading-5 gba:whitespace-normal gba:break-words">
+              {dup.name}
+            </span>
+            <Badge variant="outline" className="gba:shrink-0 gba:whitespace-nowrap gba:mt-0.5">
+              {t('dedup-employees-count', { count: String(getEmployeeCount(dup)) })}
+            </Badge>
           </div>
         ))}
       </div>

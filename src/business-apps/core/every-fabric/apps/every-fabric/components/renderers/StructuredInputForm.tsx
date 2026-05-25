@@ -18,8 +18,9 @@ import {
   SparkleIcon,
   WarningIcon
 } from '@phosphor-icons/react'
-import type { InputFieldSchema } from '../../types/enterpriseAgent'
+import type { InputFieldSchema, PreviewBlock } from '../../types/enterpriseAgent'
 import { EmployeeSearchField } from '../forms/EmployeeSearchField'
+import { PreviewBlockRenderer } from './PreviewBlockRenderer'
 
 interface StructuredInputFormProps {
   formId: string
@@ -39,6 +40,12 @@ interface StructuredInputFormProps {
    * as a compact collapsed summary, with the ability to expand for review.
    */
   alreadySubmitted?: boolean
+  /**
+   * Optional structured preamble (plan / timeline / checklist / summary /
+   * markdown) rendered ABOVE the form fields. Generic across use cases —
+   * driven by the backend `ask_human_structured(preview=...)` argument.
+   */
+  preview?: PreviewBlock
 }
 
 interface FieldState {
@@ -114,7 +121,8 @@ export const StructuredInputForm = ({
   accessToken,
   toolRef,
   requestStatus,
-  alreadySubmitted = false
+  alreadySubmitted = false,
+  preview
 }: StructuredInputFormProps) => {
   // Initialize field state
   const [fieldStates, setFieldStates] = useState<Record<string, FieldState>>(() => {
@@ -454,6 +462,13 @@ export const StructuredInputForm = ({
 
       {showDetailBody && (
         <>
+          {/* Optional structured preamble (plan / timeline / summary). */}
+          {preview && (
+            <div className="gba:px-5 gba:pt-4">
+              <PreviewBlockRenderer preview={preview} />
+            </div>
+          )}
+
           {/* Form fields */}
           <div className="gba:px-5 gba:py-4 gba:space-y-5 gba:max-h-[70vh] gba:overflow-y-auto">
             {fields.map(renderField)}

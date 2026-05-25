@@ -7,6 +7,14 @@ import type { SkillFormValues } from '../types'
 
 type SkillApprovalDecision = 'approved' | 'rejected'
 
+function resolveSkillVersion(version?: number | null): number {
+  if (typeof version === 'number') {
+    return version
+  }
+
+  return 0
+}
+
 function buildTaskCompletionUrl(task: FlowExecutionTask, userId?: string): string {
   const taskWithSourceMetadata = task as FlowExecutionTask & { sourceMetadata?: { endpoint?: string | null } }
   const taskEndpoint = task.endpoint ?? taskWithSourceMetadata.sourceMetadata?.endpoint
@@ -77,7 +85,7 @@ export function useSkillMutations(accessToken: string) {
             changeMode: 'UPDATE',
             skill: {
               id,
-              version: values.version,
+              version: resolveSkillVersion(values.version),
               name: values.name,
               description: values.description,
               levelScale: values.levelScale,
@@ -100,7 +108,7 @@ export function useSkillMutations(accessToken: string) {
       try {
         const result = await restClient.post(
           '/saveSkill',
-          { changeMode: 'DELETE', skill: { id, version } },
+          { changeMode: 'DELETE', skill: { id, version: resolveSkillVersion(version) } },
           { headers: getHeaders() }
         )
         return result

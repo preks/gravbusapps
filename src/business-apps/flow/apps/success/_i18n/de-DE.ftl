@@ -202,6 +202,7 @@ templates-comparison-table-title = Vergleichstabelle
 templates-comparison-table-description = Rangliste der Flow-Metriken für den tieferen Portfolio-Vergleich.
 performance-selected-empty-title = Noch keine Analysedaten für diesen Flow
 performance-selected-empty-description = Der ausgewählte Flow hat im aktiven Zeitraum keine Ausführungen. Die Definitionsvorschau bleibt verfügbar, während Analysebereiche leer bleiben.
+performance-flow-data-select-hint = Wählen Sie einen Lauf unter „Aktuelle Flows“, um erfasste Trigger- und Schrittdaten darunter anzuzeigen.
 
 # Tasks
 tasks-title = Task-Performance

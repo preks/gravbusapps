@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 import { TOP_DESTINATION_FILTER_TOKEN_PREFIX } from '../components/tabs/expense-plans-tab/config/expensePlanFilterTokens'
 
 export interface UseExpensePlansTabTopDestinationUiParams {
@@ -12,6 +12,7 @@ export interface UseExpensePlansTabTopDestinationUiParams {
   activeWidget: string | null
   setActiveWidget: (value: string | null) => void
   setSuppressCurrencyAutoSelect: (value: boolean) => void
+  t: (key: string) => string
 }
 
 export function useExpensePlansTabTopDestinationUi({
@@ -23,15 +24,16 @@ export function useExpensePlansTabTopDestinationUi({
   setDestinationFilter,
   activeWidget,
   setActiveWidget,
-  setSuppressCurrencyAutoSelect
+  setSuppressCurrencyAutoSelect,
+  t
 }: UseExpensePlansTabTopDestinationUiParams) {
   const topDestinationPill = useMemo(() => {
     if (!destinationFilter || destinationFilter === 'N/A') return null
     const labelValue = topDestination && topDestination !== 'N/A' ? getCatalogValue(topDestination) : destinationFilter
     const token = `${TOP_DESTINATION_FILTER_TOKEN_PREFIX}${destinationFilter}`
-    const label = `${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination', 'Top Destination')}: ${labelValue}`
+    const label = `${t('expense-plans-filter-top-destination')}: ${labelValue}`
     return { token, label }
-  }, [destinationFilter, topDestination])
+  }, [destinationFilter, topDestination, t])
 
   const uiSelectedFilters = useMemo(() => {
     if (!topDestinationPill) return selectedFilters

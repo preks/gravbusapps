@@ -70,6 +70,8 @@ function resolveArtifactLabel(artifactType: ArtifactPreview['artifactType']): st
       return 'document'
     case 'note':
       return 'note'
+    case 'pdf':
+      return 'PDF'
     default:
       return 'chart'
   }
@@ -119,6 +121,7 @@ export const WorkspaceLayout: React.FC = () => {
     activityEvents,
     decisions,
     activeSkill,
+    cases,
     sessionConnectorIds,
     artifacts,
     workspaceDocs,
@@ -460,11 +463,11 @@ export const WorkspaceLayout: React.FC = () => {
               activityEvents={activityEvents}
               agentStreamEvents={events}
               decisions={decisions}
+              cases={cases}
               artifacts={artifacts}
               workspaceDocs={workspaceDocs}
               isConnected={isConnected}
               isStreaming={isStreaming}
-              onViewArtifact={setActiveArtifactId}
               latestPreview={latestPreview}
               accessToken={accessToken}
               sessionId={session.session_id}

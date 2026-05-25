@@ -181,7 +181,7 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   },
   opportunity: {
     urlTemplate: '/platform/crm/opportunity-record?opportunityId={id}',
-    icon: createEmojiIcon('💰')
+    icon: createSvgIcon('M3 17l6-6 4 4 8-8')
   },
   business_partner_person: {
     urlTemplate: '/platform/crm/contact-record?contactId={id}',
@@ -197,7 +197,7 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   },
   customer_rejection_reason: {
     urlTemplate: '/platform/crm/opportunity-record?opportunityId={id}',
-    icon: createEmojiIcon('💰')
+    icon: createSvgIcon('M3 17l6-6 4 4 8-8')
   },
   crm_note: {
     urlTemplate: '/platform/crm/customer-relations?view=notes&noteId={id}',

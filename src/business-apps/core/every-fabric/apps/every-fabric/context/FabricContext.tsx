@@ -20,6 +20,7 @@ import { useAgentSession, type ActiveSkillInfo } from '../hooks/useAgentSession'
 import { useAgentSessions } from '../hooks/useAgentSessions'
 import { useArtifactPreview, type ArtifactPreview } from '../hooks/useArtifactPreview'
 import { useFabricArtifacts } from '../hooks/useFabricArtifacts'
+import { useFabricCases, type CaseState } from '../hooks/useFabricCases'
 import { useFabricDecisions, type DecisionItem } from '../hooks/useFabricDecisions'
 import { useFabricPlan } from '../hooks/useFabricPlan'
 import { useFabricSkills, type ActiveFabricSkill } from '../hooks/useFabricSkills'
@@ -74,6 +75,15 @@ interface FabricContextValue {
   loadedSkills: ActiveFabricSkill[]
   /** Lookup used by the Activity panel to attach a skill badge to `skill_load` rows. */
   skillIdByStepId: Map<string, string>
+
+  // Live Case Panel — multi-step business operations the agent
+  // orchestrates (offboarding, contract change, …). Driven by the
+  // generic case_panel_open/update/close tools and action_card
+  // cross-links. Empty when the active skill does not opt in.
+  cases: CaseState[]
+  hasCases: boolean
+  /** Most-recently opened case still in `open` state, else the latest case. */
+  activeCase: CaseState | null
 
   // Active connectors for the session (persisted from session start)
   sessionConnectorIds: string[]
@@ -450,6 +460,13 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   // Skills — parsed from `skill_load` tool calls and `skill_loaded` events.
   const { activeSkill: fabricActiveSkill, loadedSkills, skillIdByStepId } = useFabricSkills(events)
 
+  // Cases — generic, event-only "multi-step business operation" state
+  // derived from case_panel_open/update/close tool outputs and from
+  // action_card cross-link refs on newwork_trigger_flow results.
+  // Drives the right-sidebar CasePanel; survives page refresh because
+  // useFabricCases merges REST trace + live SSE just like useFabricPlan.
+  const { cases, hasCases, activeCase } = useFabricCases(session, events)
+
   // Merge SSE events with session trace for completed sessions (trace has preview events too)
   const previewSourceEvents = useMemo((): AgentStreamEvent[] => {
     if (events.length > 0) return events
@@ -693,6 +710,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       fabricActiveSkill,
       loadedSkills,
       skillIdByStepId,
+      cases,
+      hasCases,
+      activeCase,
       sessionConnectorIds,
       taskNodes,
       hasPlan,
@@ -754,6 +774,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       fabricActiveSkill,
       loadedSkills,
       skillIdByStepId,
+      cases,
+      hasCases,
+      activeCase,
       sessionConnectorIds,
       taskNodes,
       hasPlan,

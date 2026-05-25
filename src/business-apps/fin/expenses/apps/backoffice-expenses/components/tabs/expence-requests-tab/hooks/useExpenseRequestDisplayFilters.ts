@@ -15,6 +15,8 @@ interface UseExpenseRequestDisplayFiltersParams {
   searchText: string
   amountMinFilter: string
   amountMaxFilter: string
+  remainingMinFilter: string
+  remainingMaxFilter: string
   selectedCurrencyCode: string | null
   employeeFilter: string
   setEmployeeFilter: (value: string) => void
@@ -25,6 +27,7 @@ interface UseExpenseRequestDisplayFiltersParams {
   setRequestTypeFilter: (value: string[]) => void
   handleDepartmentFilter: (value: string) => void
   handleAmountFilter: (amountMin: string, amountMax: string) => void
+  handleRemainingAmountFilter: (remainingMin: string, remainingMax: string) => void
   setEffectiveDateRangeFilter: (value: { from?: string; to?: string } | null) => void
   setRequestDateRangeFilter: (value: { from?: string; to?: string } | null) => void
   setCurrentPage: (page: number) => void
@@ -42,6 +45,8 @@ export function useExpenseRequestDisplayFilters({
   searchText,
   amountMinFilter,
   amountMaxFilter,
+  remainingMinFilter,
+  remainingMaxFilter,
   selectedCurrencyCode,
   employeeFilter,
   setEmployeeFilter,
@@ -52,6 +57,7 @@ export function useExpenseRequestDisplayFilters({
   setRequestTypeFilter,
   handleDepartmentFilter,
   handleAmountFilter,
+  handleRemainingAmountFilter,
   setEffectiveDateRangeFilter,
   setRequestDateRangeFilter,
   setCurrentPage,
@@ -81,11 +87,15 @@ export function useExpenseRequestDisplayFilters({
       employeeFilter.trim() !== '' ||
       amountMinFilter.trim() !== '' ||
       amountMaxFilter.trim() !== '' ||
+      remainingMinFilter.trim() !== '' ||
+      remainingMaxFilter.trim() !== '' ||
       !!(effectiveDateRange && (effectiveDateRange[0] || effectiveDateRange[1])) ||
       !!(requestDateRange && (requestDateRange[0] || requestDateRange[1])),
     [
       amountMaxFilter,
       amountMinFilter,
+      remainingMaxFilter,
+      remainingMinFilter,
       departmentIds,
       effectiveDateRange,
       employeeFilter,
@@ -132,11 +142,15 @@ export function useExpenseRequestDisplayFilters({
         requestDateRange,
         amountMinFilter,
         amountMaxFilter,
+        remainingMinFilter,
+        remainingMaxFilter,
         selectedEmployees
       }),
     [
       amountMaxFilter,
       amountMinFilter,
+      remainingMaxFilter,
+      remainingMinFilter,
       departmentIds,
       effectiveDateRange,
       requestDateRange,
@@ -161,6 +175,9 @@ export function useExpenseRequestDisplayFilters({
         amountMinFilter,
         amountMaxFilter,
         handleAmountFilter,
+        remainingMinFilter,
+        remainingMaxFilter,
+        handleRemainingAmountFilter,
         employeeMultiSelectOptions,
         selectedEmployees,
         employeeSearchResults,
@@ -179,11 +196,14 @@ export function useExpenseRequestDisplayFilters({
     [
       amountMaxFilter,
       amountMinFilter,
+      remainingMaxFilter,
+      remainingMinFilter,
       departmentIds,
       employeeFilter,
       employeeMultiSelectOptions,
       employeeSearchResults,
       handleAmountFilter,
+      handleRemainingAmountFilter,
       handleDepartmentFilter,
       handleEmployeeFilter,
       handleStatusFilter,
@@ -211,11 +231,15 @@ export function useExpenseRequestDisplayFilters({
       effectiveDateRange,
       requestDateRange,
       amountMinFilter,
-      amountMaxFilter
+      amountMaxFilter,
+      remainingMinFilter,
+      remainingMaxFilter
     ],
     [
       amountMaxFilter,
       amountMinFilter,
+      remainingMaxFilter,
+      remainingMinFilter,
       departmentIds,
       effectiveDateRange,
       employeeFilter,

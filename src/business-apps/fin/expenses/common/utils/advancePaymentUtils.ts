@@ -238,8 +238,12 @@ export const toTitleCase = (value?: string): string => {
 /**
  * Gets display value for payment method, handling catalog entries and special cases
  */
-export const getPaymentMethodDisplay = (method: unknown, t: TranslateFn): string => {
-  const notSpecified = t('advance-payment-not-specified')
+export const getPaymentMethodDisplay = (
+  method: unknown,
+  t: TranslateFn,
+  options?: { emptyDisplay?: string }
+): string => {
+  const notSpecified = options?.emptyDisplay ?? t('advance-payment-not-specified')
 
   if (!method) return notSpecified
 

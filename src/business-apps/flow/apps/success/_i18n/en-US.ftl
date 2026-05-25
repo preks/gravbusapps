@@ -202,6 +202,7 @@ templates-comparison-table-title = Comparison table
 templates-comparison-table-description = Ranked flow metrics for deeper portfolio comparison.
 performance-selected-empty-title = No analytics for this flow yet
 performance-selected-empty-description = The selected flow has no runs in the active timeframe. The definition preview stays available while analytics sections remain empty.
+performance-flow-data-select-hint = Select a run from Recent flows to inspect captured trigger and step data below.
 
 # Tasks
 tasks-title = Task performance

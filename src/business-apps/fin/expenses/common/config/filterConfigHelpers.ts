@@ -61,15 +61,24 @@ export function createStatusFilterGroupWithLabel(
   }
 }
 
-/** Date-range filter group with Fluent label key + manager expense-plans date placeholders. */
+interface FluentDateRangeFilterGroupOptions {
+  placeholderStartKey?: string
+  placeholderEndKey?: string
+}
+
+/** Date-range filter group with Fluent label key and configurable date placeholders. */
 export function createFluentDateRangeFilterGroup(
   t: (key: string) => string,
   id: string,
   field: string,
   labelFluentKey: string,
-  groupInfo?: string
+  groupInfo?: string,
+  options: FluentDateRangeFilterGroupOptions = {}
 ): FilterConfiguration['groups'][number] {
   const label = t(labelFluentKey)
+  const placeholderStartKey = options.placeholderStartKey ?? 'expense-plans-filter-placeholder-start-date'
+  const placeholderEndKey = options.placeholderEndKey ?? 'expense-plans-filter-placeholder-end-date'
+
   return {
     id: `${id}-group`,
     label,
@@ -85,8 +94,8 @@ export function createFluentDateRangeFilterGroup(
         config: {
           dateType: 'date' as const,
           mode: 'range' as const,
-          placeholder: t('expense-plans-filter-placeholder-start-date'),
-          placeholderEnd: t('expense-plans-filter-placeholder-end-date'),
+          placeholder: t(placeholderStartKey),
+          placeholderEnd: t(placeholderEndKey),
           showClearButton: true
         }
       }

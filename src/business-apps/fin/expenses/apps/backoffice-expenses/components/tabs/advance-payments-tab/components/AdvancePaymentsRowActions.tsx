@@ -1,6 +1,5 @@
 import type { MouseEvent } from 'react'
 import { AppAction } from '@/components/app-action'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { RowActionsIcon, RowActionsWrapper } from '../../../../../../common/components/table/RowActionComponents'
 import type { AdvancePaymentItem } from '../../../../types'
@@ -53,10 +52,7 @@ export function AdvancePaymentsRowActions({
     navigateTo(url)
   }
 
-  const navigationsCategory = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_list.flows_button.navigations',
-    'Navigations'
-  )
+  const navigationsCategory = t('action-navigations')
 
   return (
     <RowActionsWrapper>
@@ -77,10 +73,7 @@ export function AdvancePaymentsRowActions({
                 {
                   category: navigationsCategory,
                   key: 'view-plan-details',
-                  label: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
-                    'View Plan Details'
-                  ),
+                  label: t('action-view-plan-details'),
                   onClick: (e?: MouseEvent) => {
                     e?.stopPropagation()
                     handleViewExpensePlanDetails()
@@ -96,10 +89,7 @@ export function AdvancePaymentsRowActions({
                 {
                   category: navigationsCategory,
                   key: 'view-request-details',
-                  label: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                    'View Request Details'
-                  ),
+                  label: t('action-view-request-details'),
                   onClick: (e?: MouseEvent) => {
                     e?.stopPropagation()
                     handleViewExpenseRequestDetails()

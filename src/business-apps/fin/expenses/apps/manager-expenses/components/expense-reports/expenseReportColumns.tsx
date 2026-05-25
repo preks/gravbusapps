@@ -377,7 +377,7 @@ export function createExpenseReportTableColumns(
           header: paymentMethodHeader,
           ...sortOff,
           cell: ({ row }) => {
-            const label = formatPaymentMethodForExpenseTables(row.original.paymentMethod, REPORT_DASH)
+            const label = formatPaymentMethodForExpenseTables(row.original.paymentMethod, REPORT_DASH, managerT)
             return (
               <span
                 className="gba:text-sm gba:min-w-0 gba:truncate gba:block"

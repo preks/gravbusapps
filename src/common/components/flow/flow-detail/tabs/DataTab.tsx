@@ -21,7 +21,7 @@ import { useEmployeeAvatarsBatch } from '@/business-apps/core/every/apps/every-b
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import { buildPlatformUrl, Navigation } from '@/common/utils/navigationUtils'
-import type { StepAssignmentInfo } from '../types'
+import type { FlowTriggerData, StepAssignmentInfo } from '../types'
 import { useResolvedActorNames } from '../useResolvedActorNames'
 
 // Interfaces for the Data tab
@@ -72,6 +72,7 @@ interface FlowDetailData {
     entity?: string
     entityName?: string
   }
+  triggerData?: FlowTriggerData
 }
 
 interface FlowStep {
@@ -516,6 +517,54 @@ const MultiRowDataTable: React.FC<MultiRowDataTableProps> = ({ data, totalCount,
 
 const ACTIVE_STEP_STATUSES = new Set(['IN_PROGRESS', 'RUNNING', 'CLAIMED', 'ACTIVE'])
 
+const TRIGGER_TYPE_LABELS: Record<string, string> = {
+  MANUAL_FORM: 'Manual form',
+  WEBHOOK: 'Webhook',
+  EVENT: 'Event',
+  SCHEDULE: 'Scheduled',
+  API_SCHEMA: 'API'
+}
+
+function formatTriggerTypeLabel(triggerType?: string): string {
+  if (!triggerType) return 'Triggered'
+  if (TRIGGER_TYPE_LABELS[triggerType]) return TRIGGER_TYPE_LABELS[triggerType]
+  return triggerType
+    .toLowerCase()
+    .split('_')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+interface TriggerDataCardProps {
+  triggerData: FlowTriggerData
+  accessToken?: string
+}
+
+const TriggerDataCard: React.FC<TriggerDataCardProps> = ({ triggerData, accessToken }) => (
+  <div
+    className="gba:space-y-4 gba:rounded-lg gba:border gba:border-border gba:bg-card gba:p-4"
+    data-testid="flow-detail-trigger-data-card"
+  >
+    <div className="gba:flex gba:flex-wrap gba:items-start gba:justify-between gba:gap-3">
+      <div className="gba:min-w-0 gba:flex-1">
+        <h3 className="gba:text-base gba:font-semibold gba:text-foreground">Start</h3>
+        {triggerData.initiatedBy ? (
+          <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">Initiated by {triggerData.initiatedBy}</p>
+        ) : null}
+      </div>
+      <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+        <Badge variant="outline" className="gba:text-xs">
+          {formatTriggerTypeLabel(triggerData.triggerType)}
+        </Badge>
+        <Badge variant="secondary" className="gba:text-xs">
+          1 record
+        </Badge>
+      </div>
+    </div>
+    <SingleFormData formData={triggerData.payload} accessToken={accessToken} />
+  </div>
+)
+
 function getInitials(name: string): string {
   const parts = name.split(' ').filter(Boolean)
   if (parts.length >= 2) {
@@ -639,17 +688,36 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, stepAssig
     )
   })
 
+  const hasTriggerData = Boolean(flowData.triggerData)
+  const visibleEntryCount = visibleSteps.length + (hasTriggerData ? 1 : 0)
+  const hasVisibleEntries = hasTriggerData || visibleSteps.length > 0
+
   return (
     <div className="gba:mt-0 gba:space-y-4">
       <div className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-3">
-        <Badge variant="outline">{visibleSteps.length} steps shown</Badge>
+        <Badge variant="outline">
+          {visibleEntryCount} {visibleEntryCount === 1 ? 'entry shown' : 'entries shown'}
+        </Badge>
         <Button
           variant="outline"
           size="sm"
           className="gba:flex gba:items-center gba:gap-2"
           onClick={() => {
+            const triggerRow = flowData.triggerData
+              ? [
+                  'start',
+                  '"Start"',
+                  flowData.triggerData.triggerType ?? 'TRIGGERED',
+                  flowData.triggerData.initiatedBy ?? '',
+                  '',
+                  flowData.triggerData.initiatedAt ?? '',
+                  1
+                ].join(',')
+              : null
+
             const csvContent = [
               ['Step ID', 'Title', 'Status', 'Assigned To', 'Due Date', 'Completed At', 'Data Records'].join(','),
+              ...(triggerRow ? [triggerRow] : []),
               ...visibleSteps.map(step =>
                 [
                   step.id,
@@ -671,7 +739,7 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, stepAssig
             a.click()
             URL.revokeObjectURL(url)
           }}
-          disabled={!visibleSteps.length}
+          disabled={!hasVisibleEntries}
         >
           <Download className="gba:h-4 gba:w-4" />
           Export Step Data
@@ -724,8 +792,11 @@ export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, stepAssig
           <Spinner className="gba:h-8 gba:w-8" />
           <span className="gba:ml-2 gba:text-muted-foreground">Loading step data...</span>
         </div>
-      ) : visibleSteps.length ? (
+      ) : hasVisibleEntries ? (
         <div className="gba:space-y-4">
+          {flowData.triggerData ? (
+            <TriggerDataCard triggerData={flowData.triggerData} accessToken={accessToken} />
+          ) : null}
           {visibleSteps.map(step => {
             const stepData = stepDataMap.get(step.stepIndex)
             const submittedRows = stepData?.data || []

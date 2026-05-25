@@ -3,6 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import type { AdvancePaymentItem } from '../../../../types'
+import { getPaymentMethodDisplay } from '@/business-apps/fin/expenses/common/utils/advancePaymentUtils'
 import { getAdvancePaymentStatusDisplay, type StatusDisplayConfig, type TranslateFn } from '../../../../utils/utils'
 
 function renderTruncatedCell(value: string | undefined, testId: string, notAvailableLabel: string): ReactElement {
@@ -16,13 +17,7 @@ function renderTruncatedCell(value: string | undefined, testId: string, notAvail
 }
 
 function getPaymentMethodLabel(paymentMethod: string | undefined, t: TranslateFn): string {
-  if (paymentMethod === 'DIRECT_DEPOSIT') {
-    return t('advance-payment-direct-deposit')
-  }
-  if (paymentMethod) {
-    return t('advance-payment-cash')
-  }
-  return t('common-not-available')
+  return getPaymentMethodDisplay(paymentMethod, t, { emptyDisplay: t('common-not-available') })
 }
 
 function getRowCurrencyCode(row: AdvancePaymentItem): string {

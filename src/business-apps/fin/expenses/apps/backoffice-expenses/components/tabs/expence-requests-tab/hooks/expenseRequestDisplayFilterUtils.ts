@@ -153,6 +153,8 @@ export function buildExpenseRequestFiltersObject(params: {
   requestDateRange: DateRange
   amountMinFilter: string
   amountMaxFilter: string
+  remainingMinFilter: string
+  remainingMaxFilter: string
   selectedEmployees: EmployeeOption[]
 }): Record<string, unknown> {
   const {
@@ -163,6 +165,8 @@ export function buildExpenseRequestFiltersObject(params: {
     requestDateRange,
     amountMinFilter,
     amountMaxFilter,
+    remainingMinFilter,
+    remainingMaxFilter,
     selectedEmployees
   } = params
 
@@ -187,9 +191,14 @@ export function buildExpenseRequestFiltersObject(params: {
     filters.requestDateRange = requestDateLabel
   }
 
-  const amountBounds = parseAmountFilterBounds(amountMinFilter, amountMaxFilter)
-  if (amountBounds) {
-    filters.amount = amountBounds
+  const totalAmountBounds = parseAmountFilterBounds(amountMinFilter, amountMaxFilter)
+  if (totalAmountBounds) {
+    filters.totalAmount = totalAmountBounds
+  }
+
+  const remainingBounds = parseAmountFilterBounds(remainingMinFilter, remainingMaxFilter)
+  if (remainingBounds) {
+    filters.totalRemainingAmount = remainingBounds
   }
 
   if (selectedEmployees.length > 0) {
@@ -227,6 +236,9 @@ interface ApplyExpenseRequestDisplayFiltersParams {
   amountMinFilter: string
   amountMaxFilter: string
   handleAmountFilter: (amountMin: string, amountMax: string) => void
+  remainingMinFilter: string
+  remainingMaxFilter: string
+  handleRemainingAmountFilter: (remainingMin: string, remainingMax: string) => void
   employeeMultiSelectOptions: Array<{ id: string; label: string }>
   selectedEmployees: EmployeeOption[]
   employeeSearchResults: EmployeeOption[]
@@ -251,6 +263,7 @@ function resetAllExpenseRequestDisplayFilters(p: ApplyExpenseRequestDisplayFilte
   p.setDepartmentIds([])
   p.handleDepartmentFilter('')
   p.handleAmountFilter('', '')
+  p.handleRemainingAmountFilter('', '')
   p.setEmployeeSheetSearchQuery('')
   p.setShowEmployeeDropdown(false)
   p.setSelectedEmployees([])
@@ -282,9 +295,9 @@ function formatAmountFilterStrings(amount: { min?: number; max?: number }): { mi
   return { minValue, maxValue }
 }
 
-function syncAmountFromDisplayFilters(p: ApplyExpenseRequestDisplayFiltersParams): void {
-  if ('amount' in p.filters) {
-    const amount = p.filters.amount as { min?: number; max?: number } | null | undefined
+function syncTotalAmountFromDisplayFilters(p: ApplyExpenseRequestDisplayFiltersParams): void {
+  if ('totalAmount' in p.filters) {
+    const amount = p.filters.totalAmount as { min?: number; max?: number } | null | undefined
     if (amount && (amount.min !== undefined || amount.max !== undefined)) {
       const { minValue, maxValue } = formatAmountFilterStrings(amount)
       p.handleAmountFilter(minValue, maxValue)
@@ -295,6 +308,22 @@ function syncAmountFromDisplayFilters(p: ApplyExpenseRequestDisplayFiltersParams
   }
   if (p.amountMinFilter || p.amountMaxFilter) {
     p.handleAmountFilter('', '')
+  }
+}
+
+function syncRemainingAmountFromDisplayFilters(p: ApplyExpenseRequestDisplayFiltersParams): void {
+  if ('totalRemainingAmount' in p.filters) {
+    const amount = p.filters.totalRemainingAmount as { min?: number; max?: number } | null | undefined
+    if (amount && (amount.min !== undefined || amount.max !== undefined)) {
+      const { minValue, maxValue } = formatAmountFilterStrings(amount)
+      p.handleRemainingAmountFilter(minValue, maxValue)
+    } else {
+      p.handleRemainingAmountFilter('', '')
+    }
+    return
+  }
+  if (p.remainingMinFilter || p.remainingMaxFilter) {
+    p.handleRemainingAmountFilter('', '')
   }
 }
 
@@ -342,7 +371,8 @@ export function applyExpenseRequestDisplayFilters(params: ApplyExpenseRequestDis
   params.setRequestTypeFilter(requestTypeIds)
 
   syncDepartmentFromDisplayFilters(params)
-  syncAmountFromDisplayFilters(params)
+  syncTotalAmountFromDisplayFilters(params)
+  syncRemainingAmountFromDisplayFilters(params)
   syncEmployeesFromDisplayFilters(params)
 
   applyDateRangeFromFilter(params.filters.effectiveDateRange, range => {

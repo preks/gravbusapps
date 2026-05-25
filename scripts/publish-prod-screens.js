@@ -12,7 +12,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import dotenv from '@dotenvx/dotenvx'
 import { BlobServiceClient } from '@azure/storage-blob'
-import { getAllNativeScreens, syncScreenFromDevToProd, deleteProdNativeScreensByComponentPaths } from './api-client.js'
+import { getAllNativeScreens, syncScreenFromDevToProd, deleteProdScreensByComponentPaths } from './api-client.js'
 import { getScreenDirectories } from './utils/screenDiscovery.js'
 import { compareScreenHashes, loadHashFile, saveHashFile, configureGit } from './utils/componentHashUtils.js'
 import { logPhase } from './utils/logPhase.js'
@@ -272,6 +272,31 @@ async function promoteReleaseCandidateScreen(screenPath, artifactTargets) {
 }
 
 /**
+ * One dev row per screenKey for prod create (prefer NATIVE_SCREEN when duplicates exist in dev).
+ * @param {object[]} screens
+ * @returns {object[]}
+ */
+function dedupeDevScreensByScreenKey(screens) {
+  const byKey = new Map()
+  for (const screen of screens) {
+    const key = screen.screenKey != null ? String(screen.screenKey).trim() : ''
+    if (!key) continue
+    const existing = byKey.get(key)
+    if (!existing) {
+      byKey.set(key, screen)
+      continue
+    }
+    if (
+      screen.screenComponents?.builderType === 'NATIVE_SCREEN' &&
+      existing.screenComponents?.builderType !== 'NATIVE_SCREEN'
+    ) {
+      byKey.set(key, screen)
+    }
+  }
+  return [...byKey.values()]
+}
+
+/**
  * @param {string[]} changedScreens
  * @param {object} target
  * @param {Record<string, string>} versionByComponentPath
@@ -329,19 +354,22 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target, ve
     })
 
     // Separate form screens from app screens
-    const formScreens = matchingScreens.filter(screen => {
+    const formScreensRaw = matchingScreens.filter(screen => {
       const componentPath = screen.screenComponents.formDefinition.componentPath.replace(/^\//, '')
       return isFormScreen(componentPath)
     })
 
-    const appScreens = matchingScreens.filter(screen => {
+    const appScreensRaw = matchingScreens.filter(screen => {
       const componentPath = screen.screenComponents.formDefinition.componentPath.replace(/^\//, '')
       return !isFormScreen(componentPath)
     })
 
+    const formScreens = dedupeDevScreensByScreenKey(formScreensRaw)
+    const appScreens = dedupeDevScreensByScreenKey(appScreensRaw)
+
     console.log(`   Found ${matchingScreens.length} total matching screens:`)
-    console.log(`   Form screens: ${formScreens.length}`)
-    console.log(`   App screens: ${appScreens.length}`)
+    console.log(`   Form screens: ${formScreens.length} (${formScreensRaw.length} before screenKey dedupe)`)
+    console.log(`   App screens: ${appScreens.length} (${appScreensRaw.length} before screenKey dedupe)`)
 
     if (matchingScreens.length === 0) {
       console.log('   No screens match the changed component paths')
@@ -356,10 +384,10 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target, ve
       )
     ]
     const keysToPurge = [...new Set(matchingScreens.map(s => s.screenKey).filter(Boolean))]
-    console.log('\nPurging prod NATIVE_SCREEN rows before sync (componentPath ∪ dev screenKey):')
+    console.log('\nPurging prod screens before sync (all builder types; componentPath ∪ dev screenKey):')
     console.log(`   Paths: ${pathsToPurge.join(', ')}`)
     console.log(`   Screen keys: ${keysToPurge.join(', ')}`)
-    const purge = await deleteProdNativeScreensByComponentPaths(
+    const purge = await deleteProdScreensByComponentPaths(
       pathsToPurge,
       target.services.screenManagementApi,
       prodOauthConfig,

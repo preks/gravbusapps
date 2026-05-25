@@ -19,11 +19,13 @@ import {
   XCircleIcon
 } from '@phosphor-icons/react'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
+import type { CaseState } from '../../hooks/useFabricCases'
 import type { DecisionItem } from '../../hooks/useFabricDecisions'
 import { useFabricDelegation, computeDelegationStats } from '../../hooks/useFabricDelegation'
 import type { ActivityEvent, AgentStreamEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
 import type { ArtifactFile, FabricSubAgent, FabricTaskNode } from '../../types/fabric'
 import { parseIsoTimestamp, toolCategoryColor } from '../../utils/renderUtils'
+import { CasePanel } from './CasePanel'
 import { CollaborationPanel } from './collaboration/CollaborationPanel'
 import { DecisionsCard } from './DecisionsCard'
 import { LivePreviewCard } from './LivePreviewCard'
@@ -76,12 +78,15 @@ const workspaceDocPanelIcon = (type: WorkspaceDocument['type']) => {
   return <FileTextIcon className="gba:h-3.5 gba:w-3.5 gba:text-blue-500 gba:shrink-0" />
 }
 
-const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[] }> = ({ docs }) => (
+const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[]; defaultCollapsed?: boolean }> = ({
+  docs,
+  defaultCollapsed = false
+}) => (
   <PanelCard
     title="Workspace Documents"
     badge={docs.length}
     summary={docs[0]?.title ? `Latest: ${docs[0].title}` : undefined}
-    defaultOpen
+    defaultOpen={!defaultCollapsed}
   >
     <div className="gba:py-1">
       {docs.map(doc => (
@@ -104,15 +109,15 @@ const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[] }> = ({ docs 
   </PanelCard>
 )
 
-const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) => void }> = ({
+const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; defaultCollapsed?: boolean }> = ({
   artifacts,
-  onView
+  defaultCollapsed = false
 }) => (
   <PanelCard
     title="Artifacts"
     badge={artifacts.length}
     summary={artifacts[0]?.name ? `Latest: ${artifacts[0].name}` : undefined}
-    defaultOpen
+    defaultOpen={!defaultCollapsed}
   >
     <div className="gba:py-1">
       {artifacts.map(file => (
@@ -129,15 +134,19 @@ const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; onView: (id: string) 
             </p>
           </div>
           <div className="gba:flex gba:items-center gba:gap-1 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity">
-            <button
-              onClick={() => onView(file.artifactKey)}
+            <a
+              href={file.downloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="gba:px-2 gba:py-1 gba:rounded-lg gba:text-[11px] gba:font-medium gba:text-primary gba:hover:bg-primary/10 gba:transition-colors"
               data-testid={`fabric-artifact-view-${file.name}`}
             >
               View
-            </button>
+            </a>
             <a
               href={file.downloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               download={file.name}
               className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
               title="Download"
@@ -265,7 +274,8 @@ const EnterpriseExpertsCard: React.FC<{
   nodes: FabricTaskNode[]
   events: ActivityEvent[]
   isStreaming: boolean
-}> = ({ nodes, events, isStreaming }) => {
+  defaultCollapsed?: boolean
+}> = ({ nodes, events, isStreaming, defaultCollapsed = false }) => {
   const experts = useMemo(() => {
     const seen = new Map<string, FabricSubAgent>()
     collectExpertsFromNodes(nodes, seen)
@@ -286,7 +296,12 @@ const EnterpriseExpertsCard: React.FC<{
   })()
 
   return (
-    <PanelCard title="Enterprise experts" badge={experts.length} summary={expertSummary} defaultOpen>
+    <PanelCard
+      title="Enterprise experts"
+      badge={experts.length}
+      summary={expertSummary}
+      defaultOpen={!defaultCollapsed}
+    >
       <div className="gba:py-1 gba:space-y-1">
         {experts.map(expert => (
           <div
@@ -1153,11 +1168,11 @@ interface WorkspaceRightPanelProps {
   activityEvents: ActivityEvent[]
   agentStreamEvents: AgentStreamEvent[]
   decisions: DecisionItem[]
+  cases: CaseState[]
   artifacts: ArtifactFile[]
   workspaceDocs?: WorkspaceDocument[]
   isConnected: boolean
   isStreaming: boolean
-  onViewArtifact: (name: string) => void
   latestPreview?: ArtifactPreview | null
   accessToken?: string
   sessionId?: string
@@ -1178,11 +1193,11 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   activityEvents,
   agentStreamEvents,
   decisions,
+  cases,
   artifacts,
   workspaceDocs,
   isConnected,
   isStreaming,
-  onViewArtifact,
   latestPreview,
   accessToken = '',
   sessionId = '',
@@ -1198,6 +1213,8 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
       latestPreview.status === 'draft_ready' ||
       latestPreview.status === 'ready' ||
       latestPreview.status === 'error')
+  const caseFocus = cases.length > 0
+  const collapseSecondaryPanels = showPreview || caseFocus
 
   return (
     <div
@@ -1217,6 +1234,8 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
         </div>
       )}
 
+      {cases.length > 0 && <CasePanel cases={cases} accessToken={accessToken} defaultCollapsed={false} />}
+
       {hasPlan && (
         <PlanCard
           nodes={taskNodes}
@@ -1225,21 +1244,32 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
           progressPercent={progressPercent}
           isConnected={isConnected}
           isStreaming={isStreaming}
-          defaultCollapsed={showPreview}
+          defaultCollapsed={collapseSecondaryPanels}
         />
       )}
 
-      {decisions.length > 0 && <DecisionsCard decisions={decisions} defaultCollapsed={showPreview} />}
+      {decisions.length > 0 && <DecisionsCard decisions={decisions} defaultCollapsed={collapseSecondaryPanels} />}
 
       {delegation.hasMultipleAgents ? (
-        <CollaborationPanel root={delegation.rootNode} stats={delegationStats} defaultCollapsed={showPreview} />
+        <CollaborationPanel
+          root={delegation.rootNode}
+          stats={delegationStats}
+          defaultCollapsed={collapseSecondaryPanels}
+        />
       ) : (
-        <EnterpriseExpertsCard nodes={taskNodes} events={activityEvents} isStreaming={isStreaming} />
+        <EnterpriseExpertsCard
+          nodes={taskNodes}
+          events={activityEvents}
+          isStreaming={isStreaming}
+          defaultCollapsed={collapseSecondaryPanels}
+        />
       )}
 
-      {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} onView={onViewArtifact} />}
+      {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} defaultCollapsed={collapseSecondaryPanels} />}
 
-      {workspaceDocs && workspaceDocs.length > 0 && <WorkspaceDocumentsCard docs={workspaceDocs} />}
+      {workspaceDocs && workspaceDocs.length > 0 && (
+        <WorkspaceDocumentsCard docs={workspaceDocs} defaultCollapsed={collapseSecondaryPanels} />
+      )}
 
       {activityEvents.length > 0 && <ActivityCard events={activityEvents} />}
 

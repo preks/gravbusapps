@@ -1,13 +1,11 @@
 import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay, DEFAULT_CURRENCY_CODE } from '../utils/formatCurrency'
 
-const NOT_AVAILABLE = 'lowcoder:common.not_available'
 const NOT_AVAILABLE_LABEL = 'N/A'
 
-export const naLabel = () => getTranslationFromI18nKeyAndLabel(NOT_AVAILABLE, NOT_AVAILABLE_LABEL)
+export const naLabel = () => NOT_AVAILABLE_LABEL
 
 /**
  * Full header label on `title` so truncated fixed-layout column titles show on hover (native tooltip).

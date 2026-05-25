@@ -1,45 +1,36 @@
-import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { toTitleCase } from './advancePaymentUtils'
+import { getPaymentMethodDisplay } from './advancePaymentUtils'
 
 /**
- * Formats payment method for list/tables, aligned with
- * `AdvancePaymentMethodCell` in personal advance payments.
+ * Formats payment method for list/tables and reports.
+ * Delegates to {@link getPaymentMethodDisplay} when `t` is provided (Fluent keys in common `_i18n`).
  */
-export function formatPaymentMethodForExpenseTables(method: unknown, emptyDisplay = '-'): string {
+export function formatPaymentMethodForExpenseTables(
+  method: unknown,
+  emptyDisplay = '-',
+  t?: (key: string) => string
+): string {
+  if (t) {
+    return getPaymentMethodDisplay(method, t, { emptyDisplay })
+  }
+
   if (method == null) {
     return emptyDisplay
   }
 
-  if (typeof method === 'object' && method !== null && 'value' in method) {
-    const label = getCatalogValue(method)
-    if (label?.trim()) {
-      return label
-    }
-    return emptyDisplay
-  }
-
-  if (typeof method === 'object' || typeof method === 'function') {
-    return emptyDisplay
-  }
-
-  const raw = String(method).trim()
+  const raw = typeof method === 'string' ? method.trim() : String(method).trim()
   if (!raw) {
     return emptyDisplay
   }
 
   if (raw === 'DIRECT_DEPOSIT') {
-    return getTranslationFromI18nKeyAndLabel(
-      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-      'Direct Deposit'
-    )
+    return 'Direct Deposit'
   }
 
   if (raw === 'CASH_PAYMENT') {
-    return getTranslationFromI18nKeyAndLabel(
-      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-      'Cash Payment'
-    )
+    return 'Cash Payment'
   }
 
-  return toTitleCase(raw) || emptyDisplay
+  return raw
 }
+
+export { getPaymentMethodDisplay } from './advancePaymentUtils'

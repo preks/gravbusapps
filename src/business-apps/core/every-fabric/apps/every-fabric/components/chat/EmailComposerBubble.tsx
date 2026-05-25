@@ -5,6 +5,7 @@ import {
   CaretRightIcon,
   CheckIcon,
   EnvelopeSimpleIcon,
+  PaperclipIcon,
   PaperPlaneTiltIcon,
   PencilSimpleIcon,
   UserCircleIcon,
@@ -13,6 +14,7 @@ import {
 import { Input } from '@newwork/nw-design-system'
 import type {
   ComposeEmailAction,
+  ComposeEmailAttachmentRef,
   ComposeEmailDraft,
   ComposeEmailRecipient,
   ComposeEmailSubmission
@@ -45,6 +47,21 @@ interface EmailComposerBubbleProps {
 
 const cloneRecipients = (list?: ComposeEmailRecipient[]): ComposeEmailRecipient[] =>
   (list ?? []).map(r => ({ name: r.name, address: r.address }))
+
+const cloneAttachments = (list?: ComposeEmailAttachmentRef[] | null): ComposeEmailAttachmentRef[] =>
+  (list ?? []).map(a => ({
+    id: a.id,
+    name: a.name,
+    mime_type: a.mime_type,
+    size: a.size
+  }))
+
+const formatAttachmentSize = (bytes?: number): string => {
+  if (!bytes || bytes <= 0) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 const htmlToPlainText = (html: string): string => {
   if (!html) return ''
@@ -398,6 +415,8 @@ export function EmailComposerBubble({
   const [accountsError, setAccountsError] = useState<string | null>(null)
   const [accountId, setAccountId] = useState<string | null>(draft.account_id ?? null)
 
+  const [attachments, setAttachments] = useState<ComposeEmailAttachmentRef[]>(() => cloneAttachments(draft.attachments))
+
   const [submitting, setSubmitting] = useState<ComposeEmailAction | null>(null)
   const [doneAction, setDoneAction] = useState<ComposeEmailAction | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -474,12 +493,13 @@ export function EmailComposerBubble({
         htmlBody: plainTextToHtml(body),
         textBody: body,
         signature: signature || undefined,
-        accountId: accountId ?? undefined
+        accountId: accountId ?? undefined,
+        attachments: attachments.length > 0 ? attachments : undefined
       }
       setDoneAction(action)
       onSubmit(submission)
     },
-    [to, cc, bcc, subject, body, signature, accountId, accounts.length, onSubmit]
+    [to, cc, bcc, subject, body, signature, accountId, accounts.length, attachments, onSubmit]
   )
 
   const traceStatusLabel = traceOutcome ? (TRACE_STATUS_LABELS[traceOutcome.status ?? ''] ?? 'Completed') : null
@@ -627,6 +647,36 @@ export function EmailComposerBubble({
                   className="gba:w-full gba:text-[13px] gba:leading-6 gba:border gba:border-input gba:rounded-lg gba:bg-background gba:px-3 gba:py-2 gba:resize-y gba:min-h-[160px] gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring/40 gba:disabled:opacity-90"
                 />
               </div>
+
+              {attachments.length > 0 && (
+                <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-1.5">
+                  {attachments.map(att => {
+                    const sizeLabel = formatAttachmentSize(att.size)
+                    const displayName = att.name || att.id
+                    return (
+                      <span
+                        key={att.id}
+                        className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-border/60 gba:bg-muted/30 gba:px-2 gba:py-1 gba:text-[11px] gba:text-foreground"
+                        title={sizeLabel ? `${displayName} · ${sizeLabel}` : displayName}
+                      >
+                        <PaperclipIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+                        <span className="gba:max-w-[220px] gba:truncate">{displayName}</span>
+                        {sizeLabel && <span className="gba:text-muted-foreground">· {sizeLabel}</span>}
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => setAttachments(prev => prev.filter(a => a.id !== att.id))}
+                            aria-label={`Remove attachment ${displayName}`}
+                            className="gba:ml-0.5 gba:rounded-sm gba:p-0.5 gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/40"
+                          >
+                            <XIcon className="gba:h-3 gba:w-3" />
+                          </button>
+                        )}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
 
               <div className="gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:bg-muted/20 gba:px-3 gba:py-2 gba:space-y-1.5">
                 <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">

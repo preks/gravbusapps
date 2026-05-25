@@ -9,16 +9,18 @@ interface FlowDetailDataSectionProps {
   flowSteps: FlowStep[]
   stepAssignmentsByStepIndex: Record<number, StepAssignmentInfo>
   accessToken?: string
+  defaultOpen?: boolean
 }
 
 export const FlowDetailDataSection: React.FC<FlowDetailDataSectionProps> = ({
   flowData,
   flowSteps,
   stepAssignmentsByStepIndex,
-  accessToken
+  accessToken,
+  defaultOpen = false
 }) => {
-  const [isOpen, setIsOpen] = useState(false)
-  const [hasOpened, setHasOpened] = useState(false)
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+  const [hasOpened, setHasOpened] = useState(defaultOpen)
 
   useEffect(() => {
     if (isOpen) setHasOpened(true)

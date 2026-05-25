@@ -5,7 +5,6 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EXPENSE_PLANS_BY_MANAGER } from '../queries/expensePlans'
 import { GET_EXPENSE_REQUESTS_BY_MANAGER } from '../queries/expenseRequests'
 import { GET_EXPENSE_ITEMS_BY_MANAGER } from '../queries/expenseItems'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getExpenseItemCategoryLabel } from '../../../common/utils/expenseItemCategoryLabel'
 import { GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER } from '../queries/advancePayments'
 import {
@@ -165,37 +164,25 @@ export const useExpenseReportData = ({
   const reportTypes: ReportMetadata[] = [
     {
       id: 'report-1',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_item_report',
-        'Expense Item Report'
-      ),
+      name: t('expense-reports-type-expense-item'),
       type: ReportType.EXPENSE_ITEM,
       selected: selectedReportType === ReportType.EXPENSE_ITEM
     },
     {
       id: 'report-2',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_plan_report',
-        'Expense Plan Report'
-      ),
+      name: t('expense-reports-type-expense-plan'),
       type: ReportType.EXPENSE_PLAN,
       selected: selectedReportType === ReportType.EXPENSE_PLAN
     },
     {
       id: 'report-3',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:team_expenses_page.dashboard_tab.expense_request_report',
-        'Expense Request Report'
-      ),
+      name: t('expense-reports-type-expense-request'),
       type: ReportType.EXPENSE_REQUEST,
       selected: selectedReportType === ReportType.EXPENSE_REQUEST
     },
     {
       id: 'report-4',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:advance_payment_report.search_module',
-        'Advance Payment Report'
-      ),
+      name: t('expense-reports-type-advance-payment'),
       type: ReportType.ADVANCE_PAYMENT,
       selected: selectedReportType === ReportType.ADVANCE_PAYMENT
     }
@@ -381,10 +368,7 @@ export const useExpenseReportData = ({
   const processExpenseItemsData = (data: any): ExpenseItemReport[] => {
     if (!data?.ExpenseItem?.length) return []
 
-    const categoryWhenMissing = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:team_expenses_page.dashboard_tab.uncategorized',
-      'Uncategorized'
-    )
+    const categoryWhenMissing = t('expense-reports-uncategorized')
 
     return data.ExpenseItem.map((item: any) => {
       const expenseGroupValue = getExpenseItemCategoryLabel(item, categoryWhenMissing)

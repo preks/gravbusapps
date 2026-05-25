@@ -24,7 +24,6 @@ import Pill from '@/components/pill'
 import { formatDate } from '@/common/utils/windowUtils'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from './utils/currency'
 import { useGetExpensePlanRecord } from './hooks/useGetExpensePlanRecord'
 import { getExpensePlanStatusDisplayT } from '../../common/utils/statusDisplayUtils'
@@ -413,7 +412,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
       errorDescription = t('expense-plan-record-no-plan-found')
     } else {
       // Case 3: Other errors
-      errorTitle = getTranslationFromI18nKeyAndLabel('lowcoder:general_notifications.error_title', 'Error')
+      errorTitle = t('general-error-title')
     }
 
     return (

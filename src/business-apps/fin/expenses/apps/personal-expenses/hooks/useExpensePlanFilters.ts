@@ -355,6 +355,7 @@ export const useExpensePlanFilters = () => {
   }, [])
 
   return {
+    t,
     search,
     setSearch,
     debouncedSearch,

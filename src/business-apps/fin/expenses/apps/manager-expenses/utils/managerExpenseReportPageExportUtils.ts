@@ -60,7 +60,7 @@ export const formatManagerExpenseReportCell = (
   options?: FormatManagerExpenseReportCellOptions
 ): string => {
   if (key === 'paymentMethod') {
-    return formatPaymentMethodForExpenseTables(raw, REPORT_EXPORT_EMPTY)
+    return formatPaymentMethodForExpenseTables(raw, REPORT_EXPORT_EMPTY, options?.translate)
   }
   if (key === 'status' && options !== undefined) {
     return formatStatusForManagerReportExport(options.reportType, options.translate, raw)

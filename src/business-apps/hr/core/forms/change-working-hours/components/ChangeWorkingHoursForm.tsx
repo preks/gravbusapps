@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -22,11 +22,46 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Spinner
+  Spinner,
+  Button,
+  useTranslation
 } from '@newwork/nw-design-system'
-import WorkingHoursSummary from './WorkingHoursSummary'
+import translations from '../../../apps/employee-record/_i18n'
+
+type WorkingHoursMode = 'standard' | 'custom' | null
+
+const standardFullTimeValues: WorkingHoursFormValues = {
+  mondayHours: 8,
+  tuesdayHours: 8,
+  wednesdayHours: 8,
+  thursdayHours: 8,
+  fridayHours: 8,
+  saturdayHours: 0,
+  sundayHours: 0
+}
+
+function formatHoursInputValue(value: number | undefined): string {
+  if (value == null || !Number.isFinite(value)) {
+    return ''
+  }
+  return Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100)
+}
+
+function parsePositiveNumber(value: string): number | null {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+function deriveWeeklySummary(values: WorkingHoursFormValues): { weeklyHours: number; workingDays: number } {
+  const hours = dayOrder.map(({ key }) => Number(values[key] || 0)).filter(value => Number.isFinite(value))
+  return {
+    weeklyHours: hours.reduce((sum, value) => sum + value, 0),
+    workingDays: hours.filter(value => value > 0).length
+  }
+}
 
 export const ChangeWorkingHoursForm: React.FC = () => {
+  const { t } = useTranslation(translations)
   const {
     employee,
     employees,
@@ -38,6 +73,10 @@ export const ChangeWorkingHoursForm: React.FC = () => {
     error,
     buildSubmitPayload
   } = useChangeWorkingHoursContext()
+  const [mode, setMode] = useState<WorkingHoursMode>(null)
+  const [weeklyHoursInput, setWeeklyHoursInput] = useState('0')
+  const [workingDaysInput, setWorkingDaysInput] = useState('0')
+  const [hasInteractedWithWorkingTime, setHasInteractedWithWorkingTime] = useState(false)
 
   const form = useForm<WorkingHoursFormValues>({
     defaultValues: {
@@ -55,8 +94,20 @@ export const ChangeWorkingHoursForm: React.FC = () => {
   useEffect(() => {
     if (defaults) {
       form.reset(defaults)
+      const summary = deriveWeeklySummary(defaults)
+      setMode(null)
+      setWeeklyHoursInput(formatHoursInputValue(summary.weeklyHours))
+      setWorkingDaysInput(formatHoursInputValue(summary.workingDays))
+      setHasInteractedWithWorkingTime(false)
     }
   }, [defaults, form])
+
+  const setDailyHours = (values: WorkingHoursFormValues) => {
+    for (const { key } of dayOrder) {
+      form.setValue(key, values[key], { shouldValidate: true, shouldDirty: true })
+      form.clearErrors(key)
+    }
+  }
 
   const dayLabel = (key: DayKey): string => {
     const config = dayOrder.find(d => d.key === key)!
@@ -99,6 +150,58 @@ export const ChangeWorkingHoursForm: React.FC = () => {
   const exceedsWeeklyLimit = (weeklySum ?? 0) > 48
   const exceedsWorkingDaysLimit = (workingDays ?? 0) > 6
   const isEmployeeSelectionMissing = !isFixedEmployeeId && !selectedEmployeeId
+  const parsedWeeklyHoursInput = parsePositiveNumber(weeklyHoursInput)
+  const parsedWorkingDaysInput = parsePositiveNumber(workingDaysInput)
+  const canDistributeEvenly =
+    parsedWeeklyHoursInput != null &&
+    parsedWorkingDaysInput != null &&
+    parsedWorkingDaysInput <= dayOrder.length &&
+    parsedWeeklyHoursInput / parsedWorkingDaysInput <= maxHours
+
+  useEffect(() => {
+    if (mode !== 'custom' || !hasInteractedWithWorkingTime) {
+      return
+    }
+
+    setWeeklyHoursInput(formatHoursInputValue(areAllDaysValid ? weeklySum : undefined))
+    setWorkingDaysInput(formatHoursInputValue(areAllDaysValid ? workingDays : undefined))
+  }, [areAllDaysValid, hasInteractedWithWorkingTime, mode, weeklySum, workingDays])
+
+  const applyStandardFullTime = () => {
+    setMode('standard')
+    setHasInteractedWithWorkingTime(true)
+    setWeeklyHoursInput('40')
+    setWorkingDaysInput('5')
+    setDailyHours(standardFullTimeValues)
+  }
+
+  const enableCustomByDay = () => {
+    setMode('custom')
+    if (defaults) {
+      const summary = deriveWeeklySummary(defaults)
+      setDailyHours(defaults)
+      setWeeklyHoursInput(formatHoursInputValue(summary.weeklyHours))
+      setWorkingDaysInput(formatHoursInputValue(summary.workingDays))
+      setHasInteractedWithWorkingTime(false)
+    }
+  }
+
+  const distributeEvenly = () => {
+    if (parsedWeeklyHoursInput == null || parsedWorkingDaysInput == null) {
+      return
+    }
+
+    const daysToFill = Math.min(Math.floor(parsedWorkingDaysInput), dayOrder.length)
+    const hoursPerDay = Math.round((parsedWeeklyHoursInput / daysToFill) * 100) / 100
+    const distributed = dayOrder.reduce<WorkingHoursFormValues>((acc, { key }, index) => {
+      acc[key] = index < daysToFill ? hoursPerDay : 0
+      return acc
+    }, {} as WorkingHoursFormValues)
+
+    setMode('custom')
+    setHasInteractedWithWorkingTime(true)
+    setDailyHours(distributed)
+  }
 
   const firstDayErrorMessage = (() => {
     for (const { key } of dayOrder) {
@@ -107,6 +210,23 @@ export const ChangeWorkingHoursForm: React.FC = () => {
     }
     return undefined
   })()
+
+  const renderModeButton = (value: WorkingHoursMode, label: string, description: string, onClick: () => void) => {
+    const selected = mode === value
+    return (
+      <button
+        type="button"
+        className={`gba:flex gba:flex-1 gba:flex-col gba:items-start gba:gap-1 gba:rounded-lg gba:border gba:p-4 gba:text-left gba:transition-colors ${
+          selected ? 'gba:border-primary gba:bg-primary/5' : 'gba:border-border gba:bg-background hover:gba:bg-muted/40'
+        }`}
+        aria-pressed={selected}
+        onClick={onClick}
+      >
+        <span className="gba:text-sm gba:font-semibold gba:text-foreground">{label}</span>
+        <span className="gba:text-xs gba:text-muted-foreground">{description}</span>
+      </button>
+    )
+  }
 
   const renderEmployeeHeader = () => {
     if (loading) {
@@ -269,6 +389,78 @@ export const ChangeWorkingHoursForm: React.FC = () => {
           <div className="gba:flex gba:items-center gba:mb-6">{renderEmployeeHeader()}</div>
           <div className="gba:border-t gba:mb-6" />
 
+          <div className="gba:mb-6 gba:space-y-4">
+            <div className="gba:flex gba:flex-col gba:gap-3 sm:gba:flex-row">
+              {renderModeButton(
+                'standard',
+                t('working-hours-standard-full-time-option'),
+                t('working-hours-standard-full-time-description'),
+                applyStandardFullTime
+              )}
+              {renderModeButton(
+                'custom',
+                t('working-hours-customize-by-day-option'),
+                t('working-hours-customize-by-day-description'),
+                enableCustomByDay
+              )}
+            </div>
+
+            <div className="gba:grid gba:grid-cols-1 gba:gap-4 sm:gba:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:gba:items-end">
+              <div>
+                <label className="gba:mb-2 gba:block gba:font-semibold" htmlFor="weekly-working-hours-input">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:working_hours_form.weekly_working_hours_label',
+                    'Weekly Working Hours'
+                  )}
+                </label>
+                <input
+                  id="weekly-working-hours-input"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={48}
+                  step="0.01"
+                  className="gba:h-10 gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
+                  value={weeklyHoursInput}
+                  onChange={event => setWeeklyHoursInput(event.target.value)}
+                  data-testid="flw_updateWorkingHours_weeklyWorkingHoursInput"
+                />
+              </div>
+              <div>
+                <label className="gba:mb-2 gba:block gba:font-semibold" htmlFor="working-days-week-input">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:working_hours_form.working_days_week_label',
+                    'Working Days / Week'
+                  )}
+                </label>
+                <input
+                  id="working-days-week-input"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={7}
+                  step="1"
+                  className="gba:h-10 gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
+                  value={workingDaysInput}
+                  onChange={event => setWorkingDaysInput(event.target.value)}
+                  data-testid="flw_updateWorkingHours_workingDaysWeekInput"
+                />
+              </div>
+              {weeklyHoursInput.trim() !== '' && workingDaysInput.trim() !== '' ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="gba:whitespace-nowrap"
+                  disabled={!canDistributeEvenly}
+                  onClick={distributeEvenly}
+                  data-testid="flw_updateWorkingHours_distributeEvenly"
+                >
+                  {t('working-hours-distribute-evenly-action')}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
           <div
             className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-7 gba:gap-4"
             data-testid="flw_updateWorkingHours_columnLayout"
@@ -288,14 +480,15 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                    inputMode="decimal"
                     className={`gba:w-12 gba:h-12 gba:border ${hasError ? 'gba:border-destructive' : 'gba:border-input'} gba:rounded-md gba:text-center gba:text-base gba:shrink-0`}
                     aria-invalid={hasError}
                     aria-label={label}
-                    defaultValue={defaults ? (defaults[key] as number) : undefined}
+                    disabled={mode !== 'custom'}
+                    value={watchedValues?.[key] ?? ''}
                     data-testid={dayInputTestIds[key]}
                     onChange={e => {
+                      setHasInteractedWithWorkingTime(true)
                       const raw = e.target.value
                       const numericOrEmpty: number | '' = raw === '' ? '' : Number(raw)
                       form.setValue(key, numericOrEmpty as any, { shouldValidate: true, shouldDirty: true })
@@ -331,6 +524,18 @@ export const ChangeWorkingHoursForm: React.FC = () => {
             })}
           </div>
 
+          <div className="gba:mt-6 gba:w-full" data-testid="working-hours-summary">
+            <div className="gba:mb-2 gba:block gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.fte_label', 'FTE (Full Time Equivalent)')}
+            </div>
+            <div
+              className="gba:flex gba:h-10 gba:items-center gba:rounded-md gba:border gba:border-input gba:bg-muted gba:px-3 gba:text-sm"
+              data-testid="flw_updateWorkingHours_fteInput"
+            >
+              {areAllDaysValid && typeof fte === 'number' ? fte : '-'}
+            </div>
+          </div>
+
           <div
             className={`${firstDayErrorMessage ? 'gba:mt-2' : ''} gba:flex gba:flex-col gba:gap-2`}
             data-testid="working-hours-errors"
@@ -344,14 +549,6 @@ export const ChangeWorkingHoursForm: React.FC = () => {
               </div>
             ) : null}
           </div>
-
-          <WorkingHoursSummary
-            fte={areAllDaysValid ? fte : undefined}
-            weeklySum={areAllDaysValid ? weeklySum : undefined}
-            workingDays={areAllDaysValid ? workingDays : undefined}
-            exceedsWeeklyLimit={areAllDaysValid && exceedsWeeklyLimit}
-            exceedsWorkingDaysLimit={areAllDaysValid && exceedsWorkingDaysLimit}
-          />
         </div>
       </div>
     </AppActionForm>

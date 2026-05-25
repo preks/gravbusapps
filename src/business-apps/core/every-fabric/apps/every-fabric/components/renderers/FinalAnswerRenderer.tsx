@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge, Button } from '@newwork/nw-design-system'
+import { Badge, Button, toast } from '@newwork/nw-design-system'
 import {
   ArrowSquareOutIcon,
   CaretDownIcon,
@@ -16,12 +16,15 @@ import {
   PresentationIcon
 } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
+import EntityLink from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import type {
   EnterprisePresentationMode,
   TodoItem,
   ActionSummary,
-  WorkspaceDocument
+  WorkspaceDocument,
+  SessionAttachment,
+  MessageAttachmentRef
 } from '../../types/enterpriseAgent'
 import { formatDuration } from '../../utils/renderUtils'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
@@ -43,6 +46,8 @@ export interface FinalAnswerRendererProps {
   durationMs?: number
   artifacts?: FinalAnswerArtifact[]
   workspaceDocuments?: WorkspaceDocument[]
+  /** PDF (and other) files attached to the session after export/upload tools run. */
+  sessionAttachments?: Array<SessionAttachment | MessageAttachmentRef>
   /**
    * True when the answer was produced instantly (e.g. greeting/capability
    * fast-path) and should be revealed progressively with a typewriter effect
@@ -92,17 +97,17 @@ const DOC_TYPE_LABEL: Record<WorkspaceDocument['type'], string> = {
   note: 'Note'
 }
 
-const ArtifactCreatedCard: React.FC<{ doc: WorkspaceDocument }> = ({ doc }) => {
+const workspaceDocCardClassName =
+  'gba:flex gba:items-center gba:gap-2.5 gba:px-3.5 gba:py-2.5 gba:rounded-xl gba:border gba:border-border gba:bg-card gba:hover:bg-accent/50 gba:transition-all gba:duration-200 gba:cursor-pointer gba:w-full gba:no-underline gba:group'
+
+const ArtifactCreatedCard: React.FC<{
+  doc: WorkspaceDocument
+  accessToken?: string
+}> = ({ doc, accessToken }) => {
   const Icon = DOC_TYPE_ICON[doc.type] ?? FileTextIcon
   const label = DOC_TYPE_LABEL[doc.type] ?? 'Document'
-  return (
-    <a
-      href={doc.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="gba:flex gba:items-center gba:gap-2.5 gba:px-3.5 gba:py-2.5 gba:rounded-xl gba:border gba:border-border gba:bg-card gba:hover:bg-accent/50 gba:transition-all gba:duration-200 gba:cursor-pointer gba:w-full gba:no-underline gba:group"
-      data-testid={`workspace-doc-card-${doc.id}`}
-    >
+  const body = (
+    <>
       <div className="gba:h-8 gba:w-8 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:shrink-0">
         <Icon className="gba:h-4 gba:w-4 gba:text-primary" />
       </div>
@@ -115,8 +120,93 @@ const ArtifactCreatedCard: React.FC<{ doc: WorkspaceDocument }> = ({ doc }) => {
       <Badge variant="secondary" className="gba:ml-auto gba:text-[10px] gba:shrink-0">
         View
       </Badge>
+    </>
+  )
+  const isEntityProtocol = /^\w+:\/\//.test(doc.url) && !/^https?:\/\//i.test(doc.url)
+  if (isEntityProtocol) {
+    return (
+      <EntityLink href={doc.url} accessToken={accessToken ?? ''}>
+        <div className={workspaceDocCardClassName} data-testid={`workspace-doc-card-${doc.id}`}>
+          {body}
+        </div>
+      </EntityLink>
+    )
+  }
+  return (
+    <a
+      href={doc.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={workspaceDocCardClassName}
+      data-testid={`workspace-doc-card-${doc.id}`}
+    >
+      {body}
     </a>
   )
+}
+
+const PdfExportCard: React.FC<{
+  attachment: SessionAttachment | MessageAttachmentRef
+  sessionId?: string
+  accessToken?: string
+}> = ({ attachment, sessionId, accessToken }) => {
+  const client = useEnterpriseAgentClient(accessToken ?? '')
+  const [downloading, setDownloading] = useState(false)
+  const fileName = attachment.name || 'export.pdf'
+
+  const handleDownload = useCallback(async () => {
+    if (!sessionId || !attachment.id) {
+      toast.error('PDF unavailable — missing session or attachment id.')
+      return
+    }
+    setDownloading(true)
+    try {
+      const blob = await client.fetchAttachmentContent(sessionId, attachment.id)
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`
+      anchor.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'unknown error'
+      toast.error(`Could not download PDF: ${detail}`)
+    } finally {
+      setDownloading(false)
+    }
+  }, [attachment.id, client, fileName, sessionId])
+
+  return (
+    <button
+      type="button"
+      onClick={() => void handleDownload()}
+      disabled={!sessionId || !attachment.id || downloading}
+      className="gba:flex gba:items-center gba:gap-2.5 gba:px-3.5 gba:py-2.5 gba:rounded-xl gba:border gba:border-border gba:bg-card gba:hover:bg-accent/50 gba:transition-all gba:duration-200 gba:cursor-pointer gba:w-full gba:text-left"
+      data-testid={`pdf-export-card-${attachment.id}`}
+    >
+      <div className="gba:h-8 gba:w-8 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:shrink-0">
+        <FileTextIcon className="gba:h-4 gba:w-4 gba:text-primary" />
+      </div>
+      <div className="gba:min-w-0 gba:flex-1">
+        <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:block gba:truncate">PDF ready</span>
+        <span className="gba:text-[10px] gba:text-muted-foreground gba:block gba:truncate">{fileName}</span>
+      </div>
+      <Badge
+        variant="secondary"
+        className="gba:ml-auto gba:text-[10px] gba:shrink-0 gba:inline-flex gba:items-center gba:gap-1"
+      >
+        <DownloadSimpleIcon className="gba:h-3 gba:w-3" />
+        {downloading ? '…' : 'Download'}
+      </Badge>
+    </button>
+  )
+}
+
+function pdfAttachmentsFromSession(
+  attachments?: Array<SessionAttachment | MessageAttachmentRef>
+): Array<SessionAttachment | MessageAttachmentRef> {
+  if (!attachments?.length) return []
+  return attachments.filter(a => (a.mime_type || '').toLowerCase() === 'application/pdf')
 }
 
 const StatusIndicator: React.FC<{ isInstant?: boolean }> = ({ isInstant }) => {
@@ -403,6 +493,7 @@ export const FinalAnswerRenderer = ({
   durationMs,
   artifacts,
   workspaceDocuments,
+  sessionAttachments,
   isInstant,
   sessionId,
   accessToken,
@@ -415,6 +506,9 @@ export const FinalAnswerRenderer = ({
   // chrome. Non-enterprise keeps the existing rhythm.
   const markdownTopSpacingClass = presentationMode === 'enterprise_agents' ? 'gba:pt-6' : 'gba:pt-5'
   const hasWorkspaceDocs = !!workspaceDocuments && workspaceDocuments.length > 0
+  const pdfAttachments = pdfAttachmentsFromSession(sessionAttachments)
+  const hasPdfExports = pdfAttachments.length > 0
+  const hasDeliverableCards = hasWorkspaceDocs || hasPdfExports
   // Filter out leftover "ghost" artifacts produced by the agent: zero-byte
   // entries with no mime type are backend scaffolding that should never reach
   // the user. When a workspace document already represents the deliverable we
@@ -424,7 +518,7 @@ export const FinalAnswerRenderer = ({
     if (isGhost) return false
     return true
   })
-  const visibleArtifacts = hasWorkspaceDocs ? [] : displayArtifacts
+  const visibleArtifacts = hasDeliverableCards ? [] : displayArtifacts
   const htmlArtifacts = visibleArtifacts.filter(a => a.rendererType === 'html')
   const chartArtifacts = visibleArtifacts.filter(a => a.rendererType === 'chart' || a.rendererType === 'dashboard')
   const otherArtifacts = visibleArtifacts.filter(
@@ -466,18 +560,23 @@ export const FinalAnswerRenderer = ({
 
       <div className="gba:border-t gba:border-border/70" />
 
-      {hasWorkspaceDocs ? (
+      {hasDeliverableCards ? (
         <>
           {/* Compact summary — mirrors Nexus: short text + artifact card */}
-          <div className="gba:pt-4">
-            <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">
-              {buildCompactSummary(workspaceDocuments!)}
-            </p>
-          </div>
+          {hasWorkspaceDocs && (
+            <div className="gba:pt-4">
+              <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">
+                {buildCompactSummary(workspaceDocuments!)}
+              </p>
+            </div>
+          )}
 
           <div className="gba:pt-3 gba:space-y-2">
-            {workspaceDocuments!.map(doc => (
-              <ArtifactCreatedCard key={doc.id} doc={doc} />
+            {workspaceDocuments?.map(doc => (
+              <ArtifactCreatedCard key={doc.id} doc={doc} accessToken={accessToken} />
+            ))}
+            {pdfAttachments.map(att => (
+              <PdfExportCard key={att.id} attachment={att} sessionId={sessionId} accessToken={accessToken} />
             ))}
           </div>
 

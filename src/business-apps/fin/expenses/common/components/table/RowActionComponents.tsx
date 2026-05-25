@@ -1,20 +1,19 @@
 import React from 'react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface RowActionsWrapperProps {
   children: React.ReactNode
+  /** Accessible label for the row actions toolbar (defaults to "Actions"). */
+  toolbarAriaLabel?: string
 }
 
-export const RowActionsWrapper = React.memo(function RowActionsWrapper({ children }: RowActionsWrapperProps) {
-  const actionsToolbarLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:team_expenses_page.dashboard_tab.actions',
-    'Actions'
-  )
-
+export const RowActionsWrapper = React.memo(function RowActionsWrapper({
+  children,
+  toolbarAriaLabel = 'Actions'
+}: RowActionsWrapperProps) {
   return (
     <div
       role="toolbar"
-      aria-label={actionsToolbarLabel}
+      aria-label={toolbarAriaLabel}
       className="gba:flex gba:justify-end gba:gap-2 gba:border-0 gba:bg-transparent gba:p-0 gba:cursor-default"
       onClick={e => e.stopPropagation()}
       onKeyDown={e => {

@@ -967,3 +967,10 @@ relationship-form-success-child-message-line1 = Felicitări pentru mărirea fami
 relationship-form-success-child-message-line2 = Vă mulțumim că ne-ați împărtășit această veste minunată și că vă păstrați datele actualizate.
 relationship-form-success-marriage-message = Felicitări cu ocazia nunții și mulțumim că ați actualizat datele
 relationship-form-success-ok = OK
+
+# Change Working Hours
+working-hours-standard-full-time-option = Normă întreagă standard
+working-hours-standard-full-time-description = Completează de luni până vineri cu câte 8 ore.
+working-hours-customize-by-day-option = Personalizare pe zi
+working-hours-customize-by-day-description = Introduceți manual orele pentru fiecare zi.
+working-hours-distribute-evenly-action = Distribuie uniform
