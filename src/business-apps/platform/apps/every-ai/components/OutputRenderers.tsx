@@ -21,6 +21,7 @@ import type {
   DocumentStreamCompleteOutput,
   DocumentStreamErrorOutput,
   DocumentStreamStartOutput,
+  ErrorOutput,
   ReasoningStepOutput,
   ReasoningStepKind
 } from '../types/models'
@@ -242,8 +243,56 @@ export const LoadingDisplay: React.FC<{ onCancel?: () => void }> = ({ onCancel }
   )
 }
 
+type ErrorDisplayProps = {
+  item: ErrorOutput
+  accessToken: string
+  sessionId?: string
+}
+
 // Premium Error Display
-export const ErrorDisplay: React.FC<{ text?: string }> = ({ text }) => {
+export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ item, accessToken, sessionId }) => {
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
+  const [userDescription, setUserDescription] = useState(item.user_description ?? '')
+  const [reportStatus, setReportStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const [reportId, setReportId] = useState<string | null>(null)
+  const text = item.text || "I'm having trouble with that request. Please try rephrasing or try again in a moment."
+
+  const handleReportBug = async () => {
+    setReportStatus('sending')
+    try {
+      const baseUrl = resolveFlowbotBaseUrl()
+      const response = await fetch(`${baseUrl}/flowbot/api/agent/bug-report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          session_id: item.session_id || sessionId,
+          run_id: item.run_id,
+          message_id: item.message_id,
+          source: 'every-ai',
+          assistant: 'Every',
+          frontend_url: typeof window !== 'undefined' ? window.location.href : undefined,
+          flowbot_endpoint: item.flowbot_endpoint,
+          error_message: item.error_message || item.text,
+          user_description: userDescription.trim() || undefined,
+          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+          timestamp_client: new Date().toISOString()
+        })
+      })
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`)
+      }
+      const payload = (await response.json()) as { report_id?: string }
+      setReportId(payload.report_id ?? null)
+      setReportStatus('success')
+    } catch (error) {
+      console.error('[EveryAI] Failed to report Flowbot bug:', error)
+      setReportStatus('error')
+    }
+  }
+
   return (
     <Card
       className="gba:bg-gradient-to-br gba:from-destructive-secondary gba:to-destructive-secondary/50 gba:border-2 gba:border-destructive/30 gba:shadow-lg"
@@ -261,11 +310,46 @@ export const ErrorDisplay: React.FC<{ text?: string }> = ({ text }) => {
               />
             </svg>
           </div>
-          <div>
+          <div className="gba:flex-1">
             <p className="gba:text-sm gba:font-semibold gba:text-destructive gba:mb-1">Unable to Process</p>
-            <p className="gba:text-sm gba:text-foreground">
-              {text || "I'm having trouble with that request. Please try rephrasing or try again in a moment."}
-            </p>
+            <p className="gba:text-sm gba:text-foreground">{text}</p>
+            {isFeedbackOpen && (
+              <textarea
+                className="gba:mt-3 gba:w-full gba:min-h-20 gba:rounded-md gba:border gba:border-border gba:bg-background gba:p-2 gba:text-sm gba:text-foreground"
+                data-testid="flowbot-error-feedback-input"
+                placeholder="What were you trying to do?"
+                value={userDescription}
+                onChange={event => setUserDescription(event.target.value)}
+              />
+            )}
+            <div className="gba:mt-4 gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFeedbackOpen(prev => !prev)}
+                disabled={reportStatus === 'sending' || reportStatus === 'success'}
+                data-testid="flowbot-error-add-feedback-button"
+              >
+                {isFeedbackOpen ? 'Hide feedback' : 'Add feedback'}
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleReportBug}
+                disabled={reportStatus === 'sending' || reportStatus === 'success'}
+                data-testid="flowbot-error-report-button"
+              >
+                {reportStatus === 'sending' ? 'Reporting...' : 'Report bug'}
+              </Button>
+            </div>
+            {reportStatus === 'success' && (
+              <p className="gba:mt-3 gba:text-sm gba:text-muted-foreground">
+                Thanks, this issue was reported.{reportId ? ` Reference: ${reportId}` : ''}
+              </p>
+            )}
+            {reportStatus === 'error' && (
+              <p className="gba:mt-3 gba:text-sm gba:text-destructive">Could not send report. Please try again.</p>
+            )}
           </div>
         </div>
       </CardContent>
@@ -1467,7 +1551,7 @@ export const OutputItemRenderer: React.FC<{
     case 'loading':
       return <LoadingDisplay onCancel={onCancelGeneration} />
     case 'error':
-      return <ErrorDisplay text={item.text} />
+      return <ErrorDisplay item={item} accessToken={accessToken} sessionId={sessionId} />
     case 'flow_proposal':
       if (!item.flow_schema) {
         return (

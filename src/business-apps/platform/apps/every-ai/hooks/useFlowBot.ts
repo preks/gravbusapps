@@ -1617,6 +1617,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       // Using 'let' because backend may assign a new session ID for new chats
       let requestSessionId = sessionIdRef.current ?? state.sessionId ?? ''
       console.log('[FlowBot][sendMessage] Starting request for session:', requestSessionId || '(new session)')
+      let flowbotEndpoint: string | undefined
 
       try {
         inFlightRef.current = true
@@ -1700,6 +1701,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         const url = useRealtimeDocumentEdit
           ? `${baseUrl}/flowbot/api/agent/v2/document/live-edit`
           : `${baseUrl}/flowbot/api/agent/v2/chat`
+        flowbotEndpoint = url
 
         // Create abort controller for this request
         abortControllerRef.current = new AbortController()
@@ -1910,7 +1912,13 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         }
         console.error('[FlowBot][sendMessage] Error sending message for session:', requestSessionId, error)
 
-        appendOutputItemToLastAgentTurn({ type: 'error' })
+        appendOutputItemToLastAgentTurn({
+          type: 'error',
+          text: 'Something went wrong while processing your request. You can report this so we can investigate.',
+          session_id: requestSessionId || sessionIdRef.current || state.sessionId || undefined,
+          flowbot_endpoint: flowbotEndpoint,
+          error_message: error instanceof Error ? error.message : String(error)
+        })
       } finally {
         console.log('[FlowBot][sendMessage] Request completed for session:', requestSessionId || '(new)')
         pruneEphemeralOutputsFromLastAgentTurn()

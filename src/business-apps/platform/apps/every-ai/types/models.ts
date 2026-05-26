@@ -442,6 +442,12 @@ export type LoadingOutput = {
 export type ErrorOutput = {
   type: 'error'
   text?: string
+  session_id?: string
+  run_id?: string
+  message_id?: string
+  flowbot_endpoint?: string
+  error_message?: string
+  user_description?: string
 }
 
 export type BulkFlowProposalItem = {
