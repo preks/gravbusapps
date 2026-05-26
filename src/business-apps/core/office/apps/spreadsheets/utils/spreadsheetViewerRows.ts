@@ -1,7 +1,7 @@
 import type { SpreadsheetColumn } from '../types'
 import type { SpreadsheetPendingCellChange as CellChange } from '../core'
+import { getKnownCellValueCount, normalizeUniverCellForRowPersistence } from '../core'
 import { getCanonicalRowId, getClientRowIdentity } from './spreadsheetRowIdentity'
-import { getKnownCellValueCount } from '../core'
 import {
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot,
   stripWorkbookSnapshotValuesPreservingFormatting
@@ -9,6 +9,7 @@ import {
 import { getFiniteNonNegativeGridRowIndex } from './spreadsheetPeerRowHydration'
 import { shouldSkipFreshRowCellReplay } from './spreadsheetPendingCells'
 import type { SnapshotCellCoordinate } from '../core'
+import { mergeRemoteColumnAdd, mergeRemoteColumnDelete } from './spreadsheetColumnGridIndex'
 
 export type ViewerRow = Record<string, unknown>
 
@@ -17,9 +18,6 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]
 export const isUuidString = (value: string): boolean => UUID_RE.test(value)
 
 export const viewerRowId = (row: Record<string, unknown>): string => getCanonicalRowId(row)
-
-/** Cap for splitting batched clear-cell ops into individual ops when flushing to backend. */
-export const MAX_INDIVIDUAL_CLEAR_CELL_OPS = 200
 
 export const mergeDuplicateClientRows = <T extends Record<string, unknown>>(rows: T[]): T[] => {
   const mergedByClientId = new Map<string, T>()
@@ -70,6 +68,7 @@ export const applyRemoteColumnUpdate = (
   columns: SpreadsheetColumn[],
   payload: {
     columnId?: string
+    column?: SpreadsheetColumn
     columnPatch?: Partial<SpreadsheetColumn>
     label?: string
     columns?: SpreadsheetColumn[]
@@ -77,6 +76,14 @@ export const applyRemoteColumnUpdate = (
 ): SpreadsheetColumn[] | null => {
   if (Array.isArray(payload.columns) && payload.columns.length > 0) {
     return payload.columns
+  }
+  if (payload.column && typeof payload.column.id === 'string') {
+    return mergeRemoteColumnAdd(columns, payload.column)
+  }
+  if (payload.columnId && !payload.columnPatch && payload.label == null) {
+    const nextColumns = mergeRemoteColumnDelete(columns, payload.columnId)
+    if (nextColumns.length === columns.length) return null
+    return nextColumns
   }
   if (!payload.columnId) return null
   const nextPatch: Partial<SpreadsheetColumn> = { ...(payload.columnPatch ?? {}) }
@@ -169,7 +176,15 @@ export const buildAddRowPayloadsFromUniverRows = (
     if (gridRowIndex !== undefined) payload._gridRowIndex = gridRowIndex
     columns.forEach(col => {
       const value = row[col.name]
-      if (value !== undefined) payload[col.name] = value
+      if (value === undefined) return
+      const normalized = normalizeUniverCellForRowPersistence(value)
+      if (normalized !== undefined) {
+        payload[col.name] = normalized
+        return
+      }
+      if (typeof value !== 'object' || value === null) {
+        payload[col.name] = value
+      }
     })
     return payload
   })
@@ -177,24 +192,18 @@ export const buildAddRowPayloadsFromUniverRows = (
 export const buildCreatedRowsFromBatch = (
   rowPayloads: Array<Record<string, unknown>>,
   returnedRows: Array<Record<string, unknown>>,
-  pendingUpdates: Map<string, Record<string, unknown>>
+  pendingUpdates: Map<string, Record<string, unknown>>,
+  options?: {
+    rowMappings?: SpreadsheetBatchRowMapping[]
+  }
 ): {
   createdRows: Array<Record<string, unknown>>
   flushCells: Array<{ rowId: string; columnName: string; value: unknown }>
   persistedIdByClientRowId: Map<string, string>
 } => {
   const flushCells: Array<{ rowId: string; columnName: string; value: unknown }> = []
-  const persistedIdByClientRowId = new Map<string, string>()
-  returnedRows.forEach(entry => {
-    const persistedId = entry.id
-    if (typeof persistedId !== 'string' || !persistedId) return
-    const data = entry.data
-    if (!data || typeof data !== 'object') return
-    const clientRowId = (data as Record<string, unknown>)._clientRowId
-    if (typeof clientRowId === 'string' && clientRowId) {
-      persistedIdByClientRowId.set(clientRowId, persistedId)
-    }
-  })
+  const persistedIdByClientRowId = buildPersistedRowIdMapFromBatchRows(returnedRows)
+  appendRowMappingsToPersistedIdMap(persistedIdByClientRowId, options?.rowMappings)
   const createdRows = rowPayloads.map((rowPayload, index) => {
     const clientRowId = String(rowPayload._clientRowId || '')
     const persistedId =
@@ -223,6 +232,70 @@ export const buildCreatedRowsFromBatch = (
     }
   })
   return { createdRows, flushCells, persistedIdByClientRowId }
+}
+
+type SpreadsheetBatchRowMapping = {
+  clientRowId?: string
+  rowUuid?: string
+}
+
+const appendRowMappingsToPersistedIdMap = (
+  map: Map<string, string>,
+  mappings: SpreadsheetBatchRowMapping[] | undefined
+): void => {
+  if (!Array.isArray(mappings)) return
+  mappings.forEach(mapping => {
+    const clientRowId = typeof mapping?.clientRowId === 'string' ? mapping.clientRowId : ''
+    const rowUuid = typeof mapping?.rowUuid === 'string' ? mapping.rowUuid : ''
+    if (clientRowId && rowUuid) {
+      map.set(clientRowId, rowUuid)
+    }
+  })
+}
+
+export const buildPersistedRowIdMapFromBatchRows = (rows: unknown): Map<string, string> => {
+  const persistedIdByClientRowId = new Map<string, string>()
+  if (!Array.isArray(rows)) return persistedIdByClientRowId
+  rows.forEach(entry => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return
+    const record = entry as { id?: unknown; data?: unknown }
+    if (typeof record.id !== 'string' || !record.id) return
+    if (!record.data || typeof record.data !== 'object' || Array.isArray(record.data)) return
+    const clientRowId = (record.data as Record<string, unknown>)._clientRowId
+    if (typeof clientRowId === 'string' && clientRowId) {
+      persistedIdByClientRowId.set(clientRowId, record.id)
+    }
+  })
+  return persistedIdByClientRowId
+}
+
+export const buildPersistedRowIdMapFromInsertRowSlotsResult = (
+  result: Record<string, unknown> | undefined,
+  options?: {
+    fallbackClientRowIdsInOrder?: string[]
+    rowMappings?: SpreadsheetBatchRowMapping[]
+  }
+): Map<string, string> => {
+  const persistedIdByClientRowId = buildPersistedRowIdMapFromBatchRows(result?.rows)
+  appendRowMappingsToPersistedIdMap(persistedIdByClientRowId, options?.rowMappings)
+  appendRowMappingsToPersistedIdMap(
+    persistedIdByClientRowId,
+    Array.isArray(result?.rowMappings) ? (result.rowMappings as SpreadsheetBatchRowMapping[]) : undefined
+  )
+
+  const returnedRows = Array.isArray(result?.rows) ? result.rows : []
+  const fallbackClientRowIds = options?.fallbackClientRowIdsInOrder ?? []
+  fallbackClientRowIds.forEach((clientRowId, index) => {
+    if (!clientRowId || persistedIdByClientRowId.has(clientRowId)) return
+    const entry = returnedRows[index]
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return
+    const persistedId = (entry as { id?: unknown }).id
+    if (typeof persistedId === 'string' && persistedId) {
+      persistedIdByClientRowId.set(clientRowId, persistedId)
+    }
+  })
+
+  return persistedIdByClientRowId
 }
 
 export const mapPersistedRowsToViewerRows = (rows: unknown): Array<Record<string, unknown>> => {

@@ -3,7 +3,10 @@ import { useMemo, type MutableRefObject } from 'react'
 import { SpreadsheetApiRequestError } from '../services/SpreadsheetApiService'
 import { areCanonicalSheetIdsEqual, resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
 import { createIdentityRowProjectionModel } from '../utils/spreadsheetRowProjection'
-import { applyMoveCellRangeTransform } from '../utils/applyMoveCellRangeTransform'
+import { applyMoveCellRangeToViewerRows } from '../utils/spreadsheetMoveCellRangeGrid'
+import { patchLatestUniverSnapshotRowBackendIdentities } from '../utils/spreadsheetUniverSnapshotIdentity'
+import { buildPersistedRowIdMapFromInsertRowSlotsResult } from '../utils/spreadsheetViewerRows'
+import type { SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
 import {
   applyDeleteRowSlotsTransform,
   applyInsertRowSlotsTransform,
@@ -24,7 +27,7 @@ interface StructuralMutationParams {
       startGridRowIndex: number,
       count: number,
       materializedRows?: ViewerRow[]
-    ) => Promise<{ newVersion: number; operationResults: Array<{ type: string; result: Record<string, unknown> }> }>
+    ) => Promise<SpreadsheetBatchOperationResponse>
     deleteRowSlots: (sheetId: string, startGridRowIndex: number, count: number) => Promise<{ newVersion: number }>
     moveRowSlots: (
       sheetId: string,
@@ -49,10 +52,12 @@ interface StructuralMutationParams {
     resolveMany: (sheetId: string, mapping: Map<string, string>) => void
     reject: (sheetId: string, clientRowId: string, error: unknown) => void
   }
+  flushPendingCellChangesRef?: MutableRefObject<() => Promise<void>>
   activeSheetColumns: any[]
   spreadsheetColumnsForGrid: any[]
   spreadsheetGridRef: MutableRefObject<{
     syncGridConversionContext?: (columns?: unknown, rows?: ViewerRow[]) => void
+    shouldIgnoreStructuralRowCommand?: () => boolean
   } | null>
   getActiveSessionRows: () => ViewerRow[]
   getKnownRowsForSheet: (sheetId: string) => ViewerRow[]
@@ -69,7 +74,7 @@ interface StructuralMutationParams {
   latestUniverDataRef: MutableRefObject<{ data: ViewerRow[]; sheetId: string } | null>
   lastProcessedLengthRef: MutableRefObject<number>
   buildAddRowPayloadsFromUniverRows: (rows: ViewerRow[], columns: any[]) => ViewerRow[]
-  buildPersistedRowIdMapFromBatchRows: (rows: unknown) => Map<string, string>
+  buildPersistedRowIdMapFromInsertRowSlotsResult: typeof buildPersistedRowIdMapFromInsertRowSlotsResult
   mapPersistedRowsToViewerRows: (rows: unknown) => ViewerRow[]
   createNativeSpreadsheetClientRowId: () => string
   logRowIdentityDiagnostics: (eventName: string, payload: Record<string, unknown>) => void
@@ -188,6 +193,9 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
       if (count <= 0) {
         return
       }
+      if (params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.()) {
+        return
+      }
       const targetSheetId = resolveReconciledSheetId(
         params.activeSheetIdRef.current,
         params.createdSheetIdAliasesRef.current
@@ -220,6 +228,20 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
         })
       })
 
+      const readinessPendingResolvers = new Map<
+        string,
+        { resolve: (backendRowId: string) => void; reject: (error: unknown) => void }
+      >()
+      placeholderClientIds.forEach(clientRowId => {
+        const promise = new Promise<string>((resolvePromise, rejectPromise) => {
+          readinessPendingResolvers.set(clientRowId, {
+            resolve: resolvePromise,
+            reject: rejectPromise
+          })
+        })
+        params.rowMaterializationReadiness.registerPending(targetSheetId, clientRowId, promise)
+      })
+
       params.commitLocalSheetData(optimisticRows, {
         persisted: false,
         syncGrid: false,
@@ -231,19 +253,6 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
         params.sheetPersist.beginPersist()
         params.sheetPersist.markDirty()
         params.versioning.markAsChanged()
-        const readinessPendingResolvers = new Map<
-          string,
-          { resolve: (backendRowId: string) => void; reject: (error: unknown) => void }
-        >()
-        placeholderClientIds.forEach(clientRowId => {
-          const promise = new Promise<string>((resolvePromise, rejectPromise) => {
-            readinessPendingResolvers.set(clientRowId, {
-              resolve: resolvePromise,
-              reject: rejectPromise
-            })
-          })
-          params.rowMaterializationReadiness.registerPending(targetSheetId, clientRowId, promise)
-        })
         try {
           const response = await params.mutationFacade.insertRowSlots(
             targetSheetId,
@@ -252,7 +261,13 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
             rowPayloads
           )
           const insertResult = response.operationResults.find(result => result.type === 'insert_row_slots')
-          const persistedIdByClientRowId = params.buildPersistedRowIdMapFromBatchRows(insertResult?.result?.rows)
+          const persistedIdByClientRowId = params.buildPersistedRowIdMapFromInsertRowSlotsResult(
+            insertResult?.result as Record<string, unknown> | undefined,
+            {
+              fallbackClientRowIdsInOrder: Array.from(placeholderClientIds),
+              rowMappings: response.rowMappings
+            }
+          )
           params.rowMaterializationReadiness.resolveMany(targetSheetId, persistedIdByClientRowId)
           persistedIdByClientRowId.forEach((backendRowId, clientRowId) => {
             params.rowSlotIdentityRegistry.bindBackendRowId(targetSheetId, clientRowId, backendRowId)
@@ -263,15 +278,33 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
             resolver.resolve(backendRowId)
             readinessPendingResolvers.delete(clientRowId)
           })
-          const latestRows = params.getKnownRowsForSheet(targetSheetId)
+          const sessionRows = params.getActiveSessionRows()
           const authoritativeRows = applyInsertRowSlotsTransform(
-            latestRows,
+            sessionRows,
             startGridRowIndex,
             count,
             params.mapPersistedRowsToViewerRows(insertResult?.result?.rows)
           )
-          finalizeStructuralSuccess(targetSheetId, response, authoritativeRows)
-          params.scheduleStructuralSnapshotReload?.(targetSheetId)
+          const previousLatest = params.latestUniverDataRef.current
+          if (
+            previousLatest &&
+            areCanonicalSheetIdsEqual(previousLatest.sheetId, targetSheetId, params.createdSheetIdAliasesRef.current) &&
+            previousLatest.data.length > 0 &&
+            persistedIdByClientRowId.size > 0
+          ) {
+            params.latestUniverDataRef.current = {
+              sheetId: targetSheetId,
+              data: patchLatestUniverSnapshotRowBackendIdentities({
+                latestRows: previousLatest.data,
+                authoritativeRows,
+                persistedIdByClientRowId,
+                isUuid: params.isUuidString
+              })
+            }
+          }
+          // Univer already inserted rows locally — sync session/version/ids without grid resync or snapshot reload.
+          finalizeStructuralSuccess(targetSheetId, response, authoritativeRows, { syncGrid: false })
+          void params.flushPendingCellChangesRef?.current?.()
         } catch (error) {
           placeholderClientIds.forEach(clientRowId => {
             const resolver = readinessPendingResolvers.get(clientRowId)
@@ -313,7 +346,7 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
         params.versioning.markAsChanged()
         try {
           const response = await params.mutationFacade.deleteRowSlots(targetSheetId, startGridRowIndex, count)
-          finalizeStructuralSuccess(targetSheetId, response, optimisticRows)
+          finalizeStructuralSuccess(targetSheetId, response, optimisticRows, { syncGrid: false })
         } catch (error) {
           await handleStructuralFailure(targetSheetId, previousRows, error)
         } finally {
@@ -324,6 +357,9 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
 
     const onRowsMove = (sourceStartIndex: number, count: number, destinationIndex: number) => {
       if (count <= 0) {
+        return
+      }
+      if (params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.()) {
         return
       }
       const targetSheetId = resolveReconciledSheetId(
@@ -360,8 +396,9 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
             count,
             destinationGridRowIndex
           )
-          finalizeStructuralSuccess(targetSheetId, response, optimisticRows)
-          params.scheduleStructuralSnapshotReload?.(targetSheetId)
+          // Univer already applied the row move locally — keep session/version in sync without
+          // pushing rows back into the workbook or reloading the full canonical snapshot.
+          finalizeStructuralSuccess(targetSheetId, response, optimisticRows, { syncGrid: false })
         } catch (error) {
           await handleStructuralFailure(targetSheetId, previousRows, error)
         } finally {
@@ -385,12 +422,9 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
         params.createdSheetIdAliasesRef.current
       )
       const previousRows = params.getActiveSessionRows()
-      const columnNamesByGridIndex = params.activeSheetColumns.map(column =>
-        typeof column?.name === 'string' ? column.name : null
-      )
-      const optimisticRows = applyMoveCellRangeTransform({
+      const optimisticRows = applyMoveCellRangeToViewerRows({
         rows: previousRows,
-        columnNamesByGridIndex,
+        columns: params.activeSheetColumns,
         fromRange,
         toRange
       })

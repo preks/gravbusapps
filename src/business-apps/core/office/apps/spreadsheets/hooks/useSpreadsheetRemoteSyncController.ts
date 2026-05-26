@@ -22,8 +22,13 @@ import {
   tryComputeAuthoritativeRegionFromReplayDeltas,
   type AuthoritativeGridRegion
 } from '../utils/spreadsheetAuthoritativeRegion'
+import { countReplayDeltaChangeKinds, partitionReplayDeltaChanges } from '../utils/spreadsheetReplayDeltaPartition'
 import { resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
 import { mapSnapshotRowsToViewerRows, overlaySnapshotIfRowsMismatch } from '../utils/spreadsheetViewerRows'
+import {
+  buildColumnVisibilityReplayOperations,
+  mergeSheetColumnVisibilityFromLocal
+} from '../utils/spreadsheetColumnVisibilityMetadata'
 
 import type { SpreadsheetTraceEventInput, SpreadsheetTraceSession } from '../services/spreadsheetDiagnostics'
 
@@ -83,6 +88,10 @@ export interface UseSpreadsheetRemoteSyncControllerParams {
   sheetMetadataReloadEnabled: boolean
   scheduleSheetVersionRefreshFromApiRef: MutableRefObject<() => void>
   conflictRecovery: SpreadsheetRemoteSyncConflictRecovery
+  reapplyColumnVisibilityOnGrid?: (
+    sheetId: string,
+    operations: Array<{ type: 'visibility_update'; data: Record<string, unknown> }>
+  ) => void
 }
 
 export interface UseSpreadsheetRemoteSyncControllerResult {
@@ -172,6 +181,17 @@ export function useSpreadsheetRemoteSyncController(
           recoveredSheetMeta
         )
         const sheetMeta = snapshot.sheet as unknown as Record<string, unknown> | undefined
+        const localColumns =
+          targetSheet.columns.length > 0
+            ? targetSheet.columns
+            : (appSheetsWithRecoveredMeta.find(sheet => sheet.id === targetSheetId)?.columns ?? [])
+        const serverColumns = Array.isArray(sheetMeta?.columns) ? (sheetMeta.columns as SpreadsheetColumn[]) : []
+        const mergedColumns =
+          serverColumns.length > 0 ? mergeSheetColumnVisibilityFromLocal(serverColumns, localColumns) : localColumns
+        const recoveredSheetMetaWithVisibility =
+          recoveredSheetMeta && mergedColumns.length > 0
+            ? { ...recoveredSheetMeta, columns: mergedColumns }
+            : recoveredSheetMeta
         const isTargetActiveSheet = targetSheetId === params.activeSheetIdRef.current
 
         clearUniverSnapshotCache(params.appId)
@@ -192,9 +212,9 @@ export function useSpreadsheetRemoteSyncController(
             )
             snap = stripWorkbookSnapshotValuesPreservingFormatting(snap)
             const columnsForMerge =
-              (Array.isArray(sheetMeta?.columns) ? (sheetMeta.columns as SpreadsheetColumn[]) : null) ??
-              appSheetsWithRecoveredMeta.find(s => s.id === targetSheetId)?.columns ??
-              []
+              mergedColumns.length > 0
+                ? mergedColumns
+                : (appSheetsWithRecoveredMeta.find(s => s.id === targetSheetId)?.columns ?? [])
             if (columnsForMerge.length > 0) {
               const merged = overlaySnapshotIfRowsMismatch(snap, targetSheetId, rows, columnsForMerge)
               if (merged && merged !== snap) {
@@ -223,15 +243,21 @@ export function useSpreadsheetRemoteSyncController(
           persisted: true,
           syncGrid: isTargetActiveSheet,
           version: nextVersion,
-          recoveredSheetMeta
+          recoveredSheetMeta: recoveredSheetMetaWithVisibility
         })
-        if (params.sheetMetadataReloadEnabled && sheetMeta && Array.isArray(sheetMeta.columns)) {
+        if (params.sheetMetadataReloadEnabled && mergedColumns.length > 0) {
           void requireMutationFacade().updateSheetMetadata(targetSheetId, {
-            columns: sheetMeta.columns as SpreadsheetColumn[]
+            columns: mergedColumns
           })
         }
         if (restoredUniverSnapshot && isTargetActiveSheet) {
           params.requestGridRefresh(restoredUniverSnapshot, `${seedPrefix}-${targetSheetId}-${Date.now()}`)
+          const visibilityReplayOperations = buildColumnVisibilityReplayOperations(targetSheetId, mergedColumns)
+          if (visibilityReplayOperations.length > 0) {
+            queueMicrotask(() => {
+              params.reapplyColumnVisibilityOnGrid?.(targetSheetId, visibilityReplayOperations)
+            })
+          }
         } else if (restoredUniverSnapshot && params.preferUniverNativeSheetTabs) {
           params.sheetsNeedingGridMaterializationRef.current.set(targetSheetId, seedPrefix)
         } else if (isTargetActiveSheet) {
@@ -347,9 +373,13 @@ export function useSpreadsheetRemoteSyncController(
       const delta = await requireMutationFacade().fetchSheetChangesSince(params.activeSheetId, sinceVersion)
       if (!sheetDeltaRequiresFullSnapshot(sinceVersion, delta)) {
         const resolvedVersion = Number(delta.currentVersion || sinceVersion)
-        replayRemoteDeltaThroughCollaborationManager({
+        // See `useSpreadsheetRemoteDeltaCatchUp` for the rationale: structural ops only are
+        // replayed through the collab manager onto Univer; pure cell-value ops are painted
+        // by the authoritative-region Univer re-sync triggered below.
+        const { structuralChanges } = partitionReplayDeltaChanges(delta.changes)
+        const replayRan = replayRemoteDeltaThroughCollaborationManager({
           collaborationManager: params.collaborationManagerRef.current,
-          changes: delta.changes,
+          changes: structuralChanges,
           currentVersion: resolvedVersion,
           sheetId: params.activeSheetId,
           traceSessionId: params.activeTraceSessionRef.current?.id
@@ -366,13 +396,50 @@ export function useSpreadsheetRemoteSyncController(
         const authoritativeGridRegion = tryComputeAuthoritativeRegionFromReplayDeltas({
           changes: delta.changes,
           columns: params.activeSheet.columns,
-          rows: params.getKnownRowsForSheet(params.activeSheetId)
+          rows: nextRows
+        })
+        const changeKinds = countReplayDeltaChangeKinds(delta.changes)
+        const hasAddRowsStructural = structuralChanges.some(change => {
+          const opType = typeof change.operationType === 'string' ? change.operationType : ''
+          return opType === 'add_rows' || opType === 'insert_rows_at'
+        })
+        // Phase 3: skip the redundant full-grid token bump when the structural replay already
+        // painted add_rows onto the active sheet and there are no pure cell-value changes left
+        // that would need an authoritative region paint.
+        const skipSyncGrid = replayRan && hasAddRowsStructural && changeKinds.cellChangeCount === 0
+        const syncGrid = !skipSyncGrid
+        const skipSyncGridReason = skipSyncGrid
+          ? 'structural_replay_painted'
+          : authoritativeGridRegion
+            ? 'region_sync'
+            : 'full_token'
+        const authoritativeRegionCellEstimate = authoritativeGridRegion
+          ? (authoritativeGridRegion.maxRow - authoritativeGridRegion.minRow + 1) *
+            (authoritativeGridRegion.maxCol - authoritativeGridRegion.minCol + 1)
+          : 0
+        params.enqueueDiagnosticsTraceEvent({
+          source: 'client',
+          stage: 'client_catchup_paint_strategy',
+          traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+          version: resolvedVersion,
+          payload: {
+            reason: 'conflict_recovery',
+            targetSheetId: params.activeSheetId,
+            replayRan,
+            syncGrid,
+            skipSyncGridReason,
+            changeCount: changeKinds.changeCount,
+            cellChangeCount: changeKinds.cellChangeCount,
+            structuralChangeCount: changeKinds.structuralChangeCount,
+            hasAddRowsStructural,
+            authoritativeRegionCellEstimate
+          }
         })
         params.syncSheetRowsIntoLocalState(params.activeSheetId, nextRows, {
           persisted: true,
-          // Always flush rows into Univer after replay: collaboration-manager replay can miss cells
-          // (limits/coords/races) while session rows from the delta are authoritative.
-          syncGrid: true,
+          // Skip the full-grid token bump after add_rows replay so we do not re-paint the rows
+          // the manager just bulk-applied. Mixed deltas still sync via the merged region.
+          syncGrid,
           version: resolvedVersion,
           authoritativeGridRegion
         })

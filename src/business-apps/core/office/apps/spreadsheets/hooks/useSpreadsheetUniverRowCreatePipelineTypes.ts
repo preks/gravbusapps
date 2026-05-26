@@ -54,6 +54,7 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
     }) => void
   ) => Promise<void>
   recoverFromVersionConflict: () => Promise<boolean>
+  fetchAuthoritativeRowsForSheet?: (sheetId: string) => Promise<Array<Record<string, unknown>>>
   summarizeRowsForDebug: (rows: Record<string, unknown>[] | undefined) => Record<string, unknown>
   getRowsForSheet: (sheetId: string) => Record<string, unknown>[]
   multiSheetDebugLog: (event: string, meta?: Record<string, unknown> | (() => Record<string, unknown>)) => void

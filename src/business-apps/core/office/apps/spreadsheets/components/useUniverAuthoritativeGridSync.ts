@@ -9,6 +9,7 @@ import type { SpreadsheetColumn, SpreadsheetSheet } from '../types/spreadsheet'
 import { workbookSnapshotMismatchesViewerRows } from '../utils/univerAdapter'
 import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
 import { SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH } from '../utils/spreadsheetBulkRemoteConstants'
+import type { ClearAllGridBounds } from './univerGridRangeSelection'
 import { getCanonicalRowId } from '../utils/spreadsheetRowIdentity'
 import { debugRemoteApply } from './univerGridDebug'
 import {
@@ -50,6 +51,7 @@ export interface UniverAuthoritativeGridSyncParams {
     options?: ApplyRemoteCellUpdateOptions
   ) => void
   applyRemoteCellUpdatesBulk: (items: SpreadsheetBulkRemoteCellItem[], meta?: SpreadsheetBulkRemoteApplyMeta) => void
+  resolveActiveWorksheetBounds?: () => ClearAllGridBounds | null
 }
 
 /**
@@ -88,7 +90,8 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     pendingForcedAuthoritativeReapplyRef,
     recentLocallyMutatedGridCellsRef,
     applyRemoteCellUpdate,
-    applyRemoteCellUpdatesBulk
+    applyRemoteCellUpdatesBulk,
+    resolveActiveWorksheetBounds
   } = params
 
   const lastObservedAuthoritativeTokenForRebuildRef = useRef<number>(authoritativeDataSyncToken ?? 0)
@@ -146,7 +149,9 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     const rowsByGridIndex = buildAuthoritativeRowsByGridIndex(data)
     const nextRowCount = getAuthoritativeGridRowExtent(data)
     const maxRowCount = Math.max(previousRowCount, nextRowCount)
-    const maxColumnCount = Math.max(previousColumnCount, visibleColumns.length)
+    const worksheetBounds = resolveActiveWorksheetBounds?.() ?? null
+    const gridColumnCount = worksheetBounds != null ? worksheetBounds.maxColIndex + 1 : visibleColumns.length
+    const maxColumnCount = Math.min(Math.max(previousColumnCount, visibleColumns.length), gridColumnCount)
     const nowForLocalMutationCheck = Date.now()
     const forcedSpec = isForcedAuthoritativeReapply ? pendingForcedAuthoritativeReapplyRef.current : null
     if (isForcedAuthoritativeReapply) {
@@ -184,9 +189,6 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
         const key = remoteEchoKey(rowIndex, colIndex)
         if (!rowInBounds || !colInBounds) {
           signatures.delete(key)
-          if (isForcedAuthoritativeReapply) {
-            authoritativeBulkBuffer.push({ rowIndex, colIndex, value: '' })
-          }
           continue
         }
         const nextValue = row && column ? (readSpreadsheetRowCellValue(row, column) ?? '') : ''
@@ -204,6 +206,14 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
         })
       }
     }
+
+    debugRemoteApply('authoritative_reapply_bulk_prepared', {
+      sheetId: sheet.id,
+      cellCount: authoritativeBulkBuffer.length,
+      token: nextToken,
+      forced: isForcedAuthoritativeReapply,
+      regionOnly: Boolean(prepareRegionOnly || forcedSpec?.region)
+    })
 
     if (allowAuthoritativeBulkFlush && authoritativeBulkBuffer.length >= SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH) {
       applyRemoteCellUpdatesBulk(authoritativeBulkBuffer, { operationType: 'authoritative_reapply' })

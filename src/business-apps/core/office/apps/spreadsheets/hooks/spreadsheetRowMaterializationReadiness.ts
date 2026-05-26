@@ -54,11 +54,11 @@ export interface SpreadsheetRowMaterializationReadiness {
   reject: (sheetId: string, clientRowId: string, error: unknown) => void
   getResolvedBackendRowId: (sheetId: string, clientRowId: string) => string | undefined
   getResolvedBackendRowIds: (sheetId: string, clientRowIds: string[]) => Map<string, string>
+  isPendingForClientRow: (sheetId: string, clientRowId: string) => boolean
   awaitTemporaryRowsReadyForSubmit: (options: AwaitRowReadinessOptions) => Promise<RowReadinessResult>
   clear: () => void
 }
 
-const RESOLVED_ENTRY_MAX_AGE_MS = 30_000
 const FAILED_ENTRY_MAX_AGE_MS = 30_000
 const PENDING_ENTRY_MAX_AGE_MS = 5 * 60_000
 const DEFAULT_WAIT_TIMEOUT_MS = 2_000
@@ -87,10 +87,6 @@ export function createSpreadsheetRowMaterializationReadiness(): SpreadsheetRowMa
   const prune = () => {
     const now = Date.now()
     for (const [key, entry] of entries.entries()) {
-      if (entry.kind === 'resolved' && now - entry.updatedAt > RESOLVED_ENTRY_MAX_AGE_MS) {
-        entries.delete(key)
-        continue
-      }
       if (entry.kind === 'failed' && now - entry.updatedAt > FAILED_ENTRY_MAX_AGE_MS) {
         entries.delete(key)
         continue
@@ -169,6 +165,12 @@ export function createSpreadsheetRowMaterializationReadiness(): SpreadsheetRowMa
       }
     })
     return resolved
+  }
+
+  const isPendingForClientRow = (sheetId: string, clientRowId: string): boolean => {
+    if (!clientRowId) return false
+    prune()
+    return entries.get(toEntryKey(sheetId, clientRowId))?.kind === 'pending'
   }
 
   const waitForPendingEntry = async (
@@ -411,6 +413,7 @@ export function createSpreadsheetRowMaterializationReadiness(): SpreadsheetRowMa
     reject,
     getResolvedBackendRowId,
     getResolvedBackendRowIds,
+    isPendingForClientRow,
     awaitTemporaryRowsReadyForSubmit,
     clear: () => {
       entries.clear()

@@ -23,6 +23,7 @@ import {
   summarizeCellMatrixForDebug,
   summarizeRangesForDebug
 } from './univerGridWorkbookMutationModule'
+import { getCommandKind } from './univerCommandClassification'
 import {
   buildShouldSuppressRemoteEcho,
   cellMatrixHasAnyNonSuppressedCell,
@@ -196,8 +197,11 @@ function resolvePlannerContextSource({
   const hasColumnStructuralMismatch =
     propsColumnSignature.length !== resolvedColumnSignature.length ||
     propsColumnSignature.some((entry, index) => entry !== resolvedColumnSignature[index])
+  const sessionIsAheadOfProps =
+    resolvedBackendRowCount > propsBackendRowCount ||
+    (hasResolvedRows && resolved.data.length > propsData.length && resolvedBackendRowCount >= propsBackendRowCount)
   const shouldUseResolved =
-    !hasStructuralMismatch &&
+    (!hasStructuralMismatch || sessionIsAheadOfProps) &&
     !hasColumnStructuralMismatch &&
     (resolvedBackendRowCount > 0 || (!hasPropsRows && hasResolvedRows) || resolved.data.length >= propsData.length)
 
@@ -281,7 +285,8 @@ export function resolveDetectedCellMutation(
     lastSyncedGridCellSignaturesRef,
     newRowClientIdByIndexRef,
     getWorkbookSnapshotRef,
-    peekPasteFormattingReplaceIntent
+    peekPasteFormattingReplaceIntent,
+    peekAutofillApplyType
   } = deps
 
   const { source, commandId, payloadCellValue, ranges, worksheetId, preserveUndefinedAsNull = false } = mutationArgs
@@ -314,8 +319,47 @@ export function resolveDetectedCellMutation(
   }
 
   const hasPasteFormattingIntentForSheet = peekPasteFormattingReplaceIntent(targetSheetId)
+  const autofillApplyType = peekAutofillApplyType(targetSheetId)
   const commandHasReplaceRangeStyleIntent = isRegionReplaceStyleCollaborationCommand(commandId)
+  const commandHasStyleOnlyIntent = getCommandKind(commandId) === 'styleOnly'
   const shouldReadPostPasteCells = hasPasteFormattingIntentForSheet || commandHasReplaceRangeStyleIntent
+  const shouldReadLiveCellData = shouldReadPostPasteCells || commandHasStyleOnlyIntent || autofillApplyType != null
+
+  const isReadOnlyReconcileSourceEarly = source === 'selection-reconcile' || source === 'deferred-reconcile'
+
+  // Fast path for read-only reconcile: remote apply defers SheetValueChanged events and
+  // flushDeferredDirtyCells replays them here. Most are peer echoes — running the full
+  // planner + getWorkbookSnapshot (wb.save + deepClone) per cell caused ~100% CPU freezes.
+  // Bail out before planner context / coordinate-mode work when there is nothing local to do.
+  if (isReadOnlyReconcileSourceEarly) {
+    if (!currentWorksheet) {
+      return { status: 'return', value: false }
+    }
+    const quickCellValue = deriveCellMatrixFromRanges(
+      currentWorksheet,
+      ranges,
+      SPREADSHEET_MAX_WORKSHEET_RANGE_READ_CELLS,
+      false,
+      false
+    )
+    if (!quickCellValue) {
+      return { status: 'return', value: false }
+    }
+    const reconcileNow = Date.now()
+    pruneExpiredRecentMutationEntries(recentLocallyMutatedGridCellsRef.current, reconcileNow)
+    const shouldSuppressQuick = buildShouldSuppressRemoteEcho({ remoteEchoSuppressionRef }, reconcileNow)
+    if (!cellMatrixHasAnyNonSuppressedCell(quickCellValue, shouldSuppressQuick, 0, 0)) {
+      return { status: 'return', value: false }
+    }
+    if (
+      selectionReconcileAllCellsRecentlyLocal({ recentLocallyMutatedGridCellsRef }, quickCellValue, reconcileNow, 0, 0)
+    ) {
+      return { status: 'return', value: false }
+    }
+    if (!selectionReconcileHasAuthoritativeDiff({ lastSyncedGridCellSignaturesRef }, quickCellValue)) {
+      return { status: 'return', value: false }
+    }
+  }
 
   // 2a: single authoritative predicate from host props (not bootstrap wrappers — those are
   // never referentially equal and would false-trigger the conflict warning).
@@ -432,7 +476,7 @@ export function resolveDetectedCellMutation(
     source === 'sheet-value-changed' &&
     !preserveUndefinedAsNull &&
     !disableMixedValueStylePayloads &&
-    !shouldReadPostPasteCells
+    !shouldReadLiveCellData
       ? deriveCellMatrixFromWorkbookSnapshot(getWorkbookSnapshotRef.current?.() ?? null, targetSheetId, ranges)
       : undefined
   const postPasteCoordinateCellValue =
@@ -454,7 +498,7 @@ export function resolveDetectedCellMutation(
       ranges,
       SPREADSHEET_MAX_WORKSHEET_RANGE_READ_CELLS,
       preserveUndefinedAsNull,
-      shouldReadPostPasteCells
+      shouldReadLiveCellData
     )
   if (shouldReadPostPasteCells && payloadCellValue && typeof payloadCellValue === 'object') {
     worksheetCellValue = mergeExplicitMutationCellsIntoDerived(
@@ -622,7 +666,9 @@ export function resolveDetectedCellMutation(
     return { status: 'return', value: false }
   }
 
-  if (source === 'selection-reconcile') {
+  const isReadOnlyReconcileSource = source === 'selection-reconcile' || source === 'deferred-reconcile'
+
+  if (isReadOnlyReconcileSource) {
     if (
       selectionReconcileAllCellsRecentlyLocal(
         { recentLocallyMutatedGridCellsRef },
@@ -636,7 +682,7 @@ export function resolveDetectedCellMutation(
     }
   }
 
-  if (source === 'selection-reconcile') {
+  if (isReadOnlyReconcileSource) {
     if (!selectionReconcileHasAuthoritativeDiff({ lastSyncedGridCellSignaturesRef }, cellValue)) {
       return { status: 'return', value: false }
     }
@@ -647,20 +693,23 @@ export function resolveDetectedCellMutation(
     .filter(rowIndex => rowIndex >= 0)
   const candidateNewRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
 
-  // selection-reconcile is a read-only confirmation pass. It must never create new logical rows
+  // Read-only reconcile (selection move / deferred remote replay) must never create logical rows
   // nor mint client_* identities into newRowClientIdByIndexRef. Doing so caused identity divergence
   // during rapid local edits: reconcile would burn a client_* into a visual slot, then the user's
-  // real sheet-value-changed edit at that slot would inherit the burned id, while the materialized
-  // row carried a different id, leading to unresolved-temporary-row-id drops at the emit dispatch.
-  // If reconcile observes a value in a slot with no logical row yet, bail out and let the next
-  // real edit event mint the identity through its own pendingNewRowsUpdate.
-  if (source === 'selection-reconcile' && candidateNewRowIndices.length > 0) {
+  // real sheet-value-changed / sheet-edit-ended edit at that slot would inherit the burned id, while
+  // the materialized row carried a different id, leading to unresolved-temporary-row-id drops.
+  // Commits run on the write path (sheet-value-changed / sheet-edit-ended) via the emit-tail
+  // coordinator; reconcile waits on that tail before running (see bootstrap reconcileSingleCell).
+  if (isReadOnlyReconcileSource && candidateNewRowIndices.length > 0) {
     callbacksRef.current.onDiagnosticsTraceEvent?.({
       source: 'client',
-      stage: 'grid_mutation_selection_reconcile_skipped_new_rows',
+      stage: 'grid_mutation_reconcile_skipped_new_rows',
+      severity: 'info',
       payload: {
         targetSheetId,
-        candidateNewRowIndices
+        source,
+        candidateNewRowIndices,
+        hint: 'awaiting_write_path_materialization'
       }
     })
     return { status: 'return', value: false }
@@ -747,6 +796,7 @@ export function resolveDetectedCellMutation(
     colOffset,
     hadPasteIntentForSheet: hasPasteFormattingIntentForSheet,
     hadPasteFormattingIntentForSheet,
+    autofillApplyType,
     disableMixedValueStylePayloads,
     preserveUndefinedAsNull,
     explicitPayloadAbsoluteCellValue,

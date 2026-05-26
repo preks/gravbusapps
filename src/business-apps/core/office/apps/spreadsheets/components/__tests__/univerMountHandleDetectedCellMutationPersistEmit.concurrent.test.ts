@@ -40,7 +40,10 @@ const makeCell = (rowIndex: number): SpreadsheetMutationPlannedCell => ({
   colIndex: 0,
   cellRef: `A${rowIndex + 1}`,
   valueAction: 'set',
-  value: `value_${rowIndex}`
+  // Distinct from the seeded `column_a` value so the post-materialization dedup
+  // (see dropSetRangeCellsRedundantAfterMaterialization) does not suppress the
+  // submission — this suite asserts the rowId-remap race fix, not dedup.
+  value: `value_${rowIndex}_edit`
 })
 
 const makeEmit = (rowIndex: number, sheetId = 'sheet-1'): PersistEmitInput => {
@@ -67,6 +70,7 @@ const makeEmit = (rowIndex: number, sheetId = 'sheet-1'): PersistEmitInput => {
     planStyles: undefined,
     hadPasteIntentForSheet: false,
     hadPasteFormattingIntentForSheet: false,
+    autofillApplyType: null,
     commandId: 'sheet.mutation.set-range-values',
     materializeRowsBeforeEmit: true
   }
@@ -157,11 +161,13 @@ const buildDeps = ({
 
   const callbacksRef = { current: { onDiagnosticsTraceEvent: jest.fn() } }
   const pendingFormattingPasteIntentRef = { current: null }
+  const pendingAutofillIntentRef = { current: null }
 
   return {
     propsRef,
     callbacksRef,
     pendingFormattingPasteIntentRef,
+    pendingAutofillIntentRef,
     // Snapshot accessor: emit dispatch reads this AFTER `flushUnmaterializedRowsBeforePersist`
     // resolves. Critically, it must observe the materialized backend UUIDs to remap successfully.
     getPersistSheetRowsSnapshot: () => sessionRows,
@@ -305,7 +311,7 @@ describe('runDetectedCellMutationPersistEmitDispatch (concurrent emit race)', ()
     }
   })
 
-  it('does not invoke onMutationBatchOp when remap leaves unresolved temp row ids after retry', async () => {
+  it('delegates to onMutationBatchOp when remap leaves unresolved temp row ids after retry', async () => {
     // Configure flush to NOT materialize the row (simulates a guarded skip / failed materialization).
     const criticalSectionTrace: string[] = []
     const ops = createFakeOpsQueue()
@@ -345,10 +351,14 @@ describe('runDetectedCellMutationPersistEmitDispatch (concurrent emit race)', ()
       } as unknown as UniverMountHandleDetectedCellMutationDeps
 
       const result = await runDetectedCellMutationPersistEmitDispatch(deps, makeEmit(0))
-      expect(result).toBe(false)
-      expect(onMutationBatchOp).not.toHaveBeenCalled()
+      expect(result).toBe(true)
+      expect(onMutationBatchOp).toHaveBeenCalledTimes(1)
+      const firstOpData = onMutationBatchOp.mock.calls[0][0].operations[0].data as {
+        cells?: Array<{ rowId?: string }>
+      }
+      expect(firstOpData.cells?.[0]?.rowId).toBe('client_row_0')
       expect(warnSpy).toHaveBeenCalledWith(
-        '[SPREADSHEET_PERSIST] emit_dispatch: unresolved_temporary_row_id_after_retry',
+        '[SPREADSHEET_PERSIST] emit_dispatch: defer_to_viewer_readiness_gate',
         expect.objectContaining({
           targetSheetId: 'sheet-1',
           unresolvedCount: expect.any(Number)

@@ -1,4 +1,9 @@
-import { buildAuthoritativeMutationEnvelope, buildStylePatchFromUniverCell } from '../univerMutationPlanner'
+import {
+  buildAuthoritativeMutationEnvelope,
+  buildStylePatchFromUniverCell,
+  resolveSpreadsheetLocalMutationIntent,
+  stripIncidentalValueWritesFromStyleMutation
+} from '../univerMutationPlanner'
 
 describe('univerMutationPlanner', () => {
   const columns = [
@@ -673,6 +678,48 @@ describe('univerMutationPlanner', () => {
       const patch = buildStylePatchFromUniverCell({}, 'normal', 'preserveUnspecifiedInline')
       expect(patch).toBeUndefined()
     })
+
+    it('flattens inline style object on s into set.bg (fill-color / set-range-values)', () => {
+      const patch = buildStylePatchFromUniverCell(
+        { s: { bg: { rgb: '#84e1bc' } } },
+        'normal',
+        'preserveUnspecifiedInline'
+      )
+      expect(patch?.set).toEqual({ bg: { rgb: '#84e1bc' } })
+      expect(patch?.set).not.toHaveProperty('s')
+    })
+  })
+
+  describe('resolveSpreadsheetLocalMutationIntent', () => {
+    it('uses formatOnly for style-only sheet.mutation.set-range-values matrices', () => {
+      expect(
+        resolveSpreadsheetLocalMutationIntent({
+          hasPersistableMutation: false,
+          allowValueCarryingStylePayloads: false,
+          commandId: 'sheet.mutation.set-range-values',
+          mergedCellValue: {
+            284: { 3: { s: { bg: { rgb: '#84e1bc' } } } }
+          },
+          replaceRangeStyleIntent: false,
+          pasteIntoNewRows: false
+        })
+      ).toBe('formatOnly')
+    })
+
+    it('stays edit when the matrix carries persistable value keys', () => {
+      expect(
+        resolveSpreadsheetLocalMutationIntent({
+          hasPersistableMutation: true,
+          allowValueCarryingStylePayloads: false,
+          commandId: 'sheet.mutation.set-range-values',
+          mergedCellValue: {
+            0: { 0: { v: 'hello', s: 'style-1' } }
+          },
+          replaceRangeStyleIntent: false,
+          pasteIntoNewRows: false
+        })
+      ).toBe('edit')
+    })
   })
 
   // 1d: liveMergeRanges from the worksheet facade must take precedence over a stale
@@ -885,5 +932,197 @@ describe('univerMutationPlanner', () => {
     expect(cells.find(cell => cell.columnName === 'name')).toEqual(
       expect.objectContaining({ valueAction: 'set', value: 'Alice updated' })
     )
+  })
+
+  it('strips incidental value writes from multi-cell style mutations', () => {
+    const cells = [
+      {
+        rowId: 'row-1',
+        columnName: 'name',
+        rowIndex: 0,
+        colIndex: 0,
+        valueAction: 'set' as const,
+        value: 704025,
+        stylePatch: { set: { bl: 1 } }
+      },
+      {
+        rowId: 'row-2',
+        columnName: 'name',
+        rowIndex: 1,
+        colIndex: 0,
+        valueAction: 'none' as const,
+        stylePatch: { set: { bl: 1 } }
+      }
+    ]
+
+    expect(
+      stripIncidentalValueWritesFromStyleMutation({
+        cells,
+        intent: 'edit',
+        replaceRangeStyleIntent: false,
+        source: 'sheet-value-changed',
+        mutatedCellCount: 2
+      })
+    ).toEqual([
+      expect.objectContaining({ rowId: 'row-1', valueAction: 'none', stylePatch: { set: { bl: 1 } } }),
+      expect.objectContaining({ rowId: 'row-2', valueAction: 'none' })
+    ])
+  })
+
+  describe('no-clear-without-local-edit guard', () => {
+    // Repro of the spurious-clear bug: user A wrote "A18" -> user B's session has it via collab
+    // apply, but user B's Univer grid is blank/stale. A deferred-reconcile read at that cell must
+    // NOT emit a `valueAction: 'clear'`, because user B never touched the cell.
+    it('skips clear when session has value, grid is blank, authoritative is non-blank, and user did not touch', () => {
+      const envelope = buildAuthoritativeMutationEnvelope({
+        sheetId: 'sheet-1',
+        traceId: 'trace-no-clear-guard',
+        intent: 'edit',
+        currentData: [{ _id: 'row-1', name: 'A18' }],
+        contextColumns: columns,
+        ctx,
+        ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+        explicitPayloadAbsoluteCellValue: {
+          0: { 0: { v: null } }
+        },
+        worksheetCellValue: {
+          0: { 0: { v: null } }
+        },
+        mergedCellValue: {
+          0: { 0: { v: null } }
+        },
+        workbookSnapshot: null,
+        wasRecentlyLocallyMutated: () => false,
+        getAuthoritativeSignatureForCell: () => 's:A18'
+      })
+
+      const clears = envelope.plan?.cells.filter(cell => cell.valueAction === 'clear') ?? []
+      expect(clears).toEqual([])
+    })
+
+    // Real user clears must still work: when the local user did touch the cell, the planner
+    // emits a clear even if the authoritative signature was non-blank moments ago.
+    it('still emits clear when the local user recently mutated the cell', () => {
+      const envelope = buildAuthoritativeMutationEnvelope({
+        sheetId: 'sheet-1',
+        traceId: 'trace-real-clear',
+        intent: 'edit',
+        currentData: [{ _id: 'row-1', name: 'A18' }],
+        contextColumns: columns,
+        ctx,
+        ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+        explicitPayloadAbsoluteCellValue: {
+          0: { 0: { v: null } }
+        },
+        worksheetCellValue: {
+          0: { 0: { v: null } }
+        },
+        mergedCellValue: {
+          0: { 0: { v: null } }
+        },
+        workbookSnapshot: null,
+        wasRecentlyLocallyMutated: () => true,
+        getAuthoritativeSignatureForCell: () => 's:A18'
+      })
+
+      expect(envelope.plan?.cells).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            rowId: 'row-1',
+            columnName: 'name',
+            valueAction: 'clear'
+          })
+        ])
+      )
+    })
+
+    // If the authoritative signature is also blank (i.e. the cell was genuinely empty), the
+    // guard must NOT block — there is nothing to protect. A normal "no-op clear" path keeps
+    // the cell as `valueAction: 'none'` because currentSignature === nextSignature, but we
+    // assert no spurious clear is created either way.
+    it('does not skip when authoritative is also blank (nothing to protect)', () => {
+      const envelope = buildAuthoritativeMutationEnvelope({
+        sheetId: 'sheet-1',
+        traceId: 'trace-blank-auth',
+        intent: 'edit',
+        currentData: [{ _id: 'row-1', name: '' }],
+        contextColumns: columns,
+        ctx,
+        ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+        explicitPayloadAbsoluteCellValue: {
+          0: { 0: { v: null } }
+        },
+        worksheetCellValue: {
+          0: { 0: { v: null } }
+        },
+        mergedCellValue: {
+          0: { 0: { v: null } }
+        },
+        workbookSnapshot: null,
+        wasRecentlyLocallyMutated: () => false,
+        getAuthoritativeSignatureForCell: () => 'n:'
+      })
+
+      const clears = envelope.plan?.cells.filter(cell => cell.valueAction === 'clear') ?? []
+      expect(clears).toEqual([])
+    })
+  })
+
+  it('keeps value writes when the mutation creates new logical rows', () => {
+    const cells = [
+      {
+        rowId: 'client_row_9',
+        columnName: 'name',
+        rowIndex: 9,
+        colIndex: 0,
+        valueAction: 'set' as const,
+        value: 1,
+        stylePatch: { set: { bl: 1 } }
+      },
+      {
+        rowId: 'client_row_9',
+        columnName: 'amount',
+        rowIndex: 9,
+        colIndex: 1,
+        valueAction: 'set' as const,
+        value: 2,
+        stylePatch: { set: { bl: 1 } }
+      }
+    ]
+
+    expect(
+      stripIncidentalValueWritesFromStyleMutation({
+        cells,
+        intent: 'edit',
+        replaceRangeStyleIntent: false,
+        source: 'sheet-value-changed',
+        mutatedCellCount: 2,
+        createsNewRows: true
+      })
+    ).toEqual(cells)
+  })
+
+  it('keeps value writes for paste-replace mutations that also carry style', () => {
+    const cells = [
+      {
+        rowId: 'row-1',
+        columnName: 'name',
+        rowIndex: 0,
+        colIndex: 0,
+        valueAction: 'set' as const,
+        value: 'pasted',
+        stylePatch: { set: { s: 'style-1' } }
+      }
+    ]
+
+    expect(
+      stripIncidentalValueWritesFromStyleMutation({
+        cells,
+        intent: 'pasteReplace',
+        replaceRangeStyleIntent: true,
+        source: 'sheet-value-changed',
+        mutatedCellCount: 1
+      })
+    ).toEqual(cells)
   })
 })

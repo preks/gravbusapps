@@ -8,6 +8,7 @@ import { DashboardView, FormView, KanbanView } from '../views'
 import { TableView } from '../views/TableView'
 import type { UniverSheetGridInitLifecycleEvent } from '../components/UniverSheetGrid.types'
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
+import type { SpreadsheetRowMaterializationReadiness } from './spreadsheetRowMaterializationReadiness'
 import translations from '../_i18n'
 
 type ViewerRow = Record<string, unknown>
@@ -56,9 +57,11 @@ export interface UseSpreadsheetMainViewRendererParams {
   onStyleBatchOp: (styleData: any) => void
   onMutationBatchOp?: (data: SpreadsheetUnifiedMutationBatchPayload) => void | Promise<void>
   flushUnmaterializedRowsBeforePersistRef: MutableRefObject<((sheetId: string) => Promise<void>) | null>
+  flushPendingCellChangesRef: MutableRefObject<(() => Promise<void>) | null>
   getPersistSheetRowsSnapshot: (sheetId: string) => ViewerRow[]
   isBackendRowUuid: (value: string) => boolean
   rowSlotIdentityRegistryRef: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
+  rowMaterializationReadinessRef: MutableRefObject<SpreadsheetRowMaterializationReadiness | null>
   columnStructureStateRef: MutableRefObject<{
     healthy: boolean
     pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
@@ -124,9 +127,11 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onStyleBatchOp,
     onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef,
+    flushPendingCellChangesRef,
     getPersistSheetRowsSnapshot,
     isBackendRowUuid,
     rowSlotIdentityRegistryRef,
+    rowMaterializationReadinessRef,
     columnStructureStateRef,
     onCursorEmit,
     getCanonicalSheetId,
@@ -206,9 +211,11 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           onStyleBatchOp={onStyleBatchOp}
           onMutationBatchOp={onMutationBatchOp}
           flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
+          flushPendingCellChangesRef={flushPendingCellChangesRef}
           getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
           isBackendRowUuid={isBackendRowUuid}
           rowSlotIdentityRegistryRef={rowSlotIdentityRegistryRef}
+          rowMaterializationReadinessRef={rowMaterializationReadinessRef}
           columnStructureStateRef={columnStructureStateRef}
           onCursorEmit={onCursorEmit}
           getCanonicalSheetId={getCanonicalSheetId}
@@ -294,9 +301,11 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onStyleBatchOp,
     onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef,
+    flushPendingCellChangesRef,
     getPersistSheetRowsSnapshot,
     isBackendRowUuid,
     rowSlotIdentityRegistryRef,
+    rowMaterializationReadinessRef,
     onUniverSheetInserted,
     onUniverSheetRemoved,
     onUniverSheetRenamed,

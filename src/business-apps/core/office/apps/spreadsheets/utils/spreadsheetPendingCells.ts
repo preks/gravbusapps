@@ -32,6 +32,32 @@ const toComparableCellSignature = (value: unknown): string => {
   }
 }
 
+/**
+ * Unwraps the Univer `{ v, t }` cell envelope so a raw scalar (e.g. `1`) compares
+ * equal to its envelope form (e.g. `{ v: 1, t: 2 }`). Used by persistence dedup
+ * paths where one side stores the envelope (post-`add_rows` row snapshot) and
+ * the other side stores the planned scalar (set_range cell value).
+ */
+const unwrapCellEnvelopeForComparison = (value: unknown): unknown => {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return value
+  const obj = value as Record<string, unknown>
+  if (Object.prototype.hasOwnProperty.call(obj, 'v')) return obj.v ?? ''
+  if (Object.prototype.hasOwnProperty.call(obj, 'm')) return obj.m ?? ''
+  return value
+}
+
+/**
+ * True when two cell values should be considered semantically identical for
+ * persistence dedup. Unlike `shouldSkipFreshRowCellReplay`, this is symmetric
+ * (no blank-like asymmetry) and intended for "did add_rows already write this
+ * exact value?" checks within a single emit dispatch.
+ */
+export const cellValuesAreEquivalentForPersist = (a: unknown, b: unknown): boolean => {
+  const left = unwrapCellEnvelopeForComparison(a)
+  const right = unwrapCellEnvelopeForComparison(b)
+  return toComparableCellSignature(left) === toComparableCellSignature(right)
+}
+
 const isBlankLikeCellValue = (value: unknown): boolean => {
   if (value == null) return true
   if (typeof value === 'string') return value.length === 0

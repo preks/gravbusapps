@@ -2,21 +2,28 @@ import { createUniver } from '@univerjs/presets'
 import { toA1Reference } from '../core'
 import { buildSpreadsheetCursorPath } from './cursorPathUtils'
 import { extractActiveRangeBounds } from './univerGridRangeSelection'
+import { captureCutSelectionRange } from '../utils/spreadsheetCutPasteMove'
 import type { FormattingPasteIntentSource, UniverGridController } from './useUniverGridController'
 
 export type UniverMountCursorEmitRefs = Pick<
   UniverGridController,
-  'univerAPIRef' | 'propsRef' | 'callbacksRef' | 'activeSelectionRef' | 'lastEmittedCursorPathRef'
+  | 'univerAPIRef'
+  | 'propsRef'
+  | 'callbacksRef'
+  | 'activeSelectionRef'
+  | 'lastEmittedCursorPathRef'
+  | 'pendingCutCellRangeRef'
 > & {
   univerAPI: ReturnType<typeof createUniver>['univerAPI']
   reconcileSingleCell: (
     row: number | undefined,
     col: number | undefined,
-    source: 'selection-reconcile' | 'sheet-edit-ended',
+    source: 'selection-reconcile' | 'deferred-reconcile',
     worksheetId?: string | null
   ) => void
   captureCopiedSelectionAnchor: () => void
   markFormattingPasteIntent: (source?: FormattingPasteIntentSource) => void
+  getActiveWorksheetIdFromUniver: () => string | null
 }
 
 export type UniverMountCursorEmitHandles = {
@@ -24,6 +31,7 @@ export type UniverMountCursorEmitHandles = {
   selectionChangeDisposable: { dispose(): void } | undefined
   currentSelectionChangeDisposable: { dispose(): void } | undefined
   captureCopyFromDomEvent: () => void
+  captureCutFromDomEvent: () => void
   capturePasteFromDomEvent: () => void
   cursorPollIntervalId: ReturnType<typeof setInterval>
   clearPendingCursorTimeouts: () => void
@@ -42,7 +50,9 @@ export function registerUniverMountCursorEmit(refs: UniverMountCursorEmitRefs): 
     lastEmittedCursorPathRef,
     reconcileSingleCell,
     captureCopiedSelectionAnchor,
-    markFormattingPasteIntent
+    markFormattingPasteIntent,
+    pendingCutCellRangeRef,
+    getActiveWorksheetIdFromUniver
   } = refs
 
   const selectionEventKey =
@@ -148,12 +158,23 @@ export function registerUniverMountCursorEmit(refs: UniverMountCursorEmitRefs): 
   ).addEvent?.('CurrentSelectionChanged', emitCursorFromSelectionEvent)
 
   const captureCopyFromDomEvent = () => {
+    pendingCutCellRangeRef.current = null
     captureCopiedSelectionAnchor()
+  }
+  const captureCutFromDomEvent = () => {
+    const sheetId = getActiveWorksheetIdFromUniver()
+    const workbook = univerAPIRef.current?.getActiveWorkbook?.()
+    if (!sheetId || !workbook) return
+    const pendingCut = captureCutSelectionRange(workbook, sheetId)
+    if (pendingCut) {
+      pendingCutCellRangeRef.current = pendingCut
+    }
   }
   const capturePasteFromDomEvent = () => {
     markFormattingPasteIntent('dom')
   }
   document.addEventListener('copy', captureCopyFromDomEvent, true)
+  document.addEventListener('cut', captureCutFromDomEvent, true)
   document.addEventListener('paste', capturePasteFromDomEvent, true)
 
   const startupCursorPollStartedAt = Date.now()
@@ -185,6 +206,7 @@ export function registerUniverMountCursorEmit(refs: UniverMountCursorEmitRefs): 
     selectionChangeDisposable,
     currentSelectionChangeDisposable,
     captureCopyFromDomEvent,
+    captureCutFromDomEvent,
     capturePasteFromDomEvent,
     cursorPollIntervalId,
     clearPendingCursorTimeouts

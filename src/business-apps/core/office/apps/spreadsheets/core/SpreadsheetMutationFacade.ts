@@ -39,6 +39,7 @@ export interface SpreadsheetMutationTraceMeta {
   traceId?: string
   sourceTraceIds?: string[]
   operationType?: string
+  clientMutationId?: string
   traceSessionId?: string
   sessionId?: string
   tabId?: string
@@ -50,6 +51,18 @@ export interface SpreadsheetMutationBatchRequest {
   batchIdPrefix?: string
   batchIdOverride?: string
   traceMeta?: SpreadsheetMutationTraceMeta
+  /**
+   * Caller-authored base version. When provided, the submitter uses this value
+   * verbatim for the first POST instead of re-reading from the version model.
+   * The sheet work queue passes its invariant-validated `queueClientAppliedVersion`
+   * here so the HTTP request matches exactly what the queue gate authorized,
+   * closing the TOCTOU window between gate-check and wire-send.
+   *
+   * When omitted, the submitter falls back to its legacy behavior
+   * (`refreshBaseVersionBeforeWrite` + `resolveBaseVersion`). Legacy callers
+   * are unaffected.
+   */
+  baseVersion?: number
 }
 
 export type SpreadsheetMutationBatchRunner = (

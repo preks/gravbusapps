@@ -45,13 +45,13 @@ const UNIVER_COMMAND_KIND_ENTRIES: ReadonlyArray<readonly [string, CommandKind]>
   ['sheet.command.clear-range-value', 'clearLike'],
   ['sheet.command.delete-selection', 'clearLike'],
   ['DeleteSelectionCommand', 'clearLike'],
-  ['sheet.command.cut-paste', 'clearLike'],
 
   // cellRangeMove — relocate a rectangular cell block (values + style refs travel together).
   // Routed through the dedicated move_cell_range batch op, not the unified planner.
   ['sheet.command.move-range', 'cellRangeMove'],
   ['sheet.mutation.move-range', 'cellRangeMove'],
   ['sheet.mutation.move-cell', 'cellRangeMove'],
+  ['sheet.command.cut-paste', 'cellRangeMove'],
 
   // freezePanes — freeze/unfreeze rows and/or columns.
   ['sheet.command.set-selection-frozen', 'freezePanes'],

@@ -1,16 +1,16 @@
 import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
-import type { SpreadsheetStylePatch, SpreadsheetUnifiedMutationBatchPayload } from '../core'
+import type { SpreadsheetUnifiedMutationBatchPayload } from '../core'
 import { buildOperationsFromMutationPlan } from '../core'
-import { remapBatchOperationsWithUiToBackendRowMap } from '../utils/spreadsheetBatchOperationRowRemap'
 import {
-  buildRowIdentityDiagnostics,
-  buildUiToBackendRowIdMap,
-  isSpreadsheetTemporaryClientRowId
-} from '../utils/spreadsheetRowIdentity'
+  buildUiToBackendRowIdMapForPersist,
+  remapBatchOperationsWithUiToBackendRowMap
+} from '../utils/spreadsheetBatchOperationRowRemap'
+import { dropSetRangeCellsRedundantAfterMaterialization } from '../utils/spreadsheetBatchOperationCellDedup'
+import { buildRowIdentityDiagnostics, isSpreadsheetTemporaryClientRowId } from '../utils/spreadsheetRowIdentity'
 import { resolveBackendRowUuidPredicateFromGridProps } from './univerBackendRowUuidPredicate'
 import { detectTemporaryRowIdsInKnownRowIdFields } from '../utils/spreadsheetUnifiedBatchSubmitUtils'
-import { MAX_INDIVIDUAL_CLEAR_CELL_OPS } from '../utils/spreadsheetViewerRows'
 import { debugMutationTrace } from './univerGridDebug'
+import { clearSpreadsheetAutofillIntent } from './univerAutofillIntent'
 import { isUnifiedMutationOperationType } from './univerGridWorkbookMutationModule'
 import type {
   PersistEmitInput,
@@ -38,8 +38,7 @@ function buildUnifiedOperationsForEmit(emit: PersistEmitInput): SpreadsheetBatch
     createOperationId: (prefix: string) => {
       localOperationSequence += 1
       return `${prefix}_${localOperationSequence}`
-    },
-    maxIndividualClearCellOps: MAX_INDIVIDUAL_CLEAR_CELL_OPS
+    }
   })
 }
 
@@ -99,20 +98,21 @@ export function runDetectedCellMutationPersistEmitSync(
   emit: PersistEmitInput,
   unifiedOpsOverride?: SpreadsheetBatchOperation[] | null
 ): boolean {
-  const { propsRef, callbacksRef, pendingFormattingPasteIntentRef } = deps
+  const { propsRef, callbacksRef, pendingFormattingPasteIntentRef, pendingAutofillIntentRef } = deps
   const {
     source,
     targetSheetId,
     mutationTraceId,
     plannedCellsFiltered,
     emittedChangedCells,
-    planStyles,
     hadPasteIntentForSheet,
-    hadPasteFormattingIntentForSheet
+    hadPasteFormattingIntentForSheet,
+    autofillApplyType
   } = emit
 
+  const isReadOnlyReconcileSource = source === 'selection-reconcile' || source === 'deferred-reconcile'
   let handledPersistable = false
-  if (source !== 'selection-reconcile') {
+  if (!isReadOnlyReconcileSource) {
     const onMutationBatchOp = propsRef.current.onMutationBatchOp
     if (onMutationBatchOp) {
       const unifiedOperations: SpreadsheetBatchOperation[] =
@@ -153,45 +153,26 @@ export function runDetectedCellMutationPersistEmitSync(
           handledPersistable = true
         }
       }
-    } else {
-      const { onCellsChange: onCellsChangeLegacy, onCellChange: onCellChangeLegacy } = callbacksRef.current
-      if (emittedChangedCells.length > 0) {
-        const tracedCells = emittedChangedCells.map(cell => ({
-          ...cell,
-          sheetId: targetSheetId,
-          traceId: mutationTraceId
-        }))
-        if (onCellsChangeLegacy) {
-          onCellsChangeLegacy(tracedCells)
-          handledPersistable = true
-        } else if (onCellChangeLegacy) {
-          for (const cell of tracedCells) {
-            onCellChangeLegacy(cell.rowId, cell.columnName, cell.value, targetSheetId)
-          }
-          handledPersistable = true
+    } else if (emittedChangedCells.length > 0 || plannedCellsFiltered.some(cell => cell.stylePatch != null)) {
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'grid_unified_mutation_emit_missing_callback',
+        severity: 'warning',
+        traceId: mutationTraceId,
+        payload: {
+          targetSheetId,
+          changedCellCount: emittedChangedCells.length,
+          styleCellCount: plannedCellsFiltered.filter(cell => cell.stylePatch != null).length
         }
-      }
-      const styleBatchCells = plannedCellsFiltered
-        .filter(cell => cell.stylePatch != null)
-        .map(cell => ({
-          row: cell.rowIndex,
-          col: cell.colIndex,
-          stylePatch: cell.stylePatch as SpreadsheetStylePatch
-        }))
-      if (styleBatchCells.length > 0 && propsRef.current.onStyleBatchOp) {
-        propsRef.current.onStyleBatchOp({
-          sheetId: targetSheetId,
-          traceId: mutationTraceId,
-          styles: planStyles,
-          cells: styleBatchCells
-        })
-        handledPersistable = true
-      }
+      })
     }
   }
 
   if ((hadPasteIntentForSheet || hadPasteFormattingIntentForSheet) && source === 'sheet-value-changed') {
     pendingFormattingPasteIntentRef.current = null
+  }
+  if (autofillApplyType != null && source === 'sheet-value-changed') {
+    clearSpreadsheetAutofillIntent(pendingAutofillIntentRef, emit.targetSheetId)
   }
 
   return handledPersistable
@@ -205,7 +186,7 @@ export function runDetectedCellMutationPersistEmitDispatch(
   deps: UniverMountHandleDetectedCellMutationDeps,
   emit: PersistEmitInput
 ): boolean | Promise<boolean> {
-  if (emit.source === 'selection-reconcile') {
+  if (emit.source === 'selection-reconcile' || emit.source === 'deferred-reconcile') {
     return runDetectedCellMutationPersistEmitSync(deps, emit, undefined)
   }
   const onMutationBatchOp = deps.propsRef.current.onMutationBatchOp
@@ -294,9 +275,29 @@ export function runDetectedCellMutationPersistEmitDispatch(
       // `getPersistRowsForRemap` read and another emit's, causing one of them to remap against
       // a stale `uiToBackend` map and submit a cell op with a raw `client_*` rowId (which the
       // backend rejects). See Fix B in spreadsheet-row-write-race-fix plan.
+      const buildPersistRowIdMap = (rows: Record<string, unknown>[]) => {
+        const readinessResolved = new Map<string, string>()
+        const readiness = deps.propsRef.current.rowMaterializationReadinessRef?.current
+        if (readiness) {
+          affectedUiRowIds.forEach(clientRowId => {
+            const backendRowId = readiness.getResolvedBackendRowId(emit.targetSheetId, clientRowId)
+            if (backendRowId) {
+              readinessResolved.set(clientRowId, backendRowId)
+            }
+          })
+        }
+        return buildUiToBackendRowIdMapForPersist({
+          sheetId: emit.targetSheetId,
+          rows,
+          isUuid,
+          rowSlotIdentityRegistry: deps.propsRef.current.rowSlotIdentityRegistryRef?.current ?? null,
+          readinessResolvedByClientRowId: readinessResolved
+        })
+      }
+
       const runCriticalSection = async (): Promise<void> => {
         const rows = getPersistRowsForRemap(deps, emit.targetSheetId)
-        const uiToBackend = buildUiToBackendRowIdMap(rows, isUuid)
+        const uiToBackend = buildPersistRowIdMap(rows)
         let remapResult = remapBatchOperationsWithUiToBackendRowMap(unifiedOperations, uiToBackend)
 
         if (affectedUiRowIds.length > 0) {
@@ -317,12 +318,12 @@ export function runDetectedCellMutationPersistEmitDispatch(
         // Fix C: If any operation still references a temp `client_*` rowId after the first remap,
         // do NOT submit it raw (backend would reject with `invalid_row_ref`). Re-read the rows
         // (the materialization writes may have just landed) and try once more. If still
-        // unresolved, log and bail so the cell stays in the pending journal for the next flush.
+        // unresolved, delegate to the viewer readiness gate (awaits `insert_row_slots`, etc.).
         if (remapResult.unresolvedTemporaryRowIdMatches.length > 0) {
           // 1b: After flush, if any operation still references a temp `client_*` rowId, never
           // submit it raw (backend rejects with `invalid_row_ref`). Re-read the rows once — the
           // materialization writes may have just landed — and try again. If still unresolved,
-          // bail so the cell stays in the pending journal for the next flush cycle.
+          // hand off to `onMutationBatchOp` so SpreadsheetAppViewer can await readiness.
           deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
             source: 'client',
             stage: 'spreadsheet.cell_emit.unresolved_temp_id_retry',
@@ -335,7 +336,7 @@ export function runDetectedCellMutationPersistEmitDispatch(
             }
           })
           const rowsRetry = getPersistRowsForRemap(deps, emit.targetSheetId)
-          const uiToBackendRetry = buildUiToBackendRowIdMap(rowsRetry, isUuid)
+          const uiToBackendRetry = buildPersistRowIdMap(rowsRetry)
           const remapRetry = remapBatchOperationsWithUiToBackendRowMap(unifiedOperations, uiToBackendRetry)
           if (remapRetry.unresolvedTemporaryRowIdMatches.length === 0) {
             remapResult = remapRetry
@@ -347,8 +348,8 @@ export function runDetectedCellMutationPersistEmitDispatch(
             })
             deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
               source: 'client',
-              stage: 'spreadsheet.cell_emit.unresolved_temp_id_bail',
-              severity: 'error',
+              stage: 'spreadsheet.cell_emit.defer_to_viewer_readiness_gate',
+              severity: 'warning',
               sheetId: emit.targetSheetId,
               traceId: emit.mutationTraceId,
               payload: {
@@ -357,18 +358,57 @@ export function runDetectedCellMutationPersistEmitDispatch(
                 unresolvedTemporaryRowIdMatches: remapRetry.unresolvedTemporaryRowIdMatches
               }
             })
-            console.warn('[SPREADSHEET_PERSIST] emit_dispatch: unresolved_temporary_row_id_after_retry', {
+            console.warn('[SPREADSHEET_PERSIST] emit_dispatch: defer_to_viewer_readiness_gate', {
               targetSheetId: emit.targetSheetId,
               traceId: emit.mutationTraceId,
               unresolvedCount: remapRetry.unresolvedTemporaryRowIdMatches.length,
               unresolvedTemporaryRowIdMatches: remapRetry.unresolvedTemporaryRowIdMatches
             })
-            handled = false
+            handled = runDetectedCellMutationPersistEmitSync(deps, emit, unifiedOperations)
             return
           }
         }
 
-        handled = runDetectedCellMutationPersistEmitSync(deps, emit, remapResult.operations)
+        // Suppress set_range cells that were already persisted by the preceding
+        // add_rows flush. Every cell typed into a new row would otherwise hit
+        // the wire twice: add_rows carries the cell value in the row payload,
+        // then set_range writes the same value again. We only consider rows
+        // that entered this dispatch as `client_*` temporary ids (Fix F scope
+        // — same-emit materialization, not column-default replay).
+        const rowsAfterFlush = getPersistRowsForRemap(deps, emit.targetSheetId)
+        const materializedBackendRowIds = new Set<string>()
+        for (const uiRowId of affectedUiRowIds) {
+          const backendRowId = uiToBackend.get(uiRowId)
+          if (backendRowId) materializedBackendRowIds.add(backendRowId)
+        }
+        const dedupResult = dropSetRangeCellsRedundantAfterMaterialization(
+          remapResult.operations,
+          rowsAfterFlush,
+          materializedBackendRowIds,
+          isUuid
+        )
+        if (dedupResult.droppedCellCount > 0 || dedupResult.droppedSetRangeOpCount > 0) {
+          deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
+            source: 'client',
+            stage: 'spreadsheet.cell_emit.dedup_after_materialization',
+            traceId: emit.mutationTraceId,
+            payload: {
+              targetSheetId: emit.targetSheetId,
+              droppedCellCount: dedupResult.droppedCellCount,
+              droppedSetRangeOpCount: dedupResult.droppedSetRangeOpCount,
+              droppedCellKeys: dedupResult.droppedCellKeys.slice(0, 20),
+              materializedBackendRowIdCount: materializedBackendRowIds.size
+            }
+          })
+        }
+
+        if (dedupResult.operations.length === 0) {
+          // All planned cells were already persisted by add_rows; nothing left to submit.
+          handled = true
+          return
+        }
+
+        handled = runDetectedCellMutationPersistEmitSync(deps, emit, dedupResult.operations)
         if (!handled && remapResult.unresolvedTemporaryRowIdMatches.length > 0) {
           console.warn('[SPREADSHEET_PERSIST] emit_dispatch: post_flush_persist_false', {
             targetSheetId: emit.targetSheetId,

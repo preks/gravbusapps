@@ -24,6 +24,7 @@ import type { SpreadsheetStylePatch, SpreadsheetUnifiedMutationBatchPayload } fr
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIntent'
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
+import type { SpreadsheetRowMaterializationReadiness } from '../hooks/spreadsheetRowMaterializationReadiness'
 
 export interface TableViewProps {
   sheet: SpreadsheetSheet
@@ -107,12 +108,14 @@ export interface TableViewProps {
   /** Unified mutation batch emitter for value + style changes from a single local mutation wave. */
   onMutationBatchOp?: (data: SpreadsheetUnifiedMutationBatchPayload) => void | Promise<void>
   flushUnmaterializedRowsBeforePersistRef?: MutableRefObject<((sheetId: string) => Promise<void>) | null>
+  flushPendingCellChangesRef?: MutableRefObject<(() => Promise<void>) | null>
   getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
   /** Preferred: host predicate for persisted backend row ids (UUIDs). */
   isBackendRowUuid?: (value: string) => boolean
   /** @deprecated Use {@link isBackendRowUuid}. */
   isUuidForRowRemap?: (value: string) => boolean
   rowSlotIdentityRegistryRef?: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
+  rowMaterializationReadinessRef?: MutableRefObject<SpreadsheetRowMaterializationReadiness | null>
   columnStructureStateRef?: MutableRefObject<{
     healthy: boolean
     pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
@@ -148,14 +151,8 @@ export const TableView = memo<TableViewProps>(function TableView({
   onUniverSheetRenamed,
   onUniverSheetVisibilityChanged,
   getSheetContext,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  columns,
   spreadsheetColumns,
   testId,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onAddRow,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  showAddRow,
   onCellChange,
   onCellsChange,
   onDiagnosticsTraceEvent,
@@ -178,10 +175,12 @@ export const TableView = memo<TableViewProps>(function TableView({
   onStyleBatchOp,
   onMutationBatchOp,
   flushUnmaterializedRowsBeforePersistRef,
+  flushPendingCellChangesRef,
   getPersistSheetRowsSnapshot,
   isBackendRowUuid,
   isUuidForRowRemap,
   rowSlotIdentityRegistryRef,
+  rowMaterializationReadinessRef,
   columnStructureStateRef,
   onCursorEmit,
   getCanonicalSheetId,
@@ -462,10 +461,12 @@ export const TableView = memo<TableViewProps>(function TableView({
           onStyleBatchOp={onStyleBatchOp}
           onMutationBatchOp={onMutationBatchOp}
           flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
+          flushPendingCellChangesRef={flushPendingCellChangesRef}
           getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
           isBackendRowUuid={isBackendRowUuid ?? isUuidForRowRemap}
           isUuidForRowRemap={isUuidForRowRemap}
           rowSlotIdentityRegistryRef={rowSlotIdentityRegistryRef}
+          rowMaterializationReadinessRef={rowMaterializationReadinessRef}
           columnStructureStateRef={columnStructureStateRef}
           onCursorEmit={onCursorEmit}
           getCanonicalSheetId={getCanonicalSheetId}

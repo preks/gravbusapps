@@ -3,6 +3,7 @@ import { parseA1Reference } from '../core'
 import type { SpreadsheetColumn } from '../types/spreadsheet'
 import { createUniverConversionContext } from './univerAdapter'
 import { rowMatchesRemoteId } from './spreadsheetRowIdentity'
+import { buildViewerRowVisualIndexByIdentity, lookupViewerRowVisualIndex } from './spreadsheetPeerRowHydration'
 
 export type AuthoritativeGridRegion = {
   minRow: number
@@ -106,6 +107,57 @@ export function tryComputeAuthoritativeRegionFromReplayDeltas(params: {
         const c = resolveColIndexForColumnKey(columns, rows, columnKey)
         if (r == null || c == null || c < 0) continue
         region = expandRegion(region, r, c)
+      }
+      continue
+    }
+
+    if (op === 'add_rows' || op === 'insert_rows_at') {
+      // Created rows arrive either in `payload.rows` (current schema) or `change.result.rows`
+      // (post-persist hydration). Each entry exposes its identity through any of `_id`, `id`,
+      // `_rowUuid`, `_clientRowId`. We resolve those identities against the **post-replay** row
+      // set so the bounding box covers the new visual indices the manager just produced.
+      const wireRowsSource = Array.isArray(payload.rows)
+        ? (payload.rows as unknown[])
+        : Array.isArray(((change as Record<string, unknown>).result as Record<string, unknown> | undefined)?.rows)
+          ? (((change as Record<string, unknown>).result as Record<string, unknown>).rows as unknown[])
+          : []
+      if (wireRowsSource.length === 0) continue
+      const rowIndexByIdentity = buildViewerRowVisualIndexByIdentity(rows)
+      const visibleColumns = columns.filter(c => c.isVisible !== false)
+      if (visibleColumns.length === 0) continue
+      let minRow = Number.POSITIVE_INFINITY
+      let maxRow = -1
+      let minCol = Number.POSITIVE_INFINITY
+      let maxCol = -1
+      for (const entry of wireRowsSource) {
+        if (!entry || typeof entry !== 'object') continue
+        const record = entry as Record<string, unknown>
+        const data = record.data && typeof record.data === 'object' ? (record.data as Record<string, unknown>) : record
+        const identityProbe: Record<string, unknown> = {
+          _id: record.id ?? data._id,
+          id: record.id ?? data.id,
+          _rowUuid: record._rowUuid ?? data._rowUuid,
+          _clientRowId: data._clientRowId
+        }
+        const rowIndex = lookupViewerRowVisualIndex(rowIndexByIdentity, identityProbe)
+        if (rowIndex == null || rowIndex < 0) continue
+        if (rowIndex < minRow) minRow = rowIndex
+        if (rowIndex > maxRow) maxRow = rowIndex
+        for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
+          const column = visibleColumns[colIndex]
+          if (
+            !Object.prototype.hasOwnProperty.call(data, column.name) &&
+            !Object.prototype.hasOwnProperty.call(data, column.id)
+          ) {
+            continue
+          }
+          if (colIndex < minCol) minCol = colIndex
+          if (colIndex > maxCol) maxCol = colIndex
+        }
+      }
+      if (Number.isFinite(minRow) && maxRow >= 0 && Number.isFinite(minCol) && maxCol >= 0) {
+        region = expandRegion(region, minRow, minCol)
+        region = expandRegion(region, maxRow, maxCol)
       }
       continue
     }

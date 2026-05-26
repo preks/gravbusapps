@@ -1,6 +1,10 @@
 import { useCallback, useRef } from 'react'
 
-import { SpreadsheetApiRequestError } from '../services/SpreadsheetApiService'
+import {
+  SpreadsheetApiRequestError,
+  getSpreadsheetBatchErrorCode,
+  isSpreadsheetBatchErrorExplicitlyNonRetryable
+} from '../services/SpreadsheetApiService'
 import {
   areCanonicalSheetIdsEqual,
   isSheetCreationAwaitingPersistedId,
@@ -18,8 +22,10 @@ import {
 import { patchLatestUniverSnapshotRowBackendIdentities } from '../utils/spreadsheetUniverSnapshotIdentity'
 import {
   buildMaterializationRowsByVisualIndexMap,
+  buildOccupiedSlotRowAdoptions,
   buildRowMaterializationInFlightKey,
   buildSpreadsheetRowMaterializationPlan,
+  filterMaterializationEntriesForPersistedSlots,
   getSpreadsheetRowMaterializationClientRowId,
   mergeCreatedRowsByVisualIndex,
   viewerRowMatchesPersistedRowAtSlot,
@@ -58,6 +64,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
     persistAddedRowsWithBatch,
     persistSingleAddedRow,
     recoverFromVersionConflict,
+    fetchAuthoritativeRowsForSheet,
     summarizeRowsForDebug,
     getRowsForSheet,
     multiSheetDebugLog,
@@ -69,6 +76,20 @@ export function useSpreadsheetUniverRowCreatePipeline(
     rowMaterializationReadiness
   } = params
   const inFlightRowMaterializationKeysRef = useRef(new Set<string>())
+
+  const resolvePersistedRowsForAdoption = useCallback(
+    async (targetSheetId: string, preferActiveSession: boolean): Promise<Array<Record<string, unknown>>> => {
+      const authoritativeRows = await fetchAuthoritativeRowsForSheet?.(targetSheetId)
+      if (authoritativeRows && authoritativeRows.length > 0) {
+        return authoritativeRows
+      }
+      if (preferActiveSession) {
+        return getActiveSessionRows()
+      }
+      return getRowsForSheet(targetSheetId)
+    },
+    [fetchAuthoritativeRowsForSheet, getActiveSessionRows, getRowsForSheet]
+  )
 
   const materializeRows = useCallback(
     async ({
@@ -128,11 +149,20 @@ export function useSpreadsheetUniverRowCreatePipeline(
         univerRows: sourceRows,
         persistedRows,
         isUuid,
-        inFlightKeys: inFlightRowMaterializationKeysRef.current
+        inFlightKeys: inFlightRowMaterializationKeysRef.current,
+        rowMaterializationReadiness
       })
+      const filteredMaterializationPlan = filterMaterializationEntriesForPersistedSlots(
+        materializationPlan,
+        persistedRows,
+        isUuid
+      )
       const lastProcessed = isActiveTarget ? lastProcessedLengthRef.current : persistedRows.length
       const targetColumns = isActiveTarget ? activeSheetColumns : getColumnsForSheet(canonicalTargetId)
-      const rowPayloads = buildAddRowPayloadsFromUniverRows(materializationPlan.rowsToMaterialize, targetColumns)
+      const rowPayloads = buildAddRowPayloadsFromUniverRows(
+        filteredMaterializationPlan.rowsToMaterialize,
+        targetColumns
+      )
       const buildMaterializationPlanDiagnostics = (
         plan: SpreadsheetRowMaterializationPlan,
         createdSparseGridRowIndices: number[] = []
@@ -166,8 +196,90 @@ export function useSpreadsheetUniverRowCreatePipeline(
         buildMaterializationPlanDiagnostics(materializationPlan)
       )
 
+      const syncLocalRowsWithBackendIdentities = ({
+        createdRows,
+        persistedIdByClientRowId
+      }: {
+        createdRows: Array<Record<string, unknown>>
+        persistedIdByClientRowId: Map<string, string>
+      }) => {
+        const mergedRows = mergeCreatedRowsByVisualIndex({
+          previousRows: persistedRows,
+          univerRows: sourceRows,
+          createdRows,
+          isUuid
+        })
+        const next = mergedRows.rows
+        const affectedUiRowIds = mergedRows.affectedUiRowIds
+        if (reason === 'univer_data_change' && isActiveTarget) {
+          lastProcessedLengthRef.current = sourceRows.length
+        }
+        pendingUniverRowsBySheetRef.current.delete(targetSheetId)
+        multiSheetDebugLog('process_univer_data_change_rows_created', () => ({
+          sheetId: targetSheetId,
+          reason,
+          previousLocalRows: summarizeRowsForDebug(persistedRows),
+          createdRows: summarizeRowsForDebug(createdRows),
+          nextRows: summarizeRowsForDebug(next),
+          newData: summarizeRowsForDebug(sourceRows),
+          createdSparseGridRowIndices: mergedRows.createdGridRowIndices
+        }))
+        multiSheetDebugLog('process_univer_data_change_materialization_plan', () =>
+          buildMaterializationPlanDiagnostics(materializationPlan, mergedRows.createdGridRowIndices)
+        )
+        commitRowsForSheet(canonicalTargetId, next, { syncGrid: false })
+        const latestSnapshot = latestUniverDataRef.current
+        if (
+          latestSnapshot &&
+          areCanonicalSheetIdsEqual(latestSnapshot.sheetId, canonicalTargetId, createdSheetIdAliasesRef.current)
+        ) {
+          latestUniverDataRef.current = {
+            ...latestSnapshot,
+            data: patchLatestUniverSnapshotRowBackendIdentities({
+              latestRows: latestSnapshot.data as ViewerRow[],
+              authoritativeRows: next as ViewerRow[],
+              persistedIdByClientRowId,
+              isUuid
+            })
+          }
+        }
+        onRowsMaterializedContextSync?.(canonicalTargetId, next, {
+          affectedUiRowIds,
+          isActiveTarget
+        })
+        onRowIdentityDiagnostics?.('row_session_snapshot_reconciled', {
+          targetSheetId: canonicalTargetId,
+          rowIdentities: buildRowIdentityDiagnostics({
+            uiRowIds: affectedUiRowIds,
+            rows: next,
+            isUuid
+          })
+        })
+      }
+
       if (rowPayloads.length === 0) {
-        const rowsToMaterializeCount = materializationPlan.rowsToMaterialize.length
+        const occupiedSlotAdoptions = buildOccupiedSlotRowAdoptions({
+          univerRows: sourceRows,
+          persistedRows,
+          isUuid
+        })
+        if (occupiedSlotAdoptions.persistedIdByClientRowId.size > 0) {
+          syncLocalRowsWithBackendIdentities(occupiedSlotAdoptions)
+          return
+        }
+
+        const authoritativeRows = await resolvePersistedRowsForAdoption(canonicalTargetId, isActiveTarget)
+        const authoritativeAdoptions = buildOccupiedSlotRowAdoptions({
+          univerRows: sourceRows,
+          persistedRows: authoritativeRows,
+          isUuid
+        })
+        if (authoritativeAdoptions.persistedIdByClientRowId.size > 0) {
+          syncLocalRowsWithBackendIdentities(authoritativeAdoptions)
+          return
+        }
+
+        const rowsToMaterializeCount = filteredMaterializationPlan.rowsToMaterialize.length
         let firstUnpersistedTempRowVisualIndex: number | null = null
         const hasTempUniverRowWithoutBackend = sourceRows.some((row, index) => {
           const record = row as Record<string, unknown>
@@ -331,8 +443,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
       sheetPersist.markDirty()
       markVersionAsChanged()
 
-      const prev = persistedRows
-      const inFlightKeysForRequest = materializationPlan.entries.map(entry => entry.inFlightKey)
+      const inFlightKeysForRequest = filteredMaterializationPlan.entries.map(entry => entry.inFlightKey)
       const releaseInFlightKeysForRequest = () => {
         inFlightKeysForRequest.forEach(key => inFlightRowMaterializationKeysRef.current.delete(key))
       }
@@ -342,7 +453,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
         string,
         { resolve: (backendRowId: string) => void; reject: (error: unknown) => void }
       >()
-      materializationPlan.entries.forEach(entry => {
+      filteredMaterializationPlan.entries.forEach(entry => {
         if (!entry.clientRowId || !rowMaterializationReadiness) return
         const promise = new Promise<string>((resolvePromise, rejectPromise) => {
           readinessPendingResolvers.set(entry.clientRowId, {
@@ -366,7 +477,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
 
       const rejectReadinessEntries = (error: unknown) => {
         if (!rowMaterializationReadiness) return
-        materializationPlan.entries.forEach(entry => {
+        filteredMaterializationPlan.entries.forEach(entry => {
           if (!entry.clientRowId) return
           rowMaterializationReadiness.reject(canonicalTargetId, entry.clientRowId, error)
           const resolver = readinessPendingResolvers.get(entry.clientRowId)
@@ -386,58 +497,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
         persistedIdByClientRowId: Map<string, string>
       }) => {
         resolveReadinessEntries(persistedIdByClientRowId)
-        const mergedRows = mergeCreatedRowsByVisualIndex({
-          previousRows: prev,
-          univerRows: sourceRows,
-          createdRows,
-          isUuid
-        })
-        const next = mergedRows.rows
-        const affectedUiRowIds = mergedRows.affectedUiRowIds
-        if (reason === 'univer_data_change' && isActiveTarget) {
-          lastProcessedLengthRef.current = sourceRows.length
-        }
-        pendingUniverRowsBySheetRef.current.delete(targetSheetId)
-        multiSheetDebugLog('process_univer_data_change_rows_created', () => ({
-          sheetId: targetSheetId,
-          reason,
-          previousLocalRows: summarizeRowsForDebug(prev),
-          createdRows: summarizeRowsForDebug(createdRows),
-          nextRows: summarizeRowsForDebug(next),
-          newData: summarizeRowsForDebug(sourceRows),
-          createdSparseGridRowIndices: mergedRows.createdGridRowIndices
-        }))
-        multiSheetDebugLog('process_univer_data_change_materialization_plan', () =>
-          buildMaterializationPlanDiagnostics(materializationPlan, mergedRows.createdGridRowIndices)
-        )
-        commitRowsForSheet(canonicalTargetId, next, { syncGrid: false })
-        const latestSnapshot = latestUniverDataRef.current
-        if (
-          latestSnapshot &&
-          areCanonicalSheetIdsEqual(latestSnapshot.sheetId, canonicalTargetId, createdSheetIdAliasesRef.current)
-        ) {
-          latestUniverDataRef.current = {
-            ...latestSnapshot,
-            data: patchLatestUniverSnapshotRowBackendIdentities({
-              latestRows: latestSnapshot.data as ViewerRow[],
-              authoritativeRows: next as ViewerRow[],
-              persistedIdByClientRowId,
-              isUuid
-            })
-          }
-        }
-        onRowsMaterializedContextSync?.(canonicalTargetId, next, {
-          affectedUiRowIds,
-          isActiveTarget
-        })
-        onRowIdentityDiagnostics?.('row_session_snapshot_reconciled', {
-          targetSheetId: canonicalTargetId,
-          rowIdentities: buildRowIdentityDiagnostics({
-            uiRowIds: affectedUiRowIds,
-            rows: next,
-            isUuid
-          })
-        })
+        syncLocalRowsWithBackendIdentities({ createdRows, persistedIdByClientRowId })
       }
 
       sheetPersist.beginPersist()
@@ -458,6 +518,25 @@ export function useSpreadsheetUniverRowCreatePipeline(
         sheetPersist.recordError(onPersistRowsErrorMessage)
         if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
           releaseInFlightKeysForRequest()
+          const batchErrorCode = getSpreadsheetBatchErrorCode(error.details)
+          if (isSpreadsheetBatchErrorExplicitlyNonRetryable(error.details)) {
+            if (batchErrorCode === 'row_position_conflict') {
+              await recoverFromVersionConflict()
+              const freshRows = await resolvePersistedRowsForAdoption(canonicalTargetId, isActiveTarget)
+              const occupiedSlotAdoptions = buildOccupiedSlotRowAdoptions({
+                univerRows: sourceRows,
+                persistedRows: freshRows,
+                isUuid
+              })
+              if (occupiedSlotAdoptions.persistedIdByClientRowId.size > 0) {
+                updateLocalRowsAfterCreate(occupiedSlotAdoptions)
+                sheetPersist.recordSuccess(true)
+                markVersionAsSaved()
+                return
+              }
+            }
+            return
+          }
           const recovered = await recoverFromVersionConflict()
           const latestData = latestUniverDataRef.current
           const latestSid = latestData?.sheetId
@@ -469,7 +548,8 @@ export function useSpreadsheetUniverRowCreatePipeline(
                   univerRows: latestData.data,
                   persistedRows: freshRows,
                   isUuid,
-                  inFlightKeys: inFlightRowMaterializationKeysRef.current
+                  inFlightKeys: inFlightRowMaterializationKeysRef.current,
+                  rowMaterializationReadiness
                 })
               : undefined
           if (
@@ -518,6 +598,8 @@ export function useSpreadsheetUniverRowCreatePipeline(
       persistAddedRowsWithBatch,
       persistSingleAddedRow,
       recoverFromVersionConflict,
+      fetchAuthoritativeRowsForSheet,
+      resolvePersistedRowsForAdoption,
       sheetPersist,
       summarizeRowsForDebug,
       onRowIdentityDiagnostics,

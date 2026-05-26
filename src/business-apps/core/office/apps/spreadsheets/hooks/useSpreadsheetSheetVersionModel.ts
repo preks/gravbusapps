@@ -195,49 +195,56 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     recentLocalBatchIdsRef.current = next
   }, [])
 
-  const shouldIgnoreRecentlyCommittedOperation = useCallback((operation: CollaborationOperation): boolean => {
-    const nestedOperation = operation.operation as { version?: unknown } | undefined
-    const operationType = typeof operation.operation?.type === 'string' ? operation.operation.type : ''
-    const operationData = operation.operation?.data as { batchId?: unknown; tabId?: unknown } | undefined
-    const batchIdRaw = typeof operationData?.batchId === 'string' ? operationData.batchId.trim() : ''
-    const wireTabIdRaw = typeof operationData?.tabId === 'string' ? operationData.tabId.trim() : ''
-    const isBroadcastOnly = operation.operation?.broadcastOnly === true
-    if (operationType === 'batch_operations' && batchIdRaw) {
-      const now = Date.now()
-      const nextBatches = new Map(recentLocalBatchIdsRef.current)
-      for (const [candidateBatchId, entry] of nextBatches) {
-        if (entry.expiresAt <= now) nextBatches.delete(candidateBatchId)
-      }
-      recentLocalBatchIdsRef.current = nextBatches
-      const stored = nextBatches.get(batchIdRaw)
-      if (stored) {
-        const tabMismatch = Boolean(wireTabIdRaw && stored.tabId && wireTabIdRaw !== stored.tabId)
-        if (!tabMismatch) {
-          return true
-        }
-      }
-    }
-    if (isBroadcastOnly || operationType === 'cells_changed') {
-      return false
-    }
-    const version =
-      typeof operation.version === 'number'
-        ? Math.trunc(operation.version)
-        : typeof nestedOperation?.version === 'number'
-          ? Math.trunc(nestedOperation.version)
-          : null
-    if (version == null || !Number.isFinite(version) || version < 0) {
-      return false
-    }
-
+  const isRecentLocalBatchId = useCallback((batchId: string | undefined, tabId?: string | undefined): boolean => {
+    const batchIdRaw = typeof batchId === 'string' ? batchId.trim() : ''
+    if (!batchIdRaw) return false
+    const wireTabIdRaw = typeof tabId === 'string' ? tabId.trim() : ''
     const now = Date.now()
-    const next = new Map(recentLocalCommittedVersionsRef.current)
-    for (const [candidateVersion, candidateExpiresAt] of next) {
-      if (candidateExpiresAt <= now) next.delete(candidateVersion)
+    const nextBatches = new Map(recentLocalBatchIdsRef.current)
+    for (const [candidateBatchId, entry] of nextBatches) {
+      if (entry.expiresAt <= now) nextBatches.delete(candidateBatchId)
     }
-    recentLocalCommittedVersionsRef.current = next
-    return next.has(version)
+    recentLocalBatchIdsRef.current = nextBatches
+    const stored = nextBatches.get(batchIdRaw)
+    if (!stored) return false
+    const tabMismatch = Boolean(wireTabIdRaw && stored.tabId && wireTabIdRaw !== stored.tabId)
+    return !tabMismatch
   }, [])
+
+  const shouldIgnoreRecentlyCommittedOperation = useCallback(
+    (operation: CollaborationOperation): boolean => {
+      const nestedOperation = operation.operation as { version?: unknown } | undefined
+      const operationType = typeof operation.operation?.type === 'string' ? operation.operation.type : ''
+      const operationData = operation.operation?.data as { batchId?: unknown; tabId?: unknown } | undefined
+      const batchIdRaw = typeof operationData?.batchId === 'string' ? operationData.batchId.trim() : ''
+      const wireTabIdRaw = typeof operationData?.tabId === 'string' ? operationData.tabId.trim() : ''
+      const isBroadcastOnly = operation.operation?.broadcastOnly === true
+      if (operationType === 'batch_operations' && batchIdRaw && isRecentLocalBatchId(batchIdRaw, wireTabIdRaw)) {
+        return true
+      }
+      if (isBroadcastOnly || operationType === 'cells_changed') {
+        return false
+      }
+      const version =
+        typeof operation.version === 'number'
+          ? Math.trunc(operation.version)
+          : typeof nestedOperation?.version === 'number'
+            ? Math.trunc(nestedOperation.version)
+            : null
+      if (version == null || !Number.isFinite(version) || version < 0) {
+        return false
+      }
+
+      const now = Date.now()
+      const next = new Map(recentLocalCommittedVersionsRef.current)
+      for (const [candidateVersion, candidateExpiresAt] of next) {
+        if (candidateExpiresAt <= now) next.delete(candidateVersion)
+      }
+      recentLocalCommittedVersionsRef.current = next
+      return next.has(version)
+    },
+    [isRecentLocalBatchId]
+  )
 
   return {
     sheetVersionRef,
@@ -251,6 +258,7 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     refreshBaseVersionBeforeWrite,
     rememberLocalCommittedVersion,
     rememberRecentLocalBatchId,
+    isRecentLocalBatchId,
     shouldIgnoreRecentlyCommittedOperation
   }
 }

@@ -6,6 +6,8 @@ import type {
   AuthoritativeGridRegion,
   ForceAuthoritativeGridReapplyOptions
 } from '../utils/spreadsheetAuthoritativeRegion'
+import type { SpreadsheetRemoteTransactionPlan } from './spreadsheetRemoteTransaction'
+import type { UniverRemoteTransactionRunResult } from './univerRemoteTransactionRunner'
 
 export type { AuthoritativeGridRegion, ForceAuthoritativeGridReapplyOptions }
 
@@ -198,6 +200,9 @@ export interface SpreadsheetReplayDelta {
   operationType: string
   payload: Record<string, unknown>
   result?: Record<string, unknown>
+  operationId?: string
+  operationLogId?: string
+  baseVersion?: number
   appliedVersion: number
 }
 
@@ -220,6 +225,8 @@ export interface SpreadsheetCollaborationCallbacks {
   getSheetVersion?: (sheetId: string) => number
   getLocalSheetData: () => SpreadsheetViewerRow[]
   getSheetData?: (sheetId: string) => SpreadsheetViewerRow[]
+  /** Live Univer workbook snapshot for committed-batch feature-matrix planning (Step 3). */
+  getWorkbookSnapshot?: () => Record<string, unknown> | null
   getBackendRowIdForUiRowId: (uiRowId: string, univerRow?: number) => string | undefined
   commitLocalSheetData: (
     data: SpreadsheetViewerRow[],
@@ -265,6 +272,9 @@ export interface SpreadsheetCollaborationCallbacks {
     meta?: SpreadsheetBulkRemoteApplyMeta
   ) => void
   applyRemoteDimensions?: (payload: SpreadsheetRemoteDimensionsPayload) => void
+  runRemoteTransaction?: (
+    plan: Extract<SpreadsheetRemoteTransactionPlan, { ok: true }>
+  ) => UniverRemoteTransactionRunResult
   forceGridReapply?: (
     sheetId: string,
     region?: AuthoritativeGridRegion | null,
@@ -282,6 +292,27 @@ export interface SpreadsheetCollaborationCallbacks {
   scheduleSheetVersionRefreshFromApi: () => void
   scheduleRemoteStructuralResync: (sheetId?: string, options?: { immediate?: boolean }) => void
   onRemoteColumnUpdate?: (data: Record<string, unknown>) => void
+  applyRemoteColumnReorder?: (params: {
+    sheetId: string
+    previousColumns: SpreadsheetColumn[]
+    nextColumns: SpreadsheetColumn[]
+  }) => boolean
+  applyRemoteRowSlotsMove?: (params: {
+    sheetId: string
+    sourceStartGridRowIndex: number
+    count: number
+    destinationGridRowIndex: number
+  }) => boolean
+  applyRemoteInsertRowSlots?: (params: { sheetId: string; startGridRowIndex: number; count: number }) => boolean
+  applyRemoteDeleteRowSlots?: (params: { sheetId: string; startGridRowIndex: number; count: number }) => boolean
+  applyRemoteInsertColumnSlots?: (params: { sheetId: string; startGridColumnIndex: number; count: number }) => boolean
+  applyRemoteDeleteColumnSlots?: (params: { sheetId: string; startGridColumnIndex: number; count: number }) => boolean
+  applyRemoteMoveCellRange?: (params: {
+    sheetId: string
+    fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+    toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+  }) => boolean
+  isRecentLocalBatchId?: (batchId: string | undefined, tabId?: string | undefined) => boolean
   fetchChangesSince?: (sheetId: string, sinceVersion: number) => Promise<SpreadsheetReplayResponse>
   isCollabDiagEnabled?: () => boolean
   onCollabDiagnostic?: (event: string, meta?: Record<string, number | string | boolean | undefined>) => void

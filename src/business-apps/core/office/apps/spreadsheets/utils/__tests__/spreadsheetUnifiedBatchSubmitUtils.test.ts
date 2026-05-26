@@ -84,6 +84,82 @@ describe('spreadsheetUnifiedBatchSubmitUtils', () => {
     ])
   })
 
+  it('allows clientHandle row refs in set_range when the same batch materializes those client rows', () => {
+    const operations: SpreadsheetBatchOperation[] = [
+      {
+        operationId: 'add-rows-1',
+        type: 'add_rows',
+        data: {
+          rows: [{ _clientRowId: 'client_row_7', _gridRowIndex: 7, ColumnA: 'draft' }]
+        }
+      },
+      {
+        operationId: 'set-range-1',
+        type: 'set_range',
+        data: {
+          cells: [
+            {
+              rowRef: { kind: 'clientHandle', clientRowId: 'client_row_7' },
+              columnName: 'ColumnA',
+              value: 'draft'
+            }
+          ]
+        }
+      }
+    ]
+
+    expect(detectTemporaryRowIdsInKnownRowIdFields(operations)).toEqual([])
+  })
+
+  it('flags clientHandle row refs whose client row id is NOT materialized by an add_rows op in the same batch', () => {
+    // Regression: previously every rowRef-kind match was skipped unconditionally, so a
+    // `set_range` carrying `rowRef.clientHandle: client_X` shipped without an accompanying
+    // `add_rows` for `client_X`. The BE then rejected with `unknown_client_row_handle`
+    // and the cell value was lost. The detector now requires same-batch materialization.
+    const operations: SpreadsheetBatchOperation[] = [
+      {
+        operationId: 'set-range-1',
+        type: 'set_range',
+        data: {
+          cells: [
+            {
+              rowRef: { kind: 'clientHandle', clientRowId: 'client_unmaterialized' },
+              columnName: 'ColumnA',
+              value: 'A7'
+            }
+          ]
+        }
+      }
+    ]
+
+    expect(detectTemporaryRowIdsInKnownRowIdFields(operations)).toEqual([
+      expect.objectContaining({
+        operationType: 'set_range',
+        fieldPath: 'data.cells[0].rowRef',
+        rowId: 'client_unmaterialized',
+        referenceKind: 'rowRef'
+      })
+    ])
+  })
+
+  it('flags clientHandle row refs in delete_rows when not materialized in the same batch', () => {
+    const operations: SpreadsheetBatchOperation[] = [
+      {
+        operationId: 'delete-1',
+        type: 'delete_rows',
+        data: { rowRefs: [{ kind: 'clientHandle', clientRowId: 'client_orphan' }] }
+      }
+    ]
+
+    expect(detectTemporaryRowIdsInKnownRowIdFields(operations)).toEqual([
+      expect.objectContaining({
+        operationType: 'delete_rows',
+        rowId: 'client_orphan',
+        referenceKind: 'rowRef'
+      })
+    ])
+  })
+
   it('finds suspicious client ids recursively for diagnostics without assuming they are row ids', () => {
     const operations: SpreadsheetBatchOperation[] = [
       {

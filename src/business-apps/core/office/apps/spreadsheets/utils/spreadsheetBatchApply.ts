@@ -1,7 +1,8 @@
 import type { SpreadsheetColumn } from '../types'
+import { isSpreadsheetStoredCellClearValue } from '../core/spreadsheetBatchBuilders'
 import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
 import { mergeInsertedRowsAtIndex } from './spreadsheetInsertRowsAt'
-import { applyMoveCellRangeTransform } from './applyMoveCellRangeTransform'
+import { applyMoveCellRangeWirePayloadToViewerRows } from './spreadsheetMoveCellRangeGrid'
 import {
   applyDeleteRowSlotsTransform,
   applyInsertRowSlotsTransform,
@@ -32,6 +33,9 @@ const applySetCellDelta = (
   const rowId = resolvePayloadRowIdentity(payload)
   const columnName = String(payload.columnName || payload.column || '')
   const value = payload.value
+  if (isSpreadsheetStoredCellClearValue(value)) {
+    return applyClearCellDelta(rows, payload, columns)
+  }
   return rows.map(row => {
     if (!rowMatchesRemoteId(row, rowId)) return row
     const cleared = stripEquivalentColumnKeysFromRow(row, columnName, columns)
@@ -53,8 +57,8 @@ const applySetRangeDelta = (
     const rowId = resolvePayloadRowIdentity(cell)
     const columnName = String(cell.columnName || cell.column || '')
     if (!rowId || !columnName) continue
-    if (!Object.prototype.hasOwnProperty.call(cell, 'value')) {
-      nextRows = applyClearCellDelta(nextRows, { rowId, columnName }, columns)
+    if (!Object.prototype.hasOwnProperty.call(cell, 'value') || isSpreadsheetStoredCellClearValue(cell.value)) {
+      nextRows = applyClearCellDelta(nextRows, cell, columns)
       continue
     }
     nextRows = applySetCellDelta(nextRows, { rowId, columnName, value: cell.value }, columns)
@@ -213,28 +217,12 @@ export const applyAuthoritativeBatchResponseToRows = (
         break
       }
       case 'move_cell_range': {
-        const fromRange = payload.fromRange as Record<string, unknown> | undefined
-        const toRange = payload.toRange as Record<string, unknown> | undefined
-        if (fromRange && toRange && columns) {
-          const visibleColumns = columns.filter(column => column.isVisible !== false)
-          const columnNamesByGridIndex = visibleColumns.map(column =>
-            typeof column?.name === 'string' ? column.name : null
-          )
-          nextRows = applyMoveCellRangeTransform({
+        if (columns) {
+          nextRows = applyMoveCellRangeWirePayloadToViewerRows({
             rows: nextRows,
-            columnNamesByGridIndex,
-            fromRange: {
-              startRow: Number(fromRange.startRow ?? 0),
-              endRow: Number(fromRange.endRow ?? 0),
-              startColumn: Number(fromRange.startColumn ?? 0),
-              endColumn: Number(fromRange.endColumn ?? 0)
-            },
-            toRange: {
-              startRow: Number(toRange.startRow ?? 0),
-              endRow: Number(toRange.endRow ?? 0),
-              startColumn: Number(toRange.startColumn ?? 0),
-              endColumn: Number(toRange.endColumn ?? 0)
-            }
+            columns,
+            fromRange: payload.fromRange,
+            toRange: payload.toRange
           })
         }
         break

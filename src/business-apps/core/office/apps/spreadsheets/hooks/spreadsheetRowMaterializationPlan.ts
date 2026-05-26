@@ -1,5 +1,11 @@
+import type { SpreadsheetRowMaterializationReadiness } from './spreadsheetRowMaterializationReadiness'
 import { getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
-import { resolveBackendRowIdForViewerRow, rowMatchesRemoteId, type ViewerRow } from '../utils/spreadsheetRowIdentity'
+import {
+  getClientRowIdentity,
+  resolveBackendRowIdForViewerRow,
+  rowMatchesRemoteId,
+  type ViewerRow
+} from '../utils/spreadsheetRowIdentity'
 
 export const SPREADSHEET_ROW_GRID_INDEX_COORDINATE_MODE = 'zeroBasedVisualGridIndex' as const
 
@@ -68,6 +74,46 @@ export const viewerRowMatchesPersistedRowAtSlot = (
 export const buildRowMaterializationInFlightKey = (sheetId: string, visualIndex: number, clientRowId: string): string =>
   `${sheetId}:${visualIndex}:${clientRowId}`
 
+const countUnmaterializedClientRows = (
+  rows: Array<Record<string, unknown>>,
+  isUuid: (value: string) => boolean
+): number =>
+  rows.reduce((count, row) => {
+    const clientRowId = getMaterializationClientRowId(row)
+    if (!clientRowId) return count
+    if (resolveBackendRowIdForViewerRow(row, isUuid)) return count
+    return count + 1
+  }, 0)
+
+/**
+ * Drag-fill / paste-into-new-rows updates the session optimistically before Univer's debounced
+ * `latestUniverDataRef` catches up. Pre-submit materialization must scan the session snapshot
+ * when it carries more temporary `client_*` rows than the stale Univer row list.
+ */
+export const resolveUniverRowsForSubmitReadinessMaterialization = ({
+  sessionRows,
+  latestUniverRows,
+  isUuid
+}: {
+  sessionRows: Array<Record<string, unknown>>
+  latestUniverRows: Array<Record<string, unknown>> | null | undefined
+  isUuid: (value: string) => boolean
+}): Array<Record<string, unknown>> => {
+  const latestRows = latestUniverRows ?? []
+  const sessionUnmaterializedCount = countUnmaterializedClientRows(sessionRows, isUuid)
+  const latestUnmaterializedCount = countUnmaterializedClientRows(latestRows, isUuid)
+
+  if (sessionUnmaterializedCount > latestUnmaterializedCount) {
+    return sessionRows
+  }
+
+  if (latestRows.length > 0) {
+    return latestRows
+  }
+
+  return sessionRows
+}
+
 const buildRowsByVisualIndex = (
   rows: Array<Record<string, unknown>>,
   isUuid: (value: string) => boolean
@@ -98,13 +144,18 @@ export const buildSpreadsheetRowMaterializationPlan = ({
   univerRows,
   persistedRows,
   isUuid,
-  inFlightKeys
+  inFlightKeys,
+  rowMaterializationReadiness
 }: {
   sheetId: string
   univerRows: Array<Record<string, unknown>>
   persistedRows: Array<Record<string, unknown>>
   isUuid: (value: string) => boolean
   inFlightKeys: ReadonlySet<string>
+  rowMaterializationReadiness?: Pick<
+    SpreadsheetRowMaterializationReadiness,
+    'getResolvedBackendRowId' | 'isPendingForClientRow'
+  >
 }): SpreadsheetRowMaterializationPlan => {
   const persistedRowsByVisualIndex = buildRowsByVisualIndex(persistedRows, isUuid)
   const entries: SpreadsheetRowMaterializationPlanEntry[] = []
@@ -134,6 +185,26 @@ export const buildSpreadsheetRowMaterializationPlan = ({
     }
 
     const clientRowId = getMaterializationClientRowId(row)
+    if (
+      persistedRow &&
+      persistedBackendRowId &&
+      !viewerBackendRowId &&
+      !viewerRowMatchesPersistedRowAtSlot(row, persistedRow, isUuid)
+    ) {
+      alreadyMaterializedGridRowIndices.push(visualIndex)
+      return
+    }
+    if (clientRowId && rowMaterializationReadiness) {
+      if (rowMaterializationReadiness.getResolvedBackendRowId(sheetId, clientRowId)) {
+        alreadyMaterializedGridRowIndices.push(visualIndex)
+        return
+      }
+      if (rowMaterializationReadiness.isPendingForClientRow(sheetId, clientRowId)) {
+        missingGridRowIndices.push(visualIndex)
+        inFlightMissingGridRowIndices.push(visualIndex)
+        return
+      }
+    }
     const inFlightKey = buildRowMaterializationInFlightKey(sheetId, visualIndex, clientRowId)
     missingGridRowIndices.push(visualIndex)
     if (clientRowId) unmaterializedClientRowIds.push(clientRowId)
@@ -161,6 +232,71 @@ export const buildSpreadsheetRowMaterializationPlan = ({
     missingButInFlightCount: inFlightMissingGridRowIndices.length,
     missingAndWillCreateCount: entries.length,
     gridIndexCoordinateMode: SPREADSHEET_ROW_GRID_INDEX_COORDINATE_MODE
+  }
+}
+
+export const buildOccupiedSlotRowAdoptions = ({
+  univerRows,
+  persistedRows,
+  isUuid
+}: {
+  univerRows: Array<Record<string, unknown>>
+  persistedRows: Array<Record<string, unknown>>
+  isUuid: (value: string) => boolean
+}): {
+  adoptedRows: Array<Record<string, unknown>>
+  persistedIdByClientRowId: Map<string, string>
+} => {
+  const persistedRowsByVisualIndex = buildRowsByVisualIndex(persistedRows, isUuid)
+  const adoptedRows: Array<Record<string, unknown>> = []
+  const persistedIdByClientRowId = new Map<string, string>()
+
+  univerRows.forEach((row, index) => {
+    const visualIndex = getViewerRowVisualIndex(row, index)
+    const adoptionClientRowId = getClientRowIdentity(row)
+    const viewerBackendRowId = resolveBackendRowIdForViewerRow(row, isUuid)
+    const persistedRow = persistedRowsByVisualIndex.get(visualIndex)
+    const persistedBackendRowId = persistedRow ? resolveBackendRowIdForViewerRow(persistedRow, isUuid) : undefined
+
+    if (viewerBackendRowId || !persistedRow || !persistedBackendRowId) {
+      return
+    }
+    if (viewerRowMatchesPersistedRowAtSlot(row, persistedRow, isUuid)) {
+      return
+    }
+    if (!adoptionClientRowId) {
+      return
+    }
+
+    persistedIdByClientRowId.set(adoptionClientRowId, persistedBackendRowId)
+    adoptedRows.push({
+      ...persistedRow,
+      _clientRowId: adoptionClientRowId,
+      _gridRowIndex: visualIndex
+    })
+  })
+
+  return { adoptedRows, persistedIdByClientRowId }
+}
+
+export const filterMaterializationEntriesForPersistedSlots = (
+  plan: SpreadsheetRowMaterializationPlan,
+  persistedRows: Array<Record<string, unknown>>,
+  isUuid: (value: string) => boolean
+): SpreadsheetRowMaterializationPlan => {
+  const persistedRowsByVisualIndex = buildRowsByVisualIndex(persistedRows, isUuid)
+  const entries = plan.entries.filter(entry => {
+    const persistedRow = persistedRowsByVisualIndex.get(entry.visualIndex)
+    if (!persistedRow) return true
+    return !viewerRowMatchesPersistedRowAtSlot(entry.row, persistedRow, isUuid)
+  })
+
+  return {
+    ...plan,
+    entries,
+    rowsToMaterialize: entries.map(entry => entry.row),
+    missingAndWillCreateCount: entries.length,
+    unmaterializedClientRowIds: entries.map(entry => entry.clientRowId).filter(Boolean)
   }
 }
 

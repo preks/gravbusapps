@@ -8,7 +8,7 @@ import type { UniverWorkbookBootstrapMountContext } from './univerWorkbookBootst
 import type { UniverGridController } from './useUniverGridController'
 
 export type HandleDetectedCellMutationArgs = {
-  source: 'sheet-value-changed' | 'command-executed' | 'selection-reconcile' | 'sheet-edit-ended'
+  source: 'sheet-value-changed' | 'command-executed' | 'selection-reconcile' | 'sheet-edit-ended' | 'deferred-reconcile'
   commandId?: string
   payloadCellValue: SheetCellMatrix | undefined
   ranges: SheetRangeShape[]
@@ -30,9 +30,11 @@ export type UniverMountHandleDetectedCellMutationDeps = Pick<
   | 'newRowClientIdByIndexRef'
   | 'recentLocalMutationSignaturesRef'
   | 'pendingFormattingPasteIntentRef'
+  | 'pendingAutofillIntentRef'
 > &
   Pick<UniverWorkbookBootstrapMountContext, 'getWorkbookSnapshotRef'> & {
     peekPasteFormattingReplaceIntent: (sheetId: string) => boolean
+    peekAutofillApplyType: (sheetId: string) => import('./univerAutofillIntent').SpreadsheetAutofillApplyType | null
     /**
      * Ensures `add_rows` completes before unified cell/style HTTP batch when new rows use `client_*` ids.
      *
@@ -101,6 +103,7 @@ export type DetectedCellMutationReady = {
   colOffset: number
   hadPasteIntentForSheet: boolean
   hadPasteFormattingIntentForSheet: boolean
+  autofillApplyType: import('./univerAutofillIntent').SpreadsheetAutofillApplyType | null
   disableMixedValueStylePayloads: boolean
   preserveUndefinedAsNull: boolean
   explicitPayloadAbsoluteCellValue: SheetCellMatrix | undefined
@@ -142,6 +145,7 @@ export type PersistEmitInput = {
   planStyles: SpreadsheetMutationPlan['styles']
   hadPasteIntentForSheet: boolean
   hadPasteFormattingIntentForSheet: boolean
+  autofillApplyType: import('./univerAutofillIntent').SpreadsheetAutofillApplyType | null
   commandId: string | undefined
   /** True when new rows were merged into sheet data this tick and value cells will be persisted. */
   materializeRowsBeforeEmit: boolean

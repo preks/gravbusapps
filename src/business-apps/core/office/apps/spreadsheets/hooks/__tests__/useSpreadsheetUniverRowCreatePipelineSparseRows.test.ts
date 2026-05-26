@@ -170,7 +170,7 @@ describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () 
     expect(planLogs[0]).toEqual(
       expect.objectContaining({
         missingGridRowIndices: [9],
-        unmaterializedClientRowIds: ['client-row-9'],
+        unmaterializedClientRowIds: [],
         rowPayloadCount: 1,
         missingAndWillCreateCount: 1,
         gridIndexCoordinateMode: 'zeroBasedVisualGridIndex'

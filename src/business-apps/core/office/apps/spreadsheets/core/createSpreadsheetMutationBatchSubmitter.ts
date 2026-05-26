@@ -59,6 +59,7 @@ const applyOperationBatch = async ({
   baseVersion,
   operations,
   batchId,
+  clientMutationId,
   traceId,
   traceContext,
   keepalive
@@ -68,6 +69,7 @@ const applyOperationBatch = async ({
   baseVersion: number
   operations: SpreadsheetBatchOperation[]
   batchId: string
+  clientMutationId?: string
   traceId: string
   traceContext: SpreadsheetTraceContext
   keepalive?: boolean
@@ -79,6 +81,7 @@ const applyOperationBatch = async ({
       baseVersion,
       operations,
       batchId,
+      clientMutationId: clientMutationId ?? batchId,
       traceSessionId: traceContext.traceSessionId,
       traceId,
       sessionId: traceContext.sessionId,
@@ -203,12 +206,19 @@ export const createSpreadsheetMutationBatchSubmitter = (
     const traceId = traceMeta?.traceId ?? batchId
     const isActiveTarget = options.isActiveSheet(targetSheetId)
     const preparedOperations = normalizeBatchOperationsWithRowRefs(operations, new Map())
+    const callerProvidedBaseVersion =
+      typeof request.baseVersion === 'number' && Number.isFinite(request.baseVersion)
+        ? Math.trunc(request.baseVersion)
+        : undefined
 
     try {
-      const baseVersion = await options.refreshBaseVersionBeforeWrite(
-        targetSheetId,
-        options.resolveBaseVersion(targetSheetId)
-      )
+      // Honor a caller-authored base version verbatim (the sheet work queue
+      // passes its invariant-validated `queueClientAppliedVersion` so the
+      // wire-sent base matches exactly what the queue gate authorized).
+      // Legacy callers that omit `baseVersion` keep the prior behavior.
+      const baseVersion =
+        callerProvidedBaseVersion ??
+        (await options.refreshBaseVersionBeforeWrite(targetSheetId, options.resolveBaseVersion(targetSheetId)))
       if (isActiveTarget) {
         options.rememberRecentLocalBatchId(batchId, options.getTraceContext().tabId)
       }
@@ -239,6 +249,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
         baseVersion,
         operations: preparedOperations,
         batchId,
+        clientMutationId: traceMeta?.clientMutationId,
         traceId,
         traceContext: options.getTraceContext(),
         keepalive: options.shouldKeepalive()
@@ -268,6 +279,7 @@ export const createSpreadsheetMutationBatchSubmitter = (
           baseVersion: retryBaseVersion,
           operations: preparedOperations,
           batchId: retryBatchId,
+          clientMutationId: traceMeta?.clientMutationId ?? batchId,
           traceId,
           traceContext: options.getTraceContext(),
           keepalive: options.shouldKeepalive()
@@ -285,102 +297,23 @@ export const createSpreadsheetMutationBatchSubmitter = (
         })
       }
 
+      // Tier 1 conflict resolution shipped: the backend resolves per-(rowId,
+      // columnName) conflicts inline and returns 200 with `results[]`. A 409
+      // now means a true exception (`structural_conflict`, `version_too_stale`,
+      // `partial_operation_id_overlap`, etc.) that the client cannot rebase —
+      // we surface the version (if any) so the caller can refetch and bubble
+      // the error up; no quick-retry, no destructive `recoverFromVersionConflict`
+      // dance, no full resubmit storm.
       if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
         const serverVersion = getSpreadsheetBatchConflictServerVersion(error.details)
         if (serverVersion != null) {
           options.rememberKnownSheetVersion(targetSheetId, serverVersion)
-        }
-
-        if (serverVersion != null && isActiveTarget) {
-          options.setActiveSheetVersion(serverVersion)
-          options.rememberSheetVersion(targetSheetId, serverVersion)
-          try {
-            const quickRetryBatchId = options.createBatchId(`${batchIdPrefix}_cv_retry`)
-            const quickRetry = await applyOperationBatch({
-              appId: options.appId,
-              targetSheetId,
-              baseVersion: serverVersion,
-              operations: preparedOperations,
-              batchId: quickRetryBatchId,
-              traceId,
-              traceContext: options.getTraceContext()
-            })
-            options.scheduleSnapshotCheckpointFromPersistence()
-            return handleSuccess({
-              targetSheetId,
-              operations: preparedOperations,
-              response: quickRetry,
-              batchId: quickRetryBatchId,
-              traceId,
-              batchIdPrefix,
-              baseVersion: serverVersion,
-              traceMetaOperationType: traceMeta?.operationType,
-              extraPayload: { retriedBatchId: batchId }
-            })
-          } catch {
-            // Fall through to full conflict recovery.
+          if (isActiveTarget) {
+            options.setActiveSheetVersion(serverVersion)
+            options.rememberSheetVersion(targetSheetId, serverVersion)
           }
         }
-
-        if (isActiveTarget) {
-          options.incrementConflictCount()
-          const recovered = await options.recoverFromVersionConflict()
-          if (!recovered) {
-            throw error
-          }
-          const retryBatchId = options.createBatchId(
-            batchIdOverride ? `${batchIdPrefix}_retry_after_restore` : `${batchIdPrefix}_retry`
-          )
-          const retry = await applyOperationBatch({
-            appId: options.appId,
-            targetSheetId,
-            baseVersion: options.getActiveSheetVersion(),
-            operations: preparedOperations,
-            batchId: retryBatchId,
-            traceId,
-            traceContext: options.getTraceContext(),
-            keepalive: options.shouldKeepalive()
-          })
-          return handleSuccess({
-            targetSheetId,
-            operations: preparedOperations,
-            response: retry,
-            batchId: retryBatchId,
-            traceId,
-            batchIdPrefix,
-            baseVersion: options.getActiveSheetVersion(),
-            traceMetaOperationType: traceMeta?.operationType
-          })
-        }
-
-        try {
-          const latestSheetVersion = await options.fetchSheetVersion(targetSheetId)
-          options.rememberKnownSheetVersion(targetSheetId, latestSheetVersion)
-          const retryBatchId = options.createBatchId(
-            batchIdOverride ? `${batchIdPrefix}_retry_after_restore` : `${batchIdPrefix}_retry`
-          )
-          const retry = await applyOperationBatch({
-            appId: options.appId,
-            targetSheetId,
-            baseVersion: latestSheetVersion,
-            operations: preparedOperations,
-            batchId: retryBatchId,
-            traceId,
-            traceContext: options.getTraceContext(),
-            keepalive: options.shouldKeepalive()
-          })
-          return handleSuccess({
-            targetSheetId,
-            operations: preparedOperations,
-            response: retry,
-            batchId: retryBatchId,
-            traceId,
-            batchIdPrefix,
-            traceMetaOperationType: traceMeta?.operationType
-          })
-        } catch {
-          throw error
-        }
+        throw error
       }
 
       options.emitTraceEvent({

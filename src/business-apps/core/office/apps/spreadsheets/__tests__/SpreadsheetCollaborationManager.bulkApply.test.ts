@@ -3,6 +3,7 @@ import {
   type CollaborationCallbacks
 } from '../services/SpreadsheetCollaborationManager'
 import type { SpreadsheetColumn } from '../types/spreadsheet'
+import { createManagerWithCommittedReplay } from './helpers/spreadsheetCollabCommittedReplayTestUtils'
 
 function col(partial: Partial<SpreadsheetColumn> & Pick<SpreadsheetColumn, 'id' | 'name'>): SpreadsheetColumn {
   return {
@@ -18,6 +19,10 @@ function col(partial: Partial<SpreadsheetColumn> & Pick<SpreadsheetColumn, 'id' 
 }
 
 describe('SpreadsheetCollaborationManager bulk apply', () => {
+  beforeEach(() => {
+    localStorage.removeItem('gba.spreadsheets.deltaReplay')
+  })
+
   const makeCallbacks = (over: Partial<CollaborationCallbacks>): CollaborationCallbacks => ({
     getActiveSheetId: () => 'sheet-1',
     getColumns: () => [],
@@ -37,22 +42,18 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
       _id: `row-${i}`,
       ColumnA: i
     }))
-    const applyRemoteCellUpdatesBulk = jest.fn()
-    const applyRemoteCellUpdate = jest.fn()
-
-    const callbacks = makeCallbacks({
-      getColumns: () => columns,
-      getLocalSheetData: () => data,
-      applyRemoteCellUpdate,
-      applyRemoteCellUpdatesBulk
-    })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
-
     const cells = data.map((row, i) => ({
       rowId: String(row._id),
       columnName: 'ColumnA',
       value: i + 1000
     }))
+
+    const { manager, applyRemoteCellUpdatesBulk, applyRemoteCellUpdate } = createManagerWithCommittedReplay({
+      getSheetVersion: () => 4,
+      getColumns: () => columns,
+      getLocalSheetData: () => data,
+      getSheetData: () => data
+    })
 
     manager.replayDeltaChanges(
       [
@@ -72,11 +73,9 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
   })
 
   it('routes visibility_update batch operations through feature replay', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
     const applyRemoteSpreadsheetFeatureOperation = jest.fn()
-    const callbacks = makeCallbacks({
-      applyRemoteSpreadsheetFeatureOperation
-    })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
+    const manager = new SpreadsheetCollaborationManager(makeCallbacks({ applyRemoteSpreadsheetFeatureOperation }))
 
     manager.handleOperation({
       userId: 'u2',
@@ -117,11 +116,9 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
   })
 
   it('routes freeze_panes batch operations through feature replay with normalized data', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
     const applyRemoteSpreadsheetFeatureOperation = jest.fn()
-    const callbacks = makeCallbacks({
-      applyRemoteSpreadsheetFeatureOperation
-    })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
+    const manager = new SpreadsheetCollaborationManager(makeCallbacks({ applyRemoteSpreadsheetFeatureOperation }))
 
     manager.handleOperation({
       userId: 'u2',
@@ -165,6 +162,7 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
   })
 
   it('routes multi-cell cells_changed through applyRemoteCellUpdatesBulk', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
     const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', order: 0 })]
     const data: Record<string, unknown>[] = [
       { _id: 'row-0', ColumnA: 'a' },
@@ -173,15 +171,15 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
     const applyRemoteCellUpdatesBulk = jest.fn()
     const applyRemoteCellUpdate = jest.fn()
     const commitLocalSheetData = jest.fn()
-
-    const callbacks = makeCallbacks({
-      getColumns: () => columns,
-      getLocalSheetData: () => data,
-      applyRemoteCellUpdate,
-      applyRemoteCellUpdatesBulk,
-      commitLocalSheetData
-    })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
+    const manager = new SpreadsheetCollaborationManager(
+      makeCallbacks({
+        getColumns: () => columns,
+        getLocalSheetData: () => data,
+        applyRemoteCellUpdate,
+        applyRemoteCellUpdatesBulk,
+        commitLocalSheetData
+      })
+    )
 
     manager.handleOperation({
       userId: 'u2',
@@ -206,21 +204,28 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
     expect(commitLocalSheetData).toHaveBeenCalled()
   })
 
-  it('keeps per-cell applyRemoteCellUpdate for single-cell cells_changed', () => {
+  // Single-cell remote updates intentionally route through
+  // `applyRemoteCellUpdatesBulk` since
+  // `SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH` was lowered to 1. This lets the
+  // receiver-side rAF coalescer in `buildSpreadsheetCollaborationCallbacks`
+  // batch one-cell-per-broadcast typing into a single Univer command per
+  // animation frame instead of one synchronous paint per keystroke.
+  it('routes single-cell cells_changed through applyRemoteCellUpdatesBulk', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
     const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', order: 0 })]
     const data: Record<string, unknown>[] = [{ _id: 'row-0', ColumnA: 0 }]
     const applyRemoteCellUpdatesBulk = jest.fn()
     const applyRemoteCellUpdate = jest.fn()
     const commitLocalSheetData = jest.fn()
-
-    const callbacks = makeCallbacks({
-      getColumns: () => columns,
-      getLocalSheetData: () => data,
-      applyRemoteCellUpdate,
-      applyRemoteCellUpdatesBulk,
-      commitLocalSheetData
-    })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
+    const manager = new SpreadsheetCollaborationManager(
+      makeCallbacks({
+        getColumns: () => columns,
+        getLocalSheetData: () => data,
+        applyRemoteCellUpdate,
+        applyRemoteCellUpdatesBulk,
+        commitLocalSheetData
+      })
+    )
 
     manager.handleOperation({
       userId: 'u2',
@@ -236,24 +241,20 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
       timestamp: Date.now()
     })
 
-    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
-    expect(applyRemoteCellUpdate).toHaveBeenCalledTimes(1)
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1)
     expect(commitLocalSheetData).toHaveBeenCalled()
   })
 
-  it('keeps per-cell applyRemoteCellUpdate for a single-cell set_range replay', () => {
+  it('routes single-cell set_range replay through applyRemoteCellUpdatesBulk', () => {
     const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', order: 0 })]
     const data: Record<string, unknown>[] = [{ _id: 'row-0', ColumnA: 0 }]
-    const applyRemoteCellUpdatesBulk = jest.fn()
-    const applyRemoteCellUpdate = jest.fn()
-
-    const callbacks = makeCallbacks({
+    const { manager, applyRemoteCellUpdatesBulk, applyRemoteCellUpdate } = createManagerWithCommittedReplay({
+      getSheetVersion: () => 1,
       getColumns: () => columns,
       getLocalSheetData: () => data,
-      applyRemoteCellUpdate,
-      applyRemoteCellUpdatesBulk
+      getSheetData: () => data
     })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
 
     manager.replayDeltaChanges(
       [
@@ -270,8 +271,8 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
       'sheet-1'
     )
 
-    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
-    expect(applyRemoteCellUpdate).toHaveBeenCalledTimes(1)
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1)
   })
 
   it('routes two-cell set_range replay through applyRemoteCellUpdatesBulk', () => {
@@ -280,16 +281,12 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
       { _id: 'row-0', ColumnA: 0 },
       { _id: 'row-1', ColumnA: 1 }
     ]
-    const applyRemoteCellUpdatesBulk = jest.fn()
-    const applyRemoteCellUpdate = jest.fn()
-
-    const callbacks = makeCallbacks({
+    const { manager, applyRemoteCellUpdatesBulk, applyRemoteCellUpdate } = createManagerWithCommittedReplay({
+      getSheetVersion: () => 1,
       getColumns: () => columns,
       getLocalSheetData: () => data,
-      applyRemoteCellUpdate,
-      applyRemoteCellUpdatesBulk
+      getSheetData: () => data
     })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
 
     manager.replayDeltaChanges(
       [
@@ -315,6 +312,7 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
   })
 
   it('defers set_style bulk until set_range bulk completes (paste ordering)', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
     const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', order: 0 })]
     const data: Record<string, unknown>[] = Array.from({ length: 30 }, (_, i) => ({
       _id: `row-${i}`,
@@ -327,15 +325,14 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
       }
       completeValues = meta?.onApplyComplete
     })
-    const applyRemoteCellUpdate = jest.fn()
-
-    const callbacks = makeCallbacks({
-      getColumns: () => columns,
-      getLocalSheetData: () => data,
-      applyRemoteCellUpdate,
-      applyRemoteCellUpdatesBulk
-    })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
+    const manager = new SpreadsheetCollaborationManager(
+      makeCallbacks({
+        getColumns: () => columns,
+        getLocalSheetData: () => data,
+        applyRemoteCellUpdate: jest.fn(),
+        applyRemoteCellUpdatesBulk
+      })
+    )
 
     const cells = data.map((row, i) => ({
       rowId: String(row._id),
@@ -389,6 +386,7 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
   })
 
   it('defers multiple set_style chunks until set_range bulk completes', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
     const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', order: 0 })]
     const data: Record<string, unknown>[] = Array.from({ length: 30 }, (_, i) => ({
       _id: `row-${i}`,
@@ -400,14 +398,14 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
         completeValues = meta?.onApplyComplete
       }
     })
-
-    const callbacks = makeCallbacks({
-      getColumns: () => columns,
-      getLocalSheetData: () => data,
-      applyRemoteCellUpdate: jest.fn(),
-      applyRemoteCellUpdatesBulk
-    })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
+    const manager = new SpreadsheetCollaborationManager(
+      makeCallbacks({
+        getColumns: () => columns,
+        getLocalSheetData: () => data,
+        applyRemoteCellUpdate: jest.fn(),
+        applyRemoteCellUpdatesBulk
+      })
+    )
 
     const cells = data.map((row, i) => ({
       rowId: String(row._id),
@@ -456,14 +454,16 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
   })
 
   it('targets non-active sheet style chunks instead of applying them to the active sheet', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
     const applyRemoteCellUpdate = jest.fn()
     const markSheetNeedsGridMaterialization = jest.fn()
-    const callbacks = makeCallbacks({
-      getActiveSheetId: () => 'sheet-1',
-      applyRemoteCellUpdate,
-      markSheetNeedsGridMaterialization
-    })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
+    const manager = new SpreadsheetCollaborationManager(
+      makeCallbacks({
+        getActiveSheetId: () => 'sheet-1',
+        applyRemoteCellUpdate,
+        markSheetNeedsGridMaterialization
+      })
+    )
 
     manager.handleOperation({
       userId: 'u2',
@@ -510,18 +510,14 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
       { _id: 'row-0', ColumnA: 'kept', ColumnB: 'kept' },
       { _id: 'row-1', ColumnA: 'kept', ColumnB: 'kept' }
     ]
-    const applyRemoteCellUpdate = jest.fn()
-    const applyRemoteCellUpdatesBulk = jest.fn()
     const applyRemoteClearAllRange = jest.fn()
-
-    const callbacks = makeCallbacks({
+    const { manager, applyRemoteCellUpdatesBulk, applyRemoteCellUpdate } = createManagerWithCommittedReplay({
+      getSheetVersion: () => 6,
       getColumns: () => columns,
       getLocalSheetData: () => data,
-      applyRemoteCellUpdate,
-      applyRemoteCellUpdatesBulk,
+      getSheetData: () => data,
       applyRemoteClearAllRange
     })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
 
     manager.replayDeltaChanges(
       [
@@ -553,6 +549,7 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
   })
 
   it('falls back to per-cell clear_all replay when callback is unavailable', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
     const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', order: 0 })]
     const data: Record<string, unknown>[] = Array.from({ length: 30 }, (_, i) => ({
       _id: `row-${i}`,
@@ -601,14 +598,9 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
   })
 
   it('skips clear_all replay when the payload carries no usable ranges', () => {
-    const applyRemoteCellUpdate = jest.fn()
-    const applyRemoteCellUpdatesBulk = jest.fn()
-
-    const callbacks = makeCallbacks({
-      applyRemoteCellUpdate,
-      applyRemoteCellUpdatesBulk
+    const { manager, applyRemoteCellUpdate, applyRemoteCellUpdatesBulk } = createManagerWithCommittedReplay({
+      getSheetVersion: () => 3
     })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
 
     manager.replayDeltaChanges(
       [
@@ -630,11 +622,9 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
   })
 
   it('routes feature operation replay through the spreadsheet feature apply callback', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
     const applyRemoteSpreadsheetFeatureOperation = jest.fn()
-    const callbacks = makeCallbacks({
-      applyRemoteSpreadsheetFeatureOperation
-    })
-    const manager = new SpreadsheetCollaborationManager(callbacks)
+    const manager = new SpreadsheetCollaborationManager(makeCallbacks({ applyRemoteSpreadsheetFeatureOperation }))
 
     manager.replayDeltaChanges(
       [

@@ -1,16 +1,13 @@
 import type { SpreadsheetColumn } from '../types'
-import { applyMoveCellRangeTransform } from '../utils/applyMoveCellRangeTransform'
+import { isSpreadsheetStoredCellClearValue } from './spreadsheetBatchBuilders'
+import { applyMoveCellRangeWirePayloadToViewerRows } from '../utils/spreadsheetMoveCellRangeGrid'
 import { mergeInsertedRowsAtIndex } from '../utils/spreadsheetInsertRowsAt'
 import {
   applyDeleteRowSlotsTransform,
   applyInsertRowSlotsTransform,
   applyMoveRowSlotsTransform
 } from '../utils/spreadsheetRowSlotTransforms'
-import {
-  getClientRowIdentity,
-  getViewerRowIdentityCandidates,
-  rowMatchesRemoteId
-} from '../utils/spreadsheetRowIdentity'
+import { getClientRowIdentity, rowMatchesRemoteId } from '../utils/spreadsheetRowIdentity'
 import { getKnownCellValueCount } from './spreadsheetSnapshotWorkbookUtils'
 import type { SpreadsheetViewerRow } from './SpreadsheetSession'
 
@@ -129,6 +126,9 @@ const applySetCellDelta = (
   const rowId = String(payload.rowId || '')
   const columnName = String(payload.columnName || payload.column || '')
   const value = payload.value
+  if (isSpreadsheetStoredCellClearValue(value)) {
+    return applyClearCellDelta(rows, payload, columns)
+  }
   let matched = false
   const nextRows = rows.map(row => {
     if (!rowMatchesRemoteId(row, rowId)) return row
@@ -148,45 +148,17 @@ const applySetRangeDelta = (
   columns?: SpreadsheetColumn[]
 ): SpreadsheetViewerRow[] => {
   const cells = Array.isArray(payload.cells) ? (payload.cells as Array<Record<string, unknown>>) : []
-  const updatesByRowId = new Map<string, Record<string, unknown>>()
+  let nextRows = rows
   for (const cell of cells) {
     const rowId = String(cell.rowId || '')
     const columnName = String(cell.columnName || cell.column || '')
     if (!rowId || !columnName) continue
-    const updates = updatesByRowId.get(rowId) ?? {}
-    const { targetColumnName } = resolveColumnAliasInfo(columnName, columns)
-    updates[targetColumnName] = Object.prototype.hasOwnProperty.call(cell, 'value') ? cell.value : null
-    updatesByRowId.set(rowId, updates)
-  }
-
-  const matchedRowIds = new Set<string>()
-  const nextRows = rows.map(row => {
-    const updates = getViewerRowIdentityCandidates(row)
-      .map(candidate => ({ candidate, updates: updatesByRowId.get(candidate) }))
-      .find((candidate): candidate is { candidate: string; updates: Record<string, unknown> } =>
-        Boolean(candidate.updates)
-      )
-    if (!updates) return row
-    matchedRowIds.add(updates.candidate)
-    let nextRow: SpreadsheetViewerRow = { ...row }
-    for (const [columnName, value] of Object.entries(updates.updates)) {
-      const cleared = stripEquivalentColumnKeysFromRow(nextRow, columnName, columns)
-      nextRow = cleared.nextRow
-      nextRow[cleared.targetColumnName] = value
+    if (!Object.prototype.hasOwnProperty.call(cell, 'value') || isSpreadsheetStoredCellClearValue(cell.value)) {
+      nextRows = applyClearCellDelta(nextRows, cell, columns)
+      continue
     }
-    return nextRow
-  })
-
-  for (const [rowId, updates] of updatesByRowId) {
-    if (matchedRowIds.has(rowId)) continue
-    let materializedRow: SpreadsheetViewerRow = { _id: rowId, _rowUuid: rowId }
-    for (const [columnName, value] of Object.entries(updates)) {
-      const { targetColumnName } = resolveColumnAliasInfo(columnName, columns)
-      materializedRow = { ...materializedRow, [targetColumnName]: value }
-    }
-    nextRows.push(materializedRow)
+    nextRows = applySetCellDelta(nextRows, { rowId, columnName, value: cell.value }, columns)
   }
-
   return nextRows
 }
 
@@ -269,29 +241,34 @@ const applySingleDeltaChange = (
         Number.isFinite(destinationGridRowIndex) ? destinationGridRowIndex : 0
       )
     }
-    case 'move_cell_range': {
-      const fromRange = payload.fromRange as Record<string, unknown> | undefined
-      const toRange = payload.toRange as Record<string, unknown> | undefined
-      if (!fromRange || !toRange || !columns) return rows
-      const visibleColumns = columns.filter(column => column.isVisible !== false)
-      const columnNamesByGridIndex = visibleColumns.map(column =>
-        typeof column?.name === 'string' ? column.name : null
+    case 'column_delete': {
+      const columnId = String(payload.columnId ?? '')
+      if (!columnId) return rows
+      const column = columns?.find(entry => entry.id === columnId)
+      const keysToStrip = new Set(
+        [columnId, column?.name, column?.id, column?.label]
+          .map(value => (value == null ? '' : String(value).trim()))
+          .filter(Boolean)
+          .map(value => value.toLowerCase())
       )
-      return applyMoveCellRangeTransform({
-        rows,
-        columnNamesByGridIndex,
-        fromRange: {
-          startRow: Number(fromRange.startRow ?? 0),
-          endRow: Number(fromRange.endRow ?? 0),
-          startColumn: Number(fromRange.startColumn ?? 0),
-          endColumn: Number(fromRange.endColumn ?? 0)
-        },
-        toRange: {
-          startRow: Number(toRange.startRow ?? 0),
-          endRow: Number(toRange.endRow ?? 0),
-          startColumn: Number(toRange.startColumn ?? 0),
-          endColumn: Number(toRange.endColumn ?? 0)
+      if (keysToStrip.size === 0) return rows
+      return rows.map(row => {
+        const nextRow: SpreadsheetViewerRow = { ...row }
+        for (const key of Object.keys(nextRow)) {
+          if (keysToStrip.has(key.toLowerCase())) {
+            delete nextRow[key]
+          }
         }
+        return nextRow
+      })
+    }
+    case 'move_cell_range': {
+      if (!columns) return rows
+      return applyMoveCellRangeWirePayloadToViewerRows({
+        rows,
+        columns,
+        fromRange: payload.fromRange,
+        toRange: payload.toRange
       })
     }
     default:

@@ -8,12 +8,24 @@ import {
 import { resolveClearAllRanges } from './univerGridRangeSelection'
 import { UNIVER_COMMAND_TYPE_MUTATION } from './univerGridUniverConstants'
 import { handleCommandExecutedColumnInsertsAndFeatureOps } from './univerMountCommandExecutedColumnsAndFeatures'
+import {
+  UNIVER_AUTOFILL_COMMAND_ID,
+  UNIVER_REFILL_COMMAND_ID,
+  markSpreadsheetAutofillIntent,
+  resolveAutofillApplyTypeFromCommandParams
+} from './univerAutofillIntent'
 import { tryEmitGridClearRangeOpFromCommand } from './univerMountCommandTryEmitClearRangeOp'
 import {
   isClearLikeMutationCommand,
   isImplicitClearLikeSetRangeMutation,
-  isNativeColumnInsertCommand
+  isNativeColumnInsertCommand,
+  isRegionReplaceStyleCollaborationCommand
 } from './univerGridWorkbookMutationModule'
+import {
+  captureCutSelectionRange,
+  isNativeCutPasteCommand,
+  shouldSuppressCutPasteFollowUpCollab
+} from '../utils/spreadsheetCutPasteMove'
 import { getCommandKind } from './univerCommandClassification'
 import {
   isClearAllRangeCommand,
@@ -50,6 +62,9 @@ export type RegisterUniverMountCommandExecutedDeps = Pick<
   | 'lastClearAllEmitAtBySignatureRef'
   | 'lastClearFormatEmitAtBySignatureRef'
   | 'lastCellValueMutationAtRef'
+  | 'pendingCutCellRangeRef'
+  | 'cutPasteCollabSuppressUntilMsRef'
+  | 'pendingAutofillIntentRef'
 > & {
   univerAPI: ReturnType<typeof createUniver>['univerAPI']
   insertSheetSourceIds: Map<string, string>
@@ -99,6 +114,9 @@ export function registerUniverMountCommandExecuted(
     lastClearAllEmitAtBySignatureRef,
     lastClearFormatEmitAtBySignatureRef,
     lastCellValueMutationAtRef,
+    pendingCutCellRangeRef,
+    cutPasteCollabSuppressUntilMsRef,
+    pendingAutofillIntentRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
     getActiveWorksheetIdFromUniver,
@@ -197,12 +215,37 @@ export function registerUniverMountCommandExecuted(
           endColumn?: number
           direction?: unknown
           insertDirection?: unknown
+          type?: unknown
+          applyType?: unknown
         }
       | undefined
+    if (commandId === UNIVER_AUTOFILL_COMMAND_ID || commandId === UNIVER_REFILL_COMMAND_ID) {
+      const autofillSheetId =
+        (typeof params?.subUnitId === 'string' && params.subUnitId) ||
+        (typeof params?.sheetId === 'string' && params.sheetId) ||
+        getActiveWorksheetIdFromUniver() ||
+        propsRef.current.sheet.id
+      markSpreadsheetAutofillIntent(
+        pendingAutofillIntentRef,
+        autofillSheetId,
+        resolveAutofillApplyTypeFromCommandParams(params)
+      )
+    }
     if (commandId.includes('copy') && !commandId.includes('paste')) {
+      pendingCutCellRangeRef.current = null
       latestNativeSheetCopySourceIdRef.current =
         latestNativeSheetCopySourceIdRef.current ?? getActiveWorksheetIdFromUniver()
       captureCopiedSelectionAnchor()
+    }
+    if (commandId.includes('cut') && !commandId.includes('paste')) {
+      const sheetId = getActiveWorksheetIdFromUniver() ?? propsRef.current.sheet.id
+      const workbook = univerAPIRef.current?.getActiveWorkbook?.()
+      if (workbook) {
+        const pendingCut = captureCutSelectionRange(workbook, sheetId)
+        if (pendingCut) {
+          pendingCutCellRangeRef.current = pendingCut
+        }
+      }
     }
     if (commandId.includes('comment') || commandId.includes('thread')) {
       callbacksRef.current.onOpenCommentRequest?.()
@@ -303,7 +346,9 @@ export function registerUniverMountCommandExecuted(
         propsRef,
         callbacksRef,
         lastFeatureEmitAtBySignatureRef,
-        pendingFreezeClearEmitTimeoutBySheetRef
+        pendingFreezeClearEmitTimeoutBySheetRef,
+        pendingCutCellRangeRef,
+        cutPasteCollabSuppressUntilMsRef
       },
       { t, commandId, params }
     )
@@ -312,7 +357,13 @@ export function registerUniverMountCommandExecuted(
       (typeof params?.subUnitId === 'string' && params.subUnitId) ||
       (typeof params?.sheetId === 'string' && params.sheetId) ||
       propsRef.current.sheet.id
-    if (isClearAllRangeCommand(commandId)) {
+    const suppressCutPasteFollowUpEarly = shouldSuppressCutPasteFollowUpCollab({
+      suppressUntilMs: cutPasteCollabSuppressUntilMsRef.current,
+      commandId,
+      commandKind: getCommandKind(commandId),
+      isRegionReplaceStyleCommand: isRegionReplaceStyleCollaborationCommand(commandId)
+    })
+    if (!suppressCutPasteFollowUpEarly && isClearAllRangeCommand(commandId)) {
       const clearAllRanges = resolveClearAllRanges(
         univerAPIRef.current?.getActiveWorkbook?.(),
         params as { ranges?: unknown[]; range?: unknown | unknown[] } | undefined
@@ -325,7 +376,7 @@ export function registerUniverMountCommandExecuted(
         commandId
       })
     }
-    if (isClearFormatRangeCommand(commandId)) {
+    if (!suppressCutPasteFollowUpEarly && isClearFormatRangeCommand(commandId)) {
       const clearFormatRanges = resolveClearAllRanges(
         univerAPIRef.current?.getActiveWorkbook?.(),
         params as { ranges?: unknown[]; range?: unknown | unknown[] } | undefined
@@ -367,6 +418,12 @@ export function registerUniverMountCommandExecuted(
     }
     const commandRanges = Array.isArray(params?.range) ? params.range : []
     const commandKind = getCommandKind(commandId)
+    const suppressCutPasteFollowUp = shouldSuppressCutPasteFollowUpCollab({
+      suppressUntilMs: cutPasteCollabSuppressUntilMsRef.current,
+      commandId,
+      commandKind,
+      isRegionReplaceStyleCommand: isRegionReplaceStyleCollaborationCommand(commandId)
+    })
     const commandPreserveUndefinedAsNull =
       commandKind === 'clearLike' ||
       isClearLikeMutationCommand(commandId) ||
@@ -376,13 +433,15 @@ export function registerUniverMountCommandExecuted(
         payloadCellValue: commandPayloadCellValue
       })
     const didHandleCellMutation =
+      !suppressCutPasteFollowUp &&
       t === UNIVER_COMMAND_TYPE_MUTATION &&
       (commandPayloadCellValue || commandRanges.length > 0) &&
       commandKind !== 'structuralRow' &&
       commandKind !== 'structuralColumn' &&
       commandKind !== 'cellRangeMove' &&
       commandKind !== 'freezePanes' &&
-      !isStyleOnlySheetMutationCommand(commandId)
+      !isStyleOnlySheetMutationCommand(commandId) &&
+      !isNativeCutPasteCommand(commandId)
     if (didHandleCellMutation) {
       const result = handleDetectedCellMutation({
         source: 'command-executed',

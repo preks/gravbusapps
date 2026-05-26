@@ -687,10 +687,15 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
       if (authCell) {
         const priorCell = mergedRow[colIndex]
         if (priorCell && typeof priorCell === 'object' && !Array.isArray(priorCell)) {
-          mergedRow[colIndex] = {
+          const merged = {
             ...(priorCell as Record<string, unknown>),
             ...(authCell as object as Record<string, unknown>)
-          } as UniverCellData
+          }
+          const authRecord = authCell as Record<string, unknown>
+          if (typeof authRecord.f === 'string' && !Object.prototype.hasOwnProperty.call(authRecord, 'v')) {
+            delete merged.v
+          }
+          mergedRow[colIndex] = merged as UniverCellData
         } else {
           mergedRow[colIndex] = authCell
         }

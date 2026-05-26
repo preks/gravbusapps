@@ -1,6 +1,11 @@
 import { createSpreadsheetTraceId } from '../services/spreadsheetDiagnostics'
-import { buildAuthoritativeMutationEnvelope, type SpreadsheetLocalMutationIntent } from './univerMutationPlanner'
-import { isStyleOnlySheetMutationCommand } from './snapshotTriggerUtils'
+import {
+  buildAuthoritativeMutationEnvelope,
+  resolveSpreadsheetLocalMutationIntent,
+  applyAutofillMutationCellPolicy,
+  type SpreadsheetLocalMutationIntent
+} from './univerMutationPlanner'
+import { autofillApplyTypeKeepsValueWrites, clearSpreadsheetAutofillIntent } from './univerAutofillIntent'
 import { debugMutationTrace } from './univerGridDebug'
 import { remoteEchoKey, toEchoSignature } from './univerGridAuthoritativeHelpers'
 import { SELECTION_RECONCILE_LOCAL_EDIT_SUPPRESSION_MS } from './univerGridUniverConstants'
@@ -30,7 +35,8 @@ export function runDetectedCellMutationPersistPlanPhase(
     lastSyncedGridCellSignaturesRef,
     recentLocalMutationSignaturesRef,
     getWorkbookSnapshotRef,
-    pendingFormattingPasteIntentRef
+    pendingFormattingPasteIntentRef,
+    pendingAutofillIntentRef
   } = deps
 
   const {
@@ -53,6 +59,7 @@ export function runDetectedCellMutationPersistPlanPhase(
     colOffset,
     hadPasteIntentForSheet,
     hadPasteFormattingIntentForSheet,
+    autofillApplyType,
     disableMixedValueStylePayloads,
     preserveUndefinedAsNull,
     explicitPayloadAbsoluteCellValue,
@@ -69,6 +76,10 @@ export function runDetectedCellMutationPersistPlanPhase(
   const { onDataChange: onDataChangeCb } = callbacksRef.current
 
   const pendingNewRowsCtx = pendingNewRowsUpdate?.nextContext ?? ctxBefore
+  const pendingNewRowCount = pendingNewRowsUpdate
+    ? Math.max(0, pendingNewRowsUpdate.nextData.length - currentData.length)
+    : 0
+  const createsNewRows = pendingNewRowCount > 0
 
   const mutatedCellCount = countCellMatrixEntries(cellValue)
   const allowValueCarryingStylePayloads = !disableMixedValueStylePayloads && mutatedCellCount > 1
@@ -78,15 +89,40 @@ export function runDetectedCellMutationPersistPlanPhase(
   })
   const replaceRangeStyleIntent =
     hadPasteFormattingIntentForSheet || isRegionReplaceStyleCollaborationCommand(commandId)
+  const pasteIntoNewRows = createsNewRows && hasPersistableMutation && source === 'sheet-value-changed'
+  const autofillIntoNewRows =
+    createsNewRows &&
+    hasPersistableMutation &&
+    source === 'sheet-value-changed' &&
+    autofillApplyType != null &&
+    autofillApplyTypeKeepsValueWrites(autofillApplyType)
 
   const mutationTraceId = createSpreadsheetTraceId('grid_mutation')
 
-  const authoritativeIntent: SpreadsheetLocalMutationIntent = replaceRangeStyleIntent
-    ? 'pasteReplace'
-    : !hasPersistableMutation &&
-        (allowValueCarryingStylePayloads || isStyleOnlySheetMutationCommand(String(commandId ?? '')))
-      ? 'formatOnly'
-      : 'edit'
+  const authoritativeIntent: SpreadsheetLocalMutationIntent = resolveSpreadsheetLocalMutationIntent({
+    hasPersistableMutation,
+    allowValueCarryingStylePayloads,
+    commandId: String(commandId ?? ''),
+    mergedCellValue: cellValue,
+    replaceRangeStyleIntent,
+    pasteIntoNewRows,
+    autofillApplyType
+  })
+
+  const wasRecentlyLocallyMutated = (globalRowIndex: number, globalColIndex: number): boolean => {
+    const expiresAt = recentLocallyMutatedGridCellsRef.current.get(remoteEchoKey(globalRowIndex, globalColIndex)) ?? 0
+    return expiresAt > now
+  }
+
+  const getAuthoritativeSignatureForCell = (globalRowIndex: number, globalColIndex: number): string | undefined => {
+    return lastSyncedGridCellSignaturesRef.current.get(remoteEchoKey(globalRowIndex, globalColIndex))
+  }
+
+  const isReadOnlyReconcileSource = source === 'selection-reconcile' || source === 'deferred-reconcile'
+  // Read-only reconcile confirms grid vs session; it never persists. Skipping
+  // `getWorkbookSnapshot()` avoids Univer `save()` + structured-clone of the
+  // entire workbook per deferred cell (the dominant CPU cost under collab).
+  const workbookSnapshotForPlanner = isReadOnlyReconcileSource ? null : (getWorkbookSnapshotRef.current?.() ?? null)
 
   const authoritativeEnvelope = buildAuthoritativeMutationEnvelope({
     sheetId: targetSheetId,
@@ -97,20 +133,49 @@ export function runDetectedCellMutationPersistPlanPhase(
     ctx: pendingNewRowsCtx,
     resolveStableRowTarget,
     resolveStableColumnName,
+    wasRecentlyLocallyMutated,
+    getAuthoritativeSignatureForCell,
     ranges,
     explicitPayloadAbsoluteCellValue,
     worksheetCellValue,
     mergedCellValue: cellValue,
-    workbookSnapshot: getWorkbookSnapshotRef.current?.() ?? null,
+    workbookSnapshot: workbookSnapshotForPlanner,
     allowValueCarryingStylePayloads,
-    replaceRangeStyleIntent,
+    replaceRangeStyleIntent: replaceRangeStyleIntent || pasteIntoNewRows || autofillIntoNewRows,
     shouldSuppress,
     mutationCommandId: commandId ?? '',
     liveMergeRanges: liveMergeRanges ?? undefined
   })
 
-  const plannedCellsFiltered =
-    authoritativeEnvelope.plan?.cells.filter(cell => cell.valueAction !== 'none' || cell.stylePatch != null) ?? []
+  const plannedCellsFiltered = applyAutofillMutationCellPolicy({
+    cells:
+      authoritativeEnvelope.plan?.cells.filter(cell => cell.valueAction !== 'none' || cell.stylePatch != null) ?? [],
+    intent: authoritativeIntent,
+    replaceRangeStyleIntent: replaceRangeStyleIntent || pasteIntoNewRows || autofillIntoNewRows,
+    source,
+    mutatedCellCount,
+    createsNewRows,
+    autofillApplyType
+  })
+
+  const strippedValueWriteCount =
+    (authoritativeEnvelope.plan?.cells.filter(cell => cell.valueAction === 'set' || cell.valueAction === 'clear')
+      .length ?? 0) -
+    plannedCellsFiltered.filter(cell => cell.valueAction === 'set' || cell.valueAction === 'clear').length
+  if (strippedValueWriteCount > 0) {
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_mutation_incidental_value_writes_stripped',
+      traceId: mutationTraceId,
+      payload: {
+        targetSheetId,
+        commandId: commandId ?? null,
+        intent: authoritativeIntent,
+        strippedValueWriteCount,
+        mutatedCellCount
+      }
+    })
+  }
 
   debugMutationTrace('resolved', {
     source,
@@ -133,6 +198,7 @@ export function runDetectedCellMutationPersistPlanPhase(
       disableMixedValueStylePayloads,
       allowValueCarryingStylePayloads,
       hasPersistableMutation,
+      hasStyleOnlyMutation: authoritativeIntent === 'formatOnly',
       replaceRangeStyleIntent,
       mutatedCellCount,
       plannedCellCount: plannedCellsFiltered.length,
@@ -156,6 +222,9 @@ export function runDetectedCellMutationPersistPlanPhase(
     if (hadPasteIntentForSheet && source === 'sheet-value-changed') {
       pendingFormattingPasteIntentRef.current = null
     }
+    if (autofillApplyType != null && source === 'sheet-value-changed') {
+      clearSpreadsheetAutofillIntent(pendingAutofillIntentRef, targetSheetId)
+    }
     return { kind: 'return', value: false }
   }
 
@@ -177,7 +246,7 @@ export function runDetectedCellMutationPersistPlanPhase(
     }
   }
 
-  const shouldDedupeLocalEmit = source !== 'selection-reconcile'
+  const shouldDedupeLocalEmit = !isReadOnlyReconcileSource
   if (shouldDedupeLocalEmit && recentLocalMutationSignaturesRef.current.has(unifiedSignature)) {
     callbacksRef.current.onDiagnosticsTraceEvent?.({
       source: 'client',
@@ -231,7 +300,7 @@ export function runDetectedCellMutationPersistPlanPhase(
     }
   })
 
-  if (source !== 'selection-reconcile') {
+  if (!isReadOnlyReconcileSource) {
     for (const rowKey of Object.keys(cellValue)) {
       const rowIndex = Number(rowKey)
       if (Number.isNaN(rowIndex)) continue
@@ -259,7 +328,7 @@ export function runDetectedCellMutationPersistPlanPhase(
     }
   }
 
-  const hasValueCells = emittedChangedCells.length > 0
+  const hasValueCells = emittedChangedCells.length > 0 || createsNewRows
   if (pendingNewRowsUpdate && onDataChangeCb && hasValueCells) {
     onDataChangeCb(pendingNewRowsUpdate.nextData, targetSheetId)
     // 2c: same contract — only overwrite contextRef when the planner owns it.
@@ -311,8 +380,9 @@ export function runDetectedCellMutationPersistPlanPhase(
     planStyles: authoritativeEnvelope.plan?.styles,
     hadPasteIntentForSheet,
     hadPasteFormattingIntentForSheet,
+    autofillApplyType,
     commandId,
-    materializeRowsBeforeEmit: Boolean(pendingNewRowsUpdate && hasValueCells)
+    materializeRowsBeforeEmit: Boolean(pendingNewRowsUpdate && createsNewRows)
   }
 
   return { kind: 'emit', emit }

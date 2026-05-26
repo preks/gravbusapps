@@ -8,9 +8,6 @@ import {
   toRowIdString
 } from '../utils/spreadsheetRowIdentity'
 import { normalizeCellValueForBatchPersistence } from '../core'
-import { createSpreadsheetMutationOperationId } from '../core'
-import { createClientRowRef } from '../utils/spreadsheetRowIdentity'
-import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
 
 type ViewerRow = Record<string, unknown>
 
@@ -106,55 +103,24 @@ export function useSpreadsheetRowPersistencePipeline(
         persistedIdByClientRowId: Map<string, string>
       }) => void
     ) => {
-      const buildCompoundBatchOperations = (): SpreadsheetBatchOperation[] => {
-        const deferredCells = rowPayloads.flatMap(rowPayload => {
-          const clientRowId = toRowIdString(rowPayload._clientRowId)
-          if (!clientRowId) return []
-          const pending = pendingClientRowUpdatesRef.current.get(clientRowId)
-          if (!pending) return []
-          return Object.entries(pending).map(([columnName, value]) => ({
-            rowRef: createClientRowRef(clientRowId),
-            columnName,
-            value: normalizeCellValueForBatchPersistence(value)
-          }))
-        })
-
-        const operations: SpreadsheetBatchOperation[] = [
-          {
-            operationId: createSpreadsheetMutationOperationId('add_rows'),
-            type: 'add_rows',
-            data: { rows: rowPayloads }
-          }
-        ]
-
-        if (deferredCells.length > 0) {
-          operations.push({
-            operationId: createSpreadsheetMutationOperationId('set_range'),
-            type: 'set_range',
-            data: { cells: deferredCells }
-          })
-        }
-
-        return operations
-      }
-
-      const compoundOperations = buildCompoundBatchOperations()
-      const result =
-        compoundOperations.length > 1
-          ? await mutationFacade.submitBatch({
-              sheetId: targetSheetId,
-              operations: compoundOperations,
-              batchIdPrefix: 'add_rows_with_values'
-            })
-          : await mutationFacade.appendRows(targetSheetId, rowPayloads)
+      const result = await mutationFacade.appendRows(targetSheetId, rowPayloads)
       const opResult = result.operationResults.find(r => r.type === 'add_rows')
       const returnedRows = Array.isArray(opResult?.result?.rows)
         ? (opResult?.result?.rows as Array<Record<string, unknown>>)
         : []
+      const rowMappings = [
+        ...(Array.isArray(result.rowMappings)
+          ? (result.rowMappings as Array<{ clientRowId?: string; rowUuid?: string }>)
+          : []),
+        ...(Array.isArray(opResult?.result?.rowMappings)
+          ? (opResult.result.rowMappings as Array<{ clientRowId?: string; rowUuid?: string }>)
+          : [])
+      ]
       const { createdRows, flushCells, persistedIdByClientRowId } = buildCreatedRowsFromBatch(
         rowPayloads,
         returnedRows,
-        pendingClientRowUpdatesRef.current
+        pendingClientRowUpdatesRef.current,
+        { rowMappings }
       )
       const affectedUiRowIds = rowPayloads.map(rowPayload => toRowIdString(rowPayload._clientRowId)).filter(Boolean)
       onRowIdentityDiagnostics?.('row_materialization_response_received', {
@@ -186,7 +152,7 @@ export function useSpreadsheetRowPersistencePipeline(
       persistPendingCellJournal()
       onFlushDeferredCellEmits()
 
-      if (compoundOperations.length > 1 || flushCells.length === 0) return
+      if (flushCells.length === 0) return
 
       await mutationFacade.setRange(
         targetSheetId,

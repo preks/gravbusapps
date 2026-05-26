@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import { useSpreadsheetGridStructuralMutations } from '../useSpreadsheetGridStructuralMutations'
 
 describe('useSpreadsheetGridStructuralMutations', () => {
-  it('submits move_row_slots when rows are moved structurally', async () => {
+  it('persists move_row_slots without full snapshot reload or grid resync', async () => {
     const initialRows = [
       { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 1, name: 'A' },
       { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2, name: 'B' }
@@ -51,7 +51,7 @@ describe('useSpreadsheetGridStructuralMutations', () => {
         latestUniverDataRef: { current: null },
         lastProcessedLengthRef: { current: 0 },
         buildAddRowPayloadsFromUniverRows: jest.fn(),
-        buildPersistedRowIdMapFromBatchRows: jest.fn(),
+        buildPersistedRowIdMapFromInsertRowSlotsResult: jest.fn(() => new Map()),
         mapPersistedRowsToViewerRows: jest.fn(),
         createNativeSpreadsheetClientRowId: jest.fn(() => 'client-row-1'),
         logRowIdentityDiagnostics: jest.fn(),
@@ -97,13 +97,13 @@ describe('useSpreadsheetGridStructuralMutations', () => {
         expect.objectContaining({ _id: 'row-2', _gridRowIndex: 1 }),
         expect.objectContaining({ _id: 'row-1', _gridRowIndex: 2 })
       ],
-      expect.objectContaining({ persisted: true, syncGrid: true, version: 7 })
+      expect.objectContaining({ persisted: true, syncGrid: false, version: 7 })
     )
     expect(syncGridConversionContext).toHaveBeenCalled()
-    expect(scheduleStructuralSnapshotReload).toHaveBeenCalledWith('sheet-1')
+    expect(scheduleStructuralSnapshotReload).not.toHaveBeenCalled()
   })
 
-  it('reloads structural snapshot after insert_row_slots succeeds', async () => {
+  it('persists insert_row_slots without full snapshot reload or grid resync', async () => {
     const initialRows = [
       { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 1, name: 'A' },
       { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2, name: 'B' }
@@ -113,6 +113,7 @@ describe('useSpreadsheetGridStructuralMutations', () => {
       newVersion: 8,
       operationResults: [{ type: 'insert_row_slots', result: { rows: [] } }]
     })
+    const syncSheetRowsIntoLocalState = jest.fn()
     const scheduleStructuralSnapshotReload = jest.fn()
 
     const { result } = renderHook(() =>
@@ -145,12 +146,12 @@ describe('useSpreadsheetGridStructuralMutations', () => {
         getActiveSessionRows: () => initialRows,
         getKnownRowsForSheet: () => [],
         commitLocalSheetData: jest.fn(),
-        syncSheetRowsIntoLocalState: jest.fn(),
+        syncSheetRowsIntoLocalState,
         pendingUniverRowsBySheetRef: { current: new Map() },
         latestUniverDataRef: { current: null },
         lastProcessedLengthRef: { current: 0 },
         buildAddRowPayloadsFromUniverRows: jest.fn(() => []),
-        buildPersistedRowIdMapFromBatchRows: jest.fn(() => new Map()),
+        buildPersistedRowIdMapFromInsertRowSlotsResult: jest.fn(() => new Map()),
         mapPersistedRowsToViewerRows: jest.fn(() => []),
         createNativeSpreadsheetClientRowId: jest.fn(() => 'client-row-1'),
         logRowIdentityDiagnostics: jest.fn(),
@@ -183,7 +184,12 @@ describe('useSpreadsheetGridStructuralMutations', () => {
     })
 
     expect(insertRowSlots).toHaveBeenCalled()
-    expect(scheduleStructuralSnapshotReload).toHaveBeenCalledWith('sheet-1')
+    expect(syncSheetRowsIntoLocalState).toHaveBeenCalledWith(
+      'sheet-1',
+      expect.any(Array),
+      expect.objectContaining({ persisted: true, syncGrid: false, version: 8 })
+    )
+    expect(scheduleStructuralSnapshotReload).not.toHaveBeenCalled()
   })
 
   it('persists move_cell_range without full snapshot reload or grid resync', async () => {
@@ -236,7 +242,7 @@ describe('useSpreadsheetGridStructuralMutations', () => {
         latestUniverDataRef: { current: null },
         lastProcessedLengthRef: { current: 0 },
         buildAddRowPayloadsFromUniverRows: jest.fn(),
-        buildPersistedRowIdMapFromBatchRows: jest.fn(),
+        buildPersistedRowIdMapFromInsertRowSlotsResult: jest.fn(() => new Map()),
         mapPersistedRowsToViewerRows: jest.fn(),
         createNativeSpreadsheetClientRowId: jest.fn(() => 'client-row-1'),
         logRowIdentityDiagnostics: jest.fn(),

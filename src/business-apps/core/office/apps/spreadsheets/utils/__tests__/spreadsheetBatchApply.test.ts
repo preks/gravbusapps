@@ -83,6 +83,30 @@ describe('applyAuthoritativeBatchResponseToRows', () => {
     ])
   })
 
+  it('removes cleared cells when set_range carries null values', () => {
+    const startingBaseline = [{ _id: 'row-1', _rowUuid: 'backend-row-1', ColumnA: 5, legacyA: 5 }]
+    const operations: SpreadsheetBatchOperation[] = [
+      {
+        operationId: 'set-range-1',
+        type: 'set_range',
+        data: {
+          cells: [{ rowId: 'backend-row-1', columnName: 'ColumnA', value: null }]
+        }
+      }
+    ]
+    const response: SpreadsheetBatchOperationResponse = {
+      sheetId: 'sheet-1',
+      newVersion: 4,
+      appliedOperations: [{ operationId: 'set-range-1', type: 'set_range' }],
+      operationResults: [{ operationId: 'set-range-1', type: 'set_range', result: {} }],
+      idempotentReplay: false
+    }
+
+    expect(applyAuthoritativeBatchResponseToRows(startingBaseline, operations, response)).toEqual([
+      { _id: 'row-1', _rowUuid: 'backend-row-1', legacyA: 5 }
+    ])
+  })
+
   it('replaces optimistic row placeholders in-place for insert_rows_at responses', () => {
     const startingBaseline = [
       { _id: 'row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, ColumnA: 'top' },

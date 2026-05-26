@@ -1,11 +1,18 @@
 import type React from 'react'
 import { toast } from 'sonner'
 
-import type { SpreadsheetCollaborationCallbacks, SpreadsheetReplayResponse } from './SpreadsheetCollaborationContract'
+import type {
+  SpreadsheetBulkRemoteApplyMeta,
+  SpreadsheetBulkRemoteCellItem,
+  SpreadsheetCollaborationCallbacks,
+  SpreadsheetReplayResponse
+} from './SpreadsheetCollaborationContract'
+import type { SheetWorkQueueApi } from './spreadsheetSheetWorkQueue'
 import type { SpreadsheetMutationFacade } from './SpreadsheetMutationFacade'
 import type { SpreadsheetSession } from './SpreadsheetSession'
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { SpreadsheetApp, SpreadsheetSheet } from '../types'
+import { UniverRemoteTransactionRunner } from './univerRemoteTransactionRunner'
 import { hydrateCachedRowsWithServerIdentities } from '../utils/spreadsheetPeerRowHydration'
 import { resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
 import type { StructuralWsDedupToken } from '../utils/spreadsheetStructuralWsDedup'
@@ -79,6 +86,31 @@ export interface BuildSpreadsheetCollaborationCallbacksParams {
   getActiveSessionRows: () => ViewerRow[]
   resolveKnownSheetVersion: (sheetId: string) => number
   createdSheetIdAliasesRef?: React.MutableRefObject<Map<string, string>>
+  isRecentLocalBatchId?: (batchId: string | undefined, tabId?: string | undefined) => boolean
+  /**
+   * Sheet work queue accessor. When this resolves to a queue (set after
+   * collaboration callbacks are constructed via a ref bridge), the callbacks
+   * use it for two distinct concerns:
+   *
+   *  1. **Version echo (conservative path support)**: `onVersionUpdate` and
+   *     `onSheetVersionUpdate` feed a `versionOnlyEcho` job so the queue's
+   *     per-sheet `queueClientAppliedVersion` advances in lockstep with the
+   *     collab manager. This is the load-bearing signal for the version
+   *     equality invariant that gates conservative-path local submits
+   *     (structural / style / paste / etc.). Cell-value writes use the
+   *     fast path and do not require this signal.
+   *
+   *  2. **Remote paint overlay protection**: `applyRemoteCellUpdate` and
+   *     `applyRemoteCellUpdatesBulk` consult `isQueueOwnedCell` and skip
+   *     the visible grid paint for any cell with an unresolved local
+   *     intent (status `pending` / `scheduled` / `submitting`). Baseline
+   *     and session continue to receive the remote value through other
+   *     channels; only the user-visible paint is suppressed until the
+   *     backend response resolves ownership. This is what prevents
+   *     remote replay from clobbering a freshly typed value before the
+   *     server has had a chance to accept or reject it.
+   */
+  getSheetWorkQueue?: () => SheetWorkQueueApi | null
 }
 
 /**
@@ -129,8 +161,317 @@ export function buildSpreadsheetCollaborationCallbacks(
     setActiveSheetId,
     getActiveSessionRows,
     resolveKnownSheetVersion,
-    createdSheetIdAliasesRef
+    createdSheetIdAliasesRef,
+    isRecentLocalBatchId,
+    getSheetWorkQueue
   } = params
+
+  /**
+   * Feeds a `versionOnlyEcho` job to the queue so `queueClientAppliedVersion`
+   * advances when the collab manager reports a new authoritative version.
+   *
+   * Under concurrent fast typing the collab manager fires this once per
+   * remote keystroke. The queue only needs the **latest** version per sheet
+   * (`queueClientAppliedVersion` is a monotonic max), so we coalesce all
+   * intermediate values into a single rAF-scheduled enqueue per sheet.
+   * This collapses 10–20 queue tasks per second per peer into 1 per frame,
+   * which removes the dominant source of `chainOnOperationQueue` churn
+   * during concurrent typing.
+   *
+   * Safe no-op when the queue accessor is not provided or returns null
+   * (legacy / tests / pre-mount).
+   */
+  const pendingVersionEcho = new Map<string, number>()
+  let pendingVersionEchoHandle: number | null = null
+  const flushPendingVersionEchoes = (): void => {
+    pendingVersionEchoHandle = null
+    const queue = getSheetWorkQueue?.()
+    if (!queue) {
+      pendingVersionEcho.clear()
+      return
+    }
+    for (const [sheetId, version] of pendingVersionEcho) {
+      void queue.enqueueRemoteApply(sheetId, 'versionOnlyEcho', async controller => {
+        controller.markVersionDone(version)
+      })
+    }
+    pendingVersionEcho.clear()
+  }
+  const scheduleVersionEchoFlush = (): void => {
+    if (pendingVersionEchoHandle != null) return
+    const raf = (globalThis as { requestAnimationFrame?: (cb: FrameRequestCallback) => number }).requestAnimationFrame
+    if (typeof raf === 'function') {
+      pendingVersionEchoHandle = raf(() => flushPendingVersionEchoes())
+      return
+    }
+    pendingVersionEchoHandle = (globalThis as { setTimeout: typeof setTimeout }).setTimeout(
+      () => flushPendingVersionEchoes(),
+      16
+    ) as unknown as number
+  }
+  const seedQueueVersionEcho = (sheetId: string, version: number): void => {
+    if (!sheetId || !Number.isFinite(version)) return
+    const previous = pendingVersionEcho.get(sheetId)
+    if (previous == null || version > previous) {
+      pendingVersionEcho.set(sheetId, version)
+    }
+    scheduleVersionEchoFlush()
+  }
+
+  /**
+   * Resolve a columnName for `(sheetId, colIndex)` using the session/baseline
+   * column metadata. Returns null when the column index is unknown (e.g. the
+   * sheet hasn't been hydrated yet or the column was just inserted), in which
+   * case overlay protection is best-effort skipped.
+   */
+  const resolveColumnNameForIndex = (sheetId: string, colIndex: number): string | null => {
+    if (!Number.isInteger(colIndex) || colIndex < 0) return null
+    const sessionCols = spreadsheetSession.getSheetState(sheetId)?.columns
+    const cols = sessionCols ?? appSheetsRef.current.find(s => s.id === sheetId)?.columns ?? null
+    if (!cols || colIndex >= cols.length) return null
+    const candidate = (cols[colIndex] as { name?: unknown })?.name
+    return typeof candidate === 'string' && candidate.length > 0 ? candidate : null
+  }
+
+  /**
+   * Remote-paint overlay guard. Returns true when the queue still owns a
+   * local intent for this cell (status `pending` / `scheduled` / `submitting`).
+   * The remote value continues to flow into the session/baseline through
+   * other paths (`commitSheetData`, `spreadsheetSession.applyMutation`) so the
+   * authoritative truth converges; only the visible grid paint is suppressed
+   * so the user's in-flight typing is not overwritten before the backend
+   * resolves the conflict. Once the backend response lands, the queue clears
+   * ownership and any `rejected_conflict.serverState` is painted via the
+   * mutation pipeline.
+   */
+  const isCellLocallyOwnedForOverlay = (sheetId: string, rowId: string | undefined, colIndex: number): boolean => {
+    if (!rowId) return false
+    const queue = getSheetWorkQueue?.()
+    if (!queue) return false
+    const columnName = resolveColumnNameForIndex(sheetId, colIndex)
+    if (!columnName) return false
+    const key = `${rowId}\u0000${columnName}`
+    return queue.isQueueOwnedCell(sheetId, key)
+  }
+
+  /**
+   * Per-sheet rAF buffer of incoming remote cell paints.
+   *
+   * Under concurrent fast typing the collab manager delivers a steady stream
+   * of `applyRemoteCellUpdate` / `applyRemoteCellUpdatesBulk` calls — one per
+   * WS broadcast, often with only a single cell each. Painting each into
+   * Univer synchronously triggers one canvas layout per call, which is the
+   * dominant source of the "100% CPU + thousands of layouts/sec" spike
+   * observed when two users type at once.
+   *
+   * The buffer collects all incoming items per sheet within the current
+   * frame, dedupes per `(rowId|rowIndex, colIndex)` (latest write wins),
+   * and dispatches a single `applyRemoteCellUpdatesBulk` per sheet per
+   * animation frame. This caps remote-paint frequency at ~60 fps regardless
+   * of peer count and lets the dense `setValues` fast path inside
+   * `UniverSheetGrid.applyRemoteCellUpdatesBulk` trigger more often.
+   *
+   * Structural callbacks (`applyRemoteClearAllRange`,
+   * `applyRemoteClearFormatRange`, `applyRemoteSpreadsheetFeatureOperation`,
+   * row/column move/insert/delete, `runRemoteTransaction`, `forceGridReapply`,
+   * `applyRemoteDimensions`) call `flushPendingRemoteCellPaints()`
+   * synchronously before they run so cell paints queued earlier in the same
+   * frame are dispatched ahead of the structural op.
+   */
+  interface PendingRemoteCellBuffer {
+    items: SpreadsheetBulkRemoteCellItem[]
+    completes: Array<() => void>
+    traceMeta: Pick<SpreadsheetBulkRemoteApplyMeta, 'traceSessionId' | 'traceId' | 'batchId' | 'operationType'> | null
+    handle: number | null
+  }
+  const pendingRemoteCellBuffers = new Map<string, PendingRemoteCellBuffer>()
+  const ensureRemoteCellBuffer = (sheetId: string): PendingRemoteCellBuffer => {
+    let buf = pendingRemoteCellBuffers.get(sheetId)
+    if (!buf) {
+      buf = { items: [], completes: [], traceMeta: null, handle: null }
+      pendingRemoteCellBuffers.set(sheetId, buf)
+    }
+    return buf
+  }
+  const cancelBufferHandle = (buf: PendingRemoteCellBuffer): void => {
+    if (buf.handle == null) return
+    const cancel = (globalThis as { cancelAnimationFrame?: (h: number) => void }).cancelAnimationFrame
+    const clear = (globalThis as { clearTimeout: typeof clearTimeout }).clearTimeout
+    if (typeof cancel === 'function') {
+      try {
+        cancel(buf.handle)
+      } catch {
+        // Fall through to clearTimeout — the handle was created by setTimeout.
+        clear(buf.handle as unknown as ReturnType<typeof setTimeout>)
+      }
+    } else {
+      clear(buf.handle as unknown as ReturnType<typeof setTimeout>)
+    }
+    buf.handle = null
+  }
+  const flushRemoteCellBuffer = (sheetId: string): void => {
+    const buf = pendingRemoteCellBuffers.get(sheetId)
+    if (!buf) return
+    cancelBufferHandle(buf)
+    pendingRemoteCellBuffers.delete(sheetId)
+    if (buf.items.length === 0) {
+      for (const cb of buf.completes) {
+        try {
+          cb()
+        } catch {
+          // onApplyComplete callbacks are best-effort; one throwing must not block the others.
+        }
+      }
+      return
+    }
+    const deduped = new Map<string, SpreadsheetBulkRemoteCellItem>()
+    for (const it of buf.items) {
+      const key = `${it.rowId ?? ''}\u0000${it.rowIndex}\u0000${it.colIndex}`
+      deduped.set(key, it)
+    }
+    const merged: SpreadsheetBulkRemoteApplyMeta = {
+      ...(buf.traceMeta ?? {}),
+      onApplyComplete:
+        buf.completes.length === 0
+          ? undefined
+          : () => {
+              for (const cb of buf.completes) {
+                try {
+                  cb()
+                } catch {
+                  // Same rationale as above.
+                }
+              }
+            }
+    }
+    const bulkApply = spreadsheetGridRef.current?.applyRemoteCellUpdatesBulk
+    if (!bulkApply) {
+      merged.onApplyComplete?.()
+      return
+    }
+    bulkApply(Array.from(deduped.values()), merged)
+  }
+  const flushPendingRemoteCellPaints = (sheetId?: string): void => {
+    if (sheetId) {
+      flushRemoteCellBuffer(sheetId)
+      return
+    }
+    for (const key of Array.from(pendingRemoteCellBuffers.keys())) {
+      flushRemoteCellBuffer(key)
+    }
+  }
+  const scheduleRemoteCellBufferFlush = (sheetId: string): void => {
+    const buf = pendingRemoteCellBuffers.get(sheetId)
+    if (!buf || buf.handle != null) return
+    const raf = (globalThis as { requestAnimationFrame?: (cb: FrameRequestCallback) => number }).requestAnimationFrame
+    if (typeof raf === 'function') {
+      buf.handle = raf(() => flushRemoteCellBuffer(sheetId))
+      return
+    }
+    buf.handle = (globalThis as { setTimeout: typeof setTimeout }).setTimeout(
+      () => flushRemoteCellBuffer(sheetId),
+      16
+    ) as unknown as number
+  }
+
+  const wrappedApplyRemoteCellUpdate: SpreadsheetCollaborationCallbacks['applyRemoteCellUpdate'] = (
+    rowIndex,
+    colIndex,
+    value,
+    rowId,
+    options
+  ) => {
+    const targetSheetId = options?.targetSheetId ?? activeSheetIdRef.current
+    if (isCellLocallyOwnedForOverlay(targetSheetId, rowId, colIndex)) {
+      debugLog('remote_cell_update_skipped_locally_owned', {
+        sheetId: targetSheetId,
+        rowId,
+        colIndex
+      })
+      return
+    }
+    const buf = ensureRemoteCellBuffer(targetSheetId)
+    buf.items.push({ rowIndex, colIndex, value, rowId, options })
+    scheduleRemoteCellBufferFlush(targetSheetId)
+  }
+
+  const wrappedApplyRemoteCellUpdatesBulk: NonNullable<
+    SpreadsheetCollaborationCallbacks['applyRemoteCellUpdatesBulk']
+  > = (items, meta) => {
+    const targetSheetId = activeSheetIdRef.current
+    let skipped = 0
+    const filtered = items.filter(item => {
+      const owned = isCellLocallyOwnedForOverlay(targetSheetId, item.rowId, item.colIndex)
+      if (owned) skipped += 1
+      return !owned
+    })
+    if (skipped > 0) {
+      debugLog('remote_cell_bulk_skipped_locally_owned', {
+        sheetId: targetSheetId,
+        skipped,
+        kept: filtered.length
+      })
+    }
+    if (filtered.length === 0) {
+      // Nothing to paint — still invoke `onApplyComplete` so callers waiting
+      // on the bulk finish signal (e.g. style-after-paste chaining) proceed.
+      meta?.onApplyComplete?.()
+      return
+    }
+    const buf = ensureRemoteCellBuffer(targetSheetId)
+    for (const it of filtered) buf.items.push(it)
+    if (meta?.onApplyComplete) buf.completes.push(meta.onApplyComplete)
+    if (meta && !buf.traceMeta) {
+      buf.traceMeta = {
+        traceSessionId: meta.traceSessionId,
+        traceId: meta.traceId,
+        batchId: meta.batchId,
+        operationType: meta.operationType
+      }
+    }
+    scheduleRemoteCellBufferFlush(targetSheetId)
+  }
+
+  // The remote-transaction runner and structural callbacks need an
+  // immediate (non-coalesced) version of the cell apply so they don't get
+  // reordered behind a deferred bulk. They flush the buffer first, then
+  // forward straight to the grid.
+  const immediateApplyRemoteCellUpdate: SpreadsheetCollaborationCallbacks['applyRemoteCellUpdate'] = (
+    rowIndex,
+    colIndex,
+    value,
+    rowId,
+    options
+  ) => {
+    const targetSheetId = options?.targetSheetId ?? activeSheetIdRef.current
+    if (isCellLocallyOwnedForOverlay(targetSheetId, rowId, colIndex)) return
+    flushPendingRemoteCellPaints(targetSheetId)
+    applyRemoteCellUpdateWithRetry(rowIndex, colIndex, value, rowId, options)
+  }
+  const immediateApplyRemoteCellUpdatesBulk: NonNullable<
+    SpreadsheetCollaborationCallbacks['applyRemoteCellUpdatesBulk']
+  > = (items, meta) => {
+    const targetSheetId =
+      items
+        .find(item => typeof item.options?.targetSheetId === 'string' && item.options.targetSheetId.trim())
+        ?.options?.targetSheetId?.trim() ?? activeSheetIdRef.current
+    flushPendingRemoteCellPaints(targetSheetId)
+    const filtered = items.filter(
+      item =>
+        !isCellLocallyOwnedForOverlay(
+          typeof item.options?.targetSheetId === 'string' && item.options.targetSheetId.trim()
+            ? item.options.targetSheetId.trim()
+            : targetSheetId,
+          item.rowId,
+          item.colIndex
+        )
+    )
+    if (filtered.length === 0) {
+      meta?.onApplyComplete?.()
+      return
+    }
+    spreadsheetGridRef.current?.applyRemoteCellUpdatesBulk?.(filtered, meta)
+  }
 
   const applyRemoteDimensions = createCollaborationApplyRemoteDimensions({
     activeSheetId,
@@ -184,36 +525,69 @@ export function buildSpreadsheetCollaborationCallbacks(
       }
       return fallbackSorted
     },
+    getWorkbookSnapshot: () => spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? null,
     getBackendRowIdForUiRowId: (uiRowId, univerRow) => getBackendRowIdForUiRowIdRef.current(uiRowId, univerRow),
     commitLocalSheetData,
     commitSheetData: (sheetId, data, options) => {
       syncSheetRowsIntoLocalState(sheetId, data, options)
     },
-    applyRemoteCellUpdate: applyRemoteCellUpdateWithRetry,
-    applyRemoteCellUpdatesBulk: (items, meta) => {
-      spreadsheetGridRef.current?.applyRemoteCellUpdatesBulk?.(items, meta)
-    },
+    applyRemoteCellUpdate: wrappedApplyRemoteCellUpdate,
+    applyRemoteCellUpdatesBulk: wrappedApplyRemoteCellUpdatesBulk,
     applyRemoteClearAllRange: payload => {
+      flushPendingRemoteCellPaints()
       spreadsheetGridRef.current?.applyRemoteClearAllRange?.(payload)
     },
     applyRemoteClearFormatRange: payload => {
+      flushPendingRemoteCellPaints()
       spreadsheetGridRef.current?.applyRemoteClearFormatRange?.(payload)
     },
     applyRemoteSpreadsheetFeatureOperation: payload => {
+      flushPendingRemoteCellPaints()
       spreadsheetGridRef.current?.applyRemoteSpreadsheetFeatureOperation?.(payload)
     },
     forceGridReapply: (sheetId, region, options) => {
+      flushPendingRemoteCellPaints(sheetId)
       globalThis.setTimeout(() => {
         if (activeSheetIdRef.current !== sheetId) return
         spreadsheetGridRef.current?.forceAuthoritativeReapply?.(region ?? null, options)
       }, 0)
     },
-    applyRemoteDimensions,
+    applyRemoteDimensions: payload => {
+      flushPendingRemoteCellPaints(payload.sheetId)
+      applyRemoteDimensions(payload)
+    },
+    runRemoteTransaction: plan => {
+      // Transactions mix cell + structural ops and rely on strict ordering;
+      // never coalesce inside them. Flush any pending buffered paints first
+      // so they land in Univer's command engine ahead of the transaction.
+      flushPendingRemoteCellPaints()
+      return new UniverRemoteTransactionRunner({
+        applyRemoteCellUpdate: immediateApplyRemoteCellUpdate,
+        applyRemoteCellUpdatesBulk: immediateApplyRemoteCellUpdatesBulk,
+        applyRemoteClearAllRange: (payload, meta) => {
+          spreadsheetGridRef.current?.applyRemoteClearAllRange?.(payload, meta)
+        },
+        applyRemoteClearFormatRange: (payload, meta) => {
+          spreadsheetGridRef.current?.applyRemoteClearFormatRange?.(payload, meta)
+        },
+        applyRemoteSpreadsheetFeatureOperation: (payload, meta) => {
+          spreadsheetGridRef.current?.applyRemoteSpreadsheetFeatureOperation?.(payload, meta)
+        },
+        forceGridReapply: (sheetId, region, options) => {
+          globalThis.setTimeout(() => {
+            if (activeSheetIdRef.current !== sheetId) return
+            spreadsheetGridRef.current?.forceAuthoritativeReapply?.(region ?? null, options)
+          }, 0)
+        }
+      }).run(plan)
+    },
     onVersionUpdate: version => {
       updateActiveSheetVersion(version)
+      seedQueueVersionEcho(activeSheetIdRef.current, version)
     },
     onSheetVersionUpdate: (sheetId, version) => {
       rememberSheetVersion(sheetId, version)
+      seedQueueVersionEcho(sheetId, version)
       applyLocalAppUpdate(currentApp => ({
         ...currentApp,
         sheets: currentApp.sheets.map(sheet =>
@@ -234,6 +608,73 @@ export function buildSpreadsheetCollaborationCallbacks(
     scheduleSheetVersionRefreshFromApi,
     scheduleRemoteStructuralResync,
     onRemoteColumnUpdate: handleRemoteColumnUpdate,
+    applyRemoteColumnReorder: ({ sheetId, previousColumns, nextColumns }) => {
+      if (activeSheetIdRef.current !== sheetId) return false
+      flushPendingRemoteCellPaints(sheetId)
+      return (
+        spreadsheetGridRef.current?.applyRemoteColumnsReorder?.({
+          previousColumns,
+          nextColumns
+        }) ?? false
+      )
+    },
+    applyRemoteRowSlotsMove: ({ sheetId, sourceStartGridRowIndex, count, destinationGridRowIndex }) => {
+      if (activeSheetIdRef.current !== sheetId) return false
+      flushPendingRemoteCellPaints(sheetId)
+      return (
+        spreadsheetGridRef.current?.applyRemoteRowSlotsMove?.({
+          sourceStartGridRowIndex,
+          count,
+          destinationGridRowIndex
+        }) ?? false
+      )
+    },
+    applyRemoteInsertRowSlots: ({ sheetId, startGridRowIndex, count }) => {
+      if (activeSheetIdRef.current !== sheetId) return false
+      flushPendingRemoteCellPaints(sheetId)
+      return (
+        spreadsheetGridRef.current?.applyRemoteInsertRowSlots?.({
+          startGridRowIndex,
+          count
+        }) ?? false
+      )
+    },
+    applyRemoteDeleteRowSlots: ({ sheetId, startGridRowIndex, count }) => {
+      if (activeSheetIdRef.current !== sheetId) return false
+      flushPendingRemoteCellPaints(sheetId)
+      return (
+        spreadsheetGridRef.current?.applyRemoteDeleteRowSlots?.({
+          startGridRowIndex,
+          count
+        }) ?? false
+      )
+    },
+    applyRemoteInsertColumnSlots: ({ sheetId, startGridColumnIndex, count }) => {
+      if (activeSheetIdRef.current !== sheetId) return false
+      flushPendingRemoteCellPaints(sheetId)
+      return (
+        spreadsheetGridRef.current?.applyRemoteInsertColumnSlots?.({
+          startGridColumnIndex,
+          count
+        }) ?? false
+      )
+    },
+    applyRemoteDeleteColumnSlots: ({ sheetId, startGridColumnIndex, count }) => {
+      if (activeSheetIdRef.current !== sheetId) return false
+      flushPendingRemoteCellPaints(sheetId)
+      return (
+        spreadsheetGridRef.current?.applyRemoteDeleteColumnSlots?.({
+          startGridColumnIndex,
+          count
+        }) ?? false
+      )
+    },
+    applyRemoteMoveCellRange: ({ sheetId, fromRange, toRange }) => {
+      if (activeSheetIdRef.current !== sheetId) return false
+      flushPendingRemoteCellPaints(sheetId)
+      return spreadsheetGridRef.current?.applyRemoteMoveCellRange?.({ fromRange, toRange }) ?? false
+    },
+    isRecentLocalBatchId,
     fetchChangesSince: async (sheetId, sinceVersion) => {
       const facade = mutationFacadeRef.current
       if (facade) {

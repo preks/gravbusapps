@@ -32,10 +32,14 @@ import type {
 import {
   SPREADSHEET_BULK_APPLY_CHUNK_SIZE,
   SPREADSHEET_BULK_MAX_DENSE_RECTANGLE_CELLS,
-  SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH,
   SPREADSHEET_BULK_RAF_BUDGET_MS,
-  SPREADSHEET_BULK_RAF_MIN_CHUNK_CELLS
+  SPREADSHEET_BULK_RAF_BUDGET_MS_CATCHUP,
+  SPREADSHEET_BULK_RAF_MIN_CHUNK_CELLS,
+  SPREADSHEET_BULK_RAF_MIN_CHUNK_CELLS_CATCHUP,
+  SPREADSHEET_BULK_ROW_STRIP_MIN_LENGTH,
+  isBacklogBulkApply
 } from '../utils/spreadsheetBulkRemoteConstants'
+import { planBulkRowStrips, type SpreadsheetBulkRowStrip } from '../utils/spreadsheetBulkRowStripPlan'
 import { parseSpreadsheetCursorPath } from './cursorPathUtils'
 import type {
   ApplyRemoteCellUpdateOptions,
@@ -48,7 +52,20 @@ import { syncUniverGridUiSession } from './univerGridUiSession'
 import { useUniverGridController } from './useUniverGridController'
 import { debugRemoteApply } from './univerGridDebug'
 import { useUniverDomChrome } from './useUniverDomChrome'
-import { remoteEchoKey, toEchoSignature } from './univerGridAuthoritativeHelpers'
+import { buildAuthoritativeCellSignatureMap, remoteEchoKey, toEchoSignature } from './univerGridAuthoritativeHelpers'
+import { applyRemoteColumnReorderOnGrid } from './applyRemoteColumnReorderOnGrid'
+import { applyRemoteDeleteColumnSlotsOnGrid } from './applyRemoteDeleteColumnSlotsOnGrid'
+import { applyRemoteInsertColumnSlotsOnGrid } from './applyRemoteInsertColumnSlotsOnGrid'
+import { applyRemoteMoveCellRangeOnGrid } from './applyRemoteMoveCellRangeOnGrid'
+import { applyRemoteDeleteRowSlotsOnGrid } from './applyRemoteDeleteRowSlotsOnGrid'
+import { applyRemoteInsertRowSlotsOnGrid } from './applyRemoteInsertRowSlotsOnGrid'
+import { applyRemoteRowSlotsOnGrid } from './applyRemoteRowSlotsOnGrid'
+import {
+  acquireRemoteStructuralApplyGuard,
+  scheduleReleaseRemoteStructuralApplyGuard,
+  shouldIgnoreStructuralRowCommandPersistence
+} from './univerRemoteStructuralApplyGuard'
+import { resolveWorksheetGridBounds } from './univerGridRangeSelection'
 import { useUniverAuthoritativeGridSync } from './useUniverAuthoritativeGridSync'
 import { useUniverRemoteApply } from './useUniverRemoteApply'
 import { useUniverReadOnlyInteraction } from './useUniverReadOnlyInteraction'
@@ -83,6 +100,19 @@ import { getSupportedUniverFonts } from './univerGridLocaleChrome'
 import { extractActiveRangePosition } from './univerGridRangeSelection'
 import { formatCommentTime, getInitials } from './univerGridCommentPresentation'
 import { tryStructuredClone } from '../utils/tryStructuredClone'
+
+/**
+ * Classifies a bulk-apply meta `operationType` into a coarse paint-source bucket. Used in
+ * `grid_bulk_remote_apply_*` diagnostics so traces show whether the work came from collab
+ * replay, the authoritative re-sync pass, or a catch-up materialization.
+ */
+function derivePaintSourceFromBulkApplyMeta(operationType: string | undefined): string {
+  if (!operationType) return 'unknown'
+  if (operationType === 'authoritative_reapply') return 'authoritative_reapply'
+  if (operationType === 'catch_up_materialized') return 'catch_up_materialized'
+  if (operationType === 'add_rows_replay') return 'add_rows_replay'
+  return 'collab_replay'
+}
 
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
   function UniverSheetGrid(props, ref) {
@@ -125,6 +155,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       scheduleSnapshotCheckpointRef,
       lastSyncedGridCellSignaturesRef,
       collabPersistedBulkApplyDepthRef,
+      bulkApplyClearDeferredDirtyCellsRef,
       lastSyncedGridRowCountRef,
       lastSyncedGridColumnCountRef,
       lastProcessedAuthoritativeDataSyncTokenRef,
@@ -310,6 +341,27 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     // (not the Univer workbook), so it can be wrong vs the sender's cellRef — use `useSenderA1Row` from collab.
     const applyRemoteCellUpdate = useCallback(
       (rowIndex: number, colIndex: number, value: unknown, rowId?: string, options?: ApplyRemoteCellUpdateOptions) => {
+        // When the Univer grid paint exhausts retries and gives up, the session row model has
+        // the new value but the visible grid does not. Extend the remote-echo suppression for
+        // this cell well beyond the default TTL so any subsequent SheetValueChanged (e.g. from
+        // the deferred-flush poll up to 8s later, or grid redraw under structural churn) that
+        // reads the stale blank cell is still classified as a remote echo, not a user clear.
+        const extendRemoteEchoSuppressionForGiveUp = (key: string, signatureCandidates: Set<string>) => {
+          const giveUpTtlMs = Math.max(REMOTE_ECHO_SUPPRESSION_TTL_MS, 10_000)
+          const extendedExpiresAt = Date.now() + giveUpTtlMs
+          signatureCandidates.add('blank')
+          remoteEchoSuppressionRef.current.set(key, {
+            expiresAt: extendedExpiresAt,
+            signatures: signatureCandidates
+          })
+          globalThis.setTimeout(() => {
+            if (!gridMountedRef.current) return
+            const current = remoteEchoSuppressionRef.current.get(key)
+            if (current?.expiresAt === extendedExpiresAt) {
+              remoteEchoSuppressionRef.current.delete(key)
+            }
+          }, giveUpTtlMs + 50)
+        }
         const traceRemoteApply = (
           stage: 'grid_remote_apply_succeeded' | 'grid_remote_apply_failed',
           payload: Record<string, unknown>,
@@ -397,6 +449,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                 remoteEchoSuppressionRef.current.delete(key)
               }
             }, REMOTE_ECHO_SUPPRESSION_TTL_MS + 50)
+            // Seed the authoritative signature for this cell before any retry/give-up paths so the
+            // mutation planner's "no-clear-without-local-edit" guard knows the cell holds a remote
+            // value even if the Univer grid paint fails (give_up) or is overwritten by structural
+            // churn. Without this, a deferred-reconcile read of a blank grid cell would not see
+            // any authoritative non-blank signature and could fall through to a spurious `clear`.
+            lastSyncedGridCellSignaturesRef.current.set(key, toEchoSignature(value))
 
             const workbook = api.getActiveWorkbook()
             if (!workbook) {
@@ -420,6 +478,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                 { reason: 'no_workbook', rowIndex: resolvedRow, colIndex, rowId: rowId ?? null },
                 'error'
               )
+              extendRemoteEchoSuppressionForGiveUp(key, signatureCandidates)
               return
             }
             const activeWorksheet = workbook.getActiveSheet()
@@ -455,6 +514,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                 row0: resolvedRow,
                 col0: colIndex
               })
+              extendRemoteEchoSuppressionForGiveUp(key, signatureCandidates)
               traceRemoteApply(
                 'grid_remote_apply_failed',
                 {
@@ -657,15 +717,20 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
     const applyRemoteCellUpdatesBulk = useCallback(
       (items: SpreadsheetBulkRemoteCellItem[], meta?: SpreadsheetBulkRemoteApplyMeta) => {
-        if (items.length === 0) return
-        if (items.length < SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH) {
-          for (const it of items) {
-            applyRemoteCellUpdate(it.rowIndex, it.colIndex, it.value, it.rowId, it.options)
-          }
+        if (items.length === 0) {
           meta?.onApplyComplete?.()
           return
         }
+        // NOTE: Previously a `items.length < SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH`
+        // bypass routed small (single-cell) broadcasts through the per-cell
+        // synchronous `applyRemoteCellUpdate` path. That path emits one Univer
+        // command per cell and triggers an immediate canvas layout, which is
+        // what dominated CPU under concurrent fast typing (one peer keystroke
+        // ≈ one Univer paint). With `SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH = 1`
+        // every non-empty bulk takes the deferred path below, which microtask-
+        // defers the work and uses dense `setValues` / chunked rAF writes.
 
+        const paintSource = derivePaintSourceFromBulkApplyMeta(meta?.operationType ?? undefined)
         const traceBulk = (stage: string, payload: Record<string, unknown>) => {
           callbacksRef.current.onDiagnosticsTraceEvent?.({
             source: 'client',
@@ -674,7 +739,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             traceId: meta?.traceId ?? null,
             batchId: meta?.batchId ?? null,
             operationType: meta?.operationType ?? 'bulk_remote_cell',
-            payload
+            payload: { ...payload, paintSource }
           })
         }
 
@@ -726,12 +791,38 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             meta?.onApplyComplete?.()
             return
           }
+          // Phase 4: bounding box of the cells this bulk paints. On `finishBulkApplyOnce`
+          // we clear any `deferred-reconcile` entries inside this region — those are remote
+          // echoes the listener queued while the apply guard was held, not real local edits.
+          // Reconciling them after the guard drops costs an expensive `reconcileSingleCell`
+          // per coordinate (~6s in production traces after large `add_rows_replay` bulks).
+          let bulkMinRow = Number.POSITIVE_INFINITY
+          let bulkMaxRow = -1
+          let bulkMinCol = Number.POSITIVE_INFINITY
+          let bulkMaxCol = -1
+          for (const item of normalized) {
+            if (item.rowIndex < bulkMinRow) bulkMinRow = item.rowIndex
+            if (item.rowIndex > bulkMaxRow) bulkMaxRow = item.rowIndex
+            if (item.colIndex < bulkMinCol) bulkMinCol = item.colIndex
+            if (item.colIndex > bulkMaxCol) bulkMaxCol = item.colIndex
+          }
+          const bulkPaintedRegion =
+            Number.isFinite(bulkMinRow) && bulkMaxRow >= 0 && Number.isFinite(bulkMinCol) && bulkMaxCol >= 0
+              ? { minRow: bulkMinRow, maxRow: bulkMaxRow, minCol: bulkMinCol, maxCol: bulkMaxCol }
+              : null
+          const bulkPaintedWorksheetId =
+            (typeof normalized[0]?.options?.targetSheetId === 'string' ? normalized[0].options.targetSheetId : null) ??
+            propsRef.current.sheet.id
+
           collabPersistedBulkApplyDepthRef.current += 1
           let bulkApplyFinished = false
           const finishBulkApplyOnce = () => {
             if (bulkApplyFinished) return
             bulkApplyFinished = true
             collabPersistedBulkApplyDepthRef.current -= 1
+            if (bulkPaintedRegion) {
+              bulkApplyClearDeferredDirtyCellsRef.current?.(bulkPaintedWorksheetId, bulkPaintedRegion)
+            }
             if (gridMountedRef.current) {
               bumpCollabBulkApplyIdle()
             }
@@ -946,8 +1037,131 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
           }
 
+          // Catch-up / authoritative-reapply bulks are one-shot backlog drains. Use a larger
+          // per-frame budget so the drain finishes in tens of frames instead of stretching
+          // across hundreds. Live collab traffic keeps the small budget.
+          const isBacklogDrain = isBacklogBulkApply(meta?.operationType ?? undefined, normalized.length)
+          const perFrameBudgetMs = isBacklogDrain
+            ? SPREADSHEET_BULK_RAF_BUDGET_MS_CATCHUP
+            : SPREADSHEET_BULK_RAF_BUDGET_MS
+          const perFrameMinChunk = isBacklogDrain
+            ? SPREADSHEET_BULK_RAF_MIN_CHUNK_CELLS_CATCHUP
+            : SPREADSHEET_BULK_RAF_MIN_CHUNK_CELLS
+
+          // Strip fast path: for backlog drains where every incoming cell is style-free, paint
+          // contiguous per-row column strips with a single `Range.setValues(...)`. This collapses
+          // the ~1 Univer command + formula recompute per cell into ~1 per strip — the actual
+          // bottleneck observed in the catch-up trace (~18k sparse cells × per-cell `setValue`).
+          // The dense-rectangle fast path above already handles the small/dense case; strips
+          // handle the realistic sparse-by-row layout produced by collaborative typing.
+          const useStripPaint = noUniverCell && isBacklogDrain
+          const plannedStrips: SpreadsheetBulkRowStrip[] = useStripPaint ? planBulkRowStrips(normalized) : []
+          let stripOffset = 0
+          let stripCellsWritten = 0
+          let stripSetValuesCalls = 0
+          let stripDowngradedCells = 0
+
           let offset = 0
           let chunkCount = 0
+
+          const writeSingleCellSync = (it: SpreadsheetBulkRemoteCellItem) => {
+            const key = remoteEchoKey(it.rowIndex, it.colIndex)
+            const applyCell = () => {
+              const sheetForWrite =
+                propsRef.current.multiSheetWorkbookMode && bulkPaintedWorksheetId
+                  ? ((wbQ.getActiveSheet?.() as typeof worksheet | null | undefined) ?? worksheet)
+                  : worksheet
+              writeRemoteCellIntoUniverWorksheetSync({
+                workbook,
+                worksheet: sheetForWrite,
+                rowForApply: it.rowIndex,
+                colForApply: it.colIndex,
+                value: it.value,
+                options: it.options,
+                echoKey: key,
+                remoteEchoSuppressionRef
+              })
+            }
+            if (propsRef.current.multiSheetWorkbookMode && bulkPaintedWorksheetId) {
+              runWithWorkbookFacadeSheetActive(
+                wbQ as {
+                  getActiveSheet?: () => { getSheetId?: () => string } | null | undefined
+                  setActiveSheet?: (id: string) => unknown
+                },
+                bulkPaintedWorksheetId,
+                applyCell
+              )
+            } else {
+              applyCell()
+            }
+            recordBulkCellSignature(it)
+          }
+
+          /**
+           * Paints one row strip. Returns the number of cells consumed (always === strip.cells.length).
+           * If the strip is unsafe for `setValues` (existing styles on the range, non-primitive
+           * scalar, or short strip), falls back to per-cell writes so we never lose style/echo
+           * bookkeeping.
+           *
+           * Uses one `Range.setValues` per strip (facade path). Do NOT batch strips into
+           * `sheet.mutation.set-range-values` per RAF chunk — that mutation runs a full formula
+           * dependency pass over the buffered cells and dominated the 13:14 trace (~337ms/chunk).
+           */
+          const paintStrip = (strip: SpreadsheetBulkRowStrip): number => {
+            const len = strip.cells.length
+            if (!strip.styleSafe || len < SPREADSHEET_BULK_ROW_STRIP_MIN_LENGTH) {
+              for (const cell of strip.cells) writeSingleCellSync(cell)
+              stripDowngradedCells += len
+              return len
+            }
+            const row: unknown[] = new Array(len)
+            for (let i = 0; i < len; i += 1) {
+              const cell = strip.cells[i]!
+              const scalar = normalizeValueForGridWrite(cell.value)
+              if (scalar && typeof scalar === 'object') {
+                for (const c of strip.cells) writeSingleCellSync(c)
+                stripDowngradedCells += len
+                return len
+              }
+              row[i] = scalar
+            }
+            const range = worksheet.getRange(strip.rowIndex, strip.startCol, 1, len)
+            if (!range || typeof (range as { setValues?: unknown }).setValues !== 'function') {
+              for (const cell of strip.cells) writeSingleCellSync(cell)
+              stripDowngradedCells += len
+              return len
+            }
+            for (let i = 0; i < len; i += 1) {
+              try {
+                const r = worksheet.getRange(strip.rowIndex, strip.startCol + i) as
+                  | { getCellData?: () => unknown }
+                  | null
+                  | undefined
+                const current = r?.getCellData?.() as Record<string, unknown> | null | undefined
+                if (current && typeof current === 'object' && 's' in current && current.s != null) {
+                  for (const cell of strip.cells) writeSingleCellSync(cell)
+                  stripDowngradedCells += len
+                  return len
+                }
+              } catch {
+                for (const cell of strip.cells) writeSingleCellSync(cell)
+                stripDowngradedCells += len
+                return len
+              }
+            }
+            try {
+              ;(range as { setValues: (m: unknown) => unknown }).setValues([row])
+              stripSetValuesCalls += 1
+              for (const cell of strip.cells) recordBulkCellSignature(cell)
+              return len
+            } catch (e) {
+              console.warn('[UniverSheetGrid] strip setValues failed, falling back per-cell', e)
+              for (const cell of strip.cells) writeSingleCellSync(cell)
+              stripDowngradedCells += len
+              return len
+            }
+          }
+
           const runChunk = () => {
             if (!gridMountedRef.current) {
               finishBulkApplyOnce()
@@ -957,41 +1171,58 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             const chunkStart = globalThis.performance?.now?.() ?? Date.now()
             try {
               let written = 0
-              while (offset < normalized.length) {
-                const it = normalized[offset]!
-                const key = remoteEchoKey(it.rowIndex, it.colIndex)
-                writeRemoteCellIntoUniverWorksheetSync({
-                  workbook,
-                  worksheet,
-                  rowForApply: it.rowIndex,
-                  colForApply: it.colIndex,
-                  value: it.value,
-                  options: it.options,
-                  echoKey: key,
-                  remoteEchoSuppressionRef
-                })
-                recordBulkCellSignature(it)
-                offset += 1
-                written += 1
-                const elapsed = (globalThis.performance?.now?.() ?? Date.now()) - chunkStart
-                if (
-                  written >= SPREADSHEET_BULK_APPLY_CHUNK_SIZE ||
-                  (elapsed >= SPREADSHEET_BULK_RAF_BUDGET_MS && written >= SPREADSHEET_BULK_RAF_MIN_CHUNK_CELLS)
-                ) {
-                  break
+              if (useStripPaint) {
+                while (stripOffset < plannedStrips.length) {
+                  const strip = plannedStrips[stripOffset]!
+                  const consumed = paintStrip(strip)
+                  stripOffset += 1
+                  written += consumed
+                  stripCellsWritten += consumed
+                  const elapsed = (globalThis.performance?.now?.() ?? Date.now()) - chunkStart
+                  if (
+                    written >= SPREADSHEET_BULK_APPLY_CHUNK_SIZE ||
+                    (elapsed >= perFrameBudgetMs && written >= perFrameMinChunk)
+                  ) {
+                    break
+                  }
+                }
+              } else {
+                while (offset < normalized.length) {
+                  const it = normalized[offset]!
+                  writeSingleCellSync(it)
+                  offset += 1
+                  written += 1
+                  const elapsed = (globalThis.performance?.now?.() ?? Date.now()) - chunkStart
+                  if (
+                    written >= SPREADSHEET_BULK_APPLY_CHUNK_SIZE ||
+                    (elapsed >= perFrameBudgetMs && written >= perFrameMinChunk)
+                  ) {
+                    break
+                  }
                 }
               }
               chunkCount += 1
             } finally {
               isApplyingRemoteUpdateRef.current = false
             }
-            if (offset < normalized.length) {
+            const drainComplete = useStripPaint ? stripOffset >= plannedStrips.length : offset >= normalized.length
+            if (!drainComplete) {
               globalThis.requestAnimationFrame(runChunk)
             } else {
               traceBulk('grid_bulk_remote_apply_completed', {
-                mode: noUniverCell ? 'chunked' : 'chunked_mixed_payload',
+                mode: useStripPaint ? 'chunked_strip_setValues' : noUniverCell ? 'chunked' : 'chunked_mixed_payload',
                 cellCount: normalized.length,
                 chunkCount,
+                backlogDrain: isBacklogDrain,
+                perFrameBudgetMs,
+                ...(useStripPaint
+                  ? {
+                      stripCount: plannedStrips.length,
+                      stripCellsWritten,
+                      stripSetValuesCalls,
+                      stripDowngradedCells
+                    }
+                  : {}),
                 durationMs: Math.round((globalThis.performance?.now?.() ?? Date.now()) - started)
               })
               finishBulkApplyOnce()
@@ -1187,6 +1418,171 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             propsRef.current.data = nextData
           }
           contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
+        },
+        shouldIgnoreStructuralRowCommand: () =>
+          shouldIgnoreStructuralRowCommandPersistence({
+            isApplyingRemoteUpdateRef,
+            collabPersistedBulkApplyDepthRef
+          }),
+        applyRemoteColumnsReorder: ({ previousColumns, nextColumns }) => {
+          const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
+          acquireRemoteStructuralApplyGuard(guardRefs)
+          try {
+            const result = applyRemoteColumnReorderOnGrid({
+              api: univerAPIRef.current,
+              sheetId: sheet.id,
+              previousColumns,
+              nextColumns,
+              rows: propsRef.current.data
+            })
+            propsRef.current.columns = nextColumns
+            contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
+            if (result.ok && result.appliedMoveCount > 0) {
+              lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(
+                propsRef.current.data,
+                nextColumns
+              )
+              lastSyncedGridColumnCountRef.current = nextColumns.filter(column => column.isVisible !== false).length
+              return true
+            }
+            if (result.ok && result.moveCount === 0) {
+              return true
+            }
+            return false
+          } finally {
+            scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
+          }
+        },
+        applyRemoteRowSlotsMove: ({ sourceStartGridRowIndex, count, destinationGridRowIndex }) => {
+          const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
+          acquireRemoteStructuralApplyGuard(guardRefs)
+          try {
+            const visibleColumns = propsRef.current.columns.filter(column => column.isVisible !== false)
+            const result = applyRemoteRowSlotsOnGrid({
+              api: univerAPIRef.current,
+              sheetId: sheet.id,
+              move: { sourceStartGridRowIndex, count, destinationGridRowIndex },
+              rows: propsRef.current.data,
+              visibleColumnCount: visibleColumns.length
+            })
+            if (result.ok) {
+              lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(
+                propsRef.current.data,
+                propsRef.current.columns
+              )
+              lastSyncedGridRowCountRef.current = propsRef.current.data.length
+              return true
+            }
+            return false
+          } finally {
+            scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
+          }
+        },
+        applyRemoteInsertRowSlots: ({ startGridRowIndex, count }) => {
+          const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
+          acquireRemoteStructuralApplyGuard(guardRefs)
+          try {
+            const visibleColumns = propsRef.current.columns.filter(column => column.isVisible !== false)
+            const result = applyRemoteInsertRowSlotsOnGrid({
+              api: univerAPIRef.current,
+              sheetId: sheet.id,
+              insert: { startGridRowIndex, count },
+              visibleColumnCount: visibleColumns.length
+            })
+            if (result.ok) {
+              lastSyncedGridRowCountRef.current = propsRef.current.data.length
+              return true
+            }
+            return false
+          } finally {
+            scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
+          }
+        },
+        applyRemoteDeleteRowSlots: ({ startGridRowIndex, count }) => {
+          const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
+          acquireRemoteStructuralApplyGuard(guardRefs)
+          try {
+            const visibleColumns = propsRef.current.columns.filter(column => column.isVisible !== false)
+            const result = applyRemoteDeleteRowSlotsOnGrid({
+              api: univerAPIRef.current,
+              sheetId: sheet.id,
+              deleteSlots: { startGridRowIndex, count },
+              visibleColumnCount: visibleColumns.length
+            })
+            if (result.ok) {
+              lastSyncedGridRowCountRef.current = propsRef.current.data.length
+              return true
+            }
+            return false
+          } finally {
+            scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
+          }
+        },
+        applyRemoteInsertColumnSlots: ({ startGridColumnIndex, count }) => {
+          const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
+          acquireRemoteStructuralApplyGuard(guardRefs)
+          try {
+            const result = applyRemoteInsertColumnSlotsOnGrid({
+              api: univerAPIRef.current,
+              sheetId: sheet.id,
+              insert: { startGridColumnIndex, count },
+              rowCount: propsRef.current.data.length
+            })
+            if (result.ok) {
+              lastSyncedGridColumnCountRef.current = propsRef.current.columns.filter(
+                column => column.isVisible !== false
+              ).length
+              return true
+            }
+            return false
+          } finally {
+            scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
+          }
+        },
+        applyRemoteDeleteColumnSlots: ({ startGridColumnIndex, count }) => {
+          const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
+          acquireRemoteStructuralApplyGuard(guardRefs)
+          try {
+            const result = applyRemoteDeleteColumnSlotsOnGrid({
+              api: univerAPIRef.current,
+              sheetId: sheet.id,
+              deleteSlots: { startGridColumnIndex, count },
+              rowCount: propsRef.current.data.length
+            })
+            if (result.ok) {
+              lastSyncedGridColumnCountRef.current = propsRef.current.columns.filter(
+                column => column.isVisible !== false
+              ).length
+              return true
+            }
+            return false
+          } finally {
+            scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
+          }
+        },
+        applyRemoteMoveCellRange: ({ fromRange, toRange }) => {
+          const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
+          acquireRemoteStructuralApplyGuard(guardRefs)
+          try {
+            const visibleColumnCount = propsRef.current.columns.filter(column => column.isVisible !== false).length
+            const result = applyRemoteMoveCellRangeOnGrid({
+              api: univerAPIRef.current,
+              sheetId: sheet.id,
+              fromRange,
+              toRange,
+              visibleColumnCount
+            })
+            if (result.ok) {
+              lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(
+                propsRef.current.data,
+                propsRef.current.columns
+              )
+              return true
+            }
+            return false
+          } finally {
+            scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
+          }
         },
         requestSnapshotCheckpoint: (force = false) => {
           requestSnapshotCheckpointRef.current?.(force)
@@ -1428,7 +1824,19 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       pendingForcedAuthoritativeReapplyRef,
       recentLocallyMutatedGridCellsRef,
       applyRemoteCellUpdate,
-      applyRemoteCellUpdatesBulk
+      applyRemoteCellUpdatesBulk,
+      resolveActiveWorksheetBounds: () => {
+        const api = univerAPIRef.current as {
+          getActiveWorkbook?: () => {
+            getActiveSheet?: () => unknown
+            getSheetBySheetId?: (id: string) => unknown
+          } | null
+        } | null
+        const workbook = api?.getActiveWorkbook?.()
+        if (!workbook) return null
+        const worksheet = workbook.getSheetBySheetId?.(sheet.id) ?? workbook.getActiveSheet?.() ?? null
+        return resolveWorksheetGridBounds(worksheet)
+      }
     })
 
     useUniverGridSnapshotColumnAndTimerEffects({

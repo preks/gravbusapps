@@ -65,6 +65,42 @@ export class SpreadsheetApiRequestError extends Error {
   }
 }
 
+const getSpreadsheetBatchErrorPayloadRecord = (details: unknown): Record<string, unknown> | undefined => {
+  if (!details || typeof details !== 'object') return undefined
+  const record = details as Record<string, unknown>
+  if (typeof record.code === 'string' || typeof record.retryable === 'boolean') {
+    return record
+  }
+  if (record.message && typeof record.message === 'object') {
+    return getSpreadsheetBatchErrorPayloadRecord(record.message)
+  }
+  return undefined
+}
+
+/** Structured batch error payload from operations/batch failures (Nest exception body). */
+export function getSpreadsheetBatchErrorPayload(details: unknown): Record<string, unknown> | undefined {
+  return getSpreadsheetBatchErrorPayloadRecord(details)
+}
+
+export function getSpreadsheetBatchErrorCode(details: unknown): string | undefined {
+  const payload = getSpreadsheetBatchErrorPayload(details)
+  const code = payload?.code
+  return typeof code === 'string' ? code : undefined
+}
+
+export function isSpreadsheetBatchErrorExplicitlyNonRetryable(details: unknown): boolean {
+  const payload = getSpreadsheetBatchErrorPayload(details)
+  return payload?.retryable === false
+}
+
+export function getSpreadsheetBatchRequestedGridRowIndex(details: unknown): number | undefined {
+  const payload = getSpreadsheetBatchErrorPayload(details)
+  const raw = payload?.requestedGridRowIndex
+  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw)
+  if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw)
+  return undefined
+}
+
 /** Server sheet version from operations/batch 409 (Nest ConflictException body). */
 export function getSpreadsheetBatchConflictServerVersion(details: unknown): number | undefined {
   if (!details || typeof details !== 'object') return undefined
@@ -262,6 +298,33 @@ export interface SpreadsheetBatchOperationResponse {
   }>
   idempotentReplay: boolean
   rowMappings?: SpreadsheetBatchRowMapping[]
+  committedBatch?: Record<string, unknown> | null
+  /**
+   * Tier 1 per-op resolution (per-(rowId, columnName) backend conflict
+   * resolution). One entry per submitted operation, in submission order.
+   *
+   * - `accepted` ops were applied at `newVersion`.
+   * - `rejected_conflict` ops were skipped because another writer changed the
+   *   same cell field between the client's `baseVersion` and the server's
+   *   current version. The client should paint each `serverState` entry
+   *   into the local session (last-writer-wins convergence).
+   *
+   * Older backends (pre-Tier-1) omit this field; clients should treat
+   * `undefined` as "everything accepted, no painting needed".
+   */
+  results?: Array<
+    | { operationId: string; status: 'accepted' }
+    | {
+        operationId: string
+        status: 'rejected_conflict'
+        serverState: Array<{
+          rowId: string
+          columnName: string
+          field: 'value'
+          value: unknown
+        }>
+      }
+  >
 }
 
 export interface SpreadsheetBatchRowCellInput {
@@ -941,6 +1004,7 @@ export const SpreadsheetApiService = {
       baseVersion: number
       operations: SpreadsheetBatchOperation[]
       batchId?: string
+      clientMutationId?: string
       traceSessionId?: string
       traceId?: string
       sessionId?: string

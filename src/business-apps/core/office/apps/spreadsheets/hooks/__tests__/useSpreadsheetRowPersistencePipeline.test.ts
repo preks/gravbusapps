@@ -3,8 +3,9 @@ import { act, renderHook } from '@testing-library/react'
 import { useSpreadsheetRowPersistencePipeline } from '../useSpreadsheetRowPersistencePipeline'
 
 describe('useSpreadsheetRowPersistencePipeline', () => {
-  it('submits add_rows and pending cell writes in one batch when client-row updates already exist', async () => {
-    const submitBatch = jest.fn(async () => ({
+  it('materializes rows first, then flushes pending cell writes with backend row ids', async () => {
+    const submitBatch = jest.fn()
+    const appendRows = jest.fn(async () => ({
       sheetId: 'sheet-1',
       newVersion: 8,
       appliedOperations: [],
@@ -25,8 +26,7 @@ describe('useSpreadsheetRowPersistencePipeline', () => {
       idempotentReplay: false,
       rowMappings: [{ clientRowId: 'client-row-1', rowUuid: 'backend-row-1' }]
     }))
-    const appendRows = jest.fn()
-    const setRange = jest.fn()
+    const setRange = jest.fn(async () => ({ sheetId: 'sheet-1', newVersion: 9 }))
 
     const pendingClientRowUpdatesRef = {
       current: new Map<string, Record<string, unknown>>([['client-row-1', { ColumnB: 'from-pending-update' }]])
@@ -63,29 +63,10 @@ describe('useSpreadsheetRowPersistencePipeline', () => {
       )
     })
 
-    expect(submitBatch).toHaveBeenCalledWith({
-      sheetId: 'sheet-1',
-      operations: [
-        expect.objectContaining({
-          type: 'add_rows',
-          data: { rows: [{ _clientRowId: 'client-row-1', ColumnA: 'from-row-payload' }] }
-        }),
-        expect.objectContaining({
-          type: 'set_range',
-          data: {
-            cells: [
-              {
-                rowRef: { kind: 'clientHandle', clientRowId: 'client-row-1' },
-                columnName: 'ColumnB',
-                value: 'from-pending-update'
-              }
-            ]
-          }
-        })
-      ],
-      batchIdPrefix: 'add_rows_with_values'
-    })
-    expect(appendRows).not.toHaveBeenCalled()
-    expect(setRange).not.toHaveBeenCalled()
+    expect(appendRows).toHaveBeenCalledWith('sheet-1', [{ _clientRowId: 'client-row-1', ColumnA: 'from-row-payload' }])
+    expect(submitBatch).not.toHaveBeenCalled()
+    expect(setRange).toHaveBeenCalledWith('sheet-1', [
+      { rowId: 'backend-row-1', columnName: 'ColumnB', value: 'from-pending-update' }
+    ])
   })
 })

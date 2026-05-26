@@ -1,4 +1,9 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
+
+import {
+  createMutationEmitTailCoordinator,
+  type MutationEmitTailCoordinator
+} from './univerMutationEmitTailCoordinator'
 import { createUniver } from '@univerjs/presets'
 import { createUniverConversionContext } from '../utils/univerAdapter'
 import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
@@ -48,6 +53,16 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const scheduleSnapshotCheckpointRef = useRef<((delayMs?: number) => void) | null>(null)
   const lastSyncedGridCellSignaturesRef = useRef<Map<string, string>>(new Map())
   const collabPersistedBulkApplyDepthRef = useRef(0)
+  /**
+   * Set by `registerUniverMountSheetValueAndEditListeners` so the bulk-apply hot path can drop
+   * any deferred reconcile entries that fall inside the region the manager just painted
+   * (those are echoes of the bulk write, not real local edits). When unset (listener not
+   * mounted yet) the call is a no-op.
+   */
+  const bulkApplyClearDeferredDirtyCellsRef = useRef<
+    | ((worksheetId: string | null, region: { minRow: number; maxRow: number; minCol: number; maxCol: number }) => void)
+    | null
+  >(null)
   const lastSyncedGridRowCountRef = useRef(0)
   const lastSyncedGridColumnCountRef = useRef(0)
   const lastProcessedAuthoritativeDataSyncTokenRef = useRef<number>(props.authoritativeDataSyncToken ?? 0)
@@ -68,7 +83,10 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const pendingFreezeClearEmitTimeoutBySheetRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const activeSelectionRef = useRef<ActiveSelectionPosition | null>(null)
   const copiedSelectionAnchorRef = useRef<(ActiveSelectionPosition & { copiedAt: number }) | null>(null)
+  const pendingCutCellRangeRef = useRef<import('../utils/spreadsheetCutPasteMove').PendingCutCellRange | null>(null)
+  const cutPasteCollabSuppressUntilMsRef = useRef(0)
   const pendingFormattingPasteIntentRef = useRef<FormattingPasteIntent | null>(null)
+  const pendingAutofillIntentRef = useRef<import('./univerAutofillIntent').SpreadsheetAutofillIntent | null>(null)
   const contextRef = useRef<ReturnType<typeof createUniverConversionContext> | null>(null)
   const propsRef = useRef({
     sheet: props.sheet,
@@ -80,11 +98,13 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     onStyleBatchOp: props.onStyleBatchOp,
     onMutationBatchOp: props.onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef: props.flushUnmaterializedRowsBeforePersistRef,
+    flushPendingCellChangesRef: props.flushPendingCellChangesRef,
     getPersistSheetRowsSnapshot: props.getPersistSheetRowsSnapshot,
     // 2a: prefer `isBackendRowUuid`; keep legacy alias for one release.
     isBackendRowUuid: props.isBackendRowUuid,
     isUuidForRowRemap: props.isUuidForRowRemap,
     rowSlotIdentityRegistryRef: props.rowSlotIdentityRegistryRef,
+    rowMaterializationReadinessRef: props.rowMaterializationReadinessRef,
     columnStructureStateRef: props.columnStructureStateRef,
     getSheetContext: props.getSheetContext,
     getCanonicalSheetId: props.getCanonicalSheetId,
@@ -109,10 +129,12 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     onStyleBatchOp: props.onStyleBatchOp,
     onMutationBatchOp: props.onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef: props.flushUnmaterializedRowsBeforePersistRef,
+    flushPendingCellChangesRef: props.flushPendingCellChangesRef,
     getPersistSheetRowsSnapshot: props.getPersistSheetRowsSnapshot,
     isBackendRowUuid: props.isBackendRowUuid,
     isUuidForRowRemap: props.isUuidForRowRemap,
     rowSlotIdentityRegistryRef: props.rowSlotIdentityRegistryRef,
+    rowMaterializationReadinessRef: props.rowMaterializationReadinessRef,
     columnStructureStateRef: props.columnStructureStateRef,
     getSheetContext: props.getSheetContext,
     getCanonicalSheetId: props.getCanonicalSheetId,
@@ -175,6 +197,11 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const readOnlyRef = useRef(props.isReadOnly)
   readOnlyRef.current = props.isReadOnly
 
+  const mutationEmitTailCoordinator = useMemo<MutationEmitTailCoordinator>(
+    () => createMutationEmitTailCoordinator(),
+    []
+  )
+
   const lastEmittedCursorPathRef = useRef<string>('')
   const pendingInitialCursorPathRef = useRef<string>('')
   const lastEmittedWorksheetIdRef = useRef<string>('')
@@ -209,6 +236,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     scheduleSnapshotCheckpointRef,
     lastSyncedGridCellSignaturesRef,
     collabPersistedBulkApplyDepthRef,
+    bulkApplyClearDeferredDirtyCellsRef,
     lastSyncedGridRowCountRef,
     lastSyncedGridColumnCountRef,
     lastProcessedAuthoritativeDataSyncTokenRef,
@@ -225,7 +253,10 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     pendingFreezeClearEmitTimeoutBySheetRef,
     activeSelectionRef,
     copiedSelectionAnchorRef,
+    pendingCutCellRangeRef,
+    cutPasteCollabSuppressUntilMsRef,
     pendingFormattingPasteIntentRef,
+    pendingAutofillIntentRef,
     contextRef,
     propsRef,
     lastUniverInitDepsRef,
@@ -242,7 +273,8 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     sheetScrollRef,
     refreshCursorRectsRef,
     refreshCommentRectsRef,
-    updateCellDimensionsRef
+    updateCellDimensionsRef,
+    mutationEmitTailCoordinator
   }
 }
 

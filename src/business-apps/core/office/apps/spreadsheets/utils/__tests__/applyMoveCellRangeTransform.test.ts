@@ -1,4 +1,5 @@
 import { applyMoveCellRangeTransform } from '../applyMoveCellRangeTransform'
+import { getViewerRowVisualIndex } from '../spreadsheetPeerRowHydration'
 
 const columnNames = ['col_a', 'col_b', 'col_c', 'col_d']
 
@@ -82,5 +83,32 @@ describe('applyMoveCellRangeTransform', () => {
       toRange: { startRow: 99, endRow: 99, startColumn: 0, endColumn: 0 }
     })
     expect((next[0] as Record<string, unknown>).col_a).toBeUndefined()
+  })
+
+  it('resolves source rows by _gridRowIndex instead of sparse array position', () => {
+    const rows = [
+      buildRow({ _id: 'r0', _gridRowIndex: 0, col_i: 'keep-i0' }),
+      buildRow({ _id: 'r6', _gridRowIndex: 6, col_i: 'keep-i6' }),
+      buildRow({ _id: 'r7', _gridRowIndex: 7, col_i: 7, col_h: '' }),
+      buildRow({ _id: 'r8', _gridRowIndex: 8, col_i: 8 })
+    ]
+    const columnNames = ['col_h', 'col_i', 'col_j', 'col_k']
+    const next = applyMoveCellRangeTransform({
+      rows,
+      columnNamesByGridIndex: columnNames,
+      fromRange: { startRow: 7, endRow: 8, startColumn: 1, endColumn: 1 },
+      toRange: { startRow: 7, endRow: 8, startColumn: 0, endColumn: 0 }
+    })
+
+    const rowByGridIndex = (gridRow: number) =>
+      next.find((row, index) => getViewerRowVisualIndex(row as Record<string, unknown>, index) === gridRow) as
+        | Record<string, unknown>
+        | undefined
+
+    expect(rowByGridIndex(6)?.col_i).toBe('keep-i6')
+    expect(rowByGridIndex(7)?.col_i).toBeUndefined()
+    expect(rowByGridIndex(7)?.col_h).toBe(7)
+    expect(rowByGridIndex(8)?.col_i).toBeUndefined()
+    expect(rowByGridIndex(8)?.col_h).toBe(8)
   })
 })

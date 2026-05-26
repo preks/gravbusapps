@@ -1,6 +1,8 @@
 import {
   appendPendingSnapshotClearCoordinates,
   buildAddRowPayloadsFromUniverRows,
+  buildCreatedRowsFromBatch,
+  buildPersistedRowIdMapFromInsertRowSlotsResult,
   collectSnapshotClearCoordinates,
   collectSnapshotValueWriteCoordinates,
   isUuidString,
@@ -18,6 +20,45 @@ describe('spreadsheetViewerRows', () => {
     })
     it('rejects non-uuid', () => {
       expect(isUuidString('not-a-uuid')).toBe(false)
+    })
+  })
+
+  describe('buildPersistedRowIdMapFromInsertRowSlotsResult', () => {
+    it('merges rowMappings, result rows, and fallback client ids', () => {
+      const map = buildPersistedRowIdMapFromInsertRowSlotsResult(
+        {
+          rows: [{ id: 'backend-1', data: { _clientRowId: 'client-1', _gridRowIndex: 2 } }],
+          rowMappings: [{ clientRowId: 'client-2', rowUuid: 'backend-2' }]
+        },
+        {
+          fallbackClientRowIdsInOrder: ['client-1', 'client-2', 'client-3'],
+          rowMappings: [{ clientRowId: 'client-3', rowUuid: 'backend-3' }]
+        }
+      )
+
+      expect(map.get('client-1')).toBe('backend-1')
+      expect(map.get('client-2')).toBe('backend-2')
+      expect(map.get('client-3')).toBe('backend-3')
+    })
+  })
+
+  describe('buildCreatedRowsFromBatch', () => {
+    it('connects client row ids to backend rows via batch rowMappings', () => {
+      const { createdRows, persistedIdByClientRowId } = buildCreatedRowsFromBatch(
+        [{ _clientRowId: 'client-row-7', _gridRowIndex: 7, ColumnA: 'draft' }],
+        [{ id: 'backend-row-7', data: { _gridRowIndex: 7, ColumnA: 'occupied' } }],
+        new Map(),
+        { rowMappings: [{ clientRowId: 'client-row-7', rowUuid: 'backend-row-7' }] }
+      )
+
+      expect(persistedIdByClientRowId.get('client-row-7')).toBe('backend-row-7')
+      expect(createdRows[0]).toEqual(
+        expect.objectContaining({
+          _clientRowId: 'client-row-7',
+          _rowUuid: 'backend-row-7',
+          _id: 'backend-row-7'
+        })
+      )
     })
   })
 
@@ -97,6 +138,33 @@ describe('spreadsheetViewerRows', () => {
           column_a: 2
         }
       ])
+    })
+
+    it('omits inline Univer style blobs from add_rows column payloads', () => {
+      const payloads = buildAddRowPayloadsFromUniverRows(
+        [
+          {
+            _clientRowId: 'client_row_9',
+            _gridRowIndex: 9,
+            column_a: { v: 1, s: 'style-1', ff: 'Arial', fs: 12 }
+          }
+        ],
+        [
+          {
+            id: 'col-a',
+            name: 'column_a',
+            label: 'A',
+            type: 'text',
+            isVisible: true,
+            isEditable: true,
+            isRequired: false,
+            isUnique: false,
+            order: 0
+          }
+        ]
+      )
+
+      expect(payloads[0]?.column_a).toEqual({ v: 1 })
     })
 
     it('omits _clientRowId when the row already has only backend identity', () => {

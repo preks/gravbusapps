@@ -93,7 +93,9 @@ export interface UniverSheetGridProps {
   onUniverSheetVisibilityChanged?: (payload: { sheetId: string; hidden: boolean }) => void
   columns: SpreadsheetColumn[]
   isReadOnly: boolean
-  onCellChange: (rowId: string, columnId: string, value: unknown, sheetId?: string) => void
+  /** @deprecated Use `onMutationBatchOp`; retained for tests and column-add helpers only. */
+  onCellChange?: (rowId: string, columnId: string, value: unknown, sheetId?: string) => void
+  /** @deprecated Use `onMutationBatchOp`. */
   onCellsChange?: (
     cells: Array<{ rowId: string; columnName: string; value: unknown; sheetId?: string; traceId?: string }>
   ) => void
@@ -155,6 +157,8 @@ export interface UniverSheetGridProps {
   flushUnmaterializedRowsBeforePersistRef?: MutableRefObject<
     ((sheetId: string, finalize?: () => Promise<void>) => Promise<void>) | null
   >
+  /** Flush queued HTTP cell batches; wired from SpreadsheetAppViewer for deferred local-edit recovery. */
+  flushPendingCellChangesRef?: MutableRefObject<(() => Promise<void>) | null>
   /** Session-backed row snapshot for remapping `client_*` ids after {@link flushUnmaterializedRowsBeforePersistRef}. */
   getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
   /**
@@ -168,6 +172,10 @@ export interface UniverSheetGridProps {
    */
   isUuidForRowRemap?: (value: string) => boolean
   rowSlotIdentityRegistryRef?: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
+  /** Resolved `client_*` → backend UUID after `insert_row_slots` (session snapshot may lag). */
+  rowMaterializationReadinessRef?: MutableRefObject<
+    import('../hooks/spreadsheetRowMaterializationReadiness').SpreadsheetRowMaterializationReadiness | null
+  >
   columnStructureStateRef?: MutableRefObject<{
     healthy: boolean
     pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
@@ -228,18 +236,27 @@ export interface UniverSheetGridRemoteApplyHandle {
    * Apply server `clear_all` locally: `set-range-values` with null entries while
    * remote-update suppression is active (drops values + style refs).
    */
-  applyRemoteClearAllRange?: (payload: {
-    sheetId: string
-    ranges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
-  }) => void
+  applyRemoteClearAllRange?: (
+    payload: {
+      sheetId: string
+      ranges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+    },
+    meta?: SpreadsheetBulkRemoteApplyMeta
+  ) => void
   /**
    * Apply server `clear_format` locally: clears formatting while preserving values/formulas.
    */
-  applyRemoteClearFormatRange?: (payload: {
-    sheetId: string
-    ranges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
-  }) => void
-  applyRemoteSpreadsheetFeatureOperation?: (payload: SpreadsheetRemoteFeatureOperationPayload) => void
+  applyRemoteClearFormatRange?: (
+    payload: {
+      sheetId: string
+      ranges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+    },
+    meta?: SpreadsheetBulkRemoteApplyMeta
+  ) => void
+  applyRemoteSpreadsheetFeatureOperation?: (
+    payload: SpreadsheetRemoteFeatureOperationPayload,
+    meta?: SpreadsheetBulkRemoteApplyMeta
+  ) => void
 }
 
 /** Viewer row signature sync and forced reapply after authoritative data changes. */
@@ -257,6 +274,25 @@ export interface UniverSheetGridAuthoritativeHandle {
    * mutations persist styles/values under the correct field names.
    */
   syncGridConversionContext?: (columns: SpreadsheetColumn[], data?: Record<string, unknown>[]) => void
+  applyRemoteColumnsReorder?: (params: {
+    previousColumns: SpreadsheetColumn[]
+    nextColumns: SpreadsheetColumn[]
+  }) => boolean
+  applyRemoteRowSlotsMove?: (params: {
+    sourceStartGridRowIndex: number
+    count: number
+    destinationGridRowIndex: number
+  }) => boolean
+  applyRemoteInsertRowSlots?: (params: { startGridRowIndex: number; count: number }) => boolean
+  applyRemoteDeleteRowSlots?: (params: { startGridRowIndex: number; count: number }) => boolean
+  applyRemoteInsertColumnSlots?: (params: { startGridColumnIndex: number; count: number }) => boolean
+  applyRemoteDeleteColumnSlots?: (params: { startGridColumnIndex: number; count: number }) => boolean
+  applyRemoteMoveCellRange?: (params: {
+    fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+    toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+  }) => boolean
+  /** True while a remote structural command is being applied — skip local row insert/move persistence. */
+  shouldIgnoreStructuralRowCommand?: () => boolean
 }
 
 /** Workbook snapshot IO and checkpoint scheduling for persistence. */
@@ -306,4 +342,5 @@ export interface UniverSheetGridHandle
 export type UniverSheetGridCollaborationBridgeHandle = UniverSheetGridRemoteApplyHandle &
   UniverSheetGridAuthoritativeHandle &
   UniverSheetGridDimensionsHandle &
+  Pick<UniverSheetGridSnapshotHandle, 'getWorkbookSnapshot'> &
   Pick<UniverSheetGridWorksheetAdminHandle, 'setWorksheetVisibility'>

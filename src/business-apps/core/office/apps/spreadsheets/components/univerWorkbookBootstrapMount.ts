@@ -10,9 +10,13 @@ import {
 import { sanitizeUniverWorkbookSnapshotForBootstrap } from '../utils/sanitizeUniverWorkbookSnapshot'
 import { debugUniverInit } from './univerGridDebug'
 import { buildAuthoritativeCellSignatureMap, getAuthoritativeGridRowExtent } from './univerGridAuthoritativeHelpers'
-import { registerUniverMountCommandExecuted } from './univerMountCommandExecuted'
-import { registerUniverMountSheetValueAndEditListeners } from './univerMountSheetValueAndEditListeners'
+import { peekSpreadsheetAutofillIntent } from './univerAutofillIntent'
+import {
+  registerUniverMountSheetValueAndEditListeners,
+  resolveEmitSerializationKey
+} from './univerMountSheetValueAndEditListeners'
 import { registerUniverMountBeforeCommandSheetStructure } from './univerMountBeforeCommandSheetStructure'
+import { registerUniverMountCommandExecuted } from './univerMountCommandExecuted'
 import { attachUniverMountSnapshotCheckpointHandlers } from './univerMountSnapshotCheckpoint'
 import { registerUniverMountCursorEmit } from './univerMountCursorEmit'
 import { registerUniverMountScrollSync } from './univerMountScrollSync'
@@ -59,6 +63,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     scheduleSnapshotCheckpointRef,
     lastSyncedGridCellSignaturesRef,
     collabPersistedBulkApplyDepthRef,
+    bulkApplyClearDeferredDirtyCellsRef,
     lastSyncedGridRowCountRef,
     lastSyncedGridColumnCountRef,
     lastProcessedAuthoritativeDataSyncTokenRef,
@@ -72,7 +77,10 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     pendingFreezeClearEmitTimeoutBySheetRef,
     activeSelectionRef,
     copiedSelectionAnchorRef,
+    pendingCutCellRangeRef,
+    cutPasteCollabSuppressUntilMsRef,
     pendingFormattingPasteIntentRef,
+    pendingAutofillIntentRef,
     contextRef,
     propsRef,
     lastUniverInitDepsRef,
@@ -88,7 +96,8 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     sheetScrollRef,
     refreshCursorRectsRef,
     refreshCommentRectsRef,
-    updateCellDimensionsRef
+    updateCellDimensionsRef,
+    mutationEmitTailCoordinator
   } = ctx
 
   if (!gridHostEl || !gridHostReady) return
@@ -381,6 +390,11 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     requestSnapshotCheckpointRef,
     scheduleSnapshotCheckpointRef
   })
+  const peekAutofillApplyType = (
+    sheetId: string
+  ): import('./univerAutofillIntent').SpreadsheetAutofillApplyType | null =>
+    peekSpreadsheetAutofillIntent(pendingAutofillIntentRef, sheetId)
+
   const handleDetectedCellMutation = createUniverMountHandleDetectedCellMutation({
     univerAPIRef,
     propsRef,
@@ -394,8 +408,10 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     newRowClientIdByIndexRef,
     recentLocalMutationSignaturesRef,
     pendingFormattingPasteIntentRef,
+    pendingAutofillIntentRef,
     getWorkbookSnapshotRef,
     peekPasteFormattingReplaceIntent,
+    peekAutofillApplyType,
     flushUnmaterializedRowsBeforePersist: async (targetSheetId: string, finalize?: () => Promise<void>) => {
       await propsRef.current.flushUnmaterializedRowsBeforePersistRef?.current?.(targetSheetId, finalize)
     },
@@ -405,28 +421,36 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
   const reconcileSingleCell = (
     row: number | undefined,
     col: number | undefined,
-    source: 'selection-reconcile' | 'sheet-edit-ended',
+    source: 'selection-reconcile' | 'deferred-reconcile',
     worksheetId?: string | null
   ): void => {
     if (typeof row !== 'number' || typeof col !== 'number') return
-    const result = handleDetectedCellMutation({
-      source,
-      payloadCellValue: undefined,
-      ranges: [
-        {
-          startRow: row,
-          endRow: row,
-          startColumn: col,
-          endColumn: col
-        }
-      ],
-      worksheetId: worksheetId ?? getActiveWorksheetIdFromUniver()
-    })
-    if (result && typeof (result as Promise<boolean>).then === 'function') {
-      void (result as Promise<boolean>).catch(() => {
-        /* best-effort reconcile */
+    void (async () => {
+      const resolvedWorksheetId = worksheetId ?? getActiveWorksheetIdFromUniver()
+      const tailKey = resolveEmitSerializationKey(
+        resolvedWorksheetId,
+        resolvedWorksheetId,
+        resolvedWorksheetId,
+        getActiveWorksheetIdFromUniver()
+      ).key
+      await mutationEmitTailCoordinator.awaitTail(tailKey)
+      const result = handleDetectedCellMutation({
+        source,
+        payloadCellValue: undefined,
+        ranges: [
+          {
+            startRow: row,
+            endRow: row,
+            startColumn: col,
+            endColumn: col
+          }
+        ],
+        worksheetId: resolvedWorksheetId
       })
-    }
+      if (result && typeof (result as Promise<boolean>).then === 'function') {
+        await (result as Promise<boolean>).catch(() => undefined)
+      }
+    })().catch(() => undefined)
   }
   const { scrollEventDisposable, worksheetScrollDisposable, scrollPollIntervalId, activeWorksheetPollIntervalId } =
     registerUniverMountScrollSync({
@@ -560,6 +584,9 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     lastClearAllEmitAtBySignatureRef,
     lastClearFormatEmitAtBySignatureRef,
     lastCellValueMutationAtRef,
+    pendingCutCellRangeRef,
+    cutPasteCollabSuppressUntilMsRef,
+    pendingAutofillIntentRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
     getActiveWorksheetIdFromUniver,
@@ -572,21 +599,29 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     toCellDimensionsPayload,
     markDirtyAndScheduleSnapshot
   })
-  const { valueChangeDisposable, sheetEditEndedDisposable } = registerUniverMountSheetValueAndEditListeners({
-    univerAPI,
-    readOnlyRef,
-    isApplyingRemoteUpdateRef,
-    collabPersistedBulkApplyDepthRef,
-    univerAPIRef,
-    callbacksRef,
-    handleDetectedCellMutation,
-    reconcileSingleCell
-  })
+  const { valueChangeDisposable, sheetEditEndedDisposable, clearDeferredDirtyCellsInRegion } =
+    registerUniverMountSheetValueAndEditListeners({
+      univerAPI,
+      readOnlyRef,
+      isApplyingRemoteUpdateRef,
+      collabPersistedBulkApplyDepthRef,
+      remoteEchoSuppressionRef,
+      univerAPIRef,
+      callbacksRef,
+      propsRef,
+      handleDetectedCellMutation,
+      mutationEmitTailCoordinator,
+      reconcileDeferredSingleCell: (row, col, worksheetId) => {
+        reconcileSingleCell(row, col, 'deferred-reconcile', worksheetId)
+      }
+    })
+  bulkApplyClearDeferredDirtyCellsRef.current = clearDeferredDirtyCellsInRegion
   const {
     selectionDisposable,
     selectionChangeDisposable,
     currentSelectionChangeDisposable,
     captureCopyFromDomEvent,
+    captureCutFromDomEvent,
     capturePasteFromDomEvent,
     cursorPollIntervalId,
     clearPendingCursorTimeouts
@@ -597,9 +632,11 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     callbacksRef,
     activeSelectionRef,
     lastEmittedCursorPathRef,
+    pendingCutCellRangeRef,
     reconcileSingleCell,
     captureCopiedSelectionAnchor,
-    markFormattingPasteIntent
+    markFormattingPasteIntent,
+    getActiveWorksheetIdFromUniver
   })
 
   const dispose = () => {
@@ -637,6 +674,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
       currentSelectionChangeDisposable?.dispose()
     } catch {}
     document.removeEventListener('copy', captureCopyFromDomEvent, true)
+    document.removeEventListener('cut', captureCutFromDomEvent, true)
     document.removeEventListener('paste', capturePasteFromDomEvent, true)
     clearPendingCursorTimeouts()
     try {

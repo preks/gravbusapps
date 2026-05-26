@@ -54,11 +54,12 @@ export function handleSpreadsheetRemoteColumnUpdate(
   }
   const nextColumns = applyRemoteColumnUpdate(targetSheet.columns, d)
   if (!nextColumns || (!deps.onLocalAppUpdate && !deps.onAppUpdate)) return
+  if (targetSheetId === deps.activeSheetId) {
+    deps.spreadsheetGridRef.current?.syncGridConversionContext?.(nextColumns)
+  }
   deps.applyLocalAppUpdate(currentApp => ({
     ...currentApp,
-    sheets: deps.appSheetsRef.current.map(sheet =>
-      sheet.id === targetSheetId ? { ...sheet, columns: nextColumns } : sheet
-    )
+    sheets: currentApp.sheets.map(sheet => (sheet.id === targetSheetId ? { ...sheet, columns: nextColumns } : sheet))
   }))
   if (targetSheetId === deps.activeSheetId && nextWidth != null) {
     let visibleIndex = 0

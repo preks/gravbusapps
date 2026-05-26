@@ -1792,7 +1792,11 @@ describe('UniverSheetGrid read-only behavior', () => {
     const payload = onMutationBatchOp.mock.calls[0]?.[0] as {
       operations: Array<{ type: string; data: Record<string, unknown> }>
     }
-    expect(payload.operations.some(operation => operation.type === 'clear_cell')).toBe(true)
+    const setRange = payload.operations.find(operation => operation.type === 'set_range')
+    expect(setRange).toBeDefined()
+    expect((setRange?.data as { cells?: Array<{ value?: unknown }> }).cells?.some(cell => cell.value === null)).toBe(
+      true
+    )
     expect(payload.operations.some(operation => operation.type === 'set_style')).toBe(true)
     expect(onCellsChange).not.toHaveBeenCalled()
     expect(onStyleBatchOp).not.toHaveBeenCalled()

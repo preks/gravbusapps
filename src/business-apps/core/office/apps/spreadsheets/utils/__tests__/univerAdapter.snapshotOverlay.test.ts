@@ -296,6 +296,35 @@ describe('univerAdapter snapshot row overlay', () => {
     expect(ghostWs?.cellData?.[0]?.[0]?.v).toBe('wrong-tab')
   })
 
+  it('mergeAuthoritativeViewerRowsIntoWorkbookSnapshot drops stale calculated v when authoritative cell is formula-only', () => {
+    const viewerRows: Record<string, unknown>[] = Array.from({ length: 5 }, () => ({}))
+    viewerRows[3] = { alpha: { f: '=SUM(A10:A26)' } }
+
+    const snapshot: Record<string, unknown> = {
+      id: 'wb',
+      name: 'W',
+      sheetOrder: [sheetId],
+      sheets: {
+        [sheetId]: {
+          id: sheetId,
+          name: 'S',
+          cellData: {
+            3: {
+              0: { f: '=SUM(A10:A26)', v: 24 }
+            }
+          }
+        }
+      }
+    }
+
+    const merged = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(snapshot, sheetId, viewerRows, columns)
+    const cell = (
+      merged.sheets as Record<string, { cellData?: Record<number, Record<number, { f?: string; v?: unknown }>> }>
+    )[sheetId]?.cellData?.[3]?.[0]
+    expect(cell?.f).toBe('=SUM(A10:A26)')
+    expect(cell?.v).toBeUndefined()
+  })
+
   it('mergeAuthoritativeViewerRowsIntoWorkbookSnapshot overwrites stale cells from rows', () => {
     const viewerRows: Record<string, unknown>[] = Array.from({ length: 15 }, () => ({}))
     viewerRows[12] = { alpha: 'a', beta: 'synced' }

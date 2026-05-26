@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type MutableRefObject } from 'react'
+import { useCallback, useRef, type MutableRefObject } from 'react'
 
 import type { SpreadsheetSheet } from '../types'
 import type { SpreadsheetCollaborationManager } from '../services/SpreadsheetCollaborationManager'
@@ -6,7 +6,9 @@ import type { SpreadsheetMutationFacade } from '../core'
 import {
   replayRemoteDeltaThroughCollaborationManager,
   applyRemoteFetchedSheetDelta,
+  SpreadsheetSnapshotFallbackController,
   sheetDeltaRequiresFullSnapshot,
+  type SpreadsheetSnapshotFallbackReason,
   type SpreadsheetSession
 } from '../core'
 import type { SpreadsheetTraceEventInput, SpreadsheetTraceSession } from '../services/spreadsheetDiagnostics'
@@ -16,6 +18,7 @@ import {
   tryComputeAuthoritativeRegionFromReplayDeltas,
   type AuthoritativeGridRegion
 } from '../utils/spreadsheetAuthoritativeRegion'
+import { countReplayDeltaChangeKinds, partitionReplayDeltaChanges } from '../utils/spreadsheetReplayDeltaPartition'
 
 export interface UseSpreadsheetRemoteDeltaCatchUpParams {
   entityEnabled: boolean
@@ -56,10 +59,19 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
   ) => Promise<boolean>
 } {
   const catchUpInFlightBySheetRef = useRef(new Map<string, Promise<boolean>>())
-  const deferredSheetDeltaCatchUpsRef = useRef<
-    Map<string, { reason: SheetDeltaCatchUpReason; options?: SheetDeltaCatchUpOptions }>
-  >(new Map())
-  const deferredSheetDeltaCatchUpTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const fallbackReloadsByKeyRef = useRef(new Map<string, Promise<boolean>>())
+  const snapshotFallbackControllerRef = useRef<SpreadsheetSnapshotFallbackController | null>(null)
+
+  if (!snapshotFallbackControllerRef.current) {
+    snapshotFallbackControllerRef.current = new SpreadsheetSnapshotFallbackController(request => {
+      const key = `${request.sheetId ?? 'active'}:${request.reason}:${request.immediate === true}`
+      const task = params.reloadSheetFromCanonicalSnapshot(`delta-catchup-${request.reason}`, request.sheetId)
+      fallbackReloadsByKeyRef.current.set(key, task)
+      void task.finally(() => {
+        fallbackReloadsByKeyRef.current.delete(key)
+      })
+    })
+  }
 
   const requireMutationFacade = (): SpreadsheetMutationFacade => {
     const facade = params.mutationFacadeRef.current
@@ -67,6 +79,57 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
       throw new Error('Spreadsheet mutation facade is not initialized yet')
     }
     return facade
+  }
+
+  const resolveCatchUpFallbackReason = (
+    sinceVersion: number,
+    delta: { currentVersion: number; changes?: unknown[]; requiresSnapshot?: boolean }
+  ): SpreadsheetSnapshotFallbackReason => {
+    if (delta.requiresSnapshot) return 'requires_snapshot'
+    if (delta.currentVersion > sinceVersion && (!delta.changes || delta.changes.length === 0)) return 'missing_version'
+    const applied = (delta.changes ?? [])
+      .map(change => Number((change as Record<string, unknown>).appliedVersion))
+      .filter(value => Number.isFinite(value) && value > 0)
+    if (applied.length === 0) return 'missing_version'
+    return Math.min(...applied) > sinceVersion + 1 ? 'version_gap' : 'planning_failure'
+  }
+
+  const requestCatchUpSnapshotFallback = async (paramsForFallback: {
+    targetSheetId: string
+    reason: SheetDeltaCatchUpReason
+    fallbackReason: SpreadsheetSnapshotFallbackReason
+    sinceVersion: number
+    currentVersion: number
+    changeCount: number
+    requiresSnapshot: boolean
+  }): Promise<boolean> => {
+    const scheduled = snapshotFallbackControllerRef.current?.requestFallback({
+      sheetId: paramsForFallback.targetSheetId,
+      reason: paramsForFallback.fallbackReason,
+      immediate: paramsForFallback.targetSheetId === params.activeSheetIdRef.current,
+      detail: paramsForFallback.reason
+    })
+    params.enqueueDiagnosticsTraceEvent({
+      source: 'client',
+      stage: scheduled ? 'client_snapshot_fallback_scheduled' : 'client_snapshot_fallback_deduplicated',
+      severity: scheduled ? 'warning' : 'info',
+      traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+      version: paramsForFallback.currentVersion,
+      payload: {
+        source: 'delta_catchup',
+        reason: paramsForFallback.fallbackReason,
+        catchUpReason: paramsForFallback.reason,
+        targetSheetId: paramsForFallback.targetSheetId,
+        sinceVersion: paramsForFallback.sinceVersion,
+        changeCount: paramsForFallback.changeCount,
+        requiresSnapshot: paramsForFallback.requiresSnapshot
+      }
+    })
+    const key = `${paramsForFallback.targetSheetId}:${paramsForFallback.fallbackReason}:${
+      paramsForFallback.targetSheetId === params.activeSheetIdRef.current
+    }`
+    const task = fallbackReloadsByKeyRef.current.get(key)
+    return task ? task : Boolean(scheduled)
   }
 
   const requestSheetDeltaCatchUp = useCallback(
@@ -84,34 +147,14 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
       ) {
         return false
       }
-      if (params.hasPendingCellPersistence()) {
-        deferredSheetDeltaCatchUpsRef.current.set(targetSheetId, { reason, options })
-        const existingTimer = deferredSheetDeltaCatchUpTimersRef.current.get(targetSheetId)
-        if (existingTimer) {
-          clearTimeout(existingTimer)
-        }
-        const timer = globalThis.setTimeout(() => {
-          deferredSheetDeltaCatchUpTimersRef.current.delete(targetSheetId)
-          const deferred = deferredSheetDeltaCatchUpsRef.current.get(targetSheetId)
-          if (!deferred) return
-          if (params.hasPendingCellPersistence()) {
-            void requestSheetDeltaCatchUp(targetSheetId, deferred.reason, deferred.options)
-            return
-          }
-          deferredSheetDeltaCatchUpsRef.current.delete(targetSheetId)
-          void requestSheetDeltaCatchUp(targetSheetId, deferred.reason, deferred.options)
-        }, 250)
-        deferredSheetDeltaCatchUpTimersRef.current.set(targetSheetId, timer)
-        params.enqueueDiagnosticsTraceEvent({
-          source: 'client',
-          stage: 'client_delta_catchup_skipped',
-          severity: 'warning',
-          traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
-          version: options?.incomingVersion ?? null,
-          payload: { reason, targetSheetId, skippedBecause: 'pending_cell_persistence' }
-        })
-        return false
-      }
+      // Note: prior versions of this hook deferred catch-up whenever
+      // `hasPendingCellPersistence()` was true to avoid clobbering local
+      // typing. That deferral is no longer needed — the sheet work queue
+      // tracks per-cell ownership and the collab callbacks
+      // (`applyRemoteCellUpdate` / `applyRemoteCellUpdatesBulk`) skip the
+      // visible grid paint for any cell with an unresolved local intent.
+      // Catch-up therefore runs immediately; the backend response (Tier 1
+      // `results[]`) is the source of truth for resolving each pending edit.
 
       const existing = catchUpInFlightBySheetRef.current.get(targetSheetId)
       if (existing) return existing
@@ -144,6 +187,7 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
           }
 
           if (sheetDeltaRequiresFullSnapshot(sinceVersion, delta)) {
+            const fallbackReason = resolveCatchUpFallbackReason(sinceVersion, delta)
             params.enqueueDiagnosticsTraceEvent({
               source: 'client',
               stage: 'client_delta_catchup_requires_snapshot',
@@ -152,20 +196,37 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
               version: currentVersion,
               payload: {
                 reason,
+                fallbackReason,
                 targetSheetId,
                 sinceVersion,
                 changeCount: delta.changes?.length ?? 0,
                 requiresSnapshot: Boolean(delta.requiresSnapshot)
               }
             })
-            return params.reloadSheetFromCanonicalSnapshot(`delta-catchup-${reason}`, targetSheetId)
+            return requestCatchUpSnapshotFallback({
+              targetSheetId,
+              reason,
+              fallbackReason,
+              sinceVersion,
+              currentVersion,
+              changeCount: delta.changes?.length ?? 0,
+              requiresSnapshot: Boolean(delta.requiresSnapshot)
+            })
           }
 
           const targetSheet = params.appSheetsRef.current.find(sheet => sheet.id === targetSheetId)
           const baseRows = params.getKnownRowsForSheet(targetSheetId)
+          // Only structural ops (rows, columns, styles, moves, merges, etc.) need to be replayed
+          // through the collaboration manager onto the live Univer grid. Pure cell-value ops
+          // (`set_cell` / `set_range` / `clear_cell` / `cells_changed`) are intentionally
+          // excluded: the session row state below + the authoritative-region Univer re-sync
+          // triggered by `syncSheetRowsIntoLocalState({ syncGrid: true, authoritativeGridRegion })`
+          // paint those values once. Replaying them here would trigger thousands of per-cell
+          // Univer `setValue` commands that dominate CPU during catch-up.
+          const { structuralChanges } = partitionReplayDeltaChanges(delta.changes)
           const replayThroughManager = replayRemoteDeltaThroughCollaborationManager({
             collaborationManager: params.collaborationManagerRef.current,
-            changes: delta.changes,
+            changes: structuralChanges,
             currentVersion,
             sheetId: targetSheetId,
             traceSessionId: params.activeTraceSessionRef.current?.id
@@ -181,17 +242,61 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
           })
           params.rememberKnownSheetVersion(targetSheetId, currentVersion)
           const isActiveTarget = targetSheetId === params.activeSheetIdRef.current
+          // Region is resolved against the **post-replay** row set so add_rows / insert_rows_at
+          // contribute correct visual indices for their newly inserted rows.
           const authoritativeGridRegion =
             isActiveTarget && targetSheet
               ? tryComputeAuthoritativeRegionFromReplayDeltas({
                   changes: delta.changes,
                   columns: targetSheet.columns,
-                  rows: baseRows
+                  rows: nextRows
                 })
               : undefined
+          const changeKinds = countReplayDeltaChangeKinds(delta.changes)
+          const hasAddRowsStructural = structuralChanges.some(change => {
+            const opType = typeof change.operationType === 'string' ? change.operationType : ''
+            return opType === 'add_rows' || opType === 'insert_rows_at'
+          })
+          // Phase 3: when the structural replay already painted add_rows onto the active grid
+          // (Phase 1's `add_rows_replay` bulk), the full authoritative token bump from
+          // `syncSheetRowsIntoLocalState` becomes a redundant third pass. Skip the grid sync in
+          // pure-structural add_rows deltas; for mixed deltas keep the sync but rely on the
+          // merged `authoritativeGridRegion` (now including add_rows rows) instead of a full diff.
+          const replayPaintedAddRows = replayThroughManager && isActiveTarget && hasAddRowsStructural
+          const skipSyncGrid = replayPaintedAddRows && changeKinds.cellChangeCount === 0
+          const syncGrid = isActiveTarget && !skipSyncGrid
+          const skipSyncGridReason = !isActiveTarget
+            ? 'inactive_target'
+            : skipSyncGrid
+              ? 'structural_replay_painted'
+              : authoritativeGridRegion
+                ? 'region_sync'
+                : 'full_token'
+          const authoritativeRegionCellEstimate = authoritativeGridRegion
+            ? (authoritativeGridRegion.maxRow - authoritativeGridRegion.minRow + 1) *
+              (authoritativeGridRegion.maxCol - authoritativeGridRegion.minCol + 1)
+            : 0
+          params.enqueueDiagnosticsTraceEvent({
+            source: 'client',
+            stage: 'client_catchup_paint_strategy',
+            traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+            version: currentVersion,
+            payload: {
+              reason,
+              targetSheetId,
+              replayRan: replayThroughManager,
+              syncGrid,
+              skipSyncGridReason,
+              changeCount: changeKinds.changeCount,
+              cellChangeCount: changeKinds.cellChangeCount,
+              structuralChangeCount: changeKinds.structuralChangeCount,
+              hasAddRowsStructural,
+              authoritativeRegionCellEstimate
+            }
+          })
           params.syncSheetRowsIntoLocalState(targetSheetId, nextRows, {
             persisted: true,
-            syncGrid: isActiveTarget,
+            syncGrid,
             version: currentVersion,
             ...(authoritativeGridRegion ? { authoritativeGridRegion } : {})
           })
@@ -243,7 +348,6 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
       params.entityEnabled,
       params.enqueueDiagnosticsTraceEvent,
       params.getKnownRowsForSheet,
-      params.hasPendingCellPersistence,
       params.resolveKnownSheetVersion,
       params.rememberKnownSheetVersion,
       params.spreadsheetSession,
@@ -252,16 +356,6 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
       params.scheduleSheetVersionRefreshFromApi
     ]
   )
-
-  useEffect(() => {
-    return () => {
-      for (const timeoutId of deferredSheetDeltaCatchUpTimersRef.current.values()) {
-        clearTimeout(timeoutId)
-      }
-      deferredSheetDeltaCatchUpTimersRef.current.clear()
-      deferredSheetDeltaCatchUpsRef.current.clear()
-    }
-  }, [])
 
   return { requestSheetDeltaCatchUp }
 }
