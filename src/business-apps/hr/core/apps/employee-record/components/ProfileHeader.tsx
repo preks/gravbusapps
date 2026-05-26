@@ -279,6 +279,14 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
     ]
   }, [employee, employeeEmail, employeePhone, t, notAssigned, na])
 
+  const matrixTeams = useMemo(
+    () =>
+      (employee.employeePosition?.matrixUnitEmployees ?? []).filter(
+        (teamItem): teamItem is MatrixUnitEmployee => !!(teamItem?.matrixUnit?.id && teamItem?.matrixUnit?.name)
+      ),
+    [employee.employeePosition?.matrixUnitEmployees]
+  )
+
   return (
     <div className="gba:w-full gba:relative">
       {/* Detail Groups using HeaderSlot */}
@@ -287,15 +295,15 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
       {/* Teams, Capabilities and Skills */}
       <div className="gba:w-full gba:mt-4 gba:flex gba:flex-col gba:gap-3" data-testid="skills-capabilities-container">
         {/* Teams Section - if available */}
-        {employee.employeePosition?.matrixUnitEmployees && employee.employeePosition.matrixUnitEmployees.length > 0 && (
+        {matrixTeams.length > 0 && (
           <div>
             <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-1">
               {t('profile-header-teams')}
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-2">
-              {employee.employeePosition.matrixUnitEmployees.map((teamItem: MatrixUnitEmployee, index: number) => (
+              {matrixTeams.map(teamItem => (
                 <TagItem
-                  key={teamItem.matrixUnit?.id || `team-${index}`}
+                  key={teamItem.matrixUnit.id}
                   icon={<UsersThreeIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                   label={teamItem.matrixUnit.name}
                   bgColorClass="gba:bg-info-secondary"
