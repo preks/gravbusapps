@@ -18,24 +18,16 @@ import { ORCHESTRATOR_NODE_ID } from '../../utils/traceModel'
 import { NODE_SIZE } from './meshLayout'
 import { computeMesh3DLayout, type Vec3 } from './mesh3DLayout'
 
-/** Tunables — see plan. Values picked for a soft, gooey settle. */
-const STIFFNESS = 4.5 // Softer springs for more organic feel
-const DAMPING_PER_SECOND = 0.88 ** 60 // Higher damping for less jitter
-const CENTER_PULL = 0.25 // Less rigid center pull to allow wider spread
+/** Tunables — see plan. Values picked for a snappy "chewing gum" feel:
+ *  enough stiffness that the released node returns to rest in well under a
+ *  second, but still soft enough that neighbours lag visibly during a drag. */
+const STIFFNESS = 14 // Stronger springs → faster post-release snap-back.
+const DAMPING_PER_SECOND = 0.84 ** 60 // Slightly heavier damping so the higher stiffness doesn't overshoot.
+const CENTER_PULL = 0.4 // A touch more centre pull so untethered nodes settle quicker too.
 const REPULSION = 2000 // Stronger repulsion for larger layout
 const MAX_DT = 1 / 30
 const NEIGHBOUR_RADIUS_FALLBACK = 90 // Larger cells for larger nodes
-const VELOCITY_CLAMP = 800
-
-function compareIdsByLocale(a: string, b: string): number {
-  return a.localeCompare(b)
-}
-
-function nodeMassForKind(kind: MeshNode['kind']): number {
-  if (kind === 'orchestrator') return 1e6
-  if (kind === 'subagent' || kind === 'expert') return 2.5
-  return 1
-}
+const VELOCITY_CLAMP = 1600 // Allow faster transient velocities so the snap-back doesn't get clipped.
 
 /** Internal per-node state. */
 interface NodeState {
@@ -77,9 +69,9 @@ class MeshPhysicsSim {
   springs: EdgeSpring[] = []
   cellSize = NEIGHBOUR_RADIUS_FALLBACK * 2
   subscribers = new Set<() => void>()
-  private readonly initialPositions = new Map<string, Vec3>()
-  private readonly lastDragPosByNode = new Map<string, Vec3>()
-  private readonly throttleHz: number
+  private initialPositions = new Map<string, Vec3>()
+  private lastDragPosByNode = new Map<string, Vec3>()
+  private throttleHz: number
   private accum = 0
 
   constructor(visibleNodes: MeshNode[], visibleEdges: MeshEdge[]) {
@@ -95,7 +87,7 @@ class MeshPhysicsSim {
         id: node.id,
         pos: { x: p.x, y: p.y, z: p.z },
         vel: { x: 0, y: 0, z: 0 },
-        mass: nodeMassForKind(node.kind),
+        mass: node.kind === 'orchestrator' ? 1e6 : node.kind === 'subagent' || node.kind === 'expert' ? 2.5 : 1,
         radius,
         isPinned,
         isDragged: false
@@ -119,14 +111,21 @@ class MeshPhysicsSim {
     }
   }
 
-  private applySpringForces(dt: number): void {
+  step(dtRaw: number) {
+    const targetDt = 1 / this.throttleHz
+    this.accum += dtRaw
+    if (this.accum < targetDt) return
+    const dt = Math.min(this.accum, MAX_DT)
+    this.accum = 0
+
+    // 1. Spring forces along edges.
     for (const spring of this.springs) {
       const a = this.nodes[spring.a]
       const b = this.nodes[spring.b]
       const dx = b.pos.x - a.pos.x
       const dy = b.pos.y - a.pos.y
       const dz = b.pos.z - a.pos.z
-      const len = Math.hypot(dx, dy, dz) || 0.0001
+      const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 0.0001
       const stretch = len - spring.restLength
       const f = (STIFFNESS * stretch) / len
       const fx = f * dx
@@ -143,9 +142,8 @@ class MeshPhysicsSim {
         b.vel.z -= (fz / b.mass) * dt
       }
     }
-  }
 
-  private buildSpatialGrid(): Map<string, number[]> {
+    // 2. Local repulsion via spatial hash so close nodes don't overlap.
     const grid = new Map<string, number[]>()
     const cs = this.cellSize
     for (let i = 0; i < this.nodes.length; i++) {
@@ -158,63 +156,51 @@ class MeshPhysicsSim {
       list.push(i)
       grid.set(key, list)
     }
-    return grid
-  }
-
-  private applyRepulsionForNode(n: NodeState, i: number, grid: Map<string, number[]>, dt: number): void {
-    if (n.isPinned && !n.isDragged) return
-    const cs = this.cellSize
-    const cx = Math.floor(n.pos.x / cs)
-    const cy = Math.floor(n.pos.y / cs)
-    const cz = Math.floor(n.pos.z / cs)
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dz = -1; dz <= 1; dz++) {
-          const key = `${cx + dx}|${cy + dy}|${cz + dz}`
-          const bucket = grid.get(key)
-          if (!bucket) continue
-          this.applyRepulsionBetween(n, i, bucket, dt)
+    for (let i = 0; i < this.nodes.length; i++) {
+      const n = this.nodes[i]
+      if (n.isPinned && !n.isDragged) continue
+      const cx = Math.floor(n.pos.x / cs)
+      const cy = Math.floor(n.pos.y / cs)
+      const cz = Math.floor(n.pos.z / cs)
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            const key = `${cx + dx}|${cy + dy}|${cz + dz}`
+            const bucket = grid.get(key)
+            if (!bucket) continue
+            for (const j of bucket) {
+              if (j <= i) continue
+              const m = this.nodes[j]
+              const ddx = m.pos.x - n.pos.x
+              const ddy = m.pos.y - n.pos.y
+              const ddz = m.pos.z - n.pos.z
+              const d2 = ddx * ddx + ddy * ddy + ddz * ddz + 0.01
+              const minDist = n.radius + m.radius + 8
+              const minDist2 = minDist * minDist
+              if (d2 > minDist2 * 9) continue
+              const d = Math.sqrt(d2)
+              const fr = REPULSION / d2
+              const ux = ddx / d
+              const uy = ddy / d
+              const uz = ddz / d
+              if (!n.isPinned && !n.isDragged) {
+                n.vel.x -= ux * fr * dt
+                n.vel.y -= uy * fr * dt
+                n.vel.z -= uz * fr * dt
+              }
+              if (!m.isPinned && !m.isDragged) {
+                m.vel.x += ux * fr * dt
+                m.vel.y += uy * fr * dt
+                m.vel.z += uz * fr * dt
+              }
+            }
+          }
         }
       }
     }
-  }
 
-  private applyRepulsionFromGrid(grid: Map<string, number[]>, dt: number): void {
-    for (let i = 0; i < this.nodes.length; i++) {
-      this.applyRepulsionForNode(this.nodes[i], i, grid, dt)
-    }
-  }
-
-  private applyRepulsionBetween(n: NodeState, i: number, bucket: number[], dt: number): void {
-    for (const j of bucket) {
-      if (j <= i) continue
-      const m = this.nodes[j]
-      const ddx = m.pos.x - n.pos.x
-      const ddy = m.pos.y - n.pos.y
-      const ddz = m.pos.z - n.pos.z
-      const d2 = ddx * ddx + ddy * ddy + ddz * ddz + 0.01
-      const minDist = n.radius + m.radius + 8
-      const minDist2 = minDist * minDist
-      if (d2 > minDist2 * 9) continue
-      const d = Math.sqrt(d2)
-      const fr = REPULSION / d2
-      const ux = ddx / d
-      const uy = ddy / d
-      const uz = ddz / d
-      if (!n.isPinned && !n.isDragged) {
-        n.vel.x -= ux * fr * dt
-        n.vel.y -= uy * fr * dt
-        n.vel.z -= uz * fr * dt
-      }
-      if (!m.isPinned && !m.isDragged) {
-        m.vel.x += ux * fr * dt
-        m.vel.y += uy * fr * dt
-        m.vel.z += uz * fr * dt
-      }
-    }
-  }
-
-  private integrateAndDamp(dt: number, dampScale: number): void {
+    // 3. Centre pull + damping + integration.
+    const dampScale = Math.pow(DAMPING_PER_SECOND, dt)
     for (const n of this.nodes) {
       if (n.isPinned) continue
       if (!n.isDragged) {
@@ -224,7 +210,8 @@ class MeshPhysicsSim {
         n.vel.x *= dampScale
         n.vel.y *= dampScale
         n.vel.z *= dampScale
-        const vmag = Math.hypot(n.vel.x, n.vel.y, n.vel.z)
+        // Clamp absurd velocities — protects against rare numerical blowups.
+        const vmag = Math.sqrt(n.vel.x * n.vel.x + n.vel.y * n.vel.y + n.vel.z * n.vel.z)
         if (vmag > VELOCITY_CLAMP) {
           const s = VELOCITY_CLAMP / vmag
           n.vel.x *= s
@@ -236,19 +223,6 @@ class MeshPhysicsSim {
         n.pos.z += n.vel.z * dt
       }
     }
-  }
-
-  step(dtRaw: number) {
-    const targetDt = 1 / this.throttleHz
-    this.accum += dtRaw
-    if (this.accum < targetDt) return
-    const dt = Math.min(this.accum, MAX_DT)
-    this.accum = 0
-
-    this.applySpringForces(dt)
-    const grid = this.buildSpatialGrid()
-    this.applyRepulsionFromGrid(grid, dt)
-    this.integrateAndDamp(dt, Math.pow(DAMPING_PER_SECOND, dt))
 
     for (const cb of this.subscribers) cb()
   }
@@ -334,12 +308,12 @@ export function useMeshPhysics(visibleNodes: MeshNode[], visibleEdges: MeshEdge[
   const fingerprint = useMemo(() => {
     const n = visibleNodes
       .map(node => node.id)
-      .sort(compareIdsByLocale)
+      .sort()
       .join('|')
     const e = visibleEdges
       .filter(edge => edge.kind !== 'completion')
       .map(edge => edge.id)
-      .sort(compareIdsByLocale)
+      .sort()
       .join('|')
     return `${n}::${e}`
   }, [visibleNodes, visibleEdges])

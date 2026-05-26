@@ -19,7 +19,7 @@ export interface Vec3 {
 function hash01(id: string): number {
   let h = 2166136261
   for (let i = 0; i < id.length; i++) {
-    h ^= id.codePointAt(i) ?? 0
+    h ^= id.charCodeAt(i)
     h = Math.imul(h, 16777619)
   }
   return ((h >>> 0) % 10000) / 10000
@@ -34,7 +34,7 @@ function scale(v: Vec3, s: number): Vec3 {
 }
 
 function normalize(v: Vec3): Vec3 {
-  const len = Math.hypot(v.x, v.y, v.z) || 1
+  const len = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) || 1
   return { x: v.x / len, y: v.y / len, z: v.z / len }
 }
 
@@ -59,7 +59,7 @@ function fibonacciSpherePoint(index: number, count: number, radius: number, id: 
   const theta = index * goldenAngle + noise
 
   // Add slight radius variation for a less perfect sphere
-  const r = radius * (1 + (hash01(id + 'r') - 0.5) * 0.15)
+  const r = radius * (1.0 + (hash01(id + 'r') - 0.5) * 0.15)
 
   return {
     x: Math.cos(theta) * horizontal * r,
@@ -74,86 +74,21 @@ export interface Mesh3DLayout {
   restLengthByEdgeId: Map<string, number>
 }
 
-function buildParentByChild(visibleEdges: MeshEdge[], visibleIdSet: Set<string>): Map<string, string> {
-  const parentByChild = new Map<string, string>()
-  for (const edge of visibleEdges) {
-    if (edge.kind === 'completion') continue
-    if (edge.source === edge.target) continue
-    if (!visibleIdSet.has(edge.source) || !visibleIdSet.has(edge.target)) continue
-    if (!parentByChild.has(edge.target)) parentByChild.set(edge.target, edge.source)
-  }
-  return parentByChild
-}
-
-function groupPeripheralsByAnchor(
-  peripherals: MeshNode[],
-  parentByChild: Map<string, string>,
-  nodesById: Map<string, MeshNode>,
-  byId: Map<string, Vec3>
-): Map<string, MeshNode[]> {
-  const childrenByParent = new Map<string, MeshNode[]>()
-  for (const node of peripherals) {
-    const parentId = parentByChild.get(node.id)
-    const parent = parentId ? nodesById.get(parentId) : undefined
-    const anchorId = parent && byId.has(parent.id) ? parent.id : ORCHESTRATOR_NODE_ID
-    const list = childrenByParent.get(anchorId) ?? []
-    list.push(node)
-    childrenByParent.set(anchorId, list)
-  }
-  return childrenByParent
-}
-
-function layoutPeripheralOrbits(
-  childrenByParent: Map<string, MeshNode[]>,
-  byId: Map<string, Vec3>,
-  agentShellRadius: number
-): void {
-  for (const [parentId, children] of childrenByParent) {
-    const parentPos = byId.get(parentId) ?? { x: 0, y: 0, z: 0 }
-    const radial = normalize(parentId === ORCHESTRATOR_NODE_ID ? { x: 0.6, y: 0.35, z: 0.72 } : parentPos)
-    let tangentA = cross(radial, { x: 0, y: 1, z: 0 })
-    if (Math.abs(tangentA.x) + Math.abs(tangentA.y) + Math.abs(tangentA.z) < 0.001) {
-      tangentA = cross(radial, { x: 1, y: 0, z: 0 })
-    }
-    tangentA = normalize(tangentA)
-    const tangentB = normalize(cross(radial, tangentA))
-    const orbitRadius = Math.min(300, Math.max(120, 80 + children.length * 8))
-    const outward = parentId === ORCHESTRATOR_NODE_ID ? agentShellRadius * 0.75 : 120
-    children.forEach((node, index) => {
-      const angle = (index / Math.max(children.length, 1)) * Math.PI * 2 + (hash01(node.id) - 0.5) * 1.2
-      const helix = (index - (children.length - 1) / 2) * 15
-      const local = add(
-        scale(tangentA, Math.cos(angle) * orbitRadius),
-        scale(tangentB, Math.sin(angle) * orbitRadius + helix)
-      )
-      const zNudge = scale(radial, outward + (hash01(`${node.id}:out`) - 0.5) * 60)
-      byId.set(node.id, add(add(parentPos, zNudge), local))
-    })
-  }
-}
-
-function buildRestLengths(visibleEdges: MeshEdge[], byId: Map<string, Vec3>): Map<string, number> {
-  const restLengthByEdgeId = new Map<string, number>()
-  for (const edge of visibleEdges) {
-    const a = byId.get(edge.source)
-    const b = byId.get(edge.target)
-    if (!a || !b) continue
-    const dx = b.x - a.x
-    const dy = b.y - a.y
-    const dz = b.z - a.z
-    const len = Math.hypot(dx, dy, dz)
-    restLengthByEdgeId.set(edge.id, Math.max(60, len))
-  }
-  return restLengthByEdgeId
-}
-
 export function computeMesh3DLayout(visibleNodes: MeshNode[], visibleEdges: MeshEdge[]): Mesh3DLayout {
   const byId = new Map<string, Vec3>()
   const visibleIdSet = new Set(visibleNodes.map(node => node.id))
 
   byId.set(ORCHESTRATOR_NODE_ID, { x: 0, y: 0, z: 0 })
 
-  const parentByChild = buildParentByChild(visibleEdges, visibleIdSet)
+  const parentByChild = new Map<string, string>()
+  const childrenByParent = new Map<string, MeshNode[]>()
+  for (const edge of visibleEdges) {
+    if (edge.kind === 'completion') continue
+    if (edge.source === edge.target) continue
+    if (!visibleIdSet.has(edge.source) || !visibleIdSet.has(edge.target)) continue
+    if (!parentByChild.has(edge.target)) parentByChild.set(edge.target, edge.source)
+  }
+
   const nodesById = new Map(visibleNodes.map(node => [node.id, node]))
   const nonOrchestrator = visibleNodes.filter(node => node.id !== ORCHESTRATOR_NODE_ID)
   const agents = nonOrchestrator.filter(node => isAgentKind(node.kind)).sort((a, b) => a.firstSeenSeq - b.firstSeenSeq)
@@ -167,21 +102,65 @@ export function computeMesh3DLayout(visibleNodes: MeshNode[], visibleEdges: Mesh
     byId.set(node.id, fibonacciSpherePoint(index, agents.length, agentShellRadius, node.id))
   })
 
-  const childrenByParent = groupPeripheralsByAnchor(peripherals, parentByChild, nodesById, byId)
-  layoutPeripheralOrbits(childrenByParent, byId, agentShellRadius)
+  for (const node of peripherals) {
+    const parentId = parentByChild.get(node.id)
+    const parent = parentId ? nodesById.get(parentId) : undefined
+    const anchorId = parent && byId.has(parent.id) ? parent.id : ORCHESTRATOR_NODE_ID
+    const list = childrenByParent.get(anchorId) ?? []
+    list.push(node)
+    childrenByParent.set(anchorId, list)
+  }
+
+  for (const [parentId, children] of childrenByParent) {
+    const parentPos = byId.get(parentId) ?? { x: 0, y: 0, z: 0 }
+    const radial = normalize(parentId === ORCHESTRATOR_NODE_ID ? { x: 0.6, y: 0.35, z: 0.72 } : parentPos)
+    let tangentA = cross(radial, { x: 0, y: 1, z: 0 })
+    if (Math.abs(tangentA.x) + Math.abs(tangentA.y) + Math.abs(tangentA.z) < 0.001) {
+      tangentA = cross(radial, { x: 1, y: 0, z: 0 })
+    }
+    tangentA = normalize(tangentA)
+    const tangentB = normalize(cross(radial, tangentA))
+    const orbitRadius = Math.min(300, Math.max(120, 80 + children.length * 8))
+    const outward = parentId === ORCHESTRATOR_NODE_ID ? agentShellRadius * 0.75 : 120
+    children.forEach((node, index) => {
+      // More organic clustering
+      const angle = (index / Math.max(children.length, 1)) * Math.PI * 2 + (hash01(node.id) - 0.5) * 1.2
+      const helix = (index - (children.length - 1) / 2) * 15
+      const local = add(
+        scale(tangentA, Math.cos(angle) * orbitRadius),
+        scale(tangentB, Math.sin(angle) * orbitRadius + helix)
+      )
+      const zNudge = scale(radial, outward + (hash01(`${node.id}:out`) - 0.5) * 60)
+      byId.set(node.id, add(add(parentPos, zNudge), local))
+    })
+  }
 
   const outerShellRadius = agentShellRadius + 300
   otherNodes.forEach((node, index) => {
     byId.set(node.id, fibonacciSpherePoint(index, otherNodes.length, outerShellRadius, node.id))
   })
 
+  // Fallback for any node not placed above (defensive for future node kinds).
   let fallbackIndex = 0
   for (const node of visibleNodes) {
     if (byId.has(node.id)) continue
     byId.set(node.id, fibonacciSpherePoint(fallbackIndex++, visibleNodes.length, outerShellRadius, node.id))
   }
 
-  return { byId, restLengthByEdgeId: buildRestLengths(visibleEdges, byId) }
+  const restLengthByEdgeId = new Map<string, number>()
+  for (const edge of visibleEdges) {
+    const a = byId.get(edge.source)
+    const b = byId.get(edge.target)
+    if (!a || !b) continue
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const dz = b.z - a.z
+    const len = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    // Clamp to a sane lower bound so springs aren't degenerate.
+    restLengthByEdgeId.set(edge.id, Math.max(60, len))
+  }
+
+  return { byId, restLengthByEdgeId }
 }
 
 /** Helpers to convert between three.js space (y-up) and our world space which is the same. */
@@ -189,5 +168,5 @@ export function vec3Distance(a: Vec3, b: Vec3): number {
   const dx = b.x - a.x
   const dy = b.y - a.y
   const dz = b.z - a.z
-  return Math.hypot(dx, dy, dz)
+  return Math.sqrt(dx * dx + dy * dy + dz * dz)
 }

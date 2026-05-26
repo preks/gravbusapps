@@ -51,7 +51,7 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
   }, [skillId, client, showToast])
 
   useEffect(() => {
-    loadVersions().catch(() => undefined)
+    void loadVersions()
   }, [loadVersions, refreshKey])
 
   const handlePreview = useCallback(
@@ -71,13 +71,13 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
   const handleRestore = useCallback(
     async (version: number) => {
       if (!skillId) return
-      if (!globalThis.window?.confirm(`Restore version ${version} into a new draft?`)) return
+      if (!window.confirm(`Restore version ${version} into a new draft?`)) return
       setBusyVersion(version)
       try {
         await client.restoreSkillVersion(skillId, version)
         showToast?.(`Restored v${version} as new draft`, 'success')
         onRestored?.()
-        await loadVersions()
+        void loadVersions()
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
         showToast?.(`Restore failed: ${msg}`, 'error')
@@ -100,7 +100,7 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
         await client.publishSkillVersion(skillId, version)
         showToast?.(`Published v${version}`, 'success')
         onPublished?.()
-        await loadVersions()
+        void loadVersions()
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
         showToast?.(`Publish failed: ${msg}`, 'error')
@@ -126,14 +126,16 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
         {head && (
           <p className="gba:text-[10px] gba:text-muted-foreground">
             Draft v{head.version}
-            {head.published_version == null ? ' · Unpublished' : ` · Published v${head.published_version}`}
+            {head.published_version != null ? ` · Published v${head.published_version}` : ' · Unpublished'}
             {head.is_active ? ' · Live' : ''}
           </p>
         )}
       </div>
-      {loading && <p className="gba:text-xs gba:text-muted-foreground">Loading versions…</p>}
-      {!loading && versions.length === 0 && <p className="gba:text-xs gba:text-muted-foreground">No versions yet.</p>}
-      {!loading && versions.length > 0 && (
+      {loading ? (
+        <p className="gba:text-xs gba:text-muted-foreground">Loading versions…</p>
+      ) : versions.length === 0 ? (
+        <p className="gba:text-xs gba:text-muted-foreground">No versions yet.</p>
+      ) : (
         <ul className="gba:space-y-1.5 gba:max-h-40 gba:overflow-y-auto">
           {versions.map(row => (
             <li
@@ -144,9 +146,7 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
               <button
                 type="button"
                 className="gba:min-w-0 gba:flex-1 gba:text-left"
-                onClick={() => {
-                  handlePreview(row.version).catch(() => undefined)
-                }}
+                onClick={() => void handlePreview(row.version)}
               >
                 <span className="gba:text-xs gba:font-medium">
                   v{row.version}
@@ -164,9 +164,7 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
                   type="button"
                   className="gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:rounded gba:border gba:border-border gba:hover:bg-muted"
                   disabled={busyVersion === row.version}
-                  onClick={() => {
-                    handleRestore(row.version).catch(() => undefined)
-                  }}
+                  onClick={() => void handleRestore(row.version)}
                   data-testid={`skill-version-restore-${row.version}`}
                 >
                   Restore
@@ -176,9 +174,7 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
                   className="gba:inline-flex gba:items-center gba:gap-0.5 gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:rounded gba:border gba:border-primary/40 gba:text-primary gba:hover:bg-primary/10"
                   disabled={busyVersion === row.version || publishDisabled}
                   title={publishDisabled ? publishDisabledReason : undefined}
-                  onClick={() => {
-                    handlePublish(row.version).catch(() => undefined)
-                  }}
+                  onClick={() => void handlePublish(row.version)}
                   data-testid={`skill-version-publish-${row.version}`}
                 >
                   <UploadSimple className="gba:h-3 gba:w-3" />

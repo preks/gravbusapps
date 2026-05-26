@@ -50,7 +50,7 @@ export interface Mesh3DGraphProps {
 
 /** Cheap one-time WebGL probe so we render the 2D fallback in headless environments. */
 function detectWebGL(): boolean {
-  if (globalThis.window === undefined || document === undefined) return false
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false
   try {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('webgl2') || canvas.getContext('webgl')
@@ -62,12 +62,12 @@ function detectWebGL(): boolean {
 
 function usePrefersReducedMotion(): boolean {
   const [prefers, setPrefers] = useState<boolean>(() => {
-    if (globalThis.window === undefined) return false
-    return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    if (typeof window === 'undefined') return false
+    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
   })
   useEffect(() => {
-    if (globalThis.window === undefined) return
-    const mq = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)')
     if (!mq) return
     const handler = () => setPrefers(mq.matches)
     mq.addEventListener?.('change', handler)
@@ -76,7 +76,7 @@ function usePrefersReducedMotion(): boolean {
   return prefers
 }
 
-export function Mesh3DGraph(props: Readonly<Mesh3DGraphProps>) {
+export function Mesh3DGraph(props: Mesh3DGraphProps) {
   const colors = useMeshTheme()
   const reducedMotion = usePrefersReducedMotion()
   const supportsWebGL = useMemo(() => detectWebGL(), [])

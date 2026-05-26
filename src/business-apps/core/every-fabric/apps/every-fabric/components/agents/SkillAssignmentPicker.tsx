@@ -35,19 +35,12 @@ interface SkillAssignmentPickerProps {
 const defaultBinding = (): BindingState => ({ follow_latest: true, version: null })
 
 const versionOptions = (skill: SkillOption): number[] => {
-  let published: number[] = []
-  if (skill.published_versions?.length) {
-    published = skill.published_versions
-  } else if (skill.published_version != null) {
-    published = [skill.published_version]
-  }
+  const published = skill.published_versions?.length
+    ? skill.published_versions
+    : skill.published_version != null
+      ? [skill.published_version]
+      : []
   return Array.from(new Set(published)).sort((a, b) => a - b)
-}
-
-function resolveBindingSelectValue(binding: BindingState, pinnedVersionUnavailable: boolean): string {
-  if (binding.follow_latest) return 'latest'
-  if (pinnedVersionUnavailable) return 'unavailable'
-  return String(binding.version ?? '')
 }
 
 export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
@@ -258,7 +251,11 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
                 const pinOptions = versionOptions(skill)
                 const pinnedVersionUnavailable =
                   !binding.follow_latest && binding.version != null && !pinOptions.includes(binding.version)
-                const selectValue = resolveBindingSelectValue(binding, pinnedVersionUnavailable)
+                const selectValue = binding.follow_latest
+                  ? 'latest'
+                  : pinnedVersionUnavailable
+                    ? 'unavailable'
+                    : String(binding.version ?? '')
                 return (
                   <div
                     key={skill.skill_id}
@@ -308,7 +305,10 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
                       </div>
                     </button>
                     {isSelected && (
-                      <div className="gba:mt-2 gba:pl-8 gba:flex gba:items-center gba:gap-2">
+                      <div
+                        className="gba:mt-2 gba:pl-8 gba:flex gba:items-center gba:gap-2"
+                        onClick={e => e.stopPropagation()}
+                      >
                         <label
                           htmlFor={`skill-version-${skill.skill_id}`}
                           className="gba:text-[11px] gba:text-muted-foreground gba:shrink-0"
@@ -320,8 +320,6 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
                           data-testid={`skill-version-select-${skill.skill_id}`}
                           className="gba:flex-1 gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:text-xs"
                           value={selectValue}
-                          onMouseDown={e => e.stopPropagation()}
-                          onClick={e => e.stopPropagation()}
                           onChange={e => {
                             const v = e.target.value
                             setBindingMode(skill.skill_id, v === 'latest' ? 'latest' : Number(v))
@@ -329,7 +327,7 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
                         >
                           <option value="latest">
                             Latest published
-                            {skill.published_version == null ? '' : ` (v${skill.published_version})`}
+                            {skill.published_version != null ? ` (v${skill.published_version})` : ''}
                           </option>
                           {pinnedVersionUnavailable && (
                             <option value="unavailable" disabled>

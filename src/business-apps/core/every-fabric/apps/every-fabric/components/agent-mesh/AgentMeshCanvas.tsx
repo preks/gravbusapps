@@ -8,6 +8,7 @@ import { MeshEdgeDetailModal } from './MeshEdgeDetailModal'
 import { MeshGraph } from './MeshGraph'
 import { MeshLayersToggle } from './MeshLayersToggle'
 import { MeshNodeDetailPopover } from './MeshNodeDetailPopover'
+import { MeshSearch } from './MeshSearch'
 
 // Direct import (not React.lazy) — the remote-component-loader used to mount
 // screens does not resolve split chunks, see `components/artifacts/renderers/index.ts`.
@@ -16,9 +17,9 @@ type MeshViewMode = '2d' | '3d'
 const VIEW_MODE_STORAGE_KEY = 'every-fabric.mesh.viewMode'
 
 function readInitialViewMode(): MeshViewMode {
-  if (globalThis.window === undefined) return '2d'
+  if (typeof window === 'undefined') return '2d'
   try {
-    const stored = globalThis.window.localStorage.getItem(VIEW_MODE_STORAGE_KEY)
+    const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY)
     return stored === '3d' ? '3d' : '2d'
   } catch {
     return '2d'
@@ -54,9 +55,9 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
   const [viewMode, setViewMode] = useState<MeshViewMode>(() => readInitialViewMode())
 
   useEffect(() => {
-    if (globalThis.window === undefined) return
+    if (typeof window === 'undefined') return
     try {
-      globalThis.window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode)
+      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode)
     } catch {
       // Storage may be blocked (private mode, embedded contexts); fall back silently.
     }
@@ -202,6 +203,7 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
       )}
       <div className="gba:absolute gba:top-3 gba:right-3 gba:z-10 gba:flex gba:flex-col gba:items-end gba:gap-2">
         <div className="gba:flex gba:items-center gba:gap-2">
+          <MeshSearch nodes={model.nodes} onSelectNode={setSelectedNodeId} />
           <button
             type="button"
             onClick={toggleViewMode}

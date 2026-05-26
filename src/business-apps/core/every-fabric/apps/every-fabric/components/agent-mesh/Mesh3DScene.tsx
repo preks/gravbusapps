@@ -4,11 +4,10 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { Environment, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import type { MeshLayerKey } from './meshLayers'
-import type { MeshNode, TraceModel } from '../../utils/traceModel'
-import type { MeshPhysicsHandle } from './useMeshPhysics'
+import type { TraceModel } from '../../utils/traceModel'
 import { deriveMeshGraph } from './meshGraphSelectors'
 import { Mesh3DBackground } from './Mesh3DBackground'
 import { Mesh3DEdge } from './Mesh3DEdge'
@@ -18,46 +17,6 @@ import type { MeshThemeColors } from './useMeshTheme'
 
 const CLICK_DURATION_MS = 250
 const CLICK_DRAG_PIXELS = 6
-
-interface OrbitControlsLike {
-  target: THREE.Vector3
-  update: () => void
-}
-
-function fitCameraToNodes(
-  nodes: MeshNode[],
-  physics: MeshPhysicsHandle,
-  camera: THREE.Camera,
-  controls: OrbitControlsLike | null
-): void {
-  if (!(camera instanceof THREE.PerspectiveCamera)) return
-
-  const min = new THREE.Vector3(Infinity, Infinity, Infinity)
-  const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity)
-  for (const node of nodes) {
-    const p = physics.getPosition(node.id)
-    if (!p) continue
-    min.x = Math.min(min.x, p.x)
-    min.y = Math.min(min.y, p.y)
-    min.z = Math.min(min.z, p.z)
-    max.x = Math.max(max.x, p.x)
-    max.y = Math.max(max.y, p.y)
-    max.z = Math.max(max.z, p.z)
-  }
-  if (!Number.isFinite(min.x)) return
-  const centre = min.clone().add(max).multiplyScalar(0.5)
-  const radius = Math.max(min.distanceTo(centre), max.distanceTo(centre), 200)
-  const fovRad = (camera.fov * Math.PI) / 180
-  const distance = (radius / Math.sin(fovRad / 2)) * 1.25
-  const dir = new THREE.Vector3(0.15, 0.25, 1).normalize()
-  camera.position.copy(centre).add(dir.multiplyScalar(distance))
-  camera.lookAt(centre)
-  camera.updateProjectionMatrix()
-  if (controls) {
-    controls.target.copy(centre)
-    controls.update()
-  }
-}
 
 export interface Mesh3DSceneProps {
   model: TraceModel
@@ -85,7 +44,7 @@ interface DragState {
   moved: boolean
 }
 
-export function Mesh3DScene(props: Readonly<Mesh3DSceneProps>) {
+export function Mesh3DScene(props: Mesh3DSceneProps) {
   const {
     model,
     activeLayers,
@@ -131,10 +90,7 @@ export function Mesh3DScene(props: Readonly<Mesh3DSceneProps>) {
   const handleNodePointerDown = useCallback(
     (id: string, event: Parameters<NonNullable<JSX.IntrinsicElements['mesh']['onPointerDown']>>[0]) => {
       const p = physics.getPosition(id)
-      if (!p) {
-        return
-      }
-      // Capture so we keep receiving move/up events even if the cursor leaves the canvas.
+      if (!p) return // Capture so we keep receiving move/up events even if the cursor leaves the canvas.
       ;(event.target as Element | undefined)?.setPointerCapture?.(event.pointerId)
       const camDir = new THREE.Vector3()
       camera.getWorldDirection(camDir)
@@ -205,10 +161,14 @@ export function Mesh3DScene(props: Readonly<Mesh3DSceneProps>) {
     },
     [onHoverNode]
   )
-  const handleNodePointerLeave = useCallback(() => {
-    if (dragRef.current) return
-    onHoverNode(null)
-  }, [onHoverNode])
+  const handleNodePointerLeave = useCallback(
+    (_id: string) => {
+      void _id
+      if (dragRef.current) return
+      onHoverNode(null)
+    },
+    [onHoverNode]
+  )
 
   // Double-click on empty space resets the simulation + camera back to defaults.
   useEffect(() => {
@@ -250,7 +210,34 @@ export function Mesh3DScene(props: Readonly<Mesh3DSceneProps>) {
     let raf2 = 0
     const raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
-        fitCameraToNodes(visibleNodesRef.current, physicsRef.current, camera, controlsRef.current)
+        const nodes = visibleNodesRef.current
+        const phys = physicsRef.current
+        const min = new THREE.Vector3(Infinity, Infinity, Infinity)
+        const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity)
+        for (const node of nodes) {
+          const p = phys.getPosition(node.id)
+          if (!p) continue
+          if (p.x < min.x) min.x = p.x
+          if (p.y < min.y) min.y = p.y
+          if (p.z < min.z) min.z = p.z
+          if (p.x > max.x) max.x = p.x
+          if (p.y > max.y) max.y = p.y
+          if (p.z > max.z) max.z = p.z
+        }
+        if (!isFinite(min.x)) return
+        const centre = min.clone().add(max).multiplyScalar(0.5)
+        const radius = Math.max(min.distanceTo(centre), max.distanceTo(centre), 200)
+        const fovRad = ((camera as THREE.PerspectiveCamera).fov * Math.PI) / 180
+        const distance = (radius / Math.sin(fovRad / 2)) * 1.25
+        // Slight elevation so the 3D layout reads as 3D from the start.
+        const dir = new THREE.Vector3(0.15, 0.25, 1).normalize()
+        camera.position.copy(centre).add(dir.multiplyScalar(distance))
+        camera.lookAt(centre)
+        camera.updateProjectionMatrix()
+        if (controlsRef.current) {
+          controlsRef.current.target.copy(centre)
+          controlsRef.current.update()
+        }
       })
     })
     return () => {
@@ -264,8 +251,16 @@ export function Mesh3DScene(props: Readonly<Mesh3DSceneProps>) {
   return (
     <>
       <Mesh3DBackground colors={colors} reducedMotion={reducedMotion} />
-      <ambientLight intensity={colors.isDark ? 0.45 : 0.7} /> {/* NOSONAR S6747 */}
-      <directionalLight position={[200, 400, 300]} intensity={0.7} /> {/* NOSONAR S6747 */}
+      {/* Cheap environment map: gives the glass materials something to
+         reflect/refract so they actually read as glass instead of flat
+         coloured spheres. resolution=64 keeps the HDR cubemap tiny. */}
+      <Environment preset="apartment" background={false} resolution={64} />
+      <ambientLight intensity={colors.isDark ? 0.6 : 0.8} />
+      {/* Key light from above-front. */}
+      <directionalLight position={[200, 400, 300]} intensity={0.85} />
+      {/* Soft rim/back light — outlines glass silhouettes against the
+         background, especially in dark mode. */}
+      <directionalLight position={[-300, -100, -200]} intensity={0.35} color={colors.primary} />
       <OrbitControls
         ref={controlsRef}
         enableDamping
@@ -276,9 +271,10 @@ export function Mesh3DScene(props: Readonly<Mesh3DSceneProps>) {
         minDistance={50}
         maxDistance={6000}
         rotateSpeed={0.6}
-        zoomSpeed={1}
-        panSpeed={1}
+        zoomSpeed={1.0}
+        panSpeed={1.0}
       />
+
       {derived.derivedEdges.map(d => (
         <Mesh3DEdge
           key={d.edge.id}
@@ -298,6 +294,7 @@ export function Mesh3DScene(props: Readonly<Mesh3DSceneProps>) {
           onSelect={onSelectEdge}
         />
       ))}
+
       {derived.derivedNodes.map(d => (
         <Mesh3DNode
           key={d.node.id}
@@ -311,6 +308,7 @@ export function Mesh3DScene(props: Readonly<Mesh3DSceneProps>) {
           isUpcoming={d.isUpcoming}
           isDimmed={d.isDimmed}
           isHighlighted={d.isHighlighted}
+          isHovered={d.isHovered}
           skillNames={d.skillNames}
           physics={physics}
           colors={colors}

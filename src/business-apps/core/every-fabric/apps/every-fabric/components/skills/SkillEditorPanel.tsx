@@ -259,7 +259,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
               data-testid="skill-editor-version-badge"
             >
               draft v{skillHead.version}
-              {skillHead.published_version == null ? ' · unpublished' : ` · pub v${skillHead.published_version}`}
+              {skillHead.published_version != null ? ` · pub v${skillHead.published_version}` : ' · unpublished'}
             </span>
           )}
           {isDirty && (
@@ -402,9 +402,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
                 type="file"
                 multiple
                 className="gba:hidden"
-                onChange={e => {
-                  handleAddFiles(e).catch(() => undefined)
-                }}
+                onChange={e => void handleAddFiles(e)}
               />
               <button
                 type="button"
@@ -461,34 +459,28 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
                 setPreviewingVersion(null)
                 setVersionHistoryKey(k => k + 1)
                 if (skillId) {
-                  client
-                    .getSkill(skillId)
-                    .then(doc => {
-                      setContent(doc.content)
-                      setSavedContent(doc.content)
-                      setSkillHead({
-                        version: doc.version,
-                        published_version: doc.published_version,
-                        is_active: doc.is_active ?? false
-                      })
+                  void client.getSkill(skillId).then(doc => {
+                    setContent(doc.content)
+                    setSavedContent(doc.content)
+                    setSkillHead({
+                      version: doc.version,
+                      published_version: doc.published_version,
+                      is_active: doc.is_active ?? false
                     })
-                    .catch(() => undefined)
+                  })
                 }
                 onSaved?.({ skill_id: skillId })
               }}
               onPublished={() => {
                 setVersionHistoryKey(k => k + 1)
                 if (skillId) {
-                  client
-                    .getSkill(skillId)
-                    .then(doc => {
-                      setSkillHead({
-                        version: doc.version,
-                        published_version: doc.published_version,
-                        is_active: doc.is_active ?? false
-                      })
+                  void client.getSkill(skillId).then(doc => {
+                    setSkillHead({
+                      version: doc.version,
+                      published_version: doc.published_version,
+                      is_active: doc.is_active ?? false
                     })
-                    .catch(() => undefined)
+                  })
                 }
                 onSaved?.({ skill_id: skillId })
               }}
@@ -518,9 +510,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
             className="gba:px-3 gba:py-1.5 gba:rounded-md gba:border gba:border-primary/40 gba:text-xs gba:text-primary gba:hover:bg-primary/10 gba:disabled:opacity-50"
             disabled={saving || loading || previewingVersion != null || isDirty}
             title={isDirty ? 'Save the current draft before publishing.' : undefined}
-            onClick={() => {
-              handlePublishCurrent().catch(() => undefined)
-            }}
+            onClick={() => void handlePublishCurrent()}
             data-testid="skill-editor-publish"
           >
             Publish v{skillHead.version}
@@ -530,9 +520,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
           type="button"
           className="gba:px-3 gba:py-1.5 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-xs gba:hover:bg-primary/90 gba:transition-colors gba:disabled:opacity-50"
           disabled={saving || loading || !isDirty || previewingVersion != null}
-          onClick={() => {
-            handleSave().catch(() => undefined)
-          }}
+          onClick={() => void handleSave()}
           data-testid="skill-editor-save"
         >
           {saving ? 'Saving…' : 'Save draft'}

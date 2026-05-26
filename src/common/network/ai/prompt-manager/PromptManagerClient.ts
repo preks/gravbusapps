@@ -1244,7 +1244,6 @@ export class PromptManagerClient extends RestClient {
       follow_latest?: boolean
       published_version?: number | null
       current_version?: number
-      enabled?: boolean
     }>
     skill_bindings?: Array<{
       skill_id: string
@@ -1255,7 +1254,6 @@ export class PromptManagerClient extends RestClient {
       follow_latest?: boolean
       published_version?: number | null
       current_version?: number
-      enabled?: boolean
     }>
   }> {
     return this.get(`/agents/registry/${encodeURIComponent(agentId)}/skills`)

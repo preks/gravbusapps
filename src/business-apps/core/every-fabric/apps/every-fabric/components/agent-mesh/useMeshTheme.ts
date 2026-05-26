@@ -60,7 +60,7 @@ const FALLBACKS: MeshThemeColors = {
 }
 
 function isBrowser(): boolean {
-  return globalThis.window !== undefined && document !== undefined
+  return typeof window !== 'undefined' && typeof document !== 'undefined'
 }
 
 function resolveCssVar(probe: HTMLElement, value: string): string | null {
@@ -82,7 +82,7 @@ function detectDark(): boolean {
   if (root.classList.contains('light')) return false
   if (root.dataset.theme === 'dark') return true
   if (root.dataset.theme === 'light') return false
-  return globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? true
 }
 
 function readColors(): MeshThemeColors {
@@ -96,7 +96,7 @@ function readColors(): MeshThemeColors {
   probe.style.top = '-9999px'
   document.body.appendChild(probe)
   try {
-    const out: MeshThemeColors = { ...FALLBACKS, isDark: detectDark() }
+    const out = { ...FALLBACKS, isDark: detectDark() } as MeshThemeColors
     ;(Object.keys(TOKEN_KEYS) as (keyof typeof TOKEN_KEYS)[]).forEach(k => {
       const raw = styles.getPropertyValue(TOKEN_KEYS[k])
       const resolved = resolveCssVar(probe, raw)
@@ -119,7 +119,7 @@ export function useMeshTheme(): MeshThemeColors {
     const observer = new MutationObserver(handle)
     observer.observe(root, { attributes: true, attributeFilter: ['class', 'data-theme'] })
     // Re-read on OS dark-mode change.
-    const mq = globalThis.matchMedia?.('(prefers-color-scheme: dark)')
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)')
     mq?.addEventListener?.('change', handle)
     return () => {
       observer.disconnect()

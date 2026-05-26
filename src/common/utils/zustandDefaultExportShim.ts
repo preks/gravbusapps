@@ -7,6 +7,8 @@
 // recursion we re-export from the sub-paths `zustand/react` and
 // `zustand/vanilla`, which are NOT affected by the alias.
 
-export { create, useStore } from 'zustand/react'
-export { createStore } from 'zustand/vanilla'
-export { create as default } from 'zustand/react'
+import { create, useStore } from 'zustand/react'
+import { createStore } from 'zustand/vanilla'
+
+export { create, createStore, useStore }
+export default create

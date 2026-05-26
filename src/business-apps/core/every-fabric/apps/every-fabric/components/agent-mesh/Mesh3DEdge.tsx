@@ -3,7 +3,7 @@
 // small bright "comet" pulse that travels along the curve, providing a
 // clear, modern signal of activity without overwhelming the scene.
 
-import { memo, useMemo, useRef, useState, type RefObject } from 'react'
+import { memo, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { QuadraticBezierLine } from '@react-three/drei'
 import * as THREE from 'three'
@@ -31,7 +31,7 @@ export interface Mesh3DEdgeProps {
 // Subtle by default: thin line, low opacity. Active state nudges it a touch
 // brighter but the focus signal is the travelling pulse, not the line itself.
 const BASE_LINE_WIDTH = 0.6
-const ACTIVE_LINE_WIDTH = 1
+const ACTIVE_LINE_WIDTH = 1.0
 const PULSE_SPEED = 0.35 // cycles per second along the curve
 
 function edgeIdleColor(colors: MeshThemeColors): string {
@@ -65,71 +65,6 @@ function quadBezierAt(t: number, a: THREE.Vector3, c: THREE.Vector3, b: THREE.Ve
   )
 }
 
-/** Stable phase offset in [0,1) derived from the edge id so concurrent
- *  pulses on different edges don't move in lockstep. */
-function edgePhase(id: string): number {
-  let h = 0
-  for (let i = 0; i < id.length; i++) {
-    h = (h * 31 + (id.codePointAt(i) ?? 0)) >>> 0
-  }
-  return (h % 1000) / 1000
-}
-
-function resolveEdgeTargetOpacity(
-  isDimmed: boolean,
-  isUpcoming: boolean,
-  isResolved: boolean,
-  isActive: boolean
-): number {
-  if (isDimmed) return 0.06
-  if (isUpcoming) return 0.08
-  if (isResolved && !isActive) return 0.22
-  if (isActive) return 0.45
-  return 0.18
-}
-
-interface EdgePulseUpdateContext {
-  pulseScale: number
-  state: { clock: { elapsedTime: number } }
-  id: string
-  start: THREE.Vector3
-  mid: THREE.Vector3
-  end: THREE.Vector3
-  pulsePos: THREE.Vector3
-  pulseRef: RefObject<THREE.Mesh | null>
-  pulseGlowRef: RefObject<THREE.Mesh | null>
-  isFailed: boolean
-  failedColor: THREE.Color
-  activeColor: THREE.Color
-}
-
-function updateEdgePulseMeshes(ctx: EdgePulseUpdateContext): void {
-  const { pulseRef, pulseGlowRef, pulseScale } = ctx
-  if (!pulseRef.current || !pulseGlowRef.current) return
-  if (pulseScale <= 0.01) {
-    pulseRef.current.visible = false
-    pulseGlowRef.current.visible = false
-    return
-  }
-  const phase = (ctx.state.clock.elapsedTime * PULSE_SPEED + edgePhase(ctx.id)) % 1
-  quadBezierAt(phase, ctx.start, ctx.mid, ctx.end, ctx.pulsePos)
-  pulseRef.current.position.copy(ctx.pulsePos)
-  pulseGlowRef.current.position.copy(ctx.pulsePos)
-  pulseRef.current.scale.setScalar(pulseScale)
-  pulseGlowRef.current.scale.setScalar(pulseScale)
-  pulseRef.current.visible = true
-  pulseGlowRef.current.visible = true
-  const coreMat = pulseRef.current.material as THREE.MeshBasicMaterial
-  const glowMat = pulseGlowRef.current.material as THREE.MeshBasicMaterial
-  if (ctx.isFailed) {
-    coreMat.color.copy(ctx.failedColor)
-    glowMat.color.copy(ctx.failedColor)
-    return
-  }
-  coreMat.color.copy(ctx.activeColor)
-  glowMat.color.copy(ctx.activeColor)
-}
-
 function Mesh3DEdgeBase({
   id,
   source,
@@ -145,7 +80,7 @@ function Mesh3DEdgeBase({
   colors,
   reducedMotion,
   onSelect
-}: Readonly<Mesh3DEdgeProps>) {
+}: Mesh3DEdgeProps) {
   const lineRef = useRef<any>(null)
   const pulseRef = useRef<THREE.Mesh>(null)
   const pulseGlowRef = useRef<THREE.Mesh>(null)
@@ -180,7 +115,7 @@ function Mesh3DEdgeBase({
     chord.copy(end).sub(start)
     const chordLen = chord.length() || 1
     normal.set(-chord.z, chord.x * 0.2, chord.x).normalize()
-    if (!Number.isFinite(normal.x)) normal.set(0, 1, 0)
+    if (!isFinite(normal.x)) normal.set(0, 1, 0)
     const bow = Math.min(40, chordLen * 0.15)
     mid.add(normal.multiplyScalar(bow))
 
@@ -201,7 +136,7 @@ function Mesh3DEdgeBase({
 
     // Much more subtle baseline opacity — the pulse carries the signal,
     // not the line. Resolved/upcoming dim further. Active gets a slight boost.
-    const targetOpacity = resolveEdgeTargetOpacity(isDimmed, isUpcoming, isResolved, isActive)
+    const targetOpacity = isDimmed ? 0.06 : isUpcoming ? 0.08 : isResolved && !isActive ? 0.22 : isActive ? 0.45 : 0.18
     animState.current.opacity += (targetOpacity - animState.current.opacity) * Math.min(1, dt * 6)
     mat.opacity = animState.current.opacity
     mat.transparent = true
@@ -218,20 +153,34 @@ function Mesh3DEdgeBase({
     animState.current.pulseScale += (targetPulseScale - animState.current.pulseScale) * Math.min(1, dt * 8)
     const pulseScale = animState.current.pulseScale
 
-    updateEdgePulseMeshes({
-      pulseScale,
-      state,
-      id,
-      start,
-      mid,
-      end,
-      pulsePos,
-      pulseRef,
-      pulseGlowRef,
-      isFailed,
-      failedColor,
-      activeColor
-    })
+    if (pulseRef.current && pulseGlowRef.current) {
+      if (pulseScale > 0.01) {
+        // Travel along the bezier, looping. Use elapsed time + a per-edge
+        // phase offset (derived from the id hash) so multiple active edges
+        // aren't perfectly in sync — feels more organic.
+        const phase = (state.clock.elapsedTime * PULSE_SPEED + edgePhase(id)) % 1
+        quadBezierAt(phase, start, mid, end, pulsePos)
+        pulseRef.current.position.copy(pulsePos)
+        pulseGlowRef.current.position.copy(pulsePos)
+        pulseRef.current.scale.setScalar(pulseScale)
+        pulseGlowRef.current.scale.setScalar(pulseScale)
+        pulseRef.current.visible = true
+        pulseGlowRef.current.visible = true
+        // Tint the pulse with the per-kind active colour.
+        const coreMat = pulseRef.current.material as THREE.MeshBasicMaterial
+        const glowMat = pulseGlowRef.current.material as THREE.MeshBasicMaterial
+        if (isFailed) {
+          coreMat.color.copy(failedColor)
+          glowMat.color.copy(failedColor)
+        } else {
+          coreMat.color.copy(activeColor)
+          glowMat.color.copy(activeColor)
+        }
+      } else {
+        pulseRef.current.visible = false
+        pulseGlowRef.current.visible = false
+      }
+    }
   })
 
   return (
@@ -257,34 +206,41 @@ function Mesh3DEdgeBase({
         depthWrite={false}
         blending={THREE.NormalBlending}
       />
-      {/* Travelling pulse: R3F three.js intrinsics (see reactThreeFiber.d.ts). */}
+      {/* Travelling pulse: a small bright core + a soft additive halo.
+         Both are hidden when isActive is false (no render cost). */}
       <mesh ref={pulseGlowRef} visible={false} renderOrder={2}>
-        {' '}
-        {/* NOSONAR S6747 */}
-        <sphereGeometry args={[7, 16, 16]} /> {/* NOSONAR S6747 */}
+        <sphereGeometry args={[7, 16, 16]} />
         <meshBasicMaterial
           color={activeColor}
-          transparent // NOSONAR S6747
+          transparent
           opacity={0.35}
-          blending={THREE.AdditiveBlending} // NOSONAR S6747
-          depthWrite={false} // NOSONAR S6747
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
         />
       </mesh>
       <mesh ref={pulseRef} visible={false} renderOrder={3}>
-        {' '}
-        {/* NOSONAR S6747 */}
-        <sphereGeometry args={[2.6, 16, 16]} /> {/* NOSONAR S6747 */}
+        <sphereGeometry args={[2.6, 16, 16]} />
         <meshBasicMaterial
           color={activeColor}
-          transparent // NOSONAR S6747
+          transparent
           opacity={0.95}
-          blending={THREE.AdditiveBlending} // NOSONAR S6747
-          depthWrite={false} // NOSONAR S6747
-          toneMapped={false} // NOSONAR S6747
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
         />
       </mesh>
     </group>
   )
+}
+
+/** Stable phase offset in [0,1) derived from the edge id so concurrent
+ *  pulses on different edges don't move in lockstep. */
+function edgePhase(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) >>> 0
+  }
+  return (h % 1000) / 1000
 }
 
 export const Mesh3DEdge = memo(Mesh3DEdgeBase)

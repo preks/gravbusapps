@@ -3,14 +3,7 @@ import { ReactFlow, type Edge, type Node, type ReactFlowInstance } from '@xyflow
 import type { TraceModel } from '../../utils/traceModel'
 import { type MeshLayerKey } from './meshLayers'
 import { computeRadialLayout, NODE_SIZE } from './meshLayout'
-import { deriveMeshGraph, type DerivedEdge } from './meshGraphSelectors'
-
-function meshFlowWrapperOpacity(edge: DerivedEdge): number {
-  if (edge.isDimmed) return 0.12
-  if (edge.isUpcoming) return 0.15
-  if (edge.isResolved && !edge.isActive) return 0.55
-  return 0.95
-}
+import { deriveMeshGraph } from './meshGraphSelectors'
 import { MeshFlowEdge, type MeshFlowEdgeData } from './MeshFlowEdge'
 import { MeshNode, type MeshNodeData } from './MeshNode'
 import '@xyflow/react/dist/style.css'
@@ -123,7 +116,7 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
     // and applies them to the SVG <g> wrapper. This guarantees opacity
     // updates even if the custom edge component's re-render is skipped
     // by React Flow's internal memoization in production builds.
-    const wrapperOpacity = meshFlowWrapperOpacity(d)
+    const wrapperOpacity = d.isDimmed ? 0.12 : d.isUpcoming ? 0.15 : d.isResolved && !d.isActive ? 0.55 : 0.95
 
     return {
       id: edge.id,

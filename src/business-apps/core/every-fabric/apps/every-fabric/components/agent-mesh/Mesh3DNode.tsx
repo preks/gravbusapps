@@ -1,18 +1,17 @@
-// 3D mesh node — renders the same 2D node UI (white card, icon, label,
-// category, skill dots, running ring) as an Html billboard in 3D space.
-// The mesh under it is an invisible sphere that owns raycasting + drag
-// pointer events; the visible card is plain HTML so it looks identical to
-// the 2D view at any orbit angle.
+// 3D mesh node — a glass 3D body (per kind) plus a slim floating Html label
+// below it. No icon on the body itself; kinds are read from silhouette +
+// colour + label. The body mesh is the raycast target, so pointer events
+// on the parent <group> fire on hover/click/drag.
 
 import { memo, useMemo, useRef } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { MeshNodeKind, MeshNodeStatus } from '../../utils/traceModel'
-import { NODE_SIZE } from './meshLayout'
-import { MeshNodeCardContent, meshNodeCardOpacityClass, meshNodeCircleShadow, meshNodeHitRadius } from './MeshNodeCard'
 import type { MeshPhysicsHandle } from './useMeshPhysics'
 import type { MeshThemeColors } from './useMeshTheme'
+import { Mesh3DNodeBody } from './Mesh3DNodeBody'
+import { NODE_BODY_RADIUS } from './mesh3DGeometries'
 
 export interface Mesh3DNodeProps {
   id: string
@@ -25,6 +24,7 @@ export interface Mesh3DNodeProps {
   isUpcoming: boolean
   isDimmed: boolean
   isHighlighted: boolean
+  isHovered: boolean
   skillNames: string[]
   physics: MeshPhysicsHandle
   colors: MeshThemeColors
@@ -39,6 +39,15 @@ export interface Mesh3DNodeProps {
 
 type ThreePointerEvent = Parameters<NonNullable<JSX.IntrinsicElements['mesh']['onPointerDown']>>[0]
 
+const SKILL_DOT_COLORS = [
+  'gba:bg-teal-500',
+  'gba:bg-violet-500',
+  'gba:bg-amber-500',
+  'gba:bg-sky-500',
+  'gba:bg-rose-500'
+]
+const MAX_VISIBLE_DOTS = 5
+
 function Mesh3DNodeBase({
   id,
   kind,
@@ -50,6 +59,7 @@ function Mesh3DNodeBase({
   isUpcoming,
   isDimmed,
   isHighlighted,
+  isHovered,
   skillNames,
   physics,
   colors,
@@ -59,9 +69,8 @@ function Mesh3DNodeBase({
   onPointerUp,
   onPointerEnter,
   onPointerLeave
-}: Readonly<Mesh3DNodeProps>) {
+}: Mesh3DNodeProps) {
   const groupRef = useRef<THREE.Group>(null)
-  const hitRadius = meshNodeHitRadius(kind)
 
   // Per-frame: sync the group position with the physics handle so the node
   // tracks drag + spring updates without React state churn.
@@ -72,63 +81,73 @@ function Mesh3DNodeBase({
     }
   })
 
-  const size = NODE_SIZE[kind] ?? 60
+  const isAgent = kind === 'orchestrator' || kind === 'subagent' || kind === 'expert'
+  const showSkillDots = isAgent && skillNames.length > 0
+  const radius = NODE_BODY_RADIUS[kind] ?? 22
+
+  // Label visibility rule: the screen is too crowded if every node shows its
+  // text all the time, so we keep labels off by default and only reveal them
+  // for nodes the user is currently looking at or that are doing something.
+  //
+  //   - the orchestrator (anchor of the whole mesh, always shown)
+  //   - selected node and its neighbours (`isHighlighted` from selection path)
+  //   - hovered node and its neighbours
+  //   - active nodes during replay
+  //
+  // Everything else stays unlabeled until hovered or selected.
+  const showLabel = kind === 'orchestrator' || isSelected || isHovered || isHighlighted || isActive
 
   const stop = (e: ThreePointerEvent) => {
     e.stopPropagation()
   }
 
-  // Memoize the card markup so React doesn't churn through the Html portal
-  // every frame. The Html wrapper updates its style.transform on every frame
-  // anyway, but the inner DOM tree should be stable to avoid layout reflows
-  // (which is the main source of label flicker during orbit).
-  const card = useMemo(
+  // Memoize the label markup so the Html portal doesn't churn every frame.
+  // GPU compositor layer hint prevents text antialiasing flicker as the
+  // wrapper's CSS transform updates 60×/s.
+  const label3d = useMemo(
     () => (
       <div
-        className={`gba:flex gba:flex-col gba:items-center gba:transition-opacity gba:duration-200 ${meshNodeCardOpacityClass(isUpcoming, isDimmed, isHighlighted, isSelected)}`}
+        className={`gba:flex gba:flex-col gba:items-center gba:transition-opacity gba:duration-200 ${isUpcoming ? 'gba:opacity-30' : isDimmed ? 'gba:opacity-25' : ''}`}
         data-mesh-active={isActive ? 'true' : 'false'}
         data-mesh-selected={isSelected ? 'true' : 'false'}
-        // translateZ(0) + will-change promote the card to its own compositor
-        // layer, eliminating the sub-pixel text antialiasing flicker that
-        // happens when Html updates style.transform every frame.
         style={{ transform: 'translateZ(0)', willChange: 'transform', backfaceVisibility: 'hidden' }}
       >
-        <MeshNodeCardContent
-          kind={kind}
-          label={label}
-          category={category}
-          status={status}
-          size={size}
-          isSelected={isSelected}
-          isActive={isActive}
-          skillNames={skillNames}
-          reducedMotion={reducedMotion}
-          ringSurface="canvas3d"
-          badgeClassName="gba:relative gba:flex gba:items-center gba:justify-center gba:rounded-full gba:border gba:bg-card/95 gba:backdrop-blur-sm gba:transition-shadow gba:duration-200"
-          badgeStyle={{
-            width: size,
-            height: size,
-            boxShadow: meshNodeCircleShadow(status, isSelected, isActive, colors.primary, colors.destructive)
-          }}
-        />
+        <span
+          className="gba:max-w-[160px] gba:truncate gba:text-center gba:text-[12px] gba:font-semibold gba:text-foreground gba:drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+          title={label}
+        >
+          {label}
+        </span>
+        {category && (
+          <span className="gba:mt-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+            {category}
+          </span>
+        )}
+        {showSkillDots && (
+          <span
+            className="gba:mt-1 gba:flex gba:items-center gba:gap-1"
+            aria-label={`${skillNames.length} skill${skillNames.length === 1 ? '' : 's'}`}
+          >
+            {skillNames.slice(0, MAX_VISIBLE_DOTS).map((name, i) => (
+              <span
+                key={name}
+                title={name}
+                className={`gba:inline-block gba:h-2 gba:w-2 gba:rounded-full ${SKILL_DOT_COLORS[i % SKILL_DOT_COLORS.length]}`}
+              />
+            ))}
+            {skillNames.length > MAX_VISIBLE_DOTS && (
+              <span
+                className="gba:text-[9px] gba:font-medium gba:text-muted-foreground"
+                title={skillNames.slice(MAX_VISIBLE_DOTS).join(', ')}
+              >
+                +{skillNames.length - MAX_VISIBLE_DOTS}
+              </span>
+            )}
+          </span>
+        )}
       </div>
     ),
-    [
-      kind,
-      label,
-      category,
-      status,
-      size,
-      isSelected,
-      isActive,
-      isUpcoming,
-      isDimmed,
-      isHighlighted,
-      skillNames,
-      colors.primary,
-      colors.destructive,
-      reducedMotion
-    ]
+    [label, category, isSelected, isActive, isUpcoming, isDimmed, showSkillDots, skillNames]
   )
 
   return (
@@ -149,28 +168,36 @@ function Mesh3DNodeBase({
       }}
       onPointerOut={() => onPointerLeave(id)}
     >
-      {/* Invisible hitbox owns the pointer events + drag raycasting. */}
-      <mesh>
-        {' '}
-        {/* NOSONAR S6747 */}
-        <sphereGeometry args={[hitRadius, 12, 12]} /> {/* NOSONAR S6747 */}
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} /> {/* NOSONAR S6747 */}
-      </mesh>
+      {/* The glass 3D body — also the raycast target. */}
+      <Mesh3DNodeBody
+        kind={kind}
+        status={status}
+        isSelected={isSelected}
+        isActive={isActive}
+        isUpcoming={isUpcoming}
+        isDimmed={isDimmed}
+        isHighlighted={isHighlighted}
+        colors={colors}
+        reducedMotion={reducedMotion}
+      />
 
-      {/* Visible 2D-style card rendered in default Html mode. `distanceFactor`
-         scales the card relative to camera distance so it shrinks when you
-         zoom out and grows when you zoom in — mirroring React Flow's pan/zoom
-         feel. pointerEvents=none so the invisible mesh below still receives
-         drag/hover events. */}
-      <Html
-        center
-        distanceFactor={1500}
-        zIndexRange={[10, 0]}
-        pointerEvents="none"
-        style={{ pointerEvents: 'none', userSelect: 'none' }}
-      >
-        {card}
-      </Html>
+      {/* Floating Html label, anchored just below the body. Only mounted
+         when the label should be visible — this keeps the scene dramatically
+         cleaner at rest (no overlapping text on every node), and avoids
+         paying the Html portal cost for hundreds of hidden labels. */}
+      {showLabel && (
+        <group position={[0, -radius - 14, 0]}>
+          <Html
+            center
+            distanceFactor={1500}
+            zIndexRange={[10, 0]}
+            pointerEvents="none"
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+          >
+            {label3d}
+          </Html>
+        </group>
+      )}
     </group>
   )
 }

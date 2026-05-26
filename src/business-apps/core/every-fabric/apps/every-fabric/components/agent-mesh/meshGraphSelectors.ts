@@ -4,7 +4,7 @@
 // the two views stay in lock-step as users toggle layers, hover nodes, or
 // scrub the replay clock.
 
-import type { MeshEdge, MeshNode, TraceModel } from '../../utils/traceModel'
+import type { MeshEdge, MeshNode, MeshNodeKind, TraceModel } from '../../utils/traceModel'
 import { isKindVisible, type MeshLayerKey } from './meshLayers'
 import { KIND_CATEGORY } from './meshLayout'
 
@@ -37,6 +37,8 @@ export interface DerivedNode {
   isDimmed: boolean
   /** Hover highlight — true when this node is part of the hover skill path (excluding the hovered node itself). */
   isHighlighted: boolean
+  /** True when this node is the one the user is currently hovering. */
+  isHovered: boolean
 }
 
 export interface DerivedEdge {
@@ -75,81 +77,11 @@ export const ACTIVE_WINDOW_MS = 500
 function categoryFor(node: MeshNode): string {
   const category = node.metadata?.category
   if (category && typeof category === 'string') return category.toUpperCase()
-  return KIND_CATEGORY[node.kind]
+  return KIND_CATEGORY[node.kind as MeshNodeKind]
 }
 
 function undirectedPairKey(sourceId: string, targetId: string): string {
   return [sourceId, targetId].sort((a, b) => a.localeCompare(b)).join('::')
-}
-
-function collectSkillNamesByAgent(model: TraceModel): Map<string, string[]> {
-  const skillNamesByAgent = new Map<string, string[]>()
-  for (const edge of model.edges) {
-    if (edge.kind !== 'skill_load') continue
-    const existing = skillNamesByAgent.get(edge.source) ?? []
-    if (edge.label && !existing.includes(edge.label)) existing.push(edge.label)
-    skillNamesByAgent.set(edge.source, existing)
-  }
-  return skillNamesByAgent
-}
-
-function buildHoverHighlights(
-  hoveredNodeId: string | null,
-  visibleEdges: MeshEdge[]
-): { highlightedNodeIds: Set<string>; highlightedEdgeIds: Set<string>; isHoverActive: boolean } {
-  const highlightedNodeIds = new Set<string>()
-  const highlightedEdgeIds = new Set<string>()
-  if (hoveredNodeId) {
-    highlightedNodeIds.add(hoveredNodeId)
-    for (const edge of visibleEdges) {
-      if (edge.source === hoveredNodeId || edge.target === hoveredNodeId) {
-        highlightedNodeIds.add(edge.source)
-        highlightedNodeIds.add(edge.target)
-        highlightedEdgeIds.add(edge.id)
-      }
-    }
-  }
-  return { highlightedNodeIds, highlightedEdgeIds, isHoverActive: hoveredNodeId !== null }
-}
-
-function mapDerivedNodes(
-  visibleNodes: MeshNode[],
-  input: {
-    isLive: boolean
-    cutoffMs: number
-    positionMs: number
-    selectedNodeId: string | null
-    skillNamesByAgent: Map<string, string[]>
-    isHoverActive: boolean
-    highlightedNodeIds: Set<string>
-    hoveredNodeId: string | null
-  }
-): DerivedNode[] {
-  const {
-    isLive,
-    cutoffMs,
-    positionMs,
-    selectedNodeId,
-    skillNamesByAgent,
-    isHoverActive,
-    highlightedNodeIds,
-    hoveredNodeId
-  } = input
-  return visibleNodes.map(node => {
-    const isUpcoming = !isLive && node.offsetMs > cutoffMs && node.kind !== 'orchestrator'
-    const recentlyActive = !isLive && node.offsetMs <= cutoffMs && node.lastOffsetMs >= positionMs
-    const isActive = isLive ? node.status === 'running' : recentlyActive
-    return {
-      node,
-      category: categoryFor(node),
-      isUpcoming,
-      isActive,
-      isSelected: selectedNodeId === node.id,
-      skillNames: skillNamesByAgent.get(node.id) ?? [],
-      isDimmed: isHoverActive && !highlightedNodeIds.has(node.id),
-      isHighlighted: isHoverActive && highlightedNodeIds.has(node.id) && node.id !== hoveredNodeId
-    }
-  })
 }
 
 export function deriveMeshGraph(input: MeshGraphDerivedInput): MeshGraphDerived {
@@ -162,18 +94,45 @@ export function deriveMeshGraph(input: MeshGraphDerivedInput): MeshGraphDerived 
   const isLive = durationMs <= 0
   const cutoffMs = positionMs + 1
 
-  const skillNamesByAgent = collectSkillNamesByAgent(model)
-  const { highlightedNodeIds, highlightedEdgeIds, isHoverActive } = buildHoverHighlights(hoveredNodeId, visibleEdges)
+  // Skill names per agent, mirrors MeshGraph.buildLayout
+  const skillNamesByAgent = new Map<string, string[]>()
+  for (const edge of model.edges) {
+    if (edge.kind !== 'skill_load') continue
+    const existing = skillNamesByAgent.get(edge.source) ?? []
+    if (edge.label && !existing.includes(edge.label)) existing.push(edge.label)
+    skillNamesByAgent.set(edge.source, existing)
+  }
 
-  const derivedNodes = mapDerivedNodes(visibleNodes, {
-    isLive,
-    cutoffMs,
-    positionMs,
-    selectedNodeId,
-    skillNamesByAgent,
-    isHoverActive,
-    highlightedNodeIds,
-    hoveredNodeId
+  // Hover highlight propagation
+  const highlightedNodeIds = new Set<string>()
+  const highlightedEdgeIds = new Set<string>()
+  if (hoveredNodeId) {
+    highlightedNodeIds.add(hoveredNodeId)
+    for (const edge of visibleEdges) {
+      if (edge.source === hoveredNodeId || edge.target === hoveredNodeId) {
+        highlightedNodeIds.add(edge.source)
+        highlightedNodeIds.add(edge.target)
+        highlightedEdgeIds.add(edge.id)
+      }
+    }
+  }
+  const isHoverActive = hoveredNodeId !== null
+
+  const derivedNodes: DerivedNode[] = visibleNodes.map(node => {
+    const isUpcoming = !isLive && node.offsetMs > cutoffMs && node.kind !== 'orchestrator'
+    const recentlyActive = !isLive && node.offsetMs <= cutoffMs && node.lastOffsetMs >= positionMs
+    const isActive = isLive ? node.status === 'running' : recentlyActive
+    return {
+      node,
+      category: categoryFor(node),
+      isUpcoming,
+      isActive,
+      isSelected: selectedNodeId === node.id,
+      skillNames: skillNamesByAgent.get(node.id) ?? [],
+      isDimmed: isHoverActive && !highlightedNodeIds.has(node.id),
+      isHighlighted: isHoverActive && highlightedNodeIds.has(node.id) && node.id !== hoveredNodeId,
+      isHovered: node.id === hoveredNodeId
+    }
   })
 
   const derivedNodeById = new Map<string, DerivedNode>()

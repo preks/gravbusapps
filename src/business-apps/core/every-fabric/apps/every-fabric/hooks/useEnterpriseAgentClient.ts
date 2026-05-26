@@ -33,65 +33,6 @@ const SESSION_ETAG_CACHE = new Map<string, SessionCacheEntry>()
 const resolvePromptManagerBase = (): string =>
   PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
 
-type EnterpriseAgentApiClient = ReturnType<typeof usePromptManagerClient>
-
-function bindingFromAssignedRow(row: {
-  skill_id: string
-  follow_latest?: boolean
-  version?: number | null
-}): AgentSkillBinding {
-  return {
-    skill_id: row.skill_id,
-    follow_latest: row.follow_latest !== false,
-    version: row.follow_latest === false ? (row.version ?? null) : null,
-    enabled: true
-  }
-}
-
-async function loadExpertSkillBindings(
-  client: EnterpriseAgentApiClient,
-  expertId: string
-): Promise<Map<string, AgentSkillBinding>> {
-  const bindingsBySkill = new Map<string, AgentSkillBinding>()
-  try {
-    const agentSkills = await client.getAgentSkills(expertId)
-    const assignedRows = agentSkills.skill_bindings?.length ? agentSkills.skill_bindings : agentSkills.skills
-    for (const row of assignedRows ?? []) {
-      if (!row.skill_id || row.enabled === false) continue
-      bindingsBySkill.set(row.skill_id, bindingFromAssignedRow(row))
-    }
-  } catch {
-    // Session creation should still work if the registry binding lookup is temporarily unavailable.
-  }
-  return bindingsBySkill
-}
-
-function mergeExplicitSkillIds(bindingsBySkill: Map<string, AgentSkillBinding>, explicitSkillIds: string[]): void {
-  for (const skill_id of explicitSkillIds) {
-    if (bindingsBySkill.has(skill_id)) continue
-    bindingsBySkill.set(skill_id, {
-      skill_id,
-      follow_latest: true,
-      version: null,
-      enabled: true
-    })
-  }
-}
-
-async function resolveSessionSkillBindings(
-  client: EnterpriseAgentApiClient,
-  selectedExpertId: string | undefined,
-  explicitSkillIds: string[]
-): Promise<AgentSkillBinding[] | undefined> {
-  const bindingsBySkill = selectedExpertId
-    ? await loadExpertSkillBindings(client, selectedExpertId)
-    : new Map<string, AgentSkillBinding>()
-
-  mergeExplicitSkillIds(bindingsBySkill, explicitSkillIds)
-
-  return bindingsBySkill.size > 0 ? Array.from(bindingsBySkill.values()) : undefined
-}
-
 export const useEnterpriseAgentClient = (accessToken: string) => {
   const client = usePromptManagerClient(accessToken)
 
@@ -113,7 +54,36 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       const selectedExpertId = config?.selectedAgent?.id
       const selectedExpertIds = selectedExpertId ? [selectedExpertId] : undefined
 
-      const skill_bindings = await resolveSessionSkillBindings(client, selectedExpertId, explicitSkillIds)
+      const bindingsBySkill = new Map<string, AgentSkillBinding>()
+      if (selectedExpertId) {
+        try {
+          const agentSkills = await client.getAgentSkills(selectedExpertId)
+          const assignedRows = agentSkills.skill_bindings?.length ? agentSkills.skill_bindings : agentSkills.skills
+          for (const row of assignedRows ?? []) {
+            if (!row.skill_id || row.enabled === false) continue
+            bindingsBySkill.set(row.skill_id, {
+              skill_id: row.skill_id,
+              follow_latest: row.follow_latest !== false,
+              version: row.follow_latest === false ? (row.version ?? null) : null,
+              enabled: true
+            })
+          }
+        } catch {
+          // Session creation should still work if the registry binding lookup is temporarily unavailable.
+        }
+      }
+
+      for (const skill_id of explicitSkillIds) {
+        if (bindingsBySkill.has(skill_id)) continue
+        bindingsBySkill.set(skill_id, {
+          skill_id,
+          follow_latest: true,
+          version: null,
+          enabled: true
+        })
+      }
+
+      const skill_bindings = bindingsBySkill.size > 0 ? Array.from(bindingsBySkill.values()) : undefined
       const selectedSkillIds = skill_bindings?.map(binding => binding.skill_id) ?? []
       return client.post<StartSessionResponse>('/deep-agent/sessions', {
         task,
@@ -313,8 +283,6 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         category?: string | null
         tags?: string[]
         tool_refs?: string[]
-        version?: number
-        published_version?: number | null
       }>
     >('/skills/manifest')
     return rows.map(row => ({
