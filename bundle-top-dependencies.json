@@ -6030,87 +6030,87 @@
     ]
   },
   "core/create/apps/flow-creator": {
-    "bitbucketBuildNumber": 12585,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12585/",
-    "chunkJsBytes": 1106264,
+    "bitbucketBuildNumber": 12593,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12593/",
+    "chunkJsBytes": 1149292,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 651853,
-        "gzip": 168122,
+        "rendered": 653587,
+        "gzip": 168482,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/flow-creator/FlowStudio.tsx",
-            "rendered": 23780,
-            "gzip": 4921
+            "rendered": 25171,
+            "gzip": 5235
           },
           {
             "name": "src/business-apps/core/create/apps/flow-creator/utils/templateConverter.ts",
-            "rendered": 22966,
-            "gzip": 5529
+            "rendered": 22960,
+            "gzip": 5527
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 402000,
-        "gzip": 118102,
+        "rendered": 409037,
+        "gzip": 120668,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/data-toolbar/internal/components/ToolbarFilterChips.js",
             "rendered": 28647,
-            "gzip": 5395
+            "gzip": 5399
           },
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/date-input/DateInput.js",
             "rendered": 12630,
-            "gzip": 3298
+            "gzip": 3297
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 387231,
-        "gzip": 87050,
+        "rendered": 387217,
+        "gzip": 87048,
         "leaves": [
           {
             "name": "src/common/components/flow/flow-expression/ExpressionBuilder.tsx",
-            "rendered": 54328,
-            "gzip": 8969
+            "rendered": 54326,
+            "gzip": 8967
           },
           {
             "name": "src/common/components/flow/flow-wizard/steps/InputFieldsConfiguration.tsx",
-            "rendered": 35610,
-            "gzip": 5091
+            "rendered": 35644,
+            "gzip": 5092
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/data",
-        "rendered": 116595,
-        "gzip": 29176,
+        "rendered": 116513,
+        "gzip": 29167,
         "leaves": [
           {
             "name": "src/common/data/flow/utils/expressionTreeBuilder.ts",
-            "rendered": 16801,
-            "gzip": 3428
+            "rendered": 16773,
+            "gzip": 3424
           },
           {
             "name": "src/common/data/flow/utils/patternValidation.ts",
-            "rendered": 11725,
-            "gzip": 2256
+            "rendered": 11705,
+            "gzip": 2255
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 100555,
-        "gzip": 23722,
+        "rendered": 108789,
+        "gzip": 25819,
         "leaves": [
           {
             "name": "src/common/network/org-directory/OrgDirectoryClient.ts",
@@ -6121,6 +6121,24 @@
             "name": "src/common/network/ai/prompt-manager/PromptManagerClient.ts",
             "rendered": 19572,
             "gzip": 4415
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/business-apps/flow",
+        "rendered": 65348,
+        "gzip": 15438,
+        "leaves": [
+          {
+            "name": "src/business-apps/flow/apps/launcher/components/FlowLaunchSheet.tsx",
+            "rendered": 39219,
+            "gzip": 7038
+          },
+          {
+            "name": "src/business-apps/flow/apps/launcher/components/flowLaunchUtils.ts",
+            "rendered": 9121,
+            "gzip": 2748
           }
         ]
       },
@@ -6177,12 +6195,12 @@
         "kind": "bucket",
         "name": "vaul",
         "rendered": 22665,
-        "gzip": 7093,
+        "gzip": 7092,
         "leaves": [
           {
             "name": "node_modules/vaul/dist/index.mjs",
             "rendered": 22665,
-            "gzip": 7093
+            "gzip": 7092
           }
         ]
       },
@@ -6237,6 +6255,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/business-apps/ser",
+        "rendered": 6982,
+        "gzip": 1913,
+        "leaves": [
+          {
+            "name": "src/business-apps/ser/hooks/useDataSource.ts",
+            "rendered": 6982,
+            "gzip": 1913
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/env",
         "rendered": 5857,
         "gzip": 1091,
@@ -6245,19 +6276,6 @@
             "name": "src/common/env/EnvUtils.ts",
             "rendered": 5857,
             "gzip": 1091
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/business-apps/flow",
-        "rendered": 4277,
-        "gzip": 1241,
-        "leaves": [
-          {
-            "name": "src/business-apps/flow/providers/MockDataProvider.tsx",
-            "rendered": 4277,
-            "gzip": 1241
           }
         ]
       },
@@ -6333,19 +6351,6 @@
             "name": "src/common/wrapWithBlinkProvider.tsx",
             "rendered": 519,
             "gzip": 267
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/wrapWithLocalizationProvider.tsx",
-        "rendered": 451,
-        "gzip": 254,
-        "leaves": [
-          {
-            "name": "src/common/wrapWithLocalizationProvider.tsx",
-            "rendered": 451,
-            "gzip": 254
           }
         ]
       }
@@ -35588,20 +35593,20 @@
     ]
   },
   "flow/apps/launcher": {
-    "bitbucketBuildNumber": 12537,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12537/",
-    "chunkJsBytes": 204948,
+    "bitbucketBuildNumber": 12593,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12593/",
+    "chunkJsBytes": 213953,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 97633,
-        "gzip": 31089,
+        "rendered": 97684,
+        "gzip": 31107,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
             "rendered": 12134,
-            "gzip": 3442
+            "gzip": 3445
           },
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
@@ -35613,13 +35618,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/flow",
-        "rendered": 78663,
-        "gzip": 20328,
+        "rendered": 95010,
+        "gzip": 23234,
         "leaves": [
           {
             "name": "src/business-apps/flow/apps/launcher/components/FlowLaunchSheet.tsx",
-            "rendered": 22784,
-            "gzip": 4094
+            "rendered": 39131,
+            "gzip": 7000
           },
           {
             "name": "src/business-apps/flow/apps/launcher/components/FlowLibraryTab.tsx",
@@ -88338,20 +88343,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12589,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12589/",
-    "chunkJsBytes": 1923225,
+    "bitbucketBuildNumber": 12593,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12593/",
+    "chunkJsBytes": 1923223,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1627352,
-        "gzip": 102885,
+        "gzip": 102897,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1627352,
-            "gzip": 102885
+            "gzip": 102897
           }
         ]
       },
@@ -110168,7 +110173,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-26T13:12:18.269Z",
+    "generatedAt": "2026-05-26T13:35:59.609Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
