@@ -12312,33 +12312,33 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 12537,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12537/",
-    "chunkJsBytes": 1736852,
+    "bitbucketBuildNumber": 12584,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12584/",
+    "chunkJsBytes": 1873424,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2502457,
-        "gzip": 552344,
+        "rendered": 2777918,
+        "gzip": 609365,
         "leaves": [
           {
-            "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
-            "rendered": 109655,
-            "gzip": 21378
+            "name": "src/business-apps/core/office/apps/spreadsheets/services/SpreadsheetCollaborationManager.ts",
+            "rendered": 167225,
+            "gzip": 26596
           },
           {
-            "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppsHub.tsx",
-            "rendered": 108494,
-            "gzip": 17543
+            "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
+            "rendered": 117120,
+            "gzip": 23066
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 269865,
-        "gzip": 65127,
+        "rendered": 270322,
+        "gzip": 65196,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/slide-apps/services/SlidesApiService.ts",
@@ -12391,13 +12391,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 60934,
-        "gzip": 15046,
+        "rendered": 61138,
+        "gzip": 15094,
         "leaves": [
           {
             "name": "src/common/network/ai/prompt-manager/PromptManagerClient.ts",
-            "rendered": 19368,
-            "gzip": 4367
+            "rendered": 19572,
+            "gzip": 4415
           },
           {
             "name": "src/common/network/users/UserManagementClient.ts",
@@ -12427,13 +12427,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 24682,
-        "gzip": 6124,
+        "rendered": 25027,
+        "gzip": 6147,
         "leaves": [
           {
             "name": "src/common/components/markdown/MarkdownWithChipsRenderer.tsx",
-            "rendered": 14812,
-            "gzip": 2970
+            "rendered": 15157,
+            "gzip": 2993
           },
           {
             "name": "src/common/components/premium-hero-background/PremiumHeroWavingDotsCanvas.tsx",
@@ -88338,20 +88338,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12580,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12580/",
-    "chunkJsBytes": 1922077,
+    "bitbucketBuildNumber": 12584,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12584/",
+    "chunkJsBytes": 1923122,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1626091,
-        "gzip": 102009,
+        "rendered": 1627241,
+        "gzip": 102664,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1626091,
-            "gzip": 102009
+            "rendered": 1627241,
+            "gzip": 102664
           }
         ]
       },
@@ -100904,25 +100904,25 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 12580,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12580/",
-    "chunkJsBytes": 1737315,
+    "bitbucketBuildNumber": 12584,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12584/",
+    "chunkJsBytes": 1873355,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2502457,
-        "gzip": 552344,
+        "rendered": 2777918,
+        "gzip": 609365,
         "leaves": [
           {
-            "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
-            "rendered": 109655,
-            "gzip": 21378
+            "name": "src/business-apps/core/office/apps/spreadsheets/services/SpreadsheetCollaborationManager.ts",
+            "rendered": 167225,
+            "gzip": 26596
           },
           {
-            "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppsHub.tsx",
-            "rendered": 108494,
-            "gzip": 17543
+            "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
+            "rendered": 117120,
+            "gzip": 23066
           }
         ]
       },
@@ -110163,7 +110163,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-26T11:54:25.053Z",
+    "generatedAt": "2026-05-26T12:21:19.873Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
