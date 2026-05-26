@@ -270,6 +270,7 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
           variant={resolved.variant}
           showBorder={resolved.showBorder}
           forceReload={forceWorkflowReload}
+          newTab
         >
           {children}
         </BaseEntityLinkChip>
@@ -279,6 +280,20 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
 
   // Regular HTTP/HTTPS links
   if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+    return (
+      <a
+        href={href}
+        className="gba:text-primary gba:underline hover:gba:opacity-80"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
+    )
+  }
+
+  // Root-relative platform links are valid app navigation targets too.
+  if (href && href.startsWith('/')) {
     return (
       <a
         href={href}

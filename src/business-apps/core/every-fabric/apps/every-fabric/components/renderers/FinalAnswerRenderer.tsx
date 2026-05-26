@@ -16,7 +16,7 @@ import {
   PresentationIcon
 } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
-import EntityLink from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
+import { resolveEntityLink } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import type {
   EnterprisePresentationMode,
@@ -103,7 +103,7 @@ const workspaceDocCardClassName =
 const ArtifactCreatedCard: React.FC<{
   doc: WorkspaceDocument
   accessToken?: string
-}> = ({ doc, accessToken }) => {
+}> = ({ doc }) => {
   const Icon = DOC_TYPE_ICON[doc.type] ?? FileTextIcon
   const label = DOC_TYPE_LABEL[doc.type] ?? 'Document'
   const body = (
@@ -123,18 +123,10 @@ const ArtifactCreatedCard: React.FC<{
     </>
   )
   const isEntityProtocol = /^\w+:\/\//.test(doc.url) && !/^https?:\/\//i.test(doc.url)
-  if (isEntityProtocol) {
-    return (
-      <EntityLink href={doc.url} accessToken={accessToken ?? ''}>
-        <div className={workspaceDocCardClassName} data-testid={`workspace-doc-card-${doc.id}`}>
-          {body}
-        </div>
-      </EntityLink>
-    )
-  }
+  const resolvedHref = isEntityProtocol ? (resolveEntityLink(doc.url)?.url ?? doc.url) : doc.url
   return (
     <a
-      href={doc.url}
+      href={resolvedHref}
       target="_blank"
       rel="noopener noreferrer"
       className={workspaceDocCardClassName}

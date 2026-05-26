@@ -844,7 +844,12 @@ function sessionAttachmentsToRefs(
   attachments?: Array<SessionAttachment | MessageAttachmentRef>
 ): MessageAttachmentRef[] | undefined {
   if (!attachments || attachments.length === 0) return undefined
-  return attachments.map(a => ({
+  // Filter out attachments produced by agent tools (e.g. PDF exports). Those
+  // belong to the composer / deliverable cards and must not be rendered as
+  // "user-attached" chips on the initial user_input bubble.
+  const userAttachments = attachments.filter(a => (a as SessionAttachment).origin !== 'agent_generated')
+  if (userAttachments.length === 0) return undefined
+  return userAttachments.map(a => ({
     id: a.id,
     name: a.name,
     mime_type: a.mime_type,

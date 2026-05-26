@@ -34,6 +34,7 @@ jest.mock('react-markdown', () => ({
         {C.pre ? <C.pre>preblock</C.pre> : null}
         {C.blockquote ? <C.blockquote>quoted</C.blockquote> : null}
         {C.a ? <C.a href="https://example.com">Visit</C.a> : null}
+        {C.a ? <C.a href="/platform/content/intranet/content-record?contentId=abc">Open policy</C.a> : null}
         {C.table ? (
           <C.table>
             {C.thead ? <C.thead>{C.tr ? <C.tr>{C.th ? <C.th>Metric</C.th> : null}</C.tr> : null}</C.thead> : null}
@@ -53,10 +54,11 @@ jest.mock('remark-gfm', () => ({
 jest.mock('@/business-apps/platform/apps/every-ai/components/links/EntityLink', () => ({
   __esModule: true,
   default: ({ href, children }: any) => (
-    <a href={href} data-testid="entity-link">
+    <span data-testid="entity-link" data-href={href}>
       {children}
-    </a>
+    </span>
   ),
+  SUPPORTED_PROTOCOLS: ['employee', 'account'],
   markdownUrlTransform: (url: string) => url
 }))
 
@@ -111,6 +113,18 @@ describe('MarkdownWithChipsRenderer (enterprise variant)', () => {
     const link = screen.getByText('Visit')
     expect(link.tagName).toBe('A')
     expect(link.getAttribute('href')).toBe('https://example.com')
+  })
+
+  it('renders root-relative platform links as clickable anchors instead of entity chips', () => {
+    render(<MarkdownWithChipsRenderer content="ignored" variant="enterprise" />)
+
+    const link = screen.getByText('Open policy')
+    expect(link.tagName).toBe('A')
+    expect(link).toHaveAttribute('href', '/platform/content/intranet/content-record?contentId=abc')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(link).toHaveAttribute('data-testid', 'markdown-platform-link')
+    expect(screen.queryByTestId('entity-link')).not.toBeInTheDocument()
   })
 
   it('renders enterprise paragraphs with the larger leading scale', () => {

@@ -32,6 +32,19 @@ import { LivePreviewCard } from './LivePreviewCard'
 import { PanelCard } from './PanelCard'
 import { PlanCard } from './PlanCard'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
+import { resolveEntityLink } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
+
+/**
+ * Resolve `document://<uuid>` (and other entity-protocol URIs) into a real
+ * `/platform/...` URL so `<a target="_blank">` can actually open it in a new
+ * tab. Raw entity-protocol hrefs are unhandled by the browser, which is why
+ * earlier they appeared "broken" or got intercepted by the SPA.
+ */
+const resolveDocHref = (url: string): string => {
+  const isEntityProtocol = /^\w+:\/\//.test(url) && !/^https?:\/\//i.test(url)
+  if (!isEntityProtocol) return url
+  return resolveEntityLink(url)?.url ?? url
+}
 
 function activityTimestampSortValue(timestamp: string): number {
   const date = parseIsoTimestamp(timestamp)
@@ -92,7 +105,7 @@ const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[]; defaultColla
       {docs.map(doc => (
         <a
           key={doc.id}
-          href={doc.url}
+          href={resolveDocHref(doc.url)}
           target="_blank"
           rel="noopener noreferrer"
           className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/30 gba:transition-colors gba:no-underline"
@@ -1234,7 +1247,18 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
         </div>
       )}
 
-      {cases.length > 0 && <CasePanel cases={cases} accessToken={accessToken} defaultCollapsed={false} />}
+      {cases.length > 0 && (
+        <CasePanel
+          cases={cases}
+          accessToken={accessToken}
+          /* Collapse the Case Panel automatically when a live preview is up
+             (e.g. the recommendation-letter PDF rendered in Phase 4a) so the
+             operator can read the document and the compose-email bubble
+             side-by-side without scrolling past the case rows. Re-opens when
+             the preview clears. */
+          defaultCollapsed={showPreview}
+        />
+      )}
 
       {hasPlan && (
         <PlanCard
