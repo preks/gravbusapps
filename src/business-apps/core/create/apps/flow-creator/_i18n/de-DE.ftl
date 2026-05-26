@@ -21,6 +21,7 @@ studio-save-name-confirm = Flow speichern
 studio-unsaved-changes = Ungespeicherte Änderungen
 studio-saved = Gespeichert
 studio-loading = Lädt...
+studio-test-flow = Flow testen
 
 # Labels / Tags
 labels-title = Labels

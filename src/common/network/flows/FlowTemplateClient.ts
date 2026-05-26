@@ -494,6 +494,7 @@ export class FlowTemplateClient extends RestClient {
       runtimeAssignments?: any
       inputValues?: any
       runtimeParameters?: any
+      validateWithConductor?: boolean
     }
   ): Promise<{
     workflowId: string
@@ -513,12 +514,24 @@ export class FlowTemplateClient extends RestClient {
     templateDefinition: Omit<FlowTemplate, 'id'>
     initiatorId: string
     stepAssignments?: any
+    inputValues?: any
+    runtimeParameters?: any
+    context?: any
+    validateWithConductor?: boolean
   }): Promise<{
     workflowId: string
     workflowName: string
     version: number
     tags?: any
     isDynamic: true
+    validationWarnings?: string[]
+    testRun?: {
+      enabled: boolean
+      status: string
+      completedTasks: Array<{ taskId: string; stepReference?: string; stepTitle?: string }>
+      timedOut: boolean
+      warnings: string[]
+    }
     executionInput: any
   }> {
     const response = await this.post<ApiResponse<any>>(`/execute-dynamic`, params)

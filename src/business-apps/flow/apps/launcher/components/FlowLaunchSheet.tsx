@@ -44,6 +44,7 @@ import FlowDataSourceSelect from '@/business-apps/flow/common/components/data-so
 import FlowDataSourceMultiSelect from '@/business-apps/flow/common/components/data-source/FlowDataSourceMultiSelect'
 import { useFlowLaunchFileUpload } from '../hooks/useFlowLaunchFileUpload'
 import { FlowLaunchFileField } from './FlowLaunchFileField'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import {
   buildRuntimeAssignmentsPayload,
   coerceFormDataBySchema,
@@ -57,10 +58,73 @@ import {
   type RuntimeAssignment
 } from './flowLaunchUtils'
 
+function toDynamicStepAssignments(runtimeAssignments: Record<string, any>): Record<string, any> {
+  return Object.fromEntries(
+    Object.entries(runtimeAssignments).map(([stepKey, assignment]) => [
+      stepKey,
+      {
+        assignment,
+        resolvedConfig: null
+      }
+    ])
+  )
+}
+
+type FlowLaunchResult = {
+  workflowId: string
+  workflowName?: string
+  validationWarnings?: string[]
+  testRun?: {
+    enabled: boolean
+    status: string
+    completedTasks: Array<{ taskId: string; stepReference?: string; stepTitle?: string }>
+    timedOut: boolean
+    warnings: string[]
+  }
+}
+
+type TestFlowStatus = {
+  isLoading: boolean
+  error: string | null
+  status: string | null
+  progress: number | null
+  summaryData: Array<{ label: string; value: unknown }>
+  stepResults: Array<{
+    stepTitle: string
+    fields: Array<{ label: string; value: unknown }>
+  }>
+}
+
+const TERMINAL_FLOW_STATUSES = new Set(['COMPLETED', 'FAILED', 'TERMINATED', 'TIMED_OUT', 'CANCELED', 'CANCELLED'])
+
+function isTerminalFlowStatus(status: string | null | undefined): boolean {
+  return TERMINAL_FLOW_STATUSES.has(String(status || '').toUpperCase())
+}
+
+function formatSummaryValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '-'
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function formatFieldLabel(field: string): string {
+  return String(field || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, character => character.toUpperCase())
+}
+
 export interface FlowLaunchSheetProps extends Partial<BusinessAppContextProps> {
   open: boolean
   onOpenChange: (open: boolean) => void
   templateId: string | null
+  templateDefinition?: Omit<FlowTemplate, 'id'> | null
+  mode?: 'launch' | 'test'
   'data-testid'?: string
 }
 
@@ -70,6 +134,8 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
   accessToken,
   userInfo,
   templateId,
+  templateDefinition,
+  mode = 'launch',
   'data-testid': testId = 'flow-launch-sheet'
 }) => {
   const form = useForm<Record<string, any>>({ defaultValues: {} })
@@ -78,6 +144,16 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [isLaunching, setIsLaunching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [launchResult, setLaunchResult] = useState<FlowLaunchResult | null>(null)
+  const [testFlowStatus, setTestFlowStatus] = useState<TestFlowStatus>({
+    isLoading: false,
+    error: null,
+    status: null,
+    progress: null,
+    summaryData: [],
+    stepResults: []
+  })
+  const resultRef = React.useRef<HTMLDivElement | null>(null)
   const {
     uploadFormFiles,
     isUploading: isUploadingFiles,
@@ -89,6 +165,11 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
   const launchFormContext = useMemo(() => resolveLaunchFormContext(template), [template])
   const startInputs = launchFormContext.inputs
   const startFormTitle = launchFormContext.mode === 'first-task-form' ? 'First task form' : 'Start form'
+  const isTestMode = mode === 'test'
+  const launchButtonLabel = isTestMode ? 'Run test' : 'Launch'
+  const launchingLabel = isTestMode ? 'Testing' : 'Launching'
+  const successTitle = isTestMode ? 'Flow test started' : 'Flow launched'
+  const failureTitle = isTestMode ? 'Flow test failed' : 'Launch failed'
   const startFormEmptyText =
     launchFormContext.mode === 'first-task-form'
       ? 'This flow has no launcher form and the first task does not expose a supported form fallback.'
@@ -96,6 +177,25 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
 
   useEffect(() => {
     if (!open) return
+    if (templateDefinition) {
+      const dynamicTemplate = templateDefinition as FlowTemplate
+      setIsLoading(false)
+      setError(null)
+      setLaunchResult(null)
+      setTestFlowStatus({
+        isLoading: false,
+        error: null,
+        status: null,
+        progress: null,
+        summaryData: [],
+        stepResults: []
+      })
+      setTemplate(dynamicTemplate)
+      setAssignments(collectRuntimeAssignments(dynamicTemplate, resolveLaunchFormContext(dynamicTemplate)))
+      clearUploadError()
+      form.reset({})
+      return
+    }
     if (!templateId) return
 
     const load = async () => {
@@ -106,6 +206,15 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
 
       setIsLoading(true)
       setError(null)
+      setLaunchResult(null)
+      setTestFlowStatus({
+        isLoading: false,
+        error: null,
+        status: null,
+        progress: null,
+        summaryData: [],
+        stepResults: []
+      })
       setTemplate(null)
       setAssignments([])
       clearUploadError()
@@ -124,7 +233,7 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
     }
 
     void load()
-  }, [accessToken, clearUploadError, form, open, templateId])
+  }, [accessToken, clearUploadError, form, open, templateDefinition, templateId])
 
   const canLaunch = useMemo(() => {
     if (isLoading) return false
@@ -150,11 +259,13 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
   }
 
   const handleLaunch = async () => {
-    if (!templateId) return
+    if (!templateId && !templateDefinition) return
     if (!accessToken) return
 
     setIsLaunching(true)
     setError(null)
+    setLaunchResult(null)
+    setTestFlowStatus({ isLoading: false, error: null, status: null, progress: null, summaryData: [], stepResults: [] })
     try {
       const isValid = await form.trigger()
       if (!isValid) return
@@ -164,7 +275,8 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
 
       const client = new FlowTemplateClient(accessToken)
       const inputValues = form.getValues()
-      const uploadedValues = await uploadFormFiles(startInputs, inputValues, templateId)
+      const uploadScopeId = templateId || template?.name || 'dynamic-test-flow'
+      const uploadedValues = await uploadFormFiles(startInputs, inputValues, uploadScopeId)
       const normalizedFallbackValues = coerceFormDataBySchema(startInputs, uploadedValues)
       const runtimeAssignments = buildRuntimeAssignmentsPayload(assignments, {
         template,
@@ -172,19 +284,32 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
         defaultUserId: effectiveInitiatorId
       })
 
-      const result = await client.executeWorkflow(templateId, {
-        initiator: effectiveInitiatorId,
-        inputValues: normalizedFallbackValues,
-        runtimeAssignments,
-        runtimeParameters: {},
-        context: {
-          launchedAt: new Date().toISOString(),
-          launchedBy: effectiveInitiatorId,
-          templateTitle: template?.name || templateId
-        }
-      })
+      const context = {
+        launchedAt: new Date().toISOString(),
+        launchedBy: effectiveInitiatorId,
+        templateTitle: template?.name || templateId || 'Dynamic flow',
+        ...(isTestMode ? { executionMode: 'test', label: 'test' } : {})
+      }
 
-      if (launchFormContext.mode === 'first-task-form') {
+      const result =
+        templateDefinition && isTestMode
+          ? await client.executeDynamicTemplate({
+              templateDefinition,
+              initiatorId: effectiveInitiatorId,
+              stepAssignments: toDynamicStepAssignments(runtimeAssignments),
+              inputValues: normalizedFallbackValues,
+              runtimeParameters: {},
+              context
+            })
+          : await client.executeWorkflow(templateId!, {
+              initiator: effectiveInitiatorId,
+              inputValues: normalizedFallbackValues,
+              runtimeAssignments,
+              runtimeParameters: {},
+              context
+            })
+
+      if (launchFormContext.mode === 'first-task-form' && !isTestMode) {
         try {
           const completionUserId = getFallbackCompletionUserId(
             assignments,
@@ -196,7 +321,7 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
             accessToken,
             userId: completionUserId,
             workflowId: result.workflowId,
-            templateId,
+            templateId: templateId || 'DYNAMIC',
             formData: normalizedFallbackValues
           })
         } catch (fallbackError) {
@@ -204,23 +329,134 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
             fallbackError instanceof Error
               ? fallbackError.message
               : 'The first task form could not be submitted automatically.'
-          toast.error('Flow launched, but the first task still needs input', { description })
+          toast.error(`${successTitle}, but the first task still needs input`, { description })
         }
       }
 
-      toast.success('Flow launched', {
+      toast.success(successTitle, {
         description: `Flow ID: ${result.workflowId}`
       })
 
-      onOpenChange(false)
+      if (isTestMode) {
+        setLaunchResult(result)
+      } else {
+        onOpenChange(false)
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to launch flow'
       setError(msg)
-      toast.error('Launch failed', { description: msg })
+      toast.error(failureTitle, { description: msg })
     } finally {
       setIsLaunching(false)
     }
   }
+
+  useEffect(() => {
+    if (!launchResult || !isTestMode || !accessToken) return
+
+    let cancelled = false
+    let attempt = 0
+    const maxAttempts = 90
+    let lastStatus: string | null = null
+    const userId = userInfo?.id || userInfo?.employeeDetails?.employeeId || userInfo?.userName || 'unknown'
+    const apiBase = getFlowEngineApiBaseUrl()
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+
+    const loadStatus = async () => {
+      attempt += 1
+      setTestFlowStatus(current => ({ ...current, isLoading: true, error: null }))
+
+      try {
+        const [progressResponse, stepsResponse] = await Promise.all([
+          fetch(`${apiBase}/flows/${encodeURIComponent(launchResult.workflowId)}/progress`, { headers }),
+          fetch(`${apiBase}/flows/${encodeURIComponent(launchResult.workflowId)}/progress/steps`, { headers })
+        ])
+
+        const progressPayload = progressResponse.ok ? await progressResponse.json() : null
+        const stepsPayload = stepsResponse.ok ? await stepsResponse.json() : null
+        const progressFlow = progressPayload?.data?.flow
+        const status = progressFlow?.workflowStatus || null
+        const summaryResponse = isTerminalFlowStatus(status)
+          ? await fetch(
+              `${apiBase}/flows/${encodeURIComponent(launchResult.workflowId)}/summary?userId=${encodeURIComponent(userId)}`,
+              { headers }
+            )
+          : null
+        const summaryPayload = summaryResponse?.ok ? await summaryResponse.json() : null
+        const summaryData = Array.isArray(summaryPayload?.summaryData) ? summaryPayload.summaryData : []
+
+        if (cancelled) return
+        lastStatus = status
+        let stepResults: TestFlowStatus['stepResults'] = []
+
+        if (isTerminalFlowStatus(status) && summaryData.length === 0) {
+          const steps = Array.isArray(stepsPayload?.data?.steps) ? stepsPayload.data.steps : []
+          const completedSteps = steps.filter(
+            (step: any) => String(step?.stepStatus || '').toUpperCase() === 'COMPLETED'
+          )
+          const stepDataResponses = await Promise.all(
+            completedSteps.map(async (step: any) => {
+              const stepReference = step.rootTaskReference || `step_${step.rootTaskIndex}`
+              const response = await fetch(
+                `${apiBase}/flows/${encodeURIComponent(launchResult.workflowId)}/steps/${encodeURIComponent(stepReference)}/data?limit=1`,
+                { headers }
+              )
+              if (!response.ok) return null
+              const payload = await response.json()
+              const firstRow = Array.isArray(payload?.data) ? payload.data[0] : null
+              const inputData =
+                firstRow?.inputData && typeof firstRow.inputData === 'object' ? firstRow.inputData : null
+              if (!inputData || Object.keys(inputData).length === 0) return null
+              return {
+                stepTitle: step.rootTaskTitle || firstRow?.stepTitle || stepReference,
+                fields: Object.entries(inputData).map(([label, value]) => ({ label: formatFieldLabel(label), value }))
+              }
+            })
+          )
+          stepResults = stepDataResponses.filter(Boolean) as TestFlowStatus['stepResults']
+        }
+
+        setTestFlowStatus({
+          isLoading: false,
+          error: null,
+          status,
+          progress:
+            typeof progressFlow?.userTaskProgressPercentage === 'number'
+              ? progressFlow.userTaskProgressPercentage
+              : null,
+          summaryData,
+          stepResults
+        })
+      } catch (statusError) {
+        if (cancelled) return
+        setTestFlowStatus(current => ({
+          ...current,
+          isLoading: false,
+          error: statusError instanceof Error ? statusError.message : 'Failed to load test result status'
+        }))
+      }
+
+      if (!cancelled && attempt < maxAttempts && !isTerminalFlowStatus(lastStatus)) {
+        globalThis.setTimeout(loadStatus, 2000)
+      }
+    }
+
+    void loadStatus()
+
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, isTestMode, launchResult, userInfo?.employeeDetails?.employeeId, userInfo?.id, userInfo?.userName])
+
+  useEffect(() => {
+    if (!launchResult || !isTestMode) return
+    globalThis.setTimeout(() => {
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }, [isTestMode, launchResult])
 
   const sheetWidth = 'gba:w-full gba:sm:max-w-xl'
 
@@ -229,7 +465,10 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
       <SheetContent side="right" className={`${sheetWidth} gba:flex gba:flex-col gba:p-0`} data-testid={testId}>
         <SheetHeader className="gba:px-4 gba:pt-4 gba:pb-4">
           <SheetTitle className="gba:flex gba:flex-col gba:gap-1" data-testid={`${testId}-title`}>
-            <span className="gba:text-base">{template?.name || 'Start flow'}</span>
+            <span className="gba:flex gba:items-center gba:gap-2 gba:text-base">
+              {template?.name || (isTestMode ? 'Test flow' : 'Start flow')}
+              {isTestMode ? <Badge variant="warning">Test</Badge> : null}
+            </span>
             {template?.description ? (
               <span className="gba:text-sm gba:text-muted-foreground" data-testid={`${testId}-description`}>
                 {template.description}
@@ -559,6 +798,156 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
                   </CardContent>
                 </Card>
               ) : null}
+
+              {launchResult ? (
+                <Card
+                  ref={resultRef}
+                  className="gba:bg-success-secondary gba:border-success"
+                  data-testid={`${testId}-result`}
+                >
+                  <CardContent className="gba:p-4 gba:space-y-3">
+                    <div>
+                      <div className="gba:text-sm gba:font-medium">Test started</div>
+                      <div className="gba:text-xs gba:text-muted-foreground">
+                        The dynamic flow was started successfully.
+                      </div>
+                    </div>
+                    <div className="gba:grid gba:grid-cols-[auto_1fr] gba:gap-x-3 gba:gap-y-1 gba:text-sm">
+                      <span className="gba:text-muted-foreground">Workflow ID</span>
+                      <span className="gba:font-mono gba:text-xs gba:break-all">{launchResult.workflowId}</span>
+                      {launchResult.workflowName ? (
+                        <>
+                          <span className="gba:text-muted-foreground">Workflow</span>
+                          <span>{launchResult.workflowName}</span>
+                        </>
+                      ) : null}
+                    </div>
+                    {launchResult.validationWarnings && launchResult.validationWarnings.length > 0 ? (
+                      <Alert variant="warning" data-testid={`${testId}-result-warnings`}>
+                        <div className="gba:space-y-1">
+                          <div className="gba:font-medium">Validation warning</div>
+                          {launchResult.validationWarnings.map((warning, index) => (
+                            <div key={`${warning}-${index}`} className="gba:text-sm">
+                              {warning}
+                            </div>
+                          ))}
+                        </div>
+                      </Alert>
+                    ) : null}
+                    {launchResult.testRun ? (
+                      <div
+                        className="gba:rounded-lg gba:border gba:border-border gba:bg-background gba:p-3 gba:space-y-2"
+                        data-testid={`${testId}-test-run`}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between">
+                          <div className="gba:text-sm gba:font-medium">Auto-completion</div>
+                          <Badge
+                            variant={
+                              isTerminalFlowStatus(testFlowStatus.status)
+                                ? testFlowStatus.status === 'COMPLETED'
+                                  ? 'success'
+                                  : 'warning'
+                                : 'warning'
+                            }
+                          >
+                            {isTerminalFlowStatus(testFlowStatus.status)
+                              ? testFlowStatus.status
+                              : launchResult.testRun.status}
+                          </Badge>
+                        </div>
+                        <div className="gba:text-xs gba:text-muted-foreground">
+                          {isTerminalFlowStatus(testFlowStatus.status)
+                            ? testFlowStatus.status === 'COMPLETED'
+                              ? 'Auto-completion finished.'
+                              : 'Auto-completion stopped because the flow reached a terminal state.'
+                            : launchResult.testRun.completedTasks.length > 0
+                              ? `Completed ${launchResult.testRun.completedTasks.length} user task${
+                                  launchResult.testRun.completedTasks.length === 1 ? '' : 's'
+                                } with generated test data.`
+                              : 'Auto-completion is running in the background.'}
+                        </div>
+                        {launchResult.testRun.completedTasks.length > 0 ? (
+                          <div className="gba:flex gba:flex-col gba:gap-1">
+                            {launchResult.testRun.completedTasks.map((task, index) => (
+                              <div key={`${task.taskId}-${index}`} className="gba:text-xs">
+                                {task.stepTitle || task.stepReference || task.taskId}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                        {launchResult.testRun.warnings.length > 0 ? (
+                          <Alert variant="warning" data-testid={`${testId}-test-run-warnings`}>
+                            <div className="gba:space-y-1">
+                              <div className="gba:font-medium">Auto-completion warning</div>
+                              {launchResult.testRun.warnings.map((warning, index) => (
+                                <div key={`${warning}-${index}`} className="gba:text-sm">
+                                  {warning}
+                                </div>
+                              ))}
+                            </div>
+                          </Alert>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div className="gba:rounded-lg gba:border gba:border-border gba:bg-background gba:p-3 gba:space-y-3">
+                      <div className="gba:flex gba:items-center gba:justify-between">
+                        <div className="gba:text-sm gba:font-medium">Flow status</div>
+                        {testFlowStatus.isLoading ? <Spinner size="sm" /> : null}
+                      </div>
+                      {testFlowStatus.error ? (
+                        <div className="gba:text-sm gba:text-destructive">{testFlowStatus.error}</div>
+                      ) : (
+                        <div className="gba:grid gba:grid-cols-[auto_1fr] gba:gap-x-3 gba:gap-y-1 gba:text-sm">
+                          <span className="gba:text-muted-foreground">Status</span>
+                          <span>{testFlowStatus.status || 'Starting'}</span>
+                          {typeof testFlowStatus.progress === 'number' ? (
+                            <>
+                              <span className="gba:text-muted-foreground">Progress</span>
+                              <span>{Math.round(testFlowStatus.progress)}%</span>
+                            </>
+                          ) : null}
+                        </div>
+                      )}
+                      {testFlowStatus.summaryData.length > 0 ? (
+                        <div className="gba:space-y-2">
+                          <div className="gba:text-sm gba:font-medium">Result summary</div>
+                          <div className="gba:grid gba:grid-cols-[auto_1fr] gba:gap-x-3 gba:gap-y-1 gba:text-sm">
+                            {testFlowStatus.summaryData.map((item, index) => (
+                              <React.Fragment key={`${item.label}-${index}`}>
+                                <span className="gba:text-muted-foreground">{item.label}</span>
+                                <span>{formatSummaryValue(item.value)}</span>
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        </div>
+                      ) : testFlowStatus.stepResults.length > 0 ? (
+                        <div className="gba:space-y-3">
+                          <div className="gba:text-sm gba:font-medium">Test result data</div>
+                          {testFlowStatus.stepResults.map((step, stepIndex) => (
+                            <div key={`${step.stepTitle}-${stepIndex}`} className="gba:space-y-1">
+                              <div className="gba:text-xs gba:font-medium">{step.stepTitle}</div>
+                              <div className="gba:grid gba:grid-cols-[auto_1fr] gba:gap-x-3 gba:gap-y-1 gba:text-sm">
+                                {step.fields.map((field, fieldIndex) => (
+                                  <React.Fragment key={`${field.label}-${fieldIndex}`}>
+                                    <span className="gba:text-muted-foreground">{field.label}</span>
+                                    <span>{formatSummaryValue(field.value)}</span>
+                                  </React.Fragment>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="gba:text-xs gba:text-muted-foreground">
+                          {testFlowStatus.status === 'COMPLETED'
+                            ? 'No result summary fields are configured for this flow.'
+                            : 'No result summary yet. This flow is waiting for user tasks, or it has no summary fields.'}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -588,10 +977,10 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
             {isLaunching ? (
               <span className="gba:flex gba:items-center gba:gap-2">
                 <Spinner size="sm" />
-                Launching
+                {launchingLabel}
               </span>
             ) : (
-              'Launch'
+              launchButtonLabel
             )}
           </Button>
         </div>

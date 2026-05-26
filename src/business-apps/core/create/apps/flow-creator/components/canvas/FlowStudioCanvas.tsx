@@ -15,6 +15,7 @@ interface FlowStudioCanvasProps extends BusinessAppContextProps {
   mode: DesignerMode
   onModeChange?: (mode: DesignerMode) => void
   onSave?: () => Promise<void> | void
+  onTestFlow?: () => void
   showValidationIssues?: boolean
   'data-testid'?: string
 }
@@ -24,6 +25,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   mode,
   onModeChange,
   onSave,
+  onTestFlow,
   showValidationIssues = false,
   'data-testid': testId = 'flow-studio-canvas'
 }) => {
@@ -327,7 +329,13 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>
-      <CanvasToolbar onSave={onSave} mode={mode} onModeChange={onModeChange} data-testid={`${testId}-toolbar`} />
+      <CanvasToolbar
+        onSave={onSave}
+        onTestFlow={onTestFlow}
+        mode={mode}
+        onModeChange={onModeChange}
+        data-testid={`${testId}-toolbar`}
+      />
       {showValidationIssues && (errors.length > 0 || warnings.length > 0) && (
         <div className="gba:px-3 gba:py-2 gba:border-b gba:border-border gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:text-xs">
           <div className="gba:font-medium">

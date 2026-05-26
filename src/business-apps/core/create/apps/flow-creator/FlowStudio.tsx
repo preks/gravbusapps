@@ -29,6 +29,7 @@ import {
 import { FileText, Sparkles, Workflow } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
+import { FlowLaunchSheet } from '@/business-apps/flow/apps/launcher/components/FlowLaunchSheet'
 import translations from './_i18n'
 import { FlowStudioCanvas } from './components/canvas/FlowStudioCanvas'
 import { FlowStudioChatPanel } from './components/FlowStudioChatPanel'
@@ -40,6 +41,8 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import type { DesignerMode } from './types/studioTypes'
 import { MockDataProvider } from '@/business-apps/flow/providers'
 import { useFlowStudioClient } from './hooks/useFlowStudioClient'
+import { validateFlow } from './hooks/useFlowValidation'
+import { studioGraphToTemplate } from './utils/templateConverter'
 import { FlowStudioCreateView } from './views/FlowStudioCreateView'
 import { FlowStudioListView } from './views/FlowStudioListView'
 
@@ -219,6 +222,8 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const [saveNameError, setSaveNameError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showValidationIssues, setShowValidationIssues] = useState(false)
+  const [testSheetOpen, setTestSheetOpen] = useState(false)
+  const [testTemplateDefinition, setTestTemplateDefinition] = useState<any | null>(null)
 
   useEffect(() => {
     if (view !== 'list') return
@@ -338,6 +343,37 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     setSaveNameError(null)
     setSaveNameDialogOpen(true)
   }, [executeSave, getSaveErrorMessage, templateName, view])
+
+  const requestTestFlow = useCallback(() => {
+    if (view !== 'designer') return
+
+    setShowValidationIssues(true)
+    setSaveError(null)
+
+    const state = useFlowStudioStore.getState()
+    const validationErrors = validateFlow(state.nodes, state.edges).filter(issue => issue.severity === 'error')
+    if (validationErrors.length > 0) {
+      setSaveError(
+        `Validation failed: ${validationErrors
+          .slice(0, 3)
+          .map(issue => issue.message)
+          .join('; ')}${validationErrors.length > 3 ? '...' : ''}`
+      )
+      return
+    }
+
+    const template = studioGraphToTemplate(
+      state.nodes,
+      state.edges,
+      state.templateName,
+      state.templateDescription,
+      { ...(state.templateTags ?? {}), execution: 'test' } as any,
+      state.templateVersion
+    )
+
+    setTestTemplateDefinition(template)
+    setTestSheetOpen(true)
+  }, [view])
 
   useEffect(() => {
     setShowValidationIssues(false)
@@ -527,6 +563,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                 mode={mode}
                 onModeChange={handleModeChange}
                 onSave={requestSave}
+                onTestFlow={requestTestFlow}
                 showValidationIssues={showValidationIssues}
                 data-testid={`${testId}-canvas`}
               />
@@ -606,6 +643,17 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
           data-testid={`${testId}-labels-dialog`}
         />
       )}
+
+      <FlowLaunchSheet
+        open={testSheetOpen}
+        onOpenChange={setTestSheetOpen}
+        accessToken={accessToken}
+        userInfo={userInfo}
+        templateId={null}
+        templateDefinition={testTemplateDefinition}
+        mode="test"
+        data-testid={`${testId}-test-flow-sheet`}
+      />
 
       <Dialog
         open={saveNameDialogOpen}
