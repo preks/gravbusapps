@@ -10,7 +10,7 @@ todos:
     status: completed
   - id: medium-contract-fields
     content: Implement and test medium active working-condition fields in employee record, My Team Time, compensation, and entitlements
-    status: pending
+    status: completed
   - id: hard-team-discussion
     content: Discuss hard payroll, reports, analytics, source-flow, audit, and flight-risk cases with team leads
     status: pending
@@ -135,27 +135,21 @@ These require team agreement because active-today is not enough, or because the 
 
 ### HR Analytics
 
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/workingCondition.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/workingCondition.ts) - Decide yearly forecast period behavior.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMonthlySalaryForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMonthlySalaryForecast.ts) - Decide monthly active salary/headcount behavior.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getSalaryByOrgUnit.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getSalaryByOrgUnit.ts) - Decide salary by org unit behavior with multiple contracts.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMedianSalaryData.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMedianSalaryData.ts) - Avoid double-counting employees with multiple contracts.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useWorkingConditionForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useWorkingConditionForecast.ts) - Check forecast consumer logic.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMonthlySalaryForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMonthlySalaryForecast.ts) - Check monthly forecast consumer logic.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useDepartmentMonthlySalaryStack.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useDepartmentMonthlySalaryStack.ts) - Check department salary stack logic.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMedianSalary.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMedianSalary.ts) - Check median salary consumer logic.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useAverageSalary.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useAverageSalary.ts) - Check dataset semantics.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/workingCondition.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/workingCondition.ts) - Decide yearly forecast period behavior.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMonthlySalaryForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMonthlySalaryForecast.ts) - Decide monthly active salary/headcount behavior.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getSalaryByOrgUnit.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getSalaryByOrgUnit.ts) - Decide salary by org unit behavior with multiple contracts.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMedianSalaryData.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMedianSalaryData.ts) - Avoid double-counting employees with multiple contracts.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useWorkingConditionForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useWorkingConditionForecast.ts) - Check forecast consumer logic.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMonthlySalaryForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMonthlySalaryForecast.ts) - Check monthly forecast consumer logic.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useDepartmentMonthlySalaryStack.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useDepartmentMonthlySalaryStack.ts) - Check department salary stack logic.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMedianSalary.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMedianSalary.ts) - Check median salary consumer logic.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useAverageSalary.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useAverageSalary.ts) - Check dataset semantics.
 
 ### Update Working Conditions Flow
 
 - [x] [src/business-apps/hr/core/forms/update-working-conditions/queries/UpdateWorkingConditionsQueries.ts](src/business-apps/hr/core/forms/update-working-conditions/queries/UpdateWorkingConditionsQueries.ts) - Confirm active fetch, legacy support, validation records, and ordering.
 - [x] [src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsScreen.tsx](src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsScreen.tsx) - Confirm add/update behavior, overlap validation, continuity, and submit payload.
 - [x] [src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsChangeModeDialog.tsx](src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsChangeModeDialog.tsx) - Confirm change mode behavior.
-
-### Change Log / Audit
-
-- [ ] [src/business-apps/hr/core/apps/employee-record/services/changeLogQueries.ts](src/business-apps/hr/core/apps/employee-record/services/changeLogQueries.ts) - Decide contract history display behavior.
-- [ ] [src/business-apps/hr/core/apps/employee-record/services/changeLogDataTransformer.ts](src/business-apps/hr/core/apps/employee-record/services/changeLogDataTransformer.ts) - Check row-to-row comparison.
-- [ ] [src/business-apps/hr/core/apps/employee-record/hooks/useChangeLogData.ts](src/business-apps/hr/core/apps/employee-record/hooks/useChangeLogData.ts) - Check version timeline behavior.
 
 ## Suggested Implementation Order
 

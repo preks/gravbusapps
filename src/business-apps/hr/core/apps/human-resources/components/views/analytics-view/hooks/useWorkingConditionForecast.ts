@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { workingConditionQuery } from '../queries/workingCondition'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { selectReportingWorkingConditionsByEmployee } from '../utils/workingConditionSelection'
 
 export interface WorkingConditionKpi {
   id: string
   employeeId: string
+  activeFrom: string | null
+  activeTo: string | null
   hireDate: string | null
   exitDate: string | null
   monthlyGrossSalary: number | null
@@ -36,19 +39,13 @@ export const useWorkingConditionForecast = (props: BusinessAppContextProps): Wor
 
   useEffect(() => {
     setLoading(true)
-    // Calculate current year range
-    const now = new Date()
-    const year = now.getFullYear()
-    const yearStart = `${year}-01-01`
-    const yearEnd = `${year}-12-31`
     client
-      .request(workingConditionQuery, {
-        yearStart,
-        yearEnd
-      })
+      .request(workingConditionQuery)
       .then((res: any) => {
-        setData(res.EmployeeWorkingCondition || [])
-        setCount(res.EmployeeWorkingConditionAggregate?.aggregate?.count || 0)
+        const workingConditions = (res.EmployeeWorkingCondition || []) as WorkingConditionKpi[]
+        const activeWorkingConditions = selectReportingWorkingConditionsByEmployee(workingConditions)
+        setData(activeWorkingConditions)
+        setCount(activeWorkingConditions.length)
         setError(null)
       })
       .catch(setError)

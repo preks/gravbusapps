@@ -2,17 +2,20 @@
 // Groups by month using hireDate, exitDate, and monthlyGrossSalary
 
 export const getMonthlySalaryForecastQuery = `
-  query GetMonthlySalaryForecast($startOfYear: timestamp!, $endOfYear: timestamp!) {
+  query GetMonthlySalaryForecast {
     monthly: EmployeeWorkingCondition(
       where: {
-        hireDate: { _lt: $endOfYear },
-        _or: [
-          { exitDate: { _isNull: true } },
-          { exitDate: { _gte: $startOfYear } }
-        ]
+        employee: {
+          isDeleted: { _eq: false }
+        }
+        isDeleted: { _eq: false }
       }
+      orderBy: [{ employeeId: ASC }, { activeFrom: DESC }, { createdAt: DESC }]
     ) {
       id
+      employeeId
+      activeFrom
+      activeTo
       hireDate
       exitDate
       monthlyGrossSalary

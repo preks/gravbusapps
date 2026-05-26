@@ -88,6 +88,18 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
     return Array.from(years).sort((a, b) => b - a) // Most recent first
   }, [changeLogEntries])
 
+  const yearFilteredEntries = useMemo(() => {
+    if (selectedYear === 'all') {
+      return changeLogEntries
+    }
+
+    const year = parseInt(selectedYear)
+    return changeLogEntries.filter(entry => {
+      const entryYear = new Date(entry.timestamp).getFullYear()
+      return entryYear === year
+    })
+  }, [changeLogEntries, selectedYear])
+
   // GraphQL client for auxiliary lookups (must be called at top-level)
   const graphqlClient = useGraphQLClient(accessToken)
   const [availableActors, setAvailableActors] = useState<string[]>([])
@@ -167,16 +179,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
 
   // Apply filters
   const applyFilters = useCallback(() => {
-    let filtered = changeLogEntries
-
-    // Filter by year
-    if (selectedYear !== 'all') {
-      const year = parseInt(selectedYear)
-      filtered = filtered.filter(entry => {
-        const entryYear = new Date(entry.timestamp).getFullYear()
-        return entryYear === year
-      })
-    }
+    let filtered = yearFilteredEntries
 
     // Filter by field category
     if (filters.fieldCategory.length > 0) {
@@ -223,7 +226,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
     }
 
     setFilteredEntries(filtered)
-  }, [changeLogEntries, filters, selectedYear])
+  }, [filters, yearFilteredEntries])
 
   // Load data on mount
   useEffect(() => {
@@ -344,7 +347,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
         onClearFilters={clearFilters}
         userRole={userRole}
         filteredEntriesCount={filteredEntries.length}
-        totalEntriesCount={changeLogEntries.length}
+        totalEntriesCount={yearFilteredEntries.length}
         actorNames={availableActors}
       />
 

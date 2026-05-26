@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getMonthlySalaryForecastQuery } from '../queries/getMonthlySalaryForecast'
 import dayjs from 'dayjs'
-import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { selectReportingWorkingConditionsByEmployee } from '../utils/workingConditionSelection'
 
 export interface MonthlySalaryForecast {
   month: string // e.g. '2024-06'
@@ -18,14 +19,9 @@ export const useMonthlySalaryForecast = (props: BusinessAppContextProps, year: n
   const client = useGraphqlClient(props.accessToken)
 
   useEffect(() => {
-    const startOfYear = dayjs(`${year}-01-01`).startOf('month').format('YYYY-MM-DD')
-    const endOfYear = dayjs(`${year}-12-31`).endOf('month').format('YYYY-MM-DD')
     setLoading(true)
     client
-      .request(getMonthlySalaryForecastQuery, {
-        startOfYear,
-        endOfYear
-      })
+      .request(getMonthlySalaryForecastQuery)
       .then((res: any) => {
         // Prepare months
         const months: MonthlySalaryForecast[] = []
@@ -33,7 +29,7 @@ export const useMonthlySalaryForecast = (props: BusinessAppContextProps, year: n
           const monthStr = dayjs(`${year}-01-01`).add(m, 'month').format('YYYY-MM')
           months.push({ month: monthStr, totalSalary: 0, headcount: 0, newHires: 0 })
         }
-        const all = res.monthly
+        const all = selectReportingWorkingConditionsByEmployee(res.monthly || [])
         months.forEach(month => {
           const start = dayjs(`${month.month}-01`).startOf('month')
           const end = start.endOf('month')
