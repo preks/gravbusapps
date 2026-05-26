@@ -422,6 +422,9 @@ export interface SkillLoadedEvent {
     category: string
     description: string
     icon?: string
+    version?: number
+    published_version?: number | null
+    current_version?: number
   }
   was_auto_detected: boolean
 }
@@ -445,6 +448,9 @@ export interface SkillScopedEvent {
     category: string
     description: string
     icon?: string
+    version?: number
+    published_version?: number | null
+    current_version?: number
   }
   was_auto_detected: boolean
 }
@@ -645,12 +651,48 @@ export interface EnterpriseSkill {
 
 // ── Admin Skill Studio types ─────────────────────────────────────────
 
+export interface SkillVersionSummary {
+  skill_id: string
+  version: number
+  name: string
+  description: string
+  author: string
+  note?: string | null
+  created_at: string
+  is_published: boolean
+  published_at?: string | null
+  published_by?: string | null
+  file_paths: string[]
+  has_files: boolean
+  is_current?: boolean
+  is_published_pointer?: boolean
+}
+
+export interface SkillVersionDetail extends SkillVersionSummary {
+  content: string
+  tags: string[]
+  category: string | null
+  tool_refs: string[]
+  tool_policies?: Record<string, Record<string, unknown>>
+  approval_policy?: AdminSkill['approval_policy']
+  safety_level?: string
+  output_contract?: Record<string, unknown>
+}
+
+export interface AgentSkillBinding {
+  skill_id: string
+  version?: number | null
+  follow_latest?: boolean
+  enabled?: boolean
+}
+
 export interface AdminSkill {
   skill_id: string
   name: string
   description: string
   status: 'draft' | 'pending_review' | 'approved' | 'archived'
   version: number
+  published_version?: number | null
   tags: string[]
   category: string | null
   is_active: boolean
@@ -683,6 +725,7 @@ export interface AdminSkillSummary {
   description: string
   status: string
   version: number
+  published_version?: number | null
   tags: string[]
   category: string | null
   is_active: boolean

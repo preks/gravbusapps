@@ -1,0 +1,250 @@
+// Shared graph-shape selectors used by both the 2D React Flow renderer
+// (`MeshGraph.tsx`) and the 3D R3F renderer (`Mesh3DGraph.tsx`). Keeping the
+// visibility / highlight / dim / skill-name derivation in one place guarantees
+// the two views stay in lock-step as users toggle layers, hover nodes, or
+// scrub the replay clock.
+
+import type { MeshEdge, MeshNode, TraceModel } from '../../utils/traceModel'
+import { isKindVisible, type MeshLayerKey } from './meshLayers'
+import { KIND_CATEGORY } from './meshLayout'
+
+export interface MeshGraphDerivedInput {
+  model: TraceModel
+  activeLayers: ReadonlySet<MeshLayerKey>
+  positionMs: number
+  durationMs: number
+  selectedNodeId: string | null
+  hoveredNodeId: string | null
+}
+
+/**
+ * Per-node derived flags. Mirrors the data the 2D path used to compute inline
+ * inside `MeshGraph.buildLayout` so both renderers share identical semantics.
+ */
+export interface DerivedNode {
+  node: MeshNode
+  /** Kind category label (e.g. "ENTERPRISE AGENT"), respecting metadata override. */
+  category: string
+  /** Replay clock says this node hasn't appeared yet. */
+  isUpcoming: boolean
+  /** Replay window says the node is currently producing work, or status === running when live. */
+  isActive: boolean
+  /** Selected via popover. */
+  isSelected: boolean
+  /** Skill names attached to an agent (drives the colored dots under the label). */
+  skillNames: string[]
+  /** Hover dim — true when another node is hovered and this one isn't in its skill path. */
+  isDimmed: boolean
+  /** Hover highlight — true when this node is part of the hover skill path (excluding the hovered node itself). */
+  isHighlighted: boolean
+}
+
+export interface DerivedEdge {
+  edge: MeshEdge
+  isUpcoming: boolean
+  isActive: boolean
+  isFailed: boolean
+  isResolved: boolean
+  isDimmed: boolean
+  hasDetail: boolean
+  /** Position in the parallel-edges group for the source/target pair (undirected). */
+  bubbleIndex: number
+  /** Total parallel edges in the source/target pair (undirected). */
+  bubbleTotal: number
+}
+
+export interface MeshGraphDerived {
+  visibleNodes: MeshNode[]
+  visibleEdges: MeshEdge[]
+  /** Visible edges excluding the synthetic `completion` records (kept internal). */
+  drawableEdges: MeshEdge[]
+  derivedNodes: DerivedNode[]
+  derivedEdges: DerivedEdge[]
+  derivedNodeById: Map<string, DerivedNode>
+  derivedEdgeById: Map<string, DerivedEdge>
+  skillNamesByAgent: Map<string, string[]>
+  /** Sorted set of node ids visible *and* in the highlight set when hover is active. */
+  highlightedNodeIds: ReadonlySet<string>
+  highlightedEdgeIds: ReadonlySet<string>
+  isLive: boolean
+}
+
+/** Active replay window — same constant as the 2D code path used inline. */
+export const ACTIVE_WINDOW_MS = 500
+
+function categoryFor(node: MeshNode): string {
+  const category = node.metadata?.category
+  if (category && typeof category === 'string') return category.toUpperCase()
+  return KIND_CATEGORY[node.kind]
+}
+
+function undirectedPairKey(sourceId: string, targetId: string): string {
+  return [sourceId, targetId].sort((a, b) => a.localeCompare(b)).join('::')
+}
+
+function collectSkillNamesByAgent(model: TraceModel): Map<string, string[]> {
+  const skillNamesByAgent = new Map<string, string[]>()
+  for (const edge of model.edges) {
+    if (edge.kind !== 'skill_load') continue
+    const existing = skillNamesByAgent.get(edge.source) ?? []
+    if (edge.label && !existing.includes(edge.label)) existing.push(edge.label)
+    skillNamesByAgent.set(edge.source, existing)
+  }
+  return skillNamesByAgent
+}
+
+function buildHoverHighlights(
+  hoveredNodeId: string | null,
+  visibleEdges: MeshEdge[]
+): { highlightedNodeIds: Set<string>; highlightedEdgeIds: Set<string>; isHoverActive: boolean } {
+  const highlightedNodeIds = new Set<string>()
+  const highlightedEdgeIds = new Set<string>()
+  if (hoveredNodeId) {
+    highlightedNodeIds.add(hoveredNodeId)
+    for (const edge of visibleEdges) {
+      if (edge.source === hoveredNodeId || edge.target === hoveredNodeId) {
+        highlightedNodeIds.add(edge.source)
+        highlightedNodeIds.add(edge.target)
+        highlightedEdgeIds.add(edge.id)
+      }
+    }
+  }
+  return { highlightedNodeIds, highlightedEdgeIds, isHoverActive: hoveredNodeId !== null }
+}
+
+function mapDerivedNodes(
+  visibleNodes: MeshNode[],
+  input: {
+    isLive: boolean
+    cutoffMs: number
+    positionMs: number
+    selectedNodeId: string | null
+    skillNamesByAgent: Map<string, string[]>
+    isHoverActive: boolean
+    highlightedNodeIds: Set<string>
+    hoveredNodeId: string | null
+  }
+): DerivedNode[] {
+  const {
+    isLive,
+    cutoffMs,
+    positionMs,
+    selectedNodeId,
+    skillNamesByAgent,
+    isHoverActive,
+    highlightedNodeIds,
+    hoveredNodeId
+  } = input
+  return visibleNodes.map(node => {
+    const isUpcoming = !isLive && node.offsetMs > cutoffMs && node.kind !== 'orchestrator'
+    const recentlyActive = !isLive && node.offsetMs <= cutoffMs && node.lastOffsetMs >= positionMs
+    const isActive = isLive ? node.status === 'running' : recentlyActive
+    return {
+      node,
+      category: categoryFor(node),
+      isUpcoming,
+      isActive,
+      isSelected: selectedNodeId === node.id,
+      skillNames: skillNamesByAgent.get(node.id) ?? [],
+      isDimmed: isHoverActive && !highlightedNodeIds.has(node.id),
+      isHighlighted: isHoverActive && highlightedNodeIds.has(node.id) && node.id !== hoveredNodeId
+    }
+  })
+}
+
+export function deriveMeshGraph(input: MeshGraphDerivedInput): MeshGraphDerived {
+  const { model, activeLayers, positionMs, durationMs, selectedNodeId, hoveredNodeId } = input
+
+  const visibleNodes = model.nodes.filter(n => isKindVisible(n.kind, activeLayers))
+  const visibleNodeIds = new Set(visibleNodes.map(n => n.id))
+  const visibleEdges = model.edges.filter(e => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target))
+
+  const isLive = durationMs <= 0
+  const cutoffMs = positionMs + 1
+
+  const skillNamesByAgent = collectSkillNamesByAgent(model)
+  const { highlightedNodeIds, highlightedEdgeIds, isHoverActive } = buildHoverHighlights(hoveredNodeId, visibleEdges)
+
+  const derivedNodes = mapDerivedNodes(visibleNodes, {
+    isLive,
+    cutoffMs,
+    positionMs,
+    selectedNodeId,
+    skillNamesByAgent,
+    isHoverActive,
+    highlightedNodeIds,
+    hoveredNodeId
+  })
+
+  const derivedNodeById = new Map<string, DerivedNode>()
+  for (const d of derivedNodes) derivedNodeById.set(d.node.id, d)
+
+  const drawableEdges = visibleEdges.filter(edge => edge.kind !== 'completion')
+
+  const pairCounts = new Map<string, number>()
+  for (const edge of drawableEdges) {
+    const key = undirectedPairKey(edge.source, edge.target)
+    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1)
+  }
+
+  // First pass: compute upcoming/active/dim flags
+  const pairIndexes = new Map<string, number>()
+  const derivedEdges: DerivedEdge[] = drawableEdges.map(edge => {
+    const pairKey = undirectedPairKey(edge.source, edge.target)
+    const bubbleTotal = pairCounts.get(pairKey) ?? 1
+    const bubbleIndex = pairIndexes.get(pairKey) ?? 0
+    pairIndexes.set(pairKey, bubbleIndex + 1)
+
+    const edgeUpcoming = !isLive && edge.offsetMs > cutoffMs
+    const edgeActive = !isLive && !edgeUpcoming && edge.offsetMs >= positionMs - ACTIVE_WINDOW_MS
+    const isFailed = edge.status === 'failed'
+    const isResolved = !!edge.resolvedAt
+    const isDimmed = isHoverActive && !highlightedEdgeIds.has(edge.id)
+    const hasDetail = !!edge.label && edge.label.trim().length > 0
+    return {
+      edge,
+      isUpcoming: edgeUpcoming,
+      isActive: edgeActive,
+      isFailed,
+      isResolved,
+      isDimmed,
+      hasDetail,
+      bubbleIndex,
+      bubbleTotal
+    }
+  })
+
+  // Spread parallel edges so bubbles don't stack on the same geometric line.
+  // Mirrors the second pass in `MeshGraph.buildLayout`.
+  const edgesByPair = new Map<string, DerivedEdge[]>()
+  for (const d of derivedEdges) {
+    const key = undirectedPairKey(d.edge.source, d.edge.target)
+    const list = edgesByPair.get(key) ?? []
+    list.push(d)
+    edgesByPair.set(key, list)
+  }
+  for (const group of edgesByPair.values()) {
+    if (group.length <= 1) continue
+    group.forEach((d, i) => {
+      d.bubbleIndex = i
+      d.bubbleTotal = group.length
+    })
+  }
+
+  const derivedEdgeById = new Map<string, DerivedEdge>()
+  for (const d of derivedEdges) derivedEdgeById.set(d.edge.id, d)
+
+  return {
+    visibleNodes,
+    visibleEdges,
+    drawableEdges,
+    derivedNodes,
+    derivedEdges,
+    derivedNodeById,
+    derivedEdgeById,
+    skillNamesByAgent,
+    highlightedNodeIds,
+    highlightedEdgeIds,
+    isLive
+  }
+}

@@ -60,6 +60,8 @@ export interface SkillBinding {
   approval_policy?: ApprovalPolicy
   priority?: number
   enabled?: boolean
+  version?: number | null
+  follow_latest?: boolean
 }
 
 export interface ProviderToolCatalogItem {
@@ -1233,16 +1235,41 @@ export class PromptManagerClient extends RestClient {
   async getAgentSkills(agentId: string): Promise<{
     agent_id: string
     source: string
-    skills: Array<{ skill_id: string; name: string; description: string; status: string }>
+    skills: Array<{
+      skill_id: string
+      name: string
+      description: string
+      status: string
+      version?: number | null
+      follow_latest?: boolean
+      published_version?: number | null
+      current_version?: number
+      enabled?: boolean
+    }>
+    skill_bindings?: Array<{
+      skill_id: string
+      name: string
+      description: string
+      status: string
+      version?: number | null
+      follow_latest?: boolean
+      published_version?: number | null
+      current_version?: number
+      enabled?: boolean
+    }>
   }> {
     return this.get(`/agents/registry/${encodeURIComponent(agentId)}/skills`)
   }
 
   async setAgentSkills(
     agentId: string,
-    skillIds: string[]
-  ): Promise<{ agent_id: string; skill_ids: string[]; count: number }> {
-    return this.put(`/agents/registry/${encodeURIComponent(agentId)}/skills`, { skill_ids: skillIds })
+    skillIdsOrBindings: string[] | SkillBinding[]
+  ): Promise<{ agent_id: string; skill_ids: string[]; skill_bindings?: SkillBinding[]; count: number }> {
+    const payload =
+      Array.isArray(skillIdsOrBindings) && skillIdsOrBindings.length > 0 && typeof skillIdsOrBindings[0] === 'object'
+        ? { skill_bindings: skillIdsOrBindings as SkillBinding[] }
+        : { skill_ids: skillIdsOrBindings as string[] }
+    return this.put(`/agents/registry/${encodeURIComponent(agentId)}/skills`, payload)
   }
 
   /**

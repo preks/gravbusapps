@@ -7,10 +7,19 @@ import { SkillEditorPanel } from '../SkillEditorPanel'
 // whole client so we can deterministically control what functions the
 // modal renders.
 const mockListLatest = jest.fn()
+const mockPromptManagerClient = {
+  getCanonicalProviderTools: (...args: unknown[]) => mockListLatest(...args),
+  getMcpProviderTools: jest.fn().mockResolvedValue([]),
+  getBuiltinProviderTools: jest.fn().mockResolvedValue([])
+}
 jest.mock('@/common/network/functions/FunctionsServiceClient', () => ({
   FunctionsServiceClient: jest.fn().mockImplementation(() => ({
     listLatest: (...args: unknown[]) => mockListLatest(...args)
   }))
+}))
+
+jest.mock('@/common/network/ai/prompt-manager/usePromptManagerClient', () => ({
+  usePromptManagerClient: () => mockPromptManagerClient
 }))
 
 const mockGetSkill = jest.fn()
@@ -18,6 +27,8 @@ const mockListSkillFiles = jest.fn()
 const mockSaveSkillRaw = jest.fn()
 const mockDeleteSkillFile = jest.fn()
 const mockUploadSkillFiles = jest.fn()
+const mockListSkillVersions = jest.fn()
+const mockPublishSkillVersion = jest.fn()
 
 jest.mock('../../../hooks/useEnterpriseAgentClient', () => {
   const stableClient = {
@@ -26,6 +37,13 @@ jest.mock('../../../hooks/useEnterpriseAgentClient', () => {
     saveSkillRaw: (...args: unknown[]) => mockSaveSkillRaw(...args),
     deleteSkillFile: (...args: unknown[]) => mockDeleteSkillFile(...args),
     uploadSkillFiles: (...args: unknown[]) => mockUploadSkillFiles(...args),
+    listSkillVersions: (...args: unknown[]) => mockListSkillVersions(...args),
+    publishSkillVersion: (...args: unknown[]) => mockPublishSkillVersion(...args),
+    getSkillVersion: jest.fn(),
+    restoreSkillVersion: jest.fn(),
+    getCanonicalProviderTools: (...args: unknown[]) => mockListLatest(...args),
+    getMcpProviderTools: jest.fn().mockResolvedValue([]),
+    getBuiltinProviderTools: jest.fn().mockResolvedValue([]),
     getSkillsManifest: jest.fn(),
     deleteSkill: jest.fn(),
     exportSkillBundle: jest.fn()
@@ -36,13 +54,20 @@ jest.mock('../../../hooks/useEnterpriseAgentClient', () => {
 })
 
 describe('SkillEditorPanel', () => {
+  beforeAll(() => {
+    expect(React).toBeDefined()
+  })
+
   beforeEach(() => {
     mockGetSkill.mockReset()
     mockListSkillFiles.mockReset()
     mockSaveSkillRaw.mockReset()
     mockDeleteSkillFile.mockReset()
     mockUploadSkillFiles.mockReset()
+    mockListSkillVersions.mockReset()
+    mockPublishSkillVersion.mockReset()
     mockListLatest.mockReset()
+    mockListSkillVersions.mockResolvedValue([])
   })
 
   it('renders the empty state when no skillId is provided', () => {
@@ -125,6 +150,31 @@ describe('SkillEditorPanel', () => {
 
     expect(screen.getByTestId('skill-editor-save')).toBeDisabled()
     expect(screen.getByTestId('skill-editor-revert')).toBeDisabled()
+  })
+
+  it('disables publish while the editor has unsaved draft changes', async () => {
+    mockGetSkill.mockResolvedValue({
+      skill_id: 'skl_a',
+      content: 'hello',
+      name: 'Alpha',
+      description: 'Do alpha',
+      version: 2,
+      published_version: 1,
+      is_active: true
+    })
+    mockListSkillFiles.mockResolvedValue([])
+
+    render(<SkillEditorPanel accessToken="token" skillId="skl_a" />)
+
+    const textarea = (await screen.findByTestId('skill-editor-textarea')) as HTMLTextAreaElement
+    await waitFor(() => expect(textarea.value).toBe('hello'))
+    expect(screen.getByTestId('skill-editor-publish')).not.toBeDisabled()
+
+    fireEvent.change(textarea, { target: { value: 'changed' } })
+
+    expect(screen.getByTestId('skill-editor-publish')).toBeDisabled()
+    fireEvent.click(screen.getByTestId('skill-editor-publish'))
+    expect(mockPublishSkillVersion).not.toHaveBeenCalled()
   })
 
   it('Revert restores the original content', async () => {
@@ -213,7 +263,7 @@ describe('SkillEditorPanel', () => {
 
     it('adding a tool through the modal rewrites the textarea and marks the editor dirty', async () => {
       mockListLatest.mockResolvedValue([
-        { id: 'fn_1', name: 'web_search', description: 'Search the web', agentEnabled: true }
+        { tool_ref: 'web_search', canonical_name: 'web_search', description: 'Search the web', source: 'functions' }
       ])
       const textarea = await loadSkill(withFrontmatter('# Alpha'))
 
@@ -226,7 +276,7 @@ describe('SkillEditorPanel', () => {
         fireEvent.click(screen.getByTestId('add-tools-modal-add'))
       })
 
-      await waitFor(() => expect(textarea.value).toMatch(/tools:\s*\n\s*-\s*web_search/))
+      await waitFor(() => expect(textarea.value).toMatch(/tool_refs:\s*\n\s*-\s*web_search/))
       expect(screen.getByTestId('skill-editor-dirty')).toBeInTheDocument()
       expect(screen.getByTestId('skill-editor-tool-chip-web_search')).toBeInTheDocument()
     })

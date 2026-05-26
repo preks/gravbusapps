@@ -27,6 +27,25 @@ function getStatusStyle(status?: string) {
   if (!status) return null
   return STATUS_STYLES[status] ?? { label: status, className: 'gba:bg-muted gba:text-muted-foreground' }
 }
+
+function formatSkillVersionBadge(skill: BrowseSkillManifestEntry): string {
+  let publishedLabel = 'unpublished'
+  if (skill.published_version != null) {
+    publishedLabel = `pub v${skill.published_version}`
+  }
+  const draftVersion = skill.current_version ?? skill.version
+  if (draftVersion == null || draftVersion === skill.published_version) {
+    return publishedLabel
+  }
+  return `${publishedLabel} · draft v${draftVersion}`
+}
+
+function browseSkillsEmptyMessage(searchQuery: string): string {
+  if (searchQuery.trim()) {
+    return 'No matching skills found.'
+  }
+  return 'No skills found.'
+}
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { inferTargetDir, formatFileSize } from './skillFileUtils'
 
@@ -40,6 +59,9 @@ export type BrowseSkillManifestEntry = {
   file_count?: number
   tools?: string[]
   source?: 'admin' | 'runtime_manifest'
+  version?: number
+  published_version?: number | null
+  current_version?: number
 }
 
 export interface BrowseSkillsViewProps {
@@ -380,13 +402,13 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
         />
       </div>
 
-      {loading ? (
-        <p className="gba:text-sm gba:text-muted-foreground gba:py-8 gba:text-center">Loading…</p>
-      ) : filteredManifest.length === 0 ? (
+      {loading && <p className="gba:text-sm gba:text-muted-foreground gba:py-8 gba:text-center">Loading…</p>}
+      {!loading && filteredManifest.length === 0 && (
         <p className="gba:text-sm gba:text-muted-foreground gba:py-8 gba:text-center">
-          {searchQuery.trim() ? 'No matching skills found.' : 'No skills found.'}
+          {browseSkillsEmptyMessage(searchQuery)}
         </p>
-      ) : (
+      )}
+      {!loading && filteredManifest.length > 0 && (
         <div className="gba:flex gba:flex-col gba:gap-2" data-testid="browse-skills-list">
           {filteredManifest.map(s => {
             const isSelected = selectedSkillId === s.skill_id
@@ -404,6 +426,14 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                   <p className="gba:text-sm gba:font-semibold gba:text-foreground gba:truncate">
                     {s.name || s.skill_id}
                   </p>
+                  {(s.current_version != null || s.version != null || s.published_version != null) && (
+                    <span
+                      className="gba:shrink-0 gba:rounded gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
+                      data-testid={`browse-skills-version-${s.skill_id}`}
+                    >
+                      {formatSkillVersionBadge(s)}
+                    </span>
+                  )}
                   {s.skill_id === 'skill-creator' && (
                     <span className="gba:text-xs gba:text-muted-foreground gba:italic">(default)</span>
                   )}

@@ -121,6 +121,7 @@ export const WorkspaceLayout: React.FC = () => {
     activityEvents,
     decisions,
     activeSkill,
+    fabricActiveSkill,
     cases,
     sessionConnectorIds,
     artifacts,
@@ -283,6 +284,19 @@ export const WorkspaceLayout: React.FC = () => {
 
   if (!session) return null
 
+  const workspaceSkillIndicator = fabricActiveSkill
+    ? {
+        skill_id: fabricActiveSkill.skillId,
+        name: fabricActiveSkill.skillName,
+        category: fabricActiveSkill.category ?? '',
+        description: fabricActiveSkill.description ?? '',
+        was_auto_detected: fabricActiveSkill.wasAutoDetected ?? false,
+        version: fabricActiveSkill.version,
+        published_version: fabricActiveSkill.publishedVersion,
+        current_version: fabricActiveSkill.currentVersion
+      }
+    : activeSkill
+
   const handleComposerSubmit = (task: string, config: SessionConfig) => {
     // If the user changed the model since the session started, persist it.
     // The context's setModelSelection already triggers the backend PATCH, so
@@ -318,7 +332,7 @@ export const WorkspaceLayout: React.FC = () => {
           <div
             className={`gba:absolute gba:left-3 sm:gba:left-6 lg:gba:left-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:items-center gba:gap-3 gba:pointer-events-auto`}
           >
-            <WorkspaceSkillIndicator skill={activeSkill} />
+            <WorkspaceSkillIndicator skill={workspaceSkillIndicator} />
             <WorkspaceConnectorIndicator connectors={sessionConnectors} />
           </div>
 

@@ -37,8 +37,10 @@ function isManualRemoteVendor(moduleId: string): boolean {
 }
 
 function fallbackIsRemoteVendorExternal(moduleId: string): boolean {
-  // Host remote-deps exposes only the main `zustand` entry (e.g. @xyflow/react needs zustand/traditional).
-  if (moduleId.startsWith('zustand/')) return false
+  // Bundle zustand so libraries compiled against the old default export
+  // contract can use our local shim. Host remote-deps exposes only the v5
+  // namespace shape, which breaks @react-three/fiber v8 (`create is not a function`).
+  if (moduleId === 'zustand' || moduleId.startsWith('zustand/')) return false
   return fallbackRemoteVendors.some(vendor => moduleId === vendor || moduleId.startsWith(`${vendor}/`))
 }
 
@@ -82,7 +84,7 @@ function moduleSpecifierFromResolvedId(resolvedId: string): string | null {
 export function isRemoteBundleExternal(rawId: string): boolean {
   const id = stripQuery(rawId).replace(/\\/g, '/')
   if (!id || id.startsWith('\0') || id.startsWith('virtual:')) return false
-  if (id.startsWith('zustand/')) return false
+  if (id === 'zustand' || id.startsWith('zustand/')) return false
   if (isManualRemoteVendor(rawId) || isManualRemoteVendor(id)) return true
   if (id.startsWith('@/')) return false
   if ((id.startsWith('./') || id.startsWith('../') || path.isAbsolute(id)) && !id.includes('node_modules')) {
@@ -98,7 +100,7 @@ export function isRemoteBundleExternal(rawId: string): boolean {
 
   const spec = moduleSpecifierFromResolvedId(id)
   if (spec) {
-    if (spec.startsWith('zustand/')) return false
+    if (spec === 'zustand' || spec.startsWith('zustand/')) return false
     if (isManualRemoteVendor(spec)) return true
     return isRemoteVendorExternal(spec)
   }

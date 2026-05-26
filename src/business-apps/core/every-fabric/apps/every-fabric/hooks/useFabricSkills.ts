@@ -17,6 +17,9 @@ type SkillScopedEvent = Extract<AgentStreamEvent, { type: 'skill_scoped' }>
 export interface ActiveFabricSkill {
   skillId: string
   skillName: string
+  version?: number
+  publishedVersion?: number | null
+  currentVersion?: number
   /** Present when the source was a rich `skill_loaded` or `skill_scoped` SSE event. */
   description?: string
   /** Present when the source was a rich `skill_loaded` or `skill_scoped` SSE event. */
@@ -61,6 +64,9 @@ const fromStepStarted = (event: StepStartedEvent): ActiveFabricSkill | null => {
 const fromSkillLoaded = (event: SkillLoadedEvent): ActiveFabricSkill => ({
   skillId: event.skill.skill_id,
   skillName: event.skill.name || humanizeSkillId(event.skill.skill_id),
+  version: event.skill.version,
+  publishedVersion: event.skill.published_version,
+  currentVersion: event.skill.current_version,
   description: event.skill.description,
   category: event.skill.category,
   wasAutoDetected: event.was_auto_detected,
@@ -71,6 +77,9 @@ const fromSkillLoaded = (event: SkillLoadedEvent): ActiveFabricSkill => ({
 const fromSkillScoped = (event: SkillScopedEvent): ActiveFabricSkill => ({
   skillId: event.skill.skill_id,
   skillName: event.skill.name || humanizeSkillId(event.skill.skill_id),
+  version: event.skill.version,
+  publishedVersion: event.skill.published_version,
+  currentVersion: event.skill.current_version,
   description: event.skill.description,
   category: event.skill.category,
   wasAutoDetected: event.was_auto_detected,

@@ -1,8 +1,16 @@
 import { createContext, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ReactFlow, type Edge, type Node, type ReactFlowInstance } from '@xyflow/react'
 import type { TraceModel } from '../../utils/traceModel'
-import { isKindVisible, type MeshLayerKey } from './meshLayers'
-import { computeRadialLayout, KIND_CATEGORY, NODE_SIZE } from './meshLayout'
+import { type MeshLayerKey } from './meshLayers'
+import { computeRadialLayout, NODE_SIZE } from './meshLayout'
+import { deriveMeshGraph, type DerivedEdge } from './meshGraphSelectors'
+
+function meshFlowWrapperOpacity(edge: DerivedEdge): number {
+  if (edge.isDimmed) return 0.12
+  if (edge.isUpcoming) return 0.15
+  if (edge.isResolved && !edge.isActive) return 0.55
+  return 0.95
+}
 import { MeshFlowEdge, type MeshFlowEdgeData } from './MeshFlowEdge'
 import { MeshNode, type MeshNodeData } from './MeshNode'
 import '@xyflow/react/dist/style.css'
@@ -68,65 +76,29 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
     onHoverNode
   } = props
 
-  const visibleNodes = model.nodes.filter(n => isKindVisible(n.kind, activeLayers))
-  const visibleNodeIds = new Set(visibleNodes.map(n => n.id))
-  const visibleEdges = model.edges.filter(e => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target))
+  const derived = deriveMeshGraph({ model, activeLayers, positionMs, durationMs, selectedNodeId, hoveredNodeId })
+  const { byId: positions } = computeRadialLayout(derived.visibleNodes, derived.visibleEdges)
 
-  const { byId: positions } = computeRadialLayout(visibleNodes, visibleEdges)
-  const isLive = durationMs <= 0
-  const cutoffMs = positionMs + 1
-
-  // Skill names per agent: collect from skill_load edges
-  const skillNamesByAgent = new Map<string, string[]>()
-  for (const edge of model.edges) {
-    if (edge.kind !== 'skill_load') continue
-    const existing = skillNamesByAgent.get(edge.source) ?? []
-    if (edge.label && !existing.includes(edge.label)) existing.push(edge.label)
-    skillNamesByAgent.set(edge.source, existing)
-  }
-
-  // Hover highlight: compute which node IDs should glow vs dim
-  const highlightedNodeIds = new Set<string>()
-  const highlightedEdgeIds = new Set<string>()
-  if (hoveredNodeId) {
-    highlightedNodeIds.add(hoveredNodeId)
-    for (const edge of visibleEdges) {
-      if (edge.source === hoveredNodeId || edge.target === hoveredNodeId) {
-        highlightedNodeIds.add(edge.source)
-        highlightedNodeIds.add(edge.target)
-        highlightedEdgeIds.add(edge.id)
-      }
-    }
-  }
-  const isHoverActive = hoveredNodeId !== null
-
-  const flowNodes: Node<MeshNodeData>[] = visibleNodes.map(node => {
+  const flowNodes: Node<MeshNodeData>[] = derived.derivedNodes.map(d => {
+    const { node } = d
     const size = NODE_SIZE[node.kind]
     const pos = positions.get(node.id) ?? { x: 0, y: 0 }
-    const reactFlowPos = { x: pos.x, y: pos.y }
-    const isUpcoming = !isLive && node.offsetMs > cutoffMs && node.kind !== 'orchestrator'
-    const recentlyActive = !isLive && node.offsetMs <= cutoffMs && node.lastOffsetMs >= positionMs
-    const isActive = isLive ? node.status === 'running' : recentlyActive
-    const category =
-      node.metadata?.category && typeof node.metadata.category === 'string'
-        ? node.metadata.category.toUpperCase()
-        : KIND_CATEGORY[node.kind]
     return {
       id: node.id,
       type: 'meshNode',
-      position: reactFlowPos,
+      position: { x: pos.x, y: pos.y },
       data: {
         label: node.label,
-        category,
+        category: d.category,
         kind: node.kind,
         status: node.status,
         size,
-        isSelected: selectedNodeId === node.id,
-        isActive,
-        isUpcoming,
-        skillNames: skillNamesByAgent.get(node.id) ?? [],
-        isDimmed: isHoverActive && !highlightedNodeIds.has(node.id),
-        isHighlighted: isHoverActive && highlightedNodeIds.has(node.id) && node.id !== hoveredNodeId,
+        isSelected: d.isSelected,
+        isActive: d.isActive,
+        isUpcoming: d.isUpcoming,
+        skillNames: d.skillNames,
+        isDimmed: d.isDimmed,
+        isHighlighted: d.isHighlighted,
         onSelect: () => onSelectNode(selectedNodeId === node.id ? null : node.id),
         onHoverStart: () => onHoverNode(node.id),
         onHoverEnd: () => onHoverNode(null)
@@ -138,28 +110,8 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
     }
   })
 
-  const filteredEdges = visibleEdges.filter(edge => edge.kind !== 'completion')
-
-  const pairCounts = new Map<string, number>()
-  const pairIndexes = new Map<string, number>()
-  for (const edge of filteredEdges) {
-    const key = [edge.source, edge.target].sort((a, b) => a.localeCompare(b)).join('::')
-    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1)
-  }
-
-  const ACTIVE_WINDOW_MS = 500
-  const flowEdges: Edge<MeshFlowEdgeData>[] = filteredEdges.map(edge => {
-    const pairKey = [edge.source, edge.target].sort((a, b) => a.localeCompare(b)).join('::')
-    const bubbleTotal = pairCounts.get(pairKey) ?? 1
-    const bubbleIndex = pairIndexes.get(pairKey) ?? 0
-    pairIndexes.set(pairKey, bubbleIndex + 1)
-
-    const edgeUpcoming = !isLive && edge.offsetMs > cutoffMs
-    const edgeActive = !isLive && !edgeUpcoming && edge.offsetMs >= positionMs - ACTIVE_WINDOW_MS
-    const isFailed = edge.status === 'failed'
-    const isResolved = !!edge.resolvedAt
-    const isDimmed = isHoverActive && !highlightedEdgeIds.has(edge.id)
-    const hasDetail = !!edge.label && edge.label.trim().length > 0
+  const flowEdges: Edge<MeshFlowEdgeData>[] = derived.derivedEdges.map(d => {
+    const edge = d.edge
     const sourcePos = positions.get(edge.source) ?? { x: 0, y: 0 }
     const targetPos = positions.get(edge.target) ?? { x: 0, y: 0 }
     const sourceNode = model.nodes.find(n => n.id === edge.source)
@@ -171,54 +123,32 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
     // and applies them to the SVG <g> wrapper. This guarantees opacity
     // updates even if the custom edge component's re-render is skipped
     // by React Flow's internal memoization in production builds.
-    const wrapperOpacity = isDimmed ? 0.12 : edgeUpcoming ? 0.15 : isResolved && !edgeActive ? 0.55 : 0.95
+    const wrapperOpacity = meshFlowWrapperOpacity(d)
 
     return {
       id: edge.id,
       source: edge.source,
       target: edge.target,
       type: 'meshEdge',
-      style: { opacity: wrapperOpacity, strokeWidth: edgeActive ? 2.25 : 1.5 },
+      style: { opacity: wrapperOpacity, strokeWidth: d.isActive ? 2.25 : 1.5 },
       data: {
         kind: edge.kind,
         label: edge.label,
         offsetMs: edge.offsetMs,
-        isResolved,
-        isFailed,
-        hasDetail,
+        isResolved: d.isResolved,
+        isFailed: d.isFailed,
+        hasDetail: d.hasDetail,
         sourceCenter: { x: sourcePos.x, y: sourcePos.y, radius: sourceRadius },
         targetCenter: { x: targetPos.x, y: targetPos.y, radius: targetRadius },
-        bubbleIndex,
-        bubbleTotal,
+        bubbleIndex: d.bubbleIndex,
+        bubbleTotal: d.bubbleTotal,
         showBubble: showEdgeLabels,
-        isDimmed,
+        isDimmed: d.isDimmed,
         onSelect: () => onSelectEdge(edge.id)
       },
       animated: false
     }
   })
-
-  // Spread parallel edges (multiple calls between the same pair of nodes) so
-  // their bubbles do not stack. The undirected key collapses A→B and B→A so
-  // bubbles on the same geometric line are distributed together.
-  const edgesByPair = new Map<string, Edge<MeshFlowEdgeData>[]>()
-  for (const edge of flowEdges) {
-    const key = [edge.source, edge.target].sort((a, b) => a.localeCompare(b)).join('::')
-    const list = edgesByPair.get(key) ?? []
-    list.push(edge)
-    edgesByPair.set(key, list)
-  }
-  for (const group of edgesByPair.values()) {
-    if (group.length <= 1) continue
-    group.forEach((edge, i) => {
-      if (!edge.data) return
-      edge.data = {
-        ...edge.data,
-        bubbleIndex: i,
-        bubbleTotal: group.length
-      }
-    })
-  }
 
   return { flowNodes, flowEdges }
 }

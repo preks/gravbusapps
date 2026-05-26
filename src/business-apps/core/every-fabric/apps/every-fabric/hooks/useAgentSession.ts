@@ -24,6 +24,9 @@ export interface ActiveSkillInfo {
   description: string
   icon?: string
   was_auto_detected: boolean
+  version?: number
+  published_version?: number | null
+  current_version?: number
 }
 
 const POLL_INTERVAL_MS = 3000
@@ -604,7 +607,10 @@ export const useAgentSession = (
         category: skillEvent.skill.category,
         description: skillEvent.skill.description,
         icon: skillEvent.skill.icon,
-        was_auto_detected: skillEvent.was_auto_detected
+        was_auto_detected: skillEvent.was_auto_detected,
+        version: skillEvent.skill.version,
+        published_version: skillEvent.skill.published_version,
+        current_version: skillEvent.skill.current_version
       })
     }
   }, [events])

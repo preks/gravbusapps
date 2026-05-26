@@ -1144,15 +1144,25 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
       // globalThis.__APP_BUILD_INFO__ is handled by the prependBannerPlugin, so no need to define it here.
     },
     resolve: {
-      alias: {
-        '@': resolve(__dirname, 'src'),
-        '@/components': resolve(__dirname, 'src/components'),
-        '@/business-apps': resolve(__dirname, 'src/business-apps'),
-        '@/assets': resolve(__dirname, 'src/assets'),
-        '@/hooks': resolve(__dirname, 'src/hooks'),
-        '@/modules': resolve(__dirname, 'src/modules'),
-        '@/common': resolve(__dirname, 'src/common')
-      }
+      alias: [
+        // Backward-compat default export for libraries (e.g. @react-three/fiber v8)
+        // that still do `import create from 'zustand'`. zustand v5 only ships
+        // named exports, so we redirect the BARE specifier to a shim that
+        // re-exports the named API plus a `default` pointing at `create`.
+        // Uses a regex so sub-paths like `zustand/shallow`, `zustand/vanilla`
+        // resolve normally to the real package.
+        {
+          find: /^zustand$/,
+          replacement: resolve(__dirname, 'src/common/utils/zustandDefaultExportShim.ts')
+        },
+        { find: '@', replacement: resolve(__dirname, 'src') },
+        { find: '@/components', replacement: resolve(__dirname, 'src/components') },
+        { find: '@/business-apps', replacement: resolve(__dirname, 'src/business-apps') },
+        { find: '@/assets', replacement: resolve(__dirname, 'src/assets') },
+        { find: '@/hooks', replacement: resolve(__dirname, 'src/hooks') },
+        { find: '@/modules', replacement: resolve(__dirname, 'src/modules') },
+        { find: '@/common', replacement: resolve(__dirname, 'src/common') }
+      ]
     },
     build: {
       outDir: resolve(projectRootDir, 'dist'),
