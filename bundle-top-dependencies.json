@@ -88343,20 +88343,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12593,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12593/",
-    "chunkJsBytes": 1923223,
+    "bitbucketBuildNumber": 12602,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12602/",
+    "chunkJsBytes": 1923325,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1627352,
-        "gzip": 102897,
+        "rendered": 1627458,
+        "gzip": 103021,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1627352,
-            "gzip": 102897
+            "rendered": 1627458,
+            "gzip": 103021
           }
         ]
       },
@@ -100582,15 +100582,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 12580,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12580/",
-    "chunkJsBytes": 1842710,
+    "bitbucketBuildNumber": 12602,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12602/",
+    "chunkJsBytes": 1906859,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1375354,
-        "gzip": 354328,
+        "rendered": 1387573,
+        "gzip": 357903,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/workspace/WorkspaceRightPanel.tsx",
@@ -100620,8 +100620,8 @@
       {
         "kind": "bucket",
         "name": "@react-three/fiber",
-        "rendered": 164338,
-        "gzip": 47602,
+        "rendered": 169616,
+        "gzip": 48967,
         "leaves": [
           {
             "name": "node_modules/@react-three/fiber/node_modules/react-reconciler/cjs/react-reconciler.production.min.js",
@@ -100630,26 +100630,26 @@
           },
           {
             "name": "node_modules/@react-three/fiber/dist/events-776716bd.esm.js",
-            "rendered": 59037,
-            "gzip": 14165
+            "rendered": 64313,
+            "gzip": 15527
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "three-stdlib",
-        "rendered": 62923,
-        "gzip": 14077,
+        "rendered": 140310,
+        "gzip": 32170,
         "leaves": [
+          {
+            "name": "node_modules/three-stdlib/loaders/EXRLoader.js",
+            "rendered": 50874,
+            "gzip": 9881
+          },
           {
             "name": "node_modules/three-stdlib/controls/OrbitControls.js",
             "rendered": 32241,
             "gzip": 6122
-          },
-          {
-            "name": "node_modules/three-stdlib/lines/LineMaterial.js",
-            "rendered": 13535,
-            "gzip": 3411
           }
         ]
       },
@@ -100674,8 +100674,8 @@
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 50252,
-        "gzip": 16358,
+        "rendered": 50254,
+        "gzip": 16360,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
@@ -100686,6 +100686,24 @@
             "name": "node_modules/@newwork/nw-design-system/dist/components/input/Input.js",
             "rendered": 4723,
             "gzip": 1340
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "@monogrid/gainmap-js",
+        "rendered": 47610,
+        "gzip": 12011,
+        "leaves": [
+          {
+            "name": "node_modules/@monogrid/gainmap-js/dist/Loader-DLI-_JDP.js",
+            "rendered": 18946,
+            "gzip": 5263
+          },
+          {
+            "name": "node_modules/@monogrid/gainmap-js/dist/decode.js",
+            "rendered": 17563,
+            "gzip": 3874
           }
         ]
       },
@@ -100711,12 +100729,12 @@
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41585,
-        "gzip": 10128,
+        "gzip": 10130,
         "leaves": [
           {
             "name": "src/common/dev-report/DevReportDot.tsx",
             "rendered": 27371,
-            "gzip": 5044
+            "gzip": 5046
           },
           {
             "name": "src/common/dev-report/screenshot.ts",
@@ -100745,6 +100763,24 @@
       },
       {
         "kind": "bucket",
+        "name": "@react-three/drei",
+        "rendered": 33378,
+        "gzip": 9650,
+        "leaves": [
+          {
+            "name": "node_modules/@react-three/drei/web/Html.js",
+            "rendered": 14699,
+            "gzip": 3976
+          },
+          {
+            "name": "node_modules/@react-three/drei/core/Environment.js",
+            "rendered": 6627,
+            "gzip": 1507
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "@newwork/icons",
         "rendered": 25497,
         "gzip": 2907,
@@ -100758,24 +100794,6 @@
             "name": "node_modules/@newwork/icons/dist/lib/IconBase.es.js",
             "rendered": 3885,
             "gzip": 1065
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "@react-three/drei",
-        "rendered": 21183,
-        "gzip": 6318,
-        "leaves": [
-          {
-            "name": "node_modules/@react-three/drei/web/Html.js",
-            "rendered": 14699,
-            "gzip": 3976
-          },
-          {
-            "name": "node_modules/@react-three/drei/core/Line.js",
-            "rendered": 2587,
-            "gzip": 968
           }
         ]
       },
@@ -100801,12 +100819,12 @@
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15783,
-        "gzip": 3735,
+        "gzip": 3732,
         "leaves": [
           {
             "name": "src/components/share-entity/ShareEntityDialog.tsx",
             "rendered": 15783,
-            "gzip": 3735
+            "gzip": 3732
           }
         ]
       },
@@ -100844,13 +100862,13 @@
       {
         "kind": "bucket",
         "name": "its-fine",
-        "rendered": 4285,
-        "gzip": 1450,
+        "rendered": 4297,
+        "gzip": 1458,
         "leaves": [
           {
             "name": "node_modules/its-fine/dist/index.js",
-            "rendered": 4285,
-            "gzip": 1450
+            "rendered": 4297,
+            "gzip": 1458
           }
         ]
       },
@@ -100869,6 +100887,19 @@
       },
       {
         "kind": "bucket",
+        "name": "suspend-react",
+        "rendered": 2643,
+        "gzip": 1030,
+        "leaves": [
+          {
+            "name": "node_modules/suspend-react/index.js",
+            "rendered": 2643,
+            "gzip": 1030
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "zustand",
         "rendered": 1616,
         "gzip": 695,
@@ -100882,32 +100913,6 @@
             "name": "node_modules/zustand/esm/react.mjs",
             "rendered": 639,
             "gzip": 297
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/providers",
-        "rendered": 965,
-        "gzip": 396,
-        "leaves": [
-          {
-            "name": "src/common/providers/BlinkProvider.tsx",
-            "rendered": 965,
-            "gzip": 396
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/wrapWithBlinkProvider.tsx",
-        "rendered": 519,
-        "gzip": 267,
-        "leaves": [
-          {
-            "name": "src/common/wrapWithBlinkProvider.tsx",
-            "rendered": 519,
-            "gzip": 267
           }
         ]
       }
@@ -110173,7 +110178,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-26T13:35:59.609Z",
+    "generatedAt": "2026-05-26T15:54:07.780Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
