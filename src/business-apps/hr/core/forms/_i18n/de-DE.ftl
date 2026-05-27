@@ -199,6 +199,7 @@ label-last-name = Nachname
 label-email = E-Mail
 label-notes = Notizen
 label-birth-date = Geburtsdatum
+label-birth-place = Geburtsort
 label-country = Land
 label-city = Stadt
 label-currency = Währung
