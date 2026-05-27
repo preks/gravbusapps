@@ -15,15 +15,17 @@ import type { MeshScope } from './meshScopes'
 import { getScopeSubtitle, getScopeTitle } from './meshScopes'
 import { AgentMeshScopeProvider, useAgentMeshScope } from '../../hooks/useAgentMeshScope'
 import { AgentMeshAggregateView } from './AgentMeshAggregateView'
+import type { ActiveSessionSnapshot } from '../../types/activeSession'
 
 interface AgentMeshScreenProps {
+  activeSessions?: readonly ActiveSessionSnapshot[]
   onBack: () => void
   onOpenTraceExplorer?: (positionMs: number) => void
 }
 
 const NON_LOG_FRAME_KINDS = new Set(['decision'])
 
-const AgentMeshScreenInner: React.FC<AgentMeshScreenProps> = ({ onBack, onOpenTraceExplorer }) => {
+const AgentMeshScreenInner: React.FC<AgentMeshScreenProps> = ({ activeSessions, onBack, onOpenTraceExplorer }) => {
   const { session, events, isStreaming, activeSessionId, userInfo } = useFabric()
   const {
     scope,
@@ -211,7 +213,9 @@ const AgentMeshScreenInner: React.FC<AgentMeshScreenProps> = ({ onBack, onOpenTr
 
   const renderContent = () => {
     if (scope === 'session') return renderSessionView()
-    return <AgentMeshAggregateView scope={scope} userId={userId} />
+    const scopedActiveSessions =
+      scope === 'user' && userId && userInfo?.id && userId !== userInfo.id ? [] : activeSessions
+    return <AgentMeshAggregateView scope={scope} userId={userId} activeSessions={scopedActiveSessions} />
   }
 
   const disabledScopes: MeshScope[] = userId ? [] : ['user']

@@ -106,6 +106,8 @@ export interface MeshNodeCardContentProps {
   isSelected: boolean
   isActive: boolean
   skillNames: string[]
+  liveCount?: number
+  activityHeat?: number
   badgeClassName: string
   badgeStyle?: React.CSSProperties
   ringSurface?: MeshNodeCardSurface
@@ -121,6 +123,8 @@ export function MeshNodeCardContent({
   isSelected,
   isActive,
   skillNames,
+  liveCount = 0,
+  activityHeat = 0,
   badgeClassName,
   badgeStyle,
   ringSurface = 'flow',
@@ -131,10 +135,18 @@ export function MeshNodeCardContent({
   const isAgent = kind === 'orchestrator' || kind === 'subagent' || kind === 'expert'
   const showSkillDots = isAgent && skillNames.length > 0
   const ring = meshNodeRingClass(status, isSelected, isActive, ringSurface)
+  const liveBadge = liveCount >= 2 ? `•${liveCount}` : null
+  const heatShadow =
+    activityHeat > 0
+      ? `0 0 ${Math.round(10 + activityHeat * 16)}px rgba(var(--primary),${0.2 + activityHeat * 0.25})`
+      : undefined
 
   return (
     <>
-      <span className={`${badgeClassName} ${ring}`} style={badgeStyle}>
+      <span
+        className={`${badgeClassName} ${ring}`}
+        style={heatShadow ? { ...badgeStyle, boxShadow: heatShadow } : badgeStyle}
+      >
         {showInitialsOnly ? (
           <span className="gba:text-[10px] gba:font-semibold gba:tracking-wide gba:text-muted-foreground">
             {meshNodeTinyInitials(label)}
@@ -147,6 +159,14 @@ export function MeshNodeCardContent({
             className="gba:absolute gba:inset-0 gba:rounded-full gba:border-2 gba:border-primary/40 gba:animate-ping"
             aria-hidden
           />
+        )}
+        {liveBadge && (
+          <span
+            className="gba:absolute gba:-right-1 gba:-top-1 gba:flex gba:min-w-5 gba:h-5 gba:items-center gba:justify-center gba:rounded-full gba:border gba:border-primary/30 gba:bg-primary gba:px-1 gba:text-[10px] gba:font-bold gba:text-primary-foreground gba:shadow-sm"
+            title={`${liveCount} live sessions`}
+          >
+            {liveBadge}
+          </span>
         )}
       </span>
       <span

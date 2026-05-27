@@ -12,7 +12,14 @@
  */
 
 import type { AgentStreamEvent, DeepAgentSession } from '../types/enterpriseAgent'
-import { buildTraceModel, ORCHESTRATOR_NODE_ID, type MeshEdge, type MeshNode, type TraceModel } from './traceModel'
+import {
+  buildTraceModel,
+  ORCHESTRATOR_NODE_ID,
+  type MeshEdge,
+  type MeshNode,
+  type MeshNodeStatus,
+  type TraceModel
+} from './traceModel'
 
 export interface AggregateNodeProvenance {
   userId: string
@@ -73,17 +80,27 @@ interface SessionContext {
   createdAt: string
 }
 
-function nodeIdentityKey(node: MeshNode): string {
+export function nodeIdentityKey(node: MeshNode): string {
   if (node.id === ORCHESTRATOR_NODE_ID) return ORCHESTRATOR_NODE_ID
   const metaId = node.metadata?.expertId ?? node.metadata?.skillId ?? node.metadata?.toolRef
   if (typeof metaId === 'string' && metaId.length > 0) return `${node.kind}::${metaId}`
   return `${node.kind}::${node.label.toLowerCase().trim()}`
 }
 
-function edgeIdentityKey(edge: MeshEdge, nodeKeyMap: Map<string, string>): string {
-  const sourceKey = nodeKeyMap.get(edge.source) ?? edge.source
-  const targetKey = nodeKeyMap.get(edge.target) ?? edge.target
+export function edgeIdentityKey(
+  edge: Pick<MeshEdge, 'source' | 'target' | 'kind'>,
+  nodeKeyMap?: Map<string, string>
+): string {
+  const sourceKey = nodeKeyMap?.get(edge.source) ?? edge.source
+  const targetKey = nodeKeyMap?.get(edge.target) ?? edge.target
   return `${sourceKey}::${targetKey}::${edge.kind}`
+}
+
+function mergeNodeStatus(current: MeshNodeStatus, incoming: MeshNodeStatus): MeshNodeStatus {
+  if (current === 'failed' || incoming === 'failed') return 'failed'
+  if (current === 'running' || incoming === 'running') return 'running'
+  if (current === 'done' || incoming === 'done') return 'done'
+  return 'idle'
 }
 
 export function buildAggregateModel(
@@ -122,6 +139,7 @@ export function buildAggregateModel(
         if (node.lastSeenAt > existing.lastSeenAt) existing.lastSeenAt = node.lastSeenAt
         if (node.firstSeenAt < existing.firstSeenAt) existing.firstSeenAt = node.firstSeenAt
         existing.totalDurationMs += node.totalDurationMs
+        existing.status = mergeNodeStatus(existing.status, node.status)
 
         const userEntry = existing.users.find(u => u.userId === ctx.userId)
         if (userEntry) {
@@ -186,6 +204,15 @@ export function buildAggregateModel(
         existing.invocationCount += 1
         existing.sessionCount += 1
         if (edge.timestamp > existing.lastSeenAt) existing.lastSeenAt = edge.timestamp
+        // If any contributing session has an unresolved edge, keep the
+        // aggregate edge unresolved so live/company views can show traffic on
+        // that path. A completed historical call should not mask a currently
+        // running call for the same source/target/kind.
+        if (!edge.resolvedAt) {
+          delete existing.resolvedAt
+        } else if (existing.resolvedAt && edge.resolvedAt > existing.resolvedAt) {
+          existing.resolvedAt = edge.resolvedAt
+        }
         if (!existing.sampleSessionIds.includes(ctx.sessionId)) {
           existing.sampleSessionIds.push(ctx.sessionId)
         }

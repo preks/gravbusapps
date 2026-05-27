@@ -3,6 +3,7 @@ import { Button } from '@newwork/nw-design-system'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState } from 'react'
 import { AgentMeshScreen } from './components/agent-mesh/AgentMeshScreen'
+import { EnterpriseWorkforceScreen } from './components/enterprise-workforce/EnterpriseWorkforceScreen'
 import { TraceExplorerScreen } from './components/trace-explorer/TraceExplorerScreen'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { LandingScreen } from './components/landing/LandingScreen'
@@ -72,13 +73,22 @@ const EveryFabricInner: React.FC = () => {
   const handleCloseSettings = () => updateUrl({ view: null })
   const handleOpenScheduled = () => updateUrl({ view: 'scheduled' })
   const handleCloseScheduled = () => updateUrl({ view: null })
-  const handleOpenAgentMesh = () => updateUrl({ view: 'agent-mesh' })
+  // Company Mesh: company-wide aggregate view. Sets meshScope=company so
+  // the AgentMeshScopeProvider opens at the right scope regardless of any
+  // previously persisted session-scope URL state.
+  const handleOpenCompanyMesh = () => updateUrl({ view: 'agent-mesh', meshScope: 'company' })
+  // Session Mesh: live/replay view bound to the currently selected session.
+  // Strip meshScope so useAgentMeshScope.buildInitialSnapshot falls through
+  // to its default (session when activeSessionId is set).
+  const handleOpenSessionMesh = () => updateUrl({ view: 'agent-mesh', meshScope: null })
   const handleCloseAgentMesh = () => updateUrl({ view: null })
   const handleOpenTraceExplorer = (positionMs?: number) =>
     updateUrl({ view: 'trace-explorer', t: positionMs != null ? String(positionMs) : null })
   const handleCloseTraceExplorer = () => updateUrl({ view: null, t: null, focus: null })
   const handleOpenAgentMeshFromTrace = (positionMs?: number) =>
     updateUrl({ view: 'agent-mesh', t: positionMs != null ? String(positionMs) : null })
+  const handleOpenEnterpriseWorkforce = () => updateUrl({ view: 'enterprise-workforce' })
+  const handleCloseEnterpriseWorkforce = () => updateUrl({ view: null })
   const handleSelectSession = (id: string) => {
     updateUrl({ view: null })
     selectSession(id)
@@ -101,7 +111,16 @@ const EveryFabricInner: React.FC = () => {
   const showAgentMesh = urlView === 'agent-mesh'
   const isTraceExplorerView = displayView === 'trace-explorer'
   const showTraceExplorer = urlView === 'trace-explorer'
-  const isAnyOverlayShown = showSettings || showScheduled || showAgentMesh || showTraceExplorer
+  const isEnterpriseWorkforceView = displayView === 'enterprise-workforce'
+  const showEnterpriseWorkforce = urlView === 'enterprise-workforce'
+  // For sidebar highlighting, split the single agent-mesh URL into
+  // "company mesh" vs "session mesh" by inspecting the meshScope param.
+  const meshScopeParam =
+    typeof globalThis.location !== 'undefined' ? new URLSearchParams(globalThis.location.search).get('meshScope') : null
+  const isCompanyMeshActive = showAgentMesh && meshScopeParam === 'company'
+  const isSessionMeshActive = showAgentMesh && meshScopeParam !== 'company'
+  const isAnyOverlayShown =
+    showSettings || showScheduled || showAgentMesh || showTraceExplorer || showEnterpriseWorkforce
   const renderMain = () => {
     if (isLoadingSession && sessionLoadError) {
       return (
@@ -183,7 +202,11 @@ const EveryFabricInner: React.FC = () => {
           style={{ pointerEvents: showAgentMesh ? 'auto' : 'none', zIndex: showAgentMesh ? 30 : 0 }}
         >
           {isAgentMeshView && (
-            <AgentMeshScreen onBack={handleCloseAgentMesh} onOpenTraceExplorer={handleOpenTraceExplorer} />
+            <AgentMeshScreen
+              activeSessions={activeSessions}
+              onBack={handleCloseAgentMesh}
+              onOpenTraceExplorer={handleOpenTraceExplorer}
+            />
           )}
         </div>
 
@@ -195,6 +218,24 @@ const EveryFabricInner: React.FC = () => {
         >
           {isTraceExplorerView && (
             <TraceExplorerScreen onBack={handleCloseTraceExplorer} onOpenAgentMesh={handleOpenAgentMeshFromTrace} />
+          )}
+        </div>
+
+        <div
+          className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
+            showEnterpriseWorkforce ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+          }`}
+          style={{
+            pointerEvents: showEnterpriseWorkforce ? 'auto' : 'none',
+            zIndex: showEnterpriseWorkforce ? 30 : 0
+          }}
+        >
+          {isEnterpriseWorkforceView && (
+            <EnterpriseWorkforceScreen
+              accessToken={accessToken}
+              activeSessions={activeSessions}
+              onBack={handleCloseEnterpriseWorkforce}
+            />
           )}
         </div>
 
@@ -230,8 +271,12 @@ const EveryFabricInner: React.FC = () => {
         onStopSession={handleStopSession}
         onOpenSettings={handleOpenSettings}
         onOpenScheduled={handleOpenScheduled}
-        onOpenAgentMesh={handleOpenAgentMesh}
-        isAgentMeshActive={showAgentMesh}
+        onOpenEnterpriseWorkforce={handleOpenEnterpriseWorkforce}
+        isEnterpriseWorkforceActive={showEnterpriseWorkforce}
+        onOpenCompanyMesh={handleOpenCompanyMesh}
+        isCompanyMeshActive={isCompanyMeshActive}
+        onOpenSessionMesh={handleOpenSessionMesh}
+        isSessionMeshActive={isSessionMeshActive}
         onOpenTraceExplorer={handleOpenTraceExplorer}
         isTraceExplorerActive={showTraceExplorer}
       />

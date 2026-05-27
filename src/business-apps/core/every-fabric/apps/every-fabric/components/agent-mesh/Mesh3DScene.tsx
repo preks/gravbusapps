@@ -3,7 +3,7 @@
 // vs drag is determined consistently across all node geometries.
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { Environment, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import type { MeshLayerKey } from './meshLayers'
@@ -14,9 +14,12 @@ import { Mesh3DEdge } from './Mesh3DEdge'
 import { Mesh3DNode } from './Mesh3DNode'
 import { useMeshPhysics } from './useMeshPhysics'
 import type { MeshThemeColors } from './useMeshTheme'
+import type { MeshLiveActivity } from './liveMeshActivity'
 
 const CLICK_DURATION_MS = 250
 const CLICK_DRAG_PIXELS = 6
+const IDLE_DRIFT_DELAY_MS = 3_000
+const IDLE_DRIFT_RADIANS_PER_SECOND = 0.018
 
 export interface Mesh3DSceneProps {
   model: TraceModel
@@ -25,6 +28,8 @@ export interface Mesh3DSceneProps {
   durationMs: number
   selectedNodeId: string | null
   hoveredNodeId: string | null
+  nodeActivityById?: ReadonlyMap<string, MeshLiveActivity>
+  edgeActivityById?: ReadonlyMap<string, MeshLiveActivity>
   reducedMotion: boolean
   colors: MeshThemeColors
   onSelectNode: (nodeId: string | null) => void
@@ -52,6 +57,8 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
     durationMs,
     selectedNodeId,
     hoveredNodeId,
+    nodeActivityById,
+    edgeActivityById,
     reducedMotion,
     colors,
     onSelectNode,
@@ -60,8 +67,18 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
   } = props
 
   const derived = useMemo(
-    () => deriveMeshGraph({ model, activeLayers, positionMs, durationMs, selectedNodeId, hoveredNodeId }),
-    [model, activeLayers, positionMs, durationMs, selectedNodeId, hoveredNodeId]
+    () =>
+      deriveMeshGraph({
+        model,
+        activeLayers,
+        positionMs,
+        durationMs,
+        selectedNodeId,
+        hoveredNodeId,
+        nodeActivityById,
+        edgeActivityById
+      }),
+    [model, activeLayers, positionMs, durationMs, selectedNodeId, hoveredNodeId, nodeActivityById, edgeActivityById]
   )
 
   const physics = useMeshPhysics(derived.visibleNodes, derived.visibleEdges)
@@ -69,11 +86,18 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
   const { camera, gl } = useThree()
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls> | null>(null)
   const dragRef = useRef<DragState | null>(null)
+  const lastInteractionAtRef = useRef<number>(typeof performance !== 'undefined' ? performance.now() : 0)
 
   // Reusable raycaster + helpers — re-creating them on every event is expensive.
   const ndc = useMemo(() => new THREE.Vector2(), [])
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
   const hitWorld = useMemo(() => new THREE.Vector3(), [])
+  const driftOffset = useMemo(() => new THREE.Vector3(), [])
+  const driftSpherical = useMemo(() => new THREE.Spherical(), [])
+
+  const markUserInteraction = useCallback(() => {
+    lastInteractionAtRef.current = performance.now()
+  }, [])
 
   const projectToPlane = useCallback(
     (clientX: number, clientY: number, plane: THREE.Plane, target: THREE.Vector3): boolean => {
@@ -89,6 +113,7 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
 
   const handleNodePointerDown = useCallback(
     (id: string, event: Parameters<NonNullable<JSX.IntrinsicElements['mesh']['onPointerDown']>>[0]) => {
+      markUserInteraction()
       const p = physics.getPosition(id)
       if (!p) return // Capture so we keep receiving move/up events even if the cursor leaves the canvas.
       ;(event.target as Element | undefined)?.setPointerCapture?.(event.pointerId)
@@ -110,7 +135,7 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
       // Disable orbit controls while dragging a node so OrbitControls doesn't fight us.
       if (controlsRef.current) controlsRef.current.enabled = false
     },
-    [camera, physics, projectToPlane]
+    [camera, markUserInteraction, physics, projectToPlane]
   )
 
   const handleNodePointerMove = useCallback(
@@ -135,6 +160,7 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
     (id: string, event: Parameters<NonNullable<JSX.IntrinsicElements['mesh']['onPointerUp']>>[0]) => {
       const drag = dragRef.current
       dragRef.current = null
+      markUserInteraction()
       if (controlsRef.current) controlsRef.current.enabled = true
       try {
         ;(event.target as Element | undefined)?.releasePointerCapture?.(event.pointerId)
@@ -151,7 +177,7 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
       // Drag end: release the node so it settles back via spring forces.
       physics.endDrag(id)
     },
-    [onSelectNode, physics, selectedNodeId]
+    [markUserInteraction, onSelectNode, physics, selectedNodeId]
   )
 
   const handleNodePointerEnter = useCallback(
@@ -170,10 +196,40 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
     [onHoverNode]
   )
 
+  useEffect(() => {
+    const el = gl.domElement
+    el.addEventListener('pointerdown', markUserInteraction, { passive: true })
+    el.addEventListener('wheel', markUserInteraction, { passive: true })
+    el.addEventListener('touchstart', markUserInteraction, { passive: true })
+    return () => {
+      el.removeEventListener('pointerdown', markUserInteraction)
+      el.removeEventListener('wheel', markUserInteraction)
+      el.removeEventListener('touchstart', markUserInteraction)
+    }
+  }, [gl.domElement, markUserInteraction])
+
+  useFrame((_state, dt) => {
+    const controls = controlsRef.current
+    if (reducedMotion || dragRef.current || !controls || !controls.enabled) return
+    if (performance.now() - lastInteractionAtRef.current < IDLE_DRIFT_DELAY_MS) return
+
+    // Subtle idle orbit: move the camera around the current controls target,
+    // then ask OrbitControls to re-apply damping/constraints. The graph itself
+    // stays still, so node dragging/physics remains deterministic.
+    driftOffset.copy(camera.position).sub(controls.target)
+    driftSpherical.setFromVector3(driftOffset)
+    driftSpherical.theta += IDLE_DRIFT_RADIANS_PER_SECOND * dt
+    driftOffset.setFromSpherical(driftSpherical)
+    camera.position.copy(controls.target).add(driftOffset)
+    camera.lookAt(controls.target)
+    controls.update()
+  })
+
   // Double-click on empty space resets the simulation + camera back to defaults.
   useEffect(() => {
     const el = gl.domElement
     const handler = () => {
+      markUserInteraction()
       physics.reset()
       controlsRef.current?.reset()
     }
@@ -181,7 +237,7 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
     return () => {
       el.removeEventListener('dblclick', handler)
     }
-  }, [gl.domElement, physics])
+  }, [gl.domElement, markUserInteraction, physics])
 
   // Fit-to-view: once the physics has settled the initial positions, frame the
   // whole graph by computing its bounding sphere and pulling the camera back
@@ -204,7 +260,12 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
   visibleNodesRef.current = derived.visibleNodes
   const physicsRef = useRef(physics)
   physicsRef.current = physics
+  const hasFittedInitialViewRef = useRef(false)
   useEffect(() => {
+    // Fit once on initial mount. In aggregate/company views the REST poll can
+    // add nodes every few seconds; re-fitting on each structural update feels
+    // like the camera is resetting while the user is exploring the mesh.
+    if (hasFittedInitialViewRef.current) return
     if (visibleNodesRef.current.length === 0) return
     // Defer two frames so the physics step has populated positions.
     let raf2 = 0
@@ -238,6 +299,8 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
           controlsRef.current.target.copy(centre)
           controlsRef.current.update()
         }
+        markUserInteraction()
+        hasFittedInitialViewRef.current = true
       })
     })
     return () => {
@@ -246,21 +309,37 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
     }
     // Intentionally only depending on fingerprint + camera: re-fit ONLY when
     // the actual set of visible nodes changes. Everything else is via refs.
-  }, [fingerprint, camera])
+  }, [fingerprint, camera, markUserInteraction])
 
   return (
     <>
       <Mesh3DBackground colors={colors} reducedMotion={reducedMotion} />
-      {/* Cheap environment map: gives the glass materials something to
-         reflect/refract so they actually read as glass instead of flat
-         coloured spheres. resolution=64 keeps the HDR cubemap tiny. */}
-      <Environment preset="apartment" background={false} resolution={64} />
-      <ambientLight intensity={colors.isDark ? 0.6 : 0.8} />
-      {/* Key light from above-front. */}
-      <directionalLight position={[200, 400, 300]} intensity={0.85} />
+      {/* Environment map for the glass materials. We deliberately avoid
+         `apartment` / `lobby` presets — they project recognisable rooms
+         with windows onto the orbs, which looks like a stock 3D render
+         rather than a real reflection. `studio` is a clean lighting dome
+         with no architectural detail, so the reflections read as abstract
+         premium highlights instead of someone's living room. Higher
+         resolution keeps the glass highlights crisp enough to feel
+         hyperrealistic. */}
+      <Environment preset="studio" background={false} resolution={128} />
+      <ambientLight intensity={colors.isDark ? 0.45 : 0.58} />
+      {/* Warm key light from above-front — gives the anthracite glass a
+         champagne sheen on the top hemisphere. */}
+      {/* eslint-disable-next-line newwork-local/no-hardcoded-colors -- Three.js scene-lighting RGB, not a UI token */}
+      <directionalLight position={[200, 400, 300]} intensity={1.25} color="#fff2cf" />
       {/* Soft rim/back light — outlines glass silhouettes against the
          background, especially in dark mode. */}
-      <directionalLight position={[-300, -100, -200]} intensity={0.35} color={colors.primary} />
+      <directionalLight position={[-300, -100, -200]} intensity={0.6} color={colors.primary} />
+      {/* Subtle fill from below so the underside of the orbs doesn't go
+         flat black — keeps them feeling like volumetric objects rather
+         than cardboard cut-outs. */}
+      {/* eslint-disable-next-line newwork-local/no-hardcoded-colors -- Three.js scene-lighting RGB, not a UI token */}
+      <directionalLight position={[0, -300, 100]} intensity={0.25} color="#8a6a3f" />
+      {/* eslint-disable-next-line newwork-local/no-hardcoded-colors -- Three.js scene-lighting RGB, not a UI token */}
+      <pointLight position={[260, 180, 220]} intensity={0.75} color="#ffffff" distance={900} decay={2} />
+      {/* eslint-disable-next-line newwork-local/no-hardcoded-colors -- Three.js scene-lighting RGB, not a UI token */}
+      <pointLight position={[-220, 260, -180]} intensity={0.45} color="#fbbf24" distance={1000} decay={2} />
       <OrbitControls
         ref={controlsRef}
         enableDamping
@@ -273,6 +352,8 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
         rotateSpeed={0.6}
         zoomSpeed={1.0}
         panSpeed={1.0}
+        onStart={markUserInteraction}
+        onEnd={markUserInteraction}
       />
 
       {derived.derivedEdges.map(d => (
@@ -287,6 +368,8 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
           isResolved={d.isResolved}
           isUpcoming={d.isUpcoming}
           isDimmed={d.isDimmed}
+          liveCount={d.liveCount}
+          activityHeat={d.activityHeat}
           hasDetail={d.hasDetail}
           physics={physics}
           colors={colors}
@@ -309,6 +392,9 @@ export function Mesh3DScene(props: Mesh3DSceneProps) {
           isDimmed={d.isDimmed}
           isHighlighted={d.isHighlighted}
           isHovered={d.isHovered}
+          liveCount={d.liveCount}
+          activityHeat={d.activityHeat}
+          activityLabel={d.activityLabel}
           skillNames={d.skillNames}
           physics={physics}
           colors={colors}

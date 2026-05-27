@@ -215,4 +215,116 @@ describe('deriveMeshGraph', () => {
     const indexes = derived.derivedEdges.map(d => d.bubbleIndex).sort()
     expect(indexes).toEqual([0, 1, 2])
   })
+
+  it('does not mark historical unresolved live edges active without a running endpoint', () => {
+    const liveEdge = makeEdge({
+      id: 'live-tool',
+      source: 'agent-1',
+      target: 'tool-1',
+      kind: 'tool_call',
+      offsetMs: 10
+    })
+    const liveModel = makeModel([orchestrator, agent, toolNode], [liveEdge])
+
+    const derived = deriveMeshGraph({
+      model: liveModel,
+      activeLayers: ALL_LAYERS_SET,
+      positionMs: 0,
+      durationMs: 0,
+      selectedNodeId: null,
+      hoveredNodeId: null
+    })
+
+    expect(derived.derivedEdgeById.get('live-tool')?.isActive).toBe(false)
+  })
+
+  it('marks live unresolved edges active when a connected node is running and no activity map is available', () => {
+    const runningAgent = makeNode({ id: 'agent-running', kind: 'subagent', status: 'running' })
+    const liveEdge = makeEdge({
+      id: 'live-running-tool',
+      source: 'agent-running',
+      target: 'tool-1',
+      kind: 'tool_call',
+      offsetMs: 10
+    })
+    const liveModel = makeModel([orchestrator, runningAgent, toolNode], [liveEdge])
+
+    const derived = deriveMeshGraph({
+      model: liveModel,
+      activeLayers: ALL_LAYERS_SET,
+      positionMs: 0,
+      durationMs: 0,
+      selectedNodeId: null,
+      hoveredNodeId: null
+    })
+
+    expect(derived.derivedEdgeById.get('live-running-tool')?.isActive).toBe(true)
+  })
+
+  it('applies live activity counts and heat to nodes without lighting every connected edge', () => {
+    const nodeActivityById = new Map([
+      [
+        'tool-1',
+        {
+          liveCount: 3,
+          activityLabel: 'Running payroll lookup',
+          lastSeenAt: 1000
+        }
+      ]
+    ])
+    const derived = deriveMeshGraph({
+      model,
+      activeLayers: ALL_LAYERS_SET,
+      positionMs: 0,
+      durationMs: 0,
+      selectedNodeId: null,
+      hoveredNodeId: null,
+      nodeActivityById
+    })
+
+    const tool = derived.derivedNodeById.get('tool-1')
+    const edge = derived.derivedEdgeById.get('e-tool')
+    expect(tool?.isActive).toBe(true)
+    expect(tool?.liveCount).toBe(3)
+    expect(tool?.activityHeat).toBeGreaterThan(0)
+    expect(edge?.isActive).toBe(false)
+    expect(edge?.liveCount).toBe(0)
+  })
+
+  it('lights only the exact live edge when edge activity is provided', () => {
+    const nodeActivityById = new Map([
+      [
+        'tool-1',
+        {
+          liveCount: 3,
+          activityLabel: 'Running payroll lookup',
+          lastSeenAt: 1000
+        }
+      ]
+    ])
+    const edgeActivityById = new Map([
+      [
+        'e-tool',
+        {
+          liveCount: 3,
+          activityLabel: 'Running payroll lookup',
+          lastSeenAt: 1000
+        }
+      ]
+    ])
+    const derived = deriveMeshGraph({
+      model,
+      activeLayers: ALL_LAYERS_SET,
+      positionMs: 0,
+      durationMs: 0,
+      selectedNodeId: null,
+      hoveredNodeId: null,
+      nodeActivityById,
+      edgeActivityById
+    })
+
+    const edge = derived.derivedEdgeById.get('e-tool')
+    expect(edge?.isActive).toBe(true)
+    expect(edge?.liveCount).toBe(3)
+  })
 })

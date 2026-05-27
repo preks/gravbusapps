@@ -11,6 +11,7 @@ function getViewFromUrl(): string | null {
   if (globalThis.location.pathname.endsWith('/skills')) return 'skills'
   if (globalThis.location.pathname.endsWith('/agent-mesh')) return 'agent-mesh'
   if (globalThis.location.pathname.endsWith('/trace-explorer')) return 'trace-explorer'
+  if (globalThis.location.pathname.endsWith('/enterprise-workforce')) return 'enterprise-workforce'
   return new URLSearchParams(globalThis.location.search).get('view')
 }
 
@@ -35,7 +36,15 @@ export const useSessionUrlState = () => {
   }, [handlePopState])
 
   const updateUrl = useCallback(
-    (params: { sessionId?: string | null; view?: string | null; t?: string | null; focus?: string | null }) => {
+    (params: {
+      sessionId?: string | null
+      view?: string | null
+      t?: string | null
+      focus?: string | null
+      /** Optional mesh scope param — used by sidebar entries that open Agent Mesh
+       *  at a specific scope (Company / Session). Consumed by `useAgentMeshScope`. */
+      meshScope?: string | null
+    }) => {
       if (globalThis.history === undefined || globalThis.location === undefined) return
       const next = getCurrentUrlWithUpdatedSearchParams(params)
       if (!next || next === getCurrentPathAndSearch()) return

@@ -6,6 +6,7 @@ import { computeRadialLayout, NODE_SIZE } from './meshLayout'
 import { deriveMeshGraph } from './meshGraphSelectors'
 import { MeshFlowEdge, type MeshFlowEdgeData } from './MeshFlowEdge'
 import { MeshNode, type MeshNodeData } from './MeshNode'
+import type { MeshLiveActivity } from './liveMeshActivity'
 import '@xyflow/react/dist/style.css'
 
 export interface ReplayClockState {
@@ -40,6 +41,8 @@ interface MeshGraphProps {
   showEdgeLabels?: boolean
   /** Node id currently being hovered — drives the skill highlight dim/glow effect. */
   hoveredNodeId: string | null
+  nodeActivityById?: ReadonlyMap<string, MeshLiveActivity>
+  edgeActivityById?: ReadonlyMap<string, MeshLiveActivity>
   /** Edge-to-edge canvas used in fullscreen. Drops the rounded border + gradient. */
   dense?: boolean
   onSelectNode: (nodeId: string | null) => void
@@ -64,12 +67,23 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
     selectedNodeId,
     showEdgeLabels = true,
     hoveredNodeId,
+    nodeActivityById,
+    edgeActivityById,
     onSelectNode,
     onSelectEdge,
     onHoverNode
   } = props
 
-  const derived = deriveMeshGraph({ model, activeLayers, positionMs, durationMs, selectedNodeId, hoveredNodeId })
+  const derived = deriveMeshGraph({
+    model,
+    activeLayers,
+    positionMs,
+    durationMs,
+    selectedNodeId,
+    hoveredNodeId,
+    nodeActivityById,
+    edgeActivityById
+  })
   const { byId: positions } = computeRadialLayout(derived.visibleNodes, derived.visibleEdges)
 
   const flowNodes: Node<MeshNodeData>[] = derived.derivedNodes.map(d => {
@@ -92,6 +106,8 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
         skillNames: d.skillNames,
         isDimmed: d.isDimmed,
         isHighlighted: d.isHighlighted,
+        liveCount: d.liveCount,
+        activityHeat: d.activityHeat,
         onSelect: () => onSelectNode(selectedNodeId === node.id ? null : node.id),
         onHoverStart: () => onHoverNode(node.id),
         onHoverEnd: () => onHoverNode(null)
@@ -128,6 +144,7 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
         kind: edge.kind,
         label: edge.label,
         offsetMs: edge.offsetMs,
+        isActive: d.isActive,
         isResolved: d.isResolved,
         isFailed: d.isFailed,
         hasDetail: d.hasDetail,
@@ -137,6 +154,8 @@ function buildLayout(props: MeshGraphProps): LayoutResult {
         bubbleTotal: d.bubbleTotal,
         showBubble: showEdgeLabels,
         isDimmed: d.isDimmed,
+        liveCount: d.liveCount,
+        activityHeat: d.activityHeat,
         onSelect: () => onSelectEdge(edge.id)
       },
       animated: false

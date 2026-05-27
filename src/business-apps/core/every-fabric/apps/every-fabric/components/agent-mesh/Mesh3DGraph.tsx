@@ -8,6 +8,7 @@ import type { TraceModel } from '../../utils/traceModel'
 import type { MeshLayerKey } from './meshLayers'
 import { Mesh3DScene } from './Mesh3DScene'
 import { useMeshTheme } from './useMeshTheme'
+import type { MeshLiveActivity } from './liveMeshActivity'
 
 interface ErrorBoundaryProps {
   fallback: ReactNode
@@ -39,6 +40,8 @@ export interface Mesh3DGraphProps {
   durationMs: number
   selectedNodeId: string | null
   hoveredNodeId: string | null
+  nodeActivityById?: ReadonlyMap<string, MeshLiveActivity>
+  edgeActivityById?: ReadonlyMap<string, MeshLiveActivity>
   dense?: boolean
   onSelectNode: (nodeId: string | null) => void
   onSelectEdge: (edgeId: string) => void
@@ -121,6 +124,8 @@ export function Mesh3DGraph(props: Mesh3DGraphProps) {
             durationMs={props.durationMs}
             selectedNodeId={props.selectedNodeId}
             hoveredNodeId={props.hoveredNodeId}
+            nodeActivityById={props.nodeActivityById}
+            edgeActivityById={props.edgeActivityById}
             colors={colors}
             reducedMotion={reducedMotion}
             onSelectNode={props.onSelectNode}

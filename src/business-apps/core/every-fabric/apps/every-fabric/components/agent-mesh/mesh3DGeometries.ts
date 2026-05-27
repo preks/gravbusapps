@@ -37,7 +37,10 @@ export function coreRadius(kind: MeshNodeKind): number {
 // Three.js can share a single BufferGeometry between many meshes. We build
 // one per shape at unit-ish radius and let mesh `scale` handle the rest.
 
-export const ORCHESTRATOR_GEOMETRY = new THREE.IcosahedronGeometry(1, 1)
+// Orchestrator is rendered as a 3D ring (TorusGeometry) so the Every brand
+// logo can sit inside the hole as the visual centrepiece. Tube is chunky
+// enough to read as a solid 3D object from any orbit angle.
+export const ORCHESTRATOR_GEOMETRY = new THREE.TorusGeometry(1, 0.16, 32, 96)
 export const AGENT_SPHERE_GEOMETRY = new THREE.SphereGeometry(1, 32, 24)
 export const EXPERT_GEOMETRY = new THREE.IcosahedronGeometry(1, 0)
 export const SKILL_GEOMETRY = new THREE.OctahedronGeometry(1, 0)
@@ -79,44 +82,44 @@ export function geometryFor(kind: MeshNodeKind): THREE.BufferGeometry {
  * resolve to near-background colours in dark mode and turn the glass body
  * into a near-black blob.
  *
- * Mid-tone, slightly desaturated colours look glassy in both light and dark
- * themes: bright enough to catch the envmap highlight, low-enough saturation
- * to read as a tinted glass rather than a coloured plastic.
+ * Premium neutral/warm colours look glassy in both light and dark themes:
+ * anthracite for enterprise agents, champagne/gold for active intelligence,
+ * bronze for tools. This avoids the previous sci-fi violet/cyan palette.
  */
 export function tintFor(kind: MeshNodeKind, colors: MeshThemeColors): string {
   switch (kind) {
     case 'orchestrator':
-      // Use the brand primary directly — the hub gets to be saturated.
-      return colors.primary
+      // Deep warm anthracite hub.
+      return colors.isDark ? '#817466' : '#5f554a'
     case 'subagent':
     case 'expert':
-      // Soft cool steel-blue — both kinds read as "enterprise agent" so they
-      // share a tint with the sphere geometry.
-      return '#8aa0c8'
+      // Polished black graphite glass — both read as "enterprise agent".
+      return colors.isDark ? '#18202b' : '#1f2937'
     case 'skill':
-      // Warm desaturated amber.
-      return '#e0b878'
+      // Champagne crystal.
+      return '#f0cf83'
     case 'tool':
-      // Light steel.
-      return '#9aa8be'
+      // Brushed bronze / smoked glass.
+      return '#b88952'
     default:
-      return '#9aa8be'
+      return '#5f6368'
   }
 }
 
 /** Emissive base colour used for the inner core pulse and selection ring. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- `colors` kept in the signature so callers can later thread theme tokens through without a breaking API change
 export function emissiveFor(kind: MeshNodeKind, colors: MeshThemeColors): string {
   switch (kind) {
     case 'orchestrator':
-      return colors.primary
+      return '#e3bf72'
     case 'expert':
-      return colors.secondary || colors.primary
+      return '#d2a75f'
     case 'skill':
-      return '#f0b048'
+      return '#f3cf7a'
     case 'tool':
-      return colors.accent || colors.primary
+      return '#c99b53'
     case 'subagent':
     default:
-      return colors.primary
+      return '#d8b36a'
   }
 }

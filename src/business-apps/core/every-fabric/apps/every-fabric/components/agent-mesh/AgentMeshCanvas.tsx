@@ -9,6 +9,7 @@ import { MeshGraph } from './MeshGraph'
 import { MeshLayersToggle } from './MeshLayersToggle'
 import { MeshNodeDetailPopover } from './MeshNodeDetailPopover'
 import { MeshSearch } from './MeshSearch'
+import type { MeshLiveActivityState } from './liveMeshActivity'
 
 // Direct import (not React.lazy) — the remote-component-loader used to mount
 // screens does not resolve split chunks, see `components/artifacts/renderers/index.ts`.
@@ -33,6 +34,8 @@ interface AgentMeshCanvasProps {
   isLive: boolean
   /** Edge-to-edge mode: no border / rounded corners, used inside fullscreen. */
   dense?: boolean
+  liveActivity?: MeshLiveActivityState
+  showLiveHud?: boolean
   onDrillToUser?: (userId: string) => void
   onDrillToSession?: (sessionId: string) => void
 }
@@ -43,6 +46,8 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
   durationMs,
   isLive,
   dense = false,
+  liveActivity,
+  showLiveHud = false,
   onDrillToUser,
   onDrillToSession
 }) => {
@@ -173,6 +178,8 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
       selectedNodeId={selectedNodeId}
       showEdgeLabels={showEdgeLabels}
       hoveredNodeId={hoveredNodeId}
+      nodeActivityById={liveActivity?.nodeActivityById}
+      edgeActivityById={liveActivity?.edgeActivityById}
       dense={dense}
       onSelectNode={setSelectedNodeId}
       onSelectEdge={handleSelectEdge}
@@ -191,6 +198,8 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
           durationMs={isLive ? 0 : durationMs}
           selectedNodeId={selectedNodeId}
           hoveredNodeId={hoveredNodeId}
+          nodeActivityById={liveActivity?.nodeActivityById}
+          edgeActivityById={liveActivity?.edgeActivityById}
           dense={dense}
           onSelectNode={setSelectedNodeId}
           onSelectEdge={handleSelectEdge}
@@ -203,6 +212,23 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
       )}
       <div className="gba:absolute gba:top-3 gba:right-3 gba:z-10 gba:flex gba:flex-col gba:items-end gba:gap-2">
         <div className="gba:flex gba:items-center gba:gap-2">
+          {showLiveHud && liveActivity && liveActivity.summary.liveSessions > 0 && (
+            <div
+              className="gba:inline-flex gba:h-8 gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-primary/10 gba:px-2.5 gba:text-[12px] gba:font-medium gba:text-primary gba:shadow-sm gba:backdrop-blur"
+              title="Live activity currently visible in this mesh"
+              data-testid="mesh-live-hud"
+            >
+              <span className="gba:relative gba:flex gba:h-2 gba:w-2">
+                <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:animate-ping gba:rounded-full gba:bg-primary gba:opacity-60" />
+                <span className="gba:relative gba:inline-flex gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary" />
+              </span>
+              <span>{liveActivity.summary.liveSessions} live</span>
+              <span className="gba:text-primary/60">·</span>
+              <span>{liveActivity.summary.activeAgents} agents</span>
+              <span className="gba:text-primary/60">·</span>
+              <span>{liveActivity.summary.activeTools + liveActivity.summary.activeSkills} tools</span>
+            </div>
+          )}
           <MeshSearch nodes={model.nodes} onSelectNode={setSelectedNodeId} />
           <button
             type="button"

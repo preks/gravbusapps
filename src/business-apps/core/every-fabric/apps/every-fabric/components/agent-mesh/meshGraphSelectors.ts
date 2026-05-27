@@ -4,9 +4,16 @@
 // the two views stay in lock-step as users toggle layers, hover nodes, or
 // scrub the replay clock.
 
-import type { MeshEdge, MeshNode, MeshNodeKind, TraceModel } from '../../utils/traceModel'
+import {
+  ORCHESTRATOR_NODE_ID,
+  type MeshEdge,
+  type MeshNode,
+  type MeshNodeKind,
+  type TraceModel
+} from '../../utils/traceModel'
 import { isKindVisible, type MeshLayerKey } from './meshLayers'
 import { KIND_CATEGORY } from './meshLayout'
+import type { MeshLiveActivity } from './liveMeshActivity'
 
 export interface MeshGraphDerivedInput {
   model: TraceModel
@@ -15,6 +22,8 @@ export interface MeshGraphDerivedInput {
   durationMs: number
   selectedNodeId: string | null
   hoveredNodeId: string | null
+  nodeActivityById?: ReadonlyMap<string, MeshLiveActivity>
+  edgeActivityById?: ReadonlyMap<string, MeshLiveActivity>
 }
 
 /**
@@ -39,6 +48,12 @@ export interface DerivedNode {
   isHighlighted: boolean
   /** True when this node is the one the user is currently hovering. */
   isHovered: boolean
+  /** Number of currently live sessions touching this aggregate node. */
+  liveCount: number
+  /** Log-scaled activity heat in [0,1], used for glow intensity. */
+  activityHeat: number
+  /** Label for the latest live activity associated with this node. */
+  activityLabel?: string
 }
 
 export interface DerivedEdge {
@@ -53,6 +68,12 @@ export interface DerivedEdge {
   bubbleIndex: number
   /** Total parallel edges in the source/target pair (undirected). */
   bubbleTotal: number
+  /** Number of currently live sessions touching this aggregate edge/path. */
+  liveCount: number
+  /** Log-scaled activity heat in [0,1], used for pulse density/intensity. */
+  activityHeat: number
+  /** Label for the latest live activity associated with this edge/path. */
+  activityLabel?: string
 }
 
 export interface MeshGraphDerived {
@@ -84,8 +105,22 @@ function undirectedPairKey(sourceId: string, targetId: string): string {
   return [sourceId, targetId].sort((a, b) => a.localeCompare(b)).join('::')
 }
 
+function activityHeat(liveCount: number): number {
+  if (liveCount <= 0) return 0
+  return Math.min(1, Math.log1p(liveCount) / Math.log(6))
+}
+
 export function deriveMeshGraph(input: MeshGraphDerivedInput): MeshGraphDerived {
-  const { model, activeLayers, positionMs, durationMs, selectedNodeId, hoveredNodeId } = input
+  const {
+    model,
+    activeLayers,
+    positionMs,
+    durationMs,
+    selectedNodeId,
+    hoveredNodeId,
+    nodeActivityById,
+    edgeActivityById
+  } = input
 
   const visibleNodes = model.nodes.filter(n => isKindVisible(n.kind, activeLayers))
   const visibleNodeIds = new Set(visibleNodes.map(n => n.id))
@@ -121,7 +156,9 @@ export function deriveMeshGraph(input: MeshGraphDerivedInput): MeshGraphDerived 
   const derivedNodes: DerivedNode[] = visibleNodes.map(node => {
     const isUpcoming = !isLive && node.offsetMs > cutoffMs && node.kind !== 'orchestrator'
     const recentlyActive = !isLive && node.offsetMs <= cutoffMs && node.lastOffsetMs >= positionMs
-    const isActive = isLive ? node.status === 'running' : recentlyActive
+    const liveActivity = nodeActivityById?.get(node.id)
+    const liveCount = liveActivity?.liveCount ?? 0
+    const isActive = liveCount > 0 || (isLive ? node.status === 'running' : recentlyActive)
     return {
       node,
       category: categoryFor(node),
@@ -131,7 +168,10 @@ export function deriveMeshGraph(input: MeshGraphDerivedInput): MeshGraphDerived 
       skillNames: skillNamesByAgent.get(node.id) ?? [],
       isDimmed: isHoverActive && !highlightedNodeIds.has(node.id),
       isHighlighted: isHoverActive && highlightedNodeIds.has(node.id) && node.id !== hoveredNodeId,
-      isHovered: node.id === hoveredNodeId
+      isHovered: node.id === hoveredNodeId,
+      liveCount,
+      activityHeat: activityHeat(liveCount),
+      activityLabel: liveActivity?.activityLabel
     }
   })
 
@@ -155,7 +195,28 @@ export function deriveMeshGraph(input: MeshGraphDerivedInput): MeshGraphDerived 
     pairIndexes.set(pairKey, bubbleIndex + 1)
 
     const edgeUpcoming = !isLive && edge.offsetMs > cutoffMs
-    const edgeActive = !isLive && !edgeUpcoming && edge.offsetMs >= positionMs - ACTIVE_WINDOW_MS
+    const exactEdgeActivity = edgeActivityById?.get(edge.id)
+    const sourceActivity = nodeActivityById?.get(edge.source)
+    const targetActivity = nodeActivityById?.get(edge.target)
+    const hasLiveActivityInput = !!nodeActivityById || !!edgeActivityById
+    const sourceNode = derivedNodeById.get(edge.source)?.node
+    const targetNode = derivedNodeById.get(edge.target)?.node
+    const hasRunningEndpoint = sourceNode?.status === 'running' || targetNode?.status === 'running'
+    const connectedLiveCount =
+      exactEdgeActivity?.liveCount ??
+      (!hasLiveActivityInput && isLive
+        ? edge.source === ORCHESTRATOR_NODE_ID
+          ? (targetActivity?.liveCount ?? 0)
+          : edge.target === ORCHESTRATOR_NODE_ID
+            ? (sourceActivity?.liveCount ?? 0)
+            : Math.max(sourceActivity?.liveCount ?? 0, targetActivity?.liveCount ?? 0)
+        : 0)
+    const liveEdgeActive =
+      isLive &&
+      (connectedLiveCount > 0 ||
+        (!hasLiveActivityInput && hasRunningEndpoint && !edge.resolvedAt && edge.status !== 'failed'))
+    const replayEdgeActive = !isLive && !edgeUpcoming && edge.offsetMs >= positionMs - ACTIVE_WINDOW_MS
+    const edgeActive = liveEdgeActive || replayEdgeActive
     const isFailed = edge.status === 'failed'
     const isResolved = !!edge.resolvedAt
     const isDimmed = isHoverActive && !highlightedEdgeIds.has(edge.id)
@@ -169,7 +230,12 @@ export function deriveMeshGraph(input: MeshGraphDerivedInput): MeshGraphDerived 
       isDimmed,
       hasDetail,
       bubbleIndex,
-      bubbleTotal
+      bubbleTotal,
+      liveCount: connectedLiveCount,
+      activityHeat: activityHeat(connectedLiveCount),
+      activityLabel:
+        exactEdgeActivity?.activityLabel ??
+        (!hasLiveActivityInput ? (sourceActivity?.activityLabel ?? targetActivity?.activityLabel) : undefined)
     }
   })
 

@@ -16,7 +16,6 @@ import type { MeshThemeColors } from './useMeshTheme'
 import {
   CORE_GEOMETRY,
   NODE_BODY_RADIUS,
-  ORCHESTRATOR_ORBIT_GEOMETRY,
   SELECTION_RING_GEOMETRY,
   coreRadius,
   emissiveFor,
@@ -33,6 +32,8 @@ export interface Mesh3DNodeBodyProps {
   isUpcoming: boolean
   isDimmed: boolean
   isHighlighted: boolean
+  liveCount: number
+  activityHeat: number
   colors: MeshThemeColors
   reducedMotion: boolean
 }
@@ -45,6 +46,8 @@ function Mesh3DNodeBodyBase({
   isUpcoming,
   isDimmed,
   isHighlighted,
+  liveCount,
+  activityHeat,
   colors,
   reducedMotion
 }: Mesh3DNodeBodyProps) {
@@ -56,17 +59,22 @@ function Mesh3DNodeBodyBase({
   const baseTint = tintFor(kind, colors)
   const emissiveColour = emissiveFor(kind, colors)
   const material = useMemo(() => {
+    // Hyperreal glass: low roughness and clearcoat roughness create crisp
+    // highlights, while transmission/thickness make the body feel refractive
+    // instead of matte plastic. The scene uses a clean studio environment, so
+    // sharper reflections add realism without reflecting rooms/windows.
     const m = new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(baseTint),
-      roughness: 0.18,
-      metalness: 0.0,
-      transmission: 0.55,
-      thickness: 0.7,
-      ior: 1.4,
+      roughness: 0.045,
+      metalness: 0.02,
+      transmission: 0.72,
+      thickness: 1.25,
+      ior: 1.52,
       clearcoat: 1,
-      clearcoatRoughness: 0.1,
+      clearcoatRoughness: 0.025,
+      envMapIntensity: 1.65,
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.8,
       emissive: new THREE.Color(emissiveColour),
       emissiveIntensity: 0
     })
@@ -90,45 +98,43 @@ function Mesh3DNodeBodyBase({
     })
   }, [emissiveColour])
 
+  const haloMaterial = useMemo(() => {
+    return new THREE.MeshBasicMaterial({
+      color: new THREE.Color(emissiveColour),
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false
+    })
+  }, [emissiveColour])
+
   // Selection ring material — mounted only when selected.
   const ringMaterial = useMemo(() => {
     return new THREE.MeshBasicMaterial({
-      color: new THREE.Color(colors.primary),
+      color: new THREE.Color(emissiveColour),
       transparent: true,
       opacity: 0.7,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       toneMapped: false
     })
-  }, [colors.primary])
-
-  // Orchestrator orbit ring — subtle thin torus that rotates around the body.
-  const orbitMaterial = useMemo(() => {
-    if (kind !== 'orchestrator') return null
-    return new THREE.MeshBasicMaterial({
-      color: new THREE.Color(colors.primary),
-      transparent: true,
-      opacity: 0.35,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      toneMapped: false
-    })
-  }, [kind, colors.primary])
+  }, [emissiveColour])
 
   useEffect(() => {
     return () => {
       material.dispose()
       coreMaterial.dispose()
+      haloMaterial.dispose()
       ringMaterial.dispose()
-      orbitMaterial?.dispose()
     }
-  }, [material, coreMaterial, ringMaterial, orbitMaterial])
+  }, [material, coreMaterial, haloMaterial, ringMaterial])
 
   // Refs for per-frame animation.
   const bodyRef = useRef<THREE.Mesh>(null)
   const coreRef = useRef<THREE.Mesh>(null)
+  const haloRef = useRef<THREE.Mesh>(null)
   const ringRef = useRef<THREE.Mesh>(null)
-  const orbitRef = useRef<THREE.Mesh>(null)
 
   // Smoothed animation state.
   const anim = useRef({
@@ -154,20 +160,31 @@ function Mesh3DNodeBodyBase({
     // Body rotation — running spins gently; skills always rotate (crystal feel);
     // orchestrator has a subtle perpetual rotation; others are static unless
     // highlighted (small wobble).
+    const heatSpinMultiplier = 1 + Math.min(liveCount, 8) * 0.12
     const spinSpeed = reducedMotion
       ? 0
       : status === 'running'
-        ? 0.6
+        ? 0.6 * heatSpinMultiplier
         : kind === 'skill'
-          ? 0.25
+          ? 0.25 * heatSpinMultiplier
           : kind === 'orchestrator'
-            ? 0.08
+            ? 0.08 * heatSpinMultiplier
             : 0
     anim.current.rotation += spinSpeed * dt
     if (bodyRef.current) {
-      bodyRef.current.rotation.y = anim.current.rotation
-      // Subtle tilt so faceted shapes catch the light from multiple angles.
-      bodyRef.current.rotation.x = Math.sin(t * 0.3 + radius) * 0.1
+      if (kind === 'orchestrator') {
+        // The orchestrator is a TorusGeometry — keep it tipped slightly so the
+        // ring reads as a 3D object, and let it precess gently around Z. We
+        // skip the X-axis wobble that other kinds use because it'd look like
+        // the ring is flopping rather than rotating.
+        bodyRef.current.rotation.x = Math.PI / 2.4
+        bodyRef.current.rotation.z = anim.current.rotation * 0.5
+        bodyRef.current.rotation.y = 0
+      } else {
+        bodyRef.current.rotation.y = anim.current.rotation
+        // Subtle tilt so faceted shapes catch the light from multiple angles.
+        bodyRef.current.rotation.x = Math.sin(t * 0.3 + radius) * 0.1
+      }
     }
 
     // Failed colour mix
@@ -184,6 +201,7 @@ function Mesh3DNodeBodyBase({
     else if (isActive) targetEmissive = 0.55
     else if (status === 'running') targetEmissive = 0.18
     else if (isSelected) targetEmissive = 0.25
+    targetEmissive = Math.max(targetEmissive, activityHeat * 0.65)
     anim.current.emissiveIntensity += (targetEmissive - anim.current.emissiveIntensity) * lerp
     material.emissiveIntensity = anim.current.emissiveIntensity
     // Failed: emissive shifts to red.
@@ -194,7 +212,7 @@ function Mesh3DNodeBodyBase({
     }
 
     // Body opacity — dim / upcoming states fade the body without unmounting.
-    const targetBodyOpacity = isDimmed ? 0.28 : isUpcoming ? 0.32 : 0.92
+    const targetBodyOpacity = isDimmed ? 0.24 : isUpcoming ? 0.3 : 0.82
     anim.current.bodyOpacity += (targetBodyOpacity - anim.current.bodyOpacity) * lerp
     material.opacity = anim.current.bodyOpacity
 
@@ -206,13 +224,30 @@ function Mesh3DNodeBodyBase({
     }
 
     // Inner core: pulses opacity when active so it reads as a "live" core
-    // glowing inside the glass.
+    // glowing inside the glass. Skip for orchestrator — the Every logo sits
+    // in the centre of the ring and a glowing sphere behind it would muddy
+    // the brand mark.
     const targetCoreOpacity =
-      isActive && !reducedMotion ? 0.5 + Math.sin(t * 3) * 0.25 : isActive ? 0.7 : status === 'running' ? 0.25 : 0
+      kind === 'orchestrator'
+        ? 0
+        : isActive && !reducedMotion
+          ? Math.max(0.5 + Math.sin(t * 3) * 0.25, activityHeat * 0.65)
+          : isActive
+            ? 0.7
+            : status === 'running'
+              ? 0.25
+              : activityHeat * 0.35
     anim.current.coreOpacity += (targetCoreOpacity - anim.current.coreOpacity) * lerp
     if (coreRef.current) {
       coreMaterial.opacity = anim.current.coreOpacity
       coreRef.current.visible = anim.current.coreOpacity > 0.01
+    }
+
+    if (haloRef.current) {
+      const haloOpacity = activityHeat > 0 ? 0.08 + activityHeat * 0.18 : 0
+      haloMaterial.opacity += (haloOpacity - haloMaterial.opacity) * lerp
+      haloRef.current.visible = haloMaterial.opacity > 0.01
+      haloRef.current.scale.setScalar(radius * (1.45 + Math.min(activityHeat, 1) * 0.35))
     }
 
     // Selection ring: gentle pulse + slow rotation so it reads as a target lock.
@@ -225,37 +260,34 @@ function Mesh3DNodeBodyBase({
       // cycles; the static rotation reads fine across orbits.
       ringRef.current.rotation.x = Math.PI / 2
     }
-
-    // Orchestrator orbit ring: rotates around the body.
-    if (orbitRef.current && kind === 'orchestrator') {
-      const orbitScale = radius * 1.6
-      orbitRef.current.scale.setScalar(orbitScale)
-      orbitRef.current.rotation.x = Math.PI / 2.5
-      orbitRef.current.rotation.z = t * 0.15
-    }
   })
 
   return (
     <group>
-      {/* Glass body — the hit-target. Scale carries the kind radius. */}
-      <mesh ref={bodyRef} geometry={geometry} material={material} scale={radius} />
+      {/* Glass body — the hit-target. Scale carries the kind radius. The
+         orchestrator is now represented by the 3D Every logo itself, so we
+         intentionally do not render the old oversized torus body around it. */}
+      {kind !== 'orchestrator' && <mesh ref={bodyRef} geometry={geometry} material={material} scale={radius} />}
 
-      {/* Inner emissive core (small additive sphere). */}
-      <mesh
-        ref={coreRef}
-        geometry={CORE_GEOMETRY}
-        material={coreMaterial}
-        scale={coreRadius(kind)}
-        visible={false}
-        renderOrder={2}
-      />
+      {kind !== 'orchestrator' && (
+        <>
+          {/* Inner emissive core (small additive sphere). */}
+          <mesh
+            ref={coreRef}
+            geometry={CORE_GEOMETRY}
+            material={coreMaterial}
+            scale={coreRadius(kind)}
+            visible={false}
+            renderOrder={2}
+          />
+
+          <mesh ref={haloRef} geometry={CORE_GEOMETRY} material={haloMaterial} visible={false} renderOrder={1} />
+        </>
+      )}
 
       {/* Selection ring — only mounted while selected to save cost. */}
-      {isSelected && <mesh ref={ringRef} geometry={SELECTION_RING_GEOMETRY} material={ringMaterial} renderOrder={3} />}
-
-      {/* Orchestrator orbit ring — only on the central hub. */}
-      {kind === 'orchestrator' && orbitMaterial && (
-        <mesh ref={orbitRef} geometry={ORCHESTRATOR_ORBIT_GEOMETRY} material={orbitMaterial} renderOrder={1} />
+      {isSelected && kind !== 'orchestrator' && (
+        <mesh ref={ringRef} geometry={SELECTION_RING_GEOMETRY} material={ringMaterial} renderOrder={3} />
       )}
     </group>
   )

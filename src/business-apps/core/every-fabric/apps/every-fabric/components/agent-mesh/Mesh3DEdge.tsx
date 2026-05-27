@@ -21,6 +21,8 @@ export interface Mesh3DEdgeProps {
   isResolved: boolean
   isUpcoming: boolean
   isDimmed: boolean
+  liveCount: number
+  activityHeat: number
   hasDetail: boolean
   physics: MeshPhysicsHandle
   colors: MeshThemeColors
@@ -32,26 +34,31 @@ export interface Mesh3DEdgeProps {
 // brighter but the focus signal is the travelling pulse, not the line itself.
 const BASE_LINE_WIDTH = 0.6
 const ACTIVE_LINE_WIDTH = 1.0
-const PULSE_SPEED = 0.35 // cycles per second along the curve
+const PULSE_SPEED = 0.28 // cycles per second along the curve
+const MAX_PULSES_PER_EDGE = 3
 
 function edgeIdleColor(colors: MeshThemeColors): string {
   return colors.border
 }
 
-function edgeActiveColor(kind: MeshEdgeKind, colors: MeshThemeColors): string {
+// Saturated warm-metal palette — the previous champagne yellows
+// disappeared against the light environment map; these copper/amber tones
+// pop on both light and dark themes while staying inside the "premium
+// neural" aesthetic (no violet/cyan).
+function edgeActiveColor(kind: MeshEdgeKind, _colors: MeshThemeColors): string {
   switch (kind) {
     case 'delegation':
-      return colors.primary
+      return '#f59e0b' // rich amber — orchestrator hand-off
     case 'expert_call':
-      return colors.secondary
+      return '#ea580c' // deep amber-orange — expert routing
     case 'tool_call':
-      return colors.accent
+      return '#c2410c' // copper — tool invocation
     case 'skill_load':
-      return colors.ai || colors.primary
+      return '#fb923c' // bright champagne-orange — skill load
     case 'completion':
-      return colors.mutedForeground
+      return _colors.mutedForeground
     default:
-      return colors.primary
+      return '#f59e0b'
   }
 }
 
@@ -75,6 +82,8 @@ function Mesh3DEdgeBase({
   isResolved,
   isUpcoming,
   isDimmed,
+  liveCount,
+  activityHeat,
   hasDetail,
   physics,
   colors,
@@ -82,8 +91,8 @@ function Mesh3DEdgeBase({
   onSelect
 }: Mesh3DEdgeProps) {
   const lineRef = useRef<any>(null)
-  const pulseRef = useRef<THREE.Mesh>(null)
-  const pulseGlowRef = useRef<THREE.Mesh>(null)
+  const pulseRefs = useRef<(THREE.Mesh | null)[]>([])
+  const pulseGlowRefs = useRef<(THREE.Mesh | null)[]>([])
   const [start] = useState(() => new THREE.Vector3())
   const [end] = useState(() => new THREE.Vector3())
   const [mid] = useState(() => new THREE.Vector3())
@@ -136,7 +145,15 @@ function Mesh3DEdgeBase({
 
     // Much more subtle baseline opacity — the pulse carries the signal,
     // not the line. Resolved/upcoming dim further. Active gets a slight boost.
-    const targetOpacity = isDimmed ? 0.06 : isUpcoming ? 0.08 : isResolved && !isActive ? 0.22 : isActive ? 0.45 : 0.18
+    const targetOpacity = isDimmed
+      ? 0.05
+      : isUpcoming
+        ? 0.07
+        : isResolved && !isActive
+          ? 0.18
+          : isActive
+            ? 0.42 + activityHeat * 0.22
+            : 0.14
     animState.current.opacity += (targetOpacity - animState.current.opacity) * Math.min(1, dt * 6)
     mat.opacity = animState.current.opacity
     mat.transparent = true
@@ -153,22 +170,23 @@ function Mesh3DEdgeBase({
     animState.current.pulseScale += (targetPulseScale - animState.current.pulseScale) * Math.min(1, dt * 8)
     const pulseScale = animState.current.pulseScale
 
-    if (pulseRef.current && pulseGlowRef.current) {
-      if (pulseScale > 0.01) {
-        // Travel along the bezier, looping. Use elapsed time + a per-edge
-        // phase offset (derived from the id hash) so multiple active edges
-        // aren't perfectly in sync — feels more organic.
-        const phase = (state.clock.elapsedTime * PULSE_SPEED + edgePhase(id)) % 1
+    const pulseCount = pulseScale > 0.01 ? Math.min(MAX_PULSES_PER_EDGE, Math.max(1, liveCount || 1)) : 0
+    for (let i = 0; i < MAX_PULSES_PER_EDGE; i++) {
+      const core = pulseRefs.current[i]
+      const glow = pulseGlowRefs.current[i]
+      if (!core || !glow) continue
+      if (i < pulseCount) {
+        const speed = PULSE_SPEED * (1 + Math.min(liveCount, 10) * 0.035)
+        const phase = (state.clock.elapsedTime * speed + edgePhase(id) + i / pulseCount) % 1
         quadBezierAt(phase, start, mid, end, pulsePos)
-        pulseRef.current.position.copy(pulsePos)
-        pulseGlowRef.current.position.copy(pulsePos)
-        pulseRef.current.scale.setScalar(pulseScale)
-        pulseGlowRef.current.scale.setScalar(pulseScale)
-        pulseRef.current.visible = true
-        pulseGlowRef.current.visible = true
-        // Tint the pulse with the per-kind active colour.
-        const coreMat = pulseRef.current.material as THREE.MeshBasicMaterial
-        const glowMat = pulseGlowRef.current.material as THREE.MeshBasicMaterial
+        core.position.copy(pulsePos)
+        glow.position.copy(pulsePos)
+        core.scale.setScalar(pulseScale)
+        glow.scale.setScalar(pulseScale * (0.8 + activityHeat * 0.2))
+        core.visible = true
+        glow.visible = true
+        const coreMat = core.material as THREE.MeshBasicMaterial
+        const glowMat = glow.material as THREE.MeshBasicMaterial
         if (isFailed) {
           coreMat.color.copy(failedColor)
           glowMat.color.copy(failedColor)
@@ -177,8 +195,8 @@ function Mesh3DEdgeBase({
           glowMat.color.copy(activeColor)
         }
       } else {
-        pulseRef.current.visible = false
-        pulseGlowRef.current.visible = false
+        core.visible = false
+        glow.visible = false
       }
     }
   })
@@ -206,29 +224,46 @@ function Mesh3DEdgeBase({
         depthWrite={false}
         blending={THREE.NormalBlending}
       />
-      {/* Travelling pulse: a small bright core + a soft additive halo.
-         Both are hidden when isActive is false (no render cost). */}
-      <mesh ref={pulseGlowRef} visible={false} renderOrder={2}>
-        <sphereGeometry args={[7, 16, 16]} />
-        <meshBasicMaterial
-          color={activeColor}
-          transparent
-          opacity={0.35}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
-      <mesh ref={pulseRef} visible={false} renderOrder={3}>
-        <sphereGeometry args={[2.6, 16, 16]} />
-        <meshBasicMaterial
-          color={activeColor}
-          transparent
-          opacity={0.95}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
+      {Array.from({ length: MAX_PULSES_PER_EDGE }).map((_, i) => (
+        <group key={i}>
+          {/* Wide soft halo — the "atmosphere" around the comet. */}
+          <mesh
+            ref={node => {
+              pulseGlowRefs.current[i] = node
+            }}
+            visible={false}
+            renderOrder={2}
+          >
+            <sphereGeometry args={[7.5, 20, 20]} />
+            <meshBasicMaterial
+              color={activeColor}
+              transparent
+              opacity={0.32}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+          {/* Bright sharp core — the comet head. toneMapped=false keeps it
+             punchy regardless of overall scene exposure. */}
+          <mesh
+            ref={node => {
+              pulseRefs.current[i] = node
+            }}
+            visible={false}
+            renderOrder={3}
+          >
+            <sphereGeometry args={[2.6, 20, 20]} />
+            <meshBasicMaterial
+              color={activeColor}
+              transparent
+              opacity={1}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </mesh>
+        </group>
+      ))}
     </group>
   )
 }

@@ -23,6 +23,8 @@ export interface MeshNodeData extends Record<string, unknown> {
   isDimmed: boolean
   /** True when this node is part of the hover-highlighted skill path. */
   isHighlighted: boolean
+  liveCount: number
+  activityHeat: number
   onSelect: () => void
   onHoverStart?: () => void
   onHoverEnd?: () => void
@@ -44,6 +46,8 @@ const MeshNodeBase = ({ data }: NodeProps<MeshFlowNode>) => {
     skillNames,
     isDimmed,
     isHighlighted,
+    liveCount,
+    activityHeat,
     onSelect,
     onHoverStart,
     onHoverEnd
@@ -74,6 +78,8 @@ const MeshNodeBase = ({ data }: NodeProps<MeshFlowNode>) => {
         isSelected={isSelected}
         isActive={isActive}
         skillNames={skillNames}
+        liveCount={liveCount}
+        activityHeat={activityHeat}
         badgeClassName="gba:relative gba:flex gba:items-center gba:justify-center gba:rounded-full gba:border-2 gba:bg-card gba:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-14px_rgba(15,23,42,0.18)] gba:transition-all gba:group-hover:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_14px_30px_-14px_rgba(15,23,42,0.22)]"
         badgeStyle={{ width: size, height: size }}
         ringSurface="flow"
