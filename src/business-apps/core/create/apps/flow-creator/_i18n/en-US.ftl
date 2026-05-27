@@ -22,6 +22,9 @@ studio-unsaved-changes = Unsaved changes
 studio-saved = Saved
 studio-loading = Loading...
 studio-test-flow = Test flow
+studio-import-flow = Import
+studio-export-flow = Export
+studio-import-failed = Import failed. Please select a valid flow JSON file.
 
 # Labels / Tags
 labels-title = Labels

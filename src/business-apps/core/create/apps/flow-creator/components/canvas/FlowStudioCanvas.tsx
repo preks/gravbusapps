@@ -16,6 +16,8 @@ interface FlowStudioCanvasProps extends BusinessAppContextProps {
   onModeChange?: (mode: DesignerMode) => void
   onSave?: () => Promise<void> | void
   onTestFlow?: () => void
+  onImportFlow?: () => void
+  onExportFlow?: () => void
   showValidationIssues?: boolean
   'data-testid'?: string
 }
@@ -26,6 +28,8 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   onModeChange,
   onSave,
   onTestFlow,
+  onImportFlow,
+  onExportFlow,
   showValidationIssues = false,
   'data-testid': testId = 'flow-studio-canvas'
 }) => {
@@ -332,6 +336,8 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
       <CanvasToolbar
         onSave={onSave}
         onTestFlow={onTestFlow}
+        onImportFlow={onImportFlow}
+        onExportFlow={onExportFlow}
         mode={mode}
         onModeChange={onModeChange}
         data-testid={`${testId}-toolbar`}

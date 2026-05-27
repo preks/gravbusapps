@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { Button, Separator, useTranslation } from '@newwork/nw-design-system'
-import { Undo2, Redo2, Save, Trash2, Copy, Play } from 'lucide-react'
+import { Undo2, Redo2, Save, Trash2, Copy, Play, Download, Upload } from 'lucide-react'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import { ModeToggle } from '../shared/ModeToggle'
@@ -14,6 +14,8 @@ import type { DesignerMode } from '../../types/studioTypes'
 interface CanvasToolbarProps {
   onSave?: () => void
   onTestFlow?: () => void
+  onImportFlow?: () => void
+  onExportFlow?: () => void
   mode?: DesignerMode
   onModeChange?: (mode: DesignerMode) => void
   'data-testid'?: string
@@ -22,6 +24,8 @@ interface CanvasToolbarProps {
 export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onSave,
   onTestFlow,
+  onImportFlow,
+  onExportFlow,
   mode,
   onModeChange,
   'data-testid': testId = 'flow-studio-canvas-toolbar'
@@ -82,6 +86,20 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
           <Separator orientation="vertical" className="gba:h-5 gba:mx-1" />
         </>
       )}
+
+      {onImportFlow ? (
+        <Button variant="outline" size="sm" onClick={onImportFlow} data-testid={`${testId}-import-flow`}>
+          <Upload className="gba:h-4 gba:w-4 gba:mr-1" />
+          <span className="gba:text-xs">{t('studio-import-flow')}</span>
+        </Button>
+      ) : null}
+
+      {onExportFlow ? (
+        <Button variant="outline" size="sm" onClick={onExportFlow} data-testid={`${testId}-export-flow`}>
+          <Download className="gba:h-4 gba:w-4 gba:mr-1" />
+          <span className="gba:text-xs">{t('studio-export-flow')}</span>
+        </Button>
+      ) : null}
 
       {onTestFlow ? (
         <Button variant="outline" size="sm" onClick={onTestFlow} data-testid={`${testId}-test-flow`}>

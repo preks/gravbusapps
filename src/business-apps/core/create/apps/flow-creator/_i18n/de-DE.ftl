@@ -22,6 +22,9 @@ studio-unsaved-changes = Ungespeicherte Änderungen
 studio-saved = Gespeichert
 studio-loading = Lädt...
 studio-test-flow = Flow testen
+studio-import-flow = Importieren
+studio-export-flow = Exportieren
+studio-import-failed = Import fehlgeschlagen. Bitte wählen Sie eine gültige Flow-JSON-Datei aus.
 
 # Labels / Tags
 labels-title = Labels
