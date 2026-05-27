@@ -49,7 +49,7 @@ import { toast } from 'sonner'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { BackofficeFilterSheet } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeFilterSheet'
 import { CompanyFilterGroup } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/components/shared/CompanyFilterGroup'
-import { useActiveStructureCompanies } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useActiveStructureCompanies'
+import { useActiveStructureCompanies } from '@/business-apps/hr/compensation/hooks/useActiveStructureCompanies'
 import { HrAnalyticsFilterSummary } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/components/shared/HrAnalyticsFilterSummary'
 
 interface EmployeeInsight {

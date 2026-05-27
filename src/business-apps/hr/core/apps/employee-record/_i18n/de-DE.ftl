@@ -59,6 +59,12 @@ rewards-stock-options = Aktienoptionen
 rewards-loading = Gesamtvergütung wird geladen...
 rewards-no-data = Keine Vergütungsdaten verfügbar
 rewards-package-description = Ihr Gesamtvergütungspaket umfasst Grundgehalt, Boni, Zusatzleistungen und Aktienoptionen
+rewards-pay-transparency-download-failed = Der Gehaltstransparenz-Bericht konnte nicht heruntergeladen werden. Bitte versuchen Sie es erneut.
+
+# Pay Transparency
+pay-transparency-title = Gehaltstransparenz
+pay-transparency-description = Bericht und Kennzahlen zum Informationsrecht
+pay-transparency-download-hint = Fordern Sie unten den Gehaltstransparenz-Bericht an.
 
 # Benefits & Perks
 benefits-catalog-title = Zusatzleistungs-Katalog

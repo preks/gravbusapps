@@ -6,7 +6,7 @@ import {
   SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
-import { useActiveStructureCompanies } from '@/business-apps/hr/compensation-planning/hooks/useActiveStructureCompanies'
+import { useActiveStructureCompanies } from '@/business-apps/hr/compensation/hooks/useActiveStructureCompanies.ts'
 import { useDataQualityContext } from '../hooks/dataQualityHooks'
 import translations from '../_i18n'
 

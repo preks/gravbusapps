@@ -8,7 +8,7 @@ import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { normalizeSalaryData, hasAnySalaryData } from '../../utils/salaryCalculations'
-import { CompaRatioBar } from '@/business-apps/hr/compensation-planning/apps/manager-compensation-planning/components/CompaRatioBar'
+import { CompaRatioBar } from '@/business-apps/hr/compensation/apps/manager-planning/components/CompaRatioBar'
 
 interface CompensationKPICardsProps {
   t: (key: string, params?: any) => string

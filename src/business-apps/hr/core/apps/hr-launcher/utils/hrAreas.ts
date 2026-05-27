@@ -68,11 +68,11 @@ export const hrAreas: HrArea[] = [
     icon: WalletIcon,
     badgeLabel: 'Payroll',
     badgeTone: 'payroll',
-    explorePath: '/platform/hr/compensation-planning/apps/manager-compensation-planning',
+    explorePath: '/platform/hr/compensation/apps/manager-planning',
     links: [
       { label: 'Compensation Bands', path: '/platform/mdm/compensation-data' },
       { label: 'Payroll Preparation', path: '/platform/hr/payroll/apps/payroll-preparation?view=overview' },
-      { label: 'Salary Planning', path: '/platform/hr/compensation-planning/apps/compensation-planning' }
+      { label: 'Salary Planning', path: '/platform/hr/compensation/apps/planning' }
     ]
   },
   {

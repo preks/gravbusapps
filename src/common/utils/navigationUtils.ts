@@ -51,9 +51,11 @@ export const Navigation = {
   HR_PERFORMANCE_TRACKING: `${NAVIGATION_BASE_PATH}/hr/core/apps/performance-tracking`,
   HR_ADMIN_COCKPIT: `${NAVIGATION_BASE_PATH}/hr/core/apps/hr-admin-cockpit`,
   /** HR compensation planning (overview, budget setup, distribution, department submissions). */
-  HR_COMPENSATION_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation-planning/apps/compensation-planning`,
+  HR_COMPENSATION_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation/apps/planning`,
   /** Manager / supervisor team salary proposal workspace (compensation planning). */
-  HR_COMPENSATION_MANAGER_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation-planning/apps/manager-compensation-planning`,
+  HR_COMPENSATION_MANAGER_PLANNING: `${NAVIGATION_BASE_PATH}/hr/compensation/apps/manager-planning`,
+  /** Company compensation transparency dashboard. */
+  HR_COMPENSATION_TRANSPARENCY: `${NAVIGATION_BASE_PATH}/hr/compensation/apps/transparency`,
   HR_ABSENCES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/absences/manager-absences`,
   HR_ABSENCE_SETUP: `${NAVIGATION_BASE_PATH}/hr/absence/apps/absence-setup`,
   HR_RECRUITING_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/hr/recruiting/recruiting-manager`,
@@ -181,8 +183,9 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.HR_MY_DEVELOPMENT]: 'hr/core/apps/my-development',
   [Navigation.HR_PERFORMANCE_TRACKING]: 'hr/core/apps/performance-tracking',
   [Navigation.HR_ADMIN_COCKPIT]: 'hr/core/apps/hr-admin-cockpit',
-  [Navigation.HR_COMPENSATION_PLANNING]: 'hr/compensation-planning/apps/compensation-planning',
-  [Navigation.HR_COMPENSATION_MANAGER_PLANNING]: 'hr/compensation-planning/apps/manager-compensation-planning',
+  [Navigation.HR_COMPENSATION_PLANNING]: 'hr/compensation/apps/planning',
+  [Navigation.HR_COMPENSATION_MANAGER_PLANNING]: 'hr/compensation/apps/manager-planning',
+  [Navigation.HR_COMPENSATION_TRANSPARENCY]: 'hr/compensation/apps/transparency',
   [Navigation.HR_ABSENCES_MANAGER_ROLE]: 'hr/absences/apps/manager-absences',
   [Navigation.HR_ABSENCE_SETUP]: 'hr/absence/apps/absence-setup',
   [`${NAVIGATION_BASE_PATH}/hr/absence/apps/AbsenceSetup`]: 'hr/absence/apps/absence-setup',

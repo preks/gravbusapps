@@ -122,13 +122,26 @@ const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({ t, compensationData
     return `${category?.label}\n${entry.percentage.toFixed(1)}%`
   }
 
+  const rewardsCardHeader = (
+    <CardHeader>
+      <CardTitle>{t('rewards-title')}</CardTitle>
+      <CardDescription>{t('rewards-description')}</CardDescription>
+    </CardHeader>
+  )
+
+  const rewardsPageHeader = (
+    <div>
+      <h2 className="gba:text-2xl gba:font-bold gba:leading-none gba:tracking-tight gba:text-foreground">
+        {t('rewards-title')}
+      </h2>
+      <p className="gba:mt-1.5 gba:text-sm gba:text-muted-foreground">{t('rewards-description')}</p>
+    </div>
+  )
+
   if (loading) {
     return (
       <Card data-testid="total-rewards-card">
-        <CardHeader>
-          <CardTitle>{t('rewards-title')}</CardTitle>
-          <CardDescription>{t('rewards-description')}</CardDescription>
-        </CardHeader>
+        {rewardsCardHeader}
         <CardContent className="gba:flex gba:items-center gba:justify-center gba:py-12">
           <div className="gba:text-center gba:text-muted-foreground">{t('rewards-loading')}</div>
         </CardContent>
@@ -139,10 +152,7 @@ const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({ t, compensationData
   if (rewardsData.length === 0) {
     return (
       <Card data-testid="total-rewards-card">
-        <CardHeader>
-          <CardTitle>{t('rewards-title')}</CardTitle>
-          <CardDescription>{t('rewards-description')}</CardDescription>
-        </CardHeader>
+        {rewardsCardHeader}
         <CardContent className="gba:flex gba:items-center gba:justify-center gba:py-12">
           <div className="gba:text-center gba:text-muted-foreground">No compensation data available</div>
         </CardContent>
@@ -153,10 +163,7 @@ const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({ t, compensationData
   return (
     <div className="gba:space-y-6" data-testid="total-rewards-card">
       {/* Header Section */}
-      <div>
-        <h2 className="gba:text-2xl gba:font-bold gba:text-foreground">{t('rewards-title')}</h2>
-        <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('rewards-description')}</p>
-      </div>
+      {rewardsPageHeader}
 
       {/* Two Cards Side by Side */}
       <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">

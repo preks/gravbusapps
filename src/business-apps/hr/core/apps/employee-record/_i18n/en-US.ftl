@@ -59,6 +59,12 @@ rewards-stock-options = Stock Options
 rewards-loading = Loading total rewards...
 rewards-no-data = No compensation data available
 rewards-package-description = Your total rewards package includes base salary, bonuses, benefits, and stock options
+rewards-pay-transparency-download-failed = Failed to download pay transparency report. Please try again.
+
+# Pay Transparency
+pay-transparency-title = Pay transparency
+pay-transparency-description = Right-to-information report and metrics
+pay-transparency-download-hint = Request the pay transparency report below.
 
 # Benefits & Perks
 benefits-catalog-title = Benefits Catalog

@@ -59,6 +59,12 @@ rewards-stock-options = Opțiuni de acțiuni
 rewards-loading = Se încarcă recompensele totale...
 rewards-no-data = Nicio dată de compensare disponibilă
 rewards-package-description = Pachetul dvs. de recompense totale include salariul de bază, bonusurile, beneficiile și opțiunile de acțiuni
+rewards-pay-transparency-download-failed = Raportul de transparență salarială nu a putut fi descărcat. Vă rugăm să încercați din nou.
+
+# Pay Transparency
+pay-transparency-title = Transparență salarială
+pay-transparency-description = Raport și indicatori privind dreptul la informare
+pay-transparency-download-hint = Solicitați raportul de transparență salarială mai jos.
 
 # Benefits & Perks
 benefits-catalog-title = Catalog de beneficii

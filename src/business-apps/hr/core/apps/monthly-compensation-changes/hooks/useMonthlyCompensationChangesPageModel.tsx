@@ -3,7 +3,7 @@ import { CurrencyDollarIcon, GiftIcon, HeartIcon, ShieldCheckIcon, TrendUpIcon, 
 import type { ColumnDef } from '@tanstack/react-table'
 import type { KpiCardData } from '@newwork/nw-design-system'
 import { format, startOfMonth } from 'date-fns'
-import { useActiveStructureCompanies } from '@/business-apps/hr/compensation-planning/hooks/useActiveStructureCompanies'
+import { useActiveStructureCompanies } from '@/business-apps/hr/compensation/hooks/useActiveStructureCompanies.ts'
 import { exportWorkbookToExcel } from '@/common/utils/excelExportUtils'
 import { buildBenefitColumns, buildChangeColumns } from '../components/tableColumns'
 import type {
