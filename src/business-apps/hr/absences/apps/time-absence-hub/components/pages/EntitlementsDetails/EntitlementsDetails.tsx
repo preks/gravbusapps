@@ -31,17 +31,53 @@ import { useCatalogManagerClient } from '../../../../../../../../common/network/
 import { TimeFilter } from '../../../types'
 import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils'
 import { BackofficeDataDisplay } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeDataDisplay'
-import { BackofficeFilterSheet } from '@/business-apps/fin/expenses/apps/backoffice-expenses/common/components/BackofficeFilterSheet'
+import { EVERYTHING_DATE_FROM, EVERYTHING_DATE_TO } from '../../../constants/routes'
+import type { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 
 interface EntitlementsDetailsProps extends BusinessAppContextProps {
   timeFilter?: TimeFilter
+  globalFilters?: HubGlobalFilters
+  derivedDateRange?: { dateFrom: string; dateTo: string } | null
+  onOpenGlobalFilters?: () => void
   onNavigateBack: () => void
 }
 
 const VACATION_TYPE_ID = 'AbsenceType:v1:A001'
 
+interface GlobalFilterRedirectProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onOpenGlobalFilters?: () => void
+}
+
+const GlobalFilterRedirect: React.FC<GlobalFilterRedirectProps> = ({ open, onOpenChange, onOpenGlobalFilters }) => {
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    onOpenGlobalFilters?.()
+    onOpenChange(false)
+  }, [open, onOpenChange, onOpenGlobalFilters])
+
+  return null
+}
+
 // Helper functions
+const formatDayValue = (value: number): string => {
+  const rounded = Number(value.toFixed(1))
+
+  if (Number.isInteger(rounded)) {
+    return String(rounded)
+  }
+
+  return rounded.toFixed(1)
+}
+
+const formatDaysLeftLabel = (available: number, total: number, daysLabel: string): string =>
+  `${formatDayValue(available)} / ${formatDayValue(total)} ${daysLabel} ${getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.entitlements.left', 'left')}`
+
 const renderSortIcon = (field: string, sortField: string, sortOrder: 'asc' | 'desc' | '') => {
   if (sortField !== field) return null
   if (sortOrder === 'asc') return <ArrowUpIcon className="gba:inline gba:ml-1" size={12} />
@@ -98,15 +134,7 @@ interface EntitlementsSummaryStats {
   totalAvailable: number
 }
 
-type SortField =
-  | 'employeeName'
-  | 'organizationalUnit'
-  | 'absenceType'
-  | 'entitlement'
-  | 'validFrom'
-  | 'validTo'
-  | 'used'
-  | 'available'
+type SortField = 'employeeName' | 'organizationalUnit' | 'absenceType' | 'daysLeft' | 'validFrom' | 'validTo'
 type SortOrder = 'asc' | 'desc'
 
 const buildEntitlementsOrderBy = (sortField: SortField, sortOrder: SortOrder): Record<string, unknown>[] => {
@@ -119,16 +147,12 @@ const buildEntitlementsOrderBy = (sortField: SortField, sortOrder: SortOrder): R
       return [{ employee: { employeePosition: { organizationalUnit: { name: graphqlSortOrder } } } }]
     case 'absenceType':
       return [{ type: { value: graphqlSortOrder } }]
-    case 'entitlement':
-      return [{ total: graphqlSortOrder }]
+    case 'daysLeft':
+      return [{ available: graphqlSortOrder }]
     case 'validFrom':
       return [{ validFrom: graphqlSortOrder }]
     case 'validTo':
       return [{ validTo: graphqlSortOrder }]
-    case 'used':
-      return [{ approved: graphqlSortOrder }]
-    case 'available':
-      return [{ available: graphqlSortOrder }]
     default:
       return [{ employeeId: 'ASC' }]
   }
@@ -160,6 +184,7 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
   onPaginationChange
 }) => {
   const totalPages = Math.ceil(total / pageSize)
+  const daysLabel = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')
 
   if (loading) {
     return (
@@ -205,6 +230,16 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
                 </div>
               </TableHead>
               <TableHead
+                className="gba:w-1/5 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                onClick={() => onSort('daysLeft')}
+                data-testid="entitlements-days-left-header"
+              >
+                <div className="gba:flex gba:items-center">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.entitlements.days_left', 'Days Left')}
+                  {renderSortIcon('daysLeft', sortField, sortOrder)}
+                </div>
+              </TableHead>
+              <TableHead
                 className="gba:w-1/6 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                 onClick={() => onSort('organizationalUnit')}
                 data-testid="entitlements-org-unit-header"
@@ -228,19 +263,6 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
                     'Absence Type'
                   )}
                   {renderSortIcon('absenceType', sortField, sortOrder)}
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
-                onClick={() => onSort('entitlement')}
-                data-testid="entitlements-entitlement-header"
-              >
-                <div className="gba:flex gba:items-center">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absence_management_hub_backoffice.summary_statistics.entitlement',
-                    'Entitlement'
-                  )}
-                  {renderSortIcon('entitlement', sortField, sortOrder)}
                 </div>
               </TableHead>
               <TableHead
@@ -269,19 +291,6 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
                   {renderSortIcon('validTo', sortField, sortOrder)}
                 </div>
               </TableHead>
-              <TableHead
-                className="gba:w-1/12 gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
-                onClick={() => onSort('used')}
-                data-testid="entitlements-used-header"
-              >
-                <div className="gba:flex gba:items-center">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absence_management_hub_backoffice.summary_statistics.used',
-                    'Used'
-                  )}
-                  {renderSortIcon('used', sortField, sortOrder)}
-                </div>
-              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -297,6 +306,22 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
                     <span className="gba:font-medium gba:text-sm">{entitlement.employeeName}</span>
                   </div>
                 </TableCell>
+                <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-days-left-cell-${entitlement.id}`}>
+                  <div className="gba:flex gba:flex-col gba:gap-0.5">
+                    <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                      {formatDaysLeftLabel(entitlement.available, entitlement.entitlement, daysLabel)}
+                    </span>
+                    <span className="gba:text-xs gba:text-muted-foreground">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:time_absence_hub.entitlements.annual_allowance',
+                        '{used} of {total} {days} used'
+                      )
+                        .replace('{used}', formatDayValue(entitlement.used))
+                        .replace('{total}', formatDayValue(entitlement.entitlement))
+                        .replace('{days}', daysLabel)}
+                    </span>
+                  </div>
+                </TableCell>
                 <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-org-unit-cell-${entitlement.id}`}>
                   <span className="gba:text-sm">{entitlement.organizationalUnit}</span>
                 </TableCell>
@@ -305,12 +330,6 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
                   data-testid={`entitlements-absence-type-cell-${entitlement.id}`}
                 >
                   <span className="gba:text-sm">{entitlement.absenceType}</span>
-                </TableCell>
-                <TableCell
-                  className="gba:py-4 gba:px-6"
-                  data-testid={`entitlements-entitlement-cell-${entitlement.id}`}
-                >
-                  <span className="gba:text-sm gba:font-medium gba:text-right">{entitlement.entitlement}</span>
                 </TableCell>
                 <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-valid-from-cell-${entitlement.id}`}>
                   {entitlement.validFrom ? (
@@ -331,9 +350,6 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
                   ) : (
                     '-'
                   )}
-                </TableCell>
-                <TableCell className="gba:py-4 gba:px-6" data-testid={`entitlements-used-cell-${entitlement.id}`}>
-                  <span className="gba:text-sm gba:font-medium gba:text-right">{entitlement.used}</span>
                 </TableCell>
               </TableRow>
             ))}
@@ -474,6 +490,9 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({
 const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   accessToken,
   timeFilter = 'current-year',
+  globalFilters,
+  derivedDateRange,
+  onOpenGlobalFilters,
   onNavigateBack
 }) => {
   const graphQLClient = useGraphQLClient(accessToken)
@@ -491,9 +510,8 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   // Track initial load to prevent unnecessary re-renders (like AbsenceList)
   const initialLoadDone = useRef(false)
 
-  // Filtering state
+  // Local quick-search input on top of the main hub filters
   const [search, setSearch] = useState('')
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([])
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -501,8 +519,8 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
   const [total, setTotal] = useState(0)
   const [aggregateStats, setAggregateStats] = useState<EntitlementsSummaryStats | null>(null)
 
-  // Get date filter for the current time filter
-  const getDateFilters = () => {
+  // Fallback date range when the parent does not pass a derived range (legacy timeFilter prop).
+  const getLegacyDateFilters = () => {
     const now = new Date()
 
     switch (timeFilter) {
@@ -526,81 +544,66 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
         }
       case 'everything':
+        return {
+          startDate: EVERYTHING_DATE_FROM,
+          endDate: EVERYTHING_DATE_TO
+        }
       default:
         return null
     }
   }
 
-  // Build GraphQL where conditions like AbsenceList does
+  // Build GraphQL where conditions driven by the main hub global filters.
   const buildWhereConditions = () => {
-    const conditions: any = {
-      isDeleted: { _eq: false }
-    }
-    const trimmedSearch = search.trim()
-
-    // Add filters EXACTLY like AbsenceList - employee filters are raw IDs, others have prefixes
-    const employeeFilters = selectedFilters.filter(f => !f.startsWith('department-') && !f.startsWith('type-'))
-    const departmentFilters = selectedFilters
-      .filter(f => f.startsWith('department-'))
-      .map(f => f.replace('department-', ''))
-    conditions.type = { id: { _eq: VACATION_TYPE_ID } }
-
-    // FIXED: If employee filters are selected, use them instead of search for employees
-    if (employeeFilters.length > 0) {
-      conditions.employee = { id: { _in: employeeFilters } }
-
-      // Still allow search on type and department, but not employee names
-      if (trimmedSearch) {
-        conditions._or = [
-          { type: { value: { _ilike: `%${trimmedSearch}%` } } },
-          { employee: { employeePosition: { organizationalUnit: { name: { _ilike: `%${trimmedSearch}%` } } } } }
-        ]
-      }
+    const conditions: Record<string, any> = {
+      isDeleted: { _eq: false },
+      type: { id: { _eq: VACATION_TYPE_ID } },
+      _and: [] as any[]
     }
 
-    // No employee filters, use search for everything including employee names
-    if (employeeFilters.length === 0 && trimmedSearch) {
-      conditions._or = [
-        { employee: { firstName: { _ilike: `%${trimmedSearch}%` } } },
-        { employee: { lastName: { _ilike: `%${trimmedSearch}%` } } },
-        { type: { value: { _ilike: `%${trimmedSearch}%` } } },
-        { employee: { employeePosition: { organizationalUnit: { name: { _ilike: `%${trimmedSearch}%` } } } } }
-      ]
+    const employeePositionAnd: any[] = []
+    if (globalFilters?.departmentIds?.length) {
+      employeePositionAnd.push({ organizationalUnitId: { _in: globalFilters.departmentIds } })
+    }
+    if (globalFilters?.locationIds?.length) {
+      employeePositionAnd.push({ siteLocationId: { _in: globalFilters.locationIds } })
+    }
+    if (globalFilters?.legalEntityIds?.length) {
+      employeePositionAnd.push({ companyId: { _in: globalFilters.legalEntityIds } })
+    }
+    if (globalFilters?.managerIds?.length) {
+      employeePositionAnd.push({ supervisorEmployeeId: { _in: globalFilters.managerIds } })
     }
 
-    if (departmentFilters.length > 0) {
-      const departmentCondition = { organizationalUnit: { id: { _in: departmentFilters } } }
-
-      // Merge with existing employee conditions properly
-      if (conditions.employee) {
-        conditions.employee.employeePosition = departmentCondition
-      } else {
-        conditions.employee = { employeePosition: departmentCondition }
-      }
-    }
-
-    // Active employee positions filter - ADD TO _and instead of overwriting employee condition
     const currentDate = new Date().toISOString()
-
-    // Always add active position filter as a separate condition to avoid conflicts
-    if (!conditions._and) {
-      conditions._and = []
-    }
-
-    conditions._and.push({
-      employee: {
-        employeePosition: {
-          _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gte: currentDate } }]
-        }
-      }
+    employeePositionAnd.push({
+      _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gte: currentDate } }]
     })
 
-    // Date filters - ADD to existing _and array
-    const dateFilters = getDateFilters()
-    if (dateFilters) {
-      conditions._and.push({ validFrom: { _lte: dateFilters.endDate } })
+    const employeeAnd: any[] = [{ employeePosition: { _and: employeePositionAnd } }]
+
+    const globalEmployeeQuery = globalFilters?.employeeQuery?.trim() ?? ''
+    const localSearch = search.trim()
+    const nameQuery = globalEmployeeQuery || localSearch
+    if (nameQuery) {
+      employeeAnd.push({
+        _or: [
+          { firstName: { _ilike: `%${nameQuery}%` } },
+          { lastName: { _ilike: `%${nameQuery}%` } },
+          { displayName: { _ilike: `%${nameQuery}%` } }
+        ]
+      })
+    }
+
+    conditions._and.push({ employee: { _and: employeeAnd } })
+
+    const dateRange = derivedDateRange
+      ? { startDate: derivedDateRange.dateFrom, endDate: derivedDateRange.dateTo }
+      : getLegacyDateFilters()
+    if (dateRange) {
+      conditions._and.push({ validFrom: { _lte: dateRange.endDate } })
       conditions._and.push({
-        _or: [{ validTo: { _isNull: true } }, { validTo: { _gte: dateFilters.startDate } }]
+        _or: [{ validTo: { _isNull: true } }, { validTo: { _gte: dateRange.startDate } }]
       })
     }
 
@@ -709,7 +712,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     }
   }, [currentPage])
 
-  // Search, filter, page size and sort effects - reset to page 1 and fetch
+  // Search, hub filter, page size and sort effects - reset to page 1 and fetch
   useEffect(() => {
     if (initialLoadDone.current) {
       if (currentPage === 1) {
@@ -719,7 +722,19 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
 
       setCurrentPage(1)
     }
-  }, [search, JSON.stringify(selectedFilters), pageSize, sortField, sortOrder])
+  }, [
+    search,
+    pageSize,
+    sortField,
+    sortOrder,
+    globalFilters?.departmentIds?.join(','),
+    globalFilters?.locationIds?.join(','),
+    globalFilters?.legalEntityIds?.join(','),
+    globalFilters?.managerIds?.join(','),
+    globalFilters?.employeeQuery,
+    derivedDateRange?.dateFrom,
+    derivedDateRange?.dateTo
+  ])
 
   // Main data fetching function (like AbsenceList fetchAbsences)
   const fetchEntitlements = async () => {
@@ -773,20 +788,25 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           })
         }
 
+        const total = ent.total || 0
+        const available = ent.available || 0
+        const pending = ent.pending || 0
+        const used = Math.max(0, total - available - pending)
+
         return {
-          id: ent.id, // Use entitlement ID for unique keys
+          id: ent.id,
           employeeId: ent.employeeId || '',
           employeeName: employee ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() : 'Unknown Employee',
           organizationalUnitId: employee?.employeePosition?.organizationalUnit?.id || '',
           organizationalUnit: employee?.employeePosition?.organizationalUnit?.name || 'No Department',
-          absenceType: typeName, // Use dashboard pattern
+          absenceType: typeName,
           absenceTypeId: ent.type?.id || '',
-          entitlement: ent.total || 0,
+          entitlement: total,
           validFrom: ent.validFrom || '',
           validTo: ent.validTo || '',
-          used: ent.approved || 0, // Use approved field as "used"
-          available: ent.available || 0,
-          status: ent.available > 0 ? 'Active' : 'Expired'
+          used,
+          available,
+          status: available > 0 ? 'Active' : 'Expired'
         }
       })
 
@@ -825,137 +845,6 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
     setCurrentPage(1) // Reset to first page when search changes
   }, []) // Remove search dependency to prevent dropdown closing
 
-  const entitlementFilterOptions = useMemo(() => {
-    const employees = new Map<string, string>()
-    const departments = new Map<string, string>()
-    const absenceTypes = new Map<string, string>()
-
-    entitlements.forEach(entitlement => {
-      if (entitlement.employeeId && entitlement.employeeName) {
-        employees.set(entitlement.employeeId, entitlement.employeeName)
-      }
-
-      if (entitlement.organizationalUnitId && entitlement.organizationalUnit) {
-        departments.set(entitlement.organizationalUnitId, entitlement.organizationalUnit)
-      }
-
-      if (entitlement.absenceTypeId && entitlement.absenceType) {
-        absenceTypes.set(entitlement.absenceTypeId, entitlement.absenceType)
-      }
-    })
-
-    const toOptions = (entries: Map<string, string>) =>
-      Array.from(entries.entries())
-        .map(([id, label]) => ({ id, label }))
-        .sort((a, b) => a.label.localeCompare(b.label))
-
-    return {
-      employees: toOptions(employees),
-      departments: toOptions(departments),
-      absenceTypes: toOptions(absenceTypes)
-    }
-  }, [entitlements])
-
-  const filtersObject = useMemo<Record<string, unknown>>(() => {
-    const employeeIds = selectedFilters.filter(
-      filter => !filter.startsWith('department-') && !filter.startsWith('type-')
-    )
-    const departmentIds = selectedFilters
-      .filter(filter => filter.startsWith('department-'))
-      .map(filter => filter.replace('department-', ''))
-    const absenceTypeIds = selectedFilters
-      .filter(filter => filter.startsWith('type-'))
-      .map(filter => filter.replace('type-', ''))
-    const filters: Record<string, unknown> = {}
-
-    if (employeeIds.length > 0) {
-      filters.employeeIds = employeeIds
-    }
-
-    if (departmentIds.length > 0) {
-      filters.departmentIds = departmentIds
-    }
-
-    if (absenceTypeIds.length > 0) {
-      filters.absenceTypeIds = absenceTypeIds
-    }
-
-    return filters
-  }, [selectedFilters])
-
-  const filterConfiguration = useMemo<FilterConfiguration>(
-    () => ({
-      id: 'entitlements-details-filters',
-      name: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_management_hub_backoffice.summary_statistics.employee_entitlements',
-        'Employee Entitlements'
-      ),
-      groups: [
-        {
-          id: 'employee-group',
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee'),
-          collapsible: true,
-          defaultExpanded: true,
-          filters: [
-            {
-              id: 'employeeIds',
-              field: 'employeeIds',
-              label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee'),
-              type: 'multi-select',
-              config: { options: entitlementFilterOptions.employees, showSearch: true, showSelectAll: false }
-            }
-          ]
-        },
-        {
-          id: 'department-group',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_management_hub_backoffice.absence_list.department',
-            'Department'
-          ),
-          collapsible: true,
-          defaultExpanded: false,
-          filters: [
-            {
-              id: 'departmentIds',
-              field: 'departmentIds',
-              label: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_management_hub_backoffice.absence_list.department',
-                'Department'
-              ),
-              type: 'multi-select',
-              config: { options: entitlementFilterOptions.departments, showSearch: true, showSelectAll: false }
-            }
-          ]
-        },
-        {
-          id: 'absence-type-group',
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absence_type', 'Absence Type'),
-          collapsible: true,
-          defaultExpanded: false,
-          filters: [
-            {
-              id: 'absenceTypeIds',
-              field: 'absenceTypeIds',
-              label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.absence_type', 'Absence Type'),
-              type: 'multi-select',
-              config: { options: entitlementFilterOptions.absenceTypes, showSearch: true, showSelectAll: false }
-            }
-          ]
-        }
-      ]
-    }),
-    [entitlementFilterOptions]
-  )
-
-  const handleFilterChangeFromDisplay = useCallback((filters: Record<string, unknown>) => {
-    const employeeIds = (filters.employeeIds as string[] | undefined) ?? []
-    const departmentIds = ((filters.departmentIds as string[] | undefined) ?? []).map(id => `department-${id}`)
-    const absenceTypeIds = ((filters.absenceTypeIds as string[] | undefined) ?? []).map(id => `type-${id}`)
-
-    setSelectedFilters([...employeeIds, ...departmentIds, ...absenceTypeIds])
-    setCurrentPage(1)
-  }, [])
-
   const handlePaginationChange = (page: number, newPageSize?: number) => {
     setCurrentPage(page)
     if (newPageSize && newPageSize !== pageSize) {
@@ -978,6 +867,15 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           : '0'
     }
   }, [aggregateStats, total])
+
+  const hubFilterConfiguration = useMemo<FilterConfiguration>(
+    () => ({
+      id: 'hub-global-filters',
+      name: getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.filters.label', 'Filter'),
+      groups: []
+    }),
+    []
+  )
 
   return (
     <div data-testid="entitlements-details-page" className="gba:p-4 gba:space-y-6">
@@ -1099,27 +997,19 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
           'Search entitlements...'
         )}
         onSearchChange={handleSearchChange}
-        filters={filtersObject}
-        filterConfiguration={filterConfiguration}
-        onFilterChange={handleFilterChangeFromDisplay}
+        filterConfiguration={onOpenGlobalFilters ? hubFilterConfiguration : undefined}
+        renderFilterSheet={
+          onOpenGlobalFilters
+            ? (open, onOpenChange) => (
+                <GlobalFilterRedirect
+                  open={open}
+                  onOpenChange={onOpenChange}
+                  onOpenGlobalFilters={onOpenGlobalFilters}
+                />
+              )
+            : undefined
+        }
         data-testid="entitlements-details-data-display"
-        renderFilterSheet={(open, onOpenChange) => (
-          <BackofficeFilterSheet
-            open={open}
-            onOpenChange={onOpenChange}
-            configuration={filterConfiguration}
-            values={filtersObject}
-            onApply={handleFilterChangeFromDisplay}
-            title={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:time_absence_hub.entitlements.filter_title',
-              'Filter Entitlements'
-            )}
-            description={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:time_absence_hub.entitlements.filter_description',
-              'Narrow entitlement results by employee, department, and absence type.'
-            )}
-          />
-        )}
       >
         <div data-testid="entitlements-table-container">
           <EntitlementsTable

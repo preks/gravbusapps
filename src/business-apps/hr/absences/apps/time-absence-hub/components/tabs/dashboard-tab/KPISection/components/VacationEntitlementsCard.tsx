@@ -36,9 +36,9 @@ export const VacationEntitlementsCard: React.FC<VacationEntitlementsCardProps> =
     averageEntitlementPerEmployee - entitlements.averageAvailable - entitlements.averageUsed,
     0
   )
-  const availablePercentage =
+  const usedPercentage =
     averageEntitlementPerEmployee > 0
-      ? Math.min((entitlements.averageAvailable / averageEntitlementPerEmployee) * 100, 100)
+      ? Math.min((entitlements.averageUsed / averageEntitlementPerEmployee) * 100, 100)
       : 0
   const daysLabel = getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')
   const totalVacationDaysLabel = toTitleCase(
@@ -126,9 +126,9 @@ export const VacationEntitlementsCard: React.FC<VacationEntitlementsCardProps> =
           </div>
 
           <div className="gba:mt-auto gba:space-y-3">
-            <Progress value={availablePercentage} className="gba:h-2" />
+            <Progress value={usedPercentage} className="gba:h-2" />
 
-            <div className="gba:grid gba:grid-cols-3 gba:gap-3">
+            <div className="gba:grid gba:grid-cols-2 gba:gap-3">
               <BalanceLegendItem
                 dotClassName="gba:bg-info"
                 label={getTranslationFromI18nKeyAndLabel(
@@ -144,14 +144,6 @@ export const VacationEntitlementsCard: React.FC<VacationEntitlementsCardProps> =
                   'Avg Pending Approval'
                 )}
                 value={`${formatDayValue(averagePendingPerEmployee)} ${daysLabel}`}
-              />
-              <BalanceLegendItem
-                dotClassName="gba:bg-success"
-                label={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absence_management_hub_backoffice.avg_available_per_employee',
-                  'Avg Available per Employee'
-                )}
-                value={`${formatDayValue(entitlements.averageAvailable)} ${daysLabel}`}
               />
             </div>
           </div>

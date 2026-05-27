@@ -3,10 +3,13 @@ import { useProcessCompletion } from '../../../../../../common/hooks/useProcessC
 import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '../../../../../../common/network/catalogs/useCatalogManagerClient'
 import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windowUtils'
-import { getOptimizedDashboardQuery } from '../queries/ServerSideAggregationQueries'
+import {
+  GET_CURRENT_SALARIES_BY_EMPLOYEE_IDS,
+  getOptimizedDashboardQuery
+} from '../queries/ServerSideAggregationQueries'
 import { processCompleteServerSideAggregations } from '../utils/serverSideAggregationUtils'
 import { DashboardData, TimeFilter } from '../types'
-import { HubGlobalFilters } from './useHubGlobalFilters'
+import { hasHubPopulationFilters, HubGlobalFilters } from './useHubGlobalFilters'
 
 export interface UseDashboardDataProps {
   accessToken: string
@@ -14,6 +17,22 @@ export interface UseDashboardDataProps {
   filters?: HubGlobalFilters
   derivedDateRange?: { dateFrom: string; dateTo: string } | null
 }
+
+const getScopedEmployeeIds = (result: any): string[] => {
+  const ids = new Set<string>()
+  const scopedEmployeePositions = Array.isArray(result?.scopedEmployeePositions) ? result.scopedEmployeePositions : []
+
+  scopedEmployeePositions.forEach((position: any) => {
+    const employeeId = String(position?.employee?.id ?? '')
+    if (employeeId) {
+      ids.add(employeeId)
+    }
+  })
+
+  return Array.from(ids)
+}
+
+const getTodayDateKey = (): string => new Date().toISOString().slice(0, 10)
 
 export const useDashboardData = ({
   accessToken,
@@ -50,7 +69,8 @@ export const useDashboardData = ({
       totalVacationEntitlement: 0,
       estimatedCostPerDay: 0,
       totalLiabilityEstimate: 0,
-      currencyCode: 'EUR'
+      currencyCode: 'EUR',
+      hasMultipleCurrencies: false
     },
 
     isLoading: true,
@@ -102,9 +122,26 @@ export const useDashboardData = ({
 
       const query = getOptimizedDashboardQuery(timeFilter, vacationGroupId, filters, derivedDateRange)
 
-      const result = await graphQLClient.request<any>(query)
+      let result = await graphQLClient.request<any>(query)
+      const hasPopulationFilter = hasHubPopulationFilters(filters)
 
-      const processedData = processCompleteServerSideAggregations(result, absenceGroups, timeFilter)
+      if (hasPopulationFilter) {
+        const scopedEmployeeIds = getScopedEmployeeIds(result)
+        if (scopedEmployeeIds.length > 0) {
+          const salaryResult = await graphQLClient.request<any>(GET_CURRENT_SALARIES_BY_EMPLOYEE_IDS, {
+            employeeIds: scopedEmployeeIds,
+            today: getTodayDateKey()
+          })
+          result = { ...result, currentSalaries: salaryResult.currentSalaries ?? [] }
+        }
+      }
+
+      const processedData = processCompleteServerSideAggregations(
+        result,
+        absenceGroups,
+        timeFilter,
+        hasPopulationFilter
+      )
 
       setData(processedData)
     } catch (error) {

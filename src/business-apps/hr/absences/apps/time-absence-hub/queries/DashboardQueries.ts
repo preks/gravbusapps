@@ -1,3 +1,5 @@
+import { EVERYTHING_DATE_FROM, EVERYTHING_DATE_TO } from '../constants/routes'
+
 export const getDateFilters = (timeFilter: string) => {
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -28,11 +30,10 @@ export const getDateFilters = (timeFilter: string) => {
       }
 
     case 'everything': {
-      const everythingFilters = {
-        startDate: '2020-01-01T00:00:00.000Z',
-        endDate: new Date(currentYear + 1, 11, 31, 23, 59, 59, 999).toISOString()
+      return {
+        startDate: `${EVERYTHING_DATE_FROM}T00:00:00.000Z`,
+        endDate: `${EVERYTHING_DATE_TO}T23:59:59.999Z`
       }
-      return everythingFilters
     }
 
     default:

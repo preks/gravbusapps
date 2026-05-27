@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { DEFAULT_TIME_SCOPE, TimeScope, URL_PARAMS, isTimeScope } from '../constants/routes'
+import {
+  DEFAULT_TIME_SCOPE,
+  EVERYTHING_DATE_FROM,
+  EVERYTHING_DATE_TO,
+  TimeScope,
+  URL_PARAMS,
+  isTimeScope
+} from '../constants/routes'
 
 export interface HubGlobalFilters {
   timeScope: TimeScope
@@ -135,7 +142,7 @@ const computeDerivedDateRange = (filters: HubGlobalFilters): { dateFrom: string;
   const month = today.getUTCMonth()
   const formatIso = (date: Date): string => date.toISOString().slice(0, 10)
   if (filters.timeScope === 'everything') {
-    return { dateFrom: '2000-01-01', dateTo: formatIso(today) }
+    return { dateFrom: EVERYTHING_DATE_FROM, dateTo: EVERYTHING_DATE_TO }
   }
   if (filters.timeScope === 'current-year') {
     return { dateFrom: `${year}-01-01`, dateTo: `${year}-12-31` }
@@ -159,6 +166,20 @@ const mapTimeScopeToLegacy = (scope: TimeScope): 'current-year' | 'quarter' | 'm
     return scope
   }
   return 'current-year'
+}
+
+export const hasHubPopulationFilters = (filters?: HubGlobalFilters): boolean => {
+  if (!filters) {
+    return false
+  }
+
+  return (
+    filters.departmentIds.length > 0 ||
+    filters.locationIds.length > 0 ||
+    filters.legalEntityIds.length > 0 ||
+    filters.managerIds.length > 0 ||
+    !!filters.employeeQuery
+  )
 }
 
 export const useHubGlobalFilters = (): UseHubGlobalFiltersReturn => {

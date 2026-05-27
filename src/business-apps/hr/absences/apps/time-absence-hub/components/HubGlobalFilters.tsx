@@ -3,6 +3,7 @@ import {
   Button,
   Combobox,
   ComboboxOption,
+  DateInput,
   Select,
   SelectContent,
   SelectItem,
@@ -132,7 +133,7 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
       options.employees.map(employee => {
         const label =
           employee.displayName || `${employee.firstName ?? ''} ${employee.lastName ?? ''}`.trim() || employee.id
-        return { value: label, label }
+        return { value: employee.id, label }
       }),
     [options.employees]
   )
@@ -142,7 +143,9 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
       return employeeOptions
     }
 
-    return employeeOptions.filter(option => getOptionLabelText(option).toLowerCase().includes(query))
+    return employeeOptions.filter(
+      option => option.value === draftFilters.employeeQuery || getOptionLabelText(option).toLowerCase().includes(query)
+    )
   }, [draftFilters.employeeQuery, employeeOptions])
 
   const updateDraft = (next: Partial<HubGlobalFiltersState>) => {
@@ -150,7 +153,8 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
   }
 
   const applyFilters = () => {
-    onEmployeeQueryChange(draftFilters.employeeQuery)
+    const selectedEmployee = employeeOptions.find(option => option.label === draftFilters.employeeQuery)
+    onEmployeeQueryChange(selectedEmployee?.value ?? draftFilters.employeeQuery)
     onTimeScopeChange(draftFilters.timeScope)
     if (draftFilters.timeScope === 'custom') {
       onDateRangeChange(draftFilters.dateFrom, draftFilters.dateTo)
@@ -343,25 +347,29 @@ interface CustomDateRangePickerProps {
   onDateRangeChange: (from?: string, to?: string) => void
 }
 
-const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({ dateFrom, dateTo, onDateRangeChange }) => (
-  <DrawerField label={tt('filters.custom_date_range_label', 'Custom date range')}>
-    <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-      <input
-        type="date"
-        value={dateFrom ?? ''}
-        onChange={event => onDateRangeChange(event.target.value || undefined, dateTo)}
-        className="gba:rounded gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:text-sm"
-        data-testid="time-absence-hub-date-from"
+const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({ dateFrom, dateTo, onDateRangeChange }) => {
+  const handleChange = (value: string | [string | null, string | null] | null) => {
+    if (Array.isArray(value)) {
+      onDateRangeChange(value[0] ?? undefined, value[1] ?? undefined)
+      return
+    }
+
+    onDateRangeChange(undefined, undefined)
+  }
+
+  return (
+    <DrawerField label={tt('filters.custom_date_range_label', 'Custom date range')}>
+      <DateInput
+        mode="range"
+        value={[dateFrom ?? null, dateTo ?? null]}
+        onChange={handleChange}
+        placeholder={tt('filters.custom_date_range_from_placeholder', 'From')}
+        placeholderEnd={tt('filters.custom_date_range_to_placeholder', 'To')}
+        showClearButton
+        data-testid="time-absence-hub-date-range"
       />
-      <input
-        type="date"
-        value={dateTo ?? ''}
-        onChange={event => onDateRangeChange(dateFrom, event.target.value || undefined)}
-        className="gba:rounded gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:text-sm"
-        data-testid="time-absence-hub-date-to"
-      />
-    </div>
-  </DrawerField>
-)
+    </DrawerField>
+  )
+}
 
 export default HubGlobalFilters

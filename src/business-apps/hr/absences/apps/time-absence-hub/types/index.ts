@@ -88,6 +88,7 @@ export interface DashboardData {
     estimatedCostPerDay: number
     totalLiabilityEstimate: number
     currencyCode: string
+    hasMultipleCurrencies: boolean
   }
 
   isLoading: boolean

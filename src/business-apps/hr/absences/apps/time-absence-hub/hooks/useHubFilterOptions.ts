@@ -54,8 +54,8 @@ const mapManagers = (positions: HubManagerPositionOption[] = []): HubManagerOpti
     }
   })
   return Array.from(unique.values()).sort((a, b) => {
-    const left = `${a.lastName ?? ''} ${a.firstName ?? ''}`.trim()
-    const right = `${b.lastName ?? ''} ${b.firstName ?? ''}`.trim()
+    const left = `${a.firstName ?? ''} ${a.lastName ?? ''}`.trim()
+    const right = `${b.firstName ?? ''} ${b.lastName ?? ''}`.trim()
     return left.localeCompare(right)
   })
 }
@@ -140,7 +140,10 @@ export const useHubFilterOptions = (accessToken: string): HubFilterOptionsState 
           result => result.status === 'rejected'
         )
         const normalizedAbsenceTypes: HubFilterOption[] = (absenceTypeData?.data ?? [])
-          .filter((entry: any) => entry?.id && entry?.value && entry?.objectValue?.display !== false)
+          .filter(
+            (entry: any) =>
+              entry?.id && entry?.value && entry?.objectValue?.display !== false && entry?.isDeleted !== true
+          )
           .map((entry: any) => ({
             id: String(entry.id),
             name: String(entry.value),
