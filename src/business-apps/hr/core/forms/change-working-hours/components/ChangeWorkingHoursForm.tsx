@@ -66,6 +66,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
     employee,
     employees,
     defaults,
+    existingWorkingMeta,
     selectedEmployeeId,
     setSelectedEmployeeId,
     isFixedEmployeeId,
@@ -95,12 +96,12 @@ export const ChangeWorkingHoursForm: React.FC = () => {
     if (defaults) {
       form.reset(defaults)
       const summary = deriveWeeklySummary(defaults)
-      setMode(null)
+      setMode(existingWorkingMeta?.id ? 'custom' : null)
       setWeeklyHoursInput(formatHoursInputValue(summary.weeklyHours))
       setWorkingDaysInput(formatHoursInputValue(summary.workingDays))
       setHasInteractedWithWorkingTime(false)
     }
-  }, [defaults, form])
+  }, [defaults, existingWorkingMeta?.id, form])
 
   const setDailyHours = (values: WorkingHoursFormValues) => {
     for (const { key } of dayOrder) {
@@ -462,7 +463,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
           </div>
 
           <div
-            className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-7 gba:gap-4"
+            className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-7 gba:gap-2"
             data-testid="flw_updateWorkingHours_columnLayout"
           >
             {dayOrder.map(({ key }) => {
@@ -471,7 +472,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
               return (
                 <div
                   key={key}
-                  className="gba:flex gba:flex-col gba:items-start gba:space-y-2"
+                  className="gba:flex gba:min-w-0 gba:flex-col gba:items-center gba:space-y-2"
                   data-testid={`working-hours-${key}`}
                 >
                   <label className="gba:block gba:font-semibold">
@@ -481,7 +482,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                   <input
                     type="text"
                     inputMode="decimal"
-                    className={`gba:w-12 gba:h-12 gba:border ${hasError ? 'gba:border-destructive' : 'gba:border-input'} gba:rounded-md gba:text-center gba:text-base gba:shrink-0`}
+                    className={`gba:w-full gba:max-w-12 gba:h-12 gba:border ${hasError ? 'gba:border-destructive' : 'gba:border-input'} gba:rounded-md gba:text-center gba:text-base`}
                     aria-invalid={hasError}
                     aria-label={label}
                     disabled={mode !== 'custom'}
