@@ -34,6 +34,7 @@ import {
 import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import { LeadAiEnrichButton } from '@/common/components/common-relations/form-segments/lead-ai-enrich'
 
 type LeadFormProps = BusinessAppContextProps
 
@@ -360,6 +361,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
         submitButtonText={lead?.id ? 'Update Lead' : 'Create Lead'}
         isSubmitDisabled={loading}
       >
+        <LeadAiEnrichButton accessToken={accessToken} entityKind="investment_lead" isEditMode={!!lead?.id} />
         <LeadLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
           ownerEmployee={lead?.ownerEmployee}

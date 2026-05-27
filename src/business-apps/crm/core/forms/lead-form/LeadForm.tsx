@@ -23,6 +23,7 @@ import {
 } from '@/common/data/customer/constants/customerCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
+import { LeadAiEnrichButton } from '@/common/components/common-relations/form-segments/lead-ai-enrich'
 
 // CRM-specific schema extension (adds salesCampaignId)
 export const customerLeadSchema = leadSchema.extend({
@@ -170,6 +171,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
         submitButtonText={lead?.id ? 'Update Lead' : 'Create Lead'}
         isSubmitDisabled={loading}
       >
+        <LeadAiEnrichButton accessToken={accessToken} entityKind="lead" isEditMode={!!lead?.id} />
         <LeadLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
           ownerEmployee={lead?.ownerEmployee}

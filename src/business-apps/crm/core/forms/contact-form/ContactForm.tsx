@@ -22,6 +22,7 @@ import { buildAvatarPreSubmit } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
 import { COMPANY_SIZE, ANNUAL_REVENUE, ACCOUNT_PRIORITY } from '@/common/data/customer/constants/customerCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
+import { ContactAiEnrichButton } from '@/common/components/common-relations/form-segments/contact-ai-enrich'
 
 export const customerContactSchema = contactSchema.extend({
   salesCampaignId: z.string().nullable().optional()
@@ -152,6 +153,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additi
         submitButtonText={contact?.id ? 'Update Contact' : 'Create Contact'}
         isSubmitDisabled={loading}
       >
+        <ContactAiEnrichButton accessToken={accessToken} entityKind="contact" isEditMode={!!contact?.id} />
         <ContactLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
           accountContacts={contact?.accountContacts}
