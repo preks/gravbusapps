@@ -72,6 +72,8 @@ function resolveArtifactLabel(artifactType: ArtifactPreview['artifactType']): st
       return 'note'
     case 'pdf':
       return 'PDF'
+    case 'html':
+      return 'HTML dashboard'
     default:
       return 'chart'
   }
@@ -182,9 +184,10 @@ export const WorkspaceLayout: React.FC = () => {
   // The active connector IDs for the composer: prefer the hook's state (which
   // may reflect user toggles within this workspace session) once hydrated;
   // fall back to the raw session IDs if the hook hasn't loaded yet.
+  const fallbackConnectorIds = useMemo(() => new Set(sessionConnectorIds), [sessionConnectorIds])
   const composerActiveConnectorIds = useMemo(
-    () => (hookActiveConnectionIds.size > 0 ? hookActiveConnectionIds : new Set(sessionConnectorIds)),
-    [hookActiveConnectionIds, sessionConnectorIds]
+    () => (hookActiveConnectionIds.size > 0 ? hookActiveConnectionIds : fallbackConnectorIds),
+    [hookActiveConnectionIds, fallbackConnectorIds]
   )
 
   // When a live canvas preview kicks off, surface it automatically — even if the

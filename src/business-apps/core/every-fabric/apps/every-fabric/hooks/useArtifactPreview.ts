@@ -51,7 +51,7 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
       const ev = event as ArtifactPreviewEvent
       const existing = previewMap.get(ev.artifact_id)
 
-      const pathHint = typeof ev.content?.path === 'string' ? ev.content.path : ''
+      const pathHint = typeof ev.content?.path === 'string' ? ev.content.path.replace(/^\/+/, '') : ''
       const artifactType = normalizePreviewArtifactType(ev.artifact_type, pathHint)
 
       if (ev.subtype === 'start') {

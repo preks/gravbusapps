@@ -30,6 +30,11 @@ interface SessionCacheEntry {
  */
 const SESSION_ETAG_CACHE = new Map<string, SessionCacheEntry>()
 
+/** Drop cached GET session payload so the next fetch cannot 304 a pre-turn trace. */
+export const invalidateDeepAgentSessionEtagCache = (sessionId: string): void => {
+  SESSION_ETAG_CACHE.delete(sessionId)
+}
+
 const resolvePromptManagerBase = (): string =>
   PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
 
@@ -106,7 +111,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   )
 
   const getSession = useCallback(
-    async (sessionId: string): Promise<DeepAgentSession> => {
+    async (sessionId: string, options?: { bypassCache?: boolean }): Promise<DeepAgentSession> => {
+      if (options?.bypassCache) {
+        SESSION_ETAG_CACHE.delete(sessionId)
+      }
       const cached = SESSION_ETAG_CACHE.get(sessionId)
       const base = resolvePromptManagerBase()
       const headers: Record<string, string> = {
@@ -244,13 +252,13 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   )
 
   /**
-   * Absolute SSE URL for the multiplexed active-sessions stream. Browsers can't
-   * send custom headers on EventSource, so the JWT travels as a query param
-   * (backend supports this — see `handlers.py:/sessions/active/stream`).
+   * Absolute SSE URL for the multiplexed active-sessions stream.
+   * Auth is sent via `Authorization: Bearer` in `connectPromptManagerSse` (fetch),
+   * not as a query param — Kong on dev redirects unauthenticated `?token=` SSE to Keycloak.
    */
-  const buildActiveSessionsStreamUrl = useCallback((token: string): string => {
+  const buildActiveSessionsStreamUrl = useCallback((): string => {
     const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
-    return `${base}/deep-agent/sessions/active/stream?token=${encodeURIComponent(token)}`
+    return `${base}/deep-agent/sessions/active/stream`
   }, [])
 
   const getMemory = useCallback(
@@ -283,6 +291,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         category?: string | null
         tags?: string[]
         tool_refs?: string[]
+        version?: number
+        published_version?: number | null
+        current_version?: number
       }>
     >('/skills/manifest')
     return rows.map(row => ({

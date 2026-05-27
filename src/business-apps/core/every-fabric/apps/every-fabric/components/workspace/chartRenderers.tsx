@@ -73,6 +73,58 @@ export const DEFAULT_COLORS = [
   'var(--nw-chart-8)'
 ]
 
+const toChartAxisKey = (value: unknown, fallback: string): string => {
+  if (typeof value === 'string' && value.length > 0) {
+    return value
+  }
+  if (typeof value === 'number' && !Number.isNaN(value)) {
+    return String(value)
+  }
+  return fallback
+}
+
+const toOptionalChartTitle = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined)
+
+/** Unwrap Flowbot/provider chart payloads ({ kind, content: { chart_type, ... } }). */
+export function unwrapProviderChartPayload(content: Record<string, unknown>): Record<string, unknown> {
+  if (content.chartType || Array.isArray(content.sections)) {
+    return content
+  }
+  const nested = content.content
+  if (typeof nested !== 'object' || nested === null || Array.isArray(nested)) {
+    return content
+  }
+  const inner = nested as Record<string, unknown>
+  const chartType = (inner.chart_type ?? inner.chartType) as string | undefined
+  if (!chartType) {
+    return content
+  }
+  const data = inner.data as ChartDataPoint[] | undefined
+  const xAxisKey = toChartAxisKey(inner.x_key ?? inner.xAxisKey, 'name')
+  const yKey = inner.y_key ?? inner.yAxisKey
+  let dataKeys = inner.dataKeys as string[] | undefined
+  if (!Array.isArray(dataKeys) || dataKeys.length === 0) {
+    if (yKey !== undefined && yKey !== null) {
+      dataKeys = [toChartAxisKey(yKey, 'value')]
+    } else if (Array.isArray(data) && data[0]) {
+      const first = data[0]
+      const inferred = Object.keys(first).filter(key => key !== xAxisKey && typeof first[key] === 'number')
+      dataKeys = inferred.length > 0 ? inferred : ['value']
+    } else {
+      dataKeys = ['value']
+    }
+  }
+  return {
+    chartType,
+    data,
+    dataKeys,
+    xAxisKey,
+    title: toOptionalChartTitle(content.title ?? inner.title),
+    yAxisUnit: inner.yAxisUnit,
+    colors: inner.colors
+  }
+}
+
 export function parseChartConfig(content: Record<string, unknown>): SingleChartConfig | null {
   const validTypes = [
     'bar',
@@ -88,8 +140,9 @@ export function parseChartConfig(content: Record<string, unknown>): SingleChartC
     'composed'
   ]
 
+  const unwrapped = unwrapProviderChartPayload(content)
   // Support nested {chart: {chartType, data, ...}} wrapper from dashboard.json
-  const source = (content.chartType ? content : (content.chart as Record<string, unknown>)) ?? content
+  const source = (unwrapped.chartType ? unwrapped : (unwrapped.chart as Record<string, unknown>)) ?? unwrapped
   const chartType = source.chartType as string | undefined
   const data = source.data as ChartDataPoint[] | undefined
 
@@ -107,7 +160,7 @@ export function parseChartConfig(content: Record<string, unknown>): SingleChartC
   return {
     chartType: chartType as SingleChartConfig['chartType'],
     data,
-    title: (content.title ?? source.title) as string | undefined,
+    title: (unwrapped.title ?? source.title) as string | undefined,
     xAxisKey: (source.xAxisKey as string) ?? 'name',
     yAxisKey: (source.yAxisKey as string) ?? dataKeys[0] ?? 'value',
     colors: (source.colors as string[]) ?? DEFAULT_COLORS,
@@ -372,7 +425,7 @@ export const TreemapRenderer: React.FC<{ config: SingleChartConfig }> = ({ confi
           fill?: string
           index?: number
         }) => {
-          if (width < 40 || height < 20) return null
+          const showLabel = width >= 40 && height >= 20
           return (
             <g>
               <rect
@@ -385,17 +438,19 @@ export const TreemapRenderer: React.FC<{ config: SingleChartConfig }> = ({ confi
                 strokeWidth={2}
                 rx={4}
               />
-              <text
-                x={x + width / 2}
-                y={y + height / 2}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill="var(--nw-background, #fff)"
-                fontSize={width < 80 ? 9 : 11}
-                fontWeight={600}
-              >
-                {(name ?? '').length > 12 ? `${(name ?? '').slice(0, 11)}…` : name}
-              </text>
+              {showLabel ? (
+                <text
+                  x={x + width / 2}
+                  y={y + height / 2}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fill="var(--nw-background, #fff)"
+                  fontSize={width < 80 ? 9 : 11}
+                  fontWeight={600}
+                >
+                  {(name ?? '').length > 12 ? `${(name ?? '').slice(0, 11)}…` : name}
+                </text>
+              ) : null}
             </g>
           )
         }}

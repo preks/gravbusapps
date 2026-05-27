@@ -1,59 +1,53 @@
+import type { ConnectPromptManagerSseOptions } from '../../utils/promptManagerSse'
+
 jest.mock('@/common/utils/serviceResolver', () => ({
   PROMPT_MANAGER_API_URL: 'https://example.test'
 }))
 
-class FakeEventSource {
-  static instances: FakeEventSource[] = []
-  url: string
-  closed = false
-  onopen: ((e: Event) => void) | null = null
-  onmessage: ((e: MessageEvent) => void) | null = null
-  onerror: ((e: Event) => void) | null = null
+class FakeSseConnection {
+  static instances: FakeSseConnection[] = []
+  abort = jest.fn()
+  readonly opts: ConnectPromptManagerSseOptions
 
-  constructor(url: string) {
-    this.url = url
-    FakeEventSource.instances.push(this)
-  }
-
-  close(): void {
-    this.closed = true
+  constructor(opts: ConnectPromptManagerSseOptions) {
+    this.opts = opts
+    FakeSseConnection.instances.push(this)
   }
 
   emitOpen(): void {
-    this.onopen?.(new Event('open'))
+    this.opts.onOpen?.()
   }
 
   emitMessage(data: unknown): void {
-    this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent)
+    this.opts.onMessage(JSON.stringify(data))
+  }
+
+  emitError(): void {
+    this.opts.onError?.()
   }
 }
 
-const OriginalEventSource = (globalThis as unknown as { EventSource: typeof EventSource }).EventSource
+jest.mock('../../utils/promptManagerSse', () => ({
+  connectPromptManagerSse: (opts: ConnectPromptManagerSseOptions) => new FakeSseConnection(opts)
+}))
 
 beforeEach(() => {
-  FakeEventSource.instances = []
-  ;(globalThis as unknown as { EventSource: typeof FakeEventSource }).EventSource =
-    FakeEventSource as unknown as typeof EventSource
+  FakeSseConnection.instances = []
   jest.resetModules()
 })
 
-afterAll(() => {
-  ;(globalThis as unknown as { EventSource: typeof EventSource }).EventSource = OriginalEventSource
-})
-
 describe('sessionStreamRegistry', () => {
-  it('reuses the same EventSource when re-acquiring within the grace window', async () => {
+  it('reuses the same SSE connection when re-acquiring within the grace window', async () => {
     const mod = await import('../sessionStreamRegistry')
     const { acquireSessionStream, __testing__ } = mod
 
     const first = acquireSessionStream('s1', 'token-a')
-    expect(FakeEventSource.instances).toHaveLength(1)
+    expect(FakeSseConnection.instances).toHaveLength(1)
 
     first.release()
 
-    // Re-acquire immediately — should reuse the same underlying source.
     const second = acquireSessionStream('s1', 'token-a')
-    expect(FakeEventSource.instances).toHaveLength(1)
+    expect(FakeSseConnection.instances).toHaveLength(1)
 
     second.release()
     __testing__.disposeAll()
@@ -66,15 +60,13 @@ describe('sessionStreamRegistry', () => {
       const { acquireSessionStream, __testing__ } = mod
 
       const first = acquireSessionStream('s2', 'token-a')
-      expect(FakeEventSource.instances).toHaveLength(1)
+      expect(FakeSseConnection.instances).toHaveLength(1)
       first.release()
 
-      // Advance past the grace window + sweep tick so the entry gets disposed.
       jest.advanceTimersByTime(__testing__.GRACE_MS + 5_000)
 
-      // Re-acquire — should open a brand new EventSource.
       const second = acquireSessionStream('s2', 'token-a')
-      expect(FakeEventSource.instances).toHaveLength(2)
+      expect(FakeSseConnection.instances).toHaveLength(2)
 
       second.release()
       __testing__.disposeAll()
@@ -88,7 +80,7 @@ describe('sessionStreamRegistry', () => {
     const { acquireSessionStream, getSessionStreamState, subscribeSessionStream, __testing__ } = mod
 
     const { release } = acquireSessionStream('s3', 'token-a')
-    const src = FakeEventSource.instances[0]
+    const src = FakeSseConnection.instances[0]
 
     let notifyCount = 0
     const unsubscribe = subscribeSessionStream('s3', () => {
@@ -116,11 +108,84 @@ describe('sessionStreamRegistry', () => {
     const { acquireSessionStream, __testing__ } = mod
 
     const { release } = acquireSessionStream('s4', 'token-a')
-    const src = FakeEventSource.instances[0]
+    const src = FakeSseConnection.instances[0]
     src.emitOpen()
     src.emitMessage({ type: 'terminal', event_id: 't1', seq: 1, status: 'completed' })
 
-    expect(src.closed).toBe(true)
+    expect(src.abort).toHaveBeenCalled()
+
+    release()
+    __testing__.disposeAll()
+  })
+
+  it('stops reconnecting after markSessionStreamRestTerminal', async () => {
+    jest.useFakeTimers()
+    try {
+      const mod = await import('../sessionStreamRegistry')
+      const { acquireSessionStream, markSessionStreamRestTerminal, __testing__ } = mod
+
+      const { release } = acquireSessionStream('s5', 'token-a')
+      const src = FakeSseConnection.instances[0]
+      src.emitOpen()
+      markSessionStreamRestTerminal('s5')
+      const countAfterMark = FakeSseConnection.instances.length
+
+      src.emitError()
+      jest.advanceTimersByTime(20_000)
+
+      expect(FakeSseConnection.instances).toHaveLength(countAfterMark)
+
+      release()
+      __testing__.disposeAll()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('gives up after consecutive empty closes', async () => {
+    jest.useFakeTimers()
+    try {
+      const mod = await import('../sessionStreamRegistry')
+      const { acquireSessionStream, getSessionStreamState, __testing__ } = mod
+
+      const { release } = acquireSessionStream('s6', 'token-a')
+      const initialCount = FakeSseConnection.instances.length
+
+      for (let i = 0; i < 3; i++) {
+        const src = FakeSseConnection.instances[FakeSseConnection.instances.length - 1]
+        src.emitOpen()
+        src.opts.onClose?.()
+        jest.advanceTimersByTime(5_000)
+      }
+
+      expect(getSessionStreamState('s6')?.terminalReached).toBe(true)
+      const countBeforeError = FakeSseConnection.instances.length
+      FakeSseConnection.instances[FakeSseConnection.instances.length - 1]?.emitError()
+      jest.advanceTimersByTime(20_000)
+      expect(FakeSseConnection.instances).toHaveLength(countBeforeError)
+      expect(FakeSseConnection.instances.length).toBeGreaterThan(initialCount)
+
+      release()
+      __testing__.disposeAll()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('resetSessionStream preserves lastSeq', async () => {
+    const mod = await import('../sessionStreamRegistry')
+    const { acquireSessionStream, resetSessionStream, getSessionStreamState, __testing__ } = mod
+
+    const { release } = acquireSessionStream('s7', 'token-a')
+    const src = FakeSseConnection.instances[0]
+    src.emitOpen()
+    src.emitMessage({ type: 'agent_chunk', event_id: 'e1', seq: 42, content: 'x' })
+
+    resetSessionStream('s7', false)
+
+    const state = getSessionStreamState('s7')!
+    expect(state.lastSeq).toBe(42)
+    expect(state.events).toHaveLength(0)
 
     release()
     __testing__.disposeAll()

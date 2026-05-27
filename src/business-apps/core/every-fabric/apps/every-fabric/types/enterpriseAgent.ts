@@ -128,6 +128,7 @@ export interface AgentTerminalEvent {
   event_id: string
   timestamp?: string
   status: 'completed' | 'failed' | 'cancelled' | 'waiting_for_human'
+  metadata?: Record<string, unknown>
   presentation_mode?: EnterprisePresentationMode
   output?: string | null
   todos?: TodoItem[]
@@ -139,6 +140,11 @@ export interface AgentTerminalEvent {
   artifacts?: SessionArtifactMeta[]
   session_attachments?: Array<SessionAttachment | MessageAttachmentRef>
   workspace_documents?: WorkspaceDocument[]
+}
+
+/** Durable copy of a prior turn's terminal payload; survives follow-up pruning. */
+export interface AgentTurnSnapshotEvent extends Omit<AgentTerminalEvent, 'type'> {
+  type: 'turn_snapshot'
 }
 
 export interface AgentErrorEvent {
@@ -543,6 +549,7 @@ export interface CapabilityMissingEvent {
 export type AgentStreamEvent =
   | AgentChunkEvent
   | AgentTerminalEvent
+  | AgentTurnSnapshotEvent
   | AgentErrorEvent
   | AgentStepStartedEvent
   | AgentStepCompletedEvent

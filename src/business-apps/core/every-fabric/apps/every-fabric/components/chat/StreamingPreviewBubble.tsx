@@ -1,5 +1,5 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { FC } from 'react'
-import { useEffect, useRef, useState } from 'react'
 
 interface StreamingPreviewBubbleProps {
   /**
@@ -34,28 +34,31 @@ export const StreamingPreviewBubble: FC<StreamingPreviewBubbleProps> = ({
   isStreaming,
   variant = 'default'
 }) => {
-  const lines = (activityLines ?? []).slice(-MAX_VISIBLE_LINES)
+  const lines = useMemo(() => (activityLines ?? []).slice(-MAX_VISIBLE_LINES), [activityLines])
+  const linesKey = useMemo(() => lines.join('\u0001'), [lines])
   const hasLines = lines.length > 0 && isStreaming
 
   const [isMounted, setIsMounted] = useState(hasLines)
   const [isLeaving, setIsLeaving] = useState(false)
   const lastLinesRef = useRef<readonly string[]>([])
+  const isMountedRef = useRef(isMounted)
+  isMountedRef.current = isMounted
 
   useEffect(() => {
     if (hasLines) {
       lastLinesRef.current = lines
-      setIsMounted(true)
       setIsLeaving(false)
+      setIsMounted(true)
       return
     }
-    if (!isMounted) return
+    if (!isMountedRef.current) return
     setIsLeaving(true)
     const t = setTimeout(() => {
       setIsMounted(false)
       setIsLeaving(false)
     }, EXIT_DELAY_MS)
     return () => clearTimeout(t)
-  }, [hasLines, lines, isMounted])
+  }, [hasLines, linesKey, lines])
 
   if (!isMounted) return null
 

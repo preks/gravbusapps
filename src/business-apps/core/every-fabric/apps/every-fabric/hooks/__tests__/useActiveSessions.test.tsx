@@ -1,8 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import type { ConnectPromptManagerSseOptions } from '../../utils/promptManagerSse'
 
 const mockGetActiveSessions = jest.fn()
 const mockGetActiveSessionsSummary = jest.fn()
-const mockBuildStreamUrl = jest.fn(() => 'https://example.test/stream?token=x')
+const mockBuildStreamUrl = jest.fn(() => 'https://example.test/stream')
 
 jest.mock('../useEnterpriseAgentClient', () => ({
   useEnterpriseAgentClient: () => ({
@@ -12,41 +13,34 @@ jest.mock('../useEnterpriseAgentClient', () => ({
   })
 }))
 
-import { useActiveSessions } from '../useActiveSessions'
+class FakeSseConnection {
+  static instances: FakeSseConnection[] = []
+  abort = jest.fn()
+  private readonly opts: ConnectPromptManagerSseOptions
 
-class FakeEventSource {
-  static instances: FakeEventSource[] = []
-  url: string
-  readyState = 0
-  onopen: ((e: Event) => void) | null = null
-  onmessage: ((e: MessageEvent) => void) | null = null
-  onerror: ((e: Event) => void) | null = null
-  closed = false
-
-  constructor(url: string) {
-    this.url = url
-    FakeEventSource.instances.push(this)
-  }
-
-  close(): void {
-    this.closed = true
+  constructor(opts: ConnectPromptManagerSseOptions) {
+    this.opts = opts
+    FakeSseConnection.instances.push(this)
   }
 
   emitOpen(): void {
-    this.readyState = 1
-    this.onopen?.(new Event('open'))
+    this.opts.onOpen?.()
   }
 
   emitMessage(data: unknown): void {
-    this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent)
+    this.opts.onMessage(JSON.stringify(data))
   }
 
   emitError(): void {
-    this.onerror?.(new Event('error'))
+    this.opts.onError?.()
   }
 }
 
-const OriginalEventSource = (globalThis as unknown as { EventSource: typeof EventSource }).EventSource
+jest.mock('../../utils/promptManagerSse', () => ({
+  connectPromptManagerSse: (opts: ConnectPromptManagerSseOptions) => new FakeSseConnection(opts)
+}))
+
+import { useActiveSessions } from '../useActiveSessions'
 
 function makeSnapshot(id: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -67,16 +61,10 @@ function makeSnapshot(id: string, overrides: Record<string, unknown> = {}) {
 
 describe('useActiveSessions', () => {
   beforeEach(() => {
-    FakeEventSource.instances = []
-    ;(globalThis as unknown as { EventSource: typeof FakeEventSource }).EventSource =
-      FakeEventSource as unknown as typeof EventSource
+    FakeSseConnection.instances = []
     mockGetActiveSessions.mockReset()
     mockGetActiveSessionsSummary.mockReset()
     mockBuildStreamUrl.mockClear()
-  })
-
-  afterAll(() => {
-    ;(globalThis as unknown as { EventSource: typeof EventSource }).EventSource = OriginalEventSource
   })
 
   it('hydrates from REST on mount and opens an SSE connection', async () => {
@@ -90,8 +78,8 @@ describe('useActiveSessions', () => {
     const { result } = renderHook(() => useActiveSessions('token-xyz'))
 
     await waitFor(() => expect(result.current.activeSessions).toHaveLength(1))
-    expect(FakeEventSource.instances).toHaveLength(1)
-    expect(mockBuildStreamUrl).toHaveBeenCalledWith('token-xyz')
+    expect(FakeSseConnection.instances).toHaveLength(1)
+    expect(mockBuildStreamUrl).toHaveBeenCalled()
   })
 
   it('replaces the active set on overview events and toggles isLive on open', async () => {
@@ -105,7 +93,7 @@ describe('useActiveSessions', () => {
     const { result } = renderHook(() => useActiveSessions('token-xyz'))
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-    const source = FakeEventSource.instances[0]
+    const source = FakeSseConnection.instances[0]
 
     act(() => {
       source.emitOpen()
@@ -135,8 +123,8 @@ describe('useActiveSessions', () => {
 
     const { result } = renderHook(() => useActiveSessions('token-xyz'))
     const source = await waitFor(() => {
-      expect(FakeEventSource.instances[0]).toBeDefined()
-      return FakeEventSource.instances[0]
+      expect(FakeSseConnection.instances[0]).toBeDefined()
+      return FakeSseConnection.instances[0]
     })
 
     act(() => {
@@ -167,8 +155,8 @@ describe('useActiveSessions', () => {
 
     const { result } = renderHook(() => useActiveSessions('token-xyz'))
     const source = await waitFor(() => {
-      expect(FakeEventSource.instances[0]).toBeDefined()
-      return FakeEventSource.instances[0]
+      expect(FakeSseConnection.instances[0]).toBeDefined()
+      return FakeSseConnection.instances[0]
     })
 
     act(() => {
@@ -206,8 +194,8 @@ describe('useActiveSessions', () => {
 
     const { result } = renderHook(() => useActiveSessions('token-xyz'))
     const source = await waitFor(() => {
-      expect(FakeEventSource.instances[0]).toBeDefined()
-      return FakeEventSource.instances[0]
+      expect(FakeSseConnection.instances[0]).toBeDefined()
+      return FakeSseConnection.instances[0]
     })
 
     act(() => {
@@ -243,8 +231,8 @@ describe('useActiveSessions', () => {
 
     const { result } = renderHook(() => useActiveSessions('token-xyz'))
     const source = await waitFor(() => {
-      expect(FakeEventSource.instances[0]).toBeDefined()
-      return FakeEventSource.instances[0]
+      expect(FakeSseConnection.instances[0]).toBeDefined()
+      return FakeSseConnection.instances[0]
     })
 
     act(() => {
@@ -275,8 +263,8 @@ describe('useActiveSessions', () => {
 
     const { result } = renderHook(() => useActiveSessions('token-xyz'))
     const source = await waitFor(() => {
-      expect(FakeEventSource.instances[0]).toBeDefined()
-      return FakeEventSource.instances[0]
+      expect(FakeSseConnection.instances[0]).toBeDefined()
+      return FakeSseConnection.instances[0]
     })
 
     act(() => {
@@ -319,8 +307,8 @@ describe('useActiveSessions', () => {
 
     const { result } = renderHook(() => useActiveSessions('token-xyz'))
     const source = await waitFor(() => {
-      expect(FakeEventSource.instances[0]).toBeDefined()
-      return FakeEventSource.instances[0]
+      expect(FakeSseConnection.instances[0]).toBeDefined()
+      return FakeSseConnection.instances[0]
     })
 
     act(() => {
@@ -358,8 +346,8 @@ describe('useActiveSessions', () => {
 
     const { result } = renderHook(() => useActiveSessions('token-xyz'))
     const source = await waitFor(() => {
-      expect(FakeEventSource.instances[0]).toBeDefined()
-      return FakeEventSource.instances[0]
+      expect(FakeSseConnection.instances[0]).toBeDefined()
+      return FakeSseConnection.instances[0]
     })
 
     act(() => {

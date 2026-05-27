@@ -8,6 +8,7 @@ import type {
   AgentSubagentCompletedEvent,
   AgentSubagentSpawnedEvent,
   AgentTerminalEvent,
+  AgentTurnSnapshotEvent,
   ChatMessage,
   ChatMessageType,
   DeepAgentSession,
@@ -298,11 +299,12 @@ const mergeExpertCallContent = (existing: ExpertCallContent, incoming: ExpertCal
  * (`resolveActivityDelegationStatus`): if the stream is no longer live,
  * treat remaining in-flight delegations / tool calls as finished.
  */
+const isCompletedTurnEvent = (e: AgentStreamEvent): e is AgentTerminalEvent | AgentTurnSnapshotEvent =>
+  (e.type === 'terminal' || e.type === 'turn_snapshot') &&
+  (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
+
 const finalizeRunningMessagesOnTerminal = (events: AgentStreamEvent[], messages: ChatMessage[]): void => {
-  const terminal = events.find(
-    (e): e is AgentTerminalEvent =>
-      e.type === 'terminal' && (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
-  )
+  const terminal = events.find(isCompletedTurnEvent)
   if (!terminal) return
 
   const resolved: DelegationStatus = terminal.status === 'failed' ? 'failed' : 'done'
@@ -458,10 +460,7 @@ function appendLivePlanIfNeeded(sortedEvents: AgentStreamEvent[], messages: Chat
     return
   }
   const planTimestamp = resolveLatestPlanTimestamp(sortedEvents)
-  const terminalClosed = sortedEvents.some(
-    (e): e is AgentTerminalEvent =>
-      e.type === 'terminal' && (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
-  )
+  const terminalClosed = sortedEvents.some(isCompletedTurnEvent)
   messages.push({
     id: FABRIC_LIVE_PLAN_MESSAGE_ID,
     type: 'plan',
@@ -600,7 +599,12 @@ export function eventToMessage(
     }
 
     case 'terminal':
-      return terminalEventToChatMessage(event, stepCompletions, previouslyShownArtifactKeys)
+    case 'turn_snapshot':
+      return terminalEventToChatMessage(
+        { ...event, type: 'terminal' } as AgentTerminalEvent,
+        stepCompletions,
+        previouslyShownArtifactKeys
+      )
 
     case 'error':
       return {
@@ -624,7 +628,11 @@ export function eventToMessage(
 }
 
 function trackShownArtifacts(event: AgentStreamEvent, shownKeys: Set<string>): void {
-  if (event.type === 'terminal' && event.status === 'completed' && event.artifacts) {
+  if (
+    (event.type === 'terminal' || event.type === 'turn_snapshot') &&
+    event.status === 'completed' &&
+    event.artifacts
+  ) {
     for (const a of event.artifacts) {
       if (a.path) shownKeys.add(`${a.path}:${a.size ?? 0}`)
     }
@@ -676,7 +684,11 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
   const shownArtifactKeys = new Set<string>()
 
   for (const event of sortedEvents) {
-    if (event.type === 'terminal' && event.status === 'waiting_for_human' && hasExplicitHitlEvent) {
+    if (
+      (event.type === 'terminal' || event.type === 'turn_snapshot') &&
+      event.status === 'waiting_for_human' &&
+      hasExplicitHitlEvent
+    ) {
       continue
     }
     const message = eventToMessage(event, stepCompletions, shownArtifactKeys)

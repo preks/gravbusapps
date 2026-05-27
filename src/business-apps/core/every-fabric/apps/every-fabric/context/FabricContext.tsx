@@ -429,9 +429,26 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     retrySessionLoad: _retrySessionLoad
   } = useAgentSession(activeSessionId, accessToken, bootstrapSession)
 
-  // Keep session list in sync with live session state
+  // Keep session list in sync with live session state (skip identical REST payloads).
+  const sessionListSyncRef = useRef<{ sessionId: string; status: string; updatedAt: string } | null>(null)
   useEffect(() => {
-    if (session) updateSession(session)
+    if (!session) return
+    const syncKey = {
+      sessionId: session.session_id,
+      status: session.status,
+      updatedAt: session.updated_at ?? session.created_at ?? ''
+    }
+    const prev = sessionListSyncRef.current
+    if (
+      prev &&
+      prev.sessionId === syncKey.sessionId &&
+      prev.status === syncKey.status &&
+      prev.updatedAt === syncKey.updatedAt
+    ) {
+      return
+    }
+    sessionListSyncRef.current = syncKey
+    updateSession(session)
   }, [session, updateSession])
 
   // Sync session connector IDs from loaded session (for page refreshes / session switching)

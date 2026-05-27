@@ -69,6 +69,20 @@ const SingleChart: React.FC<{ config: SingleChartConfig; title?: string; compact
   )
 }
 
+/** True when inline preview can render at least one section (not the error placeholder). */
+export function isChartPreviewRenderable(data: Record<string, unknown>): boolean {
+  if (parseChartConfig(data)) return true
+  const sections = data.sections as DashboardSection[] | undefined
+  if (!Array.isArray(sections) || sections.length === 0) return false
+  return sections.some(section => {
+    if (section.type === 'stat' && section.stats?.length) return true
+    if (section.type === 'chart' && section.chart && parseChartConfig(section.chart)) return true
+    if (section.type === 'chart-grid' && section.charts?.some(c => parseChartConfig(c))) return true
+    if (section.type === 'text' && section.content) return true
+    return false
+  })
+}
+
 /** Inline chart/dashboard body for chat and live-preview panels. */
 export const ChartInlineBody: React.FC<{
   data: Record<string, unknown>

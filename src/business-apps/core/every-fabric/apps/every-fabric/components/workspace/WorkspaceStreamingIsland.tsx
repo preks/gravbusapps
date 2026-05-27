@@ -66,12 +66,16 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
   const [isFadingOut, setIsFadingOut] = useState(false)
   const thinkingScrollRef = useRef<HTMLDivElement>(null)
   const fadeOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wasStreamingRef = useRef(isStreaming)
 
   useEffect(() => {
     setExpanded(false)
   }, [sessionId])
 
   useEffect(() => {
+    const wasStreaming = wasStreamingRef.current
+    wasStreamingRef.current = isStreaming
+
     if (isStreaming) {
       if (fadeOutTimerRef.current) {
         clearTimeout(fadeOutTimerRef.current)
@@ -79,7 +83,10 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
       }
       setIsFadingOut(false)
       setIsVisible(true)
-    } else if (isVisible) {
+      return
+    }
+
+    if (wasStreaming && isVisible) {
       setIsFadingOut(true)
       fadeOutTimerRef.current = setTimeout(() => {
         setIsVisible(false)
@@ -91,6 +98,7 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
     return () => {
       if (fadeOutTimerRef.current) {
         clearTimeout(fadeOutTimerRef.current)
+        fadeOutTimerRef.current = null
       }
     }
   }, [isStreaming, isVisible])
