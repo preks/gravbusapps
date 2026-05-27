@@ -2,7 +2,7 @@ import React from 'react'
 import { SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { ExpenseType } from '../../../types'
-import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
+import { useExpenseItemTranslation } from '../../../useExpenseItemTranslation'
 
 interface ExpenseTypeFieldProps {
   index: number
@@ -21,7 +21,7 @@ export const ExpenseTypeField: React.FC<ExpenseTypeFieldProps> = ({
   isProcessingFiles,
   onChange
 }) => {
-  const t = getTranslationFromI18nKeyAndLabel
+  const { t } = useExpenseItemTranslation()
 
   return (
     <div className="gba:mb-4" data-testid={`expense-type-container-${index}`}>
@@ -31,20 +31,14 @@ export const ExpenseTypeField: React.FC<ExpenseTypeFieldProps> = ({
           rules={[
             {
               required: true,
-              message: t(
-                'lowcoder:create_expense_item.change_expense_item_container.current_expense_type_custom_rule',
-                'Please select an expense type'
-              )
+              message: t('expense-item-expense-type-required')
             }
           ]}
           style={{ marginBottom: 0 }}
         >
           <SelectField
             allowClear
-            label={t(
-              'lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label',
-              'Expense Type'
-            )}
+            label={t('label-type')}
             disabled={isProcessingFiles || !expenseGroupId}
             name="expenseType"
             data-testid={`expense-type-select-${index}`}
@@ -57,10 +51,7 @@ export const ExpenseTypeField: React.FC<ExpenseTypeFieldProps> = ({
                 : []
             }
             onChange={(val: any) => onChange(val.value)}
-            placeholder={t(
-              'lowcoder:create_expense_item.change_expense_item_container.current_expense_type_placeholder',
-              'Select Expense Type'
-            )}
+            placeholder={t('expense-item-expense-type-placeholder')}
             value={value || undefined}
             required={true}
           />

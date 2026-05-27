@@ -2,7 +2,8 @@ import React from 'react'
 import { SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { ExpenseGroup } from '../../../types'
-import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
+import { getCatalogValue } from '../../../../../../../../common/utils/windowUtils'
+import { useExpenseItemTranslation } from '../../../useExpenseItemTranslation'
 
 interface ExpenseGroupFieldProps {
   index: number
@@ -19,6 +20,7 @@ export const ExpenseGroupField: React.FC<ExpenseGroupFieldProps> = ({
   isProcessingFiles,
   onChange
 }) => {
+  const { t } = useExpenseItemTranslation()
   return (
     <div className="gba:mb-4" data-testid={`expense-group-container-${index}`}>
       <div className="gba:relative">
@@ -27,20 +29,14 @@ export const ExpenseGroupField: React.FC<ExpenseGroupFieldProps> = ({
           rules={[
             {
               required: true,
-              message: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_custom_rule',
-                'Please select an expense group'
-              )
+              message: t('expense-item-expense-group-required')
             }
           ]}
           style={{ marginBottom: 0 }}
         >
           <SelectField
             allowClear
-            label={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_label',
-              'Expense Group'
-            )}
+            label={t('label-expense-group')}
             disabled={isProcessingFiles}
             name="expenseGroup"
             data-testid={`expense-group-select-${index}`}
@@ -53,10 +49,7 @@ export const ExpenseGroupField: React.FC<ExpenseGroupFieldProps> = ({
                 : []
             }
             onChange={(val: any) => onChange(val.value)}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_placeholder',
-              'Select Expense Group'
-            )}
+            placeholder={t('expense-item-expense-group-placeholder')}
             value={value || undefined}
             required={true}
           />

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { ICONS } from '../../../../utils/icons'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useExpenseRequestWizardTranslation } from '../../useExpenseRequestWizardTranslation'
 
 /**
  * LocationContainer component props
@@ -32,6 +32,8 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
   children,
   summary
 }) => {
+  const { t } = useExpenseRequestWizardTranslation()
+
   return (
     <div
       className="gba:rounded-lg gba:overflow-hidden"
@@ -77,10 +79,7 @@ const LocationContainer: React.FC<LocationContainerProps> = ({
                 style={{ width: '24px', height: '24px' }}
                 data-testid={`remove-icon-${title.toLowerCase().replace(/\s+/g, '-')}`}
               />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_request.add_request_trip_details.remove_destination_button',
-                'Remove Destination'
-              )}
+              {t('trip-remove-destination')}
             </Button>
           )}
           <Button

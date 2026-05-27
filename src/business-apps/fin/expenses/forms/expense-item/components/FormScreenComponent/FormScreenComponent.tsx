@@ -8,11 +8,8 @@ import SinglePositionComponent from './SinglePositionComponent'
 import MultiPositionComponent from './MultiPositionComponent'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 
-import {
-  getCurrentActiveUserLocale,
-  getDateFormat,
-  getTranslationFromI18nKeyAndLabel
-} from '../../../../../../../common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getDateFormat } from '../../../../../../../common/utils/windowUtils'
+import { useExpenseItemTranslation } from '../../useExpenseItemTranslation'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { DEFAULT_CURRENCY_ID } from '../../constants/constants'
@@ -65,7 +62,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   handleRemovePosition,
   calculateTotal
 }) => {
-  const t = getTranslationFromI18nKeyAndLabel
+  const { t } = useExpenseItemTranslation()
   const ALLOWED_FILE_TYPES = ['.pdf', '.PDF', '.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG']
   const {
     isProcessingFiles,
@@ -108,13 +105,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     })
 
     if (!isValidType) {
-      showToast(
-        t(
-          'lowcoder:create_expense_type_item.error_file_type_message',
-          'File type not supported. Please upload PDF, JPG, JPEG, or PNG files only.'
-        ),
-        'error'
-      )
+      showToast(t('expense-item-error-file-type'), 'error')
     }
 
     return isValidType
@@ -242,13 +233,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         }
 
         if (requiresSupportingDocument && supportingFileList.length === 0) {
-          showToast(
-            t(
-              'lowcoder:create_expense_item.missing_additional_attachment',
-              'Please upload the required supporting document.'
-            ),
-            'error'
-          )
+          showToast(t('expense-item-missing-additional-attachment'), 'error')
           return
         }
 
@@ -307,7 +292,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             data-testid="supporting-document-upload"
           >
             <Button variant="secondary" data-testid="supporting-document-upload-button">
-              {t('lowcoder:create_expense_item.attach_supporting_document', 'Attach Supporting Document')}
+              {t('expense-item-attach-supporting-document')}
             </Button>
           </Upload>
         </div>
@@ -329,16 +314,16 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             rules={[
               {
                 required: true,
-                message: t('lowcoder:create_expense_type_item.current_title_custom_rule', 'Please enter a title')
+                message: t('expense-item-title-required')
               }
             ]}
             style={{ marginBottom: 0 }}
           >
             <InputField
-              label={t('lowcoder:create_expense_type_item.current_title_label', 'Title')}
+              label={t('label-title')}
               name="title"
               disabled={isFormDisabled || isProcessingFiles}
-              placeholder={t('lowcoder:create_expense_type_item.current_title_placeholder', 'Enter Title')}
+              placeholder={t('expense-item-title-placeholder')}
               onChange={field => form.setFieldsValue({ title: field.value })}
               required={true}
               data-testid="title-input"
@@ -355,18 +340,15 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             rules={[
               {
                 required: true,
-                message: t('lowcoder:create_expense_type_item.current_date_custom_rule', 'Please select a date')
+                message: t('expense-item-date-required')
               }
             ]}
             style={{ marginBottom: 0 }}
           >
             <DateInputField
-              label={t('lowcoder:create_expense_item.change_expense_item_container.current_date_label', 'Date')}
+              label={t('label-date')}
               name="date"
-              placeholder={t(
-                'lowcoder:create_expense_item.change_expense_item_container.current_date_placeholder',
-                'Select date'
-              )}
+              placeholder={t('expense-item-date-placeholder')}
               data-testid="date-input"
               onChange={field => {
                 if (field.value) setCurrentSelectedDate(field.value as Date)
@@ -380,10 +362,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           </Form.Item>
           {expenseRuleError && (
             <Alert
-              message={t(
-                'lowcoder:create_expense_item.missing_expense_rule_message',
-                'No expense rule found for this date. Please contact your administrator.'
-              )}
+              message={t('expense-item-missing-expense-rule')}
               type="error"
               style={{ marginTop: 8 }}
               showIcon
@@ -397,7 +376,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <div className="gba:relative">
           <div>
             <Switch
-              label={t('lowcoder:create_expense_type_item.multi_position_item', 'Multi Position Item')}
+              label={t('expense-item-multi-position')}
               name="multiPosition"
               value={multiPosition}
               data-testid="multi-position-switch"
@@ -460,6 +439,9 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           handleExpenseTypeChange={handleExpenseTypeChange}
           handleRemovePosition={handleRemovePosition}
           lastPositionCardRef={lastPositionCardRef}
+          form={form}
+          isProcessingFiles={isProcessingFiles}
+          hasLinkedExpenseRequest={hasLinkedExpenseRequest}
         />
       )}
 
@@ -473,13 +455,11 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         >
           <img
             src={ICONS.ADD_CIRCLE}
-            alt={t('lowcoder:create_expense_type_item.add_position_button', 'Add Position')}
+            alt={t('expense-item-add-position')}
             style={{ width: '17px', height: '17px' }}
             data-testid="add-position-icon"
           />
-          {isProcessingFiles
-            ? t('lowcoder:create_expense_item.file_add_document_processing', 'Processing...')
-            : t('lowcoder:create_expense_type_item.add_position_button', 'Add Position')}
+          {isProcessingFiles ? t('expense-item-processing-receipt') : t('expense-item-add-position')}
         </Button>
       )}
 
@@ -489,16 +469,13 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           <Col span={12} data-testid="total-amount-col">
             <Form.Item className="gba:mb-0" data-testid="total-amount-form-item">
               <InputField
-                label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
+                label={t('label-amount')}
                 name="amount"
                 type="text"
                 inputMode="decimal"
                 data-testid="total-amount-input"
                 value={calculateTotal().toFixed(2)}
-                placeholder={t(
-                  'lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder',
-                  'Enter Amount'
-                )}
+                placeholder={t('expense-item-amount-placeholder')}
                 required={true}
               />
             </Form.Item>
@@ -506,10 +483,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           <Col span={12} data-testid="total-currency-col">
             {hasLinkedExpenseRequest && !isEmbeddedInRequestWizard && (
               <Alert
-                message={t(
-                  'lowcoder:create_expense_item.linked_request_currency_warning',
-                  'Currency cannot be changed while the expense item is linked to an expense request. Please change or remove the expense request first.'
-                )}
+                message={t('expense-item-linked-currency-warning')}
                 type="warning"
                 showIcon
                 className="gba:mb-2"
@@ -521,10 +495,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               rules={[
                 {
                   required: true,
-                  message: t(
-                    'lowcoder:create_expense_item.change_expense_item_container.current_currency_custom_rule',
-                    'Please select a currency'
-                  )
+                  message: t('expense-item-currency-required')
                 }
               ]}
               className="gba:mb-0"
@@ -532,10 +503,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             >
               <SelectField
                 allowClear
-                label={t(
-                  'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                  'Currency'
-                )}
+                label={t('label-currency')}
                 disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency') || hasLinkedExpenseRequest}
                 name="currency"
                 data-testid="total-currency-select"
@@ -551,10 +519,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                     handleCurrencyChange(value.value)
                   }
                 }}
-                placeholder={t(
-                  'lowcoder:create_expense_item.change_expense_item_container.current_currency_placeholder',
-                  'Select Currency'
-                )}
+                placeholder={t('expense-item-currency-placeholder')}
                 required={true}
               />
             </Form.Item>
@@ -569,10 +534,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           rules={[
             {
               required: true,
-              message: t(
-                'lowcoder:create_expense_item.change_expense_item_container.current_request_custom_rule',
-                'Please select a request'
-              )
+              message: t('expense-item-request-required')
             }
           ]}
           className="gba:mb-4"
@@ -597,11 +559,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             onChange={(value: any) => {
               form.setFieldsValue({ expenseRequestId: value.value })
             }}
-            label={t('lowcoder:create_expense_type_item.current_request', 'Add Expense Request')}
-            placeholder={t(
-              'lowcoder:create_expense_item.change_expense_item_container.current_request_placeholder',
-              'Select Request'
-            )}
+            label={t('expense-item-add-expense-request')}
+            placeholder={t('expense-item-request-placeholder')}
             disabled={isProcessingFiles}
           />
         </Form.Item>
@@ -623,7 +582,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           style={{ borderRadius: '22px', height: '40px' }}
           data-testid="cancel-button"
         >
-          {t('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
+          {t('expense-item-cancel')}
         </Button>
         <Button
           variant="primary"
@@ -638,15 +597,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"
         >
-          {isEditMode
-            ? t(
-                'lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_update',
-                'Update'
-              )
-            : t(
-                'lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_save',
-                'Create'
-              )}
+          {isEditMode ? t('expense-item-action-update') : t('expense-item-action-save')}
         </Button>
       </div>
     </Form>

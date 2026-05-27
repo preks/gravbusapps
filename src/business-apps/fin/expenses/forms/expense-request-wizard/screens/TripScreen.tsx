@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Form } from 'antd'
 import { Button, Checkbox } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { ICONS } from '../../../utils/icons'
 import LocationContainer from '../components/LocationContainer/LocationContainer'
@@ -36,8 +35,7 @@ import { mergeUniqueById } from '../../../utils/functionUtils'
 import { toSortedCacheKey } from '../utils/cacheKeyUtils'
 import { getLatestRejectComment, setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils'
 import { tripLocationPointsEqual } from '../utils/tripLocationPointEquality'
-import expenseFormsTranslations from '../../_i18n'
-import expenseRequestWizardTranslations from '../_i18n'
+import { useExpenseRequestWizardTranslation } from '../useExpenseRequestWizardTranslation'
 import { filterTravelRegionsByExpenseItemsCurrency } from '../../shared/utils/filterTravelRegionsByExpenseItemsCurrency'
 
 /**
@@ -57,8 +55,7 @@ function getTripDataArrayFromRequest(expenseRequestData: any): any[] {
 export const TripScreen: React.FC<TripScreenProps> = props => {
   const { accessToken, additionalData } = props
   const [form] = Form.useForm()
-  const { t: tWizard } = useTranslation(expenseRequestWizardTranslations)
-  const { t: tForms } = useTranslation(expenseFormsTranslations)
+  const { t } = useExpenseRequestWizardTranslation()
   const graphqlClient = useGraphqlClient(accessToken)
   const {
     expenseRequestData,
@@ -165,13 +162,9 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
         dateString = dateObj.toISOString()
       }
 
-      const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken)
+      const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken, t)
       if (!ruleData) {
-        const errorMessage = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_item.missing_expense_rule_message',
-          'There is no rule set for your user, please reach out to your administrator.'
-        )
-        return { employeeRuleError: errorMessage, ruleConflictError: null }
+        return { employeeRuleError: t('missing-expense-rule-message'), ruleConflictError: null }
       }
 
       const ruleDataValue = ruleData.id || ruleData.expenseRuleId
@@ -192,11 +185,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
 
       return { employeeRuleError: null, ruleConflictError: null }
     } catch {
-      const errorMessage = getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_item.missing_expense_rule_message',
-        'There is no rule set for your user, please reach out to your administrator.'
-      )
-      return { employeeRuleError: errorMessage, ruleConflictError: null }
+      return { employeeRuleError: t('missing-expense-rule-message'), ruleConflictError: null }
     }
   }
 
@@ -219,32 +208,22 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
         const requestRuleName = ruleDetails?.requestRule?.name || ''
         const planRuleCode = ruleDetails?.planRule?.code || planValue.expenseRuleId
         const planRuleName = ruleDetails?.planRule?.name || ''
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.request_and_plan_rule_conflict_message',
-          `The expense request uses the rule ${requestRuleCode} ${requestRuleName}, but the expense plan uses the rule ${planRuleCode} ${planRuleName}. They don't fit. Please reach out to your supervisor or expense expert.`,
-          {
-            codeRequest: requestRuleCode,
-            nameRequest: requestRuleName,
-            codePlan: planRuleCode,
-            namePlan: planRuleName,
-            interpolation: { escapeValue: false }
-          }
-        )
+        return t('request-and-plan-rule-conflict-message', {
+          codeRequest: requestRuleCode,
+          nameRequest: requestRuleName,
+          codePlan: planRuleCode,
+          namePlan: planRuleName
+        })
       } catch {
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.request_and_plan_rule_conflict_message',
-          `The expense request uses the rule ${newRuleId}, but the expense plan uses the rule ${planValue.expenseRuleId}. They don't fit. Please reach out to your supervisor or expense expert.`,
-          {
-            codeRequest: newRuleId,
-            nameRequest: '',
-            codePlan: planValue.expenseRuleId,
-            namePlan: '',
-            interpolation: { escapeValue: false }
-          }
-        )
+        return t('request-and-plan-rule-conflict-message', {
+          codeRequest: newRuleId,
+          nameRequest: '',
+          codePlan: planValue.expenseRuleId ?? '',
+          namePlan: ''
+        })
       }
     },
-    [getCachedOrFetch, graphqlClient]
+    [getCachedOrFetch, graphqlClient, t]
   )
 
   const checkItemRuleConflict = useCallback(
@@ -265,32 +244,22 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
         const requestRuleName = ruleDetails?.requestRule?.name || ''
         const itemRuleCode = ruleDetails?.itemRule?.code || mismatchedItem.ruleLabel || mismatchedItem.ruleId
         const itemRuleName = ruleDetails?.itemRule?.name || ''
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.request_and_item_rule_conflict_message',
-          `The expense request uses the rule ${requestRuleCode} ${requestRuleName}, but the expense item uses the rule ${itemRuleCode} ${itemRuleName}. They don't fit. Please reach out to your supervisor or expense expert.`,
-          {
-            codeRequest: requestRuleCode,
-            nameRequest: requestRuleName,
-            codeItem: itemRuleCode,
-            nameItem: itemRuleName,
-            interpolation: { escapeValue: false }
-          }
-        )
+        return t('request-and-item-rule-conflict-message', {
+          codeRequest: requestRuleCode,
+          nameRequest: requestRuleName,
+          codeItem: itemRuleCode,
+          nameItem: itemRuleName
+        })
       } catch {
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.request_and_item_rule_conflict_message',
-          `The expense request uses the rule ${newRuleId}, but the expense item uses the rule ${mismatchedItem.ruleId}. They don't fit. Please reach out to your supervisor or expense expert.`,
-          {
-            codeRequest: newRuleId,
-            nameRequest: '',
-            codeItem: mismatchedItem.ruleId,
-            nameItem: '',
-            interpolation: { escapeValue: false }
-          }
-        )
+        return t('request-and-item-rule-conflict-message', {
+          codeRequest: newRuleId,
+          nameRequest: '',
+          codeItem: mismatchedItem.ruleId,
+          nameItem: mismatchedItem.ruleLabel ?? ''
+        })
       }
     },
-    [getCachedOrFetch, graphqlClient]
+    [getCachedOrFetch, graphqlClient, t]
   )
 
   const checkEmployeeRuleConflict = useCallback(
@@ -312,24 +281,18 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           requestStoredRuleId
         const employeeRuleLabel =
           [ruleDetails?.employeeRule?.code, ruleDetails?.employeeRule?.name].filter(Boolean).join(' ') || newRuleId
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.request_rule_vs_employee_rule_message',
-          tWizard('request-rule-vs-employee-rule-message', {
-            requestRule: requestRuleLabel,
-            employeeRule: employeeRuleLabel
-          })
-        )
+        return t('request-rule-vs-employee-rule-message', {
+          requestRule: requestRuleLabel,
+          employeeRule: employeeRuleLabel
+        })
       } catch {
-        return getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.request_rule_vs_employee_rule_message',
-          tWizard('request-rule-vs-employee-rule-message', {
-            requestRule: requestStoredRuleId,
-            employeeRule: newRuleId
-          })
-        )
+        return t('request-rule-vs-employee-rule-message', {
+          requestRule: requestStoredRuleId,
+          employeeRule: newRuleId
+        })
       }
     },
-    [getCachedOrFetch, graphqlClient, tWizard]
+    [getCachedOrFetch, graphqlClient, t]
   )
 
   const checkRuleConflicts = useCallback(
@@ -496,29 +459,17 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
         if (lastAbsenceCheckKeyRef.current !== dedupeKey) {
           return
         }
-        const overlapWarning = getOverlapWarningMessage(response, expensePlanId)
+        const overlapWarning = getOverlapWarningMessage(response, expensePlanId, t)
         if (isEndLocation) {
           setEndLocationOverlap(overlapWarning)
         } else {
           setStartLocationOverlap(overlapWarning)
         }
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.error_fetching_expense_data',
-            'Error fetching expense data'
-          ),
-          'error'
-        )
+        showToast(t('error-fetching-expense-data'), 'error')
       }
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.error_fetching_expense_data',
-          'Error fetching expense data'
-        ),
-        'error'
-      )
+      showToast(t('error-fetching-expense-data'), 'error')
     }
   }
 
@@ -623,17 +574,11 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
 
         const employeeId = userInfo?.employeeDetails?.employeeId
         if (!employeeId) {
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:modify_expense_request.missing_employee_id',
-              'Missing employee ID'
-            ),
-            'error'
-          )
+          showToast(t('missing-employee-id'), 'error')
           return
         }
 
-        const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken)
+        const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken, t)
         const ruleIdForTripDate = employeeRuleData?.expenseRuleId ?? employeeRuleData?.id
 
         if (ruleIdForTripDate) {
@@ -645,7 +590,8 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
               rulesAlreadyFetched,
               setStartLocation,
               setDestinations,
-              setEndLocation
+              setEndLocation,
+              t
             )
           } else {
             setEmployeeRuleId(ruleIdForTripDate)
@@ -657,11 +603,12 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
               rulesResponse,
               setStartLocation,
               setDestinations,
-              setEndLocation
+              setEndLocation,
+              t
             )
           }
         } else {
-          setByExternalCustomComponent(expenseRequestData, null, setStartLocation, setDestinations, setEndLocation)
+          setByExternalCustomComponent(expenseRequestData, null, setStartLocation, setDestinations, setEndLocation, t)
         }
 
         // Initialize accommodation considering stored value priority when version != 0
@@ -693,17 +640,12 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           rulesAlreadyFetched ?? null,
           setStartLocation,
           setDestinations,
-          setEndLocation
+          setEndLocation,
+          t
         )
       }
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.error_load_trip_data',
-          'Error loading initial trip data'
-        ),
-        'error'
-      )
+      showToast(t('error-load-trip-data'), 'error')
     }
   }
   const [destinations, setDestinations] = useState<LocationData[]>([defaultDestination])
@@ -736,8 +678,8 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     if (!tripLocationPointsEqual(startLocation, first)) {
       return null
     }
-    return tForms('trip-start-equals-first-destination')
-  }, [destinations, startLocation, tForms])
+    return t('trip-start-equals-first-destination')
+  }, [destinations, startLocation, t])
 
   const toggleLocationCollapse = (setLocation: React.Dispatch<React.SetStateAction<LocationData>>) => {
     setLocation(prev => ({
@@ -939,13 +881,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
 
         const expenseId = expenseRequestData?.ExpenseRequestByPk?.id
         if (!expenseId) {
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.error_missing_user_info',
-              'Missing user information'
-            ),
-            'error'
-          )
+          showToast(t('error-missing-user-info'), 'error')
           return
         }
 
@@ -958,18 +894,12 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           await loadInitialTripData(rulesResponse)
         }
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.error_fetching_expense_data',
-            'Error fetching expense data'
-          ),
-          'error'
-        )
+        showToast(t('error-fetching-expense-data'), 'error')
       }
     }
 
     fetchData()
-  }, [accessToken, employeeRuleId, expenseRequestData, additionalData, setEmployeeRuleId])
+  }, [accessToken, employeeRuleId, expenseRequestData, additionalData, setEmployeeRuleId, t])
   const validateTripForm = useCallback(() => {
     if (employeeRuleError || ruleConflictError) {
       updateTripFormValidation(false)
@@ -1082,7 +1012,8 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       expenseRulesData,
       EVENTS.SAVE,
       resolveOvernightAccommodation(),
-      validatedEmployeeRuleIdRef.current ?? undefined
+      validatedEmployeeRuleIdRef.current ?? undefined,
+      t
     )
   }
 
@@ -1096,7 +1027,8 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           expenseRulesData,
           EVENTS.NEXT,
           resolveOvernightAccommodation(),
-          validatedEmployeeRuleIdRef.current ?? undefined
+          validatedEmployeeRuleIdRef.current ?? undefined,
+          t
         )
       } catch (err) {
         console.error('[TripScreen countryRef debug] Error on Next (submitActionTripData)', {
@@ -1172,10 +1104,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           {/* Start Location */}
           <div className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid="start-location-wrapper">
             <LocationContainer
-              title={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_request.add_request_trip_details.start_location',
-                'Start Location'
-              )}
+              title={t('trip-start-location')}
               icon={ICONS.PIN_ICON}
               isCollapsed={startLocation.isCollapsed}
               onToggleCollapse={() => toggleLocationCollapse(setStartLocation)}
@@ -1184,10 +1113,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
                   <div data-testid="start-location-name">{startLocation.location || '-'}</div>
                   {startLocation.departureDate && (
                     <div data-testid="start-location-datetime">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_request.add_request_trip_details.transformer_rule',
-                        'Departure'
-                      )}
+                      {t('trip-departure')}
                       {formatDate(new Date(startLocation.departureDate), 'date.long')}
                       {startLocation.departureTime
                         ? ' - ' + formatDate(new Date(startLocation.departureTime), 'time.short')
@@ -1229,18 +1155,12 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
                 showFutureWarning={true}
                 errorMessage={employeeRuleError || ruleConflictError}
                 locationFormLabels={{
-                  inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.add_request_trip_details.start_location',
-                    'Start Location'
-                  ),
-                  dateFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.add_request_trip_details.departure_date',
-                    'Departure Date'
-                  ),
-                  timeFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.add_request_trip_details.departure_time',
-                    'Departure Time'
-                  )
+                  inputFieldLabel: t('trip-start-location'),
+                  inputFieldPlaceholder: t('trip-start-location-placeholder'),
+                  dateFieldLabel: t('trip-departure-date'),
+                  dateFieldPlaceholder: t('trip-departure-date-placeholder'),
+                  timeFieldLabel: t('trip-departure-time'),
+                  timeFieldPlaceholder: t('trip-departure-time-placeholder')
                 }}
               />
             </LocationContainer>
@@ -1254,10 +1174,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
               data-testid={`destination-wrapper-${destination.id}`}
             >
               <LocationContainer
-                title={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.add_request_trip_details.destination_collapsible_title',
-                  'Destination'
-                )}
+                title={t('trip-destination')}
                 icon={ICONS.PIN_ICON}
                 isCollapsed={destination.isCollapsed}
                 onToggleCollapse={() => toggleDestinationCollapse(destination.id)}
@@ -1268,10 +1185,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
                     <div data-testid={`destination-name-${destination.id}`}>{destination.location || '-'}</div>
                     {destination.departureDate && (
                       <div data-testid={`destination-datetime-${destination.id}`}>
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:create_expense_request.add_request_trip_details.transformer_rule',
-                          'Departure'
-                        )}
+                        {t('trip-departure')}
                         {formatDate(new Date(destination.departureDate), 'date.long')}
                         {destination.departureTime
                           ? ' - ' + formatDate(new Date(destination.departureTime), 'time.short')
@@ -1290,18 +1204,12 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
                   travelRegions={getFilteredTravelRegions(destination.isAbroad)}
                   errorMessage={index === 0 ? startEqualsFirstDestinationMessage : null}
                   locationFormLabels={{
-                    inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.add_request_trip_details.destination_collapsible_title',
-                      'Destination'
-                    ),
-                    dateFieldLabel: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.add_request_trip_details.departure_date',
-                      'Departure Date'
-                    ),
-                    timeFieldLabel: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.add_request_trip_details.departure_time',
-                      'Departure Time'
-                    )
+                    inputFieldLabel: t('trip-destination'),
+                    inputFieldPlaceholder: t('trip-destination-placeholder'),
+                    dateFieldLabel: t('trip-departure-date'),
+                    dateFieldPlaceholder: t('trip-departure-date-placeholder'),
+                    timeFieldLabel: t('trip-departure-time'),
+                    timeFieldPlaceholder: t('trip-departure-time-placeholder')
                   }}
                 />
               </LocationContainer>
@@ -1320,20 +1228,14 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
                 style={{ width: '24px', height: '24px' }}
                 data-testid="add-destination-icon"
               />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_request.add_request_trip_details.add_destionation_button',
-                'Add Destination'
-              )}
+              {t('trip-add-destination')}
             </Button>
           </div>
 
           {/* End Location */}
           <div className="gba:py-4" data-testid="end-location-wrapper">
             <LocationContainer
-              title={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_request.add_request_trip_details.end_location_text',
-                'End Location'
-              )}
+              title={t('trip-end-location')}
               icon={ICONS.PIN_ICON}
               isCollapsed={endLocation.isCollapsed}
               onToggleCollapse={() => toggleLocationCollapse(setEndLocation)}
@@ -1342,7 +1244,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
                   <div data-testid="end-location-name">{endLocation.location || '-'}</div>
                   {endLocation.departureDate && (
                     <div data-testid="end-location-datetime">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_detailed_view.arrival', 'Arrival')}
+                      {t('trip-arrival')}
                       {formatDate(new Date(endLocation.departureDate), 'date.long')}
                       {endLocation.departureTime
                         ? ' - ' + formatDate(new Date(endLocation.departureTime), 'time.short')
@@ -1384,18 +1286,12 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
                 }
                 showFutureWarning={true}
                 locationFormLabels={{
-                  inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.add_request_trip_details.end_location_text',
-                    'End Location'
-                  ),
-                  dateFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_date_label',
-                    'Arrival Date'
-                  ),
-                  timeFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_time_label',
-                    'Arrival Time'
-                  )
+                  inputFieldLabel: t('trip-end-location'),
+                  inputFieldPlaceholder: t('trip-end-location-placeholder'),
+                  dateFieldLabel: t('trip-arrival-date'),
+                  dateFieldPlaceholder: t('trip-arrival-date-placeholder'),
+                  timeFieldLabel: t('trip-arrival-time'),
+                  timeFieldPlaceholder: t('trip-arrival-time-placeholder')
                 }}
               />
             </LocationContainer>
@@ -1410,10 +1306,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
                   onChange={e => setOvernightAccommodation((e.value as boolean) || false)}
                   data-testid="overnight-accommodation-checkbox"
                 >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.add_request_trip_details.checkbox_label_accommodation',
-                    'Accommodation?'
-                  )}
+                  {t('trip-accommodation-checkbox')}
                 </Checkbox>
               </div>
             )}

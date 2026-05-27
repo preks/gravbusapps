@@ -1,11 +1,12 @@
 import dayjs from 'dayjs'
 import { getCatalogValue, getDateFormat } from '@/common/utils/windowUtils'
-import { getTranslatedMessage } from '../../shared/utils/translationUtils'
+import type { ExpenseRequestWizardTranslateFn } from '../expenseRequestWizardTranslateTypes'
 
 /**
  * Get overlap warning message from query response
  * @param queryResponse - Response from getRequestsAbsences query
  * @param currentPlanId - Current expense plan ID
+ * @param t - Wizard translation function
  * @returns Warning message and error flag
  *
  * Note: Similar logic exists in Plan wizard but with different translation keys
@@ -13,7 +14,8 @@ import { getTranslatedMessage } from '../../shared/utils/translationUtils'
  */
 export const getOverlapWarningMessage = (
   queryResponse: any,
-  currentPlanId?: string
+  currentPlanId: string | undefined,
+  t: ExpenseRequestWizardTranslateFn
 ): { message: string; isError: boolean } | null => {
   // Handle different response structures
   const data = queryResponse.data || queryResponse
@@ -31,15 +33,11 @@ export const getOverlapWarningMessage = (
     // Use typeName directly from the absence type object
     const absenceType = getCatalogValue(employeeAbsence.type) || 'Absence'
 
-    const message = getTranslatedMessage(
-      'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_error_message_absences',
-      'The selected date overlaps with an existing event: {{absenceType}} from {{planTimeStampStart}} to {{planTimeStampEnd}}. Please adjust the date.',
-      {
-        absenceType,
-        planTimeStampStart: absenceRequestTimeStampStart,
-        planTimeStampEnd: absenceRequestTimeStampEnd
-      }
-    )
+    const message = t('trip-overlap-absences-error', {
+      absenceType,
+      planTimeStampStart: absenceRequestTimeStampStart,
+      planTimeStampEnd: absenceRequestTimeStampEnd
+    })
 
     return { message, isError: true }
   }
@@ -50,15 +48,11 @@ export const getOverlapWarningMessage = (
     const expenseRequestTimeStampStart = dayjs(expenseRequest.startDate).format(getDateFormat('date-long'))
     const expenseRequestTimeStampEnd = dayjs(expenseRequest.endDate).format(getDateFormat('date-long'))
 
-    const message = getTranslatedMessage(
-      'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_error_message_expense_request',
-      'The selected date overlaps with an existing event: Expense Request {{expenseRequestTitle}} from {{planTimeStampStart}} to {{planTimeStampEnd}}. Please adjust the date.',
-      {
-        expenseRequestTitle: expenseRequest.title,
-        planTimeStampStart: expenseRequestTimeStampStart,
-        planTimeStampEnd: expenseRequestTimeStampEnd
-      }
-    )
+    const message = t('trip-overlap-request-error', {
+      expenseRequestTitle: expenseRequest.title,
+      planTimeStampStart: expenseRequestTimeStampStart,
+      planTimeStampEnd: expenseRequestTimeStampEnd
+    })
 
     return { message, isError: true }
   }
@@ -69,15 +63,11 @@ export const getOverlapWarningMessage = (
     const expensePlanTimeStampStart = dayjs(expensePlan.startDate).format(getDateFormat('date-long'))
     const expensePlanTimeStampEnd = dayjs(expensePlan.endDate).format(getDateFormat('date-long'))
 
-    const message = getTranslatedMessage(
-      'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_plan_info_message',
-      'There is an existing plan {{planName}} from {{planTimeStampStart}} to {{planTimeStampEnd}} for the selected period. You might want to cancel your request and create a new request based on your existing plan.',
-      {
-        planName: expensePlan.title,
-        planTimeStampStart: expensePlanTimeStampStart,
-        planTimeStampEnd: expensePlanTimeStampEnd
-      }
-    )
+    const message = t('trip-overlap-plan-info', {
+      planName: expensePlan.title,
+      planTimeStampStart: expensePlanTimeStampStart,
+      planTimeStampEnd: expensePlanTimeStampEnd
+    })
 
     return { message, isError: false }
   }

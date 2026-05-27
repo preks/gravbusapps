@@ -1,7 +1,8 @@
 import React from 'react'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Warning } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
+import { useExpenseRequestCreationTranslation } from '../../../expense-request-creation/useExpenseRequestCreationTranslation'
 import { ICONS } from '../../../../utils/icons'
 
 /**
@@ -39,6 +40,7 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
   onDelete,
   onEdit
 }) => {
+  const { t } = useExpenseRequestCreationTranslation()
   const hasMissingFields = missingFields && missingFields.length > 0
   return (
     <Card className="gba:p-0 gba:overflow-hidden gba:rounded-none" data-testid={`expense-item-card-${id}`}>
@@ -49,17 +51,11 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
         >
           <Warning size={16} className="gba:text-destructive gba:mt-0.5 gba:shrink-0" />
           <span className="gba:text-xs gba:text-destructive">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_item_request_card.missing_fields_warning',
-              'Missing required fields'
-            )}
+            {t('expense-item-card-missing-fields-warning')}
             {': '}
             {missingFields.join(', ')}
             {'. '}
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_item_request_card.update_before_adding',
-              'Please update this item before adding it to the request.'
-            )}
+            {t('expense-item-card-update-before-adding')}
           </span>
         </div>
       )}
@@ -74,11 +70,7 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
             {title}
           </div>
           <div className="gba:text-sm" data-testid={`expense-item-cost-center-${id}`}>
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
-              'Cost center'
-            )}
-            : {costCenter}
+            {t('current-cost-center-label')}: {costCenter}
           </div>
           {attachmentDate && (
             <div className="gba:mt-[20px]">
@@ -86,11 +78,9 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
                 className="gba:flex gba:items-center gba:gap-1 gba:text-sm"
                 data-testid={`expense-item-receipt-${id}`}
               >
-                <img src={ICONS.ATTACHMENT} alt="Attachment" className="gba:w-4 gba:h-4" />
+                <img src={ICONS.ATTACHMENT} alt="" className="gba:w-4 gba:h-4" role="presentation" />
                 <span>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.receipt', 'Receipt')}{' '}
-                  <span className="gba:mx-1"> </span>{' '}
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.created', 'Created')}{' '}
+                  {t('expense-item-card-receipt')} <span className="gba:mx-1"> </span> {t('expense-item-card-created')}{' '}
                   {attachmentDate}
                 </span>
               </div>
@@ -110,7 +100,7 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
                     }}
                     data-testid={`edit-item-button-${id}`}
                   >
-                    <img src={ICONS.EDIT_ICON} alt="Edit" className="gba:w-4 gba:h-4" />
+                    <img src={ICONS.EDIT_ICON} alt="" className="gba:w-4 gba:h-4" role="presentation" />
                   </button>
                 )}
                 {onDelete && (
@@ -122,7 +112,7 @@ const ExpenseItemCard: React.FC<ExpenseItemCardProps> = ({
                     }}
                     data-testid={`delete-item-button-${id}`}
                   >
-                    <img src={ICONS.DELETE} alt="Delete" className="gba:w-4 gba:h-4" />
+                    <img src={ICONS.DELETE} alt="" className="gba:w-4 gba:h-4" role="presentation" />
                   </button>
                 )}
               </div>

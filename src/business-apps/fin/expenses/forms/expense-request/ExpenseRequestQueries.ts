@@ -1,6 +1,6 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
+import { useExpenseRequestCreationTranslation } from '../expense-request-creation/useExpenseRequestCreationTranslation'
 import { formatDateWithTimezone } from './utils/dateUtils'
 import useFlowClient from '@/common/network/flows/useFlowClient'
 
@@ -116,6 +116,7 @@ export const getStructureCostCenterQuery = `
 `
 
 export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps, 'accessToken'>) => {
+  const { t } = useExpenseRequestCreationTranslation()
   const flowClient = useFlowClient(contextProps)
 
   /**
@@ -131,13 +132,7 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
 
       return await flowClient.getResource(path)
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_type_item.process_error_data_fetch',
-          'Error fetching data'
-        ),
-        'error'
-      )
+      showToast(t('process-error-data-fetch'), 'error')
       return null
     }
   }

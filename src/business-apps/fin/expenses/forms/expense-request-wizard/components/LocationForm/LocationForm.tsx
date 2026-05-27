@@ -1,14 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { InputField, Switch, DateInputField, TimeInputField, SelectField, Alert } from '@newwork/gravity-ui-catalog'
-import {
-  getCatalogValue,
-  getCurrentActiveUserLocale,
-  getDateFormat,
-  getTranslationFromI18nKeyAndLabel
-} from '@/common/utils/windowUtils'
+import { getCatalogValue, getCurrentActiveUserLocale, getDateFormat } from '@/common/utils/windowUtils'
 import { DateTimeLimits, LocationFormLabels } from '../../utils/types'
 import dayjs from 'dayjs'
 import { checkIfSameDay } from '../../utils/locationTimeUtils'
+import { useExpenseRequestWizardTranslation } from '../../useExpenseRequestWizardTranslation'
 
 /**
  * LocationForm component props
@@ -54,6 +50,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
   errorMessage = null,
   locationFormLabels = {}
 }) => {
+  const { t } = useExpenseRequestWizardTranslation()
   const { minDate, minTime, maxDate, maxTime } = dateTimeLimits
   const { id, isAbroad, location, departureDate, departureTime, travelRegionRef } = locationData
   const idPrefix = index !== undefined ? `${id}-${index}` : id
@@ -175,7 +172,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid={`${idPrefix}-form-content`}>
       <div className="gba:mb-0" data-testid={`${idPrefix}-abroad-switch-container`}>
         <Switch
-          label={getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.switch', 'Abroad')}
+          label={t('trip-abroad-switch')}
           name={`${idPrefix}Abroad`}
           data-testid={`${idPrefix}-abroad-switch`}
           value={isAbroad}
@@ -185,18 +182,9 @@ const LocationForm: React.FC<LocationFormProps> = ({
 
       <div className="gba:relative" data-testid={`${idPrefix}-input-container`}>
         <InputField
-          label={
-            locationFormLabels.inputFieldLabel ||
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_input_label',
-              'Start Location'
-            )
-          }
+          label={locationFormLabels.inputFieldLabel || t('trip-start-location')}
           name={`${idPrefix}Location`}
-          placeholder={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_input_placeholder',
-            'Type in City'
-          )}
+          placeholder={locationFormLabels.inputFieldPlaceholder || t('trip-start-location-placeholder')}
           data-testid={`${idPrefix}-input`}
           value={location}
           onChange={field => onUpdate('location', field.value)}
@@ -208,20 +196,14 @@ const LocationForm: React.FC<LocationFormProps> = ({
         <div className="gba:relative" data-testid={`${idPrefix}-travel-region-container`}>
           <SelectField
             allowClear
-            label={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.add_request_trip_details.select_start_region_rule_label',
-              'Region'
-            )}
+            label={t('trip-region-label')}
             name={`${idPrefix}TravelRegion`}
             data-testid={`${idPrefix}-travel-region-select`}
             data={travelRegionOptions}
             onChange={(value: any) => {
               onUpdate('travelRegionRef', value?.value)
             }}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.add_request_trip_details.select_start_region_rule_placeholder',
-              'Select Region'
-            )}
+            placeholder={t('trip-region-placeholder')}
             value={selectedTravelRegionValue}
             required={isAbroad}
           />
@@ -237,18 +219,9 @@ const LocationForm: React.FC<LocationFormProps> = ({
           <div className="gba:grid gba:grid-cols-2 gba:gap-4" data-testid={`${idPrefix}-date-time-container`}>
             <div className="gba:flex-1 gba:relative" data-testid={`${idPrefix}-date-container`}>
               <DateInputField
-                label={
-                  locationFormLabels.dateFieldLabel ||
-                  getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_date_label',
-                    'Departure Date'
-                  )
-                }
+                label={locationFormLabels.dateFieldLabel || t('trip-departure-date')}
                 name={`${idPrefix}DepartureDate`}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_date_placeholder',
-                  'Select Date'
-                )}
+                placeholder={locationFormLabels.dateFieldPlaceholder || t('trip-departure-date-placeholder')}
                 data-testid={`${idPrefix}-date-input`}
                 format={getDateFormat('date-long')}
                 value={departureDate ? new Date(departureDate) : null}
@@ -262,18 +235,9 @@ const LocationForm: React.FC<LocationFormProps> = ({
 
             <div className="gba:flex-1 gba:relative" data-testid={`${idPrefix}-time-container`}>
               <TimeInputField
-                label={
-                  locationFormLabels.timeFieldLabel ||
-                  getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_time_label',
-                    'Departure Time'
-                  )
-                }
+                label={locationFormLabels.timeFieldLabel || t('trip-departure-time')}
                 name={`${idPrefix}DepartureTime`}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_time_placeholder',
-                  'Select Time'
-                )}
+                placeholder={locationFormLabels.timeFieldPlaceholder || t('trip-departure-time-placeholder')}
                 data-testid={`${idPrefix}-time-input`}
                 value={departureTime ? dayjs(departureTime) : null}
                 language={getCurrentActiveUserLocale().split('-')[0] as 'en' | 'de' | 'ro' | undefined}
@@ -315,10 +279,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
                   data-testid={`${idPrefix}-warnings-row`}
                 >
                   <Alert
-                    message={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.add_request_trip_details.future_date_warning',
-                      'The selected date is in the future!'
-                    )}
+                    message={t('trip-future-date-warning')}
                     type="warning"
                     showIcon
                     data-testid={`${idPrefix}-future-warning`}
@@ -334,10 +295,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
                   data-testid={`${idPrefix}-warnings-row`}
                 >
                   <Alert
-                    message={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:add_items_to_plan.add_trip_info_to_plan.past_date_warning',
-                      'The selected date is in the past!'
-                    )}
+                    message={t('trip-past-date-warning')}
                     type="warning"
                     showIcon
                     data-testid={`${idPrefix}-past-warning`}

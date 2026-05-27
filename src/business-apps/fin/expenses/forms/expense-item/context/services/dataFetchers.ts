@@ -4,6 +4,7 @@ import { prepareExpenseRequestsList } from '../../utils/expenseRequestUtils'
 import { getCurrentActiveUserLocale } from '../../../../../../../common/utils/windowUtils'
 import dayjs from 'dayjs'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
+import type { ExpenseItemTranslateFn } from '../../useExpenseItemTranslation'
 
 export const fetchExpenseTypes = async (
   groupId: string,
@@ -11,7 +12,7 @@ export const fetchExpenseTypes = async (
   employeeRuleId: string | null | object,
   graphqlClient: any,
   setExpenseTypes: (types: { [classId: string]: ExpenseType[] }) => void,
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 ) => {
   try {
     if (typeof employeeRuleId === 'object' || !employeeRuleId) {
@@ -38,10 +39,7 @@ export const fetchExpenseTypes = async (
     })
 
     if (!response?.data?.ExpenseRuleGeneralExpense) {
-      showToast(
-        t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
-        'error'
-      )
+      showToast(t('expense-item-error-expense-types'), 'error')
       return []
     }
 
@@ -74,10 +72,7 @@ export const fetchExpenseTypes = async (
 
     return expenseTypesList
   } catch {
-    showToast(
-      t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
-      'error'
-    )
+    showToast(t('expense-item-error-expense-types'), 'error')
     return []
   }
 }
@@ -90,7 +85,7 @@ export const fetchCustomFields = async (
       | { [expenseTypeId: string]: CustomField[] }
       | ((prev: { [expenseTypeId: string]: CustomField[] }) => { [expenseTypeId: string]: CustomField[] })
   ) => void,
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 ) => {
   try {
     if (!expenseTypeIds || expenseTypeIds.length === 0) {
@@ -105,10 +100,7 @@ export const fetchCustomFields = async (
     })
 
     if (!response?.data?.ExpenseRuleOtherInfo) {
-      showToast(
-        t('lowcoder:create_expense_type_item.process_error_expense_custom_groups', 'Error processing custom groups'),
-        'error'
-      )
+      showToast(t('expense-item-error-custom-groups'), 'error')
       return []
     }
 
@@ -136,10 +128,7 @@ export const fetchCustomFields = async (
 
     return customFieldsList
   } catch {
-    showToast(
-      t('lowcoder:create_expense_type_item.process_error_expense_custom_groups', 'Error processing custom groups'),
-      'error'
-    )
+    showToast(t('expense-item-error-custom-groups'), 'error')
     return []
   }
 }
@@ -243,7 +232,7 @@ const processExpenseGroup = async (
   setPositions: (positions: any[]) => void,
   handleExpenseGroupChange: any,
   form: any,
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 ): Promise<void> => {
   if (!position.expenseGroup?.id) return
 
@@ -274,10 +263,7 @@ const processExpenseGroup = async (
       updateExpenseTypeField(form, position, newPosition, fetchedTypes, setPositions)
     }, 500)
   } catch {
-    showToast(
-      t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
-      'error'
-    )
+    showToast(t('expense-item-error-expense-types'), 'error')
   }
 }
 
@@ -292,7 +278,7 @@ export const setOnePositionItem = async (
   expenseTypes: { [classId: string]: any[] },
   setExpenseTypes: (types: { [classId: string]: any[] }) => void,
   employeeRuleId: string | null | object,
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 ) => {
   if (!expenseData?.ExpenseItemByPk) return
 
@@ -348,7 +334,7 @@ export const setMultiPositionItem = async (
   customFields: { [expenseTypeId: string]: any[] },
   setCustomFields: (fields: any) => void,
   employeeRuleId: string | null | object,
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 ) => {
   if (!expenseData || !expenseData.ExpenseItemByPk) {
     return
@@ -435,10 +421,7 @@ export const setMultiPositionItem = async (
               form
             )
           } catch {
-            showToast(
-              t('lowcoder:create_expense_type_item.process_error_expense_group', 'Error processing expense groups'),
-              'error'
-            )
+            showToast(t('expense-item-error-expense-group'), 'error')
           }
         }
       }
@@ -516,7 +499,7 @@ export const setByEdit = async (
   customFields: { [expenseTypeId: string]: any[] } = {},
   setCustomFields: (fields: any) => void = () => {},
   employeeRuleId: string | null | object = null,
-  t: (key: string, fallback: string) => string = (_key, fallback) => fallback,
+  t: ExpenseItemTranslateFn = ((key, second) => (typeof second === 'string' ? second : key)) as ExpenseItemTranslateFn,
   setInitialItemValues?: (id: string, version: string | number) => void
 ) => {
   try {
@@ -576,7 +559,7 @@ export const setByEdit = async (
 
     return response.data
   } catch {
-    showToast(t('lowcoder:create_expense_type_item.process_error_data_process', 'Error processing data'), 'error')
+    showToast(t('expense-item-error-data-process'), 'error')
     return null
   }
 }
@@ -584,14 +567,14 @@ export const setByEdit = async (
 export const addRequests = (
   requestData: any,
   setExpenseRequests: (requests: any[]) => void,
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 ) => {
   try {
     if (!requestData || !requestData.data) {
       setExpenseRequests([
         {
           id: '0',
-          title: t('lowcoder:create_expense_type_item.none', 'None')
+          title: t('expense-item-none')
         }
       ])
       return
@@ -599,21 +582,15 @@ export const addRequests = (
 
     const expenseRequests = requestData.data.ExpenseRequest || []
 
-    const formattedRequests = prepareExpenseRequestsList(
-      expenseRequests,
-      t('lowcoder:create_expense_type_item.none', 'None')
-    )
+    const formattedRequests = prepareExpenseRequestsList(expenseRequests, t('expense-item-none'))
 
     setExpenseRequests(formattedRequests)
   } catch {
-    showToast(
-      t('lowcoder:create_expense_type_item.process_error_expense_requests_fetch', 'Error processing expense requests'),
-      'error'
-    )
+    showToast(t('expense-item-error-requests-fetch'), 'error')
     setExpenseRequests([
       {
         id: '0',
-        title: t('lowcoder:create_expense_type_item.none', 'None')
+        title: t('expense-item-none')
       }
     ])
   }

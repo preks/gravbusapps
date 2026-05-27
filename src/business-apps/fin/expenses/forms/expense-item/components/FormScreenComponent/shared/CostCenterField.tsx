@@ -2,7 +2,7 @@ import React from 'react'
 import { SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { CostCenter } from '../../../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useExpenseItemTranslation } from '../../../useExpenseItemTranslation'
 
 interface CostCenterFieldProps {
   index: number
@@ -19,10 +19,9 @@ export const CostCenterField: React.FC<CostCenterFieldProps> = ({
   isProcessingFiles,
   onChange
 }) => {
+  const { t } = useExpenseItemTranslation()
   const matchedCenter = value ? costCenters.find(c => c.id === value) : undefined
-  const resolvedValue = matchedCenter
-    ? { id: matchedCenter.id, name: matchedCenter.name }
-    : undefined
+  const resolvedValue = matchedCenter ? { id: matchedCenter.id, name: matchedCenter.name } : undefined
 
   return (
     <div className="gba:mb-4" data-testid={`cost-center-container-${index}`}>
@@ -32,10 +31,7 @@ export const CostCenterField: React.FC<CostCenterFieldProps> = ({
           rules={[
             {
               required: true,
-              message: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_request.expense_request_container.current_cost_center_custom_rule',
-                'Please select a cost center'
-              )
+              message: t('expense-item-cost-center-required')
             }
           ]}
           style={{ marginBottom: 0 }}
@@ -51,14 +47,8 @@ export const CostCenterField: React.FC<CostCenterFieldProps> = ({
               name: center.name
             }))}
             onChange={(val: any) => onChange(val.value as string)}
-            label={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-              'Cost Center'
-            )}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
-              'Select Cost Center'
-            )}
+            label={t('label-cost-center')}
+            placeholder={t('expense-item-cost-center-placeholder')}
             value={resolvedValue}
             required={true}
           />

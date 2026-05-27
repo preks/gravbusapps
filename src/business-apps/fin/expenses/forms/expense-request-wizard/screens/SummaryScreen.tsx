@@ -1,23 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Row, Col, Pagination, Alert } from 'antd'
-import {
-  Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import {
   getCurrentActiveStructureId,
-  getTranslationFromI18nKeyAndLabel,
   formatDate,
   getCatalogValue,
   formatNumberFunction
 } from '@/common/utils/windowUtils'
 import { hasEmployeeOrgchartCostCenter } from '@/business-apps/fin/expenses/common/utils/employeeOrgchartCostCenter'
-import expenseFormsTranslations from '../../_i18n'
 import { useExpenseRequestDateValidation } from '../utils/dateValidationUtils'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
@@ -31,6 +21,8 @@ import { EVENTS } from '../../../utils/constants'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 import { SUMMARY_SCREEN_ITEM_LIST_LIMIT } from '../constants/constants'
 import { getPlanCardData } from '../../expense-request/utils/planUtils'
+import { useExpenseRequestCreationTranslation } from '../../expense-request-creation/useExpenseRequestCreationTranslation'
+import { useExpenseRequestWizardTranslation } from '../useExpenseRequestWizardTranslation'
 import {
   resolveEffectiveCostCenterId,
   resolveEffectiveCostCenterName,
@@ -62,7 +54,8 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
     useExpenseRequestWizardContext()
   const { hasFutureDates } = useExpenseRequestDateValidation()
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(props.additionalData)
-  const { t: tForms } = useTranslation(expenseFormsTranslations)
+  const { t: tCreation } = useExpenseRequestCreationTranslation()
+  const { t: tWizard } = useExpenseRequestWizardTranslation()
   const requestData = expenseRequestData?.ExpenseRequestByPk
   const requestItemData = expenseRequestData?.ExpenseItem
   const expenseItems = noAllowanceItemsFunction(requestItemData)
@@ -248,27 +241,16 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
                 <span className="gba:font-normal" data-testid="expense-request-id-label">
                   ID:
                 </span>
-                <span data-testid="expense-request-id-value">
-                  {requestData?.code ||
-                    getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_code', 'No code')}
-                </span>
+                <span data-testid="expense-request-id-value">{requestData?.code || tWizard('summary-no-code')}</span>
               </div>
             </Col>
             <Col xs={24} md={12} className="gba:text-right">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end">
                 <span className="gba:font-normal" data-testid="expense-request-creation-label">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_summary_request.request_creation',
-                    'Request Creation:'
-                  )}
+                  {tWizard('summary-request-creation')}
                 </span>
                 <span data-testid="expense-request-creation-value">
-                  {requestData?.createdAt
-                    ? formatDate(requestData.createdAt)
-                    : getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_summary_request.no_creation_date',
-                        'No creation date'
-                      )}
+                  {requestData?.createdAt ? formatDate(requestData.createdAt) : tWizard('summary-no-creation-date')}
                 </span>
               </div>
             </Col>
@@ -281,10 +263,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
                   className="gba:font-normal gba:flex-shrink-0 gba:whitespace-nowrap gba:leading-none"
                   data-testid="expense-request-cost-center-label"
                 >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_summary_request.id_cost_center_text_main_cost',
-                    'Main Cost Center:'
-                  )}
+                  {tWizard('summary-main-cost-center-label')}
                 </span>
                 {showMainCostCenterSelect ? (
                   <div
@@ -301,17 +280,9 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
                         size="sm"
                         className="gba:w-max gba:max-w-xs gba:min-w-0 gba:!h-6 gba:!min-h-6 gba:!max-h-6 gba:!gap-1 gba:!py-0 gba:!px-1 gba:text-xs gba:leading-none gba:shadow-none [&_svg]:gba:h-3 [&_svg]:gba:w-3"
                         data-testid="expense-request-main-cost-center-select"
-                        aria-label={getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
-                          'Cost Center'
-                        )}
+                        aria-label={tWizard('wizard-cost-center-label')}
                       >
-                        <SelectValue
-                          placeholder={getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_placeholder',
-                            'Select Cost Center'
-                          )}
-                        />
+                        <SelectValue placeholder={tWizard('wizard-cost-center-placeholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         {mainCostCenters.map(costCenter => (
@@ -327,11 +298,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
                     className="gba:min-w-0 gba:flex-1 gba:text-left"
                     data-testid="expense-request-cost-center-value"
                   >
-                    {mainCostCenterName ||
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_summary_request.no_cost_center',
-                        'No cost center'
-                      )}
+                    {mainCostCenterName || tWizard('summary-no-cost-center')}
                   </span>
                 )}
               </div>
@@ -342,7 +309,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
                 data-testid="expense-request-change-main-cost-center-button"
                 onClick={handleToggleMainCostCenterSelect}
               >
-                {showMainCostCenterSelect ? tForms('action-cancel') : tForms('action-change-main-cost-center')}
+                {showMainCostCenterSelect ? tWizard('action-cancel') : tWizard('action-change-main-cost-center')}
               </Button>
             </Col>
           </Row>
@@ -354,17 +321,14 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
                 className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-muted gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
                 data-testid="expense-request-plan-section-title"
               >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.initial_expense_plan_select_label',
-                  'Expense Plan'
-                )}
+                {tWizard('summary-expense-plan-label')}
               </span>
 
               <div className="gba:mb-4" data-testid="expense-request-plan-card-container">
                 <div className="gba:font-bold" data-testid="summary-plan-card-custom-container">
                   <PlanCard
                     key={requestData.expensePlan.id}
-                    plan={getPlanCardData(requestData.expensePlan, null)}
+                    plan={getPlanCardData(requestData.expensePlan, null, tCreation)}
                     selectable={false}
                     onClick={undefined}
                   />
@@ -377,13 +341,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
               className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-muted gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
               data-testid="expense-request-allowances-section-title"
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.expense_group_placeholder',
-                'Allowances'
-              ) +
-                ' (' +
-                allowanceItems?.length +
-                ')'}
+              {tWizard('summary-allowances-title') + ' (' + allowanceItems?.length + ')'}
             </span>
             {allowanceItems && allowanceItems.length > 0 ? (
               <>
@@ -392,7 +350,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
                     <ExpenseItemRow
                       key={item.id}
                       id={item.id}
-                      leftPrimary={getDayName(item.expenseDate)}
+                      leftPrimary={getDayName(item.expenseDate, tWizard)}
                       leftSecondary={formatDate(item.expenseDate)}
                       rightSecondary={`${formatNumberFunction(item.totalAmount)} ${item.currency.code}`}
                     />
@@ -414,10 +372,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
               </>
             ) : (
               <div className="gba:text-gray-500 gba:px-4 gba:py-5" data-testid="expense-request-no-allowances">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_allowance_info_request.no_allowances_text',
-                  'No allowances created'
-                )}
+                {tWizard('wizard-no-allowances-text')}
               </div>
             )}
 
@@ -426,13 +381,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
                 className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-muted gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
                 data-testid="expense-request-expense-items-section-title"
               >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_item_list.search_module.text_content',
-                  'Expense Items'
-                ) +
-                  ' (' +
-                  positionsArray.length +
-                  ')'}
+                {tWizard('summary-expense-items-title') + ' (' + positionsArray.length + ')'}
               </span>
 
               {positionsArray && positionsArray.length > 0 ? (
@@ -464,10 +413,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
                 </>
               ) : (
                 <div className="gba:text-gray-500 gba:px-4 gba:py-5" data-testid="expense-request-no-expense-items">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_summary_request.no_expense_items',
-                    'No expense items created'
-                  )}
+                  {tWizard('summary-no-expense-items')}
                 </div>
               )}
             </div>
@@ -477,7 +423,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
         {missingOrgchartCostCenter && (
           <div className="gba:mt-4 gba:mb-4" data-testid="expense-request-missing-orgchart-cost-center-container">
             <Alert
-              message={tForms('missing-orgchart-cost-center-wizard-message')}
+              message={tWizard('missing-orgchart-cost-center-wizard-message')}
               type="error"
               showIcon
               data-testid="expense-request-missing-orgchart-cost-center-warning"
@@ -487,10 +433,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
         {hasFutureDates && (
           <div className="gba:mt-4 gba:mb-4" data-testid="expense-request-future-dates-container">
             <Alert
-              message={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_summary_request.future_dates_warning',
-                'Warning: Future dates detected in this expense request. Submission is disabled.'
-              )}
+              message={tWizard('summary-future-dates-warning')}
               type="warning"
               showIcon
               data-testid="expense-request-future-dates-warning"

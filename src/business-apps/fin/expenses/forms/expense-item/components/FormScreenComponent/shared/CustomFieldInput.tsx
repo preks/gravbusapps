@@ -2,7 +2,7 @@ import React from 'react'
 import { InputField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { CustomField } from '../../../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useExpenseItemTranslation } from '../../../useExpenseItemTranslation'
 
 interface CustomFieldInputProps {
   index: number
@@ -23,11 +23,14 @@ export const CustomFieldInput: React.FC<CustomFieldInputProps> = ({
   form,
   onChange
 }) => {
+  const { t } = useExpenseItemTranslation()
+
   if (!expenseTypeId || !customFields[expenseTypeId] || customFields[expenseTypeId].length === 0) {
     return null
   }
 
   const customField = customFields[expenseTypeId][0]
+  const customFieldLabel = customField?.infoValue || t('expense-item-custom-field-label')
 
   return (
     <div className="gba:mb-4" data-testid={`custom-field-container-${index}`}>
@@ -38,10 +41,7 @@ export const CustomFieldInput: React.FC<CustomFieldInputProps> = ({
             customField?.mandatory
               ? {
                   required: true,
-                  message: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.custom_field_default_error_message',
-                    'Please enter a value for this field'
-                  )
+                  message: t('expense-item-custom-field-error')
                 }
               : {}
           ]}
@@ -50,27 +50,13 @@ export const CustomFieldInput: React.FC<CustomFieldInputProps> = ({
           <InputField
             name={`customField-${index}`}
             data-testid={`custom-field-input-${index}`}
-            label={
-              customField?.infoValue ||
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_type_item.custom_field_default_label',
-                'Custom Field'
-              )
-            }
+            label={customFieldLabel}
             value={value}
             onChange={field => {
               form.setFieldsValue({ [`customField-${index}`]: field.value })
               onChange(field.value as string)
             }}
-            placeholder={
-              getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.enter', 'Enter') +
-              ' ' +
-              (customField?.infoValue ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_type_item.custom_field_default_label',
-                  'Custom Field'
-                ))
-            }
+            placeholder={`${t('expense-item-enter')} ${customFieldLabel}`}
             required={customField?.mandatory || false}
             disabled={isProcessingFiles || !expenseTypeId}
           />

@@ -4,7 +4,7 @@ import UploadComponent from '../UploadComponent'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 import { FORM_STEPS, FormStepType } from '../../constants/constants'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useExpenseItemTranslation } from '../../useExpenseItemTranslation'
 
 interface StartScreenComponentProps {
   fileList: any[]
@@ -20,6 +20,7 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
   handleCancel
 }) => {
   const { isProcessingFiles } = useExpenseItem()
+  const { t } = useExpenseItemTranslation()
 
   return (
     <div
@@ -38,15 +39,12 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
           data-testid="continue-button"
         >
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-2" data-testid="continue-button-content">
-            <span className="gba:font-medium gba:text-black" data-testid="continue-without-receipt-text">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_type_item.continue_button',
-                'Continue without receipt'
-              )}
+            <span className="gba:font-medium gba:text-foreground" data-testid="continue-without-receipt-text">
+              {t('expense-item-continue-without-receipt', 'Continue without receipt')}
             </span>
             <img
               src={ICONS.RIGHT_ARROW}
-              alt={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.continue_alt_text', 'Continue')}
+              alt={t('expense-item-continue-alt', 'Continue')}
               className="gba:w-6 gba:h-6"
               data-testid="continue-button-arrow"
             />
@@ -77,7 +75,7 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
             style={{ borderRadius: '22px', height: '40px' }}
             data-testid="start-screen-cancel-button"
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
+            {t('expense-item-cancel', 'Cancel')}
           </Button>
         </div>
       </div>

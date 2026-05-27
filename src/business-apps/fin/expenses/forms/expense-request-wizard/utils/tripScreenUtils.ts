@@ -2,7 +2,7 @@ import dayjs from 'dayjs'
 import { combineDateTimeToISOString } from './locationTimeUtils'
 import { LocationData, LogObject, TripData } from './types'
 import { showToast } from '../../../utils/notificationUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { ExpenseRequestWizardTranslateFn } from '../expenseRequestWizardTranslateTypes'
 import { PointTypeEnum, SCREEN_NAMES_ENUM, TripDirectionDefaultValue } from '../constants/constants'
 import { mergeUniqueById } from '../../../utils/functionUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -293,17 +293,12 @@ export const handleTripSubmitAction = (
   currentCurrency: string | null,
   event: string,
   overnightAccommodation?: boolean,
-  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean,
+  t?: ExpenseRequestWizardTranslateFn
 ): boolean => {
   const initialRequest = expenseRequestData?.ExpenseRequestByPk
   if (!initialRequest) {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:modify_expense_request.trip_screen.missing_request_data',
-        'Missing request data'
-      ),
-      'error'
-    )
+    showToast(t ? t('trip-missing-request-data') : 'Missing request data', 'error')
     return false
   }
   const effectiveCostCenterId = resolveMainCostCenterId(
@@ -474,7 +469,8 @@ export const setByExternalCustomComponent = (
   expenseRulesData: any,
   setStartLocation: React.Dispatch<React.SetStateAction<LocationData>>,
   setDestinations: React.Dispatch<React.SetStateAction<LocationData[]>>,
-  setEndLocation: React.Dispatch<React.SetStateAction<LocationData>>
+  setEndLocation: React.Dispatch<React.SetStateAction<LocationData>>,
+  t?: ExpenseRequestWizardTranslateFn
 ) => {
   const localExpenseData = expenseData?.ExpenseRequestByPk || expenseData?.ExpensePlanByPk
   let tripData = []
@@ -562,13 +558,7 @@ export const setByExternalCustomComponent = (
       }))
     }
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:modify_expense_request.error_prefill_trip_data',
-        'Error prefilling trip data'
-      ),
-      'error'
-    )
+    showToast(t ? t('error-prefill-trip-data', 'Error prefilling trip data') : 'Error prefilling trip data', 'error')
   }
 }
 

@@ -1,4 +1,5 @@
 import { formatDateToISOString } from '../../utils/dateUtils'
+import type { ExpenseItemTranslateFn } from '../../useExpenseItemTranslation'
 import { calculateTotalAmount } from '../../utils/calculationUtils'
 import { fetchExpenseTypes, fetchCustomFields } from './dataFetchers'
 import { initiateFlow, getOpenedTaskFlow, completeTaskFlow } from './flowHandlers'
@@ -42,7 +43,7 @@ const uploadReceiptAndSupportingFiles = async ({
   supportingFileList?: any[]
   accessToken?: string
   employeeId?: string
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 }) => {
   let receiptUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = []
   let supportingUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = []
@@ -72,7 +73,7 @@ const resolveFlowContext = async ({
   hasExpenseRequest: any
   userInfo?: any
   getIsProcessEventDispatched?: () => boolean
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 }) => {
   let flowProcessId: string | null = null
   let taskId: string | null = null
@@ -87,7 +88,7 @@ const resolveFlowContext = async ({
       return { flowProcessId, taskId, taskName }
     }
 
-    const flowResult = await initiateFlow(accessToken, employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME)
+    const flowResult = await initiateFlow(accessToken, employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME, t)
     if (!flowResult?.id) {
       return { flowProcessId, taskId, taskName }
     }
@@ -95,7 +96,7 @@ const resolveFlowContext = async ({
     flowProcessId = flowResult.id
     const userId = userInfo?.id || ''
 
-    const tasksResult = await getOpenedTaskFlow(accessToken, userId, flowProcessId, FLOW_DOMAIN, FLOW_PROCESS_NAME)
+    const tasksResult = await getOpenedTaskFlow(accessToken, userId, flowProcessId, FLOW_DOMAIN, FLOW_PROCESS_NAME, t)
     const firstTask = Array.isArray(tasksResult) ? tasksResult[0] : null
 
     if (firstTask && typeof firstTask.id === 'string' && typeof firstTask.name === 'string') {
@@ -103,7 +104,7 @@ const resolveFlowContext = async ({
       taskName = firstTask.name
     }
   } catch {
-    showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
+    showToast(t('expense-item-error-flows'), 'error')
   }
 
   return { flowProcessId, taskId, taskName }
@@ -244,7 +245,7 @@ const submitExpenseItem = async ({
   userInfo?: any
   submitData: any
   dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 }) => {
   let operationSuccessful = false
 
@@ -259,11 +260,12 @@ const submitExpenseItem = async ({
         taskId,
         submitData,
         FLOW_DOMAIN,
-        FLOW_PROCESS_NAME
+        FLOW_PROCESS_NAME,
+        t
       )
       operationSuccessful = true
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
+      showToast(t('expense-item-error-flows'), 'error')
     }
   }
 
@@ -275,7 +277,7 @@ const submitExpenseItem = async ({
         dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
       }
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in expense approval process'), 'error')
+      showToast(t('expense-item-error-flows'), 'error')
     }
   }
 
@@ -294,20 +296,14 @@ export const uploadDocuments = async (
   fileList: any[],
   accessToken: string,
   employeeId: string,
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 ): Promise<Array<{ fileType: string; fileUrl: string; fileName: string }>> => {
   if (!fileList || fileList.length === 0) {
     return []
   }
 
   if (!employeeId) {
-    showToast(
-      t(
-        'lowcoder:create_expense_type_item.document_upload_error_missing_employee_data',
-        'Cannot upload files: missing employee data'
-      ),
-      'error'
-    )
+    showToast(t('expense-item-error-missing-employee'), 'error')
     return []
   }
 
@@ -315,10 +311,7 @@ export const uploadDocuments = async (
     const files = fileList.map(f => f.originFileObj).filter(Boolean)
 
     if (files.length === 0) {
-      showToast(
-        t('lowcoder:create_expense_type_item.document_upload_error_missing_files', 'No valid files to upload'),
-        'info'
-      )
+      showToast(t('expense-item-error-missing-files'), 'info')
       return []
     }
 
@@ -366,7 +359,7 @@ export const uploadDocuments = async (
 
     return formattedFiles
   } catch {
-    showToast(t('lowcoder:create_expense_type_item.document_upload_error_files', 'Error uploading files'), 'error')
+    showToast(t('expense-item-error-upload-files'), 'error')
     return []
   }
 }
@@ -380,7 +373,7 @@ export const handleExpenseGroupChange = async (
   employeeRuleId: EmployeeRuleId,
   graphqlClient: any,
   setExpenseTypes: (types: { [classId: string]: any[] }) => void,
-  t: (key: string, fallback: string) => string,
+  t: ExpenseItemTranslateFn,
   form?: any
 ) => {
   try {
@@ -400,10 +393,7 @@ export const handleExpenseGroupChange = async (
       await fetchExpenseTypes(value, positions, employeeRuleId, graphqlClient, setExpenseTypes, t)
     }
   } catch {
-    showToast(
-      t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
-      'error'
-    )
+    showToast(t('expense-item-error-expense-types'), 'error')
   }
 }
 
@@ -415,7 +405,7 @@ export const handleExpenseTypeChange = async (
   customFields: { [expenseTypeId: string]: any[] },
   graphqlClient: any,
   setCustomFields: (fields: any) => void,
-  t: (key: string, fallback: string) => string,
+  t: ExpenseItemTranslateFn,
   form?: any
 ) => {
   try {
@@ -456,10 +446,7 @@ export const handleExpenseTypeChange = async (
       await fetchCustomFields(expenseTypeIds, graphqlClient, setCustomFields, t)
     }
   } catch {
-    showToast(
-      t('lowcoder:create_expense_type_item.process_error_expense_custom_groups', 'Error processing custom groups'),
-      'error'
-    )
+    showToast(t('expense-item-error-custom-groups'), 'error')
   }
 }
 
@@ -491,13 +478,10 @@ export const handleRemovePosition = (
   positionId: string,
   positions: any[],
   setPositions: (positions: any[]) => void,
-  t: (key: string, fallback: string) => string
+  t: ExpenseItemTranslateFn
 ) => {
   if (positions.length === 1) {
-    showToast(
-      t('lowcoder:create_expense_type_item.position_deletion_warning', 'At least one position is required'),
-      'warning'
-    )
+    showToast(t('expense-item-position-deletion-warning'), 'warning')
     return
   }
 
@@ -526,7 +510,7 @@ export const handleSubmit = async (
   setFileList: (files: any[]) => void,
   setCurrentStep: (step: 'start' | 'form') => void,
   setLoading: (loading: boolean) => void,
-  t: (key: string, fallback: string) => string,
+  t: ExpenseItemTranslateFn,
   fileList?: any[],
   supportingFileList?: any[],
   accessToken?: string,
@@ -608,10 +592,7 @@ export const handleSubmit = async (
     })
 
     if (operationSuccessful) {
-      showToast(
-        t('lowcoder:create_expense_type_item.created_item_notification_message', 'Expense item created successfully!'),
-        'success'
-      )
+      showToast(t('expense-item-created-success'), 'success')
 
       form.resetFields()
       setPositions([DEFAULT_POSITION])
@@ -622,7 +603,7 @@ export const handleSubmit = async (
       setCurrentStep(FORM_STEPS.START)
     }
   } catch {
-    showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
+    showToast(t('expense-item-error-flows'), 'error')
   } finally {
     setLoading(false)
   }

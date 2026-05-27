@@ -1,4 +1,6 @@
-import { formatDate, formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDate, formatNumberFunction } from '@/common/utils/windowUtils'
+
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string
 import { ICONS } from '../../../utils/icons'
 import { PLAN_TYPE_ENUM, DEFAULT_PLAN_CURRENCY_CODE } from '../constants/constants'
 import { PLAN_TYPES } from '../../expense-plan/constants/constants'
@@ -28,7 +30,7 @@ export const getCatalogTypeTransformer = (typeNeeded: string, expenseCatalogueDa
  * @param t - Translation function
  * @returns Transformed plan card data
  */
-export const getPlanCardData = (planData: any, expenseCatalogueData: any): any => {
+export const getPlanCardData = (planData: any, expenseCatalogueData: any, t: TranslateFn): any => {
   if (!planData) return null
 
   let planTypeData: (typeof PLAN_TYPE_ENUM)[keyof typeof PLAN_TYPE_ENUM] = PLAN_TYPE_ENUM.TRIP
@@ -56,14 +58,9 @@ export const getPlanCardData = (planData: any, expenseCatalogueData: any): any =
     id: planData.id,
     planType: planTypeData,
     avatarImg: planTypeData === PLAN_TYPE_ENUM.EXPENSE ? ICONS.RECEIPT_ICON : ICONS.TRIP_ICON,
-    avatarTitle:
-      planTypeData === PLAN_TYPE_ENUM.EXPENSE
-        ? getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_select_button', 'Expense')
-        : getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.trip_select_button', 'Trip'),
+    avatarTitle: planTypeData === PLAN_TYPE_ENUM.EXPENSE ? t('expense-select-button') : t('trip-select-button'),
     title: planData.title || '',
-    creationDate: planData.createdAt
-      ? formatDate(planData.createdAt, 'date.long')
-      : `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date')}`,
+    creationDate: planData.createdAt ? formatDate(planData.createdAt, 'date.long') : t('no-creation-date'),
     tripStart: planData.startDate || '',
     tripEnd: planData.endDate || '',
     tripInterval: cardDate || '',
@@ -80,8 +77,8 @@ export const getPlanCardData = (planData: any, expenseCatalogueData: any): any =
  * @param t - Translation function
  * @returns Array of plan card data
  */
-export const transformPlansToCardData = (expenseCatalogueData: any): any[] => {
+export const transformPlansToCardData = (expenseCatalogueData: any, t: TranslateFn): any[] => {
   if (!expenseCatalogueData?.ExpensePlan) return []
 
-  return expenseCatalogueData.ExpensePlan.map((plan: any) => getPlanCardData(plan, expenseCatalogueData))
+  return expenseCatalogueData.ExpensePlan.map((plan: any) => getPlanCardData(plan, expenseCatalogueData, t))
 }
