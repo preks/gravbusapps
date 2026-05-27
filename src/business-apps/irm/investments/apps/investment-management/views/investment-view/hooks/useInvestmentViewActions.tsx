@@ -43,7 +43,11 @@ export const useInvestmentViewActions = ({
       currentSection === 'overview'
         ? {
             context: FlowContextName.investmentCreate,
-            contextData: { fromView: 'investments', fromSubView: 'overview' }
+            contextData: {
+              fromView: 'investments',
+              fromSubView: 'overview',
+              investmentGroupSelection: 'manual'
+            }
           }
         : activeGroup
           ? {
@@ -51,7 +55,8 @@ export const useInvestmentViewActions = ({
               contextData: {
                 investmentGroup: activeGroup.id,
                 fromView: 'investments',
-                fromSubView: activeGroup.tabId
+                fromSubView: activeGroup.tabId,
+                investmentGroupSelection: 'auto'
               }
             }
           : null

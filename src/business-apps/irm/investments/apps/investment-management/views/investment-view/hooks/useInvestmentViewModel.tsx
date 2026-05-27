@@ -33,6 +33,11 @@ export const useInvestmentViewModel = (context: InvestmentViewModelContext) => {
     setCurrentSection(section => normalizeSection(section))
   }, [catalog.groupsLoading, normalizeSection])
 
+  useEffect(() => {
+    if (!initialSubTab) return
+    setCurrentSection(normalizeSection(initialSubTab))
+  }, [initialSubTab, normalizeSection])
+
   const handleSectionChange = useCallback(
     (newSection: string) => {
       const normalizedSection = normalizeSection(newSection)

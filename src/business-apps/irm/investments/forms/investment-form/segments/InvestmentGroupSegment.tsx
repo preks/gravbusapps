@@ -2,138 +2,44 @@ import React, { useEffect, useState, useRef } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentType } from '@/common/data/investment/hooks/useInvestmentTypes'
+import type { ResolvedInvestmentGroupLaunch } from './investmentGroupLaunchContext'
 
 const prefixDataTestId = 'investment-form-group-select-segment'
 
-/**
- * Detects investment group from input string by matching against catalog data.
- * This is fully dynamic and works with any groups defined in the catalog.
- *
- * @param input - String to match (could be ID, tabId, code, or display name)
- * @param investmentGroups - Array of investment groups from catalog
- * @returns Full investment group ID if match found, null otherwise
- */
-const detectGroupFromCatalog = (
-  input: string | null | undefined,
+const getGroupTabId = (code: string | undefined): string | null => {
+  if (!code) return null
+  return code.toLowerCase().replace(/_/g, '-')
+}
+
+const resolveCatalogGroupId = (
+  investmentGroupId: string | undefined,
   investmentGroups: InvestmentType[]
 ): string | null => {
-  if (!input || investmentGroups.length === 0) return null
+  if (!investmentGroupId || investmentGroups.length === 0) return null
 
-  // 1. If input is already a full investment group ID, validate it exists and return
-  if (input.startsWith('InvestmentGroup:v1:')) {
-    return investmentGroups.some(g => g.id === input) ? input : null
+  if (investmentGroupId.startsWith('InvestmentGroup:v1:')) {
+    return investmentGroups.some(group => group.id === investmentGroupId) ? investmentGroupId : null
   }
 
-  const normalizedInput = input.toLowerCase().trim()
+  const normalizedInput = investmentGroupId.toLowerCase().trim()
 
-  // 2. Try exact match against tabId (highest confidence)
-  // tabId format: code.toLowerCase().replace(/_/g, '-')
-  // This handles cases like "private-equity", "equity", "test", etc.
   const tabIdMatch = investmentGroups.find(group => {
-    const tabId = group.code.toLowerCase().replace(/_/g, '-')
-    return tabId === normalizedInput
+    const tabId = getGroupTabId(group.code)
+    return tabId !== null && tabId === normalizedInput
   })
   if (tabIdMatch) return tabIdMatch.id
 
-  // 3. Try exact match against code (case-insensitive)
-  const codeMatch = investmentGroups.find(group => group.code.toLowerCase() === normalizedInput)
+  const codeMatch = investmentGroups.find(
+    group => group.code !== undefined && group.code.toLowerCase() === normalizedInput
+  )
   if (codeMatch) return codeMatch.id
-
-  // 4. Try exact match against displayValue/value (case-insensitive)
-  const displayMatch = investmentGroups.find(group => {
-    const display = (group.displayValue || group.value || '').toLowerCase()
-    return display === normalizedInput
-  })
-  if (displayMatch) return displayMatch.id
-
-  // 5. Only as last resort: check if input contains the tabId as a complete word
-  // Use word boundary matching to avoid "private-equity" matching "equity"
-  const partialMatch = investmentGroups.find(group => {
-    const tabId = group.code.toLowerCase().replace(/_/g, '-')
-    // Match whole word only (e.g., /\bequity\b/ matches "equity" but not "private-equity")
-    const regex = new RegExp(`\\b${tabId}\\b`, 'i')
-    return regex.test(input)
-  })
-  if (partialMatch) return partialMatch.id
 
   return null
 }
 
-/**
- * Consolidated detection function that attempts to auto-detect investment group
- * from various context sources (additionalData, URL params, referrer, etc.)
- *
- * @param businessAppContext - Business app context containing additionalData
- * @param investmentGroups - Array of investment groups from catalog
- * @param onGroupSelect - Callback to invoke when group is detected
- * @param setIsDetectingContext - State setter for detection loading state
- * @param setContextDetectionComplete - State setter for detection completion
- * @returns true if group was detected and selected, false otherwise
- */
-const detectInvestmentGroup = (
-  businessAppContext: any,
-  investmentGroups: InvestmentType[],
-  onGroupSelect: (group: string) => void,
-  setIsDetectingContext: (value: boolean) => void,
-  setContextDetectionComplete: (value: boolean) => void
-): boolean => {
-  try {
-    // Ordered source evaluation (priority from highest to lowest)
-    const sources = [
-      // 1. Business app context data (primary) - direct from button click
-      businessAppContext?.additionalData?.investmentGroup, // Direct group ID (highest priority)
-      businessAppContext?.additionalData?.fromSubView, // Tab ID from button
-      businessAppContext?.additionalData?.subView,
-      businessAppContext?.additionalData?.fromView,
-      businessAppContext?.additionalData?.view,
-
-      // 2. URL parameters (secondary)
-      new URLSearchParams(globalThis.location.search).get('fromSubView'),
-      new URLSearchParams(globalThis.location.search).get('subView'),
-      new URLSearchParams(globalThis.location.search).get('view'),
-
-      // 3. Document referrer (tertiary)
-      document.referrer,
-
-      // 4. Current URL (fallback)
-      globalThis.location.href
-    ]
-
-    // Find first valid investment group from catalog
-    for (const source of sources) {
-      const detectedGroup = detectGroupFromCatalog(source, investmentGroups)
-      if (detectedGroup) {
-        // Special case: Skip auto-detection for overview/all contexts
-        if (source) {
-          const normalized = source.trim().toLowerCase()
-          if (['overview', 'all'].includes(normalized)) {
-            continue
-          }
-        }
-
-        // Valid group found - complete selection
-        setIsDetectingContext(false)
-        setContextDetectionComplete(true)
-        onGroupSelect(detectedGroup)
-        return true
-      }
-    }
-
-    // No group detected - show manual selection
-    setIsDetectingContext(false)
-    setContextDetectionComplete(true)
-    return false
-  } catch (error) {
-    console.error('Error detecting investment context:', error)
-    setIsDetectingContext(false)
-    setContextDetectionComplete(true)
-    return false
-  }
-}
-
-export interface GroupSelectSegmentProps extends BusinessAppContextProps {
+export interface GroupSelectSegmentProps {
+  groupLaunch: ResolvedInvestmentGroupLaunch
   onGroupSelect: (group: string) => void
   skipAutoDetection?: boolean
   getTypesByLevel: (level: number) => InvestmentType[]
@@ -142,17 +48,15 @@ export interface GroupSelectSegmentProps extends BusinessAppContextProps {
 }
 
 const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
+  groupLaunch,
   onGroupSelect,
   skipAutoDetection = false,
   getTypesByLevel,
   loading = false,
-  error = null,
-  ...businessAppContext
+  error = null
 }) => {
-  // Get level 0 types (InvestmentGroups)
   const investmentGroups = getTypesByLevel(0)
 
-  // Transform to display format
   const groupsForDisplay = investmentGroups.map(group => {
     const displayTitle = group.displayValue || group.value || group.code || group.id
 
@@ -160,100 +64,58 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
       id: group.id,
       code: group.code,
       title: displayTitle,
-      value: group.id // Use the full ID from InvestmentType
+      value: group.id
     }
   })
 
-  // Immediately check if we should auto-detect (before first render)
-  const shouldAutoDetect = (() => {
-    // Skip auto-detection if explicitly requested (e.g., user clicked Back button)
-    if (skipAutoDetection) {
-      return false
-    }
+  const shouldAutoSelect =
+    !skipAutoDetection &&
+    groupLaunch.selectionMode === 'auto' &&
+    Boolean(groupLaunch.investmentGroupId) &&
+    investmentGroups.length > 0
 
-    // Don't auto-detect if groups haven't loaded yet - wait for useEffect
-    if (investmentGroups.length === 0) {
-      return false
-    }
+  const [isDetectingContext, setIsDetectingContext] = useState(shouldAutoSelect)
+  const [contextDetectionComplete, setContextDetectionComplete] = useState(!shouldAutoSelect)
 
-    try {
-      // Use simplified detection to determine if auto-detection is possible
-      const sources = [
-        businessAppContext?.additionalData?.investmentGroup,
-        businessAppContext?.additionalData?.fromSubView,
-        businessAppContext?.additionalData?.subView,
-        new URLSearchParams(globalThis.location.search).get('fromSubView'),
-        new URLSearchParams(globalThis.location.search).get('subView')
-      ]
+  const hasAppliedLaunch = useRef(false)
 
-      for (const source of sources) {
-        if (detectGroupFromCatalog(source, investmentGroups)) {
-          // Skip auto-detection for overview/all contexts
-          if (source) {
-            const normalized = source.trim().toLowerCase()
-            if (['overview', 'all'].includes(normalized)) {
-              return false
-            }
-          }
-          return true
-        }
-      }
-
-      return false
-    } catch {
-      return false
-    }
-  })()
-
-  // Track context detection state
-  const [isDetectingContext, setIsDetectingContext] = useState(shouldAutoDetect)
-  const [contextDetectionComplete, setContextDetectionComplete] = useState(!shouldAutoDetect)
-
-  // Guard to prevent duplicate detection calls
-  const isDetectingLocal = useRef(false)
-  const hasDetected = useRef(false)
-
-  // Auto-detect investment group from URL context
   useEffect(() => {
-    // Guard: Only run detection if not already detecting and not already completed
-    if (isDetectingLocal.current || hasDetected.current) {
+    if (hasAppliedLaunch.current) {
       return
     }
 
-    // Wait for investmentGroups to be loaded before attempting detection
     if (investmentGroups.length === 0) {
       return
     }
 
-    // Skip detection if explicitly disabled
+    hasAppliedLaunch.current = true
+
     if (skipAutoDetection) {
       setIsDetectingContext(false)
       setContextDetectionComplete(true)
-      hasDetected.current = true
       return
     }
 
-    // Set guard before detection
-    isDetectingLocal.current = true
-    setIsDetectingContext(true)
+    if (groupLaunch.selectionMode === 'manual') {
+      setIsDetectingContext(false)
+      setContextDetectionComplete(true)
+      return
+    }
 
-    // Use consolidated detection function with catalog data
-    detectInvestmentGroup(
-      businessAppContext,
-      investmentGroups,
-      onGroupSelect,
-      setIsDetectingContext,
-      setContextDetectionComplete
-    )
+    const catalogGroupId = resolveCatalogGroupId(groupLaunch.investmentGroupId, investmentGroups)
+    if (!catalogGroupId) {
+      setIsDetectingContext(false)
+      setContextDetectionComplete(true)
+      return
+    }
 
-    // Update guards after detection
-    hasDetected.current = true
-    isDetectingLocal.current = false
-  }, [onGroupSelect, businessAppContext, investmentGroups, skipAutoDetection])
+    setIsDetectingContext(false)
+    setContextDetectionComplete(true)
+    onGroupSelect(catalogGroupId)
+  }, [groupLaunch, investmentGroups, onGroupSelect, skipAutoDetection])
 
   return (
     <div data-testid={formatDataTestId(prefixDataTestId, 'container')} className="gba:p-6">
-      {/* Only show title when we're not detecting context or when showing manual selection */}
       {!isDetectingContext && contextDetectionComplete && (
         <div className="gba:text-center gba:mb-8">
           <h2 className="gba:m-0 gba:mb-2 gba:text-xl gba:font-semibold gba:text-foreground">
@@ -268,7 +130,6 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
         </div>
       )}
 
-      {/* Context Detection Loading State */}
       {isDetectingContext && (
         <div
           data-testid={formatDataTestId(prefixDataTestId, 'context-detection-container')}
@@ -284,7 +145,6 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
         </div>
       )}
 
-      {/* Catalog Loading State */}
       {!isDetectingContext && loading && (
         <div
           data-testid={formatDataTestId(prefixDataTestId, 'catalog-loading-container')}
@@ -300,7 +160,6 @@ const GroupSelectSegment: React.FC<GroupSelectSegmentProps> = ({
         </div>
       )}
 
-      {/* Error State */}
       {!isDetectingContext && error && (
         <div
           data-testid={formatDataTestId(prefixDataTestId, 'error-container')}
