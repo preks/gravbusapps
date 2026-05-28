@@ -14998,9 +14998,9 @@
     ]
   },
   "crm/core/forms/account-form": {
-    "bitbucketBuildNumber": 12633,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12633/",
-    "chunkJsBytes": 484192,
+    "bitbucketBuildNumber": 12677,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12677/",
+    "chunkJsBytes": 484198,
     "top": [
       {
         "kind": "bucket",
@@ -15041,8 +15041,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 146315,
-        "gzip": 39094,
+        "rendered": 146328,
+        "gzip": 39106,
         "leaves": [
           {
             "name": "src/common/components/common-relations/selects/contact-select/ContactSelect.tsx",
@@ -16194,9 +16194,9 @@
     ]
   },
   "crm/core/forms/contact-form": {
-    "bitbucketBuildNumber": 12639,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12639/",
-    "chunkJsBytes": 481723,
+    "bitbucketBuildNumber": 12677,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12677/",
+    "chunkJsBytes": 481727,
     "top": [
       {
         "kind": "bucket",
@@ -16219,8 +16219,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 145489,
-        "gzip": 38940,
+        "rendered": 145502,
+        "gzip": 38952,
         "leaves": [
           {
             "name": "src/common/components/common-relations/selects/contact-select/ContactSelect.tsx",
@@ -67575,9 +67575,9 @@
     ]
   },
   "irm/core/forms/account-form": {
-    "bitbucketBuildNumber": 12633,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12633/",
-    "chunkJsBytes": 480206,
+    "bitbucketBuildNumber": 12677,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12677/",
+    "chunkJsBytes": 480212,
     "top": [
       {
         "kind": "bucket",
@@ -67618,8 +67618,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 140830,
-        "gzip": 37444,
+        "rendered": 140843,
+        "gzip": 37456,
         "leaves": [
           {
             "name": "src/common/components/common-relations/selects/contact-select/ContactSelect.tsx",
@@ -68771,9 +68771,9 @@
     ]
   },
   "irm/core/forms/contact-form": {
-    "bitbucketBuildNumber": 12639,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12639/",
-    "chunkJsBytes": 488799,
+    "bitbucketBuildNumber": 12677,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12677/",
+    "chunkJsBytes": 488803,
     "top": [
       {
         "kind": "bucket",
@@ -68814,8 +68814,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 140004,
-        "gzip": 37290,
+        "rendered": 140017,
+        "gzip": 37302,
         "leaves": [
           {
             "name": "src/common/components/common-relations/selects/contact-select/ContactSelect.tsx",
@@ -88303,20 +88303,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12671,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12671/",
-    "chunkJsBytes": 1935036,
+    "bitbucketBuildNumber": 12677,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12677/",
+    "chunkJsBytes": 1935041,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1640155,
-        "gzip": 103509,
+        "gzip": 103506,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1640155,
-            "gzip": 103509
+            "gzip": 103506
           }
         ]
       },
@@ -111078,7 +111078,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-28T08:08:07.895Z",
+    "generatedAt": "2026-05-28T08:55:54.888Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
