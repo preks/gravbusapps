@@ -71,7 +71,6 @@ function makeDeps(overrides: Partial<any> = {}) {
     },
     recentlyDuplicatedWorksheetIdsRef: { current: new Map() },
     remoteEchoSuppressionRef: { current: new Map() },
-    recentLocallyMutatedGridCellsRef: { current: new Map() },
     lastSyncedGridCellSignaturesRef: { current: new Map() },
     lastCellValueMutationAtRef: { current: 0 },
     newRowClientIdByIndexRef: { current: new Map(overrides.clientRowIdEntries ?? []) },

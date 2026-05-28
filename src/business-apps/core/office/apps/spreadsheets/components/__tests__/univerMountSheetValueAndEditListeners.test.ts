@@ -14,7 +14,8 @@ import {
   markDeferredDirtyCellsFromRanges,
   resolveEmitSerializationKey,
   shouldDropRemoteEchoDuringApplyGuard,
-  shouldScheduleDeferredLocalCellFlush
+  shouldScheduleDeferredLocalCellFlush,
+  type DeferredDirtyCell
 } from '../univerMountSheetValueAndEditListeners'
 import { remoteEchoKey, toEchoSignature } from '../univerGridAuthoritativeHelpers'
 import { normalizeBlankLikeEchoSignature } from '../univerGridWorkbookMutationModule'
@@ -168,6 +169,44 @@ describe('remote apply guard defer helpers', () => {
 
     expect(cleared).toBe(1)
     expect(Array.from(deferredDirtyCells.keys()).sort()).toEqual(['sheet-1:5:7', 'sheet-1:9:2', 'sheet-2:5:2'])
+  })
+
+  it('preserves local_user deferred cells inside a bulk-painted region', () => {
+    const deferredDirtyCells = new Map<string, DeferredDirtyCell>()
+    deferredDirtyCells.set('sheet-1:5:2', {
+      row: 5,
+      col: 2,
+      worksheetId: 'sheet-1',
+      origin: 'local_user',
+      deferredPayload: { 5: { 2: { v: 'local' } } }
+    })
+    deferredDirtyCells.set('sheet-1:5:3', { row: 5, col: 3, worksheetId: 'sheet-1' })
+
+    const cleared = clearDeferredDirtyCellsInRegion(deferredDirtyCells, 'sheet-1', {
+      minRow: 4,
+      maxRow: 6,
+      minCol: 0,
+      maxCol: 5
+    })
+
+    expect(cleared).toBe(1)
+    expect(deferredDirtyCells.has('sheet-1:5:2')).toBe(true)
+    expect(deferredDirtyCells.has('sheet-1:5:3')).toBe(false)
+  })
+
+  it('tags local_user origin when marking deferred cells from guarded mutations', () => {
+    const deferredDirtyCells = new Map<
+      string,
+      { row: number; col: number; worksheetId: string | null; origin?: string; commandId?: string }
+    >()
+    markDeferredDirtyCellsFromMutation(deferredDirtyCells, [], { 174: { 3: { v: '2' } } }, 'sheet-1', null, undefined, {
+      origin: 'local_user',
+      commandId: 'sheet.mutation.set-range-values'
+    })
+    const entry = deferredDirtyCells.get('sheet-1:174:3')
+    expect(entry?.origin).toBe('local_user')
+    expect(entry?.commandId).toBe('sheet.mutation.set-range-values')
+    expect(entry?.deferredPayload).toEqual({ 174: { 3: { v: '2' } } })
   })
 
   it('ignores empty / inverted regions when clearing deferred dirty cells', () => {

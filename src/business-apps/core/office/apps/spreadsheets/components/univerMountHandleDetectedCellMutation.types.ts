@@ -8,7 +8,13 @@ import type { UniverWorkbookBootstrapMountContext } from './univerWorkbookBootst
 import type { UniverGridController } from './useUniverGridController'
 
 export type HandleDetectedCellMutationArgs = {
-  source: 'sheet-value-changed' | 'command-executed' | 'selection-reconcile' | 'sheet-edit-ended' | 'deferred-reconcile'
+  source:
+    | 'sheet-value-changed'
+    | 'command-executed'
+    | 'selection-reconcile'
+    | 'sheet-edit-ended'
+    | 'deferred-reconcile'
+    | 'deferred-replay'
   commandId?: string
   payloadCellValue: SheetCellMatrix | undefined
   ranges: SheetRangeShape[]
@@ -24,13 +30,13 @@ export type UniverMountHandleDetectedCellMutationDeps = Pick<
   | 'contextRef'
   | 'recentlyDuplicatedWorksheetIdsRef'
   | 'remoteEchoSuppressionRef'
-  | 'recentLocallyMutatedGridCellsRef'
   | 'lastSyncedGridCellSignaturesRef'
   | 'lastCellValueMutationAtRef'
   | 'newRowClientIdByIndexRef'
   | 'recentLocalMutationSignaturesRef'
   | 'pendingFormattingPasteIntentRef'
   | 'pendingAutofillIntentRef'
+  | 'mergeGestureSuppressBySheetRef'
 > &
   Pick<UniverWorkbookBootstrapMountContext, 'getWorkbookSnapshotRef'> & {
     peekPasteFormattingReplaceIntent: (sheetId: string) => boolean
@@ -47,6 +53,8 @@ export type UniverMountHandleDetectedCellMutationDeps = Pick<
     flushUnmaterializedRowsBeforePersist?: (targetSheetId: string, finalize?: () => Promise<void>) => Promise<void>
     /** Authoritative row snapshot after flush (session); used to remap `client_*` → server UUIDs in batch ops. */
     getPersistSheetRowsSnapshot?: (targetSheetId: string) => Record<string, unknown>[]
+    /** Rows last acknowledged by successful HTTP batches; used for cell-level ack checks. */
+    getPersistedBaselineRowsSnapshot?: (targetSheetId: string) => Record<string, unknown>[] | null
     /**
      * 2a: Predicate slots live on {@link UniverMountHandleDetectedCellMutationDeps.propsRef}
      * (`isBackendRowUuid`, deprecated `isUuidForRowRemap`). Call sites use

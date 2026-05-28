@@ -147,6 +147,63 @@ describe('applyAuthoritativeBatchResponseToRows', () => {
     ])
   })
 
+  it('merges adopted add_rows responses into the existing persisted slot', () => {
+    const rowUuid = '02790541-7184-4356-84f3-4eed34510be6'
+    const startingBaseline = [
+      {
+        _id: 'client_first',
+        _rowUuid: rowUuid,
+        _clientRowId: 'client_first',
+        _gridRowIndex: 253,
+        column_d: { v: 'lllll' }
+      }
+    ]
+    const operations: SpreadsheetBatchOperation[] = [
+      {
+        operationId: 'add-row-adopted',
+        type: 'add_rows',
+        data: {
+          rows: [{ _clientRowId: 'client_second', _gridRowIndex: 253, column_f: { v: 'lllooo' } }]
+        }
+      }
+    ]
+    const response: SpreadsheetBatchOperationResponse = {
+      sheetId: 'sheet-1',
+      newVersion: 590,
+      appliedOperations: [{ operationId: 'add-row-adopted', type: 'add_rows' }],
+      operationResults: [
+        {
+          operationId: 'add-row-adopted',
+          type: 'add_rows',
+          result: {
+            rows: [
+              {
+                id: rowUuid,
+                data: {
+                  _clientRowId: 'client_second',
+                  _gridRowIndex: 253,
+                  column_d: { v: 'lllll' },
+                  column_f: { v: 'lllooo' }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      idempotentReplay: false
+    }
+
+    expect(applyAuthoritativeBatchResponseToRows(startingBaseline, operations, response)).toEqual([
+      expect.objectContaining({
+        _rowUuid: rowUuid,
+        _clientRowId: 'client_second',
+        _gridRowIndex: 253,
+        column_d: { v: 'lllll' },
+        column_f: { v: 'lllooo' }
+      })
+    ])
+  })
+
   it('applies sparse slot transforms from authoritative row-slot operations', () => {
     const startingBaseline = [
       { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 2, ColumnA: 'row 2' },

@@ -236,6 +236,96 @@ describe('univerMutationPlanner', () => {
     expect(envelope.plan?.cells?.some(cell => cell.stylePatch != null)).toBe(false)
   })
 
+  it('drops style-only unset noise from plain text entry set-range mutations', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-plain-entry-style-noise',
+      intent: 'formatOnly',
+      currentData: [{ _id: 'row-1', name: 'Plain text' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      mergedCellValue: {
+        0: {
+          0: {
+            s: null,
+            bl: null,
+            it: null,
+            ul: null,
+            st: null,
+            ol: null,
+            ff: null,
+            fs: null,
+            cl: null,
+            bg: null,
+            ht: null,
+            vt: null,
+            tb: null,
+            tr: null,
+            pd: null,
+            bd: null,
+            n: null
+          }
+        }
+      },
+      workbookSnapshot: null,
+      replaceRangeStyleIntent: false,
+      mutationCommandId: 'sheet.mutation.set-range-values'
+    })
+
+    expect(envelope.plan).toBeNull()
+    expect(envelope.diagnostics.plannedStylePatchCount).toBe(0)
+  })
+
+  it('drops unset-only style noise from value entry into a new row', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-new-row-value-style-noise',
+      intent: 'pasteReplace',
+      currentData: [{ _id: 'row-1', name: '' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      mergedCellValue: {
+        0: {
+          0: {
+            v: 'Plain text',
+            s: null,
+            bl: null,
+            it: null,
+            ul: null,
+            st: null,
+            ol: null,
+            ff: null,
+            fs: null,
+            cl: null,
+            bg: null,
+            ht: null,
+            vt: null,
+            tb: null,
+            tr: null,
+            pd: null,
+            bd: null,
+            n: null
+          }
+        }
+      },
+      workbookSnapshot: null,
+      replaceRangeStyleIntent: false,
+      mutationCommandId: 'sheet.mutation.set-range-values'
+    })
+
+    expect(envelope.plan?.cells).toEqual([
+      expect.objectContaining({
+        rowId: 'row-1',
+        columnName: 'name',
+        valueAction: 'set',
+        value: 'Plain text'
+      })
+    ])
+    expect(envelope.plan?.cells?.some(cell => cell.stylePatch != null)).toBe(false)
+  })
+
   it('prefers a stable column resolver over stale columnIndexToName mappings', () => {
     const envelope = buildAuthoritativeMutationEnvelope({
       sheetId: 'sheet-1',
@@ -1002,6 +1092,41 @@ describe('univerMutationPlanner', () => {
 
     // Real user clears must still work: when the local user did touch the cell, the planner
     // emits a clear even if the authoritative signature was non-blank moments ago.
+    it('emits clear for user-initiated delete when cell is not locally owned', () => {
+      const envelope = buildAuthoritativeMutationEnvelope({
+        sheetId: 'sheet-1',
+        traceId: 'trace-user-initiated-clear',
+        intent: 'edit',
+        currentData: [{ _id: 'row-1', name: 'A18' }],
+        contextColumns: columns,
+        ctx,
+        ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+        explicitPayloadAbsoluteCellValue: {
+          0: { 0: { v: null } }
+        },
+        worksheetCellValue: {
+          0: { 0: { v: null } }
+        },
+        mergedCellValue: {
+          0: { 0: { v: null } }
+        },
+        workbookSnapshot: null,
+        wasRecentlyLocallyMutated: () => false,
+        getAuthoritativeSignatureForCell: () => 's:A18',
+        userInitiatedValueClear: true
+      })
+
+      expect(envelope.plan?.cells).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            rowId: 'row-1',
+            columnName: 'name',
+            valueAction: 'clear'
+          })
+        ])
+      )
+    })
+
     it('still emits clear when the local user recently mutated the cell', () => {
       const envelope = buildAuthoritativeMutationEnvelope({
         sheetId: 'sheet-1',
@@ -1036,6 +1161,34 @@ describe('univerMutationPlanner', () => {
       )
     })
 
+    it('skips deferred replay clear when the only evidence is a recent local touch', () => {
+      const envelope = buildAuthoritativeMutationEnvelope({
+        sheetId: 'sheet-1',
+        traceId: 'trace-deferred-stale-clear',
+        intent: 'edit',
+        currentData: [{ _id: 'row-1', name: 'F256 value' }],
+        contextColumns: columns,
+        ctx,
+        ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+        explicitPayloadAbsoluteCellValue: {
+          0: { 0: { v: null } }
+        },
+        worksheetCellValue: {
+          0: { 0: { v: null } }
+        },
+        mergedCellValue: {
+          0: { 0: { v: null } }
+        },
+        workbookSnapshot: null,
+        wasRecentlyLocallyMutated: () => true,
+        getAuthoritativeSignatureForCell: () => 's:F256 value',
+        allowRecentlyLocalBlankClear: false
+      })
+
+      const clears = envelope.plan?.cells.filter(cell => cell.valueAction === 'clear') ?? []
+      expect(clears).toEqual([])
+    })
+
     // If the authoritative signature is also blank (i.e. the cell was genuinely empty), the
     // guard must NOT block — there is nothing to protect. A normal "no-op clear" path keeps
     // the cell as `valueAction: 'none'` because currentSignature === nextSignature, but we
@@ -1066,6 +1219,105 @@ describe('univerMutationPlanner', () => {
       const clears = envelope.plan?.cells.filter(cell => cell.valueAction === 'clear') ?? []
       expect(clears).toEqual([])
     })
+  })
+
+  it('emits value writes for optimistic client rows even when session already matches', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-unmaterialized-row',
+      intent: 'pasteReplace',
+      currentData: [{ _id: 'client_row_158', _gridRowIndex: 158, name: '4' }],
+      contextColumns: columns,
+      ctx: {
+        rowIndexToId: new Map([[158, 'client_row_158']]),
+        columnIndexToName: new Map([[0, 'name']]),
+        columnIndexToId: new Map([[0, 'col-name']])
+      } as any,
+      ranges: [{ startRow: 158, endRow: 158, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: {
+        158: { 0: { v: '4' } }
+      },
+      worksheetCellValue: {
+        158: { 0: { v: '4' } }
+      },
+      mergedCellValue: {
+        158: { 0: { v: '4' } }
+      },
+      workbookSnapshot: null,
+      isRowPersistedAtGridIndex: () => false
+    })
+
+    expect(envelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowIndex: 158,
+          colIndex: 0,
+          valueAction: 'set',
+          value: '4'
+        })
+      ])
+    )
+  })
+
+  it('emits value writes for persisted rows when the backend-acknowledged cell is still blank', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-unacked-persisted-cell',
+      intent: 'edit',
+      currentData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', name: '9' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: {
+        0: { 0: { v: '9' } }
+      },
+      worksheetCellValue: {
+        0: { 0: { v: '9' } }
+      },
+      mergedCellValue: {
+        0: { 0: { v: '9' } }
+      },
+      workbookSnapshot: null,
+      isRowPersistedAtGridIndex: () => true,
+      getPersistedSignatureForCell: () => 'blank'
+    })
+
+    expect(envelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowIndex: 0,
+          colIndex: 0,
+          valueAction: 'set',
+          value: '9'
+        })
+      ])
+    )
+  })
+
+  it('skips value writes for persisted rows when the backend-acknowledged cell already matches', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-acked-persisted-cell',
+      intent: 'edit',
+      currentData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', name: '9' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: {
+        0: { 0: { v: '9' } }
+      },
+      worksheetCellValue: {
+        0: { 0: { v: '9' } }
+      },
+      mergedCellValue: {
+        0: { 0: { v: '9' } }
+      },
+      workbookSnapshot: null,
+      isRowPersistedAtGridIndex: () => true,
+      getPersistedSignatureForCell: () => 's:9'
+    })
+
+    expect(envelope.plan?.cells ?? []).toEqual([])
   })
 
   it('keeps value writes when the mutation creates new logical rows', () => {

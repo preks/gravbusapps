@@ -10,6 +10,7 @@ import {
   applySpreadsheetSessionMutation,
   buildSpreadsheetSessionState,
   captureSpreadsheetSessionPersistedBaseline,
+  captureSpreadsheetSessionPersistedBaselineForOperations,
   clearSpreadsheetSessionDirty,
   clearSpreadsheetSessionSheetGridMaterialization,
   markSpreadsheetSessionSheetNeedsGridMaterialization,
@@ -83,6 +84,11 @@ export const createSpreadsheetSession = (options: CreateSpreadsheetSessionOption
 
     capturePersistedBaseline(sheetId: string): void {
       state = captureSpreadsheetSessionPersistedBaseline(state, sheetId)
+      emitChange()
+    },
+
+    capturePersistedBaselineForOperations(sheetId: string, operations): void {
+      state = captureSpreadsheetSessionPersistedBaselineForOperations(state, sheetId, operations)
       emitChange()
     },
 

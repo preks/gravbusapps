@@ -36,6 +36,7 @@ export interface UseSpreadsheetCheckpointOrchestrationParams {
   getPersistedBaselineRowsForSheet: PersistSpreadsheetSnapshotCheckpointContext['getPersistedBaselineRowsForSheet']
   getActiveSessionRows: PersistSpreadsheetSnapshotCheckpointContext['getActiveSessionRows']
   hasPendingCellPersistence: PersistSpreadsheetSnapshotCheckpointContext['hasPendingCellPersistence']
+  isSheetPersistenceBusy: NonNullable<PersistSpreadsheetSnapshotCheckpointContext['isSheetPersistenceBusy']>
   isUuid: PersistSpreadsheetSnapshotCheckpointContext['isUuid']
   commitLocalSheetData: PersistSpreadsheetSnapshotCheckpointContext['commitLocalSheetData']
   setSnapshotDebugInfo: Dispatch<SetStateAction<SpreadsheetSnapshotDebugInfo>>
@@ -57,6 +58,7 @@ export interface UseSpreadsheetCheckpointOrchestrationParams {
   activeSheetIdRef: MutableRefObject<string>
   peerSheetDataCacheRef: MutableRefObject<Map<string, Record<string, unknown>[]>>
   authoritativePeerSheetDataCacheRef: MutableRefObject<Set<string>>
+  pendingLocalMutationCellsRef: MutableRefObject<Set<string>>
   pendingSnapshotClearCellsRef: MutableRefObject<Map<string, Set<string>>>
   pendingCellPersistTimeoutRef: MutableRefObject<ReturnType<typeof setTimeout> | null>
   unloadKeepAlivePersistRef: MutableRefObject<boolean>
@@ -91,6 +93,7 @@ export function useSpreadsheetCheckpointOrchestration(
     getPersistedBaselineRowsForSheet,
     getActiveSessionRows,
     hasPendingCellPersistence,
+    isSheetPersistenceBusy,
     isUuid,
     commitLocalSheetData,
     setSnapshotDebugInfo,
@@ -107,6 +110,7 @@ export function useSpreadsheetCheckpointOrchestration(
     activeSheetIdRef,
     peerSheetDataCacheRef,
     authoritativePeerSheetDataCacheRef,
+    pendingLocalMutationCellsRef,
     pendingSnapshotClearCellsRef,
     pendingCellPersistTimeoutRef,
     unloadKeepAlivePersistRef,
@@ -126,6 +130,7 @@ export function useSpreadsheetCheckpointOrchestration(
       activeSheetIdRef,
       peerSheetDataCacheRef,
       authoritativePeerSheetDataCacheRef,
+      pendingLocalMutationCellsRef,
       getPersistedBaselineRowsForSheet,
       pendingSnapshotClearCellsRef,
       pendingSnapshotCheckpointBySheetRef,
@@ -135,6 +140,7 @@ export function useSpreadsheetCheckpointOrchestration(
       activeTraceSessionRef,
       getActiveSessionRows,
       hasPendingCellPersistence,
+      isSheetPersistenceBusy,
       isUuid,
       commitLocalSheetData,
       setSnapshotDebugInfo,
@@ -154,10 +160,12 @@ export function useSpreadsheetCheckpointOrchestration(
       getActiveSessionRows,
       getPersistedBaselineRowsForSheet,
       hasPendingCellPersistence,
+      isSheetPersistenceBusy,
       isUuid,
       activeTraceSessionRef,
       authoritativePeerSheetDataCacheRef,
       lastSuccessfulSnapshotCheckpointAtRef,
+      pendingLocalMutationCellsRef,
       peerSheetDataCacheRef,
       pendingCellPersistTimeoutRef,
       pendingSnapshotCheckpointBySheetRef,

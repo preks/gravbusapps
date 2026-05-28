@@ -60,6 +60,36 @@ describe('spreadsheetViewerRows', () => {
         })
       )
     })
+
+    it('preserves adopted peer cell values returned by add_rows batch response', () => {
+      const { createdRows } = buildCreatedRowsFromBatch(
+        [{ _clientRowId: 'client-row-7', _gridRowIndex: 7, column_f: { v: 'second client' } }],
+        [
+          {
+            id: 'backend-row-7',
+            data: {
+              _clientRowId: 'client-row-7',
+              _gridRowIndex: 7,
+              column_d: { v: 'first client' },
+              column_f: { v: 'second client' }
+            }
+          }
+        ],
+        new Map(),
+        { rowMappings: [{ clientRowId: 'client-row-7', rowUuid: 'backend-row-7' }] }
+      )
+
+      expect(createdRows[0]).toEqual(
+        expect.objectContaining({
+          _id: 'backend-row-7',
+          _rowUuid: 'backend-row-7',
+          _clientRowId: 'client-row-7',
+          _gridRowIndex: 7,
+          column_d: { v: 'first client' },
+          column_f: { v: 'second client' }
+        })
+      )
+    })
   })
 
   describe('mergeDuplicateClientRows', () => {
@@ -73,6 +103,38 @@ describe('spreadsheetViewerRows', () => {
     it('keeps rows without client id', () => {
       const rows = [{ x: 1 }, { x: 2 }]
       expect(mergeDuplicateClientRows(rows)).toHaveLength(2)
+    })
+
+    it('merges adopted concurrent rows by backend uuid and grid slot', () => {
+      const rowUuid = '02790541-7184-4356-84f3-4eed34510be6'
+      const localRow = {
+        _id: 'client_first',
+        _rowUuid: rowUuid,
+        _clientRowId: 'client_first',
+        _gridRowIndex: 253,
+        column_d: { v: 'lllll' }
+      }
+      const adoptedRow = {
+        _id: 'client_second',
+        _rowUuid: rowUuid,
+        _clientRowId: 'client_second',
+        _gridRowIndex: 253,
+        column_d: { v: 'lllll' },
+        column_f: { v: 'lllooo' }
+      }
+
+      const merged = mergeDuplicateClientRows([localRow, adoptedRow] as Record<string, unknown>[])
+
+      expect(merged).toHaveLength(1)
+      expect(merged[0]).toEqual(
+        expect.objectContaining({
+          _rowUuid: rowUuid,
+          _clientRowId: 'client_second',
+          _gridRowIndex: 253,
+          column_d: { v: 'lllll' },
+          column_f: { v: 'lllooo' }
+        })
+      )
     })
   })
 

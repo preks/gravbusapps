@@ -69,4 +69,81 @@ describe('useSpreadsheetRowPersistencePipeline', () => {
       { rowId: 'backend-row-1', columnName: 'ColumnB', value: 'from-pending-update' }
     ])
   })
+
+  it('does not flush follow-up set_range when the adopted add_rows response already contains the pending value', async () => {
+    const submitBatch = jest.fn()
+    const appendRows = jest.fn(async () => ({
+      sheetId: 'sheet-1',
+      newVersion: 12,
+      appliedOperations: [],
+      operationResults: [
+        {
+          operationId: 'add-rows-op',
+          type: 'add_rows' as const,
+          result: {
+            rows: [
+              {
+                id: 'backend-row-7',
+                data: {
+                  _clientRowId: 'client-row-7',
+                  _gridRowIndex: 7,
+                  ColumnA: 'peer value',
+                  ColumnB: 'from-pending-update'
+                }
+              }
+            ]
+          }
+        }
+      ],
+      idempotentReplay: false,
+      rowMappings: [{ clientRowId: 'client-row-7', rowUuid: 'backend-row-7' }]
+    }))
+    const setRange = jest.fn(async () => ({ sheetId: 'sheet-1', newVersion: 13 }))
+
+    const { result } = renderHook(() =>
+      useSpreadsheetRowPersistencePipeline({
+        activeSheetId: 'sheet-1',
+        mutationFacade: {
+          submitBatch,
+          appendRows,
+          setRange
+        } as any,
+        updateActiveSheetVersion: jest.fn(),
+        isUuid: value => value === 'backend-row-7',
+        pendingClientRowUpdatesRef: {
+          current: new Map<string, Record<string, unknown>>([['client-row-7', { ColumnB: 'from-pending-update' }]])
+        },
+        pendingCellChangesRef: { current: [] },
+        persistPendingCellJournal: jest.fn(),
+        buildCreatedRowsFromBatch: () => ({
+          createdRows: [
+            {
+              _id: 'backend-row-7',
+              _rowUuid: 'backend-row-7',
+              _clientRowId: 'client-row-7',
+              _gridRowIndex: 7,
+              ColumnA: 'peer value',
+              ColumnB: 'from-pending-update'
+            }
+          ],
+          flushCells: [],
+          persistedIdByClientRowId: new Map([['client-row-7', 'backend-row-7']])
+        }),
+        onFlushDeferredCellEmits: jest.fn(),
+        onRowIdentityDiagnostics: jest.fn()
+      })
+    )
+
+    await act(async () => {
+      await result.current.persistAddedRowsWithBatch(
+        'sheet-1',
+        [{ _clientRowId: 'client-row-7', _gridRowIndex: 7, ColumnA: 'draft value' }],
+        jest.fn()
+      )
+    })
+
+    expect(appendRows).toHaveBeenCalledTimes(1)
+    expect(setRange).not.toHaveBeenCalled()
+    expect(submitBatch).not.toHaveBeenCalled()
+  })
 })

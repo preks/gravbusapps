@@ -20,6 +20,7 @@ import {
   parseA1Reference,
   planCommittedSpreadsheetRemoteTransaction,
   SpreadsheetSnapshotFallbackController,
+  isVersionRelatedSnapshotFallbackReason,
   sheetDeltaRequiresFullSnapshot,
   type SpreadsheetCommittedBatchEnvelope,
   type SpreadsheetCommittedOperation,
@@ -28,8 +29,10 @@ import {
   isDeprecatedWsStructuralRelayOperation,
   isLegacyWsRelayOperation,
   resolveWireOperationAppliedVersion,
-  synthesizeCommittedBatchFromWireOperation
+  synthesizeCommittedBatchFromWireOperation,
+  planCommittedBatchDirtyRegions
 } from '../core'
+import { SpreadsheetCollaborationBlockedRecoveryTracker } from '../core/spreadsheetCollaborationBlockedRecovery'
 import type { SpreadsheetColumn } from '../types'
 import {
   coalesceAdjacentColumnSlotInserts,
@@ -43,6 +46,10 @@ import { visibleColumnsInGridOrder } from '../utils/spreadsheetColumnReorderMove
 import { applyColumnVisibilityRangesToSpreadsheetColumns } from '../utils/spreadsheetColumnVisibilityMetadata'
 import { createUniverConversionContext } from '../utils/univerAdapter'
 import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
+import {
+  resolveBackendDirtyRegionsToAuthoritativeRegions,
+  type SpreadsheetDirtyRegion
+} from '../utils/spreadsheetDirtyRegions'
 import type { SpreadsheetDeltaDirtyRegion } from '../core/spreadsheetDeltaRegionPlanner'
 import { SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH } from '../utils/spreadsheetBulkRemoteConstants'
 import {
@@ -65,6 +72,8 @@ import {
   applyMoveRowSlotsTransform
 } from '../utils/spreadsheetRowSlotTransforms'
 import { getCanonicalRowId, rowMatchesRemoteId, type ViewerRow } from '../utils/spreadsheetRowIdentity'
+import { resolveViewerRowIndexForRemoteId } from '../utils/spreadsheetRowProjection'
+import { applyCommittedGridRowPlacements } from '../utils/spreadsheetCommittedGridRowPlacements'
 import type { SpreadsheetTraceEventInput } from './spreadsheetDiagnostics'
 
 /**
@@ -354,6 +363,8 @@ export class SpreadsheetCollaborationManager {
   private recentOutgoingClientOpIds = new Map<string, number>()
   private appliedCommittedBatchKeys = new Set<string>()
   private readonly snapshotFallbackController: SpreadsheetSnapshotFallbackController
+  private readonly blockedRecoveryTracker = new SpreadsheetCollaborationBlockedRecoveryTracker()
+  private readonly deferredSnapshotFallbackTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
   constructor(callbacks: CollaborationCallbacks) {
     this.callbacks = callbacks
@@ -394,6 +405,102 @@ export class SpreadsheetCollaborationManager {
     batchId?: string
     operationType?: string
   }): boolean {
+    const resolvedSheetId = params.sheetId ?? this.callbacks.getActiveSheetId()
+    if (
+      params.immediate !== true &&
+      isVersionRelatedSnapshotFallbackReason(params.reason) &&
+      this.callbacks.isSheetPersistenceBusy?.(resolvedSheetId)
+    ) {
+      return this.scheduleDeferredSnapshotFallback({ ...params, sheetId: resolvedSheetId })
+    }
+    return this.executeSnapshotFallbackRequest({ ...params, sheetId: resolvedSheetId })
+  }
+
+  private scheduleDeferredSnapshotFallback(params: {
+    sheetId: string
+    reason: SpreadsheetSnapshotFallbackReason
+    immediate?: boolean
+    detail?: string
+    version?: number | null
+    traceSessionId?: string
+    traceId?: string
+    batchId?: string
+    operationType?: string
+  }): boolean {
+    const deferKey = `${params.sheetId}:${params.reason}:${params.batchId ?? 'none'}`
+    if (this.deferredSnapshotFallbackTimers.has(deferKey)) {
+      this.collabDiag('snapshot_fallback_deferred_for_catchup', {
+        sheetId: params.sheetId,
+        reason: params.reason,
+        detail: params.detail,
+        duplicateDefer: true
+      })
+      return false
+    }
+    this.collabDiag('snapshot_fallback_deferred_for_catchup', {
+      sheetId: params.sheetId,
+      reason: params.reason,
+      detail: params.detail
+    })
+    this.traceEvent({
+      source: 'client',
+      stage: 'client_snapshot_fallback_deferred_for_catchup',
+      severity: 'info',
+      traceSessionId: params.traceSessionId,
+      traceId: params.traceId,
+      batchId: params.batchId,
+      operationType: params.operationType,
+      version: params.version ?? null,
+      payload: {
+        sheetId: params.sheetId,
+        reason: params.reason,
+        detail: params.detail ?? null
+      }
+    })
+    const timer = globalThis.setTimeout(() => {
+      this.deferredSnapshotFallbackTimers.delete(deferKey)
+      if (this.callbacks.isSheetPersistenceBusy?.(params.sheetId)) {
+        this.collabDiag('snapshot_fallback_deferred_still_busy', {
+          sheetId: params.sheetId,
+          reason: params.reason
+        })
+        this.executeSnapshotFallbackRequest(params)
+        return
+      }
+      this.collabDiag('snapshot_fallback_resolved_by_delta', {
+        sheetId: params.sheetId,
+        reason: params.reason
+      })
+      this.traceEvent({
+        source: 'client',
+        stage: 'client_snapshot_fallback_resolved_by_delta',
+        severity: 'info',
+        traceSessionId: params.traceSessionId,
+        traceId: params.traceId,
+        batchId: params.batchId,
+        operationType: params.operationType,
+        version: params.version ?? null,
+        payload: {
+          sheetId: params.sheetId,
+          reason: params.reason
+        }
+      })
+    }, 350)
+    this.deferredSnapshotFallbackTimers.set(deferKey, timer)
+    return true
+  }
+
+  private executeSnapshotFallbackRequest(params: {
+    sheetId: string
+    reason: SpreadsheetSnapshotFallbackReason
+    immediate?: boolean
+    detail?: string
+    version?: number | null
+    traceSessionId?: string
+    traceId?: string
+    batchId?: string
+    operationType?: string
+  }): boolean {
     const scheduled = this.snapshotFallbackController.requestFallback({
       sheetId: params.sheetId,
       reason: params.reason,
@@ -422,7 +529,112 @@ export class SpreadsheetCollaborationManager {
         detail: params.detail ?? null
       }
     })
+    if (scheduled) {
+      this.collabDiag('snapshot_fallback_reload_allowed', {
+        sheetId: params.sheetId,
+        reason: params.reason,
+        detail: params.detail
+      })
+    }
     return scheduled
+  }
+
+  /** Paint cell ops from a blocked WS batch while catch-up runs (version gap / session merge lag). */
+  private tryApplyCommittedBatchCellOpsToGrid(batch: SpreadsheetCommittedBatchEnvelope): void {
+    if (batch.sheetId !== this.callbacks.getActiveSheetId()) return
+    const cellChanges = this.collectIdentityBasedCellChanges(batch)
+    if (cellChanges.length === 0) return
+    this.collabDiag('blocked_recovery_direct_cell_apply', {
+      sheetId: batch.sheetId,
+      changeCount: cellChanges.length,
+      appliedVersion: batch.appliedVersion
+    })
+    this.applyLivePersistedChanges(cellChanges, 'batch_ops', 'direct_apply', batch.sheetId)
+  }
+
+  private handleBlockedCommittedBatchRecovery(params: {
+    batch: SpreadsheetCommittedBatchEnvelope
+    reason:
+      | 'invalid_envelope'
+      | 'unsupported_payload_schema'
+      | 'requires_snapshot'
+      | 'missing_version'
+      | 'version_gap'
+      | 'stale_version'
+      | 'duplicate'
+    knownVersion: number | null
+    alreadyApplied: boolean
+    isSameUser: boolean
+    traceMeta: DiagnosticsTraceMeta
+  }): boolean {
+    const action = this.blockedRecoveryTracker.resolveBlockedCommittedBatch({
+      batch: params.batch,
+      reason: params.reason,
+      knownVersion: params.knownVersion,
+      alreadyApplied: params.alreadyApplied,
+      isRecentLocalBatch: this.callbacks.isRecentLocalBatchId?.(params.batch.batchId, params.batch.tabId) === true
+    })
+    this.collabDiag('blocked_recovery_started', {
+      sheetId: params.batch.sheetId,
+      reason: params.reason,
+      action: action.kind,
+      batchId: params.batch.batchId
+    })
+    if (action.kind === 'skip') {
+      this.collabDiag('blocked_recovery_resolved', {
+        sheetId: params.batch.sheetId,
+        reason: params.reason,
+        resolution: 'skip'
+      })
+      return true
+    }
+    if (action.kind === 'catchup') {
+      this.collabDiag('blocked_recovery_retrying', {
+        sheetId: params.batch.sheetId,
+        reason: params.reason,
+        catchUpReason: action.catchUpReason,
+        recoveryPath: 'ops_catchup'
+      })
+      this.callbacks.requestSheetCatchUp?.(params.batch.sheetId, action.catchUpReason, {
+        sinceVersion: action.sinceVersion,
+        incomingVersion: action.incomingVersion
+      })
+      this.tryApplyCommittedBatchCellOpsToGrid(params.batch)
+      return true
+    }
+    if (action.kind === 'refresh_and_catchup') {
+      this.collabDiag('blocked_recovery_retrying', {
+        sheetId: params.batch.sheetId,
+        reason: params.reason,
+        catchUpReason: 'version_refresh',
+        recoveryPath: 'ops_catchup'
+      })
+      this.callbacks.scheduleSheetVersionRefreshFromApi()
+      this.callbacks.requestSheetCatchUp?.(params.batch.sheetId, 'version_gap', {
+        sinceVersion: Math.max(0, params.batch.baseVersion),
+        incomingVersion: params.batch.appliedVersion
+      })
+      this.tryApplyCommittedBatchCellOpsToGrid(params.batch)
+      return true
+    }
+    this.collabDiag('blocked_recovery_escalated_to_snapshot', {
+      sheetId: params.batch.sheetId,
+      reason: params.reason,
+      fallbackReason: action.reason,
+      recoveryPath: params.reason === 'requires_snapshot' ? 'explicit_snapshot_required' : 'ops_gap_unrecoverable'
+    })
+    this.requestSnapshotFallback({
+      sheetId: params.batch.sheetId,
+      reason: action.reason,
+      immediate: params.batch.sheetId === this.callbacks.getActiveSheetId(),
+      detail: params.reason,
+      traceSessionId: params.batch.traceSessionId ?? params.traceMeta.traceSessionId,
+      traceId: params.batch.traceId ?? params.traceMeta.traceId,
+      batchId: params.batch.batchId ?? params.traceMeta.batchId,
+      operationType: 'batch_operations',
+      version: params.batch.appliedVersion
+    })
+    return true
   }
 
   /**
@@ -497,6 +709,23 @@ export class SpreadsheetCollaborationManager {
 
   getLastKnownVersion(): number {
     return this.lastKnownVersion
+  }
+
+  applyLocalCommittedBatch(params: {
+    committedBatch: SpreadsheetCommittedBatchEnvelope
+    isSameUser?: boolean
+    traceMeta?: DiagnosticsTraceMeta
+  }): boolean {
+    const { committedBatch, isSameUser = true, traceMeta } = params
+    return this.applyCommittedBatchEnvelope({
+      committedBatch,
+      traceMeta: traceMeta ?? {},
+      isSameUser,
+      operation: { type: 'batch_operations', data: { sheetId: committedBatch.sheetId } },
+      activeSheetId: this.callbacks.getActiveSheetId(),
+      dedupeKey: buildCommittedBatchDedupeKey(committedBatch),
+      replayMode: getSpreadsheetDeltaReplayMode()
+    })
   }
 
   setCurrentUserId(userId: string | null): void {
@@ -1030,34 +1259,18 @@ export class SpreadsheetCollaborationManager {
             replayMode
           }
         })
-        if (validation.reason === 'duplicate') return
-        if (this.callbacks.requestSheetCatchUp) {
-          if (validation.reason === 'version_gap') {
-            this.callbacks.requestSheetCatchUp(committedBatch.sheetId, 'version_gap', {
-              sinceVersion: knownVersion ?? 0,
-              incomingVersion: committedBatch.appliedVersion
-            })
-            return
-          }
-          if (validation.reason === 'stale_version') {
-            this.callbacks.requestSheetCatchUp(committedBatch.sheetId, 'stale_version_data_op', {
-              sinceVersion: Math.max(0, committedBatch.baseVersion),
-              incomingVersion: committedBatch.appliedVersion
-            })
-            return
-          }
+        if (
+          this.handleBlockedCommittedBatchRecovery({
+            batch: committedBatch,
+            reason: validation.reason,
+            knownVersion: knownVersion ?? null,
+            alreadyApplied: this.appliedCommittedBatchKeys.has(dedupeKey),
+            isSameUser,
+            traceMeta
+          })
+        ) {
+          return
         }
-        this.requestSnapshotFallback({
-          sheetId: committedBatch.sheetId,
-          reason: validation.reason,
-          immediate: committedBatch.sheetId === activeSheetId,
-          detail: validation.reason,
-          traceSessionId: committedBatch.traceSessionId ?? traceMeta.traceSessionId,
-          traceId: committedBatch.traceId ?? traceMeta.traceId,
-          batchId: committedBatch.batchId ?? traceMeta.batchId,
-          operationType: operation.type,
-          version: committedBatch.appliedVersion
-        })
         return
       }
       if (committedBatch.sheetId !== activeSheetId) {
@@ -1793,7 +2006,11 @@ export class SpreadsheetCollaborationManager {
       const insertColumnSlotsInserts = this.extractInsertColumnSlotsFromBatch(gridReadyBatch)
       const deleteColumnSlotsDeletes = this.extractDeleteColumnSlotsFromBatch(gridReadyBatch)
       const needsStructuralGridSync = this.batchNeedsStructuralGridSync(gridReadyBatch)
-      this.commitSheetData(committedBatch.sheetId, transactionPlan.sessionPatch.rows, {
+      const sessionRowsWithPlacements = applyCommittedGridRowPlacements(
+        transactionPlan.sessionPatch.rows,
+        committedBatch.gridRowIndexByRowUuid
+      )
+      this.commitSheetData(committedBatch.sheetId, sessionRowsWithPlacements, {
         persisted: true,
         syncGrid: committedBatch.sheetId === activeSheetId && needsStructuralGridSync
       })
@@ -1801,7 +2018,7 @@ export class SpreadsheetCollaborationManager {
         this.applyRemoteInsertRowSlotsLive({
           sheetId: committedBatch.sheetId,
           inserts: insertRowSlotsInserts,
-          rows: transactionPlan.sessionPatch.rows,
+          rows: sessionRowsWithPlacements,
           dirtyRegions: transactionPlan.dirtyRegions,
           traceMeta: {
             traceSessionId: traceMeta.traceSessionId,
@@ -1910,6 +2127,21 @@ export class SpreadsheetCollaborationManager {
           },
           isLocalEcho: isSameUser
         })
+      }
+      const hasRemoteMergeRanges = gridReadyBatch.operations.some(operation => operation.type === 'merge_ranges')
+      if (committedBatch.sheetId === activeSheetId && hasRemoteMergeRanges && transactionPlan.dirtyRegions.length > 0) {
+        const mergeCatchupRegion = this.authoritativeRegionFromDirtyRegions(
+          transactionPlan.dirtyRegions,
+          sessionRowsWithPlacements,
+          committedBatch.sheetId
+        )
+        if (mergeCatchupRegion != null) {
+          this.callbacks.forceGridReapply?.(committedBatch.sheetId, mergeCatchupRegion, {
+            clearAllSignatures: false,
+            preferBulk: true,
+            reason: 'merge_ranges_session_catchup'
+          })
+        }
       }
       if (needsStructuralGridSync && committedBatch.sheetId === activeSheetId) {
         queueMicrotask(() => {
@@ -2968,10 +3200,13 @@ export class SpreadsheetCollaborationManager {
             (rowsToApplyToGrid.length > 0
               ? this.buildDirtyRegionForCreatedRows(targetSheetId, nextRows, rowsToApplyToGrid)
               : null)
-          this.callbacks.forceGridReapply?.(targetSheetId, dirty, {
-            clearAllSignatures: dirty == null,
-            preferBulk: true
-          })
+          if (dirty != null) {
+            this.callbacks.forceGridReapply?.(targetSheetId, dirty, {
+              clearAllSignatures: false,
+              preferBulk: true,
+              reason: 'row_structure_catchup'
+            })
+          }
         } else {
           this.traceEvent({
             source: 'client',
@@ -3071,10 +3306,13 @@ export class SpreadsheetCollaborationManager {
               const dirty = isInsertAtOp
                 ? this.buildDirtyRegionForInsertedRows(targetSheetId, nextRows, insertAt)
                 : this.buildDirtyRegionForCreatedRows(targetSheetId, nextRows, createdRows)
-              this.callbacks.forceGridReapply?.(targetSheetId, dirty, {
-                clearAllSignatures: dirty == null,
-                preferBulk: true
-              })
+              if (dirty != null) {
+                this.callbacks.forceGridReapply?.(targetSheetId, dirty, {
+                  clearAllSignatures: false,
+                  preferBulk: true,
+                  reason: 'row_add_hydration_catchup'
+                })
+              }
             }
           }
         }
@@ -4037,8 +4275,10 @@ export class SpreadsheetCollaborationManager {
       }
       if (!gridApplied) {
         this.callbacks.forceGridReapply?.(params.sheetId, null, {
+          allowFullGridReapply: true,
           clearAllSignatures: true,
-          preferBulk: true
+          preferBulk: true,
+          reason: 'column_slots_insert_fallback'
         })
       }
       this.traceEvent({
@@ -4094,8 +4334,10 @@ export class SpreadsheetCollaborationManager {
       }
       if (!gridApplied) {
         this.callbacks.forceGridReapply?.(params.sheetId, null, {
+          allowFullGridReapply: true,
           clearAllSignatures: true,
-          preferBulk: true
+          preferBulk: true,
+          reason: 'column_slots_delete_fallback'
         })
       }
       this.traceEvent({
@@ -4414,10 +4656,13 @@ export class SpreadsheetCollaborationManager {
           (params.dirtyRegions
             ? this.authoritativeRegionFromDirtyRegions(params.dirtyRegions, params.rows, params.sheetId)
             : null)
-        this.callbacks.forceGridReapply?.(params.sheetId, region, {
-          clearAllSignatures: false,
-          preferBulk: true
-        })
+        if (region != null) {
+          this.callbacks.forceGridReapply?.(params.sheetId, region, {
+            clearAllSignatures: false,
+            preferBulk: true,
+            reason: 'row_slots_insert_fallback'
+          })
+        }
       }
       this.traceEvent({
         source: 'client',
@@ -4479,10 +4724,20 @@ export class SpreadsheetCollaborationManager {
           (params.dirtyRegions
             ? this.authoritativeRegionFromDirtyRegions(params.dirtyRegions, params.rows, params.sheetId)
             : null)
-        this.callbacks.forceGridReapply?.(params.sheetId, region, {
-          clearAllSignatures: true,
-          preferBulk: true
-        })
+        if (region != null) {
+          this.callbacks.forceGridReapply?.(params.sheetId, region, {
+            clearAllSignatures: true,
+            preferBulk: true,
+            reason: 'row_slots_delete_fallback_bounded'
+          })
+        } else {
+          this.callbacks.forceGridReapply?.(params.sheetId, null, {
+            allowFullGridReapply: true,
+            clearAllSignatures: true,
+            preferBulk: true,
+            reason: 'row_slots_delete_fallback_full'
+          })
+        }
       }
       this.traceEvent({
         source: 'client',
@@ -4567,10 +4822,13 @@ export class SpreadsheetCollaborationManager {
         }
       }
       const region = this.resolveMoveCellRangeAuthoritativeRegion(params)
-      this.callbacks.forceGridReapply?.(params.sheetId, region, {
-        clearAllSignatures: skipNativeMove,
-        preferBulk: true
-      })
+      if (region != null) {
+        this.callbacks.forceGridReapply?.(params.sheetId, region, {
+          clearAllSignatures: skipNativeMove,
+          preferBulk: true,
+          reason: 'cell_range_move_reconcile'
+        })
+      }
       const gridApplied = nativeMoveApplied || skipNativeMove || region != null
       this.traceEvent({
         source: 'client',
@@ -4630,10 +4888,13 @@ export class SpreadsheetCollaborationManager {
           (params.dirtyRegions
             ? this.authoritativeRegionFromDirtyRegions(params.dirtyRegions, params.rows, params.sheetId)
             : null)
-        this.callbacks.forceGridReapply?.(params.sheetId, region, {
-          clearAllSignatures: false,
-          preferBulk: true
-        })
+        if (region != null) {
+          this.callbacks.forceGridReapply?.(params.sheetId, region, {
+            clearAllSignatures: false,
+            preferBulk: true,
+            reason: 'row_slots_move_fallback'
+          })
+        }
       }
       this.traceEvent({
         source: 'client',
@@ -4671,16 +4932,20 @@ export class SpreadsheetCollaborationManager {
     if (params.isLocalEcho) {
       queueMicrotask(() => {
         this.callbacks.forceGridReapply?.(params.sheetId, null, {
+          allowFullGridReapply: true,
           clearAllSignatures: true,
-          preferBulk: true
+          preferBulk: true,
+          reason: 'column_reorder_local_echo'
         })
       })
       return
     }
     if (!this.callbacks.applyRemoteColumnReorder) {
       this.callbacks.forceGridReapply?.(params.sheetId, null, {
+        allowFullGridReapply: true,
         clearAllSignatures: true,
-        preferBulk: true
+        preferBulk: true,
+        reason: 'column_reorder_no_native_handler'
       })
       return
     }
@@ -4692,8 +4957,10 @@ export class SpreadsheetCollaborationManager {
           nextColumns: params.nextColumns
         }) ?? false
       this.callbacks.forceGridReapply?.(params.sheetId, null, {
+        allowFullGridReapply: true,
         clearAllSignatures: true,
-        preferBulk: true
+        preferBulk: true,
+        reason: 'column_reorder_post_native_move'
       })
       this.traceEvent({
         source: 'client',
@@ -4721,15 +4988,86 @@ export class SpreadsheetCollaborationManager {
     batch: SpreadsheetCommittedBatchEnvelope
     traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string }
   }): void {
-    const region = this.authoritativeRegionFromDirtyRegions(params.dirtyRegions, params.rows, params.sheetId)
+    const gridNativeClearOpTypes = new Set(['clear_all', 'clear_format'])
+    const isGridNativeClearOnlyBatch =
+      params.batch.operations.length > 0 &&
+      params.batch.operations.every(operation => gridNativeClearOpTypes.has(operation.type))
+    if (isGridNativeClearOnlyBatch) {
+      this.collabDiag('structural_grid_sync_skip_grid_native_clear', {
+        sheetId: params.sheetId,
+        operationTypes: params.batch.operations.map(operation => operation.type)
+      })
+      this.traceEvent({
+        source: 'client',
+        stage: 'client_committed_batch_structural_grid_sync_skipped',
+        traceSessionId: params.traceMeta?.traceSessionId,
+        traceId: params.traceMeta?.traceId,
+        batchId: params.traceMeta?.batchId,
+        payload: {
+          sheetId: params.sheetId,
+          reason: 'grid_native_clear_already_applied',
+          operationTypes: params.batch.operations.map(operation => operation.type)
+        }
+      })
+      return
+    }
+
+    const backendRegions =
+      params.batch.dirtyRegions && params.batch.dirtyRegions.length > 0
+        ? this.authoritativeRegionsFromBackendDirtyRegions(params.batch.dirtyRegions, params.rows, params.sheetId)
+        : []
+    const plannedDeltaRegions =
+      params.dirtyRegions.length > 0 ? params.dirtyRegions : planCommittedBatchDirtyRegions(params.batch)
+    const fallbackRegion = this.authoritativeRegionFromDirtyRegions(plannedDeltaRegions, params.rows, params.sheetId)
+    let regions = backendRegions.length > 0 ? backendRegions : fallbackRegion ? [fallbackRegion] : []
     const hasRowStructuralOp = params.batch.operations.some(operation =>
       LIVE_ROW_STRUCTURAL_OP_TYPES.has(operation.type)
     )
-    const clearAllSignatures = hasRowStructuralOp && region == null
-    this.callbacks.forceGridReapply?.(params.sheetId, region, {
-      clearAllSignatures,
-      preferBulk: true
-    })
+    const supportedNormalOpsOnly = params.batch.operations.every(operation =>
+      ['set_cell', 'clear_cell', 'set_range', 'set_style', 'add_rows', 'insert_rows_at'].includes(operation.type)
+    )
+    if (regions.length === 0 && supportedNormalOpsOnly) {
+      const operationFallbackRegion = this.resolveAuthoritativeSheetRegionFromBatchOperations(
+        params.sheetId,
+        params.batch,
+        params.rows
+      )
+      if (operationFallbackRegion) {
+        regions = [operationFallbackRegion]
+      }
+    }
+    if (regions.length > 0) {
+      const target = regions.length === 1 ? regions[0] : regions
+      this.callbacks.forceGridReapply?.(params.sheetId, target, {
+        clearAllSignatures: false,
+        preferBulk: true,
+        reason:
+          regions.length > 1
+            ? 'multi_region_authoritative_reapply'
+            : backendRegions.length > 0
+              ? 'dirty_regions_from_backend_used'
+              : 'dirty_regions_fallback_planned'
+      })
+    } else if (supportedNormalOpsOnly) {
+      this.collabDiag('dirty_regions_missing_for_supported_op', {
+        sheetId: params.sheetId,
+        operationTypes: params.batch.operations.map(operation.type)
+      })
+      this.callbacks.requestSheetCatchUp?.(params.sheetId, 'stale_version_data_op', {
+        sinceVersion: Math.max(0, params.batch.baseVersion),
+        incomingVersion: params.batch.appliedVersion
+      })
+      return
+    } else {
+      const clearAllSignatures = hasRowStructuralOp
+      this.callbacks.forceGridReapply?.(params.sheetId, null, {
+        clearAllSignatures,
+        preferBulk: true,
+        ...(clearAllSignatures
+          ? { allowFullGridReapply: true, reason: 'structural_transaction_sync_full' }
+          : { reason: 'structural_transaction_sync_bounded' })
+      })
+    }
     this.traceEvent({
       source: 'client',
       stage: 'client_committed_batch_structural_grid_sync',
@@ -4738,11 +5076,41 @@ export class SpreadsheetCollaborationManager {
       batchId: params.traceMeta?.batchId,
       payload: {
         sheetId: params.sheetId,
-        region,
-        clearAllSignatures,
+        regions,
+        backendRegionCount: backendRegions.length,
         operationTypes: params.batch.operations.map(operation => operation.type)
       }
     })
+  }
+
+  private resolveAuthoritativeSheetRegionFromBatchOperations(
+    sheetId: string,
+    batch: SpreadsheetCommittedBatchEnvelope,
+    rows: ViewerRow[]
+  ): AuthoritativeGridRegion | null {
+    const extraRowIndexes: number[] = []
+    for (const operation of batch.operations) {
+      if (operation.type === 'add_rows' || operation.type === 'insert_rows_at') {
+        const payload = operation.data
+        const createdRows = Array.isArray(payload.rows) ? (payload.rows as Array<Record<string, unknown>>) : []
+        for (const row of createdRows) {
+          const gridRowIndex = Number(row._gridRowIndex)
+          if (Number.isFinite(gridRowIndex) && gridRowIndex >= 0) {
+            extraRowIndexes.push(Math.trunc(gridRowIndex))
+          }
+        }
+        if (operation.type === 'insert_rows_at') {
+          const insertAt = Number(payload.insertAt)
+          const count = Math.max(createdRows.length, 1)
+          if (Number.isFinite(insertAt) && insertAt >= 0) {
+            for (let offset = 0; offset < count; offset += 1) {
+              extraRowIndexes.push(Math.trunc(insertAt) + offset)
+            }
+          }
+        }
+      }
+    }
+    return this.resolveAuthoritativeSheetRegion(sheetId, rows, extraRowIndexes)
   }
 
   private resolveAuthoritativeRowIndexBounds(rows: ViewerRow[]): { minRow: number; maxRow: number } | null {
@@ -4790,6 +5158,19 @@ export class SpreadsheetCollaborationManager {
       minCol: Math.max(0, Math.min(region.minCol, lastCol)),
       maxCol: maxColExceedsVisible ? lastCol : Math.max(region.minCol, Math.min(region.maxCol, lastCol))
     }
+  }
+
+  private authoritativeRegionsFromBackendDirtyRegions(
+    dirtyRegions: SpreadsheetDirtyRegion[],
+    rows: ViewerRow[],
+    sheetId: string
+  ): AuthoritativeGridRegion[] {
+    return resolveBackendDirtyRegionsToAuthoritativeRegions({
+      dirtyRegions,
+      columns: this.getColumnsForSheet(sheetId),
+      rows,
+      clampRegion: region => this.clampAuthoritativeRegion(sheetId, region)
+    })
   }
 
   private authoritativeRegionFromDirtyRegions(
@@ -4959,6 +5340,20 @@ export class SpreadsheetCollaborationManager {
     extraOptions?: ApplyRemoteCellUpdateOptions
   }): { rowIndex: number; colIndex: number; options: ApplyRemoteCellUpdateOptions | undefined } | null {
     const { sheetId, rowId, columnKey, cellRef, row, col, dataOverride, extraOptions } = params
+    const targetColumnName = this.resolveColumnName(columnKey, sheetId)
+    const identityResolved = this.resolveCoordinates(targetColumnName, rowId, sheetId, dataOverride)
+    if (identityResolved.rowIndex != null && identityResolved.colIndex != null && identityResolved.colIndex >= 0) {
+      return {
+        rowIndex: identityResolved.rowIndex,
+        colIndex: identityResolved.colIndex,
+        options: this.withTargetSheetApplyOptions(sheetId, extraOptions)
+      }
+    }
+
+    if (rowId) {
+      return null
+    }
+
     const trimmedRef = typeof cellRef === 'string' ? cellRef.trim() : ''
     if (trimmedRef) {
       const a1 = parseA1Reference(trimmedRef)
@@ -4985,19 +5380,8 @@ export class SpreadsheetCollaborationManager {
         })
       }
     }
-    const targetColumnName = this.resolveColumnName(columnKey, sheetId)
-    const { rowIndex, colIndex } = this.resolveCoordinates(targetColumnName, rowId, sheetId, dataOverride)
-    if (rowIndex === undefined || colIndex === undefined || colIndex < 0) {
-      return null
-    }
-    return {
-      rowIndex,
-      colIndex,
-      options: this.withTargetSheetApplyOptions(sheetId, {
-        useSenderA1Row: true,
-        ...extraOptions
-      })
-    }
+
+    return null
   }
 
   private resolveCoordinates(
@@ -5009,13 +5393,7 @@ export class SpreadsheetCollaborationManager {
     const columns = this.getColumnsForSheet(sheetId)
     const data = dataOverride ?? this.getSheetData(sheetId)
     const ctx = createUniverConversionContext(columns, data)
-    let rowIndex = ctx.rowIdToIndex.get(remoteRowId)
-    if (rowIndex === undefined) {
-      const idx = data.findIndex(row => rowMatchesRemoteRowId(row, remoteRowId))
-      if (idx >= 0) {
-        rowIndex = getViewerRowVisualIndex(data[idx], idx)
-      }
-    }
+    const rowIndex = resolveViewerRowIndexForRemoteId(data, remoteRowId)
     let colIndex = ctx.columnIdToIndex.get(columnKey)
     if (colIndex === undefined) {
       const visibleColumns = columns.filter(c => c.isVisible !== false)

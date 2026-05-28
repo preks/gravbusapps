@@ -303,23 +303,36 @@ describe('UniverRemoteTransactionRunner', () => {
     )
   })
 
-  it('rejects unsupported workbook feature operations until feature live transforms are wired', () => {
-    const runner = new UniverRemoteTransactionRunner({ applyRemoteCellUpdate: jest.fn() })
-
-    expect(
-      runner.run(
-        okPlan([
-          {
-            type: 'merge_ranges',
-            operationId: 'merge-1',
-            data: { sheetId: 'sheet-1', ranges: [] }
-          }
-        ])
-      )
-    ).toEqual({
-      ok: false,
-      reason: 'unsupported_runner_operation',
-      detail: 'merge_ranges'
+  it('applies merge_ranges via applyRemoteSpreadsheetFeatureOperation', () => {
+    const applyRemoteSpreadsheetFeatureOperation = jest.fn()
+    const runner = new UniverRemoteTransactionRunner({
+      applyRemoteCellUpdate: jest.fn(),
+      applyRemoteSpreadsheetFeatureOperation
     })
+
+    const result = runner.run(
+      okPlan([
+        {
+          type: 'merge_ranges',
+          operationId: 'merge-1',
+          data: {
+            sheetId: 'sheet-1',
+            ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }]
+          }
+        }
+      ])
+    )
+
+    expect(result).toEqual({ ok: true, appliedCellCount: 0, appliedOperationCount: 1 })
+    expect(applyRemoteSpreadsheetFeatureOperation).toHaveBeenCalledWith(
+      {
+        type: 'merge_ranges',
+        data: {
+          sheetId: 'sheet-1',
+          ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }]
+        }
+      },
+      expect.objectContaining({ operationType: 'merge_ranges' })
+    )
   })
 })

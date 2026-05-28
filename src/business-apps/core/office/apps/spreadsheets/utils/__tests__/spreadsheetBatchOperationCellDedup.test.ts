@@ -1,4 +1,7 @@
-import { dropSetRangeCellsRedundantAfterMaterialization } from '../spreadsheetBatchOperationCellDedup'
+import {
+  dropSetRangeCellsRedundantAfterMaterialization,
+  dropSetRangeCellsRedundantWithAddRows
+} from '../spreadsheetBatchOperationCellDedup'
 import type { SpreadsheetBatchOperation } from '../../services/SpreadsheetApiService'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -36,6 +39,7 @@ describe('dropSetRangeCellsRedundantAfterMaterialization', () => {
 
     expect(result.operations).toHaveLength(1)
     expect(result.droppedCellCount).toBe(0)
+    expect(result.retainedMismatchedCellKeys).toEqual([`${ROW_A}\u0000column_b`])
   })
 
   it('does not touch cells on rows that were not materialized this dispatch (Fix F scope)', () => {
@@ -136,5 +140,54 @@ describe('dropSetRangeCellsRedundantAfterMaterialization', () => {
         isUuid
       ).droppedCellCount
     ).toBe(0)
+  })
+})
+
+describe('dropSetRangeCellsRedundantWithAddRows', () => {
+  it('drops set_range cells already seeded by same-batch add_rows payloads', () => {
+    const result = dropSetRangeCellsRedundantWithAddRows([
+      {
+        operationId: 'add_rows_1',
+        type: 'add_rows',
+        data: {
+          rows: [{ _clientRowId: 'client-row-1', ColumnA: 'burst' }]
+        }
+      },
+      setRangeOp([
+        {
+          rowRef: { kind: 'clientHandle', clientRowId: 'client-row-1' },
+          columnName: 'ColumnA',
+          value: 'burst'
+        }
+      ])
+    ])
+
+    expect(result.operations).toHaveLength(1)
+    expect(result.operations[0]?.type).toBe('add_rows')
+    expect(result.droppedCellCount).toBe(1)
+    expect(result.droppedSetRangeOpCount).toBe(1)
+  })
+
+  it('keeps same-batch value writes when add_rows seeded a different value', () => {
+    const result = dropSetRangeCellsRedundantWithAddRows([
+      {
+        operationId: 'add_rows_1',
+        type: 'add_rows',
+        data: {
+          rows: [{ _clientRowId: 'client-row-1', ColumnA: 'old' }]
+        }
+      },
+      setRangeOp([
+        {
+          rowRef: { kind: 'clientHandle', clientRowId: 'client-row-1' },
+          columnName: 'ColumnA',
+          value: 'new'
+        }
+      ])
+    ])
+
+    expect(result.operations).toHaveLength(2)
+    expect(result.droppedCellCount).toBe(0)
+    expect(result.retainedMismatchedCellKeys).toEqual(['client-row-1\u0000ColumnA'])
   })
 })

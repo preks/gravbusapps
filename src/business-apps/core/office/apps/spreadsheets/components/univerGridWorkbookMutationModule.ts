@@ -1436,6 +1436,7 @@ export function runWithWorkbookFacadeSheetActive<T>(
 
 export function isUnifiedMutationOperationType(type: string): type is SpreadsheetUnifiedMutationBatchOperationType {
   return (
+    type === 'add_rows' ||
     type === 'set_range' ||
     type === 'clear_cell' ||
     type === 'set_style' ||

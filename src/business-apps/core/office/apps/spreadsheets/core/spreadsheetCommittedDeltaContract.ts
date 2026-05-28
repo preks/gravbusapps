@@ -1,4 +1,9 @@
+import { parseSpreadsheetDirtyRegions, type SpreadsheetDirtyRegion } from '../utils/spreadsheetDirtyRegions'
+import { parseCommittedGridRowPlacements } from '../utils/spreadsheetCommittedGridRowPlacements'
+
 export const SPREADSHEET_COMMITTED_DELTA_PAYLOAD_SCHEMA_VERSION = 1
+
+export type { SpreadsheetDirtyRegion }
 
 export type SpreadsheetDeltaReplayMode = 'off' | 'shadow' | 'enabled'
 
@@ -27,6 +32,12 @@ export type SpreadsheetCommittedBatchEnvelope = {
   traceSessionId?: string
   sessionId?: string
   tabId?: string
+  /** Authoritative dirty regions from backend batch commit (when present). */
+  dirtyRegions?: SpreadsheetDirtyRegion[]
+  /** Identity-keyed canonical row placements from the backend commit. */
+  gridRowIndexByRowUuid?: Record<string, number>
+  removedRowUuids?: string[]
+  rowMappings?: Array<{ clientRowId: string; rowUuid: string; gridRowIndex?: number }>
 }
 
 export type SpreadsheetCommittedBatchValidationResult =
@@ -111,6 +122,35 @@ export function normalizeCommittedBatchEnvelope(params: {
     traceSessionId: optionalString(data.traceSessionId),
     sessionId: optionalString(data.sessionId),
     tabId: optionalString(data.tabId),
+    ...(() => {
+      const dirtyRegions = parseSpreadsheetDirtyRegions(data.dirtyRegions)
+      return dirtyRegions.length > 0 ? { dirtyRegions } : {}
+    })(),
+    ...(() => {
+      const gridRowIndexByRowUuid = parseCommittedGridRowPlacements(data.gridRowIndexByRowUuid)
+      return gridRowIndexByRowUuid ? { gridRowIndexByRowUuid } : {}
+    })(),
+    ...(() => {
+      const removedRowUuids = Array.isArray(data.removedRowUuids)
+        ? data.removedRowUuids.map(entry => (typeof entry === 'string' ? entry.trim() : '')).filter(Boolean)
+        : []
+      return removedRowUuids.length > 0 ? { removedRowUuids } : {}
+    })(),
+    ...(() => {
+      const rowMappings = Array.isArray(data.rowMappings)
+        ? data.rowMappings
+            .map(entry => {
+              const mapping = asRecord(entry)
+              const clientRowId = optionalString(mapping?.clientRowId)
+              const rowUuid = optionalString(mapping?.rowUuid)
+              if (!clientRowId || !rowUuid) return null
+              const gridRowIndex = toFiniteVersion(mapping?.gridRowIndex)
+              return gridRowIndex != null ? { clientRowId, rowUuid, gridRowIndex } : { clientRowId, rowUuid }
+            })
+            .filter((entry): entry is { clientRowId: string; rowUuid: string; gridRowIndex?: number } => entry != null)
+        : []
+      return rowMappings.length > 0 ? { rowMappings } : {}
+    })(),
     operations: operations
       .map((entry): SpreadsheetCommittedOperation | null => {
         const op = asRecord(entry)
@@ -228,8 +268,22 @@ export function validateCommittedBatchForLiveApply(params: {
     return { ok: false, reason: 'missing_version' }
   }
   const normalizedLocalVersion = Math.trunc(localAppliedVersion)
-  if (normalizedLocalVersion < batch.baseVersion) return { ok: false, reason: 'version_gap' }
-  if (normalizedLocalVersion > batch.appliedVersion) return { ok: false, reason: 'stale_version' }
-  if (batch.operations.length === 0) return { ok: false, reason: 'invalid_envelope' }
-  return { ok: true }
+  const appliedVersion = Math.trunc(batch.appliedVersion)
+  const expectedNextVersion = normalizedLocalVersion + 1
+  if (batch.operations.length === 0) {
+    return { ok: false, reason: 'invalid_envelope' }
+  }
+  if (appliedVersion === expectedNextVersion) {
+    return { ok: true }
+  }
+  // Fast local typing can advance the sheet version ahead of slower peers. A peer batch whose
+  // appliedVersion is already "in the past" may still carry cell ops we never painted — apply it
+  // live when this client has not yet recorded the batch idempotency key.
+  if (appliedVersion <= normalizedLocalVersion) {
+    return { ok: true }
+  }
+  if (appliedVersion > expectedNextVersion) {
+    return { ok: false, reason: 'version_gap' }
+  }
+  return { ok: false, reason: 'stale_version' }
 }

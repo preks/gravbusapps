@@ -36,7 +36,9 @@
 
 import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
+import { detectTemporaryRowIdsInKnownRowIdFields } from '../utils/spreadsheetUnifiedBatchSubmitUtils'
 import type { SpreadsheetMutationBatchSubmit, SpreadsheetMutationTraceMeta } from './SpreadsheetMutationFacade'
+import { assertLocalPersistIdentityBarrier } from '../utils/spreadsheetIdentityBarrier'
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -53,6 +55,7 @@ export type LocalPersistKind =
   | 'structural'
   | 'undoRedo'
   | 'clear'
+  | 'workbookFeature'
   | 'unknownAtomic'
 
 export interface LocalPersistInput {
@@ -68,6 +71,11 @@ export interface LocalPersistInput {
    * structural / dimensions).
    */
   ownedCellKeys?: readonly string[]
+  /**
+   * Fully qualified pending-local-mutation keys protected from forced
+   * authoritative repaint while this group is still queued or submitting.
+   */
+  protectedCellKeys?: readonly string[]
   /** Optional trace meta forwarded to the HTTP submitter. */
   traceMeta?: SpreadsheetMutationTraceMeta
   /** Optional batchIdPrefix forwarded to the HTTP submitter. */
@@ -159,6 +167,8 @@ export interface SheetWorkQueueApi {
   getQueueCellState(sheetId: string, cellKey: string): QueueCellOwnershipState
   isQueueOwnedCell(sheetId: string, cellKey: string): boolean
   getDebugState(sheetId: string): SheetQueueDebugState
+  /** True while local or remote persistence work is still settling for the sheet. */
+  isSheetPersistenceBusy(sheetId: string): boolean
   /** Test/teardown only — cancels timers and rejects nothing; queue becomes inert. */
   dispose(): void
 }
@@ -185,6 +195,11 @@ export interface SheetWorkQueueDeps {
   submitMutationBatchForFastPath?: SpreadsheetMutationBatchSubmit
   /** Mirrors key queue transitions into the spreadsheet diagnostics panel. */
   emitDiagnosticsTraceEvent?: (event: SpreadsheetTraceEventInput) => void
+  onLocalMutationCellProtectionChange?: (
+    sheetId: string,
+    cellKeys: readonly string[],
+    protectedFromRepaint: boolean
+  ) => void
   refreshBaseVersionBeforeWrite: (sheetId: string, baseVersion: number) => Promise<number>
   resolveBaseVersion: (sheetId: string) => number
   /** Returns true while a bulk apply scope is open globally (belt-and-suspenders). */
@@ -293,6 +308,9 @@ const submitMutationBatchForKind = (
  * submit time, so a blind resubmit would silently land at the wrong index.
  * Those bubble up to higher-level handling.
  */
+const groupReferencesTemporaryRowIds = (operations: readonly SpreadsheetBatchOperation[]): boolean =>
+  detectTemporaryRowIdsInKnownRowIdFields(operations).length > 0
+
 const isAddRowsOnlyOperationList = (operations: readonly SpreadsheetBatchOperation[]): boolean => {
   if (operations.length === 0) return false
   for (const op of operations) {
@@ -545,6 +563,24 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     }
   }
 
+  const setProtectedCellKeys = (
+    state: PerSheetState,
+    cellKeys: readonly string[] | undefined,
+    protectedFromRepaint: boolean
+  ): void => {
+    if (!cellKeys || cellKeys.length === 0) return
+    deps.onLocalMutationCellProtectionChange?.(state.sheetId, cellKeys, protectedFromRepaint)
+  }
+
+  const setLocalGroupCellState = (
+    state: PerSheetState,
+    group: Pick<LocalPersistInput, 'ownedCellKeys' | 'protectedCellKeys'>,
+    next: QueueCellOwnershipState
+  ): void => {
+    setCellStatesBulk(state, group.ownedCellKeys, next)
+    setProtectedCellKeys(state, group.protectedCellKeys, next !== 'submitted' && next !== 'failed' && next !== 'none')
+  }
+
   const getCellState = (sheetId: string, cellKey: string): QueueCellOwnershipState => {
     const state = sheets.get(sheetId)
     if (!state) return 'none'
@@ -737,6 +773,57 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
       failed: false,
       complete: false
     }
+    if (kind === 'versionOnlyEcho') {
+      debug('remote_job_created', { sheetId, jobId: record.jobId, kind, fastTracked: true })
+      const controller: RemoteJobController = {
+        jobId: record.jobId,
+        sheetId,
+        kind,
+        markPaintDone: () => undefined,
+        markVersionDone: (version?: number) => {
+          if (record.complete) return
+          record.versionDone = true
+          record.complete = true
+          if (typeof version === 'number' && Number.isFinite(version)) {
+            const previous = state.queueClientAppliedVersion
+            if (previous == null || version > previous) {
+              state.queueClientAppliedVersion = version
+            }
+          }
+          debug('remote_job_version_done', {
+            sheetId: state.sheetId,
+            jobId: record.jobId,
+            kind,
+            version: version ?? null,
+            fastTracked: true
+          })
+          scheduleLocalFlushIfPossible(state)
+          notifyIdleIfReached(state)
+        },
+        markBulkDepthDone: () => undefined,
+        markNoGridFallbackDone: () => undefined,
+        fail: (error: unknown) => {
+          if (record.complete) return
+          record.failed = true
+          record.complete = true
+          debug('remote_job_failed', {
+            sheetId: state.sheetId,
+            jobId: record.jobId,
+            kind,
+            fastTracked: true,
+            error: error instanceof Error ? error.message : String(error)
+          })
+          scheduleLocalFlushIfPossible(state)
+          notifyIdleIfReached(state)
+        }
+      }
+      void Promise.resolve()
+        .then(() => execute(controller))
+        .catch(error => {
+          controller.fail(error)
+        })
+      return record.jobId
+    }
     pendingRemoteExecutors.set(record.jobId, execute)
     state.remotePending.push(record)
     debug('remote_job_created', { sheetId, jobId: record.jobId, kind })
@@ -780,6 +867,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     const results = response.results
     if (!results || results.length === 0) {
       setCellStatesBulk(state, group.ownedCellKeys, 'submitted')
+      setProtectedCellKeys(state, group.protectedCellKeys, false)
       return
     }
     const operationIdToCellKey = new Map<string, string>()
@@ -805,6 +893,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     }
     setCellStatesBulk(state, acceptedKeys, 'submitted')
     setCellStatesBulk(state, rejectedKeys, 'failed')
+    setProtectedCellKeys(state, group.protectedCellKeys, false)
   }
 
   const countResultsByStatus = (
@@ -820,10 +909,10 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
   }
 
   const canCoalesceWithLastGroup = (state: PerSheetState, kind: LocalPersistKind): boolean => {
-    if (kind !== 'cellValue') return false
+    if (kind !== 'cellValue' && kind !== 'workbookFeature') return false
     const last = state.localGroups[state.localGroups.length - 1]
     if (!last) return false
-    return last.kind === 'cellValue'
+    return last.kind === kind
   }
 
   const mergeIntoLastGroup = (state: PerSheetState, item: LocalPersistInput): void => {
@@ -854,6 +943,11 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
       for (const k of item.ownedCellKeys) existing.add(k)
       last.ownedCellKeys = Array.from(existing)
     }
+    if (item.protectedCellKeys) {
+      const existing = new Set(last.protectedCellKeys ?? [])
+      for (const k of item.protectedCellKeys) existing.add(k)
+      last.protectedCellKeys = Array.from(existing)
+    }
   }
 
   const cancelCoalesceTimer = (state: PerSheetState): void => {
@@ -877,6 +971,20 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     }, waitMs)
   }
 
+  const isStructuralPersistKind = (kind: LocalPersistKind): boolean =>
+    kind === 'structural' || kind === 'unknownAtomic' || kind === 'workbookFeature'
+
+  const hasBlockingStructuralHead = (state: PerSheetState, candidateIndex: number): boolean => {
+    for (let index = 0; index < candidateIndex; index += 1) {
+      const earlier = state.localGroups[index]
+      if (!earlier) continue
+      if (isStructuralPersistKind(earlier.kind) || isAddRowsOnlyOperationList(earlier.operations)) {
+        return true
+      }
+    }
+    return false
+  }
+
   /**
    * First group that can run now. Fast-path groups may flush ahead of a
    * conservative head that is waiting on remote/bulk gates so cell typing
@@ -886,6 +994,14 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     for (let index = 0; index < state.localGroups.length; index += 1) {
       const candidate = state.localGroups[index]
       if (!candidate) continue
+      if (
+        index > 0 &&
+        (isFastPathLocalPersistKind(candidate.kind) || candidate.kind === 'style') &&
+        groupReferencesTemporaryRowIds(candidate.operations) &&
+        hasBlockingStructuralHead(state, index)
+      ) {
+        continue
+      }
       const ready = persistReadyForGroup(state, candidate.kind)
       if (ready.ready) return index
     }
@@ -944,7 +1060,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
       return
     }
     // Mark owned cells as submitting (transition pending → submitting at flush time).
-    setCellStatesBulk(state, group.ownedCellKeys, 'submitting')
+    setLocalGroupCellState(state, group, 'submitting')
     state.localGroups.splice(flushIndex, 1)
     state.syncState = 'pending'
     traceDiag(
@@ -1046,7 +1162,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
             kind: group.kind
           })
           state.localGroups.unshift(group)
-          setCellStatesBulk(state, group.ownedCellKeys, 'pending')
+          setLocalGroupCellState(state, group, 'pending')
           state.syncState = 'idle'
           state.lastWaitReason = 'client_ahead_of_refreshed_base'
           traceDiag(
@@ -1186,7 +1302,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
         const shouldRunStructuralRecovery =
           errorStatus === 409 && (isFastPath || isAddRowsOnly) && deps.requestStructuralRecovery != null
         state.localGroups.unshift({ ...group, retryAttempt: attempt + 1 })
-        setCellStatesBulk(state, group.ownedCellKeys, 'pending')
+        setLocalGroupCellState(state, group, 'pending')
         state.syncState = 'retrying'
         outcome = 'parked'
         if (shouldRunStructuralRecovery) {
@@ -1212,7 +1328,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
         }
       } else {
         state.syncState = 'failed'
-        setCellStatesBulk(state, group.ownedCellKeys, 'failed')
+        setLocalGroupCellState(state, group, 'failed')
         madeProgress = true // group consumed; do not block other groups
         outcome = 'failed'
         traceDiag(
@@ -1248,8 +1364,22 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     if (item.sheetId !== sheetId) {
       throw new Error(`SheetWorkQueue.enqueueLocalPersist: sheetId mismatch (api=${sheetId} item=${item.sheetId})`)
     }
+    try {
+      assertLocalPersistIdentityBarrier(item.operations)
+    } catch (error) {
+      traceDiag(
+        'sheet_queue_enqueue_rejected_barrier',
+        {
+          sheetId,
+          kind: item.kind,
+          message: error instanceof Error ? error.message : String(error)
+        },
+        { traceId: item.traceId, severity: 'warning' }
+      )
+      throw error
+    }
     const state = ensureSheet(sheetId)
-    setCellStatesBulk(state, item.ownedCellKeys, 'pending')
+    setLocalGroupCellState(state, item, 'pending')
     if (canCoalesceWithLastGroup(state, item.kind)) {
       mergeIntoLastGroup(state, item)
     } else {
@@ -1273,11 +1403,15 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
       },
       { traceId: item.traceId }
     )
-    // Atomic boundaries do not wait on coalesce window.
-    if (item.kind !== 'cellValue') {
+    // Atomic boundaries do not wait on coalesce window (workbookFeature may coalesce in-group only).
+    if (item.kind !== 'cellValue' && item.kind !== 'workbookFeature') {
       cancelCoalesceTimer(state)
       state.coalesceFirstScheduledAt = null
       // Promote owned cells to scheduled-ish (we don't have a distinct state besides pending).
+      scheduleLocalFlushIfPossible(state)
+      return
+    }
+    if (item.kind === 'workbookFeature') {
       scheduleLocalFlushIfPossible(state)
       return
     }
@@ -1285,7 +1419,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     if (state.coalesceFirstScheduledAt == null) {
       state.coalesceFirstScheduledAt = now()
     }
-    setCellStatesBulk(state, item.ownedCellKeys, 'scheduled')
+    setLocalGroupCellState(state, item, 'scheduled')
     armCoalesceTimer(state)
   }
 
@@ -1319,7 +1453,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
       const before = state.localGroups.length
       const submitOutcomes: Array<'submitted' | 'failed' | 'parked'> = []
       try {
-        setCellStatesBulk(state, group.ownedCellKeys, 'submitting')
+        setLocalGroupCellState(state, group, 'submitting')
         state.localGroups.shift()
         await chainForLocalPersistKind(
           deps,
@@ -1386,6 +1520,17 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
   // Debug
   // -------------------------------------------------------------------------
 
+  const isSheetPersistenceBusy: SheetWorkQueueApi['isSheetPersistenceBusy'] = sheetId => {
+    const state = sheets.get(sheetId)
+    if (!state) return false
+    if (state.localGroups.length > 0) return true
+    if (state.coalesceTimer != null) return true
+    if (state.remotePending.length > 0) return true
+    if (state.remoteInFlight.size > 0) return true
+    if (state.remoteAwaitingSignals.size > 0) return true
+    return state.syncState === 'pending' || state.syncState === 'retrying'
+  }
+
   const getDebugState: SheetWorkQueueApi['getDebugState'] = sheetId => {
     const state = ensureSheet(sheetId)
     const counts: Partial<Record<QueueCellOwnershipState, number>> = {}
@@ -1449,6 +1594,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
       return s === 'pending' || s === 'scheduled' || s === 'submitting'
     },
     getDebugState,
+    isSheetPersistenceBusy,
     dispose
   }
 }

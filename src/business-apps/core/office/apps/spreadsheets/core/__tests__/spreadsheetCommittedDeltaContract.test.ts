@@ -39,7 +39,7 @@ describe('spreadsheetCommittedDeltaContract', () => {
     )
   })
 
-  it('allows live apply when local version is already at appliedVersion but content may be missing', () => {
+  it('treats batches at or behind local applied version as stale', () => {
     const batch = normalizeCommittedBatchEnvelope({
       operation: {
         baseVersion: 4,
@@ -54,6 +54,12 @@ describe('spreadsheetCommittedDeltaContract', () => {
     ).toEqual({
       ok: true
     })
+    expect(validateCommittedBatchForLiveApply({ batch: batch!, localAppliedVersion: 5, alreadyApplied: true })).toEqual(
+      {
+        ok: false,
+        reason: 'duplicate'
+      }
+    )
   })
 
   it('requires local version continuity for live apply', () => {
@@ -80,9 +86,14 @@ describe('spreadsheetCommittedDeltaContract', () => {
     expect(
       validateCommittedBatchForLiveApply({ batch: batch!, localAppliedVersion: 6, alreadyApplied: false })
     ).toEqual({
-      ok: false,
-      reason: 'stale_version'
+      ok: true
     })
+    expect(validateCommittedBatchForLiveApply({ batch: batch!, localAppliedVersion: 6, alreadyApplied: true })).toEqual(
+      {
+        ok: false,
+        reason: 'duplicate'
+      }
+    )
   })
 
   it('builds idempotency keys from version and batch id', () => {

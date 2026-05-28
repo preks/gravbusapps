@@ -39,6 +39,7 @@ const buildOptions = () => {
       incrementConflictCount: jest.fn(),
       recoverFromVersionConflict: jest.fn(async () => true),
       scheduleSnapshotCheckpointFromPersistence: jest.fn(),
+      onLocalBatchCommitted: jest.fn(),
       emitTraceEvent: jest.fn()
     },
     getActiveSheetVersionValue: () => activeSheetVersion
@@ -78,6 +79,7 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
     )
     expect(options.rememberRecentLocalBatchId).toHaveBeenCalledWith('set_range_generated', 'tab-1')
     expect(options.rememberKnownSheetVersion).toHaveBeenCalledWith('sheet-1', 7)
+    expect(options.onLocalBatchCommitted).toHaveBeenCalledWith('sheet-1', 7)
     expect(options.rememberSheetVersion).toHaveBeenCalledWith('sheet-1', 7)
     expect(options.rememberLocalCommittedVersion).toHaveBeenCalledWith(7)
     expect(options.applyMutationToSession).toHaveBeenCalledWith(
@@ -91,6 +93,32 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
       buildResponse(7)
     )
     expect(getActiveSheetVersionValue()).toBe(7)
+  })
+
+  it('skips legacy local session and baseline callbacks when unified committed-batch apply handles the response', async () => {
+    const { options } = buildOptions()
+    ;(options as { applyLocalCommittedBatch?: jest.Mock }).applyLocalCommittedBatch = jest.fn(() => true)
+    jest.spyOn(SpreadsheetApiService, 'applyOperationBatch').mockResolvedValue(buildResponse(7))
+    const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
+
+    await expect(
+      submitBatch({
+        sheetId: 'sheet-1',
+        operations: [{ operationId: 'op-1', type: 'set_range', data: { cells: [] } }],
+        batchIdPrefix: 'set_range'
+      })
+    ).resolves.toEqual(buildResponse(7))
+
+    expect((options as { applyLocalCommittedBatch?: jest.Mock }).applyLocalCommittedBatch).toHaveBeenCalledWith({
+      sheetId: 'sheet-1',
+      operations: [{ operationId: 'op-1', type: 'set_range', data: { cells: [] } }],
+      response: buildResponse(7),
+      batchId: 'set_range_generated',
+      traceId: 'set_range_generated',
+      baseVersion: 5
+    })
+    expect(options.applyMutationToSession).not.toHaveBeenCalled()
+    expect(options.applyResponseRowsToLocalBaseline).not.toHaveBeenCalled()
   })
 
   it('surfaces a 409 structural_conflict without any quick-retry or recoverFromVersionConflict (Tier 1 cutover)', async () => {

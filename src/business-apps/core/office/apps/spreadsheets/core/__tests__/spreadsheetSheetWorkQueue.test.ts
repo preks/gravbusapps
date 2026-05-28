@@ -46,6 +46,7 @@ interface HarnessOptions {
   submitImpl?: (req: Parameters<SheetWorkQueueDeps['submitMutationBatch']>[0]) => Promise<SubmitResult>
   refreshBase?: (sheetId: string, base: number) => Promise<number>
   resolveBase?: (sheetId: string) => number
+  onLocalMutationCellProtectionChange?: SheetWorkQueueDeps['onLocalMutationCellProtectionChange']
 }
 
 const buildHarness = (opts: HarnessOptions = {}) => {
@@ -88,6 +89,7 @@ const buildHarness = (opts: HarnessOptions = {}) => {
     refreshBaseVersionBeforeWrite: opts.refreshBase ?? (async sheetId => getServerVersion(sheetId)),
     resolveBaseVersion: opts.resolveBase ?? (sheetId => getServerVersion(sheetId)),
     isCollabBulkApplyDepthZero: () => opts.bulkDepthZero !== false,
+    onLocalMutationCellProtectionChange: opts.onLocalMutationCellProtectionChange,
     getLocalIdleCoalesceMs: () => opts.idleMs ?? 50,
     getLocalFlushMaxWaitMs: () => 500,
     getSubmittedOwnershipTtlMs: () => opts.submittedTtlMs ?? 10_000,
@@ -159,6 +161,41 @@ describe('createSpreadsheetSheetWorkQueue', () => {
 
       expect(submitCalls).toHaveLength(1)
       expect(submitCalls[0].operations).toHaveLength(4)
+    })
+
+    it('protects pending local mutation cells until submit settles', async () => {
+      const protectionEvents: Array<{ keys: readonly string[]; protectedFromRepaint: boolean }> = []
+      const { queue } = buildHarness({
+        initialClientVersion: 1,
+        onLocalMutationCellProtectionChange: (_sheetId, keys, protectedFromRepaint) => {
+          protectionEvents.push({ keys, protectedFromRepaint })
+        }
+      })
+      await seedClientVersion(queue, sheetA, 1)
+
+      await queue.enqueueLocalPersist(
+        sheetA,
+        makeLocal({
+          kind: 'cellValue',
+          operations: [setCellOp('row-1', 'A', 'local')],
+          ownedCellKeys: [cellKey('row-1', 'A')],
+          protectedCellKeys: ['semantic-key']
+        })
+      )
+
+      expect(protectionEvents).toContainEqual({
+        keys: ['semantic-key'],
+        protectedFromRepaint: true
+      })
+
+      jest.advanceTimersByTime(60)
+      await flushMicrotasks()
+      await queue.awaitIdle(sheetA)
+
+      expect(protectionEvents).toContainEqual({
+        keys: ['semantic-key'],
+        protectedFromRepaint: false
+      })
     })
 
     it('same cell coalesce keeps latest value', async () => {
@@ -412,10 +449,11 @@ describe('createSpreadsheetSheetWorkQueue', () => {
         expect.objectContaining({ rowId: 'r2', columnName: 'B', value: 'ok' })
       )
       expect(queue.getDebugState(sheetA).activeRemoteJobs.length).toBeGreaterThan(0)
+      expect(controllerRef).not.toBeNull()
 
-      controllerRef?.markPaintDone()
-      controllerRef?.markVersionDone(6)
-      controllerRef?.markBulkDepthDone()
+      controllerRef!.markPaintDone()
+      controllerRef!.markVersionDone(6)
+      controllerRef!.markBulkDepthDone()
       jest.advanceTimersByTime(60)
       await flushMicrotasks()
       await queue.awaitIdle(sheetA)
@@ -559,6 +597,44 @@ describe('createSpreadsheetSheetWorkQueue', () => {
       await queue.awaitIdle(sheetA)
 
       expect(submitCalls).toHaveLength(1)
+    })
+  })
+
+  describe('versionOnlyEcho fast-track', () => {
+    it('does not block conservative submits while a version-only echo promise is unresolved', async () => {
+      let releaseEcho: (() => void) | null = null
+      const echoDone = new Promise<void>(resolve => {
+        releaseEcho = resolve
+      })
+      const { queue, submitCalls, debugEvents } = buildHarness({
+        initialClientVersion: 5,
+        refreshBase: async () => 6
+      })
+      await seedClientVersion(queue, sheetA, 5)
+
+      await queue.enqueueRemoteApply(sheetA, 'versionOnlyEcho', async controller => {
+        await echoDone
+        controller.markVersionDone(6)
+      })
+      await flushMicrotasks()
+
+      await queue.enqueueLocalPersist(
+        sheetA,
+        makeLocal({
+          kind: 'style',
+          operations: [setCellOp('r', 'A', 'format')]
+        })
+      )
+      jest.advanceTimersByTime(60)
+      await flushMicrotasks()
+
+      expect(submitCalls).toHaveLength(1)
+      expect(debugEvents.some(e => e.event === 'local_starved_by_remote')).toBe(false)
+      expect(queue.isSheetPersistenceBusy(sheetA)).toBe(false)
+
+      releaseEcho!()
+      await flushMicrotasks()
+      expect(queue.getDebugState(sheetA).queueClientAppliedVersion).toBe(6)
     })
   })
 
@@ -1479,6 +1555,93 @@ describe('createSpreadsheetSheetWorkQueue', () => {
       expect(attempts).toBe(1)
       expect(queue.getDebugState(sheetA).syncState).toBe('failed')
       queue.dispose()
+    })
+  })
+
+  describe('add_rows burst ordering with clientHandle dependents', () => {
+    const addRowsOp = (clientRowId: string): SpreadsheetBatchOperation =>
+      ({
+        operationId: nextOpId(),
+        type: 'add_rows',
+        data: { rows: [{ _clientRowId: clientRowId, _gridRowIndex: 50 }] }
+      }) as unknown as SpreadsheetBatchOperation
+
+    const setRangeOnClientHandle = (clientRowId: string): SpreadsheetBatchOperation =>
+      ({
+        operationId: nextOpId(),
+        type: 'set_range',
+        data: {
+          cells: [
+            {
+              rowRef: { kind: 'clientHandle', clientRowId },
+              columnName: 'ColumnA',
+              value: 'burst'
+            }
+          ]
+        }
+      }) as unknown as SpreadsheetBatchOperation
+
+    it('submits structural add_rows but rejects unresolved clientHandle rangeValue at the barrier', async () => {
+      const { queue, submitCalls } = buildHarness({ initialClientVersion: 1 })
+      await seedClientVersion(queue, sheetA, 1)
+
+      await queue.enqueueLocalPersist(
+        sheetA,
+        makeLocal({ kind: 'structural', operations: [addRowsOp('client_burst')] })
+      )
+      await expect(
+        queue.enqueueLocalPersist(
+          sheetA,
+          makeLocal({ kind: 'rangeValue', operations: [setRangeOnClientHandle('client_burst')] })
+        )
+      ).rejects.toThrow(/barrier/)
+
+      jest.advanceTimersByTime(60)
+      await flushMicrotasks()
+      await queue.awaitIdle(sheetA)
+
+      expect(submitCalls).toHaveLength(1)
+      expect(submitCalls[0].operations[0].type).toBe('add_rows')
+    })
+
+    it('does not let dependent rangeValue groups skip ahead while add_rows waits on remote', async () => {
+      const { queue, submitCalls, setServerVersion } = buildHarness({ initialClientVersion: 5 })
+      await seedClientVersion(queue, sheetA, 5)
+
+      let releaseRemote: (() => void) | null = null
+      const remoteDone = new Promise<void>(resolve => {
+        releaseRemote = resolve
+      })
+      const remoteP = queue.enqueueRemoteApply(sheetA, 'gridApply', async controller => {
+        await remoteDone
+        controller.markPaintDone()
+        setServerVersion(sheetA, 6)
+        controller.markVersionDone(6)
+        controller.markBulkDepthDone()
+      })
+
+      await queue.enqueueLocalPersist(
+        sheetA,
+        makeLocal({ kind: 'structural', operations: [addRowsOp('client_blocked')] })
+      )
+      await expect(
+        queue.enqueueLocalPersist(
+          sheetA,
+          makeLocal({ kind: 'rangeValue', operations: [setRangeOnClientHandle('client_blocked')] })
+        )
+      ).rejects.toThrow(/barrier/)
+      jest.advanceTimersByTime(60)
+      await flushMicrotasks()
+
+      expect(submitCalls).toHaveLength(0)
+
+      releaseRemote!()
+      await remoteP
+      await flushMicrotasks()
+      await queue.awaitIdle(sheetA)
+
+      expect(submitCalls).toHaveLength(1)
+      expect(submitCalls[0].operations[0].type).toBe('add_rows')
     })
   })
 })

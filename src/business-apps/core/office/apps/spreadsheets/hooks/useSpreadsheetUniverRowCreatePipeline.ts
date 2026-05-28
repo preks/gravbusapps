@@ -12,6 +12,10 @@ import {
 } from '../utils/reconcileTemporarySheetId'
 import { getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
 import {
+  protectSpreadsheetPendingLocalMutationCells,
+  spreadsheetPendingLocalMutationCoordinateCellKey
+} from '../utils/spreadsheetPendingMaterializationCells'
+import {
   buildRowIdentityDiagnostics,
   getViewerRowIdentityCandidates,
   isSpreadsheetTemporaryClientRowId,
@@ -29,6 +33,10 @@ import {
   getSpreadsheetRowMaterializationClientRowId,
   mergeCreatedRowsByVisualIndex,
   viewerRowMatchesPersistedRowAtSlot,
+  isRowMaterializationInFlightForSheet,
+  releaseAllRowMaterializationInFlightKeysForSheet,
+  releaseRowMaterializationInFlightKeysForMissingSlots,
+  resolveUniverRowsForSubmitReadinessMaterialization,
   type SpreadsheetRowMaterializationPlan
 } from './spreadsheetRowMaterializationPlan'
 import type {
@@ -44,6 +52,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
   const {
     activeSheetIdRef,
     activeSheetColumns,
+    pendingLocalMutationCellsRef,
     getColumnsForSheet,
     isUuid,
     isOpsV2Enabled,
@@ -144,14 +153,42 @@ export function useSpreadsheetUniverRowCreatePipeline(
         return
       }
 
-      const materializationPlan = buildSpreadsheetRowMaterializationPlan({
+      const univerRowsForMaterialization =
+        reason === 'submit_readiness'
+          ? resolveUniverRowsForSubmitReadinessMaterialization({
+              sessionRows: persistedRows,
+              latestUniverRows: sourceRows,
+              isUuid
+            })
+          : sourceRows
+
+      let materializationPlan = buildSpreadsheetRowMaterializationPlan({
         sheetId: canonicalTargetId,
-        univerRows: sourceRows,
+        univerRows: univerRowsForMaterialization,
         persistedRows,
         isUuid,
         inFlightKeys: inFlightRowMaterializationKeysRef.current,
         rowMaterializationReadiness
       })
+      if (
+        reason === 'submit_readiness' &&
+        materializationPlan.missingAndWillCreateCount === 0 &&
+        materializationPlan.missingGridRowIndices.length > 0
+      ) {
+        releaseRowMaterializationInFlightKeysForMissingSlots(
+          inFlightRowMaterializationKeysRef.current,
+          canonicalTargetId,
+          materializationPlan.missingGridRowIndices
+        )
+        materializationPlan = buildSpreadsheetRowMaterializationPlan({
+          sheetId: canonicalTargetId,
+          univerRows: univerRowsForMaterialization,
+          persistedRows,
+          isUuid,
+          inFlightKeys: inFlightRowMaterializationKeysRef.current,
+          rowMaterializationReadiness
+        })
+      }
       const filteredMaterializationPlan = filterMaterializationEntriesForPersistedSlots(
         materializationPlan,
         persistedRows,
@@ -162,7 +199,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
       const rowPayloads = buildAddRowPayloadsFromUniverRows(
         filteredMaterializationPlan.rowsToMaterialize,
         targetColumns
-      )
+      ).sort((left, right) => Number(left._gridRowIndex) - Number(right._gridRowIndex))
       const buildMaterializationPlanDiagnostics = (
         plan: SpreadsheetRowMaterializationPlan,
         createdSparseGridRowIndices: number[] = []
@@ -245,6 +282,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
         }
         onRowsMaterializedContextSync?.(canonicalTargetId, next, {
           affectedUiRowIds,
+          createdGridRowIndices: mergedRows.createdGridRowIndices,
           isActiveTarget
         })
         onRowIdentityDiagnostics?.('row_session_snapshot_reconciled', {
@@ -264,7 +302,10 @@ export function useSpreadsheetUniverRowCreatePipeline(
           isUuid
         })
         if (occupiedSlotAdoptions.persistedIdByClientRowId.size > 0) {
-          syncLocalRowsWithBackendIdentities(occupiedSlotAdoptions)
+          syncLocalRowsWithBackendIdentities({
+            createdRows: occupiedSlotAdoptions.adoptedRows,
+            persistedIdByClientRowId: occupiedSlotAdoptions.persistedIdByClientRowId
+          })
           return
         }
 
@@ -275,7 +316,10 @@ export function useSpreadsheetUniverRowCreatePipeline(
           isUuid
         })
         if (authoritativeAdoptions.persistedIdByClientRowId.size > 0) {
-          syncLocalRowsWithBackendIdentities(authoritativeAdoptions)
+          syncLocalRowsWithBackendIdentities({
+            createdRows: authoritativeAdoptions.adoptedRows,
+            persistedIdByClientRowId: authoritativeAdoptions.persistedIdByClientRowId
+          })
           return
         }
 
@@ -487,7 +531,13 @@ export function useSpreadsheetUniverRowCreatePipeline(
         })
       }
 
-      const useBatchAddRows = isOpsV2Enabled || rowPayloads.length > 1 || !onRowAdd
+      const shouldPreferBatchAddRowsForIdentityAdoption = rowPayloads.some(rowPayload => {
+        const clientRowId = typeof rowPayload._clientRowId === 'string' ? rowPayload._clientRowId.trim() : ''
+        const gridRowIndex = Number(rowPayload._gridRowIndex)
+        return clientRowId.length > 0 || (Number.isFinite(gridRowIndex) && gridRowIndex >= 0)
+      })
+      const useBatchAddRows =
+        isOpsV2Enabled || rowPayloads.length > 1 || !onRowAdd || shouldPreferBatchAddRowsForIdentityAdoption
 
       const updateLocalRowsAfterCreate = ({
         createdRows,
@@ -500,6 +550,31 @@ export function useSpreadsheetUniverRowCreatePipeline(
         syncLocalRowsWithBackendIdentities({ createdRows, persistedIdByClientRowId })
       }
 
+      const protectPendingMaterializationCells = (): (() => void) => {
+        if (!pendingLocalMutationCellsRef) return () => undefined
+        const protectedEntries: Array<{ key: string; ownerId: string }> = []
+        const visibleColumns = targetColumns.filter(column => column.isVisible !== false)
+        for (const rowPayload of rowPayloads) {
+          const rowIndex = Number(rowPayload._gridRowIndex)
+          if (!Number.isInteger(rowIndex) || rowIndex < 0) continue
+          visibleColumns.forEach((column, colIndex) => {
+            const hasColumnValue =
+              Object.prototype.hasOwnProperty.call(rowPayload, column.name) ||
+              Object.prototype.hasOwnProperty.call(rowPayload, column.id)
+            if (!hasColumnValue) return
+            const key = spreadsheetPendingLocalMutationCoordinateCellKey(canonicalTargetId, rowIndex, colIndex)
+            protectedEntries.push({
+              key,
+              ownerId: `materialization:${canonicalTargetId}:${key}`
+            })
+          })
+        }
+        return protectSpreadsheetPendingLocalMutationCells(pendingLocalMutationCellsRef, protectedEntries, {
+          ttlMs: 60_000
+        })
+      }
+
+      const releaseProtectedMaterializationCells = protectPendingMaterializationCells()
       sheetPersist.beginPersist()
       try {
         if (useBatchAddRows) {
@@ -529,7 +604,10 @@ export function useSpreadsheetUniverRowCreatePipeline(
                 isUuid
               })
               if (occupiedSlotAdoptions.persistedIdByClientRowId.size > 0) {
-                updateLocalRowsAfterCreate(occupiedSlotAdoptions)
+                updateLocalRowsAfterCreate({
+                  createdRows: occupiedSlotAdoptions.adoptedRows,
+                  persistedIdByClientRowId: occupiedSlotAdoptions.persistedIdByClientRowId
+                })
                 sheetPersist.recordSuccess(true)
                 markVersionAsSaved()
                 return
@@ -568,6 +646,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
           rejectReadinessEntries(unresolvedError)
         }
         releaseInFlightKeysForRequest()
+        releaseProtectedMaterializationCells()
         sheetPersist.endPersist()
       }
     },
@@ -592,6 +671,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
       onRowsMaterializedContextSync,
       onPersistRowsErrorMessage,
       onRowAdd,
+      pendingLocalMutationCellsRef,
       rowMaterializationReadiness,
       operationQueueRef,
       pendingUniverRowsBySheetRef,
@@ -636,5 +716,27 @@ export function useSpreadsheetUniverRowCreatePipeline(
   const processUniverDataChangeRef = useRef(processUniverDataChange)
   processUniverDataChangeRef.current = processUniverDataChange
 
-  return { processUniverDataChange, processUniverDataChangeRef, materializeTemporaryRowsForSubmit }
+  const isRowMaterializationInFlightForSheetCallback = useCallback(
+    (targetSheetId: string) => {
+      const canonicalTargetId = resolveReconciledSheetId(targetSheetId, createdSheetIdAliasesRef.current)
+      return isRowMaterializationInFlightForSheet(inFlightRowMaterializationKeysRef.current, canonicalTargetId)
+    },
+    [createdSheetIdAliasesRef]
+  )
+
+  const releaseRowMaterializationInFlightForSheet = useCallback(
+    (targetSheetId: string) => {
+      const canonicalTargetId = resolveReconciledSheetId(targetSheetId, createdSheetIdAliasesRef.current)
+      releaseAllRowMaterializationInFlightKeysForSheet(inFlightRowMaterializationKeysRef.current, canonicalTargetId)
+    },
+    [createdSheetIdAliasesRef]
+  )
+
+  return {
+    processUniverDataChange,
+    processUniverDataChangeRef,
+    materializeTemporaryRowsForSubmit,
+    isRowMaterializationInFlightForSheet: isRowMaterializationInFlightForSheetCallback,
+    releaseRowMaterializationInFlightForSheet
+  }
 }

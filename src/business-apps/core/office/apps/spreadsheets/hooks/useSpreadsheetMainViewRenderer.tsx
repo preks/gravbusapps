@@ -34,6 +34,12 @@ export interface UseSpreadsheetMainViewRendererParams {
   tableSnapshotSeed: number | string
   authoritativeDataSyncToken: number | string
   workbookInstanceKey: string
+  pendingLocalMutationCellsRef: MutableRefObject<Set<string>>
+  spreadsheetIntentJournalRef?: MutableRefObject<import('../core/spreadsheetIntentJournal').SpreadsheetIntentJournal>
+  versionCausalOwnershipRef?: MutableRefObject<
+    import('../core/spreadsheetVersionCausalOwnership').SpreadsheetVersionCausalOwnershipRegistry
+  >
+  resolveKnownSheetVersion?: (sheetId: string) => number
   spreadsheetColumnsForGrid: SpreadsheetColumn[]
   testId: string
   onNativeSheetStructureIntent: (intent: unknown) => void
@@ -58,7 +64,9 @@ export interface UseSpreadsheetMainViewRendererParams {
   onMutationBatchOp?: (data: SpreadsheetUnifiedMutationBatchPayload) => void | Promise<void>
   flushUnmaterializedRowsBeforePersistRef: MutableRefObject<((sheetId: string) => Promise<void>) | null>
   flushPendingCellChangesRef: MutableRefObject<(() => Promise<void>) | null>
+  flushDeferredDirtyCellsRef: MutableRefObject<(() => Promise<void>) | null>
   getPersistSheetRowsSnapshot: (sheetId: string) => ViewerRow[]
+  getPersistedBaselineRowsSnapshot: (sheetId: string) => ViewerRow[] | null
   isBackendRowUuid: (value: string) => boolean
   rowSlotIdentityRegistryRef: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
   rowMaterializationReadinessRef: MutableRefObject<SpreadsheetRowMaterializationReadiness | null>
@@ -104,6 +112,10 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     tableSnapshotSeed,
     authoritativeDataSyncToken,
     workbookInstanceKey,
+    pendingLocalMutationCellsRef,
+    spreadsheetIntentJournalRef,
+    versionCausalOwnershipRef,
+    resolveKnownSheetVersion,
     spreadsheetColumnsForGrid,
     testId,
     onNativeSheetStructureIntent,
@@ -128,7 +140,9 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef,
     flushPendingCellChangesRef,
+    flushDeferredDirtyCellsRef,
     getPersistSheetRowsSnapshot,
+    getPersistedBaselineRowsSnapshot,
     isBackendRowUuid,
     rowSlotIdentityRegistryRef,
     rowMaterializationReadinessRef,
@@ -183,6 +197,10 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           snapshotSeed={(preferUniverNativeSheetTabs ? tableSnapshotSeed : initialSnapshotSeed) as any}
           authoritativeDataSyncToken={authoritativeDataSyncToken as any}
           workbookInstanceKey={workbookInstanceKey as any}
+          pendingLocalMutationCellsRef={pendingLocalMutationCellsRef}
+          spreadsheetIntentJournalRef={spreadsheetIntentJournalRef}
+          versionCausalOwnershipRef={versionCausalOwnershipRef}
+          resolveKnownSheetVersion={resolveKnownSheetVersion}
           multiSheetWorkbookMode={preferUniverNativeSheetTabs}
           apiFirstSheetStructure={preferUniverNativeSheetTabs}
           workbookSnapshotSyncing={isBootstrapWorkbookEnriching}
@@ -212,7 +230,9 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           onMutationBatchOp={onMutationBatchOp}
           flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
           flushPendingCellChangesRef={flushPendingCellChangesRef}
+          flushDeferredDirtyCellsRef={flushDeferredDirtyCellsRef}
           getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
+          getPersistedBaselineRowsSnapshot={getPersistedBaselineRowsSnapshot}
           isBackendRowUuid={isBackendRowUuid}
           rowSlotIdentityRegistryRef={rowSlotIdentityRegistryRef}
           rowMaterializationReadinessRef={rowMaterializationReadinessRef}
@@ -286,6 +306,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onCellChange,
     onCellsChange,
     onColumnAdd,
+    pendingLocalMutationCellsRef,
     onColumnsDelete,
     onColumnsInsert,
     onRowsInsert,
@@ -302,6 +323,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef,
     flushPendingCellChangesRef,
+    flushDeferredDirtyCellsRef,
     getPersistSheetRowsSnapshot,
     isBackendRowUuid,
     rowSlotIdentityRegistryRef,

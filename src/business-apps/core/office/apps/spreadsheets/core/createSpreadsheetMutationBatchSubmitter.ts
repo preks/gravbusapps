@@ -37,6 +37,14 @@ interface CreateSpreadsheetMutationBatchSubmitterOptions {
   rememberSheetVersion: (sheetId: string, version: number) => void
   rememberLocalCommittedVersion: (version: number) => void
   setActiveSheetVersion: (version: number) => void
+  applyLocalCommittedBatch?: (params: {
+    sheetId: string
+    operations: SpreadsheetBatchOperation[]
+    response: SpreadsheetBatchOperationResponse
+    batchId: string
+    traceId: string
+    baseVersion: number
+  }) => boolean
   applyMutationToSession: (
     sheetId: string,
     operations: SpreadsheetBatchOperation[],
@@ -51,6 +59,13 @@ interface CreateSpreadsheetMutationBatchSubmitterOptions {
   recoverFromVersionConflict: () => Promise<boolean>
   scheduleSnapshotCheckpointFromPersistence: () => void
   emitTraceEvent: (event: SpreadsheetTraceEventInput) => void
+  /** Called immediately after a successful HTTP batch so collab/queue versions advance before WS echo. */
+  onLocalBatchCommitted?: (sheetId: string, version: number) => void
+  releaseMutationOwnershipFromResponse?: (params: {
+    sheetId: string
+    operations: SpreadsheetBatchOperation[]
+    response: SpreadsheetBatchOperationResponse
+  }) => void
 }
 
 const applyOperationBatch = async ({
@@ -169,7 +184,26 @@ export const createSpreadsheetMutationBatchSubmitter = (
   }): SpreadsheetBatchOperationResponse => {
     const isActiveTarget = options.isActiveSheet(targetSheetId)
     options.rememberKnownSheetVersion(targetSheetId, response.newVersion)
-    options.applyMutationToSession(targetSheetId, operations, response)
+    options.onLocalBatchCommitted?.(targetSheetId, response.newVersion)
+    const committedBatchHandled =
+      baseVersion != null
+        ? (options.applyLocalCommittedBatch?.({
+            sheetId: targetSheetId,
+            operations,
+            response,
+            batchId,
+            traceId,
+            baseVersion
+          }) ?? false)
+        : false
+    if (!committedBatchHandled) {
+      options.applyMutationToSession(targetSheetId, operations, response)
+    }
+    options.releaseMutationOwnershipFromResponse?.({
+      sheetId: targetSheetId,
+      operations,
+      response
+    })
     options.emitTraceEvent({
       source: 'client',
       stage: 'http_batch_submit_succeeded',
@@ -190,7 +224,9 @@ export const createSpreadsheetMutationBatchSubmitter = (
       options.setActiveSheetVersion(response.newVersion)
       options.rememberSheetVersion(targetSheetId, response.newVersion)
       options.rememberLocalCommittedVersion(response.newVersion)
-      options.applyResponseRowsToLocalBaseline(targetSheetId, operations, response)
+      if (!committedBatchHandled) {
+        options.applyResponseRowsToLocalBaseline(targetSheetId, operations, response)
+      }
       return response
     }
 

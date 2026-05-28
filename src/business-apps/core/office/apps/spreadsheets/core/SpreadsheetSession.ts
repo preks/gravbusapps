@@ -71,6 +71,7 @@ export interface SpreadsheetSession {
   applyMutation(descriptor: SpreadsheetSessionMutationDescriptor): void
   applyDeltaChanges(descriptor: SpreadsheetSessionDeltaChangesDescriptor): void
   capturePersistedBaseline(sheetId: string): void
+  capturePersistedBaselineForOperations(sheetId: string, operations: SpreadsheetBatchOperation[]): void
   markSheetNeedsGridMaterialization(sheetId: string, reason: string): void
   clearSheetGridMaterialization(sheetId: string): void
   clearDirty(sheetId: string): void

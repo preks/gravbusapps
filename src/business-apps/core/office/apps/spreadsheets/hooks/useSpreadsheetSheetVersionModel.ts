@@ -83,8 +83,10 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
 
   const rememberKnownSheetVersion = useCallback((targetSheetId: string, version: number | undefined) => {
     if (typeof version !== 'number' || !Number.isFinite(version) || version < 0) return
+    const normalizedVersion = Math.trunc(version)
+    const previous = knownSheetVersionsRef.current.get(targetSheetId)?.version ?? 0
     knownSheetVersionsRef.current.set(targetSheetId, {
-      version: Math.trunc(version),
+      version: Math.max(previous, normalizedVersion),
       fetchedAt: Date.now()
     })
   }, [])
@@ -132,10 +134,10 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
           const sheet = await SpreadsheetApiService.getSheet(params.appId, targetSheetId)
           const fetchedVersion = Number(sheet?.version ?? knownVersion)
           if (!Number.isFinite(fetchedVersion)) return knownVersion
-          const nextVersion = Math.trunc(fetchedVersion)
-          rememberKnownSheetVersion(targetSheetId, nextVersion)
-          rememberSheetVersion(targetSheetId, nextVersion)
-          return nextVersion
+          const monotonicVersion = Math.max(knownVersion, Math.trunc(fetchedVersion))
+          rememberKnownSheetVersion(targetSheetId, monotonicVersion)
+          rememberSheetVersion(targetSheetId, monotonicVersion)
+          return monotonicVersion
         } catch {
           return knownVersion
         } finally {

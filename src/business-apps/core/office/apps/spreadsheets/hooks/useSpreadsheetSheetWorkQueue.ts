@@ -38,6 +38,11 @@ export interface UseSpreadsheetSheetWorkQueueParams {
   submitMutationBatchForSheetQueue: SpreadsheetMutationBatchSubmit
   /** Mirrors queue transitions into the diagnostics panel. */
   enqueueDiagnosticsTraceEvent?: (event: SpreadsheetTraceEventInput) => void
+  onLocalMutationCellProtectionChange?: (
+    sheetId: string,
+    cellKeys: readonly string[],
+    protectedFromRepaint: boolean
+  ) => void
   refreshBaseVersionBeforeWrite: (sheetId: string, baseVersion: number) => Promise<number>
   resolveBaseVersion: (sheetId: string) => number
   /** `collabPersistedBulkApplyDepthRef.current === 0` belt-and-suspenders. */
@@ -112,6 +117,8 @@ export const useSpreadsheetSheetWorkQueue = (
       submitMutationBatch: request => paramsRef.current.submitMutationBatch(request),
       submitMutationBatchForFastPath: request => paramsRef.current.submitMutationBatchForSheetQueue(request),
       emitDiagnosticsTraceEvent: event => paramsRef.current.enqueueDiagnosticsTraceEvent?.(event),
+      onLocalMutationCellProtectionChange: (sheetId, cellKeys, protectedFromRepaint) =>
+        paramsRef.current.onLocalMutationCellProtectionChange?.(sheetId, cellKeys, protectedFromRepaint),
       refreshBaseVersionBeforeWrite: (sheetId, baseVersion) =>
         paramsRef.current.refreshBaseVersionBeforeWrite(sheetId, baseVersion),
       resolveBaseVersion: sheetId => paramsRef.current.resolveBaseVersion(sheetId),

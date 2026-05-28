@@ -74,6 +74,38 @@ export const viewerRowMatchesPersistedRowAtSlot = (
 export const buildRowMaterializationInFlightKey = (sheetId: string, visualIndex: number, clientRowId: string): string =>
   `${sheetId}:${visualIndex}:${clientRowId}`
 
+/** Clears stale in-flight keys for grid slots that still need materialization (e.g. after interrupted add_rows). */
+export const releaseRowMaterializationInFlightKeysForMissingSlots = (
+  inFlightKeys: Set<string>,
+  sheetId: string,
+  missingGridRowIndices: number[]
+): void => {
+  if (missingGridRowIndices.length === 0) return
+  const prefixes = missingGridRowIndices.map(visualIndex => `${sheetId}:${visualIndex}:`)
+  for (const key of Array.from(inFlightKeys)) {
+    if (prefixes.some(prefix => key.startsWith(prefix))) {
+      inFlightKeys.delete(key)
+    }
+  }
+}
+
+export const releaseAllRowMaterializationInFlightKeysForSheet = (inFlightKeys: Set<string>, sheetId: string): void => {
+  const prefix = `${sheetId}:`
+  for (const key of Array.from(inFlightKeys)) {
+    if (key.startsWith(prefix)) {
+      inFlightKeys.delete(key)
+    }
+  }
+}
+
+export const isRowMaterializationInFlightForSheet = (inFlightKeys: ReadonlySet<string>, sheetId: string): boolean => {
+  const prefix = `${sheetId}:`
+  for (const key of inFlightKeys) {
+    if (key.startsWith(prefix)) return true
+  }
+  return false
+}
+
 const countUnmaterializedClientRows = (
   rows: Array<Record<string, unknown>>,
   isUuid: (value: string) => boolean
@@ -235,6 +267,8 @@ export const buildSpreadsheetRowMaterializationPlan = ({
   }
 }
 
+// TECH_DEBT(spreadsheet-hardening): merge local Univer + pendingClientRowUpdates into occupied-slot
+// adoptions (mirror backend add_rows adopt-on-collision) — tracked separately from deferred-replay fix.
 export const buildOccupiedSlotRowAdoptions = ({
   univerRows,
   persistedRows,
@@ -325,7 +359,8 @@ export const mergeCreatedRowsByVisualIndex = ({
   createdRows.forEach((row, index) => {
     const clientRowId = getMaterializationClientRowId(row)
     const visualIndex = getViewerRowVisualIndex(row, sourceVisualIndexByClientRowId.get(clientRowId) ?? index)
-    createdRowsByVisualIndex.set(visualIndex, { ...row, _gridRowIndex: visualIndex })
+    const previousRow = previousRowsByVisualIndex.get(visualIndex)
+    createdRowsByVisualIndex.set(visualIndex, { ...(previousRow ?? {}), ...row, _gridRowIndex: visualIndex })
     createdGridRowIndices.push(visualIndex)
     if (clientRowId) affectedUiRowIds.push(clientRowId)
   })

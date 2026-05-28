@@ -146,6 +146,72 @@ describe('createSpreadsheetSession', () => {
     })
   })
 
+  it('merges adopted concurrent add_rows replay into the existing backend row', () => {
+    const rowUuid = '02790541-7184-4356-84f3-4eed34510be6'
+    const session = createSpreadsheetSession({
+      appId: 'app-1',
+      activeSheetId: 'sheet-1',
+      sheets: [
+        {
+          sheet: {
+            id: 'sheet-1',
+            name: 'Sheet 1',
+            columns: [
+              { id: 'column_d', name: 'column_d', type: 'text', label: 'D' },
+              { id: 'column_f', name: 'column_f', type: 'text', label: 'F' }
+            ],
+            data: [
+              {
+                _id: 'client_first',
+                _rowUuid: rowUuid,
+                _clientRowId: 'client_first',
+                _gridRowIndex: 253,
+                column_d: { v: 'lllll' }
+              }
+            ]
+          } as never
+        }
+      ]
+    })
+
+    session.applyDeltaChanges({
+      sheetId: 'sheet-1',
+      source: SpreadsheetSessionMutationSources.RemoteApply,
+      version: 590,
+      changes: [
+        {
+          operationType: 'add_rows',
+          payload: {
+            rows: [{ _clientRowId: 'client_second', _gridRowIndex: 253, column_f: { v: 'lllooo' } }]
+          },
+          result: {
+            rows: [
+              {
+                id: rowUuid,
+                data: {
+                  _clientRowId: 'client_second',
+                  _gridRowIndex: 253,
+                  column_d: { v: 'lllll' },
+                  column_f: { v: 'lllooo' }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    })
+
+    expect(session.getSheetState('sheet-1')?.rows).toEqual([
+      expect.objectContaining({
+        _rowUuid: rowUuid,
+        _clientRowId: 'client_second',
+        _gridRowIndex: 253,
+        column_d: { v: 'lllll' },
+        column_f: { v: 'lllooo' }
+      })
+    ])
+  })
+
   it('notifies subscribe listeners on each state mutation', () => {
     const session = createSpreadsheetSession({
       appId: 'app-1',
@@ -214,6 +280,63 @@ describe('createSpreadsheetSession', () => {
       persistedBaselineRows: [{ _id: 'row-1', Name: 'Alice' }],
       isDirty: true
     })
+  })
+
+  it('captures only touched columns into the persisted baseline for acknowledged operations', () => {
+    const session = createSpreadsheetSession({
+      appId: 'app-1',
+      activeSheetId: 'sheet-1',
+      sheets: [
+        {
+          sheet: {
+            id: 'sheet-1',
+            name: 'Sheet 1',
+            columns: [
+              { id: 'col-1', name: 'Name', type: 'text', label: 'Name' },
+              { id: 'col-2', name: 'Peer', type: 'text', label: 'Peer' }
+            ],
+            data: [{ _id: 'row-1', _clientRowId: 'client-row-1', Name: 'Alice', Peer: 'peer-before' }]
+          } as never
+        }
+      ]
+    })
+
+    session.capturePersistedBaseline('sheet-1')
+    session.replaceSheetState(
+      {
+        id: 'sheet-1',
+        name: 'Sheet 1',
+        columns: [
+          { id: 'col-1', name: 'Name', type: 'text', label: 'Name' },
+          { id: 'col-2', name: 'Peer', type: 'text', label: 'Peer' }
+        ],
+        data: [
+          { _id: 'row-1', _rowUuid: 'row-1', _clientRowId: 'client-row-1', Name: 'Alice local', Peer: 'peer-merged' }
+        ]
+      } as never,
+      [{ _id: 'row-1', _rowUuid: 'row-1', _clientRowId: 'client-row-1', Name: 'Alice local', Peer: 'peer-merged' }],
+      2
+    )
+
+    session.capturePersistedBaselineForOperations('sheet-1', [
+      {
+        operationId: 'op-add',
+        type: 'add_rows',
+        data: {
+          rows: [{ _clientRowId: 'client-row-1', Name: 'Alice local' }]
+        }
+      }
+    ])
+
+    expect(session.getSheetState('sheet-1')?.persistedBaselineRows).toEqual([
+      {
+        _id: 'row-1',
+        _rowUuid: 'row-1',
+        _clientRowId: 'client-row-1',
+        Name: 'Alice local',
+        Peer: 'peer-before'
+      }
+    ])
   })
 
   it('replaceSheetState preserves unchanged row references when next rows reuse prior row objects', () => {

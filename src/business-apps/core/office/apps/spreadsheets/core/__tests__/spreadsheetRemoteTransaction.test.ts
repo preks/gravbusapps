@@ -42,6 +42,32 @@ describe('spreadsheetRemoteTransaction', () => {
     }
   )
 
+  it('plans merge_ranges batches without rejecting unsupported_operation', () => {
+    const plan = planCommittedSpreadsheetRemoteTransaction({
+      batch: baseBatch({
+        type: 'merge_ranges',
+        operationId: 'merge-1',
+        data: {
+          sheetId: 'sheet-1',
+          ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }]
+        }
+      }),
+      baseRows: [
+        { _id: 'row-1', _gridRowIndex: 0, ColumnA: 'anchor', ColumnB: 'slave' },
+        { _id: 'row-2', _gridRowIndex: 1, ColumnA: 'below', ColumnB: 'b1' }
+      ],
+      columns: [
+        { id: 'col-a', name: 'ColumnA', type: 'text', isVisible: true, order: 0 },
+        { id: 'col-b', name: 'ColumnB', type: 'text', isVisible: true, order: 1 }
+      ] as any
+    })
+
+    expect(plan.ok).toBe(true)
+    if (!plan.ok) return
+    expect(plan.sessionPatch.rows[0]).toEqual({ _id: 'row-1', _gridRowIndex: 0, ColumnA: 'anchor' })
+    expect(plan.dirtyRegions).toEqual([{ type: 'rect', minRow: 0, maxRow: 0, minCol: 0, maxCol: 1 }])
+  })
+
   it('plans column_update metadata batches without rejecting unsupported_operation', () => {
     const plan = planCommittedSpreadsheetRemoteTransaction({
       batch: baseBatch({

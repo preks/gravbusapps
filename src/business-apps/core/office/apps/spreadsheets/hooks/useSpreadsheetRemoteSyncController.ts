@@ -10,7 +10,9 @@ import {
   sheetDeltaRequiresFullSnapshot,
   type SpreadsheetSession
 } from '../core'
-import { useSpreadsheetRemoteDeltaCatchUp } from './useSpreadsheetRemoteDeltaCatchUp'
+import { useSpreadsheetRemoteDeltaCatchUp, type SpreadsheetLocalWorkGuard } from './useSpreadsheetRemoteDeltaCatchUp'
+import { isColdStartSnapshotReload } from '../utils/spreadsheetUnresolvedLocalWork'
+import { reapplyUnresolvedLocalIntentsToRows } from '../utils/spreadsheetReapplyLocalIntents'
 import {
   normalizeWorkbookSnapshotToAppSheets,
   stripWorkbookSnapshotValuesPreservingFormatting
@@ -32,7 +34,7 @@ import {
 
 import type { SpreadsheetTraceEventInput, SpreadsheetTraceSession } from '../services/spreadsheetDiagnostics'
 
-import type { SheetDeltaCatchUpReason } from './spreadsheetRemoteSyncTypes'
+import type { SheetDeltaCatchUpReason, SheetDeltaCatchUpOptions } from './spreadsheetRemoteSyncTypes'
 
 export type { SheetDeltaCatchUpReason, SheetDeltaCatchUpOptions } from './spreadsheetRemoteSyncTypes'
 
@@ -86,12 +88,18 @@ export interface UseSpreadsheetRemoteSyncControllerParams {
   getActiveSessionVersion: () => number
   /** When true, reload pushes fetched columns through the mutation facade (matches viewer `onSheetUpdate` guard). */
   sheetMetadataReloadEnabled: boolean
+  /**
+   * Flushes Univer deferred dirty cells (and pending HTTP cell journal) before grid remount
+   * on canonical reload.
+   */
+  flushDeferredDirtyCellsRef?: MutableRefObject<(() => Promise<void>) | null>
   scheduleSheetVersionRefreshFromApiRef: MutableRefObject<() => void>
   conflictRecovery: SpreadsheetRemoteSyncConflictRecovery
   reapplyColumnVisibilityOnGrid?: (
     sheetId: string,
     operations: Array<{ type: 'visibility_update'; data: Record<string, unknown> }>
   ) => void
+  localWorkGuard?: SpreadsheetLocalWorkGuard
 }
 
 export interface UseSpreadsheetRemoteSyncControllerResult {
@@ -112,6 +120,7 @@ export function useSpreadsheetRemoteSyncController(
   const remoteStructuralResyncTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const remoteVersionRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const deferredInactiveSheetResyncsRef = useRef<Set<string>>(new Set())
+  const canonicalReloadInFlightBySheetRef = useRef<Map<string, Promise<boolean>>>(new Map())
 
   const requireMutationFacade = (): SpreadsheetMutationFacade => {
     const facade = params.mutationFacadeRef.current
@@ -157,146 +166,206 @@ export function useSpreadsheetRemoteSyncController(
     [params.appId, params.rememberKnownSheetVersion, params.updateActiveSheetVersion]
   )
 
+  const cancelPendingRemoteStructuralResync = useCallback((sheetId: string): void => {
+    const existingTimeout = remoteStructuralResyncTimeoutsRef.current.get(sheetId)
+    if (existingTimeout) {
+      clearTimeout(existingTimeout)
+      remoteStructuralResyncTimeoutsRef.current.delete(sheetId)
+    }
+    deferredInactiveSheetResyncsRef.current.delete(sheetId)
+  }, [])
+
   const reloadSheetFromCanonicalSnapshot = useCallback(
     async (seedPrefix: string, targetSheetId = params.activeSheetIdRef.current): Promise<boolean> => {
-      params.enqueueDiagnosticsTraceEvent({
-        source: 'client',
-        stage: 'client_snapshot_reload_started',
-        traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
-        payload: {
-          reason: seedPrefix,
-          targetSheetId
-        }
-      })
-      try {
-        const targetSheet = params.appSheetsRef.current.find(sheet => sheet.id === targetSheetId)
-        if (!targetSheet) return false
-        const snapshot = await SpreadsheetApiService.getSheetSnapshot(params.appId, targetSheetId)
-        const recoveredSheetMeta = (snapshot.sheet as unknown as SpreadsheetSheet | undefined) ?? targetSheet
-        const appSheetsWithRecoveredMeta = params.appSheetsRef.current.map(sheet =>
-          sheet.id === targetSheetId ? { ...sheet, ...recoveredSheetMeta } : sheet
-        )
-        const rows = sortSpreadsheetRowsBySheetSettings(
-          mapSnapshotRowsToViewerRows(snapshot.rows || []),
-          recoveredSheetMeta
-        )
-        const sheetMeta = snapshot.sheet as unknown as Record<string, unknown> | undefined
-        const localColumns =
-          targetSheet.columns.length > 0
-            ? targetSheet.columns
-            : (appSheetsWithRecoveredMeta.find(sheet => sheet.id === targetSheetId)?.columns ?? [])
-        const serverColumns = Array.isArray(sheetMeta?.columns) ? (sheetMeta.columns as SpreadsheetColumn[]) : []
-        const mergedColumns =
-          serverColumns.length > 0 ? mergeSheetColumnVisibilityFromLocal(serverColumns, localColumns) : localColumns
-        const recoveredSheetMetaWithVisibility =
-          recoveredSheetMeta && mergedColumns.length > 0
-            ? { ...recoveredSheetMeta, columns: mergedColumns }
-            : recoveredSheetMeta
-        const isTargetActiveSheet = targetSheetId === params.activeSheetIdRef.current
-
-        clearUniverSnapshotCache(params.appId)
-        let restoredUniverSnapshot: Record<string, unknown> | null = null
-        try {
-          const univerData = await SpreadsheetApiService.getUniverSnapshot(params.appId)
-          const appSnapshotVersion = Number(univerData.version ?? 0)
-          if (Number.isFinite(appSnapshotVersion) && appSnapshotVersion >= 0) {
-            params.workbookSnapshotVersionRef.current = Math.max(
-              params.workbookSnapshotVersionRef.current,
-              appSnapshotVersion
-            )
+      const inFlightReload = canonicalReloadInFlightBySheetRef.current.get(targetSheetId)
+      if (inFlightReload) {
+        params.enqueueDiagnosticsTraceEvent({
+          source: 'client',
+          stage: 'client_snapshot_reload_deduplicated',
+          severity: 'info',
+          traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+          payload: {
+            reason: seedPrefix,
+            targetSheetId
           }
-          if (univerData?.snapshot && typeof univerData.snapshot === 'object') {
-            let snap = normalizeWorkbookSnapshotToAppSheets(
-              univerData.snapshot as Record<string, unknown>,
-              appSheetsWithRecoveredMeta
-            )
-            snap = stripWorkbookSnapshotValuesPreservingFormatting(snap)
-            const columnsForMerge =
-              mergedColumns.length > 0
-                ? mergedColumns
-                : (appSheetsWithRecoveredMeta.find(s => s.id === targetSheetId)?.columns ?? [])
-            if (columnsForMerge.length > 0) {
-              const merged = overlaySnapshotIfRowsMismatch(snap, targetSheetId, rows, columnsForMerge)
-              if (merged && merged !== snap) {
-                params.debugLog('snapshot reload: merged Univer snapshot with row-authoritative overlay', {
-                  appId: params.appId,
-                  sheetId: targetSheetId,
-                  seedPrefix
-                })
-                snap = merged
-              }
-            }
-            restoredUniverSnapshot = snap
-            writeUniverSnapshotCache(
-              params.appId,
-              univerData.version,
-              stripWorkbookSnapshotValuesPreservingFormatting(snap)
-            )
-          }
-        } catch (e) {
-          console.warn('[SpreadsheetAppViewer] Could not fetch Univer snapshot during sheet reload:', e)
-        }
-
-        const nextVersion = Number(snapshot.version || 0)
-        params.rememberKnownSheetVersion(targetSheetId, nextVersion)
-        params.syncSheetRowsIntoLocalState(targetSheetId, rows, {
-          persisted: true,
-          syncGrid: isTargetActiveSheet,
-          version: nextVersion,
-          recoveredSheetMeta: recoveredSheetMetaWithVisibility
         })
-        if (params.sheetMetadataReloadEnabled && mergedColumns.length > 0) {
-          void requireMutationFacade().updateSheetMetadata(targetSheetId, {
-            columns: mergedColumns
+        return inFlightReload
+      }
+
+      cancelPendingRemoteStructuralResync(targetSheetId)
+      const reloadTask = (async (): Promise<boolean> => {
+        params.enqueueDiagnosticsTraceEvent({
+          source: 'client',
+          stage: 'client_snapshot_reload_started',
+          traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+          payload: {
+            reason: seedPrefix,
+            targetSheetId
+          }
+        })
+        try {
+          const targetSheet = params.appSheetsRef.current.find(sheet => sheet.id === targetSheetId)
+          if (!targetSheet) return false
+
+          const unresolvedLocalWork = params.localWorkGuard?.hasUnresolvedLocalWorkForSheet(targetSheetId) ?? false
+          if (unresolvedLocalWork && !isColdStartSnapshotReload(seedPrefix)) {
+            params.enqueueDiagnosticsTraceEvent({
+              source: 'client',
+              stage: 'client_snapshot_reload_skipped',
+              severity: 'warning',
+              traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+              payload: {
+                reason: 'unresolved-local-intents',
+                targetSheetId,
+                seedPrefix
+              }
+            })
+            return false
+          }
+
+          const snapshot = await SpreadsheetApiService.getSheetSnapshot(params.appId, targetSheetId)
+          const recoveredSheetMeta = (snapshot.sheet as unknown as SpreadsheetSheet | undefined) ?? targetSheet
+          const appSheetsWithRecoveredMeta = params.appSheetsRef.current.map(sheet =>
+            sheet.id === targetSheetId ? { ...sheet, ...recoveredSheetMeta } : sheet
+          )
+          const rows = sortSpreadsheetRowsBySheetSettings(
+            mapSnapshotRowsToViewerRows(snapshot.rows || []),
+            recoveredSheetMeta
+          )
+          const sheetMeta = snapshot.sheet as unknown as Record<string, unknown> | undefined
+          const localColumns =
+            targetSheet.columns.length > 0
+              ? targetSheet.columns
+              : (appSheetsWithRecoveredMeta.find(sheet => sheet.id === targetSheetId)?.columns ?? [])
+          const serverColumns = Array.isArray(sheetMeta?.columns) ? (sheetMeta.columns as SpreadsheetColumn[]) : []
+          const mergedColumns =
+            serverColumns.length > 0 ? mergeSheetColumnVisibilityFromLocal(serverColumns, localColumns) : localColumns
+          const recoveredSheetMetaWithVisibility =
+            recoveredSheetMeta && mergedColumns.length > 0
+              ? { ...recoveredSheetMeta, columns: mergedColumns }
+              : recoveredSheetMeta
+          const isTargetActiveSheet = targetSheetId === params.activeSheetIdRef.current
+
+          clearUniverSnapshotCache(params.appId)
+          let restoredUniverSnapshot: Record<string, unknown> | null = null
+          try {
+            const univerData = await SpreadsheetApiService.getUniverSnapshot(params.appId)
+            const appSnapshotVersion = Number(univerData.version ?? 0)
+            if (Number.isFinite(appSnapshotVersion) && appSnapshotVersion >= 0) {
+              params.workbookSnapshotVersionRef.current = Math.max(
+                params.workbookSnapshotVersionRef.current,
+                appSnapshotVersion
+              )
+            }
+            if (univerData?.snapshot && typeof univerData.snapshot === 'object') {
+              let snap = normalizeWorkbookSnapshotToAppSheets(
+                univerData.snapshot as Record<string, unknown>,
+                appSheetsWithRecoveredMeta
+              )
+              snap = stripWorkbookSnapshotValuesPreservingFormatting(snap)
+              const columnsForMerge =
+                mergedColumns.length > 0
+                  ? mergedColumns
+                  : (appSheetsWithRecoveredMeta.find(s => s.id === targetSheetId)?.columns ?? [])
+              if (columnsForMerge.length > 0) {
+                const merged = overlaySnapshotIfRowsMismatch(snap, targetSheetId, rows, columnsForMerge)
+                if (merged && merged !== snap) {
+                  params.debugLog('snapshot reload: merged Univer snapshot with row-authoritative overlay', {
+                    appId: params.appId,
+                    sheetId: targetSheetId,
+                    seedPrefix
+                  })
+                  snap = merged
+                }
+              }
+              restoredUniverSnapshot = snap
+              writeUniverSnapshotCache(
+                params.appId,
+                univerData.version,
+                stripWorkbookSnapshotValuesPreservingFormatting(snap)
+              )
+            }
+          } catch (e) {
+            console.warn('[SpreadsheetAppViewer] Could not fetch Univer snapshot during sheet reload:', e)
+          }
+
+          const nextVersion = Number(snapshot.version || 0)
+          const localIntents = params.localWorkGuard?.listLocalIntentsForSheet(targetSheetId) ?? []
+          const rowsWithLocalIntents =
+            localIntents.length > 0
+              ? reapplyUnresolvedLocalIntentsToRows(rows, localIntents, {
+                  sheetId: targetSheetId,
+                  reloadedVersion: nextVersion
+                })
+              : rows
+          params.rememberKnownSheetVersion(targetSheetId, nextVersion)
+          params.syncSheetRowsIntoLocalState(targetSheetId, rowsWithLocalIntents, {
+            persisted: true,
+            syncGrid: isTargetActiveSheet,
+            version: nextVersion,
+            recoveredSheetMeta: recoveredSheetMetaWithVisibility
           })
-        }
-        if (restoredUniverSnapshot && isTargetActiveSheet) {
-          params.requestGridRefresh(restoredUniverSnapshot, `${seedPrefix}-${targetSheetId}-${Date.now()}`)
-          const visibilityReplayOperations = buildColumnVisibilityReplayOperations(targetSheetId, mergedColumns)
-          if (visibilityReplayOperations.length > 0) {
-            queueMicrotask(() => {
-              params.reapplyColumnVisibilityOnGrid?.(targetSheetId, visibilityReplayOperations)
+          if (params.sheetMetadataReloadEnabled && mergedColumns.length > 0) {
+            void requireMutationFacade().updateSheetMetadata(targetSheetId, {
+              columns: mergedColumns
             })
           }
-        } else if (restoredUniverSnapshot && params.preferUniverNativeSheetTabs) {
-          params.sheetsNeedingGridMaterializationRef.current.set(targetSheetId, seedPrefix)
-        } else if (isTargetActiveSheet) {
-          params.requestGridRefresh(null, `${seedPrefix}-${targetSheetId}-${Date.now()}`)
-        }
-        params.enqueueDiagnosticsTraceEvent({
-          source: 'client',
-          stage: 'client_snapshot_reload_succeeded',
-          traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
-          version: nextVersion,
-          payload: {
-            reason: seedPrefix,
-            targetSheetId,
-            restoredUniverSnapshot: Boolean(restoredUniverSnapshot),
-            isTargetActiveSheet
+          if (restoredUniverSnapshot && isTargetActiveSheet) {
+            await params.flushDeferredDirtyCellsRef?.current?.()
+            params.requestGridRefresh(restoredUniverSnapshot, `${seedPrefix}-${targetSheetId}-${Date.now()}`)
+            const visibilityReplayOperations = buildColumnVisibilityReplayOperations(targetSheetId, mergedColumns)
+            if (visibilityReplayOperations.length > 0) {
+              queueMicrotask(() => {
+                params.reapplyColumnVisibilityOnGrid?.(targetSheetId, visibilityReplayOperations)
+              })
+            }
+          } else if (restoredUniverSnapshot && params.preferUniverNativeSheetTabs) {
+            params.sheetsNeedingGridMaterializationRef.current.set(targetSheetId, seedPrefix)
+          } else if (isTargetActiveSheet) {
+            await params.flushDeferredDirtyCellsRef?.current?.()
+            params.requestGridRefresh(null, `${seedPrefix}-${targetSheetId}-${Date.now()}`)
           }
-        })
-        return true
-      } catch (error) {
-        console.error('[SpreadsheetAppViewer] Failed to reload sheet snapshot:', error)
-        params.enqueueDiagnosticsTraceEvent({
-          source: 'client',
-          stage: 'client_snapshot_reload_failed',
-          severity: 'error',
-          traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
-          payload: {
-            reason: seedPrefix,
-            targetSheetId,
-            message: error instanceof Error ? error.message : 'unknown'
+          params.enqueueDiagnosticsTraceEvent({
+            source: 'client',
+            stage: 'client_snapshot_reload_succeeded',
+            traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+            version: nextVersion,
+            payload: {
+              reason: seedPrefix,
+              targetSheetId,
+              restoredUniverSnapshot: Boolean(restoredUniverSnapshot),
+              isTargetActiveSheet
+            }
+          })
+          return true
+        } catch (error) {
+          console.error('[SpreadsheetAppViewer] Failed to reload sheet snapshot:', error)
+          params.enqueueDiagnosticsTraceEvent({
+            source: 'client',
+            stage: 'client_snapshot_reload_failed',
+            severity: 'error',
+            traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+            payload: {
+              reason: seedPrefix,
+              targetSheetId,
+              message: error instanceof Error ? error.message : 'unknown'
+            }
+          })
+          if (targetSheetId === params.activeSheetIdRef.current) {
+            scheduleSheetVersionRefreshFromApi()
           }
-        })
-        if (targetSheetId === params.activeSheetIdRef.current) {
-          scheduleSheetVersionRefreshFromApi()
+          return false
+        } finally {
+          canonicalReloadInFlightBySheetRef.current.delete(targetSheetId)
         }
-        return false
-      }
+      })()
+
+      canonicalReloadInFlightBySheetRef.current.set(targetSheetId, reloadTask)
+      return reloadTask
     },
     [
       params.appId,
+      cancelPendingRemoteStructuralResync,
       params.enqueueDiagnosticsTraceEvent,
       params.preferUniverNativeSheetTabs,
       params.sheetMetadataReloadEnabled,
@@ -306,35 +375,6 @@ export function useSpreadsheetRemoteSyncController(
       scheduleSheetVersionRefreshFromApi,
       params.syncSheetRowsIntoLocalState
     ]
-  )
-
-  const scheduleRemoteStructuralResync = useCallback(
-    (targetSheetId?: string, options?: { immediate?: boolean }) => {
-      const resolvedSheetId = targetSheetId || params.activeSheetIdRef.current
-      const existingTimeout = remoteStructuralResyncTimeoutsRef.current.get(resolvedSheetId)
-      if (existingTimeout) {
-        clearTimeout(existingTimeout)
-        remoteStructuralResyncTimeoutsRef.current.delete(resolvedSheetId)
-      }
-      if (
-        params.preferUniverNativeSheetTabs &&
-        !options?.immediate &&
-        resolvedSheetId !== params.activeSheetIdRef.current
-      ) {
-        deferredInactiveSheetResyncsRef.current.add(resolvedSheetId)
-        return
-      }
-      if (options?.immediate) {
-        void reloadSheetFromCanonicalSnapshot('remote-structural-resync', resolvedSheetId)
-        return
-      }
-      const timeoutId = globalThis.setTimeout(() => {
-        remoteStructuralResyncTimeoutsRef.current.delete(resolvedSheetId)
-        void reloadSheetFromCanonicalSnapshot('remote-structural-resync', resolvedSheetId)
-      }, 500)
-      remoteStructuralResyncTimeoutsRef.current.set(resolvedSheetId, timeoutId)
-    },
-    [params.preferUniverNativeSheetTabs, reloadSheetFromCanonicalSnapshot]
   )
 
   const { requestSheetDeltaCatchUp } = useSpreadsheetRemoteDeltaCatchUp({
@@ -353,15 +393,51 @@ export function useSpreadsheetRemoteSyncController(
     mutationFacadeRef: params.mutationFacadeRef,
     pendingCreatedSheetSelectionRef: params.pendingCreatedSheetSelectionRef,
     reloadSheetFromCanonicalSnapshot,
-    scheduleSheetVersionRefreshFromApi
+    scheduleSheetVersionRefreshFromApi,
+    localWorkGuard: params.localWorkGuard
   })
+
+  const scheduleRemoteStructuralResync = useCallback(
+    (targetSheetId?: string, options?: { immediate?: boolean }) => {
+      const resolvedSheetId = targetSheetId || params.activeSheetIdRef.current
+      if (canonicalReloadInFlightBySheetRef.current.has(resolvedSheetId)) {
+        return
+      }
+      const existingTimeout = remoteStructuralResyncTimeoutsRef.current.get(resolvedSheetId)
+      if (existingTimeout) {
+        clearTimeout(existingTimeout)
+        remoteStructuralResyncTimeoutsRef.current.delete(resolvedSheetId)
+      }
+      const runCatchUp = () => {
+        void requestSheetDeltaCatchUp(resolvedSheetId, 'remote_structural')
+      }
+      if (
+        params.preferUniverNativeSheetTabs &&
+        !options?.immediate &&
+        resolvedSheetId !== params.activeSheetIdRef.current
+      ) {
+        deferredInactiveSheetResyncsRef.current.add(resolvedSheetId)
+        return
+      }
+      if (options?.immediate) {
+        runCatchUp()
+        return
+      }
+      const timeoutId = globalThis.setTimeout(() => {
+        remoteStructuralResyncTimeoutsRef.current.delete(resolvedSheetId)
+        runCatchUp()
+      }, 500)
+      remoteStructuralResyncTimeoutsRef.current.set(resolvedSheetId, timeoutId)
+    },
+    [params.activeSheetIdRef, params.preferUniverNativeSheetTabs, requestSheetDeltaCatchUp]
+  )
 
   useEffect(() => {
     if (!params.preferUniverNativeSheetTabs) return
     if (!deferredInactiveSheetResyncsRef.current.has(params.activeSheetId)) return
     deferredInactiveSheetResyncsRef.current.delete(params.activeSheetId)
-    void reloadSheetFromCanonicalSnapshot('deferred-remote-structural-resync', params.activeSheetId)
-  }, [params.activeSheetId, params.preferUniverNativeSheetTabs, reloadSheetFromCanonicalSnapshot])
+    void requestSheetDeltaCatchUp(params.activeSheetId, 'remote_structural')
+  }, [params.activeSheetId, params.preferUniverNativeSheetTabs, requestSheetDeltaCatchUp])
 
   useEffect(() => {
     params.scheduleSheetVersionRefreshFromApiRef.current = scheduleSheetVersionRefreshFromApi
@@ -447,6 +523,10 @@ export function useSpreadsheetRemoteSyncController(
         return true
       }
 
+      if (!delta.requiresSnapshot) {
+        return requestSheetDeltaCatchUp(params.activeSheetId, 'version_conflict', { sinceVersion })
+      }
+
       params.snapshotSaveMetricsRef.current.fallbackLoads += 1
       if (params.hasPendingPersistenceForSheet(params.activeSheetId)) {
         params.enqueueDiagnosticsTraceEvent({
@@ -491,7 +571,8 @@ export function useSpreadsheetRemoteSyncController(
     params.spreadsheetSession,
     params.syncSheetRowsIntoLocalState,
     reloadSheetFromCanonicalSnapshot,
-    scheduleSheetVersionRefreshFromApi
+    scheduleSheetVersionRefreshFromApi,
+    requestSheetDeltaCatchUp
   ])
 
   useEffect(() => {

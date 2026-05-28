@@ -41,6 +41,18 @@ export {
   type SpreadsheetDeltaReplayMode
 } from './spreadsheetCommittedDeltaContract'
 export {
+  SpreadsheetIntentJournal,
+  type SpreadsheetCellIntentRecord,
+  type SpreadsheetIntentJournalState
+} from './spreadsheetIntentJournal'
+export { releaseSpreadsheetMutationOwnershipFromResponse } from './spreadsheetMutationOwnershipRelease'
+export {
+  SpreadsheetVersionCausalOwnershipRegistry,
+  type SpreadsheetLiveRemoteApplyVersionScope,
+  type SpreadsheetVersionCausalCellRecord,
+  type SpreadsheetVersionCausalOwnershipState
+} from './spreadsheetVersionCausalOwnership'
+export {
   DEPRECATED_WS_STRUCTURAL_RELAY_OP_TYPES,
   isDeprecatedWsStructuralRelayOperation,
   isLegacyWsRelayOperation,
@@ -68,6 +80,7 @@ export {
 } from './univerRemoteTransactionRunner'
 export {
   SpreadsheetSnapshotFallbackController,
+  isVersionRelatedSnapshotFallbackReason,
   type SpreadsheetSnapshotFallbackReason,
   type SpreadsheetSnapshotFallbackRequest,
   type SpreadsheetSnapshotFallbackSchedule

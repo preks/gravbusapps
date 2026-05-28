@@ -64,6 +64,7 @@ export type RegisterUniverMountCommandExecutedDeps = Pick<
   | 'lastCellValueMutationAtRef'
   | 'pendingCutCellRangeRef'
   | 'cutPasteCollabSuppressUntilMsRef'
+  | 'mergeGestureSuppressBySheetRef'
   | 'pendingAutofillIntentRef'
 > & {
   univerAPI: ReturnType<typeof createUniver>['univerAPI']
@@ -116,6 +117,7 @@ export function registerUniverMountCommandExecuted(
     lastCellValueMutationAtRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    mergeGestureSuppressBySheetRef,
     pendingAutofillIntentRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
@@ -348,7 +350,8 @@ export function registerUniverMountCommandExecuted(
         lastFeatureEmitAtBySignatureRef,
         pendingFreezeClearEmitTimeoutBySheetRef,
         pendingCutCellRangeRef,
-        cutPasteCollabSuppressUntilMsRef
+        cutPasteCollabSuppressUntilMsRef,
+        mergeGestureSuppressBySheetRef
       },
       { t, commandId, params }
     )

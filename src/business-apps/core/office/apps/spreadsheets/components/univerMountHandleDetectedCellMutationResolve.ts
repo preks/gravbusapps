@@ -19,7 +19,6 @@ import {
   getOrCreateClientRowId,
   isCurrentFacadeWorksheet,
   isRegionReplaceStyleCollaborationCommand,
-  pruneExpiredRecentMutationEntries,
   summarizeCellMatrixForDebug,
   summarizeRangesForDebug
 } from './univerGridWorkbookMutationModule'
@@ -27,9 +26,10 @@ import { getCommandKind } from './univerCommandClassification'
 import {
   buildShouldSuppressRemoteEcho,
   cellMatrixHasAnyNonSuppressedCell,
-  selectionReconcileAllCellsRecentlyLocal,
+  selectionReconcileAllCellsLocallyOwned,
   selectionReconcileHasAuthoritativeDiff
 } from './univerMountHandleDetectedCellMutationRemoteEcho'
+import { buildSpreadsheetLocalCellPaintGuard } from '../utils/spreadsheetLocalCellPaintGuard'
 import { getSpreadsheetRowAtUniverGridIndex } from './univerGridAuthoritativeHelpers'
 import {
   createClientRowRef,
@@ -40,6 +40,7 @@ import {
 import { resolveBackendRowUuidPredicateFromGridProps } from './univerBackendRowUuidPredicate'
 import { getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
 import { rowSlotTargetMatchesRowIdentity } from '../utils/spreadsheetRowSlotIdentity'
+import { getActiveMergeGestureSuppressRanges, unionSheetRangeShapes } from '../utils/spreadsheetMergeGestureSuppress'
 import type {
   DetectedCellMutationReady,
   HandleDetectedCellMutationArgs,
@@ -281,7 +282,6 @@ export function resolveDetectedCellMutation(
     callbacksRef,
     recentlyDuplicatedWorksheetIdsRef,
     remoteEchoSuppressionRef,
-    recentLocallyMutatedGridCellsRef,
     lastSyncedGridCellSignaturesRef,
     newRowClientIdByIndexRef,
     getWorkbookSnapshotRef,
@@ -346,14 +346,19 @@ export function resolveDetectedCellMutation(
       return { status: 'return', value: false }
     }
     const reconcileNow = Date.now()
-    pruneExpiredRecentMutationEntries(recentLocallyMutatedGridCellsRef.current, reconcileNow)
     const shouldSuppressQuick = buildShouldSuppressRemoteEcho({ remoteEchoSuppressionRef }, reconcileNow)
     if (!cellMatrixHasAnyNonSuppressedCell(quickCellValue, shouldSuppressQuick, 0, 0)) {
       return { status: 'return', value: false }
     }
-    if (
-      selectionReconcileAllCellsRecentlyLocal({ recentLocallyMutatedGridCellsRef }, quickCellValue, reconcileNow, 0, 0)
-    ) {
+    const quickPaintGuard = buildSpreadsheetLocalCellPaintGuard({
+      sheetId: targetSheetId,
+      rows: propsRef.current.data,
+      columns: propsRef.current.columns,
+      versionCausalOwnershipRef: propsRef.current.versionCausalOwnershipRef,
+      pendingLocalMutationCellsRef: propsRef.current.pendingLocalMutationCellsRef,
+      resolveKnownSheetVersion: propsRef.current.resolveKnownSheetVersion
+    })
+    if (selectionReconcileAllCellsLocallyOwned(quickPaintGuard, quickCellValue, 0, 0)) {
       return { status: 'return', value: false }
     }
     if (!selectionReconcileHasAuthoritativeDiff({ lastSyncedGridCellSignaturesRef }, quickCellValue)) {
@@ -473,6 +478,7 @@ export function resolveDetectedCellMutation(
   const payloadCellValueForValueMerge = preserveUndefinedAsNull ? undefined : payloadCellValue
   const payloadCoordinateModeHint = detectCellMatrixCoordinateModeHint(ranges, payloadCellValueForValueMerge)
   const workbookSnapshotCellValue =
+    source !== 'deferred-replay' &&
     source === 'sheet-value-changed' &&
     !preserveUndefinedAsNull &&
     !disableMixedValueStylePayloads &&
@@ -654,7 +660,6 @@ export function resolveDetectedCellMutation(
     return { status: 'return', value: false }
   }
   const now = Date.now()
-  pruneExpiredRecentMutationEntries(recentLocallyMutatedGridCellsRef.current, now)
   const shouldSuppress = buildShouldSuppressRemoteEcho({ remoteEchoSuppressionRef }, now)
   const hasNonSuppressedCell = cellMatrixHasAnyNonSuppressedCell(cellValue, shouldSuppress, rowOffset, colOffset)
 
@@ -669,15 +674,15 @@ export function resolveDetectedCellMutation(
   const isReadOnlyReconcileSource = source === 'selection-reconcile' || source === 'deferred-reconcile'
 
   if (isReadOnlyReconcileSource) {
-    if (
-      selectionReconcileAllCellsRecentlyLocal(
-        { recentLocallyMutatedGridCellsRef },
-        cellValue,
-        now,
-        rowOffset,
-        colOffset
-      )
-    ) {
+    const reconcilePaintGuard = buildSpreadsheetLocalCellPaintGuard({
+      sheetId: targetSheetId,
+      rows: currentData,
+      columns: contextColumns,
+      versionCausalOwnershipRef: propsRef.current.versionCausalOwnershipRef,
+      pendingLocalMutationCellsRef: propsRef.current.pendingLocalMutationCellsRef,
+      resolveKnownSheetVersion: propsRef.current.resolveKnownSheetVersion
+    })
+    if (selectionReconcileAllCellsLocallyOwned(reconcilePaintGuard, cellValue, rowOffset, colOffset)) {
       return { status: 'return', value: false }
     }
   }
@@ -806,7 +811,11 @@ export function resolveDetectedCellMutation(
     ranges,
     shouldSuppress,
     pendingNewRowsUpdate,
-    liveMergeRanges: extractLiveMergeRangesFromFacade(currentWorksheet)
+    liveMergeRanges: unionSheetRangeShapes(
+      extractLiveMergeRangesFromFacade(currentWorksheet),
+      getActiveMergeGestureSuppressRanges(deps.mergeGestureSuppressBySheetRef, targetSheetId),
+      ranges
+    )
   }
 
   return { status: 'ready', ready }

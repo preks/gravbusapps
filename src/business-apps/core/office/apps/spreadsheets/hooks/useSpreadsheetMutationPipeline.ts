@@ -11,6 +11,10 @@ import {
 } from '../core'
 import type { SpreadsheetSheet } from '../types'
 import { areCanonicalSheetIdsEqual, resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
+import {
+  buildCommittedBatchEnvelopeFromHttpResponse,
+  buildRejectedConflictCommittedBatchEnvelope
+} from '../core/spreadsheetCommittedBatchFromHttp'
 
 const EMPTY_SHEET_ID_ALIASES = new Map<string, string>()
 import type { SpreadsheetTraceEventInput, SpreadsheetTraceSession } from '../services/spreadsheetDiagnostics'
@@ -40,6 +44,12 @@ export interface UseSpreadsheetMutationPipelineParams {
   rememberKnownSheetVersion: (sheetId: string, version: number) => void
   rememberSheetVersion: (sheetId: string, version: number) => void
   rememberLocalCommittedVersion: (version: number) => void
+  onLocalBatchCommitted?: (sheetId: string, version: number) => void
+  applyLocalCommittedBatch?: (params: {
+    committedBatch: import('../core').SpreadsheetCommittedBatchEnvelope
+    traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string }
+    isSameUser?: boolean
+  }) => boolean
   refreshBaseVersionBeforeWrite: (sheetId: string, baseVersion: number) => Promise<number>
   updateActiveSheetVersion: (version: number, mode: 'set' | 'max') => void
   applyResponseRowsToLocalBaseline: (
@@ -78,6 +88,11 @@ export interface UseSpreadsheetMutationPipelineParams {
   /** Temp→persisted ids for newly created sheets (canonical comparisons + route normalization). */
   createdSheetIdAliasesRef?: MutableRefObject<Map<string, string>>
   /** Serializes every submitBatch through the shared operation queue (cell/style/dim ordering). */
+  releaseMutationOwnershipFromResponse?: (params: {
+    sheetId: string
+    operations: SpreadsheetBatchOperation[]
+    response: SpreadsheetBatchOperationResponse
+  }) => void
   serializeMutationSubmitsWithQueue?: {
     operationQueueRef: MutableRefObject<Promise<void>>
     chainOnOperationQueue: SpreadsheetOperationQueueChain
@@ -114,6 +129,8 @@ export function useSpreadsheetMutationPipeline(
     rememberKnownSheetVersion,
     rememberSheetVersion,
     rememberLocalCommittedVersion,
+    onLocalBatchCommitted,
+    applyLocalCommittedBatch,
     refreshBaseVersionBeforeWrite,
     updateActiveSheetVersion,
     applyResponseRowsToLocalBaseline,
@@ -130,7 +147,8 @@ export function useSpreadsheetMutationPipeline(
     onSheetDelete,
     mutationFacadeRef,
     createdSheetIdAliasesRef,
-    serializeMutationSubmitsWithQueue
+    serializeMutationSubmitsWithQueue,
+    releaseMutationOwnershipFromResponse
   } = params
 
   const rawSubmitMutationBatch = useMemo<SpreadsheetMutationFacade['submitBatch']>(
@@ -174,8 +192,59 @@ export function useSpreadsheetMutationPipeline(
         rememberKnownSheetVersion,
         rememberSheetVersion,
         rememberLocalCommittedVersion,
+        onLocalBatchCommitted,
+        releaseMutationOwnershipFromResponse,
         setActiveSheetVersion: version => {
           updateActiveSheetVersion(version, 'set')
+        },
+        applyLocalCommittedBatch: ({ sheetId, operations, response, batchId, traceId, baseVersion }) => {
+          if (!applyLocalCommittedBatch) return false
+          const traceMeta = {
+            traceSessionId: activeTraceSessionRef.current?.id,
+            traceId,
+            batchId
+          }
+          const committedBatch = buildCommittedBatchEnvelopeFromHttpResponse({
+            workbookId: appId,
+            sheetId,
+            requestOperations: operations,
+            response,
+            batchId,
+            baseVersion,
+            traceId,
+            traceSessionId: activeTraceSessionRef.current?.id,
+            sessionId: diagnosticsBrowserSessionIdRef.current,
+            tabId: diagnosticsTabIdRef.current
+          })
+          const handled = applyLocalCommittedBatch({
+            committedBatch,
+            traceMeta,
+            isSameUser: true
+          })
+          if (!handled) return false
+          const rejectedConflictBatch = buildRejectedConflictCommittedBatchEnvelope({
+            workbookId: appId,
+            sheetId,
+            response,
+            baseBatchId: batchId,
+            traceId,
+            traceSessionId: activeTraceSessionRef.current?.id,
+            sessionId: diagnosticsBrowserSessionIdRef.current,
+            tabId: diagnosticsTabIdRef.current
+          })
+          if (rejectedConflictBatch) {
+            applyLocalCommittedBatch({
+              committedBatch: rejectedConflictBatch,
+              traceMeta: {
+                traceSessionId: traceMeta.traceSessionId,
+                traceId,
+                batchId: rejectedConflictBatch.batchId ?? batchId
+              },
+              isSameUser: true
+            })
+          }
+          spreadsheetSession.capturePersistedBaselineForOperations(sheetId, operations)
+          return true
         },
         applyMutationToSession: (targetSheetId, operations, response) => {
           spreadsheetSession.applyMutation({
@@ -246,6 +315,8 @@ export function useSpreadsheetMutationPipeline(
       rememberSheetVersion,
       recoverFromVersionConflict,
       refreshBaseVersionBeforeWrite,
+      releaseMutationOwnershipFromResponse,
+      applyLocalCommittedBatch,
       snapshotSaveMetricsRef,
       spreadsheetSession,
       sheetVersionRef,

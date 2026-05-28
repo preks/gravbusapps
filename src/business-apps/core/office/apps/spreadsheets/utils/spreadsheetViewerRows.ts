@@ -19,30 +19,65 @@ export const isUuidString = (value: string): boolean => UUID_RE.test(value)
 
 export const viewerRowId = (row: Record<string, unknown>): string => getCanonicalRowId(row)
 
+const getDurableRowIdentity = (row: Record<string, unknown>): string => {
+  const explicit = row._rowUuid ?? row.UUID ?? row.uuid
+  if (typeof explicit === 'string' && explicit) return explicit
+  const canonical = getCanonicalRowId(row)
+  return isUuidString(canonical) ? canonical : ''
+}
+
+const getMergeableGridRowIndex = (row: Record<string, unknown>): number | undefined =>
+  getDurableRowIdentity(row) ? getFiniteNonNegativeGridRowIndex(row) : undefined
+
+const mergeRowsKeepingRicherValues = <T extends Record<string, unknown>>(existing: T, row: T): T => {
+  const existingCount = getKnownCellValueCount(existing)
+  const nextCount = getKnownCellValueCount(row)
+  return (nextCount >= existingCount ? { ...existing, ...row } : { ...row, ...existing }) as T
+}
+
 export const mergeDuplicateClientRows = <T extends Record<string, unknown>>(rows: T[]): T[] => {
   const mergedByClientId = new Map<string, T>()
+  const mergedByDurableId = new Map<string, T>()
+  const mergedByGridRowIndex = new Map<number, T>()
   const output: T[] = []
+
+  const remember = (row: T): void => {
+    const clientRowId = getClientRowIdentity(row)
+    if (clientRowId) mergedByClientId.set(clientRowId, row)
+    const durableId = getDurableRowIdentity(row)
+    if (durableId) mergedByDurableId.set(durableId, row)
+    const gridRowIndex = getMergeableGridRowIndex(row)
+    if (gridRowIndex !== undefined) mergedByGridRowIndex.set(gridRowIndex, row)
+  }
+
+  const replaceOutputRow = (existing: T, merged: T): void => {
+    const existingIndex = output.indexOf(existing)
+    if (existingIndex >= 0) output[existingIndex] = merged
+  }
 
   for (const row of rows) {
     const clientRowId = getClientRowIdentity(row)
-    if (!clientRowId) {
-      output.push(row)
-      continue
-    }
+    const durableId = getDurableRowIdentity(row)
+    const gridRowIndex = getMergeableGridRowIndex(row)
+    const existing =
+      (durableId ? mergedByDurableId.get(durableId) : undefined) ??
+      (gridRowIndex !== undefined ? mergedByGridRowIndex.get(gridRowIndex) : undefined) ??
+      (clientRowId ? mergedByClientId.get(clientRowId) : undefined)
 
-    const existing = mergedByClientId.get(clientRowId)
     if (!existing) {
-      mergedByClientId.set(clientRowId, row)
+      remember(row)
       output.push(row)
       continue
     }
 
-    const existingCount = getKnownCellValueCount(existing)
-    const nextCount = getKnownCellValueCount(row)
-    const merged = (nextCount >= existingCount ? { ...existing, ...row } : { ...row, ...existing }) as T
-    const existingIndex = output.indexOf(existing)
-    if (existingIndex >= 0) output[existingIndex] = merged
-    mergedByClientId.set(clientRowId, merged)
+    const merged = mergeRowsKeepingRicherValues(existing, row)
+    replaceOutputRow(existing, merged)
+    remember(merged)
+    const existingClientRowId = getClientRowIdentity(existing)
+    if (existingClientRowId) mergedByClientId.set(existingClientRowId, merged)
+    if (clientRowId) mergedByClientId.set(clientRowId, merged)
+    if (durableId) mergedByDurableId.set(durableId, merged)
+    if (gridRowIndex !== undefined) mergedByGridRowIndex.set(gridRowIndex, merged)
   }
 
   return output
@@ -206,15 +241,20 @@ export const buildCreatedRowsFromBatch = (
   appendRowMappingsToPersistedIdMap(persistedIdByClientRowId, options?.rowMappings)
   const createdRows = rowPayloads.map((rowPayload, index) => {
     const clientRowId = String(rowPayload._clientRowId || '')
+    const returnedRow = returnedRows[index]
+    const returnedRowData =
+      returnedRow?.data && typeof returnedRow.data === 'object' && !Array.isArray(returnedRow.data)
+        ? (returnedRow.data as Record<string, unknown>)
+        : {}
     const persistedId =
-      (clientRowId ? persistedIdByClientRowId.get(clientRowId) : undefined) ??
-      (returnedRows[index]?.id as string | undefined)
+      (clientRowId ? persistedIdByClientRowId.get(clientRowId) : undefined) ?? (returnedRow?.id as string | undefined)
     const pending = clientRowId ? pendingUpdates.get(clientRowId) : undefined
     const reconciledPending: Record<string, unknown> = {}
+    const authoritativeSeed = { ...rowPayload, ...returnedRowData }
     if (clientRowId && pending) {
       pendingUpdates.delete(clientRowId)
       for (const [columnName, value] of Object.entries(pending)) {
-        if (shouldSkipFreshRowCellReplay(rowPayload[columnName], value)) {
+        if (shouldSkipFreshRowCellReplay(authoritativeSeed[columnName], value)) {
           continue
         }
         reconciledPending[columnName] = value
@@ -223,7 +263,8 @@ export const buildCreatedRowsFromBatch = (
         }
       }
     }
-    const merged = Object.keys(reconciledPending).length > 0 ? { ...rowPayload, ...reconciledPending } : rowPayload
+    const merged =
+      Object.keys(reconciledPending).length > 0 ? { ...authoritativeSeed, ...reconciledPending } : authoritativeSeed
     return {
       ...merged,
       _id: persistedId || clientRowId || `temp_${index}`,

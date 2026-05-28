@@ -2,7 +2,9 @@ import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiServic
 import { cellValuesAreEquivalentForPersist } from './spreadsheetPendingCells'
 import {
   getViewerRowIdentityCandidates,
+  getSpreadsheetRowRefIdentity,
   resolveBackendRowIdForViewerRow,
+  resolveSpreadsheetRowRef,
   type ViewerRow
 } from './spreadsheetRowIdentity'
 
@@ -17,6 +19,7 @@ interface CellDedupResult {
   droppedCellCount: number
   droppedSetRangeOpCount: number
   droppedCellKeys: string[]
+  retainedMismatchedCellKeys: string[]
 }
 
 const buildRowLookupByBackendId = (rows: ViewerRow[], isUuid: (value: string) => boolean): Map<string, ViewerRow> => {
@@ -55,12 +58,19 @@ export const dropSetRangeCellsRedundantAfterMaterialization = (
   isUuid: (value: string) => boolean
 ): CellDedupResult => {
   if (operations.length === 0 || materializedBackendRowIds.size === 0) {
-    return { operations, droppedCellCount: 0, droppedSetRangeOpCount: 0, droppedCellKeys: [] }
+    return {
+      operations,
+      droppedCellCount: 0,
+      droppedSetRangeOpCount: 0,
+      droppedCellKeys: [],
+      retainedMismatchedCellKeys: []
+    }
   }
 
   const rowLookup = buildRowLookupByBackendId(rowsPostFlush, isUuid)
   const nextOperations: SpreadsheetBatchOperation[] = []
   const droppedCellKeys: string[] = []
+  const retainedMismatchedCellKeys: string[] = []
   let droppedCellCount = 0
   let droppedSetRangeOpCount = 0
 
@@ -96,6 +106,7 @@ export const dropSetRangeCellsRedundantAfterMaterialization = (
         droppedCellKeys.push(`${rowId}\u0000${columnName}`)
         continue
       }
+      retainedMismatchedCellKeys.push(`${rowId}\u0000${columnName}`)
       keptCells.push(cell)
     }
 
@@ -117,6 +128,125 @@ export const dropSetRangeCellsRedundantAfterMaterialization = (
     operations: nextOperations,
     droppedCellCount,
     droppedSetRangeOpCount,
-    droppedCellKeys
+    droppedCellKeys,
+    retainedMismatchedCellKeys
+  }
+}
+
+export const dropSetRangeCellsRedundantWithAddRows = (operations: SpreadsheetBatchOperation[]): CellDedupResult => {
+  if (operations.length === 0) {
+    return {
+      operations,
+      droppedCellCount: 0,
+      droppedSetRangeOpCount: 0,
+      droppedCellKeys: [],
+      retainedMismatchedCellKeys: []
+    }
+  }
+
+  const seededValuesByClientRowId = new Map<string, Record<string, unknown>>()
+  for (const operation of operations) {
+    if (operation.type !== 'add_rows') continue
+    const rows = Array.isArray(operation.data?.rows) ? (operation.data.rows as Array<Record<string, unknown>>) : []
+    for (const row of rows) {
+      const clientRowId = typeof row._clientRowId === 'string' ? row._clientRowId : ''
+      if (!clientRowId) continue
+      const seededValues = seededValuesByClientRowId.get(clientRowId) ?? {}
+      for (const [key, value] of Object.entries(row)) {
+        if (key.startsWith('_') || value === undefined) continue
+        seededValues[key] = value
+      }
+      seededValuesByClientRowId.set(clientRowId, seededValues)
+    }
+  }
+
+  if (seededValuesByClientRowId.size === 0) {
+    return {
+      operations,
+      droppedCellCount: 0,
+      droppedSetRangeOpCount: 0,
+      droppedCellKeys: [],
+      retainedMismatchedCellKeys: []
+    }
+  }
+
+  const nextOperations: SpreadsheetBatchOperation[] = []
+  const droppedCellKeys: string[] = []
+  const retainedMismatchedCellKeys: string[] = []
+  let droppedCellCount = 0
+  let droppedSetRangeOpCount = 0
+
+  const shouldKeepCell = (rowIdentity: string, columnName: string, value: unknown): boolean => {
+    const seededValues = seededValuesByClientRowId.get(rowIdentity)
+    if (!seededValues || !Object.prototype.hasOwnProperty.call(seededValues, columnName)) {
+      return true
+    }
+    if (cellValuesAreEquivalentForPersist(seededValues[columnName], value)) {
+      droppedCellCount += 1
+      droppedCellKeys.push(`${rowIdentity}\u0000${columnName}`)
+      return false
+    }
+    retainedMismatchedCellKeys.push(`${rowIdentity}\u0000${columnName}`)
+    return true
+  }
+
+  for (const operation of operations) {
+    if (operation.type === 'set_range' && Array.isArray(operation.data?.cells)) {
+      const keptCells = operation.data.cells.filter(cell => {
+        if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return true
+        const record = cell as Record<string, unknown>
+        const rowRef = resolveSpreadsheetRowRef(record.rowRef)
+        const rowIdentity =
+          typeof record.rowId === 'string' && record.rowId
+            ? record.rowId
+            : rowRef
+              ? getSpreadsheetRowRefIdentity(rowRef)
+              : ''
+        const columnName = typeof record.columnName === 'string' ? record.columnName : ''
+        if (!rowIdentity || !columnName) return true
+        return shouldKeepCell(rowIdentity, columnName, record.value)
+      })
+      if (keptCells.length === 0) {
+        droppedSetRangeOpCount += 1
+        continue
+      }
+      nextOperations.push(
+        keptCells.length === operation.data.cells.length
+          ? operation
+          : {
+              ...operation,
+              data: {
+                ...operation.data,
+                cells: keptCells
+              }
+            }
+      )
+      continue
+    }
+
+    if (operation.type === 'set_cell' && operation.data && typeof operation.data === 'object') {
+      const rowRef = resolveSpreadsheetRowRef(operation.data.rowRef)
+      const rowIdentity =
+        typeof operation.data.rowId === 'string' && operation.data.rowId
+          ? operation.data.rowId
+          : rowRef
+            ? getSpreadsheetRowRefIdentity(rowRef)
+            : ''
+      const columnName = typeof operation.data.columnName === 'string' ? operation.data.columnName : ''
+      if (!rowIdentity || !columnName || shouldKeepCell(rowIdentity, columnName, operation.data.value)) {
+        nextOperations.push(operation)
+      }
+      continue
+    }
+
+    nextOperations.push(operation)
+  }
+
+  return {
+    operations: nextOperations,
+    droppedCellCount,
+    droppedSetRangeOpCount,
+    droppedCellKeys,
+    retainedMismatchedCellKeys
   }
 }

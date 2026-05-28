@@ -5,6 +5,10 @@ import {
 } from './spreadsheetApplyFetchedSheetDelta'
 import { SpreadsheetSessionMutationSources } from './SpreadsheetSession'
 import { deltaChangesIncludeManagerReplayOps } from './spreadsheetCollaborationSync'
+import {
+  applyCommittedGridRowPlacements,
+  mergeGridRowPlacementsFromReplayChanges
+} from '../utils/spreadsheetCommittedGridRowPlacements'
 
 export type SpreadsheetCollaborationManagerReplay = {
   replayDeltaChanges: (
@@ -21,10 +25,12 @@ export type ApplyRemoteFetchedSheetDeltaParams = Omit<ApplyFetchedSheetDeltaToSp
  * Applies HTTP replay deltas into {@link SpreadsheetSession} as remote-committed operations.
  */
 export function applyRemoteFetchedSheetDelta(params: ApplyRemoteFetchedSheetDeltaParams): Record<string, unknown>[] {
-  return applyFetchedSheetDeltaToSpreadsheetSession({
+  const rows = applyFetchedSheetDeltaToSpreadsheetSession({
     ...params,
     source: SpreadsheetSessionMutationSources.RemoteApply
   })
+  const placements = mergeGridRowPlacementsFromReplayChanges(params.changes)
+  return placements ? applyCommittedGridRowPlacements(rows, placements) : rows
 }
 
 export interface ReplayRemoteDeltaThroughCollaborationManagerParams {

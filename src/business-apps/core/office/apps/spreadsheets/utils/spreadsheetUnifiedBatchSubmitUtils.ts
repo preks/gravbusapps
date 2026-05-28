@@ -43,7 +43,7 @@ export interface SpreadsheetKnownRowIdFieldRemap {
 
 type KnownRowIdVisitor = (match: SpreadsheetKnownRowIdFieldMatch) => void
 
-function visitKnownRowIdFields(operations: SpreadsheetBatchOperation[], visitor: KnownRowIdVisitor): void {
+function visitKnownRowIdFields(operations: readonly SpreadsheetBatchOperation[], visitor: KnownRowIdVisitor): void {
   operations.forEach((op, operationIndex) => {
     const operationId = String(op.operationId ?? '')
     if (op.type === 'set_range' && Array.isArray(op.data?.cells)) {
@@ -128,7 +128,7 @@ function visitKnownRowIdFields(operations: SpreadsheetBatchOperation[], visitor:
 }
 
 export function collectKnownRowIdFieldMatches(
-  operations: SpreadsheetBatchOperation[]
+  operations: readonly SpreadsheetBatchOperation[]
 ): SpreadsheetKnownRowIdFieldMatch[] {
   const matches: SpreadsheetKnownRowIdFieldMatch[] = []
   visitKnownRowIdFields(operations, match => {
@@ -147,7 +147,7 @@ export function collectKnownRowIdFieldMatches(
  * readiness gate until an `add_rows` for it has been acknowledged — sending
  * it raw guarantees `unknown_client_row_handle`.
  */
-function collectClientRowIdsMaterializedByBatch(operations: SpreadsheetBatchOperation[]): Set<string> {
+function collectClientRowIdsMaterializedByBatch(operations: readonly SpreadsheetBatchOperation[]): Set<string> {
   const ids = new Set<string>()
   for (const op of operations) {
     if (op.type !== 'add_rows') continue
@@ -165,7 +165,7 @@ function collectClientRowIdsMaterializedByBatch(operations: SpreadsheetBatchOper
 }
 
 export function detectTemporaryRowIdsInKnownRowIdFields(
-  operations: SpreadsheetBatchOperation[],
+  operations: readonly SpreadsheetBatchOperation[],
   isTemporaryRowId: (value: string) => boolean = isSpreadsheetTemporaryClientRowId
 ): SpreadsheetKnownRowIdFieldMatch[] {
   const matches: SpreadsheetKnownRowIdFieldMatch[] = []

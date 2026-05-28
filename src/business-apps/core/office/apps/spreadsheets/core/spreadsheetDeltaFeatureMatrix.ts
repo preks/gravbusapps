@@ -26,6 +26,8 @@ const SUPPORTED_PHASE_ONE_OPS = new Set([
   'move_cell_range',
   'visibility_update',
   'freeze_panes',
+  'merge_ranges',
+  'unmerge_ranges',
   'column_add',
   'column_delete',
   'column_update',

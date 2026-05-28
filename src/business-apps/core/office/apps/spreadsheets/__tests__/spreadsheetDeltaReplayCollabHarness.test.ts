@@ -187,6 +187,99 @@ describe('spreadsheetDeltaReplayCollabHarness', () => {
     expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
   })
 
+  it('identity-keyed placements: applies gridRowIndexByRowUuid on committed batch', async () => {
+    const commitSheetData = jest.fn()
+    const rows = [
+      { _rowUuid: 'row-1', _gridRowIndex: 0, ColumnA: 'a' },
+      { _rowUuid: 'row-2', _gridRowIndex: 1, ColumnA: 'b' }
+    ]
+    const { manager } = createManagerWithCommittedReplay({
+      getSheetVersion: () => 4,
+      getColumns: () => [col({ id: 'col-a', name: 'ColumnA', order: 0 })],
+      getLocalSheetData: () => rows,
+      getSheetData: () => rows,
+      commitSheetData
+    })
+
+    manager.handleOperation({
+      userId: 'peer',
+      userName: 'Peer',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          baseVersion: 4,
+          appliedVersion: 5,
+          payloadSchemaVersion: 1,
+          gridRowIndexByRowUuid: { 'row-1': 3, 'row-2': 4 },
+          operations: [
+            {
+              type: 'set_cell',
+              data: { sheetId: 'sheet-1', rowId: 'row-1', columnName: 'ColumnA', value: 'x', row: 0, col: 0 }
+            }
+          ]
+        }
+      },
+      version: 5,
+      timestamp: Date.now()
+    })
+
+    await Promise.resolve()
+    expect(commitSheetData).toHaveBeenCalled()
+    const committedRows = commitSheetData.mock.calls[0][1] as Array<Record<string, unknown>>
+    expect(committedRows[0]._gridRowIndex).toBe(3)
+    expect(committedRows[1]._gridRowIndex).toBe(4)
+  })
+
+  it('WS-before-HTTP-ack: local committed batch dedupes peer echo at same version', () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const { manager } = createManagerWithCommittedReplay({
+      getSheetVersion: () => 4,
+      getColumns: () => [col({ id: 'col-a', name: 'ColumnA', order: 0 })],
+      getLocalSheetData: () => [{ _rowUuid: 'row-1', ColumnA: 'local' }],
+      getSheetData: () => [{ _rowUuid: 'row-1', ColumnA: 'local' }],
+      applyRemoteCellUpdatesBulk
+    })
+
+    const batchEnvelope = {
+      sheetId: 'sheet-1',
+      baseVersion: 4,
+      appliedVersion: 5,
+      payloadSchemaVersion: 1,
+      batchId: 'batch-local-1',
+      operations: [
+        {
+          type: 'set_cell',
+          data: { sheetId: 'sheet-1', rowId: 'row-1', columnName: 'ColumnA', value: 'local' }
+        }
+      ]
+    }
+
+    manager.applyLocalCommittedBatch({
+      committedBatch: {
+        ...batchEnvelope,
+        operations: batchEnvelope.operations.map(op => ({
+          type: op.type,
+          data: op.data
+        }))
+      },
+      isSameUser: true
+    })
+
+    manager.handleOperation({
+      userId: 'self',
+      userName: 'Self',
+      operation: {
+        type: 'batch_operations',
+        data: batchEnvelope
+      },
+      version: 5,
+      timestamp: Date.now()
+    })
+
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+  })
+
   it('HTTP catch-up replay: replayDeltaChanges uses committed envelopes', () => {
     const handleOperation = jest.spyOn(SpreadsheetCollaborationManager.prototype, 'handleOperation')
     const { manager } = createManagerWithCommittedReplay({

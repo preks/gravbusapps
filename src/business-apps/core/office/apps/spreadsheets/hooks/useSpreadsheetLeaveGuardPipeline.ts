@@ -48,6 +48,7 @@ export interface UseSpreadsheetLeaveGuardPipelineParams {
    * + journal restore covers the rest).
    */
   getSheetWorkQueue?: () => SheetWorkQueueApi | null
+  hasUnresolvedCollaborationWork?: () => boolean
 }
 
 export interface UseSpreadsheetLeaveGuardPipelineResult {
@@ -188,10 +189,17 @@ export function useSpreadsheetLeaveGuardPipeline(
       workbookSnapshotThrottlePendingRef.current ||
       pendingSnapshotCheckpointBySheetRef.current.size > 0 ||
       snapshotCheckpointDrainScheduledRef.current
+    const hasUnresolvedCollaborationWork = params.hasUnresolvedCollaborationWork?.() ?? false
     return (
-      matchesHeaderUnsaved || hasPendingCells || hasPendingDebounce || hasPendingUniverChange || hasPendingSnapshotWork
+      matchesHeaderUnsaved ||
+      hasPendingCells ||
+      hasPendingDebounce ||
+      hasPendingUniverChange ||
+      hasPendingSnapshotWork ||
+      hasUnresolvedCollaborationWork
     )
   }, [
+    params.hasUnresolvedCollaborationWork,
     canEditWithLockRef,
     entityEnabledRef,
     leaveGuardSheetDirtyRef,

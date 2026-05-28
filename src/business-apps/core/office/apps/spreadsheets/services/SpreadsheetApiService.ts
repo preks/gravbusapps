@@ -26,6 +26,7 @@ import {
 } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { normalizeSpreadsheetColumnsForDisplay } from '../utils/normalizeSpreadsheetColumnsForDisplay'
 import type { SpreadsheetRowRef } from '../utils/spreadsheetRowIdentity'
+import type { SpreadsheetDirtyRegion } from '../utils/spreadsheetDirtyRegions'
 import type {
   SpreadsheetTraceEvent,
   SpreadsheetTraceEventInput,
@@ -282,6 +283,7 @@ export interface SpreadsheetBatchOperation {
 export interface SpreadsheetBatchRowMapping {
   clientRowId: string
   rowUuid: string
+  gridRowIndex?: number
 }
 
 export interface SpreadsheetBatchOperationResponse {
@@ -295,9 +297,13 @@ export interface SpreadsheetBatchOperationResponse {
     operationId: string
     type: SpreadsheetBatchOperation['type']
     result: Record<string, unknown>
+    dirtyRegions?: SpreadsheetDirtyRegion[]
   }>
+  dirtyRegions?: SpreadsheetDirtyRegion[]
   idempotentReplay: boolean
   rowMappings?: SpreadsheetBatchRowMapping[]
+  gridRowIndexByRowUuid?: Record<string, number>
+  removedRowUuids?: string[]
   committedBatch?: Record<string, unknown> | null
   /**
    * Tier 1 per-op resolution (per-(rowId, columnName) backend conflict

@@ -26,9 +26,10 @@ import {
 import type { SpreadsheetColumn, SpreadsheetSheet } from '../types/spreadsheet'
 import { buildWorkbookSnapshot, createUniverConversionContext } from '../utils/univerAdapter'
 import type {
-  AuthoritativeGridRegion,
+  AuthoritativeGridReapplyTarget,
   ForceAuthoritativeGridReapplyOptions
 } from '../utils/spreadsheetAuthoritativeRegion'
+import { normalizeAuthoritativeGridReapplyTarget } from '../utils/spreadsheetAuthoritativeRegion'
 import {
   SPREADSHEET_BULK_APPLY_CHUNK_SIZE,
   SPREADSHEET_BULK_MAX_DENSE_RECTANGLE_CELLS,
@@ -163,7 +164,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       pendingForcedAuthoritativeReapplyRef,
       lastProcessedAuthoritativeReapplySeedRef,
       skipNextAuthoritativeSyncAfterSnapshotInitRef,
-      recentLocallyMutatedGridCellsRef,
       activeSelectionRef,
       contextRef,
       propsRef,
@@ -711,8 +711,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       []
     )
 
-    const prepareAuthoritativeRegionSync = useCallback((region: AuthoritativeGridRegion | null) => {
-      pendingAuthoritativeRegionRef.current = region
+    const prepareAuthoritativeRegionSync = useCallback((region: AuthoritativeGridReapplyTarget) => {
+      pendingAuthoritativeRegionRef.current = normalizeAuthoritativeGridReapplyTarget(region)
     }, [])
 
     const applyRemoteCellUpdatesBulk = useCallback(
@@ -771,11 +771,16 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         })
 
         const seededEchoSuppressAt = Date.now()
+        const isBacklogDrain = isBacklogBulkApply(meta?.operationType ?? undefined, normalized.length)
+        const bulkEchoSuppressionTtlMs = isBacklogDrain
+          ? Math.max(REMOTE_ECHO_SUPPRESSION_TTL_MS, 60_000)
+          : REMOTE_ECHO_SUPPRESSION_TTL_MS
+        const bulkEchoSuppressionExpiresAt = seededEchoSuppressAt + bulkEchoSuppressionTtlMs
+        const bulkEchoSuppressionKeys: string[] = []
         for (const it of normalized) {
           const resolvedRow = it.rowIndex
           const colIndex = it.colIndex
           const key = remoteEchoKey(resolvedRow, colIndex)
-          const expiresAt = seededEchoSuppressAt + REMOTE_ECHO_SUPPRESSION_TTL_MS
           const echoSource =
             it.options?.univerCell && typeof it.options.univerCell === 'object' ? it.options.univerCell : it.value
           const signatureCandidates = new Set<string>()
@@ -783,8 +788,21 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (it.value === null || it.value === undefined || it.value === '') {
             signatureCandidates.add('blank')
           }
-          remoteEchoSuppressionRef.current.set(key, { expiresAt, signatures: signatureCandidates })
+          remoteEchoSuppressionRef.current.set(key, {
+            expiresAt: bulkEchoSuppressionExpiresAt,
+            signatures: signatureCandidates
+          })
+          bulkEchoSuppressionKeys.push(key)
         }
+        globalThis.setTimeout(() => {
+          if (!gridMountedRef.current) return
+          for (const key of bulkEchoSuppressionKeys) {
+            const current = remoteEchoSuppressionRef.current.get(key)
+            if (current?.expiresAt === bulkEchoSuppressionExpiresAt) {
+              remoteEchoSuppressionRef.current.delete(key)
+            }
+          }
+        }, bulkEchoSuppressionTtlMs + 50)
 
         queueMicrotask(() => {
           if (!gridMountedRef.current) {
@@ -792,10 +810,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             return
           }
           // Phase 4: bounding box of the cells this bulk paints. On `finishBulkApplyOnce`
-          // we clear any `deferred-reconcile` entries inside this region — those are remote
-          // echoes the listener queued while the apply guard was held, not real local edits.
-          // Reconciling them after the guard drops costs an expensive `reconcileSingleCell`
-          // per coordinate (~6s in production traces after large `add_rows_replay` bulks).
+          // we clear deferred entries inside this region that are remote echoes (not tagged
+          // `local_user`). User edits typed in the same column during bulk apply are preserved
+          // for `deferred-replay` flush after the guard drops.
           let bulkMinRow = Number.POSITIVE_INFINITY
           let bulkMaxRow = -1
           let bulkMinCol = Number.POSITIVE_INFINITY
@@ -1040,7 +1057,6 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           // Catch-up / authoritative-reapply bulks are one-shot backlog drains. Use a larger
           // per-frame budget so the drain finishes in tens of frames instead of stretching
           // across hundreds. Live collab traffic keeps the small budget.
-          const isBacklogDrain = isBacklogBulkApply(meta?.operationType ?? undefined, normalized.length)
           const perFrameBudgetMs = isBacklogDrain
             ? SPREADSHEET_BULK_RAF_BUDGET_MS_CATCHUP
             : SPREADSHEET_BULK_RAF_BUDGET_MS
@@ -1380,28 +1396,43 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         applyRemoteClearAllRange,
         prepareAuthoritativeRegionSync,
         forceAuthoritativeReapply: (
-          region?: AuthoritativeGridRegion | null,
+          region?: AuthoritativeGridReapplyTarget,
           options?: ForceAuthoritativeGridReapplyOptions
         ) => {
-          const isFullGrid = region == null
+          const regions = normalizeAuthoritativeGridReapplyTarget(region)
+          const isFullGrid = regions == null
+          if (isFullGrid && options?.allowFullGridReapply !== true) {
+            debugRemoteApply('force_authoritative_reapply_blocked_full_grid', {
+              reason: options?.reason ?? 'full_grid_reapply_not_allowed'
+            })
+            return
+          }
           const clearAllSignatures = options?.clearAllSignatures ?? isFullGrid
           const preferBulk = options?.preferBulk ?? true
           if (clearAllSignatures) {
             lastSyncedGridCellSignaturesRef.current = new Map()
-          } else if (region) {
+          } else if (regions) {
             const sig = lastSyncedGridCellSignaturesRef.current
-            for (let r = region.minRow; r <= region.maxRow; r += 1) {
-              for (let c = region.minCol; c <= region.maxCol; c += 1) {
-                sig.delete(remoteEchoKey(r, c))
+            for (const bounded of regions) {
+              for (let r = bounded.minRow; r <= bounded.maxRow; r += 1) {
+                for (let c = bounded.minCol; c <= bounded.maxCol; c += 1) {
+                  sig.delete(remoteEchoKey(r, c))
+                }
               }
             }
           } else {
             lastSyncedGridCellSignaturesRef.current = new Map()
           }
           pendingForcedAuthoritativeReapplyRef.current = {
-            region: isFullGrid ? null : region,
+            regions: isFullGrid ? null : regions,
             preferBulk,
             clearAllSignatures
+          }
+          if (regions && regions.length > 1) {
+            debugRemoteApply('multi_region_authoritative_reapply', {
+              regionCount: regions.length,
+              reason: options?.reason
+            })
           }
           setAuthoritativeReapplySeed(prev => prev + 1)
         },
@@ -1822,7 +1853,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       getWorkbookSnapshotRef,
       pendingAuthoritativeRegionRef,
       pendingForcedAuthoritativeReapplyRef,
-      recentLocallyMutatedGridCellsRef,
+      versionCausalOwnershipRef: props.versionCausalOwnershipRef,
+      resolveAuthoritativeAppliedVersion: () => Number(sheet.version ?? 0),
+      pendingLocalMutationCellsRef: props.pendingLocalMutationCellsRef,
       applyRemoteCellUpdate,
       applyRemoteCellUpdatesBulk,
       resolveActiveWorksheetBounds: () => {

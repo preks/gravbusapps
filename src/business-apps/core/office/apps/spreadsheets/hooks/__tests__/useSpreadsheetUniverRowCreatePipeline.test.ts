@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import { createSpreadsheetRowMaterializationReadiness } from '../spreadsheetRowMaterializationReadiness'
 import { useSpreadsheetUniverRowCreatePipeline } from '../useSpreadsheetUniverRowCreatePipeline'
 import type { SpreadsheetColumn } from '../../types'
+import { spreadsheetPendingLocalMutationCoordinateCellKey } from '../../utils/spreadsheetPendingMaterializationCells'
 
 const column = (id: string, name: string): SpreadsheetColumn => ({
   id,
@@ -45,6 +46,9 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
           persistedIdByClientRowId: Map<string, string>
         }) => void
       ) => {
+        expect(
+          pendingLocalMutationCellsRef.current.has(spreadsheetPendingLocalMutationCoordinateCellKey('sheet-2', 0, 0))
+        ).toBe(true)
         updateLocalRowsAfterCreate({
           createdRows: [
             {
@@ -61,12 +65,14 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     const commitRowsForSheet = jest.fn()
     const onRowsMaterializedContextSync = jest.fn()
     const onRowIdentityDiagnostics = jest.fn()
+    const pendingLocalMutationCellsRef = { current: new Set<string>() }
 
     const { result } = renderHook(() =>
       useSpreadsheetUniverRowCreatePipeline({
         activeSheetId: 'sheet-1',
         activeSheetIdRef,
         activeSheetColumns: [column('active-col', 'ActiveColumn')],
+        pendingLocalMutationCellsRef,
         getColumnsForSheet: sheetId => (sheetId === 'sheet-2' ? [column('col-a', 'ColumnA')] : []),
         isUuid: value => value === 'backend-row-1',
         isOpsV2Enabled: true,
@@ -92,6 +98,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
         buildAddRowPayloadsFromUniverRows: (rows, columns) =>
           rows.map(row => ({
             _clientRowId: row._id,
+            _gridRowIndex: row._gridRowIndex,
             [columns[0].name]: row[columns[0].name]
           })),
         persistAddedRowsWithBatch,
@@ -114,9 +121,10 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
 
     expect(persistAddedRowsWithBatch).toHaveBeenCalledWith(
       'sheet-2',
-      [{ _clientRowId: 'client-row-1', ColumnA: 'first user value' }],
+      [{ _clientRowId: 'client-row-1', _gridRowIndex: 0, ColumnA: 'first user value' }],
       expect.any(Function)
     )
+    expect(pendingLocalMutationCellsRef.current.size).toBe(0)
     expect(commitRowsForSheet).toHaveBeenCalledWith(
       'sheet-2',
       [
@@ -157,6 +165,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
       ],
       {
         affectedUiRowIds: ['client-row-1'],
+        createdGridRowIndices: [0],
         isActiveTarget: false
       }
     )
@@ -476,6 +485,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
       ],
       {
         affectedUiRowIds: ['client-row-1', 'client-row-2'],
+        createdGridRowIndices: [0, 1],
         isActiveTarget: true
       }
     )
@@ -675,6 +685,96 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     })
 
     expect(rowMaterializationReadiness.getResolvedBackendRowId('sheet-1', 'client-row-1')).toBe('backend-row-1')
+  })
+
+  it('prefers batch add_rows for materialization when the payload carries client identity and grid slot metadata', async () => {
+    const persistAddedRowsWithBatch = jest.fn(
+      async (
+        _targetSheetId: string,
+        _rowPayloads: Record<string, unknown>[],
+        updateLocalRowsAfterCreate: (result: {
+          createdRows: Array<Record<string, unknown>>
+          persistedIdByClientRowId: Map<string, string>
+        }) => void
+      ) => {
+        updateLocalRowsAfterCreate({
+          createdRows: [
+            {
+              _id: 'backend-row-7',
+              _clientRowId: 'client-row-7',
+              _rowUuid: 'backend-row-7',
+              _gridRowIndex: 7,
+              ColumnA: 'value 7'
+            }
+          ],
+          persistedIdByClientRowId: new Map([['client-row-7', 'backend-row-7']])
+        })
+      }
+    )
+    const persistSingleAddedRow = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetUniverRowCreatePipeline({
+        activeSheetId: 'sheet-1',
+        activeSheetIdRef: { current: 'sheet-1' },
+        activeSheetColumns: [column('col-a', 'ColumnA')],
+        getColumnsForSheet: () => [column('col-a', 'ColumnA')],
+        isUuid: value => value === 'backend-row-7',
+        isOpsV2Enabled: false,
+        onRowAdd: jest.fn(),
+        entityEnabledRef: { current: false },
+        canEditWithLockRef: { current: true },
+        latestUniverDataRef: {
+          current: {
+            sheetId: 'sheet-1',
+            data: [{ _id: 'client-row-7', _gridRowIndex: 7, ColumnA: 'value 7' }]
+          }
+        },
+        pendingUniverRowsBySheetRef: { current: new Map() },
+        lastProcessedLengthRef: { current: 0 },
+        operationQueueRef: { current: Promise.resolve() },
+        chainOnOperationQueue: async (_queueRef, fn) => fn(),
+        sheetPersist: {
+          beginPersist: jest.fn(),
+          endPersist: jest.fn(),
+          markDirty: jest.fn(),
+          recordSuccess: jest.fn(),
+          recordError: jest.fn()
+        },
+        markVersionAsChanged: jest.fn(),
+        markVersionAsSaved: jest.fn(),
+        onPersistRowsErrorMessage: 'failed',
+        getActiveSessionRows: () => [],
+        buildAddRowPayloadsFromUniverRows: rows =>
+          rows.map(row => ({
+            _clientRowId: row._id,
+            _gridRowIndex: row._gridRowIndex,
+            ColumnA: row.ColumnA
+          })),
+        persistAddedRowsWithBatch,
+        persistSingleAddedRow,
+        recoverFromVersionConflict: jest.fn(async () => false),
+        summarizeRowsForDebug: rows => ({ count: rows?.length ?? 0 }),
+        getRowsForSheet: () => [],
+        multiSheetDebugLog: jest.fn(),
+        commitRowsForSheet: jest.fn(),
+        onRowsMaterializedContextSync: jest.fn(),
+        onRowIdentityDiagnostics: jest.fn(),
+        pendingCreatedSheetSelectionRef: { current: null },
+        createdSheetIdAliasesRef: { current: new Map<string, string>() }
+      })
+    )
+
+    await act(async () => {
+      await result.current.processUniverDataChange()
+    })
+
+    expect(persistAddedRowsWithBatch).toHaveBeenCalledWith(
+      'sheet-1',
+      [{ _clientRowId: 'client-row-7', _gridRowIndex: 7, ColumnA: 'value 7' }],
+      expect.any(Function)
+    )
+    expect(persistSingleAddedRow).not.toHaveBeenCalled()
   })
 
   it('can materialize a specific temp row selected from the latest snapshot for submit readiness', async () => {

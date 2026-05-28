@@ -26,6 +26,7 @@ import {
 } from './univerGridWorkbookMutationModule'
 import { isUnsupportedSnapshotOnlyCollaborationCommand } from './snapshotTriggerUtils'
 import type { UniverGridController } from './useUniverGridController'
+import { registerMergeGestureSuppress } from '../utils/spreadsheetMergeGestureSuppress'
 import {
   cutPasteCollabSuppressionDurationMs,
   isNativeCutPasteCommand,
@@ -75,6 +76,7 @@ type ColumnFeatureRefs = Pick<
   | 'pendingFreezeClearEmitTimeoutBySheetRef'
   | 'pendingCutCellRangeRef'
   | 'cutPasteCollabSuppressUntilMsRef'
+  | 'mergeGestureSuppressBySheetRef'
 >
 
 function resolveVisibilityCommandRanges(params: CommandParams, axis: 'row' | 'column') {
@@ -555,6 +557,9 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
           params as { ranges?: unknown[]; range?: unknown | unknown[] } | undefined
         )
   if (featureOperationType === 'visibility_update' && ranges.length === 0) return
+  if (featureOperationType === 'merge_ranges' && ranges.length > 0) {
+    registerMergeGestureSuppress(refs.mergeGestureSuppressBySheetRef, targetSheetId, ranges)
+  }
   const traceId = createSpreadsheetTraceId(`grid_${featureOperationType}`)
   const dedupKey = `${targetSheetId}|${featureOperationType}|${JSON.stringify(paramsClone ?? ranges)}`
   const emitNow = Date.now()

@@ -15,6 +15,7 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
   activeSheetId: string
   activeSheetIdRef: MutableRefObject<string>
   activeSheetColumns: SpreadsheetColumn[]
+  pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
   getColumnsForSheet: (sheetId: string) => SpreadsheetColumn[]
   isUuid: (value: string) => boolean
   isOpsV2Enabled: boolean
@@ -62,7 +63,7 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
   onRowsMaterializedContextSync?: (
     sheetId: string,
     rows: Record<string, unknown>[],
-    meta: { affectedUiRowIds: string[]; isActiveTarget: boolean }
+    meta: { affectedUiRowIds: string[]; createdGridRowIndices: number[]; isActiveTarget: boolean }
   ) => void
   onRowIdentityDiagnostics?: (stage: string, payload: Record<string, unknown>) => void
   pendingCreatedSheetSelectionRef: MutableRefObject<{
@@ -77,4 +78,6 @@ export interface UseSpreadsheetUniverRowCreatePipelineResult {
   processUniverDataChange: () => Promise<void>
   processUniverDataChangeRef: MutableRefObject<() => Promise<void>>
   materializeTemporaryRowsForSubmit: (targetSheetId: string, rows: Array<Record<string, unknown>>) => Promise<void>
+  isRowMaterializationInFlightForSheet: (targetSheetId: string) => boolean
+  releaseRowMaterializationInFlightForSheet: (targetSheetId: string) => void
 }

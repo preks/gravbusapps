@@ -3,13 +3,14 @@ import type { SpreadsheetColumn } from '../types'
 import type { SpreadsheetViewerRow } from './SpreadsheetSession'
 
 import type {
+  AuthoritativeGridReapplyTarget,
   AuthoritativeGridRegion,
   ForceAuthoritativeGridReapplyOptions
 } from '../utils/spreadsheetAuthoritativeRegion'
 import type { SpreadsheetRemoteTransactionPlan } from './spreadsheetRemoteTransaction'
 import type { UniverRemoteTransactionRunResult } from './univerRemoteTransactionRunner'
 
-export type { AuthoritativeGridRegion, ForceAuthoritativeGridReapplyOptions }
+export type { AuthoritativeGridReapplyTarget, AuthoritativeGridRegion, ForceAuthoritativeGridReapplyOptions }
 
 export interface SpreadsheetStylePatch {
   /** Style keys to set/overwrite on the receiver cell. */
@@ -112,6 +113,7 @@ export interface SpreadsheetFeatureOperation {
 }
 
 export type SpreadsheetUnifiedMutationBatchOperationType =
+  | 'add_rows'
   | 'set_range'
   | 'clear_cell'
   | 'set_style'
@@ -277,7 +279,7 @@ export interface SpreadsheetCollaborationCallbacks {
   ) => UniverRemoteTransactionRunResult
   forceGridReapply?: (
     sheetId: string,
-    region?: AuthoritativeGridRegion | null,
+    region?: AuthoritativeGridReapplyTarget,
     options?: ForceAuthoritativeGridReapplyOptions
   ) => void
   onVersionUpdate: (version: number) => void
@@ -313,6 +315,8 @@ export interface SpreadsheetCollaborationCallbacks {
     toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
   }) => boolean
   isRecentLocalBatchId?: (batchId: string | undefined, tabId?: string | undefined) => boolean
+  /** True while local/remote sheet queue work is still settling; used to defer version-related snapshot reloads. */
+  isSheetPersistenceBusy?: (sheetId: string) => boolean
   fetchChangesSince?: (sheetId: string, sinceVersion: number) => Promise<SpreadsheetReplayResponse>
   isCollabDiagEnabled?: () => boolean
   onCollabDiagnostic?: (event: string, meta?: Record<string, number | string | boolean | undefined>) => void

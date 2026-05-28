@@ -3,15 +3,25 @@ import type { SpreadsheetUnifiedMutationBatchPayload } from '../core'
 import { buildOperationsFromMutationPlan } from '../core'
 import {
   buildUiToBackendRowIdMapForPersist,
+  normalizeBatchOperationsWithRowRefs,
   remapBatchOperationsWithUiToBackendRowMap
 } from '../utils/spreadsheetBatchOperationRowRemap'
 import { dropSetRangeCellsRedundantAfterMaterialization } from '../utils/spreadsheetBatchOperationCellDedup'
+import { dropSetRangeCellsRedundantWithAddRows } from '../utils/spreadsheetBatchOperationCellDedup'
 import { buildRowIdentityDiagnostics, isSpreadsheetTemporaryClientRowId } from '../utils/spreadsheetRowIdentity'
 import { resolveBackendRowUuidPredicateFromGridProps } from './univerBackendRowUuidPredicate'
 import { detectTemporaryRowIdsInKnownRowIdFields } from '../utils/spreadsheetUnifiedBatchSubmitUtils'
 import { debugMutationTrace } from './univerGridDebug'
 import { clearSpreadsheetAutofillIntent } from './univerAutofillIntent'
-import { isUnifiedMutationOperationType } from './univerGridWorkbookMutationModule'
+import { isUnifiedMutationOperationType, normalizeBlankLikeEchoSignature } from './univerGridWorkbookMutationModule'
+import { toEchoSignature } from './univerGridAuthoritativeHelpers'
+import {
+  protectSpreadsheetPendingLocalMutationCells,
+  spreadsheetPendingLocalMutationCoordinateCellKey,
+  spreadsheetPendingLocalMutationSemanticCellKey
+} from '../utils/spreadsheetPendingMaterializationCells'
+import { isSpreadsheetTemporaryClientRowId } from '../utils/spreadsheetRowIdentity'
+import { buildAddRowPayloadsFromUniverRows } from '../utils/spreadsheetViewerRows'
 import type {
   PersistEmitInput,
   UniverMountHandleDetectedCellMutationDeps
@@ -29,6 +39,14 @@ function getPersistRowsForRemap(
     return pr.getSheetContext(targetSheetId)?.data ?? pr.data
   }
   return pr.data
+}
+
+function getPersistColumnsForEmit(deps: UniverMountHandleDetectedCellMutationDeps, targetSheetId: string) {
+  const pr = deps.propsRef.current
+  if (pr.multiSheetWorkbookMode && typeof pr.getSheetContext === 'function') {
+    return pr.getSheetContext(targetSheetId)?.columns ?? pr.columns
+  }
+  return pr.columns
 }
 
 function buildUnifiedOperationsForEmit(emit: PersistEmitInput): SpreadsheetBatchOperation[] {
@@ -58,6 +76,52 @@ function needsRowMaterializationFlush(emit: PersistEmitInput, unifiedOperations:
         isSpreadsheetTemporaryClientRowId(cell.rowId)
     )
   )
+}
+
+function protectPlannedValueCellsFromAuthoritativeReapply(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput
+): void {
+  const pendingLocalMutationCellsRef = deps.propsRef.current.pendingLocalMutationCellsRef
+  if (!pendingLocalMutationCellsRef) return
+  const entries = emit.plannedCellsFiltered.flatMap((cell, index) => {
+    if (cell.valueAction !== 'set' && cell.valueAction !== 'clear') return []
+    const expectedSignature =
+      cell.valueAction === 'clear' ? 'blank' : normalizeBlankLikeEchoSignature(toEchoSignature(cell.value))
+    const ownerId = `plan:${emit.mutationTraceId}:${index}:${cell.rowIndex}:${cell.colIndex}:${cell.columnName}`
+    const keys = [
+      spreadsheetPendingLocalMutationCoordinateCellKey(emit.targetSheetId, cell.rowIndex, cell.colIndex),
+      spreadsheetPendingLocalMutationSemanticCellKey(emit.targetSheetId, cell.rowId, cell.columnName)
+    ]
+    return keys.map(key => ({ key, ownerId: `${ownerId}:${key}`, expectedSignature }))
+  })
+  if (entries.length === 0) return
+  protectSpreadsheetPendingLocalMutationCells(pendingLocalMutationCellsRef, entries)
+
+  const ownershipRegistry = deps.propsRef.current.versionCausalOwnershipRef?.current
+  const intentJournal = deps.propsRef.current.spreadsheetIntentJournalRef?.current
+  const baseVersion = deps.propsRef.current.resolveKnownSheetVersion?.(emit.targetSheetId) ?? 0
+  for (const cell of emit.plannedCellsFiltered) {
+    if (cell.valueAction !== 'set' && cell.valueAction !== 'clear') continue
+    if (!cell.columnName) continue
+    const logicalRowHandle = cell.rowId || `row@${cell.rowIndex}`
+    ownershipRegistry?.registerIntent({
+      sheetId: emit.targetSheetId,
+      logicalRowHandle,
+      columnName: cell.columnName,
+      baseVersion
+    })
+    intentJournal?.captureIntent({
+      sheetId: emit.targetSheetId,
+      logicalRowHandle,
+      columnName: cell.columnName,
+      value: cell.value,
+      baseVersion
+    })
+    if (logicalRowHandle && !isSpreadsheetTemporaryClientRowId(logicalRowHandle)) {
+      ownershipRegistry?.markSubmitted(emit.targetSheetId, logicalRowHandle, cell.columnName)
+    }
+  }
 }
 
 function emitRowIdentityDiagnostics(
@@ -111,6 +175,9 @@ export function runDetectedCellMutationPersistEmitSync(
   } = emit
 
   const isReadOnlyReconcileSource = source === 'selection-reconcile' || source === 'deferred-reconcile'
+  if (!isReadOnlyReconcileSource) {
+    protectPlannedValueCellsFromAuthoritativeReapply(deps, emit)
+  }
   let handledPersistable = false
   if (!isReadOnlyReconcileSource) {
     const onMutationBatchOp = propsRef.current.onMutationBatchOp
@@ -195,16 +262,29 @@ export function runDetectedCellMutationPersistEmitDispatch(
   }
 
   const unifiedOperations = buildUnifiedOperationsForEmit(emit)
+  protectPlannedValueCellsFromAuthoritativeReapply(deps, emit)
   const temporaryRowIdMatches = detectTemporaryRowIdsInKnownRowIdFields(unifiedOperations)
   const affectedUiRowIds = Array.from(new Set(temporaryRowIdMatches.map(match => match.rowId)))
+  const currentRows = getPersistRowsForRemap(deps, emit.targetSheetId)
+  const targetColumns = getPersistColumnsForEmit(deps, emit.targetSheetId)
+  const inlineAddRowPayloads =
+    affectedUiRowIds.length === 0
+      ? []
+      : buildAddRowPayloadsFromUniverRows(
+          currentRows.filter(row => {
+            const clientRowId =
+              typeof row._clientRowId === 'string' ? row._clientRowId : typeof row._id === 'string' ? row._id : ''
+            return clientRowId ? affectedUiRowIds.includes(clientRowId) : false
+          }),
+          targetColumns
+        ).sort((left, right) => Number(left._gridRowIndex ?? 0) - Number(right._gridRowIndex ?? 0))
   if (affectedUiRowIds.length > 0) {
     const isUuid = resolveBackendRowUuidPredicateFromGridProps(deps.propsRef)
-    const optimisticRows = getPersistRowsForRemap(deps, emit.targetSheetId)
     emitRowIdentityDiagnostics(deps, emit, 'grid_optimistic_row_identity_created', {
       temporaryRowIdMatches,
       rowIdentities: buildRowIdentityDiagnostics({
         uiRowIds: affectedUiRowIds,
-        rows: optimisticRows,
+        rows: currentRows,
         isUuid
       })
     })
@@ -212,21 +292,59 @@ export function runDetectedCellMutationPersistEmitDispatch(
   const flushSlot = deps.propsRef.current.flushUnmaterializedRowsBeforePersistRef
   const needsMaterialization = needsRowMaterializationFlush(emit, unifiedOperations)
   const flushHookPresent = Boolean(flushSlot?.current) || Boolean(deps.flushUnmaterializedRowsBeforePersist)
-  const needsFlush = needsMaterialization && flushHookPresent
+  const needsInlineMaterializationBatch = needsMaterialization && inlineAddRowPayloads.length > 0
+  const needsFlush = needsMaterialization && !needsInlineMaterializationBatch && flushHookPresent
 
   if (affectedUiRowIds.length > 0) {
     const isUuid = resolveBackendRowUuidPredicateFromGridProps(deps.propsRef)
-    const rowsBeforeFlush = getPersistRowsForRemap(deps, emit.targetSheetId)
     emitRowIdentityDiagnostics(deps, emit, 'grid_row_materialization_before_flush', {
       flushHookPresent,
       needsFlush,
+      needsInlineMaterializationBatch,
+      inlineAddRowPayloadCount: inlineAddRowPayloads.length,
       temporaryRowIdMatches,
       rowIdentities: buildRowIdentityDiagnostics({
         uiRowIds: affectedUiRowIds,
-        rows: rowsBeforeFlush,
+        rows: currentRows,
         isUuid
       })
     })
+  }
+
+  if (needsInlineMaterializationBatch) {
+    const materializationOperation: SpreadsheetBatchOperation = {
+      operationId: 'add_rows_inline_1',
+      type: 'add_rows',
+      data: {
+        rows: inlineAddRowPayloads
+      }
+    }
+    const normalizedOperations = normalizeBatchOperationsWithRowRefs(
+      [materializationOperation, ...unifiedOperations],
+      new Map()
+    )
+    const dedupResult = dropSetRangeCellsRedundantWithAddRows(normalizedOperations)
+    if (
+      dedupResult.droppedCellCount > 0 ||
+      dedupResult.droppedSetRangeOpCount > 0 ||
+      dedupResult.retainedMismatchedCellKeys.length > 0
+    ) {
+      deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'spreadsheet.cell_emit.dedup_with_add_rows',
+        traceId: emit.mutationTraceId,
+        payload: {
+          targetSheetId: emit.targetSheetId,
+          droppedCellCount: dedupResult.droppedCellCount,
+          droppedSetRangeOpCount: dedupResult.droppedSetRangeOpCount,
+          droppedCellKeys: dedupResult.droppedCellKeys.slice(0, 20),
+          retainedMismatchedCellCount: dedupResult.retainedMismatchedCellKeys.length,
+          retainedMismatchedCellKeys: dedupResult.retainedMismatchedCellKeys.slice(0, 20),
+          addRowPayloadCount: inlineAddRowPayloads.length
+        }
+      })
+    }
+    return runDetectedCellMutationPersistEmitSync(deps, emit, dedupResult.operations)
   }
 
   // 1a: Row materialization is required but the host did not wire a flush dependency. We must
@@ -387,7 +505,11 @@ export function runDetectedCellMutationPersistEmitDispatch(
           materializedBackendRowIds,
           isUuid
         )
-        if (dedupResult.droppedCellCount > 0 || dedupResult.droppedSetRangeOpCount > 0) {
+        if (
+          dedupResult.droppedCellCount > 0 ||
+          dedupResult.droppedSetRangeOpCount > 0 ||
+          dedupResult.retainedMismatchedCellKeys.length > 0
+        ) {
           deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
             source: 'client',
             stage: 'spreadsheet.cell_emit.dedup_after_materialization',
@@ -397,6 +519,8 @@ export function runDetectedCellMutationPersistEmitDispatch(
               droppedCellCount: dedupResult.droppedCellCount,
               droppedSetRangeOpCount: dedupResult.droppedSetRangeOpCount,
               droppedCellKeys: dedupResult.droppedCellKeys.slice(0, 20),
+              retainedMismatchedCellCount: dedupResult.retainedMismatchedCellKeys.length,
+              retainedMismatchedCellKeys: dedupResult.retainedMismatchedCellKeys.slice(0, 20),
               materializedBackendRowIdCount: materializedBackendRowIds.size
             }
           })

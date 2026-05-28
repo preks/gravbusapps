@@ -5,6 +5,7 @@ import { areCanonicalSheetIdsEqual, resolveReconciledSheetId } from '../utils/re
 import { createIdentityRowProjectionModel } from '../utils/spreadsheetRowProjection'
 import { applyMoveCellRangeToViewerRows } from '../utils/spreadsheetMoveCellRangeGrid'
 import { patchLatestUniverSnapshotRowBackendIdentities } from '../utils/spreadsheetUniverSnapshotIdentity'
+import { applyCommittedGridRowPlacements } from '../utils/spreadsheetCommittedGridRowPlacements'
 import { buildPersistedRowIdMapFromInsertRowSlotsResult } from '../utils/spreadsheetViewerRows'
 import type { SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
 import {
@@ -28,18 +29,22 @@ interface StructuralMutationParams {
       count: number,
       materializedRows?: ViewerRow[]
     ) => Promise<SpreadsheetBatchOperationResponse>
-    deleteRowSlots: (sheetId: string, startGridRowIndex: number, count: number) => Promise<{ newVersion: number }>
+    deleteRowSlots: (
+      sheetId: string,
+      startGridRowIndex: number,
+      count: number
+    ) => Promise<SpreadsheetBatchOperationResponse>
     moveRowSlots: (
       sheetId: string,
       sourceStartGridRowIndex: number,
       count: number,
       destinationGridRowIndex: number
-    ) => Promise<{ newVersion: number }>
+    ) => Promise<SpreadsheetBatchOperationResponse>
     moveCellRange: (
       sheetId: string,
       fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number },
       toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
-    ) => Promise<{ newVersion: number }>
+    ) => Promise<SpreadsheetBatchOperationResponse>
   }
   rowSlotIdentityRegistry: {
     markUnhealthy: (sheetId: string, reason: string) => void
@@ -115,12 +120,13 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
   return useMemo(() => {
     const finalizeStructuralSuccess = (
       targetSheetId: string,
-      response: { newVersion: number },
+      response: SpreadsheetBatchOperationResponse,
       fallbackRows: ViewerRow[],
       options?: { syncGrid?: boolean }
     ) => {
       const authoritativeRows = params.getKnownRowsForSheet(targetSheetId)
-      const nextRows = authoritativeRows.length > 0 ? authoritativeRows : fallbackRows
+      const baseRows = authoritativeRows.length > 0 ? authoritativeRows : fallbackRows
+      const nextRows = applyCommittedGridRowPlacements(baseRows, response.gridRowIndexByRowUuid)
       params.syncSheetRowsIntoLocalState(targetSheetId, nextRows, {
         persisted: true,
         syncGrid: options?.syncGrid ?? true,
@@ -279,11 +285,14 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
             readinessPendingResolvers.delete(clientRowId)
           })
           const sessionRows = params.getActiveSessionRows()
-          const authoritativeRows = applyInsertRowSlotsTransform(
-            sessionRows,
-            startGridRowIndex,
-            count,
-            params.mapPersistedRowsToViewerRows(insertResult?.result?.rows)
+          const authoritativeRows = applyCommittedGridRowPlacements(
+            applyInsertRowSlotsTransform(
+              sessionRows,
+              startGridRowIndex,
+              count,
+              params.mapPersistedRowsToViewerRows(insertResult?.result?.rows)
+            ),
+            response.gridRowIndexByRowUuid
           )
           const previousLatest = params.latestUniverDataRef.current
           if (

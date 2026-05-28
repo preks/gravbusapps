@@ -63,12 +63,14 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     | ((worksheetId: string | null, region: { minRow: number; maxRow: number; minCol: number; maxCol: number }) => void)
     | null
   >(null)
+  /** Set by sheet value listeners; flushes user edits deferred during remote apply before remount. */
+  const flushDeferredDirtyCellsRef = useRef<(() => Promise<void>) | null>(null)
   const lastSyncedGridRowCountRef = useRef(0)
   const lastSyncedGridColumnCountRef = useRef(0)
   const lastProcessedAuthoritativeDataSyncTokenRef = useRef<number>(props.authoritativeDataSyncToken ?? 0)
-  const pendingAuthoritativeRegionRef = useRef<AuthoritativeGridRegion | null>(null)
+  const pendingAuthoritativeRegionRef = useRef<AuthoritativeGridRegion[] | null>(null)
   const pendingForcedAuthoritativeReapplyRef = useRef<{
-    region: AuthoritativeGridRegion | null
+    regions: AuthoritativeGridRegion[] | null
     preferBulk: boolean
     clearAllSignatures: boolean
   } | null>(null)
@@ -76,7 +78,6 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const skipNextAuthoritativeSyncAfterSnapshotInitRef = useRef(false)
   const newRowClientIdByIndexRef = useRef<Map<number, string>>(new Map())
   const recentLocalMutationSignaturesRef = useRef<Map<string, number>>(new Map())
-  const recentLocallyMutatedGridCellsRef = useRef<Map<string, number>>(new Map())
   const lastClearAllEmitAtBySignatureRef = useRef<Map<string, number>>(new Map())
   const lastClearFormatEmitAtBySignatureRef = useRef<Map<string, number>>(new Map())
   const lastFeatureEmitAtBySignatureRef = useRef<Map<string, number>>(new Map())
@@ -85,6 +86,9 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const copiedSelectionAnchorRef = useRef<(ActiveSelectionPosition & { copiedAt: number }) | null>(null)
   const pendingCutCellRangeRef = useRef<import('../utils/spreadsheetCutPasteMove').PendingCutCellRange | null>(null)
   const cutPasteCollabSuppressUntilMsRef = useRef(0)
+  const mergeGestureSuppressBySheetRef = useRef<
+    Map<string, import('../utils/spreadsheetMergeGestureSuppress').MergeGestureSuppressEntry>
+  >(new Map())
   const pendingFormattingPasteIntentRef = useRef<FormattingPasteIntent | null>(null)
   const pendingAutofillIntentRef = useRef<import('./univerAutofillIntent').SpreadsheetAutofillIntent | null>(null)
   const contextRef = useRef<ReturnType<typeof createUniverConversionContext> | null>(null)
@@ -99,7 +103,9 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     onMutationBatchOp: props.onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef: props.flushUnmaterializedRowsBeforePersistRef,
     flushPendingCellChangesRef: props.flushPendingCellChangesRef,
+    flushDeferredDirtyCellsRef: props.flushDeferredDirtyCellsRef,
     getPersistSheetRowsSnapshot: props.getPersistSheetRowsSnapshot,
+    getPersistedBaselineRowsSnapshot: props.getPersistedBaselineRowsSnapshot,
     // 2a: prefer `isBackendRowUuid`; keep legacy alias for one release.
     isBackendRowUuid: props.isBackendRowUuid,
     isUuidForRowRemap: props.isUuidForRowRemap,
@@ -109,7 +115,11 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     getSheetContext: props.getSheetContext,
     getCanonicalSheetId: props.getCanonicalSheetId,
     multiSheetWorkbookMode: props.multiSheetWorkbookMode ?? false,
-    apiFirstSheetStructure: props.apiFirstSheetStructure ?? true
+    apiFirstSheetStructure: props.apiFirstSheetStructure ?? true,
+    pendingLocalMutationCellsRef: props.pendingLocalMutationCellsRef,
+    spreadsheetIntentJournalRef: props.spreadsheetIntentJournalRef,
+    versionCausalOwnershipRef: props.versionCausalOwnershipRef,
+    resolveKnownSheetVersion: props.resolveKnownSheetVersion
   })
   const lastUniverInitDepsRef = useRef<{
     workbookInstanceKey: string
@@ -130,7 +140,9 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     onMutationBatchOp: props.onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef: props.flushUnmaterializedRowsBeforePersistRef,
     flushPendingCellChangesRef: props.flushPendingCellChangesRef,
+    flushDeferredDirtyCellsRef: props.flushDeferredDirtyCellsRef,
     getPersistSheetRowsSnapshot: props.getPersistSheetRowsSnapshot,
+    getPersistedBaselineRowsSnapshot: props.getPersistedBaselineRowsSnapshot,
     isBackendRowUuid: props.isBackendRowUuid,
     isUuidForRowRemap: props.isUuidForRowRemap,
     rowSlotIdentityRegistryRef: props.rowSlotIdentityRegistryRef,
@@ -139,7 +151,11 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     getSheetContext: props.getSheetContext,
     getCanonicalSheetId: props.getCanonicalSheetId,
     multiSheetWorkbookMode: props.multiSheetWorkbookMode ?? false,
-    apiFirstSheetStructure: props.apiFirstSheetStructure ?? true
+    apiFirstSheetStructure: props.apiFirstSheetStructure ?? true,
+    pendingLocalMutationCellsRef: props.pendingLocalMutationCellsRef,
+    spreadsheetIntentJournalRef: props.spreadsheetIntentJournalRef,
+    versionCausalOwnershipRef: props.versionCausalOwnershipRef,
+    resolveKnownSheetVersion: props.resolveKnownSheetVersion
   }
 
   const callbacksRef = useRef({
@@ -237,6 +253,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     lastSyncedGridCellSignaturesRef,
     collabPersistedBulkApplyDepthRef,
     bulkApplyClearDeferredDirtyCellsRef,
+    flushDeferredDirtyCellsRef,
     lastSyncedGridRowCountRef,
     lastSyncedGridColumnCountRef,
     lastProcessedAuthoritativeDataSyncTokenRef,
@@ -246,7 +263,6 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     skipNextAuthoritativeSyncAfterSnapshotInitRef,
     newRowClientIdByIndexRef,
     recentLocalMutationSignaturesRef,
-    recentLocallyMutatedGridCellsRef,
     lastClearAllEmitAtBySignatureRef,
     lastClearFormatEmitAtBySignatureRef,
     lastFeatureEmitAtBySignatureRef,
@@ -255,6 +271,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     copiedSelectionAnchorRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    mergeGestureSuppressBySheetRef,
     pendingFormattingPasteIntentRef,
     pendingAutofillIntentRef,
     contextRef,

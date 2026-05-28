@@ -34,6 +34,14 @@ export interface TableViewProps {
   authoritativeDataSyncToken?: number
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
+  pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
+  spreadsheetIntentJournalRef?: MutableRefObject<
+    import('../core/spreadsheetIntentJournal').SpreadsheetIntentJournal | null
+  >
+  versionCausalOwnershipRef?: MutableRefObject<
+    import('../core/spreadsheetVersionCausalOwnership').SpreadsheetVersionCausalOwnershipRegistry | null
+  >
+  resolveKnownSheetVersion?: (sheetId: string) => number
   apiFirstSheetStructure?: boolean
   /** Background reconcile of remote workbook snapshot after cache-first bootstrap. */
   workbookSnapshotSyncing?: boolean
@@ -109,7 +117,9 @@ export interface TableViewProps {
   onMutationBatchOp?: (data: SpreadsheetUnifiedMutationBatchPayload) => void | Promise<void>
   flushUnmaterializedRowsBeforePersistRef?: MutableRefObject<((sheetId: string) => Promise<void>) | null>
   flushPendingCellChangesRef?: MutableRefObject<(() => Promise<void>) | null>
+  flushDeferredDirtyCellsRef?: MutableRefObject<(() => Promise<void>) | null>
   getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
+  getPersistedBaselineRowsSnapshot?: (sheetId: string) => Record<string, unknown>[] | null
   /** Preferred: host predicate for persisted backend row ids (UUIDs). */
   isBackendRowUuid?: (value: string) => boolean
   /** @deprecated Use {@link isBackendRowUuid}. */
@@ -141,6 +151,10 @@ export const TableView = memo<TableViewProps>(function TableView({
   authoritativeDataSyncToken,
   workbookInstanceKey,
   multiSheetWorkbookMode,
+  pendingLocalMutationCellsRef,
+  spreadsheetIntentJournalRef,
+  versionCausalOwnershipRef,
+  resolveKnownSheetVersion,
   apiFirstSheetStructure,
   workbookSnapshotSyncing = false,
   workbookSnapshotSyncFailed = false,
@@ -176,7 +190,9 @@ export const TableView = memo<TableViewProps>(function TableView({
   onMutationBatchOp,
   flushUnmaterializedRowsBeforePersistRef,
   flushPendingCellChangesRef,
+  flushDeferredDirtyCellsRef,
   getPersistSheetRowsSnapshot,
+  getPersistedBaselineRowsSnapshot,
   isBackendRowUuid,
   isUuidForRowRemap,
   rowSlotIdentityRegistryRef,
@@ -429,6 +445,10 @@ export const TableView = memo<TableViewProps>(function TableView({
           authoritativeDataSyncToken={authoritativeDataSyncToken}
           workbookInstanceKey={workbookInstanceKey}
           multiSheetWorkbookMode={multiSheetWorkbookMode}
+          pendingLocalMutationCellsRef={pendingLocalMutationCellsRef}
+          spreadsheetIntentJournalRef={spreadsheetIntentJournalRef}
+          versionCausalOwnershipRef={versionCausalOwnershipRef}
+          resolveKnownSheetVersion={resolveKnownSheetVersion}
           apiFirstSheetStructure={apiFirstSheetStructure}
           onNativeSheetStructureIntent={onNativeSheetStructureIntent}
           onActiveWorksheetChange={onActiveWorksheetChange}
@@ -462,7 +482,9 @@ export const TableView = memo<TableViewProps>(function TableView({
           onMutationBatchOp={onMutationBatchOp}
           flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
           flushPendingCellChangesRef={flushPendingCellChangesRef}
+          flushDeferredDirtyCellsRef={flushDeferredDirtyCellsRef}
           getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
+          getPersistedBaselineRowsSnapshot={getPersistedBaselineRowsSnapshot}
           isBackendRowUuid={isBackendRowUuid ?? isUuidForRowRemap}
           isUuidForRowRemap={isUuidForRowRemap}
           rowSlotIdentityRegistryRef={rowSlotIdentityRegistryRef}

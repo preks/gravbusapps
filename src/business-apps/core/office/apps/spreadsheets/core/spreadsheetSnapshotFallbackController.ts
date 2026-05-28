@@ -20,6 +20,18 @@ export type SpreadsheetSnapshotFallbackRequest = {
 
 export type SpreadsheetSnapshotFallbackSchedule = (request: SpreadsheetSnapshotFallbackRequest) => void
 
+const VERSION_RELATED_FALLBACK_REASONS = new Set<SpreadsheetSnapshotFallbackReason>([
+  'version_gap',
+  'stale_version',
+  'missing_version',
+  'duplicate_ambiguity',
+  'planning_failure',
+  'live_apply_failure'
+])
+
+export const isVersionRelatedSnapshotFallbackReason = (reason: SpreadsheetSnapshotFallbackReason): boolean =>
+  VERSION_RELATED_FALLBACK_REASONS.has(reason)
+
 export class SpreadsheetSnapshotFallbackController {
   private scheduledKeys = new Set<string>()
   private releaseTimers = new Map<string, ReturnType<typeof setTimeout>>()

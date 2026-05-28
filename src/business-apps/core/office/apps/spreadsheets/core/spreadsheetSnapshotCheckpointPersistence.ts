@@ -21,6 +21,7 @@ import {
   getSnapshotSizeBytes,
   getWorksheetFromSnapshot
 } from './spreadsheetSnapshotWorkbookUtils'
+import { touchPendingSpreadsheetSnapshotCheckpointForSheet } from './spreadsheetSnapshotCheckpointEnqueue'
 
 type ViewerRow = Record<string, unknown>
 
@@ -85,6 +86,7 @@ export interface PersistSpreadsheetSnapshotCheckpointContext {
   peerSheetDataCacheRef: MutableRefObject<Map<string, Record<string, unknown>[]>>
   authoritativePeerSheetDataCacheRef: MutableRefObject<Set<string>>
   getPersistedBaselineRowsForSheet: (sheetId: string) => ViewerRow[] | null
+  pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
   pendingSnapshotClearCellsRef: MutableRefObject<Map<string, Set<string>>>
   pendingSnapshotCheckpointBySheetRef: MutableRefObject<Map<string, { requestedAt: number }>>
   pendingCellPersistTimeoutRef: MutableRefObject<ReturnType<typeof setTimeout> | null>
@@ -94,6 +96,7 @@ export interface PersistSpreadsheetSnapshotCheckpointContext {
 
   getActiveSessionRows: () => ViewerRow[]
   hasPendingCellPersistence: () => boolean
+  isSheetPersistenceBusy?: (sheetId: string) => boolean
   isUuid: (value: string) => boolean
 
   commitLocalSheetData: (rows: ViewerRow[], options: { syncGrid: boolean; publishParent?: boolean }) => void
@@ -117,6 +120,31 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
   targetSheetId: string,
   ctx: PersistSpreadsheetSnapshotCheckpointContext
 ): Promise<void> {
+  const deferCheckpoint = (reason: string, meta: Record<string, unknown> = {}): void => {
+    touchPendingSpreadsheetSnapshotCheckpointForSheet(
+      ctx.pendingSnapshotCheckpointBySheetRef.current,
+      targetSheetId,
+      Date.now() + 250
+    )
+    ctx.debugLog('snapshot checkpoint deferred: sheet not safe', {
+      appId: ctx.appId,
+      sheetId: targetSheetId,
+      reason,
+      ...meta
+    })
+    ctx.enqueueDiagnosticsTraceEvent({
+      source: 'client',
+      stage: 'client_snapshot_checkpoint_deferred',
+      severity: 'info',
+      traceSessionId: ctx.activeTraceSessionRef.current?.id ?? null,
+      payload: {
+        targetSheetId,
+        reason,
+        ...meta
+      }
+    })
+  }
+
   if (ctx.entityEnabled) return
 
   try {
@@ -194,6 +222,23 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
   const persistedBaselineRows = isTargetActiveSheet
     ? (ctx.getPersistedBaselineRowsForSheet(targetSheetId) ?? fallbackTargetRows)
     : fallbackTargetRows
+  const pendingProtectedCellCount = ctx.pendingLocalMutationCellsRef?.current.size ?? 0
+  const hasPendingCellPersistence = ctx.hasPendingCellPersistence()
+  const sheetPersistenceBusy = ctx.isSheetPersistenceBusy?.(targetSheetId) ?? false
+  if (isTargetActiveSheet && pendingProtectedCellCount > 0) {
+    deferCheckpoint('pending_local_mutation_protection', {
+      pendingProtectedCellCount
+    })
+    return
+  }
+  if (hasPendingCellPersistence) {
+    deferCheckpoint('pending_cell_persistence')
+    return
+  }
+  if (sheetPersistenceBusy) {
+    deferCheckpoint('sheet_persistence_busy')
+    return
+  }
 
   const recoverSnapshotConflict = async (): Promise<boolean> => {
     try {

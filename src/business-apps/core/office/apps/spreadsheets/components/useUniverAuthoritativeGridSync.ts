@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MutableRefObject } from 'react'
+import { useEffect, type MutableRefObject } from 'react'
 import {
   readSpreadsheetRowCellValue,
   type SpreadsheetBulkRemoteApplyMeta,
@@ -10,8 +10,15 @@ import { workbookSnapshotMismatchesViewerRows } from '../utils/univerAdapter'
 import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
 import { SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH } from '../utils/spreadsheetBulkRemoteConstants'
 import type { ClearAllGridBounds } from './univerGridRangeSelection'
-import { getCanonicalRowId } from '../utils/spreadsheetRowIdentity'
+import { getCanonicalRowId, getClientRowIdentity } from '../utils/spreadsheetRowIdentity'
+import type { SpreadsheetVersionCausalOwnershipRegistry } from '../core/spreadsheetVersionCausalOwnership'
+import {
+  reconcileSpreadsheetPendingLocalMutationCellProtection,
+  spreadsheetPendingLocalMutationCoordinateCellKey,
+  spreadsheetPendingLocalMutationSemanticCellKey
+} from '../utils/spreadsheetPendingMaterializationCells'
 import { debugRemoteApply } from './univerGridDebug'
+import { normalizeBlankLikeEchoSignature } from './univerGridWorkbookMutationModule'
 import {
   buildAuthoritativeCellSignatureMap,
   buildAuthoritativeRowsByGridIndex,
@@ -36,13 +43,16 @@ export interface UniverAuthoritativeGridSyncParams {
   collabPersistedBulkApplyDepthRef: MutableRefObject<number>
   skipNextAuthoritativeSyncAfterSnapshotInitRef: MutableRefObject<boolean>
   getWorkbookSnapshotRef: MutableRefObject<(() => Record<string, unknown> | null) | null>
-  pendingAuthoritativeRegionRef: MutableRefObject<AuthoritativeGridRegion | null>
+  pendingAuthoritativeRegionRef: MutableRefObject<AuthoritativeGridRegion[] | null>
   pendingForcedAuthoritativeReapplyRef: MutableRefObject<{
-    region: AuthoritativeGridRegion | null
+    regions: AuthoritativeGridRegion[] | null
     preferBulk: boolean
     clearAllSignatures: boolean
   } | null>
-  recentLocallyMutatedGridCellsRef: MutableRefObject<Map<string, number>>
+  versionCausalOwnershipRef?: MutableRefObject<SpreadsheetVersionCausalOwnershipRegistry | null>
+  /** Version of the authoritative row snapshot being painted (for version-causal ownership). */
+  resolveAuthoritativeAppliedVersion?: () => number
+  pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
   applyRemoteCellUpdate: (
     rowIndex: number,
     colIndex: number,
@@ -88,24 +98,22 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     getWorkbookSnapshotRef,
     pendingAuthoritativeRegionRef,
     pendingForcedAuthoritativeReapplyRef,
-    recentLocallyMutatedGridCellsRef,
+    versionCausalOwnershipRef,
+    resolveAuthoritativeAppliedVersion,
+    pendingLocalMutationCellsRef,
     applyRemoteCellUpdate,
     applyRemoteCellUpdatesBulk,
     resolveActiveWorksheetBounds
   } = params
 
-  const lastObservedAuthoritativeTokenForRebuildRef = useRef<number>(authoritativeDataSyncToken ?? 0)
-
   useEffect(() => {
     if (!univerAPIRef.current) return
-    const currentToken = authoritativeDataSyncToken ?? 0
-    const tokenChanged = currentToken !== lastObservedAuthoritativeTokenForRebuildRef.current
-    lastObservedAuthoritativeTokenForRebuildRef.current = currentToken
-    if (tokenChanged) return
-    lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(data, columns)
-    lastSyncedGridRowCountRef.current = data.length
+    // Do not rebuild the full signature map on data-only updates: optimistic local session
+    // merges can advance row state before the grid is painted, which would make later
+    // authoritative reapply think remote cells are already in sync (cellCount: 0).
+    lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(data)
     lastSyncedGridColumnCountRef.current = columns.filter(column => column.isVisible !== false).length
-  }, [data, columns, authoritativeDataSyncToken])
+  }, [data, columns])
 
   useEffect(() => {
     const api = univerAPIRef.current
@@ -152,58 +160,127 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     const worksheetBounds = resolveActiveWorksheetBounds?.() ?? null
     const gridColumnCount = worksheetBounds != null ? worksheetBounds.maxColIndex + 1 : visibleColumns.length
     const maxColumnCount = Math.min(Math.max(previousColumnCount, visibleColumns.length), gridColumnCount)
-    const nowForLocalMutationCheck = Date.now()
     const forcedSpec = isForcedAuthoritativeReapply ? pendingForcedAuthoritativeReapplyRef.current : null
+    if (isForcedAuthoritativeReapply && forcedSpec && forcedSpec.regions == null) {
+      debugRemoteApply('authoritative_reapply_full_grid_scan', {
+        sheetId: sheet.id,
+        clearAllSignatures: forcedSpec.clearAllSignatures,
+        preferBulk: forcedSpec.preferBulk
+      })
+    }
     if (isForcedAuthoritativeReapply) {
       pendingForcedAuthoritativeReapplyRef.current = null
     }
     const prepareRegionOnly = !isForcedAuthoritativeReapply ? pendingAuthoritativeRegionRef.current : null
     pendingAuthoritativeRegionRef.current = null
 
-    let rowLoopStart = 0
-    let rowLoopEnd = maxRowCount
-    let colLoopStart = 0
-    let colLoopEnd = maxColumnCount
-    if (isForcedAuthoritativeReapply && forcedSpec?.region) {
-      const pr = forcedSpec.region
-      rowLoopStart = Math.max(0, pr.minRow)
-      rowLoopEnd = Math.min(maxRowCount, pr.maxRow + 1)
-      colLoopStart = Math.max(0, pr.minCol)
-      colLoopEnd = Math.min(maxColumnCount, pr.maxCol + 1)
+    const scanRegions: AuthoritativeGridRegion[] = []
+    if (isForcedAuthoritativeReapply && forcedSpec?.regions) {
+      scanRegions.push(...forcedSpec.regions)
     } else if (prepareRegionOnly) {
-      rowLoopStart = Math.max(0, prepareRegionOnly.minRow)
-      rowLoopEnd = Math.min(maxRowCount, prepareRegionOnly.maxRow + 1)
-      colLoopStart = Math.max(0, prepareRegionOnly.minCol)
-      colLoopEnd = Math.min(maxColumnCount, prepareRegionOnly.maxCol + 1)
+      scanRegions.push(...prepareRegionOnly)
     }
 
     const authoritativeBulkBuffer: SpreadsheetBulkRemoteCellItem[] = []
     const allowAuthoritativeBulkFlush = !isForcedAuthoritativeReapply || !forcedSpec || forcedSpec.preferBulk !== false
 
-    for (let rowIndex = rowLoopStart; rowIndex < rowLoopEnd; rowIndex++) {
+    const scanCell = (rowIndex: number, colIndex: number) => {
       const row = rowsByGridIndex.get(rowIndex)
       const rowInBounds = rowsByGridIndex.has(rowIndex)
-      for (let colIndex = colLoopStart; colIndex < colLoopEnd; colIndex++) {
-        const column = visibleColumns[colIndex]
-        const colInBounds = colIndex < visibleColumns.length
-        const key = remoteEchoKey(rowIndex, colIndex)
-        if (!rowInBounds || !colInBounds) {
-          signatures.delete(key)
-          continue
+      const column = visibleColumns[colIndex]
+      const colInBounds = colIndex < visibleColumns.length
+      const key = remoteEchoKey(rowIndex, colIndex)
+      if (!rowInBounds || !colInBounds) {
+        signatures.delete(key)
+        return
+      }
+      const nextValue = row && column ? (readSpreadsheetRowCellValue(row, column) ?? '') : ''
+      const nextSignature = toEchoSignature(nextValue)
+      const pendingLocalMutationCells = pendingLocalMutationCellsRef?.current
+      const coordinateProtectionKey = spreadsheetPendingLocalMutationCoordinateCellKey(sheet.id, rowIndex, colIndex)
+      const semanticProtectionKey =
+        row && column
+          ? spreadsheetPendingLocalMutationSemanticCellKey(sheet.id, getCanonicalRowId(row), column.name)
+          : null
+      const nextProtectionSignature = normalizeBlankLikeEchoSignature(nextSignature)
+      const isPendingLocalMutationCell =
+        reconcileSpreadsheetPendingLocalMutationCellProtection(
+          pendingLocalMutationCellsRef,
+          coordinateProtectionKey,
+          nextProtectionSignature
+        ) ||
+        (semanticProtectionKey
+          ? reconcileSpreadsheetPendingLocalMutationCellProtection(
+              pendingLocalMutationCellsRef,
+              semanticProtectionKey,
+              nextProtectionSignature
+            )
+          : false) ||
+        pendingLocalMutationCells?.has(coordinateProtectionKey) ||
+        (semanticProtectionKey ? pendingLocalMutationCells?.has(semanticProtectionKey) : false)
+      if (isPendingLocalMutationCell) {
+        return
+      }
+      const previousSignature = signatures.get(key)
+      signatures.set(key, nextSignature)
+      if (previousSignature === nextSignature && !isForcedAuthoritativeReapply) return
+
+      const ownershipRegistry = versionCausalOwnershipRef?.current
+      if (ownershipRegistry && row && column) {
+        const remoteAppliedVersion = Math.max(
+          0,
+          Math.trunc(resolveAuthoritativeAppliedVersion?.() ?? Number(sheet.version ?? 0))
+        )
+        const logicalRowHandle = getCanonicalRowId(row) || getClientRowIdentity(row)
+        if (
+          logicalRowHandle &&
+          ownershipRegistry.shouldSuppressRemotePaint({
+            sheetId: sheet.id,
+            rowId: logicalRowHandle,
+            columnName: column.name,
+            remoteAppliedVersion
+          })
+        ) {
+          return
         }
-        const nextValue = row && column ? (readSpreadsheetRowCellValue(row, column) ?? '') : ''
-        const nextSignature = toEchoSignature(nextValue)
-        const previousSignature = signatures.get(key)
-        signatures.set(key, nextSignature)
-        if (previousSignature === nextSignature && !isForcedAuthoritativeReapply) continue
-        const localMutationExpiresAt = recentLocallyMutatedGridCellsRef.current.get(key) ?? 0
-        if (localMutationExpiresAt > nowForLocalMutationCheck && !isForcedAuthoritativeReapply) continue
-        authoritativeBulkBuffer.push({
-          rowIndex,
-          colIndex,
-          value: nextValue,
-          rowId: row ? getCanonicalRowId(row) : undefined
-        })
+      }
+      authoritativeBulkBuffer.push({
+        rowIndex,
+        colIndex,
+        value: nextValue,
+        rowId: row ? getCanonicalRowId(row) : undefined
+      })
+    }
+
+    if (scanRegions.length === 0) {
+      for (let rowIndex = 0; rowIndex < maxRowCount; rowIndex += 1) {
+        for (let colIndex = 0; colIndex < maxColumnCount; colIndex += 1) {
+          scanCell(rowIndex, colIndex)
+        }
+      }
+    } else {
+      for (const bounded of scanRegions) {
+        const rowLoopStart = Math.max(0, bounded.minRow)
+        const rowLoopEnd = Math.min(maxRowCount, bounded.maxRow + 1)
+        const colLoopStart = Math.max(0, bounded.minCol)
+        const colLoopEnd = Math.min(maxColumnCount, bounded.maxCol + 1)
+        for (let rowIndex = rowLoopStart; rowIndex < rowLoopEnd; rowIndex += 1) {
+          for (let colIndex = colLoopStart; colIndex < colLoopEnd; colIndex += 1) {
+            scanCell(rowIndex, colIndex)
+          }
+        }
+      }
+    }
+
+    if (authoritativeBulkBuffer.length === 0 && scanRegions.length > 0 && !isForcedAuthoritativeReapply) {
+      for (const bounded of scanRegions) {
+        const rowLoopStart = Math.max(0, bounded.minRow)
+        const rowLoopEnd = Math.min(maxRowCount, bounded.maxRow + 1)
+        for (let rowIndex = rowLoopStart; rowIndex < rowLoopEnd; rowIndex += 1) {
+          for (let colIndex = 0; colIndex < maxColumnCount; colIndex += 1) {
+            scanCell(rowIndex, colIndex)
+          }
+        }
       }
     }
 
@@ -212,7 +289,8 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       cellCount: authoritativeBulkBuffer.length,
       token: nextToken,
       forced: isForcedAuthoritativeReapply,
-      regionOnly: Boolean(prepareRegionOnly || forcedSpec?.region)
+      regionOnly: scanRegions.length > 0,
+      regionCount: scanRegions.length
     })
 
     if (allowAuthoritativeBulkFlush && authoritativeBulkBuffer.length >= SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH) {
@@ -234,6 +312,7 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     columns,
     data,
     authoritativeDataSyncToken,
-    collabBulkApplyIdleNonce
+    collabBulkApplyIdleNonce,
+    pendingLocalMutationCellsRef
   ])
 }

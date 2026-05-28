@@ -3,6 +3,10 @@ import {
   buildOccupiedSlotRowAdoptions,
   buildSpreadsheetRowMaterializationPlan,
   filterMaterializationEntriesForPersistedSlots,
+  isRowMaterializationInFlightForSheet,
+  mergeCreatedRowsByVisualIndex,
+  releaseAllRowMaterializationInFlightKeysForSheet,
+  releaseRowMaterializationInFlightKeysForMissingSlots,
   resolveUniverRowsForSubmitReadinessMaterialization
 } from '../spreadsheetRowMaterializationPlan'
 
@@ -152,6 +156,29 @@ describe('buildSpreadsheetRowMaterializationPlan', () => {
     expect(plan.rowsToMaterialize).toEqual([])
   })
 
+  it('keeps sparse tail visual slots materializable even when the row array is short', () => {
+    const plan = buildSpreadsheetRowMaterializationPlan({
+      sheetId: 'sheet-1',
+      univerRows: [viewerClientRow(242, 'client_row_242', { column_j: { v: '9' } })],
+      persistedRows: [
+        persistedBackendRow(0, 'backend-row-0'),
+        persistedBackendRow(1, 'backend-row-1'),
+        persistedBackendRow(215, 'backend-row-215')
+      ],
+      isUuid: isBackendRowId,
+      inFlightKeys: new Set<string>()
+    })
+
+    expect(plan.missingGridRowIndices).toEqual([242])
+    expect(plan.rowsToMaterialize).toEqual([
+      {
+        _id: 'client_row_242',
+        _gridRowIndex: 242,
+        column_j: { v: '9' }
+      }
+    ])
+  })
+
   it('skips add_rows when insert_row_slots readiness already resolved the client row', () => {
     const readiness = createSpreadsheetRowMaterializationReadiness()
     readiness.resolve('sheet-1', 'client_row_2', 'backend-row-2')
@@ -201,6 +228,43 @@ describe('buildSpreadsheetRowMaterializationPlan', () => {
 
     expect(filtered.rowsToMaterialize).toEqual([])
     expect(filtered.missingAndWillCreateCount).toBe(0)
+  })
+
+  it('preserves existing peer cells when a materialized row at the same visual index is partial', () => {
+    const merged = mergeCreatedRowsByVisualIndex({
+      previousRows: [
+        persistedBackendRow(258, 'backend-row-258', {
+          column_d: { v: 'first client' }
+        })
+      ],
+      univerRows: [
+        viewerClientRow(258, 'client_row_258', {
+          column_f: { v: 'second client' }
+        })
+      ],
+      createdRows: [
+        {
+          _id: 'backend-row-258',
+          _rowUuid: 'backend-row-258',
+          _clientRowId: 'client_row_258',
+          _gridRowIndex: 258,
+          column_f: { v: 'second client' }
+        }
+      ],
+      isUuid: isBackendRowId
+    })
+
+    expect(merged.rows).toEqual([
+      expect.objectContaining({
+        _id: 'backend-row-258',
+        _rowUuid: 'backend-row-258',
+        _clientRowId: 'client_row_258',
+        _gridRowIndex: 258,
+        column_d: { v: 'first client' },
+        column_f: { v: 'second client' }
+      })
+    ])
+    expect(merged.createdGridRowIndices).toEqual([258])
   })
 })
 
@@ -261,5 +325,30 @@ describe('resolveUniverRowsForSubmitReadinessMaterialization', () => {
     })
 
     expect(resolved).toBe(latestUniverRows)
+  })
+})
+
+describe('row materialization in-flight key helpers', () => {
+  it('releases only keys for missing visual slots', () => {
+    const inFlightKeys = new Set([
+      'sheet-1:158:client_a',
+      'sheet-1:159:client_b',
+      'sheet-1:160:client_c',
+      'sheet-2:1:client_other'
+    ])
+
+    releaseRowMaterializationInFlightKeysForMissingSlots(inFlightKeys, 'sheet-1', [158, 160])
+
+    expect(Array.from(inFlightKeys).sort()).toEqual(['sheet-1:159:client_b', 'sheet-2:1:client_other'])
+  })
+
+  it('detects in-flight materialization per sheet', () => {
+    const inFlightKeys = new Set(['sheet-1:1:client_a'])
+
+    expect(isRowMaterializationInFlightForSheet(inFlightKeys, 'sheet-1')).toBe(true)
+    expect(isRowMaterializationInFlightForSheet(inFlightKeys, 'sheet-2')).toBe(false)
+
+    releaseAllRowMaterializationInFlightKeysForSheet(inFlightKeys, 'sheet-1')
+    expect(isRowMaterializationInFlightForSheet(inFlightKeys, 'sheet-1')).toBe(false)
   })
 })

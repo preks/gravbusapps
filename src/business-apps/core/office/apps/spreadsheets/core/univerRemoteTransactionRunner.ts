@@ -44,7 +44,7 @@ export interface UniverRemoteTransactionRunnerCallbacks {
   ) => void
   forceGridReapply?: (
     sheetId: string,
-    region?: AuthoritativeGridRegion | null,
+    region?: import('../utils/spreadsheetAuthoritativeRegion').AuthoritativeGridReapplyTarget,
     options?: ForceAuthoritativeGridReapplyOptions
   ) => void
   runWithRemoteApplyGuard?: <T>(apply: () => T) => T
@@ -298,6 +298,20 @@ export class UniverRemoteTransactionRunner {
       }
       this.callbacks.applyRemoteClearFormatRange(
         operation.data as unknown as SpreadsheetRemoteClearFormatRangePayload,
+        getMeta(batch, operation)
+      )
+      return { ok: true, appliedCellCount: 0, appliedOperationCount: 1 }
+    }
+
+    if (operation.type === 'merge_ranges' || operation.type === 'unmerge_ranges') {
+      if (!this.callbacks.applyRemoteSpreadsheetFeatureOperation) {
+        return { ok: false, reason: 'missing_runner_callback', detail: 'applyRemoteSpreadsheetFeatureOperation' }
+      }
+      this.callbacks.applyRemoteSpreadsheetFeatureOperation(
+        {
+          type: operation.type,
+          data: operation.data as SpreadsheetRemoteFeatureOperationPayload['data']
+        },
         getMeta(batch, operation)
       )
       return { ok: true, appliedCellCount: 0, appliedOperationCount: 1 }

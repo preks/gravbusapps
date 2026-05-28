@@ -20,6 +20,14 @@ import {
 } from '../utils/spreadsheetAuthoritativeRegion'
 import { countReplayDeltaChangeKinds, partitionReplayDeltaChanges } from '../utils/spreadsheetReplayDeltaPartition'
 
+import type { SpreadsheetCellIntentRecord } from '../core/spreadsheetIntentJournal'
+
+export interface SpreadsheetLocalWorkGuard {
+  hasUnresolvedLocalWorkForSheet: (sheetId: string) => boolean
+  listLocalIntentsForSheet: (sheetId: string) => SpreadsheetCellIntentRecord[]
+  markLocalIntentsFailedForSheet: (sheetId: string) => void
+}
+
 export interface UseSpreadsheetRemoteDeltaCatchUpParams {
   entityEnabled: boolean
   spreadsheetSession: SpreadsheetSession
@@ -49,6 +57,7 @@ export interface UseSpreadsheetRemoteDeltaCatchUpParams {
   } | null>
   reloadSheetFromCanonicalSnapshot: (seedPrefix: string, targetSheetId?: string) => Promise<boolean>
   scheduleSheetVersionRefreshFromApi: (requestedSheetId?: string) => void
+  localWorkGuard?: SpreadsheetLocalWorkGuard
 }
 
 export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDeltaCatchUpParams): {
@@ -58,6 +67,7 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
     options?: SheetDeltaCatchUpOptions
   ) => Promise<boolean>
 } {
+  const OPERATION_VERSION_STREAM = 'sheet_operations' as const
   const catchUpInFlightBySheetRef = useRef(new Map<string, Promise<boolean>>())
   const fallbackReloadsByKeyRef = useRef(new Map<string, Promise<boolean>>())
   const snapshotFallbackControllerRef = useRef<SpreadsheetSnapshotFallbackController | null>(null)
@@ -103,6 +113,31 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
     changeCount: number
     requiresSnapshot: boolean
   }): Promise<boolean> => {
+    if (!paramsForFallback.requiresSnapshot) {
+      const failedIntentCount =
+        params.localWorkGuard?.markLocalIntentsFailedForSheet(paramsForFallback.targetSheetId) ?? 0
+      params.enqueueDiagnosticsTraceEvent({
+        source: 'client',
+        stage: 'client_delta_catchup_snapshot_skipped',
+        severity: 'warning',
+        traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+        version: paramsForFallback.currentVersion,
+        payload: {
+          source: 'delta_catchup',
+          recoveryPath: 'ops_gap_unrecoverable',
+          reason: paramsForFallback.fallbackReason,
+          catchUpReason: paramsForFallback.reason,
+          versionStream: OPERATION_VERSION_STREAM,
+          targetSheetId: paramsForFallback.targetSheetId,
+          sinceVersion: paramsForFallback.sinceVersion,
+          changeCount: paramsForFallback.changeCount,
+          requiresSnapshot: false,
+          failedIntentCount
+        }
+      })
+      return false
+    }
+
     const scheduled = snapshotFallbackControllerRef.current?.requestFallback({
       sheetId: paramsForFallback.targetSheetId,
       reason: paramsForFallback.fallbackReason,
@@ -117,8 +152,10 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
       version: paramsForFallback.currentVersion,
       payload: {
         source: 'delta_catchup',
+        recoveryPath: paramsForFallback.requiresSnapshot ? 'explicit_snapshot_required' : 'ops_gap_unrecoverable',
         reason: paramsForFallback.fallbackReason,
         catchUpReason: paramsForFallback.reason,
+        versionStream: OPERATION_VERSION_STREAM,
         targetSheetId: paramsForFallback.targetSheetId,
         sinceVersion: paramsForFallback.sinceVersion,
         changeCount: paramsForFallback.changeCount,
@@ -169,49 +206,35 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
           stage: 'client_delta_catchup_started',
           traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
           version: options?.incomingVersion ?? null,
-          payload: { reason, targetSheetId, sinceVersion, incomingVersion: options?.incomingVersion ?? null }
+          payload: {
+            reason,
+            targetSheetId,
+            sinceVersion,
+            incomingVersion: options?.incomingVersion ?? null,
+            versionStream: OPERATION_VERSION_STREAM
+          }
         })
 
-        try {
-          const delta = await requireMutationFacade().fetchSheetChangesSince(targetSheetId, sinceVersion)
-          const currentVersion = Number(delta.currentVersion || sinceVersion)
-          if (currentVersion <= sinceVersion) {
+        const applyFetchedDeltaCatchUp = async (
+          delta: Awaited<ReturnType<SpreadsheetMutationFacade['fetchSheetChangesSince']>>,
+          appliedSinceVersion: number,
+          catchUpReason: SheetDeltaCatchUpReason
+        ): Promise<boolean> => {
+          const currentVersion = Number(delta.currentVersion || appliedSinceVersion)
+          if (currentVersion <= appliedSinceVersion) {
             params.enqueueDiagnosticsTraceEvent({
               source: 'client',
               stage: 'client_delta_catchup_noop',
               traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
               version: currentVersion,
-              payload: { reason, targetSheetId, sinceVersion }
-            })
-            return true
-          }
-
-          if (sheetDeltaRequiresFullSnapshot(sinceVersion, delta)) {
-            const fallbackReason = resolveCatchUpFallbackReason(sinceVersion, delta)
-            params.enqueueDiagnosticsTraceEvent({
-              source: 'client',
-              stage: 'client_delta_catchup_requires_snapshot',
-              severity: 'warning',
-              traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
-              version: currentVersion,
               payload: {
-                reason,
-                fallbackReason,
+                reason: catchUpReason,
                 targetSheetId,
-                sinceVersion,
-                changeCount: delta.changes?.length ?? 0,
-                requiresSnapshot: Boolean(delta.requiresSnapshot)
+                sinceVersion: appliedSinceVersion,
+                versionStream: OPERATION_VERSION_STREAM
               }
             })
-            return requestCatchUpSnapshotFallback({
-              targetSheetId,
-              reason,
-              fallbackReason,
-              sinceVersion,
-              currentVersion,
-              changeCount: delta.changes?.length ?? 0,
-              requiresSnapshot: Boolean(delta.requiresSnapshot)
-            })
+            return true
           }
 
           const targetSheet = params.appSheetsRef.current.find(sheet => sheet.id === targetSheetId)
@@ -282,8 +305,9 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
             traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
             version: currentVersion,
             payload: {
-              reason,
+              reason: catchUpReason,
               targetSheetId,
+              versionStream: OPERATION_VERSION_STREAM,
               replayRan: replayThroughManager,
               syncGrid,
               skipSyncGridReason,
@@ -306,10 +330,11 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
             traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
             version: currentVersion,
             payload: {
-              reason,
+              reason: catchUpReason,
               targetSheetId,
-              sinceVersion,
+              sinceVersion: appliedSinceVersion,
               currentVersion,
+              versionStream: OPERATION_VERSION_STREAM,
               changeCount: delta.changes?.length ?? 0,
               rowCount: nextRows.length,
               activeSheet: targetSheetId === params.activeSheetIdRef.current,
@@ -317,6 +342,67 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
             }
           })
           return true
+        }
+
+        try {
+          let delta = await requireMutationFacade().fetchSheetChangesSince(targetSheetId, sinceVersion)
+          if (sheetDeltaRequiresFullSnapshot(sinceVersion, delta) && !delta.requiresSnapshot) {
+            const refreshedSince = Math.max(sinceVersion, params.resolveKnownSheetVersion(targetSheetId))
+            params.enqueueDiagnosticsTraceEvent({
+              source: 'client',
+              stage: 'client_delta_catchup_gap_retry',
+              traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+              version: Number(delta.currentVersion || refreshedSince),
+              payload: {
+                reason,
+                targetSheetId,
+                sinceVersion,
+                refreshedSince,
+                changeCount: delta.changes?.length ?? 0,
+                recoveryPath: 'ops_catchup',
+                versionStream: OPERATION_VERSION_STREAM
+              }
+            })
+            if (refreshedSince > sinceVersion) {
+              const retryDelta = await requireMutationFacade().fetchSheetChangesSince(targetSheetId, refreshedSince)
+              if (!sheetDeltaRequiresFullSnapshot(refreshedSince, retryDelta)) {
+                return applyFetchedDeltaCatchUp(retryDelta, refreshedSince, reason)
+              }
+              delta = retryDelta
+            }
+          }
+
+          if (sheetDeltaRequiresFullSnapshot(sinceVersion, delta)) {
+            const fallbackReason = resolveCatchUpFallbackReason(sinceVersion, delta)
+            params.enqueueDiagnosticsTraceEvent({
+              source: 'client',
+              stage: 'client_delta_catchup_requires_snapshot',
+              severity: 'warning',
+              traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
+              version: Number(delta.currentVersion || sinceVersion),
+              payload: {
+                reason,
+                fallbackReason,
+                targetSheetId,
+                sinceVersion,
+                recoveryPath: Boolean(delta.requiresSnapshot) ? 'explicit_snapshot_required' : 'ops_gap_unrecoverable',
+                versionStream: OPERATION_VERSION_STREAM,
+                changeCount: delta.changes?.length ?? 0,
+                requiresSnapshot: Boolean(delta.requiresSnapshot)
+              }
+            })
+            return requestCatchUpSnapshotFallback({
+              targetSheetId,
+              reason,
+              fallbackReason,
+              sinceVersion,
+              currentVersion: Number(delta.currentVersion || sinceVersion),
+              changeCount: delta.changes?.length ?? 0,
+              requiresSnapshot: Boolean(delta.requiresSnapshot)
+            })
+          }
+
+          return applyFetchedDeltaCatchUp(delta, sinceVersion, reason)
         } catch (error) {
           params.enqueueDiagnosticsTraceEvent({
             source: 'client',
@@ -327,6 +413,7 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
             payload: {
               reason,
               targetSheetId,
+              versionStream: OPERATION_VERSION_STREAM,
               message: error instanceof Error ? error.message : String(error)
             }
           })

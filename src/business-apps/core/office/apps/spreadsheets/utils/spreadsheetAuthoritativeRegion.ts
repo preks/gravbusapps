@@ -2,8 +2,8 @@ import type { SpreadsheetReplayDelta } from '../core'
 import { parseA1Reference } from '../core'
 import type { SpreadsheetColumn } from '../types/spreadsheet'
 import { createUniverConversionContext } from './univerAdapter'
-import { rowMatchesRemoteId } from './spreadsheetRowIdentity'
 import { buildViewerRowVisualIndexByIdentity, lookupViewerRowVisualIndex } from './spreadsheetPeerRowHydration'
+import { resolveViewerRowIndexForRemoteId } from './spreadsheetRowProjection'
 
 export type AuthoritativeGridRegion = {
   minRow: number
@@ -12,12 +12,32 @@ export type AuthoritativeGridRegion = {
   maxCol: number
 }
 
+/** Single bounded region or multiple disjoint regions for authoritative grid reapply. */
+export type AuthoritativeGridReapplyTarget = AuthoritativeGridRegion | AuthoritativeGridRegion[] | null
+
+export const normalizeAuthoritativeGridReapplyTarget = (
+  target: AuthoritativeGridReapplyTarget | undefined
+): AuthoritativeGridRegion[] | null => {
+  if (target == null) return null
+  if (Array.isArray(target)) {
+    return target.length > 0 ? target : null
+  }
+  return [target]
+}
+
 /** Options for `forceAuthoritativeReapply` / `forceGridReapply` (bounded reapply vs full snapshot sync). */
 export type ForceAuthoritativeGridReapplyOptions = {
   /** When false, do not clear signatures outside `region` (dirty-region reapply). Default true for full reapply. */
   clearAllSignatures?: boolean
   /** Prefer bulk `setValues` when the collected diff is large enough. */
   preferBulk?: boolean
+  /**
+   * Required to schedule a full-grid reapply (`region == null`). Normal value/style/version
+   * catch-up must stay region-bounded so a briefly stale session snapshot cannot repaint the sheet.
+   */
+  allowFullGridReapply?: boolean
+  /** Diagnostic label for blocked or allowed full-grid reapplies. */
+  reason?: string
 }
 
 function resolveColumnDisplayName(columns: SpreadsheetColumn[], columnKey: string): string {
@@ -26,16 +46,10 @@ function resolveColumnDisplayName(columns: SpreadsheetColumn[], columnKey: strin
 
 function resolveRowIndexForRemoteId(
   rowId: string,
-  columns: SpreadsheetColumn[],
+  _columns: SpreadsheetColumn[],
   rows: Record<string, unknown>[]
 ): number | undefined {
-  const ctx = createUniverConversionContext(columns, rows)
-  let rowIndex = ctx.rowIdToIndex.get(rowId)
-  if (rowIndex === undefined) {
-    const idx = rows.findIndex(row => rowMatchesRemoteId(row as Record<string, unknown>, rowId))
-    if (idx >= 0) rowIndex = idx
-  }
-  return rowIndex
+  return resolveViewerRowIndexForRemoteId(rows, rowId)
 }
 
 function resolveColIndexForColumnKey(

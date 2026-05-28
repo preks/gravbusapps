@@ -13,8 +13,12 @@ import { buildAuthoritativeCellSignatureMap, getAuthoritativeGridRowExtent } fro
 import { peekSpreadsheetAutofillIntent } from './univerAutofillIntent'
 import {
   registerUniverMountSheetValueAndEditListeners,
-  resolveEmitSerializationKey
+  resolveEmitSerializationKey,
+  runDetectedCellMutationThroughCoordinator,
+  type DeferredDirtyCell
 } from './univerMountSheetValueAndEditListeners'
+import { deriveCellMatrixFromRanges } from '../utils/univerWorksheetCellRead'
+import { isCurrentFacadeWorksheet } from './univerGridWorkbookMutationModule'
 import { registerUniverMountBeforeCommandSheetStructure } from './univerMountBeforeCommandSheetStructure'
 import { registerUniverMountCommandExecuted } from './univerMountCommandExecuted'
 import { attachUniverMountSnapshotCheckpointHandlers } from './univerMountSnapshotCheckpoint'
@@ -64,13 +68,13 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     lastSyncedGridCellSignaturesRef,
     collabPersistedBulkApplyDepthRef,
     bulkApplyClearDeferredDirtyCellsRef,
+    flushDeferredDirtyCellsRef,
     lastSyncedGridRowCountRef,
     lastSyncedGridColumnCountRef,
     lastProcessedAuthoritativeDataSyncTokenRef,
     skipNextAuthoritativeSyncAfterSnapshotInitRef,
     newRowClientIdByIndexRef,
     recentLocalMutationSignaturesRef,
-    recentLocallyMutatedGridCellsRef,
     lastClearAllEmitAtBySignatureRef,
     lastClearFormatEmitAtBySignatureRef,
     lastFeatureEmitAtBySignatureRef,
@@ -79,6 +83,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     copiedSelectionAnchorRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    mergeGestureSuppressBySheetRef,
     pendingFormattingPasteIntentRef,
     pendingAutofillIntentRef,
     contextRef,
@@ -402,13 +407,13 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     contextRef,
     recentlyDuplicatedWorksheetIdsRef,
     remoteEchoSuppressionRef,
-    recentLocallyMutatedGridCellsRef,
     lastSyncedGridCellSignaturesRef,
     lastCellValueMutationAtRef,
     newRowClientIdByIndexRef,
     recentLocalMutationSignaturesRef,
     pendingFormattingPasteIntentRef,
     pendingAutofillIntentRef,
+    mergeGestureSuppressBySheetRef,
     getWorkbookSnapshotRef,
     peekPasteFormattingReplaceIntent,
     peekAutofillApplyType,
@@ -416,7 +421,9 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
       await propsRef.current.flushUnmaterializedRowsBeforePersistRef?.current?.(targetSheetId, finalize)
     },
     getPersistSheetRowsSnapshot: (targetSheetId: string) =>
-      propsRef.current.getPersistSheetRowsSnapshot?.(targetSheetId) ?? propsRef.current.data
+      propsRef.current.getPersistSheetRowsSnapshot?.(targetSheetId) ?? propsRef.current.data,
+    getPersistedBaselineRowsSnapshot: (targetSheetId: string) =>
+      propsRef.current.getPersistedBaselineRowsSnapshot?.(targetSheetId) ?? null
   })
   const reconcileSingleCell = (
     row: number | undefined,
@@ -586,6 +593,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     lastCellValueMutationAtRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    mergeGestureSuppressBySheetRef,
     pendingAutofillIntentRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
@@ -599,7 +607,51 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     toCellDimensionsPayload,
     markDirtyAndScheduleSnapshot
   })
-  const { valueChangeDisposable, sheetEditEndedDisposable, clearDeferredDirtyCellsInRegion } =
+  const replayDeferredSingleCell = async (cell: DeferredDirtyCell): Promise<void> => {
+    const { row, col, worksheetId, deferredPayload, commandId, origin } = cell
+    const resolvedWorksheetId = worksheetId ?? getActiveWorksheetIdFromUniver()
+    const activeWorksheetIdAtHandlingTime = getActiveWorksheetIdFromUniver()
+    const { key: tailKey } = resolveEmitSerializationKey(
+      resolvedWorksheetId,
+      resolvedWorksheetId,
+      resolvedWorksheetId,
+      activeWorksheetIdAtHandlingTime
+    )
+    const range = {
+      startRow: row,
+      endRow: row,
+      startColumn: col,
+      endColumn: col
+    }
+    let payloadCellValue = deferredPayload
+    if (!payloadCellValue) {
+      const workbook = univerAPIRef.current?.getActiveWorkbook()
+      const activeWorksheet = workbook?.getActiveSheet()
+      const worksheet =
+        resolvedWorksheetId && typeof workbook?.getSheetBySheetId === 'function'
+          ? (workbook.getSheetBySheetId(resolvedWorksheetId) ?? activeWorksheet)
+          : activeWorksheet
+      const currentWorksheet =
+        isCurrentFacadeWorksheet(activeWorksheet, worksheet, resolvedWorksheetId) &&
+        worksheet &&
+        typeof (worksheet as { getRange?: unknown }).getRange === 'function'
+          ? worksheet
+          : undefined
+      payloadCellValue = deriveCellMatrixFromRanges(currentWorksheet, [range]) ?? undefined
+    }
+    if (!payloadCellValue) {
+      return
+    }
+    await runDetectedCellMutationThroughCoordinator(mutationEmitTailCoordinator, tailKey, handleDetectedCellMutation, {
+      source: origin === 'local_user' ? 'deferred-replay' : 'deferred-reconcile',
+      commandId,
+      payloadCellValue,
+      ranges: [range],
+      worksheetId: resolvedWorksheetId
+    })
+  }
+
+  const { valueChangeDisposable, sheetEditEndedDisposable, flushDeferredDirtyCells, clearDeferredDirtyCellsInRegion } =
     registerUniverMountSheetValueAndEditListeners({
       univerAPI,
       readOnlyRef,
@@ -611,11 +663,13 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
       propsRef,
       handleDetectedCellMutation,
       mutationEmitTailCoordinator,
-      reconcileDeferredSingleCell: (row, col, worksheetId) => {
-        reconcileSingleCell(row, col, 'deferred-reconcile', worksheetId)
-      }
+      replayDeferredSingleCell
     })
   bulkApplyClearDeferredDirtyCellsRef.current = clearDeferredDirtyCellsInRegion
+  flushDeferredDirtyCellsRef.current = flushDeferredDirtyCells
+  if (propsRef.current.flushDeferredDirtyCellsRef) {
+    propsRef.current.flushDeferredDirtyCellsRef.current = flushDeferredDirtyCells
+  }
   const {
     selectionDisposable,
     selectionChangeDisposable,

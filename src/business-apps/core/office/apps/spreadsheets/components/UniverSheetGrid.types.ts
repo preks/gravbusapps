@@ -11,7 +11,7 @@ import type {
   DocumentParticipant
 } from '../../../../../platform/apps/shared/services/CollaborationClient'
 import type {
-  AuthoritativeGridRegion,
+  AuthoritativeGridReapplyTarget,
   ForceAuthoritativeGridReapplyOptions
 } from '../utils/spreadsheetAuthoritativeRegion'
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
@@ -54,6 +54,14 @@ export interface UniverSheetGridProps {
   authoritativeDataSyncToken?: number
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
+  pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
+  spreadsheetIntentJournalRef?: MutableRefObject<
+    import('../core/spreadsheetIntentJournal').SpreadsheetIntentJournal | null
+  >
+  versionCausalOwnershipRef?: MutableRefObject<
+    import('../core/spreadsheetVersionCausalOwnership').SpreadsheetVersionCausalOwnershipRegistry | null
+  >
+  resolveKnownSheetVersion?: (sheetId: string) => number
   /**
    * When true with {@link multiSheetWorkbookMode}, native sheet insert/copy/rename/delete
    * commands are cancelled and routed through {@link onNativeSheetStructureIntent} (REST-first).
@@ -159,8 +167,19 @@ export interface UniverSheetGridProps {
   >
   /** Flush queued HTTP cell batches; wired from SpreadsheetAppViewer for deferred local-edit recovery. */
   flushPendingCellChangesRef?: MutableRefObject<(() => Promise<void>) | null>
+  /**
+   * Flush Univer deferred dirty cells (user edits held during remote apply) before snapshot remount.
+   * Wired from SpreadsheetAppViewer; assigned when sheet value listeners mount.
+   */
+  flushDeferredDirtyCellsRef?: MutableRefObject<(() => Promise<void>) | null>
   /** Session-backed row snapshot for remapping `client_*` ids after {@link flushUnmaterializedRowsBeforePersistRef}. */
   getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
+  /**
+   * Persisted baseline rows last acknowledged by successful HTTP batches. Used for
+   * cell-level persistence decisions so optimistic session values do not masquerade
+   * as backend-acknowledged writes.
+   */
+  getPersistedBaselineRowsSnapshot?: (sheetId: string) => Record<string, unknown>[] | null
   /**
    * 2a: Single authoritative predicate for backend row UUIDs; should match pending-cell batch
    * logic. Hosts must wire this; the legacy `isUuidForRowRemap` slot is honored for one release.
@@ -261,9 +280,9 @@ export interface UniverSheetGridRemoteApplyHandle {
 
 /** Viewer row signature sync and forced reapply after authoritative data changes. */
 export interface UniverSheetGridAuthoritativeHandle {
-  prepareAuthoritativeRegionSync?: (region: AuthoritativeGridRegion | null) => void
+  prepareAuthoritativeRegionSync?: (region: AuthoritativeGridReapplyTarget) => void
   forceAuthoritativeReapply: (
-    region?: AuthoritativeGridRegion | null,
+    region?: AuthoritativeGridReapplyTarget,
     options?: ForceAuthoritativeGridReapplyOptions
   ) => void
   /**

@@ -6,6 +6,7 @@
  */
 
 import type { SpreadsheetSheet, SpreadsheetColumn, SpreadsheetMergeRange } from '../types/spreadsheet'
+import { getViewerRowVisualIndex } from './spreadsheetPeerRowHydration'
 import { isPlaceholderColumnTitle } from './trackingColumns'
 
 /** Conversion context for mapping row/column indices to our rowId/columnId/name (used by collaboration and persist). */
@@ -132,11 +133,6 @@ function getRowIdentityCandidates(row: Record<string, unknown>): string[] {
         .filter(Boolean)
     )
   )
-}
-
-function getVisualRowIndex(row: Record<string, unknown>, fallbackIndex: number): number {
-  const raw = Number(row._gridRowIndex)
-  return Number.isFinite(raw) && raw >= 0 ? Math.trunc(raw) : fallbackIndex
 }
 
 function isAvatarColumn(column: SpreadsheetColumn): boolean {
@@ -350,7 +346,7 @@ function buildCellData(data: Record<string, unknown>[], visibleColumns: Spreadsh
   for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
     const rowCells = buildRowCells(data[rowIndex], visibleColumns)
     if (Object.keys(rowCells).length === 0) continue
-    const targetRowIndex = getVisualRowIndex(data[rowIndex], rowIndex)
+    const targetRowIndex = getViewerRowVisualIndex(data[rowIndex], rowIndex)
     cellData[targetRowIndex] = rowCells
   }
   return cellData
@@ -373,13 +369,13 @@ function buildRowHeights(data: Record<string, unknown>[]): Record<number, { h?: 
   const rowData: Record<number, { h?: number }> = {}
   for (let idx = 0; idx < data.length; idx++) {
     const h = data[idx]._height
-    if (typeof h === 'number' && h > 0) rowData[getVisualRowIndex(data[idx], idx)] = { h }
+    if (typeof h === 'number' && h > 0) rowData[getViewerRowVisualIndex(data[idx], idx)] = { h }
   }
   return rowData
 }
 
 function getWorkbookRowCount(data: Record<string, unknown>[]): number {
-  const maxVisualRowIndex = data.reduce((max, row, index) => Math.max(max, getVisualRowIndex(row, index)), -1)
+  const maxVisualRowIndex = data.reduce((max, row, index) => Math.max(max, getViewerRowVisualIndex(row, index)), -1)
   return Math.max(maxVisualRowIndex + 1, data.length, DEFAULT_MIN_ROWS)
 }
 
@@ -1101,7 +1097,7 @@ export function createUniverConversionContext(
     indexToExcelCol.set(index, excelCol)
   })
   data.forEach((row, index) => {
-    const rowIndex = getVisualRowIndex(row, index)
+    const rowIndex = getViewerRowVisualIndex(row, index)
     const candidateRowIds = getRowIdentityCandidates(row)
     const canonicalRowId = candidateRowIds[0] || `row_${index}`
     candidateRowIds.forEach(rowId => {

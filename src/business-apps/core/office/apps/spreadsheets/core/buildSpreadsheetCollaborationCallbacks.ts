@@ -20,8 +20,54 @@ import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRow
 import { createCollaborationApplyRemoteDimensions } from '../hooks/collaborationApplyRemoteDimensions'
 import { createCollaborationWorkbookStructureHandler } from '../hooks/collaborationWorkbookStructureBridge'
 import type { UniverSheetGridCollaborationBridgeHandle } from '../components/UniverSheetGrid.types'
+import type {
+  AuthoritativeGridReapplyTarget,
+  ForceAuthoritativeGridReapplyOptions
+} from '../utils/spreadsheetAuthoritativeRegion'
+import { normalizeAuthoritativeGridReapplyTarget } from '../utils/spreadsheetAuthoritativeRegion'
+import type {
+  SpreadsheetLiveRemoteApplyVersionScope,
+  SpreadsheetVersionCausalOwnershipRegistry
+} from './spreadsheetVersionCausalOwnership'
 
 type ViewerRow = Record<string, unknown>
+
+function forwardForceAuthoritativeReapply(
+  spreadsheetGridRef: React.MutableRefObject<UniverSheetGridCollaborationBridgeHandle | null | undefined>,
+  region: AuthoritativeGridReapplyTarget | undefined,
+  options: ForceAuthoritativeGridReapplyOptions | undefined,
+  diagnostics: {
+    debugLog: (message: string, meta?: Record<string, unknown>) => void
+    enqueueDiagnosticsTraceEvent: (event: SpreadsheetTraceEventInput) => void
+  }
+): void {
+  const regions = normalizeAuthoritativeGridReapplyTarget(region)
+  const isFullGrid = regions == null
+  if (isFullGrid && options?.allowFullGridReapply !== true) {
+    diagnostics.debugLog('full_grid_reapply_blocked_supported_op', {
+      reason: options?.reason ?? 'full_grid_reapply_not_allowed'
+    })
+    diagnostics.enqueueDiagnosticsTraceEvent({
+      source: 'client',
+      stage: 'client_collab_force_grid_reapply_blocked',
+      severity: 'info',
+      payload: {
+        reason: options?.reason ?? 'full_grid_reapply_not_allowed',
+        boundedRegion: false,
+        diagnostic: 'full_grid_reapply_blocked_supported_op'
+      }
+    })
+    return
+  }
+  if (regions && regions.length > 1) {
+    diagnostics.debugLog('multi_region_authoritative_reapply', {
+      regionCount: regions.length,
+      reason: options?.reason
+    })
+  }
+  const target: AuthoritativeGridReapplyTarget = regions == null ? null : regions.length === 1 ? regions[0] : regions
+  spreadsheetGridRef.current?.forceAuthoritativeReapply?.(target, options)
+}
 
 export interface BuildSpreadsheetCollaborationCallbacksParams {
   spreadsheetSession: SpreadsheetSession
@@ -111,6 +157,9 @@ export interface BuildSpreadsheetCollaborationCallbacksParams {
    *     server has had a chance to accept or reject it.
    */
   getSheetWorkQueue?: () => SheetWorkQueueApi | null
+  isRowMaterializationInFlight?: (sheetId: string) => boolean
+  versionCausalOwnershipRef?: React.MutableRefObject<SpreadsheetVersionCausalOwnershipRegistry | null>
+  liveRemoteApplyVersionRef?: React.MutableRefObject<SpreadsheetLiveRemoteApplyVersionScope | null>
 }
 
 /**
@@ -163,8 +212,17 @@ export function buildSpreadsheetCollaborationCallbacks(
     resolveKnownSheetVersion,
     createdSheetIdAliasesRef,
     isRecentLocalBatchId,
-    getSheetWorkQueue
+    getSheetWorkQueue,
+    isRowMaterializationInFlight,
+    versionCausalOwnershipRef,
+    liveRemoteApplyVersionRef
   } = params
+
+  const resolveLiveRemoteAppliedVersion = (sheetId: string): number | null => {
+    const scope = liveRemoteApplyVersionRef?.current
+    if (!scope || scope.sheetId !== sheetId) return null
+    return Math.trunc(scope.appliedVersion)
+  }
 
   /**
    * Feeds a `versionOnlyEcho` job to the queue so `queueClientAppliedVersion`
@@ -246,10 +304,24 @@ export function buildSpreadsheetCollaborationCallbacks(
    */
   const isCellLocallyOwnedForOverlay = (sheetId: string, rowId: string | undefined, colIndex: number): boolean => {
     if (!rowId) return false
-    const queue = getSheetWorkQueue?.()
-    if (!queue) return false
     const columnName = resolveColumnNameForIndex(sheetId, colIndex)
     if (!columnName) return false
+    const remoteAppliedVersion = resolveLiveRemoteAppliedVersion(sheetId)
+    const ownershipRegistry = versionCausalOwnershipRef?.current
+    if (ownershipRegistry && remoteAppliedVersion != null) {
+      if (
+        ownershipRegistry.shouldSuppressRemotePaint({
+          sheetId,
+          rowId,
+          columnName,
+          remoteAppliedVersion
+        })
+      ) {
+        return true
+      }
+    }
+    const queue = getSheetWorkQueue?.()
+    if (!queue) return false
     const key = `${rowId}\u0000${columnName}`
     return queue.isQueueOwnedCell(sheetId, key)
   }
@@ -510,7 +582,22 @@ export function buildSpreadsheetCollaborationCallbacks(
       spreadsheetSession.getSheetState(sheetId)?.columns ??
       appSheetsRef.current.find(sheet => sheet.id === sheetId)?.columns ??
       [],
-    getSheetVersion: sheetId => spreadsheetSession.getSheetState(sheetId)?.version ?? resolveKnownSheetVersion(sheetId),
+    getSheetVersion: sheetId => {
+      const sessionVersion = spreadsheetSession.getSheetState(sheetId)?.version
+      const queueVersion = getSheetWorkQueue?.()?.getDebugState(sheetId).queueClientAppliedVersion
+      const candidates = [
+        typeof sessionVersion === 'number' && Number.isFinite(sessionVersion) ? Math.trunc(sessionVersion) : null,
+        typeof queueVersion === 'number' && Number.isFinite(queueVersion) ? Math.trunc(queueVersion) : null,
+        resolveKnownSheetVersion(sheetId)
+      ].filter((value): value is number => typeof value === 'number' && value >= 0)
+      return candidates.length > 0 ? Math.max(...candidates) : 0
+    },
+    isSheetPersistenceBusy: sheetId => {
+      if (isRowMaterializationInFlight?.(sheetId)) {
+        return true
+      }
+      return getSheetWorkQueue?.()?.isSheetPersistenceBusy(sheetId) ?? false
+    },
     getLocalSheetData: () => getActiveSessionRows(),
     getSheetData: sheetId => {
       const targetSheet = appSheetsRef.current.find(sheet => sheet.id === sheetId)
@@ -549,7 +636,10 @@ export function buildSpreadsheetCollaborationCallbacks(
       flushPendingRemoteCellPaints(sheetId)
       globalThis.setTimeout(() => {
         if (activeSheetIdRef.current !== sheetId) return
-        spreadsheetGridRef.current?.forceAuthoritativeReapply?.(region ?? null, options)
+        forwardForceAuthoritativeReapply(spreadsheetGridRef, region ?? null, options, {
+          debugLog,
+          enqueueDiagnosticsTraceEvent
+        })
       }, 0)
     },
     applyRemoteDimensions: payload => {
@@ -561,25 +651,40 @@ export function buildSpreadsheetCollaborationCallbacks(
       // never coalesce inside them. Flush any pending buffered paints first
       // so they land in Univer's command engine ahead of the transaction.
       flushPendingRemoteCellPaints()
-      return new UniverRemoteTransactionRunner({
-        applyRemoteCellUpdate: immediateApplyRemoteCellUpdate,
-        applyRemoteCellUpdatesBulk: immediateApplyRemoteCellUpdatesBulk,
-        applyRemoteClearAllRange: (payload, meta) => {
-          spreadsheetGridRef.current?.applyRemoteClearAllRange?.(payload, meta)
-        },
-        applyRemoteClearFormatRange: (payload, meta) => {
-          spreadsheetGridRef.current?.applyRemoteClearFormatRange?.(payload, meta)
-        },
-        applyRemoteSpreadsheetFeatureOperation: (payload, meta) => {
-          spreadsheetGridRef.current?.applyRemoteSpreadsheetFeatureOperation?.(payload, meta)
-        },
-        forceGridReapply: (sheetId, region, options) => {
-          globalThis.setTimeout(() => {
-            if (activeSheetIdRef.current !== sheetId) return
-            spreadsheetGridRef.current?.forceAuthoritativeReapply?.(region ?? null, options)
-          }, 0)
+      if (liveRemoteApplyVersionRef) {
+        liveRemoteApplyVersionRef.current = {
+          sheetId: plan.batch.sheetId,
+          appliedVersion: plan.batch.appliedVersion
         }
-      }).run(plan)
+      }
+      try {
+        return new UniverRemoteTransactionRunner({
+          applyRemoteCellUpdate: immediateApplyRemoteCellUpdate,
+          applyRemoteCellUpdatesBulk: immediateApplyRemoteCellUpdatesBulk,
+          applyRemoteClearAllRange: (payload, meta) => {
+            spreadsheetGridRef.current?.applyRemoteClearAllRange?.(payload, meta)
+          },
+          applyRemoteClearFormatRange: (payload, meta) => {
+            spreadsheetGridRef.current?.applyRemoteClearFormatRange?.(payload, meta)
+          },
+          applyRemoteSpreadsheetFeatureOperation: (payload, meta) => {
+            spreadsheetGridRef.current?.applyRemoteSpreadsheetFeatureOperation?.(payload, meta)
+          },
+          forceGridReapply: (sheetId, region, options) => {
+            globalThis.setTimeout(() => {
+              if (activeSheetIdRef.current !== sheetId) return
+              forwardForceAuthoritativeReapply(spreadsheetGridRef, region ?? null, options, {
+                debugLog,
+                enqueueDiagnosticsTraceEvent
+              })
+            }, 0)
+          }
+        }).run(plan)
+      } finally {
+        if (liveRemoteApplyVersionRef?.current?.sheetId === plan.batch.sheetId) {
+          liveRemoteApplyVersionRef.current = null
+        }
+      }
     },
     onVersionUpdate: version => {
       updateActiveSheetVersion(version)

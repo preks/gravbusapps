@@ -112,6 +112,45 @@ describe('persistSpreadsheetSnapshotCheckpointForSheet', () => {
     expect(mockSaveSpreadsheetSnapshotWithRetry).not.toHaveBeenCalled()
   })
 
+  it('skips checkpoint persistence while pending local mutation protection is active', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({ version: 2 } as never)
+    const { ctx } = createContext({
+      pendingLocalMutationCellsRef: { current: new Set(['coord\u0000sheet-1\u00000\u00000']) }
+    })
+
+    await persistSpreadsheetSnapshotCheckpointForSheet('sheet-1', ctx as never)
+
+    expect(ctx.debugLog).toHaveBeenCalledWith('snapshot checkpoint deferred: sheet not safe', {
+      appId: 'app-1',
+      sheetId: 'sheet-1',
+      reason: 'pending_local_mutation_protection',
+      pendingProtectedCellCount: 1
+    })
+    expect(ctx.pendingSnapshotCheckpointBySheetRef.current.get('sheet-1')).toEqual(
+      expect.objectContaining({
+        requestedAt: expect.any(Number)
+      })
+    )
+    expect(mockSaveSpreadsheetSnapshotWithRetry).not.toHaveBeenCalled()
+  })
+
+  it('defers checkpoint persistence while sheet queue work is still busy', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({ version: 2 } as never)
+    const { ctx } = createContext({
+      isSheetPersistenceBusy: jest.fn(() => true)
+    })
+
+    await persistSpreadsheetSnapshotCheckpointForSheet('sheet-1', ctx as never)
+
+    expect(ctx.debugLog).toHaveBeenCalledWith('snapshot checkpoint deferred: sheet not safe', {
+      appId: 'app-1',
+      sheetId: 'sheet-1',
+      reason: 'sheet_persistence_busy'
+    })
+    expect(ctx.pendingSnapshotCheckpointBySheetRef.current.has('sheet-1')).toBe(true)
+    expect(mockSaveSpreadsheetSnapshotWithRetry).not.toHaveBeenCalled()
+  })
+
   it('persists a quiet active-sheet checkpoint and marks it saved', async () => {
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({ version: 2 } as never)
     mockSaveSpreadsheetSnapshotWithRetry.mockImplementation(
@@ -140,6 +179,25 @@ describe('persistSpreadsheetSnapshotCheckpointForSheet', () => {
     expect(ctx.pendingSnapshotClearCellsRef.current.has('sheet-1')).toBe(false)
     expect(ctx.workbookSnapshotVersionRef.current).toBe(8)
     expect(ctx.lastSuccessfulSnapshotCheckpointAtRef.current).toBeGreaterThan(0)
+  })
+
+  it('seeds snapshot save retry from the latest snapshot api version', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({ version: 6 } as never)
+    mockSaveSpreadsheetSnapshotWithRetry.mockImplementation(
+      async ({ workbookSnapshotVersionRef }: { workbookSnapshotVersionRef: { current: number } }) => {
+        expect(workbookSnapshotVersionRef.current).toBe(6)
+        return { savedSnapshot: { ok: true }, cacheResult: { stored: true, reason: null } }
+      }
+    )
+
+    const { ctx } = createContext({
+      workbookSnapshotVersionRef: { current: 1 }
+    })
+
+    await persistSpreadsheetSnapshotCheckpointForSheet('sheet-1', ctx as never)
+
+    expect(mockSaveSpreadsheetSnapshotWithRetry).toHaveBeenCalledTimes(1)
+    expect(ctx.workbookSnapshotVersionRef.current).toBe(6)
   })
 
   it('updates peer caches when a non-active sheet checkpoint succeeds', async () => {
