@@ -88303,20 +88303,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12648,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12648/",
-    "chunkJsBytes": 1935036,
+    "bitbucketBuildNumber": 12659,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12659/",
+    "chunkJsBytes": 1935041,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1640155,
-        "gzip": 103483,
+        "gzip": 103498,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1640155,
-            "gzip": 103483
+            "gzip": 103498
           }
         ]
       },
@@ -100547,15 +100547,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 12648,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12648/",
-    "chunkJsBytes": 1913568,
+    "bitbucketBuildNumber": 12659,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12659/",
+    "chunkJsBytes": 1949643,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1401819,
-        "gzip": 367063,
+        "rendered": 1467099,
+        "gzip": 383635,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/workspace/WorkspaceRightPanel.tsx",
@@ -104294,9 +104294,9 @@
     ]
   },
   "hr/absences/apps/time-absence-hub": {
-    "bitbucketBuildNumber": 12633,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12633/",
-    "chunkJsBytes": 1010318,
+    "bitbucketBuildNumber": 12659,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12659/",
+    "chunkJsBytes": 1007125,
     "top": [
       {
         "kind": "bucket",
@@ -104319,8 +104319,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 593966,
-        "gzip": 140412,
+        "rendered": 588389,
+        "gzip": 139361,
         "leaves": [
           {
             "name": "src/business-apps/hr/absences/apps/time-absence-hub/components/pages/AbsenceDetails/AbsenceDetails.tsx",
@@ -111078,7 +111078,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-27T12:41:50.075Z",
+    "generatedAt": "2026-05-28T05:56:39.681Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
