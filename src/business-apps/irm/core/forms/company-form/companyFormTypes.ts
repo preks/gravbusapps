@@ -34,6 +34,17 @@ export const createCompanySchema = (t: (key: string) => string) => {
       executiveTypeRef: z.string().optional()
     })
     .superRefine((value, ctx) => {
+      const hasEmployee = Boolean(value.employeeId)
+      const hasInvestmentContact = Boolean(value.investmentContactId)
+      const hasExecutiveType = Boolean(value.executiveTypeRef)
+      const hasExistingId = Boolean(value.id)
+      const hasMeaningfulData = hasEmployee || hasInvestmentContact || hasExecutiveType || hasExistingId
+
+      if (!hasMeaningfulData) {
+        // Allow empty draft rows; they are dropped from payload on submit.
+        return
+      }
+
       if (value.sourceType === 'employee' && !value.employeeId) {
         ctx.addIssue({ code: 'custom', path: ['employeeId'], message: t('validation-employee-required') })
       }
@@ -46,15 +57,44 @@ export const createCompanySchema = (t: (key: string) => string) => {
       }
     })
 
-  const ownershipSchema = z.object({
-    id: z.string().optional(),
-    version: z.number().optional(),
-    ownerInvestmentCompanyId: z.string().min(1, t('validation-owner-company-required')),
-    percentage: z
-      .number()
-      .min(0, t('validation-ownership-percentage-min'))
-      .max(OWNERSHIP_TOTAL_LIMIT, t('validation-ownership-percentage-max'))
-  })
+  const ownershipSchema = z
+    .object({
+      id: z.string().optional(),
+      version: z.number().optional(),
+      ownerInvestmentCompanyId: z.string().optional(),
+      percentage: z
+        .number()
+        .min(0, t('validation-ownership-percentage-min'))
+        .max(OWNERSHIP_TOTAL_LIMIT, t('validation-ownership-percentage-max'))
+        .optional()
+    })
+    .superRefine((value, ctx) => {
+      const hasOwner = Boolean(value.ownerInvestmentCompanyId)
+      const hasPercentage = value.percentage !== undefined
+      const hasExistingId = Boolean(value.id)
+      const hasMeaningfulData = hasOwner || hasPercentage || hasExistingId
+
+      if (!hasMeaningfulData) {
+        // Allow empty draft rows; they are dropped from payload on submit.
+        return
+      }
+
+      if (!hasOwner) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ownerInvestmentCompanyId'],
+          message: t('validation-owner-company-required')
+        })
+      }
+
+      if (!hasPercentage) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['percentage'],
+          message: t('validation-ownership-percentage-min')
+        })
+      }
+    })
 
   return z
     .object({
@@ -140,12 +180,18 @@ export interface CompanyFormProps extends BusinessAppContextProps {
 }
 
 const toFormAddressLine = (line?: {
+  lines?: Array<string | undefined>
   streetAddress?: string
   addressLine2?: string
   addressLine3?: string
   addressLine4?: string
 }): { lines: string[] } | undefined => {
   if (!line) return undefined
+  if (Array.isArray(line.lines)) {
+    const normalizedLines = line.lines.filter((value): value is string => Boolean(value))
+    return normalizedLines.length > 0 ? { lines: normalizedLines } : undefined
+  }
+
   const lines = [line.streetAddress, line.addressLine2, line.addressLine3, line.addressLine4].filter(
     (value): value is string => Boolean(value)
   )
@@ -201,7 +247,7 @@ export const createEmptyExecutive = (): ExecutiveFormRow => ({
 
 export const createEmptyOwnership = (): OwnershipFormRow => ({
   ownerInvestmentCompanyId: '',
-  percentage: 0
+  percentage: undefined
 })
 
 export const getSelectedContactId = (

@@ -3,6 +3,7 @@ import {
   Button,
   FormControl,
   FormField,
+  FormFieldGroup,
   FormItem,
   FormLabel,
   FormMessage,
@@ -72,37 +73,56 @@ export function CompanyExecutivesSection({
           const sourceType = form.watch(`executives.${index}.sourceType`)
 
           return (
-            <div key={item.id} className="gba:p-3 gba:border gba:rounded-md gba:space-y-3">
-              <FormField
-                name={`executives.${index}.sourceType`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('source-type-label')}</FormLabel>
-                    <FormControl>
-                      <Select
-                        value={field.value}
-                        onValueChange={value => {
-                          field.onChange(value)
-                          if (value === 'employee') {
-                            form.setValue(`executives.${index}.investmentContactId`, undefined)
-                          } else {
-                            form.setValue(`executives.${index}.employeeId`, undefined)
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('source-type-label')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="employee">{t('source-employee')}</SelectItem>
-                          <SelectItem value="investmentContact">{t('source-investment-contact')}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div key={item.id} className="gba:space-y-4">
+              <FormFieldGroup className="gba:grid gba:grid-cols-2 gba:gap-4">
+                <FormField
+                  name={`executives.${index}.sourceType`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('source-type-label')}</FormLabel>
+                      <FormControl>
+                        <Select
+                          value={field.value}
+                          onValueChange={value => {
+                            field.onChange(value)
+                            if (value === 'employee') {
+                              form.setValue(`executives.${index}.investmentContactId`, undefined)
+                            } else {
+                              form.setValue(`executives.${index}.employeeId`, undefined)
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('source-type-label')} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="employee">{t('source-employee')}</SelectItem>
+                            <SelectItem value="investmentContact">{t('source-investment-contact')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  name={`executives.${index}.executiveTypeRef`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('executive-type-label')}</FormLabel>
+                      <FormControl>
+                        <CatalogSelect
+                          catalogIdentifier={LEGAL_ENTITY_EXECUTIVE_TYPE_CATALOG}
+                          value={field.value || ''}
+                          onValueChange={value => field.onChange(value || undefined)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </FormFieldGroup>
+
               {sourceType === 'employee' ? (
                 <FormField
                   name={`executives.${index}.employeeId`}
@@ -148,23 +168,8 @@ export function CompanyExecutivesSection({
                   )}
                 />
               )}
-              <FormField
-                name={`executives.${index}.executiveTypeRef`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('executive-type-label')}</FormLabel>
-                    <FormControl>
-                      <CatalogSelect
-                        catalogIdentifier={LEGAL_ENTITY_EXECUTIVE_TYPE_CATALOG}
-                        value={field.value || ''}
-                        onValueChange={value => field.onChange(value || undefined)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="button" variant="outline" onClick={() => remove(index)}>
+
+              <Button type="button" size="sm" variant="outline" onClick={() => remove(index)}>
                 <TrashIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                 {t('remove-executive-button')}
               </Button>
@@ -172,7 +177,7 @@ export function CompanyExecutivesSection({
           )
         })}
 
-        <Button type="button" variant="outline" onClick={() => append(createEmptyExecutive())}>
+        <Button type="button" size="sm" variant="outline" onClick={() => append(createEmptyExecutive())}>
           <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
           {t('add-executive-button')}
         </Button>

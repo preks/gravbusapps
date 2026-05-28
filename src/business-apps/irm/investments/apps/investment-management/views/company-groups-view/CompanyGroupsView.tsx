@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button, Card, CardContent, DataTable, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { ArrowLeftIcon, TreeStructureIcon } from '@phosphor-icons/react'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -7,10 +7,34 @@ import { useInvestmentCompanyGroups } from '@/common/data/investment/hooks/useIn
 import type { InvestmentCompanyGroup } from '@/common/data/investment/types/investmentCompanyGroupTypes'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { InvestmentCompanyGroupGraphCanvas } from './components/InvestmentCompanyGroupGraphCanvas'
 import { InvestmentCompanyGraphDetails } from './components/InvestmentCompanyGraphDetails'
 import { useInvestmentCompanyGroupGraph } from './hooks/useInvestmentCompanyGroupGraph'
 import translations from './_i18n'
+
+const GROUP_UPDATED_EVENT = 'com.newwork.investmentCompanyGroup.updated'
+type ProcessEventDetail = Record<string, any> | undefined
+
+const readProcessEventDetail = (event: Event): ProcessEventDetail => {
+  return (event as CustomEvent<ProcessEventDetail>)?.detail
+}
+
+const addEventListeners = (targets: Window[], eventNames: string[], handler: EventListener) => {
+  targets.forEach(target => {
+    eventNames.forEach(eventName => {
+      target.addEventListener(eventName, handler)
+    })
+  })
+}
+
+const removeEventListeners = (targets: Window[], eventNames: string[], handler: EventListener) => {
+  targets.forEach(target => {
+    eventNames.forEach(eventName => {
+      target.removeEventListener(eventName, handler)
+    })
+  })
+}
 
 export type CompanyGroupsViewProps = BusinessAppContextProps & {
   selectedGroupId?: string
@@ -68,8 +92,10 @@ const GroupCard: React.FC<{
           {
             context: FlowContextName.investmentCompanyGroupEntity,
             contextData: {
+              id: group.id,
               investmentCompanyGroupId: group.id,
-              groupId: group.id
+              groupId: group.id,
+              name: group.name || ''
             }
           }
         ]}
@@ -91,15 +117,29 @@ export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const [selectedInvestmentCompanyId, setSelectedInvestmentCompanyId] = useState<string | undefined>()
+  const [optimisticGroupNames, setOptimisticGroupNames] = useState<Record<string, string>>({})
   const selectedGroupId = selectedGroupIdProp
-  const { groups, loading, error } = useInvestmentCompanyGroups(context.accessToken || '', {
+  const {
+    groups,
+    loading,
+    error,
+    refetch: refetchGroups
+  } = useInvestmentCompanyGroups(context.accessToken || '', {
     limit: 100,
     orderBy: [{ field: 'name', direction: 'ASC_NULLS_LAST' }]
   })
+  const displayGroups = useMemo(
+    () =>
+      groups.map(group => ({
+        ...group,
+        name: optimisticGroupNames[group.id] ?? group.name
+      })),
+    [groups, optimisticGroupNames]
+  )
 
   const selectedGroup = useMemo(() => {
-    return groups.find(group => group.id === selectedGroupId)
-  }, [groups, selectedGroupId])
+    return displayGroups.find(group => group.id === selectedGroupId)
+  }, [displayGroups, selectedGroupId])
 
   const emptyColumns = useMemo<ColumnDef<InvestmentCompanyGroup>[]>(
     () => [
@@ -129,11 +169,74 @@ export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = ({
     setSelectedInvestmentCompanyId(investmentCompanyId)
   }, [])
 
+  const applyUpdatedGroupToState = useCallback((payload: Record<string, any> | undefined) => {
+    const updatedGroup = payload?.investmentCompanyGroup || payload?.investmentCompanyGroups?.[0] || payload
+    const updatedGroupId = updatedGroup?.id || updatedGroup?.groupId || updatedGroup?.investmentCompanyGroupId
+    const updatedGroupName = updatedGroup?.name
+
+    if (typeof updatedGroupId === 'string' && typeof updatedGroupName === 'string') {
+      setOptimisticGroupNames(prev => ({ ...prev, [updatedGroupId]: updatedGroupName }))
+    }
+  }, [])
+
+  const getProcessEventTargets = useCallback((): Window[] => {
+    const targets: Window[] = []
+    const current = globalThis.window
+    if (!current) return targets
+    targets.push(current)
+    try {
+      const parent = current.parent && current.parent !== current ? current.parent : undefined
+      const top = current.top && current.top !== current && current.top !== parent ? current.top : undefined
+      if (parent) targets.push(parent)
+      if (top) targets.push(top)
+    } catch {
+      // Ignore cross-origin access issues.
+    }
+    return targets
+  }, [])
+
   const {
     graph,
     loading: graphLoading,
-    error: graphError
+    error: graphError,
+    refetch: refetchGraph
   } = useInvestmentCompanyGroupGraph(context.accessToken, selectedGroupId, handleSelectInvestmentCompany)
+
+  useProcessCompletion({
+    onSuccess: () => {
+      void refetchGroups()
+      void refetchGraph()
+    }
+  })
+
+  useEffect(() => {
+    const handleGroupUpdated: EventListener = event => {
+      applyUpdatedGroupToState(readProcessEventDetail(event))
+
+      void refetchGroups()
+      void refetchGraph()
+    }
+
+    const targets = getProcessEventTargets()
+    addEventListeners(targets, [GROUP_UPDATED_EVENT], handleGroupUpdated)
+    return () => {
+      removeEventListeners(targets, [GROUP_UPDATED_EVENT], handleGroupUpdated)
+    }
+  }, [applyUpdatedGroupToState, getProcessEventTargets, refetchGraph, refetchGroups])
+
+  useEffect(() => {
+    const handleProcessContinueEvent: EventListener = event => {
+      const detail = readProcessEventDetail(event)
+      applyUpdatedGroupToState(detail?.payload || detail?.response?.payload || detail)
+    }
+
+    const targets = getProcessEventTargets()
+    addEventListeners(targets, ['com.newwork.process.continue'], handleProcessContinueEvent)
+
+    return () => {
+      removeEventListeners(targets, ['com.newwork.process.continue'], handleProcessContinueEvent)
+    }
+  }, [applyUpdatedGroupToState, getProcessEventTargets])
 
   if (selectedGroupId) {
     const groupTitle = graph?.name || selectedGroup?.name || t('default-group-title')
@@ -232,9 +335,9 @@ export const CompanyGroupsView: React.FC<CompanyGroupsViewProps> = ({
         />
       )}
 
-      {!loading && !error && groups.length > 0 && (
+      {!loading && !error && displayGroups.length > 0 && (
         <div className="gba:grid gba:grid-cols-12 gba:gap-4">
-          {groups.map(group => (
+          {displayGroups.map(group => (
             <div key={group.id} className="gba:col-span-4">
               <GroupCard
                 group={group}

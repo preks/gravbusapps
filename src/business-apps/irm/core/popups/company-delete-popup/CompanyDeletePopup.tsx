@@ -58,13 +58,11 @@ const CompanyDeletePopup: React.FC<CompanyDeletePopupProps> = ({ initialValues =
     }
 
     return {
-      investmentCompanies: [
-        {
-          id: company.id,
-          version: company.version,
-          isDeleted: true
-        }
-      ],
+      investmentCompany: {
+        id: company.id,
+        version: company.version,
+        isDeleted: true
+      },
       changeMode: 'DELETE'
     }
   }
