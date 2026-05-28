@@ -51,27 +51,18 @@ interface ActivityRow {
   text: string
 }
 
-interface CollectedActivity {
-  rows: ActivityRow[]
-  responseStarted: boolean
-}
-
-const collectAgentActivityRows = (events: AgentStreamEvent[], turnStartEpoch: number): CollectedActivity => {
+const collectAgentActivityRows = (events: AgentStreamEvent[], turnStartEpoch: number): ActivityRow[] => {
   const rows: ActivityRow[] = []
-  let responseStarted = false
   for (const e of events) {
     const tsRaw = (e as { timestamp?: string }).timestamp
     const ts = typeof tsRaw === 'string' ? toEpoch(tsRaw) : 0
     if (ts < turnStartEpoch) continue
-    if (isResponseStreamStart(e)) {
-      responseStarted = true
-      continue
-    }
+    if (isResponseStreamStart(e)) continue
     const text = eventActivityText(e)?.trim()
     if (!text || looksLikeRawPayload(text)) continue
     rows.push({ ts, text })
   }
-  return { rows, responseStarted }
+  return rows
 }
 
 const dedupeConsecutive = (values: string[]): string[] => {
@@ -87,9 +78,8 @@ export function buildAgentActivityLines(events: AgentStreamEvent[]): string[] {
   if (!events || events.length === 0) return []
 
   const turnStartEpoch = findTurnStartEpoch(events)
-  const collected = collectAgentActivityRows(events, turnStartEpoch)
-  if (collected.responseStarted) return []
+  const rows = collectAgentActivityRows(events, turnStartEpoch)
 
-  collected.rows.sort((a, b) => a.ts - b.ts)
-  return dedupeConsecutive(collected.rows.map(r => r.text)).slice(-3)
+  rows.sort((a, b) => a.ts - b.ts)
+  return dedupeConsecutive(rows.map(r => r.text)).slice(-5)
 }

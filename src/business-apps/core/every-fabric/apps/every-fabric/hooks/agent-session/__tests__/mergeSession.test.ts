@@ -26,6 +26,15 @@ describe('mergeRestAndStreamSession', () => {
     expect(merged?.status).toBe('waiting_for_human')
   })
 
+  it('turn_snapshot updates status like terminal when REST is non-terminal', () => {
+    const session = baseSession({ status: 'running' })
+    const events: AgentStreamEvent[] = [
+      { type: 'turn_snapshot', status: 'waiting_for_human', seq: 1 } as AgentStreamEvent
+    ]
+    const merged = mergeRestAndStreamSession(session, null, events)
+    expect(merged?.status).toBe('waiting_for_human')
+  })
+
   it('carries bootstrap session_attachments when REST attachments are empty', () => {
     const session = baseSession({ session_attachments: [] })
     const bootstrap = baseSession({

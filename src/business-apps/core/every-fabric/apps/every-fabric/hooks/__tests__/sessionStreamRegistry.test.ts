@@ -118,6 +118,22 @@ describe('sessionStreamRegistry', () => {
     __testing__.disposeAll()
   })
 
+  it('closes source on turn_snapshot event', async () => {
+    const mod = await import('../sessionStreamRegistry')
+    const { acquireSessionStream, getSessionStreamState, __testing__ } = mod
+
+    const { release } = acquireSessionStream('s4b', 'token-a')
+    const src = FakeSseConnection.instances[0]
+    src.emitOpen()
+    src.emitMessage({ type: 'turn_snapshot', event_id: 'ts1', seq: 1, status: 'completed' })
+
+    expect(src.abort).toHaveBeenCalled()
+    expect(getSessionStreamState('s4b')?.terminalReached).toBe(true)
+
+    release()
+    __testing__.disposeAll()
+  })
+
   it('stops reconnecting after markSessionStreamRestTerminal', async () => {
     jest.useFakeTimers()
     try {

@@ -12,7 +12,8 @@ import {
   extractStreamingThinking
 } from './streamHeadlines'
 import { computeStreamingDisplayContent, extractStreamingGreeting } from './streamingContent'
-import { currentTurnTrace, sessionTraceOrEmpty } from './traceTurn'
+import { resolveSessionTraceEvents } from './resolveSessionTraceEvents'
+import { currentTurnTrace } from './traceTurn'
 
 export interface UseAgentSessionDerivedInput {
   session: DeepAgentSession | null
@@ -40,6 +41,11 @@ export function useAgentSessionDerived({
     [session, matchedBootstrapSession, events]
   )
 
+  const effectiveEvents = useMemo(
+    () => resolveSessionTraceEvents(events, mergedSession?.trace),
+    [events, mergedSession?.trace]
+  )
+
   const isStreaming = deriveFabricIsStreaming(isAgentRunning, mergedSession?.status)
 
   const messages = useMemo(
@@ -55,40 +61,46 @@ export function useAgentSessionDerived({
     [streamMessages, mergedSession, optimisticMessages, session, matchedBootstrapSession]
   )
 
-  const liveTurnEvents = useMemo(() => {
-    if (events.length > 0) return currentTurnTrace(events)
-    return currentTurnTrace(sessionTraceOrEmpty(mergedSession))
-  }, [events, mergedSession])
+  const liveTurnEvents = useMemo(() => currentTurnTrace(effectiveEvents), [effectiveEvents])
 
-  const streamingGreeting = useMemo(() => extractStreamingGreeting(events, mergedSession), [events, mergedSession])
+  const streamingGreeting = useMemo(
+    () => extractStreamingGreeting(effectiveEvents, mergedSession),
+    [effectiveEvents, mergedSession]
+  )
 
   const streamingContent = useMemo(
     () => computeStreamingDisplayContent(liveTurnEvents, lastReplyTimestamp, isAgentRunning, mergedSession?.status),
     [isAgentRunning, liveTurnEvents, mergedSession?.status, lastReplyTimestamp]
   )
 
-  const streamingThinking = useMemo(() => extractStreamingThinking(events, mergedSession), [events, mergedSession])
+  const streamingThinking = useMemo(
+    () => extractStreamingThinking(effectiveEvents, mergedSession),
+    [effectiveEvents, mergedSession]
+  )
 
   const statusHeadline = useMemo(
-    () => extractStatusHeadline(events, mergedSession?.status),
-    [events, mergedSession?.status]
+    () => extractStatusHeadline(effectiveEvents, mergedSession?.status),
+    [effectiveEvents, mergedSession?.status]
   )
 
   const liveStatusHeadline = useMemo(
-    () => extractLiveStatusHeadline(events, mergedSession?.status),
-    [events, mergedSession?.status]
+    () => extractLiveStatusHeadline(effectiveEvents, mergedSession?.status),
+    [effectiveEvents, mergedSession?.status]
   )
 
   const displayStatus = liveStatusHeadline ?? statusHeadline
 
-  const ackHeadline = useMemo(() => extractAckHeadline(events, mergedSession?.status), [events, mergedSession?.status])
+  const ackHeadline = useMemo(
+    () => extractAckHeadline(effectiveEvents, mergedSession?.status),
+    [effectiveEvents, mergedSession?.status]
+  )
 
-  const planItems = useMemo(() => extractPlanItems(events, mergedSession), [events, mergedSession])
+  const planItems = useMemo(() => extractPlanItems(effectiveEvents, mergedSession), [effectiveEvents, mergedSession])
 
   const agentActivityLines = useMemo<string[]>(() => {
     if (isTerminalSessionStatus(mergedSession?.status)) return []
-    return buildAgentActivityLines(events)
-  }, [events, mergedSession?.status])
+    return buildAgentActivityLines(effectiveEvents)
+  }, [effectiveEvents, mergedSession?.status])
 
   return {
     mergedSession,

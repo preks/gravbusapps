@@ -28,6 +28,7 @@ import { useEnterpriseAgentClient } from '../hooks/useEnterpriseAgentClient'
 import { useModelOptions } from '../hooks/useModelOptions'
 import { useSessionUrlState } from '../hooks/useSessionUrlState'
 import { setFabricLogContext, clearFabricLogContext } from '../utils/diagnosticLogger'
+import { resolveSessionTraceEvents } from '../hooks/agent-session/resolveSessionTraceEvents'
 import { deriveActivityFromEvents } from '../utils/messageUtils'
 import { currentTurnTrace } from '../utils/currentTurnTrace'
 
@@ -423,7 +424,6 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     isStreaming,
     isWaitingForInput,
     sessionLoadError,
-    lastReplyTimestamp,
     activeSkill,
     startSession: _startSession,
     activateSession: _activateSession,
@@ -470,14 +470,17 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   const { artifacts, workspaceDocs, activeArtifactId, activeArtifact, setActiveArtifactId, refreshArtifacts } =
     useFabricArtifacts(activeSessionId, events, accessToken, session)
 
+  // Live SSE when connected; REST trace when stream is suppressed (completed sessions).
+  const traceEvents = useMemo(() => resolveSessionTraceEvents(events, session?.trace), [events, session?.trace])
+
   // Activity events for the chronological feed (tools + delegations)
-  const activityEvents = useMemo(() => deriveActivityFromEvents(events), [events])
+  const activityEvents = useMemo(() => deriveActivityFromEvents(traceEvents), [traceEvents])
 
   // Decisions panel — discrete agent branch points (skill, reflection, HITL, …)
-  const decisions = useFabricDecisions(events)
+  const decisions = useFabricDecisions(traceEvents)
 
   // Skills — parsed from `skill_load` tool calls and `skill_loaded` events.
-  const { activeSkill: fabricActiveSkill, loadedSkills, skillIdByStepId } = useFabricSkills(events)
+  const { activeSkill: fabricActiveSkill, loadedSkills, skillIdByStepId } = useFabricSkills(traceEvents)
 
   // Cases — generic, event-only "multi-step business operation" state
   // derived from case_panel_open/update/close tool outputs and from
@@ -489,11 +492,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   // Merge SSE events with session trace; scope previews to the current user turn only.
   const previewSourceEvents = useMemo((): AgentStreamEvent[] => {
     if (!activeSessionId) return []
-    const traceForSession =
-      session?.session_id === activeSessionId ? ((session?.trace ?? []) as AgentStreamEvent[]) : []
-    const source = events.length > 0 ? events : traceForSession
-    return currentTurnTrace(source, { replyAfterMs: lastReplyTimestamp })
-  }, [activeSessionId, events, session?.session_id, session?.trace, lastReplyTimestamp])
+    const source = traceEvents.length > 0 ? traceEvents : events
+    return currentTurnTrace(source)
+  }, [activeSessionId, traceEvents, events])
 
   // Live artifact previews from SSE or session trace events
   const { previews: artifactPreviews, latestPreview, hasActivePreview } = useArtifactPreview(previewSourceEvents)

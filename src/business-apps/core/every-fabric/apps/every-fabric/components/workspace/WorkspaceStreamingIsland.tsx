@@ -2,7 +2,7 @@ import { BrainIcon, CaretDownIcon, CaretUpIcon, WifiHighIcon, WifiXIcon } from '
 import type { FC } from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMessage } from '../../types/enterpriseAgent'
-import { StreamingPreviewBubble } from '../chat/StreamingPreviewBubble'
+import { AgentActivityTimeline } from '../chat/AgentActivityTimeline'
 
 const THINKING_TAIL = 16
 const FADE_OUT_DURATION_MS = 300
@@ -35,8 +35,7 @@ interface WorkspaceStreamingIslandProps {
   /**
    * Recent agent activity lines (oldest first, newest last) — derived from
    * real-time status / live_status / step_started events. Feeds the flowing
-   * StreamingPreviewBubble inside the island so the user sees more context
-   * than the single status pill above.
+   * AgentActivityTimeline inside the island so the user sees step context.
    */
   activityLines?: readonly string[]
   completedCount: number
@@ -181,15 +180,12 @@ export const WorkspaceStreamingIsland: FC<WorkspaceStreamingIslandProps> = ({
               />
             </div>
           )}
-          {statusHeadline ? (
-            <p
-              className="gba:mt-1.5 gba:text-xs gba:leading-snug gba:text-foreground/90 gba:line-clamp-2 gba:animate-in gba:fade-in gba:duration-200"
-              data-testid="fabric-streaming-island-status-headline"
-            >
-              {statusHeadline}
-            </p>
-          ) : null}
-          <StreamingPreviewBubble activityLines={activityLines ?? []} isStreaming={isStreaming} variant="compact" />
+          <AgentActivityTimeline
+            activityLines={activityLines ?? []}
+            currentStatus={statusHeadline}
+            isStreaming={isStreaming}
+            variant="compact"
+          />
         </div>
         <div className="gba:flex gba:shrink-0 gba:items-center gba:gap-1 gba:border-l gba:border-border/40 gba:pl-2">
           {isConnected ? (

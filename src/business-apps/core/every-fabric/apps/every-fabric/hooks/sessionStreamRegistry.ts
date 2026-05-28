@@ -62,6 +62,9 @@ interface InternalEntry {
 const entries = new Map<string, InternalEntry>()
 let graceSweepTimer: ReturnType<typeof setInterval> | null = null
 
+const isStreamEndEvent = (event: AgentStreamEvent): boolean =>
+  event.type === 'terminal' || event.type === 'turn_snapshot'
+
 const dedupeKey = (event: AgentStreamEvent): string => {
   if ('event_id' in event && event.event_id) return String(event.event_id)
   if ('seq' in event && typeof event.seq === 'number') return `seq:${event.seq}`
@@ -150,7 +153,7 @@ const connect = (entry: InternalEntry) => {
         lastSeq = event.seq
       }
 
-      const terminalReached = event.type === 'terminal'
+      const terminalReached = isStreamEndEvent(event)
       entry.state = {
         ...entry.state,
         events: [...entry.state.events, event],
@@ -260,7 +263,7 @@ export const appendSessionStreamEvents = (
     if ('seq' in event && typeof event.seq === 'number' && event.seq > lastSeq) {
       lastSeq = event.seq
     }
-    if (event.type === 'terminal') {
+    if (isStreamEndEvent(event)) {
       terminalReached = true
     }
   }

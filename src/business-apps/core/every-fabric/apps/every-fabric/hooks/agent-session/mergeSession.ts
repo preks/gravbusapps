@@ -34,7 +34,7 @@ export function mergeRestAndStreamSession(
 
   let status: DeepAgentSession['status'] = restStatus
   for (const ev of events) {
-    if (ev.type === 'terminal') status = ev.status
+    if (ev.type === 'terminal' || ev.type === 'turn_snapshot') status = ev.status
   }
   return { ...restSession, status, session_attachments: mergedAttachments }
 }

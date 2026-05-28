@@ -13,3 +13,9 @@ export const isTerminalSessionStatus = (status: DeepAgentSession['status'] | und
 
 export const isRestTerminalStatus = (status: DeepAgentSession['status']): boolean =>
   status === 'completed' || status === 'failed' || status === 'cancelled'
+
+/** Suppress live SSE when REST is terminal unless the client is mid-turn (reply in flight). */
+export const deriveStreamSuppressed = (
+  restSession: Pick<DeepAgentSession, 'status'> | null | undefined,
+  isAgentRunning: boolean
+): boolean => !!(restSession && isTerminalStatus(restSession.status) && !isAgentRunning)

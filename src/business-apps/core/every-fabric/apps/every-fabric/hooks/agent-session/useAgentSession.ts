@@ -13,7 +13,7 @@ import { useSessionStream } from '../useSessionStream'
 import { isFlowBotFabricRuntime } from '../../utils/fabricRuntime'
 import { postSessionReply } from './replyFlow'
 import { readSessionUiCache, writeSessionUiCache } from './sessionUiStateCache'
-import { isTerminalStatus } from './sessionStatus'
+import { deriveStreamSuppressed, isTerminalStatus } from './sessionStatus'
 import { epochFromStreamEvent } from './traceTurn'
 import type { ActiveSkillInfo, AgentExecutionClient } from './types'
 import { POLL_INTERVAL_MS } from './types'
@@ -39,20 +39,20 @@ export const useAgentSession = (
   )
   const [session, setSession] = useState<DeepAgentSession | null>(initialCached?.session ?? null)
   const [streamVersion, setStreamVersion] = useState(0)
-  const streamSuppressed = useMemo(() => {
-    const rest = session ?? matchedBootstrapSession
-    return !!(rest && isTerminalStatus(rest.status))
-  }, [session, matchedBootstrapSession])
-  const {
-    messages: streamMessages,
-    events,
-    isConnected
-  } = useSessionStream(sessionId, accessToken, streamVersion, streamSuppressed)
   const [sessionLoadError, setSessionLoadError] = useState(false)
   const [isAgentRunning, setIsAgentRunning] = useState(initialCached?.isAgentRunning ?? false)
   const [optimisticMessages, setOptimisticMessages] = useState<ChatMessage[]>(initialCached?.optimisticMessages ?? [])
   const [activeSkill, setActiveSkill] = useState<ActiveSkillInfo | null>(initialCached?.activeSkill ?? null)
   const [lastReplyTimestamp, setLastReplyTimestamp] = useState<number>(initialCached?.lastReplyTimestamp ?? 0)
+  const streamSuppressed = useMemo(() => {
+    const rest = session ?? matchedBootstrapSession
+    return deriveStreamSuppressed(rest, isAgentRunning)
+  }, [session, matchedBootstrapSession, isAgentRunning])
+  const {
+    messages: streamMessages,
+    events,
+    isConnected
+  } = useSessionStream(sessionId, accessToken, streamVersion, streamSuppressed)
 
   const sessionRef = useRef<DeepAgentSession | null>(null)
   sessionRef.current = session ?? matchedBootstrapSession
@@ -132,7 +132,7 @@ export const useAgentSession = (
   useEffect(() => {
     if (events.length === 0) return
     const lastEvent = events[events.length - 1]
-    if (lastEvent?.type !== 'terminal') return
+    if (lastEvent?.type !== 'terminal' && lastEvent?.type !== 'turn_snapshot') return
     if (processedTerminalAtRef.current === events.length) return
     if (lastReplyTimestamp > 0) {
       const terminalTime = epochFromStreamEvent(lastEvent)
@@ -177,12 +177,12 @@ export const useAgentSession = (
   })
 
   useEffect(() => {
-    if (!derived.mergedSession) return
+    if (!derived.mergedSession || isAgentRunning) return
     if (!isTerminalStatus(derived.mergedSession.status)) return
     setIsAgentRunning(false)
     setLastReplyTimestamp(0)
     if (sessionId) markSessionStreamRestTerminal(sessionId)
-  }, [derived.mergedSession?.status, derived.mergedSession?.session_id, sessionId])
+  }, [derived.mergedSession?.status, derived.mergedSession?.session_id, sessionId, isAgentRunning])
 
   const startSession = useCallback(
     async (
