@@ -136,14 +136,12 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
     })
   }, [allLoadedEntries, statusFilter])
 
-  const isInitialLoad = offset === 0 && allLoadedEntries.length === 0
-  const showLoading = isLoading || isInitialLoad
   const hasMore = allLoadedEntries.length > 0 && allLoadedEntries.length < totalCount
 
   const sentinelRef = useInfiniteScroll({
     onLoadMore: () => setOffset(prev => prev + PAGE_SIZE),
     hasMore,
-    isLoading: showLoading
+    isLoading
   })
 
   const handleSearch = (query: string) => setSearchQuery(query)
@@ -231,7 +229,7 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
         )}
 
         {/* Policies table */}
-        {showLoading ? (
+        {isLoading ? (
           <div className="gba:space-y-3 gba:mb-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="gba:h-14 gba:w-full gba:rounded-lg" />

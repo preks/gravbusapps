@@ -139,10 +139,6 @@ const NewsView: React.FC<NewsViewProps> = ({
   const featuredArticles = useMemo(() => featuredData.slice(0, 2), [featuredData])
   const otherArticles = useMemo(() => data, [data])
 
-  // Keep loading state until we have data on initial load
-  const isInitialLoad = offset === 0 && allLoadedEntries.length === 0
-  const showLoading = isLoading || isInitialLoad
-
   const hasMore = allLoadedEntries.length > 0 && allLoadedEntries.length < totalCount
 
   // Collect all items for translation (remove duplicates)
@@ -179,7 +175,7 @@ const NewsView: React.FC<NewsViewProps> = ({
       setOffset(prev => prev + PAGE_SIZE)
     },
     hasMore,
-    isLoading: showLoading
+    isLoading
   })
 
   const handleSearch = (query: string) => {
@@ -307,7 +303,7 @@ const NewsView: React.FC<NewsViewProps> = ({
         </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:mb-6">
-          {showLoading ? (
+          {isLoading ? (
             <ContentCardSkeleton variant="horizontal" count={5} />
           ) : (
             otherArticles.map((item, index) => {
@@ -342,7 +338,7 @@ const NewsView: React.FC<NewsViewProps> = ({
           </div>
         )}
 
-        {!showLoading && offset === 0 && data.length === 0 && fetchedEntries.length === 0 && (
+        {!isLoading && offset === 0 && data.length === 0 && (
           <div className="gba:text-center gba:py-12">
             <p className="gba:text-muted-foreground">{t('no_news_found')}</p>
           </div>

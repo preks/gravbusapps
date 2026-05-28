@@ -175,10 +175,6 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   // Use entries directly (no conversion needed)
   const data = entries
 
-  // Keep loading state until we have data on initial load
-  const isInitialDataLoad = offset === 0 && allLoadedEntries.length === 0
-  const showLoading = isLoading || isInitialDataLoad
-
   const hasMore = allLoadedEntries.length > 0 && allLoadedEntries.length < totalCount
 
   // Collect all items for translation
@@ -213,7 +209,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
       setOffset(prev => prev + PAGE_SIZE)
     },
     hasMore,
-    isLoading: showLoading
+    isLoading
   })
 
   const handleSearch = (query: string) => {
@@ -374,7 +370,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
             ) : (
               <>
                 {/* Featured Articles Section */}
-                {showLoading ? (
+                {isLoading ? (
                   <div className="gba:mb-8">
                     <Skeleton className="gba:h-6 gba:w-48 gba:mb-4" />
                     <div className="gba:space-y-4">
@@ -395,7 +391,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                 {/* Regular Articles Grid */}
                 <RegularArticlesSection
                   articles={regularArticles}
-                  isLoading={showLoading}
+                  isLoading={isLoading}
                   isInitialLoad={isInitialLoad}
                   searchQuery={searchQuery}
                   currentTab={currentTab}
@@ -408,7 +404,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                   t={t}
                 />
 
-                {!showLoading && offset === 0 && data.length === 0 && fetchedEntries.length === 0 && (
+                {!isLoading && offset === 0 && data.length === 0 && (
                   <div className="gba:col-span-3 gba:text-center gba:py-12">
                     <p className="gba:text-muted-foreground">
                       {searchQuery ? t('no_search_results') : t('no_knowledge_found')}
