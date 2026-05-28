@@ -71,6 +71,9 @@ export const GET_RELATIONSHIP_TYPES = `
     jobPosition{
       name
     }
+    company {
+      name
+    }
     organizationalUnit{
       id
       name
@@ -144,6 +147,7 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
     lastName?: string
     pictureThumbnail?: string
     jobTitle?: string
+    companyName?: string
   } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -187,7 +191,8 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
         firstName: res?.EmployeeByPk?.firstName,
         lastName: res?.EmployeeByPk?.lastName,
         pictureThumbnail: res?.EmployeeByPk?.pictureThumbnail,
-        jobTitle: res?.EmployeePosition?.[0]?.jobPosition?.name
+        jobTitle: res?.EmployeePosition?.[0]?.jobPosition?.name,
+        companyName: res?.EmployeePosition?.[0]?.company?.name
       })
     } catch (e: any) {
       setError(e?.message || 'Failed to load relationship types')
