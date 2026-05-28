@@ -3,6 +3,7 @@ import { useFormContext } from 'react-hook-form'
 import { AiButton, Spinner, toast } from '@newwork/nw-design-system'
 import { Sparkles } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { toISOFormat } from '@/common/utils/dateFormatter'
 import { useContactAiEnrich, type ContactAiEnrichResponse } from './useContactAiEnrich'
 
 const PREFIX = 'ContactAiEnrich'
@@ -119,7 +120,10 @@ const ContactAiEnrichButton: React.FC<ContactAiEnrichButtonProps> = ({
       setIfNotDirty('languageRef', fields.languageRef)
       setIfNotDirty('jobPosition', fields.jobPosition)
       setIfNotDirty('department', fields.department)
-      setIfNotDirty('birthDate', fields.birthDate)
+      // birthDate must be a full ISO string (the manual DateInput uses
+      // outputFormat="iso"); normalising here keeps the submit payload in
+      // the shape the backend marshaller expects.
+      setIfNotDirty('birthDate', toISOFormat(fields.birthDate as string | undefined | null))
       setIfNotDirty('description', fields.description)
       setIfNotDirty('notesSummary', fields.notesSummary)
       setIfNotDirty('code', fields.code)
