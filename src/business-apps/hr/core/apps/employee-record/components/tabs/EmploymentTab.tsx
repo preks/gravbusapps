@@ -193,15 +193,15 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
       },
       {
         label: t('employment-label-employment-start-date'),
-        value: workingCondition?.activeFrom ? dayjs(workingCondition.activeFrom).format('MMM D, YYYY') : ''
+        value: workingCondition?.activeFrom ? formatDate(workingCondition.activeFrom, 'date.medium') || '' : ''
       },
       {
         label: t('employment-label-employment-end-date'),
-        value: workingCondition?.activeTo ? dayjs(workingCondition.activeTo).format('MMM D, YYYY') : ''
+        value: workingCondition?.activeTo ? formatDate(workingCondition.activeTo, 'date.medium') || '' : ''
       },
       {
         label: t('employment-label-hire-date'),
-        value: workingCondition?.hireDate ? dayjs(workingCondition.hireDate).format('MMM D, YYYY') : ''
+        value: workingCondition?.hireDate ? formatDate(workingCondition.hireDate, 'date.medium') || '' : ''
       },
       {
         label: t('employment-label-contract-type'),
@@ -209,11 +209,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
       },
       {
         label: t('employment-label-probation-end-date'),
-        value: workingCondition?.probationEnd ? dayjs(workingCondition.probationEnd).format('MMM D, YYYY') : ''
+        value: workingCondition?.probationEnd ? formatDate(workingCondition.probationEnd, 'date.medium') || '' : ''
       },
       {
         label: t('employment-label-remote'),
-        value: workingCondition?.remote?.value || ''
+        value: getCatalogValue(workingCondition?.remote) || ''
       },
       {
         label: t('employment-label-region'),

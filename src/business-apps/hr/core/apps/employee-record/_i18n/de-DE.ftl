@@ -12,7 +12,7 @@ tab-compensation-history = Vergütungshistorie
 
 # Current Compensation View
 current-base-salary = Grundgehalt
-current-total-bonuses-ytd = Gesamtboni (YTD)
+current-total-bonuses-ytd = Gesamte Boni (seit Jahresbeginn)
 current-benefits-value = Wert der Zusatzleistungen
 current-active-benefits = Aktive Zusatzleistungen
 current-bonus = Bonus
@@ -756,8 +756,8 @@ employee-record-tab-service-requests = Serviceanfragen
 employee-record-tab-performance-evaluation = Leistungsbewertung
 
 # Profile Header - Detail labels
-profile-header-work-email = Arbeit-E-Mail
-profile-header-work-phone = Diensttelefon
+profile-header-work-email = E-Mail (geschäftlich)
+profile-header-work-phone = Telefon (geschäftlich)
 profile-header-organization = Organisation
 profile-header-location = Standort
 profile-header-manager = Vorgesetzte/r
@@ -959,7 +959,7 @@ assets-serial-number = Seriennummer
 assets-assignment-period = Zuweisungszeitraum
 assets-condition = Zustand
 assets-status = Status
-assets-total-assets = Gesamt Assets
+assets-total-assets = Gesamt
 assets-in-use = In Verwendung
 assets-status-in-repair = In Reparatur
 assets-handed-over = Übergeben
@@ -974,9 +974,9 @@ assets-error-loading-assets = Fehler beim Laden der Assets
 assets-no-assets-assigned = Keine Assets zugewiesen
 assets-no-equipment-assigned-self = Ihnen sind derzeit keine Geräte zugewiesen.
 assets-no-equipment-assigned-employee = Diesem Mitarbeiter sind derzeit keine Geräte zugewiesen.
-assets-assigned-equipment = Asset-Zusammenfassung
+assets-assigned-equipment = Zusammenfassung
 assets-request-new-asset = Ticket öffnen
-assets-asset-assignment-history = Asset-Zuweisungsverlauf
+assets-asset-assignment-history = Zuweisungsverlauf
 assets-unknown = Unbekannt
 assets-to = bis
 assets-expected = Erwartet

@@ -6,6 +6,7 @@ export const GET_CATALOG_ENTRY_BY_ID = `
       value
       additionalValue3
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+        localeCode
         value
       }
     }

@@ -193,6 +193,9 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         type {
           id
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            value
+          }
         }
         firstName
         lastName
@@ -208,12 +211,18 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         purpose
         type {
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            value
+          }
         }
         channel {
           value
           code
           additionalValue1
           objectValue
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            value
+          }
         }
       }
       workingCondition(
@@ -229,14 +238,26 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         contractType {
           value
           id
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
         }
         employmentType {
           value
           id
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
         }
         region {
           value
           id
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
           parentEntry {
             code
           }
@@ -244,6 +265,10 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         remote {
           id
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
         }
         hireDate
         vacationDays
@@ -714,12 +739,18 @@ interface Communication {
   purpose: string
   type: {
     value: string
+    translations?: {
+      value: string
+    }[]
   }
   channel: {
     value: string
     code: string
     additionalValue1: string
     objectValue?: Record<string, unknown> | null
+    translations?: {
+      value: string
+    }[]
   }
 }
 
