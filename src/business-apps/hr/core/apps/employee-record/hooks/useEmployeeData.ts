@@ -203,7 +203,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         phoneNumber
         email
       }
-      communication {
+      communication(where: { isDeleted: { _eq: false } }) {
         id
         version
         channelRef

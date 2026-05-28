@@ -10,7 +10,7 @@ export const GET_COMMUNICATION_LOOKUPS = `
       firstName
       lastName
       pictureThumbnail
-      communication {
+      communication(where: { isDeleted: { _eq: false } }) {
         id
         version
         channelRef
