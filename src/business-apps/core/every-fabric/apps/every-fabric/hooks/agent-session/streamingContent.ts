@@ -1,6 +1,6 @@
 import type { AgentChunkEvent, AgentStreamEvent, DeepAgentSession } from '../../types/enterpriseAgent'
 import { isTerminalStatus } from './sessionStatus'
-import { looksLikeDashboardJson, looksLikeInternalErrorLeak } from './streamPayloadGuards'
+import { looksLikeDashboardJson, looksLikeInternalErrorLeak, looksLikeRawPayload } from './streamPayloadGuards'
 import { epochFromStreamEvent, toEpoch } from './traceTurn'
 
 const chunkStreamKey = (chunk: AgentChunkEvent): string | null => {
@@ -28,7 +28,7 @@ function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string 
   const preferredSnapshots = primarySnapshots.length > 0 ? primarySnapshots : responseSnapshots
   const safeSnapshots = preferredSnapshots.filter(snapshot => {
     const text = snapshot.content.trim()
-    return !looksLikeInternalErrorLeak(text) && !looksLikeDashboardJson(text)
+    return !looksLikeInternalErrorLeak(text) && !looksLikeDashboardJson(text) && !looksLikeRawPayload(text, 500)
   })
   if (safeSnapshots.length === 0) {
     return ''
@@ -98,10 +98,11 @@ export function computeStreamingDisplayContent(
 
   const fromSnapshots = buildStreamingContentFromSnapshots(liveTurnEvents)
   if (fromSnapshots !== null) {
-    if (looksLikeDashboardJson(fromSnapshots)) {
+    const trimmed = fromSnapshots.trim()
+    if (!trimmed || looksLikeDashboardJson(trimmed) || looksLikeRawPayload(trimmed, 500)) {
       return 'Generating chart…'
     }
-    return fromSnapshots
+    return trimmed
   }
 
   return buildStreamingContentFromLegacyThinking(liveTurnEvents)

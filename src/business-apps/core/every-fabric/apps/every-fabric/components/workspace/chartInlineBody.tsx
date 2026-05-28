@@ -1,5 +1,11 @@
 import React from 'react'
-import { chartRenderers, parseChartConfig, LineChartRenderer, type SingleChartConfig } from './chartRenderers'
+import {
+  chartRenderers,
+  normalizeChartPayloadForRender,
+  parseChartConfig,
+  LineChartRenderer,
+  type SingleChartConfig
+} from './chartRenderers'
 
 export interface StatItem {
   label: string
@@ -18,6 +24,16 @@ interface DashboardSection {
   content?: string
   columns?: number
 }
+
+/** Shown when chart JSON is missing, empty, or not yet loaded. */
+export const ChartEmptyState: React.FC<{ message?: string }> = ({ message = 'No chart data available' }) => (
+  <div
+    className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:p-6 gba:rounded-xl gba:border gba:border-dashed gba:border-border gba:bg-muted/20"
+    data-testid="chart-empty-state"
+  >
+    <p className="gba:text-sm gba:text-muted-foreground gba:text-center">{message}</p>
+  </div>
+)
 
 const StatRow: React.FC<{ stats: StatItem[] }> = ({ stats }) => (
   <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 gba:gap-3">
@@ -64,7 +80,7 @@ const SingleChart: React.FC<{ config: SingleChartConfig; title?: string; compact
           {heading}
         </h4>
       )}
-      <Renderer config={config} />
+      <Renderer config={config} compact={compact} />
     </div>
   )
 }
@@ -88,14 +104,18 @@ export const ChartInlineBody: React.FC<{
   data: Record<string, unknown>
   compact?: boolean
 }> = ({ data, compact }) => {
-  const single = parseChartConfig(data)
+  const normalized = normalizeChartPayloadForRender(data)
+  const single = parseChartConfig(normalized)
   if (single) {
+    if (!single.data?.length) {
+      return <ChartEmptyState message="No data points to display for this chart." />
+    }
     return <SingleChart config={single} compact={compact} />
   }
 
-  const sections = data.sections as DashboardSection[] | undefined
+  const sections = normalized.sections as DashboardSection[] | undefined
   if (!Array.isArray(sections) || sections.length === 0) {
-    return <p className="gba:text-sm gba:text-muted-foreground">Unsupported chart preview shape</p>
+    return <ChartEmptyState message="Unsupported or empty chart preview." />
   }
 
   const title = data.title as string | undefined

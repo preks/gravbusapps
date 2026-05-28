@@ -38,10 +38,13 @@ export const FABRIC_LIVE_PLAN_MESSAGE_ID = 'fabric-live-plan'
 // avoid any pathological backtracking / DoS risk on very large strings.
 const SUMMARIZE_MAX_INPUT_CHARS = 4000
 
+const PSEUDO_TOOL_CALL_RE = /\b(?:function|enterprise)_[a-z][a-z0-9_]*\s*\([^)]*\)/gi
+
 const summarizeExpertOutput = (output: unknown, maxChars = 120): string | undefined => {
   if (typeof output !== 'string') return undefined
   const bounded = output.length > SUMMARIZE_MAX_INPUT_CHARS ? output.slice(0, SUMMARIZE_MAX_INPUT_CHARS) : output
   const stripped = bounded
+    .replace(PSEUDO_TOOL_CALL_RE, '')
     .replace(/<\/?(?:br|p|div|li|tr)\b[^>]{0,200}>/gi, ' ') // block-ish tags -> space
     .replace(/<[^>]{1,200}>/g, '') // remaining tags -> nothing
     .replace(/&nbsp;/gi, ' ')
@@ -337,7 +340,10 @@ function terminalCompletedToChatMessage(
         .map(s => ({ step: s.name ?? 'Tool call', tool: s.name, outcome: s.status ?? 'done' }))
     : undefined
   const turnArtifacts = previouslyShownArtifactKeys
-    ? (event.artifacts ?? []).filter(a => !previouslyShownArtifactKeys.has(`${a.path}:${a.size ?? 0}`))
+    ? (event.artifacts ?? []).filter(a => {
+        const key = a.path || a.name
+        return key ? !previouslyShownArtifactKeys.has(key) : true
+      })
     : (event.artifacts ?? [])
   const hasArtifacts = turnArtifacts.length > 0
   const hasWorkspaceDocs = !!event.workspace_documents && event.workspace_documents.length > 0
@@ -634,7 +640,8 @@ function trackShownArtifacts(event: AgentStreamEvent, shownKeys: Set<string>): v
     event.artifacts
   ) {
     for (const a of event.artifacts) {
-      if (a.path) shownKeys.add(`${a.path}:${a.size ?? 0}`)
+      const key = a.path || a.name
+      if (key) shownKeys.add(key)
     }
   }
 }

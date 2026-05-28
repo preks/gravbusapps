@@ -73,6 +73,23 @@ export const DEFAULT_COLORS = [
   'var(--nw-chart-8)'
 ]
 
+const PART_TO_WHOLE_CHART_TYPES = new Set(['pie', 'radar', 'radial', 'funnel', 'treemap', 'sunburst'])
+const MAX_PART_TO_WHOLE_ITEMS = 6
+
+const compactLongTail = (data: ChartDataPoint[], valueKey: string, labelKey: string): ChartDataPoint[] => {
+  if (data.length <= MAX_PART_TO_WHOLE_ITEMS) return data
+
+  const top = data.slice(0, MAX_PART_TO_WHOLE_ITEMS - 1)
+  const otherValue = data.slice(MAX_PART_TO_WHOLE_ITEMS - 1).reduce((sum, row) => {
+    const value = row[valueKey] ?? row.value
+    return sum + (typeof value === 'number' ? value : 0)
+  }, 0)
+  const other: ChartDataPoint = { name: 'Other', value: otherValue }
+  other[labelKey] = 'Other'
+  other[valueKey] = otherValue
+  return [...top, other]
+}
+
 const toChartAxisKey = (value: unknown, fallback: string): string => {
   if (typeof value === 'string' && value.length > 0) {
     return value
@@ -125,6 +142,48 @@ export function unwrapProviderChartPayload(content: Record<string, unknown>): Re
   }
 }
 
+/** Convert FlowBot / provider chart JSON to Every Fabric SingleChartConfig shape. */
+export function normalizeChartPayloadForRender(raw: Record<string, unknown>): Record<string, unknown> {
+  const unwrapped = unwrapProviderChartPayload(raw)
+  if (parseChartConfig(unwrapped)) {
+    return unwrapped
+  }
+
+  const inner =
+    unwrapped.content && typeof unwrapped.content === 'object' && !Array.isArray(unwrapped.content)
+      ? (unwrapped.content as Record<string, unknown>)
+      : unwrapped
+
+  const chartTypeRaw = (inner.chart_type ?? inner.chartType) as string | undefined
+  const chartType = chartTypeRaw?.toLowerCase()
+  const rows = inner.data as Array<Record<string, unknown>> | undefined
+  if (!chartType || !Array.isArray(rows) || rows.length === 0) {
+    return unwrapped
+  }
+
+  const labelKey = String(inner.x_key ?? inner.xAxisKey ?? 'name')
+  const valueKey = String(inner.y_key ?? inner.yKey ?? 'value')
+  const series: ChartDataPoint[] = []
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue
+    const label = row[labelKey] ?? row.name ?? row.label ?? row.team_name
+    const value = row[valueKey] ?? row.value ?? row.count
+    if (label == null || value == null || typeof value !== 'number') continue
+    series.push({ name: String(label), value })
+  }
+  if (series.length === 0) {
+    return unwrapped
+  }
+
+  return {
+    chartType,
+    title: (raw.title ?? inner.title) as string | undefined,
+    data: series,
+    xAxisKey: 'name',
+    dataKeys: ['value']
+  }
+}
+
 export function parseChartConfig(content: Record<string, unknown>): SingleChartConfig | null {
   const validTypes = [
     'bar',
@@ -143,7 +202,8 @@ export function parseChartConfig(content: Record<string, unknown>): SingleChartC
   const unwrapped = unwrapProviderChartPayload(content)
   // Support nested {chart: {chartType, data, ...}} wrapper from dashboard.json
   const source = (unwrapped.chartType ? unwrapped : (unwrapped.chart as Record<string, unknown>)) ?? unwrapped
-  const chartType = source.chartType as string | undefined
+  const chartTypeRaw = source.chartType as string | undefined
+  const chartType = chartTypeRaw?.toLowerCase()
   const data = source.data as ChartDataPoint[] | undefined
 
   if (!chartType || !Array.isArray(data) || data.length === 0) return null
@@ -157,9 +217,13 @@ export function parseChartConfig(content: Record<string, unknown>): SingleChartC
     if (inferred.length > 0) dataKeys = inferred
   }
 
+  const xAxisKey = (source.xAxisKey as string) ?? 'name'
+  const yAxisKey = (source.yAxisKey as string) ?? dataKeys[0] ?? 'value'
+  const normalizedData = PART_TO_WHOLE_CHART_TYPES.has(chartType) ? compactLongTail(data, yAxisKey, xAxisKey) : data
+
   return {
     chartType: chartType as SingleChartConfig['chartType'],
-    data,
+    data: normalizedData,
     title: (unwrapped.title ?? source.title) as string | undefined,
     xAxisKey: (source.xAxisKey as string) ?? 'name',
     yAxisKey: (source.yAxisKey as string) ?? dataKeys[0] ?? 'value',

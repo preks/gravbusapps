@@ -53,7 +53,7 @@ export const ChartPreview: React.FC<{
   return (
     <PanelCard title="Live Preview" defaultOpen>
       <div className="gba:p-3 gba:max-w-full gba:overflow-hidden" data-testid="fabric-live-preview-chart">
-        <ChartInlineBody data={resolvedContent} compact />
+        <ChartInlineBody data={resolvedContent} />
       </div>
     </PanelCard>
   )

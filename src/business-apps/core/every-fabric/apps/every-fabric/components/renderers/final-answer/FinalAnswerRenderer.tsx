@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { CaretDownIcon, CaretRightIcon, DownloadSimpleIcon } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
@@ -44,7 +44,21 @@ export const FinalAnswerRenderer = ({
   )
   const visibleArtifacts = hasDeliverableCards ? visualArtifacts : displayArtifacts
   const htmlArtifacts = visibleArtifacts.filter(a => a.rendererType === 'html')
-  const chartArtifacts = visibleArtifacts.filter(a => a.rendererType === 'chart' || a.rendererType === 'dashboard')
+  const chartArtifacts = useMemo(() => {
+    const charts = visibleArtifacts.filter(a => a.rendererType === 'chart' || a.rendererType === 'dashboard')
+    return [...charts].sort((a, b) => {
+      const aPath = a.path || a.name || ''
+      const bPath = b.path || b.name || ''
+      const aPlatform = aPath.includes('provider/charts/')
+      const bPlatform = bPath.includes('provider/charts/')
+      if (aPlatform !== bPlatform) return aPlatform ? -1 : 1
+      const aExpertDash = aPath.includes('_dashboard.dashboard.json')
+      const bExpertDash = bPath.includes('_dashboard.dashboard.json')
+      if (aExpertDash !== bExpertDash) return aExpertDash ? 1 : -1
+      return 0
+    })
+  }, [visibleArtifacts])
+  const primaryChartArtifact = chartArtifacts[0]
   const otherArtifacts = visibleArtifacts.filter(
     a => a.rendererType !== 'html' && a.rendererType !== 'chart' && a.rendererType !== 'dashboard'
   )
@@ -143,18 +157,15 @@ export const FinalAnswerRenderer = ({
           />
         ))}
 
-      {showChartPreviews &&
-        chartArtifacts.length > 0 &&
-        sessionId &&
-        chartArtifacts.map(artifact => (
-          <ChartArtifactPreviewCard
-            key={artifact.path || artifact.name}
-            artifact={artifact}
-            sessionId={sessionId}
-            accessToken={accessToken}
-            onViewArtifact={onViewArtifact}
-          />
-        ))}
+      {showChartPreviews && primaryChartArtifact && sessionId && (
+        <ChartArtifactPreviewCard
+          key={primaryChartArtifact.path || primaryChartArtifact.name}
+          artifact={primaryChartArtifact}
+          sessionId={sessionId}
+          accessToken={accessToken}
+          onViewArtifact={onViewArtifact}
+        />
+      )}
 
       {otherArtifacts.length > 0 && <ArtifactsList artifacts={otherArtifacts} onViewArtifact={onViewArtifact} />}
 

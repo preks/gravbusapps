@@ -53,8 +53,30 @@ export const looksLikeInternalErrorLeak = (content: string): boolean => {
   return false
 }
 
+/** True when streamed text is (partial) chart/dashboard JSON, not user-facing prose. */
 export const looksLikeDashboardJson = (content: string): boolean => {
   const trimmed = content.trimStart()
   if (!trimmed.startsWith('{')) return false
-  return trimmed.includes('"sections"') || trimmed.includes('"chartType"') || /^\{"title"\s*:\s*"/.test(trimmed)
+
+  // Early stream tokens before chartType/sections arrive (e.g. "{", '{"', '{"title"').
+  if (trimmed.length <= 12) return true
+
+  const markers = [
+    '"sections"',
+    '"chartType"',
+    '"chart_type"',
+    '"chart-grid"',
+    '"dataKeys"',
+    '"chart":',
+    '"kind"',
+    '"content"'
+  ]
+  if (markers.some(marker => trimmed.includes(marker))) return true
+
+  if (/^\{"title"\s*:\s*"/.test(trimmed)) return true
+
+  // Incomplete JSON object prefix while the model streams a chart payload.
+  if (trimmed.length < 160 && /^\{\s*"/.test(trimmed)) return true
+
+  return false
 }

@@ -36,6 +36,42 @@ export interface ArtifactPreview {
   technicalDetail?: string
 }
 
+const PREVIEW_SUBTYPES = new Set(['start', 'progress', 'draft_ready', 'complete', 'error'])
+
+/** Platform breakdown previews outrank later expert/agent chart artifacts at the same seq. */
+const platformChartPreviewPriority = (artifactId: string): number => (artifactId.startsWith('breakdown-chart-') ? 2 : 0)
+
+const pickLatestPreview = (
+  events: AgentStreamEvent[],
+  previewMap: Map<string, ArtifactPreview>
+): ArtifactPreview | null => {
+  let best: ArtifactPreview | null = null
+  let bestSeq = -1
+  let bestPriority = -1
+
+  for (const event of events) {
+    if (event.type !== 'artifact_preview') continue
+    const ev = event as ArtifactPreviewEvent
+    if (!PREVIEW_SUBTYPES.has(ev.subtype)) continue
+
+    const preview = previewMap.get(ev.artifact_id)
+    if (!preview) continue
+
+    const seq = typeof ev.seq === 'number' ? ev.seq : -1
+    const priority = preview.artifactType === 'chart' ? platformChartPreviewPriority(ev.artifact_id) : 0
+
+    if (seq > bestSeq || (seq === bestSeq && priority > bestPriority)) {
+      best = preview
+      bestSeq = seq
+      bestPriority = priority
+    }
+  }
+
+  if (best) return best
+  const values = [...previewMap.values()]
+  return values.length > 0 ? values[values.length - 1] : null
+}
+
 /**
  * Derives the latest artifact preview state from SSE events.
  *
@@ -43,7 +79,7 @@ export interface ArtifactPreview {
  * an ordered list plus the most recent preview for convenience.
  */
 export const useArtifactPreview = (events: AgentStreamEvent[]) => {
-  const previews = useMemo((): ArtifactPreview[] => {
+  const { previews, latestPreview } = useMemo(() => {
     const previewMap = new Map<string, ArtifactPreview>()
 
     for (const event of events) {
@@ -103,10 +139,15 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
       }
     }
 
-    return [...previewMap.values()]
-  }, [events])
+    const latest = pickLatestPreview(events, previewMap)
+    // Charts render inline in chat only; exclude from Live Preview rail (Option A).
+    const latestPreview = latest?.artifactType === 'chart' ? null : latest
 
-  const latestPreview = previews.length > 0 ? previews[previews.length - 1] : null
+    return {
+      previews: [...previewMap.values()],
+      latestPreview
+    }
+  }, [events])
 
   // An active preview also includes the terminal ``error`` state so the right
   // rail stays wide enough to render the designed failure card (with a retry

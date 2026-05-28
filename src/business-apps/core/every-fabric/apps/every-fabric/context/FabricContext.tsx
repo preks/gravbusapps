@@ -29,6 +29,7 @@ import { useModelOptions } from '../hooks/useModelOptions'
 import { useSessionUrlState } from '../hooks/useSessionUrlState'
 import { setFabricLogContext, clearFabricLogContext } from '../utils/diagnosticLogger'
 import { deriveActivityFromEvents } from '../utils/messageUtils'
+import { currentTurnTrace } from '../utils/currentTurnTrace'
 
 // ─── Context shape ─────────────────────────────────────────────────────────────
 
@@ -422,6 +423,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     isStreaming,
     isWaitingForInput,
     sessionLoadError,
+    lastReplyTimestamp,
     activeSkill,
     startSession: _startSession,
     activateSession: _activateSession,
@@ -484,11 +486,14 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   // useFabricCases merges REST trace + live SSE just like useFabricPlan.
   const { cases, hasCases, activeCase } = useFabricCases(session, events)
 
-  // Merge SSE events with session trace for completed sessions (trace has preview events too)
+  // Merge SSE events with session trace; scope previews to the current user turn only.
   const previewSourceEvents = useMemo((): AgentStreamEvent[] => {
-    if (events.length > 0) return events
-    return (session?.trace ?? []) as AgentStreamEvent[]
-  }, [events, session?.trace])
+    if (!activeSessionId) return []
+    const traceForSession =
+      session?.session_id === activeSessionId ? ((session?.trace ?? []) as AgentStreamEvent[]) : []
+    const source = events.length > 0 ? events : traceForSession
+    return currentTurnTrace(source, { replyAfterMs: lastReplyTimestamp })
+  }, [activeSessionId, events, session?.session_id, session?.trace, lastReplyTimestamp])
 
   // Live artifact previews from SSE or session trace events
   const { previews: artifactPreviews, latestPreview, hasActivePreview } = useArtifactPreview(previewSourceEvents)
