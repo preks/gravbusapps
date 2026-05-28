@@ -57,6 +57,9 @@ interface ParsedSelectedFilters {
   employeeFilters: string[]
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const isActiveCatalogEntry = (entry: any): boolean => entry?.isDeleted !== true && entry?.is_deleted !== true
+
 const buildInitialSelectedFilters = (
   initialFilters: UseAbsenceFiltersProps['initialFilters'] | undefined
 ): string[] => {
@@ -135,7 +138,7 @@ const setEmployeeCondition = (conditions: any, employeeCondition: any): void => 
 
 const applySearchConditions = (conditions: any, search: string): void => {
   const trimmedSearch = search.trim()
-  if (!trimmedSearch) {
+  if (!trimmedSearch || UUID_PATTERN.test(trimmedSearch)) {
     return
   }
 
@@ -189,6 +192,33 @@ const applyEmployeeFilter = (conditions: any, employeeFilters: string[]): void =
   if (employeeIds.length > 0) {
     setEmployeeCondition(conditions, { id: { _in: employeeIds } })
   }
+}
+
+const applyEmployeeQueryFilter = (conditions: any, employeeQuery?: string): void => {
+  const trimmedQuery = employeeQuery?.trim()
+  if (!trimmedQuery || !UUID_PATTERN.test(trimmedQuery)) {
+    return
+  }
+
+  setEmployeeCondition(conditions, { id: { _eq: trimmedQuery } })
+}
+
+const applyKnownEmployeeFilter = (conditions: any): void => {
+  appendAndCondition(conditions, {
+    employee: {
+      _and: [
+        { id: { _isNull: false } },
+        { isDeleted: { _eq: false } },
+        {
+          _or: [
+            { displayName: { _isNull: false, _neq: '' } },
+            { firstName: { _isNull: false, _neq: '' } },
+            { lastName: { _isNull: false, _neq: '' } }
+          ]
+        }
+      ]
+    }
+  })
 }
 
 const applyAbsenceDateRangeFilter = (conditions: any, startDate?: string, endDate?: string): void => {
@@ -357,7 +387,7 @@ export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFil
       const groups: Record<string, string> = {}
       const originalGroups: Record<string, string> = {}
 
-      response.data.forEach((entry: any) => {
+      response.data.filter(isActiveCatalogEntry).forEach((entry: any) => {
         groups[entry.id] = entry.value
         originalGroups[entry.id] = entry.value
       })
@@ -391,11 +421,13 @@ export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFil
 
     const parsedFilters = parseSelectedFilters(selectedFilters)
 
+    applyKnownEmployeeFilter(conditions)
     applySearchConditions(conditions, search)
     applyStatusFilter(conditions, parsedFilters.statusFilters)
     applyGroupFilter(conditions, parsedFilters.groupFilters)
     applyDepartmentFilter(conditions, parsedFilters.departmentFilters)
     applyEmployeeFilter(conditions, parsedFilters.employeeFilters)
+    applyEmployeeQueryFilter(conditions, search)
     applyAbsenceDateRangeFilter(conditions, startDate, endDate)
     applyCreationDateRangeFilter(conditions, creationStartDate, creationEndDate)
     applyGlobalScopeFilters(conditions, initialFilters)

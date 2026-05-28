@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient'
 import {
+  GET_EMPLOYEES_BY_IDS,
   GET_EMPLOYEE_ABSENCES,
   type EmployeeAbsence,
+  type GetEmployeesByIdsResponse,
   type GetEmployeeAbsencesVariables,
   type GetEmployeeAbsencesResponse
 } from '../queries/absenceQueries'
@@ -87,6 +89,10 @@ const buildOrderBy = (sortField: string, sortOrder: SortOrder): any[] => {
     return [{ type: { value: graphqlSortOrder } }]
   }
 
+  if (sortField === 'typeName') {
+    return [{ type: { value: graphqlSortOrder } }]
+  }
+
   return [{ [sortField]: graphqlSortOrder }]
 }
 
@@ -102,12 +108,48 @@ const resolveGroupName = (
   return groups?.[parentEntryId] ?? fallback
 }
 
-const mapEnhancedAbsence = (absence: EmployeeAbsence, filters: UseAbsenceDataProps['filters']): EnhancedAbsence => {
+const resolveComment = (absence: EmployeeAbsence): string | undefined => {
+  const comment = absence.description || absence.reason || absence.approvalNote
+  return comment?.trim() || undefined
+}
+
+const getEmployeeDisplayName = (employee: Partial<EmployeeAbsence['employee']>): string => {
+  const name = employee.displayName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+  return name || 'Unknown Employee'
+}
+
+const buildSubstituteNameMap = async (
+  graphQLClient: ReturnType<typeof useGraphQLClient>,
+  absences: EmployeeAbsence[]
+): Promise<Map<string, string>> => {
+  const substituteEmployeeIds = Array.from(
+    new Set(absences.map(absence => absence.substituteEmployeeId).filter((id): id is string => Boolean(id)))
+  )
+
+  if (substituteEmployeeIds.length === 0) {
+    return new Map()
+  }
+
+  const result = await graphQLClient.request<GetEmployeesByIdsResponse>(GET_EMPLOYEES_BY_IDS, {
+    employeeIds: substituteEmployeeIds
+  })
+
+  return new Map(
+    result.Employee.map(employee => {
+      const name =
+        employee.displayName || `${employee.firstName ?? ''} ${employee.lastName ?? ''}`.trim() || employee.id
+      return [employee.id, name]
+    })
+  )
+}
+
+const mapEnhancedAbsence = (
+  absence: EmployeeAbsence,
+  filters: UseAbsenceDataProps['filters'],
+  substituteNames: Map<string, string>
+): EnhancedAbsence => {
   const employee = absence.employee || {}
-  const employeeName =
-    employee.firstName || employee.lastName
-      ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee'
-      : 'Unknown Employee'
+  const employeeName = getEmployeeDisplayName(employee)
   const parentEntryId = absence.type?.parentEntryId
   const employeeId = absence.employeeId || employee.id || ''
 
@@ -127,6 +169,11 @@ const mapEnhancedAbsence = (absence: EmployeeAbsence, filters: UseAbsenceDataPro
       absence.type?.value || 'Unknown Group'
     ),
     typeName: absence.type?.value || 'Unknown Type',
+    comment: resolveComment(absence),
+    substituteEmployeeId: absence.substituteEmployeeId,
+    substituteEmployeeName: absence.substituteEmployeeId
+      ? (substituteNames.get(absence.substituteEmployeeId) ?? null)
+      : null,
     color: extractColorFromObjectValue(absence.type?.parentEntry?.objectValue),
     cancelSnapshot: buildCancelEmployeeAbsenceSnapshot(absence)
   }
@@ -181,9 +228,10 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
       }
 
       const result = await graphQLClient.request<GetEmployeeAbsencesResponse>(GET_EMPLOYEE_ABSENCES, variables)
+      const substituteNames = await buildSubstituteNameMap(graphQLClient, result.EmployeeAbsence)
 
       const enhancedAbsences: EnhancedAbsence[] = result.EmployeeAbsence.map(absence =>
-        mapEnhancedAbsence(absence, currentFilters)
+        mapEnhancedAbsence(absence, currentFilters, substituteNames)
       )
 
       setAbsences(enhancedAbsences)

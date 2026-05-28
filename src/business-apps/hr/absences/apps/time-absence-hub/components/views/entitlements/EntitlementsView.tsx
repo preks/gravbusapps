@@ -22,14 +22,12 @@ import {
 import { EntitlementsTable, type EntitlementsTableProps } from './EntitlementsTable'
 import { OrgEntitlementRow } from '../../../queries/OrgEntitlementQueries'
 import { formatEntitlementNumber, getEntitlementEmployeeName, isEntitlementExpiringSoon } from './entitlementUtils'
-import { HubFilterOptionsState } from '../../../hooks/useHubFilterOptions'
-import { useHubDataDisplayFilters } from '../../../hooks/useHubDataDisplayFilters'
 
 interface EntitlementsViewProps extends BusinessAppContextProps {
   globalFilters: HubGlobalFilters
   derivedDateRange: { dateFrom: string; dateTo: string } | null
-  filterOptions: HubFilterOptionsState
   onGlobalFiltersChange: (filters: HubGlobalFilters) => void
+  filterAction?: React.ReactNode
 }
 
 const tt = (key: string, fallback: string) =>
@@ -91,8 +89,8 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
   userInfo,
   globalFilters,
   derivedDateRange,
-  filterOptions,
-  onGlobalFiltersChange
+  onGlobalFiltersChange,
+  filterAction
 }) => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -108,11 +106,6 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
     },
     [onGlobalFiltersChange]
   )
-  const displayFilters = useHubDataDisplayFilters({
-    filters: globalFilters,
-    options: filterOptions,
-    onFiltersChange: handleGlobalFiltersChange
-  })
 
   const overview = useEntitlementsOverviewData({
     accessToken,
@@ -172,6 +165,13 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
     await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-entitlements', 'xlsx'))
   }
 
+  const handleEmployeeSearchChange = (employeeQuery: string) => {
+    handleGlobalFiltersChange({
+      ...globalFilters,
+      employeeQuery
+    })
+  }
+
   const selectedEmployeeId = selectedEntitlementRow?.employeeId ?? null
   const todayIso = new Date().toISOString().slice(0, 10)
   const selectedFlags = selectedEntitlementRow ? buildFlags(selectedEntitlementRow, todayIso) : ''
@@ -203,27 +203,25 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
           }
         ]}
         currentSection="entitlements"
-        searchValue={displayFilters.searchValue}
+        searchValue={globalFilters.employeeQuery}
         searchPlaceholder={tt('search_placeholder', 'Search employee...')}
-        onSearchChange={displayFilters.onSearchChange}
-        filters={displayFilters.filtersObject}
-        filterConfiguration={displayFilters.filterConfiguration}
-        onFilterChange={displayFilters.onFilterChange}
+        onSearchChange={handleEmployeeSearchChange}
         enableLiveFiltering={true}
-        filterSheetTitle={displayFilters.filterSheetTitle}
-        filterSheetDescription={displayFilters.filterSheetDescription}
         secondaryActions={
-          <Button
-            variant="outline"
-            size="sm"
-            className="gba:gap-2"
-            onClick={handleExportExcel}
-            disabled={overview.isLoading || overview.rows.length === 0}
-            data-testid="time-absence-hub-entitlements-export-excel"
-          >
-            <DownloadSimpleIcon size={14} />
-            {tt('export_excel', 'Export Excel')}
-          </Button>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {filterAction}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gba:gap-2"
+              onClick={handleExportExcel}
+              disabled={overview.isLoading || overview.rows.length === 0}
+              data-testid="time-absence-hub-entitlements-export-excel"
+            >
+              <DownloadSimpleIcon size={14} />
+              {tt('export_excel', 'Export Excel')}
+            </Button>
+          </div>
         }
         toolbarDensity="default"
       >

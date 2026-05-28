@@ -63,6 +63,8 @@ const mapManagers = (positions: HubManagerPositionOption[] = []): HubManagerOpti
 const getEmployeeLabel = (employee: HubEmployeeOption): string =>
   employee.displayName || `${employee.firstName ?? ''} ${employee.lastName ?? ''}`.trim() || employee.id
 
+const isActiveCatalogEntry = (entry: any): boolean => entry?.isDeleted !== true && entry?.is_deleted !== true
+
 const mapEmployees = (positions: HubEmployeePositionOption[] = []): HubEmployeeOption[] => {
   const unique = new Map<string, HubEmployeeOption>()
   positions.forEach(position => {
@@ -142,7 +144,7 @@ export const useHubFilterOptions = (accessToken: string): HubFilterOptionsState 
         const normalizedAbsenceTypes: HubFilterOption[] = (absenceTypeData?.data ?? [])
           .filter(
             (entry: any) =>
-              entry?.id && entry?.value && entry?.objectValue?.display !== false && entry?.isDeleted !== true
+              entry?.id && entry?.value && entry?.objectValue?.display !== false && isActiveCatalogEntry(entry)
           )
           .map((entry: any) => ({
             id: String(entry.id),

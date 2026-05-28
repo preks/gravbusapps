@@ -34,6 +34,8 @@ const getScopedEmployeeIds = (result: any): string[] => {
 
 const getTodayDateKey = (): string => new Date().toISOString().slice(0, 10)
 
+const isActiveCatalogEntry = (entry: any): boolean => entry?.isDeleted !== true && entry?.is_deleted !== true
+
 export const useDashboardData = ({
   accessToken,
   timeFilter = 'current-year',
@@ -99,7 +101,7 @@ export const useDashboardData = ({
       )
 
       const absenceGroups: Record<string, string> = {}
-      absenceGroupsData.data.forEach((group: any) => {
+      absenceGroupsData.data.filter(isActiveCatalogEntry).forEach((group: any) => {
         absenceGroups[group.id] = group.value
         if (group.catalogEntryLocalId) {
           absenceGroups[group.catalogEntryLocalId] = group.value
@@ -117,7 +119,9 @@ export const useDashboardData = ({
         }
       )
 
-      const vacationType = absenceTypesData.data.find((type: any) => type.id === 'AbsenceType:v1:A001')
+      const vacationType = absenceTypesData.data
+        .filter(isActiveCatalogEntry)
+        .find((type: any) => type.id === 'AbsenceType:v1:A001')
       const vacationGroupId = vacationType?.id
 
       const query = getOptimizedDashboardQuery(timeFilter, vacationGroupId, filters, derivedDateRange)

@@ -20,8 +20,6 @@ import {
   FilteredEmployee,
   PublicHolidayDay
 } from '../../../queries/OrgAttendanceQueries'
-import { HubFilterOptionsState } from '../../../hooks/useHubFilterOptions'
-import { useHubDataDisplayFilters } from '../../../hooks/useHubDataDisplayFilters'
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.attendance.${key}`, fallback)
@@ -78,8 +76,8 @@ const buildExportRows = (
 interface AttendanceViewProps extends BusinessAppContextProps {
   globalFilters: HubGlobalFilters
   derivedDateRange: { dateFrom: string; dateTo: string } | null
-  filterOptions: HubFilterOptionsState
   onGlobalFiltersChange: (filters: HubGlobalFilters) => void
+  filterAction?: React.ReactNode
 }
 
 interface AttendanceEmployeeSummary {
@@ -144,16 +142,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   userInfo,
   globalFilters,
   derivedDateRange,
-  filterOptions,
-  onGlobalFiltersChange
+  onGlobalFiltersChange,
+  filterAction
 }) => {
   const data = useOrgAttendanceData({ accessToken, filters: globalFilters, derivedDateRange })
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
-  const displayFilters = useHubDataDisplayFilters({
-    filters: globalFilters,
-    options: filterOptions,
-    onFiltersChange: onGlobalFiltersChange
-  })
 
   const selectedEmployeeSummary = React.useMemo(() => {
     if (!selectedEmployeeId) {
@@ -175,6 +168,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       buildExportRows(data.employees, data.attendance, data.absences, data.holidays)
     )
     await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-attendance', 'xlsx'))
+  }
+
+  const handleEmployeeSearchChange = (employeeQuery: string) => {
+    onGlobalFiltersChange({
+      ...globalFilters,
+      employeeQuery
+    })
   }
 
   return (
@@ -204,27 +204,25 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           }
         ]}
         currentSection="attendance"
-        searchValue={displayFilters.searchValue}
+        searchValue={globalFilters.employeeQuery}
         searchPlaceholder={tt('search_placeholder', 'Search employee...')}
-        onSearchChange={displayFilters.onSearchChange}
-        filters={displayFilters.filtersObject}
-        filterConfiguration={displayFilters.filterConfiguration}
-        onFilterChange={displayFilters.onFilterChange}
+        onSearchChange={handleEmployeeSearchChange}
         enableLiveFiltering={true}
-        filterSheetTitle={displayFilters.filterSheetTitle}
-        filterSheetDescription={displayFilters.filterSheetDescription}
         secondaryActions={
-          <Button
-            variant="outline"
-            size="sm"
-            className="gba:gap-2"
-            onClick={handleExportExcel}
-            disabled={data.isLoading || data.employees.length === 0}
-            data-testid="time-absence-hub-attendance-export-excel"
-          >
-            <DownloadSimpleIcon size={14} />
-            {tt('export_excel', 'Export Excel')}
-          </Button>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {filterAction}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gba:gap-2"
+              onClick={handleExportExcel}
+              disabled={data.isLoading || data.employees.length === 0}
+              data-testid="time-absence-hub-attendance-export-excel"
+            >
+              <DownloadSimpleIcon size={14} />
+              {tt('export_excel', 'Export Excel')}
+            </Button>
+          </div>
         }
         toolbarDensity="default"
       >

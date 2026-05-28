@@ -27,7 +27,6 @@ import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-detail
 import { EnhancedAbsence } from '../../types'
 import { HubGlobalFilters } from '../../hooks/useHubGlobalFilters'
 import { HubFilterOptionsState } from '../../hooks/useHubFilterOptions'
-import { useHubDataDisplayFilters } from '../../hooks/useHubDataDisplayFilters'
 
 interface AbsencesViewProps extends BusinessAppContextProps {
   activeSubTab?: string
@@ -36,6 +35,13 @@ interface AbsencesViewProps extends BusinessAppContextProps {
   derivedDateRange?: { dateFrom: string; dateTo: string } | null
   filterOptions: HubFilterOptionsState
   onGlobalFiltersChange: (filters: HubGlobalFilters) => void
+  filterAction?: React.ReactNode
+}
+
+type ExportableAbsence = EnhancedAbsence & {
+  comment?: string
+  substituteEmployeeId?: string | null
+  substituteEmployeeName?: string | null
 }
 
 const tt = (key: string, fallback: string) =>
@@ -43,22 +49,26 @@ const tt = (key: string, fallback: string) =>
 
 const buildExportColumns = (): ExcelColumn[] => [
   { header: tt('export_column_employee', 'Employee'), key: 'employee' },
-  { header: tt('export_column_group', 'Group'), key: 'group' },
+  { header: tt('export_column_type', 'Type'), key: 'type' },
   { header: tt('export_column_start_date', 'Start Date'), key: 'startDate' },
   { header: tt('export_column_end_date', 'End Date'), key: 'endDate' },
   { header: tt('export_column_status', 'Status'), key: 'status' },
   { header: tt('export_column_days', 'Days'), key: 'days' },
+  { header: tt('export_column_comment', 'Comment'), key: 'comment' },
+  { header: tt('export_column_substitute', 'Substitute'), key: 'substitute' },
   { header: tt('export_column_created_at', 'Created At'), key: 'createdAt' }
 ]
 
-const buildExportRows = (absences: EnhancedAbsence[]): Record<string, unknown>[] =>
+const buildExportRows = (absences: ExportableAbsence[]): Record<string, unknown>[] =>
   absences.map(absence => ({
     employee: absence.employeeName || `${absence.employee?.firstName ?? ''} ${absence.employee?.lastName ?? ''}`.trim(),
-    group: absence.groupName,
+    type: absence.typeName,
     startDate: formatExportDate(absence.startDate),
     endDate: formatExportDate(absence.endDate),
     status: getAbsenceStatusLabel(absence.status),
     days: absence.effectiveDays ?? '',
+    comment: absence.comment ?? '',
+    substitute: absence.substituteEmployeeName ?? absence.substituteEmployeeId ?? '',
     createdAt: formatExportDate(absence.createdAt)
   }))
 
@@ -70,18 +80,14 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
   globalFilters,
   derivedDateRange,
   filterOptions,
-  onGlobalFiltersChange
+  onGlobalFiltersChange,
+  filterAction
 }) => {
   const currentSubTab: AbsencesSubTab = isAbsencesSubTab(activeSubTab) ? activeSubTab : 'list'
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [exportRows, setExportRows] = useState<EnhancedAbsence[]>([])
   const [listTotal, setListTotal] = useState(0)
   const [calendarDepartmentIds, setCalendarDepartmentIds] = useState<string[]>([])
-  const listFilters = useHubDataDisplayFilters({
-    filters: globalFilters,
-    options: filterOptions,
-    onFiltersChange: onGlobalFiltersChange
-  })
 
   const calendarDepartmentComboboxOptions = useMemo<ComboboxOption[]>(
     () => filterOptions.departments.map(option => ({ value: option.id, label: option.name })),
@@ -101,19 +107,29 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
     await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-absences', 'xlsx'))
   }
 
+  const handleEmployeeSearchChange = (employeeQuery: string) => {
+    onGlobalFiltersChange({
+      ...globalFilters,
+      employeeQuery
+    })
+  }
+
   const secondaryActions =
     currentSubTab === 'list' ? (
-      <Button
-        variant="outline"
-        size="sm"
-        className="gba:gap-2"
-        onClick={handleExportExcel}
-        disabled={exportRows.length === 0}
-        data-testid="time-absence-hub-absences-export-excel"
-      >
-        <DownloadSimpleIcon size={14} />
-        {tt('export_excel', 'Export Excel')}
-      </Button>
+      <div className="gba:flex gba:items-center gba:gap-2">
+        {filterAction}
+        <Button
+          variant="outline"
+          size="sm"
+          className="gba:gap-2"
+          onClick={handleExportExcel}
+          disabled={exportRows.length === 0}
+          data-testid="time-absence-hub-absences-export-excel"
+        >
+          <DownloadSimpleIcon size={14} />
+          {tt('export_excel', 'Export Excel')}
+        </Button>
+      </div>
     ) : (
       <div className="gba:w-full gba:max-w-sm" data-testid="time-absence-hub-calendar-toolbar">
         <Combobox
@@ -164,15 +180,10 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
         ]}
         currentSection={currentSubTab}
         onSectionChange={value => handleSubTabChange(value as AbsencesSubTab)}
-        searchValue={currentSubTab === 'list' ? listFilters.searchValue : undefined}
+        searchValue={currentSubTab === 'list' ? globalFilters.employeeQuery : undefined}
         searchPlaceholder={tt('search_placeholder', 'Search employee...')}
-        onSearchChange={currentSubTab === 'list' ? listFilters.onSearchChange : undefined}
-        filters={currentSubTab === 'list' ? listFilters.filtersObject : undefined}
-        filterConfiguration={currentSubTab === 'list' ? listFilters.filterConfiguration : undefined}
-        onFilterChange={currentSubTab === 'list' ? listFilters.onFilterChange : undefined}
+        onSearchChange={currentSubTab === 'list' ? handleEmployeeSearchChange : undefined}
         enableLiveFiltering={currentSubTab === 'list'}
-        filterSheetTitle={listFilters.filterSheetTitle}
-        filterSheetDescription={listFilters.filterSheetDescription}
         secondaryActions={secondaryActions}
         toolbarDensity="default"
       >

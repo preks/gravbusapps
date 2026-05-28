@@ -54,6 +54,7 @@ const renderHubView = (
           derivedDateRange={globalFilters.derivedDateRange}
           filterOptions={filterOptions}
           onGlobalFiltersChange={globalFilters.setFilters}
+          filterAction={filterAction}
         />
       )
     case 'attendance':
@@ -62,8 +63,8 @@ const renderHubView = (
           {...baseProps}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
-          filterOptions={filterOptions}
           onGlobalFiltersChange={globalFilters.setFilters}
+          filterAction={filterAction}
         />
       )
     case 'entitlements':
@@ -72,8 +73,8 @@ const renderHubView = (
           {...baseProps}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
-          filterOptions={filterOptions}
           onGlobalFiltersChange={globalFilters.setFilters}
+          filterAction={filterAction}
         />
       )
     case 'insights':

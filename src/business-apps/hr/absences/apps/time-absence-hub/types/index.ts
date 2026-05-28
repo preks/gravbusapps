@@ -121,6 +121,9 @@ export interface EnhancedAbsence {
   groupName: string
   originalGroupName: string
   typeName: string
+  comment?: string
+  substituteEmployeeId?: string | null
+  substituteEmployeeName?: string | null
   color?: string
   pictureThumbnail?: string
   createdAt?: string
