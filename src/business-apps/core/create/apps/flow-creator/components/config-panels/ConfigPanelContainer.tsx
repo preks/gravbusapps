@@ -101,7 +101,7 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
 
   const content = (
     <div
-      className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
+      className="gba:relative gba:z-[60] gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
       style={{ width, minWidth: width }}
       data-testid={testId}
     >

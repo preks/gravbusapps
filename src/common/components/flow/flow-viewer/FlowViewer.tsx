@@ -6,7 +6,6 @@ import {
   type ReactFlowInstance,
   Background,
   MiniMap,
-  Panel,
   useNodesState,
   useEdgesState,
   useNodesInitialized,
@@ -652,28 +651,28 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
             nodeStrokeColor={() => uiColors.minimapStroke}
           />
         ) : null}
-        {showRightPanel ? (
-          <Panel
-            position="top-right"
-            className={`gba:!m-0 gba:h-full gba:flex gba:flex-col gba:overflow-hidden gba:transition-transform gba:duration-300 gba:ease-in-out ${
-              panelVisible ? 'gba:translate-x-0' : 'gba:translate-x-full'
-            }`}
-            onTransitionEnd={(e: React.TransitionEvent) => {
-              if (e.propertyName === 'transform') handlePanelTransitionEnd()
-            }}
-          >
-            <div
-              ref={panelMeasureRef}
-              key={panelKey}
-              className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:bg-sidebar"
-            >
-              <RightPanelExitingContext.Provider value={rightPanel == null && showRightPanel}>
-                {panelContent}
-              </RightPanelExitingContext.Provider>
-            </div>
-          </Panel>
-        ) : null}
       </ReactFlow>
+      {showRightPanel ? (
+        <div
+          className={`gba:absolute gba:top-0 gba:z-40 gba:h-full gba:flex gba:flex-col gba:overflow-hidden gba:transition-transform gba:duration-300 gba:ease-in-out ${
+            panelVisible ? 'gba:translate-x-0' : 'gba:translate-x-full'
+          }`}
+          style={{ right: 'calc(var(--flow-test-panel-offset, 0px) + var(--flow-test-panel-gap, 0px))' }}
+          onTransitionEnd={(e: React.TransitionEvent) => {
+            if (e.propertyName === 'transform') handlePanelTransitionEnd()
+          }}
+        >
+          <div
+            ref={panelMeasureRef}
+            key={panelKey}
+            className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:bg-sidebar"
+          >
+            <RightPanelExitingContext.Provider value={rightPanel == null && showRightPanel}>
+              {panelContent}
+            </RightPanelExitingContext.Provider>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

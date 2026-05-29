@@ -517,6 +517,12 @@ export class FlowTemplateClient extends RestClient {
     inputValues?: any
     runtimeParameters?: any
     context?: any
+    testOptions?: {
+      agentResponses?: Record<string, unknown>
+      agentResponseModes?: Record<string, 'REAL_WITH_TEST_FALLBACK' | 'TEST_RESPONSE' | 'REAL_ONLY'>
+      userTaskResponses?: Record<string, unknown>
+      expectedBranches?: Record<string, string>
+    }
     validateWithConductor?: boolean
   }): Promise<{
     workflowId: string
