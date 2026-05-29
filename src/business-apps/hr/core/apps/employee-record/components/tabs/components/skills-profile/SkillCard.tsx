@@ -34,9 +34,16 @@ interface SkillCardProps {
   accessToken: string
   updateSkillContext: UpdateSkillContext
   t: (key: string, args?: Record<string, unknown>) => string
+  temporaryDisabled: boolean
 }
 
-export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, updateSkillContext, t }) => {
+export const SkillCard: React.FC<SkillCardProps> = ({
+  skill,
+  accessToken,
+  updateSkillContext,
+  t,
+  temporaryDisabled = false
+}) => {
   const deactivateActivateTriggerRef = useRef<HTMLDivElement>(null)
   const attachVerificationTriggerRef = useRef<HTMLDivElement>(null)
   const removeTriggerRef = useRef<HTMLDivElement>(null)
@@ -114,186 +121,188 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
           </div>
         </div>
 
-        <div className="gba:flex gba:items-center gba:gap-2 gba:overflow-visible">
-          {isActive ? (
-            <>
+        {!temporaryDisabled && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:overflow-visible">
+            {isActive ? (
+              <>
+                <AppAction
+                  variant="update-secondary"
+                  buttonSize="default"
+                  buttonVariant="outline"
+                  data-testid={`skills-profile-update-level-${skill.skill.id}`}
+                  contexts={[
+                    {
+                      ...updateSkillContext,
+                      contextData: {
+                        ...updateSkillContext.contextData,
+                        mode: 'changeLevel',
+                        skillId: skill.skill.id,
+                        employeeSkillId: skill.id,
+                        skillName: skill.skill.name ?? undefined,
+                        currentLevel: skill.level ?? null
+                      }
+                    }
+                  ]}
+                  prefixDataTestId={`skills-profile-update-level-${skill.skill.id}`}
+                  accessToken={accessToken}
+                  autoExecute={true}
+                  disabled={isPending}
+                >
+                  {hasLevel ? t('skills-action-update-level') : t('skills-action-set-level')}
+                </AppAction>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="gba:shrink-0"
+                      aria-label={t('skills-profile-more-actions')}
+                      data-testid={`skills-profile-more-actions-${skill.skill.id}`}
+                      disabled={isPending}
+                    >
+                      <DotsThree className="gba:h-4 gba:w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    sideOffset={4}
+                    className="gba:min-w-[13rem] gba:w-max gba:py-1"
+                    style={{ maxHeight: 'none' }}
+                  >
+                    <DropdownMenuItem
+                      className="gba:py-2 gba:px-3 gba:cursor-pointer"
+                      data-testid={`skills-profile-attach-verification-${skill.skill.id}`}
+                      disabled={isPending}
+                      onSelect={() => {
+                        if (isPending) return
+                        attachVerificationTriggerRef.current?.querySelector('button')?.click()
+                      }}
+                    >
+                      <span className="gba:block gba:text-left gba:w-full">
+                        {t(isVerified ? 'skills-action-change-verification' : 'skills-action-attach-verification')}
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gba:py-2 gba:px-3 gba:cursor-pointer"
+                      data-testid={`skills-profile-toggle-active-${skill.skill.id}`}
+                      disabled={isPending}
+                      onSelect={() => {
+                        if (isPending) return
+                        deactivateActivateTriggerRef.current?.querySelector('button')?.click()
+                      }}
+                    >
+                      <span className="gba:block gba:text-left gba:w-full">{t('skills-action-deactivate')}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gba:py-2 gba:px-3 gba:cursor-pointer"
+                      data-testid={`skills-profile-remove-${skill.skill.id}`}
+                      disabled={isPending}
+                      onSelect={() => {
+                        if (isPending) return
+                        removeTriggerRef.current?.querySelector('button')?.click()
+                      }}
+                    >
+                      <span className="gba:block gba:text-left gba:w-full">{t('skills-action-remove')}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                size="default"
+                className="gba:shrink-0"
+                data-testid={`skills-profile-activate-${skill.skill.id}`}
+                disabled={isPending}
+                onClick={() => deactivateActivateTriggerRef.current?.querySelector('button')?.click()}
+              >
+                {t('skills-action-activate')}
+              </Button>
+            )}
+            {/* Same pattern as Update level: AppAction always mounted so flow data is ready when user clicks the menu item */}
+            <div
+              ref={deactivateActivateTriggerRef}
+              className="gba:fixed gba:opacity-0 gba:pointer-events-none gba:left-[-9999px] gba:top-0"
+              aria-hidden="true"
+            >
               <AppAction
                 variant="update-secondary"
-                buttonSize="default"
-                buttonVariant="outline"
-                data-testid={`skills-profile-update-level-${skill.skill.id}`}
                 contexts={[
                   {
                     ...updateSkillContext,
                     contextData: {
                       ...updateSkillContext.contextData,
-                      mode: 'changeLevel',
+                      mode: isActive ? 'deactivate' : 'activate',
                       skillId: skill.skill.id,
                       employeeSkillId: skill.id,
-                      skillName: skill.skill.name ?? undefined,
-                      currentLevel: skill.level ?? null
+                      skillName: skill.skill.name
                     }
                   }
                 ]}
-                prefixDataTestId={`skills-profile-update-level-${skill.skill.id}`}
                 accessToken={accessToken}
                 autoExecute={true}
                 disabled={isPending}
+                prefixDataTestId={`skills-profile-toggle-active-${skill.skill.id}`}
               >
-                {hasLevel ? t('skills-action-update-level') : t('skills-action-set-level')}
+                <span />
               </AppAction>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="gba:shrink-0"
-                    aria-label={t('skills-profile-more-actions')}
-                    data-testid={`skills-profile-more-actions-${skill.skill.id}`}
-                    disabled={isPending}
-                  >
-                    <DotsThree className="gba:h-4 gba:w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  sideOffset={4}
-                  className="gba:min-w-[13rem] gba:w-max gba:py-1"
-                  style={{ maxHeight: 'none' }}
-                >
-                  <DropdownMenuItem
-                    className="gba:py-2 gba:px-3 gba:cursor-pointer"
-                    data-testid={`skills-profile-attach-verification-${skill.skill.id}`}
-                    disabled={isPending}
-                    onSelect={() => {
-                      if (isPending) return
-                      attachVerificationTriggerRef.current?.querySelector('button')?.click()
-                    }}
-                  >
-                    <span className="gba:block gba:text-left gba:w-full">
-                      {t(isVerified ? 'skills-action-change-verification' : 'skills-action-attach-verification')}
-                    </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="gba:py-2 gba:px-3 gba:cursor-pointer"
-                    data-testid={`skills-profile-toggle-active-${skill.skill.id}`}
-                    disabled={isPending}
-                    onSelect={() => {
-                      if (isPending) return
-                      deactivateActivateTriggerRef.current?.querySelector('button')?.click()
-                    }}
-                  >
-                    <span className="gba:block gba:text-left gba:w-full">{t('skills-action-deactivate')}</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="gba:py-2 gba:px-3 gba:cursor-pointer"
-                    data-testid={`skills-profile-remove-${skill.skill.id}`}
-                    disabled={isPending}
-                    onSelect={() => {
-                      if (isPending) return
-                      removeTriggerRef.current?.querySelector('button')?.click()
-                    }}
-                  >
-                    <span className="gba:block gba:text-left gba:w-full">{t('skills-action-remove')}</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          ) : (
-            <Button
-              variant="outline"
-              size="default"
-              className="gba:shrink-0"
-              data-testid={`skills-profile-activate-${skill.skill.id}`}
-              disabled={isPending}
-              onClick={() => deactivateActivateTriggerRef.current?.querySelector('button')?.click()}
+            </div>
+            <div
+              ref={removeTriggerRef}
+              className="gba:fixed gba:opacity-0 gba:pointer-events-none gba:left-[-9999px] gba:top-0"
+              aria-hidden="true"
             >
-              {t('skills-action-activate')}
-            </Button>
-          )}
-          {/* Same pattern as Update level: AppAction always mounted so flow data is ready when user clicks the menu item */}
-          <div
-            ref={deactivateActivateTriggerRef}
-            className="gba:fixed gba:opacity-0 gba:pointer-events-none gba:left-[-9999px] gba:top-0"
-            aria-hidden="true"
-          >
-            <AppAction
-              variant="update-secondary"
-              contexts={[
-                {
-                  ...updateSkillContext,
-                  contextData: {
-                    ...updateSkillContext.contextData,
-                    mode: isActive ? 'deactivate' : 'activate',
-                    skillId: skill.skill.id,
-                    employeeSkillId: skill.id,
-                    skillName: skill.skill.name
+              <AppAction
+                variant="update-secondary"
+                contexts={[
+                  {
+                    context: FlowContextName.deleteEmployeeSkill,
+                    contextData: {
+                      ...updateSkillContext.contextData,
+                      mode: 'remove',
+                      skillId: skill.skill.id,
+                      employeeSkillId: skill.id,
+                      skillName: skill.skill.name
+                    }
                   }
-                }
-              ]}
-              accessToken={accessToken}
-              autoExecute={true}
-              disabled={isPending}
-              prefixDataTestId={`skills-profile-toggle-active-${skill.skill.id}`}
+                ]}
+                accessToken={accessToken}
+                autoExecute={true}
+                disabled={isPending}
+                prefixDataTestId={`skills-profile-remove-${skill.skill.id}`}
+              >
+                <span />
+              </AppAction>
+            </div>
+            <div
+              ref={attachVerificationTriggerRef}
+              className="gba:fixed gba:opacity-0 gba:pointer-events-none gba:left-[-9999px] gba:top-0"
+              aria-hidden="true"
             >
-              <span />
-            </AppAction>
-          </div>
-          <div
-            ref={removeTriggerRef}
-            className="gba:fixed gba:opacity-0 gba:pointer-events-none gba:left-[-9999px] gba:top-0"
-            aria-hidden="true"
-          >
-            <AppAction
-              variant="update-secondary"
-              contexts={[
-                {
-                  context: FlowContextName.deleteEmployeeSkill,
-                  contextData: {
-                    ...updateSkillContext.contextData,
-                    mode: 'remove',
-                    skillId: skill.skill.id,
-                    employeeSkillId: skill.id,
-                    skillName: skill.skill.name
+              <AppAction
+                variant="update-secondary"
+                contexts={[
+                  {
+                    ...updateSkillContext,
+                    contextData: {
+                      ...updateSkillContext.contextData,
+                      mode: 'attachVerification',
+                      skillId: skill.skill.id,
+                      employeeSkillId: skill.id,
+                      skillName: skill.skill.name
+                    }
                   }
-                }
-              ]}
-              accessToken={accessToken}
-              autoExecute={true}
-              disabled={isPending}
-              prefixDataTestId={`skills-profile-remove-${skill.skill.id}`}
-            >
-              <span />
-            </AppAction>
+                ]}
+                accessToken={accessToken}
+                autoExecute={true}
+                disabled={isPending}
+                prefixDataTestId={`skills-profile-attach-verification-${skill.skill.id}`}
+              >
+                <span />
+              </AppAction>
+            </div>
           </div>
-          <div
-            ref={attachVerificationTriggerRef}
-            className="gba:fixed gba:opacity-0 gba:pointer-events-none gba:left-[-9999px] gba:top-0"
-            aria-hidden="true"
-          >
-            <AppAction
-              variant="update-secondary"
-              contexts={[
-                {
-                  ...updateSkillContext,
-                  contextData: {
-                    ...updateSkillContext.contextData,
-                    mode: 'attachVerification',
-                    skillId: skill.skill.id,
-                    employeeSkillId: skill.id,
-                    skillName: skill.skill.name
-                  }
-                }
-              ]}
-              accessToken={accessToken}
-              autoExecute={true}
-              disabled={isPending}
-              prefixDataTestId={`skills-profile-attach-verification-${skill.skill.id}`}
-            >
-              <span />
-            </AppAction>
-          </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   )
