@@ -1,8 +1,14 @@
 import type { SpreadsheetCellIntentRecord } from '../core/spreadsheetIntentJournal'
 import { getCanonicalRowId, rowMatchesRemoteId } from './spreadsheetRowIdentity'
 
+/** Unacked local cell intents that may still need overlay after a snapshot reload. */
 const REAPPLICABLE_INTENT_STATES = new Set<SpreadsheetCellIntentRecord['state']>(['staged', 'ready', 'submitted'])
 
+/**
+ * Intents captured at or before the reloaded sheet version (`baseVersion <= reloadedVersion`).
+ * Acknowledged/rejected intents are excluded by state. This is not "newer than reload" — it
+ * preserves local work the server snapshot has not yet reflected.
+ */
 export function listReapplicableLocalIntents(
   intents: SpreadsheetCellIntentRecord[],
   params: { sheetId: string; reloadedVersion: number }

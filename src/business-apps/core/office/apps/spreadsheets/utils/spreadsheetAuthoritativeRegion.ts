@@ -1,8 +1,14 @@
 import type { SpreadsheetReplayDelta } from '../core'
-import { parseA1Reference } from '../core'
+import { parseA1Reference, readSpreadsheetRowCellValue } from '../core'
 import type { SpreadsheetColumn } from '../types/spreadsheet'
+import { toEchoSignature } from '../components/univerGridAuthoritativeHelpers'
+import { normalizeBlankLikeEchoSignature } from '../components/univerGridWorkbookMutationModule'
 import { createUniverConversionContext } from './univerAdapter'
-import { buildViewerRowVisualIndexByIdentity, lookupViewerRowVisualIndex } from './spreadsheetPeerRowHydration'
+import {
+  buildViewerRowVisualIndexByIdentity,
+  getViewerRowVisualIndex,
+  lookupViewerRowVisualIndex
+} from './spreadsheetPeerRowHydration'
 import { resolveViewerRowIndexForRemoteId } from './spreadsheetRowProjection'
 
 export type AuthoritativeGridRegion = {
@@ -78,6 +84,55 @@ function expandRegion(region: AuthoritativeGridRegion | undefined, row: number, 
     minCol: Math.min(region.minCol, col),
     maxCol: Math.max(region.maxCol, col)
   }
+}
+
+function rowHasMaterializedColumnKey(row: Record<string, unknown>, column: SpreadsheetColumn): boolean {
+  if (Object.prototype.hasOwnProperty.call(row, column.name)) return true
+  if (column.id !== column.name && Object.prototype.hasOwnProperty.call(row, column.id)) return true
+  return false
+}
+
+function rowHasNonBlankMaterializedCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): boolean {
+  if (!rowHasMaterializedColumnKey(row, column)) return false
+  const signature = normalizeBlankLikeEchoSignature(toEchoSignature(readSpreadsheetRowCellValue(row, column)))
+  return signature !== 'blank'
+}
+
+/**
+ * Narrow authoritative reapply bounds after row materialization.
+ * Includes only grid rows/columns that carry local materialized values, not the full visible width.
+ */
+export function computeAuthoritativeRegionForMaterializedRows(params: {
+  createdGridRowIndices: number[]
+  rows: Record<string, unknown>[]
+  columns: SpreadsheetColumn[]
+  createdRows?: Record<string, unknown>[]
+  sourceUniverRows?: Record<string, unknown>[]
+}): AuthoritativeGridRegion | undefined {
+  const { createdGridRowIndices, rows, columns, createdRows, sourceUniverRows } = params
+  const visibleColumns = columns.filter(column => column.isVisible !== false)
+  if (visibleColumns.length === 0 || createdGridRowIndices.length === 0) return undefined
+
+  let region: AuthoritativeGridRegion | undefined
+
+  for (const gridRowIndex of createdGridRowIndices) {
+    if (!Number.isInteger(gridRowIndex) || gridRowIndex < 0) continue
+    const sessionRow = rows.find((row, index) => getViewerRowVisualIndex(row, index) === gridRowIndex)
+    const createdRow = createdRows?.find((row, index) => getViewerRowVisualIndex(row, index) === gridRowIndex)
+    const sourceRow = sourceUniverRows?.find((row, index) => getViewerRowVisualIndex(row, index) === gridRowIndex)
+    const candidates = [sessionRow, createdRow, sourceRow].filter(
+      (row): row is Record<string, unknown> => row != null && typeof row === 'object'
+    )
+
+    for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
+      const column = visibleColumns[colIndex]
+      const shouldInclude = candidates.some(row => rowHasNonBlankMaterializedCellValue(row, column))
+      if (!shouldInclude) continue
+      region = expandRegion(region, gridRowIndex, colIndex)
+    }
+  }
+
+  return region
 }
 
 /**

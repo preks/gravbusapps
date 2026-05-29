@@ -28,6 +28,29 @@ const setCellOp = (
     data: { rowId, columnName, value }
   }) as unknown as SpreadsheetBatchOperation
 
+const setRangeOp = (
+  rowId: string,
+  columnName: string,
+  value: unknown,
+  operationId?: string
+): SpreadsheetBatchOperation =>
+  ({
+    operationId: operationId ?? nextOpId(),
+    type: 'set_range',
+    data: {
+      cells: [{ rowId, columnName, value }]
+    }
+  }) as unknown as SpreadsheetBatchOperation
+
+const addRowsOp = (clientRowId: string): SpreadsheetBatchOperation =>
+  ({
+    operationId: nextOpId(),
+    type: 'add_rows',
+    data: {
+      rows: [{ _clientRowId: clientRowId }]
+    }
+  }) as unknown as SpreadsheetBatchOperation
+
 const cellKey = (rowId: string, columnName: string): string => `${rowId}\u0000${columnName}`
 
 const makeLocal = (
@@ -41,6 +64,7 @@ const makeLocal = (
 interface HarnessOptions {
   bulkDepthZero?: boolean
   idleMs?: number
+  flushMaxWaitMs?: number
   submittedTtlMs?: number
   initialClientVersion?: number | null
   submitImpl?: (req: Parameters<SheetWorkQueueDeps['submitMutationBatch']>[0]) => Promise<SubmitResult>
@@ -91,7 +115,7 @@ const buildHarness = (opts: HarnessOptions = {}) => {
     isCollabBulkApplyDepthZero: () => opts.bulkDepthZero !== false,
     onLocalMutationCellProtectionChange: opts.onLocalMutationCellProtectionChange,
     getLocalIdleCoalesceMs: () => opts.idleMs ?? 50,
-    getLocalFlushMaxWaitMs: () => 500,
+    getLocalFlushMaxWaitMs: () => opts.flushMaxWaitMs ?? 500,
     getSubmittedOwnershipTtlMs: () => opts.submittedTtlMs ?? 10_000,
     debug: (event, payload) => {
       debugEvents.push({ event, payload })
@@ -161,6 +185,145 @@ describe('createSpreadsheetSheetWorkQueue', () => {
 
       expect(submitCalls).toHaveLength(1)
       expect(submitCalls[0].operations).toHaveLength(4)
+    })
+
+    it('coalesces manual cellValue commits spaced 150ms apart within the 800ms idle window (FE-B1)', async () => {
+      const { queue, submitCalls } = buildHarness({
+        initialClientVersion: 1,
+        idleMs: 800,
+        flushMaxWaitMs: 2000
+      })
+      await seedClientVersion(queue, sheetA, 1)
+
+      for (let i = 0; i < 5; i += 1) {
+        await queue.enqueueLocalPersist(
+          sheetA,
+          makeLocal({
+            kind: 'cellValue',
+            operations: [setCellOp('row-1', `Col${i}`, `v${i}`)],
+            ownedCellKeys: [cellKey('row-1', `Col${i}`)]
+          })
+        )
+        jest.advanceTimersByTime(150)
+        await flushMicrotasks()
+      }
+
+      jest.advanceTimersByTime(800)
+      await flushMicrotasks()
+      await queue.awaitIdle(sheetA)
+
+      expect(submitCalls).toHaveLength(1)
+      expect(submitCalls[0].operations).toHaveLength(5)
+    })
+
+    it('coalesces fast-path rangeValue (set_range) commits from Univer typing into one submit', async () => {
+      const { queue, submitCalls } = buildHarness({
+        initialClientVersion: 1,
+        idleMs: 800,
+        flushMaxWaitMs: 2000
+      })
+      await seedClientVersion(queue, sheetA, 1)
+
+      for (let i = 0; i < 5; i += 1) {
+        await queue.enqueueLocalPersist(
+          sheetA,
+          makeLocal({
+            kind: 'rangeValue',
+            operations: [setRangeOp('row-1', `Col${i}`, `v${i}`)],
+            ownedCellKeys: [cellKey('row-1', `Col${i}`)]
+          })
+        )
+        jest.advanceTimersByTime(150)
+        await flushMicrotasks()
+      }
+
+      jest.advanceTimersByTime(800)
+      await flushMicrotasks()
+      await queue.awaitIdle(sheetA)
+
+      expect(submitCalls).toHaveLength(1)
+      expect(submitCalls[0].operations).toHaveLength(5)
+    })
+
+    it('does not flush coalescing rangeValue when each keystroke also enqueues set_style', async () => {
+      const styleOp = (): SpreadsheetBatchOperation =>
+        ({
+          operationId: nextOpId(),
+          type: 'set_style',
+          data: {
+            sheetId: sheetA,
+            cells: [{ row: 0, col: 4, stylePatch: { set: { s: 'style-1' } } }]
+          }
+        }) as unknown as SpreadsheetBatchOperation
+
+      const { queue, submitCalls } = buildHarness({
+        initialClientVersion: 1,
+        idleMs: 800,
+        flushMaxWaitMs: 2000
+      })
+      await seedClientVersion(queue, sheetA, 1)
+
+      for (let i = 0; i < 6; i += 1) {
+        await queue.enqueueLocalPersist(
+          sheetA,
+          makeLocal({
+            kind: 'rangeValue',
+            operations: [setRangeOp('row-uuid-1', 'ColumnE', `1-${i}`)]
+          })
+        )
+        await queue.enqueueLocalPersist(
+          sheetA,
+          makeLocal({
+            kind: 'style',
+            operations: [styleOp()]
+          })
+        )
+        jest.advanceTimersByTime(100)
+        await flushMicrotasks()
+      }
+
+      expect(submitCalls).toHaveLength(0)
+
+      jest.advanceTimersByTime(800)
+      await flushMicrotasks()
+      await queue.awaitIdle(sheetA)
+
+      expect(submitCalls.length).toBeLessThanOrEqual(2)
+      expect(submitCalls[0]?.operations[0]?.type).toBe('set_range')
+      const rangeOps = submitCalls[0]?.operations ?? []
+      expect(rangeOps.length).toBeGreaterThanOrEqual(1)
+      expect(rangeOps.length).toBeLessThanOrEqual(6)
+    })
+
+    it('coalesces burst add_rows-only structural groups into one merged submit', async () => {
+      const { queue, submitCalls } = buildHarness({
+        initialClientVersion: 1,
+        idleMs: 800,
+        flushMaxWaitMs: 2000
+      })
+      await seedClientVersion(queue, sheetA, 1)
+
+      for (let i = 0; i < 3; i += 1) {
+        await queue.enqueueLocalPersist(
+          sheetA,
+          makeLocal({
+            kind: 'structural',
+            operations: [addRowsOp(`client_burst_${i}`)]
+          })
+        )
+        jest.advanceTimersByTime(150)
+        await flushMicrotasks()
+      }
+
+      jest.advanceTimersByTime(800)
+      await flushMicrotasks()
+      await queue.awaitIdle(sheetA)
+
+      expect(submitCalls).toHaveLength(1)
+      expect(submitCalls[0].operations).toHaveLength(1)
+      expect(submitCalls[0].operations[0]?.type).toBe('add_rows')
+      const rows = submitCalls[0].operations[0]?.data?.rows as Array<Record<string, unknown>>
+      expect(rows).toHaveLength(3)
     })
 
     it('protects pending local mutation cells until submit settles', async () => {
@@ -272,9 +435,7 @@ describe('createSpreadsheetSheetWorkQueue', () => {
       ['style' as const],
       ['structural' as const],
       ['undoRedo' as const],
-      ['clear' as const],
-      ['unknownAtomic' as const],
-      ['rangeValue' as const]
+      ['unknownAtomic' as const]
     ])('%s kind never coalesces with surrounding cellValue', async kind => {
       const { queue, submitCalls } = buildHarness({ initialClientVersion: 1 })
       await seedClientVersion(queue, sheetA, 1)
@@ -1642,6 +1803,176 @@ describe('createSpreadsheetSheetWorkQueue', () => {
 
       expect(submitCalls).toHaveLength(1)
       expect(submitCalls[0].operations[0].type).toBe('add_rows')
+    })
+  })
+
+  describe('paste 409 structural_conflict recovery', () => {
+    it('auto-retries paste after structural recovery when peer shifts rows', async () => {
+      let chain: Promise<void> = Promise.resolve()
+      const callOrder: string[] = []
+      let attempts = 0
+      let serverVersion = 40
+      const deps: SheetWorkQueueDeps = {
+        chainOnOperationQueue: fn => {
+          const next = chain.then(fn, fn)
+          chain = next.then(
+            () => undefined,
+            () => undefined
+          )
+          return next
+        },
+        submitMutationBatch: async () => {
+          attempts += 1
+          callOrder.push(`submit#${attempts}`)
+          if (attempts === 1) {
+            serverVersion = 41
+            throw Object.assign(new Error('structural_conflict'), {
+              status: 409,
+              details: { reason: 'structural_conflict', currentVersion: 41 }
+            })
+          }
+          serverVersion += 1
+          return { newVersion: serverVersion } as SubmitResult
+        },
+        refreshBaseVersionBeforeWrite: async () => serverVersion,
+        resolveBaseVersion: () => serverVersion,
+        isCollabBulkApplyDepthZero: () => true,
+        getLocalIdleCoalesceMs: () => 10,
+        getMaxQueueRetryAttempts: () => 2,
+        requestStructuralRecovery: async () => {
+          callOrder.push('recovery')
+        }
+      }
+      const queue = createSpreadsheetSheetWorkQueue(deps)
+      await queue.enqueueRemoteApply(sheetA, 'versionOnlyEcho', async c => c.markVersionDone(40))
+      await flushMicrotasks()
+      await queue.enqueueLocalPersist(
+        sheetA,
+        makeLocal({
+          kind: 'paste',
+          operations: [
+            {
+              operationId: nextOpId(),
+              type: 'set_range',
+              data: {
+                cells: [
+                  { rowId: 'row-1', columnName: 'A', value: 'p1' },
+                  { rowId: 'row-1', columnName: 'B', value: 'p2' }
+                ]
+              }
+            } as unknown as SpreadsheetBatchOperation
+          ]
+        })
+      )
+      for (let i = 0; i < 10 && attempts < 2; i += 1) {
+        jest.advanceTimersByTime(50)
+        await flushMicrotasks()
+      }
+      await queue.awaitIdle(sheetA)
+
+      expect(attempts).toBe(2)
+      expect(callOrder).toEqual(['submit#1', 'recovery', 'submit#2'])
+      expect(queue.getDebugState(sheetA).syncState).toBe('idle')
+      queue.dispose()
+    })
+
+    it('awaits a pending structural recovery and resubmits paste on the caught-up base', async () => {
+      // Phase 2 (p2-structural-recovery-paste): a peer inserts rows while a paste batch is in
+      // flight, so the paste 409s. The queue must (a) NOT resubmit while structural recovery
+      // (catch-up that applies the peer add_rows) is still running, and (b) resubmit on the
+      // version the catch-up advanced to — never the stale base it first tried.
+      let chain: Promise<void> = Promise.resolve()
+      const callOrder: string[] = []
+      const capturedBaseVersions: number[] = []
+      let attempts = 0
+      // Server starts at v40 (no peer rows yet).
+      let serverVersion = 40
+      let releaseRecovery: (() => void) | null = null
+      const recoveryStarted = new Promise<void>(resolve => {
+        releaseRecovery = resolve
+      })
+      let recoveryResolve: (() => void) | null = null
+      const recoveryReady = new Promise<void>(resolve => {
+        recoveryResolve = resolve
+      })
+      const deps: SheetWorkQueueDeps = {
+        chainOnOperationQueue: fn => {
+          const next = chain.then(fn, fn)
+          chain = next.then(
+            () => undefined,
+            () => undefined
+          )
+          return next
+        },
+        submitMutationBatch: async req => {
+          attempts += 1
+          capturedBaseVersions.push(req.baseVersion)
+          callOrder.push(`submit#${attempts}`)
+          if (attempts === 1) {
+            // Peer inserted rows: paste base is now stale (server moved to v41).
+            throw Object.assign(new Error('structural_conflict'), {
+              status: 409,
+              details: { reason: 'structural_conflict', currentVersion: 41 }
+            })
+          }
+          serverVersion += 1
+          return { newVersion: serverVersion } as SubmitResult
+        },
+        refreshBaseVersionBeforeWrite: async () => serverVersion,
+        resolveBaseVersion: () => serverVersion,
+        isCollabBulkApplyDepthZero: () => true,
+        getLocalIdleCoalesceMs: () => 10,
+        getMaxQueueRetryAttempts: () => 2,
+        requestStructuralRecovery: async () => {
+          callOrder.push('recovery_start')
+          releaseRecovery?.()
+          await recoveryReady
+          // Catch-up applied the peer add_rows: local base advances past the conflict version.
+          serverVersion = 45
+          callOrder.push('recovery_done')
+        }
+      }
+      const queue = createSpreadsheetSheetWorkQueue(deps)
+      await queue.enqueueRemoteApply(sheetA, 'versionOnlyEcho', async c => c.markVersionDone(40))
+      await flushMicrotasks()
+      await queue.enqueueLocalPersist(
+        sheetA,
+        makeLocal({
+          kind: 'paste',
+          operations: [
+            {
+              operationId: nextOpId(),
+              type: 'set_range',
+              data: {
+                cells: [
+                  { rowId: 'row-1', columnName: 'A', value: 'p1' },
+                  { rowId: 'row-1', columnName: 'B', value: 'p2' }
+                ]
+              }
+            } as unknown as SpreadsheetBatchOperation
+          ]
+        })
+      )
+      jest.advanceTimersByTime(200)
+      await flushMicrotasks()
+      await recoveryStarted
+      await flushMicrotasks()
+
+      // Recovery is in flight — the paste must NOT have resubmitted yet.
+      expect(attempts).toBe(1)
+      expect(callOrder).toEqual(['submit#1', 'recovery_start'])
+
+      recoveryResolve!()
+      await flushMicrotasks()
+      await queue.awaitIdle(sheetA)
+
+      // Resubmit fires only AFTER recovery resolves, and on the caught-up base (v45), not the
+      // stale v40 it first tried.
+      expect(attempts).toBe(2)
+      expect(callOrder).toEqual(['submit#1', 'recovery_start', 'recovery_done', 'submit#2'])
+      expect(capturedBaseVersions).toEqual([40, 45])
+      expect(queue.getDebugState(sheetA).syncState).toBe('idle')
+      queue.dispose()
     })
   })
 })

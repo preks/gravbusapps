@@ -32,6 +32,7 @@ export interface TableViewProps {
   initialSnapshot?: Record<string, unknown> | null
   snapshotSeed?: string
   authoritativeDataSyncToken?: number
+  authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
@@ -149,6 +150,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   initialSnapshot,
   snapshotSeed,
   authoritativeDataSyncToken,
+  authoritativePaintCellsRef,
   workbookInstanceKey,
   multiSheetWorkbookMode,
   pendingLocalMutationCellsRef,
@@ -443,6 +445,7 @@ export const TableView = memo<TableViewProps>(function TableView({
           initialSnapshot={initialSnapshot}
           snapshotSeed={snapshotSeed}
           authoritativeDataSyncToken={authoritativeDataSyncToken}
+          authoritativePaintCellsRef={authoritativePaintCellsRef}
           workbookInstanceKey={workbookInstanceKey}
           multiSheetWorkbookMode={multiSheetWorkbookMode}
           pendingLocalMutationCellsRef={pendingLocalMutationCellsRef}

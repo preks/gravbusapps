@@ -34,12 +34,20 @@ export const applyColumnVisibilityRangesToSpreadsheetColumns = (
   return sortColumnsByOrder([...nextById.values()])
 }
 
-/** Keeps session column visibility when canonical snapshot metadata has not caught up yet. */
+/**
+ * Merges column metadata on snapshot reload. Server columns are authoritative for hide/show
+ * (shared document property, like Google Sheets). Local visibility is preserved only while a
+ * `visibility_update` may still be queued (`preserveLocalVisibility` from pending-persist guard).
+ */
 export const mergeSheetColumnVisibilityFromLocal = (
   serverColumns: SpreadsheetColumn[],
-  localColumns: SpreadsheetColumn[]
+  localColumns: SpreadsheetColumn[],
+  options?: { preserveLocalVisibility?: boolean }
 ): SpreadsheetColumn[] => {
   if (serverColumns.length === 0 || localColumns.length === 0) return serverColumns
+  if (options?.preserveLocalVisibility !== true) {
+    return serverColumns
+  }
   const localById = new Map(localColumns.map(column => [column.id, column]))
   return serverColumns.map(column => {
     const local = localById.get(column.id)

@@ -18,7 +18,6 @@ import {
   type ViewerRow
 } from './spreadsheetRowIdentity'
 import { getFiniteNonNegativeGridRowIndex } from './spreadsheetPeerRowHydration'
-import { getKnownCellValueCount } from '../core/spreadsheetSnapshotWorkbookUtils'
 import { applyClearAllDelta } from '../core/spreadsheetSessionDeltaApply'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -113,12 +112,6 @@ const replaceClientRowsWithCreatedRows = (existingRows: ViewerRow[], createdRows
   }
   const getMergeableGridRowIndex = (row: ViewerRow): number | undefined =>
     getDurableRowIdentity(row) ? getFiniteNonNegativeGridRowIndex(row) : undefined
-  const mergeRowsKeepingRicherValues = (existing: ViewerRow, row: ViewerRow): ViewerRow => {
-    const existingCount = getKnownCellValueCount(existing)
-    const nextCount = getKnownCellValueCount(row)
-    return nextCount >= existingCount ? { ...existing, ...row } : { ...row, ...existing }
-  }
-
   const createdRowByClientId = new Map<string, ViewerRow>()
   const createdRowByDurableId = new Map<string, ViewerRow>()
   const createdRowByGridRowIndex = new Map<number, ViewerRow>()
@@ -142,7 +135,7 @@ const replaceClientRowsWithCreatedRows = (existingRows: ViewerRow[], createdRows
       (clientRowId ? createdRowByClientId.get(clientRowId) : undefined)
     if (!createdRow) return row
     replacedCreatedRows.add(createdRow)
-    return mergeRowsKeepingRicherValues(row, createdRow)
+    return { ...row, ...createdRow }
   })
 
   createdRows.forEach(row => {

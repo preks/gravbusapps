@@ -1,6 +1,6 @@
 import type { SpreadsheetColumn } from '../types'
 import type { SpreadsheetPendingCellChange as CellChange } from '../core'
-import { getKnownCellValueCount, normalizeUniverCellForRowPersistence } from '../core'
+import { normalizeUniverCellForRowPersistence } from '../core'
 import { getCanonicalRowId, getClientRowIdentity } from './spreadsheetRowIdentity'
 import {
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot,
@@ -29,11 +29,9 @@ const getDurableRowIdentity = (row: Record<string, unknown>): string => {
 const getMergeableGridRowIndex = (row: Record<string, unknown>): number | undefined =>
   getDurableRowIdentity(row) ? getFiniteNonNegativeGridRowIndex(row) : undefined
 
-const mergeRowsKeepingRicherValues = <T extends Record<string, unknown>>(existing: T, row: T): T => {
-  const existingCount = getKnownCellValueCount(existing)
-  const nextCount = getKnownCellValueCount(row)
-  return (nextCount >= existingCount ? { ...existing, ...row } : { ...row, ...existing }) as T
-}
+/** Later duplicate in iteration order wins per field (server / authoritative row). */
+export const mergeDuplicateRowsPreferIncoming = <T extends Record<string, unknown>>(existing: T, incoming: T): T =>
+  ({ ...existing, ...incoming }) as T
 
 export const mergeDuplicateClientRows = <T extends Record<string, unknown>>(rows: T[]): T[] => {
   const mergedByClientId = new Map<string, T>()
@@ -70,7 +68,7 @@ export const mergeDuplicateClientRows = <T extends Record<string, unknown>>(rows
       continue
     }
 
-    const merged = mergeRowsKeepingRicherValues(existing, row)
+    const merged = mergeDuplicateRowsPreferIncoming(existing, row)
     replaceOutputRow(existing, merged)
     remember(merged)
     const existingClientRowId = getClientRowIdentity(existing)
@@ -201,7 +199,7 @@ export const partitionCellUpdatesByBackendRowId = (
 
 export const buildAddRowPayloadsFromUniverRows = (
   rows: Array<Record<string, unknown>>,
-  columns: SpreadsheetColumn[]
+  columns: SpreadsheetColumn[] = []
 ): Array<Record<string, unknown>> =>
   mergeDuplicateClientRows(rows).map(row => {
     const payload: Record<string, unknown> = {}
@@ -209,7 +207,7 @@ export const buildAddRowPayloadsFromUniverRows = (
     if (clientRowId) payload._clientRowId = clientRowId
     const gridRowIndex = getFiniteNonNegativeGridRowIndex(row)
     if (gridRowIndex !== undefined) payload._gridRowIndex = gridRowIndex
-    columns.forEach(col => {
+    ;(columns ?? []).forEach(col => {
       const value = row[col.name]
       if (value === undefined) return
       const normalized = normalizeUniverCellForRowPersistence(value)
@@ -386,7 +384,12 @@ export const replaceClientRowsWithCreatedRows = (
   return mergeDuplicateClientRows(nextRows)
 }
 
-/** Always rebuild value cells from rows; snapshots contribute formatting/layout only. */
+/**
+ * Rebuilds Univer workbook cell **values** from authoritative viewer rows (typically server
+ * snapshot rows after reload). Snapshot formatting/layout is preserved; this is not a heuristic
+ * row-reconcile tiebreaker. Unacked local intents are overlaid separately by id
+ * (`reapplyUnresolvedLocalIntentsToRows`).
+ */
 export const overlaySnapshotIfRowsMismatch = (
   snapshot: Record<string, unknown> | null,
   sheetId: string,

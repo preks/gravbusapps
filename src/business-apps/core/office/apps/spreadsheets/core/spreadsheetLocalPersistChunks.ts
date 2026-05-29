@@ -1,4 +1,9 @@
 import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
+import {
+  batchOperationOnlyReferencesSeededClientRows,
+  collectClientRowIdsFromAddRowsOperations,
+  isAddRowsOnlyOperationList
+} from '../utils/spreadsheetNewRowPersistBundle'
 import type { LocalPersistKind } from './spreadsheetSheetWorkQueue'
 import { splitBatchOperationsByApproxJsonSize } from '../utils/spreadsheetUnifiedBatchSubmitUtils'
 
@@ -71,6 +76,62 @@ const classifyLocalPersistKindForOperation = (operation: SpreadsheetBatchOperati
   return classifyLocalPersistKindFromChunk([operation])
 }
 
+const chunkHasAddRows = (chunk: SpreadsheetLocalPersistChunk): boolean =>
+  chunk.operations.some(operation => String(operation.type ?? '') === 'add_rows')
+
+/**
+ * After per-kind grouping, merge `add_rows` with dependent cell ops (same emit) and
+ * consecutive `add_rows`-only chunks so the work queue can submit one ordered batch.
+ */
+export const mergeAdjacentNewRowPersistChunks = (
+  chunks: SpreadsheetLocalPersistChunk[]
+): SpreadsheetLocalPersistChunk[] => {
+  if (chunks.length < 2) return chunks
+
+  const merged: SpreadsheetLocalPersistChunk[] = []
+  let index = 0
+  while (index < chunks.length) {
+    const head = chunks[index]
+    if (!head || !chunkHasAddRows(head)) {
+      merged.push(head)
+      index += 1
+      continue
+    }
+
+    let combinedOperations = [...head.operations]
+    let nextIndex = index + 1
+    const seededClientRowIds = () => collectClientRowIdsFromAddRowsOperations(combinedOperations)
+
+    while (nextIndex < chunks.length) {
+      const next = chunks[nextIndex]
+      if (!next) break
+      const seeded = seededClientRowIds()
+      if (
+        (next.kind === 'rangeValue' || next.kind === 'cellValue' || next.kind === 'clear') &&
+        next.operations.every(operation => batchOperationOnlyReferencesSeededClientRows(operation, seeded))
+      ) {
+        combinedOperations = [...combinedOperations, ...next.operations]
+        nextIndex += 1
+        continue
+      }
+      if (next.kind === 'structural' && isAddRowsOnlyOperationList(next.operations)) {
+        combinedOperations = [...combinedOperations, ...next.operations]
+        nextIndex += 1
+        continue
+      }
+      break
+    }
+
+    merged.push({
+      kind: 'structural',
+      operations: combinedOperations
+    })
+    index = nextIndex
+  }
+
+  return merged
+}
+
 export function splitUnifiedOperationsByPersistKind(
   operations: SpreadsheetBatchOperation[],
   maxBytesPerChunk: number
@@ -88,9 +149,11 @@ export function splitUnifiedOperationsByPersistKind(
     tail.operations.push(operation)
   }
 
-  return grouped.flatMap(group =>
+  const mergedByNewRowBundle = mergeAdjacentNewRowPersistChunks(grouped)
+
+  return mergedByNewRowBundle.flatMap(group =>
     splitBatchOperationsByApproxJsonSize(group.operations, maxBytesPerChunk).map(operations => ({
-      kind: group.kind,
+      kind: classifyLocalPersistKindFromChunk(operations),
       operations
     }))
   )

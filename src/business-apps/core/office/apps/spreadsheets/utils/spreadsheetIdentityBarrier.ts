@@ -1,4 +1,5 @@
 import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
+import { collectClientRowIdsFromAddRowsOperations } from './spreadsheetNewRowPersistBundle'
 import {
   getSpreadsheetRowRefIdentity,
   isSpreadsheetTemporaryClientRowId,
@@ -7,11 +8,15 @@ import {
 
 const CELL_TARGETING_OP_TYPES = new Set(['set_cell', 'clear_cell', 'set_range', 'set_style'])
 
-const collectUnresolvedIdentity = (unresolved: Set<string>, record: Record<string, unknown>): void => {
+const collectUnresolvedIdentity = (
+  unresolved: Set<string>,
+  record: Record<string, unknown>,
+  seededByAddRows: ReadonlySet<string>
+): void => {
   const rowRef = resolveSpreadsheetRowRef(record.rowRef)
   const rowId = String(record.rowId ?? '')
   const identity = rowId || (rowRef ? getSpreadsheetRowRefIdentity(rowRef) : '')
-  if (identity && isSpreadsheetTemporaryClientRowId(identity)) {
+  if (identity && isSpreadsheetTemporaryClientRowId(identity) && !seededByAddRows.has(identity)) {
     unresolved.add(identity)
   }
 }
@@ -22,6 +27,7 @@ const collectUnresolvedIdentity = (unresolved: Set<string>, record: Record<strin
  * materialization (that would deadlock with barrier → queue → materialization cycles).
  */
 export function findUnresolvedRowIdsInBatchOperations(operations: SpreadsheetBatchOperation[]): string[] {
+  const seededByAddRows = collectClientRowIdsFromAddRowsOperations(operations)
   const unresolved = new Set<string>()
   for (const operation of operations) {
     const type = String(operation.type ?? '')
@@ -33,7 +39,7 @@ export function findUnresolvedRowIdsInBatchOperations(operations: SpreadsheetBat
       continue
     }
     const record = data as Record<string, unknown>
-    collectUnresolvedIdentity(unresolved, record)
+    collectUnresolvedIdentity(unresolved, record, seededByAddRows)
     if (type === 'set_range' || type === 'set_style') {
       const cells = record.cells
       if (!Array.isArray(cells)) {
@@ -43,7 +49,7 @@ export function findUnresolvedRowIdsInBatchOperations(operations: SpreadsheetBat
         if (!cell || typeof cell !== 'object') {
           continue
         }
-        collectUnresolvedIdentity(unresolved, cell as Record<string, unknown>)
+        collectUnresolvedIdentity(unresolved, cell as Record<string, unknown>, seededByAddRows)
       }
     }
   }

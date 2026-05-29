@@ -299,7 +299,6 @@ type DeferredSetStyleOperation = {
 type DataModelApplyResult = {
   changedKeys: Set<string>
   matchedRowCount: number
-  materializedRowCount: number
   requestedRowCount: number
 }
 
@@ -760,6 +759,12 @@ export class SpreadsheetCollaborationManager {
   }
 
   emitOperation(op: DocumentOperation): void {
+    if (op.type === 'cells_changed') {
+      this.collabDiag('collab_emit_cells_changed_suppressed', {
+        detail: 'authoritative_batch_only'
+      })
+      return
+    }
     this.enqueueOrSend(op)
   }
 
@@ -1032,26 +1037,10 @@ export class SpreadsheetCollaborationManager {
     }
 
     if (operation.type === 'dimension_sync') {
-      const d = operation.data as CellDimensionsPayload | undefined
-      if (d?.sheetId && d.sheetId !== activeSheetId) {
-        this.collabDiag('collab_receive_active_sheet_mismatch', {
-          opType: operation.type,
-          sheetId: d.sheetId,
-          activeSheetId
-        })
-        this.markGridMaterializationNeeded(d.sheetId, 'dimension_sync')
-        this.requestSnapshotFallback({
-          sheetId: d.sheetId,
-          reason: 'planning_failure',
-          detail: 'dimension_sync_inactive_sheet',
-          operationType: operation.type,
-          version: normalizedIncomingVersion ?? null
-        })
-        return
-      }
-      if (d?.sheetId === activeSheetId) {
-        this.callbacks.applyRemoteDimensions?.(d)
-      }
+      this.collabDiag('collab_receive_dimension_sync_ignored', {
+        sheetId: (operation.data as CellDimensionsPayload | undefined)?.sheetId,
+        detail: 'authoritative_batch_only'
+      })
       return
     }
 
@@ -1528,8 +1517,66 @@ export class SpreadsheetCollaborationManager {
     }
 
     if (operation.type === 'cells_changed') {
-      this.handleCellsChanged(operation.data as CellsChangedPayload, 'direct_apply')
-      this.updateVersion(operation.data, version)
+      const payload = operation.data as CellsChangedPayload | undefined
+      const wireCells = Array.isArray(payload?.cells) ? payload.cells : []
+      const hasValueCell = wireCells.some(
+        cell => cell?.rowId && cell.column != null && Object.prototype.hasOwnProperty.call(cell, 'value')
+      )
+      const styleOnly =
+        wireCells.length > 0 && !hasValueCell && wireCells.some(cell => Boolean(cell?.univerCell || cell?.univerStyles))
+
+      if (hasValueCell) {
+        // When delta replay is enabled, a versioned value `cells_changed` is
+        // already handled by the committed-envelope block above (which returns).
+        // Reaching here with value cells means replay is **off**, so fall back
+        // to the legacy live apply so peer values still paint (bulk) and commit
+        // to the session — the single source of truth for the grid projection.
+        if (replayMode === 'off') {
+          this.applyLivePersistedChanges(
+            [
+              {
+                operationType: 'cells_changed',
+                payload: (operation.data as Record<string, unknown>) ?? {},
+                appliedVersion: appliedVersion ?? this.lastKnownVersion
+              }
+            ],
+            'single_op',
+            'direct_apply',
+            targetSheetId
+          )
+          this.updateVersion(operation.data, version)
+          return
+        }
+        // Replay enabled but no applied version to anchor a committed envelope:
+        // resync deterministically via catch-up instead of a P2P value apply.
+        if (this.callbacks.requestSheetCatchUp && targetSheetId) {
+          const knownVersion = this.getKnownSheetVersion(targetSheetId)
+          this.callbacks.requestSheetCatchUp(targetSheetId, 'stale_version_data_op', {
+            sinceVersion: knownVersion ?? Math.max(0, (appliedVersion ?? 1) - 1),
+            incomingVersion: appliedVersion ?? knownVersion ?? 0
+          })
+          return
+        }
+        this.collabDiag('legacy_cells_changed_value_p2p_dropped', {
+          sheetId: targetSheetId,
+          appliedVersion: appliedVersion ?? -1
+        })
+        return
+      }
+
+      if (styleOnly) {
+        this.handleCellsChanged(operation.data, 'direct_apply')
+        this.updateVersion(operation.data, version)
+        return
+      }
+
+      if (this.callbacks.requestSheetCatchUp && targetSheetId) {
+        const knownVersion = this.getKnownSheetVersion(targetSheetId)
+        this.callbacks.requestSheetCatchUp(targetSheetId, 'stale_version_data_op', {
+          sinceVersion: knownVersion ?? Math.max(0, (appliedVersion ?? 1) - 1),
+          incomingVersion: appliedVersion ?? knownVersion ?? 0
+        })
+      }
       return
     }
 
@@ -3923,7 +3970,7 @@ export class SpreadsheetCollaborationManager {
 
     const shouldSyncGridFromCommit = mode === 'sync_grid_only' && targetSheetId === this.callbacks.getActiveSheetId()
     const applyResult = this.applyDataModelUpdates(updatesByRowId, targetSheetId, shouldSyncGridFromCommit)
-    if (applyResult.matchedRowCount + applyResult.materializedRowCount < applyResult.requestedRowCount) {
+    if (applyResult.matchedRowCount < applyResult.requestedRowCount) {
       const appliedVersions = changes.map(change => change.appliedVersion).filter(Number.isFinite)
       const incomingVersion = appliedVersions.length > 0 ? Math.max(...appliedVersions) : null
       this.traceEvent({
@@ -3937,7 +3984,6 @@ export class SpreadsheetCollaborationManager {
           mode,
           requestedRowCount: applyResult.requestedRowCount,
           matchedRowCount: applyResult.matchedRowCount,
-          materializedRowCount: applyResult.materializedRowCount,
           changedKeyCount: applyResult.changedKeys.size,
           reason: 'row_identity_mismatch'
         }
@@ -5426,10 +5472,11 @@ export class SpreadsheetCollaborationManager {
       }
       return undefined
     }
-    const nextLocal = currentData.map(row => {
+    const applyUpdatesToRow = (
+      row: ViewerRow,
+      matched: { key: string; updates: Record<string, unknown> }
+    ): ViewerRow => {
       const canonical = getCanonicalRowId(row)
-      const matched = findUpdatesForRow(row)
-      if (!matched) return row
       matchedRowIds.add(matched.key)
       let nextRow = row
       let hasChange = false
@@ -5443,6 +5490,11 @@ export class SpreadsheetCollaborationManager {
       }
       if (!hasChange) return row
       return { ...nextRow, _updatedAt: new Date().toISOString() }
+    }
+    const nextLocal = currentData.map(row => {
+      const matched = findUpdatesForRow(row)
+      if (!matched) return row
+      return applyUpdatesToRow(row, matched)
     })
     if (changedKeys.size > 0) {
       this.commitSheetData(targetSheetId, nextLocal, {
@@ -5453,7 +5505,6 @@ export class SpreadsheetCollaborationManager {
     return {
       changedKeys,
       matchedRowCount: matchedRowIds.size,
-      materializedRowCount: 0,
       requestedRowCount: updatesByRowId.size
     }
   }

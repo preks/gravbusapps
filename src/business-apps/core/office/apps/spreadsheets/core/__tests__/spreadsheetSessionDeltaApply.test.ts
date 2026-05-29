@@ -1,10 +1,41 @@
-import { applyClearAllDelta, applyMergeRangesDelta } from '../spreadsheetSessionDeltaApply'
+import {
+  applyClearAllDelta,
+  applyMergeRangesDelta,
+  applySpreadsheetSessionDeltaChangesToRows
+} from '../spreadsheetSessionDeltaApply'
 import type { SpreadsheetColumn } from '../../types'
 
 const columns: SpreadsheetColumn[] = [
   { id: 'col-a', name: 'ColumnA', type: 'text', isVisible: true, order: 0 },
   { id: 'col-b', name: 'ColumnB', type: 'text', isVisible: true, order: 1 }
 ]
+
+describe('applySpreadsheetSessionDeltaChangesToRows', () => {
+  it('applies peer single-cell update over local stale row (incoming wins per field)', () => {
+    const rows = [
+      {
+        _id: 'row-1',
+        _rowUuid: 'row-1',
+        ColumnA: 'local-stale',
+        ColumnB: 'local-only'
+      }
+    ]
+
+    const nextRows = applySpreadsheetSessionDeltaChangesToRows(rows, [
+      {
+        operationType: 'set_cell',
+        payload: { rowId: 'row-1', columnName: 'ColumnA', value: 'peer-wins' }
+      }
+    ])
+
+    expect(nextRows[0]).toEqual({
+      _id: 'row-1',
+      _rowUuid: 'row-1',
+      ColumnA: 'peer-wins',
+      ColumnB: 'local-only'
+    })
+  })
+})
 
 describe('applyMergeRangesDelta', () => {
   it('keeps the anchor cell and clears covered slave values', () => {

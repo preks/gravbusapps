@@ -14,6 +14,7 @@ import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnost
 import type { SpreadsheetApp, SpreadsheetSheet } from '../types'
 import { UniverRemoteTransactionRunner } from './univerRemoteTransactionRunner'
 import { hydrateCachedRowsWithServerIdentities } from '../utils/spreadsheetPeerRowHydration'
+import { findSessionGridDivergences } from '../utils/spreadsheetSessionGridDivergence'
 import { resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
 import type { StructuralWsDedupToken } from '../utils/spreadsheetStructuralWsDedup'
 import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
@@ -214,15 +215,8 @@ export function buildSpreadsheetCollaborationCallbacks(
     isRecentLocalBatchId,
     getSheetWorkQueue,
     isRowMaterializationInFlight,
-    versionCausalOwnershipRef,
     liveRemoteApplyVersionRef
   } = params
-
-  const resolveLiveRemoteAppliedVersion = (sheetId: string): number | null => {
-    const scope = liveRemoteApplyVersionRef?.current
-    if (!scope || scope.sheetId !== sheetId) return null
-    return Math.trunc(scope.appliedVersion)
-  }
 
   /**
    * Feeds a `versionOnlyEcho` job to the queue so `queueClientAppliedVersion`
@@ -306,20 +300,6 @@ export function buildSpreadsheetCollaborationCallbacks(
     if (!rowId) return false
     const columnName = resolveColumnNameForIndex(sheetId, colIndex)
     if (!columnName) return false
-    const remoteAppliedVersion = resolveLiveRemoteAppliedVersion(sheetId)
-    const ownershipRegistry = versionCausalOwnershipRef?.current
-    if (ownershipRegistry && remoteAppliedVersion != null) {
-      if (
-        ownershipRegistry.shouldSuppressRemotePaint({
-          sheetId,
-          rowId,
-          columnName,
-          remoteAppliedVersion
-        })
-      ) {
-        return true
-      }
-    }
     const queue = getSheetWorkQueue?.()
     if (!queue) return false
     const key = `${rowId}\u0000${columnName}`
@@ -421,7 +401,67 @@ export function buildSpreadsheetCollaborationCallbacks(
       merged.onApplyComplete?.()
       return
     }
-    bulkApply(Array.from(deduped.values()), merged)
+    const appliedItems = Array.from(deduped.values())
+    bulkApply(appliedItems, merged)
+    scheduleSessionGridDivergenceCheck(sheetId, appliedItems)
+  }
+
+  /**
+   * Gate 2 invariant (dev/trace only): after a remote cell batch paints, the
+   * session row source of truth must match what Univer renders for every
+   * touched coordinate (`server op → session rows → Univer grid`). Any
+   * mismatch means dual authority leaked back in and is emitted as a
+   * `session_grid_divergence` diagnostics finding. Read-only: never mutates
+   * data, and only runs when spreadsheet debug is enabled.
+   */
+  const scheduleSessionGridDivergenceCheck = (sheetId: string, appliedItems: SpreadsheetBulkRemoteCellItem[]): void => {
+    if (!isSpreadsheetAppsDebugEnabled() || appliedItems.length === 0) return
+    if (sheetId !== activeSheetIdRef.current) return
+    const touchedCells = appliedItems.map(item => ({
+      gridRowIndex: item.rowIndex,
+      colIndex: item.colIndex,
+      rowId: item.rowId
+    }))
+    const run = (): void => {
+      if (sheetId !== activeSheetIdRef.current) return
+      const grid = spreadsheetGridRef.current
+      const readGrid = grid?.getVisibleRangeValues
+      if (!readGrid) return
+      const visibleColumns = (
+        spreadsheetSession.getSheetState(sheetId)?.columns ??
+        appSheetsRef.current.find(sheet => sheet.id === sheetId)?.columns ??
+        []
+      ).filter(column => column.isVisible !== false)
+      if (visibleColumns.length === 0) return
+      const maxGridRowIndex = touchedCells.reduce((max, cell) => Math.max(max, cell.gridRowIndex), 0)
+      const gridValues = readGrid(maxGridRowIndex + 1, visibleColumns.length)
+      if (!gridValues) return
+      const divergences = findSessionGridDivergences({
+        sessionRows: getActiveSessionRows(),
+        visibleColumns,
+        gridValues,
+        touchedCells
+      })
+      if (divergences.length === 0) return
+      enqueueDiagnosticsTraceEvent({
+        source: 'client',
+        stage: 'session_grid_divergence',
+        severity: 'error',
+        payload: {
+          sheetId,
+          count: divergences.length,
+          touchedCount: touchedCells.length,
+          samples: divergences.slice(0, 10)
+        }
+      })
+      debugLog('session_grid_divergence', { sheetId, count: divergences.length })
+    }
+    const raf = (globalThis as { requestAnimationFrame?: (cb: FrameRequestCallback) => number }).requestAnimationFrame
+    if (typeof raf === 'function') {
+      raf(() => raf(run))
+      return
+    }
+    ;(globalThis as { setTimeout: typeof setTimeout }).setTimeout(run, 32)
   }
   const flushPendingRemoteCellPaints = (sheetId?: string): void => {
     if (sheetId) {

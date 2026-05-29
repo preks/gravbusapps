@@ -36,11 +36,19 @@ describe('spreadsheetColumnVisibilityMetadata', () => {
     expect(next.find(entry => entry.id === 'a')?.isVisible).not.toBe(false)
   })
 
-  it('merges local hidden visibility over server columns on snapshot reload', () => {
+  it('uses server column visibility on snapshot reload when no local visibility persist is pending', () => {
     const server = [column('a', 0), column('b', 1)]
     const local = [column('a', 0), column('b', 1, false)]
 
     const merged = mergeSheetColumnVisibilityFromLocal(server, local)
+    expect(merged.find(entry => entry.id === 'b')?.isVisible).toBe(true)
+  })
+
+  it('preserves local hidden visibility while a visibility_update batch may still be queued', () => {
+    const server = [column('a', 0), column('b', 1)]
+    const local = [column('a', 0), column('b', 1, false)]
+
+    const merged = mergeSheetColumnVisibilityFromLocal(server, local, { preserveLocalVisibility: true })
     expect(merged.find(entry => entry.id === 'b')?.isVisible).toBe(false)
   })
 

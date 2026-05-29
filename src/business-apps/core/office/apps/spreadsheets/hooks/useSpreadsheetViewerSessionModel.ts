@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
 
 import type { SpreadsheetApp, SpreadsheetSheet } from '../types'
-import { SpreadsheetSessionMutationSources, type SpreadsheetSession } from '../core'
+import { SpreadsheetSessionMutationSources, type SpreadsheetBulkRemoteCellItem, type SpreadsheetSession } from '../core'
 import type { SpreadsheetCollaborationManager } from '../services/SpreadsheetCollaborationManager'
 import type { UniverSheetGridHandle } from '../components/UniverSheetGrid.types'
 import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
 import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
+import {
+  collectAuthoritativePaintCellsForNewOrRemovedRows,
+  diffViewerRowsToAuthoritativePaintCells,
+  mergeAuthoritativePaintCellLists
+} from '../utils/spreadsheetAuthoritativeProjector'
+import type { SpreadsheetColumn } from '../types'
 import { reconcilePeerSheetCachesFromAppSheets } from '../utils/spreadsheetViewerPeerCacheReconcile'
 
 import type { CommitLocalSheetDataOptions } from './spreadsheetViewerSessionTypes'
@@ -56,8 +62,29 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
   >(null)
 
   const [authoritativeDataSyncToken, setAuthoritativeDataSyncToken] = useState(0)
+  const authoritativePaintCellsRef = useRef<SpreadsheetBulkRemoteCellItem[] | null>(null)
 
   const canonicalActiveSheetRowsSourceRef = useRef<() => Record<string, unknown>[]>(() => [])
+
+  const queueAuthoritativePaintCellsForSync = useCallback(
+    (
+      targetSheetId: string,
+      beforeRows: readonly Record<string, unknown>[],
+      afterRows: readonly Record<string, unknown>[],
+      sheetColumns: SpreadsheetColumn[],
+      syncGrid?: boolean
+    ) => {
+      if (!syncGrid || targetSheetId !== params.activeSheetId) {
+        authoritativePaintCellsRef.current = null
+        return
+      }
+      authoritativePaintCellsRef.current = mergeAuthoritativePaintCellLists(
+        diffViewerRowsToAuthoritativePaintCells(beforeRows, afterRows, sheetColumns),
+        collectAuthoritativePaintCellsForNewOrRemovedRows(beforeRows, afterRows, sheetColumns)
+      )
+    },
+    [params.activeSheetId]
+  )
   canonicalActiveSheetRowsSourceRef.current = () => {
     const sheetState = params.spreadsheetSession.getSheetState(params.activeSheetId)
     if (sheetState) return sheetState.rows
@@ -165,10 +192,18 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
 
   const commitLocalSheetData = useCallback(
     (next: Record<string, unknown>[], options?: CommitLocalSheetDataOptions) => {
+      const priorRows = params.spreadsheetSession.getSheetState(params.activeSheetId)?.rows ?? []
       applyActiveSheetRowsToSession(next, {
         persisted: options?.persisted,
         replaceSheetVersion: options?.replaceSheetVersion
       })
+      queueAuthoritativePaintCellsForSync(
+        params.activeSheetId,
+        priorRows,
+        next,
+        params.activeSheet.columns,
+        options?.syncGrid
+      )
       mirrorActiveSheetRowsToViewerUi(next, {
         persisted: options?.persisted,
         syncGrid: options?.syncGrid,
@@ -185,9 +220,12 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
     [
       applyActiveSheetRowsToSession,
       mirrorActiveSheetRowsToViewerUi,
+      params.activeSheet.columns,
       params.activeSheetId,
       params.collaborationManagerRef,
-      params.onRowsStateUpdated
+      params.onRowsStateUpdated,
+      params.spreadsheetSession,
+      queueAuthoritativePaintCellsForSync
     ]
   )
   commitLocalSheetDataRef.current = commitLocalSheetData
@@ -253,6 +291,8 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
         recoveredSheetMeta ??
         params.appSheetsRef.current.find(sheet => sheet.id === targetSheetId) ??
         params.activeSheet
+      const priorRows = params.spreadsheetSession.getSheetState(targetSheetId)?.rows ?? []
+      const sheetColumns = Array.isArray(recoveredSheetMeta?.columns) ? recoveredSheetMeta.columns : targetSheet.columns
       params.spreadsheetSession.replaceSheetState(targetSheet, rows, options?.version)
       if (options?.persisted) {
         params.spreadsheetSession.clearDirty(targetSheetId)
@@ -261,6 +301,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
         }
       }
       if (targetSheetId === params.activeSheetIdRef.current) {
+        queueAuthoritativePaintCellsForSync(targetSheetId, priorRows, rows, sheetColumns, options?.syncGrid)
         if (options?.syncGrid && options.authoritativeGridRegion) {
           params.spreadsheetGridRef.current?.prepareAuthoritativeRegionSync?.(options.authoritativeGridRegion)
         }
@@ -290,13 +331,15 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
       params.appSheetsRef,
       params.collaborationManagerRef,
       params.onRowsStateUpdated,
-      params.spreadsheetGridRef
+      params.spreadsheetGridRef,
+      queueAuthoritativePaintCellsForSync
     ]
   )
 
   return {
     peerSheetDataCacheRef,
     authoritativePeerSheetDataCacheRef,
+    authoritativePaintCellsRef,
     commitLocalSheetDataRef,
     canonicalActiveSheetRowsSourceRef,
     authoritativeDataSyncToken,

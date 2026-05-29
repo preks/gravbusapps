@@ -7,11 +7,13 @@ import {
   collectSnapshotValueWriteCoordinates,
   isUuidString,
   mergeDuplicateClientRows,
+  overlaySnapshotIfRowsMismatch,
   partitionCellUpdatesByBackendRowId,
   removePendingSnapshotClearCoordinates,
   snapshotCellCoordinateKey
 } from '../spreadsheetViewerRows'
 import type { SpreadsheetPendingCellChange as CellChange } from '../../core'
+import type { SpreadsheetColumn } from '../../types'
 
 describe('spreadsheetViewerRows', () => {
   describe('isUuidString', () => {
@@ -93,7 +95,7 @@ describe('spreadsheetViewerRows', () => {
   })
 
   describe('mergeDuplicateClientRows', () => {
-    it('merges rows with same client identity keeping richer values', () => {
+    it('merges rows with same client identity preferring later incoming fields', () => {
       const a = { _id: 'c1', foo: 1, _clientRowId: 'c1' }
       const b = { _id: 'c1', foo: 2, bar: 3, _clientRowId: 'c1' }
       const merged = mergeDuplicateClientRows([a, b] as Record<string, unknown>[])
@@ -287,6 +289,34 @@ describe('spreadsheetViewerRows', () => {
       const removed = removePendingSnapshotClearCoordinates(pending, 's1', [{ row: 1, col: 2 }])
       expect(removed).toBe(1)
       expect(pending.has('s1')).toBe(false)
+    })
+  })
+
+  describe('overlaySnapshotIfRowsMismatch', () => {
+    it('rebuilds values from authoritative viewer rows and preserves snapshot formatting', () => {
+      const sheetId = 'sheet-1'
+      const columns = [
+        { id: 'c0', name: 'alpha', label: 'alpha', type: 'text', order: 0, isVisible: true }
+      ] as SpreadsheetColumn[]
+      const viewerRows = [{ alpha: 'from-server' }]
+      const snapshot: Record<string, unknown> = {
+        id: 'wb',
+        styles: { styleRed: { bg: { rgb: '#ff0000' } } },
+        sheetOrder: [sheetId],
+        sheets: {
+          [sheetId]: {
+            id: sheetId,
+            name: 'S',
+            cellData: { 0: { 0: { v: 'stale', s: 'styleRed' } } }
+          }
+        }
+      }
+      const merged = overlaySnapshotIfRowsMismatch(snapshot, sheetId, viewerRows, columns)
+      const cell = (
+        merged?.sheets as Record<string, { cellData: Record<number, Record<number, { v?: string; s?: string }>> }>
+      )[sheetId].cellData[0][0]
+      expect(cell.v).toBe('from-server')
+      expect(cell.s).toBe('styleRed')
     })
   })
 })

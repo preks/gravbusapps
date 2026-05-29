@@ -19,9 +19,9 @@ const buildCellKey = (sheetId: string, logicalRowHandle: string, columnName: str
 const buildRowKey = (sheetId: string, logicalRowHandle: string): string => `${sheetId}\u0000${logicalRowHandle}`
 
 /**
- * Version-causal paint ownership: a pending local intent supersedes remote applies at
- * `appliedVersion <= intent.baseVersion` until ack/reject. Row-level escalation protects
- * all cells for unresolved `client_*` handles.
+ * Tracks local intent lifecycle (staged → submitted → ack/reject) for diagnostics and
+ * row-handle promotion. Remote paint suppression uses `pendingLocalMutationCells` only;
+ * do not gate peer applies on `baseVersion` or row-wide `client_*` escalation.
  */
 export class SpreadsheetVersionCausalOwnershipRegistry {
   private readonly cells = new Map<CellKey, SpreadsheetVersionCausalCellRecord>()
@@ -94,33 +94,14 @@ export class SpreadsheetVersionCausalOwnershipRegistry {
     record.rowEscalated = false
   }
 
-  shouldSuppressRemotePaint(params: {
+  /** @deprecated Use `pendingLocalMutationCells` / work-queue overlay for in-flight typing only. */
+  shouldSuppressRemotePaint(_params: {
     sheetId: string
     rowId: string
     columnName: string
     remoteAppliedVersion: number
   }): boolean {
-    const remoteVersion = Math.trunc(params.remoteAppliedVersion)
-    const cell = this.cells.get(buildCellKey(params.sheetId, params.rowId, params.columnName))
-    if (cell && this.isActive(cell) && remoteVersion <= cell.baseVersion) {
-      return true
-    }
-    // Unresolved `client_*` handle: suppress remote paint for that handle on any column until
-    // `promoteLogicalRowHandle` clears the row-level escalation entry.
-    if (this.escalatedRows.has(buildRowKey(params.sheetId, params.rowId))) {
-      return true
-    }
-    // Per-cell escalated intents only suppress their own column — not peer edits on other
-    // columns of the same materialized row (concurrent B vs D typing).
-    for (const record of this.cells.values()) {
-      if (record.sheetId !== params.sheetId) continue
-      if (record.logicalRowHandle !== params.rowId) continue
-      if (!record.rowEscalated) continue
-      if (record.columnName !== params.columnName) continue
-      if (this.isActive(record)) {
-        return true
-      }
-    }
+    void _params
     return false
   }
 

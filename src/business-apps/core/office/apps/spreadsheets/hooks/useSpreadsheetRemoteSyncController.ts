@@ -207,15 +207,27 @@ export function useSpreadsheetRemoteSyncController(
           const targetSheet = params.appSheetsRef.current.find(sheet => sheet.id === targetSheetId)
           if (!targetSheet) return false
 
-          const unresolvedLocalWork = params.localWorkGuard?.hasUnresolvedLocalWorkForSheet(targetSheetId) ?? false
-          if (unresolvedLocalWork && !isColdStartSnapshotReload(seedPrefix)) {
+          // Snapshot reload must never clobber in-flight local work. Two
+          // distinct signals can hold pending cell values that are not yet on
+          // the server: (1) the intent journal / version-causal ownership
+          // (registered logical intents), and (2) the sheet work queue's
+          // queued cell batches (`hasPendingPersistenceForSheet`). A reload
+          // that reads only the journal would still overwrite values that are
+          // queued-but-not-yet-journaled. Cold-start reloads have no local work
+          // to protect, so they remain exempt.
+          const isColdStart = isColdStartSnapshotReload(seedPrefix)
+          const hasUnresolvedIntents = params.localWorkGuard?.hasUnresolvedLocalWorkForSheet(targetSheetId) ?? false
+          const hasPendingQueuedPersist = params.hasPendingPersistenceForSheet(targetSheetId)
+          if (!isColdStart && (hasUnresolvedIntents || hasPendingQueuedPersist)) {
             params.enqueueDiagnosticsTraceEvent({
               source: 'client',
               stage: 'client_snapshot_reload_skipped',
               severity: 'warning',
               traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
               payload: {
-                reason: 'unresolved-local-intents',
+                reason: hasUnresolvedIntents ? 'unresolved-local-intents' : 'pending-local-persist',
+                hasUnresolvedIntents,
+                hasPendingQueuedPersist,
                 targetSheetId,
                 seedPrefix
               }
@@ -239,7 +251,11 @@ export function useSpreadsheetRemoteSyncController(
               : (appSheetsWithRecoveredMeta.find(sheet => sheet.id === targetSheetId)?.columns ?? [])
           const serverColumns = Array.isArray(sheetMeta?.columns) ? (sheetMeta.columns as SpreadsheetColumn[]) : []
           const mergedColumns =
-            serverColumns.length > 0 ? mergeSheetColumnVisibilityFromLocal(serverColumns, localColumns) : localColumns
+            serverColumns.length > 0
+              ? mergeSheetColumnVisibilityFromLocal(serverColumns, localColumns, {
+                  preserveLocalVisibility: params.hasPendingPersistenceForSheet(targetSheetId)
+                })
+              : localColumns
           const recoveredSheetMetaWithVisibility =
             recoveredSheetMeta && mergedColumns.length > 0
               ? { ...recoveredSheetMeta, columns: mergedColumns }

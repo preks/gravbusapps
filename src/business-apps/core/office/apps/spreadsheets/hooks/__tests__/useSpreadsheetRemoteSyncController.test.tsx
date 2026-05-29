@@ -335,4 +335,118 @@ describe('useSpreadsheetRemoteSyncController', () => {
     expect(requestGridRefresh).toHaveBeenCalledTimes(1)
     jest.useRealTimers()
   })
+
+  describe('pending local persist guard', () => {
+    const buildControllerParams = (overrides: Record<string, unknown>) => {
+      const activeSheet = {
+        id: 'sheet-1',
+        name: 'Sheet 1',
+        viewType: 'table',
+        columns: [col('col-a', 'A', 0)],
+        views: [],
+        data: [],
+        settings: {}
+      } as any
+      return {
+        appId: 'app-1',
+        activeSheetId: 'sheet-1',
+        activeSheet,
+        preferUniverNativeSheetTabs: false,
+        entityEnabled: false,
+        activeSheetIdRef: { current: 'sheet-1' },
+        appSheetsRef: { current: [activeSheet] },
+        workbookSnapshotVersionRef: { current: 0 },
+        pendingCreatedSheetSelectionRef: { current: null },
+        createdSheetIdAliasesRef: { current: new Map() },
+        collaborationManagerRef: { current: null },
+        mutationFacadeRef: { current: null },
+        sheetsNeedingGridMaterializationRef: { current: new Map() },
+        snapshotSaveMetricsRef: { current: { fallbackLoads: 0 } },
+        spreadsheetSession: {
+          replaceSheetState: jest.fn(),
+          clearDirty: jest.fn(),
+          capturePersistedBaseline: jest.fn()
+        } as any,
+        enqueueDiagnosticsTraceEvent: jest.fn(),
+        activeTraceSessionRef: { current: null },
+        debugLog: jest.fn(),
+        rememberKnownSheetVersion: jest.fn(),
+        updateActiveSheetVersion: jest.fn(),
+        resolveKnownSheetVersion: jest.fn(() => 0),
+        syncSheetRowsIntoLocalState: jest.fn(),
+        setBootstrapSnapshot: jest.fn(),
+        requestGridRefresh: jest.fn(),
+        getKnownRowsForSheet: jest.fn(() => []),
+        hasPendingCellPersistence: jest.fn(() => false),
+        hasPendingPersistenceForSheet: jest.fn(() => false),
+        getActiveSessionVersion: jest.fn(() => 0),
+        sheetMetadataReloadEnabled: false,
+        scheduleSheetVersionRefreshFromApiRef: { current: jest.fn() },
+        conflictRecovery: {
+          onRecoverSuccess: jest.fn(),
+          onRecoverError: jest.fn(),
+          translatePersistRecoveryFailed: jest.fn(() => 'failed')
+        },
+        ...overrides
+      }
+    }
+
+    it('skips a non-cold-start reload while the work queue still has pending persist', async () => {
+      const getSheetSnapshot = jest.spyOn(SpreadsheetApiService, 'getSheetSnapshot')
+      const enqueueDiagnosticsTraceEvent = jest.fn()
+      const params = buildControllerParams({
+        enqueueDiagnosticsTraceEvent,
+        hasPendingPersistenceForSheet: jest.fn(() => true)
+      })
+
+      const { result } = renderHook(() => useSpreadsheetRemoteSyncController(params as any))
+
+      const reloaded = await result.current.reloadSheetFromCanonicalSnapshot('delta-catchup-version-gap', 'sheet-1')
+
+      expect(reloaded).toBe(false)
+      expect(getSheetSnapshot).not.toHaveBeenCalled()
+      expect(enqueueDiagnosticsTraceEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stage: 'client_snapshot_reload_skipped',
+          payload: expect.objectContaining({
+            reason: 'pending-local-persist',
+            hasPendingQueuedPersist: true,
+            targetSheetId: 'sheet-1'
+          })
+        })
+      )
+    })
+
+    it('still performs a cold-start reload even when pending persist is reported', async () => {
+      jest.spyOn(SpreadsheetApiService, 'getSheetSnapshot').mockResolvedValue({
+        sheet: {
+          id: 'sheet-1',
+          name: 'Sheet 1',
+          viewType: 'table',
+          columns: [col('col-a', 'A', 0)],
+          views: [],
+          data: [],
+          settings: {}
+        },
+        rows: [{ id: 'row-1', data: { A: 1 } }],
+        version: 3
+      } as any)
+      jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
+        version: 3,
+        snapshot: null,
+        updatedAt: null
+      } as any)
+
+      const params = buildControllerParams({
+        hasPendingPersistenceForSheet: jest.fn(() => true)
+      })
+
+      const { result } = renderHook(() => useSpreadsheetRemoteSyncController(params as any))
+
+      const reloaded = await result.current.reloadSheetFromCanonicalSnapshot('workbook-bootstrap', 'sheet-1')
+
+      expect(reloaded).toBe(true)
+      expect(SpreadsheetApiService.getSheetSnapshot).toHaveBeenCalledTimes(1)
+    })
+  })
 })

@@ -20,16 +20,36 @@ describe('spreadsheetLocalPersistChunks', () => {
     expect(classifyLocalPersistKindFromChunk([op('clear_cell')])).toBe('clear')
   })
 
-  it('splits mixed add_rows, range and style operations into ordered persist chunks', () => {
-    const chunks = splitUnifiedOperationsByPersistKind([op('add_rows'), op('set_range'), op('set_style')], 100_000)
+  it('keeps add_rows with dependent set_range in one structural chunk; style stays separate', () => {
+    const chunks = splitUnifiedOperationsByPersistKind(
+      [
+        op('add_rows', { rows: [{ _clientRowId: 'client_row_1', A: 1 }] }),
+        op('set_range', {
+          cells: [{ rowRef: { kind: 'clientHandle', clientRowId: 'client_row_1' }, columnName: 'B', value: 2 }]
+        }),
+        op('set_style')
+      ],
+      100_000
+    )
 
-    expect(chunks).toHaveLength(3)
-    expect(chunks.map(chunk => chunk.kind)).toEqual(['structural', 'rangeValue', 'style'])
-    expect(chunks.map(chunk => chunk.operations.map(operation => operation.type))).toEqual([
-      ['add_rows'],
-      ['set_range'],
-      ['set_style']
-    ])
+    expect(chunks).toHaveLength(2)
+    expect(chunks.map(chunk => chunk.kind)).toEqual(['structural', 'style'])
+    expect(chunks[0]?.operations.map(operation => operation.type)).toEqual(['add_rows', 'set_range'])
+    expect(chunks[1]?.operations.map(operation => operation.type)).toEqual(['set_style'])
+  })
+
+  it('merges consecutive add_rows-only chunks into one structural group', () => {
+    const chunks = splitUnifiedOperationsByPersistKind(
+      [
+        op('add_rows', { rows: [{ _clientRowId: 'client_a' }] }),
+        op('add_rows', { rows: [{ _clientRowId: 'client_b' }] })
+      ],
+      100_000
+    )
+
+    expect(chunks).toHaveLength(1)
+    expect(chunks[0]?.kind).toBe('structural')
+    expect(chunks[0]?.operations.map(operation => operation.type)).toEqual(['add_rows', 'add_rows'])
   })
 
   it('classifies merge_ranges as workbookFeature', () => {

@@ -52,6 +52,8 @@ export interface UniverSheetGridProps {
   initialSnapshot?: Record<string, unknown> | null
   snapshotSeed?: string
   authoritativeDataSyncToken?: number
+  /** One-shot explicit cells to paint after session apply (consumed by authoritative grid sync). */
+  authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
@@ -361,5 +363,5 @@ export interface UniverSheetGridHandle
 export type UniverSheetGridCollaborationBridgeHandle = UniverSheetGridRemoteApplyHandle &
   UniverSheetGridAuthoritativeHandle &
   UniverSheetGridDimensionsHandle &
-  Pick<UniverSheetGridSnapshotHandle, 'getWorkbookSnapshot'> &
+  Pick<UniverSheetGridSnapshotHandle, 'getWorkbookSnapshot' | 'getVisibleRangeValues'> &
   Pick<UniverSheetGridWorksheetAdminHandle, 'setWorksheetVisibility'>

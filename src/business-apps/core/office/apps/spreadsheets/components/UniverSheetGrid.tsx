@@ -66,7 +66,6 @@ import {
   scheduleReleaseRemoteStructuralApplyGuard,
   shouldIgnoreStructuralRowCommandPersistence
 } from './univerRemoteStructuralApplyGuard'
-import { resolveWorksheetGridBounds } from './univerGridRangeSelection'
 import { useUniverAuthoritativeGridSync } from './useUniverAuthoritativeGridSync'
 import { useUniverRemoteApply } from './useUniverRemoteApply'
 import { useUniverReadOnlyInteraction } from './useUniverReadOnlyInteraction'
@@ -1843,7 +1842,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       authoritativeReapplySeed,
       collabBulkApplyIdleNonce,
       univerAPIRef,
-      lastSyncedGridCellSignaturesRef,
+      authoritativePaintCellsRef: props.authoritativePaintCellsRef,
       lastSyncedGridRowCountRef,
       lastSyncedGridColumnCountRef,
       lastProcessedAuthoritativeDataSyncTokenRef,
@@ -1853,23 +1852,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       getWorkbookSnapshotRef,
       pendingAuthoritativeRegionRef,
       pendingForcedAuthoritativeReapplyRef,
-      versionCausalOwnershipRef: props.versionCausalOwnershipRef,
-      resolveAuthoritativeAppliedVersion: () => Number(sheet.version ?? 0),
       pendingLocalMutationCellsRef: props.pendingLocalMutationCellsRef,
       applyRemoteCellUpdate,
-      applyRemoteCellUpdatesBulk,
-      resolveActiveWorksheetBounds: () => {
-        const api = univerAPIRef.current as {
-          getActiveWorkbook?: () => {
-            getActiveSheet?: () => unknown
-            getSheetBySheetId?: (id: string) => unknown
-          } | null
-        } | null
-        const workbook = api?.getActiveWorkbook?.()
-        if (!workbook) return null
-        const worksheet = workbook.getSheetBySheetId?.(sheet.id) ?? workbook.getActiveSheet?.() ?? null
-        return resolveWorksheetGridBounds(worksheet)
-      }
+      applyRemoteCellUpdatesBulk
     })
 
     useUniverGridSnapshotColumnAndTimerEffects({

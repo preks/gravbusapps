@@ -82,21 +82,6 @@ export function isGridCellLocallyOwned(
     }
   }
 
-  const ownershipRegistry = context.versionCausalOwnership
-  if (ownershipRegistry && logicalRowHandle && columnName) {
-    const remoteAppliedVersion = Math.max(0, Math.trunc(context.resolveKnownSheetVersion?.(context.sheetId) ?? 0))
-    if (
-      ownershipRegistry.shouldSuppressRemotePaint({
-        sheetId: context.sheetId,
-        rowId: logicalRowHandle,
-        columnName,
-        remoteAppliedVersion
-      })
-    ) {
-      return true
-    }
-  }
-
   return false
 }
 

@@ -93,10 +93,10 @@ export interface UseSpreadsheetSheetWorkQueueResult {
   queueClientAppliedVersionRef: MutableRefObject<Record<string, number | null>>
 }
 
-const DEFAULT_COLLAB_IDLE_MS = 60
-const DEFAULT_SOLO_IDLE_MS = 120
-const DEFAULT_FLUSH_MAX_WAIT_MS_SOLO = 500
-const DEFAULT_FLUSH_MAX_WAIT_MS_COLLAB = 1200
+const DEFAULT_COLLAB_IDLE_MS = 800
+const DEFAULT_SOLO_IDLE_MS = 800
+const DEFAULT_FLUSH_MAX_WAIT_MS_SOLO = 2000
+const DEFAULT_FLUSH_MAX_WAIT_MS_COLLAB = 2000
 const DEFAULT_SUBMITTED_TTL_MS = 10_000
 
 export const useSpreadsheetSheetWorkQueue = (

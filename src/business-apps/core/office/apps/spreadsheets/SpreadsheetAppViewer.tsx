@@ -27,6 +27,7 @@ import { useSpreadsheetSessionBinding } from './hooks/useSpreadsheetSessionBindi
 import { useSpreadsheetSessionRowsRef } from './hooks/useSpreadsheetSessionRowsRef'
 import { useSpreadsheetMutationPipeline } from './hooks/useSpreadsheetMutationPipeline'
 import { resolveBackendDirtyRegionsToAuthoritativeRegions } from './utils/spreadsheetDirtyRegions'
+import { computeAuthoritativeRegionForMaterializedRows } from './utils/spreadsheetAuthoritativeRegion'
 import { useSpreadsheetSheetWorkQueue } from './hooks/useSpreadsheetSheetWorkQueue'
 import { splitUnifiedOperationsByPersistKind } from './core/spreadsheetLocalPersistChunks'
 
@@ -582,6 +583,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     commitLocalSheetDataRef,
     canonicalActiveSheetRowsSourceRef,
     authoritativeDataSyncToken,
+    authoritativePaintCellsRef,
     setActiveSheetIdWithPeerCache,
     getKnownRowsForSheet,
     getActiveSessionVersion,
@@ -1901,12 +1903,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     shouldIgnoreReceivedOperation: shouldIgnoreRecentlyCommittedOperation
   })
 
-  emitDimensionSyncRef.current = (payload: CellDimensionsPayload) => {
-    collaboration.emitOperation({
-      type: 'dimension_sync',
-      data: payload,
-      broadcastOnly: true
-    })
+  emitDimensionSyncRef.current = () => {
+    // Dimensions persist via HTTP batch (`set_row_height` / `set_col_width`) and
+    // fan-out through `batch_operations` — no P2P `dimension_sync` relay.
   }
 
   collaborationManagerRef.current = collaboration.manager
@@ -1987,6 +1986,34 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     getActiveSessionVersion,
     workbookSnapshotVersionRef
   ])
+
+  /** Dev/MCP read helpers (Playwright Gate 3). Cell edits stay on the Univer canvas. */
+  useEffect(() => {
+    if (!isSpreadsheetAppsDebugEnabled()) return
+    type McpHost = typeof globalThis & {
+      __spreadsheetMcpTraceBuffer?: Array<Record<string, unknown>>
+      __spreadsheetCollabE2e?: {
+        clearTraceBuffer: () => void
+        getTraceBuffer: () => Array<Record<string, unknown>>
+        readGridValues: (rowCount: number, colCount: number) => Record<number, Record<number, unknown>> | null
+        getActiveCellA1: () => string | null
+      }
+    }
+    const host = globalThis as McpHost
+    host.__spreadsheetMcpTraceBuffer = host.__spreadsheetMcpTraceBuffer ?? []
+    host.__spreadsheetCollabE2e = {
+      clearTraceBuffer: () => {
+        host.__spreadsheetMcpTraceBuffer = []
+      },
+      getTraceBuffer: () => [...(host.__spreadsheetMcpTraceBuffer ?? [])],
+      readGridValues: (rowCount, colCount) =>
+        spreadsheetGridRef.current?.getVisibleRangeValues?.(rowCount, colCount) ?? null,
+      getActiveCellA1: () => spreadsheetGridRef.current?.getActiveCellReference?.() ?? null
+    }
+    return () => {
+      delete host.__spreadsheetCollabE2e
+    }
+  }, [activeSheetId])
 
   useEffect(() => {
     const targetSheetId = activeSheetId
@@ -2301,9 +2328,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       operations: SpreadsheetBatchOperation[],
       response: SpreadsheetBatchOperationResponse
     ): void => {
-      void operations
       if (!spreadsheetSession.getSheetState(targetSheetId)) return
-      spreadsheetSession.capturePersistedBaseline(targetSheetId)
+      // Persisted baseline must reflect ONLY server-acked state. Cloning the whole
+      // session (capturePersistedBaseline) would absorb optimistic, un-acked edits
+      // that are painted into the session before their batch is sent (e.g. the rest of
+      // an autofill/fill-down range). That falsely marks those cells durable, so the
+      // outbound planner's getPersistedSignatureForCell drops their value writes and
+      // only the first cell ever reaches the API. Scope the baseline to the columns the
+      // server actually acknowledged in this response's operations.
+      spreadsheetSession.capturePersistedBaselineForOperations(targetSheetId, operations)
       const dirtyRegions = response.dirtyRegions ?? []
       const isActiveTarget = areCanonicalSheetIdsEqual(
         targetSheetId,
@@ -2787,31 +2820,29 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       )
       if (isActiveTarget) {
         spreadsheetGridRef.current?.syncGridConversionContext?.(spreadsheetColumnsForGrid, rows)
-        const visibleColumnCount = spreadsheetColumnsForGrid.filter(column => column.isVisible !== false).length
-        const boundedGridRows = meta.createdGridRowIndices.filter(
-          rowIndex => Number.isInteger(rowIndex) && rowIndex >= 0
-        )
-        if (boundedGridRows.length > 0 && visibleColumnCount > 0) {
-          const minRow = Math.min(...boundedGridRows)
-          const maxRow = Math.max(...boundedGridRows)
-          const region = {
-            minRow,
-            maxRow,
-            minCol: 0,
-            maxCol: visibleColumnCount - 1
-          }
+        const region = computeAuthoritativeRegionForMaterializedRows({
+          createdGridRowIndices: meta.createdGridRowIndices,
+          rows,
+          columns: spreadsheetColumnsForGrid,
+          createdRows: meta.createdRows,
+          sourceUniverRows: meta.sourceUniverRows
+        })
+        if (region) {
+          const regionCellEstimate = (region.maxRow - region.minRow + 1) * (region.maxCol - region.minCol + 1)
           globalThis.setTimeout(() => {
             if (!areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
               return
             }
-            spreadsheetGridRef.current?.forceAuthoritativeReapply?.(region, {
+            collaborationCallbacks.forceGridReapply?.(targetSheetId, region, {
               clearAllSignatures: false,
-              preferBulk: true
+              preferBulk: true,
+              reason: 'row_materialization'
             })
             logRowIdentityDiagnostics('row_materialization_bounded_authoritative_reapply_requested', {
               targetSheetId,
               region,
-              createdGridRowIndices: boundedGridRows
+              regionCellEstimate,
+              createdGridRowIndices: meta.createdGridRowIndices
             })
           }, 0)
         }
@@ -3733,6 +3764,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     tableUniverSnapshot: tableUniverSnapshot as any,
     tableSnapshotSeed: tableSnapshotSeed as any,
     authoritativeDataSyncToken: authoritativeDataSyncToken as any,
+    authoritativePaintCellsRef,
     workbookInstanceKey: tableWorkbookInstanceKey as any,
     pendingLocalMutationCellsRef,
     spreadsheetIntentJournalRef,

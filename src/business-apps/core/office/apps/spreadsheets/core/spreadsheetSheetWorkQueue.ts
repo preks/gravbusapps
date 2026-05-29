@@ -39,15 +39,20 @@ import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnost
 import { detectTemporaryRowIdsInKnownRowIdFields } from '../utils/spreadsheetUnifiedBatchSubmitUtils'
 import type { SpreadsheetMutationBatchSubmit, SpreadsheetMutationTraceMeta } from './SpreadsheetMutationFacade'
 import { assertLocalPersistIdentityBarrier } from '../utils/spreadsheetIdentityBarrier'
+import {
+  isAddRowsOnlyOperationList,
+  isNewRowMaterializationBundle,
+  mergeAddRowsOperationsInPlace
+} from '../utils/spreadsheetNewRowPersistBundle'
 
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
 
 export type LocalPersistKind =
-  // Coalescable: simple `set_cell` value writes only.
+  // Coalescable fast-path value writes (`set_cell` legacy batches).
   | 'cellValue'
-  // Atomic boundaries — never coalesce across these.
+  // Coalescable fast-path value writes (`set_range` from Univer / mutation plan).
   | 'rangeValue'
   | 'paste'
   | 'style'
@@ -225,6 +230,7 @@ export interface SheetWorkQueueDeps {
    *    cannot spin forever).
    */
   getMaxQueueRetryAttempts?: () => number
+  getMaxOpsPerBatch?: () => number
   /**
    * Optional structural recovery hook invoked **before** a 409 fast-path
    * retry. It should fetch and apply any pending sheet deltas (so the
@@ -270,6 +276,10 @@ const LOCAL_OLDEST_WAIT_NONE = 0
 const isFastPathLocalPersistKind = (kind: LocalPersistKind): boolean =>
   kind === 'cellValue' || kind === 'rangeValue' || kind === 'clear'
 
+/** Fast-path cell writes that share the idle coalesce window (FE-B1 / FE-B3). */
+const isCoalescableFastPathPersistKind = (kind: LocalPersistKind): boolean =>
+  kind === 'cellValue' || kind === 'rangeValue' || kind === 'clear'
+
 const chainForLocalPersistKind = (
   deps: SheetWorkQueueDeps,
   kind: LocalPersistKind
@@ -311,15 +321,25 @@ const submitMutationBatchForKind = (
 const groupReferencesTemporaryRowIds = (operations: readonly SpreadsheetBatchOperation[]): boolean =>
   detectTemporaryRowIdsInKnownRowIdFields(operations).length > 0
 
-const isAddRowsOnlyOperationList = (operations: readonly SpreadsheetBatchOperation[]): boolean => {
-  if (operations.length === 0) return false
-  for (const op of operations) {
-    if (String((op as { type?: unknown }).type ?? '') !== 'add_rows') {
-      return false
-    }
-  }
-  return true
-}
+/** `add_rows` (+ optional dependent cell ops on client handles) share the idle window. */
+const isCoalescableAddRowsBundle = (
+  kind: LocalPersistKind,
+  operations: readonly SpreadsheetBatchOperation[]
+): boolean =>
+  kind === 'structural' && (isAddRowsOnlyOperationList(operations) || isNewRowMaterializationBundle(operations))
+
+const isCoalescableStylePersistKind = (kind: LocalPersistKind): boolean => kind === 'style'
+
+/** Groups that share the idle coalesce timer (must not be cancelled by trailing style ops). */
+const usesIdleCoalesceWindow = (kind: LocalPersistKind, operations: readonly SpreadsheetBatchOperation[]): boolean =>
+  isCoalescableFastPathPersistKind(kind) ||
+  isCoalescableAddRowsBundle(kind, operations) ||
+  isCoalescableStylePersistKind(kind)
+
+const headGroupUsesIdleCoalesceWindow = (head: LocalPersistInput): boolean =>
+  isCoalescableFastPathPersistKind(head.kind) ||
+  isCoalescableAddRowsBundle(head.kind, head.operations) ||
+  isCoalescableStylePersistKind(head.kind)
 
 /**
  * Classify whether a submit failure is worth requeueing inside the queue.
@@ -342,11 +362,10 @@ const isAddRowsOnlyOperationList = (operations: readonly SpreadsheetBatchOperati
  *   the retry cap. This unblocks downstream `set_range(rowRef=clientHandle)`
  *   ops that would otherwise fail with `unknown_client_row_handle` because
  *   the `clientRowId → UUID` mapping never arrived.
- * - 409 on any other conservative kind (structural insert/delete/move,
- *   column ops, paste, style, formula, undoRedo, unknownAtomic): terminal.
- *   Their semantics depend on a grid layout that may have shifted in
- *   incompatible ways; a blind resubmit would silently land at the wrong
- *   index. Surface to higher-level handling.
+ * - 409 on `paste`: retryable after `requestStructuralRecovery` (peer row
+ *   shifts while paste is in flight). Other conservative kinds (structural
+ *   insert/delete/move, column ops, style, formula, undoRedo, unknownAtomic):
+ *   terminal — blind resubmit would land at the wrong index.
  * - Plain `Error`s with no `status`: terminal.
  */
 const isQueueRetryableSubmitFailure = (
@@ -378,8 +397,25 @@ const isQueueRetryableSubmitFailure = (
     // shifter actually intersects a target position. After a structural
     // recovery the resubmit lands.
     if (isAddRowsOnlyOperationList(operations)) return true
+    // Paste batches can be retried after structural catch-up when a peer
+    // shifted row indices between baseVersion and submit (Phase 2 collab).
+    if (kind === 'paste') return true
   }
   return false
+}
+
+const DEFAULT_MAX_OPS_PER_BATCH = 200
+
+const chunkBatchOperations = (
+  operations: readonly SpreadsheetBatchOperation[],
+  maxOps: number
+): SpreadsheetBatchOperation[][] => {
+  if (operations.length <= maxOps) return [operations as SpreadsheetBatchOperation[]]
+  const chunks: SpreadsheetBatchOperation[][] = []
+  for (let offset = 0; offset < operations.length; offset += maxOps) {
+    chunks.push(operations.slice(offset, offset + maxOps) as SpreadsheetBatchOperation[])
+  }
+  return chunks
 }
 
 const readErrorReason = (error: unknown): string | null => {
@@ -908,19 +944,44 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     return count
   }
 
-  const canCoalesceWithLastGroup = (state: PerSheetState, kind: LocalPersistKind): boolean => {
-    if (kind !== 'cellValue' && kind !== 'workbookFeature') return false
-    const last = state.localGroups[state.localGroups.length - 1]
-    if (!last) return false
-    return last.kind === kind
+  const canCoalesceGroups = (existing: LocalPersistInput, incoming: LocalPersistInput): boolean => {
+    if (incoming.kind === 'workbookFeature') {
+      return existing.kind === 'workbookFeature'
+    }
+    if (isCoalescableFastPathPersistKind(incoming.kind)) {
+      return isCoalescableFastPathPersistKind(existing.kind)
+    }
+    if (isCoalescableAddRowsBundle(incoming.kind, incoming.operations)) {
+      return isCoalescableAddRowsBundle(existing.kind, existing.operations)
+    }
+    if (isCoalescableStylePersistKind(incoming.kind)) {
+      return isCoalescableStylePersistKind(existing.kind)
+    }
+    return false
   }
 
-  const mergeIntoLastGroup = (state: PerSheetState, item: LocalPersistInput): void => {
-    const last = state.localGroups[state.localGroups.length - 1]
-    if (!last) {
-      state.localGroups.push(item)
-      return
+  /**
+   * Univer often emits `set_range` then `set_style` per keystroke. Merging only into the
+   * tail group would alternate range/style groups and flush each keystroke — scan for an
+   * earlier group of the same coalesce family while the idle window is open.
+   */
+  const findCoalesceMergeGroupIndex = (state: PerSheetState, item: LocalPersistInput): number => {
+    const scanAllMatchingGroupsWhileCoalescing =
+      state.coalesceTimer != null && (item.kind === 'rangeValue' || isCoalescableStylePersistKind(item.kind))
+    if (scanAllMatchingGroupsWhileCoalescing) {
+      for (let index = state.localGroups.length - 1; index >= 0; index -= 1) {
+        const candidate = state.localGroups[index]
+        if (!candidate) continue
+        if (canCoalesceGroups(candidate, item)) return index
+      }
+      return -1
     }
+    const last = state.localGroups[state.localGroups.length - 1]
+    if (!last || !canCoalesceGroups(last, item)) return -1
+    return state.localGroups.length - 1
+  }
+
+  const mergeIntoGroup = (target: LocalPersistInput, item: LocalPersistInput): void => {
     // Latest write wins per cellKey within the merged group.
     const merged = new Map<string, SpreadsheetBatchOperation>()
     const anonOps: SpreadsheetBatchOperation[] = []
@@ -935,18 +996,22 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
         }
       }
     }
-    ingest(last.operations)
+    ingest(target.operations)
     ingest(item.operations)
-    last.operations = [...anonOps, ...Array.from(merged.values())]
+    let mergedOperations = [...anonOps, ...Array.from(merged.values())]
+    if (isCoalescableAddRowsBundle(target.kind, mergedOperations)) {
+      mergedOperations = mergeAddRowsOperationsInPlace(mergedOperations)
+    }
+    target.operations = mergedOperations
     if (item.ownedCellKeys) {
-      const existing = new Set(last.ownedCellKeys ?? [])
+      const existing = new Set(target.ownedCellKeys ?? [])
       for (const k of item.ownedCellKeys) existing.add(k)
-      last.ownedCellKeys = Array.from(existing)
+      target.ownedCellKeys = Array.from(existing)
     }
     if (item.protectedCellKeys) {
-      const existing = new Set(last.protectedCellKeys ?? [])
+      const existing = new Set(target.protectedCellKeys ?? [])
       for (const k of item.protectedCellKeys) existing.add(k)
-      last.protectedCellKeys = Array.from(existing)
+      target.protectedCellKeys = Array.from(existing)
     }
   }
 
@@ -1022,7 +1087,9 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     // If coalesce timer is active and head group is coalescable, let timer fire.
     if (state.coalesceTimer != null) {
       const head = state.localGroups[0]
-      if (head?.kind === 'cellValue') return
+      if (head && headGroupUsesIdleCoalesceWindow(head)) {
+        return
+      }
       // Atomic-boundary head should not wait on timer — fall through to flush.
       cancelCoalesceTimer(state)
       state.coalesceFirstScheduledAt = null
@@ -1197,18 +1264,27 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
         },
         { traceId: group.traceId }
       )
-      const response: SpreadsheetBatchOperationResponse = await submitMutationBatchForKind(
-        deps,
-        group.kind
-      )({
-        sheetId: group.sheetId,
-        operations: group.operations,
-        batchIdPrefix: group.batchIdPrefix,
-        traceMeta: group.traceMeta,
-        // Wire baseVersion matches the value the queue gate authorized
-        // (no TOCTOU). For fast path this is the freshly refreshed base.
-        baseVersion: wireBaseVersion
-      })
+      const maxOpsPerBatch = Math.max(1, Math.trunc(deps.getMaxOpsPerBatch?.() ?? DEFAULT_MAX_OPS_PER_BATCH))
+      const operationChunks = chunkBatchOperations(group.operations, maxOpsPerBatch)
+      let response: SpreadsheetBatchOperationResponse | null = null
+      let submitBaseVersion = wireBaseVersion
+      for (const operationChunk of operationChunks) {
+        response = await submitMutationBatchForKind(
+          deps,
+          group.kind
+        )({
+          sheetId: group.sheetId,
+          operations: operationChunk,
+          batchIdPrefix: group.batchIdPrefix,
+          traceMeta: group.traceMeta,
+          baseVersion: submitBaseVersion
+        })
+        submitBaseVersion = response.newVersion
+        applyResponseAwareOwnership(state, { ...group, operations: operationChunk }, response)
+      }
+      if (!response) {
+        throw new Error('sheet_work_queue_submit_missing_response')
+      }
       state.lastNewVersion = response.newVersion
       // Queue is sole writer of queueClientAppliedVersion for local-submit
       // case. Monotonic max — late responses cannot downgrade a version
@@ -1217,7 +1293,6 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
         state.queueClientAppliedVersion = response.newVersion
       }
       state.syncState = 'idle'
-      applyResponseAwareOwnership(state, group, response)
       madeProgress = true
       outcome = 'submitted'
       debug('local_group_submitted', {
@@ -1300,7 +1375,9 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
         // remote lane via `requestSheetDeltaCatchUp`, which serializes with
         // the local retry through the operation queue chain.
         const shouldRunStructuralRecovery =
-          errorStatus === 409 && (isFastPath || isAddRowsOnly) && deps.requestStructuralRecovery != null
+          errorStatus === 409 &&
+          (isFastPath || isAddRowsOnly || group.kind === 'paste') &&
+          deps.requestStructuralRecovery != null
         state.localGroups.unshift({ ...group, retryAttempt: attempt + 1 })
         setLocalGroupCellState(state, group, 'pending')
         state.syncState = 'retrying'
@@ -1380,8 +1457,14 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     }
     const state = ensureSheet(sheetId)
     setLocalGroupCellState(state, item, 'pending')
-    if (canCoalesceWithLastGroup(state, item.kind)) {
-      mergeIntoLastGroup(state, item)
+    const mergeGroupIndex = findCoalesceMergeGroupIndex(state, item)
+    if (mergeGroupIndex >= 0) {
+      const target = state.localGroups[mergeGroupIndex]
+      if (target) {
+        mergeIntoGroup(target, item)
+      } else {
+        state.localGroups.push(item)
+      }
     } else {
       state.localGroups.push(item)
     }
@@ -1403,11 +1486,20 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
       },
       { traceId: item.traceId }
     )
-    // Atomic boundaries do not wait on coalesce window (workbookFeature may coalesce in-group only).
-    if (item.kind !== 'cellValue' && item.kind !== 'workbookFeature') {
-      cancelCoalesceTimer(state)
-      state.coalesceFirstScheduledAt = null
-      // Promote owned cells to scheduled-ish (we don't have a distinct state besides pending).
+    // Conservative structural (non add_rows bundle) flushes immediately unless a cell-write
+    // coalesce window is already open — do not cancel that timer when Univer emits a
+    // trailing `set_style` after each `set_range` keystroke.
+    if (!usesIdleCoalesceWindow(item.kind, item.operations) && item.kind !== 'workbookFeature') {
+      const head = state.localGroups[0]
+      const preserveCoalesceTimer =
+        isCoalescableStylePersistKind(item.kind) &&
+        state.coalesceTimer != null &&
+        head != null &&
+        headGroupUsesIdleCoalesceWindow(head)
+      if (!preserveCoalesceTimer) {
+        cancelCoalesceTimer(state)
+        state.coalesceFirstScheduledAt = null
+      }
       scheduleLocalFlushIfPossible(state)
       return
     }
@@ -1415,7 +1507,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
       scheduleLocalFlushIfPossible(state)
       return
     }
-    // cellValue: open / extend coalesce window unless persist-ready blocked.
+    // Fast-path values, add_rows bundles, and incidental per-keystroke style share idle window.
     if (state.coalesceFirstScheduledAt == null) {
       state.coalesceFirstScheduledAt = now()
     }

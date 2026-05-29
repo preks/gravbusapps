@@ -63,7 +63,13 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
   onRowsMaterializedContextSync?: (
     sheetId: string,
     rows: Record<string, unknown>[],
-    meta: { affectedUiRowIds: string[]; createdGridRowIndices: number[]; isActiveTarget: boolean }
+    meta: {
+      affectedUiRowIds: string[]
+      createdGridRowIndices: number[]
+      isActiveTarget: boolean
+      createdRows: Record<string, unknown>[]
+      sourceUniverRows: Record<string, unknown>[]
+    }
   ) => void
   onRowIdentityDiagnostics?: (stage: string, payload: Record<string, unknown>) => void
   pendingCreatedSheetSelectionRef: MutableRefObject<{

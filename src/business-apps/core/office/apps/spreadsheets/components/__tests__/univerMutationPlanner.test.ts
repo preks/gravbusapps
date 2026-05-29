@@ -27,6 +27,85 @@ describe('univerMutationPlanner', () => {
     columnIndexToId: new Map([[0, 'col-name']])
   } as any
 
+  it('REPRO autofill: plans value writes for every cell of a 12-cell fill over fresh blank rows', () => {
+    const fillColumns = [
+      { id: 'col-a', name: 'A', label: 'A', type: 'text', isVisible: true, order: 0 },
+      { id: 'col-b', name: 'B', label: 'B', type: 'text', isVisible: true, order: 1 },
+      { id: 'col-c', name: 'C', label: 'C', type: 'text', isVisible: true, order: 2 }
+    ] as any
+    const fillCtx = {
+      rowIndexToId: new Map([
+        [0, 'row-0'],
+        [1, 'row-1'],
+        [2, 'row-2'],
+        [3, 'row-3']
+      ]),
+      columnIndexToName: new Map([
+        [0, 'A'],
+        [1, 'B'],
+        [2, 'C']
+      ]),
+      columnIndexToId: new Map([
+        [0, 'col-a'],
+        [1, 'col-b'],
+        [2, 'col-c']
+      ])
+    } as any
+    const currentData = [
+      { _id: 'row-0', A: '', B: '', C: '' },
+      { _id: 'row-1', A: '', B: '', C: '' },
+      { _id: 'row-2', A: '', B: '', C: '' },
+      { _id: 'row-3', A: '', B: '', C: '' }
+    ]
+    const matrix: Record<number, Record<number, { v: number }>> = {}
+    let counter = 1
+    for (let r = 0; r < 4; r += 1) {
+      matrix[r] = {}
+      for (let c = 0; c < 3; c += 1) {
+        matrix[r][c] = { v: counter }
+        counter += 1
+      }
+    }
+
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-fill',
+      intent: 'autofill',
+      currentData,
+      contextColumns: fillColumns,
+      ctx: fillCtx,
+      ranges: [{ startRow: 0, endRow: 3, startColumn: 0, endColumn: 2 }],
+      explicitPayloadAbsoluteCellValue: matrix as any,
+      worksheetCellValue: matrix as any,
+      mergedCellValue: matrix as any,
+      workbookSnapshot: null,
+      isRowPersistedAtGridIndex: () => true
+    })
+
+    expect(envelope.diagnostics.targetCellCount).toBe(12)
+    expect(envelope.diagnostics.plannedValueSetCount).toBe(12)
+
+    // Regression guard: a multi-cell write whose selection is (incorrectly) passed as a
+    // merged region must NOT collapse to a single master cell. Real merges still drop slaves;
+    // the autofill/paste selection range must never be treated as a merge.
+    const envelopeWithSelectionAsMerge = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-fill-merge-guard',
+      intent: 'autofill',
+      currentData,
+      contextColumns: fillColumns,
+      ctx: fillCtx,
+      ranges: [{ startRow: 0, endRow: 3, startColumn: 0, endColumn: 2 }],
+      explicitPayloadAbsoluteCellValue: matrix as any,
+      worksheetCellValue: matrix as any,
+      mergedCellValue: matrix as any,
+      workbookSnapshot: null,
+      isRowPersistedAtGridIndex: () => true,
+      liveMergeRanges: undefined
+    })
+    expect(envelopeWithSelectionAsMerge.diagnostics.plannedValueSetCount).toBe(12)
+  })
+
   it('keeps carried style ids out of plain value clears', () => {
     const envelope = buildAuthoritativeMutationEnvelope({
       sheetId: 'sheet-1',

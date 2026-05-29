@@ -9,7 +9,7 @@ import {
 } from '../utils/spreadsheetRowSlotTransforms'
 import { getCanonicalRowId, getClientRowIdentity, rowMatchesRemoteId } from '../utils/spreadsheetRowIdentity'
 import { getFiniteNonNegativeGridRowIndex, getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
-import { getKnownCellValueCount } from './spreadsheetSnapshotWorkbookUtils'
+import { mergeDuplicateRowsPreferIncoming } from '../utils/spreadsheetViewerRows'
 import type { SpreadsheetViewerRow } from './SpreadsheetSession'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -55,15 +55,6 @@ const getDurableRowIdentity = (row: SpreadsheetViewerRow): string => {
 const getMergeableGridRowIndex = (row: SpreadsheetViewerRow): number | undefined =>
   getDurableRowIdentity(row) ? getFiniteNonNegativeGridRowIndex(row) : undefined
 
-const mergeRowsKeepingRicherValues = (
-  existing: SpreadsheetViewerRow,
-  row: SpreadsheetViewerRow
-): SpreadsheetViewerRow => {
-  const existingCount = getKnownCellValueCount(existing)
-  const nextCount = getKnownCellValueCount(row)
-  return nextCount >= existingCount ? { ...existing, ...row } : { ...row, ...existing }
-}
-
 const mergeDuplicateClientRows = (rows: SpreadsheetViewerRow[]): SpreadsheetViewerRow[] => {
   const mergedByClientId = new Map<string, SpreadsheetViewerRow>()
   const mergedByDurableId = new Map<string, SpreadsheetViewerRow>()
@@ -94,7 +85,7 @@ const mergeDuplicateClientRows = (rows: SpreadsheetViewerRow[]): SpreadsheetView
       continue
     }
 
-    const merged = mergeRowsKeepingRicherValues(existing, row)
+    const merged = mergeDuplicateRowsPreferIncoming(existing, row)
     const existingIndex = output.indexOf(existing)
     if (existingIndex >= 0) {
       output[existingIndex] = merged

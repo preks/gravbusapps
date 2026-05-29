@@ -339,6 +339,60 @@ describe('createSpreadsheetSession', () => {
     ])
   })
 
+  it('does not absorb optimistic un-acked fill cells into the persisted baseline (autofill data-loss guard)', () => {
+    const session = createSpreadsheetSession({
+      appId: 'app-1',
+      activeSheetId: 'sheet-1',
+      sheets: [
+        {
+          sheet: {
+            id: 'sheet-1',
+            name: 'Sheet 1',
+            columns: [
+              { id: 'col-1', name: 'A', type: 'text', label: 'A' },
+              { id: 'col-2', name: 'B', type: 'text', label: 'B' },
+              { id: 'col-3', name: 'C', type: 'text', label: 'C' }
+            ],
+            data: [{ _id: 'row-1', _rowUuid: 'row-1', _clientRowId: 'client-row-1', A: '', B: '', C: '' }]
+          } as never
+        }
+      ]
+    })
+
+    // Server-acked starting point: all blank.
+    session.capturePersistedBaseline('sheet-1')
+
+    // Autofill paints all three cells optimistically into the session BEFORE any ack.
+    session.replaceSheetState(
+      {
+        id: 'sheet-1',
+        name: 'Sheet 1',
+        columns: [
+          { id: 'col-1', name: 'A', type: 'text', label: 'A' },
+          { id: 'col-2', name: 'B', type: 'text', label: 'B' },
+          { id: 'col-3', name: 'C', type: 'text', label: 'C' }
+        ],
+        data: [{ _id: 'row-1', _rowUuid: 'row-1', _clientRowId: 'client-row-1', A: 'fill', B: 'fill', C: 'fill' }]
+      } as never,
+      [{ _id: 'row-1', _rowUuid: 'row-1', _clientRowId: 'client-row-1', A: 'fill', B: 'fill', C: 'fill' }],
+      2
+    )
+
+    // Only column A was actually acknowledged by the server in this response.
+    session.capturePersistedBaselineForOperations('sheet-1', [
+      {
+        operationId: 'op-a',
+        type: 'set_cell',
+        data: { rowId: 'row-1', columnName: 'A', value: 'fill' }
+      }
+    ])
+
+    // B and C must remain blank in the baseline so the outbound planner still emits them.
+    expect(session.getSheetState('sheet-1')?.persistedBaselineRows).toEqual([
+      { _id: 'row-1', _rowUuid: 'row-1', _clientRowId: 'client-row-1', A: 'fill', B: '', C: '' }
+    ])
+  })
+
   it('replaceSheetState preserves unchanged row references when next rows reuse prior row objects', () => {
     const sheetMeta = {
       id: 'sheet-1',

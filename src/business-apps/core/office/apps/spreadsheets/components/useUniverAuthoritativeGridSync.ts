@@ -1,17 +1,11 @@
 import { useEffect, type MutableRefObject } from 'react'
-import {
-  readSpreadsheetRowCellValue,
-  type SpreadsheetBulkRemoteApplyMeta,
-  type SpreadsheetBulkRemoteCellItem
-} from '../core'
+import type { SpreadsheetBulkRemoteApplyMeta, SpreadsheetBulkRemoteCellItem } from '../core'
 import type { ApplyRemoteCellUpdateOptions } from './UniverSheetGrid.types'
 import type { SpreadsheetColumn, SpreadsheetSheet } from '../types/spreadsheet'
 import { workbookSnapshotMismatchesViewerRows } from '../utils/univerAdapter'
 import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
 import { SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH } from '../utils/spreadsheetBulkRemoteConstants'
-import type { ClearAllGridBounds } from './univerGridRangeSelection'
-import { getCanonicalRowId, getClientRowIdentity } from '../utils/spreadsheetRowIdentity'
-import type { SpreadsheetVersionCausalOwnershipRegistry } from '../core/spreadsheetVersionCausalOwnership'
+import { buildAuthoritativePaintCellsFromViewerRows } from '../utils/spreadsheetAuthoritativeProjector'
 import {
   reconcileSpreadsheetPendingLocalMutationCellProtection,
   spreadsheetPendingLocalMutationCoordinateCellKey,
@@ -19,13 +13,8 @@ import {
 } from '../utils/spreadsheetPendingMaterializationCells'
 import { debugRemoteApply } from './univerGridDebug'
 import { normalizeBlankLikeEchoSignature } from './univerGridWorkbookMutationModule'
-import {
-  buildAuthoritativeCellSignatureMap,
-  buildAuthoritativeRowsByGridIndex,
-  getAuthoritativeGridRowExtent,
-  remoteEchoKey,
-  toEchoSignature
-} from './univerGridAuthoritativeHelpers'
+import { getAuthoritativeGridRowExtent } from './univerGridAuthoritativeHelpers'
+import { getCanonicalRowId } from '../utils/spreadsheetRowIdentity'
 
 export interface UniverAuthoritativeGridSyncParams {
   sheet: SpreadsheetSheet
@@ -35,7 +24,8 @@ export interface UniverAuthoritativeGridSyncParams {
   authoritativeReapplySeed: number
   collabBulkApplyIdleNonce: number
   univerAPIRef: MutableRefObject<unknown>
-  lastSyncedGridCellSignaturesRef: MutableRefObject<Map<string, string>>
+  /** Consumed once per sync: explicit cells the session applied (projector-only path). */
+  authoritativePaintCellsRef?: MutableRefObject<SpreadsheetBulkRemoteCellItem[] | null>
   lastSyncedGridRowCountRef: MutableRefObject<number>
   lastSyncedGridColumnCountRef: MutableRefObject<number>
   lastProcessedAuthoritativeDataSyncTokenRef: MutableRefObject<number>
@@ -49,9 +39,6 @@ export interface UniverAuthoritativeGridSyncParams {
     preferBulk: boolean
     clearAllSignatures: boolean
   } | null>
-  versionCausalOwnershipRef?: MutableRefObject<SpreadsheetVersionCausalOwnershipRegistry | null>
-  /** Version of the authoritative row snapshot being painted (for version-causal ownership). */
-  resolveAuthoritativeAppliedVersion?: () => number
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
   applyRemoteCellUpdate: (
     rowIndex: number,
@@ -61,23 +48,12 @@ export interface UniverAuthoritativeGridSyncParams {
     options?: ApplyRemoteCellUpdateOptions
   ) => void
   applyRemoteCellUpdatesBulk: (items: SpreadsheetBulkRemoteCellItem[], meta?: SpreadsheetBulkRemoteApplyMeta) => void
-  resolveActiveWorksheetBounds?: () => ClearAllGridBounds | null
 }
 
 /**
- * Authoritative viewer-row signature cache rebuild (non-token data changes) and
- * workbook re-sync when `authoritativeDataSyncToken` / forced reapply seed changes.
- *
- * Rebuild the authoritative signature cache when rendered `data`/`columns` change
- * WITHOUT the parent bumping `authoritativeDataSyncToken`. Token bumps mean the
- * change is authoritative (`handleCellsChange`, backend round-trips, reloads, bulk
- * ops) — then `handleDetectedCellMutation` seeds the map and the re-apply pass diffs
- * against that baseline. Non-authoritative prop updates (tab switch, entity refresh)
- * do not bump the token; without rebuilding, the re-apply would diff the new sheet
- * against stale signatures (whole-grid blink after tab switch). Tracking the last
- * seen token distinguishes token bumps (leave cache) from other `data`/`columns`
- * churn (rebuild), including two-phase sheet switches where `sheet.id` moves before
- * `data` catches up.
+ * Paints the Univer grid from authoritative viewer-row state. Uses an explicit cell list
+ * produced by the session apply path when available; otherwise projects the full sheet or a
+ * bounded region directly from `data` (no signature-cache diff).
  */
 export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSyncParams): void {
   const {
@@ -88,7 +64,7 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     authoritativeReapplySeed,
     collabBulkApplyIdleNonce,
     univerAPIRef,
-    lastSyncedGridCellSignaturesRef,
+    authoritativePaintCellsRef,
     lastSyncedGridRowCountRef,
     lastSyncedGridColumnCountRef,
     lastProcessedAuthoritativeDataSyncTokenRef,
@@ -98,22 +74,15 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     getWorkbookSnapshotRef,
     pendingAuthoritativeRegionRef,
     pendingForcedAuthoritativeReapplyRef,
-    versionCausalOwnershipRef,
-    resolveAuthoritativeAppliedVersion,
     pendingLocalMutationCellsRef,
     applyRemoteCellUpdate,
-    applyRemoteCellUpdatesBulk,
-    resolveActiveWorksheetBounds
+    applyRemoteCellUpdatesBulk
   } = params
 
   useEffect(() => {
-    if (!univerAPIRef.current) return
-    // Do not rebuild the full signature map on data-only updates: optimistic local session
-    // merges can advance row state before the grid is painted, which would make later
-    // authoritative reapply think remote cells are already in sync (cellCount: 0).
     lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(data)
     lastSyncedGridColumnCountRef.current = columns.filter(column => column.isVisible !== false).length
-  }, [data, columns])
+  }, [data, columns, lastSyncedGridColumnCountRef, lastSyncedGridRowCountRef])
 
   useEffect(() => {
     const api = univerAPIRef.current
@@ -134,13 +103,8 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
         snapshotAfterInit &&
         typeof snapshotAfterInit === 'object' &&
         !workbookSnapshotMismatchesViewerRows(snapshotAfterInit as Record<string, unknown>, sheet.id, data, columns)
-      if (!snapshotAlreadyMatchesRows) {
-        skipNextAuthoritativeSyncAfterSnapshotInitRef.current = false
-      } else {
-        skipNextAuthoritativeSyncAfterSnapshotInitRef.current = false
-        lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(data, columns)
-        lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(data)
-        lastSyncedGridColumnCountRef.current = visibleColumns.length
+      skipNextAuthoritativeSyncAfterSnapshotInitRef.current = false
+      if (snapshotAlreadyMatchesRows) {
         lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
         lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
         debugRemoteApply('skip_authoritative_reapply_after_snapshot_init', {
@@ -151,23 +115,8 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
         return
       }
     }
-    const signatures = lastSyncedGridCellSignaturesRef.current
-    const previousRowCount = lastSyncedGridRowCountRef.current
-    const previousColumnCount = lastSyncedGridColumnCountRef.current
-    const rowsByGridIndex = buildAuthoritativeRowsByGridIndex(data)
-    const nextRowCount = getAuthoritativeGridRowExtent(data)
-    const maxRowCount = Math.max(previousRowCount, nextRowCount)
-    const worksheetBounds = resolveActiveWorksheetBounds?.() ?? null
-    const gridColumnCount = worksheetBounds != null ? worksheetBounds.maxColIndex + 1 : visibleColumns.length
-    const maxColumnCount = Math.min(Math.max(previousColumnCount, visibleColumns.length), gridColumnCount)
+
     const forcedSpec = isForcedAuthoritativeReapply ? pendingForcedAuthoritativeReapplyRef.current : null
-    if (isForcedAuthoritativeReapply && forcedSpec && forcedSpec.regions == null) {
-      debugRemoteApply('authoritative_reapply_full_grid_scan', {
-        sheetId: sheet.id,
-        clearAllSignatures: forcedSpec.clearAllSignatures,
-        preferBulk: forcedSpec.preferBulk
-      })
-    }
     if (isForcedAuthoritativeReapply) {
       pendingForcedAuthoritativeReapplyRef.current = null
     }
@@ -181,108 +130,77 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       scanRegions.push(...prepareRegionOnly)
     }
 
-    const authoritativeBulkBuffer: SpreadsheetBulkRemoteCellItem[] = []
-    const allowAuthoritativeBulkFlush = !isForcedAuthoritativeReapply || !forcedSpec || forcedSpec.preferBulk !== false
-
-    const scanCell = (rowIndex: number, colIndex: number) => {
-      const row = rowsByGridIndex.get(rowIndex)
-      const rowInBounds = rowsByGridIndex.has(rowIndex)
-      const column = visibleColumns[colIndex]
-      const colInBounds = colIndex < visibleColumns.length
-      const key = remoteEchoKey(rowIndex, colIndex)
-      if (!rowInBounds || !colInBounds) {
-        signatures.delete(key)
-        return
-      }
-      const nextValue = row && column ? (readSpreadsheetRowCellValue(row, column) ?? '') : ''
-      const nextSignature = toEchoSignature(nextValue)
-      const pendingLocalMutationCells = pendingLocalMutationCellsRef?.current
-      const coordinateProtectionKey = spreadsheetPendingLocalMutationCoordinateCellKey(sheet.id, rowIndex, colIndex)
-      const semanticProtectionKey =
-        row && column
-          ? spreadsheetPendingLocalMutationSemanticCellKey(sheet.id, getCanonicalRowId(row), column.name)
-          : null
-      const nextProtectionSignature = normalizeBlankLikeEchoSignature(nextSignature)
-      const isPendingLocalMutationCell =
-        reconcileSpreadsheetPendingLocalMutationCellProtection(
-          pendingLocalMutationCellsRef,
-          coordinateProtectionKey,
-          nextProtectionSignature
-        ) ||
-        (semanticProtectionKey
-          ? reconcileSpreadsheetPendingLocalMutationCellProtection(
-              pendingLocalMutationCellsRef,
-              semanticProtectionKey,
-              nextProtectionSignature
-            )
-          : false) ||
-        pendingLocalMutationCells?.has(coordinateProtectionKey) ||
-        (semanticProtectionKey ? pendingLocalMutationCells?.has(semanticProtectionKey) : false)
-      if (isPendingLocalMutationCell) {
-        return
-      }
-      const previousSignature = signatures.get(key)
-      signatures.set(key, nextSignature)
-      if (previousSignature === nextSignature && !isForcedAuthoritativeReapply) return
-
-      const ownershipRegistry = versionCausalOwnershipRef?.current
-      if (ownershipRegistry && row && column) {
-        const remoteAppliedVersion = Math.max(
-          0,
-          Math.trunc(resolveAuthoritativeAppliedVersion?.() ?? Number(sheet.version ?? 0))
-        )
-        const logicalRowHandle = getCanonicalRowId(row) || getClientRowIdentity(row)
-        if (
-          logicalRowHandle &&
-          ownershipRegistry.shouldSuppressRemotePaint({
-            sheetId: sheet.id,
-            rowId: logicalRowHandle,
-            columnName: column.name,
-            remoteAppliedVersion
-          })
-        ) {
-          return
-        }
-      }
-      authoritativeBulkBuffer.push({
-        rowIndex,
-        colIndex,
-        value: nextValue,
-        rowId: row ? getCanonicalRowId(row) : undefined
-      })
+    const sessionPaintCells = authoritativePaintCellsRef?.current ?? null
+    if (authoritativePaintCellsRef) {
+      authoritativePaintCellsRef.current = null
     }
 
-    if (scanRegions.length === 0) {
-      for (let rowIndex = 0; rowIndex < maxRowCount; rowIndex += 1) {
-        for (let colIndex = 0; colIndex < maxColumnCount; colIndex += 1) {
-          scanCell(rowIndex, colIndex)
-        }
+    let authoritativeBulkBuffer: SpreadsheetBulkRemoteCellItem[] = []
+    if (sessionPaintCells && sessionPaintCells.length > 0) {
+      authoritativeBulkBuffer = sessionPaintCells
+    } else if (scanRegions.length > 0) {
+      authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns, { regions: scanRegions })
+      if (
+        authoritativeBulkBuffer.length === 0 &&
+        isForcedAuthoritativeReapply &&
+        forcedSpec?.clearAllSignatures === true
+      ) {
+        authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns, {
+          regions: scanRegions.map(region => ({
+            ...region,
+            minCol: 0,
+            maxCol: Math.max(region.maxCol, visibleColumns.length - 1)
+          }))
+        })
       }
     } else {
-      for (const bounded of scanRegions) {
-        const rowLoopStart = Math.max(0, bounded.minRow)
-        const rowLoopEnd = Math.min(maxRowCount, bounded.maxRow + 1)
-        const colLoopStart = Math.max(0, bounded.minCol)
-        const colLoopEnd = Math.min(maxColumnCount, bounded.maxCol + 1)
-        for (let rowIndex = rowLoopStart; rowIndex < rowLoopEnd; rowIndex += 1) {
-          for (let colIndex = colLoopStart; colIndex < colLoopEnd; colIndex += 1) {
-            scanCell(rowIndex, colIndex)
-          }
-        }
-      }
+      authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns)
     }
 
-    if (authoritativeBulkBuffer.length === 0 && scanRegions.length > 0 && !isForcedAuthoritativeReapply) {
-      for (const bounded of scanRegions) {
-        const rowLoopStart = Math.max(0, bounded.minRow)
-        const rowLoopEnd = Math.min(maxRowCount, bounded.maxRow + 1)
-        for (let rowIndex = rowLoopStart; rowIndex < rowLoopEnd; rowIndex += 1) {
-          for (let colIndex = 0; colIndex < maxColumnCount; colIndex += 1) {
-            scanCell(rowIndex, colIndex)
-          }
-        }
+    const filterPendingLocalCells = (items: SpreadsheetBulkRemoteCellItem[]): SpreadsheetBulkRemoteCellItem[] => {
+      const filtered: SpreadsheetBulkRemoteCellItem[] = []
+      for (const item of items) {
+        const row =
+          data.find((candidate, index) => {
+            const visual = candidate._gridRowIndex
+            const gridIndex = typeof visual === 'number' && Number.isFinite(visual) ? Math.trunc(visual) : index
+            return gridIndex === item.rowIndex
+          }) ?? undefined
+        const column = visibleColumns[item.colIndex]
+        const coordinateProtectionKey = spreadsheetPendingLocalMutationCoordinateCellKey(
+          sheet.id,
+          item.rowIndex,
+          item.colIndex
+        )
+        const semanticProtectionKey =
+          row && column
+            ? spreadsheetPendingLocalMutationSemanticCellKey(sheet.id, getCanonicalRowId(row), column.name)
+            : null
+        const nextProtectionSignature = normalizeBlankLikeEchoSignature(String(item.value ?? ''))
+        const isPendingLocalMutationCell =
+          reconcileSpreadsheetPendingLocalMutationCellProtection(
+            pendingLocalMutationCellsRef,
+            coordinateProtectionKey,
+            nextProtectionSignature
+          ) ||
+          (semanticProtectionKey
+            ? reconcileSpreadsheetPendingLocalMutationCellProtection(
+                pendingLocalMutationCellsRef,
+                semanticProtectionKey,
+                nextProtectionSignature
+              )
+            : false) ||
+          pendingLocalMutationCellsRef?.current?.has(coordinateProtectionKey) ||
+          (semanticProtectionKey ? pendingLocalMutationCellsRef?.current?.has(semanticProtectionKey) : false)
+        if (isPendingLocalMutationCell) continue
+        filtered.push(item)
       }
+      return filtered
     }
+
+    authoritativeBulkBuffer = filterPendingLocalCells(authoritativeBulkBuffer)
+
+    const allowAuthoritativeBulkFlush = !isForcedAuthoritativeReapply || !forcedSpec || forcedSpec.preferBulk !== false
 
     debugRemoteApply('authoritative_reapply_bulk_prepared', {
       sheetId: sheet.id,
@@ -290,7 +208,8 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       token: nextToken,
       forced: isForcedAuthoritativeReapply,
       regionOnly: scanRegions.length > 0,
-      regionCount: scanRegions.length
+      regionCount: scanRegions.length,
+      sessionDerived: Boolean(sessionPaintCells?.length)
     })
 
     if (allowAuthoritativeBulkFlush && authoritativeBulkBuffer.length >= SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH) {
@@ -301,18 +220,20 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       }
     }
 
-    lastSyncedGridRowCountRef.current = nextRowCount
+    lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(data)
     lastSyncedGridColumnCountRef.current = visibleColumns.length
     lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
     lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
   }, [
     applyRemoteCellUpdate,
     applyRemoteCellUpdatesBulk,
+    authoritativePaintCellsRef,
     authoritativeReapplySeed,
     columns,
     data,
     authoritativeDataSyncToken,
     collabBulkApplyIdleNonce,
-    pendingLocalMutationCellsRef
+    pendingLocalMutationCellsRef,
+    sheet.id
   ])
 }

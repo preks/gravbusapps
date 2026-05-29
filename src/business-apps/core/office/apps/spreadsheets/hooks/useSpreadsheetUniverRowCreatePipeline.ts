@@ -45,6 +45,24 @@ import type {
 } from './useSpreadsheetUniverRowCreatePipelineTypes'
 
 const TEMP_ROW_SKIP_MATERIALIZATION_DIAG_SAMPLE_LIMIT = 12
+/**
+ * Idle window used to coalesce Enter-paced row creation into a single `add_rows` batch.
+ * Each new row resets this timer, so consecutive rows added within the window merge.
+ */
+const ROW_MATERIALIZATION_IDLE_MS = 400
+/**
+ * Hard cap on how long materialization can be deferred while rows keep arriving.
+ * Guarantees rows are persisted periodically during continuous typing instead of
+ * being held client-side indefinitely (mitigates the multi-user data-loss window).
+ */
+const ROW_MATERIALIZATION_MAX_WAIT_MS = 1_200
+
+type MaterializationDebounceState = {
+  timer: ReturnType<typeof setTimeout> | null
+  /** Timestamp of the first pending row in the current debounce burst, for the max-wait cap. */
+  firstScheduledAt: number | null
+  resolvers: Array<{ resolve: () => void; reject: (error: unknown) => void }>
+}
 
 export function useSpreadsheetUniverRowCreatePipeline(
   params: UseSpreadsheetUniverRowCreatePipelineParams
@@ -85,6 +103,11 @@ export function useSpreadsheetUniverRowCreatePipeline(
     rowMaterializationReadiness
   } = params
   const inFlightRowMaterializationKeysRef = useRef(new Set<string>())
+  const materializationDebounceRef = useRef<MaterializationDebounceState>({
+    timer: null,
+    firstScheduledAt: null,
+    resolvers: []
+  })
 
   const resolvePersistedRowsForAdoption = useCallback(
     async (targetSheetId: string, preferActiveSession: boolean): Promise<Array<Record<string, unknown>>> => {
@@ -283,7 +306,9 @@ export function useSpreadsheetUniverRowCreatePipeline(
         onRowsMaterializedContextSync?.(canonicalTargetId, next, {
           affectedUiRowIds,
           createdGridRowIndices: mergedRows.createdGridRowIndices,
-          isActiveTarget
+          isActiveTarget,
+          createdRows,
+          sourceUniverRows: sourceRows
         })
         onRowIdentityDiagnostics?.('row_session_snapshot_reconciled', {
           targetSheetId: canonicalTargetId,
@@ -688,14 +713,45 @@ export function useSpreadsheetUniverRowCreatePipeline(
     ]
   )
 
-  const processUniverDataChange = useCallback(async () => {
-    const latest = latestUniverDataRef.current
-    if (!latest) return
-    const targetSheetId = latest.sheetId || activeSheetIdRef.current
-    await materializeRows({
-      targetSheetId,
-      sourceRows: latest.data,
-      reason: 'univer_data_change'
+  const processUniverDataChange = useCallback(() => {
+    return new Promise<void>((resolve, reject) => {
+      const debounce = materializationDebounceRef.current
+      debounce.resolvers.push({ resolve, reject })
+
+      const now = Date.now()
+      if (debounce.firstScheduledAt == null) {
+        debounce.firstScheduledAt = now
+      }
+      if (debounce.timer != null) {
+        clearTimeout(debounce.timer)
+      }
+
+      const flush = () => {
+        debounce.timer = null
+        debounce.firstScheduledAt = null
+        const resolvers = debounce.resolvers
+        debounce.resolvers = []
+        const latest = latestUniverDataRef.current
+        if (!latest) {
+          resolvers.forEach(entry => entry.resolve())
+          return
+        }
+        const targetSheetId = latest.sheetId || activeSheetIdRef.current
+        void materializeRows({
+          targetSheetId,
+          sourceRows: latest.data,
+          reason: 'univer_data_change'
+        }).then(
+          () => resolvers.forEach(entry => entry.resolve()),
+          error => resolvers.forEach(entry => entry.reject(error))
+        )
+      }
+
+      // Cap the total deferral so continuous typing still flushes periodically.
+      const elapsed = now - debounce.firstScheduledAt
+      const remainingMaxWait = Math.max(0, ROW_MATERIALIZATION_MAX_WAIT_MS - elapsed)
+      const delay = Math.min(ROW_MATERIALIZATION_IDLE_MS, remainingMaxWait)
+      debounce.timer = setTimeout(flush, delay)
     })
   }, [activeSheetIdRef, latestUniverDataRef, materializeRows])
 

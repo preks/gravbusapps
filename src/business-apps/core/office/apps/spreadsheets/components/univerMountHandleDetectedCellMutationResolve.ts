@@ -811,10 +811,16 @@ export function resolveDetectedCellMutation(
     ranges,
     shouldSuppress,
     pendingNewRowsUpdate,
+    // liveMergeRanges must contain ONLY real merged regions: actual merges read from the
+    // worksheet facade plus in-flight merge gestures (registered exclusively for
+    // `merge_ranges` commands). The mutation target `ranges` must NOT be included here — a
+    // multi-cell write (autofill/fill-down, paste, multi-select typing) is not a merge, and
+    // treating its selection as a merged region makes the planner drop every cell except the
+    // top-left "master" as a merge-covered slave (root cause of "only the first cell of a
+    // fill reaches the API").
     liveMergeRanges: unionSheetRangeShapes(
       extractLiveMergeRangesFromFacade(currentWorksheet),
-      getActiveMergeGestureSuppressRanges(deps.mergeGestureSuppressBySheetRef, targetSheetId),
-      ranges
+      getActiveMergeGestureSuppressRanges(deps.mergeGestureSuppressBySheetRef, targetSheetId)
     )
   }
 

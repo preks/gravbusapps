@@ -69,9 +69,10 @@ export const isGridCellInSheetRanges = (rowIndex: number, colIndex: number, rang
       colIndex <= range.endColumn
   )
 
-export const unionSheetRangeShapes = (...rangeGroups: SheetRangeShape[][]): SheetRangeShape[] => {
+export const unionSheetRangeShapes = (...rangeGroups: (SheetRangeShape[] | undefined | null)[]): SheetRangeShape[] => {
   const output: SheetRangeShape[] = []
   for (const group of rangeGroups) {
+    if (!Array.isArray(group)) continue
     for (const range of group) {
       output.push(range)
     }

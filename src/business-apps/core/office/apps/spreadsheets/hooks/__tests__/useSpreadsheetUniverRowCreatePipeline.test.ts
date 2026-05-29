@@ -17,7 +17,34 @@ const column = (id: string, name: string): SpreadsheetColumn => ({
   order: 0
 })
 
+const ROW_MATERIALIZATION_IDLE_MS = 400
+
+const flushRowMaterializationDebounce = async () => {
+  await act(async () => {
+    jest.advanceTimersByTime(ROW_MATERIALIZATION_IDLE_MS)
+  })
+}
+
+const runProcessUniverDataChange = async (result: { current: { processUniverDataChange: () => Promise<void> } }) => {
+  let pending: Promise<void> | undefined
+  await act(async () => {
+    pending = result.current.processUniverDataChange()
+  })
+  await flushRowMaterializationDebounce()
+  await act(async () => {
+    await pending
+  })
+}
+
 describe('useSpreadsheetUniverRowCreatePipeline', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
   it('persists newly materialized rows for the worksheet that emitted the change, even when React active sheet lags', async () => {
     const activeSheetIdRef = { current: 'sheet-1' }
     const latestUniverDataRef = {
@@ -115,9 +142,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
       })
     )
 
-    await act(async () => {
-      await result.current.processUniverDataChange()
-    })
+    await runProcessUniverDataChange(result)
 
     expect(persistAddedRowsWithBatch).toHaveBeenCalledWith(
       'sheet-2',
@@ -166,7 +191,9 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
       {
         affectedUiRowIds: ['client-row-1'],
         createdGridRowIndices: [0],
-        isActiveTarget: false
+        isActiveTarget: false,
+        createdRows: expect.any(Array),
+        sourceUniverRows: expect.any(Array)
       }
     )
     expect(latestUniverDataRef.current).toEqual({
@@ -254,7 +281,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     )
 
     await act(async () => {
-      await result.current.processUniverDataChange()
+      await runProcessUniverDataChange(result)
     })
 
     expect(persistAddedRowsWithBatch).not.toHaveBeenCalled()
@@ -329,7 +356,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     )
 
     await act(async () => {
-      await result.current.processUniverDataChange()
+      await runProcessUniverDataChange(result)
     })
 
     expect(persistAddedRowsWithBatch).not.toHaveBeenCalled()
@@ -425,7 +452,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     )
 
     await act(async () => {
-      await result.current.processUniverDataChange()
+      await runProcessUniverDataChange(result)
     })
 
     expect(persistAddedRowsWithBatch).toHaveBeenCalledWith(
@@ -486,7 +513,9 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
       {
         affectedUiRowIds: ['client-row-1', 'client-row-2'],
         createdGridRowIndices: [0, 1],
-        isActiveTarget: true
+        isActiveTarget: true,
+        createdRows: expect.any(Array),
+        sourceUniverRows: expect.any(Array)
       }
     )
   })
@@ -577,13 +606,13 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     )
 
     await act(async () => {
-      await result.current.processUniverDataChange()
+      await runProcessUniverDataChange(result)
     })
 
     multiSheetDebugLog.mockClear()
 
     await act(async () => {
-      await result.current.processUniverDataChange()
+      await runProcessUniverDataChange(result)
     })
 
     expect(persistAddedRowsWithBatch).toHaveBeenCalledTimes(1)
@@ -681,7 +710,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     )
 
     await act(async () => {
-      await result.current.processUniverDataChange()
+      await runProcessUniverDataChange(result)
     })
 
     expect(rowMaterializationReadiness.getResolvedBackendRowId('sheet-1', 'client-row-1')).toBe('backend-row-1')
@@ -766,7 +795,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     )
 
     await act(async () => {
-      await result.current.processUniverDataChange()
+      await runProcessUniverDataChange(result)
     })
 
     expect(persistAddedRowsWithBatch).toHaveBeenCalledWith(

@@ -1,4 +1,7 @@
-import { tryComputeAuthoritativeRegionFromReplayDeltas } from '../spreadsheetAuthoritativeRegion'
+import {
+  computeAuthoritativeRegionForMaterializedRows,
+  tryComputeAuthoritativeRegionFromReplayDeltas
+} from '../spreadsheetAuthoritativeRegion'
 import type { SpreadsheetColumn } from '../../types/spreadsheet'
 import type { SpreadsheetReplayDelta } from '../../core'
 
@@ -67,5 +70,50 @@ describe('tryComputeAuthoritativeRegionFromReplayDeltas', () => {
       }
     ]
     expect(tryComputeAuthoritativeRegionFromReplayDeltas({ changes, columns, rows })).toBeUndefined()
+  })
+})
+
+describe('computeAuthoritativeRegionForMaterializedRows', () => {
+  const columns: SpreadsheetColumn[] = [
+    col({ id: 'col-p', name: 'column_p', order: 0 }),
+    col({ id: 'col-t', name: 'column_t', order: 1 })
+  ]
+
+  it('returns a single-cell region when only one column has a materialized value', () => {
+    const rows = [{ _id: 'row-1', _gridRowIndex: 5, column_p: 4 }]
+    const region = computeAuthoritativeRegionForMaterializedRows({
+      createdGridRowIndices: [5],
+      rows,
+      columns,
+      createdRows: [{ _clientRowId: 'client-1', column_p: 4 }],
+      sourceUniverRows: [{ _clientRowId: 'client-1', column_p: 4 }]
+    })
+    expect(region).toEqual({ minRow: 5, maxRow: 5, minCol: 0, maxCol: 0 })
+  })
+
+  it('returns undefined for identity-only materialization with no populated columns', () => {
+    const rows = [{ _id: 'row-1', _gridRowIndex: 5 }]
+    expect(
+      computeAuthoritativeRegionForMaterializedRows({
+        createdGridRowIndices: [5],
+        rows,
+        columns,
+        createdRows: [{ _clientRowId: 'client-1' }],
+        sourceUniverRows: [{ _clientRowId: 'client-1' }]
+      })
+    ).toBeUndefined()
+  })
+
+  it('does not include peer column values from unrelated rows', () => {
+    const rows = [
+      { _id: 'row-1', _gridRowIndex: 5, column_p: 1 },
+      { _id: 'row-2', _gridRowIndex: 6, column_t: 9 }
+    ]
+    const region = computeAuthoritativeRegionForMaterializedRows({
+      createdGridRowIndices: [5],
+      rows,
+      columns
+    })
+    expect(region).toEqual({ minRow: 5, maxRow: 5, minCol: 0, maxCol: 0 })
   })
 })
