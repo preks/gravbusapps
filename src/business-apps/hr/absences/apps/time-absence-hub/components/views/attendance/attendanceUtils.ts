@@ -50,3 +50,23 @@ export const formatMinutes = (minutes?: number | null): string => {
 
   return `${sign}${hours}h ${String(mins).padStart(2, '0')}m`
 }
+
+export interface AttendanceDateRange {
+  dateFrom: string
+  dateTo: string
+}
+
+export const clampDateRangeToPast = (dateRange: AttendanceDateRange | null): AttendanceDateRange | null => {
+  if (!dateRange?.dateFrom || !dateRange.dateTo) {
+    return null
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const dateTo = dateRange.dateTo > today ? today : dateRange.dateTo
+
+  if (dateRange.dateFrom > dateTo) {
+    return null
+  }
+
+  return { dateFrom: dateRange.dateFrom, dateTo }
+}

@@ -63,6 +63,7 @@ const renderHubView = (
           {...baseProps}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
+          absenceTypes={filterOptions.absenceTypes}
           onGlobalFiltersChange={globalFilters.setFilters}
           filterAction={filterAction}
         />

@@ -13,60 +13,62 @@ import { useOrgAttendanceData } from '../../../hooks/useOrgAttendanceData'
 import { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
 import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details'
 import { AttendanceGrid } from './AttendanceGrid'
-import { formatMinutes, toMinutes } from './attendanceUtils'
+import { clampDateRangeToPast, formatMinutes } from './attendanceUtils'
 import {
+  AbsenceNetDay,
   AbsenceCalendarDay,
   AttendanceRow,
   FilteredEmployee,
   PublicHolidayDay
 } from '../../../queries/OrgAttendanceQueries'
+import type { HubFilterOption } from '../../../queries/HubFilterQueries'
+import { computeAttendanceEmployeeMetrics, formatAbsenceBreakdown } from './attendanceMetrics'
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.attendance.${key}`, fallback)
 
 const buildExportColumns = (): ExcelColumn[] => [
   { header: tt('column_employee', 'Employee'), key: 'employee' },
+  { header: tt('column_job_position', 'Job Position'), key: 'jobPosition' },
   { header: tt('column_department', 'Department'), key: 'department' },
-  { header: tt('column_location', 'Location'), key: 'location' },
-  { header: tt('column_manager', 'Manager'), key: 'manager' },
   { header: tt('column_planned', 'Planned'), key: 'planned' },
   { header: tt('column_effective', 'Effective'), key: 'effective' },
   { header: tt('column_difference', 'Difference'), key: 'difference' },
-  { header: tt('column_markers', 'Markers'), key: 'markers' }
+  { header: tt('column_absences', 'Absences'), key: 'absences' },
+  { header: tt('column_exceptions', 'Exceptions'), key: 'exceptions' }
 ]
 
 const buildExportRows = (
   employees: FilteredEmployee[],
   attendance: AttendanceRow[],
   absences: AbsenceCalendarDay[],
-  holidays: PublicHolidayDay[]
+  holidays: PublicHolidayDay[],
+  absenceNet: AbsenceNetDay[],
+  dateRange: { dateFrom: string; dateTo: string } | null,
+  absenceTypes: HubFilterOption[]
 ): Record<string, unknown>[] =>
   employees.map(employee => {
-    const employeeAttendance = attendance.filter(row => row.employeeId === employee.id)
-    const absenceCount = new Set(absences.filter(row => row.employeeId === employee.id).map(row => row.dayDate)).size
-    const holidayCount = new Set(holidays.filter(row => row.employeeId === employee.id).map(row => row.date)).size
-    const manualOverrideCount = employeeAttendance.filter(row => Boolean(row.manualOverride)).length
-    const missingLogCount = employeeAttendance.filter(
-      row => toMinutes(row.plannedTime) > 0 && !row.startTime && !row.endTime
-    ).length
-    const totalEffectiveMinutes = employeeAttendance.reduce((acc, row) => acc + toMinutes(row.effectiveTime), 0)
-    const totalPlannedMinutes = employeeAttendance.reduce((acc, row) => acc + toMinutes(row.plannedTime), 0)
-    const totalDifferenceMinutes = employeeAttendance.reduce((acc, row) => acc + toMinutes(row.differenceTime), 0)
-    const supervisor = employee.employeePosition?.supervisor
+    const metrics = computeAttendanceEmployeeMetrics({
+      employee,
+      attendance,
+      absences,
+      holidays,
+      absenceNet,
+      dateRange,
+      absenceTypes
+    })
 
     return {
       employee: `${employee.firstName} ${employee.lastName}`.trim(),
+      jobPosition: employee.employeePosition?.jobPosition?.name ?? '-',
       department: employee.employeePosition?.organizationalUnit?.name ?? '-',
-      location: employee.employeePosition?.siteLocation?.name ?? '-',
-      manager: supervisor ? `${supervisor.firstName} ${supervisor.lastName}` : '-',
-      planned: formatMinutes(totalPlannedMinutes),
-      effective: formatMinutes(totalEffectiveMinutes),
-      difference: formatMinutes(totalDifferenceMinutes),
-      markers: [
-        absenceCount > 0 ? `${absenceCount} absence days` : '',
-        holidayCount > 0 ? `${holidayCount} bank holidays` : '',
-        manualOverrideCount > 0 ? `${manualOverrideCount} manual` : '',
-        missingLogCount > 0 ? `${missingLogCount} missing` : ''
+      planned: formatMinutes(metrics.totalPlannedMinutes),
+      effective: formatMinutes(metrics.totalEffectiveMinutes),
+      difference: formatMinutes(metrics.totalDifferenceMinutes),
+      absences: formatAbsenceBreakdown(metrics.absenceBreakdown),
+      exceptions: [
+        metrics.manualOverrideCount > 0 ? `${metrics.manualOverrideCount} manual` : '',
+        metrics.missingLogCount > 0 ? `${metrics.missingLogCount} missing` : ''
       ]
         .filter(Boolean)
         .join(', ')
@@ -76,6 +78,7 @@ const buildExportRows = (
 interface AttendanceViewProps extends BusinessAppContextProps {
   globalFilters: HubGlobalFilters
   derivedDateRange: { dateFrom: string; dateTo: string } | null
+  absenceTypes: HubFilterOption[]
   onGlobalFiltersChange: (filters: HubGlobalFilters) => void
   filterAction?: React.ReactNode
 }
@@ -84,11 +87,13 @@ interface AttendanceEmployeeSummary {
   employeeId: string
   employeeName: string
   departmentName: string
+  jobPositionName: string
+  locationName: string
+  managerName: string
   plannedMinutes: number
   effectiveMinutes: number
   differenceMinutes: number
-  absenceDays: number
-  bankHolidayDays: number
+  absenceSummary: string
   manualOverrides: number
   missingLogs: number
 }
@@ -98,35 +103,40 @@ const buildAttendanceEmployeeSummary = (
   employees: FilteredEmployee[],
   attendance: AttendanceRow[],
   absences: AbsenceCalendarDay[],
-  holidays: PublicHolidayDay[]
+  holidays: PublicHolidayDay[],
+  absenceNet: AbsenceNetDay[],
+  dateRange: { dateFrom: string; dateTo: string } | null,
+  absenceTypes: HubFilterOption[]
 ): AttendanceEmployeeSummary | null => {
   const employee = employees.find(item => item.id === employeeId)
   if (!employee) {
     return null
   }
 
-  const employeeAttendance = attendance.filter(row => row.employeeId === employeeId)
-  const absenceDays = new Set(absences.filter(row => row.employeeId === employeeId).map(row => row.dayDate)).size
-  const bankHolidayDays = new Set(holidays.filter(row => row.employeeId === employeeId).map(row => row.date)).size
-  const plannedMinutes = employeeAttendance.reduce((acc, row) => acc + toMinutes(row.plannedTime), 0)
-  const effectiveMinutes = employeeAttendance.reduce((acc, row) => acc + toMinutes(row.effectiveTime), 0)
-  const differenceMinutes = employeeAttendance.reduce((acc, row) => acc + toMinutes(row.differenceTime), 0)
-  const manualOverrides = employeeAttendance.filter(row => Boolean(row.manualOverride)).length
-  const missingLogs = employeeAttendance.filter(
-    row => toMinutes(row.plannedTime) > 0 && !row.startTime && !row.endTime
-  ).length
+  const metrics = computeAttendanceEmployeeMetrics({
+    employee,
+    attendance,
+    absences,
+    holidays,
+    absenceNet,
+    dateRange,
+    absenceTypes
+  })
+  const supervisor = employee.employeePosition?.supervisor
 
   return {
     employeeId,
     employeeName: `${employee.firstName} ${employee.lastName}`.trim(),
     departmentName: employee.employeePosition?.organizationalUnit?.name ?? '-',
-    plannedMinutes,
-    effectiveMinutes,
-    differenceMinutes,
-    absenceDays,
-    bankHolidayDays,
-    manualOverrides,
-    missingLogs
+    jobPositionName: employee.employeePosition?.jobPosition?.name ?? '-',
+    locationName: employee.employeePosition?.siteLocation?.name ?? '-',
+    managerName: supervisor ? `${supervisor.firstName} ${supervisor.lastName}` : '-',
+    plannedMinutes: metrics.totalPlannedMinutes,
+    effectiveMinutes: metrics.totalEffectiveMinutes,
+    differenceMinutes: metrics.totalDifferenceMinutes,
+    absenceSummary: formatAbsenceBreakdown(metrics.absenceBreakdown) || '-',
+    manualOverrides: metrics.manualOverrideCount,
+    missingLogs: metrics.missingLogCount
   }
 }
 
@@ -142,11 +152,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   userInfo,
   globalFilters,
   derivedDateRange,
+  absenceTypes,
   onGlobalFiltersChange,
   filterAction
 }) => {
   const data = useOrgAttendanceData({ accessToken, filters: globalFilters, derivedDateRange })
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
+  const attendanceDateRange = React.useMemo(() => clampDateRangeToPast(derivedDateRange), [derivedDateRange])
 
   const selectedEmployeeSummary = React.useMemo(() => {
     if (!selectedEmployeeId) {
@@ -157,15 +169,35 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       data.employees,
       data.attendance,
       data.absences,
-      data.holidays
+      data.holidays,
+      data.absenceNet,
+      attendanceDateRange,
+      absenceTypes
     )
-  }, [data.absences, data.attendance, data.employees, data.holidays, selectedEmployeeId])
+  }, [
+    absenceTypes,
+    attendanceDateRange,
+    data.absenceNet,
+    data.absences,
+    data.attendance,
+    data.employees,
+    data.holidays,
+    selectedEmployeeId
+  ])
 
   const handleExportExcel = async () => {
     const workbook = buildExcelWorkbook(
       tt('export_sheet_name', 'Attendance'),
       buildExportColumns(),
-      buildExportRows(data.employees, data.attendance, data.absences, data.holidays)
+      buildExportRows(
+        data.employees,
+        data.attendance,
+        data.absences,
+        data.holidays,
+        data.absenceNet,
+        attendanceDateRange,
+        absenceTypes
+      )
     )
     await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-attendance', 'xlsx'))
   }
@@ -231,6 +263,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           attendance={data.attendance}
           absences={data.absences}
           holidays={data.holidays}
+          absenceNet={data.absenceNet}
+          dateRange={attendanceDateRange}
+          absenceTypes={absenceTypes}
           isLoading={data.isLoading}
           error={data.error}
           onOpenEmployee={setSelectedEmployeeId}
@@ -266,9 +301,25 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                       data-testid="attendance-employee-summary"
                     >
                       <p className="gba:text-xs gba:text-muted-foreground">
-                        {tt('sheet_summary_title', 'Attendance summary')} - {getDateRangeLabel(derivedDateRange)}
+                        {tt('sheet_summary_title', 'Attendance summary')} - {getDateRangeLabel(attendanceDateRange)}
                       </p>
                       <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:text-xs">
+                        <SummaryItem
+                          label={tt('column_job_position', 'Job Position')}
+                          value={selectedEmployeeSummary.jobPositionName}
+                        />
+                        <SummaryItem
+                          label={tt('column_department', 'Department')}
+                          value={selectedEmployeeSummary.departmentName}
+                        />
+                        <SummaryItem
+                          label={tt('column_location', 'Location')}
+                          value={selectedEmployeeSummary.locationName}
+                        />
+                        <SummaryItem
+                          label={tt('column_manager', 'Manager')}
+                          value={selectedEmployeeSummary.managerName}
+                        />
                         <SummaryItem
                           label={tt('column_planned', 'Planned')}
                           value={formatMinutes(selectedEmployeeSummary.plannedMinutes)}
@@ -282,12 +333,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                           value={formatMinutes(selectedEmployeeSummary.differenceMinutes)}
                         />
                         <SummaryItem
-                          label={tt('badge_absence_days', 'Absence days')}
-                          value={String(selectedEmployeeSummary.absenceDays)}
-                        />
-                        <SummaryItem
-                          label={tt('badge_bank_holidays', 'Bank holidays')}
-                          value={String(selectedEmployeeSummary.bankHolidayDays)}
+                          label={tt('column_absences', 'Absences')}
+                          value={selectedEmployeeSummary.absenceSummary}
                         />
                         <SummaryItem
                           label={tt('badge_manual', 'Manual')}
