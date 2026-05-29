@@ -9,17 +9,13 @@ import {
 } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/OverviewMetricsWidgets'
 
 /**
- * Custom labels for IRM - uses investment terminology instead of CRM
- *
- * Examples:
- * - "Investors" instead of "Leads"
- * - "Investment Accounts" instead of "Accounts"
- * - "Investment Opportunities" instead of "Opportunities"
+ * Custom labels for IRM — entity names match GraphQL aggregates in useOverviewData
+ * (InvestmentLead, InvestmentAccount, InvestmentOpportunity, InvestmentContact).
  */
 export const IRM_KPI_LABELS: KpiLabels = {
   leads: {
-    title: 'Total Investors',
-    description: 'Active investors in system'
+    title: 'Total Investment Leads',
+    description: 'Non-deleted investment leads in the system'
   },
   accounts: {
     title: 'Investment Accounts',
@@ -34,20 +30,20 @@ export const IRM_KPI_LABELS: KpiLabels = {
     description: 'Active contacts in system'
   },
   leadToOpportunityRate: {
-    title: 'Investor Conversion Rate',
-    description: 'Investor to opportunity conversion'
+    title: 'Lead to Opportunity Rate',
+    description: 'Opportunity count as a percentage of lead count'
   },
   opportunityWinRate: {
-    title: 'Investment Success Rate',
-    description: 'Investment closing success rate'
+    title: 'Opportunity Win Rate',
+    description: 'Won investment opportunities as a share of all opportunities'
   },
   avgDealSize: {
-    title: 'Avg Investment Size',
-    description: 'Average investment opportunity value'
+    title: 'Avg Won Opportunity Value',
+    description: 'Average estimated amount on won opportunities'
   },
   totalWonRevenue: {
-    title: 'Total Investment Value',
-    description: 'Total value from closed investments'
+    title: 'Total Won Opportunity Value',
+    description: 'Sum of estimated amounts on won opportunities'
   }
 }
 
@@ -55,7 +51,7 @@ export const IRM_KPI_LABELS: KpiLabels = {
  * Optional: Hide specific KPIs for IRM
  * Set to false to hide a KPI
  *
- * Example: Hide "Total Investors" KPI
+ * Example: Hide "Total Investment Leads" KPI
  * leads: false
  */
 export const IRM_KPI_VISIBILITY: KpiVisibility = {
