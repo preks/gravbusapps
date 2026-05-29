@@ -26,6 +26,7 @@ import type {
   ReasoningStepKind
 } from '../types/models'
 import DynamicFormDisplay from './DynamicFormDisplay'
+import ClarificationFormDisplay from './ClarificationFormDisplay'
 // Standardized entity card
 import GenericEntityDisplay from './entities/GenericEntityDisplay'
 import WorkflowDisplay from './entities/WorkflowDisplay'
@@ -1540,6 +1541,11 @@ export const OutputItemRenderer: React.FC<{
       // UnifiedAIMessageRenderer (pinned above the answer). Nothing to do
       // when they appear inline in the output stream.
       return null
+    case 'clarification_request':
+      // Inline clarification form. The submit handler posts back to
+      // /v2/chat with a JSON `user_input_text` payload that the supervisor
+      // recognises and resumes the suspended LangGraph thread with.
+      return <ClarificationFormDisplay data={item} sendMessage={sendMessage} isAgentGenerating={isAgentGenerating} />
     case 'document_stream_start':
       return <DocumentStreamStartDisplay data={item} />
     case 'document_stream_chunk':
