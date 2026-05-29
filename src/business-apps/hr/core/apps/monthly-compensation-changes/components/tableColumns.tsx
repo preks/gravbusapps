@@ -118,13 +118,13 @@ export function buildChangeColumns(t: (key: string) => string, locale: string): 
     {
       id: 'amount',
       accessorFn: row => getChangeAmountSortValue(row),
-      header: t('col-amount'),
+      header: () => <div className="gba:text-right">{t('col-amount')}</div>,
       size: 170,
       maxSize: 190,
       cell: ({ row }) => (
-        <span className="gba:text-sm gba:font-medium gba:tabular-nums gba:whitespace-nowrap">
+        <div className="gba:text-right gba:text-sm gba:font-medium gba:tabular-nums gba:whitespace-nowrap">
           {row.original.amount}
-        </span>
+        </div>
       )
     },
     {
@@ -178,38 +178,38 @@ export function buildBenefitColumns(t: (key: string) => string, locale: string):
     },
     {
       id: 'monthlyAmount',
-      header: t('col-monthly-amount'),
+      header: () => <div className="gba:text-right">{t('col-monthly-amount')}</div>,
       accessorFn: row => row.monthlyAmount,
       size: 170,
       maxSize: 190,
       cell: ({ row }) => (
-        <span className="gba:text-sm gba:font-medium gba:tabular-nums gba:whitespace-nowrap">
+        <div className="gba:text-right gba:text-sm gba:font-medium gba:tabular-nums gba:whitespace-nowrap">
           {formatCurrencyValue(row.original.monthlyAmount, row.original.currency)}
-        </span>
+        </div>
       )
     },
     {
       id: 'yearlyAmount',
-      header: t('col-yearly-amount'),
+      header: () => <div className="gba:text-right">{t('col-yearly-amount')}</div>,
       accessorFn: row => row.yearlyAmount,
       size: 170,
       maxSize: 190,
       cell: ({ row }) => (
-        <span className="gba:text-sm gba:tabular-nums gba:whitespace-nowrap">
+        <div className="gba:text-right gba:text-sm gba:tabular-nums gba:whitespace-nowrap">
           {formatCurrencyValue(row.original.yearlyAmount, row.original.currency)}
-        </span>
+        </div>
       )
     },
     {
       id: 'employeeContribution',
-      header: t('col-employee-contribution'),
+      header: () => <div className="gba:text-right">{t('col-employee-contribution')}</div>,
       accessorFn: row => row.employeeContribution,
       size: 200,
       maxSize: 230,
       cell: ({ row }) => (
-        <span className="gba:text-sm gba:tabular-nums gba:whitespace-nowrap">
+        <div className="gba:text-right gba:text-sm gba:tabular-nums gba:whitespace-nowrap">
           {formatCurrencyValue(row.original.employeeContribution, row.original.currency)}
-        </span>
+        </div>
       )
     },
     {

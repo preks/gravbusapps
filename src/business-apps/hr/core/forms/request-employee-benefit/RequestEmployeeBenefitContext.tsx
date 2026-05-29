@@ -58,13 +58,12 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
       const empVariables = { idEmployee: employeeId }
       const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables)
 
-      // Initialize with employee data
-      setData({
+      const nextData: RequestEmployeeBenefitContextData = {
         employee: employeeData,
         benefitProviders: [],
         countryCurrency: { currencyRef: null, currencyCode: '' },
         selectedBenefit: selectedBenefit
-      })
+      }
 
       // Fetch additional data if benefit selected
       if (selectedBenefit) {
@@ -81,16 +80,14 @@ export const RequestEmployeeBenefitProvider: React.FC<ProviderProps> = ({
           // Use country currency if available, otherwise fall back to employee bank account currency
           const finalCurrency = countryCurrency.currencyRef ? countryCurrency : employeeBankAccountCurrency
 
-          setData(prev => ({
-            ...prev!,
-            benefitProviders: providers,
-            countryCurrency: finalCurrency
-          }))
+          nextData.benefitProviders = providers
+          nextData.countryCurrency = finalCurrency
         } catch (error_: any) {
           setError(error_?.message || 'Data load failed')
         }
       }
 
+      setData(nextData)
       setIsLoading(false)
     } catch (e: any) {
       setError(e?.message || 'Unknown error')
