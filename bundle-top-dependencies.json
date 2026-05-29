@@ -12317,25 +12317,25 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 12734,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12734/",
-    "chunkJsBytes": 1935488,
+    "bitbucketBuildNumber": 12759,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12759/",
+    "chunkJsBytes": 1943237,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2908035,
-        "gzip": 637257,
+        "rendered": 2927258,
+        "gzip": 642220,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/services/SpreadsheetCollaborationManager.ts",
-            "rendered": 179840,
-            "gzip": 28738
+            "rendered": 181390,
+            "gzip": 28999
           },
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
-            "rendered": 125224,
-            "gzip": 24565
+            "rendered": 125784,
+            "gzip": 24674
           }
         ]
       },
@@ -12396,13 +12396,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 61694,
-        "gzip": 15226,
+        "rendered": 62182,
+        "gzip": 15391,
         "leaves": [
           {
             "name": "src/common/network/ai/prompt-manager/PromptManagerClient.ts",
-            "rendered": 19572,
-            "gzip": 4415
+            "rendered": 20060,
+            "gzip": 4580
           },
           {
             "name": "src/common/network/users/UserManagementClient.ts",
@@ -88303,20 +88303,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12750,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12750/",
-    "chunkJsBytes": 1943921,
+    "bitbucketBuildNumber": 12759,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12759/",
+    "chunkJsBytes": 1943920,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1649245,
-        "gzip": 104787,
+        "gzip": 104800,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1649245,
-            "gzip": 104787
+            "gzip": 104800
           }
         ]
       },
@@ -100884,25 +100884,25 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 12747,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12747/",
-    "chunkJsBytes": 1935593,
+    "bitbucketBuildNumber": 12759,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12759/",
+    "chunkJsBytes": 1943168,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2908035,
-        "gzip": 637257,
+        "rendered": 2927258,
+        "gzip": 642220,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/services/SpreadsheetCollaborationManager.ts",
-            "rendered": 179840,
-            "gzip": 28738
+            "rendered": 181390,
+            "gzip": 28999
           },
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/SpreadsheetAppViewer.tsx",
-            "rendered": 125224,
-            "gzip": 24565
+            "rendered": 125784,
+            "gzip": 24674
           }
         ]
       },
@@ -111684,7 +111684,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-05-29T15:09:53.034Z",
+    "generatedAt": "2026-05-29T17:10:49.788Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
