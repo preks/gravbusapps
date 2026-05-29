@@ -140,9 +140,10 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
   }, [manifestVersion, loadManifest])
 
   const filteredManifest = useMemo(() => {
-    if (!searchQuery.trim()) return manifest
+    const active = manifest.filter(s => s.status !== 'archived')
+    if (!searchQuery.trim()) return active
     const q = searchQuery.toLowerCase()
-    return manifest.filter(
+    return active.filter(
       s =>
         s.skill_id.toLowerCase().includes(q) ||
         s.name?.toLowerCase().includes(q) ||
