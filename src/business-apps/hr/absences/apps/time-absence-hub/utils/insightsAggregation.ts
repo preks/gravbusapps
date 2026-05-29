@@ -6,6 +6,7 @@
  */
 
 import { AbsenceCalendarDay, AttendanceRow, FilteredEmployee } from '../queries/OrgAttendanceQueries'
+import { toMinutes } from '../components/views/attendance/attendanceUtils'
 
 export interface WeeklyAttendanceBucket {
   weekKey: string
@@ -39,10 +40,7 @@ export interface DailyPresenceBucket {
   presenceRate: number
 }
 
-const toFiniteMinutes = (minutes?: number | null): number =>
-  typeof minutes === 'number' && Number.isFinite(minutes) ? minutes : 0
-
-const minutesToHours = (minutes?: number | null): number => Math.round((toFiniteMinutes(minutes) / 60) * 10) / 10
+const minutesToHours = (minutes?: number | string | null): number => Math.round((toMinutes(minutes) / 60) * 10) / 10
 
 const isoDate = (raw: string): Date => new Date(`${raw}T00:00:00Z`)
 
@@ -62,7 +60,7 @@ const formatWeekLabel = (date: Date): string => {
   return `${month} ${date.getUTCDate()}`
 }
 
-const isMissingLog = (row: AttendanceRow): boolean => (row.plannedTime ?? 0) > 0 && !row.startTime && !row.endTime
+const isMissingLog = (row: AttendanceRow): boolean => toMinutes(row.plannedTime) > 0 && !row.startTime && !row.endTime
 
 export const aggregateAttendanceByWeek = (rows: AttendanceRow[]): WeeklyAttendanceBucket[] => {
   if (rows.length === 0) {
@@ -89,7 +87,7 @@ export const aggregateAttendanceByWeek = (rows: AttendanceRow[]): WeeklyAttendan
       } satisfies WeeklyAttendanceBucket)
     existing.workedHours += minutesToHours(row.effectiveTime)
     existing.plannedHours += minutesToHours(row.plannedTime)
-    const diffMinutes = toFiniteMinutes(row.differenceTime)
+    const diffMinutes = toMinutes(row.differenceTime)
     if (diffMinutes > 0) {
       existing.overtimeHours += minutesToHours(diffMinutes)
     } else if (diffMinutes < 0) {
@@ -162,7 +160,7 @@ export const aggregateByDimension = (
 
     existing.workedHours += minutesToHours(row.effectiveTime)
     existing.plannedHours += minutesToHours(row.plannedTime)
-    const diffMinutes = toFiniteMinutes(row.differenceTime)
+    const diffMinutes = toMinutes(row.differenceTime)
     if (diffMinutes > 0) {
       existing.overtimeHours += minutesToHours(diffMinutes)
     } else if (diffMinutes < 0) {
@@ -195,7 +193,7 @@ export const computeDailyPresence = (rows: AttendanceRow[], populationSize: numb
       return
     }
     const set = presentByDay.get(row.attendanceDate) ?? new Set<string>()
-    if ((row.effectiveTime ?? 0) > 0 || row.startTime) {
+    if (toMinutes(row.effectiveTime) > 0 || row.startTime) {
       set.add(row.employeeId)
     }
     presentByDay.set(row.attendanceDate, set)

@@ -18,6 +18,11 @@ export const toMinutes = (value?: number | string | null): number => {
     normalized = normalized.slice(1).trim()
   }
 
+  if (/^\d+(\.\d+)?$/.test(normalized)) {
+    const total = Number(normalized)
+    return Number.isFinite(total) ? (isNegative ? -total : total) : 0
+  }
+
   if (/^\d{1,2}:\d{2}$/.test(normalized)) {
     const [hoursPart, minutesPart] = normalized.split(':').map(Number)
     if (!Number.isNaN(hoursPart) && !Number.isNaN(minutesPart)) {

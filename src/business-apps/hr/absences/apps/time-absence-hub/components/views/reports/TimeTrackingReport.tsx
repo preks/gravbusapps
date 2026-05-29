@@ -8,6 +8,7 @@ import { HubGlobalFilters } from '../../../hooks/useHubGlobalFilters'
 import { AttendanceRow, FilteredEmployee } from '../../../queries/OrgAttendanceQueries'
 import { ReportExportActions } from './ReportExportActions'
 import { downloadRowsAsCsv, downloadRowsAsXlsx } from './reportExportUtils'
+import { toMinutes } from '../attendance/attendanceUtils'
 
 interface TimeTrackingReportProps {
   accessToken: string
@@ -41,8 +42,13 @@ const buildColumns = (): ExportColumn[] => [
   { key: 'status', title: tt('column_status', 'Status') }
 ]
 
-const minutesToDecimalHours = (minutes?: number | null): string =>
-  typeof minutes === 'number' ? (Math.round((minutes / 60) * 100) / 100).toFixed(2) : '-'
+const minutesToDecimalHours = (minutes?: number | string | null): string => {
+  if (minutes === null || minutes === undefined || minutes === '') {
+    return '-'
+  }
+  const parsedMinutes = toMinutes(minutes)
+  return (Math.round((parsedMinutes / 60) * 100) / 100).toFixed(2)
+}
 
 const buildEmployeeIndex = (employees: FilteredEmployee[]): Map<string, FilteredEmployee> => {
   const map = new Map<string, FilteredEmployee>()
@@ -72,7 +78,7 @@ const buildStatus = (row: AttendanceRow): string => {
   if (row.manualOverride) {
     flags.push(tt('status_manual', 'Manual'))
   }
-  if ((row.plannedTime ?? 0) > 0 && !row.startTime && !row.endTime) {
+  if (toMinutes(row.plannedTime) > 0 && !row.startTime && !row.endTime) {
     flags.push(tt('status_missing', 'Missing'))
   }
   if (flags.length === 0) {
