@@ -85,17 +85,34 @@ export interface ProviderToolCatalogItem {
 }
 
 /**
- * Stage 1 v2 provider-tool entry. Returned from
- * GET /api/v2/provider-tools, which collapses the active flowbot +
- * functions surface into a single response keyed by canonical name.
+ * Unified v2 provider-tool entry. Returned from
+ * GET /api/v2/provider-tools, which collapses every picker-attachable
+ * provider surface into a single response keyed by canonical name —
+ * flowbot, functions, prompt_manager (native Deep Agent tools), mcp
+ * (Connect MCP), and the skill-attachable subset of platform builtins.
  *
- * Persistence rule: skill yaml continues to store ``tool_ref`` in
- * Stage 1 — ``canonical_name`` is the LLM-facing display name only.
+ * Persistence rule: skill yaml continues to store ``tool_ref`` —
+ * ``canonical_name`` is the LLM-facing display name only.
  */
 export interface CanonicalProviderToolEntry {
   tool_ref: string
   canonical_name: string
-  source: 'flowbot' | 'functions'
+  /**
+   * Human-facing UI label, free of source-history prefixes (``newwork_``,
+   * ``function_``, …). Render this as the primary text in the picker and
+   * keep ``tool_ref`` as the small technical badge. Distinct from
+   * ``canonical_name`` (the LLM function-call name). May be empty on
+   * responses from an older backend — callers should fall back to
+   * ``canonical_name``.
+   */
+  display_name?: string
+  /**
+   * Provider source. Stage 2 broadens this to every provider the picker
+   * can attach to a skill: ``flowbot`` and ``functions`` plus
+   * ``prompt_manager`` (native Deep Agent tools), ``mcp`` (Connect MCP),
+   * and ``builtin`` (skill-attachable platform builtins).
+   */
+  source: 'flowbot' | 'functions' | 'prompt_manager' | 'mcp' | 'builtin'
   description: string
   input_schema: Record<string, unknown>
   output_schema: Record<string, unknown>
@@ -103,6 +120,32 @@ export interface CanonicalProviderToolEntry {
   shadowed_by: string | null
   /** False when entry is a static stub because live catalog was unreachable */
   catalog_available: boolean
+  /**
+   * Primary category bucket from the existing ``CATEGORY_TO_TOOL_NAMES``
+   * taxonomy (HR, CRM, web, charts, mcp, etc.). The picker UI groups
+   * tools by this field so users see the same buckets the runtime
+   * selector uses.
+   */
+  category?: string | null
+  /**
+   * Free-form labels carried from each provider — capability tags for
+   * flowbot/functions/mcp/builtin, manifest verbs+entities+business_domain
+   * for native ``prompt_manager.*`` entries. Used to widen substring search
+   * beyond just name/description without adding a separate index.
+   */
+  tags?: string[]
+  /**
+   * True when this tool's canonical name is on the service-global disabled
+   * list. Disabled tools remain in the picker (block-only UX) but are
+   * stripped from both the Deep Agent and Expert/PromptODM runtimes.
+   * May be absent on responses from an older backend.
+   */
+  disabled?: boolean
+}
+
+/** Service-global set of disabled (blocked) canonical tool names. */
+export interface ToolAvailabilityResponse {
+  disabled_tool_names: string[]
 }
 
 export interface DeepAgentDebugTrace {
@@ -828,6 +871,22 @@ export class PromptManagerClient extends RestClient {
     const path = '/../v2/provider-tools'
     return this.get<CanonicalProviderToolEntry[]>(path, {
       params: options.includeShadowed ? { include_shadowed: true } : undefined
+    })
+  }
+
+  /** Read the service-global set of disabled (blocked) canonical tool names. */
+  async getToolAvailability(): Promise<ToolAvailabilityResponse> {
+    return this.get<ToolAvailabilityResponse>('/../v2/tool-availability')
+  }
+
+  /**
+   * Enable or disable one tool globally by canonical name. Disabled tools
+   * stay visible in pickers but are stripped from both runtimes.
+   */
+  async setToolAvailability(canonicalName: string, disabled: boolean): Promise<ToolAvailabilityResponse> {
+    return this.put<ToolAvailabilityResponse>('/../v2/tool-availability', {
+      canonical_name: canonicalName,
+      disabled
     })
   }
 
