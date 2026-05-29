@@ -82,6 +82,10 @@ export const useGetAdvancePaymentForApproval = (accessToken: string) => {
   const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchAdvancePaymentData = async (paymentId: string) => {
+    if (!accessToken?.trim()) {
+      throw new Error('GraphQL request requires a valid access token')
+    }
+
     const query = GET_ADVANCE_PAYMENT_FOR_APPROVAL
     try {
       const result = await graphqlClient.request<{

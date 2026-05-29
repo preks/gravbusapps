@@ -1,5 +1,5 @@
 import { env } from '../../env/EnvUtils'
-import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
+import { assignBearerAuthorizationHeader, normalizeBearerAccessToken } from '../HeaderUtils'
 
 export class GraphQLClient {
   private endpoint: string
@@ -15,7 +15,7 @@ export class GraphQLClient {
       this.headers = {}
     }
 
-    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
+    assignBearerAuthorizationHeader(this.headers, accessToken)
   }
 
   async request<T = any>(query: string, variables?: Record<string, any>): Promise<T> {
@@ -23,6 +23,10 @@ export class GraphQLClient {
       throw new Error(
         'GraphQL endpoint is not configured. Please check NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK environment variable.'
       )
+    }
+
+    if (!normalizeBearerAccessToken(this.headers.Authorization)) {
+      throw new Error('GraphQL request requires a valid access token')
     }
 
     const response = await fetch(this.endpoint, {
@@ -42,7 +46,9 @@ export class GraphQLClient {
     if (response.status === 302 || response.status === 301) {
       const location = response.headers.get('location')
       console.error(`GraphQL request redirected (${response.status}) to: ${location}`)
-      throw new Error(`Redirect detected: ${response.status} ${response.statusText} -> ${location}`)
+      throw new Error(
+        `Redirect detected: ${response.status} ${response.statusText} -> ${location}. It is possibly a gateway redirect. Please make sure the request has an access token.`
+      )
     }
 
     if (!response.ok) {
