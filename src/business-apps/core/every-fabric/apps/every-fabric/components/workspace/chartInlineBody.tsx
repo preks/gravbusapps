@@ -35,25 +35,63 @@ export const ChartEmptyState: React.FC<{ message?: string }> = ({ message = 'No 
   </div>
 )
 
+/** Direction of a KPI trend, inferred from the explicit flag or the value sign. */
+export function statTrendDirection(trend: NonNullable<StatItem['trend']>): 'up' | 'down' | 'flat' {
+  if (typeof trend.positive === 'boolean') return trend.positive ? 'up' : 'down'
+  const text = String(trend.value ?? '')
+  if (/^\s*[-−]/.test(text) || /\bdown\b/i.test(text)) return 'down'
+  if (/^\s*\+/.test(text) || /▲|↑/.test(text) || /\bup\b/i.test(text)) return 'up'
+  return 'flat'
+}
+
+const TREND_GLYPH: Record<'up' | 'down' | 'flat', string> = { up: '▲', down: '▼', flat: '→' }
+
+const TrendChip: React.FC<{ trend: NonNullable<StatItem['trend']> }> = ({ trend }) => {
+  const dir = statTrendDirection(trend)
+  const tone =
+    dir === 'up'
+      ? 'gba:text-emerald-600 gba:bg-emerald-50'
+      : dir === 'down'
+        ? 'gba:text-red-500 gba:bg-red-50'
+        : 'gba:text-muted-foreground gba:bg-muted/40'
+  const cleaned = String(trend.value ?? '').replace(/^\s*[+\-−▲▼↑→]\s*/, '')
+  return (
+    <span
+      data-testid="stat-trend-chip"
+      data-trend-direction={dir}
+      className={`gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium ${tone}`}
+      title={trend.description}
+    >
+      <span aria-hidden="true">{TREND_GLYPH[dir]}</span>
+      {cleaned}
+    </span>
+  )
+}
+
 const StatRow: React.FC<{ stats: StatItem[] }> = ({ stats }) => (
   <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 gba:gap-3">
     {stats.map((stat, idx) => (
       <div
         key={`${stat.label}-${idx}`}
-        className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:p-4 gba:shadow-sm"
+        className="gba:relative gba:overflow-hidden gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:p-4 gba:shadow-sm gba:transition-shadow hover:gba:shadow-md"
       >
-        <p className="gba:text-xs gba:text-muted-foreground gba:mb-1">{stat.label}</p>
-        <p className="gba:text-2xl gba:font-semibold gba:text-foreground">
-          {stat.prefix && <span className="gba:text-muted-foreground gba:text-lg">{stat.prefix}</span>}
-          {stat.value}
-          {stat.suffix && <span className="gba:text-muted-foreground gba:text-lg">{stat.suffix}</span>}
+        <span
+          aria-hidden="true"
+          className="gba:absolute gba:left-0 gba:top-0 gba:h-full gba:w-1 gba:bg-[var(--nw-chart-1)]"
+        />
+        <p className="gba:text-[11px] gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:mb-1">
+          {stat.label}
         </p>
-        {stat.trend && (
-          <p
-            className={`gba:text-xs gba:font-medium gba:mt-1 ${stat.trend.positive ? 'gba:text-emerald-600' : 'gba:text-red-500'}`}
-          >
-            {stat.trend.value}
+        <div className="gba:flex gba:items-baseline gba:justify-between gba:gap-2">
+          <p className="gba:text-3xl gba:font-semibold gba:leading-none gba:text-foreground">
+            {stat.prefix && <span className="gba:text-muted-foreground gba:text-lg">{stat.prefix}</span>}
+            {stat.value}
+            {stat.suffix && <span className="gba:text-muted-foreground gba:text-lg">{stat.suffix}</span>}
           </p>
+          {stat.trend && <TrendChip trend={stat.trend} />}
+        </div>
+        {stat.trend?.description && (
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{stat.trend.description}</p>
         )}
       </div>
     ))}

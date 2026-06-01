@@ -1,4 +1,4 @@
-import { parseChartConfig, unwrapProviderChartPayload } from '../chartRenderers'
+import { formatValueLabel, parseChartConfig, sumSeries, unwrapProviderChartPayload } from '../chartRenderers'
 
 describe('unwrapProviderChartPayload', () => {
   it('unwraps provider team distribution shape', () => {
@@ -36,5 +36,46 @@ describe('parseChartConfig', () => {
     expect(cfg).not.toBeNull()
     expect(cfg?.chartType).toBe('bar')
     expect(cfg?.dataKeys).toEqual(['count'])
+  })
+})
+
+describe('sumSeries (donut center total)', () => {
+  it('sums the default value key', () => {
+    expect(
+      sumSeries([
+        { name: 'New', value: 495 },
+        { name: 'Contacted', value: 405 },
+        { name: 'Qualified', value: 300 },
+        { name: 'Closed', value: 300 }
+      ])
+    ).toBe(1500)
+  })
+
+  it('sums a custom key and ignores non-numeric values', () => {
+    expect(
+      sumSeries(
+        [
+          { name: 'A', value: 1, count: 10 },
+          { name: 'B', value: 2, count: 'x' as unknown as number }
+        ],
+        'count'
+      )
+    ).toBe(10)
+  })
+
+  it('returns 0 for empty data', () => {
+    expect(sumSeries([])).toBe(0)
+  })
+})
+
+describe('formatValueLabel (on-chart labels)', () => {
+  it('compacts thousands and millions', () => {
+    expect(formatValueLabel(1500)).toBe('1.5K')
+    expect(formatValueLabel(2_000_000)).toBe('2.0M')
+  })
+
+  it('respects percentage unit and passes through small numbers', () => {
+    expect(formatValueLabel(42, '%')).toBe('42%')
+    expect(formatValueLabel(7)).toBe('7')
   })
 })
