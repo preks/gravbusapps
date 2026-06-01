@@ -1,6 +1,7 @@
 import { Button } from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
+  ArrowSquareOutIcon,
   ArrowsClockwiseIcon,
   CalendarCheckIcon,
   CaretDownIcon,
@@ -8,20 +9,27 @@ import {
   CheckCircleIcon,
   ClockIcon,
   MinusCircleIcon,
+  PencilSimpleIcon,
+  PlayIcon,
   SpinnerGapIcon,
-  WarningCircleIcon,
+  TrashIcon,
   XCircleIcon
 } from '@phosphor-icons/react'
 import { useMemo, useState } from 'react'
 import type { DispatchStatus, ScheduledDispatch } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { useScheduledDispatches } from '../../hooks/useScheduledDispatches'
+import { useScheduledTaskTemplates } from '../../hooks/useScheduledTaskTemplates'
 import { useEmployeeSummaries, type EmployeeSummary } from '../../hooks/useEmployeeSummary'
 import { AssigneeChip } from './AssigneeChip'
+import { DispatchError } from './DispatchError'
+import { ScheduledTaskTemplates, type ScheduledTaskDraft } from './ScheduledTaskTemplates'
 
 interface ScheduledDispatchesScreenProps {
   accessToken: string
   onBack: () => void
+  /** Open an agent session (e.g. a scheduled run's result) in the workspace. */
+  onOpenSession?: (sessionId: string) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +113,145 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
 }
 
 // ---------------------------------------------------------------------------
+// Dispatch row — expanded detail panel (extracted to reduce DispatchRow complexity)
+// ---------------------------------------------------------------------------
+
+interface DispatchRowDetailProps {
+  dispatch: ScheduledDispatch
+  isAgentSession: boolean
+  assigneeCount: number
+  assigneeUserIds: string[]
+  workflowIds: string[]
+  scheduledStr: string
+  recurrenceLabel: string | null
+  summaries: Map<string, EmployeeSummary>
+  onOpenSession?: (sessionId: string) => void
+}
+
+const DispatchRowDetail: React.FC<DispatchRowDetailProps> = ({
+  dispatch,
+  isAgentSession,
+  assigneeCount,
+  assigneeUserIds,
+  workflowIds,
+  scheduledStr,
+  recurrenceLabel,
+  summaries,
+  onOpenSession
+}) => (
+  <div className="gba:border-t gba:border-border/60 gba:px-4 gba:py-3 gba:bg-muted/20 gba:space-y-3">
+    <div>
+      <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
+        Message
+      </p>
+      <p className="gba:text-[13px] gba:text-foreground gba:whitespace-pre-wrap gba:break-words">
+        {dispatch.agentTask || dispatch.message}
+      </p>
+    </div>
+
+    {!isAgentSession && (
+      <div>
+        <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
+          Assignees ({assigneeCount})
+        </p>
+        <div className="gba:flex gba:flex-col gba:gap-1.5">
+          {assigneeUserIds.map(uid => (
+            <AssigneeChip key={uid} userId={uid} summary={summaries.get(uid)} />
+          ))}
+        </div>
+      </div>
+    )}
+
+    {dispatch.createdSessionId && (
+      <div>
+        <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
+          Result
+        </p>
+        {onOpenSession ? (
+          <button
+            type="button"
+            onClick={() => onOpenSession(dispatch.createdSessionId as string)}
+            className="gba:inline-flex gba:items-center gba:gap-1 gba:text-[12px] gba:font-medium gba:text-primary gba:hover:underline"
+          >
+            <ArrowSquareOutIcon className="gba:h-3.5 gba:w-3.5" />
+            Open the agent session to view the result
+          </button>
+        ) : (
+          <span className="gba:block gba:text-[12px] gba:text-foreground gba:font-mono">
+            {dispatch.createdSessionId}
+          </span>
+        )}
+      </div>
+    )}
+
+    {recurrenceLabel && (
+      <div>
+        <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
+          Recurrence
+        </p>
+        <p className="gba:text-[12px] gba:text-foreground">
+          {recurrenceLabel} · next run {scheduledStr}
+        </p>
+      </div>
+    )}
+
+    {dispatch.runHistory && dispatch.runHistory.length > 0 && (
+      <div>
+        <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
+          Run history
+        </p>
+        <div className="gba:space-y-1">
+          {dispatch.runHistory.slice(-5).map((run, idx) => (
+            <div
+              key={`${run.session_id ?? idx}-${run.triggered_at ?? idx}`}
+              className="gba:flex gba:items-center gba:gap-2 gba:text-[12px] gba:text-foreground"
+            >
+              <span>
+                {run.triggered_at ? formatScheduledAt(run.triggered_at) : 'Triggered'} · {run.status ?? 'started'}
+              </span>
+              {run.session_id && onOpenSession && (
+                <button
+                  type="button"
+                  onClick={() => onOpenSession(run.session_id as string)}
+                  className="gba:inline-flex gba:items-center gba:gap-1 gba:text-primary gba:font-medium gba:hover:underline"
+                >
+                  <ArrowSquareOutIcon className="gba:h-3 gba:w-3" />
+                  Open
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {workflowIds.length > 0 && (
+      <div>
+        <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
+          Delivered to inbox
+        </p>
+        <p className="gba:flex gba:items-center gba:gap-1.5 gba:text-[12px] gba:text-foreground">
+          <CheckCircleIcon className="gba:h-3.5 gba:w-3.5 gba:text-emerald-600" />
+          {workflowIds.length} task{workflowIds.length === 1 ? '' : 's'} delivered to the assignee
+          {assigneeCount === 1 ? "'s" : "s'"} inbox
+        </p>
+      </div>
+    )}
+
+    {dispatch.firedAt && (
+      <p className="gba:text-[11px] gba:text-muted-foreground">
+        {dispatch.status === 'failed' ? 'Last attempt: ' : 'Sent at: '}
+        {formatScheduledAt(dispatch.firedAt)}
+      </p>
+    )}
+
+    {dispatch.error && <DispatchError error={dispatch.error} />}
+
+    <p className="gba:text-[10px] gba:text-muted-foreground/60">ID: {dispatch.dispatchId}</p>
+  </div>
+)
+
+// ---------------------------------------------------------------------------
 // Dispatch row with expandable detail
 // ---------------------------------------------------------------------------
 
@@ -116,13 +263,30 @@ interface DispatchRowProps {
     body: { enabled?: boolean; scheduledAt?: string; recurrence?: Record<string, unknown> | null }
   ) => Promise<boolean>
   onRetry: (id: string) => Promise<boolean>
+  onDelete: (id: string) => Promise<boolean>
+  onEdit: (dispatch: ScheduledDispatch) => void
+  onRunNow: (id: string) => Promise<boolean>
   summaries: Map<string, EmployeeSummary>
+  onOpenSession?: (sessionId: string) => void
 }
 
-const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, onUpdate, onRetry, summaries }) => {
+const DispatchRow: React.FC<DispatchRowProps> = ({
+  dispatch,
+  onCancel,
+  onUpdate,
+  onRetry,
+  onDelete,
+  onEdit,
+  onRunNow,
+  summaries,
+  onOpenSession
+}) => {
   const [expanded, setExpanded] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [actioning, setActioning] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const isTerminal = dispatch.status === 'fired' || dispatch.status === 'cancelled' || dispatch.status === 'failed'
 
   const handleCancel = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -130,6 +294,14 @@ const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, onUpdate,
     setCancelling(true)
     await onCancel(dispatch.dispatchId)
     setCancelling(false)
+  }
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDeleting(true)
+    await onDelete(dispatch.dispatchId)
+    setDeleting(false)
   }
 
   const scheduledStr = formatScheduledAt(dispatch.scheduledAt)
@@ -155,6 +327,14 @@ const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, onUpdate,
     e.stopPropagation()
     setActioning(true)
     await onRetry(dispatch.dispatchId)
+    setActioning(false)
+  }
+
+  const handleRunNow = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setActioning(true)
+    await onRunNow(dispatch.dispatchId)
     setActioning(false)
   }
 
@@ -193,6 +373,52 @@ const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, onUpdate,
           </p>
         </button>
         <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+          {dispatch.createdSessionId && onOpenSession && (
+            <button
+              type="button"
+              onClick={e => {
+                e.preventDefault()
+                e.stopPropagation()
+                onOpenSession(dispatch.createdSessionId as string)
+              }}
+              className="gba:inline-flex gba:h-7 gba:items-center gba:gap-1 gba:rounded-md gba:px-2 gba:text-[11px] gba:font-medium gba:text-primary gba:hover:bg-primary/10"
+              data-testid="scheduled-open-result"
+            >
+              <ArrowSquareOutIcon className="gba:h-3.5 gba:w-3.5" />
+              Open result
+            </button>
+          )}
+          {dispatch.status === 'pending' && (
+            <button
+              type="button"
+              onClick={handleRunNow}
+              disabled={actioning}
+              className="gba:inline-flex gba:h-7 gba:items-center gba:gap-1 gba:rounded-md gba:px-2 gba:text-[11px] gba:font-medium gba:text-foreground gba:hover:bg-muted/60 gba:disabled:pointer-events-none gba:disabled:opacity-50"
+              data-testid="scheduled-run-now"
+            >
+              {actioning ? (
+                <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin" />
+              ) : (
+                <PlayIcon className="gba:h-3.5 gba:w-3.5" />
+              )}
+              Run now
+            </button>
+          )}
+          {dispatch.status === 'pending' && (
+            <button
+              type="button"
+              onClick={e => {
+                e.preventDefault()
+                e.stopPropagation()
+                onEdit(dispatch)
+              }}
+              aria-label="Edit"
+              className="gba:inline-flex gba:h-7 gba:w-7 gba:items-center gba:justify-center gba:rounded-md gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
+              data-testid="scheduled-edit"
+            >
+              <PencilSimpleIcon className="gba:h-3.5 gba:w-3.5" />
+            </button>
+          )}
           {dispatch.status === 'pending' && (
             <button
               type="button"
@@ -227,6 +453,45 @@ const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, onUpdate,
               <span className={actioning ? 'gba:ml-1' : ''}>Retry</span>
             </button>
           )}
+          {isTerminal &&
+            (confirmDelete ? (
+              <span className="gba:flex gba:items-center gba:gap-1">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="gba:inline-flex gba:h-7 gba:items-center gba:gap-1 gba:rounded-md gba:bg-destructive/10 gba:px-2 gba:text-[11px] gba:font-medium gba:text-destructive gba:hover:bg-destructive/20"
+                  data-testid="scheduled-confirm-delete"
+                >
+                  {deleting ? <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin" /> : 'Delete'}
+                </button>
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setConfirmDelete(false)
+                  }}
+                  className="gba:inline-flex gba:h-7 gba:items-center gba:rounded-md gba:px-2 gba:text-[11px] gba:text-muted-foreground gba:hover:bg-muted/60"
+                >
+                  Keep
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={e => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setConfirmDelete(true)
+                }}
+                aria-label="Delete"
+                className="gba:inline-flex gba:h-7 gba:w-7 gba:items-center gba:justify-center gba:rounded-md gba:text-muted-foreground gba:hover:bg-destructive/10 gba:hover:text-destructive"
+                data-testid="scheduled-delete"
+              >
+                <TrashIcon className="gba:h-3.5 gba:w-3.5" />
+              </button>
+            ))}
           <button
             type="button"
             onClick={() => setExpanded(v => !v)}
@@ -243,96 +508,17 @@ const DispatchRow: React.FC<DispatchRowProps> = ({ dispatch, onCancel, onUpdate,
       </div>
 
       {expanded && (
-        <div className="gba:border-t gba:border-border/60 gba:px-4 gba:py-3 gba:bg-muted/20 gba:space-y-3">
-          <div>
-            <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
-              Message
-            </p>
-            <p className="gba:text-[13px] gba:text-foreground gba:whitespace-pre-wrap gba:break-words">
-              {dispatch.agentTask || dispatch.message}
-            </p>
-          </div>
-
-          {!isAgentSession && (
-            <div>
-              <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
-                Assignees ({assigneeCount})
-              </p>
-              <div className="gba:flex gba:flex-col gba:gap-1.5">
-                {assigneeUserIds.map(uid => (
-                  <AssigneeChip key={uid} userId={uid} summary={summaries.get(uid)} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {dispatch.createdSessionId && (
-            <div>
-              <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
-                Created session
-              </p>
-              <span className="gba:block gba:text-[12px] gba:text-foreground gba:font-mono">
-                {dispatch.createdSessionId}
-              </span>
-            </div>
-          )}
-
-          {recurrenceLabel && (
-            <div>
-              <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
-                Recurrence
-              </p>
-              <p className="gba:text-[12px] gba:text-foreground">
-                {recurrenceLabel} · next run {scheduledStr}
-              </p>
-            </div>
-          )}
-
-          {dispatch.runHistory && dispatch.runHistory.length > 0 && (
-            <div>
-              <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
-                Run history
-              </p>
-              <div className="gba:space-y-1">
-                {dispatch.runHistory.slice(-5).map((run, idx) => (
-                  <p
-                    key={`${run.session_id ?? idx}-${run.triggered_at ?? idx}`}
-                    className="gba:text-[12px] gba:text-foreground"
-                  >
-                    {run.triggered_at ? formatScheduledAt(run.triggered_at) : 'Triggered'} · {run.status ?? 'started'}
-                    {run.session_id ? ` · ${run.session_id}` : ''}
-                  </p>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {workflowIds.length > 0 && (
-            <div>
-              <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
-                Workflow IDs
-              </p>
-              {workflowIds.map(wid => (
-                <span key={wid} className="gba:block gba:text-[12px] gba:text-foreground gba:font-mono">
-                  {wid}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {dispatch.firedAt && (
-            <p className="gba:text-[11px] gba:text-muted-foreground">Sent at: {formatScheduledAt(dispatch.firedAt)}</p>
-          )}
-
-          {dispatch.error && (
-            <div className="gba:flex gba:items-start gba:gap-1.5 gba:text-destructive">
-              <WarningCircleIcon className="gba:h-3.5 gba:w-3.5 gba:mt-0.5 gba:shrink-0" />
-              <p className="gba:text-[12px]">{dispatch.error}</p>
-            </div>
-          )}
-
-          <p className="gba:text-[10px] gba:text-muted-foreground/60">ID: {dispatch.dispatchId}</p>
-        </div>
+        <DispatchRowDetail
+          dispatch={dispatch}
+          isAgentSession={isAgentSession}
+          assigneeCount={assigneeCount}
+          assigneeUserIds={assigneeUserIds}
+          workflowIds={workflowIds}
+          scheduledStr={scheduledStr}
+          recurrenceLabel={recurrenceLabel}
+          summaries={summaries}
+          onOpenSession={onOpenSession}
+        />
       )}
     </div>
   )
@@ -357,12 +543,48 @@ const SkeletonRow: React.FC = () => (
 // Main screen
 // ---------------------------------------------------------------------------
 
-export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps> = ({ accessToken, onBack }) => {
-  const { dispatches, isLoading, error, refresh, cancel, update, retry, statusFilter, setStatusFilter } =
-    useScheduledDispatches(accessToken)
+function getSubmitLabel(creating: boolean, editingId: string | null, frequency: string): string {
+  if (creating) return editingId ? 'Saving…' : 'Creating…'
+  if (editingId) return 'Save changes'
+  return frequency === 'once' ? 'Schedule task' : 'Create recurring schedule'
+}
+
+/** Convert an ISO UTC datetime to the local `YYYY-MM-DDTHH:mm` value a
+ *  `datetime-local` input expects (it has no timezone and reads as local). */
+const toDatetimeLocalValue = (iso: string): string => {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 16)
+}
+
+export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps> = ({
+  accessToken,
+  onBack,
+  onOpenSession
+}) => {
+  const {
+    dispatches,
+    isLoading,
+    error,
+    refresh,
+    cancel,
+    remove,
+    update,
+    retry,
+    runNow,
+    statusFilter,
+    setStatusFilter
+  } = useScheduledDispatches(accessToken)
+  const {
+    templates,
+    isLoading: templatesLoading,
+    create: createTemplate,
+    remove: removeTemplate
+  } = useScheduledTaskTemplates(accessToken)
   const client = usePromptManagerClient(accessToken)
   const [showCreate, setShowCreate] = useState(false)
-  const [createDraft, setCreateDraft] = useState({
+  const [createDraft, setCreateDraft] = useState<ScheduledTaskDraft>({
     title: '',
     task: '',
     scheduledAt: '',
@@ -370,6 +592,84 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
   })
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  const applyTemplate = (draft: ScheduledTaskDraft) => {
+    setEditingId(null)
+    setCreateDraft(draft)
+    setCreateError(null)
+    setShowCreate(true)
+  }
+
+  const resetDraft = () => {
+    setEditingId(null)
+    setCreateDraft({ title: '', task: '', scheduledAt: '', frequency: 'weekly' })
+    setCreateError(null)
+  }
+
+  const startEdit = (dispatch: ScheduledDispatch) => {
+    setEditingId(dispatch.dispatchId)
+    setCreateError(null)
+    setCreateDraft({
+      title: dispatch.title ?? '',
+      task: dispatch.agentTask || dispatch.message || '',
+      scheduledAt: toDatetimeLocalValue(dispatch.scheduledAt),
+      frequency: (dispatch.recurrence?.frequency as ScheduledTaskDraft['frequency']) ?? 'once'
+    })
+    setShowCreate(true)
+  }
+
+  const saveEdit = async () => {
+    if (!editingId) return
+    const task = createDraft.task.trim()
+    if (!task) {
+      setCreateError('Add the task the agent should run.')
+      return
+    }
+    if (!createDraft.scheduledAt) {
+      setCreateError('Choose a future date and time.')
+      return
+    }
+    const scheduledAt = new Date(createDraft.scheduledAt)
+    if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+      setCreateError('Scheduled time must be in the future.')
+      return
+    }
+    const title = createDraft.title.trim() || task.slice(0, 80)
+    setCreateError(null)
+    setCreating(true)
+    const ok = await update(editingId, {
+      title,
+      task,
+      scheduledAt: scheduledAt.toISOString(),
+      // null clears recurrence (one-time); object sets the repeat cadence.
+      recurrence: createDraft.frequency === 'once' ? null : { frequency: createDraft.frequency, interval: 1 }
+    })
+    setCreating(false)
+    if (ok) {
+      setShowCreate(false)
+      resetDraft()
+    } else {
+      setCreateError('Failed to save changes.')
+    }
+  }
+
+  const saveDraftAsTemplate = async () => {
+    if (!createDraft.task.trim()) {
+      setCreateError('Add the task before saving it as a template.')
+      return
+    }
+    setSavingTemplate(true)
+    const ok = await createTemplate({
+      title: createDraft.title.trim() || createDraft.task.trim().slice(0, 80),
+      task: createDraft.task.trim(),
+      defaultFrequency: createDraft.frequency,
+      defaultTime: createDraft.scheduledAt ? createDraft.scheduledAt.slice(11, 16) : '09:00'
+    })
+    setSavingTemplate(false)
+    if (!ok) setCreateError('Failed to save template.')
+  }
 
   // Collect all unique userIds across all visible dispatches for a single batch GraphQL call
   const allUserIds = useMemo(() => {
@@ -407,13 +707,14 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
         task,
         scheduledAt: scheduledAt.toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-        recurrence: { frequency: createDraft.frequency as 'daily' | 'weekly' | 'monthly', interval: 1 }
+        // 'once' → no recurrence (single future run); otherwise repeat on the cadence.
+        recurrence: createDraft.frequency === 'once' ? undefined : { frequency: createDraft.frequency, interval: 1 }
       })
       setShowCreate(false)
       setCreateDraft({ title: '', task: '', scheduledAt: '', frequency: 'weekly' })
       refresh()
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Failed to create recurring schedule.')
+      setCreateError(err instanceof Error ? err.message : 'Failed to create schedule.')
     } finally {
       setCreating(false)
     }
@@ -435,8 +736,20 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
           <CalendarCheckIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
           <h2 className="gba:text-[14px] gba:font-semibold gba:text-foreground gba:truncate">Scheduled Tasks</h2>
         </div>
-        <Button size="sm" variant="secondary" onClick={() => setShowCreate(prev => !prev)}>
-          {showCreate ? 'Close' : 'New recurring'}
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            if (showCreate) {
+              setShowCreate(false)
+              resetDraft()
+            } else {
+              resetDraft()
+              setShowCreate(true)
+            }
+          }}
+        >
+          {showCreate ? 'Close' : 'New task'}
         </Button>
         <button
           type="button"
@@ -449,9 +762,22 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
         </button>
       </div>
 
-      {/* Status filter tabs */}
+      {/* Create panel */}
       {showCreate && (
         <div className="gba:border-b gba:border-border/40 gba:p-4 gba:space-y-3 gba:bg-muted/15">
+          {editingId ? (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:text-[12px] gba:font-medium gba:text-foreground">
+              <PencilSimpleIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+              Editing schedule
+            </div>
+          ) : (
+            <ScheduledTaskTemplates
+              templates={templates}
+              isLoading={templatesLoading}
+              onApply={applyTemplate}
+              onDelete={removeTemplate}
+            />
+          )}
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
             <input
               value={createDraft.title}
@@ -474,25 +800,39 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
           />
           <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
             <label className="gba:text-xs gba:text-muted-foreground">
-              Frequency
+              Repeat
               <select
                 value={createDraft.frequency}
-                onChange={e => setCreateDraft(prev => ({ ...prev, frequency: e.target.value }))}
+                onChange={e =>
+                  setCreateDraft(prev => ({ ...prev, frequency: e.target.value as ScheduledTaskDraft['frequency'] }))
+                }
                 className="gba:ml-2 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:text-sm gba:text-foreground"
               >
+                <option value="once">Once</option>
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
               </select>
             </label>
-            <Button
-              size="sm"
-              disabled={creating || !createDraft.task.trim() || !createDraft.scheduledAt}
-              onClick={() => void createRecurringSchedule()}
-              data-testid="scheduled-create-recurring-button"
-            >
-              {creating ? 'Creating…' : 'Create recurring schedule'}
-            </Button>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={savingTemplate || !createDraft.task.trim()}
+                onClick={() => void saveDraftAsTemplate()}
+                data-testid="scheduled-save-template-button"
+              >
+                {savingTemplate ? 'Saving…' : 'Save as template'}
+              </Button>
+              <Button
+                size="sm"
+                disabled={creating || !createDraft.task.trim() || !createDraft.scheduledAt}
+                onClick={() => void (editingId ? saveEdit() : createRecurringSchedule())}
+                data-testid="scheduled-create-recurring-button"
+              >
+                {getSubmitLabel(creating, editingId, createDraft.frequency)}
+              </Button>
+            </div>
           </div>
           {createError && (
             <p className="gba:text-xs gba:text-destructive" role="alert">
@@ -541,12 +881,22 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
         )}
 
         {!isLoading && !error && dispatches.length === 0 && (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12 gba:gap-3 gba:text-center gba:text-muted-foreground">
+          <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:py-10 gba:text-center gba:text-muted-foreground">
             <CalendarCheckIcon className="gba:h-10 gba:w-10 gba:opacity-30" />
-            <p className="gba:text-[13px] gba:font-medium">No scheduled tasks</p>
-            <p className="gba:text-[12px] gba:max-w-[220px]">
-              Ask the agent to schedule a task for someone and it will appear here.
+            <p className="gba:text-[13px] gba:font-medium">No scheduled tasks yet</p>
+            <p className="gba:text-[12px] gba:max-w-[260px]">
+              Start from a template below, or ask the agent in chat to schedule one for you.
             </p>
+            {!showCreate && (
+              <div className="gba:mt-3 gba:w-full gba:max-w-2xl gba:text-left">
+                <ScheduledTaskTemplates
+                  templates={templates}
+                  isLoading={templatesLoading}
+                  onApply={applyTemplate}
+                  onDelete={removeTemplate}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -557,7 +907,11 @@ export const ScheduledDispatchesScreen: React.FC<ScheduledDispatchesScreenProps>
             onCancel={cancel}
             onUpdate={update}
             onRetry={retry}
+            onDelete={remove}
+            onEdit={startEdit}
+            onRunNow={runNow}
             summaries={summaries}
+            onOpenSession={onOpenSession}
           />
         ))}
       </div>

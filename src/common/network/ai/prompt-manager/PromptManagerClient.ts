@@ -1678,6 +1678,16 @@ export class PromptManagerClient extends RestClient {
     await this.delete<void>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}`)
   }
 
+  /**
+   * Permanently delete a scheduled dispatch regardless of status.
+   * Used to remove finished (fired/cancelled/failed) tasks from the list.
+   */
+  async deleteScheduledDispatch(dispatchId: string): Promise<void> {
+    await this.delete<void>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}`, {
+      params: { hard: true }
+    })
+  }
+
   async updateScheduledDispatch(
     dispatchId: string,
     body: {
@@ -1694,6 +1704,37 @@ export class PromptManagerClient extends RestClient {
 
   async retryScheduledDispatch(dispatchId: string): Promise<ScheduledDispatch> {
     return this.post<ScheduledDispatch>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}/retry`, {})
+  }
+
+  /** Fire a scheduled dispatch immediately without waiting for its scheduled time.
+   *  Recurring schedules keep their next occurrence unchanged. */
+  async runScheduledDispatchNow(dispatchId: string): Promise<ScheduledDispatch> {
+    return this.post<ScheduledDispatch>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}/run-now`, {})
+  }
+
+  // --- Scheduled Task Templates ---
+
+  /** List built-in (system) templates plus the current user's own templates. */
+  async getScheduledTaskTemplates(): Promise<ScheduledTaskTemplate[]> {
+    return this.get<ScheduledTaskTemplate[]>('/scheduled-task-templates')
+  }
+
+  /** Create a personal template the current user can reuse later. */
+  async createScheduledTaskTemplate(body: {
+    title: string
+    task: string
+    description?: string
+    icon?: string
+    defaultFrequency?: ScheduledTaskFrequency
+    defaultTime?: string
+    defaultWeekday?: number | null
+  }): Promise<ScheduledTaskTemplate> {
+    return this.post<ScheduledTaskTemplate>('/scheduled-task-templates', body)
+  }
+
+  /** Delete a personal template. System templates cannot be deleted (403). */
+  async deleteScheduledTaskTemplate(templateId: string): Promise<void> {
+    await this.delete<void>(`/scheduled-task-templates/${encodeURIComponent(templateId)}`)
   }
 }
 
@@ -1728,4 +1769,25 @@ export interface ScheduledDispatch {
 export interface ScheduledDispatchPage {
   data: ScheduledDispatch[]
   total: number
+}
+
+export type ScheduledTaskFrequency = 'daily' | 'weekly' | 'monthly'
+
+export interface ScheduledTaskTemplate {
+  templateId: string
+  title: string
+  description: string
+  /** Icon key mapped to a Phosphor icon in the UI. */
+  icon: string
+  /** Agent task prompt run on each recurrence. */
+  task: string
+  defaultFrequency: ScheduledTaskFrequency
+  /** HH:MM (24h), interpreted in the user's local timezone. */
+  defaultTime: string
+  /** 0=Mon .. 6=Sun, used for weekly defaults. */
+  defaultWeekday?: number | null
+  kind: 'agent_session' | 'task_notification'
+  /** True for built-in templates (shown to everyone, not deletable). */
+  isSystem: boolean
+  sortOrder: number
 }

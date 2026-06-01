@@ -192,7 +192,13 @@ const EveryFabricInner: React.FC = () => {
           }`}
           style={{ pointerEvents: showScheduled ? 'auto' : 'none', zIndex: showScheduled ? 30 : 0 }}
         >
-          {isScheduledView && <ScheduledDispatchesScreen accessToken={accessToken} onBack={handleCloseScheduled} />}
+          {isScheduledView && (
+            <ScheduledDispatchesScreen
+              accessToken={accessToken}
+              onBack={handleCloseScheduled}
+              onOpenSession={handleSelectSession}
+            />
+          )}
         </div>
 
         <div
