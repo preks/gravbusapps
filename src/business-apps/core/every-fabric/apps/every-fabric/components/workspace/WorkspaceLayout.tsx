@@ -98,11 +98,14 @@ const parseFollowUps = (message: ChatMessage | undefined): string[] => {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const WorkspaceLayout: React.FC = () => {
+interface WorkspaceLayoutProps {
+  devModeEnabled?: boolean
+}
+
+export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled = false }) => {
   const {
     session,
     messages,
-    events,
     streamingGreeting,
     streamingContent,
     streamingThinking,
@@ -458,6 +461,7 @@ export const WorkspaceLayout: React.FC = () => {
                     selectedEffort={selectedReasoningEffort}
                     onModelChange={setModelSelection}
                     isLoadingModels={isLoadingModels}
+                    devModeEnabled={devModeEnabled}
                   />
                 </div>
               </div>
@@ -478,12 +482,11 @@ export const WorkspaceLayout: React.FC = () => {
               totalCount={totalCount}
               progressPercent={progressPercent}
               activityEvents={activityEvents}
-              agentStreamEvents={events}
               decisions={decisions}
               cases={cases}
               artifacts={artifacts}
               workspaceDocs={workspaceDocs}
-              isConnected={isConnected}
+              devModeEnabled={devModeEnabled}
               isStreaming={isStreaming}
               latestPreview={latestPreview}
               accessToken={accessToken}

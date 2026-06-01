@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 const RESIZE_MESSAGE = 'nw-artifact-resize'
 
-export type AutoHeightHtmlIframeVariant = 'inline' | 'panel'
+export type AutoHeightHtmlIframeVariant = 'inline' | 'panel' | 'modal'
 
 const VARIANT_LIMITS: Record<AutoHeightHtmlIframeVariant, { min: number; max: number; defaultHeight: number }> = {
   inline: { min: 360, max: 720, defaultHeight: 360 },
-  panel: { min: 420, max: 2000, defaultHeight: 480 }
+  panel: { min: 420, max: 2000, defaultHeight: 480 },
+  modal: { min: 420, max: 50_000, defaultHeight: 480 }
 }
 
 function resolveMaxHeight(variant: AutoHeightHtmlIframeVariant): number {
@@ -21,6 +22,24 @@ export function clampHeight(raw: number, variant: AutoHeightHtmlIframeVariant = 
   const min = VARIANT_LIMITS[variant].min
   const max = resolveMaxHeight(variant)
   return Math.min(max, Math.max(min, Math.ceil(raw)))
+}
+
+function resolvePanelClass(variant: AutoHeightHtmlIframeVariant): string {
+  if (variant === 'panel') return 'gba:flex-1 gba:min-h-[420px] gba:w-full'
+  if (variant === 'modal') return 'gba:w-full'
+  return 'gba:w-full gba:max-w-full'
+}
+
+function resolveIframeScrolling(variant: AutoHeightHtmlIframeVariant, atCap: boolean): 'auto' | 'no' {
+  if (variant === 'modal') return 'no'
+  if (atCap) return 'auto'
+  return 'no'
+}
+
+function resolveIframeOverflow(variant: AutoHeightHtmlIframeVariant, atCap: boolean): 'auto' | 'hidden' {
+  if (variant === 'modal') return 'hidden'
+  if (atCap) return 'auto'
+  return 'hidden'
 }
 
 /** True for `.html` / `.htm` session artifacts (path or basename). */
@@ -86,6 +105,11 @@ export const AutoHeightHtmlIframe: React.FC<AutoHeightHtmlIframeProps> = ({
 
   const applyHeight = useCallback(
     (raw: number) => {
+      if (variant === 'modal') {
+        setHeight(Math.max(VARIANT_LIMITS.modal.min, Math.ceil(raw)))
+        setAtCap(false)
+        return
+      }
       const max = resolveMaxHeight(variant)
       const clamped = clampHeight(raw, variant)
       setHeight(clamped)
@@ -151,7 +175,9 @@ export const AutoHeightHtmlIframe: React.FC<AutoHeightHtmlIframeProps> = ({
     globalThis.setTimeout(measureFallback, 500)
   }, [measureFallback])
 
-  const panelClass = variant === 'panel' ? 'gba:flex-1 gba:min-h-[420px] gba:w-full' : 'gba:w-full gba:max-w-full'
+  const panelClass = resolvePanelClass(variant)
+  const iframeScrolling = resolveIframeScrolling(variant, atCap)
+  const iframeOverflow = resolveIframeOverflow(variant, atCap)
 
   return (
     <iframe
@@ -159,11 +185,17 @@ export const AutoHeightHtmlIframe: React.FC<AutoHeightHtmlIframeProps> = ({
       {...(srcDoc ? { srcDoc } : { src: src ?? '' })}
       title={title}
       sandbox={sandbox}
-      scrolling={atCap ? 'auto' : 'no'}
+      scrolling={iframeScrolling}
       onLoad={handleLoad}
       className={`${panelClass} ${className ?? ''}`.trim()}
       data-testid={testId}
-      style={{ width: '100%', height, border: 0, display: 'block', overflow: atCap ? 'auto' : 'hidden' }}
+      style={{
+        width: '100%',
+        height,
+        border: 0,
+        display: 'block',
+        overflow: iframeOverflow
+      }}
     />
   )
 }

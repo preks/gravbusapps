@@ -6,8 +6,7 @@ import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { AgentsScreen } from '../agents/AgentsScreen'
 import type { FabricAgent } from '../agents/agentTypes'
 import { SkillsScreen } from '../skills/SkillsScreen'
-import type { AgentSettings } from './agentSettings.types'
-import { loadSettings, persistSettings } from './agentSettings.utils'
+import { useAgentSettings } from '../../hooks/useAgentSettings'
 import { ConfigurationSection } from './components/ConfigurationSection'
 import { MemorySection } from './components/MemorySection'
 import { PoliciesSection } from './components/PoliciesSection'
@@ -38,20 +37,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onRunTask
 }) => {
   const client = useEnterpriseAgentClient(accessToken)
-  const [settings, setSettings] = useState<AgentSettings>(loadSettings)
+  const { settings, updateSetting } = useAgentSettings()
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
 
   // Each tab/section loads its own data (MemorySection, SkillsSection, MetricsSection,
   // SkillsScreen). A global preload here blocked the whole screen when any single
   // request hung (e.g. GET /deep-agent/sessions?limit=200).
-
-  const updateSetting = useCallback(<K extends keyof AgentSettings>(key: K, value: AgentSettings[K]) => {
-    setSettings(prev => {
-      const next = { ...prev, [key]: value }
-      persistSettings(next)
-      return next
-    })
-  }, [])
 
   const handleSetDefaultSkill = useCallback(
     (skillId: string) => {

@@ -14,7 +14,7 @@ interface SidebarNewChatButtonProps {
  */
 export const SidebarNewChatButton: React.FC<SidebarNewChatButtonProps> = ({ isCollapsed, onClick }) => {
   const base =
-    'gba:inline-flex gba:items-center gba:justify-center gba:gap-2 gba:rounded-xl gba:bg-foreground gba:text-background gba:text-sm gba:font-semibold gba:transition-colors gba:hover:bg-foreground/90 focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-foreground/30'
+    'gba:inline-flex gba:items-center gba:justify-center gba:gap-2 gba:rounded-full gba:bg-foreground gba:text-background gba:text-sm gba:font-semibold gba:transition-colors gba:hover:bg-foreground/90 focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-foreground/30'
 
   const layout = isCollapsed ? 'gba:h-9 gba:w-9' : 'gba:h-9 gba:w-full gba:px-3'
 

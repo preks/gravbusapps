@@ -4,6 +4,7 @@ import type { ArtifactFile } from '../../types/fabric'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { ArtifactToolbar } from '../artifacts/ArtifactToolbar'
 import { renderers } from '../artifacts/renderers'
+import { downloadHtmlArtifactPng } from '../artifacts/htmlArtifactPngCapture'
 import HtmlArtifact from '../artifacts/renderers/HtmlArtifact'
 
 // ─── Content fetcher ──────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ export interface ArtifactViewerProps {
 export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToken, onClose }) => {
   const isOpen = file !== null
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview')
+  const client = useEnterpriseAgentClient(accessToken)
   const { content, loading, error } = useArtifactContent(file, accessToken)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -65,27 +67,16 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
     return () => globalThis.removeEventListener('keydown', handler)
   }, [isOpen, onClose])
 
-  const handleDownloadPng = useCallback(() => {
-    const iframe = iframeRef.current
-    if (!iframe?.contentWindow) return
+  const handleDownloadPng = useCallback(async () => {
+    if (!file) return
 
-    const onMessage = (ev: MessageEvent) => {
-      if (ev.data?.type === 'capture-png-result' && ev.data.dataUrl) {
-        globalThis.removeEventListener('message', onMessage)
-        const link = document.createElement('a')
-        link.download = (file?.name ?? 'dashboard').replace(/\.html?$/i, '') + '.png'
-        link.href = ev.data.dataUrl
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-      } else if (ev.data?.type === 'capture-png-error') {
-        globalThis.removeEventListener('message', onMessage)
-      }
-    }
-    globalThis.addEventListener('message', onMessage)
-    setTimeout(() => globalThis.removeEventListener('message', onMessage), 10_000)
-    iframe.contentWindow.postMessage({ type: 'capture-png' }, file?.downloadUrl ?? '*')
-  }, [file?.name])
+    await downloadHtmlArtifactPng({
+      fileName: file.name,
+      iframe: iframeRef.current,
+      downloadUrl: file.downloadUrl,
+      fetchHtml: () => client.getArtifactContent(file.sessionId, file.artifactKey)
+    })
+  }, [client, file])
 
   const isHtml = file?.rendererType === 'html'
   const Renderer = file && !isHtml ? renderers[file.rendererType] : null
@@ -124,9 +115,7 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ file, accessToke
               onDownloadPng={isHtml ? handleDownloadPng : undefined}
             />
 
-            <div
-              className={`gba:flex-1 gba:min-h-0 gba:relative ${isHtml ? 'gba:overflow-hidden' : 'gba:overflow-auto'}`}
-            >
+            <div className="gba:flex-1 gba:min-h-0 gba:relative gba:overflow-auto">
               {loading && (
                 <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-card">
                   <div className="gba:h-6 gba:w-6 gba:rounded-full gba:border-2 gba:border-border gba:border-t-primary gba:animate-spin" />

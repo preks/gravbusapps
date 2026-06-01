@@ -57,16 +57,13 @@ const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode, if
   // All .html uses auto-height (matches chat + live preview) except hyperframe/cinema denylist.
   if (shouldUseAutoHeightHtmlViewer(file.name)) {
     return (
-      <div
-        className="gba:flex gba:flex-col gba:w-full gba:min-h-[420px] gba:overflow-hidden gba:bg-white gba:p-2"
-        data-testid="fabric-html-artifact"
-      >
+      <div className="gba:w-full gba:min-h-full gba:bg-white gba:p-2" data-testid="fabric-html-artifact">
         <AutoHeightHtmlIframe
           src={file.downloadUrl}
           title={file.name}
           iframeRef={setIframeRef}
-          variant="panel"
-          className="gba:bg-white gba:flex-1"
+          variant="modal"
+          className="gba:bg-white"
           data-testid="fabric-html-iframe"
         />
       </div>

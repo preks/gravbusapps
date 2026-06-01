@@ -14,10 +14,12 @@ export const ToggleRow: React.FC<{
   description: string
   enabled: boolean
   onToggle: () => void
-}> = ({ label, description, enabled, onToggle }) => (
+  'data-testid'?: string
+}> = ({ label, description, enabled, onToggle, 'data-testid': dataTestId }) => (
   <button
     type="button"
     onClick={onToggle}
+    data-testid={dataTestId}
     className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:rounded-xl gba:px-4 gba:py-3 gba:text-left gba:hover:bg-muted/30 gba:transition-colors"
   >
     <div className="gba:flex-1 gba:min-w-0">

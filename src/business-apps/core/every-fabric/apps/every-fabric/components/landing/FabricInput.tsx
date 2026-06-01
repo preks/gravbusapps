@@ -57,6 +57,8 @@ export interface FabricInputProps {
   selectedEffort?: ReasoningEffort
   onModelChange?: (modelId: string, effort: ReasoningEffort) => void
   isLoadingModels?: boolean
+  /** When false, hides the model selector (developer mode off). */
+  devModeEnabled?: boolean
 }
 
 const ACCEPTED_UPLOAD_TYPES =
@@ -145,6 +147,44 @@ function deriveAttachmentState(
     attachmentHintText:
       getAttachmentBusyHint(hasUploadingAttachments, hasIndexingAttachments) ?? 'Enter to send, Shift+Enter for newline'
   }
+}
+
+function resolveCanSend(params: {
+  value: string
+  isDisabled: boolean
+  isSubmitting: boolean
+  isRunning: boolean
+  isReplyMode: boolean
+  isAttachmentBusy: boolean
+}): boolean {
+  const { value, isDisabled, isSubmitting, isRunning, isReplyMode, isAttachmentBusy } = params
+  if (!value.trim()) return false
+  if (isDisabled || isSubmitting || isAttachmentBusy) return false
+  if (isRunning && !isReplyMode) return false
+  return true
+}
+
+async function submitFabricInputValue(params: {
+  value: string
+  isReplyMode: boolean
+  onReply?: FabricInputProps['onReply']
+  onSubmit: FabricInputProps['onSubmit']
+  selectedAgent?: SpecialistAgent
+  selectedModelId?: string
+  selectedEffort: ReasoningEffort
+}): Promise<void> {
+  const { value, isReplyMode, onReply, onSubmit, selectedAgent, selectedModelId, selectedEffort } = params
+  const trimmed = value.trim()
+  if (!trimmed) return
+
+  if (isReplyMode && onReply) {
+    await Promise.resolve(onReply(trimmed))
+    return
+  }
+
+  await Promise.resolve(
+    onSubmit(buildTaskText(trimmed, selectedAgent), buildSessionConfig(selectedAgent, selectedModelId, selectedEffort))
+  )
 }
 
 const runPromiseSilently = (promise: Promise<unknown>) => {
@@ -387,7 +427,8 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   selectedModelId,
   selectedEffort = 'none',
   onModelChange,
-  isLoadingModels = false
+  isLoadingModels = false,
+  devModeEnabled = false
 }) => {
   const [value, setValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -414,22 +455,19 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   )
 
   const handleSubmit = useCallback(async () => {
-    const trimmed = value.trim()
-    if (!trimmed || isDisabled || isSubmitting) return
+    if (!value.trim() || isDisabled || isSubmitting) return
 
     setIsSubmitting(true)
     try {
-      const submitPromise =
-        isReplyMode && onReply
-          ? Promise.resolve(onReply(trimmed))
-          : Promise.resolve(
-              onSubmit(
-                buildTaskText(trimmed, selectedAgent),
-                buildSessionConfig(selectedAgent, selectedModelId, selectedEffort)
-              )
-            )
-
-      await submitPromise
+      await submitFabricInputValue({
+        value,
+        isReplyMode,
+        onReply,
+        onSubmit,
+        selectedAgent,
+        selectedModelId,
+        selectedEffort
+      })
       setValue('')
     } finally {
       setIsSubmitting(false)
@@ -501,7 +539,14 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   // waiting for the user to send the first message to create a session,
   // which triggers the flush. Only block for actively uploading files.
   const { isAttachmentBusy, attachmentHintText } = deriveAttachmentState(isLanding, pendingAttachments, attachments)
-  const canSend = !!value.trim() && !isDisabled && !isSubmitting && !(isRunning && !isReplyMode) && !isAttachmentBusy
+  const canSend = resolveCanSend({
+    value,
+    isDisabled,
+    isSubmitting,
+    isRunning,
+    isReplyMode,
+    isAttachmentBusy
+  })
   const landingHintText = isSubmitting ? 'Starting session...' : attachmentHintText
   const attachmentChips =
     attachments.length > 0 || pendingAttachments.length > 0 ? (
@@ -518,7 +563,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   const handleSendClick = () => runPromiseSilently(handleSubmit())
 
   const modelSelectorNode =
-    modelSelectorModels.length > 0 ? (
+    devModeEnabled && modelSelectorModels.length > 0 ? (
       <ModelSelector
         models={modelSelectorModels}
         selectedModelId={selectedModelId ?? ''}

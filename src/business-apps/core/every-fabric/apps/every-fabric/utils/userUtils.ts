@@ -59,3 +59,40 @@ export function resolveUserFullName(userInfo?: BusinessAppContextProps['userInfo
 
   return userInfo?.userName
 }
+
+/**
+ * Resolves a browser-ready avatar URL from employee `pictureThumbnail`.
+ * Directory thumbnails are often raw base64 without a data-URI prefix.
+ */
+export function resolveUserAvatarUrl(userInfo?: BusinessAppContextProps['userInfo']): string | undefined {
+  const raw = userInfo?.employeeDetails?.pictureThumbnail?.trim()
+  if (!raw || raw.startsWith('{')) return undefined
+  return toAvatarDataUrl(raw)
+}
+
+/** Normalise raw thumbnail/base64/URL values into a browser-ready `src`. */
+export function toAvatarDataUrl(raw: string): string | undefined {
+  const trimmed = raw.trim()
+  if (!trimmed || trimmed.startsWith('{')) return undefined
+
+  const compact = trimmed.replace(/\s+/g, '')
+
+  if (compact.startsWith('/9j/')) return `data:image/jpeg;base64,${compact}`
+  if (compact.startsWith('iVBOR')) return `data:image/png;base64,${compact}`
+  if (compact.startsWith('R0lGOD')) return `data:image/gif;base64,${compact}`
+
+  if (
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('blob:')
+  ) {
+    return trimmed
+  }
+
+  if (trimmed.startsWith('/')) {
+    return trimmed
+  }
+
+  return `data:image/jpeg;base64,${compact}`
+}

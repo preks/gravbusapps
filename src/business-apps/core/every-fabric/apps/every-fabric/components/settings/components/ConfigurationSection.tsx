@@ -22,6 +22,13 @@ export const ConfigurationSection: React.FC<ConfigurationSectionProps> = ({ sett
         enabled={settings.enableMemory}
         onToggle={() => updateSetting('enableMemory', !settings.enableMemory)}
       />
+      <ToggleRow
+        label="Developer mode"
+        description="Show model picker, trace explorer, and debug trace tools"
+        enabled={settings.devModeEnabled}
+        onToggle={() => updateSetting('devModeEnabled', !settings.devModeEnabled)}
+        data-testid="settings-dev-mode-toggle"
+      />
       <div className="gba:px-3 sm:gba:px-4 gba:py-2.5 sm:gba:py-3">
         <p className="gba:text-sm gba:font-medium gba:text-foreground">Reflection Mode</p>
         <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">

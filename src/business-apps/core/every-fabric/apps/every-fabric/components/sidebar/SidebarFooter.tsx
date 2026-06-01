@@ -1,12 +1,14 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import { CalendarCheckIcon, GearIcon } from '@phosphor-icons/react'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
-import { resolveUserFirstName, resolveUserFullName } from '../../utils/userUtils'
+import { useCurrentUserPicture } from '@/business-apps/platform/apps/every-ai/hooks/useCurrentUserPicture'
+import { resolveUserAvatarUrl, resolveUserFirstName, resolveUserFullName } from '../../utils/userUtils'
 import { SidebarTooltip } from './SidebarTooltip'
 
 interface SidebarFooterProps {
   isCollapsed: boolean
   userInfo?: UserInfoProps
+  accessToken?: string
   onOpenSettings: () => void
   onOpenScheduled: () => void
 }
@@ -23,12 +25,21 @@ function resolveInitials(userInfo: UserInfoProps | undefined): string {
 export const SidebarFooter: React.FC<SidebarFooterProps> = ({
   isCollapsed,
   userInfo,
+  accessToken = '',
   onOpenSettings,
   onOpenScheduled
 }) => {
   const fullName = resolveUserFullName(userInfo) ?? 'Signed in'
   const initials = resolveInitials(userInfo)
-  const pictureUrl = userInfo?.employeeDetails?.pictureThumbnail
+  const contextPicture = resolveUserAvatarUrl(userInfo)
+  const employeeId = userInfo?.employeeDetails?.employeeId?.trim() || undefined
+  const userId = userInfo?.id?.trim() || undefined
+  const { pictureThumbnail: fetchedPicture } = useCurrentUserPicture(
+    contextPicture ? undefined : employeeId,
+    accessToken,
+    contextPicture || employeeId ? undefined : userId
+  )
+  const pictureUrl = contextPicture ?? fetchedPicture ?? undefined
 
   return (
     <div

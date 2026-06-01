@@ -1,44 +1,41 @@
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import { ArrowSquareOutIcon, ImageIcon } from '@phosphor-icons/react'
+import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
 import { AutoHeightHtmlIframe } from '../../artifacts/AutoHeightHtmlIframe'
+import { downloadHtmlArtifactPng } from '../../artifacts/htmlArtifactPngCapture'
 import { buildArtifactDownloadUrl } from './artifactUrls'
 import type { FinalAnswerArtifact } from './types'
 
 export const HtmlArtifactPreviewCard: React.FC<{
   artifact: FinalAnswerArtifact
   sessionId: string
+  accessToken?: string
   onViewArtifact?: (artifactName: string) => void
-}> = ({ artifact, sessionId, onViewArtifact }) => {
+}> = ({ artifact, sessionId, accessToken, onViewArtifact }) => {
   const artifactPath = artifact.path || artifact.name
   const downloadUrl = buildArtifactDownloadUrl(sessionId, artifactPath)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const client = useEnterpriseAgentClient(accessToken ?? '')
+  const [isCapturingPng, setIsCapturingPng] = useState(false)
 
   const handleDownloadPng = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.stopPropagation()
-      const iframe = iframeRef.current
-      if (!iframe?.contentWindow) return
+      if (isCapturingPng) return
 
-      const expectedOrigin = new URL(downloadUrl, globalThis.location.href).origin
-      const onMessage = (ev: MessageEvent) => {
-        if (ev.origin !== expectedOrigin) return
-        if (ev.data?.type === 'capture-png-result' && ev.data.dataUrl) {
-          globalThis.removeEventListener('message', onMessage)
-          const link = document.createElement('a')
-          link.download = artifact.name.replace(/\.html?$/i, '') + '.png'
-          link.href = ev.data.dataUrl
-          document.body.appendChild(link)
-          link.click()
-          link.remove()
-        } else if (ev.data?.type === 'capture-png-error') {
-          globalThis.removeEventListener('message', onMessage)
-        }
+      setIsCapturingPng(true)
+      try {
+        await downloadHtmlArtifactPng({
+          fileName: artifact.name,
+          iframe: iframeRef.current,
+          downloadUrl,
+          fetchHtml: accessToken ? () => client.getArtifactContent(sessionId, artifactPath) : undefined
+        })
+      } finally {
+        setIsCapturingPng(false)
       }
-      globalThis.addEventListener('message', onMessage)
-      setTimeout(() => globalThis.removeEventListener('message', onMessage), 10_000)
-      iframe.contentWindow.postMessage({ type: 'capture-png' }, expectedOrigin)
     },
-    [artifact.name, downloadUrl]
+    [accessToken, artifact.name, artifactPath, client, downloadUrl, isCapturingPng, sessionId]
   )
 
   const handleOpenNewTab = useCallback(
@@ -66,8 +63,9 @@ export const HtmlArtifactPreviewCard: React.FC<{
           <button
             type="button"
             onClick={handleDownloadPng}
-            title="Download as PNG"
-            className="gba:inline-flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:cursor-pointer gba:border-0 gba:bg-transparent"
+            disabled={isCapturingPng}
+            title={isCapturingPng ? 'Saving PNG…' : 'Download as PNG'}
+            className="gba:inline-flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:cursor-pointer gba:border-0 gba:bg-transparent gba:disabled:opacity-50"
           >
             <ImageIcon className="gba:h-3.5 gba:w-3.5" />
           </button>

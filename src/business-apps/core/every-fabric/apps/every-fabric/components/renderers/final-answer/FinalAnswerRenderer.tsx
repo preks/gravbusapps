@@ -153,6 +153,7 @@ export const FinalAnswerRenderer = ({
             key={artifact.path || artifact.name}
             artifact={artifact}
             sessionId={sessionId}
+            accessToken={accessToken}
             onViewArtifact={onViewArtifact}
           />
         ))}

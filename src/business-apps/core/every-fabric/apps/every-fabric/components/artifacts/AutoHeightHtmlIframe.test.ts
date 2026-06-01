@@ -34,4 +34,8 @@ describe('clampHeight', () => {
     expect(clampHeight(100, 'panel')).toBe(420)
     expect(clampHeight(1500, 'panel')).toBe(1500)
   })
+
+  it('allows modal variant to grow beyond panel cap', () => {
+    expect(clampHeight(5000, 'modal')).toBe(5000)
+  })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { CaretDownIcon, CaretUpIcon } from '@phosphor-icons/react'
 
 interface PanelCardProps {
@@ -40,8 +40,13 @@ export const PanelCard: React.FC<PanelCardProps> = ({
     : 'gba:flex gba:min-h-0 gba:items-stretch gba:bg-gradient-to-b gba:from-muted/20 gba:to-transparent gba:shrink-0'
 
   const titleClass = subdued
-    ? 'gba:shrink-0 gba:text-[11px] gba:font-medium gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground/60'
-    : 'gba:shrink-0 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-foreground'
+    ? 'gba:text-[11px] gba:font-medium gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground/60'
+    : 'gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-foreground'
+
+  const hasHeaderExtra = extra != null
+  const toggleButtonClass = hasHeaderExtra
+    ? 'gba:flex gba:shrink-0 gba:items-center gba:gap-2 gba:px-3 sm:gba:px-4 gba:py-3 sm:gba:py-3.5 gba:text-left gba:hover:bg-muted/15 gba:transition-colors'
+    : 'gba:flex gba:min-w-0 gba:flex-1 gba:items-center gba:gap-2 gba:px-4 gba:py-3 sm:gba:py-3.5 gba:text-left gba:hover:bg-muted/15 gba:transition-colors'
 
   return (
     <div className={containerClass}>
@@ -50,30 +55,30 @@ export const PanelCard: React.FC<PanelCardProps> = ({
           type="button"
           aria-expanded={open}
           onClick={() => setOpen(v => !v)}
-          className="gba:flex gba:flex-1 gba:min-w-0 gba:items-center gba:justify-between gba:gap-3 gba:px-4 gba:py-3 sm:gba:py-3.5 gba:text-left gba:hover:bg-muted/15 gba:transition-colors"
+          className={toggleButtonClass}
           data-testid={`fabric-panel-card-${slug}`}
         >
-          <div className="gba:flex gba:min-w-0 gba:flex-1 gba:items-center gba:gap-2">
-            <span className={titleClass}>{title}</span>
-            {badge !== undefined && badge > 0 && (
-              <span className="gba:inline-flex gba:shrink-0 gba:items-center gba:justify-center gba:min-w-[20px] gba:h-[18px] gba:px-1.5 gba:rounded-full gba:text-[10px] gba:font-semibold gba:bg-foreground/10 gba:text-foreground/70">
-                {badge}
-              </span>
-            )}
-            {summary && (
-              <span className="gba:hidden sm:gba:block gba:min-w-0 gba:flex-1 gba:truncate gba:text-[11px] gba:font-medium gba:text-muted-foreground/80">
-                {summary}
-              </span>
-            )}
-          </div>
-          {open ? (
-            <CaretUpIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-muted-foreground/70" aria-hidden />
-          ) : (
-            <CaretDownIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-muted-foreground/70" aria-hidden />
+          <span className={`${titleClass} gba:whitespace-nowrap`}>{title}</span>
+          {!hasHeaderExtra && badge !== undefined && badge > 0 && (
+            <span className="gba:inline-flex gba:shrink-0 gba:items-center gba:justify-center gba:min-w-[20px] gba:h-[18px] gba:px-1.5 gba:rounded-full gba:text-[10px] gba:font-semibold gba:bg-foreground/10 gba:text-foreground/70">
+              {badge}
+            </span>
           )}
+          {!hasHeaderExtra && summary && (
+            <span className="gba:hidden sm:gba:block gba:min-w-0 gba:flex-1 gba:truncate gba:text-[11px] gba:font-medium gba:text-muted-foreground/80">
+              {summary}
+            </span>
+          )}
+          <span className="gba:flex gba:shrink-0 gba:items-center">
+            {open ? (
+              <CaretUpIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/70" aria-hidden />
+            ) : (
+              <CaretDownIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/70" aria-hidden />
+            )}
+          </span>
         </button>
-        {extra != null && (
-          <div className="gba:flex gba:shrink-0 gba:items-center gba:gap-1 gba:border-l gba:border-border/30 gba:px-2 sm:gba:px-2.5">
+        {hasHeaderExtra && (
+          <div className="gba:flex gba:min-w-0 gba:flex-1 gba:items-center gba:justify-end gba:gap-1 gba:border-l gba:border-border/30 gba:px-2 sm:gba:px-2.5 gba:py-2">
             {extra}
           </div>
         )}

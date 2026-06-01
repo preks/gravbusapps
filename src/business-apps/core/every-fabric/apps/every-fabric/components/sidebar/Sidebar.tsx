@@ -16,6 +16,7 @@ import {
   SIDEBAR_EXPANDED_WIDTH_CLASS,
   SIDEBAR_ISLAND_OFFSET_CLASS,
   SIDEBAR_ISLAND_SHELL_CLASS,
+  SIDEBAR_SESSIONS_SCROLL_REGION_CLASS,
   SIDEBAR_WIDTH_TRANSITION_CLASS
 } from './sidebarLayout.constants'
 import { SidebarFilterBar } from './SidebarFilterBar'
@@ -38,9 +39,11 @@ export interface SidebarProps {
   historySessions: FabricSessionSummary[]
 
   userInfo?: UserInfoProps
+  accessToken?: string
   /**
-   * If false, the "New session" CTA is hidden — used on the landing screen
-   * where the composer already fulfils that role.
+   * If false, the "New session" CTA is hidden on the landing screen where the
+   * composer already fulfils that role. Shown when a session is open or an
+   * overlay (settings, scheduled, etc.) replaces the landing composer.
    */
   showNewSessionCta?: boolean
   onNewSession: () => void
@@ -67,6 +70,8 @@ export interface SidebarProps {
   isSessionMeshActive?: boolean
   onOpenTraceExplorer: () => void
   isTraceExplorerActive?: boolean
+  /** When false, hides Trace Explorer nav item. */
+  devModeEnabled?: boolean
 }
 
 /**
@@ -87,6 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeSessions,
   historySessions,
   userInfo,
+  accessToken = '',
   showNewSessionCta = true,
   onNewSession,
   onSelectSession,
@@ -101,7 +107,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSessionMesh,
   isSessionMeshActive = false,
   onOpenTraceExplorer,
-  isTraceExplorerActive = false
+  isTraceExplorerActive = false,
+  devModeEnabled = false
 }) => {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<Set<RecentsStatusFilter> | null>(null)
@@ -169,14 +176,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={onOpenSessionMesh}
               testId="sidebar-nav-agent-mesh"
             />
-            <SidebarNavItem
-              icon={ListMagnifyingGlassIcon}
-              label="Trace Explorer"
-              isActive={isTraceExplorerActive}
-              isCollapsed={isCollapsed}
-              onClick={onOpenTraceExplorer}
-              testId="sidebar-nav-trace-explorer"
-            />
+            {devModeEnabled && (
+              <SidebarNavItem
+                icon={ListMagnifyingGlassIcon}
+                label="Trace Explorer"
+                isActive={isTraceExplorerActive}
+                isCollapsed={isCollapsed}
+                onClick={onOpenTraceExplorer}
+                testId="sidebar-nav-trace-explorer"
+              />
+            )}
           </>
         )}
 
@@ -186,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {!isCollapsed && <SidebarFilterBar activeFilters={statusFilter} onChange={setStatusFilter} />}
 
         {!isCollapsed && (
-          <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:pb-1">
+          <div className={SIDEBAR_SESSIONS_SCROLL_REGION_CLASS}>
             <SidebarActiveSection
               sessions={filteredActive}
               activeSessionId={activeSessionId}
@@ -210,6 +219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <SidebarFooter
           isCollapsed={isCollapsed}
           userInfo={userInfo}
+          accessToken={accessToken}
           onOpenSettings={onOpenSettings}
           onOpenScheduled={onOpenScheduled}
         />
