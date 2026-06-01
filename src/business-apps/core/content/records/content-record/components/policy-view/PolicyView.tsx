@@ -43,7 +43,7 @@ import PolicyExpertsPanel from './components/PolicyExpertsPanel'
 import PolicyFlowsPanel from './components/PolicyFlowsPanel'
 import PolicyWorkflowsPanel from './components/PolicyWorkflowsPanel'
 import CreateExpertDialog from './components/CreateExpertDialog'
-import GenerateFlowDialog from './components/GenerateFlowDialog'
+import { openPolicyFlowInEveryAI } from '@/business-apps/core/content/utils/flowAIMappers'
 import { usePolicySignals } from './hooks/usePolicySignals'
 
 const HERO_BLUE = '#2563eb'
@@ -149,7 +149,6 @@ export const PolicyView: React.FC<PolicyViewProps> = ({
   const [ackDialogOpen, setAckDialogOpen] = useState(false)
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
   const [createExpertDialogOpen, setCreateExpertDialogOpen] = useState(false)
-  const [generateFlowDialogOpen, setGenerateFlowDialogOpen] = useState(false)
 
   const displayTitle = translatedTexts?.title || item.title
   const displayContent = translatedTexts?.content || item.content
@@ -242,11 +241,15 @@ export const PolicyView: React.FC<PolicyViewProps> = ({
   const handleGoToExecution = () => setActiveTab('execution')
 
   const handleGenerateFlowFromPolicy = () => {
-    if (!displayTitle && !displayContent) {
+    if (!policyVersionId) {
       toast.error(t('policy_flows_generate_missing_policy'))
       return
     }
-    setGenerateFlowDialogOpen(true)
+    openPolicyFlowInEveryAI({
+      policyTitle: displayTitle,
+      policyRootId: String(policyRootId),
+      policyVersionId: String(policyVersionId)
+    })
   }
 
   const handleCreateNewVersion = () => {
@@ -606,7 +609,6 @@ export const PolicyView: React.FC<PolicyViewProps> = ({
                       policyRootId={String(policyRootId || item.id)}
                       policyVersionId={String(item.id)}
                       policyTitle={displayTitle}
-                      policyContent={displayContent}
                     />
                   </div>
                 </div>
@@ -807,17 +809,6 @@ export const PolicyView: React.FC<PolicyViewProps> = ({
         policyRootId={String(policyRootId)}
         policyVersionId={String(policyVersionId)}
         policyTitle={displayTitle}
-      />
-
-      <GenerateFlowDialog
-        open={generateFlowDialogOpen}
-        onOpenChange={setGenerateFlowDialogOpen}
-        accessToken={accessToken}
-        policyRootId={String(policyRootId)}
-        policyVersionId={String(policyVersionId)}
-        policyTitle={displayTitle}
-        policyContent={displayContent}
-        onGenerated={() => reloadSignals().catch(() => undefined)}
       />
     </div>
   )
