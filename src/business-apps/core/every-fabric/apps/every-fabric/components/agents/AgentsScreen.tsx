@@ -19,7 +19,17 @@ import { CreateAgentModal } from './CreateAgentModal'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
 import type { BuiltinSubagent, FabricAgent } from './agentTypes'
 
-function mapRegistryEntryToFabricAgent(e: AgentRegistryEntry, statusFallback: 'active' | 'archived'): FabricAgent {
+function mapRegistryEntryToFabricAgent(
+  e: AgentRegistryEntry,
+  statusFallback: 'active' | 'archived',
+  skillToolMap: Map<string, string[]>
+): FabricAgent {
+  const skillIds = e.skill_ids ?? []
+  const skillToolsById: Record<string, string[]> = {}
+  for (const sid of skillIds) {
+    const tools = skillToolMap.get(sid)
+    if (tools && tools.length > 0) skillToolsById[sid] = tools
+  }
   return {
     id: e.id,
     name: e.name,
@@ -33,12 +43,28 @@ function mapRegistryEntryToFabricAgent(e: AgentRegistryEntry, statusFallback: 'a
     tags: e.tags ?? [],
     tools_count: e.tools_count ?? 0,
     knowledge_sources_count: e.knowledge_sources_count ?? 0,
-    skill_ids: e.skill_ids ?? [],
+    skill_ids: skillIds,
     skills_count: e.skills_count ?? 0,
+    skill_tools_by_id: skillToolsById,
     source: e.source ?? 'prompt_odm',
     status: e.status ?? statusFallback,
     created_at: e.created_at
   }
+}
+
+type SkillManifestEntry = { skill_id: string; tool_refs?: string[] }
+
+/** Build a skill_id → tool_refs map from the skill manifest and admin skills. */
+async function loadSkillToolMap(client: ReturnType<typeof usePromptManagerClient>): Promise<Map<string, string[]>> {
+  const [manifest, adminSkills] = await Promise.all([
+    client.get<SkillManifestEntry[]>('/skills/manifest').catch(() => [] as SkillManifestEntry[]),
+    client.get<SkillManifestEntry[]>('/admin/skills/').catch(() => [] as SkillManifestEntry[])
+  ])
+  const map = new Map<string, string[]>()
+  for (const skill of [...manifest, ...adminSkills]) {
+    if (skill.tool_refs && skill.tool_refs.length > 0) map.set(skill.skill_id, skill.tool_refs)
+  }
+  return map
 }
 
 interface CollapsibleFabricSectionProps {
@@ -123,13 +149,16 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
     setIsLoading(true)
     setError(null)
     try {
-      const [entries, builtinEntries, archivedEntries] = await Promise.all([
+      const [entries, builtinEntries, archivedEntries, skillToolMap] = await Promise.all([
         client.getAgentRegistry({ limit: 200 }),
         client.getBuiltinSubagents().catch(() => [] as BuiltinSubagent[]),
-        client.getAgentRegistry({ limit: 200, status: 'archived' }).catch(() => [] as AgentRegistryEntry[])
+        client.getAgentRegistry({ limit: 200, status: 'archived' }).catch(() => [] as AgentRegistryEntry[]),
+        loadSkillToolMap(client)
       ])
-      const mapped: FabricAgent[] = entries.map(e => mapRegistryEntryToFabricAgent(e, 'active'))
-      const mappedArchived: FabricAgent[] = archivedEntries.map(e => mapRegistryEntryToFabricAgent(e, 'archived'))
+      const mapped: FabricAgent[] = entries.map(e => mapRegistryEntryToFabricAgent(e, 'active', skillToolMap))
+      const mappedArchived: FabricAgent[] = archivedEntries.map(e =>
+        mapRegistryEntryToFabricAgent(e, 'archived', skillToolMap)
+      )
       setAgents(mapped)
       setArchivedAgents(mappedArchived)
       setBuiltins(builtinEntries)
