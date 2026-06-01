@@ -88303,20 +88303,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12791,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12791/",
+    "bitbucketBuildNumber": 12794,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12794/",
     "chunkJsBytes": 1952122,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1658173,
-        "gzip": 105392,
+        "gzip": 105397,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1658173,
-            "gzip": 105392
+            "gzip": 105397
           }
         ]
       },
@@ -104294,9 +104294,9 @@
     ]
   },
   "hr/absences/apps/time-absence-hub": {
-    "bitbucketBuildNumber": 12791,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12791/",
-    "chunkJsBytes": 1011699,
+    "bitbucketBuildNumber": 12794,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12794/",
+    "chunkJsBytes": 1006895,
     "top": [
       {
         "kind": "bucket",
@@ -104319,8 +104319,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 597246,
-        "gzip": 142317,
+        "rendered": 589928,
+        "gzip": 142865,
         "leaves": [
           {
             "name": "src/business-apps/hr/absences/apps/time-absence-hub/components/pages/AbsenceDetails/AbsenceDetails.tsx",
@@ -104328,9 +104328,9 @@
             "gzip": 7397
           },
           {
-            "name": "src/business-apps/hr/absences/apps/time-absence-hub/components/pages/EntitlementsDetails/EntitlementsDetails.tsx",
-            "rendered": 37542,
-            "gzip": 6529
+            "name": "src/business-apps/hr/core/forms/_i18n/ro-RO.ftl?raw",
+            "rendered": 24319,
+            "gzip": 5764
           }
         ]
       },
@@ -112272,7 +112272,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-01T21:15:57.252Z",
+    "generatedAt": "2026-06-01T22:04:17.052Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
