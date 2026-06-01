@@ -120,6 +120,7 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
       onManagersChange={globalFilters.setManagerIds}
       onEmployeeQueryChange={globalFilters.setEmployeeQuery}
       onReset={globalFilters.resetFilters}
+      showAbsenceTypeFilter={navigation.currentView !== 'attendance'}
     />
   )
 

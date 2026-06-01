@@ -110,6 +110,7 @@ export interface EnhancedAbsence {
     id: string
     firstName: string
     lastName: string
+    pictureThumbnail?: string | null
     employeePosition?: {
       organizationalUnit?: {
         name: string

@@ -1,7 +1,6 @@
 import React from 'react'
 import { Badge } from '@newwork/nw-design-system'
 import type { ActionOption } from '@newwork/nw-design-system'
-import { UserIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { statusVariant } from '@/business-apps/hr/absences/apps/personal-absences/utils/statusUtils'
 import {
@@ -17,6 +16,7 @@ import {
 } from './entitlementUtils'
 import { HubDataTable, type HubDataTableColumn } from '../shared/HubDataTable'
 import { HubRowActionMenu } from '../shared/HubRowActionMenu'
+import { HubEmployeeCell } from '../shared/HubEmployeeCell'
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.entitlements.${key}`, fallback)
@@ -99,12 +99,11 @@ const getColumns = (
     renderCell: row => {
       const employeeName = getEntitlementEmployeeName(row, tt('unknown_employee', 'Unknown employee'))
       return (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <UserIcon size={16} className="gba:text-muted-foreground" />
-          <span className="gba:block gba:truncate gba:text-sm gba:font-medium gba:text-foreground" title={employeeName}>
-            {employeeName}
-          </span>
-        </div>
+        <HubEmployeeCell
+          name={employeeName}
+          pictureThumbnail={row.employee?.pictureThumbnail}
+          subtitle={row.employee?.employeePosition?.organizationalUnit?.name}
+        />
       )
     }
   },

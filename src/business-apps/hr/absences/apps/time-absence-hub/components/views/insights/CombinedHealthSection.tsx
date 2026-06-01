@@ -55,8 +55,25 @@ const ChartShell: React.FC<ChartShellProps> = ({ title, description, empty, empt
 )
 
 export const CombinedHealthSection: React.FC<CombinedHealthSectionProps> = ({ attendanceData }) => {
+  const aggregationInput = useMemo(
+    () => ({
+      attendance: attendanceData.attendance,
+      employees: attendanceData.employees,
+      dateRange: attendanceData.dateRange,
+      holidays: attendanceData.holidays,
+      absenceNet: attendanceData.absenceNet
+    }),
+    [
+      attendanceData.absenceNet,
+      attendanceData.attendance,
+      attendanceData.dateRange,
+      attendanceData.employees,
+      attendanceData.holidays
+    ]
+  )
+
   const burnoutByDept = useMemo(() => {
-    const breakdowns = aggregateByDimension(attendanceData.attendance, attendanceData.employees, 'department')
+    const breakdowns = aggregateByDimension(aggregationInput, 'department')
     return breakdowns
       .filter(entry => entry.headcount > 0)
       .map(entry => ({
@@ -66,10 +83,10 @@ export const CombinedHealthSection: React.FC<CombinedHealthSectionProps> = ({ at
       }))
       .sort((a, b) => b.avgOvertimePerEmp - a.avgOvertimePerEmp)
       .slice(0, 10)
-  }, [attendanceData.attendance, attendanceData.employees])
+  }, [aggregationInput])
 
   const absenceLoadByDept = useMemo(() => {
-    const workedByDept = aggregateByDimension(attendanceData.attendance, attendanceData.employees, 'department')
+    const workedByDept = aggregateByDimension(aggregationInput, 'department')
     const absenceCountByDept = countAbsenceDaysByDimension(
       attendanceData.absences,
       attendanceData.employees,
@@ -84,12 +101,9 @@ export const CombinedHealthSection: React.FC<CombinedHealthSectionProps> = ({ at
       .filter(entry => entry.workedHours > 0 || entry.absenceDays > 0)
       .sort((a, b) => b.workedHours - a.workedHours)
       .slice(0, 10)
-  }, [attendanceData.attendance, attendanceData.absences, attendanceData.employees])
+  }, [aggregationInput, attendanceData.absences, attendanceData.employees])
 
-  const dailyPresence = useMemo(
-    () => computeDailyPresence(attendanceData.attendance, attendanceData.employees.length),
-    [attendanceData.attendance, attendanceData.employees.length]
-  )
+  const dailyPresence = useMemo(() => computeDailyPresence(aggregationInput), [aggregationInput])
 
   return (
     <Card className="gba:shadow-none" data-testid="time-absence-hub-combined-health">

@@ -159,6 +159,7 @@ const mapEnhancedAbsence = (
       id: employeeId,
       firstName: employee.firstName || '',
       lastName: employee.lastName || '',
+      pictureThumbnail: employee.pictureThumbnail || null,
       employeePosition: employee.employeePosition || null
     },
     employeeName,

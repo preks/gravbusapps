@@ -4,6 +4,7 @@ export const GET_ORG_ENTITLEMENTS_OVERVIEW = `
     $offset: Int!
     $limit: Int!
     $orderBy: [EntitlementUsageSnapshotViewOrderBy!]
+    $totalLimit: Int!
   ) {
     snapshotRows: EntitlementUsageSnapshotView(
       where: $where
@@ -20,10 +21,11 @@ export const GET_ORG_ENTITLEMENTS_OVERVIEW = `
       periodStart
       periodEnd
     }
-    snapshotAggregate: EntitlementUsageSnapshotViewAggregate(where: $where) {
-      aggregate {
-        count
-      }
+    totalRows: EntitlementUsageSnapshotView(where: $where, limit: $totalLimit) {
+      employeeId
+      typeRef
+      periodStart
+      periodEnd
     }
   }
 `

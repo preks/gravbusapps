@@ -52,6 +52,7 @@ export interface EmployeeAbsence {
     firstName: string
     lastName: string
     displayName?: string | null
+    pictureThumbnail?: string | null
     employeePosition: {
       id: string
       organizationalUnit: {
@@ -122,6 +123,7 @@ export const GET_EMPLOYEE_ABSENCES = `
         firstName
         lastName
         displayName
+        pictureThumbnail
         employeePosition {
           id
           organizationalUnit {

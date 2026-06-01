@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Avatar, AvatarFallback, AvatarImage, Badge } from '@newwork/nw-design-system'
+import { Badge } from '@newwork/nw-design-system'
 import { ClockIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type {
@@ -11,6 +11,7 @@ import type {
 } from '../../../queries/OrgAttendanceQueries'
 import { AttendanceDateRange, formatMinutes } from './attendanceUtils'
 import { HubDataTable, type HubDataTableColumn } from '../shared/HubDataTable'
+import { HubEmployeeCell } from '../shared/HubEmployeeCell'
 import type { AttendanceAbsenceTypeOption } from './attendanceMetrics'
 import { computeAttendanceEmployeeMetrics, formatAbsenceBreakdown } from './attendanceMetrics'
 
@@ -64,20 +65,6 @@ const formatTime = (value?: string | null): string => {
 const getEmployeeName = (row: GridRow): string => `${row.employee.firstName} ${row.employee.lastName}`.trim()
 
 const getExceptionCount = (row: GridRow): number => row.manualOverrideCount + row.missingLogCount
-
-const getInitials = (employee: FilteredEmployee): string => {
-  const first = employee.firstName?.charAt(0) ?? ''
-  const last = employee.lastName?.charAt(0) ?? ''
-  return `${first}${last}`.toUpperCase() || 'E'
-}
-
-const getAvatarSrc = (pictureThumbnail?: string | null): string | undefined => {
-  if (!pictureThumbnail) {
-    return undefined
-  }
-
-  return pictureThumbnail.startsWith('data:') ? pictureThumbnail : `data:image/png;base64,${pictureThumbnail}`
-}
 
 const buildRows = (
   employees: FilteredEmployee[],
@@ -203,20 +190,11 @@ export const AttendanceGrid: React.FC<AttendanceGridProps> = ({
         headerClassName: 'gba:px-3',
         cellClassName: 'gba:px-2 gba:py-3',
         renderCell: row => (
-          <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-3">
-            <Avatar className="gba:h-9 gba:w-9 gba:flex-shrink-0">
-              <AvatarImage src={getAvatarSrc(row.employee.pictureThumbnail)} alt={getEmployeeName(row)} />
-              <AvatarFallback className="gba:text-xs">{getInitials(row.employee)}</AvatarFallback>
-            </Avatar>
-            <div className="gba:min-w-0 gba:space-y-0.5">
-              <span className="gba:block gba:truncate gba:text-sm gba:font-medium gba:text-foreground">
-                {getEmployeeName(row)}
-              </span>
-              <span className="gba:block gba:truncate gba:text-xs gba:text-muted-foreground">
-                {row.jobPositionName} - {row.departmentName}
-              </span>
-            </div>
-          </div>
+          <HubEmployeeCell
+            name={getEmployeeName(row)}
+            pictureThumbnail={row.employee.pictureThumbnail}
+            subtitle={`${row.jobPositionName} - ${row.departmentName}`}
+          />
         )
       },
       {

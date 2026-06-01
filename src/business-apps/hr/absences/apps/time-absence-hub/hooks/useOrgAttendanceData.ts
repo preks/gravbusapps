@@ -22,6 +22,9 @@ import { clampDateRangeToPast } from '../components/views/attendance/attendanceU
 const EMPLOYEE_ID_BATCH_SIZE = 200
 const ATTENDANCE_DATA_LOADER_VERSION = 3
 
+const isUuid = (value: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+
 const chunk = <T>(items: T[], size: number): T[][] => {
   if (size <= 0 || items.length === 0) {
     return [items]
@@ -66,11 +69,16 @@ export const buildEmployeeWhereForHubFilters = (
   if (employeePositionConditions.length > 0) {
     conditions.push({ employeePosition: { _and: employeePositionConditions } })
   }
-  if (filters.employeeQuery) {
-    const like = `%${filters.employeeQuery}%`
-    conditions.push({
-      _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }, { displayName: { _ilike: like } }]
-    })
+  const employeeQuery = filters.employeeQuery.trim()
+  if (employeeQuery) {
+    if (isUuid(employeeQuery)) {
+      conditions.push({ id: { _eq: employeeQuery } })
+    } else {
+      const like = `%${employeeQuery}%`
+      conditions.push({
+        _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }, { displayName: { _ilike: like } }]
+      })
+    }
   }
 
   return { _and: conditions }
@@ -104,6 +112,7 @@ export interface UseOrgAttendanceDataReturn {
   absences: AbsenceCalendarDay[]
   holidays: PublicHolidayDay[]
   absenceNet: AbsenceNetDay[]
+  dateRange: { dateFrom: string; dateTo: string } | null
   isLoading: boolean
   error: string | null
 }
@@ -114,6 +123,7 @@ const EMPTY: UseOrgAttendanceDataReturn = {
   absences: [],
   holidays: [],
   absenceNet: [],
+  dateRange: null,
   isLoading: false,
   error: null
 }
@@ -240,6 +250,7 @@ export const useOrgAttendanceData = ({
           absences,
           holidays,
           absenceNet,
+          dateRange: attendanceDateRange,
           isLoading: false,
           error: null
         })

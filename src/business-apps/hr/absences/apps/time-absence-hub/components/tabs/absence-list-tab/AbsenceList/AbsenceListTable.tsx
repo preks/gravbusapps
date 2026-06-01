@@ -14,6 +14,7 @@ import {
   type HubDataTableColumn
 } from '@/business-apps/hr/absences/apps/time-absence-hub/components/views/shared/HubDataTable'
 import { HubRowActionMenu } from '@/business-apps/hr/absences/apps/time-absence-hub/components/views/shared/HubRowActionMenu'
+import { HubEmployeeCell } from '@/business-apps/hr/absences/apps/time-absence-hub/components/views/shared/HubEmployeeCell'
 
 const DATA_TEST_ID_PREFIX = 'BackofficeAbsenceList'
 const CANCELLABLE_STATUSES = new Set(['PENDING', 'APPROVED'])
@@ -103,11 +104,11 @@ const getTableColumns = (
     header: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee'),
     cellClassName: 'gba:py-4 gba:px-3',
     renderCell: record => (
-      <div className="gba:min-w-0">
-        <span className="gba:block gba:truncate gba:text-sm gba:font-medium" title={getEmployeeName(record)}>
-          {getEmployeeName(record)}
-        </span>
-      </div>
+      <HubEmployeeCell
+        name={getEmployeeName(record)}
+        pictureThumbnail={record.employee?.pictureThumbnail ?? record.pictureThumbnail}
+        subtitle={record.employee?.employeePosition?.organizationalUnit?.name}
+      />
     )
   },
   {

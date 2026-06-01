@@ -38,6 +38,8 @@ export interface UseEntitlementsOverviewDataReturn {
 type EntitlementEmployee = NonNullable<OrgEntitlementRow['employee']>
 type EntitlementType = NonNullable<OrgEntitlementRow['type']>
 
+const SNAPSHOT_TOTAL_LIMIT = 5000
+
 const hydrateMissingEmployees = async (
   rows: OrgEntitlementRow[],
   graphqlClient: ReturnType<typeof useGraphQLClient>
@@ -254,12 +256,13 @@ export const useEntitlementsOverviewData = ({
         const orderBy = buildOrderBy(sortField, sortOrder)
         const response = await graphqlClient.request<{
           snapshotRows: EntitlementUsageSnapshotRow[]
-          snapshotAggregate: { aggregate: { count: number } }
+          totalRows: EntitlementUsageSnapshotRow[]
         }>(GET_ORG_ENTITLEMENTS_OVERVIEW, {
           where,
           offset: (page - 1) * pageSize,
           limit: pageSize,
-          orderBy
+          orderBy,
+          totalLimit: SNAPSHOT_TOTAL_LIMIT
         })
 
         if (cancelled) {
@@ -277,7 +280,7 @@ export const useEntitlementsOverviewData = ({
         hasLoadedOnceRef.current = true
         setState({
           rows,
-          total: response.snapshotAggregate?.aggregate?.count ?? 0,
+          total: response.totalRows?.length ?? 0,
           isLoading: false,
           error: null
         })
