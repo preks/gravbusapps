@@ -96,6 +96,7 @@ export enum FlowContextName {
   customerLeadEntity = 'customerLeadEntity',
   customerLeadCreate = 'customerLeadCreate',
   customerLeadStatusUpdate = 'customerLeadStatusUpdate', // Status change context
+  leadUpdateComplianceData = 'leadUpdateComplianceData',
 
   /// Customer Accounts
   customerAccountEntity = 'customerAccountEntity',
@@ -106,6 +107,7 @@ export enum FlowContextName {
   customerContactEntity = 'customerContactEntity',
   customerContactCreate = 'customerContactCreate', // TODO: Replace startProcess
   customerContactUpdate = 'customerContactUpdate', // TODO: Replace startProcess
+  contactUpdateComplianceData = 'contactUpdateComplianceData',
 
   /// Customer Opportunities
   customerOpportunityEntity = 'customerOpportunityEntity',
