@@ -21,7 +21,12 @@ import {
 } from '../../../hooks/useEntitlementsOverviewData'
 import { EntitlementsTable, type EntitlementsTableProps } from './EntitlementsTable'
 import { OrgEntitlementRow } from '../../../queries/OrgEntitlementQueries'
-import { formatEntitlementNumber, getEntitlementEmployeeName, isEntitlementExpiringSoon } from './entitlementUtils'
+import {
+  formatEntitlementNumber,
+  getEntitlementEmployeeName,
+  getEntitlementRemaining,
+  isEntitlementExpiringSoon
+} from './entitlementUtils'
 
 interface EntitlementsViewProps extends BusinessAppContextProps {
   globalFilters: HubGlobalFilters
@@ -41,7 +46,7 @@ const buildExportColumns = (): ExcelColumn[] => [
   { header: tt('column_total', 'Total'), key: 'total' },
   { header: tt('column_approved', 'Approved'), key: 'approved' },
   { header: tt('column_pending', 'Pending'), key: 'pending' },
-  { header: tt('column_available', 'Available'), key: 'available' },
+  { header: tt('column_remaining', 'Remaining'), key: 'remaining' },
   { header: tt('column_valid_from', 'Valid From'), key: 'validFrom' },
   { header: tt('column_valid_to', 'Valid To'), key: 'validTo' },
   { header: tt('column_flags', 'Flags'), key: 'flags' }
@@ -49,7 +54,7 @@ const buildExportColumns = (): ExcelColumn[] => [
 
 const buildFlags = (row: OrgEntitlementRow, todayIso: string): string => {
   const flags = []
-  const isNegative = (row.available ?? 0) < 0
+  const isNegative = (getEntitlementRemaining(row) ?? 0) < 0
   const expired = Boolean(row.validTo && row.validTo < todayIso)
   const expiring = isEntitlementExpiringSoon(row.validTo, todayIso)
 
@@ -77,7 +82,7 @@ const buildExportRows = (rows: OrgEntitlementRow[]): Record<string, unknown>[] =
     total: formatEntitlementNumber(row.total),
     approved: formatEntitlementNumber(row.approved),
     pending: formatEntitlementNumber(row.pending),
-    available: formatEntitlementNumber(row.available),
+    remaining: formatEntitlementNumber(getEntitlementRemaining(row)),
     validFrom: formatExportDate(row.validFrom),
     validTo: formatExportDate(row.validTo),
     flags: buildFlags(row, todayIso)
@@ -198,7 +203,7 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
             metadata: {
               count: overview.total,
               isLoading: overview.isLoading,
-              subtitle: tt('subtitle_entitlements', 'entitlements')
+              subtitle: tt('subtitle_entitlements', 'balances')
             }
           }
         ]}
@@ -273,7 +278,7 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
                       data-testid="entitlements-employee-summary"
                     >
                       <p className="gba:text-xs gba:text-muted-foreground">
-                        {tt('sheet_summary_title', 'Entitlement summary')}
+                        {tt('sheet_summary_title', 'Balance summary')}
                       </p>
                       <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:text-xs">
                         <SummaryItem
@@ -293,8 +298,8 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
                           value={formatEntitlementNumber(selectedEntitlementRow.pending)}
                         />
                         <SummaryItem
-                          label={tt('column_available', 'Available')}
-                          value={formatEntitlementNumber(selectedEntitlementRow.available)}
+                          label={tt('column_remaining', 'Remaining')}
+                          value={formatEntitlementNumber(getEntitlementRemaining(selectedEntitlementRow))}
                         />
                         <SummaryItem label={tt('column_flags', 'Flags')} value={selectedFlags || '-'} />
                         <SummaryItem

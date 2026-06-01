@@ -8,6 +8,9 @@ export const formatEntitlementNumber = (value?: number | null): string => {
   return value.toLocaleString(undefined, { maximumFractionDigits: 1 })
 }
 
+export const getEntitlementRemaining = (row: OrgEntitlementRow): number | null | undefined =>
+  row.remaining ?? row.available
+
 export const isEntitlementExpiringSoon = (validTo?: string | null, todayIso?: string): boolean => {
   if (!validTo || !todayIso) {
     return false

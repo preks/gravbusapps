@@ -1,24 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import {
+  EntitlementUsageSnapshotRow,
+  GET_ENTITLEMENT_ABSENCE_TYPES_BY_IDS,
   GET_ENTITLEMENT_EMPLOYEES_BY_IDS,
   GET_ORG_ENTITLEMENTS_OVERVIEW,
-  OrgEntitlementRow
+  OrgEntitlementRow,
+  mapSnapshotRowToOrgEntitlementRow
 } from '../queries/OrgEntitlementQueries'
+import { GET_FILTERED_EMPLOYEE_IDS, type FilteredEmployee } from '../queries/OrgAttendanceQueries'
 import { HubGlobalFilters } from './useHubGlobalFilters'
-import { LEGAL_ENTITY_NOT_DEFINED_FILTER_ID } from '../constants/routes'
+import { buildEmployeeWhereForHubFilters } from './useOrgAttendanceData'
 
 export type EntitlementHealthFilter = 'all' | 'negative' | 'expiring' | 'expired'
-export type EntitlementsOverviewSortField =
-  | 'employeeName'
-  | 'departmentName'
-  | 'locationName'
-  | 'typeName'
-  | 'total'
-  | 'approved'
-  | 'pending'
-  | 'available'
-  | 'validFrom'
+export type EntitlementsOverviewSortField = 'total' | 'approved' | 'pending' | 'available' | 'validFrom'
 export type EntitlementsOverviewSortOrder = 'ASC' | 'DESC'
 
 export interface UseEntitlementsOverviewDataParams {
@@ -40,6 +36,7 @@ export interface UseEntitlementsOverviewDataReturn {
 }
 
 type EntitlementEmployee = NonNullable<OrgEntitlementRow['employee']>
+type EntitlementType = NonNullable<OrgEntitlementRow['type']>
 
 const hydrateMissingEmployees = async (
   rows: OrgEntitlementRow[],
@@ -70,96 +67,98 @@ const hydrateMissingEmployees = async (
   })
 }
 
+const hydrateTypes = async (
+  rows: OrgEntitlementRow[],
+  graphqlClient: ReturnType<typeof useGraphQLClient>
+): Promise<OrgEntitlementRow[]> => {
+  const typeRefs = Array.from(
+    new Set(rows.map(row => row.typeRef).filter((typeRef): typeRef is string => Boolean(typeRef)))
+  )
+
+  if (typeRefs.length === 0) {
+    return rows
+  }
+
+  const response = await graphqlClient.request<{ CatalogEntry: EntitlementType[] }>(
+    GET_ENTITLEMENT_ABSENCE_TYPES_BY_IDS,
+    { typeRefs }
+  )
+  const typesById = new Map((response.CatalogEntry ?? []).map(type => [type.id, type]))
+
+  return rows.map(row => {
+    if (!row.typeRef) {
+      return row
+    }
+
+    return {
+      ...row,
+      type: typesById.get(row.typeRef) ?? row.type ?? null
+    }
+  })
+}
+
+const hasPopulationFilters = (filters: HubGlobalFilters): boolean =>
+  filters.departmentIds.length > 0 ||
+  filters.legalEntityIds.length > 0 ||
+  filters.locationIds.length > 0 ||
+  filters.managerIds.length > 0 ||
+  Boolean(filters.employeeQuery)
+
+const resolveFilteredEmployeeIds = async (
+  filters: HubGlobalFilters,
+  graphqlClient: ReturnType<typeof useGraphQLClient>
+): Promise<string[] | null> => {
+  if (!hasPopulationFilters(filters)) {
+    return null
+  }
+
+  const structureId = getCurrentActiveStructureId()
+  if (!structureId) {
+    return []
+  }
+
+  const response = await graphqlClient.request<{ Employee: FilteredEmployee[] }>(GET_FILTERED_EMPLOYEE_IDS, {
+    where: buildEmployeeWhereForHubFilters(structureId, filters)
+  })
+
+  return (response.Employee ?? []).map(employee => employee.id)
+}
+
 const buildWhere = (
   filters: HubGlobalFilters,
   derivedDateRange: { dateFrom: string; dateTo: string } | null,
   healthFilter: EntitlementHealthFilter,
-  todayIso: string
+  todayIso: string,
+  employeeIds: string[] | null
 ): Record<string, any> => {
-  const conditions: Record<string, any>[] = [
-    { isDeleted: { _eq: false } },
-    { employeeId: { _isNull: false } },
-    { employee: { isDeleted: { _eq: false } } }
-  ]
+  const conditions: Record<string, any>[] = [{ employeeId: { _isNull: false } }, { typeRef: { _isNull: false } }]
 
-  if (filters.departmentIds.length > 0) {
-    conditions.push({
-      employee: {
-        employeePosition: { organizationalUnitId: { _in: filters.departmentIds } }
-      }
-    })
-  }
-  if (filters.legalEntityIds.length > 0) {
-    const includeMissingLegalEntity = filters.legalEntityIds.includes(LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
-    const definedLegalEntityIds = filters.legalEntityIds.filter(id => id !== LEGAL_ENTITY_NOT_DEFINED_FILTER_ID)
-
-    if (includeMissingLegalEntity && definedLegalEntityIds.length > 0) {
-      conditions.push({
-        employee: {
-          employeePosition: {
-            _or: [{ companyId: { _in: definedLegalEntityIds } }, { companyId: { _isNull: true } }]
-          }
-        }
-      })
-    } else if (includeMissingLegalEntity) {
-      conditions.push({
-        employee: {
-          employeePosition: { companyId: { _isNull: true } }
-        }
-      })
-    } else {
-      conditions.push({
-        employee: {
-          employeePosition: { companyId: { _in: definedLegalEntityIds } }
-        }
-      })
-    }
-  }
-  if (filters.locationIds.length > 0) {
-    conditions.push({
-      employee: {
-        employeePosition: { siteLocationId: { _in: filters.locationIds } }
-      }
-    })
-  }
-  if (filters.managerIds.length > 0) {
-    conditions.push({
-      employee: {
-        employeePosition: { supervisorEmployeeId: { _in: filters.managerIds } }
-      }
-    })
-  }
   if (filters.absenceTypeIds.length > 0) {
     conditions.push({ typeRef: { _in: filters.absenceTypeIds } })
+  }
+  if (employeeIds) {
+    conditions.push({ employeeId: { _in: employeeIds } })
   }
   if (derivedDateRange) {
     conditions.push({
       _and: [
-        { validFrom: { _lte: derivedDateRange.dateTo } },
+        { periodStart: { _lte: derivedDateRange.dateTo } },
         {
-          _or: [{ validTo: { _isNull: true } }, { validTo: { _gte: derivedDateRange.dateFrom } }]
+          _or: [{ periodEnd: { _isNull: true } }, { periodEnd: { _gte: derivedDateRange.dateFrom } }]
         }
       ]
     })
   }
-  if (filters.employeeQuery) {
-    const like = `%${filters.employeeQuery}%`
-    conditions.push({
-      employee: {
-        _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }, { displayName: { _ilike: like } }]
-      }
-    })
-  }
   if (healthFilter === 'negative') {
-    conditions.push({ available: { _lt: 0 } })
+    conditions.push({ remaining: { _lt: 0 } })
   }
   if (healthFilter === 'expired') {
-    conditions.push({ validTo: { _lt: todayIso } })
+    conditions.push({ periodEnd: { _lt: todayIso } })
   }
   if (healthFilter === 'expiring') {
     const in30Days = new Date()
     in30Days.setDate(in30Days.getDate() + 30)
-    conditions.push({ validTo: { _gte: todayIso, _lte: in30Days.toISOString().slice(0, 10) } })
+    conditions.push({ periodEnd: { _gte: todayIso, _lte: in30Days.toISOString().slice(0, 10) } })
   }
 
   return conditions.length > 0 ? { _and: conditions } : {}
@@ -170,25 +169,17 @@ const buildOrderBy = (
   sortOrder: EntitlementsOverviewSortOrder
 ): Record<string, unknown>[] => {
   switch (sortField) {
-    case 'employeeName':
-      return [{ employee: { firstName: sortOrder } }, { employee: { lastName: sortOrder } }]
-    case 'departmentName':
-      return [{ employee: { employeePosition: { organizationalUnit: { name: sortOrder } } } }]
-    case 'locationName':
-      return [{ employee: { employeePosition: { siteLocation: { name: sortOrder } } } }]
-    case 'typeName':
-      return [{ type: { value: sortOrder } }]
     case 'total':
-      return [{ total: sortOrder }]
+      return [{ totalEntitlement: sortOrder }]
     case 'approved':
-      return [{ approved: sortOrder }]
+      return [{ usedApproved: sortOrder }]
     case 'pending':
-      return [{ pending: sortOrder }]
+      return [{ usedPending: sortOrder }]
     case 'available':
-      return [{ available: sortOrder }]
+      return [{ remaining: sortOrder }]
     case 'validFrom':
     default:
-      return [{ validFrom: sortOrder }]
+      return [{ periodStart: sortOrder }]
   }
 }
 
@@ -249,11 +240,21 @@ export const useEntitlementsOverviewData = ({
 
     const fetchOverview = async () => {
       try {
-        const where = buildWhere(filters, derivedDateRange, healthFilter, todayIso)
+        const employeeIds = await resolveFilteredEmployeeIds(filters, graphqlClient)
+        if (cancelled) {
+          return
+        }
+        if (employeeIds?.length === 0) {
+          hasLoadedOnceRef.current = true
+          setState({ rows: [], total: 0, isLoading: false, error: null })
+          return
+        }
+
+        const where = buildWhere(filters, derivedDateRange, healthFilter, todayIso, employeeIds)
         const orderBy = buildOrderBy(sortField, sortOrder)
         const response = await graphqlClient.request<{
-          EmployeeAbsenceEntitlement: OrgEntitlementRow[]
-          EmployeeAbsenceEntitlementAggregate: { aggregate: { count: number } }
+          snapshotRows: EntitlementUsageSnapshotRow[]
+          snapshotAggregate: { aggregate: { count: number } }
         }>(GET_ORG_ENTITLEMENTS_OVERVIEW, {
           where,
           offset: (page - 1) * pageSize,
@@ -265,7 +266,9 @@ export const useEntitlementsOverviewData = ({
           return
         }
 
-        const rows = await hydrateMissingEmployees(response.EmployeeAbsenceEntitlement ?? [], graphqlClient)
+        const snapshotRows = (response.snapshotRows ?? []).map(mapSnapshotRowToOrgEntitlementRow)
+        const rowsWithEmployees = await hydrateMissingEmployees(snapshotRows, graphqlClient)
+        const rows = await hydrateTypes(rowsWithEmployees, graphqlClient)
 
         if (cancelled) {
           return
@@ -274,7 +277,7 @@ export const useEntitlementsOverviewData = ({
         hasLoadedOnceRef.current = true
         setState({
           rows,
-          total: response.EmployeeAbsenceEntitlementAggregate?.aggregate?.count ?? 0,
+          total: response.snapshotAggregate?.aggregate?.count ?? 0,
           isLoading: false,
           error: null
         })
