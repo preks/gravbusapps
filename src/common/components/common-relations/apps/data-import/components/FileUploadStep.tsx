@@ -35,7 +35,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
-import { SparkleIcon, CheckCircleIcon } from '@phosphor-icons/react'
+import { SparkleIcon, CheckCircleIcon, DownloadSimpleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import CampaignSelect from '@/common/components/customer/selects/campaign-select/CampaignSelect'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -45,8 +45,11 @@ import translations from './FileUploadStep/_i18n'
 export interface FileUploadStepProps {
   file: File | null
   isLoading: boolean
+  isDownloadingTemplate?: boolean
+  downloadTemplateError?: string | null
   onFileChange: (file: File | null) => Promise<void>
   onAnalyze: () => Promise<void>
+  onDownloadTemplate: () => void | Promise<void>
   campaignId?: string
   onCampaignChange?: (campaign: { id: string; name: string } | null) => void
   businessAppContext?: BusinessAppContextProps
@@ -114,8 +117,11 @@ const isAcceptedFile = (file: File): boolean => {
 export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   file,
   isLoading,
+  isDownloadingTemplate = false,
+  downloadTemplateError = null,
   onFileChange,
   onAnalyze,
+  onDownloadTemplate,
   campaignId,
   onCampaignChange,
   businessAppContext,
@@ -157,6 +163,37 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-4">
+          <Button
+            type="button"
+            variant="default"
+            onClick={onDownloadTemplate}
+            disabled={isLoading || isDownloadingTemplate}
+            className="gba:w-full"
+            data-testid={`${testId}-download-template-button`}
+          >
+            {isDownloadingTemplate ? (
+              <>
+                <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
+                {t('download-template-button-loading')}
+              </>
+            ) : (
+              <>
+                <DownloadSimpleIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                {t('download-template-button')}
+              </>
+            )}
+          </Button>
+
+          <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-download-template-hint`}>
+            {t('download-template-hint')}
+          </p>
+
+          {downloadTemplateError && (
+            <p className="gba:text-xs gba:text-destructive" data-testid={`${testId}-download-template-error`}>
+              {downloadTemplateError}
+            </p>
+          )}
+
           <div>
             <Label htmlFor="file-upload">{t('file-select-label')}</Label>
             <Input

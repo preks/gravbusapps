@@ -29,6 +29,12 @@ investment-type-label = Investment Type (Optional)
 # Liquid Fund Defaults
 liquid-fund-type-label = Liquid Fund Type (Optional)
 
+# Import template
+download-template-button = Download Import Template
+download-template-button-loading = Preparing template...
+download-template-hint = Download the template, enter your data, then upload the file below. Settings on this screen apply to every imported row.
+download-template-error = Could not download the import template. Please try again.
+
 # Button Labels
 analyze-button = Analyze with AI Agent
 analyzing-button = Analyzing with AI...
