@@ -17,6 +17,7 @@ import { UserIcon, BriefcaseIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
+import { ContactTypeBadge } from '../shared/ContactTypeBadge'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contactId?: string
@@ -127,6 +128,12 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
     )
   }
 
+  const extendedContact = contact as Contact & {
+    pictureThumbnailUrl?: string
+    pictureUrl?: string
+    contactType?: string
+  }
+
   // Helper function to build full name
   const buildFullName = () => {
     const parts = []
@@ -145,13 +152,14 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
 
   // Extract contact image URL - support both pictureThumbnail and URLs
   // Only use uploaded images or fallback to icon - no random/hardcoded images
-  const contactImageUrl = contact?.pictureThumbnail
-    ? `data:image/gif;base64,${contact.pictureThumbnail}`
-    : contact?.pictureThumbnailUrl || contact?.pictureUrl
+  const contactImageUrl = extendedContact.pictureThumbnail
+    ? `data:image/gif;base64,${extendedContact.pictureThumbnail}`
+    : extendedContact.pictureThumbnailUrl || extendedContact.pictureUrl
 
   // Get dynamic field values
   const fullName = buildFullName()
   const secondaryInfo = buildSecondaryInfo()
+  const contactType = extendedContact.contactType
 
   return (
     <div className="gba:w-full gba:relative gba:flex gba:flex-col gba:h-full">
@@ -198,6 +206,11 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTi
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              {contactType && (
+                <div className="gba:shrink-0">
+                  <ContactTypeBadge contactType={contactType} />
+                </div>
+              )}
             </div>
             {/* Position and Department - directly under name */}
             {secondaryInfo && (
