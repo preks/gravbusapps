@@ -586,6 +586,14 @@ export type TextDeltaOutput = {
   run_id?: string | null
 }
 
+export type WebSearchPermissionRequestOutput = {
+  type: 'web_search_permission_request'
+  request_id: string
+  reason?: string | null
+  title?: string
+  message?: string
+}
+
 /**
  * Sent by the backend when a streaming `answer` bubble is actually narration
  * of a reasoning step rather than the final answer. The hook locates the
@@ -687,6 +695,7 @@ export type OutputItem =
   | ReasoningStepOutput
   | ReasoningStepUpdateOutput
   | TextDeltaOutput
+  | WebSearchPermissionRequestOutput
   | NarrationAttachOutput
   | AgentPlanOutput
   | AgentPlanUpdateOutput

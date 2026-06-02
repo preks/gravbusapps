@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { useFlowBot } from './hooks/useFlowBot'
+import { useFlowBot, type WebSearchMode } from './hooks/useFlowBot'
 import { useVoiceInput } from './hooks/useVoiceInput'
 import { useVoiceInputHybrid } from './hooks/useVoiceInputHybrid'
 import { useVoiceSynthesis } from './hooks/useVoiceSynthesis'
@@ -499,7 +499,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               // Exit form mode so TTS is allowed to speak the response
               voiceForm.setActiveForm(null)
               voiceForm.clearPendingFormSummary()
-              sendMessage(cleanText, [], false, false, undefined, undefined, undefined, true)
+              sendMessage(cleanText, [], false, 'off', undefined, undefined, undefined, true)
               voiceInput.resetTranscript()
               return
             }
@@ -510,7 +510,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         }
 
         // No active form - send as regular chat message
-        sendMessage(cleanText, [], false, false, undefined, undefined, undefined, true)
+        sendMessage(cleanText, [], false, 'off', undefined, undefined, undefined, true)
         voiceInput.resetTranscript()
       }
     },
@@ -676,7 +676,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     clearStoredInitialPrompt()
 
     setTimeout(() => {
-      sendMessage(pending.prompt, [], false, false, pending.additionInfo, pending.skills, undefined, false)
+      sendMessage(pending.prompt, [], false, 'off', pending.additionInfo, pending.skills, undefined, false)
     }, 100)
   }, [clearStoredInitialPrompt, conversation.length, isLoading, sendMessage])
 
@@ -825,19 +825,19 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     text: string,
     files: File[],
     isThinking: boolean,
-    isSearching: boolean,
+    webSearchMode: WebSearchMode,
     mentions?: Array<{ id: string; type: string; display: string }>
   ) => {
-    sendMessage(text, files, isThinking, isSearching, undefined, undefined, mentions, false)
+    sendMessage(text, files, isThinking, webSearchMode, undefined, undefined, mentions)
   }
 
   const handleConversationSend = useCallback(
-    (userInputText: string, files: File[], isThinking: boolean = false, isSearching: boolean = false) => {
+    (userInputText: string, files: File[], isThinking: boolean = false, webSearchMode: WebSearchMode = 'off') => {
       return sendMessage(
         userInputText,
         files,
         isThinking,
-        isSearching,
+        webSearchMode,
         undefined,
         undefined,
         undefined,
