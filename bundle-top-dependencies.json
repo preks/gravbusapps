@@ -40294,9 +40294,9 @@
     ]
   },
   "hr/core/apps/assets": {
-    "bitbucketBuildNumber": 12773,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12773/",
-    "chunkJsBytes": 816743,
+    "bitbucketBuildNumber": 12838,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12838/",
+    "chunkJsBytes": 817601,
     "top": [
       {
         "kind": "bucket",
@@ -40319,8 +40319,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 302592,
-        "gzip": 66811,
+        "rendered": 304224,
+        "gzip": 67464,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/equipment-registration/EquipmentRegistration.tsx",
@@ -43506,9 +43506,9 @@
     ]
   },
   "hr/core/apps/performance-evaluation": {
-    "bitbucketBuildNumber": 12768,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12768/",
-    "chunkJsBytes": 576450,
+    "bitbucketBuildNumber": 12838,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12838/",
+    "chunkJsBytes": 578485,
     "top": [
       {
         "kind": "bucket",
@@ -43531,13 +43531,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 138151,
-        "gzip": 36646,
+        "rendered": 141329,
+        "gzip": 37975,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/performance-evaluation/PerformanceEvaluation.tsx",
-            "rendered": 18285,
-            "gzip": 3752
+            "rendered": 18226,
+            "gzip": 3722
           },
           {
             "name": "src/business-apps/hr/core/apps/performance-evaluation/CycleEditorModal.tsx",
@@ -54328,9 +54328,9 @@
     ]
   },
   "hr/core/forms/performance-evaluation-form": {
-    "bitbucketBuildNumber": 12773,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12773/",
-    "chunkJsBytes": 158449,
+    "bitbucketBuildNumber": 12838,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12838/",
+    "chunkJsBytes": 159307,
     "top": [
       {
         "kind": "bucket",
@@ -54353,8 +54353,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 54695,
-        "gzip": 14639,
+        "rendered": 56327,
+        "gzip": 15290,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/performance-evaluation-form/components/PerformanceEvaluationFormComponent.tsx",
@@ -54617,9 +54617,9 @@
     ]
   },
   "hr/core/forms/performance-evaluation-peer-approve": {
-    "bitbucketBuildNumber": 12768,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12768/",
-    "chunkJsBytes": 133299,
+    "bitbucketBuildNumber": 12838,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12838/",
+    "chunkJsBytes": 134161,
     "top": [
       {
         "kind": "bucket",
@@ -54660,8 +54660,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 39343,
-        "gzip": 11177,
+        "rendered": 40975,
+        "gzip": 11828,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/performance-evaluation-peer-approve/components/PerformanceEvaluationPeerApproveComponent.tsx",
@@ -88303,20 +88303,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12836,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12836/",
-    "chunkJsBytes": 1952080,
+    "bitbucketBuildNumber": 12838,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12838/",
+    "chunkJsBytes": 1952082,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1658131,
-        "gzip": 105535,
+        "gzip": 105567,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1658131,
-            "gzip": 105535
+            "gzip": 105567
           }
         ]
       },
@@ -112272,7 +112272,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-02T12:40:04.940Z",
+    "generatedAt": "2026-06-02T12:52:41.471Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
