@@ -6,11 +6,15 @@ import type { CanonicalProviderToolEntry } from '@/common/network/ai/prompt-mana
 const mockGetTools = jest.fn()
 const mockGetCanonicalProviderTools = jest.fn()
 const mockSetToolAvailability = jest.fn()
+const mockGetFlowBindings = jest.fn()
+const mockUpdateFlowBinding = jest.fn()
 
 const mockClient = {
   getTools: (...args: unknown[]) => mockGetTools(...args),
   getCanonicalProviderTools: (...args: unknown[]) => mockGetCanonicalProviderTools(...args),
-  setToolAvailability: (...args: unknown[]) => mockSetToolAvailability(...args)
+  setToolAvailability: (...args: unknown[]) => mockSetToolAvailability(...args),
+  getFlowBindings: (...args: unknown[]) => mockGetFlowBindings(...args),
+  updateFlowBinding: (...args: unknown[]) => mockUpdateFlowBinding(...args)
 }
 
 jest.mock('@/common/network/ai/prompt-manager/usePromptManagerClient', () => ({
@@ -39,7 +43,11 @@ describe('ToolsTab enable/disable', () => {
     mockGetTools.mockReset()
     mockGetCanonicalProviderTools.mockReset()
     mockSetToolAvailability.mockReset()
+    mockGetFlowBindings.mockReset()
+    mockUpdateFlowBinding.mockReset()
     mockGetTools.mockResolvedValue({ data: [] })
+    mockGetFlowBindings.mockResolvedValue([])
+    Element.prototype.scrollIntoView = jest.fn()
   })
 
   it('disables a tool and shows the disabled badge', async () => {
@@ -79,5 +87,42 @@ describe('ToolsTab enable/disable', () => {
     expect(await screen.findByTestId('tools-tab-toggle-error')).toHaveTextContent('boom')
     expect(screen.queryByTestId('tools-tab-disabled-badge-flowbot.web_search')).not.toBeInTheDocument()
     expect(screen.getByTestId('tools-tab-toggle-flowbot.web_search')).toHaveTextContent('Disable')
+  })
+
+  it('opens a companion detail even when filters hide the companion row', async () => {
+    mockGetCanonicalProviderTools.mockResolvedValue([
+      providerTool({
+        tool_ref: 'flowbot.saveCrmNote',
+        canonical_name: 'saveCrmNote',
+        display_name: 'Save CRM note',
+        category: 'flowbot_actions',
+        related_tools: [
+          {
+            tool_ref: 'flowbot.read_entity_by_id',
+            relation: 'entity_lookup',
+            necessity: 'required',
+            reason: 'Resolve the parent CRM entity id first.',
+            for_fields: ['crmNote.parent']
+          }
+        ]
+      }),
+      providerTool({
+        tool_ref: 'flowbot.read_entity_by_id',
+        canonical_name: 'read_entity_by_id',
+        display_name: 'Read entity by id',
+        category: 'data'
+      })
+    ])
+
+    render(<ToolsTab accessToken="token" />)
+
+    fireEvent.click(await screen.findByTestId('tools-tab-category-pill-flowbot_actions'))
+    expect(screen.queryByTestId('tools-tab-row-flowbot.read_entity_by_id')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('tool-companion-open-flowbot.read_entity_by_id'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tools-tab-row-flowbot.read_entity_by_id')).toBeInTheDocument()
+    })
   })
 })

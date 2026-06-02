@@ -2,13 +2,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { MagnifyingGlass, X, ArrowClockwise } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import type { CanonicalProviderToolEntry } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type { CanonicalProviderToolEntry, RelatedToolRef } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import {
   compareToolCategories,
   formatCategoryLabel,
   formatToolDisplayName,
   formatToolSourceLabel
 } from './toolCategoryLabels'
+import { ToolCompanions } from './ToolCompanions'
 
 export interface AddToolsModalProps {
   open: boolean
@@ -43,6 +44,8 @@ interface ToolOption {
   outputSchema?: Record<string, unknown>
   /** True when globally disabled — still attachable, but blocked at runtime. */
   disabled?: boolean
+  /** Companion tools this one usually needs first (e.g. id/value lookups). */
+  relatedTools: RelatedToolRef[]
 }
 
 const ALL_FILTER = '__all__'
@@ -128,7 +131,8 @@ const canonicalToToolOption = (entry: CanonicalProviderToolEntry): ToolOption =>
     supportsArtifacts: readCapabilityBool(entry.capabilities, 'supports_artifacts'),
     inputSchema: entry.input_schema,
     outputSchema: entry.output_schema,
-    disabled: entry.disabled === true
+    disabled: entry.disabled === true,
+    relatedTools: Array.isArray(entry.related_tools) ? entry.related_tools : []
   }
 }
 
@@ -235,6 +239,25 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
       return next
     })
   }
+
+  // Add-only (companion "Add" / "Add all") — never removes an existing pick.
+  const addItems = useCallback((refs: string[]) => {
+    setLocalSelected(prev => {
+      const next = new Set(prev)
+      for (const ref of refs) next.add(ref)
+      return next
+    })
+  }, [])
+
+  const previewByRef = useCallback(
+    (toolRef: string) => {
+      const match = tools.find(t => t.ref === toolRef)
+      if (match) setPreviewTool(match)
+    },
+    [tools]
+  )
+
+  const labelForRef = useCallback((toolRef: string) => tools.find(t => t.ref === toolRef)?.displayName, [tools])
 
   const handleAdd = () => {
     onAdd([...localSelected])
@@ -383,7 +406,14 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
           </div>
         </div>
         <aside className="gba:w-80 gba:shrink-0 gba:border-l gba:border-border gba:bg-muted/15 gba:p-4 gba:overflow-y-auto">
-          <ToolPreviewPane tool={previewTool} />
+          <ToolPreviewPane
+            tool={previewTool}
+            isSelected={ref => localSelected.has(ref)}
+            onAddCompanion={ref => addItems([ref])}
+            onAddCompanions={addItems}
+            onOpenCompanion={previewByRef}
+            resolveCompanionLabel={labelForRef}
+          />
         </aside>
       </div>
     </div>
@@ -552,7 +582,23 @@ const FilterPill: React.FC<FilterPillProps> = ({ label, active, onClick, testId 
   </button>
 )
 
-const ToolPreviewPane: React.FC<{ tool: ToolOption | null }> = ({ tool }) => {
+interface ToolPreviewPaneProps {
+  tool: ToolOption | null
+  isSelected: (ref: string) => boolean
+  onAddCompanion: (ref: string) => void
+  onAddCompanions: (refs: string[]) => void
+  onOpenCompanion: (ref: string) => void
+  resolveCompanionLabel: (ref: string) => string | undefined
+}
+
+const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
+  tool,
+  isSelected,
+  onAddCompanion,
+  onAddCompanions,
+  onOpenCompanion,
+  resolveCompanionLabel
+}) => {
   const [showRaw, setShowRaw] = useState(false)
 
   if (!tool) {
@@ -618,6 +664,15 @@ const ToolPreviewPane: React.FC<{ tool: ToolOption | null }> = ({ tool }) => {
           </p>
         </div>
       )}
+
+      <ToolCompanions
+        relatedTools={tool.relatedTools}
+        resolveLabel={resolveCompanionLabel}
+        isSelected={isSelected}
+        onAdd={onAddCompanion}
+        onAddAll={onAddCompanions}
+        onOpen={onOpenCompanion}
+      />
 
       <div>
         <div className="gba:mb-1 gba:flex gba:items-center gba:justify-between">

@@ -141,6 +141,40 @@ export interface CanonicalProviderToolEntry {
    * May be absent on responses from an older backend.
    */
   disabled?: boolean
+  /**
+   * Companion tools this tool usually needs first (e.g. a write flow that
+   * links to a parent entity lists the search/read tools that resolve the
+   * parent id). Empty/absent for tools with no dependencies. The picker
+   * surfaces these as a non-modal "also add" hint with a link to each
+   * companion's detail.
+   */
+  related_tools?: RelatedToolRef[]
+}
+
+/** One companion-tool association attached to a provider tool entry. */
+export interface RelatedToolRef {
+  /** Provider-qualified ref of the companion tool (e.g. ``flowbot.run_internal_search``). */
+  tool_ref: string
+  /** Why it relates: a catalog-value lookup or a parent-entity lookup. */
+  relation: 'catalog_lookup' | 'entity_lookup'
+  /** How strongly it is needed for THIS tool. */
+  necessity: 'required' | 'conditional' | 'recommended'
+  /** Human-readable explanation shown in the hint. */
+  reason: string
+  /** Schema fields this companion helps resolve. */
+  for_fields: string[]
+}
+
+/** One flow's companion bindings with provenance, for the Tools-page editor. */
+export interface FlowBindingEntry {
+  flow_name: string
+  tool_ref: string
+  /** Rows currently in force (generated base + overrides). */
+  effective: RelatedToolRef[]
+  /** Schema-derived base rows, for "reset to generated". */
+  generated: RelatedToolRef[]
+  /** Which layer supplies the effective rows: 'persisted' | 'code' | null (base). */
+  source: 'persisted' | 'code' | null
 }
 
 /** Service-global set of disabled (blocked) canonical tool names. */
@@ -888,6 +922,23 @@ export class PromptManagerClient extends RestClient {
       canonical_name: canonicalName,
       disabled
     })
+  }
+
+  /**
+   * Read the per-flow companion bindings for the Tools-page editor. Returns
+   * the effective rows (generated base + overrides), the generated base (for
+   * "reset"), and which layer is in force per flow.
+   */
+  async getFlowBindings(): Promise<FlowBindingEntry[]> {
+    return this.get<FlowBindingEntry[]>('/../v2/flow-bindings')
+  }
+
+  /**
+   * Persist (``rows``) or clear (``rows: null``) a UI override for one flow's
+   * companion bindings. Clearing reverts to the generated base.
+   */
+  async updateFlowBinding(flowName: string, rows: RelatedToolRef[] | null): Promise<FlowBindingEntry> {
+    return this.put<FlowBindingEntry>(`/../v2/flow-bindings/${encodeURIComponent(flowName)}`, { rows })
   }
 
   async invokeEnterpriseTool(toolRef: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {

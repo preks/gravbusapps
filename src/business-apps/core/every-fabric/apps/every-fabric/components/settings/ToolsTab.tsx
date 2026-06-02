@@ -17,6 +17,11 @@ import {
   formatToolDisplayName,
   formatToolSourceLabel
 } from '../skills/toolCategoryLabels'
+import { ToolCompanions } from '../skills/ToolCompanions'
+import { FlowBindingsManager } from './FlowBindingsManager'
+
+/** DOM id for a tool row, used by the "open companion details" jump. */
+const toolRowId = (toolRef: string): string => `tools-tab-row-${toolRef}`
 
 interface ToolsTabProps {
   accessToken: string
@@ -49,6 +54,23 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_FILTER)
   const [togglingName, setTogglingName] = useState<string | null>(null)
   const [toggleError, setToggleError] = useState<string | null>(null)
+  const [highlightRef, setHighlightRef] = useState<string | null>(null)
+
+  // Jump from a "Works with" companion link to that tool's own row. Clear
+  // filters first so a companion in another category becomes visible.
+  const openToolDetail = useCallback((toolRef: string) => {
+    setSearch('')
+    setCategoryFilter(ALL_FILTER)
+    setHighlightRef(toolRef)
+  }, [])
+
+  const labelForRef = useCallback(
+    (toolRef: string) => {
+      const match = providerTools.find(t => t.tool_ref === toolRef)
+      return match ? formatToolDisplayName(match.display_name, match.canonical_name) : undefined
+    },
+    [providerTools]
+  )
 
   const loadTools = useCallback(async () => {
     setIsLoading(true)
@@ -128,6 +150,19 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
       return false
     })
   }, [providerTools, search, categoryFilter])
+
+  useEffect(() => {
+    if (!highlightRef) return
+    const frame = globalThis.requestAnimationFrame(() => {
+      const el = document.getElementById(toolRowId(highlightRef))
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+    const timer = globalThis.setTimeout(() => setHighlightRef(prev => (prev === highlightRef ? null : prev)), 1600)
+    return () => {
+      globalThis.cancelAnimationFrame(frame)
+      globalThis.clearTimeout(timer)
+    }
+  }, [highlightRef])
 
   const groupedByCategory = useMemo(() => {
     const map = new Map<string, CanonicalProviderToolEntry[]>()
@@ -252,12 +287,17 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
                   label={section.label}
                   entries={section.items}
                   togglingName={togglingName}
+                  highlightRef={highlightRef}
                   onToggleDisabled={handleToggleDisabled}
+                  onOpenTool={openToolDetail}
+                  resolveLabel={labelForRef}
                 />
               ))
             )}
           </section>
         )}
+
+        <FlowBindingsManager client={client} onOpenTool={openToolDetail} resolveLabel={labelForRef} />
 
         {tools.length > 0 && (
           <section>
@@ -321,7 +361,10 @@ interface ToolsTabSectionProps {
   label: string
   entries: CanonicalProviderToolEntry[]
   togglingName: string | null
+  highlightRef: string | null
   onToggleDisabled: (tool: CanonicalProviderToolEntry) => void
+  onOpenTool: (toolRef: string) => void
+  resolveLabel: (toolRef: string) => string | undefined
 }
 
 const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
@@ -329,7 +372,10 @@ const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
   label,
   entries,
   togglingName,
-  onToggleDisabled
+  highlightRef,
+  onToggleDisabled,
+  onOpenTool,
+  resolveLabel
 }) => (
   <div className="gba:mb-5" data-testid={`tools-tab-section-${sectionId}`}>
     <h4 className="gba:text-xs gba:font-semibold gba:uppercase gba:text-muted-foreground gba:mb-2 gba:tracking-wide">
@@ -344,13 +390,16 @@ const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
         const sourceLabel = formatToolSourceLabel(tool.source)
         const isDisabled = tool.disabled === true
         const isToggling = togglingName === tool.canonical_name
+        const isHighlighted = highlightRef === tool.tool_ref
         return (
           <div
             key={tool.tool_ref}
+            id={toolRowId(tool.tool_ref)}
             data-testid={`tools-tab-row-${tool.tool_ref}`}
             className={[
-              'gba:flex gba:items-start gba:gap-4 gba:rounded-lg gba:border gba:p-4 gba:bg-card gba:transition-opacity',
-              isDisabled ? 'gba:border-border/60 gba:opacity-60' : 'gba:border-border'
+              'gba:flex gba:items-start gba:gap-4 gba:rounded-lg gba:border gba:p-4 gba:bg-card gba:transition-all',
+              isDisabled ? 'gba:border-border/60 gba:opacity-60' : 'gba:border-border',
+              isHighlighted ? 'gba:ring-2 gba:ring-primary/60' : ''
             ].join(' ')}
           >
             <div className="gba:flex gba:items-center gba:justify-center gba:h-10 gba:w-10 gba:rounded-lg gba:bg-primary/10 gba:shrink-0">
@@ -388,6 +437,16 @@ const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
                 {capabilities.supports_hitl && <span>HITL</span>}
                 {capabilities.supports_artifacts && <span>Artifacts</span>}
               </div>
+              {tool.related_tools && tool.related_tools.length > 0 && (
+                <div className="gba:mt-2">
+                  <ToolCompanions
+                    relatedTools={tool.related_tools}
+                    resolveLabel={resolveLabel}
+                    onOpen={onOpenTool}
+                    compact
+                  />
+                </div>
+              )}
             </div>
             <Button
               variant={isDisabled ? 'secondary' : 'ghost'}
