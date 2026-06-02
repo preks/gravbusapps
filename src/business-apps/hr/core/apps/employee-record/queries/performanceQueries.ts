@@ -18,13 +18,12 @@ export const employeePerformanceQuery = `
   query GetEmployeePerformance($employeeId: uuid!) {
     EmployeePerformanceGoal(where: {
       employeeId: {_eq: $employeeId}
-    }, orderBy: {progressPercent: DESC}) {
+    }) {
       id
       title
       startDate
       dueDate
       completionDate
-      progressPercent
       status
       objectiveType
       startValue
@@ -44,7 +43,6 @@ export const employeePerformanceQuery = `
       }
       employeePerformanceGoalUpdate(orderBy: {updateTime: ASC}) {
         id
-        progressPercent
         comment
         updateTime
         updateDelta

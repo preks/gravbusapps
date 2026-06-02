@@ -661,6 +661,7 @@ performance-completed-placeholder = Dieses Ziel ist abgeschlossen und kann nicht
 performance-notes-placeholder = Beschreiben Sie, was Sie erreicht haben oder welche Blocker es gibt...
 performance-comment-required = Bitte fügen Sie vor dem Speichern dieses Updates einen Kommentar hinzu.
 performance-save-update = Update speichern
+performance-editing-disabled-tooltip = Derzeit deaktiviert
 performance-burnup-chart = Burnup-Diagramm
 performance-chart-ideal = Ideal
 performance-chart-actual = Ist

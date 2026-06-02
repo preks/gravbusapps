@@ -661,6 +661,7 @@ performance-completed-placeholder = Acest obiectiv este finalizat și nu mai poa
 performance-notes-placeholder = Descrie ce ai realizat sau eventualele blocaje...
 performance-comment-required = Adaugă un comentariu înainte de a salva această actualizare.
 performance-save-update = Salvează actualizarea
+performance-editing-disabled-tooltip = Momentan dezactivat
 performance-burnup-chart = Grafic burnup
 performance-chart-ideal = Ideal
 performance-chart-actual = Actual

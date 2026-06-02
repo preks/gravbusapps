@@ -373,7 +373,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
     validFrom
     validTo
   }
-  EmployeePerformanceGoal(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}, orderBy: {progressPercent: DESC}) {
+  EmployeePerformanceGoal(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
     id 
     employeeId
     dueDate
@@ -381,7 +381,6 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
     startDate
     status
     title
-    progressPercent
     version
     createdAt
     updatedAt

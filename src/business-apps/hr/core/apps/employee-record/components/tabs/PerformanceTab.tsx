@@ -17,8 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
   Spinner,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   type KpiCardData,
-  useTranslation
+  useTranslation,
+  Button
 } from '@newwork/nw-design-system'
 import {
   CartesianGrid,
@@ -113,6 +117,9 @@ interface ExtendedEmployeePerformanceGoal extends EmployeePerformanceGoal {
 }
 
 const normalizeProgress = (value: number) => Math.round(Math.max(0, Math.min(100, value)) * 100) / 100
+
+/** Temporary: goal create/update flows disabled while BE model migrates off progressPercent. */
+const isPerformanceGoalsEditingDisabled = true
 
 const formatPerformanceDate = (date: string, format: string) => {
   return formatDate(date, format) ?? dayjs(date).format(format === 'date.monthDay' ? 'MMM D' : 'MMM D, YYYY')
@@ -824,29 +831,38 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
             </SelectContent>
           </Select>
 
-          <AppAction
-            variant="update-primary"
-            data-testid="employee-goal-add-button"
-            disabled={!selectedCycle || isSelectedCyclePast}
-            contexts={[
-              {
-                context: FlowContextName.employeePerformanceGoal,
-                contextData: {
-                  employeeId: employee.id,
-                  employee,
-                  cycleId: selectedCycle?.id,
-                  cycleStartDate: selectedCycleStartDate,
-                  cycleEndDate: selectedCycleEndDate,
-                  cycleName: selectedCycle?.name
-                }
-              }
-            ]}
-            prefixDataTestId="employee-goal-add"
-            accessToken={accessToken}
-            autoExecute={true}
-          >
-            {t('performance-edit-button')}
-          </AppAction>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="gba:inline-flex">
+                <AppAction
+                  variant="update-primary"
+                  data-testid="employee-goal-add-button"
+                  disabled={isPerformanceGoalsEditingDisabled || !selectedCycle || isSelectedCyclePast}
+                  contexts={[
+                    {
+                      context: FlowContextName.employeePerformanceGoal,
+                      contextData: {
+                        employeeId: employee.id,
+                        employee,
+                        cycleId: selectedCycle?.id,
+                        cycleStartDate: selectedCycleStartDate,
+                        cycleEndDate: selectedCycleEndDate,
+                        cycleName: selectedCycle?.name
+                      }
+                    }
+                  ]}
+                  prefixDataTestId="employee-goal-add"
+                  accessToken={accessToken}
+                  autoExecute={true}
+                >
+                  {t('performance-edit-button')}
+                </AppAction>
+              </span>
+            </TooltipTrigger>
+            {isPerformanceGoalsEditingDisabled && (
+              <TooltipContent>{t('performance-editing-disabled-tooltip')}</TooltipContent>
+            )}
+          </Tooltip>
         </div>
       </div>
 
@@ -1034,65 +1050,86 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
                     {selectedGoal.status !== 'ACHIEVED' && (selectedGoal.progressPercent || 0) < 100 && (
-                      <button
-                        type="button"
-                        className="gba:h-8 gba:px-3 gba:rounded-md gba:bg-secondary gba:text-secondary-foreground gba:text-sm gba:whitespace-nowrap"
-                        onClick={() => setShowCompletedModal(true)}
-                      >
-                        {t('performance-mark-completed')}
-                      </button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="gba:inline-flex">
+                            <Button
+                              type="button"
+                              className="gba:h-8 gba:px-3 gba:rounded-md gba:bg-secondary gba:text-secondary-foreground gba:text-sm gba:whitespace-nowrap disabled:gba:opacity-40 disabled:gba:cursor-not-allowed"
+                              disabled={isPerformanceGoalsEditingDisabled}
+                              onClick={() => setShowCompletedModal(true)}
+                              data-testid="performance-mark-completed-button"
+                            >
+                              {t('performance-mark-completed')}
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        {isPerformanceGoalsEditingDisabled && (
+                          <TooltipContent>{t('performance-editing-disabled-tooltip')}</TooltipContent>
+                        )}
+                      </Tooltip>
                     )}
                     {canEditGoals &&
                       selectedGoal.status !== 'ACHIEVED' &&
                       (selectedGoal.progressPercent || 0) < 100 && (
-                        <AppAction
-                          variant="update-secondary"
-                          data-testid={`employee-goal-edit-button-${selectedGoal.id}`}
-                          contexts={[
-                            {
-                              context: FlowContextName.employeePerformanceGoal,
-                              contextData: {
-                                employeeId: employee.id,
-                                goalId: selectedGoal.id,
-                                title: selectedGoal.title,
-                                startDate: selectedGoal.startDate,
-                                dueDate: selectedGoal.dueDate,
-                                completionDate: selectedGoal.completionDate,
-                                progressPercent: selectedGoal.progressPercent,
-                                status: selectedGoal.status,
-                                objectiveType: selectedGoal.objectiveType,
-                                startValue: selectedGoal.startValue,
-                                targetValue: selectedGoal.targetValue,
-                                version: selectedGoal.version,
-                                cycleId: selectedCycle?.id,
-                                cycleStartDate: selectedCycleStartDate,
-                                cycleEndDate: selectedCycleEndDate,
-                                cycleName: selectedCycle?.name,
-                                additionalProperties: selectedGoal.additionalProperties,
-                                existingMilestonesJson: JSON.stringify(
-                                  selectedGoal.employeePerformanceGoalMilestone?.map(m => ({
-                                    id: m.id,
-                                    title: m.title,
-                                    version: m.version ?? 0,
-                                    done: m.done ?? false,
-                                    doneAt: m.doneAt ?? null
-                                  })) || []
-                                ),
-                                existingUpdatesJson: JSON.stringify(
-                                  selectedGoal.employeePerformanceGoalUpdate?.map(u => ({
-                                    id: u.id,
-                                    comment: u.comment,
-                                    progressPercent: u.progressPercent,
-                                    updateTime: u.updateTime
-                                  })) || []
-                                )
-                              }
-                            }
-                          ]}
-                          prefixDataTestId={`employee-goal-edit-${selectedGoal.id}`}
-                          accessToken={accessToken}
-                          autoExecute={true}
-                        />
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="gba:inline-flex">
+                              <AppAction
+                                variant="update-secondary"
+                                data-testid={`employee-goal-edit-button-${selectedGoal.id}`}
+                                disabled={isPerformanceGoalsEditingDisabled}
+                                contexts={[
+                                  {
+                                    context: FlowContextName.employeePerformanceGoal,
+                                    contextData: {
+                                      employeeId: employee.id,
+                                      goalId: selectedGoal.id,
+                                      title: selectedGoal.title,
+                                      startDate: selectedGoal.startDate,
+                                      dueDate: selectedGoal.dueDate,
+                                      completionDate: selectedGoal.completionDate,
+                                      progressPercent: selectedGoal.progressPercent,
+                                      status: selectedGoal.status,
+                                      objectiveType: selectedGoal.objectiveType,
+                                      startValue: selectedGoal.startValue,
+                                      targetValue: selectedGoal.targetValue,
+                                      version: selectedGoal.version,
+                                      cycleId: selectedCycle?.id,
+                                      cycleStartDate: selectedCycleStartDate,
+                                      cycleEndDate: selectedCycleEndDate,
+                                      cycleName: selectedCycle?.name,
+                                      additionalProperties: selectedGoal.additionalProperties,
+                                      existingMilestonesJson: JSON.stringify(
+                                        selectedGoal.employeePerformanceGoalMilestone?.map(m => ({
+                                          id: m.id,
+                                          title: m.title,
+                                          version: m.version ?? 0,
+                                          done: m.done ?? false,
+                                          doneAt: m.doneAt ?? null
+                                        })) || []
+                                      ),
+                                      existingUpdatesJson: JSON.stringify(
+                                        selectedGoal.employeePerformanceGoalUpdate?.map(u => ({
+                                          id: u.id,
+                                          comment: u.comment,
+                                          progressPercent: u.progressPercent,
+                                          updateTime: u.updateTime
+                                        })) || []
+                                      )
+                                    }
+                                  }
+                                ]}
+                                prefixDataTestId={`employee-goal-edit-${selectedGoal.id}`}
+                                accessToken={accessToken}
+                                autoExecute={true}
+                              />
+                            </span>
+                          </TooltipTrigger>
+                          {isPerformanceGoalsEditingDisabled && (
+                            <TooltipContent>{t('performance-editing-disabled-tooltip')}</TooltipContent>
+                          )}
+                        </Tooltip>
                       )}
                   </div>
                 </div>
@@ -1190,14 +1227,24 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({ employee, accessToken, 
                         </div>
 
                         {!isCompleted && (
-                          <button
-                            type="button"
-                            className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-sm disabled:gba:opacity-40 disabled:gba:cursor-not-allowed"
-                            disabled={!detailsInput.trim()}
-                            onClick={applyProgressUpdate}
-                          >
-                            {t('performance-save-update')}
-                          </button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="gba:inline-flex">
+                                <Button
+                                  type="button"
+                                  className="gba:h-9 gba:px-4 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-sm disabled:gba:opacity-40 disabled:gba:cursor-not-allowed"
+                                  disabled={isPerformanceGoalsEditingDisabled || !detailsInput.trim()}
+                                  onClick={applyProgressUpdate}
+                                  data-testid="performance-save-update-button"
+                                >
+                                  {t('performance-save-update')}
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            {isPerformanceGoalsEditingDisabled && (
+                              <TooltipContent>{t('performance-editing-disabled-tooltip')}</TooltipContent>
+                            )}
+                          </Tooltip>
                         )}
                       </>
                     )

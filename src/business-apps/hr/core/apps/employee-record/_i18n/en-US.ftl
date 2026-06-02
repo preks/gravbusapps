@@ -674,6 +674,7 @@ performance-completed-placeholder = This goal is completed and can no longer be 
 performance-notes-placeholder = Describe what you accomplished or any blockers...
 performance-comment-required = Please add a comment before saving this update.
 performance-save-update = Save Update
+performance-editing-disabled-tooltip = Currently disabled
 performance-burnup-chart = Burnup Chart
 performance-chart-ideal = Ideal
 performance-chart-actual = Actual
