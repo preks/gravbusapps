@@ -88303,9 +88303,9 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12826,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12826/",
-    "chunkJsBytes": 1952082,
+    "bitbucketBuildNumber": 12830,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12830/",
+    "chunkJsBytes": 1952081,
     "top": [
       {
         "kind": "bucket",
@@ -104874,9 +104874,9 @@
     ]
   },
   "irm/core/apps/company-management": {
-    "bitbucketBuildNumber": 12768,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12768/",
-    "chunkJsBytes": 756860,
+    "bitbucketBuildNumber": 12830,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12830/",
+    "chunkJsBytes": 757234,
     "top": [
       {
         "kind": "bucket",
@@ -104899,8 +104899,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 110941,
-        "gzip": 29774,
+        "rendered": 111525,
+        "gzip": 29908,
         "leaves": [
           {
             "name": "src/business-apps/irm/investments/apps/investment-management/views/company-groups-view/CompanyGroupsView.tsx",
@@ -107263,9 +107263,9 @@
     ]
   },
   "irm/core/popups/company-group-delete-popup": {
-    "bitbucketBuildNumber": 12768,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12768/",
-    "chunkJsBytes": 118693,
+    "bitbucketBuildNumber": 12830,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12830/",
+    "chunkJsBytes": 118690,
     "top": [
       {
         "kind": "bucket",
@@ -107404,13 +107404,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 5484,
-        "gzip": 1342,
+        "rendered": 5457,
+        "gzip": 1338,
         "leaves": [
           {
             "name": "src/business-apps/irm/core/popups/company-group-delete-popup/CompanyGroupDeletePopup.tsx",
-            "rendered": 5484,
-            "gzip": 1342
+            "rendered": 5457,
+            "gzip": 1338
           }
         ]
       },
@@ -112272,7 +112272,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-02T11:25:50.598Z",
+    "generatedAt": "2026-06-02T11:51:39.623Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
