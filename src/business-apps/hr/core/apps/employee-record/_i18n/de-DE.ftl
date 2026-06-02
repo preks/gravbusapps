@@ -1025,7 +1025,7 @@ change-address-type-secondary = Nebenwohnsitz
 change-address-type-add-address = Adresse hinzufügen
 
 # Change Relationship - Congratulations modal
-relationship-form-success-title = Herzlichen Glückwunsch!
+relationship-form-success-title = Änderung erhalten
 relationship-form-success-loading-message = Wird generiert...
 relationship-form-success-ok = OK
 

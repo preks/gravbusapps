@@ -1025,7 +1025,7 @@ change-address-type-secondary = Secundară
 change-address-type-add-address = Adaugă adresă
 
 # Change Relationship - Congratulations modal
-relationship-form-success-title = Felicitări!
+relationship-form-success-title = Actualizare primită
 relationship-form-success-loading-message = Se generează...
 relationship-form-success-ok = OK
 

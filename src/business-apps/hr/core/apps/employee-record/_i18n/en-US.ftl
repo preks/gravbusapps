@@ -1038,7 +1038,7 @@ change-address-type-secondary = Secondary
 change-address-type-add-address = Add address
 
 # Change Relationship - Congratulations modal
-relationship-form-success-title = Congratulations!
+relationship-form-success-title = Update received
 relationship-form-success-loading-message = Generating...
 relationship-form-success-ok = OK
 

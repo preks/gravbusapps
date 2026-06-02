@@ -34,7 +34,7 @@ export const CongratulationsModal: React.FC<CongratulationsModalProps> = ({
         <DialogHeader>
           {generatedMessage ? (
             <>
-              <DialogTitle>{t('relationship-form-success-title')} 🎉</DialogTitle>
+              <DialogTitle>{t('relationship-form-success-title')}</DialogTitle>
               <DialogDescription>{generatedMessage}</DialogDescription>
             </>
           ) : (
