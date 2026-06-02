@@ -258,6 +258,7 @@ type DelegationStatus = 'running' | 'done' | 'failed'
 interface ExpertCallContent {
   agentId: string
   task: string
+  description?: string
   status: DelegationStatus
   durationMs?: number
   outputPreview?: string
@@ -288,6 +289,7 @@ const mergeExpertCallContent = (existing: ExpertCallContent, incoming: ExpertCal
   return {
     agentId: existing.agentId,
     task: existing.task,
+    description: existing.description ?? incoming.description,
     status: richer.status,
     durationMs: richer.durationMs ?? existing.durationMs ?? incoming.durationMs,
     outputPreview: richer.outputPreview ?? existing.outputPreview ?? incoming.outputPreview
@@ -530,6 +532,7 @@ export function eventToMessage(
         content: {
           agentId: agentName,
           task: event.task_summary ?? agentName,
+          description: event.agent_description,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
           outputPreview: summarizeExpertOutput(completed?.output)
@@ -547,6 +550,7 @@ export function eventToMessage(
         content: {
           agentId: agentName,
           task: event.task_summary ?? agentName,
+          description: event.agent_description,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
           outputPreview: summarizeExpertOutput(completed?.output)

@@ -4,6 +4,7 @@ import { MarkdownWithChipsRenderer } from '@/common/components/markdown/Markdown
 export interface ExpertCallRendererProps {
   agentId: string
   task: string
+  description?: string
   status: 'running' | 'done' | 'failed'
   output?: string
   outputPreview?: string
@@ -11,6 +12,13 @@ export interface ExpertCallRendererProps {
 }
 
 const normalizeText = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
+
+const firstSentence = (value: string): string => {
+  const compact = value.trim().replace(/\s+/g, ' ')
+  if (!compact) return ''
+  const match = compact.match(/^.*?[.!?](?=\s|$)/)
+  return (match ? match[0] : compact).trim()
+}
 
 const isLikelyTaskText = (value: string) => {
   const compact = value.trim()
@@ -51,6 +59,7 @@ const ExpertCallStatusIcon: React.FC<{ status: 'running' | 'done' | 'failed' }> 
 export const ExpertCallRenderer = ({
   agentId,
   task,
+  description,
   status,
   output,
   outputPreview,
@@ -58,8 +67,16 @@ export const ExpertCallRenderer = ({
 }: ExpertCallRendererProps) => {
   const normalizedAgentId = agentId.trim()
   const normalizedTask = task.trim()
+  const normalizedDescription = (description ?? '').trim()
   const displayName = resolveExpertDisplayName(normalizedAgentId, normalizedTask)
-  const subtitle = hasSubtitle(displayName, normalizedTask) ? '' : normalizedTask || 'Working on a delegated task'
+  // Prefer the agent's short role description over the raw delegated prompt
+  // (which can be the entire orchestrator task). Only fall back to a generic
+  // line when no description is available — never dump the full task text.
+  const subtitle = normalizedDescription
+    ? firstSentence(normalizedDescription)
+    : hasSubtitle(displayName, normalizedTask)
+      ? ''
+      : 'Working on a delegated task'
 
   return (
     <div
@@ -83,7 +100,10 @@ export const ExpertCallRenderer = ({
             )}
           </div>
           {subtitle ? (
-            <p className="gba:mt-0.5 gba:text-[11px] gba:leading-4 gba:text-muted-foreground/85 gba:line-clamp-2">
+            <p
+              className="gba:mt-0.5 gba:text-[11px] gba:leading-4 gba:text-muted-foreground/85 gba:line-clamp-1"
+              title={normalizedDescription || subtitle}
+            >
               {subtitle}
             </p>
           ) : null}

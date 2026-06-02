@@ -184,6 +184,7 @@ export interface AgentSubagentSpawnedEvent {
   step_id: string
   name?: string
   agent_name?: string
+  agent_description?: string
   subagent_id?: string
   parent_step_id?: string
   task_summary?: string
@@ -212,6 +213,7 @@ export interface AgentExpertCalledEvent {
   event_id: string
   step_id: string
   expert_name?: string
+  agent_description?: string
   subagent_id?: string
   task_summary?: string
   timestamp: string

@@ -53,10 +53,6 @@ jest.mock('../WorkspaceConnectorIndicator', () => ({
   WorkspaceConnectorIndicator: () => null
 }))
 
-jest.mock('../WorkspaceStreamingIsland', () => ({
-  WorkspaceStreamingIsland: () => null
-}))
-
 jest.mock('../../landing/FabricInput', () => ({
   FabricInput: (props: { devModeEnabled?: boolean }) => (
     <div data-testid="fabric-input" data-dev-mode={props.devModeEnabled ? 'true' : 'false'} />

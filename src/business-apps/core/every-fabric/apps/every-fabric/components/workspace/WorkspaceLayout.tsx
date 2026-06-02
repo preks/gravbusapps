@@ -9,7 +9,6 @@ import { ConversationPanel } from './ConversationPanel'
 import { WorkspaceRightPanel } from './WorkspaceRightPanel'
 import { WorkspaceSkillIndicator } from './WorkspaceSkillIndicator'
 import { WorkspaceConnectorIndicator } from './WorkspaceConnectorIndicator'
-import { WorkspaceStreamingIsland } from './WorkspaceStreamingIsland'
 import { FabricInput } from '../landing/FabricInput'
 import { useFabricConnectors } from '../../hooks/useFabricConnectors'
 import {
@@ -115,14 +114,12 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
     agentActivityLines,
     accessToken,
     isStreaming,
-    isConnected,
     isWaitingForInput,
     taskNodes,
     hasPlan,
     completedCount,
     totalCount,
     progressPercent,
-    currentTodoText,
     activityEvents,
     decisions,
     activeSkill,
@@ -245,13 +242,7 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
   )
   const suggestedFollowUps = useMemo(() => parseFollowUps(latestFinalAnswer), [latestFinalAnswer])
 
-  // Phase 4 UX: live_status (ephemeral pill text) wins over the persisted
-  // status headline, which in turn wins over the planner's current task text.
   const statusHeadline = liveStatusHeadline ?? statusHeadlineRaw
-  const streamingStatusHeadline = useMemo(() => {
-    if (statusHeadline) return statusHeadline
-    return currentTodoText ?? null
-  }, [statusHeadline, currentTodoText])
   useEffect(() => {
     if (latestFinalAnswer?.id !== dismissedFollowUpMessageId) {
       setDismissedFollowUpMessageId(null)
@@ -408,20 +399,6 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
                   </div>
                 )}
 
-                {isStreaming && (
-                  <WorkspaceStreamingIsland
-                    sessionId={session.session_id}
-                    messages={messages}
-                    statusHeadline={streamingStatusHeadline}
-                    activityLines={agentActivityLines}
-                    completedCount={completedCount}
-                    totalCount={totalCount}
-                    progressPercent={progressPercent}
-                    isConnected={isConnected}
-                    isStreaming={isStreaming}
-                  />
-                )}
-
                 {canReopenClarification && (
                   <div className="gba:pointer-events-auto">
                     <button
@@ -510,7 +487,6 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
           isStreaming={isStreaming}
           isWaitingForInput={isWaitingForInput}
           hasFixedFollowUps={showSuggestedFollowUps}
-          hasStreamingIsland={isStreaming}
           chatOffsetClass={chatOffsetClass}
           onReply={reply}
           onViewArtifact={setActiveArtifactId}

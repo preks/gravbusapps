@@ -7,10 +7,8 @@ import {
   WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS,
   WORKSPACE_CHAT_RAIL_CLASS,
   WORKSPACE_COMPOSER_OFFSET_CLASS,
-  WORKSPACE_COMPOSER_STREAMING_ISLAND_OFFSET_CLASS,
   WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS,
   WORKSPACE_END_SENTINEL_SCROLL_MARGIN_DEFAULT_CLASS,
-  WORKSPACE_END_SENTINEL_SCROLL_MARGIN_STREAMING_ISLAND_CLASS,
   WORKSPACE_END_SENTINEL_SCROLL_MARGIN_WITH_FOLLOWUPS_CLASS
 } from './workspaceLayout.constants'
 
@@ -29,7 +27,6 @@ interface ConversationPanelProps {
   isStreaming: boolean
   isWaitingForInput: boolean
   hasFixedFollowUps?: boolean
-  hasStreamingIsland?: boolean
   /**
    * Resolved right-offset utility class (e.g. `WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS`
    * or the preview variant) when the right workspace panel is open, otherwise
@@ -147,7 +144,6 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   activityLines,
   isStreaming,
   hasFixedFollowUps = false,
-  hasStreamingIsland = false,
   chatOffsetClass = '',
   onReply,
   onViewArtifact,
@@ -205,15 +201,13 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
     if (!isUserScrolledRef.current) {
       scrollToBottom()
     }
-  }, [visibleMessages.length, hasFixedFollowUps, hasStreamingIsland, scrollToBottom, isUserScrolledRef])
+  }, [visibleMessages.length, hasFixedFollowUps, scrollToBottom, isUserScrolledRef])
 
   let bottomPaddingClass = WORKSPACE_COMPOSER_OFFSET_CLASS
   if (hasFixedFollowUps) bottomPaddingClass = WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS
-  else if (hasStreamingIsland) bottomPaddingClass = WORKSPACE_COMPOSER_STREAMING_ISLAND_OFFSET_CLASS
 
   let endSentinelMarginClass = WORKSPACE_END_SENTINEL_SCROLL_MARGIN_DEFAULT_CLASS
   if (hasFixedFollowUps) endSentinelMarginClass = WORKSPACE_END_SENTINEL_SCROLL_MARGIN_WITH_FOLLOWUPS_CLASS
-  else if (hasStreamingIsland) endSentinelMarginClass = WORKSPACE_END_SENTINEL_SCROLL_MARGIN_STREAMING_ISLAND_CLASS
 
   const hasChatOffset = chatOffsetClass.length > 0
 
