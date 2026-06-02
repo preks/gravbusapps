@@ -1,8 +1,8 @@
 # Investment Contact Import View Translations (German - Germany)
 
 # Page Header
-contact-page-title = Investment-Kontakt-Import mit KI-Zuordnung
-contact-page-description = Laden Sie eine CSV- oder Excel-Datei hoch, lassen Sie die Felder von der KI analysieren und zuordnen und konvertieren Sie sie dann in das InvestmentContact-Format
+contact-page-title = Investment-Kontakte importieren
+contact-page-description = Laden Sie eine Tabelle hoch und wir helfen Ihnen, die Spalten den passenden Kontaktfeldern zuzuordnen. Prüfen Sie die Vorschläge und importieren Sie Ihre Kontakte.
 
 # Entity Type Labels
 contact-entity-type = Kontakte

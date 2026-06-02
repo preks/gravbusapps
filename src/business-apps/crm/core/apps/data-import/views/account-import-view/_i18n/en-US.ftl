@@ -1,8 +1,8 @@
 # Account Import View Translations (English - US)
 
 # Page Header
-account-page-title = Account Import with AI Mapping
-account-page-description = Upload a CSV or Excel file, let AI analyze and map the fields, then convert to Account format
+account-page-title = Import Accounts
+account-page-description = Upload a spreadsheet and we'll help match your columns to the right account fields. Review the suggestions, then import your accounts.
 
 # Entity Type Labels
 account-entity-type = accounts

@@ -1,9 +1,9 @@
 # Investment Account Import View Translations (German - Germany)
 
 # Page Header
-account-page-title = Investment-Konto-Import mit KI-Zuordnung
-account-page-description = Laden Sie eine CSV- oder Excel-Datei hoch, lassen Sie die Felder von der KI analysieren und zuordnen und konvertieren Sie sie dann in das InvestmentAccount-Format
+account-page-title = Investment-Accounts importieren
+account-page-description = Laden Sie eine Tabelle hoch und wir helfen Ihnen, die Spalten den passenden Account-Feldern zuzuordnen. Prüfen Sie die Vorschläge und importieren Sie Ihre Accounts.
 
 # Entity Type Labels
-account-entity-type = Konten
-account-entity-type-singular = Konto
+account-entity-type = Accounts
+account-entity-type-singular = Account

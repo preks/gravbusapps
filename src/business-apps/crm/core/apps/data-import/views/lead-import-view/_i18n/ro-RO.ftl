@@ -1,8 +1,8 @@
 # Lead Import View Translations (Romanian - Romania)
 
 # Page Header
-lead-page-title = Import Lead-uri cu mapare AI
-lead-page-description = Încărcați un fișier CSV sau Excel, lăsați AI să analizeze și să mapeze câmpurile, apoi convertiți în formatul CustomerLead
+lead-page-title = Importă lead-uri
+lead-page-description = Încărcați un fișier tabelar și vă ajutăm să potriviți coloanele cu câmpurile corecte pentru lead-uri. Verificați sugestiile, apoi importați lead-urile.
 
 # Entity Type Labels
 lead-entity-type = lead-uri

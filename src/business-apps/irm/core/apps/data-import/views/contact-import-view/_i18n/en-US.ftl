@@ -1,8 +1,8 @@
 # Investment Contact Import View Translations (English - US)
 
 # Page Header
-contact-page-title = Investment Contact Import with AI Mapping
-contact-page-description = Upload a CSV or Excel file, let AI analyze and map the fields, then convert to InvestmentContact format
+contact-page-title = Import Investment Contacts
+contact-page-description = Upload a spreadsheet and we'll help match your columns to the right contact fields. Review the suggestions, then import your contacts.
 
 # Entity Type Labels
 contact-entity-type = contacts

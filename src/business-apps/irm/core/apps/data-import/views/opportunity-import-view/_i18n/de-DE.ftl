@@ -1,9 +1,9 @@
 # Opportunity Import View - German
 
 # Page Header
-opportunity-page-title = Opportunity-Import mit KI-Zuordnung
-opportunity-page-description = Laden Sie eine CSV- oder Excel-Datei hoch, lassen Sie die KI die Felder analysieren und zuordnen, und konvertieren Sie dann in das Opportunity-Format
+opportunity-page-title = Opportunities importieren
+opportunity-page-description = Laden Sie eine Tabelle hoch und wir helfen Ihnen, die Spalten den passenden Opportunity-Feldern zuzuordnen. Prüfen Sie die Vorschläge und importieren Sie Ihre Opportunities.
 
 # Entity Type
-opportunity-entity-type = opportunities
-opportunity-entity-type-singular = opportunity
+opportunity-entity-type = Opportunities
+opportunity-entity-type-singular = Opportunity

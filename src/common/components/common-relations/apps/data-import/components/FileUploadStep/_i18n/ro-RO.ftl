@@ -1,7 +1,7 @@
 # File Upload Step Translations (Romanian - Romania)
 
 # Step Header
-file-upload-step-title = Pasul 1: Încărcați fișierul CSV sau Excel
+file-upload-step-title = Pasul 1: Încărcați fișierul
 
 # Form Labels
 file-select-label = Selectați fișier CSV sau Excel
@@ -15,12 +15,12 @@ file-loaded-text = Fișier încărcat: { $fileName } ({ $fileSize } KB)
 campaign-id-label = Campanie (Opțional)
 
 # Shared
-enforced-required-hint = Vă rugăm completați toate câmpurile obligatorii înainte de analiză.
+enforced-required-hint = Completați toate câmpurile obligatorii înainte de a continua.
 
 # Lead Defaults
-lead-status-label = Default Status Lead 
-lead-source-label = Default Sursă Lead 
-lead-rating-label = Default Evaluare Lead 
+lead-status-label = Status implicit lead
+lead-source-label = Sursă implicită lead
+lead-rating-label = Evaluare implicită lead
 
 # Investment Defaults
 investment-group-label = Grup de investiții
@@ -36,5 +36,5 @@ download-template-hint = Descărcați șablonul, introduceți datele, apoi înc�
 download-template-error = Șablonul de import nu a putut fi descărcat. Vă rugăm încercați din nou.
 
 # Button Labels
-analyze-button = Analizare cu Agent AI
-analyzing-button = Se analizează cu AI...
+analyze-button = Analizează fișierul
+analyzing-button = Se analizează fișierul...

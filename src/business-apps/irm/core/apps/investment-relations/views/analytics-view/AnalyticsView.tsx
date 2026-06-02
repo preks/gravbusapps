@@ -104,7 +104,14 @@ import { useAccountsOverTime } from './hooks/useAccountsOverTime'
 import { useRevenueTrends } from './hooks/useRevenueTrends'
 import { useActivityHeatmap } from './hooks/useActivityHeatmap'
 import { usePipelines } from './hooks/usePipelines'
-import { IRM_KPI_LABELS, IRM_KPI_VISIBILITY } from './config/kpiConfig'
+import {
+  IRM_KPI_LABELS,
+  IRM_KPI_VISIBILITY,
+  IRM_LEADS_TAB_KPI_LABELS,
+  IRM_ACCOUNTS_TAB_KPI_LABELS,
+  IRM_OPPORTUNITIES_TAB_KPI_LABELS,
+  IRM_CONTACTS_TAB_KPI_LABELS
+} from './config/kpiConfig'
 
 import { useOpportunityVelocityData } from './hooks/useOpportunityVelocityData'
 import { useOpportunityStatusDistribution } from './hooks/useOpportunityStatusDistribution'
@@ -1026,7 +1033,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       },
       {
         title: 'Investment Leads Analytics',
-        moduleColor
+        moduleColor,
+        kpiLabels: IRM_LEADS_TAB_KPI_LABELS
       }
     ),
     selectedLeadFilter,
@@ -1053,7 +1061,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         availableCurrencies
       },
       {
-        title: 'Accounts Analytics'
+        title: 'Accounts Analytics',
+        kpiLabels: IRM_ACCOUNTS_TAB_KPI_LABELS
       }
     ),
     selectedGrowthBar,
@@ -1096,7 +1105,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       {
         title: 'Opportunities Analytics',
         showTopDeals: false,
-        useTrendData: true // IRM uses dedicated trend hook
+        useTrendData: true, // IRM uses dedicated trend hook
+        kpiLabels: IRM_OPPORTUNITIES_TAB_KPI_LABELS
       }
     ),
     selectedOppTabStage,
@@ -1160,7 +1170,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       },
       {
         title: 'Contacts Analytics',
-        module: 'irm'
+        module: 'irm',
+        kpiLabels: IRM_CONTACTS_TAB_KPI_LABELS
       }
     ),
     selectedContactType,

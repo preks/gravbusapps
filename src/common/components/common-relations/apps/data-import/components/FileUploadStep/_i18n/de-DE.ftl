@@ -1,7 +1,7 @@
 # File Upload Step Translations (German - Germany)
 
 # Step Header
-file-upload-step-title = Schritt 1: CSV- oder Excel-Datei hochladen
+file-upload-step-title = Schritt 1: Datei hochladen
 
 # Form Labels
 file-select-label = CSV- oder Excel-Datei auswählen
@@ -15,7 +15,7 @@ file-loaded-text = Datei geladen: { $fileName } ({ $fileSize } KB)
 campaign-id-label = Kampagne (Optional)
 
 # Shared
-enforced-required-hint = Bitte füllen Sie alle Pflichtfelder aus, bevor Sie analysieren.
+enforced-required-hint = Bitte füllen Sie alle Pflichtfelder aus, bevor Sie fortfahren.
 
 # Lead Defaults
 lead-status-label = Standard-Lead-Status
@@ -36,5 +36,5 @@ download-template-hint = Laden Sie die Vorlage herunter, tragen Sie Ihre Daten e
 download-template-error = Die Importvorlage konnte nicht heruntergeladen werden. Bitte versuchen Sie es erneut.
 
 # Button Labels
-analyze-button = Mit KI-Agent analysieren
-analyzing-button = Wird mit KI analysiert...
+analyze-button = Datei analysieren
+analyzing-button = Datei wird analysiert...

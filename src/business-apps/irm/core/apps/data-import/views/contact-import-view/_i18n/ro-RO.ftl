@@ -1,8 +1,8 @@
 # Investment Contact Import View Translations (Romanian - Romania)
 
 # Page Header
-contact-page-title = Import contacte investiții cu mapare AI
-contact-page-description = Încărcați un fișier CSV sau Excel, lăsați AI să analizeze și să mapeze câmpurile, apoi convertiți în formatul InvestmentContact
+contact-page-title = Importă contacte de investiții
+contact-page-description = Încărcați un fișier tabelar și vă ajutăm să potriviți coloanele cu câmpurile corecte pentru contacte. Verificați sugestiile, apoi importați contactele.
 
 # Entity Type Labels
 contact-entity-type = contacte

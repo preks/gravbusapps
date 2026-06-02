@@ -1,23 +1,21 @@
 # Generic Investment Import View Translations (German - Germany)
 
-# Curated copy per known investment group
-page-title-equity = Eigenkapitalinvestitions-Import mit KI-Zuordnung
-page-description-equity = Laden Sie eine CSV- oder Excel-Datei mit Eigenkapitalinvestitionsdaten hoch, lassen Sie die Felder von der KI analysieren und zuordnen und importieren Sie dann, um Eigenkapitalinvestitionen zu erstellen
+page-title-equity = Eigenkapitalinvestitionen importieren
+page-description-equity = Laden Sie eine Tabelle mit Ihren Eigenkapitalinvestitionsdaten hoch. Wir schlagen passende Spaltenzuordnungen vor und fügen die Investitionen hinzu.
 entity-plural-equity = Eigenkapitalinvestitionen
 entity-singular-equity = Eigenkapitalinvestition
 
-page-title-real-estate = Immobilieninvestitions-Import mit KI-Zuordnung
-page-description-real-estate = Laden Sie eine CSV- oder Excel-Datei mit Immobiliendaten hoch, lassen Sie die Felder von der KI analysieren und zuordnen und importieren Sie dann, um Immobilieninvestitionen zu erstellen
+page-title-real-estate = Immobilieninvestitionen importieren
+page-description-real-estate = Laden Sie eine Tabelle mit Ihren Immobiliendaten hoch. Wir schlagen passende Spaltenzuordnungen vor und fügen die Investitionen hinzu.
 entity-plural-real-estate = Immobilieninvestitionen
 entity-singular-real-estate = Immobilieninvestition
 
-page-title-liquid-fund = Liquiditätsfonds-Import mit KI-Zuordnung
-page-description-liquid-fund = Laden Sie eine CSV- oder Excel-Datei mit Liquiditätsfondsdaten hoch, lassen Sie die Felder von der KI analysieren und zuordnen und importieren Sie dann, um Liquiditätsfondsinvestitionen zu erstellen
-entity-plural-liquid-fund = Liquiditätsfondsinvestitionen
-entity-singular-liquid-fund = Liquiditätsfondsinvestition
+page-title-liquid-fund = Liquid-Fonds-Investitionen importieren
+page-description-liquid-fund = Laden Sie eine Tabelle mit Ihren Liquid-Fonds-Daten hoch. Wir schlagen passende Spaltenzuordnungen vor und fügen die Investitionen hinzu.
+entity-plural-liquid-fund = Liquid-Fonds-Investitionen
+entity-singular-liquid-fund = Liquid-Fonds-Investition
 
-# Generic fallback used for any catalog group without curated copy.
-page-title-generic = { $groupLabel }-Investitionen-Import mit KI-Zuordnung
-page-description-generic = Laden Sie eine CSV- oder Excel-Datei mit { $groupLabel }-Daten hoch, lassen Sie die Felder von der KI analysieren und zuordnen und importieren Sie dann, um { $groupLabel }-Investitionen zu erstellen
-entity-plural-generic = { $groupLabel }-Investitionen
-entity-singular-generic = { $groupLabel }-Investition
+page-title-generic = { $groupLabel }-Investitionen importieren
+page-description-generic = Laden Sie eine Tabelle mit Ihren { $groupLabel }-Daten hoch. Wir schlagen passende Spaltenzuordnungen vor und fügen die Investitionen hinzu.
+entity-plural-generic = { $groupLabelLower }-Investitionen
+entity-singular-generic = { $groupLabelLower }-Investition

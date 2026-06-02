@@ -5,7 +5,22 @@ import { AccountLifecycleChart } from './widgets/AccountLifecycleChart'
 import { AccountGrowthAnalysis } from './widgets/AccountGrowthAnalysis'
 import type { GrowthBarSelection, GrowthMetric } from '../hooks/useAccountGrowthDrillDownState'
 import type { LifecyclePointSelection, LifecycleMetric } from '../hooks/useAccountLifecycleDrillDownState'
+import { mergeTabKpiLabels, type PartialTabKpiLabels, type TabKpiLabel } from '../types/tabKpiLabels'
 // no direct Card usage in this layout; widgets handle their own cards
+
+export type AccountsTabKpiLabels = {
+  totalAccounts: TabKpiLabel
+  accountsWithOpportunities: TabKpiLabel
+  avgOpportunitiesPerAccount: TabKpiLabel
+  newThisMonth: TabKpiLabel
+}
+
+const DEFAULT_ACCOUNTS_TAB_KPI_LABELS: AccountsTabKpiLabels = {
+  totalAccounts: { title: 'Total Accounts', description: 'All accounts in the system' },
+  accountsWithOpportunities: { title: 'Accounts with Opportunities', description: 'Accounts that have opportunities' },
+  avgOpportunitiesPerAccount: { title: 'Avg. Opportunities', description: 'Average opportunities per account' },
+  newThisMonth: { title: 'New This Month', description: 'Accounts created this month' }
+}
 
 export interface AccountsTrendData {
   currentMonthAccounts: number
@@ -60,6 +75,9 @@ export interface AccountsTabLayoutProps {
   onLifecyclePointClick?: (label: string, date: string, endDate: string, metric: LifecycleMetric) => void
   selectedLifecyclePoint?: LifecyclePointSelection | null
   renderLifecycleDrillDown?: (selection: LifecyclePointSelection) => React.ReactNode
+
+  /** Optional KPI title/description overrides (e.g. IRM investment terminology) */
+  kpiLabels?: PartialTabKpiLabels<AccountsTabKpiLabels>
 }
 
 const calculateTrend = (
@@ -99,25 +117,28 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   renderAccountGrowthDrillDown,
   onLifecyclePointClick,
   selectedLifecyclePoint,
-  renderLifecycleDrillDown
+  renderLifecycleDrillDown,
+  kpiLabels = {}
 }) => {
+  const labels = mergeTabKpiLabels(DEFAULT_ACCOUNTS_TAB_KPI_LABELS, kpiLabels)
+
   const kpis = [
     {
       key: 'total-accounts',
-      title: 'Total Accounts',
+      title: labels.totalAccounts.title,
       value: totalAccounts || 0,
       prefix: <BankIcon size={16} />,
-      description: 'All accounts in the system',
+      description: labels.totalAccounts.description,
       ...(trendData && !trendLoading
         ? { trend: calculateTrend(totalAccounts || 0, (totalAccounts || 0) - (trendData.currentMonthAccounts || 0)) }
         : {})
     },
     {
       key: 'accounts-with-opportunities',
-      title: 'Accounts with Opportunities',
+      title: labels.accountsWithOpportunities.title,
       value: accountsWithOpportunities || 0,
       prefix: <CurrencyCircleDollarIcon size={16} />,
-      description: 'Accounts that have opportunities',
+      description: labels.accountsWithOpportunities.description,
       ...(trendData &&
       !trendLoading &&
       trendData.currentMonthAccountsWithOpportunities !== undefined &&
@@ -132,11 +153,11 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
     },
     {
       key: 'avg-opportunities-per-account',
-      title: 'Avg. Opportunities',
+      title: labels.avgOpportunitiesPerAccount.title,
       value: avgOpportunitiesPerAccount || 0,
       precision: 1,
       prefix: <UsersIcon />,
-      description: 'Average opportunities per account',
+      description: labels.avgOpportunitiesPerAccount.description,
       ...(trendData && !trendLoading
         ? {
             trend: calculateTrend(
@@ -148,10 +169,10 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
     },
     {
       key: 'accounts-this-period',
-      title: `New This Month`,
+      title: labels.newThisMonth.title,
       value: trendData?.currentMonthAccounts || 0,
       prefix: <TrendUpIcon size={16} />,
-      description: `Accounts created this month`,
+      description: labels.newThisMonth.description,
       ...(trendData && !trendLoading
         ? { trend: calculateTrend(trendData.currentMonthAccounts, trendData.previousMonthAccounts) }
         : {})

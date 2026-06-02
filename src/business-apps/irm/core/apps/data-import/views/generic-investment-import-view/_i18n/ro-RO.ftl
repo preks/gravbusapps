@@ -1,23 +1,21 @@
 # Generic Investment Import View Translations (Romanian - Romania)
 
-# Curated copy per known investment group
-page-title-equity = Import investiții acționariat cu mapare AI
-page-description-equity = Încărcați un fișier CSV sau Excel cu date despre investiții acționariat, lăsați AI să analizeze și să mapeze câmpurile, apoi importați pentru a crea investiții acționariat
+page-title-equity = Importă investiții acționariat
+page-description-equity = Încărcați un fișier tabelar cu datele investițiilor de tip acționariat. Vă sugerăm cum se potrivesc coloanele, apoi adăugăm investițiile.
 entity-plural-equity = investiții acționariat
 entity-singular-equity = investiție acționariat
 
-page-title-real-estate = Import investiții imobiliare cu mapare AI
-page-description-real-estate = Încărcați un fișier CSV sau Excel cu date despre proprietăți, lăsați AI să analizeze și să mapeze câmpurile, apoi importați pentru a crea investiții imobiliare
+page-title-real-estate = Importă investiții imobiliare
+page-description-real-estate = Încărcați un fișier tabelar cu datele investițiilor imobiliare. Vă sugerăm cum se potrivesc coloanele, apoi adăugăm investițiile.
 entity-plural-real-estate = investiții imobiliare
 entity-singular-real-estate = investiție imobiliară
 
-page-title-liquid-fund = Import investiții fond lichid cu mapare AI
-page-description-liquid-fund = Încărcați un fișier CSV sau Excel cu date despre fonduri lichide, lăsați AI să analizeze și să mapeze câmpurile, apoi importați pentru a crea investiții în fonduri lichide
+page-title-liquid-fund = Importă investiții în fonduri lichide
+page-description-liquid-fund = Încărcați un fișier tabelar cu datele fondurilor lichide. Vă sugerăm cum se potrivesc coloanele, apoi adăugăm investițiile.
 entity-plural-liquid-fund = investiții în fonduri lichide
-entity-singular-liquid-fund = investiție în fonduri lichide
+entity-singular-liquid-fund = investiție în fond lichid
 
-# Generic fallback used for any catalog group without curated copy.
-page-title-generic = Import investiții { $groupLabelLower } cu mapare AI
-page-description-generic = Încărcați un fișier CSV sau Excel cu date despre { $groupLabelLower }, lăsați AI să analizeze și să mapeze câmpurile, apoi importați pentru a crea investiții { $groupLabelLower }
+page-title-generic = Importă investiții { $groupLabel }
+page-description-generic = Încărcați un fișier tabelar cu datele { $groupLabelLower }. Vă sugerăm cum se potrivesc coloanele, apoi adăugăm investițiile.
 entity-plural-generic = investiții { $groupLabelLower }
 entity-singular-generic = investiție { $groupLabelLower }

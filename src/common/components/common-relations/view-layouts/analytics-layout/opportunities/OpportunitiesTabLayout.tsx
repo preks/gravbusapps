@@ -25,6 +25,29 @@ import {
 import { OpportunitiesByStagePie } from './widgets/OpportunitiesByStagePie'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 import { calculateTrend, TrendResult } from '@/common/utils/trendUtils'
+import { mergeTabKpiLabels, type PartialTabKpiLabels, type TabKpiLabel } from '../types/tabKpiLabels'
+
+export type OpportunitiesTabKpiLabels = {
+  totalOpportunities: TabKpiLabel
+  totalValue: TabKpiLabel
+  wonOpportunities: TabKpiLabel
+  winRate: TabKpiLabel
+  avgDealSize: TabKpiLabel
+  newThisPeriod: TabKpiLabel
+  avgOpportunityValue: TabKpiLabel
+  conversionRate: TabKpiLabel
+}
+
+const DEFAULT_OPPORTUNITIES_TAB_KPI_LABELS: OpportunitiesTabKpiLabels = {
+  totalOpportunities: { title: 'Total Opportunities', description: 'All opportunities in pipeline' },
+  totalValue: { title: 'Total Pipeline Value', description: 'Combined value of all opportunities' },
+  wonOpportunities: { title: 'Won Opportunities', description: 'Opportunities marked as won' },
+  winRate: { title: 'Win Rate', description: 'Percentage of won opportunities' },
+  avgDealSize: { title: 'Avg. Deal Size', description: 'Average opportunity value' },
+  newThisPeriod: { title: 'New This Period', description: 'Opportunities created in selected period' },
+  avgOpportunityValue: { title: 'Avg. Opportunity Value', description: 'Average value per opportunity' },
+  conversionRate: { title: 'Conversion Rate', description: 'Leads converted to opportunities' }
+}
 
 export interface OpportunitiesTrendData {
   totalOpportunitiesLastMonth: number
@@ -138,6 +161,9 @@ export interface OpportunitiesTabLayoutProps {
 
   // Feature flags
   showTopDeals?: boolean // Default: true - Set to false to hide top deals section (e.g., for IRM)
+
+  /** Optional KPI title/description overrides (e.g. IRM investment terminology) */
+  kpiLabels?: PartialTabKpiLabels<OpportunitiesTabKpiLabels>
 }
 
 // colors local to pie widget
@@ -182,15 +208,18 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   onLifecyclePointClick,
   renderLifecycleDrillDown,
   onFlowTrendPointClick,
-  renderFlowTrendDrillDown
+  renderFlowTrendDrillDown,
+  kpiLabels = {}
 }) => {
+  const labels = mergeTabKpiLabels(DEFAULT_OPPORTUNITIES_TAB_KPI_LABELS, kpiLabels)
+
   const kpis = [
     {
       key: 'total-opportunities',
-      title: 'Total Opportunities',
+      title: labels.totalOpportunities.title,
       value: totalOpportunities,
       prefix: <CurrencyCircleDollarIcon size={16} />,
-      description: 'All opportunities in pipeline',
+      description: labels.totalOpportunities.description,
       ...(trendData && !trendLoading
         ? {
             trend: calculateTrend(totalOpportunities, trendData.totalOpportunitiesLastMonth || 0, TREND_DESCRIPTION)
@@ -199,11 +228,11 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     },
     {
       key: 'total-value',
-      title: 'Total Pipeline Value',
+      title: labels.totalValue.title,
       value: formatCurrencyCompact(totalValue, kpiCurrency, undefined, 1, true),
       valueIsString: true,
       prefix: <CurrencyCircleDollarIcon size={16} />,
-      description: 'Combined value of all opportunities',
+      description: labels.totalValue.description,
       ...(trendData && !trendLoading
         ? {
             trend: calculateTrend(totalValue, trendData.previousPeriodPipelineValue || 0, TREND_DESCRIPTION)
@@ -212,10 +241,10 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     },
     {
       key: 'won-opportunities',
-      title: 'Won Opportunities',
+      title: labels.wonOpportunities.title,
       value: wonOpportunities,
       prefix: <TrophyIcon />,
-      description: 'Opportunities marked as won',
+      description: labels.wonOpportunities.description,
       ...(trendData && !trendLoading
         ? {
             trend: calculateTrend(
@@ -228,11 +257,11 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     },
     {
       key: 'win-rate',
-      title: 'Win Rate',
+      title: labels.winRate.title,
       value: trendData?.actualWinRateThisMonth || winRate,
       suffix: '%',
       prefix: <TrophyIcon />,
-      description: 'Percentage of won opportunities',
+      description: labels.winRate.description,
       ...(trendData && !trendLoading
         ? {
             trend: calculateAbsoluteDiffTrend(
@@ -245,7 +274,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     },
     {
       key: 'avg-deal-size',
-      title: 'Avg. Deal Size',
+      title: labels.avgDealSize.title,
       value: formatCurrencyCompact(
         trendData?.actualAvgDealSizeThisMonth || avgDealSize,
         kpiCurrency,
@@ -255,7 +284,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       ),
       valueIsString: true,
       prefix: <CurrencyCircleDollarIcon size={16} />,
-      description: 'Average opportunity value',
+      description: labels.avgDealSize.description,
       ...(trendData && !trendLoading
         ? {
             trend: calculateTrend(
@@ -268,10 +297,10 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     },
     {
       key: 'opportunities-this-period',
-      title: 'New This Period',
+      title: labels.newThisPeriod.title,
       value: trendData?.currentPeriodOpportunities || 0,
       prefix: <TrendUpIcon size={16} />,
-      description: 'Opportunities created in selected period',
+      description: labels.newThisPeriod.description,
       ...(trendData && !trendLoading
         ? {
             trend: calculateTrend(
@@ -284,11 +313,11 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     },
     {
       key: 'avg-opportunity-value',
-      title: 'Avg. Opportunity Value',
+      title: labels.avgOpportunityValue.title,
       value: formatCurrencyCompact(avgSalesCycle, kpiCurrency, undefined, 1, true),
       valueIsString: true,
       prefix: <CurrencyCircleDollarIcon size={16} />,
-      description: 'Average value per opportunity',
+      description: labels.avgOpportunityValue.description,
       ...(trendData && !trendLoading && trendData.actualAvgOpportunityValueLastMonth !== undefined
         ? {
             trend: calculateTrend(avgSalesCycle, trendData.actualAvgOpportunityValueLastMonth || 0, TREND_DESCRIPTION)
@@ -297,11 +326,11 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     },
     {
       key: 'conversion-rate',
-      title: 'Conversion Rate',
+      title: labels.conversionRate.title,
       value: trendData?.actualConversionRateThisMonth ?? 0,
       suffix: '%',
       prefix: <PercentIcon />,
-      description: 'Leads converted to opportunities',
+      description: labels.conversionRate.description,
       ...(trendData && !trendLoading
         ? {
             trend: calculateAbsoluteDiffTrend(

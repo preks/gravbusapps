@@ -4,6 +4,21 @@ import { AddressBookIcon, UsersIcon, CurrencyCircleDollarIcon, TrendUpIcon } fro
 import { ContactQualityMatrix, ContactQualityData } from './widgets/ContactQualityMatrix'
 import { ContactLifecycleChart } from './widgets/ContactLifecycleChart'
 import { ContactDistributionPie } from './widgets/ContactDistributionPie'
+import { mergeTabKpiLabels, type PartialTabKpiLabels, type TabKpiLabel } from '../types/tabKpiLabels'
+
+export type ContactsTabKpiLabels = {
+  totalContacts: TabKpiLabel
+  newThisMonth: TabKpiLabel
+  growthRate: TabKpiLabel
+  avgPerAccount: TabKpiLabel
+}
+
+const DEFAULT_CONTACTS_TAB_KPI_LABELS: ContactsTabKpiLabels = {
+  totalContacts: { title: 'Total Contacts', description: 'All contacts in the system' },
+  newThisMonth: { title: 'New This Month', description: 'Contacts created this month' },
+  growthRate: { title: 'Monthly Growth', description: 'Month-over-month growth' },
+  avgPerAccount: { title: 'Average per Account', description: 'Average contacts per account' }
+}
 
 export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
@@ -38,6 +53,9 @@ export interface ContactsTabLayoutProps {
   renderContactTypeDrillDown?: (type: string) => React.ReactNode
   onLifecyclePointClick?: (label: string, startDate: string, endDate: string) => void
   renderLifecycleDrillDown?: React.ReactNode
+
+  /** Optional KPI title/description overrides (e.g. IRM investment terminology) */
+  kpiLabels?: PartialTabKpiLabels<ContactsTabKpiLabels>
 }
 
 export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
@@ -61,8 +79,11 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   onContactTypeClick,
   renderContactTypeDrillDown,
   onLifecyclePointClick,
-  renderLifecycleDrillDown
+  renderLifecycleDrillDown,
+  kpiLabels = {}
 }) => {
+  const labels = mergeTabKpiLabels(DEFAULT_CONTACTS_TAB_KPI_LABELS, kpiLabels)
+
   // Helper to calculate trend percentage
   const calculateTrendPercent = (current: number, previous: number): number => {
     if (previous > 0) {
@@ -83,10 +104,10 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   const kpis = [
     {
       key: 'total-contacts',
-      title: 'Total Contacts',
+      title: labels.totalContacts.title,
       value: totalContacts || 0,
       prefix: <AddressBookIcon size={16} />,
-      description: 'All contacts in the system',
+      description: labels.totalContacts.description,
       ...(totalGrowth !== undefined && totalLastMonth !== undefined
         ? {
             trend: {
@@ -99,10 +120,10 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
     },
     {
       key: 'contacts-this-month',
-      title: 'New This Month',
+      title: labels.newThisMonth.title,
       value: thisMonth || 0,
       prefix: <TrendUpIcon size={16} />,
-      description: 'Contacts created this month',
+      description: labels.newThisMonth.description,
       ...(thisMonth !== undefined && lastMonth !== undefined
         ? {
             trend: {
@@ -115,11 +136,11 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
     },
     {
       key: 'growth-rate',
-      title: 'Monthly Growth',
+      title: labels.growthRate.title,
       value: growth || 0,
       suffix: '%',
       prefix: <CurrencyCircleDollarIcon size={16} />,
-      description: 'Month-over-month growth',
+      description: labels.growthRate.description,
       ...(growth !== undefined
         ? {
             trend: {
@@ -132,11 +153,11 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
     },
     {
       key: 'avg-contacts-per-account',
-      title: 'Average per Account',
+      title: labels.avgPerAccount.title,
       value: avgPerAccount || 0,
       precision: 1,
       prefix: <UsersIcon size={16} />,
-      description: 'Average contacts per account',
+      description: labels.avgPerAccount.description,
       ...(avgPerAccount !== undefined && avgPerAccountLastMonth !== undefined
         ? {
             trend: {

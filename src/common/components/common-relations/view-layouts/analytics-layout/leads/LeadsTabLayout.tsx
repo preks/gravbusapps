@@ -6,6 +6,21 @@ import { LeadsBySourcePie } from './widgets/LeadsBySourcePie'
 import { LeadsByStatusPie } from './widgets/LeadsByStatusPie'
 import type { LeadDrillDownSelection } from '../hooks/useLeadDrillDownState'
 import type { LeadLifecyclePointSelection } from '../hooks/useLeadLifecycleDrillDownState'
+import { mergeTabKpiLabels, type PartialTabKpiLabels, type TabKpiLabel } from '../types/tabKpiLabels'
+
+export type LeadsTabKpiLabels = {
+  totalLeads: TabKpiLabel
+  convertedLeads: TabKpiLabel
+  conversionRate: TabKpiLabel
+  newThisMonth: TabKpiLabel
+}
+
+const DEFAULT_LEADS_TAB_KPI_LABELS: LeadsTabKpiLabels = {
+  totalLeads: { title: 'Total Leads', description: 'All leads in the system' },
+  convertedLeads: { title: 'Converted Leads', description: 'Leads converted to opportunities' },
+  conversionRate: { title: 'Conversion Rate', description: 'Leads converted to opportunities' },
+  newThisMonth: { title: 'New This Month', description: 'Leads created this month' }
+}
 
 // Leads-specific trend data interface (matching archived version)
 interface LeadsTrendData {
@@ -76,6 +91,9 @@ export interface LeadsTabLayoutProps {
   ) => void
   selectedLeadLifecyclePoint?: LeadLifecyclePointSelection | null
   renderLeadLifecycleDrillDown?: (selection: LeadLifecyclePointSelection) => React.ReactNode
+
+  /** Optional KPI title/description overrides (e.g. IRM investment terminology) */
+  kpiLabels?: PartialTabKpiLabels<LeadsTabKpiLabels>
 }
 
 export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
@@ -99,8 +117,10 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   renderLeadPanel,
   onLifecyclePointClick,
   selectedLeadLifecyclePoint,
-  renderLeadLifecycleDrillDown
+  renderLeadLifecycleDrillDown,
+  kpiLabels = {}
 }) => {
+  const labels = mergeTabKpiLabels(DEFAULT_LEADS_TAB_KPI_LABELS, kpiLabels)
   // Helper function to calculate trend with total description (matching archived version)
   const calculateTrendWithTotalDescription = (currentValue: number, previousValue: number) => {
     if (previousValue === 0) {
@@ -134,10 +154,10 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   const keyMetricsWidgets: WidgetItem[] = [
     {
       key: 'total-leads',
-      title: 'Total Leads',
+      title: labels.totalLeads.title,
       value: totalLeads || 0,
       prefix: <UsersIcon size={16} />,
-      description: 'All leads in the system',
+      description: labels.totalLeads.description,
       // Add trend data for total leads with custom description format
       ...(trendData && !trendLoading
         ? {
@@ -147,10 +167,10 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
     },
     {
       key: 'converted-leads',
-      title: 'Converted Leads',
+      title: labels.convertedLeads.title,
       value: convertedLeads || 0,
       prefix: <CheckCircleIcon size={16} />,
-      description: 'Leads converted to opportunities',
+      description: labels.convertedLeads.description,
       ...(trendData && !trendLoading
         ? {
             trend: calculateTrend(trendData.currentMonthConvertedLeads, trendData.previousMonthConvertedLeads)
@@ -159,11 +179,11 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
     },
     {
       key: 'conversion-rate',
-      title: 'Conversion Rate',
+      title: labels.conversionRate.title,
       value: conversionRate || 0,
       suffix: '%',
       prefix: <PercentIcon size={16} />,
-      description: 'Leads converted to opportunities',
+      description: labels.conversionRate.description,
       // Compare current conversion rate to last month's conversion rate
       ...(trendData && !trendLoading
         ? {
@@ -177,10 +197,10 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
     },
     {
       key: 'leads-this-period',
-      title: 'New This Month',
+      title: labels.newThisMonth.title,
       value: trendData?.currentMonthLeads || 0,
       prefix: <TrendUpIcon size={16} />,
-      description: 'Leads created this month',
+      description: labels.newThisMonth.description,
       // Add trend data for new leads this month vs last month
       ...(trendData && !trendLoading
         ? {

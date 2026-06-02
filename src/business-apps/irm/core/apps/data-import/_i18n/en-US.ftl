@@ -1,35 +1,35 @@
 # IRM Data Import Page Translations (English - US)
 
 data-import-header-title = Data Import
-data-import-header-description = Import data from CSV or Excel files with AI-powered field mapping. Upload your file, review suggested mappings, and import.
+data-import-header-description = Bring data in from a spreadsheet. Upload your file, review how your columns match up, and import.
 data-import-search-placeholder = Search import types...
 
 # Error state shown when the InvestmentGroup catalog fails to load
 data-import-load-error-title = Couldn't load investment groups
-data-import-load-error-description = We couldn't reach the investment-group catalog. Without it, imports cannot be submitted safely.
+data-import-load-error-description = We couldn't load investment groups. This information is needed before you can import.
 data-import-load-error-retry = Try again
 
 # Single-entity import cards
 card-lead-title = Import Leads
-card-lead-description = Import investment leads from CSV or Excel with company information, investment details, financial data, and property information. AI-powered field mapping helps you quickly map your data.
+card-lead-description = Add leads from a spreadsheet—company info, investment details, and more. We'll suggest how your columns match up.
 card-lead-button = Start Lead Import
 
 card-contact-title = Import Contacts
-card-contact-description = Import individual contacts from CSV or Excel with personal information, contact details, and language preferences. AI automatically detects and maps fields.
+card-contact-description = Add contacts from a spreadsheet. We'll suggest how your columns match up.
 card-contact-button = Start Contact Import
 
 card-account-title = Import Accounts
-card-account-description = Import company accounts from CSV or Excel with organization details, industry information, revenue data, and communication channels. AI-powered mapping streamlines the process.
+card-account-description = Add accounts from a spreadsheet—organization details, industry, and revenue. We'll suggest how your columns match up.
 card-account-button = Start Account Import
 
 card-opportunity-title = Import Opportunities
-card-opportunity-description = Import investment opportunities from CSV or Excel with pipeline stages, forecasts, deal information, and investment-specific fields. AI-powered mapping streamlines the process.
+card-opportunity-description = Add opportunities from a spreadsheet—pipeline stage, forecast, and deal info. We'll suggest how your columns match up.
 card-opportunity-button = Start Opportunity Import
 
 # Multi-entry investments card
 card-investments-title = Import Investments
-card-investments-description = Import investment data from CSV or Excel files with AI-powered field mapping.
+card-investments-description = Add investments from a spreadsheet. We'll suggest how your columns match up.
 
 # Multi-entry investment reports card
 card-investment-reports-title = Import Investment Reports
-card-investment-reports-description = Import investment report data from CSV or Excel files with AI-powered field mapping.
+card-investment-reports-description = Add investment reports from a spreadsheet. We'll suggest how your columns match up.
