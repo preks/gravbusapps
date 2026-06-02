@@ -91,6 +91,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   const {
     conversation,
     isLoading,
+    isGenerating,
     sendMessage,
     editMessage,
     clearConversation,
@@ -527,11 +528,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     const lastTurn = conversation[conversation.length - 1]
     const hasLoadingOutput = lastTurn?.side === 'agent' && lastTurn.outputs?.some(o => o.type === 'loading')
 
-    if (isLoading && !hasLoadingOutput) {
+    if (isGenerating && !hasLoadingOutput) {
       return [...conversation, { side: 'agent' as const, outputs: [{ type: 'loading' as const }] }]
     }
     return conversation
-  }, [conversation, isLoading])
+  }, [conversation, isGenerating])
 
   const renderConversation = useMemo(() => {
     if (!isSpeechMode) {
@@ -964,7 +965,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                     isVoiceMode={isSpeechMode}
                     sessionId={sessionId ?? undefined}
                     onCancelGeneration={cancelGeneration}
-                    isAgentGenerating={isLoading}
+                    isAgentGenerating={isGenerating}
                     hideInlinePlan={isDesktopPlanLayout && Boolean(latestAgentPlan)}
                   />
                 </div>
