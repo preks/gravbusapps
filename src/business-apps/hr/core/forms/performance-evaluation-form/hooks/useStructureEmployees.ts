@@ -1,13 +1,24 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { hasWorkingConditionHireDateStarted } from '@/business-apps/hr/core/utils/workingConditionHireDate'
 import { EmployeeOption } from '../types'
 
-export const useStructureEmployees = (accessToken: string, shouldFetch: boolean = true, currentUserId?: string) => {
+interface UseStructureEmployeesOptions {
+  excludeFutureHires?: boolean
+}
+
+export const useStructureEmployees = (
+  accessToken: string,
+  shouldFetch: boolean = true,
+  currentUserId?: string,
+  options?: UseStructureEmployeesOptions
+) => {
   const [employees, setEmployees] = useState<EmployeeOption[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
+  const excludeFutureHires = Boolean(options?.excludeFutureHires)
 
   const fetchStructureEmployees = useCallback(
     async (search?: string) => {
@@ -29,12 +40,16 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
         query GetStructureEmployees($structureId: uuid!, $search: String, $limit: Int) {
           EmployeePosition(
             where: {
-              structureId: { _eq: $structureId },
-              employee: { isDeleted: { _eq: false } },
-              _or: [
-                { firstName: { _ilike: $search } },
-                { lastName: { _ilike: $search } },
-                { employee: { displayName: { _ilike: $search } } }
+              _and: [
+                { structureId: { _eq: $structureId } },
+                { employee: { isDeleted: { _eq: false } } },
+                {
+                  _or: [
+                    { firstName: { _ilike: $search } },
+                    { lastName: { _ilike: $search } },
+                    { employee: { displayName: { _ilike: $search } } }
+                  ]
+                }
               ]
             },
             limit: $limit,
@@ -49,6 +64,9 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
                 displayName
                 pictureThumbnail
                 userId
+                workingCondition(where: { isDeleted: { _neq: true } }, orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]) {
+                  hireDate
+                }
               }
             supervisorEmployee {
               userId
@@ -71,15 +89,18 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
 
         const result = await graphqlClient.request(query, variables)
 
-        const employeeOptions: EmployeeOption[] = result.EmployeePosition.map((emp: any) => ({
-          id: emp.employeeId,
-          name: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
-          jobTitle: emp.jobPosition?.name,
-          department: emp.organizationalUnit?.name,
-          pictureThumbnail: emp.employee?.pictureThumbnail,
-          userId: emp.employee?.userId || undefined,
-          managerUserId: emp.supervisorEmployee?.userId || undefined
-        }))
+        const employeeOptions: EmployeeOption[] = result.EmployeePosition.filter(
+          (emp: any) => !excludeFutureHires || hasWorkingConditionHireDateStarted(emp.employee?.workingCondition)
+        )
+          .map((emp: any) => ({
+            id: emp.employeeId,
+            name: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
+            jobTitle: emp.jobPosition?.name,
+            department: emp.organizationalUnit?.name,
+            pictureThumbnail: emp.employee?.pictureThumbnail,
+            userId: emp.employee?.userId || undefined,
+            managerUserId: emp.supervisorEmployee?.userId || undefined
+          }))
           // Filter out the current user from the list
           .filter((emp: EmployeeOption) => emp.id !== currentUserId)
 
@@ -91,7 +112,7 @@ export const useStructureEmployees = (accessToken: string, shouldFetch: boolean 
         setIsLoading(false)
       }
     },
-    [accessToken, graphqlClient, shouldFetch, currentUserId]
+    [accessToken, graphqlClient, shouldFetch, currentUserId, excludeFutureHires]
   )
 
   const getEmployeeById = useCallback(

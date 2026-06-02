@@ -13,6 +13,7 @@ import { useInsertRatingScale } from './hooks/useInsertRatingScale'
 import { useSavePerformanceCycle } from './hooks/useSavePerformanceCycle'
 import { useSaveCompanyValue } from './hooks/useSaveCompanyValue'
 import { deleteRatingScale } from './services/ratingScaleApi'
+import { getEligibleTeamEmployeeUserIds } from './services/performanceTeamEmployeesApi'
 import type { PerformanceCycle, RatingScale, ValueItemStored } from './types'
 import translations from './_i18n'
 import type { CycleEditorValues, EvaluationStage as EditorStage } from './CycleEditorModal'
@@ -311,11 +312,10 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           teamId: string
         }> = []
         for (const teamId of selectedTeamIds) {
-          const [users, teamManagerUserId] = await Promise.all([
-            orgClient.getUsersByOrganizationalUnit(teamId),
+          const [employeeUserIds, teamManagerUserId] = await Promise.all([
+            getEligibleTeamEmployeeUserIds(accessToken, teamId),
             orgClient.getTeamManagerUserId(teamId)
           ])
-          const employeeUserIds = users.map(u => u.id).filter(Boolean)
           if (employeeUserIds.length === 0) {
             toast.warning('Team has no members with user accounts; skipping.', {
               position: 'bottom-right',
