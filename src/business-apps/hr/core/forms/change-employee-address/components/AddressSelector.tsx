@@ -8,10 +8,12 @@ import {
   SelectContent,
   SelectItem,
   FormMessage,
-  Button
+  Button,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
+import translations from '../../../apps/employee-record/_i18n'
 
 interface AddressSelectorProps {
   value: string
@@ -30,6 +32,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
   onRequestDelete,
   canShowDelete
 }) => {
+  const { t } = useTranslation(translations)
   const placeholder = `${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder', 'Please Select')} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.address_text', 'Address')}`
   const hasPrimary = Array.isArray(addresses) && addresses.some((a: any) => a?.type === 'PRIMARY')
   const hasSecondary = Array.isArray(addresses) && addresses.some((a: any) => a?.type === 'SECONDARY')
@@ -42,6 +45,23 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
         : addSentinel
       : value
   const selectValue = resolvedValue || ''
+
+  const getAddressOptionLabel = (option: any): string => {
+    if (String(option?.id) === addSentinel || option?.type === 'Add Address') {
+      return t('change-address-type-add-address')
+    }
+
+    if (option?.type === 'PRIMARY') {
+      return t('change-address-type-primary')
+    }
+
+    if (option?.type === 'SECONDARY') {
+      return t('change-address-type-secondary')
+    }
+
+    return option?.type || ''
+  }
+
   return (
     <FormItem>
       <div className="gba:flex gba:gap-2">
@@ -62,7 +82,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
                   value={String(o.id)}
                   data-testid={`change-employee-address-address-option-${o.id ?? `add-${idx}`}`}
                 >
-                  {o.type}
+                  {getAddressOptionLabel(o)}
                 </SelectItem>
               ))}
             </SelectContent>

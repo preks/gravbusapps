@@ -1019,6 +1019,9 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Se încarcă formularul de adresă...
+change-address-type-primary = Primară
+change-address-type-secondary = Secundară
+change-address-type-add-address = Adaugă adresă
 
 # Change Relationship - Congratulations modal
 relationship-form-success-title = Felicitări!

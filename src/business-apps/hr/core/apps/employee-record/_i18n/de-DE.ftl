@@ -1019,6 +1019,9 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Adressformular wird geladen...
+change-address-type-primary = Hauptanschrift
+change-address-type-secondary = Nebenwohnsitz
+change-address-type-add-address = Adresse hinzufügen
 
 # Change Relationship - Congratulations modal
 relationship-form-success-title = Herzlichen Glückwunsch!

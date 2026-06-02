@@ -1032,6 +1032,9 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Loading address form...
+change-address-type-primary = Primary
+change-address-type-secondary = Secondary
+change-address-type-add-address = Add address
 
 # Change Relationship - Congratulations modal
 relationship-form-success-title = Congratulations!
