@@ -171,7 +171,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
                 >
                   {t('policies')}
                 </TabSwitchTrigger>
-                {/* Documents tab hidden - code preserved for future use */}
+                {/* TODO: EVALUATE DOCUMENT GROUP */}
                 <TabSwitchTrigger
                   value="questions"
                   startIcon={<MessageCircleQuestion className="gba:w-4 gba:h-4" />}
@@ -270,7 +270,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           />
         </TabSwitchContent>
 
-        {/* Documents content hidden - code preserved for future use
+        {/* TODO: EVALUATE DOCUMENT GROUP
         <TabSwitchContent value="documents" data-testid="intranet-content-documents">
           <DocumentView
             accessToken={context.accessToken}

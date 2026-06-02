@@ -2,20 +2,19 @@
  * useContentEntry Hook
  * Fetch single content entry with full details including nested comments
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import type { QueryResult } from '@/common/data/common/types/queryTypes'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { ContentEntry } from '../types/contentEntryTypes'
-import { buildContentEntryFields, type ContentEntryQueryOptions } from '../queries/contentEntryQueryBuilder'
+import {
+  buildContentEntryByIdQuery,
+  contentEntryQueryKeys,
+  type ContentEntryByPkResponse
+} from '../queries/contentQueries'
+import type { ContentEntryQueryOptions } from '../queries/contentEntryQueryBuilder'
 
-interface UseContentEntryResult {
+export interface UseContentEntryResult extends QueryResult<ContentEntry | null> {
   entry: ContentEntry | null
-  isLoading: boolean
-  error: Error | null
-  refetch: () => Promise<void>
-}
-
-interface ContentEntryByPkResponse {
-  ContentEntryByPk: ContentEntry | null
 }
 
 /**
@@ -28,58 +27,77 @@ export const useContentEntry = (
     queryOptions?: ContentEntryQueryOptions
   }
 ): UseContentEntryResult => {
-  const [entry, setEntry] = useState<ContentEntry | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-
+  const queryOptions = options?.queryOptions
   const graphqlClient = useGraphQLClient(options?.accessToken)
+  const queryKey = useMemo(() => contentEntryQueryKeys.detail(id, queryOptions), [id, queryOptions])
+  const queryKeyString = useMemo(() => JSON.stringify(queryKey), [queryKey])
+
+  const [data, setData] = useState<ContentEntry | null | undefined>(undefined)
+  const [error, setError] = useState<Error | null>(null)
+  const [isFetching, setIsFetching] = useState(false)
+  const [isFetched, setIsFetched] = useState(false)
+  const [resolvedQueryKeyString, setResolvedQueryKeyString] = useState<string | null>(null)
+
+  const requestSequenceRef = useRef(0)
 
   const fetchEntry = useCallback(async () => {
     if (!id) {
-      setEntry(null)
-      setIsLoading(false)
+      requestSequenceRef.current += 1
+      setData(undefined)
+      setError(null)
+      setIsFetching(false)
+      setIsFetched(false)
+      setResolvedQueryKeyString(null)
       return
     }
 
-    setIsLoading(true)
+    const requestSequence = ++requestSequenceRef.current
+
     setError(null)
+    setIsFetching(true)
 
     try {
-      const queryFields = buildContentEntryFields(options?.queryOptions || { config: 'detail' })
-
-      // Build query with ContentEntryByPk using variables
-      const query = `
-        query getContentEntry($id: uuid!) {
-          ContentEntryByPk(id: $id) {
-            ${queryFields}
-          }
-        }
-      `
-
+      const query = buildContentEntryByIdQuery(queryOptions)
       const response = await graphqlClient.request<ContentEntryByPkResponse>(query, { id })
+      const nextData = response.ContentEntryByPk ?? null
 
-      if (response.ContentEntryByPk) {
-        setEntry(response.ContentEntryByPk)
-      } else {
-        setEntry(null)
+      if (requestSequence !== requestSequenceRef.current) {
+        return
       }
+
+      setData(nextData)
+      setIsFetched(true)
+      setResolvedQueryKeyString(queryKeyString)
     } catch (err) {
-      const errorObj = err instanceof Error ? err : new Error('Failed to fetch content entry')
-      setError(errorObj)
-      console.error('Error fetching content entry:', err)
+      if (requestSequence !== requestSequenceRef.current) {
+        return
+      }
+
+      const errorObject = err instanceof Error ? err : new Error('Failed to fetch content entry')
+      setError(errorObject)
+      setIsFetched(true)
     } finally {
-      setIsLoading(false)
+      if (requestSequence === requestSequenceRef.current) {
+        setIsFetching(false)
+      }
     }
-  }, [id, options?.accessToken, options?.queryOptions, graphqlClient])
+  }, [graphqlClient, id, queryKeyString, queryOptions])
 
   useEffect(() => {
     fetchEntry()
-  }, [fetchEntry])
+  }, [fetchEntry, queryKeyString])
+
+  const hasData = data !== undefined
 
   return {
-    entry,
-    isLoading,
+    data,
+    entry: data ?? null,
     error,
+    isLoading: isFetching && !hasData,
+    isFetching,
+    isRefetching: isFetching && hasData,
+    isFetched,
+    isPlaceholderData: Boolean(isFetching && hasData && resolvedQueryKeyString !== queryKeyString),
     refetch: fetchEntry
   }
 }

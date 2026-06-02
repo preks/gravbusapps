@@ -11,10 +11,15 @@ import {
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
-  buildContentEntriesQuery,
-  buildContentEntryQuery,
+  buildContentEntriesRequestQuery,
+  buildContentEntriesVariables,
+  buildContentEntryByIdQuery,
+  buildChildContentEntriesVariables,
+  buildContentDocumentsVariables,
   buildContentDocumentsQuery,
+  buildContentReactionsVariables,
   buildContentReactionsQuery,
+  buildContentStatisticsVariables,
   buildContentStatisticsQuery,
   buildChildContentEntriesQuery
 } from '@/common/data/content/queries/contentQueries'
@@ -173,8 +178,15 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
           contentGroup: contentGroup || undefined,
           contentTypeId: contentTypeId || undefined
         }
-        const query = buildContentEntriesQuery(variables)
-        return executeTest('content-entries', () => graphqlClient.request(query), 'GET_CONTENT_ENTRIES', variables)
+        const query = buildContentEntriesRequestQuery()
+        const graphQlVariables = buildContentEntriesVariables(variables)
+
+        return executeTest(
+          'content-entries',
+          () => graphqlClient.request(query, graphQlVariables),
+          'GET_CONTENT_ENTRIES',
+          graphQlVariables
+        )
       }
     },
     {
@@ -182,8 +194,10 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
       label: 'Content Entry by ID',
       run: () => {
         const id = contentEntryId || DEFAULT_ID
-        const query = buildContentEntryQuery(id)
-        return executeTest('content-entry-by-id', () => graphqlClient.request(query), 'GET_CONTENT_ENTRY', { id })
+        const query = buildContentEntryByIdQuery()
+        return executeTest('content-entry-by-id', () => graphqlClient.request(query, { id }), 'GET_CONTENT_ENTRY', {
+          id
+        })
       }
     },
     {
@@ -191,10 +205,14 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
       label: 'Child Entries (Comments)',
       run: () => {
         const id = contentEntryId || DEFAULT_ID
-        const query = buildChildContentEntriesQuery(id, 50, 0)
-        return executeTest('child-content-entries', () => graphqlClient.request(query), 'GET_CHILD_CONTENT_ENTRIES', {
-          parentId: id
-        })
+        const query = buildChildContentEntriesQuery()
+        const variables = buildChildContentEntriesVariables(id, 50, 0)
+        return executeTest(
+          'child-content-entries',
+          () => graphqlClient.request(query, variables),
+          'GET_CHILD_CONTENT_ENTRIES',
+          variables
+        )
       }
     },
     {
@@ -206,8 +224,14 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
           limit: 10,
           search: searchTerm || undefined
         }
-        const query = buildContentDocumentsQuery(variables)
-        return executeTest('content-documents', () => graphqlClient.request(query), 'GET_CONTENT_DOCUMENTS', variables)
+        const query = buildContentDocumentsQuery()
+        const graphQlVariables = buildContentDocumentsVariables(variables)
+        return executeTest(
+          'content-documents',
+          () => graphqlClient.request(query, graphQlVariables),
+          'GET_CONTENT_DOCUMENTS',
+          graphQlVariables
+        )
       }
     },
     {
@@ -218,7 +242,13 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
           contentEntryId: contentEntryId || DEFAULT_ID
         }
         const query = buildContentReactionsQuery(variables)
-        return executeTest('content-reactions', () => graphqlClient.request(query), 'GET_CONTENT_REACTIONS', variables)
+        const graphQlVariables = buildContentReactionsVariables(variables)
+        return executeTest(
+          'content-reactions',
+          () => graphqlClient.request(query, graphQlVariables),
+          'GET_CONTENT_REACTIONS',
+          graphQlVariables
+        )
       }
     },
     {
@@ -226,7 +256,13 @@ const ContentDebug: React.FC<ContentDebugProps> = context => {
       label: 'Content Statistics',
       run: () => {
         const query = buildContentStatisticsQuery()
-        return executeTest('content-statistics', () => graphqlClient.request(query), 'GET_CONTENT_STATISTICS', {})
+        const variables = buildContentStatisticsVariables()
+        return executeTest(
+          'content-statistics',
+          () => graphqlClient.request(query, variables),
+          'GET_CONTENT_STATISTICS',
+          variables
+        )
       }
     }
   ]

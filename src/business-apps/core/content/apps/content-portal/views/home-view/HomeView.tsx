@@ -10,8 +10,10 @@ import {
   Badge,
   Avatar,
   AvatarFallback,
-  AvatarImage
+  AvatarImage,
+  EmptyState
 } from '@newwork/nw-design-system'
+import { FilesIcon } from '@phosphor-icons/react'
 import {
   Newspaper,
   BookOpen,
@@ -302,6 +304,7 @@ const HomeView: React.FC<HomeViewProps> = ({
   // Track if queries have completed their initial fetch (regardless of whether data exists)
   const [newsQueryCompleted, setNewsQueryCompleted] = useState(false)
   const [knowledgeQueryCompleted, setKnowledgeQueryCompleted] = useState(false)
+  const [questionsQueryCompleted, setQuestionsQueryCompleted] = useState(false)
   const [recentQueryCompleted, setRecentQueryCompleted] = useState(false)
 
   // Mark queries as completed when they finish loading (even if empty)
@@ -318,14 +321,20 @@ const HomeView: React.FC<HomeViewProps> = ({
   }, [knowledgeLoading])
 
   useEffect(() => {
+    if (!questionsLoading) {
+      setQuestionsQueryCompleted(true)
+    }
+  }, [questionsLoading])
+
+  useEffect(() => {
     if (!recentLoading) {
       setRecentQueryCompleted(true)
     }
   }, [recentLoading])
 
-  // Show full loading state only if primary queries haven't completed yet
-  // This prevents flash of empty content on initial load
-  const showFullLoading = !newsQueryCompleted || !recentQueryCompleted
+  const mainContentQueriesCompleted = newsQueryCompleted && knowledgeQueryCompleted && questionsQueryCompleted
+  const hasMainContent = newsEntries.length > 0 || knowledgeEntries.length > 0 || questionEntries.length > 0
+  const showFullLoading = !mainContentQueriesCompleted || !recentQueryCompleted
 
   if (newsError) {
     return (
@@ -433,463 +442,483 @@ const HomeView: React.FC<HomeViewProps> = ({
         <div className="gba:flex gba:flex-col gba:md:flex-row gba:gap-6">
           {/* Main Content Area - min-h ensures it takes space even during loading */}
           <div className="gba:flex-1 gba:min-w-0 gba:space-y-8 gba:min-h-[400px]">
-            {/* NEWS SECTION - Hero Layout */}
-            <section data-testid="home-news-section">
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-                <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:flex gba:items-center gba:gap-2">
-                  <Newspaper className="gba:w-4 gba:h-4" />
-                  {t('news')}
-                </h3>
-                <Button variant="ghost" size="sm" onClick={handleNavigateToNews} className="gba:text-xs">
-                  {t('all_articles')} <ChevronRight className="gba:w-3 gba:h-3 gba:ml-1" />
-                </Button>
-              </div>
+            {!hasMainContent && (
+              <EmptyState
+                type="no-data"
+                config={{
+                  configs: {
+                    'no-data': {
+                      type: 'no-data',
+                      title: t('no_intranet_found'),
+                      description: t('no_intranet_found_description'),
+                      icon: FilesIcon,
+                      size: 'md'
+                    }
+                  }
+                }}
+                data-testid="home-empty-state"
+              />
+            )}
 
-              {/* Show skeleton if news query hasn't completed yet */}
-              {!newsQueryCompleted ? (
-                <div className="gba:flex gba:flex-col gba:md:flex-row gba:gap-4">
-                  {/* Left column skeleton: Hero + Comments */}
-                  <div className="gba:md:w-1/2 gba:flex gba:flex-col gba:gap-3">
-                    <Skeleton className="gba:h-[280px] gba:w-full gba:rounded-xl" />
-                    <div className="gba:flex gba:gap-2">
-                      <Skeleton className="gba:h-16 gba:flex-1 gba:rounded-lg" />
-                      <Skeleton className="gba:h-16 gba:flex-1 gba:rounded-lg" />
+            {/* NEWS SECTION - Hero Layout */}
+            {newsEntries.length > 0 && (
+              <section data-testid="home-news-section">
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:flex gba:items-center gba:gap-2">
+                    <Newspaper className="gba:w-4 gba:h-4" />
+                    {t('news')}
+                  </h3>
+                  <Button variant="ghost" size="sm" onClick={handleNavigateToNews} className="gba:text-xs">
+                    {t('all_articles')} <ChevronRight className="gba:w-3 gba:h-3 gba:ml-1" />
+                  </Button>
+                </div>
+
+                {/* Show skeleton if news query hasn't completed yet */}
+                {!newsQueryCompleted ? (
+                  <div className="gba:flex gba:flex-col gba:md:flex-row gba:gap-4">
+                    {/* Left column skeleton: Hero + Comments */}
+                    <div className="gba:md:w-1/2 gba:flex gba:flex-col gba:gap-3">
+                      <Skeleton className="gba:h-[280px] gba:w-full gba:rounded-xl" />
+                      <div className="gba:flex gba:gap-2">
+                        <Skeleton className="gba:h-16 gba:flex-1 gba:rounded-lg" />
+                        <Skeleton className="gba:h-16 gba:flex-1 gba:rounded-lg" />
+                      </div>
+                    </div>
+                    {/* Right column skeleton: 4 secondary articles */}
+                    <div className="gba:flex-1 gba:flex gba:flex-col gba:gap-2">
+                      {[1, 2, 3, 4].map(i => (
+                        <Skeleton key={i} className="gba:h-[72px] gba:w-full gba:rounded-lg gba:flex-1" />
+                      ))}
                     </div>
                   </div>
-                  {/* Right column skeleton: 4 secondary articles */}
-                  <div className="gba:flex-1 gba:flex gba:flex-col gba:gap-2">
-                    {[1, 2, 3, 4].map(i => (
-                      <Skeleton key={i} className="gba:h-[72px] gba:w-full gba:rounded-lg gba:flex-1" />
-                    ))}
-                  </div>
-                </div>
-              ) : heroNews ? (
-                <div className={`gba:flex gba:flex-col ${secondaryNews.length > 0 ? 'gba:md:flex-row' : ''} gba:gap-4`}>
-                  {/* Left Column: Hero Article + Comments */}
+                ) : heroNews ? (
                   <div
-                    className={`gba:flex gba:flex-col gba:gap-3 ${secondaryNews.length > 0 ? 'gba:md:w-1/2' : 'gba:w-full'}`}
+                    className={`gba:flex gba:flex-col ${secondaryNews.length > 0 ? 'gba:md:flex-row' : ''} gba:gap-4`}
                   >
-                    {/* Hero Article */}
-                    <button
-                      type="button"
-                      onClick={() => handleArticleClick(heroNews.id || '', 'news')}
-                      className="gba:relative gba:group gba:overflow-hidden gba:rounded-xl gba:bg-card gba:border gba:border-border gba:text-left gba:transition-all hover:gba:border-primary/50 gba:h-[280px] gba:flex-shrink-0"
-                      data-testid="hero-news-article"
+                    {/* Left Column: Hero Article + Comments */}
+                    <div
+                      className={`gba:flex gba:flex-col gba:gap-3 ${secondaryNews.length > 0 ? 'gba:md:w-1/2' : 'gba:w-full'}`}
                     >
-                      {heroNews.picture ? (
-                        <ContentImage
-                          picture={heroNews.picture}
-                          accessToken={accessToken || ''}
-                          alt={heroNews.title || ''}
-                          className="gba:absolute gba:inset-0 gba:w-full gba:h-full"
-                        />
-                      ) : (
-                        <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary/20 gba:to-primary/5" />
-                      )}
-                      <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-t gba:from-black/80 gba:via-black/40 gba:to-transparent" />
-                      <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:justify-end gba:p-5">
-                        <Badge variant="default" className="gba:w-fit gba:mb-2">
-                          {t('news')}
-                        </Badge>
-                        <h2 className="gba:text-xl gba:font-bold gba:text-white gba:mb-1 gba:line-clamp-2 group-hover:gba:text-primary-foreground">
-                          {translatedItems?.[heroNews.id || '']?.title || heroNews.title}
-                        </h2>
-                        <p className="gba:text-sm gba:text-white/80 gba:line-clamp-2 gba:mb-2">
-                          {translatedItems?.[heroNews.id || '']?.preview || heroNews.preview}
-                        </p>
-                        <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-white/60">
-                          <span className="gba:flex gba:items-center gba:gap-1">
-                            <Clock className="gba:w-3 gba:h-3" />
-                            {heroNews.createdAt ? formatRelativeTime(heroNews.createdAt) : ''}
-                          </span>
-                          {heroNews.creatorEmployee?.displayName && (
-                            <span className="gba:truncate gba:max-w-[120px]">
-                              {heroNews.creatorEmployee.displayName}
-                            </span>
-                          )}
-                          {getReactionCount(heroNews) > 0 && (
+                      {/* Hero Article */}
+                      <button
+                        type="button"
+                        onClick={() => handleArticleClick(heroNews.id || '', 'news')}
+                        className="gba:relative gba:group gba:overflow-hidden gba:rounded-xl gba:bg-card gba:border gba:border-border gba:text-left gba:transition-all hover:gba:border-primary/50 gba:h-[280px] gba:flex-shrink-0"
+                        data-testid="hero-news-article"
+                      >
+                        {heroNews.picture ? (
+                          <ContentImage
+                            picture={heroNews.picture}
+                            accessToken={accessToken || ''}
+                            alt={heroNews.title || ''}
+                            className="gba:absolute gba:inset-0 gba:w-full gba:h-full"
+                          />
+                        ) : (
+                          <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary/20 gba:to-primary/5" />
+                        )}
+                        <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-t gba:from-black/80 gba:via-black/40 gba:to-transparent" />
+                        <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:justify-end gba:p-5">
+                          <Badge variant="default" className="gba:w-fit gba:mb-2">
+                            {t('news')}
+                          </Badge>
+                          <h2 className="gba:text-xl gba:font-bold gba:text-white gba:mb-1 gba:line-clamp-2 group-hover:gba:text-primary-foreground">
+                            {translatedItems?.[heroNews.id || '']?.title || heroNews.title}
+                          </h2>
+                          <p className="gba:text-sm gba:text-white/80 gba:line-clamp-2 gba:mb-2">
+                            {translatedItems?.[heroNews.id || '']?.preview || heroNews.preview}
+                          </p>
+                          <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-white/60">
                             <span className="gba:flex gba:items-center gba:gap-1">
-                              <ThumbsUp className="gba:w-3 gba:h-3" />
-                              {getReactionCount(heroNews)}
+                              <Clock className="gba:w-3 gba:h-3" />
+                              {heroNews.createdAt ? formatRelativeTime(heroNews.createdAt) : ''}
                             </span>
-                          )}
-                          {getCommentCount(heroNews) > 0 && (
-                            <span className="gba:flex gba:items-center gba:gap-1">
-                              <MessageCircle className="gba:w-3 gba:h-3" />
-                              {getCommentCount(heroNews)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-
-                    {/* Hero Article Comments - inside hero column */}
-                    {heroComments.length > 0 && (
-                      <div data-testid="hero-comments-slider">
-                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-                            <MessageSquare className="gba:w-3 gba:h-3" />
-                            <span>
-                              {heroComments.length} {t('recent_comments') || 'Recent Comments'}
-                            </span>
-                          </div>
-                          <div className="gba:flex gba:gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={scrollCommentsLeft}
-                              className="gba:h-6 gba:w-6 gba:p-0"
-                              data-testid="comments-scroll-left"
-                            >
-                              <ChevronLeft className="gba:w-3 gba:h-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={scrollCommentsRight}
-                              className="gba:h-6 gba:w-6 gba:p-0"
-                              data-testid="comments-scroll-right"
-                            >
-                              <ChevronRight className="gba:w-3 gba:h-3" />
-                            </Button>
+                            {heroNews.creatorEmployee?.displayName && (
+                              <span className="gba:truncate gba:max-w-[120px]">
+                                {heroNews.creatorEmployee.displayName}
+                              </span>
+                            )}
+                            {getReactionCount(heroNews) > 0 && (
+                              <span className="gba:flex gba:items-center gba:gap-1">
+                                <ThumbsUp className="gba:w-3 gba:h-3" />
+                                {getReactionCount(heroNews)}
+                              </span>
+                            )}
+                            {getCommentCount(heroNews) > 0 && (
+                              <span className="gba:flex gba:items-center gba:gap-1">
+                                <MessageCircle className="gba:w-3 gba:h-3" />
+                                {getCommentCount(heroNews)}
+                              </span>
+                            )}
                           </div>
                         </div>
+                      </button>
 
-                        <div
-                          ref={commentsSliderRef}
-                          className="gba:flex gba:gap-2 gba:overflow-x-auto gba:pb-1 gba:scrollbar-hide"
-                          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                        >
-                          {commentsLoading ? (
-                            <>
-                              {[1, 2].map(i => (
-                                <div key={i} className="gba:shrink-0 gba:flex-1 gba:min-w-[200px]">
-                                  <div className="gba:flex gba:gap-2 gba:p-2 gba:bg-muted/30 gba:rounded-lg">
-                                    <Skeleton className="gba:w-7 gba:h-7 gba:rounded-full gba:shrink-0" />
-                                    <div className="gba:flex-1 gba:space-y-1">
-                                      <Skeleton className="gba:h-3 gba:w-16" />
-                                      <Skeleton className="gba:h-3 gba:w-full" />
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </>
-                          ) : (
-                            heroComments.slice(0, 4).map((comment, index) => {
-                              const employee = comment.creatorEmployee
+                      {/* Hero Article Comments - inside hero column */}
+                      {heroComments.length > 0 && (
+                        <div data-testid="hero-comments-slider">
+                          <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
+                              <MessageSquare className="gba:w-3 gba:h-3" />
+                              <span>
+                                {heroComments.length} {t('recent_comments') || 'Recent Comments'}
+                              </span>
+                            </div>
+                            <div className="gba:flex gba:gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={scrollCommentsLeft}
+                                className="gba:h-6 gba:w-6 gba:p-0"
+                                data-testid="comments-scroll-left"
+                              >
+                                <ChevronLeft className="gba:w-3 gba:h-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={scrollCommentsRight}
+                                className="gba:h-6 gba:w-6 gba:p-0"
+                                data-testid="comments-scroll-right"
+                              >
+                                <ChevronRight className="gba:w-3 gba:h-3" />
+                              </Button>
+                            </div>
+                          </div>
 
-                              return (
-                                <div
-                                  key={comment.id || `comment-${index}`}
-                                  className="gba:shrink-0 gba:w-[calc(50%-4px)] gba:p-2 gba:bg-muted/30 gba:rounded-lg"
-                                  data-testid={`hero-comment-${index}`}
-                                >
-                                  <div className="gba:flex gba:gap-2">
-                                    <Avatar className="gba:w-7 gba:h-7 gba:shrink-0">
-                                      {employee?.pictureThumbnail && (
-                                        <AvatarImage
-                                          src={`data:image/gif;base64,${employee.pictureThumbnail}`}
-                                          alt={employee.displayName || ''}
-                                        />
-                                      )}
-                                      <AvatarFallback className="gba:text-[10px]">
-                                        {getInitials(
-                                          employee?.displayName || null,
-                                          employee?.firstName || null,
-                                          employee?.lastName || null
-                                        )}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="gba:flex-1 gba:min-w-0">
-                                      <div className="gba:flex gba:items-center gba:gap-1 gba:mb-0.5">
-                                        <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:truncate">
-                                          {employee?.displayName || employee?.firstName || 'Anonymous'}
-                                        </span>
-                                        <span className="gba:text-[10px] gba:text-muted-foreground gba:shrink-0">
-                                          {formatRelativeTime(comment.createdAt)}
-                                        </span>
+                          <div
+                            ref={commentsSliderRef}
+                            className="gba:flex gba:gap-2 gba:overflow-x-auto gba:pb-1 gba:scrollbar-hide"
+                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                          >
+                            {commentsLoading ? (
+                              <>
+                                {[1, 2].map(i => (
+                                  <div key={i} className="gba:shrink-0 gba:flex-1 gba:min-w-[200px]">
+                                    <div className="gba:flex gba:gap-2 gba:p-2 gba:bg-muted/30 gba:rounded-lg">
+                                      <Skeleton className="gba:w-7 gba:h-7 gba:rounded-full gba:shrink-0" />
+                                      <div className="gba:flex-1 gba:space-y-1">
+                                        <Skeleton className="gba:h-3 gba:w-16" />
+                                        <Skeleton className="gba:h-3 gba:w-full" />
                                       </div>
-                                      <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2">
-                                        {stripHtmlAndTruncate(comment.content, 60)}
-                                      </p>
                                     </div>
                                   </div>
-                                </div>
-                              )
-                            })
-                          )}
+                                ))}
+                              </>
+                            ) : (
+                              heroComments.slice(0, 4).map((comment, index) => {
+                                const employee = comment.creatorEmployee
+
+                                return (
+                                  <div
+                                    key={comment.id || `comment-${index}`}
+                                    className="gba:shrink-0 gba:w-[calc(50%-4px)] gba:p-2 gba:bg-muted/30 gba:rounded-lg"
+                                    data-testid={`hero-comment-${index}`}
+                                  >
+                                    <div className="gba:flex gba:gap-2">
+                                      <Avatar className="gba:w-7 gba:h-7 gba:shrink-0">
+                                        {employee?.pictureThumbnail && (
+                                          <AvatarImage
+                                            src={`data:image/gif;base64,${employee.pictureThumbnail}`}
+                                            alt={employee.displayName || ''}
+                                          />
+                                        )}
+                                        <AvatarFallback className="gba:text-[10px]">
+                                          {getInitials(
+                                            employee?.displayName || null,
+                                            employee?.firstName || null,
+                                            employee?.lastName || null
+                                          )}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="gba:flex-1 gba:min-w-0">
+                                        <div className="gba:flex gba:items-center gba:gap-1 gba:mb-0.5">
+                                          <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:truncate">
+                                            {employee?.displayName || employee?.firstName || 'Anonymous'}
+                                          </span>
+                                          <span className="gba:text-[10px] gba:text-muted-foreground gba:shrink-0">
+                                            {formatRelativeTime(comment.createdAt)}
+                                          </span>
+                                        </div>
+                                        <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2">
+                                          {stripHtmlAndTruncate(comment.content, 60)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })
+                            )}
+                          </div>
                         </div>
+                      )}
+                    </div>
+
+                    {/* Right Column: Secondary News - 4 articles that fill the height */}
+                    {secondaryNews.length > 0 && (
+                      <div className="gba:flex-1 gba:flex gba:flex-col gba:gap-2">
+                        {secondaryNews.map((item, index) => {
+                          const translated = translatedItems?.[item.id || '']
+                          return (
+                            <button
+                              key={item.id || `secondary-${index}`}
+                              type="button"
+                              onClick={() => handleArticleClick(item.id || '', 'news')}
+                              className="gba:w-full gba:flex-1 gba:flex gba:gap-3 gba:p-2.5 gba:rounded-lg gba:bg-card gba:border gba:border-border gba:text-left gba:transition-all hover:gba:border-primary/50 hover:gba:bg-accent/50"
+                              data-testid={`secondary-news-${index}`}
+                            >
+                              {item.picture && (
+                                <ContentImage
+                                  picture={item.picture}
+                                  accessToken={accessToken || ''}
+                                  alt={item.title || ''}
+                                  className="gba:w-16 gba:h-14 gba:rounded-md gba:shrink-0"
+                                />
+                              )}
+                              <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:justify-center">
+                                <h3 className="gba:font-semibold gba:text-foreground gba:line-clamp-2 gba:text-sm gba:leading-tight">
+                                  {translated?.title || item.title}
+                                </h3>
+                                <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground gba:mt-1">
+                                  {item.creatorEmployee && (
+                                    <span className="gba:truncate gba:max-w-[100px]">
+                                      {item.creatorEmployee.displayName}
+                                    </span>
+                                  )}
+                                  <span className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
+                                    <Clock className="gba:w-3 gba:h-3" />
+                                    {item.createdAt ? formatRelativeTime(item.createdAt) : ''}
+                                  </span>
+                                </div>
+                              </div>
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
+                ) : null}
 
-                  {/* Right Column: Secondary News - 4 articles that fill the height */}
-                  {secondaryNews.length > 0 && (
-                    <div className="gba:flex-1 gba:flex gba:flex-col gba:gap-2">
-                      {secondaryNews.map((item, index) => {
-                        const translated = translatedItems?.[item.id || '']
-                        return (
-                          <button
-                            key={item.id || `secondary-${index}`}
-                            type="button"
-                            onClick={() => handleArticleClick(item.id || '', 'news')}
-                            className="gba:w-full gba:flex-1 gba:flex gba:gap-3 gba:p-2.5 gba:rounded-lg gba:bg-card gba:border gba:border-border gba:text-left gba:transition-all hover:gba:border-primary/50 hover:gba:bg-accent/50"
-                            data-testid={`secondary-news-${index}`}
-                          >
-                            {item.picture && (
-                              <ContentImage
-                                picture={item.picture}
-                                accessToken={accessToken || ''}
-                                alt={item.title || ''}
-                                className="gba:w-16 gba:h-14 gba:rounded-md gba:shrink-0"
-                              />
-                            )}
-                            <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:justify-center">
-                              <h3 className="gba:font-semibold gba:text-foreground gba:line-clamp-2 gba:text-sm gba:leading-tight">
-                                {translated?.title || item.title}
-                              </h3>
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground gba:mt-1">
-                                {item.creatorEmployee && (
-                                  <span className="gba:truncate gba:max-w-[100px]">
-                                    {item.creatorEmployee.displayName}
-                                  </span>
-                                )}
-                                <span className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
-                                  <Clock className="gba:w-3 gba:h-3" />
-                                  {item.createdAt ? formatRelativeTime(item.createdAt) : ''}
-                                </span>
-                              </div>
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="gba:text-center gba:py-8 gba:text-muted-foreground">{t('no_news_found')}</div>
-              )}
-
-              {/* More News Row */}
-              {moreNews.length > 0 && (
-                <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mt-4">
-                  {moreNews.map((item, index) => {
-                    const translated = translatedItems?.[item.id || '']
-                    return (
-                      <ContentCard
-                        key={item.id || `more-news-${index}`}
-                        item={item}
-                        variant="news"
-                        currentTab="news"
-                        accessToken={accessToken}
-                        userInfo={userInfo}
-                        allowedReactions={allowedReactions}
-                        reactionCatalogMap={reactionCatalogMap}
-                        onReactionsRefetch={refetchNews}
-                        translatedTitle={translated?.title}
-                        translatedPreview={translated?.preview}
-                        simpleReactions
-                      />
-                    )
-                  })}
-                </div>
-              )}
-            </section>
+                {/* More News Row */}
+                {moreNews.length > 0 && (
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mt-4">
+                    {moreNews.map((item, index) => {
+                      const translated = translatedItems?.[item.id || '']
+                      return (
+                        <ContentCard
+                          key={item.id || `more-news-${index}`}
+                          item={item}
+                          variant="news"
+                          currentTab="news"
+                          accessToken={accessToken}
+                          userInfo={userInfo}
+                          allowedReactions={allowedReactions}
+                          reactionCatalogMap={reactionCatalogMap}
+                          onReactionsRefetch={refetchNews}
+                          translatedTitle={translated?.title}
+                          translatedPreview={translated?.preview}
+                          simpleReactions
+                        />
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* KNOWLEDGE SECTION - Organized by Content Types */}
-            <section data-testid="home-knowledge-section">
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-                <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:flex gba:items-center gba:gap-2">
-                  <BookOpen className="gba:w-4 gba:h-4" />
-                  {t('knowledge')}
-                </h3>
-                <Button variant="ghost" size="sm" onClick={handleNavigateToKnowledge} className="gba:text-xs">
-                  {t('all_articles')} <ChevronRight className="gba:w-3 gba:h-3 gba:ml-1" />
-                </Button>
-              </div>
-
-              {/* Show skeleton if knowledge query hasn't completed yet */}
-              {!knowledgeQueryCompleted ? (
-                <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="gba:space-y-3">
-                      <Skeleton className="gba:h-40 gba:w-full gba:rounded-lg" />
-                      <Skeleton className="gba:h-4 gba:w-24" />
-                      <Skeleton className="gba:h-5 gba:w-full" />
-                      <div className="gba:space-y-2">
-                        <Skeleton className="gba:h-3 gba:w-full" />
-                        <Skeleton className="gba:h-3 gba:w-4/5" />
-                      </div>
-                    </div>
-                  ))}
+            {knowledgeEntries.length > 0 && (
+              <section data-testid="home-knowledge-section">
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:flex gba:items-center gba:gap-2">
+                    <BookOpen className="gba:w-4 gba:h-4" />
+                    {t('knowledge')}
+                  </h3>
+                  <Button variant="ghost" size="sm" onClick={handleNavigateToKnowledge} className="gba:text-xs">
+                    {t('all_articles')} <ChevronRight className="gba:w-3 gba:h-3 gba:ml-1" />
+                  </Button>
                 </div>
-              ) : knowledgeByType.length > 0 ? (
-                <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
-                  {knowledgeByType.map(({ type, articles }) => {
-                    const heroArticle = articles[0]
-                    const otherArticles = articles.slice(1)
-                    const heroTranslated = translatedItems?.[heroArticle?.id || '']
 
-                    return (
-                      <div
-                        key={type.id}
-                        className="gba:space-y-3"
-                        data-testid={`knowledge-type-${type.code || type.id}`}
-                      >
-                        {/* Type Hero Image */}
-                        <button
-                          type="button"
-                          onClick={() => handleArticleClick(heroArticle?.id || '', 'knowledge')}
-                          className="gba:w-full gba:aspect-[4/3] gba:relative gba:rounded-lg gba:overflow-hidden gba:group"
-                        >
-                          {heroArticle?.picture ? (
-                            <ContentImage
-                              picture={heroArticle.picture}
-                              accessToken={accessToken || ''}
-                              alt={heroArticle.title || ''}
-                              className="gba:absolute gba:inset-0 gba:w-full gba:h-full"
-                            />
-                          ) : (
-                            <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary/20 gba:to-primary/5" />
-                          )}
-                          <div className="gba:absolute gba:inset-0 gba:bg-black/20 group-hover:gba:bg-black/30 gba:transition-colors" />
-                        </button>
-
-                        {/* Content Type Name */}
-                        <h4 className="gba:text-sm gba:font-bold gba:text-primary gba:uppercase gba:tracking-wide">
-                          {type.value}
-                        </h4>
-
-                        {/* Hero Article Title */}
-                        <button
-                          type="button"
-                          onClick={() => handleArticleClick(heroArticle?.id || '', 'knowledge')}
-                          className="gba:text-left gba:w-full"
-                        >
-                          <h5 className="gba:font-semibold gba:text-foreground gba:line-clamp-2 hover:gba:text-primary gba:transition-colors gba:mb-1">
-                            {heroTranslated?.title || heroArticle?.title}
-                          </h5>
-                          {(getReactionCount(heroArticle) > 0 || getCommentCount(heroArticle) > 0) && (
-                            <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                              {getReactionCount(heroArticle) > 0 && (
-                                <span className="gba:flex gba:items-center gba:gap-1">
-                                  <ThumbsUp className="gba:w-3 gba:h-3" />
-                                  {getReactionCount(heroArticle)}
-                                </span>
-                              )}
-                              {getCommentCount(heroArticle) > 0 && (
-                                <span className="gba:flex gba:items-center gba:gap-1">
-                                  <MessageCircle className="gba:w-3 gba:h-3" />
-                                  {getCommentCount(heroArticle)}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </button>
-
-                        {/* Other Articles as Links */}
-                        {otherArticles.length > 0 && (
-                          <div className="gba:space-y-1.5">
-                            {otherArticles.map((article, idx) => {
-                              const translated = translatedItems?.[article.id || '']
-                              return (
-                                <button
-                                  key={article.id || `other-${idx}`}
-                                  type="button"
-                                  onClick={() => handleArticleClick(article.id || '', 'knowledge')}
-                                  className="gba:block gba:w-full gba:text-left gba:text-sm gba:text-primary hover:gba:underline gba:line-clamp-1"
-                                  data-testid={`knowledge-article-${idx}`}
-                                >
-                                  {translated?.title || article.title}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : knowledgeEntries.length > 0 ? (
-                // Fallback to simple grid if no content types
-                <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                  {knowledgeEntries.slice(0, 4).map((item, index) => {
-                    const translated = translatedItems?.[item.id || '']
-                    return (
-                      <ContentCard
-                        key={item.id || `knowledge-${index}`}
-                        item={item}
-                        variant="knowledge"
-                        currentTab="knowledge"
-                        accessToken={accessToken}
-                        userInfo={userInfo}
-                        allowedReactions={allowedReactions}
-                        reactionCatalogMap={reactionCatalogMap}
-                        onReactionsRefetch={refetchKnowledge}
-                        translatedTitle={translated?.title}
-                        translatedPreview={translated?.preview}
-                        simpleReactions
-                      />
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="gba:text-center gba:py-8 gba:text-muted-foreground">{t('no_knowledge_found')}</div>
-              )}
-            </section>
-
-            {/* Q&A SECTION - Compact List */}
-            <section data-testid="home-questions-section">
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-                <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:flex gba:items-center gba:gap-2">
-                  <MessageCircleQuestion className="gba:w-4 gba:h-4" />
-                  {t('questions')}
-                </h3>
-                <Button variant="ghost" size="sm" onClick={handleNavigateToQuestions} className="gba:text-xs">
-                  {t('all_articles')} <ChevronRight className="gba:w-3 gba:h-3 gba:ml-1" />
-                </Button>
-              </div>
-
-              {/* Q&A section skeleton while loading */}
-              {questionsLoading ? (
-                <Card className="gba:p-4">
-                  <div className="gba:space-y-3">
+                {/* Show skeleton if knowledge query hasn't completed yet */}
+                {!knowledgeQueryCompleted ? (
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
                     {[1, 2, 3].map(i => (
-                      <Skeleton key={i} className="gba:h-12 gba:w-full" />
+                      <div key={i} className="gba:space-y-3">
+                        <Skeleton className="gba:h-40 gba:w-full gba:rounded-lg" />
+                        <Skeleton className="gba:h-4 gba:w-24" />
+                        <Skeleton className="gba:h-5 gba:w-full" />
+                        <div className="gba:space-y-2">
+                          <Skeleton className="gba:h-3 gba:w-full" />
+                          <Skeleton className="gba:h-3 gba:w-4/5" />
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </Card>
-              ) : questionEntries.length > 0 ? (
-                <Card className="gba:divide-y gba:divide-border">
-                  {questionEntries.map((item, index) => {
-                    const translated = translatedItems?.[item.id || '']
-                    const answerCount = item.childContentEntriesAggregate?.aggregate?.count || 0
-                    return (
-                      <button
-                        key={item.id || `question-${index}`}
-                        type="button"
-                        onClick={() => handleArticleClick(item.id || '', 'questions')}
-                        className="gba:w-full gba:flex gba:items-center gba:justify-between gba:p-4 gba:text-left gba:transition-colors hover:gba:bg-accent/50"
-                        data-testid={`home-question-${index}`}
-                      >
-                        <div className="gba:flex-1 gba:min-w-0 gba:pr-4">
-                          <h4 className="gba:font-medium gba:text-foreground gba:line-clamp-1 gba:text-sm">
-                            {translated?.title || item.title}
+                ) : knowledgeByType.length > 0 ? (
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
+                    {knowledgeByType.map(({ type, articles }) => {
+                      const heroArticle = articles[0]
+                      const otherArticles = articles.slice(1)
+                      const heroTranslated = translatedItems?.[heroArticle?.id || '']
+
+                      return (
+                        <div
+                          key={type.id}
+                          className="gba:space-y-3"
+                          data-testid={`knowledge-type-${type.code || type.id}`}
+                        >
+                          {/* Type Hero Image */}
+                          <button
+                            type="button"
+                            onClick={() => handleArticleClick(heroArticle?.id || '', 'knowledge')}
+                            className="gba:w-full gba:aspect-[4/3] gba:relative gba:rounded-lg gba:overflow-hidden gba:group"
+                          >
+                            {heroArticle?.picture ? (
+                              <ContentImage
+                                picture={heroArticle.picture}
+                                accessToken={accessToken || ''}
+                                alt={heroArticle.title || ''}
+                                className="gba:absolute gba:inset-0 gba:w-full gba:h-full"
+                              />
+                            ) : (
+                              <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary/20 gba:to-primary/5" />
+                            )}
+                            <div className="gba:absolute gba:inset-0 gba:bg-black/20 group-hover:gba:bg-black/30 gba:transition-colors" />
+                          </button>
+
+                          {/* Content Type Name */}
+                          <h4 className="gba:text-sm gba:font-bold gba:text-primary gba:uppercase gba:tracking-wide">
+                            {type.value}
                           </h4>
-                          <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-                            {item.createdAt ? formatRelativeTime(item.createdAt) : ''} • {answerCount}{' '}
-                            {t('answers') || 'answers'}
-                          </p>
+
+                          {/* Hero Article Title */}
+                          <button
+                            type="button"
+                            onClick={() => handleArticleClick(heroArticle?.id || '', 'knowledge')}
+                            className="gba:text-left gba:w-full"
+                          >
+                            <h5 className="gba:font-semibold gba:text-foreground gba:line-clamp-2 hover:gba:text-primary gba:transition-colors gba:mb-1">
+                              {heroTranslated?.title || heroArticle?.title}
+                            </h5>
+                            {(getReactionCount(heroArticle) > 0 || getCommentCount(heroArticle) > 0) && (
+                              <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
+                                {getReactionCount(heroArticle) > 0 && (
+                                  <span className="gba:flex gba:items-center gba:gap-1">
+                                    <ThumbsUp className="gba:w-3 gba:h-3" />
+                                    {getReactionCount(heroArticle)}
+                                  </span>
+                                )}
+                                {getCommentCount(heroArticle) > 0 && (
+                                  <span className="gba:flex gba:items-center gba:gap-1">
+                                    <MessageCircle className="gba:w-3 gba:h-3" />
+                                    {getCommentCount(heroArticle)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </button>
+
+                          {/* Other Articles as Links */}
+                          {otherArticles.length > 0 && (
+                            <div className="gba:space-y-1.5">
+                              {otherArticles.map((article, idx) => {
+                                const translated = translatedItems?.[article.id || '']
+                                return (
+                                  <button
+                                    key={article.id || `other-${idx}`}
+                                    type="button"
+                                    onClick={() => handleArticleClick(article.id || '', 'knowledge')}
+                                    className="gba:block gba:w-full gba:text-left gba:text-sm gba:text-primary hover:gba:underline gba:line-clamp-1"
+                                    data-testid={`knowledge-article-${idx}`}
+                                  >
+                                    {translated?.title || article.title}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
-                        <ArrowRight className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:shrink-0" />
-                      </button>
-                    )
-                  })}
-                </Card>
-              ) : (
-                <div className="gba:text-center gba:py-8 gba:text-muted-foreground">{t('no_questions_found')}</div>
-              )}
-            </section>
+                      )
+                    })}
+                  </div>
+                ) : knowledgeEntries.length > 0 ? (
+                  // Fallback to simple grid if no content types
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                    {knowledgeEntries.slice(0, 4).map((item, index) => {
+                      const translated = translatedItems?.[item.id || '']
+                      return (
+                        <ContentCard
+                          key={item.id || `knowledge-${index}`}
+                          item={item}
+                          variant="knowledge"
+                          currentTab="knowledge"
+                          accessToken={accessToken}
+                          userInfo={userInfo}
+                          allowedReactions={allowedReactions}
+                          reactionCatalogMap={reactionCatalogMap}
+                          onReactionsRefetch={refetchKnowledge}
+                          translatedTitle={translated?.title}
+                          translatedPreview={translated?.preview}
+                          simpleReactions
+                        />
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </section>
+            )}
+
+            {/* Q&A SECTION - Compact List */}
+            {questionEntries.length > 0 && (
+              <section data-testid="home-questions-section">
+                <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:flex gba:items-center gba:gap-2">
+                    <MessageCircleQuestion className="gba:w-4 gba:h-4" />
+                    {t('questions')}
+                  </h3>
+                  <Button variant="ghost" size="sm" onClick={handleNavigateToQuestions} className="gba:text-xs">
+                    {t('all_articles')} <ChevronRight className="gba:w-3 gba:h-3 gba:ml-1" />
+                  </Button>
+                </div>
+
+                {/* Q&A section skeleton while loading */}
+                {questionsLoading ? (
+                  <Card className="gba:p-4">
+                    <div className="gba:space-y-3">
+                      {[1, 2, 3].map(i => (
+                        <Skeleton key={i} className="gba:h-12 gba:w-full" />
+                      ))}
+                    </div>
+                  </Card>
+                ) : questionEntries.length > 0 ? (
+                  <Card className="gba:divide-y gba:divide-border">
+                    {questionEntries.map((item, index) => {
+                      const translated = translatedItems?.[item.id || '']
+                      const answerCount = item.childContentEntriesAggregate?.aggregate?.count || 0
+                      return (
+                        <button
+                          key={item.id || `question-${index}`}
+                          type="button"
+                          onClick={() => handleArticleClick(item.id || '', 'questions')}
+                          className="gba:w-full gba:flex gba:items-center gba:justify-between gba:p-4 gba:text-left gba:transition-colors hover:gba:bg-accent/50"
+                          data-testid={`home-question-${index}`}
+                        >
+                          <div className="gba:flex-1 gba:min-w-0 gba:pr-4">
+                            <h4 className="gba:font-medium gba:text-foreground gba:line-clamp-1 gba:text-sm">
+                              {translated?.title || item.title}
+                            </h4>
+                            <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                              {item.createdAt ? formatRelativeTime(item.createdAt) : ''} • {answerCount}{' '}
+                              {t('answers') || 'answers'}
+                            </p>
+                          </div>
+                          <ArrowRight className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:shrink-0" />
+                        </button>
+                      )
+                    })}
+                  </Card>
+                ) : null}
+              </section>
+            )}
           </div>
 
           {/* Sidebar - Trending/Recent Timeline */}

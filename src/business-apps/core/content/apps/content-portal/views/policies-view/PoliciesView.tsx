@@ -5,6 +5,7 @@ import {
   AlertTitle,
   Badge,
   Button,
+  EmptyState,
   Skeleton,
   Select,
   SelectContent,
@@ -13,6 +14,7 @@ import {
   SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
+import { FunnelIcon, MagnifyingGlassIcon, ShieldCheckIcon } from '@phosphor-icons/react'
 import { CheckCircle2, Shield } from 'lucide-react'
 import { AppAction } from '@/components/app-action'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
@@ -83,14 +85,18 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
     }),
     []
   )
+  const customQueryMeta = useMemo(() => ({ statusFilter }), [statusFilter])
 
   const {
+    data: queryData,
     entries: fetchedEntries,
     totalCount,
     isLoading,
+    isPlaceholderData,
+    isFetched,
     error,
     refetch
-  } = useContentEntries(queryParams, accessToken, contentEntriesOptions)
+  } = useContentEntries(queryParams, accessToken, contentEntriesOptions, customQueryMeta)
 
   // Accumulate entries for infinite scroll (same pattern as other views)
   const queryKey = useMemo(() => `${searchQuery}`, [searchQuery])
@@ -101,11 +107,14 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
     if (queryKey !== lastQueryKeyRef.current) {
       lastQueryKeyRef.current = queryKey
       setOffset(0)
-      setAllLoadedEntries([])
     }
   }, [queryKey])
 
   useEffect(() => {
+    if (isPlaceholderData || !queryData) {
+      return
+    }
+
     if (offset === 0) {
       setAllLoadedEntries(fetchedEntries)
     } else {
@@ -115,7 +124,7 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
         return [...prev, ...newEntries]
       })
     }
-  }, [fetchedEntries, offset])
+  }, [fetchedEntries, isPlaceholderData, offset, queryData])
 
   useProcessCompletion({
     onSuccess: () => {
@@ -124,7 +133,9 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
   })
 
   const filteredPolicies = useMemo(() => {
-    return allLoadedEntries.filter(p => {
+    const visibleEntries = allLoadedEntries.length > 0 ? allLoadedEntries : fetchedEntries
+
+    return visibleEntries.filter(p => {
       const recordState = String((p as any)?.recordState || '').toLowerCase()
       const isDraft = recordState.includes('draft')
       const isActive = !isDraft
@@ -134,7 +145,36 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
 
       return true
     })
-  }, [allLoadedEntries, statusFilter])
+  }, [allLoadedEntries, fetchedEntries, statusFilter])
+  const visibleEmptyStateConfig = useMemo(() => {
+    const displayedSearchQuery = queryData?.queryMeta.params.search ?? ''
+    const displayedStatusFilter = String(queryData?.queryMeta.custom?.statusFilter ?? statusFilter)
+
+    if (displayedSearchQuery) {
+      return {
+        type: 'search' as const,
+        title: t('no_search_results'),
+        description: t('no_search_results_description'),
+        icon: MagnifyingGlassIcon
+      }
+    }
+
+    if (displayedStatusFilter !== 'all') {
+      return {
+        type: 'filtered' as const,
+        title: t('no_filter_results'),
+        description: t('no_filter_results_description'),
+        icon: FunnelIcon
+      }
+    }
+
+    return {
+      type: 'no-data' as const,
+      title: t('no_policies_found'),
+      description: t('no_policies_found_description'),
+      icon: ShieldCheckIcon
+    }
+  }, [queryData, statusFilter, t])
 
   const hasMore = allLoadedEntries.length > 0 && allLoadedEntries.length < totalCount
 
@@ -144,7 +184,10 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
     isLoading
   })
 
-  const handleSearch = (query: string) => setSearchQuery(query)
+  const handleSearch = (query: string) => {
+    setOffset(0)
+    setSearchQuery(query)
+  }
 
   if (error) {
     return (
@@ -211,6 +254,7 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
               </Select>
 
               <AppAction
+                variant="create-primary"
                 contexts={[
                   {
                     context: FlowContextName.contentEntryCreate,
@@ -218,11 +262,9 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
                   }
                 ]}
                 accessToken={accessToken}
-                emptyState="enable"
-                lazyLoad
                 data-testid="policies-view-create-button"
               >
-                <Button>{t('create_policy')}</Button>
+                {t('create_policy')}
               </AppAction>
             </div>
           </div>
@@ -235,10 +277,19 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
               <Skeleton key={i} className="gba:h-14 gba:w-full gba:rounded-lg" />
             ))}
           </div>
-        ) : filteredPolicies.length === 0 ? (
-          <div className="gba:text-center gba:py-12" data-testid="policies-view-empty">
-            <p className="gba:text-muted-foreground">{t('no_policies_found')}</p>
-          </div>
+        ) : isFetched && filteredPolicies.length === 0 ? (
+          <EmptyState
+            type={visibleEmptyStateConfig.type}
+            config={{
+              configs: {
+                [visibleEmptyStateConfig.type]: {
+                  ...visibleEmptyStateConfig,
+                  size: 'md'
+                }
+              }
+            }}
+            data-testid="policies-view-empty"
+          />
         ) : (
           <div
             className="gba:border gba:border-border gba:rounded-lg gba:overflow-hidden gba:mb-6"

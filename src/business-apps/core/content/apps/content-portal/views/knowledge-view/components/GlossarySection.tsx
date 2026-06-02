@@ -6,15 +6,17 @@ import {
   AlertTitle,
   AlertDescription,
   Badge,
+  EmptyState,
   Input,
   Label
 } from '@newwork/nw-design-system'
+import { BookOpenIcon, FunnelIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { Book, Plus, RefreshCw, Pencil, HelpCircle } from 'lucide-react'
+import { Book, RefreshCw, Pencil, HelpCircle } from 'lucide-react'
 import translations from '../../../_i18n'
 import GlossaryRequestDialog from '@/business-apps/core/content/components/GlossaryRequestDialog'
 
@@ -67,9 +69,18 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({ accessToken, userInfo
 
   // Memoize query options to prevent infinite loop
   const queryOptions = useMemo(() => ({ config: 'full' as const }), [])
+  const customQueryMeta = useMemo(() => ({ statusFilter }), [statusFilter])
 
   // Use central content data - use 'full' config to include 'content' field for definitions
-  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken, queryOptions)
+  const {
+    data: queryData,
+    entries,
+    totalCount,
+    isLoading,
+    isFetched,
+    error,
+    refetch
+  } = useContentEntries(queryParams, accessToken, queryOptions, customQueryMeta)
 
   // Listen for process completion to refresh data
   useProcessCompletion({
@@ -86,6 +97,35 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({ accessToken, userInfo
     }
     return filtered
   }, [entries, statusFilter])
+  const visibleEmptyStateConfig = useMemo(() => {
+    const displayedSearchQuery = queryData?.queryMeta.params.search ?? ''
+    const displayedStatusFilter = String(queryData?.queryMeta.custom?.statusFilter ?? statusFilter)
+
+    if (displayedSearchQuery) {
+      return {
+        type: 'search' as const,
+        title: t('no_search_results'),
+        description: t('no_search_results_description'),
+        icon: MagnifyingGlassIcon
+      }
+    }
+
+    if (displayedStatusFilter !== 'ALL') {
+      return {
+        type: 'filtered' as const,
+        title: t('no_filter_results'),
+        description: t('no_filter_results_description'),
+        icon: FunnelIcon
+      }
+    }
+
+    return {
+      type: 'no-data' as const,
+      title: t('glossary-empty'),
+      description: t('glossary-empty-description'),
+      icon: BookOpenIcon
+    }
+  }, [queryData, statusFilter, t])
 
   return (
     <div data-testid="glossary-section">
@@ -117,6 +157,7 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({ accessToken, userInfo
             {t('refresh')}
           </Button>
           <AppAction
+            variant="create-primary"
             contexts={[
               {
                 context: FlowContextName.contentEntryCreate,
@@ -124,14 +165,9 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({ accessToken, userInfo
               }
             ]}
             accessToken={accessToken}
-            emptyState="enable"
-            lazyLoad
             data-testid="glossary-create-button"
           >
-            <Button data-testid="glossary-add-term-button">
-              <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('glossary-add-term')}
-            </Button>
+            {t('glossary-add-term')}
           </AppAction>
 
           {/* Request Term - opens dialog to create workflow task */}
@@ -226,16 +262,22 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({ accessToken, userInfo
       )}
 
       {/* Empty state */}
-      {!isLoading && !error && visibleTerms.length === 0 && (
-        <div
-          className="gba:text-center gba:py-12 gba:bg-card gba:rounded-lg gba:border gba:border-border"
-          data-testid="glossary-empty-state"
-        >
-          <Book className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
-          <p className="gba:text-muted-foreground gba:mb-4" data-testid="glossary-empty-message">
-            {t('glossary-empty')}
-          </p>
+      {isFetched && !isLoading && !error && visibleTerms.length === 0 && (
+        <div className="gba:flex gba:flex-col gba:items-center gba:gap-4" data-testid="glossary-empty-state">
+          <EmptyState
+            type={visibleEmptyStateConfig.type}
+            config={{
+              configs: {
+                [visibleEmptyStateConfig.type]: {
+                  ...visibleEmptyStateConfig,
+                  size: 'md'
+                }
+              }
+            }}
+            data-testid="glossary-empty-message"
+          />
           <AppAction
+            variant="create-primary"
             contexts={[
               {
                 context: FlowContextName.contentEntryCreate,
@@ -243,14 +285,9 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({ accessToken, userInfo
               }
             ]}
             accessToken={accessToken}
-            emptyState="enable"
-            lazyLoad
             data-testid="glossary-empty-create-button"
           >
-            <Button data-testid="glossary-empty-add-term-button">
-              <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-              {t('glossary-add-term')}
-            </Button>
+            {t('glossary-add-term')}
           </AppAction>
         </div>
       )}

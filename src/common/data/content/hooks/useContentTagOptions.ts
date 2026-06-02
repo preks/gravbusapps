@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { ContentTag } from '../types/contentTypes'
-import { buildContentTagsQuery } from '../queries/contentQueries'
+import { buildContentTagsQuery, buildContentTaxonomyVariables } from '../queries/contentQueries'
 
 interface UseContentTagOptionsResult {
   options: ContentTag[]
@@ -26,7 +26,8 @@ export const useContentTagOptions = (accessToken?: string): UseContentTagOptions
       setError(null)
       try {
         const query = buildContentTagsQuery()
-        const response = await graphqlClient.request<{ ContentTag: ContentTag[] }>(query)
+        const variables = buildContentTaxonomyVariables()
+        const response = await graphqlClient.request<{ ContentTag: ContentTag[] }>(query, variables)
         if (!cancelled) {
           setOptions(
             (response.ContentTag || []).map(contentTag => ({

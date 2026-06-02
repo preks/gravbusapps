@@ -243,6 +243,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                     Create Document
                   </Button>
                   <AppAction
+                    variant="create-primary"
                     contexts={[
                       {
                         context: FlowContextName.contentEntryCreate,
@@ -250,11 +251,9 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                       }
                     ]}
                     accessToken={accessToken}
-                    emptyState="enable"
-                    lazyLoad
                     data-testid="create-document-area-button"
                   >
-                    <Button variant="outline">{t('create_area')}</Button>
+                    {t('create_area')}
                   </AppAction>
                 </div>
               </div>

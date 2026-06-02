@@ -95,9 +95,17 @@ no_document_areas = No document areas available
 # Empty states
 no_more_articles = No more articles
 no_intranet_found = No intranet content found
+no_intranet_found_description = Add news, knowledge articles, or questions to populate the portal.
 no_news_found = No news found
+no_news_found_description = Publish the first news article to get started.
 no_knowledge_found = No knowledge articles found
+no_knowledge_found_description = Create the first knowledge article to get started.
 no_policies_found = No policies found
+no_policies_found_description = Create the first policy to get started.
+no_search_results = No search results
+no_search_results_description = Try a different search term or check spelling.
+no_filter_results = No matching results
+no_filter_results_description = Try adjusting your filters to see more content.
 
 # Policy table columns
 policies_col_title = Title
@@ -106,6 +114,7 @@ policies_col_status = Status
 policies_col_updated = Last updated
 no_documents_found = No documents found
 no_questions_found = No questions yet. Be the first to ask!
+no_questions_found_description = Ask the first question to start a discussion.
 
 # Question details
 votes = votes
@@ -151,6 +160,7 @@ glossary-published = Published
 glossary-draft = Draft
 glossary-results-count = { $count } results
 glossary-empty = No terms found. Add the first term to get started.
+glossary-empty-description = Add glossary terms to build a shared vocabulary.
 glossary-no-definition = No definition yet.
 glossary-needs-definition = Needs Definition
 glossary-definition-needed = This term was requested but hasn't been defined yet. Click "Edit" to add a definition!
