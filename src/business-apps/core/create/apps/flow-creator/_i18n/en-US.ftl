@@ -131,6 +131,7 @@ config-rework = Rework Actions
 start-trigger-type = Trigger Type
 start-trigger-manual = Manual Form
 start-trigger-webhook = Webhook
+start-trigger-email = Email
 start-trigger-event = Event
 start-trigger-schedule = Schedule
 

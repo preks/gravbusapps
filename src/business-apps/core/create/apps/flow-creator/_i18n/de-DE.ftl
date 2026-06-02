@@ -131,6 +131,7 @@ config-rework = Nacharbeit
 start-trigger-type = Auslösertyp
 start-trigger-manual = Manuelles Formular
 start-trigger-webhook = Webhook
+start-trigger-email = E-Mail
 start-trigger-event = Ereignis
 start-trigger-schedule = Zeitplan
 

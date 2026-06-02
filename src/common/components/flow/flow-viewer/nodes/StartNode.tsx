@@ -2,6 +2,7 @@ import React from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { Badge } from '@newwork/nw-design-system'
 import { Play, Zap, Calendar, Link as LinkIcon } from 'lucide-react'
+import { EnvelopeIcon } from '@phosphor-icons/react'
 import { HANDLE_OFFSET } from './nodeDimensions'
 import { NODE_META_BADGE_STANDARD_CLASS } from './nodeBadgeStyles'
 import type { TriggerType, StepStatus } from '../types/viewerTypes'
@@ -19,6 +20,7 @@ const TRIGGER_ICONS: Record<string, React.ElementType> = {
   EVENT: Zap,
   SCHEDULE: Calendar,
   WEBHOOK: LinkIcon,
+  EMAIL: EnvelopeIcon,
   MANUAL_FORM: Play
 }
 
@@ -26,6 +28,7 @@ const TRIGGER_LABELS: Record<string, string> = {
   EVENT: 'Event',
   SCHEDULE: 'Schedule',
   WEBHOOK: 'Webhook',
+  EMAIL: 'Email',
   MANUAL_FORM: 'Manual'
 }
 

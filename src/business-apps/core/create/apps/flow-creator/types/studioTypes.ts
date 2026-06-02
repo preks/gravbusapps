@@ -17,7 +17,22 @@ import type { FlowTags } from '@/business-apps/flow/types'
 
 export type DesignerMode = 'simple' | 'advanced'
 
-export type TriggerType = 'MANUAL_FORM' | 'WEBHOOK' | 'EVENT' | 'SCHEDULE'
+export type TriggerType = 'MANUAL_FORM' | 'WEBHOOK' | 'EMAIL' | 'EVENT' | 'SCHEDULE'
+
+export type EmailFilterField = 'accountEmail' | 'from.address' | 'subject' | 'hasAttachments'
+
+export type EmailFilterOp = 'eq' | 'in' | 'contains' | 'startsWith' | 'endsWith' | 'regex'
+
+export interface EmailFilterRule {
+  field: EmailFilterField
+  op: EmailFilterOp
+  value: string | boolean | string[]
+}
+
+export interface EmailTriggerFilterConfig {
+  match: 'all' | 'any'
+  rules: EmailFilterRule[]
+}
 
 export type DecisionMode = 'USER' | 'AI' | 'LOGIC'
 export type UserDecisionType = 'APPROVAL' | 'CUSTOM'
@@ -45,6 +60,7 @@ export interface StartNodeConfig {
   triggerType: TriggerType
   form?: InputBlock[]
   webhookConfig?: { url?: string; secret?: string }
+  emailConfig?: { filter?: EmailTriggerFilterConfig }
   eventConfig?: { eventType?: string; filter?: string }
   scheduleConfig?: { cron?: string; timezone?: string }
 }

@@ -1,8 +1,17 @@
 import React, { useMemo } from 'react'
-import { Button, Card, CardContent, IconAvatar } from '@newwork/nw-design-system'
+import { Badge, Button, Card, CardContent, IconAvatar } from '@newwork/nw-design-system'
 import { Play } from 'lucide-react'
+import { FlowTriggerType } from '@/common/network/flows/FlowTemplateClient'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { FlowTemplateLibraryItem } from '../hooks/useFlowTemplateLibrary'
+
+const NON_MANUAL_TRIGGER_LABELS: Partial<Record<FlowTriggerType, string>> = {
+  [FlowTriggerType.WEBHOOK]: 'Webhook',
+  [FlowTriggerType.EMAIL]: 'Email',
+  [FlowTriggerType.EVENT]: 'Event',
+  [FlowTriggerType.SCHEDULE]: 'Schedule',
+  [FlowTriggerType.API_SCHEMA]: 'API'
+}
 
 export interface FlowTemplateLibraryCardProps extends Partial<BusinessAppContextProps> {
   item: FlowTemplateLibraryItem
@@ -21,6 +30,19 @@ export const FlowTemplateLibraryCard: React.FC<FlowTemplateLibraryCardProps> = (
     const d = (item.description || '').trim()
     return d.length > 0 ? d : 'No description provided.'
   }, [item.description])
+
+  const automaticTriggerBadges = useMemo(() => {
+    const seen = new Set<string>()
+    const badges: Array<{ key: string; label: string }> = []
+    for (const trigger of item.triggerTypes) {
+      const label = NON_MANUAL_TRIGGER_LABELS[trigger]
+      if (!label) continue
+      if (seen.has(trigger)) continue
+      seen.add(trigger)
+      badges.push({ key: trigger, label })
+    }
+    return badges
+  }, [item.triggerTypes])
 
   const isClickable = item.isManualLaunchable
 
@@ -59,6 +81,15 @@ export const FlowTemplateLibraryCard: React.FC<FlowTemplateLibraryCardProps> = (
               >
                 {shortDescription}
               </div>
+              {automaticTriggerBadges.length > 0 ? (
+                <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-2" data-testid={`${testId}-trigger-badges`}>
+                  {automaticTriggerBadges.map(badge => (
+                    <Badge key={badge.key} variant="secondary">
+                      {badge.label}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="gba:shrink-0">

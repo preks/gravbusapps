@@ -17,18 +17,27 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { Play, Globe, Zap, Clock } from 'lucide-react'
+import { EnvelopeIcon } from '@phosphor-icons/react'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
-import type { StartNodeConfig, DesignerMode, FlowStudioUpdateOptions, TriggerType } from '../../types/studioTypes'
+import type {
+  DesignerMode,
+  EmailTriggerFilterConfig,
+  FlowStudioUpdateOptions,
+  StartNodeConfig,
+  TriggerType
+} from '../../types/studioTypes'
 import { FormBuilder } from '../form-builder'
 import type { InputBlock } from '@/common/data/flow/types/flowTemplate'
 import { FlowContextExpressionEditor } from '../shared/FlowContextExpressionEditor'
 import { useStudioExpressionSuggestions } from '../../hooks/useStudioExpressionSuggestions'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
+import { EmailTriggerFilterEditor } from './EmailTriggerFilterEditor'
 
 const TRIGGER_ICONS: Record<TriggerType, React.ElementType> = {
   MANUAL_FORM: Play,
   WEBHOOK: Globe,
+  EMAIL: EnvelopeIcon,
   EVENT: Zap,
   SCHEDULE: Clock
 }
@@ -36,6 +45,7 @@ const TRIGGER_ICONS: Record<TriggerType, React.ElementType> = {
 const TRIGGER_LABEL_KEYS: Record<TriggerType, string> = {
   MANUAL_FORM: 'start-trigger-manual',
   WEBHOOK: 'start-trigger-webhook',
+  EMAIL: 'start-trigger-email',
   EVENT: 'start-trigger-event',
   SCHEDULE: 'start-trigger-schedule'
 }
@@ -94,7 +104,7 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
   )
 
   const triggerTypes: TriggerType[] =
-    mode === 'simple' ? ['MANUAL_FORM'] : ['MANUAL_FORM', 'WEBHOOK', 'EVENT', 'SCHEDULE']
+    mode === 'simple' ? ['MANUAL_FORM', 'EMAIL'] : ['MANUAL_FORM', 'EMAIL', 'WEBHOOK', 'EVENT', 'SCHEDULE']
 
   const triggerValue: TriggerType = (() => {
     const v = config.triggerType
@@ -122,32 +132,25 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
           {/* Trigger Type Selection */}
           <div className="gba:flex gba:flex-col gba:gap-2">
             <Label className="gba:text-xs gba:font-medium">{t('start-trigger-type')}</Label>
-            {mode === 'simple' ? (
-              <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-sm gba:text-foreground">
-                <Play className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
-                {t('start-trigger-manual')}
-              </div>
-            ) : (
-              <Select value={triggerValue} onValueChange={handleTriggerChange}>
-                <SelectTrigger data-testid={`${testId}-trigger-select`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="gba:w-[var(--radix-select-trigger-width)] gba:max-w-[var(--radix-select-trigger-width)]">
-                  {triggerTypes.map(tt => {
-                    const Icon = TRIGGER_ICONS[tt]
-                    const labelKey = TRIGGER_LABEL_KEYS[tt]
-                    return (
-                      <SelectItem key={tt} value={tt}>
-                        <span className="gba:flex gba:items-center gba:gap-2">
-                          <Icon className="gba:h-3.5 gba:w-3.5" />
-                          {t(labelKey)}
-                        </span>
-                      </SelectItem>
-                    )
-                  })}
-                </SelectContent>
-              </Select>
-            )}
+            <Select value={triggerValue} onValueChange={handleTriggerChange}>
+              <SelectTrigger data-testid={`${testId}-trigger-select`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="gba:w-[var(--radix-select-trigger-width)] gba:max-w-[var(--radix-select-trigger-width)]">
+                {triggerTypes.map(tt => {
+                  const Icon = TRIGGER_ICONS[tt]
+                  const labelKey = TRIGGER_LABEL_KEYS[tt]
+                  return (
+                    <SelectItem key={tt} value={tt}>
+                      <span className="gba:flex gba:items-center gba:gap-2">
+                        <Icon className="gba:h-3.5 gba:w-3.5" />
+                        {t(labelKey)}
+                      </span>
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
           </div>
 
           <Separator />
@@ -176,6 +179,14 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
               title={t('config-form')}
               description="Configure the form that initiators fill out to start this flow."
               data-testid={`${testId}-form-builder`}
+            />
+          )}
+
+          {config.triggerType === 'EMAIL' && (
+            <EmailTriggerFilterEditor
+              value={config.emailConfig?.filter}
+              onChange={(filter: EmailTriggerFilterConfig) => updateNodeConfig(nodeId, { emailConfig: { filter } })}
+              testId={`${testId}-email-filter`}
             />
           )}
 

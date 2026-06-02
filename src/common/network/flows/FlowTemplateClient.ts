@@ -41,9 +41,35 @@ export enum AssignmentMode {
 export enum FlowTriggerType {
   MANUAL_FORM = 'MANUAL_FORM',
   WEBHOOK = 'WEBHOOK',
+  EMAIL = 'EMAIL',
   EVENT = 'EVENT',
   SCHEDULE = 'SCHEDULE',
   API_SCHEMA = 'API_SCHEMA'
+}
+
+/**
+ * v1 EMAIL trigger filter shape — mirrors the backend
+ * `EmailTriggerConfigDto`/`EmailTriggerFilterDto` in custom-flow-engine.
+ */
+export const EMAIL_TRIGGER_FILTER_FIELDS = ['accountEmail', 'from.address', 'subject', 'hasAttachments'] as const
+export type EmailTriggerFilterField = (typeof EMAIL_TRIGGER_FILTER_FIELDS)[number]
+
+export const EMAIL_TRIGGER_FILTER_OPS = ['eq', 'in', 'contains', 'startsWith', 'endsWith', 'regex'] as const
+export type EmailTriggerFilterOp = (typeof EMAIL_TRIGGER_FILTER_OPS)[number]
+
+export interface EmailTriggerFilterRule {
+  field: EmailTriggerFilterField
+  op: EmailTriggerFilterOp
+  value: string | boolean | string[]
+}
+
+export interface EmailTriggerFilter {
+  match: 'all' | 'any'
+  rules: EmailTriggerFilterRule[]
+}
+
+export interface EmailTriggerConfig {
+  filter?: EmailTriggerFilter
 }
 
 export interface FlowTrigger {
