@@ -65,22 +65,22 @@ export const CompanyManagement: React.FC<CompanyManagementProps> = context => {
     updateCompanyGroupUrl()
   }
 
-  const headerActions =
-    activeView === 'companies' ? (
-      <AppAction
-        variant="create-primary"
-        contexts={[
-          {
-            context: FlowContextName.investmentCompanyCreate,
-            contextData: {}
-          }
-        ]}
-        prefixDataTestId="investment-company-create"
-        accessToken={context.accessToken}
-      >
-        {t('create-company-button')}
-      </AppAction>
-    ) : null
+  const renderGroupsHeaderAction = () => (
+    <AppAction
+      variant="create-primary"
+      emptyState="enable"
+      contexts={[
+        {
+          context: FlowContextName.investmentCompanyGroupCreate,
+          contextData: {}
+        }
+      ]}
+      prefixDataTestId="investment-company-group-create"
+      accessToken={context.accessToken}
+    >
+      {t('create-group-button')}
+    </AppAction>
+  )
 
   if (activeView === 'groups' && selectedGroupId) {
     return (
@@ -117,17 +117,24 @@ export const CompanyManagement: React.FC<CompanyManagementProps> = context => {
             }
           ]
         }}
-        headerActions={headerActions}
         variant={MODULE_COLORS.IRM}
         className="gba:min-h-screen"
       >
         {activeView === 'groups' ? (
-          <CompanyGroupsView
-            {...context}
-            selectedGroupId={selectedGroupId}
-            onSelectGroup={handleSelectGroup}
-            onBackFromGroup={handleBackFromGroup}
-          />
+          <div className="gba:flex gba:h-full gba:flex-col" data-testid="company-management-groups-view">
+            <div
+              className="gba:flex gba:items-center gba:justify-end gba:px-6 gba:pt-6"
+              data-testid="company-management-groups-toolbar"
+            >
+              {renderGroupsHeaderAction()}
+            </div>
+            <CompanyGroupsView
+              {...context}
+              selectedGroupId={selectedGroupId}
+              onSelectGroup={handleSelectGroup}
+              onBackFromGroup={handleBackFromGroup}
+            />
+          </div>
         ) : (
           <CompanyListView {...context} />
         )}
