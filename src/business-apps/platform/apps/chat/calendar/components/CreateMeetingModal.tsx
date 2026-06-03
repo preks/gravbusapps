@@ -44,6 +44,7 @@ import { getAgendaFromMetadata, getTotalAgendaDuration } from '../utils/agendaUt
 import { createEmployeeSearchService, CalendarEmployee } from '../services/employeeSearchService'
 import translations from '../../_i18n'
 import { AvailabilityPanel } from './AvailabilityPanel'
+import { useEmployeeAvatarsCache } from '../../hooks/useEmployeeAvatarsCache'
 
 interface CreateMeetingModalProps {
   isOpen: boolean
@@ -51,6 +52,12 @@ interface CreateMeetingModalProps {
   onSubmit: (data: CreateMeetingData) => Promise<void>
   onUpdate?: (meetingId: string, data: UpdateMeetingData) => Promise<void>
   accessToken: string
+  currentUser?: {
+    id: string
+    displayName?: string
+    firstName?: string
+    lastName?: string
+  }
   availableCalendars?: InternalCalendarSummary[]
   includePersonal?: boolean
   defaultCalendarId?: string
@@ -92,6 +99,47 @@ const formatTimeForInput = (date: Date): string => {
 
 const getDefaultCreateConversation = (isVideoCall: boolean): boolean => isVideoCall
 
+function normalizeParticipantDisplayName(value: string | undefined, userId: string): string | undefined {
+  const trimmedValue = value?.trim()
+  if (!trimmedValue || trimmedValue === userId) {
+    return undefined
+  }
+
+  return trimmedValue
+}
+
+function buildParticipantDisplayName(
+  participant: {
+    displayName?: string
+    firstName?: string
+    lastName?: string
+  },
+  cachedParticipant: {
+    displayName?: string
+    firstName?: string
+    lastName?: string
+  } | null,
+  userId: string
+): string | undefined {
+  const cachedDisplayName = normalizeParticipantDisplayName(cachedParticipant?.displayName, userId)
+  if (cachedDisplayName) {
+    return cachedDisplayName
+  }
+
+  const participantDisplayName = normalizeParticipantDisplayName(participant.displayName, userId)
+  if (participantDisplayName) {
+    return participantDisplayName
+  }
+
+  const cachedFullName = `${cachedParticipant?.firstName || ''} ${cachedParticipant?.lastName || ''}`.trim()
+  if (cachedFullName) {
+    return cachedFullName
+  }
+
+  const participantFullName = `${participant.firstName || ''} ${participant.lastName || ''}`.trim()
+  return participantFullName || undefined
+}
+
 const resolveSelectableCalendarId = ({
   requestedCalendarId,
   includePersonal,
@@ -122,6 +170,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   onSubmit,
   onUpdate,
   accessToken,
+  currentUser,
   availableCalendars = [],
   includePersonal = true,
   defaultCalendarId,
@@ -194,6 +243,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   const hasExistingConversation = Boolean(editMeeting?.conversationId)
   const previousOpenRef = useRef(false)
   const previousEditMeetingIdRef = useRef<string | null>(null)
+  const { prefetchAvatars, getCachedAvatar, cacheVersion } = useEmployeeAvatarsCache(accessToken)
 
   // Debounce timer for search
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null)
@@ -297,6 +347,72 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     setSearchResults([])
   }, [defaultCalendarId, editableCalendars, includePersonal, initialParticipants, initialTitle])
 
+  const lookupUserIds = useMemo(() => {
+    const userIds = selectedParticipants.map(participant => participant.userId || participant.id).filter(Boolean)
+    if (currentUser?.id) {
+      userIds.push(currentUser.id)
+    }
+
+    return Array.from(new Set(userIds))
+  }, [currentUser?.id, selectedParticipants])
+
+  useEffect(() => {
+    if (lookupUserIds.length === 0) {
+      return
+    }
+
+    prefetchAvatars(lookupUserIds)
+  }, [lookupUserIds, prefetchAvatars])
+
+  const enrichedSelectedParticipants = useMemo(
+    () =>
+      selectedParticipants.map(participant => {
+        const userId = participant.userId || participant.id
+        const cachedParticipant = userId ? getCachedAvatar(userId) : null
+
+        return {
+          ...participant,
+          displayName: buildParticipantDisplayName(participant, cachedParticipant, userId),
+          firstName: cachedParticipant?.firstName || participant.firstName,
+          lastName: cachedParticipant?.lastName || participant.lastName,
+          pictureThumbnail: participant.pictureThumbnail || cachedParticipant?.avatarUrl
+        }
+      }),
+    [cacheVersion, getCachedAvatar, selectedParticipants]
+  )
+  const availabilityParticipants = useMemo(() => {
+    const participants = enrichedSelectedParticipants.map(participant => ({
+      id: participant.userId || participant.id,
+      displayName: participant.displayName,
+      firstName: participant.firstName,
+      lastName: participant.lastName
+    }))
+
+    if (!currentUser?.id || participants.some(participant => participant.id === currentUser.id)) {
+      return participants
+    }
+
+    const cachedCurrentUser = getCachedAvatar(currentUser.id)
+
+    return [
+      {
+        id: currentUser.id,
+        displayName: buildParticipantDisplayName(currentUser, cachedCurrentUser, currentUser.id),
+        firstName: cachedCurrentUser?.firstName || currentUser.firstName,
+        lastName: cachedCurrentUser?.lastName || currentUser.lastName
+      },
+      ...participants
+    ]
+  }, [
+    cacheVersion,
+    currentUser?.displayName,
+    currentUser?.firstName,
+    currentUser?.id,
+    currentUser?.lastName,
+    enrichedSelectedParticipants,
+    getCachedAvatar
+  ])
+
   // Initialize form when editMeeting changes
   useEffect(() => {
     const openedNow = isOpen && !previousOpenRef.current
@@ -341,7 +457,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           editMeeting.participants.map(p => ({
             id: p.id,
             userId: p.id,
-            displayName: p.displayName || [p.firstName, p.lastName].filter(Boolean).join(' ') || p.id,
+            displayName: p.displayName || [p.firstName, p.lastName].filter(Boolean).join(' ') || undefined,
             firstName: p.firstName,
             lastName: p.lastName
           }))
@@ -787,7 +903,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="unassigned">{t('calendar-agendaItemUnassigned')}</SelectItem>
-                              {selectedParticipants.map(participant => (
+                              {enrichedSelectedParticipants.map(participant => (
                                 <SelectItem key={participant.id} value={participant.userId || participant.id}>
                                   {participant.displayName ||
                                     `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
@@ -862,7 +978,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             {/* Selected participants */}
             {selectedParticipants.length > 0 && (
               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mb-2">
-                {selectedParticipants.map(employee => (
+                {enrichedSelectedParticipants.map(employee => (
                   <Badge key={employee.id} variant="secondary" className="gba:flex gba:items-center gba:gap-1 gba:pr-1">
                     <span>
                       {employee.displayName ||
@@ -930,12 +1046,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
 
           <AvailabilityPanel
             accessToken={accessToken}
-            participants={selectedParticipants.map(participant => ({
-              id: participant.userId || participant.id,
-              displayName: participant.displayName,
-              firstName: participant.firstName,
-              lastName: participant.lastName
-            }))}
+            participants={availabilityParticipants}
             date={date}
             startTime={startTime}
             endTime={endTime}

@@ -65,12 +65,15 @@ class FakeSocket {
 describe('ChatWebSocketClient', () => {
   let fakeSocket: FakeSocket
   let lastConnectOptions: Record<string, unknown> | undefined
+  let lastConnectUrl: string | undefined
 
   beforeEach(() => {
     fakeSocket = new FakeSocket()
     lastConnectOptions = undefined
+    lastConnectUrl = undefined
     mockIo.mockReset()
     mockIo.mockImplementation((_url: string, options?: Record<string, unknown>) => {
+      lastConnectUrl = _url
       fakeSocket.auth = (options?.auth as Record<string, unknown>) ?? {}
       lastConnectOptions = options
       return fakeSocket
@@ -85,6 +88,17 @@ describe('ChatWebSocketClient', () => {
     expect(lastConnectOptions).toMatchObject({
       transports: ['websocket', 'polling'],
       tryAllTransports: true
+    })
+  })
+
+  it('splits localhost namespace URL from socket path', () => {
+    const client = new ChatWebSocketClient('http://localhost:3003')
+
+    client.connect('token-1')
+
+    expect(lastConnectUrl).toBe('http://localhost:3003/chat-service')
+    expect(lastConnectOptions).toMatchObject({
+      path: '/socket.io'
     })
   })
 

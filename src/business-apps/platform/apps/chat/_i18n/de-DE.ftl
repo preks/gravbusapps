@@ -724,9 +724,26 @@ calendar-error = Kalender konnte nicht geladen werden
 calendar-retry = Erneut versuchen
 calendar-event-details = Termindetails
 calendar-pending-invitations = Ausstehende Einladungen
+calendar-pending-invitations-empty = Keine ausstehenden Einladungen
+calendar-pending-back = Zurück zur Liste
+calendar-pending-filter-all = Alle
+calendar-pending-filter-upcoming = Bevorstehend
+calendar-pending-filter-past = Vergangen
 calendar-accept = Annehmen
 calendar-decline = Ablehnen
 calendar-tentative = Mit Vorbehalt
+calendar-accept-all = Alle annehmen
+calendar-maybe-all = Alle mit Vorbehalt
+calendar-decline-all = Alle ablehnen
+calendar-pending-invitations-from = von {$organizer}
+calendar-pending-series-count = {$count ->
+  [one] {$count} ausstehender Termin
+ *[other] {$count} ausstehende Termine
+}
+calendar-pending-series-more = +{$count} weitere ausstehende Termine
+calendar-view-occurrences = Termine anzeigen
+calendar-hide-occurrences = Termine ausblenden
+calendar-view-details = Details anzeigen
 
 # Calendar - Agenda
 calendar-agenda = Agenda

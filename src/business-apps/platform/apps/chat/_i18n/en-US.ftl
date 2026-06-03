@@ -724,9 +724,26 @@ calendar-error = Failed to load calendar
 calendar-retry = Retry
 calendar-event-details = Event Details
 calendar-pending-invitations = Pending Invitations
+calendar-pending-invitations-empty = No pending invitations
+calendar-pending-back = Back to list
+calendar-pending-filter-all = All
+calendar-pending-filter-upcoming = Upcoming
+calendar-pending-filter-past = Past
 calendar-accept = Accept
 calendar-decline = Decline
 calendar-tentative = Tentative
+calendar-accept-all = Accept all
+calendar-maybe-all = Maybe all
+calendar-decline-all = Decline all
+calendar-pending-invitations-from = from {$organizer}
+calendar-pending-series-count = {$count ->
+  [one] {$count} pending occurrence
+ *[other] {$count} pending occurrences
+}
+calendar-pending-series-more = +{$count} more pending occurrences
+calendar-view-occurrences = View occurrences
+calendar-hide-occurrences = Hide occurrences
+calendar-view-details = View details
 
 # Calendar - Agenda
 calendar-agenda = Agenda

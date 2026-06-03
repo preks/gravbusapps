@@ -21,7 +21,8 @@ import {
   MonthView,
   CalendarListView,
   CreateMeetingModal,
-  MeetingDetailModal
+  MeetingDetailModal,
+  PendingInvitationsPanel
 } from './components'
 import {
   CalendarEvent,
@@ -29,14 +30,18 @@ import {
   ExternalCalendarSource,
   InternalCalendarSummary,
   InternalCalendarPermission,
-  Meeting,
   CreateMeetingData,
   UpdateMeetingData,
   UpdateSharedCalendarData,
   InvitationStatus,
-  EventParticipant
+  EventParticipant,
+  PendingInvitationGroup
 } from './types'
 import { getDefaultCalendarColor } from './utils/calendarColors'
+import {
+  collectPendingInvitationUserIds,
+  enrichPendingInvitationGroupsWithAvatars
+} from './utils/enrichPendingInvitationsAvatars'
 import { getDefaultMeetingCalendarId, PERSONAL_CALENDAR_ID } from './utils/defaultMeetingCalendar'
 import type { CalendarEmployee } from './services/employeeSearchService'
 
@@ -81,7 +86,7 @@ function parseCreateMeetingParticipants(rawValue: string | null): CalendarEmploy
         return {
           id: userId,
           userId,
-          displayName: displayName || userId
+          displayName: displayName?.trim() || undefined
         }
       })
       .filter((participant): participant is CalendarEmployee => participant !== null)
@@ -208,7 +213,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
     currentDate,
     timeScope,
     events,
-    pendingInvitations,
+    pendingInvitationGroups,
+    pendingInvitationsCount,
     selectedEvent,
     isLoading,
     error,
@@ -222,6 +228,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
     updateMeeting,
     cancelMeeting,
     respondToInvitation,
+    respondToSeriesInvitation,
     refresh,
     refreshInvitations,
     applyCalendarColorLocally,
@@ -254,6 +261,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
   const [updatingCalendarPreferenceId, setUpdatingCalendarPreferenceId] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen)
+  const [isPendingInvitationsDialogOpen, setIsPendingInvitationsDialogOpen] = useState(false)
+  const [enrichedPendingGroups, setEnrichedPendingGroups] = useState<PendingInvitationGroup[]>([])
   const [requestedMeetingCalendarId, setRequestedMeetingCalendarId] = useState<string | undefined>()
 
   const { t } = useTranslation(translations)
@@ -450,6 +459,47 @@ const CalendarInner: React.FC<CalendarProps> = ({
 
     enrichEventWithMeetingAndAvatars()
   }, [selectedEvent, isDetailModalOpen, apiClient, fetchAvatarsSync, requestAvatars])
+
+  // Resolve real avatar images for pending invitation organizers/participants when the dialog is open
+  useEffect(() => {
+    if (!isPendingInvitationsDialogOpen) {
+      return
+    }
+
+    let cancelled = false
+
+    // Seed with the base groups so the list renders immediately while avatars resolve
+    setEnrichedPendingGroups(pendingInvitationGroups)
+
+    const enrichPendingAvatars = async () => {
+      const userIds = collectPendingInvitationUserIds(pendingInvitationGroups)
+
+      if (userIds.length === 0) {
+        return
+      }
+
+      let employeeInfoMap = requestAvatars(userIds)
+      if (employeeInfoMap.size < userIds.length) {
+        try {
+          employeeInfoMap = await fetchAvatarsSync(userIds)
+        } catch (error) {
+          console.error('Error fetching invitation avatars:', error instanceof Error ? error.message : 'unknown error')
+        }
+      }
+
+      if (cancelled) {
+        return
+      }
+
+      setEnrichedPendingGroups(enrichPendingInvitationGroupsWithAvatars(pendingInvitationGroups, employeeInfoMap))
+    }
+
+    enrichPendingAvatars()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isPendingInvitationsDialogOpen, pendingInvitationGroups, fetchAvatarsSync, requestAvatars])
 
   // Handle URL params to navigate to a specific date/meeting (e.g., from MeetingCard click)
   useEffect(() => {
@@ -660,43 +710,13 @@ const CalendarInner: React.FC<CalendarProps> = ({
     [respondToInvitation, selectedEvent]
   )
 
-  // Handle view meeting details from pending invitations
-  const handleViewInvitationDetails = useCallback(
-    (meeting: Meeting) => {
-      // Convert meeting to calendar event format
-      const event: CalendarEvent = {
-        id: meeting.id,
-        title: meeting.title,
-        description: meeting.description,
-        start: new Date(meeting.startTime),
-        end: new Date(meeting.endTime),
-        allDay: meeting.isAllDay,
-        color: meeting.color,
-        status: meeting.status,
-        participantStatus: InvitationStatus.PENDING, // It's pending since it's in pending invitations
-        isOrganizer: false,
-        organizer: {
-          id: meeting.organizer?.id || '',
-          firstName: meeting.organizer?.firstName,
-          lastName: meeting.organizer?.lastName,
-          displayName: meeting.organizer?.displayName,
-          email: meeting.organizer?.email || ''
-        },
-        participantCount: meeting.participants?.length || 0,
-        acceptedCount: meeting.participants?.filter(p => p.status === 'accepted').length || 0,
-        meetingLink: meeting.meetingLink,
-        location: meeting.location,
-        conversationId: meeting.conversationId,
-        calendarId: meeting.calendarId,
-        calendarName: meeting.calendar?.name,
-        calendarType: meeting.calendar?.type
-      }
-      meetingDetailOpenedInAppRef.current = true
-      selectEvent(event)
-      setIsDetailModalOpen(true)
-      setMeetingInUrl(meeting.id, new Date(meeting.startTime))
+  const handleRespondToSeriesInvitation = useCallback(
+    async (seriesRootId: string, status: InvitationStatus) => {
+      await respondToSeriesInvitation(seriesRootId, {
+        status
+      })
     },
-    [selectEvent, setMeetingInUrl]
+    [respondToSeriesInvitation]
   )
 
   // Handle delete meeting
@@ -1172,7 +1192,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
               refreshInvitations()
               refreshCalendars()
             }}
-            pendingInvitationsCount={pendingInvitations.length}
+            pendingInvitationsCount={pendingInvitationsCount}
             showSidebarToggle
             onToggleSidebar={() => setIsSidebarOpen(currentOpen => !currentOpen)}
           />
@@ -1186,20 +1206,16 @@ const CalendarInner: React.FC<CalendarProps> = ({
             {renderCalendarView()}
           </div>
 
-          {pendingInvitations.length > 0 && (
+          {pendingInvitationsCount > 0 && (
             <div className="gba:absolute gba:bottom-3 gba:right-3 gba:z-20">
               <button
-                onClick={() => {
-                  if (pendingInvitations[0]) {
-                    handleViewInvitationDetails(pendingInvitations[0])
-                  }
-                }}
+                onClick={() => setIsPendingInvitationsDialogOpen(true)}
                 className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:py-1.5 gba:bg-warning gba:text-warning-foreground gba:rounded-full gba:shadow-md gba:font-medium gba:text-xs"
                 data-testid="calendar-pending-invitations-badge"
                 title={t('calendar-pending-invitations')}
               >
                 <span>
-                  {pendingInvitations.length} {t('calendar-pending-invitations')}
+                  {pendingInvitationsCount} {t('calendar-pending-invitations')}
                 </span>
               </button>
             </div>
@@ -1208,6 +1224,14 @@ const CalendarInner: React.FC<CalendarProps> = ({
       </div>
 
       {/* Modals */}
+      <PendingInvitationsPanel
+        isOpen={isPendingInvitationsDialogOpen}
+        onClose={() => setIsPendingInvitationsDialogOpen(false)}
+        groups={enrichedPendingGroups}
+        onRespond={handleRespondToInvitation}
+        onRespondSeries={handleRespondToSeriesInvitation}
+      />
+
       <CreateMeetingModal
         isOpen={isCreateModalOpen}
         onClose={() => {
@@ -1220,6 +1244,16 @@ const CalendarInner: React.FC<CalendarProps> = ({
         onSubmit={handleCreateMeeting}
         onUpdate={handleUpdateMeeting}
         accessToken={accessToken}
+        currentUser={
+          userInfo?.id
+            ? {
+                id: userInfo.id,
+                displayName: userInfo.displayName?.trim() || undefined,
+                firstName: userInfo.givenName || userInfo.employeeDetails?.firstName || undefined,
+                lastName: userInfo.familyName || userInfo.employeeDetails?.lastName || undefined
+              }
+            : undefined
+        }
         availableCalendars={sharedCalendars}
         includePersonal={includePersonal || defaultMeetingCalendarId === PERSONAL_CALENDAR_ID}
         defaultCalendarId={defaultMeetingCalendarId}

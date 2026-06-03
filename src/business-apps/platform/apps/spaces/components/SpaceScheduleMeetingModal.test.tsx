@@ -58,6 +58,7 @@ describe('SpaceScheduleMeetingModal', () => {
         isOpen
         onOpenChange={jest.fn()}
         accessToken="token"
+        currentUser={{ id: 'current-user', displayName: 'Emir Salihagic' }}
         defaultCalendarId="space-calendar"
       />
     )
@@ -66,6 +67,10 @@ describe('SpaceScheduleMeetingModal', () => {
       expect.objectContaining({
         includePersonal: true,
         defaultCalendarId: 'space-calendar',
+        currentUser: {
+          id: 'current-user',
+          displayName: 'Emir Salihagic'
+        },
         availableCalendars: [
           expect.objectContaining({
             id: 'space-calendar',

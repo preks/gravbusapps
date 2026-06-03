@@ -724,9 +724,26 @@ calendar-error = Nu s-a putut încărca calendarul
 calendar-retry = Reîncearcă
 calendar-event-details = Detalii eveniment
 calendar-pending-invitations = Invitații în așteptare
+calendar-pending-invitations-empty = Nicio invitație în așteptare
+calendar-pending-back = Înapoi la listă
+calendar-pending-filter-all = Toate
+calendar-pending-filter-upcoming = Viitoare
+calendar-pending-filter-past = Trecute
 calendar-accept = Acceptă
 calendar-decline = Refuză
 calendar-tentative = Tentativ
+calendar-accept-all = Acceptă toate
+calendar-maybe-all = Poate pentru toate
+calendar-decline-all = Refuză toate
+calendar-pending-invitations-from = de la {$organizer}
+calendar-pending-series-count = {$count ->
+  [one] {$count} ocurență în așteptare
+ *[other] {$count} ocurențe în așteptare
+}
+calendar-pending-series-more = +{$count} alte ocurențe în așteptare
+calendar-view-occurrences = Vezi ocurențele
+calendar-hide-occurrences = Ascunde ocurențele
+calendar-view-details = Vezi detalii
 
 # Calendar - Agenda
 calendar-agenda = Agendă

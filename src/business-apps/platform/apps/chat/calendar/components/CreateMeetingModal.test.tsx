@@ -2,6 +2,7 @@ import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { CreateMeetingModal } from './CreateMeetingModal'
 import { InternalCalendarPermission, InternalCalendarType, type InternalCalendarSummary } from '../types'
+import type { EmployeeAvatarInfo } from '../../hooks/useEmployeeAvatarsCache'
 
 jest.mock('@newwork/nw-design-system', () => jest.requireActual('@/__mocks__/@newwork/nw-design-system'))
 
@@ -11,8 +12,16 @@ jest.mock('../services/employeeSearchService', () => ({
   }))
 }))
 
+const mockAvailabilityPanel = jest.fn(() => <div data-testid="meeting-availability-panel" />)
+
 jest.mock('./AvailabilityPanel', () => ({
-  AvailabilityPanel: () => <div data-testid="meeting-availability-panel" />
+  AvailabilityPanel: (props: unknown) => mockAvailabilityPanel(props)
+}))
+
+const mockUseEmployeeAvatarsCache = jest.fn()
+
+jest.mock('../../hooks/useEmployeeAvatarsCache', () => ({
+  useEmployeeAvatarsCache: (...args: unknown[]) => mockUseEmployeeAvatarsCache(...args)
 }))
 
 describe('CreateMeetingModal', () => {
@@ -41,6 +50,15 @@ describe('CreateMeetingModal', () => {
 
   afterEach(() => {
     jest.clearAllMocks()
+  })
+
+  beforeEach(() => {
+    mockAvailabilityPanel.mockClear()
+    mockUseEmployeeAvatarsCache.mockReturnValue({
+      prefetchAvatars: jest.fn(),
+      getCachedAvatar: jest.fn((): EmployeeAvatarInfo | null => null),
+      cacheVersion: 0
+    })
   })
 
   it('defaults meeting chat off for meetings without a video call', () => {
@@ -227,5 +245,113 @@ describe('CreateMeetingModal', () => {
     expect(screen.getByRole('option', { name: 'My calendar' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Space Calendar' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Other Calendar' })).not.toBeInTheDocument()
+  })
+
+  it('resolves participant names from the shared employee cache for initial participants', async () => {
+    mockUseEmployeeAvatarsCache.mockReturnValue({
+      prefetchAvatars: jest.fn(),
+      getCachedAvatar: jest.fn((userId: string): EmployeeAvatarInfo | null =>
+        userId === 'user-1'
+          ? {
+              displayName: 'Denis Prekrat',
+              firstName: 'Denis',
+              lastName: 'Prekrat'
+            }
+          : null
+      ),
+      cacheVersion: 1
+    })
+
+    render(
+      <CreateMeetingModal
+        {...createProps({
+          initialParticipants: [
+            {
+              id: 'user-1',
+              userId: 'user-1',
+              displayName: 'user-1'
+            }
+          ]
+        })}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Denis Prekrat')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText('user-1')).not.toBeInTheDocument()
+  })
+
+  it('passes the current user to the scheduling assistant without adding them as an invitee chip', () => {
+    render(
+      <CreateMeetingModal
+        {...createProps({
+          currentUser: {
+            id: 'current-user',
+            displayName: 'Emir Salihagic'
+          },
+          initialParticipants: [
+            {
+              id: 'user-1',
+              userId: 'user-1',
+              displayName: 'Denis Prekrat'
+            }
+          ]
+        })}
+      />
+    )
+
+    expect(screen.queryAllByText('Emir Salihagic')).toHaveLength(0)
+
+    expect(mockAvailabilityPanel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        participants: expect.arrayContaining([
+          expect.objectContaining({ id: 'current-user', displayName: 'Emir Salihagic' }),
+          expect.objectContaining({ id: 'user-1', displayName: 'Denis Prekrat' })
+        ])
+      })
+    )
+  })
+
+  it('resolves the organizer row from the shared employee cache when current user displayName is missing', () => {
+    mockUseEmployeeAvatarsCache.mockReturnValue({
+      prefetchAvatars: jest.fn(),
+      getCachedAvatar: jest.fn((userId: string): EmployeeAvatarInfo | null =>
+        userId === 'current-user'
+          ? {
+              displayName: 'Emir Salihagic',
+              firstName: 'Emir',
+              lastName: 'Salihagic'
+            }
+          : null
+      ),
+      cacheVersion: 1
+    })
+
+    render(
+      <CreateMeetingModal
+        {...createProps({
+          currentUser: {
+            id: 'current-user'
+          },
+          initialParticipants: [
+            {
+              id: 'user-1',
+              userId: 'user-1',
+              displayName: 'Denis Prekrat'
+            }
+          ]
+        })}
+      />
+    )
+
+    expect(mockAvailabilityPanel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        participants: expect.arrayContaining([
+          expect.objectContaining({ id: 'current-user', displayName: 'Emir Salihagic' })
+        ])
+      })
+    )
   })
 })

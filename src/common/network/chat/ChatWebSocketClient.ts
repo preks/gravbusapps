@@ -2,7 +2,8 @@ import { CHAT_WEB_SOCKET_URL } from '@/common/utils/serviceResolver'
 import { io, type Socket } from 'socket.io-client'
 
 const CHAT_CLIENT_VERSION = '2'
-const DEFAULT_SOCKET_PATH = '/chat-service/socket.io'
+const CHAT_NAMESPACE = '/chat-service'
+const DEFAULT_SOCKET_PATH = '/socket.io'
 
 export type ChatWebSocketOptions = {
   connectionTimeout?: number
@@ -34,6 +35,30 @@ function resolveSocketOptions(options: ChatWebSocketOptions): Required<ChatWebSo
     reconnectionDelayMax: options.reconnectionDelayMax ?? 10000,
     path: options.path ?? DEFAULT_SOCKET_PATH,
     enablePollingFallback: options.enablePollingFallback !== false
+  }
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.endsWith('/') ? value.slice(0, -1) : value
+}
+
+function isLocalSocketHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0'
+}
+
+function resolveSocketTarget(url: string): { socketUrl: string; socketPath: string } {
+  const resolvedUrl = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001')
+  let servicePath = trimTrailingSlash(resolvedUrl.pathname)
+
+  if (servicePath.endsWith('/socket.io')) {
+    servicePath = servicePath.slice(0, -'/socket.io'.length)
+  }
+
+  const namespacePath = servicePath || CHAT_NAMESPACE
+
+  return {
+    socketUrl: `${resolvedUrl.origin}${namespacePath}`,
+    socketPath: isLocalSocketHost(resolvedUrl.hostname) ? '/socket.io' : `${namespacePath}/socket.io`
   }
 }
 
@@ -149,12 +174,12 @@ export class ChatWebSocketClient {
   private accessToken = ''
   private reconnectAttempts = 0
   private reconnectBlockedUntilTokenRefresh = false
-  private readonly url: string
+  private readonly baseUrl: string
   private readonly options: Required<ChatWebSocketOptions>
   private readonly maxReconnectAttempts: number
 
   constructor(url: string = CHAT_WEB_SOCKET_URL, options: ChatWebSocketOptions = {}) {
-    this.url = url
+    this.baseUrl = url
     this.options = resolveSocketOptions(options)
     this.maxReconnectAttempts = this.options.reconnectionAttempts
   }
@@ -208,12 +233,14 @@ export class ChatWebSocketClient {
     }
 
     const transports = resolveSocketTransports(this.options.enablePollingFallback)
+    const target = resolveSocketTarget(this.baseUrl)
+    const path = this.options.path === DEFAULT_SOCKET_PATH ? target.socketPath : this.options.path
 
-    this.socket = io(this.url, {
+    this.socket = io(target.socketUrl, {
       auth: toSocketAuth(this.accessToken),
       transports,
       tryAllTransports: this.options.enablePollingFallback,
-      path: this.options.path,
+      path,
       reconnection: true,
       reconnectionDelay: 5000,
       reconnectionDelayMax: this.options.reconnectionDelayMax,
@@ -282,7 +309,7 @@ export class ChatWebSocketClient {
       transport: this.socket?.io?.engine?.transport?.name,
       reconnectAttempts: this.reconnectAttempts,
       maxReconnectAttempts: this.maxReconnectAttempts,
-      url: this.url
+      url: resolveSocketTarget(this.baseUrl).socketUrl
     }
   }
 

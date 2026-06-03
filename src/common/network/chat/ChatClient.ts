@@ -621,6 +621,10 @@ export class ChatClient extends RestClient {
     return this.post<T>(`/meetings/${meetingId}/respond`, body, options)
   }
 
+  respondToSeriesInvitation<T = any>(seriesRootId: string, body: unknown, options: RequestOptions = {}) {
+    return this.post<T>(`/meetings/series/${seriesRootId}/respond`, body, options)
+  }
+
   inviteToMeeting<T = any>(meetingId: string, body: unknown, options: RequestOptions = {}) {
     return this.post<T>(`/meetings/${meetingId}/invite`, body, options)
   }

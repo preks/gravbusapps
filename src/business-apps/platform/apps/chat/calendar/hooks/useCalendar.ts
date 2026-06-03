@@ -16,10 +16,12 @@ import type {
   UpdateMeetingData,
   InvitationResponse,
   InvitationStatus,
-  MeetingParticipant
+  MeetingParticipant,
+  PendingInvitationGroup
 } from '../types'
 import { getDateRangeForTimeScope } from '../types'
 import { useCreateMeeting } from './useCreateMeeting'
+import { groupPendingInvitations } from '../utils/groupPendingInvitations'
 
 dayjs.extend(localizedFormat)
 
@@ -38,6 +40,8 @@ interface UseCalendarReturn {
   timeScope: CalendarTimeScope
   events: CalendarEvent[]
   pendingInvitations: Meeting[]
+  pendingInvitationGroups: PendingInvitationGroup[]
+  pendingInvitationsCount: number
   selectedEvent: CalendarEvent | null
   isLoading: boolean
   error: string | null
@@ -59,6 +63,7 @@ interface UseCalendarReturn {
   updateMeeting: (meetingId: string, data: UpdateMeetingData) => Promise<Meeting>
   cancelMeeting: (meetingId: string) => Promise<void>
   respondToInvitation: (meetingId: string, response: InvitationResponse) => Promise<void>
+  respondToSeriesInvitation: (seriesRootId: string, response: InvitationResponse) => Promise<void>
 
   // Refresh
   refresh: () => Promise<void>
@@ -103,6 +108,7 @@ export const useCalendar = ({
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
   const [internalEvents, setInternalEvents] = useState<CalendarEvent[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<Meeting[]>([])
+  const [pendingInvitationGroups, setPendingInvitationGroups] = useState<PendingInvitationGroup[]>([])
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -241,8 +247,16 @@ export const useCalendar = ({
 
   const loadInvitations = useCallback(async () => {
     try {
-      const response = await apiClient.getPendingInvitations<{ meetings: Meeting[] }>()
-      setPendingInvitations(response.meetings || [])
+      const response = await apiClient.getPendingInvitations<{
+        meetings: Meeting[]
+        groups?: PendingInvitationGroup[]
+      }>()
+      const meetings = response.meetings || []
+      const fallbackGroups = groupPendingInvitations(meetings)
+      const hasCompleteBackendGroups =
+        Array.isArray(response.groups) && response.groups.length === fallbackGroups.length
+      setPendingInvitations(meetings)
+      setPendingInvitationGroups(hasCompleteBackendGroups ? response.groups : fallbackGroups)
     } catch (err) {
       console.error('Error loading pending invitations:', err)
     }
@@ -334,6 +348,28 @@ export const useCalendar = ({
     [apiClient, loadEvents, loadInvitations, selectedEvent]
   )
 
+  const respondToSeriesInvitation = useCallback(
+    async (seriesRootId: string, response: InvitationResponse): Promise<void> => {
+      const selectedEventBelongsToSeries =
+        selectedEvent && (selectedEvent.parentMeetingId || selectedEvent.id) === seriesRootId
+
+      await apiClient.respondToSeriesInvitation(seriesRootId, response)
+      await Promise.all([loadEvents(), loadInvitations()])
+
+      if (selectedEventBelongsToSeries) {
+        setSelectedEvent(prev =>
+          prev
+            ? {
+                ...prev,
+                participantStatus: response.status as InvitationStatus
+              }
+            : null
+        )
+      }
+    },
+    [apiClient, loadEvents, loadInvitations, selectedEvent]
+  )
+
   const selectEvent = useCallback((event: CalendarEvent | null) => {
     setSelectedEvent(event)
   }, [])
@@ -362,6 +398,25 @@ export const useCalendar = ({
       setPendingInvitations(currentMeetings =>
         currentMeetings.map(meeting => (matchesCalendar(meeting.calendarId) ? { ...meeting, color } : meeting))
       )
+      setPendingInvitationGroups(currentGroups =>
+        currentGroups.map(group => {
+          if (group.kind === 'single') {
+            return matchesCalendar(group.meeting.calendarId)
+              ? {
+                  ...group,
+                  meeting: { ...group.meeting, color }
+                }
+              : group
+          }
+
+          return {
+            ...group,
+            pendingMeetings: group.pendingMeetings.map(meeting =>
+              matchesCalendar(meeting.calendarId) ? { ...meeting, color } : meeting
+            )
+          }
+        })
+      )
       setSelectedEvent(currentEvent =>
         currentEvent && matchesCalendar(currentEvent.calendarId) ? { ...currentEvent, color } : currentEvent
       )
@@ -374,6 +429,8 @@ export const useCalendar = ({
     timeScope,
     events,
     pendingInvitations,
+    pendingInvitationGroups,
+    pendingInvitationsCount: pendingInvitationGroups.length,
     selectedEvent,
     isLoading,
     error,
@@ -387,6 +444,7 @@ export const useCalendar = ({
     updateMeeting,
     cancelMeeting,
     respondToInvitation,
+    respondToSeriesInvitation,
     refresh,
     refreshInvitations,
     applyCalendarColorLocally,
