@@ -28,7 +28,10 @@ import { UiCatalogProvider } from '@newwork/gravity-ui-catalog'
 import { useRewrapAntDStylesLive } from './common/hooks/useRewrapAntDStylesLive'
 import { BlinkProvider } from './common/providers/BlinkProvider'
 import { useBusinessAuth } from './common/auth/useBusinessAuth'
+import { NotificationsHost } from '@/business-apps/core/use/apps/notifications'
+import { useNotificationsBadgeCount } from '@/business-apps/core/use/apps/notifications/hooks'
 import { useUserProfileFromKeycloak } from './common/user-profile/useUserProfileFromKeycloak'
+import type { UserMenuUserInfo } from '@/business-apps/core/use/apps/user-menu/types'
 import { useBrandingLogo } from './common/hooks/useBrandingLogo'
 import {
   STORAGE_KEY_USER_INFO,
@@ -334,11 +337,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const [additionalData, setAdditionalData] = useState<string>('')
   const [additionalDataError, setAdditionalDataError] = useState<string>('')
   const [searchCommandOpen, setSearchCommandOpen] = useState<boolean>(false)
+  const notificationsUnreadCount = useNotificationsBadgeCount()
   const [performanceWindowOpen, setPerformanceWindowOpen] = useState<boolean>(readPersistedPerformanceWindowOpen)
   const [density, setDensity] = useState<DensityOption>(
     (localStorage.getItem('business-app-ide-ui-density') as DensityOption) || 'default'
   )
-  const [enableChat, setEnableChat] = useState<boolean>(localStorage.getItem('business-app-ide-enable-chat') === 'true')
   const [settingsModalVisible, setSettingsModalVisible] = useState(false)
 
   useEffect(() => {
@@ -845,11 +848,6 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     localStorage.setItem('business-app-ide-structure-id-autofill', String(enableIdeStructureIdAutofill))
   }, [enableIdeStructureIdAutofill])
 
-  // Persist chat enable selection
-  useEffect(() => {
-    localStorage.setItem('business-app-ide-enable-chat', String(enableChat))
-  }, [enableChat])
-
   const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
       try {
@@ -974,6 +972,18 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   const { userInfo: profileUserInfo } = useUserProfileFromKeycloak(authToken, tokenParsed)
   const { wordmarkUrl: brandingWordmarkUrl, logomarkUrl: brandingLogomarkUrl } = useBrandingLogo(authToken)
 
+  const menuUserInfo = useMemo((): UserMenuUserInfo | undefined => {
+    if (!profileUserInfo) {
+      return undefined
+    }
+
+    const email = typeof tokenParsed?.email === 'string' ? tokenParsed.email : undefined
+
+    return { ...profileUserInfo, email }
+  }, [profileUserInfo, tokenParsed])
+
+  const isProfileMenuLoaded = Boolean(authInitialized && profileUserInfo)
+
   // When auth/profile become available, synchronize into IDE state and localStorage
   useEffect(() => {
     if (!authInitialized || !authToken) return
@@ -1036,6 +1046,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
           <UiCatalogProvider>
             <ProcessEventListener onLocalDevEvent={handleProcessLocalDevEvent} />
             <FeatureHubProvider userId={parsedUserInfo()?.id ?? ''} />
+            {accessToken ? <NotificationsHost accessToken={accessToken} /> : null}
 
             <ShellProvider config={{ appName: 'Business Apps IDE', persistence: true }}>
               <ShellLayout
@@ -1056,8 +1067,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                   <IDEHeader
                     packageVersion={packageVersion}
                     onBack={goBack}
-                    locale={locale}
-                    onLocaleChange={setLocale}
+                    selectedLanguage={locale}
+                    onLanguageChange={setLocale}
                     density={density}
                     onDensityChange={setDensity}
                     tokenStatus={tokenStatus}
@@ -1087,18 +1098,17 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                     onPerformanceOpen={() => setPerformanceWindowOpen(currentWindowOpen => !currentWindowOpen)}
                     onSearchOpen={() => setSearchCommandOpen(true)}
                     onSettingsOpen={() => setSettingsModalVisible(true)}
-                    enableChat={enableChat}
-                    onEnableChatChange={setEnableChat}
                     selectedAppName={selectedApp?.name ?? null}
                     onPublishClick={() => setPublishConfirmDialogVisible(true)}
                     searchCommandOpen={searchCommandOpen}
                     settingsModalVisible={settingsModalVisible}
                     publishConfirmDialogVisible={publishConfirmDialogVisible}
+                    notificationsUnreadCount={notificationsUnreadCount}
+                    menuUserInfo={menuUserInfo}
+                    isProfileMenuLoaded={isProfileMenuLoaded}
                   />
                 }
-                contextPanel={
-                  <IDEContextPanel accessToken={accessToken || ''} userInfo={parsedUserInfo()} enabled={enableChat} />
-                }
+                contextPanel={<IDEContextPanel accessToken={accessToken || ''} userInfo={parsedUserInfo()} enabled />}
               >
                 {!selectedApp ? (
                   <div className="gba:flex gba:min-h-full gba:w-full gba:flex-col gba:bg-background gba:rounded-xl">

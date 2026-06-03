@@ -166,6 +166,10 @@ export const GLOBAL_SEARCH_API_URL = resolveServiceUrl('NEXT_PUBLIC_GLOBAL_SEARC
   servicePath: '/global-search',
   apiPath: '/api/v1'
 })
+export const NOTIFICATION_API_URL = resolveServiceUrl('NEXT_PUBLIC_NOTIFICATION_API_URL', {
+  servicePath: '/notification',
+  apiPath: '/api/v1'
+})
 
 export const INVESTMENT_RELATIONS_API_URL = resolveServiceUrl('NEXT_PUBLIC_INVESTMENT_RELATIONS_API_URL', {
   servicePath: '/processes/investment-relations',
