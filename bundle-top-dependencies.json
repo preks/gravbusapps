@@ -10319,15 +10319,15 @@
     ]
   },
   "core/office/apps/emails": {
-    "bitbucketBuildNumber": 12877,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12877/",
-    "chunkJsBytes": 480386,
+    "bitbucketBuildNumber": 12886,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12886/",
+    "chunkJsBytes": 481531,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 501681,
-        "gzip": 125488,
+        "rendered": 503916,
+        "gzip": 126299,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/email-apps/_i18n/de-DE.ftl?raw",
@@ -88303,20 +88303,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12877,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12877/",
-    "chunkJsBytes": 1952167,
+    "bitbucketBuildNumber": 12886,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12886/",
+    "chunkJsBytes": 1959765,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1658130,
-        "gzip": 105619,
+        "rendered": 1666417,
+        "gzip": 105660,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1658130,
-            "gzip": 105619
+            "rendered": 1666417,
+            "gzip": 105660
           }
         ]
       },
@@ -89968,15 +89968,15 @@
     ]
   },
   "platform/apps/email-apps": {
-    "bitbucketBuildNumber": 12877,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12877/",
-    "chunkJsBytes": 480391,
+    "bitbucketBuildNumber": 12886,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12886/",
+    "chunkJsBytes": 481536,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 501681,
-        "gzip": 125488,
+        "rendered": 503916,
+        "gzip": 126299,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/email-apps/_i18n/de-DE.ftl?raw",
@@ -112829,7 +112829,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-03T09:37:55.895Z",
+    "generatedAt": "2026-06-03T09:41:04.610Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
