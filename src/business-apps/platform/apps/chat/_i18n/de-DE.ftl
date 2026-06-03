@@ -6,6 +6,7 @@ chat-fullscreen-button = Im Vollbildmodus öffnen
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Kalender
+chat-tab-mail = E-Mail
 chat-tab-reminders = Erinnerungen
 chat-shell-disabled-title = Chat nicht verfügbar
 chat-shell-disabled-description = Dieses Panel ist für Ihren Workspace derzeit deaktiviert.

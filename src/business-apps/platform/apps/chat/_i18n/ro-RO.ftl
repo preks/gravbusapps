@@ -6,6 +6,7 @@ chat-fullscreen-button = Deschide în ecran complet
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Calendar
+chat-tab-mail = E-mail
 chat-tab-reminders = Memento-uri
 chat-shell-disabled-title = Chat indisponibil
 chat-shell-disabled-description = Acest panou este dezactivat momentan pentru workspace-ul tău.

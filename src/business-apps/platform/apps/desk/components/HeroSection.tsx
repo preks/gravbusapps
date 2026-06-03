@@ -6,7 +6,7 @@
 
 import React, { useCallback, useMemo, type LucideIcon } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { Layers, FileText, FileSpreadsheet, StickyNote, Presentation, HardDrive, Users, Mail } from 'lucide-react'
+import { Layers, FileText, FileSpreadsheet, StickyNote, Presentation, HardDrive, Users } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background/PremiumHeroBackground'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -32,8 +32,7 @@ const APP_NAV_ITEMS: AppNavItem[] = [
   },
   { id: 'notes', labelKey: 'hero-nav-notes', icon: StickyNote, path: '/platform/every-office/notes' },
   { id: 'slides', labelKey: 'hero-nav-slides', icon: Presentation, path: '/platform/every-office/slides' },
-  { id: 'spaces', labelKey: 'hero-nav-spaces', icon: Users, path: '/platform/every-office/spaces' },
-  { id: 'emails', labelKey: 'hero-nav-emails', icon: Mail, path: '/platform/every-office/emails' }
+  { id: 'spaces', labelKey: 'hero-nav-spaces', icon: Users, path: '/platform/every-office/spaces' }
 ]
 
 interface HeroSectionProps {
@@ -45,7 +44,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
   const previewFeature = useFeature<boolean>(Feature.Preview.Enabled.Key)
   const previewEnabled = previewFeature === true
   const visibleNavItems = useMemo(
-    () => APP_NAV_ITEMS.filter(item => previewEnabled || !['emails', 'spaces'].includes(item.id)),
+    () => APP_NAV_ITEMS.filter(item => previewEnabled || item.id !== 'spaces'),
     [previewEnabled]
   )
 
