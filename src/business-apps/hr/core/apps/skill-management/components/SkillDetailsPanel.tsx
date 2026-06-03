@@ -56,11 +56,12 @@ function EmployeeRow({ es }: Readonly<{ es: EmployeeSkillRecord }>) {
       </div>
       <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
         {es.level != null && <Badge variant="outline">{t('pending-level-value', { level: String(es.level) })}</Badge>}
-        {es.employeeSkillStatus === EmployeeSkillStatus.APPROVED && (
+        {(es.employeeSkillStatus === EmployeeSkillStatus.UNKNOWN ||
+          es.employeeSkillStatus === EmployeeSkillStatus.APPROVED) && (
           <Badge variant="success">{t('status-approved')}</Badge>
         )}
         {es.employeeSkillStatus === EmployeeSkillStatus.PENDING && (
-          <Badge variant="outline">{t('status-pending')}</Badge>
+          <Badge variant="warning">{t('status-pending')}</Badge>
         )}
         {es.employeeSkillStatus === EmployeeSkillStatus.REJECTED && (
           <Badge variant="destructive">{t('status-rejected')}</Badge>

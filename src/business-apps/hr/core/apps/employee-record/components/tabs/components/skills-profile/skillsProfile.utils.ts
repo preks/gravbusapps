@@ -57,7 +57,7 @@ export const isSkillActive = (skill: EmployeeSkillItem, now = new Date()): boole
 }
 
 export const isSkillPending = (skill: EmployeeSkillItem): boolean => {
-  return skill.employeeSkillStatus === EmployeeSkillStatus.PENDING_SKILL_STATUS
+  return skill.employeeSkillStatus === EmployeeSkillStatus.PENDING_EMPLOYEE_SKILL_STATUS
 }
 
 export const getVisibilityLabel = (acl: unknown): string => {

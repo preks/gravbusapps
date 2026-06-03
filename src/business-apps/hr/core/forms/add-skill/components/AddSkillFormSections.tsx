@@ -1,11 +1,13 @@
 import React from 'react'
 import {
   Combobox,
+  DateInput,
   FormControl,
   FormField,
   FormItem,
   FormLabel,
-  Input,
+  Popover,
+  PopoverAnchor,
   Select,
   SelectContent,
   SelectItem,
@@ -13,6 +15,7 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import type { UseFormReturn } from 'react-hook-form'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { DebouncedInput } from '@/components/debounced-input'
 import { AddSkillSearchDropdown } from './AddSkillSearchDropdown'
 import { SkillLevelRow } from './SkillLevelRow'
@@ -113,12 +116,16 @@ function renderModeSection(
             <FormItem>
               <FormLabel>{t('add-skill-form-valid-to')} *</FormLabel>
               <FormControl>
-                <Input
-                  type="date"
-                  value={field.value || ''}
-                  onChange={field.onChange}
-                  data-testid="add-skill-activate-valid-to"
-                />
+                <div data-testid="add-skill-activate-valid-to" className="gba:overflow-hidden">
+                  <DateInput
+                    type="date"
+                    value={(field.value as string) || ''}
+                    onChange={value => field.onChange(typeof value === 'string' ? value : (value?.[0] ?? ''))}
+                    className="gba:w-full"
+                    {...({ locale: getCurrentActiveUserLocale() } as any)}
+                    captionLayout="dropdown"
+                  />
+                </div>
               </FormControl>
             </FormItem>
           )}
@@ -253,15 +260,19 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
                   <FormItem>
                     <FormLabel>{t('add-skill-form-valid-to')}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="date"
-                        value={field.value || ''}
-                        onChange={e => {
-                          const value = e.target.value || ''
-                          setTimeout(() => field.onChange(value), 0)
-                        }}
-                        data-testid="flw_addSkill_attachVerification_validTo"
-                      />
+                      <div data-testid="flw_addSkill_attachVerification_validTo" className="gba:overflow-hidden">
+                        <DateInput
+                          type="date"
+                          value={(field.value as string) || ''}
+                          onChange={value => {
+                            const nextValue = typeof value === 'string' ? value : (value?.[0] ?? '')
+                            setTimeout(() => field.onChange(nextValue), 0)
+                          }}
+                          className="gba:w-full"
+                          {...({ locale: getCurrentActiveUserLocale() } as any)}
+                          captionLayout="dropdown"
+                        />
+                      </div>
                     </FormControl>
                   </FormItem>
                 )}
@@ -327,18 +338,22 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
       </span>
 
       <div className="gba:flex gba:flex-col gba:gap-2" data-testid="add-skill-search-filters">
-        <div className="gba:relative gba:w-full" data-testid="add-skill-search-container" ref={searchContainerRef}>
-          <DebouncedInput
-            key={inputKey}
-            value={searchTerm}
-            onChange={setSearchTerm}
-            onBlur={handleSearchBlur}
-            onFocus={handleSearchFocus}
-            debounceDelay={300}
-            placeholder={t('add-skill-form-search-skill-placeholder')}
-            data-testid="flw_addSkills_searchInput"
-            className="gba:w-full"
-          />
+        <Popover open={dropdownOpen}>
+          <PopoverAnchor asChild>
+            <div className="gba:w-full" data-testid="add-skill-search-container" ref={searchContainerRef}>
+              <DebouncedInput
+                key={inputKey}
+                value={searchTerm}
+                onChange={setSearchTerm}
+                onBlur={handleSearchBlur}
+                onFocus={handleSearchFocus}
+                debounceDelay={300}
+                placeholder={t('add-skill-form-search-skill-placeholder')}
+                data-testid="flw_addSkills_searchInput"
+                className="gba:w-full"
+              />
+            </div>
+          </PopoverAnchor>
           <AddSkillSearchDropdown
             ref={dropdownRef}
             isOpen={dropdownOpen}
@@ -348,7 +363,7 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
             onSelect={handleSelectSkill}
             onAddNew={handleAddNewSkill}
           />
-        </div>
+        </Popover>
       </div>
 
       {addError && (

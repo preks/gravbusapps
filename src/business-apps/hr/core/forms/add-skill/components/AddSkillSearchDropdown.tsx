@@ -1,5 +1,5 @@
-import React, { forwardRef } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { forwardRef } from 'react'
+import { Button, PopoverContent } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AddSkillSearchDropdownProps {
@@ -18,9 +18,13 @@ export const AddSkillSearchDropdown = forwardRef<HTMLDivElement, AddSkillSearchD
     const showNoResults = !isSearching && filteredResults.length === 0 && searchTerm.trim().length > 0
 
     return (
-      <div
+      <PopoverContent
         ref={ref}
-        className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:mt-1 gba:w-full gba:bg-card gba:text-card-foreground gba:border gba:rounded-lg gba:shadow-lg gba:z-50"
+        align="start"
+        side="bottom"
+        sideOffset={4}
+        onOpenAutoFocus={event => event.preventDefault()}
+        className="gba:z-50 gba:w-(--radix-popover-trigger-width) gba:bg-card gba:text-card-foreground gba:border gba:rounded-lg gba:shadow-lg gba:p-0"
         data-testid="add-skill-search-dropdown"
       >
         <div
@@ -36,7 +40,7 @@ export const AddSkillSearchDropdown = forwardRef<HTMLDivElement, AddSkillSearchD
           )}
 
           {!isSearching &&
-            filteredResults.slice(0, 5).map((sk, index) => (
+            filteredResults.map((sk, index) => (
               <Button
                 key={sk.id}
                 variant="ghost"
@@ -78,7 +82,7 @@ export const AddSkillSearchDropdown = forwardRef<HTMLDivElement, AddSkillSearchD
             </div>
           )}
         </div>
-      </div>
+      </PopoverContent>
     )
   }
 )
