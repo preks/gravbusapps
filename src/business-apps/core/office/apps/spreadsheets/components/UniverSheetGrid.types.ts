@@ -229,6 +229,8 @@ export type ApplyRemoteCellUpdateOptions = {
   targetSheetId?: string
   /** Skip remote-echo registration when repainting viewer state already present in the grid. */
   skipRemoteEchoRegistration?: boolean
+  /** Exact `rowId\u0000columnName` cells accepted by the backend and safe to paint once. */
+  acknowledgedCellKeys?: readonly string[]
   /** Style patch for `set_style`: remove `unset`, then assign `set`. */
   stylePatch?: SpreadsheetStylePatch | null
   /** Full Univer cell payload (preferred over scalar `value` when present). */

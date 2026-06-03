@@ -22,6 +22,8 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
   activeSheetId: string
   activeSheetIdRef: MutableRefObject<string>
   activeSheetColumns: SpreadsheetColumn[]
+  collaborationConnected?: boolean
+  collaborationParticipantCount?: number
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
   getColumnsForSheet: (sheetId: string) => SpreadsheetColumn[]
   isUuid: (value: string) => boolean

@@ -117,21 +117,58 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
       sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode,
       paintMeta?: SpreadsheetBulkRemoteApplyMeta | null
     ) => {
+      const hasStagedDirectPaint = Boolean(authoritativePaintCellsRef.current?.length)
       if (!syncGrid || !isCanonicalActiveSheet(targetSheetId)) {
-        authoritativePaintCellsRef.current = null
-        authoritativePaintMetaRef.current = null
+        if (!hasStagedDirectPaint) {
+          authoritativePaintCellsRef.current = null
+          authoritativePaintMetaRef.current = paintMeta ?? null
+        } else if (paintMeta) {
+          authoritativePaintMetaRef.current = paintMeta
+        }
         return
       }
       if (sessionDiffProjectionMode === 'skip') {
-        authoritativePaintCellsRef.current = null
-        authoritativePaintMetaRef.current = paintMeta ?? null
+        if (!hasStagedDirectPaint) {
+          authoritativePaintCellsRef.current = null
+          authoritativePaintMetaRef.current = paintMeta ?? null
+        } else if (paintMeta) {
+          authoritativePaintMetaRef.current = paintMeta
+        }
         return
       }
-      authoritativePaintCellsRef.current = mergeAuthoritativePaintCellLists(
+      const nextSessionPaintCells = mergeAuthoritativePaintCellLists(
         diffViewerRowsToAuthoritativePaintCells(beforeRows, afterRows, sheetColumns),
         collectAuthoritativePaintCellsForNewOrRemovedRows(beforeRows, afterRows, sheetColumns)
       )
+      if (nextSessionPaintCells.length === 0 && hasStagedDirectPaint) {
+        if (paintMeta) {
+          authoritativePaintMetaRef.current = paintMeta
+        }
+        return
+      }
+      authoritativePaintCellsRef.current = mergeAuthoritativePaintCellLists(
+        authoritativePaintCellsRef.current ?? [],
+        nextSessionPaintCells
+      )
+      authoritativePaintMetaRef.current = paintMeta ?? authoritativePaintMetaRef.current ?? null
+    },
+    [isCanonicalActiveSheet]
+  )
+  const stageAuthoritativeDirectPaintForSync = useCallback(
+    (
+      targetSheetId: string,
+      items: readonly SpreadsheetBulkRemoteCellItem[],
+      paintMeta?: SpreadsheetBulkRemoteApplyMeta | null
+    ): boolean => {
+      if (!isCanonicalActiveSheet(targetSheetId) || items.length === 0) {
+        return false
+      }
+      authoritativePaintCellsRef.current = mergeAuthoritativePaintCellLists(authoritativePaintCellsRef.current ?? [], [
+        ...items
+      ])
       authoritativePaintMetaRef.current = paintMeta ?? null
+      setAuthoritativeDataSyncToken(prev => prev + 1)
+      return true
     },
     [isCanonicalActiveSheet]
   )
@@ -230,6 +267,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
       options?: {
         persisted?: boolean
         syncGrid?: boolean
+        suppressAuthoritativeDataSyncToken?: boolean
         sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
         publishParent?: boolean
         peerAuthoritative?: boolean
@@ -244,7 +282,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
       if (options?.syncGrid && options.authoritativeGridRegion) {
         params.spreadsheetGridRef.current?.prepareAuthoritativeRegionSync?.(options.authoritativeGridRegion)
       }
-      if (options?.syncGrid) {
+      if (options?.syncGrid && !options.suppressAuthoritativeDataSyncToken) {
         setAuthoritativeDataSyncToken(prev => prev + 1)
       }
       if (options?.publishParent !== false) {
@@ -274,6 +312,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
       mirrorActiveSheetRowsToViewerUi(next, {
         persisted: options?.persisted,
         syncGrid: options?.syncGrid,
+        suppressAuthoritativeDataSyncToken: options?.suppressAuthoritativeDataSyncToken,
         publishParent: options?.publishParent,
         peerAuthoritative: options?.peerAuthoritative,
         authoritativeGridRegion: options?.authoritativeGridRegion
@@ -325,6 +364,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
       options?: {
         persisted?: boolean
         syncGrid?: boolean
+        suppressAuthoritativeDataSyncToken?: boolean
         sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
         version?: number
         recoveredSheetMeta?: SpreadsheetSheet
@@ -384,6 +424,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
         mirrorActiveSheetRowsToViewerUi(rows, {
           persisted: options?.persisted,
           syncGrid: options?.syncGrid,
+          suppressAuthoritativeDataSyncToken: options?.suppressAuthoritativeDataSyncToken,
           publishParent: true,
           peerAuthoritative: Boolean(options?.persisted || typeof options?.version === 'number'),
           authoritativeGridRegion: options?.authoritativeGridRegion
@@ -431,6 +472,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
     getRichestKnownRowsForSheet,
     commitLocalSheetData,
     commitOptimisticActiveSheetRows,
-    syncSheetRowsIntoLocalState
+    syncSheetRowsIntoLocalState,
+    stageAuthoritativeDirectPaintForSync
   }
 }

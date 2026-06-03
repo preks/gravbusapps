@@ -132,12 +132,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const { containerRef, gridHostEl, gridHostReady, setGridHostRef } = useUniverDomChrome()
     const [authoritativeReapplySeed, setAuthoritativeReapplySeed] = useState(0)
     const gridMountedRef = useRef(false)
+    const firstVisiblePaintTraceKeysRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
     const isMountAlive = useCallback(() => gridMountedRef.current, [])
 
     useEffect(() => {
       gridMountedRef.current = true
       return () => {
         gridMountedRef.current = false
+        firstVisiblePaintTraceKeysRef.current.forEach(handle => clearTimeout(handle))
+        firstVisiblePaintTraceKeysRef.current.clear()
       }
     }, [])
 
@@ -177,6 +180,44 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       refreshCommentRectsRef,
       updateCellDimensionsRef
     } = ctl
+
+    const emitFirstVisiblePaint = useCallback(
+      (
+        meta: {
+          traceSessionId?: string | null
+          traceId?: string | null
+          batchId?: string | null
+          operationType?: string | null
+        },
+        payload: Record<string, unknown>
+      ) => {
+        if (!meta.traceId && !meta.batchId) return
+        const key = [
+          meta.traceSessionId ?? 'no-session',
+          meta.traceId ?? 'no-trace',
+          meta.batchId ?? 'no-batch',
+          meta.operationType ?? 'no-operation'
+        ].join('|')
+        if (firstVisiblePaintTraceKeysRef.current.has(key)) return
+        const cleanupHandle = globalThis.setTimeout(() => {
+          const currentHandle = firstVisiblePaintTraceKeysRef.current.get(key)
+          if (currentHandle === cleanupHandle) {
+            firstVisiblePaintTraceKeysRef.current.delete(key)
+          }
+        }, 60_000)
+        firstVisiblePaintTraceKeysRef.current.set(key, cleanupHandle)
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'first_visible_paint',
+          traceSessionId: meta.traceSessionId ?? null,
+          traceId: meta.traceId ?? null,
+          batchId: meta.batchId ?? null,
+          operationType: meta.operationType ?? null,
+          payload
+        })
+      },
+      [callbacksRef]
+    )
 
     useUniverGridContextMenuChrome({
       isReadOnly: props.isReadOnly,
@@ -667,6 +708,20 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                   hasUniverCell: Boolean(options?.univerCell),
                   hasUniverStyles: Boolean(options?.univerStyles)
                 })
+                emitFirstVisiblePaint(
+                  {
+                    traceSessionId: options?.diagnosticTraceSessionId ?? null,
+                    traceId: options?.diagnosticTraceId ?? null,
+                    batchId: options?.diagnosticBatchId ?? null,
+                    operationType: options?.diagnosticOperationType ?? null
+                  },
+                  {
+                    mode: 'single_cell',
+                    rowIndex: rowForApply,
+                    colIndex: colForApply,
+                    rowId: rowId ?? null
+                  }
+                )
               } catch (e) {
                 console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
                 debugRemoteApply('microtask_error', {
@@ -712,7 +767,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
         tryApply(0)
       },
-      []
+      [emitFirstVisiblePaint]
     )
 
     const prepareAuthoritativeRegionSync = useCallback((region: AuthoritativeGridReapplyTarget) => {
@@ -1052,6 +1107,19 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                         cellCount: normalized.length,
                         durationMs: Math.round((globalThis.performance?.now?.() ?? Date.now()) - started)
                       })
+                      emitFirstVisiblePaint(
+                        {
+                          traceSessionId: meta?.traceSessionId ?? null,
+                          traceId: meta?.traceId ?? null,
+                          batchId: meta?.batchId ?? null,
+                          operationType: meta?.operationType ?? 'bulk_remote_cell'
+                        },
+                        {
+                          mode: 'dense_setValues',
+                          cellCount: normalized.length,
+                          paintSource
+                        }
+                      )
                       for (const cellItem of byKey.values()) {
                         recordBulkCellSignature(cellItem)
                       }
@@ -1255,13 +1323,27 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                   : {}),
                 durationMs: Math.round((globalThis.performance?.now?.() ?? Date.now()) - started)
               })
+              emitFirstVisiblePaint(
+                {
+                  traceSessionId: meta?.traceSessionId ?? null,
+                  traceId: meta?.traceId ?? null,
+                  batchId: meta?.batchId ?? null,
+                  operationType: meta?.operationType ?? 'bulk_remote_cell'
+                },
+                {
+                  mode: useStripPaint ? 'chunked_strip_setValues' : noUniverCell ? 'chunked' : 'chunked_mixed_payload',
+                  cellCount: normalized.length,
+                  chunkCount,
+                  paintSource
+                }
+              )
               finishBulkApplyOnce()
             }
           }
           globalThis.requestAnimationFrame(runChunk)
         })
       },
-      [applyRemoteCellUpdate]
+      [applyRemoteCellUpdate, emitFirstVisiblePaint]
     )
 
     useEffect(() => {
@@ -1442,7 +1524,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             preferBulk,
             clearAllSignatures,
             reason: options?.reason,
-            pendingLocalFilterPolicy: options?.pendingLocalFilterPolicy
+            pendingLocalFilterPolicy: options?.pendingLocalFilterPolicy,
+            preserveStagedDirectPaint: options?.preserveStagedDirectPaint
           }
           if (regions && regions.length > 1) {
             debugRemoteApply('multi_region_authoritative_reapply', {

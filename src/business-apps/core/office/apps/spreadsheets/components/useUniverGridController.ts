@@ -75,6 +75,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     clearAllSignatures: boolean
     reason?: string
     pendingLocalFilterPolicy?: import('../utils/spreadsheetAuthoritativeRegion').PendingLocalFilterPolicy
+    preserveStagedDirectPaint?: boolean
   } | null>(null)
   const lastProcessedAuthoritativeReapplySeedRef = useRef(0)
   const skipNextAuthoritativeSyncAfterSnapshotInitRef = useRef(false)

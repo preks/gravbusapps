@@ -64,6 +64,15 @@ export function buildAuthoritativePaintCellsFromViewerRows(
   return items
 }
 
+export function buildAuthoritativePaintCellsForMaterializedRows(
+  data: readonly Record<string, unknown>[],
+  columns: SpreadsheetColumn[],
+  region: AuthoritativeGridRegion | null | undefined
+): SpreadsheetBulkRemoteCellItem[] {
+  if (!region) return []
+  return buildAuthoritativePaintCellsFromViewerRows(data, columns, { regions: [region] })
+}
+
 /**
  * Session-derived changed cells: diff viewer rows before/after a session apply.
  */

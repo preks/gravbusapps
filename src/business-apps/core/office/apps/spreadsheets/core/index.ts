@@ -1,4 +1,5 @@
 export type {
+  SpreadsheetBulkRemoteApplyResult,
   SpreadsheetBulkRemoteApplyMeta,
   SpreadsheetBulkRemoteCellItem,
   SpreadsheetCollaborationCallbacks,

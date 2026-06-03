@@ -169,6 +169,10 @@ export interface SheetWorkQueueApi {
   forceFlush(sheetId: string): Promise<ForceFlushGroupResult[]>
   forceFlushAll(): Promise<ForceFlushAllResult>
   awaitIdle(sheetId: string): Promise<void>
+  releaseAcknowledgedCellOwnership(
+    sheetId: string,
+    params: { ownedCellKeys?: readonly string[]; protectedCellKeys?: readonly string[] }
+  ): void
   getQueueCellState(sheetId: string, cellKey: string): QueueCellOwnershipState
   isQueueOwnedCell(sheetId: string, cellKey: string): boolean
   getDebugState(sheetId: string): SheetQueueDebugState
@@ -621,6 +625,18 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     const state = sheets.get(sheetId)
     if (!state) return 'none'
     return state.cellOwnership.get(cellKey)?.state ?? 'none'
+  }
+
+  const releaseAcknowledgedCellOwnership: SheetWorkQueueApi['releaseAcknowledgedCellOwnership'] = (sheetId, params) => {
+    const state = sheets.get(sheetId)
+    if (!state) return
+    setCellStatesBulk(state, params.ownedCellKeys, 'submitted')
+    setProtectedCellKeys(state, params.protectedCellKeys, false)
+    debug('acknowledged_cell_ownership_released', {
+      sheetId,
+      ownedCellCount: params.ownedCellKeys?.length ?? 0,
+      protectedCellCount: params.protectedCellKeys?.length ?? 0
+    })
   }
 
   // -------------------------------------------------------------------------
@@ -1680,6 +1696,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     forceFlush,
     forceFlushAll,
     awaitIdle,
+    releaseAcknowledgedCellOwnership,
     getQueueCellState: (sheetId, cellKey) => getCellState(sheetId, cellKey),
     isQueueOwnedCell: (sheetId, cellKey) => {
       const s = getCellState(sheetId, cellKey)

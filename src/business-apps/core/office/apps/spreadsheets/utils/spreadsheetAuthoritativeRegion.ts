@@ -59,6 +59,8 @@ export type ForceAuthoritativeGridReapplyOptions = {
   reason?: string
   /** How pending-local protection should be applied during bounded authoritative repair. */
   pendingLocalFilterPolicy?: PendingLocalFilterPolicy
+  /** When true, merge any staged direct paint with the forced repair remainder in the same sync. */
+  preserveStagedDirectPaint?: boolean
 }
 
 function resolveColumnDisplayName(columns: SpreadsheetColumn[], columnKey: string): string {

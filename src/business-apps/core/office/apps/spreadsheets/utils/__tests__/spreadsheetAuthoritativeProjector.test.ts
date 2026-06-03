@@ -1,4 +1,5 @@
 import {
+  buildAuthoritativePaintCellsForMaterializedRows,
   buildAuthoritativePaintCellsFromViewerRows,
   diffViewerRowsToAuthoritativePaintCells
 } from '../spreadsheetAuthoritativeProjector'
@@ -36,5 +37,25 @@ describe('spreadsheetAuthoritativeProjector', () => {
     })
     expect(items.map(item => item.rowIndex)).toEqual([1, 2])
     expect(items[0].value).toBe('v1')
+  })
+
+  it('buildAuthoritativePaintCellsForMaterializedRows returns only the materialized region cells', () => {
+    const columns = [column('A', 0), column('B', 1)]
+    const data = [
+      { _id: 'row-0', _rowUuid: 'row-0', _gridRowIndex: 0, A: 'keep', B: 'keep' },
+      { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 1, A: 'new-a', B: 'new-b' }
+    ]
+
+    const items = buildAuthoritativePaintCellsForMaterializedRows(data, columns, {
+      minRow: 1,
+      maxRow: 1,
+      minCol: 0,
+      maxCol: 1
+    })
+
+    expect(items).toEqual([
+      expect.objectContaining({ rowIndex: 1, colIndex: 0, value: 'new-a', rowId: 'row-1' }),
+      expect.objectContaining({ rowIndex: 1, colIndex: 1, value: 'new-b', rowId: 'row-1' })
+    ])
   })
 })

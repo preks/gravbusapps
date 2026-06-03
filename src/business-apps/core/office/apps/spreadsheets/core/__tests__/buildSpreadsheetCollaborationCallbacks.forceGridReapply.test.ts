@@ -2,7 +2,10 @@ import { buildSpreadsheetCollaborationCallbacks } from '../buildSpreadsheetColla
 
 const ACTIVE_SHEET_ID = 'sheet-A'
 
-const buildMinimalCallbacks = (spreadsheetGridRef: { current: { forceAuthoritativeReapply: jest.Mock } | null }) => {
+const buildMinimalCallbacks = (
+  spreadsheetGridRef: { current: { forceAuthoritativeReapply: jest.Mock } | null },
+  coordinateForceGridReapply?: jest.Mock
+) => {
   const activeSheet = { id: ACTIVE_SHEET_ID, columns: [], data: [] } as any
   const spreadsheetSession = {
     getState: () => ({ activeSheetId: ACTIVE_SHEET_ID }),
@@ -51,7 +54,8 @@ const buildMinimalCallbacks = (spreadsheetGridRef: { current: { forceAuthoritati
     debugLog: jest.fn(),
     setActiveSheetId: () => undefined,
     getActiveSessionRows: () => [],
-    resolveKnownSheetVersion: () => 0
+    resolveKnownSheetVersion: () => 0,
+    coordinateForceGridReapply
   })
 }
 
@@ -118,5 +122,29 @@ describe('buildSpreadsheetCollaborationCallbacks forceGridReapply guard', () => 
       preferBulk: true,
       reason: 'column_reorder_fallback'
     })
+  })
+
+  it('routes server-authoritative repairs through the coordinated viewer callback', () => {
+    const forceAuthoritativeReapply = jest.fn()
+    const coordinateForceGridReapply = jest.fn()
+    const spreadsheetGridRef = { current: { forceAuthoritativeReapply } }
+    const callbacks = buildMinimalCallbacks(spreadsheetGridRef, coordinateForceGridReapply)
+    const region = { minRow: 3, maxRow: 3, minCol: 1, maxCol: 1 }
+
+    callbacks.forceGridReapply?.(ACTIVE_SHEET_ID, region, {
+      clearAllSignatures: false,
+      preferBulk: true,
+      reason: 'dirty_regions_from_backend_used',
+      pendingLocalFilterPolicy: 'server_authoritative_repair'
+    })
+
+    jest.runOnlyPendingTimers()
+    expect(coordinateForceGridReapply).toHaveBeenCalledWith(ACTIVE_SHEET_ID, region, {
+      clearAllSignatures: false,
+      preferBulk: true,
+      reason: 'dirty_regions_from_backend_used',
+      pendingLocalFilterPolicy: 'server_authoritative_repair'
+    })
+    expect(forceAuthoritativeReapply).not.toHaveBeenCalled()
   })
 })

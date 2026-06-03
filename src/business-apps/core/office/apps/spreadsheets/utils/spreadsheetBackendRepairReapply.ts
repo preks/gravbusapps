@@ -4,6 +4,7 @@ import type {
   PendingLocalFilterPolicy
 } from './spreadsheetAuthoritativeRegion'
 import { normalizeAuthoritativeGridReapplyTarget } from './spreadsheetAuthoritativeRegion'
+import type { SpreadsheetBulkRemoteCellItem } from '../core'
 import { getCanonicalRowId } from './spreadsheetRowIdentity'
 
 export type BackendDirtyRegionReapplyReason =
@@ -143,4 +144,61 @@ export function subtractAuthoritativeRepairRegions(params: {
   }
 
   return remaining
+}
+
+export function buildAuthoritativePaintCoverageRegions(
+  items: readonly Pick<SpreadsheetBulkRemoteCellItem, 'rowIndex' | 'colIndex'>[]
+): AuthoritativeGridRegion[] {
+  const columnsByRow = new Map<number, number[]>()
+
+  for (const item of items) {
+    if (!Number.isInteger(item.rowIndex) || item.rowIndex < 0) continue
+    if (!Number.isInteger(item.colIndex) || item.colIndex < 0) continue
+    const rowColumns = columnsByRow.get(item.rowIndex)
+    if (rowColumns) {
+      rowColumns.push(item.colIndex)
+      continue
+    }
+    columnsByRow.set(item.rowIndex, [item.colIndex])
+  }
+
+  const regions: AuthoritativeGridRegion[] = []
+  for (const [rowIndex, columns] of columnsByRow.entries()) {
+    const sortedColumns = Array.from(new Set(columns)).sort((left, right) => left - right)
+    let startCol = sortedColumns[0]
+    let previousCol = sortedColumns[0]
+
+    for (let index = 1; index < sortedColumns.length; index += 1) {
+      const nextCol = sortedColumns[index]
+      if (nextCol === previousCol + 1) {
+        previousCol = nextCol
+        continue
+      }
+      regions.push({
+        minRow: rowIndex,
+        maxRow: rowIndex,
+        minCol: startCol,
+        maxCol: previousCol
+      })
+      startCol = nextCol
+      previousCol = nextCol
+    }
+
+    if (typeof startCol === 'number' && typeof previousCol === 'number') {
+      regions.push({
+        minRow: rowIndex,
+        maxRow: rowIndex,
+        minCol: startCol,
+        maxCol: previousCol
+      })
+    }
+  }
+
+  return regions.sort(
+    (left, right) =>
+      left.minRow - right.minRow ||
+      left.minCol - right.minCol ||
+      left.maxRow - right.maxRow ||
+      left.maxCol - right.maxCol
+  )
 }

@@ -6,7 +6,10 @@ import type { SpreadsheetColumn, SpreadsheetSheet } from '../types/spreadsheet'
 import { workbookSnapshotMismatchesViewerRows } from '../utils/univerAdapter'
 import type { AuthoritativeGridRegion, PendingLocalFilterPolicy } from '../utils/spreadsheetAuthoritativeRegion'
 import { SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH } from '../utils/spreadsheetBulkRemoteConstants'
-import { buildAuthoritativePaintCellsFromViewerRows } from '../utils/spreadsheetAuthoritativeProjector'
+import {
+  buildAuthoritativePaintCellsFromViewerRows,
+  mergeAuthoritativePaintCellLists
+} from '../utils/spreadsheetAuthoritativeProjector'
 import {
   shouldBlockSpreadsheetPendingLocalMutationCellProtection,
   spreadsheetPendingLocalMutationCoordinateCellKey,
@@ -48,6 +51,7 @@ export interface UniverAuthoritativeGridSyncParams {
     clearAllSignatures: boolean
     reason?: string
     pendingLocalFilterPolicy?: PendingLocalFilterPolicy
+    preserveStagedDirectPaint?: boolean
   } | null>
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
   applyRemoteCellUpdate: (
@@ -128,6 +132,23 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     return items
   }
 
+  const itemTouchesRegion = (item: SpreadsheetBulkRemoteCellItem, region: AuthoritativeGridRegion): boolean =>
+    item.rowIndex >= region.minRow &&
+    item.rowIndex <= region.maxRow &&
+    item.colIndex >= region.minCol &&
+    item.colIndex <= region.maxCol
+
+  const hasExplicitStylePayload = (item: SpreadsheetBulkRemoteCellItem): boolean => {
+    const stylePatch = item.options?.stylePatch
+    const hasStylePatch =
+      stylePatch != null &&
+      ((stylePatch.set != null && Object.keys(stylePatch.set).length > 0) ||
+        (Array.isArray(stylePatch.unset) && stylePatch.unset.length > 0))
+    const univerStyles = item.options?.univerStyles
+    const hasUniverStyles = univerStyles != null && Object.keys(univerStyles).length > 0
+    return hasStylePatch || hasUniverStyles
+  }
+
   useEffect(() => {
     lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(data)
     lastSyncedGridColumnCountRef.current = columns.filter(column => column.isVisible !== false).length
@@ -199,19 +220,39 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     }
 
     let authoritativeBulkBuffer: SpreadsheetBulkRemoteCellItem[] = []
+    const sessionPaintCellCount = sessionPaintCells?.length ?? 0
+    const shouldMergeSessionPaintWithForcedRepair =
+      preferForcedRepairProjection &&
+      forcedSpec?.preserveStagedDirectPaint === true &&
+      Boolean(sessionPaintCells?.length)
     const shouldUseSessionPaintCells =
       !preferForcedRepairProjection && !preferPreparedRegionProjection && Boolean(sessionPaintCells?.length)
-    const isViewerStateReprojection = !shouldUseSessionPaintCells
+    const sessionPaintDecision:
+      | 'used'
+      | 'merged_with_forced_repair'
+      | 'forced_repair_precedence'
+      | 'prepared_region_precedence'
+      | 'not_staged' = shouldUseSessionPaintCells
+      ? 'used'
+      : shouldMergeSessionPaintWithForcedRepair
+        ? 'merged_with_forced_repair'
+        : preferForcedRepairProjection
+          ? 'forced_repair_precedence'
+          : preferPreparedRegionProjection
+            ? 'prepared_region_precedence'
+            : 'not_staged'
+    const isViewerStateReprojection = !shouldUseSessionPaintCells && !shouldMergeSessionPaintWithForcedRepair
+    let regionProjectedBuffer: SpreadsheetBulkRemoteCellItem[] = []
     if (shouldUseSessionPaintCells && sessionPaintCells && sessionPaintCells.length > 0) {
       authoritativeBulkBuffer = sessionPaintCells
     } else if (scanRegions.length > 0) {
-      authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns, { regions: scanRegions })
+      regionProjectedBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns, { regions: scanRegions })
       if (
-        authoritativeBulkBuffer.length === 0 &&
+        regionProjectedBuffer.length === 0 &&
         isForcedAuthoritativeReapply &&
         forcedSpec?.clearAllSignatures === true
       ) {
-        authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns, {
+        regionProjectedBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns, {
           regions: scanRegions.map(region => ({
             ...region,
             minCol: 0,
@@ -219,6 +260,10 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
           }))
         })
       }
+      authoritativeBulkBuffer =
+        shouldMergeSessionPaintWithForcedRepair && sessionPaintCells
+          ? mergeAuthoritativePaintCellLists(sessionPaintCells, regionProjectedBuffer)
+          : regionProjectedBuffer
     } else if (!hasCompletedAuthoritativeSyncRef.current && nextToken === 0) {
       authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns)
     } else {
@@ -230,6 +275,8 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     }
 
     const pendingLocalFilterPolicy = forcedSpec?.pendingLocalFilterPolicy ?? ('protect_in_flight_local_edits' as const)
+    const acknowledgedCellKeys = authoritativePaintMeta?.acknowledgedCellKeys ?? []
+    let filterBypassApplied = false
 
     const filterPendingLocalCells = (items: SpreadsheetBulkRemoteCellItem[]): SpreadsheetBulkRemoteCellItem[] => {
       const filtered: SpreadsheetBulkRemoteCellItem[] = []
@@ -250,6 +297,16 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
           row && column
             ? spreadsheetPendingLocalMutationSemanticCellKey(sheet.id, getCanonicalRowId(row), column.name)
             : null
+        const acknowledgedSemanticKey = row && column ? `${getCanonicalRowId(row)}\u0000${column.name}` : null
+        if (
+          semanticProtectionKey &&
+          acknowledgedSemanticKey &&
+          acknowledgedCellKeys.includes(acknowledgedSemanticKey)
+        ) {
+          filterBypassApplied = true
+          filtered.push(item)
+          continue
+        }
         const nextProtectionSignature = normalizeBlankLikeEchoSignature(toEchoSignature(item.value ?? ''))
         const isPendingLocalMutationCell =
           shouldBlockSpreadsheetPendingLocalMutationCellProtection(
@@ -274,12 +331,13 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
 
     const projectedBufferBeforeFilter = authoritativeBulkBuffer
     const filteredProjectedBuffer = filterPendingLocalCells(projectedBufferBeforeFilter)
-    const filterBypassApplied = false
     let filterDropReason:
       | 'none'
       | 'projector_empty'
       | 'primary_filtered_to_zero'
       | 'fallback_filtered_to_zero'
+      | 'session_paint_fallback_restored'
+      | 'style_session_fallback_restored'
       | 'fallback_bypass_restored' = projectedBufferBeforeFilter.length === 0 ? 'projector_empty' : 'none'
     authoritativeBulkBuffer = filteredProjectedBuffer
     if (
@@ -298,6 +356,26 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
         filterDropReason = 'fallback_filtered_to_zero'
       }
     }
+    if (
+      authoritativeBulkBuffer.length === 0 &&
+      isForcedAuthoritativeReapply &&
+      scanRegions.length > 0 &&
+      sessionPaintCells?.length
+    ) {
+      const stagedSessionFallbackBuffer =
+        forcedSpec?.preserveStagedDirectPaint === true
+          ? sessionPaintCells.filter(item => scanRegions.some(region => itemTouchesRegion(item, region)))
+          : sessionPaintCells.filter(
+              item => hasExplicitStylePayload(item) && scanRegions.some(region => itemTouchesRegion(item, region))
+            )
+      if (stagedSessionFallbackBuffer.length > 0) {
+        authoritativeBulkBuffer = stagedSessionFallbackBuffer
+        filterDropReason =
+          forcedSpec?.preserveStagedDirectPaint === true
+            ? 'session_paint_fallback_restored'
+            : 'style_session_fallback_restored'
+      }
+    }
 
     const allowAuthoritativeBulkFlush = !isForcedAuthoritativeReapply || !forcedSpec || forcedSpec.preferBulk !== false
 
@@ -308,6 +386,8 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       reason: forcedSpec?.reason,
       preferForcedRepairProjection,
       preferPreparedRegionProjection,
+      sessionPaintCellCount,
+      sessionPaintDecision,
       projectedCellCount: projectedBufferBeforeFilter.length,
       filteredProjectedCellCount: filteredProjectedBuffer.length,
       finalCellCount: authoritativeBulkBuffer.length,
@@ -324,6 +404,8 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       forced: isForcedAuthoritativeReapply,
       preferForcedRepairProjection,
       preferPreparedRegionProjection,
+      sessionPaintCellCount,
+      sessionPaintDecision,
       regionOnly: scanRegions.length > 0,
       regionCount: scanRegions.length,
       sessionDerived: Boolean(sessionPaintCells?.length),
@@ -348,6 +430,7 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       for (const it of authoritativeBulkBuffer) {
         applyRemoteCellUpdate(it.rowIndex, it.colIndex, it.value ?? '', it.rowId, {
           ...it.options,
+          acknowledgedCellKeys: it.options?.acknowledgedCellKeys ?? applyMeta.acknowledgedCellKeys,
           skipRemoteEchoRegistration: it.options?.skipRemoteEchoRegistration ?? applyMeta.skipRemoteEchoRegistration
         })
       }

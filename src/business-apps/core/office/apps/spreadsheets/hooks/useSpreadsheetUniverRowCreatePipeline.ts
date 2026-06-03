@@ -61,6 +61,10 @@ const ROW_MATERIALIZATION_IDLE_MS = 400
  * being held client-side indefinitely (mitigates the multi-user data-loss window).
  */
 const ROW_MATERIALIZATION_MAX_WAIT_MS = 1_200
+const ROW_MATERIALIZATION_COLLAB_IDLE_MS = 120
+const ROW_MATERIALIZATION_COLLAB_MAX_WAIT_MS = 350
+const ROW_MATERIALIZATION_COLLAB_BURST_IDLE_MS = 180
+const ROW_MATERIALIZATION_COLLAB_BURST_MAX_WAIT_MS = 500
 
 type MaterializationDebounceState = {
   timer: ReturnType<typeof setTimeout> | null
@@ -69,12 +73,50 @@ type MaterializationDebounceState = {
   resolvers: Array<{ resolve: () => void; reject: (error: unknown) => void }>
 }
 
+function resolveRowMaterializationDebounceWindow(params: {
+  collaborationConnected?: boolean
+  collaborationParticipantCount?: number
+  pendingTemporaryRowCount?: number
+}): {
+  idleMs: number
+  maxWaitMs: number
+} {
+  const hasActiveCollaborators =
+    params.collaborationConnected === true && (params.collaborationParticipantCount ?? 0) > 0
+  if (!hasActiveCollaborators) {
+    return {
+      idleMs: ROW_MATERIALIZATION_IDLE_MS,
+      maxWaitMs: ROW_MATERIALIZATION_MAX_WAIT_MS
+    }
+  }
+  if ((params.pendingTemporaryRowCount ?? 0) > 1) {
+    return {
+      idleMs: ROW_MATERIALIZATION_COLLAB_BURST_IDLE_MS,
+      maxWaitMs: ROW_MATERIALIZATION_COLLAB_BURST_MAX_WAIT_MS
+    }
+  }
+  return {
+    idleMs: ROW_MATERIALIZATION_COLLAB_IDLE_MS,
+    maxWaitMs: ROW_MATERIALIZATION_COLLAB_MAX_WAIT_MS
+  }
+}
+
+const countPendingTemporaryRows = (rows: Array<Record<string, unknown>>): number =>
+  rows.reduce((count, row) => {
+    const isProbablyTemporaryIdentity = (value: string): boolean =>
+      isSpreadsheetTemporaryClientRowId(value) || value.startsWith('client-')
+    const hasTemporaryIdentity = getViewerRowIdentityCandidates(row).some(isProbablyTemporaryIdentity)
+    return hasTemporaryIdentity ? count + 1 : count
+  }, 0)
+
 export function useSpreadsheetUniverRowCreatePipeline(
   params: UseSpreadsheetUniverRowCreatePipelineParams
 ): UseSpreadsheetUniverRowCreatePipelineResult {
   const {
     activeSheetIdRef,
     activeSheetColumns,
+    collaborationConnected,
+    collaborationParticipantCount,
     pendingLocalMutationCellsRef,
     getColumnsForSheet,
     isUuid,
@@ -862,13 +904,20 @@ export function useSpreadsheetUniverRowCreatePipeline(
         )
       }
 
+      const debounceWindow = resolveRowMaterializationDebounceWindow({
+        collaborationConnected,
+        collaborationParticipantCount,
+        pendingTemporaryRowCount: latestUniverDataRef.current?.data
+          ? countPendingTemporaryRows(latestUniverDataRef.current.data)
+          : 0
+      })
       // Cap the total deferral so continuous typing still flushes periodically.
       const elapsed = now - debounce.firstScheduledAt
-      const remainingMaxWait = Math.max(0, ROW_MATERIALIZATION_MAX_WAIT_MS - elapsed)
-      const delay = Math.min(ROW_MATERIALIZATION_IDLE_MS, remainingMaxWait)
+      const remainingMaxWait = Math.max(0, debounceWindow.maxWaitMs - elapsed)
+      const delay = Math.min(debounceWindow.idleMs, remainingMaxWait)
       debounce.timer = setTimeout(flush, delay)
     })
-  }, [activeSheetIdRef, latestUniverDataRef, materializeRows])
+  }, [activeSheetIdRef, collaborationConnected, collaborationParticipantCount, latestUniverDataRef, materializeRows])
 
   const materializeTemporaryRowsForSubmit = useCallback(
     async (targetSheetId: string, rows: Array<Record<string, unknown>>) => {

@@ -2,6 +2,7 @@
 
 import type { DocumentOperation } from '@/business-apps/platform/apps/shared/services/CollaborationClient'
 import type {
+  SpreadsheetBulkRemoteApplyResult,
   SpreadsheetBulkRemoteApplyMeta,
   SpreadsheetBulkRemoteCellItem,
   SpreadsheetCollaborationCallbacks,
@@ -107,6 +108,21 @@ interface SpreadsheetStaleRecoveryState {
   active: boolean
   watermarkVersion: number
 }
+
+interface DeferredSnapshotFallbackEntry {
+  timer: ReturnType<typeof setTimeout>
+  sheetId: string
+  reason: SpreadsheetSnapshotFallbackReason
+  immediate?: boolean
+  detail?: string
+  version?: number | null
+  traceSessionId?: string
+  traceId?: string
+  batchId?: string
+  operationType?: string
+}
+
+type StaleDataOpCatchUpDecision = 'scheduled' | 'covered_skip' | 'recovery_active' | 'coalesced'
 
 const mapCreatedRowsFromWireRows = (rows: unknown): ViewerRow[] => {
   if (!Array.isArray(rows)) return []
@@ -382,7 +398,7 @@ export class SpreadsheetCollaborationManager {
   private appliedCommittedBatchKeys = new Set<string>()
   private readonly snapshotFallbackController: SpreadsheetSnapshotFallbackController
   private readonly blockedRecoveryTracker = new SpreadsheetCollaborationBlockedRecoveryTracker()
-  private readonly deferredSnapshotFallbackTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private readonly deferredSnapshotFallbackTimers = new Map<string, DeferredSnapshotFallbackEntry>()
   private readonly coalescedCatchUpSinceVersionByKey = new Map<string, number>()
   private readonly staleRecoveryStateBySheet = new Map<string, SpreadsheetStaleRecoveryState>()
 
@@ -427,16 +443,53 @@ export class SpreadsheetCollaborationManager {
     return next
   }
 
-  private shouldSuppressStaleRecovery(sheetId: string, incomingVersion: number): boolean {
+  private clearDeferredVersionSnapshotFallbacks(sheetId: string, resolution: 'catchup_applied' | 'catchup_noop'): void {
+    for (const [deferKey, entry] of this.deferredSnapshotFallbackTimers) {
+      if (entry.sheetId !== sheetId || !isVersionRelatedSnapshotFallbackReason(entry.reason)) {
+        continue
+      }
+      globalThis.clearTimeout(entry.timer)
+      this.deferredSnapshotFallbackTimers.delete(deferKey)
+      this.collabDiag('snapshot_fallback_resolved_by_delta', {
+        sheetId: entry.sheetId,
+        reason: entry.reason,
+        detail: resolution
+      })
+      this.traceEvent({
+        source: 'client',
+        stage: 'client_snapshot_fallback_resolved_by_delta',
+        severity: 'info',
+        traceSessionId: entry.traceSessionId,
+        traceId: entry.traceId,
+        batchId: entry.batchId,
+        operationType: entry.operationType,
+        version: entry.version ?? null,
+        payload: {
+          sheetId: entry.sheetId,
+          reason: entry.reason,
+          resolution
+        }
+      })
+    }
+  }
+
+  private shouldSuppressStaleRecovery(
+    sheetId: string,
+    incomingVersion: number,
+    options?: { replayCritical?: boolean; stateCovered?: boolean }
+  ): 'covered_by_recovery_watermark' | 'recovery_active' | null {
     const state = this.getStaleRecoveryState(sheetId)
     if (incomingVersion <= state.watermarkVersion) {
+      if (options?.replayCritical && options.stateCovered !== true) {
+        return null
+      }
       this.collabDiag('collab_stale_data_op_suppressed', {
         sheetId,
         incomingVersion,
         reason: 'covered_by_recovery_watermark',
         watermarkVersion: state.watermarkVersion
       })
-      return true
+      return 'covered_by_recovery_watermark'
     }
     if (state.active) {
       this.collabDiag('collab_stale_data_op_suppressed', {
@@ -445,9 +498,9 @@ export class SpreadsheetCollaborationManager {
         reason: 'recovery_active',
         watermarkVersion: state.watermarkVersion
       })
-      return true
+      return 'recovery_active'
     }
-    return false
+    return null
   }
 
   private requestSheetCatchUpCoalesced(
@@ -478,9 +531,157 @@ export class SpreadsheetCollaborationManager {
     return true
   }
 
-  private requestStaleDataOpCatchUp(params: {
+  private findViewerRowByRemoteId(sheetId: string, remoteRowId: string): ViewerRow | undefined {
+    if (!remoteRowId) return undefined
+    return this.getSheetData(sheetId).find(row => rowMatchesRemoteRowId(row, remoteRowId))
+  }
+
+  private areViewerRowValuesCovered(sheetId: string, row: ViewerRow, expected: Record<string, unknown>): boolean {
+    const columns = this.getColumnsForSheet(sheetId)
+    const columnsByKey = new Map(
+      columns.flatMap(column =>
+        [column.id, column.name, column.label]
+          .filter((value): value is string => typeof value === 'string' && value.length > 0)
+          .map(key => [key, column] as const)
+      )
+    )
+    for (const [key, value] of Object.entries(expected)) {
+      if (key === '_updatedAt' || key === '_id' || key === '_rowUuid' || key === '_clientRowId' || key === 'id') {
+        continue
+      }
+      const targetColumnName = this.resolveColumnName(key, sheetId)
+      const targetColumn = columnsByKey.get(key) ?? columnsByKey.get(targetColumnName)
+      const normalizedExpected = normalizeCellValueForBatchPersistence(value, targetColumn)
+      if (!Object.is(row[targetColumnName], normalizedExpected)) {
+        return false
+      }
+    }
+    return true
+  }
+
+  private buildStateCoverageUpdatesByRowId(
+    operationType: string,
+    data: unknown,
     sheetId: string
-    sinceVersion: number
+  ): Map<string, Record<string, unknown>> | null {
+    if (!data || typeof data !== 'object') return null
+    const payload = data as Record<string, unknown>
+    if (operationType === 'set_cell') {
+      const rowId = String(payload.rowId ?? '')
+      const column = String(payload.columnName ?? payload.column ?? '')
+      if (!rowId || !column) return null
+      const targetColumnName = this.resolveColumnName(column, sheetId)
+      const targetColumn = this.getColumnsForSheet(sheetId).find(
+        existing => existing.id === column || existing.name === targetColumnName || existing.label === column
+      )
+      return new Map([
+        [
+          rowId,
+          {
+            [targetColumnName]: normalizeCellValueForBatchPersistence(payload.value, targetColumn)
+          }
+        ]
+      ])
+    }
+    if (operationType === 'clear_cell') {
+      const rowId = String(payload.rowId ?? '')
+      const column = String(payload.columnName ?? payload.column ?? '')
+      if (!rowId || !column) return null
+      return new Map([[rowId, { [this.resolveColumnName(column, sheetId)]: null }]])
+    }
+    if (operationType === 'set_range' || operationType === 'cells_changed') {
+      const cells = payload.cells
+      if (!Array.isArray(cells)) return null
+      const updatesByRowId = new Map<string, Record<string, unknown>>()
+      for (const cell of cells) {
+        if (!cell || typeof cell !== 'object') continue
+        const record = cell as Record<string, unknown>
+        const rowId = String(record.rowId ?? '')
+        const column = String(record.columnName ?? record.column ?? '')
+        if (!rowId || !column) continue
+        if (operationType === 'cells_changed' && !Object.prototype.hasOwnProperty.call(record, 'value')) {
+          continue
+        }
+        const targetColumnName = this.resolveColumnName(column, sheetId)
+        const targetColumn = this.getColumnsForSheet(sheetId).find(
+          existing => existing.id === column || existing.name === targetColumnName || existing.label === column
+        )
+        const normalizedValue =
+          operationType === 'set_range' && !Object.prototype.hasOwnProperty.call(record, 'value')
+            ? null
+            : normalizeCellValueForBatchPersistence(record.value, targetColumn)
+        const existing = updatesByRowId.get(rowId) ?? {}
+        existing[targetColumnName] = normalizedValue
+        updatesByRowId.set(rowId, existing)
+      }
+      return updatesByRowId.size > 0 ? updatesByRowId : null
+    }
+    if (operationType === 'row_update') {
+      const rowId = String(payload.rowId ?? '')
+      const rowData = payload.rowData
+      if (!rowId || !rowData || typeof rowData !== 'object') return null
+      const normalizedUpdates: Record<string, unknown> = {}
+      for (const [columnKey, value] of Object.entries(rowData as Record<string, unknown>)) {
+        if (columnKey === '_updatedAt') continue
+        normalizedUpdates[this.resolveColumnName(columnKey, sheetId)] = value
+      }
+      return Object.keys(normalizedUpdates).length > 0 ? new Map([[rowId, normalizedUpdates]]) : null
+    }
+    return null
+  }
+
+  private isReplayCriticalOperationStateCovered(
+    sheetId: string,
+    operation: CollaborationOperation['operation']
+  ): boolean {
+    const type = typeof operation.type === 'string' ? operation.type : ''
+    if (!type) return false
+    if (type === 'batch_operations') {
+      const operations = (operation.data as { operations?: Array<CollaborationOperation['operation']> } | undefined)
+        ?.operations
+      return Array.isArray(operations) && operations.length > 0
+        ? operations.every(inner => this.isReplayCriticalOperationStateCovered(sheetId, inner))
+        : false
+    }
+    const updatesByRowId = this.buildStateCoverageUpdatesByRowId(type, operation.data, sheetId)
+    if (updatesByRowId) {
+      return Array.from(updatesByRowId.entries()).every(([rowId, updates]) => {
+        const row = this.findViewerRowByRemoteId(sheetId, rowId)
+        return row ? this.areViewerRowValuesCovered(sheetId, row, updates) : false
+      })
+    }
+    if (type === 'add_rows' || type === 'insert_rows_at' || type === 'insert_row_slots') {
+      const createdRows = mapCreatedRowsFromWireRows((operation.data as Record<string, unknown> | undefined)?.rows)
+      return createdRows.length > 0
+        ? createdRows.every(createdRow => {
+            const rowId = getCanonicalRowId(createdRow)
+            const row = rowId ? this.findViewerRowByRemoteId(sheetId, rowId) : undefined
+            return row ? this.areViewerRowValuesCovered(sheetId, row, createdRow) : false
+          })
+        : false
+    }
+    if (type === 'row_add') {
+      const placeholderRows = rowPlaceholdersFromIds((operation.data as Record<string, unknown> | undefined)?.rowIds)
+      return placeholderRows.length > 0
+        ? placeholderRows.every(row => {
+            const rowId = getCanonicalRowId(row)
+            return rowId ? Boolean(this.findViewerRowByRemoteId(sheetId, rowId)) : false
+          })
+        : false
+    }
+    if (type === 'delete_rows' || type === 'row_delete') {
+      const rowIds = Array.isArray((operation.data as Record<string, unknown> | undefined)?.rowIds)
+        ? ((operation.data as Record<string, unknown>).rowIds as unknown[])
+            .map(rowId => String(rowId ?? ''))
+            .filter(Boolean)
+        : []
+      return rowIds.length > 0 ? rowIds.every(rowId => this.findViewerRowByRemoteId(sheetId, rowId) == null) : false
+    }
+    return false
+  }
+
+  private traceReplayCriticalCoveredSkip(params: {
+    sheetId: string
     incomingVersion: number
     knownVersion: number | null
     operationType: string
@@ -489,11 +690,50 @@ export class SpreadsheetCollaborationManager {
       traceId?: string
       batchId?: string
     }
+  }): void {
+    this.collabDiag('collab_stale_data_op_covered_skip', {
+      sheetId: params.sheetId,
+      incomingVersion: params.incomingVersion,
+      knownVersion: params.knownVersion ?? -1,
+      opType: params.operationType
+    })
+    this.traceEvent({
+      source: 'client',
+      stage: 'client_collab_receive_skipped',
+      severity: 'info',
+      traceSessionId: params.traceMeta?.traceSessionId,
+      traceId: params.traceMeta?.traceId,
+      batchId: params.traceMeta?.batchId,
+      operationType: params.operationType,
+      version: params.incomingVersion,
+      payload: {
+        reason: 'stale_version_data_op_covered',
+        knownVersion: params.knownVersion
+      }
+    })
+  }
+
+  private requestStaleDataOpCatchUp(params: {
+    sheetId: string
+    sinceVersion: number
+    incomingVersion: number
+    knownVersion: number | null
+    operationType: string
+    stateCovered: boolean
+    traceMeta?: {
+      traceSessionId?: string
+      traceId?: string
+      batchId?: string
+    }
     diagnosticsStage?:
       | 'client_collab_stale_data_op_catchup_requested'
       | 'client_committed_batch_version_ahead_catchup_requested'
-  }): boolean {
-    if (this.shouldSuppressStaleRecovery(params.sheetId, params.incomingVersion)) {
+  }): StaleDataOpCatchUpDecision {
+    const suppressionReason = this.shouldSuppressStaleRecovery(params.sheetId, params.incomingVersion, {
+      replayCritical: true,
+      stateCovered: params.stateCovered
+    })
+    if (suppressionReason) {
       this.traceEvent({
         source: 'client',
         stage: 'client_collab_receive_skipped',
@@ -504,14 +744,17 @@ export class SpreadsheetCollaborationManager {
         operationType: params.operationType,
         version: params.incomingVersion,
         payload: {
-          reason: 'stale_version_data_op_suppressed',
+          reason:
+            suppressionReason === 'recovery_active'
+              ? 'stale_version_data_op_recovery_active'
+              : 'stale_version_data_op_covered',
           sheetId: params.sheetId,
           knownVersion: params.knownVersion,
           sinceVersion: params.sinceVersion,
           incomingVersion: params.incomingVersion
         }
       })
-      return false
+      return suppressionReason === 'recovery_active' ? 'recovery_active' : 'covered_skip'
     }
 
     const scheduled = this.requestSheetCatchUpCoalesced(params.sheetId, 'stale_version_data_op', {
@@ -519,7 +762,7 @@ export class SpreadsheetCollaborationManager {
       incomingVersion: params.incomingVersion
     })
     if (!scheduled) {
-      return false
+      return 'coalesced'
     }
 
     this.patchStaleRecoveryState(params.sheetId, current => ({
@@ -549,7 +792,7 @@ export class SpreadsheetCollaborationManager {
         incomingVersion: params.incomingVersion
       }
     })
-    return true
+    return 'scheduled'
   }
 
   private traceEvent(event: SpreadsheetTraceEventInput): void {
@@ -577,6 +820,9 @@ export class SpreadsheetCollaborationManager {
         case 'catchup_noop':
         case 'catchup_applied':
         case 'snapshot_reload_succeeded':
+          if (params.stage === 'catchup_noop' || params.stage === 'catchup_applied') {
+            this.clearDeferredVersionSnapshotFallbacks(params.sheetId, params.stage)
+          }
           return {
             active: false,
             watermarkVersion:
@@ -608,7 +854,6 @@ export class SpreadsheetCollaborationManager {
   }): boolean {
     const resolvedSheetId = params.sheetId ?? this.callbacks.getActiveSheetId()
     if (
-      params.immediate !== true &&
       isVersionRelatedSnapshotFallbackReason(params.reason) &&
       this.callbacks.isSheetPersistenceBusy?.(resolvedSheetId)
     ) {
@@ -658,36 +903,47 @@ export class SpreadsheetCollaborationManager {
         detail: params.detail ?? null
       }
     })
-    const timer = globalThis.setTimeout(() => {
-      this.deferredSnapshotFallbackTimers.delete(deferKey)
-      if (this.callbacks.isSheetPersistenceBusy?.(params.sheetId)) {
-        this.collabDiag('snapshot_fallback_deferred_still_busy', {
+    const entry: DeferredSnapshotFallbackEntry = {
+      timer: globalThis.setTimeout(() => {
+        this.deferredSnapshotFallbackTimers.delete(deferKey)
+        if (this.callbacks.isSheetPersistenceBusy?.(params.sheetId)) {
+          this.collabDiag('snapshot_fallback_deferred_still_busy', {
+            sheetId: params.sheetId,
+            reason: params.reason
+          })
+          this.executeSnapshotFallbackRequest(params)
+          return
+        }
+        this.collabDiag('snapshot_fallback_resolved_by_delta', {
           sheetId: params.sheetId,
           reason: params.reason
         })
-        this.executeSnapshotFallbackRequest(params)
-        return
-      }
-      this.collabDiag('snapshot_fallback_resolved_by_delta', {
-        sheetId: params.sheetId,
-        reason: params.reason
-      })
-      this.traceEvent({
-        source: 'client',
-        stage: 'client_snapshot_fallback_resolved_by_delta',
-        severity: 'info',
-        traceSessionId: params.traceSessionId,
-        traceId: params.traceId,
-        batchId: params.batchId,
-        operationType: params.operationType,
-        version: params.version ?? null,
-        payload: {
-          sheetId: params.sheetId,
-          reason: params.reason
-        }
-      })
-    }, 350)
-    this.deferredSnapshotFallbackTimers.set(deferKey, timer)
+        this.traceEvent({
+          source: 'client',
+          stage: 'client_snapshot_fallback_resolved_by_delta',
+          severity: 'info',
+          traceSessionId: params.traceSessionId,
+          traceId: params.traceId,
+          batchId: params.batchId,
+          operationType: params.operationType,
+          version: params.version ?? null,
+          payload: {
+            sheetId: params.sheetId,
+            reason: params.reason
+          }
+        })
+      }, 350),
+      sheetId: params.sheetId,
+      reason: params.reason,
+      immediate: params.immediate,
+      detail: params.detail,
+      version: params.version ?? null,
+      traceSessionId: params.traceSessionId,
+      traceId: params.traceId,
+      batchId: params.batchId,
+      operationType: params.operationType
+    }
+    this.deferredSnapshotFallbackTimers.set(deferKey, entry)
     return true
   }
 
@@ -789,6 +1045,9 @@ export class SpreadsheetCollaborationManager {
       batchId: params.batch.batchId
     })
     if (action.kind === 'skip') {
+      if (params.reason !== 'duplicate') {
+        this.tryApplyCommittedBatchCellOpsToGrid(params.batch)
+      }
       this.collabDiag('blocked_recovery_resolved', {
         sheetId: params.batch.sheetId,
         reason: params.reason,
@@ -1178,18 +1437,31 @@ export class SpreadsheetCollaborationManager {
       if (knownVersion != null && normalizedVersion < knownVersion) {
         const requestCatchUp = this.callbacks.requestSheetCatchUp
         const staleCriticalCategory = this.getStaleVersionReplayCriticalCategory(operation)
+        const staleOpStateCovered =
+          staleCriticalCategory != null ? this.isReplayCriticalOperationStateCovered(opSheetId, operation) : false
+        if (staleCriticalCategory && staleOpStateCovered) {
+          this.traceReplayCriticalCoveredSkip({
+            sheetId: opSheetId,
+            incomingVersion: normalizedVersion,
+            knownVersion,
+            operationType: operation.type,
+            traceMeta
+          })
+          return
+        }
         if (requestCatchUp && staleCriticalCategory) {
           const sinceVersion = Math.max(0, normalizedVersion - 1)
-          const scheduled = this.requestStaleDataOpCatchUp({
+          const catchUpDecision = this.requestStaleDataOpCatchUp({
             sheetId: opSheetId,
             sinceVersion,
             incomingVersion: normalizedVersion,
             knownVersion,
             operationType: operation.type,
+            stateCovered: staleOpStateCovered,
             traceMeta,
             diagnosticsStage: 'client_collab_stale_data_op_catchup_requested'
           })
-          if (scheduled) return
+          if (catchUpDecision) return
         }
         this.collabDiag('collab_receive_stale_version_skipped', {
           opType: operation.type,
@@ -1211,6 +1483,32 @@ export class SpreadsheetCollaborationManager {
         return
       }
       if (knownVersion != null && normalizedVersion === knownVersion && operation.type !== 'batch_operations') {
+        const staleCriticalCategory = this.getStaleVersionReplayCriticalCategory(operation)
+        const staleOpStateCovered =
+          staleCriticalCategory != null ? this.isReplayCriticalOperationStateCovered(opSheetId, operation) : false
+        if (staleCriticalCategory && staleOpStateCovered) {
+          this.traceReplayCriticalCoveredSkip({
+            sheetId: opSheetId,
+            incomingVersion: normalizedVersion,
+            knownVersion,
+            operationType: operation.type,
+            traceMeta
+          })
+          return
+        }
+        if (this.callbacks.requestSheetCatchUp && staleCriticalCategory) {
+          const catchUpDecision = this.requestStaleDataOpCatchUp({
+            sheetId: opSheetId,
+            sinceVersion: Math.max(0, normalizedVersion - 1),
+            incomingVersion: normalizedVersion,
+            knownVersion,
+            operationType: operation.type,
+            stateCovered: staleOpStateCovered,
+            traceMeta,
+            diagnosticsStage: 'client_collab_stale_data_op_catchup_requested'
+          })
+          if (catchUpDecision) return
+        }
         this.collabDiag('collab_receive_stale_version_skipped', {
           opType: operation.type,
           sheetId: opSheetId,
@@ -1358,6 +1656,7 @@ export class SpreadsheetCollaborationManager {
         knownVersion === committedBatch.appliedVersion &&
         this.appliedCommittedBatchKeys.has(dedupeKey)
       ) {
+        this.tryApplyCommittedBatchCellOpsToGrid(committedBatch)
         this.collabDiag('committed_batch_already_reflected_skipped', {
           sheetId: committedBatch.sheetId,
           incomingVersion: committedBatch.appliedVersion,
@@ -1393,6 +1692,7 @@ export class SpreadsheetCollaborationManager {
           incomingVersion: committedBatch.appliedVersion,
           knownVersion,
           operationType: operation.type,
+          stateCovered: false,
           traceMeta: {
             traceSessionId: committedBatch.traceSessionId ?? traceMeta.traceSessionId,
             traceId: committedBatch.traceId ?? traceMeta.traceId,
@@ -1703,6 +2003,7 @@ export class SpreadsheetCollaborationManager {
           incomingVersion: appliedVersion,
           knownVersion,
           operationType: operation.type,
+          stateCovered: false,
           traceMeta
         })
         if (scheduled) return
@@ -1756,6 +2057,7 @@ export class SpreadsheetCollaborationManager {
             incomingVersion: appliedVersion ?? knownVersion ?? 0,
             knownVersion,
             operationType: operation.type,
+            stateCovered: false,
             traceMeta
           })
           if (scheduled) return
@@ -1781,6 +2083,7 @@ export class SpreadsheetCollaborationManager {
           incomingVersion: appliedVersion ?? knownVersion ?? 0,
           knownVersion,
           operationType: operation.type,
+          stateCovered: false,
           traceMeta
         })
       }
@@ -1860,6 +2163,7 @@ export class SpreadsheetCollaborationManager {
         incomingVersion: normalizedIncomingVersion,
         knownVersion,
         operationType,
+        stateCovered: false,
         traceMeta
       })
       return
@@ -2310,9 +2614,19 @@ export class SpreadsheetCollaborationManager {
       )
       const sessionDiffProjectionMode =
         committedBatch.sheetId === activeSheetId && needsStructuralGridSync ? ('skip' as const) : undefined
+      const shouldSkipLocalStructuralGridSync =
+        isSameUser &&
+        committedBatch.sheetId === activeSheetId &&
+        sessionDiffProjectionMode === 'skip' &&
+        !hasPersistedCellOps
       this.commitSheetData(committedBatch.sheetId, sessionRowsWithPlacements, {
         persisted: true,
-        syncGrid: committedBatch.sheetId === activeSheetId && (needsStructuralGridSync || hasPersistedCellOps),
+        syncGrid:
+          committedBatch.sheetId === activeSheetId &&
+          (hasPersistedCellOps || (needsStructuralGridSync && !shouldSkipLocalStructuralGridSync)),
+        ...(sessionDiffProjectionMode === 'skip' && !hasPersistedCellOps
+          ? { suppressAuthoritativeDataSyncToken: true }
+          : {}),
         ...(sessionDiffProjectionMode ? { sessionDiffProjectionMode } : {}),
         ...(committedBatch.sheetId === activeSheetId && hasPersistedCellOps && deferredCommittedApply
           ? {
@@ -3482,10 +3796,9 @@ export class SpreadsheetCollaborationManager {
         // plain append path with another bounded reapply.
         const skipForcedReapply =
           operationType === 'add_rows' &&
-          (projectorOwnsCreatedRowValues ||
-            (createdRowsApplyResult != null &&
-              createdRowsApplyResult.bulkPainted &&
-              createdRowsApplyResult.paintedRegion != null))
+          createdRowsApplyResult != null &&
+          createdRowsApplyResult.visiblePaintConfirmed &&
+          createdRowsApplyResult.paintedRegion != null
         if (!skipForcedReapply) {
           const dirty =
             dirtyRegion ??
@@ -3499,6 +3812,22 @@ export class SpreadsheetCollaborationManager {
               reason: 'row_structure_catchup'
             })
           }
+          if (operationType === 'add_rows' && createdRowsApplyResult?.paintStatus === 'filtered_to_zero') {
+            this.traceEvent({
+              source: 'client',
+              stage: 'client_collab_add_rows_bounded_repair_after_zero_visible_paint',
+              traceSessionId: traceMeta?.traceSessionId,
+              traceId: traceMeta?.traceId,
+              batchId: traceMeta?.batchId,
+              operationType,
+              payload: {
+                targetSheetId,
+                attemptedCellCount: createdRowsApplyResult.cellsAttempted,
+                skippedCellCount: createdRowsApplyResult.skippedCellCount,
+                region: createdRowsApplyResult.paintedRegion
+              }
+            })
+          }
         } else {
           this.traceEvent({
             source: 'client',
@@ -3509,9 +3838,11 @@ export class SpreadsheetCollaborationManager {
             operationType,
             payload: {
               targetSheetId,
-              cellsPainted: createdRowsApplyResult?.cellsPainted ?? 0,
+              cellsPainted: createdRowsApplyResult?.cellsAttempted ?? 0,
               region: createdRowsApplyResult?.paintedRegion ?? null,
-              projectorOwnedValues: projectorOwnsCreatedRowValues
+              projectorOwnedValues: projectorOwnsCreatedRowValues,
+              paintStatus: createdRowsApplyResult?.paintStatus ?? null,
+              visiblePaintConfirmed: createdRowsApplyResult?.visiblePaintConfirmed ?? false
             }
           })
         }
@@ -3594,7 +3925,7 @@ export class SpreadsheetCollaborationManager {
             // bulk paint already covered the created rows. `insert_rows_at` keeps the forced
             // reapply because its dirty region also shifts existing rows below the insert point.
             const skipForcedReapply =
-              !isInsertAtOp && hydrationApplyResult.bulkPainted && hydrationApplyResult.paintedRegion != null
+              !isInsertAtOp && hydrationApplyResult.visiblePaintConfirmed && hydrationApplyResult.paintedRegion != null
             if (!skipForcedReapply) {
               const dirty = isInsertAtOp
                 ? this.buildDirtyRegionForInsertedRows(targetSheetId, nextRows, insertAt)
@@ -3604,6 +3935,22 @@ export class SpreadsheetCollaborationManager {
                   clearAllSignatures: false,
                   preferBulk: true,
                   reason: 'row_add_hydration_catchup'
+                })
+              }
+              if (!isInsertAtOp && hydrationApplyResult.paintStatus === 'filtered_to_zero') {
+                this.traceEvent({
+                  source: 'client',
+                  stage: 'client_collab_row_add_hydration_bounded_repair_after_zero_visible_paint',
+                  traceSessionId: traceMeta?.traceSessionId,
+                  traceId: traceMeta?.traceId,
+                  batchId: traceMeta?.batchId,
+                  operationType: 'row_add',
+                  payload: {
+                    targetSheetId,
+                    attemptedCellCount: hydrationApplyResult.cellsAttempted,
+                    skippedCellCount: hydrationApplyResult.skippedCellCount,
+                    region: hydrationApplyResult.paintedRegion
+                  }
                 })
               }
             }
@@ -3662,8 +4009,20 @@ export class SpreadsheetCollaborationManager {
     targetSheetId: string,
     allRows: ViewerRow[],
     createdRows: ViewerRow[]
-  ): { bulkPainted: boolean; paintedRegion: AuthoritativeGridRegion | null; cellsPainted: number } {
-    const emptyResult = { bulkPainted: false, paintedRegion: null, cellsPainted: 0 }
+  ): {
+    paintStatus: SpreadsheetBulkRemoteApplyResult['status'] | null
+    visiblePaintConfirmed: boolean
+    paintedRegion: AuthoritativeGridRegion | null
+    cellsAttempted: number
+    skippedCellCount: number
+  } {
+    const emptyResult = {
+      paintStatus: null,
+      visiblePaintConfirmed: false,
+      paintedRegion: null,
+      cellsAttempted: 0,
+      skippedCellCount: 0
+    }
     if (createdRows.length === 0) return emptyResult
     const visibleColumns = this.getColumnsForSheet(targetSheetId).filter(column => column.isVisible !== false)
     if (visibleColumns.length === 0) return emptyResult
@@ -3699,8 +4058,14 @@ export class SpreadsheetCollaborationManager {
         ? { minRow: minR, maxRow: maxR, minCol: minC, maxCol: maxC }
         : null
     if (items.length >= SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH && this.callbacks.applyRemoteCellUpdatesBulk) {
-      this.callbacks.applyRemoteCellUpdatesBulk(items, { operationType: 'add_rows_replay' })
-      return { bulkPainted: true, paintedRegion, cellsPainted: items.length }
+      const bulkApplyResult = this.callbacks.applyRemoteCellUpdatesBulk(items, { operationType: 'add_rows_replay' })
+      return {
+        paintStatus: bulkApplyResult.status,
+        visiblePaintConfirmed: bulkApplyResult.status === 'painted' && bulkApplyResult.paintedCellCount > 0,
+        paintedRegion,
+        cellsAttempted: items.length,
+        skippedCellCount: bulkApplyResult.skippedCellCount
+      }
     }
     for (const it of items) {
       if (it.options) {
@@ -3709,7 +4074,13 @@ export class SpreadsheetCollaborationManager {
         this.callbacks.applyRemoteCellUpdate(it.rowIndex, it.colIndex, it.value, it.rowId)
       }
     }
-    return { bulkPainted: false, paintedRegion, cellsPainted: items.length }
+    return {
+      paintStatus: null,
+      visiblePaintConfirmed: false,
+      paintedRegion,
+      cellsAttempted: items.length,
+      skippedCellCount: 0
+    }
   }
 
   /**
@@ -4169,10 +4540,12 @@ export class SpreadsheetCollaborationManager {
     this.markGridMaterializationNeeded(targetSheetId, 'cell_delta')
 
     const shouldSyncGridFromCommit = targetSheetId === this.callbacks.getActiveSheetId()
+    const acknowledgedCellKeys = this.collectAcknowledgedCellKeysFromPersistedChanges(changes)
     const authoritativeApplyMeta: SpreadsheetBulkRemoteApplyMeta | null =
       shouldSyncGridFromCommit && mode === 'direct_apply'
         ? {
             operationType: changes[0]?.operationType ?? 'cell_delta',
+            ...(acknowledgedCellKeys.length > 0 ? { acknowledgedCellKeys } : {}),
             onApplyComplete: finishPersistedGridApply
           }
         : null
@@ -4239,6 +4612,7 @@ export class SpreadsheetCollaborationManager {
     options?: {
       persisted?: boolean
       syncGrid?: boolean
+      suppressAuthoritativeDataSyncToken?: boolean
       sessionDiffProjectionMode?: 'allow' | 'skip'
       authoritativeGridRegion?: AuthoritativeGridReapplyTarget
       authoritativeApplyMeta?: SpreadsheetBulkRemoteApplyMeta | null
@@ -5313,6 +5687,7 @@ export class SpreadsheetCollaborationManager {
         incomingVersion: params.batch.appliedVersion,
         knownVersion: this.getKnownSheetVersion(params.sheetId),
         operationType: 'batch_operations',
+        stateCovered: false,
         traceMeta: params.traceMeta
       })
       return
@@ -5583,6 +5958,32 @@ export class SpreadsheetCollaborationManager {
     return changes
   }
 
+  private collectAcknowledgedCellKeysFromPersistedChanges(
+    changes: Array<{ operationType: string; payload: Record<string, unknown>; appliedVersion: number }>
+  ): string[] {
+    const keys = new Set<string>()
+    for (const change of changes) {
+      if (change.operationType === 'set_cell' || change.operationType === 'clear_cell') {
+        const rowId = String(change.payload.rowId ?? '')
+        const columnName = String(change.payload.columnName ?? change.payload.column ?? '')
+        if (rowId && columnName) {
+          keys.add(`${rowId}\u0000${columnName}`)
+        }
+        continue
+      }
+      if (change.operationType !== 'set_range' && change.operationType !== 'cells_changed') continue
+      const cells = Array.isArray(change.payload.cells) ? (change.payload.cells as Array<Record<string, unknown>>) : []
+      for (const cell of cells) {
+        const rowId = String(cell.rowId ?? '')
+        const columnName = String(cell.columnName ?? cell.column ?? '')
+        if (rowId && columnName) {
+          keys.add(`${rowId}\u0000${columnName}`)
+        }
+      }
+    }
+    return Array.from(keys)
+  }
+
   /**
    * Resolve where to paint a remote value on the Univer grid. Prefer wire A1 / explicit row+col
    * (immune to data-array drift); fall back to row identity mapped through `_gridRowIndex`.
@@ -5666,6 +6067,7 @@ export class SpreadsheetCollaborationManager {
     targetSheetId: string,
     options?: {
       syncGrid?: boolean
+      suppressAuthoritativeDataSyncToken?: boolean
       sessionDiffProjectionMode?: 'allow' | 'skip'
       authoritativeGridRegion?: AuthoritativeGridReapplyTarget
       authoritativeApplyMeta?: SpreadsheetBulkRemoteApplyMeta | null
@@ -5717,6 +6119,7 @@ export class SpreadsheetCollaborationManager {
       this.commitSheetData(targetSheetId, nextLocal, {
         persisted: true,
         syncGrid: options?.syncGrid,
+        ...(options?.suppressAuthoritativeDataSyncToken ? { suppressAuthoritativeDataSyncToken: true } : {}),
         ...(options?.sessionDiffProjectionMode ? { sessionDiffProjectionMode: options.sessionDiffProjectionMode } : {}),
         ...(options?.authoritativeGridRegion ? { authoritativeGridRegion: options.authoritativeGridRegion } : {}),
         ...(options?.authoritativeApplyMeta ? { authoritativeApplyMeta: options.authoritativeApplyMeta } : {})

@@ -154,6 +154,7 @@ export interface SpreadsheetRemoteCellUpdateOptions {
   useSenderA1Row?: boolean
   targetSheetId?: string
   skipRemoteEchoRegistration?: boolean
+  acknowledgedCellKeys?: readonly string[]
   stylePatch?: SpreadsheetStylePatch | null
   univerCell?: Record<string, unknown> | null
   univerStyles?: Record<string, unknown> | null
@@ -178,11 +179,26 @@ export interface SpreadsheetBulkRemoteCellItem {
   options?: SpreadsheetRemoteCellUpdateOptions
 }
 
+export type SpreadsheetBulkRemoteApplyResultStatus = 'painted' | 'filtered_to_zero' | 'deferred_buffered'
+
+export interface SpreadsheetBulkRemoteApplyResult {
+  status: SpreadsheetBulkRemoteApplyResultStatus
+  requestedCellCount: number
+  paintedCellCount: number
+  skippedCellCount: number
+}
+
 export interface SpreadsheetBulkRemoteApplyMeta {
   traceSessionId?: string | null
   traceId?: string | null
   batchId?: string | null
   operationType?: string | null
+  /**
+   * Exact semantic `rowId\u0000columnName` cells already accepted by the backend.
+   * These may bypass stale local overlay/protection filters for the first
+   * visible ack/local-echo paint only.
+   */
+  acknowledgedCellKeys?: readonly string[]
   /**
    * Skip registering remote-echo suppression for bulk paints that re-project
    * viewer data already visible in the grid.
@@ -249,6 +265,7 @@ export interface SpreadsheetCollaborationCallbacks {
     options?: {
       persisted?: boolean
       syncGrid?: boolean
+      suppressAuthoritativeDataSyncToken?: boolean
       sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
       publishParent?: boolean
       authoritativeGridRegion?: AuthoritativeGridReapplyTarget
@@ -261,6 +278,7 @@ export interface SpreadsheetCollaborationCallbacks {
     options?: {
       persisted?: boolean
       syncGrid?: boolean
+      suppressAuthoritativeDataSyncToken?: boolean
       sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
       authoritativeGridRegion?: AuthoritativeGridReapplyTarget
       authoritativeApplyMeta?: SpreadsheetBulkRemoteApplyMeta | null
@@ -273,7 +291,10 @@ export interface SpreadsheetCollaborationCallbacks {
     rowId?: string,
     options?: SpreadsheetRemoteCellUpdateOptions
   ) => void
-  applyRemoteCellUpdatesBulk?: (items: SpreadsheetBulkRemoteCellItem[], meta?: SpreadsheetBulkRemoteApplyMeta) => void
+  applyRemoteCellUpdatesBulk?: (
+    items: SpreadsheetBulkRemoteCellItem[],
+    meta?: SpreadsheetBulkRemoteApplyMeta
+  ) => SpreadsheetBulkRemoteApplyResult
   /**
    * Apply a server-broadcast `clear_all` op on the receiver. Dispatches
    * Univer's `sheet.mutation.set-range-values` for the provided ranges while

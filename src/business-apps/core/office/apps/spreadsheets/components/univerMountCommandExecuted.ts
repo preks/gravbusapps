@@ -466,8 +466,6 @@ export function registerUniverMountCommandExecuted(
 
     if (shouldRunDimensionSnapshotForCommand(commandId, t)) {
       scheduleDimensionSnapshot(commandId, t)
-    } else {
-      debugUniverDimensionSnapshot('skipped', { commandId, commandType: t })
     }
     const isSupportedGranularStyleCommand =
       isStyleOnlySheetMutationCommand(commandId) && !isUnsupportedSnapshotOnlyCollaborationCommand(commandId)

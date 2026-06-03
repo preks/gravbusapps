@@ -30,6 +30,7 @@ const createStableHookRefs = () => ({
       clearAllSignatures: boolean
       reason?: string
       pendingLocalFilterPolicy?: import('../../utils/spreadsheetAuthoritativeRegion').PendingLocalFilterPolicy
+      preserveStagedDirectPaint?: boolean
     } | null
   }
 })
@@ -481,6 +482,213 @@ describe('useUniverAuthoritativeGridSync', () => {
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
       [expect.objectContaining({ rowIndex: 0, colIndex: 2, value: 'right' })],
       { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+    )
+  })
+
+  it('merges staged direct paint with forced repair remainder when preserveStagedDirectPaint is set', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const refs = createStableHookRefs()
+    refs.authoritativePaintCellsRef.current = [
+      { rowIndex: 0, colIndex: 0, value: 'left', rowId: 'row-1' },
+      { rowIndex: 0, colIndex: 1, value: 'middle', rowId: 'row-1' }
+    ]
+    refs.pendingForcedAuthoritativeReapplyRef.current = {
+      regions: [{ minRow: 0, maxRow: 0, minCol: 2, maxCol: 2 }],
+      preferBulk: true,
+      clearAllSignatures: false,
+      reason: 'dirty_regions_from_backend_used',
+      pendingLocalFilterPolicy: 'server_authoritative_repair',
+      preserveStagedDirectPaint: true
+    }
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-1' } as any,
+        data: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'left', column_b: 'middle', column_c: 'right' }],
+        columns: [
+          { id: 'col-a', name: 'column_a', isVisible: true },
+          { id: 'col-b', name: 'column_b', isVisible: true },
+          { id: 'col-c', name: 'column_c', isVisible: true }
+        ] as any,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 1,
+        collabBulkApplyIdleNonce: 0,
+        applyRemoteCellUpdate: jest.fn(),
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'left' }),
+        expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'middle' }),
+        expect.objectContaining({ rowIndex: 0, colIndex: 2, value: 'right' })
+      ],
+      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false }
+    )
+  })
+
+  it('restores staged style paint when forced dirty repair filters the projected value lane to zero', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const pendingLocalMutationCellsRef = {
+      current: new Set([spreadsheetPendingLocalMutationCoordinateCellKey('sheet-1', 0, 0)])
+    }
+    const refs = createStableHookRefs()
+    refs.authoritativePaintCellsRef.current = [
+      {
+        rowIndex: 0,
+        colIndex: 0,
+        value: undefined,
+        rowId: 'row-1',
+        options: {
+          stylePatch: { set: { s: 'style-1' } },
+          targetSheetId: 'sheet-1',
+          useSenderA1Row: true
+        }
+      }
+    ]
+    refs.pendingForcedAuthoritativeReapplyRef.current = {
+      regions: [{ minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 }],
+      preferBulk: true,
+      clearAllSignatures: false,
+      reason: 'dirty_regions_from_backend_used',
+      pendingLocalFilterPolicy: 'server_authoritative_repair',
+      preserveStagedDirectPaint: true
+    }
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-1' } as any,
+        data: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'local' }],
+        columns: [{ id: 'col-a', name: 'column_a', isVisible: true }] as any,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 1,
+        collabBulkApplyIdleNonce: 0,
+        pendingLocalMutationCellsRef,
+        applyRemoteCellUpdate: jest.fn(),
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          rowIndex: 0,
+          colIndex: 0,
+          options: expect.objectContaining({
+            stylePatch: { set: { s: 'style-1' } },
+            targetSheetId: 'sheet-1',
+            useSenderA1Row: true
+          })
+        })
+      ],
+      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false }
+    )
+  })
+
+  it('restores staged value paint when forced repair keeps staged direct paint for the same generation', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const pendingLocalMutationCellsRef = {
+      current: new Set([spreadsheetPendingLocalMutationCoordinateCellKey('sheet-1', 0, 0)])
+    }
+    const refs = createStableHookRefs()
+    refs.authoritativePaintCellsRef.current = [
+      {
+        rowIndex: 0,
+        colIndex: 0,
+        value: 'server value',
+        rowId: 'row-1'
+      }
+    ]
+    refs.pendingForcedAuthoritativeReapplyRef.current = {
+      regions: [{ minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 }],
+      preferBulk: true,
+      clearAllSignatures: false,
+      reason: 'dirty_regions_from_backend_used',
+      pendingLocalFilterPolicy: 'server_authoritative_repair',
+      preserveStagedDirectPaint: true
+    }
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-1' } as any,
+        data: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'local value' }],
+        columns: [{ id: 'col-a', name: 'column_a', isVisible: true }] as any,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 1,
+        collabBulkApplyIdleNonce: 0,
+        pendingLocalMutationCellsRef,
+        applyRemoteCellUpdate: jest.fn(),
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          rowIndex: 0,
+          colIndex: 0,
+          value: 'server value',
+          rowId: 'row-1'
+        })
+      ],
+      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false }
+    )
+  })
+
+  it('allows acknowledged value cells through forced repair pending-local filtering', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const pendingLocalMutationCellsRef = {
+      current: new Set([spreadsheetPendingLocalMutationSemanticCellKey('sheet-1', 'row-1', 'column_a')])
+    }
+    const refs = createStableHookRefs()
+    refs.authoritativePaintMetaRef.current = {
+      operationType: 'set_range',
+      acknowledgedCellKeys: ['row-1\u0000column_a']
+    }
+    refs.pendingForcedAuthoritativeReapplyRef.current = {
+      regions: [{ minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 }],
+      preferBulk: true,
+      clearAllSignatures: false,
+      reason: 'dirty_regions_from_backend_used'
+    }
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-1' } as any,
+        data: [{ _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, column_a: 'server value' }],
+        columns: [{ id: 'col-a', name: 'column_a', isVisible: true }] as any,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 1,
+        collabBulkApplyIdleNonce: 0,
+        pendingLocalMutationCellsRef,
+        applyRemoteCellUpdate: jest.fn(),
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          rowIndex: 0,
+          colIndex: 0,
+          rowId: 'row-1',
+          value: 'server value'
+        })
+      ],
+      expect.objectContaining({
+        operationType: 'set_range',
+        acknowledgedCellKeys: ['row-1\u0000column_a'],
+        skipRemoteEchoRegistration: true
+      })
     )
   })
 

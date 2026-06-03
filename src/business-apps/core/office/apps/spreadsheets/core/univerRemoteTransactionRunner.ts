@@ -251,6 +251,15 @@ export class UniverRemoteTransactionRunner {
     if (operation.type === 'set_cell' || operation.type === 'set_range' || operation.type === 'clear_cell') {
       const items = normalizeCellItems(batch, operation)
       if (items.length === 0) return { ok: true, appliedCellCount: 0, appliedOperationCount: 1 }
+      if (this.callbacks.applyRemoteCellUpdatesBulk) {
+        this.callbacks.applyRemoteCellUpdatesBulk(items, getMeta(batch, operation))
+      } else if (this.callbacks.applyRemoteCellUpdate) {
+        for (const item of items) {
+          this.callbacks.applyRemoteCellUpdate(item.rowIndex, item.colIndex, item.value, item.rowId, item.options)
+        }
+      } else {
+        return { ok: false, reason: 'missing_runner_callback', detail: 'applyRemoteCellUpdate' }
+      }
       return { ok: true, appliedCellCount: items.length, appliedOperationCount: 1 }
     }
 

@@ -30,15 +30,22 @@ import { useSpreadsheetMutationPipeline } from './hooks/useSpreadsheetMutationPi
 import { resolveBackendDirtyRegionsToAuthoritativeRegions } from './utils/spreadsheetDirtyRegions'
 import {
   computeAuthoritativeRegionForMaterializedRows,
+  estimateAuthoritativeGridReapplyTargetCellCount,
   normalizeAuthoritativeGridReapplyTarget,
   type AuthoritativeGridReapplyTarget,
   type AuthoritativeGridRegion,
   type ForceAuthoritativeGridReapplyOptions
 } from './utils/spreadsheetAuthoritativeRegion'
 import {
+  buildAuthoritativePaintCoverageRegions,
   classifyBackendDirtyRegionReapply,
-  isServerAuthoritativeRepairReapply
+  isServerAuthoritativeRepairReapply,
+  subtractAuthoritativeRepairRegions
 } from './utils/spreadsheetBackendRepairReapply'
+import {
+  buildAuthoritativePaintCellsForMaterializedRows,
+  buildAuthoritativePaintCellsFromViewerRows
+} from './utils/spreadsheetAuthoritativeProjector'
 import { useSpreadsheetSheetWorkQueue } from './hooks/useSpreadsheetSheetWorkQueue'
 import { splitUnifiedOperationsByPersistKind } from './core/spreadsheetLocalPersistChunks'
 
@@ -69,6 +76,106 @@ const readOperationCells = (op: SpreadsheetBatchOperation): Record<string, unkno
     return data.cells.filter((cell): cell is Record<string, unknown> => Boolean(cell) && typeof cell === 'object')
   }
   return [data]
+}
+
+const readOperationCellIndex = (
+  cell: Record<string, unknown>,
+  keys: readonly ['rowIndex', 'row'] | ['colIndex', 'col']
+): number | null => {
+  const direct = cell[keys[0]]
+  if (typeof direct === 'number' && Number.isFinite(direct)) return Math.trunc(direct)
+  const fallback = cell[keys[1]]
+  if (typeof fallback === 'number' && Number.isFinite(fallback)) return Math.trunc(fallback)
+  return null
+}
+
+const readOperationStylePatch = (value: unknown): SpreadsheetStylePatch | null => {
+  return value && typeof value === 'object' ? (value as SpreadsheetStylePatch) : null
+}
+
+const mergeAckDirectPaintItems = (
+  baseItems: readonly SpreadsheetBulkRemoteCellItem[],
+  overlayItems: readonly SpreadsheetBulkRemoteCellItem[]
+): SpreadsheetBulkRemoteCellItem[] => {
+  const byKey = new Map<string, SpreadsheetBulkRemoteCellItem>()
+  for (const item of baseItems) {
+    byKey.set(`${item.rowIndex}:${item.colIndex}`, item)
+  }
+  for (const item of overlayItems) {
+    const key = `${item.rowIndex}:${item.colIndex}`
+    const existing = byKey.get(key)
+    if (!existing) {
+      byKey.set(key, item)
+      continue
+    }
+    byKey.set(key, {
+      ...existing,
+      ...item,
+      value: item.value !== undefined ? item.value : existing.value,
+      rowId: item.rowId ?? existing.rowId,
+      options:
+        existing.options || item.options
+          ? {
+              ...(existing.options ?? {}),
+              ...(item.options ?? {})
+            }
+          : undefined
+    })
+  }
+  return [...byKey.values()]
+}
+
+const buildAckDirectPaintCellsFromOperations = (
+  targetSheetId: string,
+  operations: readonly SpreadsheetBatchOperation[]
+): SpreadsheetBulkRemoteCellItem[] => {
+  const items: SpreadsheetBulkRemoteCellItem[] = []
+  for (const operation of operations) {
+    const operationType = String(operation.type ?? '')
+    if (
+      operationType !== 'set_cell' &&
+      operationType !== 'set_range' &&
+      operationType !== 'clear_cell' &&
+      operationType !== 'set_style'
+    ) {
+      continue
+    }
+    const operationData =
+      operation.data && typeof operation.data === 'object' ? (operation.data as Record<string, unknown>) : null
+    if (!operationData) continue
+    const univerStyles =
+      operationType === 'set_style' && operationData.styles && typeof operationData.styles === 'object'
+        ? (operationData.styles as Record<string, unknown>)
+        : undefined
+    for (const cell of readOperationCells(operation)) {
+      const rowIndex = readOperationCellIndex(cell, ['rowIndex', 'row'])
+      const colIndex = readOperationCellIndex(cell, ['colIndex', 'col'])
+      if (rowIndex == null || colIndex == null) continue
+      items.push({
+        rowIndex,
+        colIndex,
+        value:
+          operationType === 'set_style'
+            ? undefined
+            : operationType === 'clear_cell'
+              ? null
+              : Object.prototype.hasOwnProperty.call(cell, 'value')
+                ? cell.value
+                : null,
+        rowId: typeof cell.rowId === 'string' ? cell.rowId : undefined,
+        options:
+          operationType === 'set_style'
+            ? {
+                stylePatch: readOperationStylePatch(cell.stylePatch),
+                univerStyles,
+                targetSheetId,
+                useSenderA1Row: true
+              }
+            : { targetSheetId }
+      })
+    }
+  }
+  return items
 }
 
 const extractOwnedCellKeysFromChunk = (chunk: SpreadsheetBatchOperation[]): string[] => {
@@ -106,6 +213,14 @@ const extractPendingLocalMutationCellKeysFromChunk = (
   }
   return Array.from(keys)
 }
+
+const collectAcknowledgedOverlayReleaseKeys = (
+  sheetId: string,
+  operations: SpreadsheetBatchOperation[]
+): { ownedCellKeys: string[]; protectedCellKeys: string[] } => ({
+  ownedCellKeys: extractOwnedCellKeysFromChunk(operations),
+  protectedCellKeys: extractPendingLocalMutationCellKeysFromChunk(sheetId, operations)
+})
 
 import { useSpreadsheetCheckpointOrchestration } from './hooks/useSpreadsheetCheckpointOrchestration'
 import { useSpreadsheetDiagnosticsTrace } from './hooks/useSpreadsheetDiagnosticsTrace'
@@ -156,7 +271,9 @@ import {
   releaseSpreadsheetMutationOwnershipFromResponse,
   SpreadsheetIntentJournal,
   SpreadsheetVersionCausalOwnershipRegistry,
+  type SpreadsheetBulkRemoteCellItem,
   type SpreadsheetFeatureOperationPayload,
+  type SpreadsheetStylePatch,
   type SpreadsheetLiveRemoteApplyVersionScope
 } from './core'
 import type { SpreadsheetCollaborationManager } from './services/SpreadsheetCollaborationManager'
@@ -606,7 +723,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     getRichestKnownRowsForSheet,
     commitLocalSheetData,
     commitOptimisticActiveSheetRows,
-    syncSheetRowsIntoLocalState
+    syncSheetRowsIntoLocalState,
+    stageAuthoritativeDirectPaintForSync
   } = useSpreadsheetViewerSessionModel({
     app,
     spreadsheetSession,
@@ -650,8 +768,48 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         pendingLocalFilterPolicy: options?.pendingLocalFilterPolicy
       }
       const isRepairReapply = isServerAuthoritativeRepairReapply(repairDescriptor)
+      const isBackendDirtyRepairReapply =
+        repairDescriptor.reason === 'dirty_regions_from_backend_used' ||
+        repairDescriptor.reason === 'dirty_regions_from_backend_materialization'
+      const isRowMaterializationRepairReapply = repairDescriptor.reason === 'row_materialization'
 
-      if (isRepairReapply) {
+      let nextScheduledRegions = scheduledRegions
+      let preserveStagedDirectPaint = false
+      if (
+        isRepairReapply &&
+        (isBackendDirtyRepairReapply || isRowMaterializationRepairReapply) &&
+        authoritativePaintCellsRef.current?.length
+      ) {
+        preserveStagedDirectPaint = true
+        const remainingRegions = subtractAuthoritativeRepairRegions({
+          target: scheduledRegions,
+          coveredRegions: buildAuthoritativePaintCoverageRegions(authoritativePaintCellsRef.current)
+        })
+        if (remainingRegions && remainingRegions.length === 0) {
+          debugLog('authoritative repair skipped covered by staged direct paint', {
+            sheetId: targetSheetId,
+            reason: repairDescriptor.reason,
+            regionCount: scheduledRegions.length,
+            regionCellEstimate: estimateAuthoritativeGridReapplyTargetCellCount(scheduledRegions),
+            stagedPaintCellCount: authoritativePaintCellsRef.current.length
+          })
+          return null
+        }
+        if (remainingRegions && remainingRegions.length < scheduledRegions.length) {
+          nextScheduledRegions = remainingRegions
+          debugLog('authoritative repair reduced by staged direct paint', {
+            sheetId: targetSheetId,
+            reason: repairDescriptor.reason,
+            originalRegionCount: scheduledRegions.length,
+            remainingRegionCount: remainingRegions.length,
+            originalRegionCellEstimate: estimateAuthoritativeGridReapplyTargetCellCount(scheduledRegions),
+            remainingRegionCellEstimate: estimateAuthoritativeGridReapplyTargetCellCount(remainingRegions),
+            stagedPaintCellCount: authoritativePaintCellsRef.current.length
+          })
+        }
+      }
+
+      if (isRepairReapply && !preserveStagedDirectPaint) {
         authoritativePaintCellsRef.current = null
         authoritativePaintMetaRef.current = null
         const generation = (coordinatedAuthoritativeRepairGenerationRef.current += 1)
@@ -659,7 +817,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           sheetId: targetSheetId,
           reason: repairDescriptor.reason,
           generation,
-          regionCount: scheduledRegions.length
+          regionCount: nextScheduledRegions.length
+        })
+      } else if (isRepairReapply && preserveStagedDirectPaint) {
+        const generation = (coordinatedAuthoritativeRepairGenerationRef.current += 1)
+        debugLog('authoritative repair scheduled after staged direct paint', {
+          sheetId: targetSheetId,
+          reason: repairDescriptor.reason,
+          generation,
+          regionCount: nextScheduledRegions.length
         })
       }
 
@@ -668,12 +834,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           return
         }
         spreadsheetGridRef.current?.forceAuthoritativeReapply?.(
-          scheduledRegions.length === 1 ? scheduledRegions[0] : scheduledRegions,
-          options
+          nextScheduledRegions.length === 1 ? nextScheduledRegions[0] : nextScheduledRegions,
+          preserveStagedDirectPaint ? { ...options, preserveStagedDirectPaint: true } : options
         )
       }, 0)
 
-      return scheduledRegions
+      return nextScheduledRegions
     },
     [
       activeSheetIdRef,
@@ -1953,6 +2119,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         setActiveSheetId,
         getActiveSessionRows,
         resolveKnownSheetVersion,
+        coordinateForceGridReapply: scheduleCoordinatedAuthoritativeRepair,
         createdSheetIdAliasesRef,
         isRecentLocalBatchId,
         getSheetWorkQueue: () => sheetWorkQueueAccessorRef.current,
@@ -1988,7 +2155,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       sheetT,
       updateActiveSheetVersion,
       enqueueDiagnosticsTraceEvent,
-      getActiveSessionRows
+      getActiveSessionRows,
+      scheduleCoordinatedAuthoritativeRepair
     ]
   )
 
@@ -2446,14 +2614,41 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         activeSheetIdRef.current,
         createdSheetIdAliasesRef.current
       )
-      if (!isActiveTarget || dirtyRegions.length === 0) return
+      if (!isActiveTarget) return
+      const isStyleOnlyAck =
+        operations.length > 0 && operations.every(operation => String(operation.type ?? '') === 'set_style')
+      const ackOperationPaintCells = buildAckDirectPaintCellsFromOperations(targetSheetId, operations)
+      if (dirtyRegions.length === 0) {
+        if (isStyleOnlyAck && ackOperationPaintCells.length > 0) {
+          stageAuthoritativeDirectPaintForSync(targetSheetId, ackOperationPaintCells, {
+            operationType: 'set_style'
+          })
+        }
+        return
+      }
       const regions = resolveBackendDirtyRegionsToAuthoritativeRegions({
         dirtyRegions,
         columns: spreadsheetColumnsForGrid,
         rows: getActiveSessionRows() as Record<string, unknown>[]
       })
-      if (regions.length === 0) return
+      if (regions.length === 0) {
+        if (isStyleOnlyAck && ackOperationPaintCells.length > 0) {
+          stageAuthoritativeDirectPaintForSync(targetSheetId, ackOperationPaintCells, {
+            operationType: 'set_style'
+          })
+        }
+        return
+      }
       const activeRows = getActiveSessionRows() as Record<string, unknown>[]
+      const ackRegionPaintCells = buildAuthoritativePaintCellsFromViewerRows(activeRows, spreadsheetColumnsForGrid, {
+        regions
+      })
+      const ackDirectPaintCells = mergeAckDirectPaintItems(ackRegionPaintCells, ackOperationPaintCells)
+      if (ackDirectPaintCells.length > 0) {
+        stageAuthoritativeDirectPaintForSync(targetSheetId, ackDirectPaintCells, {
+          operationType: isStyleOnlyAck ? 'set_style' : 'authoritative_reapply'
+        })
+      }
       const backendRepairClassification = classifyBackendDirtyRegionReapply({
         sheetId: targetSheetId,
         regions,
@@ -2477,7 +2672,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       createdSheetIdAliasesRef,
       isUuid,
       rowMaterializationReadinessRef,
-      scheduleCoordinatedAuthoritativeRepair
+      scheduleCoordinatedAuthoritativeRepair,
+      stageAuthoritativeDirectPaintForSync
     ]
   )
 
@@ -2511,6 +2707,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         rowSlotIdentityRegistry,
         pendingLocalMutationCellsRef
       })
+      const queue = sheetWorkQueueAccessorRef.current
+      if (queue) {
+        const { ownedCellKeys, protectedCellKeys } = collectAcknowledgedOverlayReleaseKeys(
+          params.sheetId,
+          params.operations
+        )
+        queue.releaseAcknowledgedCellOwnership(params.sheetId, {
+          ownedCellKeys,
+          protectedCellKeys
+        })
+      }
     },
     []
   )
@@ -2897,6 +3104,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     activeSheetId,
     activeSheetIdRef,
     activeSheetColumns: activeSheet.columns,
+    collaborationConnected: collaboration.isCollaborationConnected,
+    collaborationParticipantCount: collaboration.headerParticipants.length,
     pendingLocalMutationCellsRef,
     getColumnsForSheet: (targetSheetId: string) =>
       appSheetsRef.current.find(sheet =>
@@ -2951,6 +3160,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           sourceUniverRows: meta.sourceUniverRows
         })
         if (region) {
+          const directPaintCells = buildAuthoritativePaintCellsForMaterializedRows(
+            rows,
+            spreadsheetColumnsForGrid,
+            region
+          )
+          if (directPaintCells.length > 0) {
+            stageAuthoritativeDirectPaintForSync(targetSheetId, directPaintCells, {
+              operationType: 'authoritative_reapply'
+            })
+          }
           const regionCellEstimate = (region.maxRow - region.minRow + 1) * (region.maxCol - region.minCol + 1)
           const scheduledRegions = scheduleCoordinatedAuthoritativeRepair(targetSheetId, region, {
             clearAllSignatures: false,
@@ -3563,6 +3782,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
 
       if (affectedUiRowIds.length > readinessResolvedRowIds.size) {
+        enqueueDiagnosticsTraceEvent({
+          source: 'client',
+          stage: 'viewer_row_materialization_readiness_gate_start',
+          traceId: batchData.traceId ?? null,
+          payload: {
+            targetSheetId,
+            pendingClientRowIds: affectedUiRowIds.filter(clientRowId => !readinessResolvedRowIds.has(clientRowId))
+          }
+        })
         const readinessResult = await rowMaterializationReadiness.awaitTemporaryRowsReadyForSubmit({
           sheetId: targetSheetId,
           clientRowIds: affectedUiRowIds.filter(clientRowId => !readinessResolvedRowIds.has(clientRowId)),

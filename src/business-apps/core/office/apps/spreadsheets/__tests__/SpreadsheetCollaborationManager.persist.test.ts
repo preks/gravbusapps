@@ -3013,7 +3013,12 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(commitLocalSheetData).toHaveBeenCalledWith(
       'sheet-1',
       [expect.objectContaining({ _id: 'row-new', ColumnA: 'remote value' })],
-      { persisted: true, syncGrid: true, sessionDiffProjectionMode: 'skip' }
+      {
+        persisted: true,
+        syncGrid: true,
+        suppressAuthoritativeDataSyncToken: true,
+        sessionDiffProjectionMode: 'skip'
+      }
     )
     expect(scheduleRemoteStructuralResync).not.toHaveBeenCalled()
     expect(requestSheetCatchUp).not.toHaveBeenCalled()
@@ -3029,6 +3034,53 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
         })
       )
     })
+  })
+
+  it('skips zero-cell active-sheet grid sync for local structural committed batches', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'enabled')
+    const commitLocalSheetData = jest.fn()
+    const callbacks = makeCallbacks({
+      getSheetVersion: () => 1,
+      getActiveSheetId: () => 'sheet-1',
+      getColumns: () => [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })],
+      getSheetData: () => [],
+      commitLocalSheetData,
+      commitSheetData: commitLocalSheetData,
+      runRemoteTransaction: jest.fn(() => ({ ok: true, appliedCellCount: 0, appliedOperationCount: 1 }) as const)
+    })
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+
+    const applied = manager.applyLocalCommittedBatch({
+      committedBatch: {
+        sheetId: 'sheet-1',
+        workbookId: 'workbook-1',
+        batchId: 'local-add-rows-batch',
+        actorId: 'user-1',
+        baseVersion: 1,
+        appliedVersion: 2,
+        payloadSchemaVersion: 1,
+        operations: [
+          {
+            type: 'add_rows',
+            operationId: 'add-rows-1',
+            data: {
+              sheetId: 'sheet-1',
+              rows: [{ id: 'row-new', data: { ColumnA: 'local value' } }]
+            },
+            result: {
+              rows: [{ id: 'row-new', data: { ColumnA: 'local value' } }]
+            }
+          }
+        ]
+      }
+    })
+
+    expect(applied).toBe(true)
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      'sheet-1',
+      [expect.objectContaining({ _id: 'row-new', ColumnA: 'local value' })],
+      { persisted: true, syncGrid: false, suppressAuthoritativeDataSyncToken: true, sessionDiffProjectionMode: 'skip' }
+    )
   })
 
   it('applies enabled move_row_slots with native grid move after session commit', () => {
@@ -3479,7 +3531,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(14)
   })
 
-  it('paints active-sheet add_rows values into the grid immediately', () => {
+  it('keeps active-sheet add_rows on a bounded repair handoff instead of optimistic skip', () => {
     const scheduleRemoteStructuralResync = jest.fn()
     const commitLocalSheetData = jest.fn()
     const applyRemoteCellUpdate = jest.fn()
@@ -3529,7 +3581,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       { persisted: true, syncGrid: true }
     )
     expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
-    expect(forceGridReapply).not.toHaveBeenCalled()
+    expect(forceGridReapply).toHaveBeenCalledWith(
+      'sheet-1',
+      { minRow: 1, maxRow: 1, minCol: 0, maxCol: 0 },
+      expect.objectContaining({ clearAllSignatures: false, preferBulk: true, reason: 'row_structure_catchup' })
+    )
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(15)
   })
 
@@ -3844,7 +3900,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     )
   })
 
-  it('routes large active-sheet add_rows through a single bulk grid apply without duplicate forceGridReapply', () => {
+  it('keeps large active-sheet add_rows on bounded repair instead of optimistic skip', () => {
     const commitLocalSheetData = jest.fn()
     const applyRemoteCellUpdate = jest.fn()
     const applyRemoteCellUpdatesBulk = jest.fn()
@@ -3900,9 +3956,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     )
     expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
-    // The session commit now owns created-row values for plain add_rows, so the manager must not
-    // keep a second direct bulk-paint lane or a follow-up forced reapply for the same append.
-    expect(forceGridReapply).not.toHaveBeenCalled()
+    expect(forceGridReapply).toHaveBeenCalledWith(
+      'sheet-1',
+      { minRow: 1, maxRow: 501, minCol: 0, maxCol: 0 },
+      expect.objectContaining({ clearAllSignatures: false, preferBulk: true, reason: 'row_structure_catchup' })
+    )
   })
 
   it('hydrates legacy row_add broadcasts from the delta log when only row ids are broadcast', async () => {
@@ -3969,6 +4027,84 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     )
     expect(scheduleRemoteStructuralResync).not.toHaveBeenCalled()
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(14)
+  })
+
+  it('falls back to bounded repair when row_add hydration bulk paint resolves to zero visible cells', async () => {
+    const commitLocalSheetData = jest.fn()
+    const forceGridReapply = jest.fn()
+    const applyRemoteCellUpdatesBulk = jest.fn(() => ({
+      status: 'filtered_to_zero' as const,
+      requestedCellCount: 501,
+      paintedCellCount: 0,
+      skippedCellCount: 501
+    }))
+    const fetchChangesSince = jest.fn().mockResolvedValue({
+      currentVersion: 14,
+      requiresSnapshot: false,
+      changes: [
+        {
+          operationType: 'add_rows',
+          payload: {
+            rows: Array.from({ length: 501 }, (_, index) => ({
+              _clientRowId: `client-row-${index}`,
+              ColumnA: `plain value ${index}`
+            }))
+          },
+          result: {
+            rows: Array.from({ length: 501 }, (_, index) => ({
+              id: `backend-row-${index}`,
+              data: { _clientRowId: `client-row-${index}`, ColumnA: `plain value ${index}` }
+            }))
+          },
+          appliedVersion: 14
+        }
+      ]
+    })
+    let rows: Record<string, unknown>[] = [{ _id: 'row-1', ColumnA: 'existing' }]
+    const callbacks = makeCallbacks({
+      getColumns: () => [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })],
+      getLocalSheetData: () => rows,
+      commitLocalSheetData: (next, options) => {
+        rows = next
+        commitLocalSheetData(next, options)
+      },
+      fetchChangesSince,
+      forceGridReapply,
+      applyRemoteCellUpdatesBulk
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'row_add',
+              data: {
+                sheetId: 'sheet-1',
+                rowIds: Array.from({ length: 501 }, (_, index) => `backend-row-${index}`)
+              }
+            }
+          ]
+        }
+      },
+      version: 14,
+      timestamp: Date.now()
+    })
+
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalled()
+    expect(forceGridReapply).toHaveBeenCalledWith(
+      'sheet-1',
+      { minRow: 1, maxRow: 501, minCol: 0, maxCol: 0 },
+      expect.objectContaining({ clearAllSignatures: false, preferBulk: true, reason: 'row_add_hydration_catchup' })
+    )
   })
 
   it('hydrates positioned insert_rows_at deltas at the correct visual index', async () => {
@@ -4095,6 +4231,114 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(callbacks.onVersionUpdate).not.toHaveBeenCalled()
   })
 
+  it('requests catch-up for equal-version replay-critical ops when the visible effect is still missing', () => {
+    const requestSheetCatchUp = jest.fn()
+    const onDiagnosticsTraceEvent = jest.fn()
+    const callbacks = makeCallbacks({
+      getSheetVersion: () => 12,
+      getColumns: () => [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })],
+      getLocalSheetData: () => [{ _id: 'row-1', _rowUuid: 'backend-row-1', ColumnA: 'old' }],
+      requestSheetCatchUp,
+      onDiagnosticsTraceEvent
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setLastKnownVersion(12)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'set_cell',
+        data: { sheetId: 'sheet-1', rowId: 'backend-row-1', columnName: 'ColumnA', value: 'peer' }
+      },
+      version: 12,
+      timestamp: Date.now()
+    })
+
+    expect(requestSheetCatchUp).toHaveBeenCalledWith('sheet-1', 'stale_version_data_op', {
+      sinceVersion: 11,
+      incomingVersion: 12
+    })
+    expect(onDiagnosticsTraceEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'client_collab_receive_skipped',
+        payload: expect.objectContaining({ reason: 'stale_version' })
+      })
+    )
+  })
+
+  it('quietly skips stale replay-critical ops once the visible effect is already covered', () => {
+    const commitLocalSheetData = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+    const requestSheetCatchUp = jest.fn()
+    const onDiagnosticsTraceEvent = jest.fn()
+    const callbacks = makeCallbacks({
+      getSheetVersion: () => 12,
+      getColumns: () => [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })],
+      getLocalSheetData: () => [{ _id: 'row-1', _rowUuid: 'backend-row-1', ColumnA: 'peer' }],
+      commitLocalSheetData,
+      applyRemoteCellUpdate,
+      requestSheetCatchUp,
+      onDiagnosticsTraceEvent
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setLastKnownVersion(12)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'set_cell',
+        data: { sheetId: 'sheet-1', rowId: 'backend-row-1', columnName: 'ColumnA', value: 'peer' }
+      },
+      version: 11,
+      timestamp: Date.now()
+    })
+
+    expect(requestSheetCatchUp).not.toHaveBeenCalled()
+    expect(commitLocalSheetData).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(onDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'client_collab_receive_skipped',
+        payload: expect.objectContaining({ reason: 'stale_version_data_op_covered', knownVersion: 12 })
+      })
+    )
+  })
+
+  it('does not suppress watermarked replay-critical stale ops when the visible effect is still missing', () => {
+    const requestSheetCatchUp = jest.fn()
+    const callbacks = makeCallbacks({
+      getSheetVersion: () => 12,
+      getColumns: () => [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })],
+      getLocalSheetData: () => [{ _id: 'row-1', _rowUuid: 'backend-row-1', ColumnA: 'old' }],
+      requestSheetCatchUp
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setLastKnownVersion(12)
+    manager.reportStaleRecoveryLifecycle({
+      sheetId: 'sheet-1',
+      stage: 'catchup_applied',
+      version: 11
+    })
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'set_cell',
+        data: { sheetId: 'sheet-1', rowId: 'backend-row-1', columnName: 'ColumnA', value: 'peer' }
+      },
+      version: 10,
+      timestamp: Date.now()
+    })
+
+    expect(requestSheetCatchUp).toHaveBeenCalledWith('sheet-1', 'stale_version_data_op', {
+      sinceVersion: 9,
+      incomingVersion: 10
+    })
+  })
+
   it('coalesces repeated stale data-op catch-up requests until the known version advances', () => {
     const requestSheetCatchUp = jest.fn()
     let knownSheetVersion = 13
@@ -4185,8 +4429,12 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
   it('suppresses repeated stale catch-up escalation while recovery is active and clears after recovery advances', () => {
     const requestSheetCatchUp = jest.fn()
     let knownSheetVersion = 13
+    const columns: SpreadsheetColumn[] = [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })]
+    let data: Record<string, unknown>[] = [{ _id: 'row-1', _rowUuid: 'backend-row-1', ColumnA: 'old' }]
     const callbacks = makeCallbacks({
       getSheetVersion: () => knownSheetVersion,
+      getColumns: () => columns,
+      getLocalSheetData: () => data,
       requestSheetCatchUp
     })
     const manager = new SpreadsheetCollaborationManager(callbacks)
@@ -4239,6 +4487,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       stage: 'catchup_applied',
       version: 13
     })
+    data = [{ _id: 'row-1', _rowUuid: 'backend-row-1', ColumnA: 'covered-12' }]
 
     manager.handleOperation({
       userId: 'u2',
@@ -4404,6 +4653,61 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     })
     expect(commitLocalSheetData).not.toHaveBeenCalled()
     expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+  })
+
+  it('defers version-related snapshot fallback while persistence is busy and cancels it after catch-up applies', () => {
+    jest.useFakeTimers()
+    try {
+      const scheduleRemoteStructuralResync = jest.fn()
+      const onDiagnosticsTraceEvent = jest.fn()
+      const callbacks = makeCallbacks({
+        isSheetPersistenceBusy: () => true,
+        scheduleRemoteStructuralResync,
+        onDiagnosticsTraceEvent
+      })
+
+      const manager = new SpreadsheetCollaborationManager(callbacks)
+      expect(
+        (
+          manager as unknown as {
+            requestSnapshotFallback: (params: {
+              sheetId: string
+              reason: 'version_gap'
+              immediate: true
+              detail: string
+              version: number
+            }) => boolean
+          }
+        ).requestSnapshotFallback({
+          sheetId: 'sheet-1',
+          reason: 'version_gap',
+          immediate: true,
+          detail: 'test',
+          version: 12
+        })
+      ).toBe(true)
+
+      manager.reportStaleRecoveryLifecycle({
+        sheetId: 'sheet-1',
+        stage: 'catchup_applied',
+        version: 12
+      })
+      jest.advanceTimersByTime(400)
+
+      expect(scheduleRemoteStructuralResync).not.toHaveBeenCalled()
+      expect(onDiagnosticsTraceEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stage: 'client_snapshot_fallback_resolved_by_delta',
+          payload: expect.objectContaining({
+            sheetId: 'sheet-1',
+            reason: 'version_gap',
+            resolution: 'catchup_applied'
+          })
+        })
+      )
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('removes stale column-id aliases when a remote clear is applied', () => {
@@ -4885,15 +5189,19 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       localStorage.removeItem('gba.spreadsheets.deltaReplay')
     })
 
-    it('skips blocked recovery for recent local batch echoes', () => {
+    it('skips catch-up but still repaints value cells for recent local batch echoes', () => {
       localStorage.setItem('gba.spreadsheets.deltaReplay', 'enabled')
       const requestSheetCatchUp = jest.fn()
       const scheduleRemoteStructuralResync = jest.fn()
+      const applyRemoteCellUpdate = jest.fn()
       const callbacks = makeCallbacks({
         getSheetVersion: () => 3,
+        getColumns: () => [col({ id: 'col-name', name: 'Name', isVisible: true, order: 0 })],
+        getLocalSheetData: () => [{ _id: 'row-1', _rowUuid: 'row-1', Name: 'existing' }],
         isRecentLocalBatchId: () => true,
         requestSheetCatchUp,
-        scheduleRemoteStructuralResync
+        scheduleRemoteStructuralResync,
+        applyRemoteCellUpdate
       })
       const manager = new SpreadsheetCollaborationManager(callbacks)
       manager.setLastKnownVersion(3)
@@ -4904,6 +5212,92 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
 
       expect(requestSheetCatchUp).not.toHaveBeenCalled()
       expect(scheduleRemoteStructuralResync).not.toHaveBeenCalled()
+      expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+      expect(callbacks.commitLocalSheetData).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            _id: 'row-1',
+            _rowUuid: 'row-1',
+            Name: 'Peer'
+          })
+        ],
+        expect.objectContaining({
+          persisted: true,
+          syncGrid: true,
+          authoritativeApplyMeta: expect.objectContaining({
+            operationType: 'set_cell',
+            acknowledgedCellKeys: ['row-1\u0000Name']
+          })
+        })
+      )
+      localStorage.removeItem('gba.spreadsheets.deltaReplay')
+    })
+
+    it('repaints identity-based value cells before skipping already reflected committed batches', () => {
+      localStorage.setItem('gba.spreadsheets.deltaReplay', 'enabled')
+      let currentVersion = 2
+      let localRows: Record<string, unknown>[] = [{ _id: 'row-1', _rowUuid: 'row-1', Name: 'existing' }]
+      const applyRemoteCellUpdate = jest.fn()
+      const runRemoteTransaction = jest.fn(() => ({
+        ok: true as const,
+        appliedCellCount: 1,
+        appliedOperationCount: 1
+      }))
+      const callbacks = makeCallbacks({
+        getSheetVersion: () => currentVersion,
+        getColumns: () => [col({ id: 'col-name', name: 'Name', isVisible: true, order: 0 })],
+        getLocalSheetData: () => localRows,
+        commitLocalSheetData: jest.fn((rows: Record<string, unknown>[]) => {
+          localRows = rows
+          currentVersion = 2
+        }),
+        applyRemoteCellUpdate,
+        runRemoteTransaction
+      })
+      const manager = new SpreadsheetCollaborationManager(callbacks)
+      manager.setLastKnownVersion(2)
+      manager.applyLocalCommittedBatch({
+        committedBatch: {
+          sheetId: 'sheet-1',
+          workbookId: 'workbook-1',
+          batchId: 'batch-reflected',
+          actorId: 'user-1',
+          baseVersion: 1,
+          appliedVersion: 2,
+          payloadSchemaVersion: 1,
+          operations: [
+            {
+              type: 'set_cell',
+              operationId: 'op-1',
+              data: { sheetId: 'sheet-1', rowId: 'row-1', columnName: 'Name', value: 'Peer', row: 0, col: 0 }
+            }
+          ]
+        }
+      })
+      applyRemoteCellUpdate.mockClear()
+
+      manager.handleOperation(
+        committedBatchOperation({ baseVersion: 1, appliedVersion: 2, batchId: 'batch-reflected' })
+      )
+
+      expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+      expect(callbacks.commitLocalSheetData).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            _id: 'row-1',
+            _rowUuid: 'row-1',
+            Name: 'Peer'
+          })
+        ],
+        expect.objectContaining({
+          persisted: true,
+          syncGrid: true,
+          authoritativeApplyMeta: expect.objectContaining({
+            operationType: 'set_cell',
+            acknowledgedCellKeys: ['row-1\u0000Name']
+          })
+        })
+      )
       localStorage.removeItem('gba.spreadsheets.deltaReplay')
     })
   })

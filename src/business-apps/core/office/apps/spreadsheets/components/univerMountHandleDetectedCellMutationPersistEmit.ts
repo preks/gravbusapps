@@ -510,6 +510,16 @@ export function runDetectedCellMutationPersistEmitDispatch(
   }
 
   if (needsFlush) {
+    deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'spreadsheet.cell_emit.readiness_gate_start',
+      traceId: emit.mutationTraceId,
+      payload: {
+        targetSheetId: emit.targetSheetId,
+        unresolvedTemporaryRowIdCount: temporaryRowIdMatches.length,
+        affectedUiRowIds
+      }
+    })
     return (async () => {
       const isUuid = resolveBackendRowUuidPredicateFromGridProps(deps.propsRef)
       let handled = false

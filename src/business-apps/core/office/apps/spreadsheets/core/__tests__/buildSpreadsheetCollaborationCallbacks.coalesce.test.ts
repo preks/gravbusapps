@@ -49,7 +49,7 @@ afterEach(() => {
   globalThis.cancelAnimationFrame = originalCancel
 })
 
-const buildHarness = (): TestHarness => {
+const buildHarness = (options?: { isQueueOwnedCell?: SheetWorkQueueApi['isQueueOwnedCell'] }): TestHarness => {
   const bulkApplyCalls: Array<{ items: unknown[]; meta: unknown }> = []
   const versionEchoCalls: Array<{ sheetId: string; version: number }> = []
   const applyRemoteCellUpdateWithRetry = jest.fn()
@@ -84,14 +84,18 @@ const buildHarness = (): TestHarness => {
         return 'job-id'
       }
     ) as unknown as SheetWorkQueueApi['enqueueRemoteApply'],
-    isQueueOwnedCell: () => false
+    isQueueOwnedCell: options?.isQueueOwnedCell ?? (() => false)
   }
 
-  const activeSheet = { id: ACTIVE_SHEET_ID, columns: [], data: [] } as any
+  const activeSheet = {
+    id: ACTIVE_SHEET_ID,
+    columns: [{ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 }],
+    data: []
+  } as any
   const spreadsheetSession = {
     getState: () => ({ activeSheetId: ACTIVE_SHEET_ID }),
-    getActiveSheetState: () => ({ columns: [], version: 0 }),
-    getSheetState: () => ({ columns: [], version: 0, rows: [] }),
+    getActiveSheetState: () => ({ columns: activeSheet.columns, version: 0 }),
+    getSheetState: () => ({ columns: activeSheet.columns, version: 0, rows: [] }),
     applyMutation: () => undefined
   } as any
 
@@ -179,6 +183,70 @@ describe('buildSpreadsheetCollaborationCallbacks rAF coalescing', () => {
     h.callbacks.applyRemoteClearAllRange?.({ sheetId: ACTIVE_SHEET_ID, ranges: [] })
     expect(h.bulkApplyCalls).toHaveLength(1)
     expect((h.bulkApplyCalls[0].items as unknown[]).length).toBe(1)
+  })
+
+  it('flushes authoritative reapply bulks immediately instead of waiting for rAF', () => {
+    const h = buildHarness()
+    const result = h.callbacks.applyRemoteCellUpdatesBulk?.(
+      [{ rowIndex: 4, colIndex: 2, value: 'repair', rowId: 'row-4' }],
+      {
+        operationType: 'authoritative_reapply',
+        traceId: 'trace-repair-1'
+      }
+    )
+
+    expect(h.bulkApplyCalls).toHaveLength(1)
+    expect((h.bulkApplyCalls[0].items as unknown[]).length).toBe(1)
+    expect(result).toEqual({
+      status: 'painted',
+      requestedCellCount: 1,
+      paintedCellCount: 1,
+      skippedCellCount: 0
+    })
+  })
+
+  it('returns filtered_to_zero when overlay ownership drops every bulk cell', () => {
+    const h = buildHarness({ isQueueOwnedCell: () => true })
+    const onApplyComplete = jest.fn()
+
+    const result = h.callbacks.applyRemoteCellUpdatesBulk?.(
+      [{ rowIndex: 4, colIndex: 0, value: 'repair', rowId: 'row-4' }],
+      {
+        operationType: 'add_rows_replay',
+        onApplyComplete
+      }
+    )
+
+    expect(result).toEqual({
+      status: 'filtered_to_zero',
+      requestedCellCount: 1,
+      paintedCellCount: 0,
+      skippedCellCount: 1
+    })
+    expect(onApplyComplete).toHaveBeenCalledTimes(1)
+    expect(h.bulkApplyCalls).toHaveLength(0)
+  })
+
+  it('keeps acknowledged locally-owned set_range cells in the visible bulk apply', () => {
+    const h = buildHarness({ isQueueOwnedCell: () => true })
+
+    const result = h.callbacks.applyRemoteCellUpdatesBulk?.(
+      [{ rowIndex: 4, colIndex: 0, value: 'ack', rowId: 'row-4' }],
+      {
+        operationType: 'set_range',
+        acknowledgedCellKeys: ['row-4\u0000ColumnA']
+      }
+    )
+
+    expect(result).toEqual({
+      status: 'deferred_buffered',
+      requestedCellCount: 1,
+      paintedCellCount: 0,
+      skippedCellCount: 0
+    })
+    h.flushRaf()
+    expect(h.bulkApplyCalls).toHaveLength(1)
+    expect(h.bulkApplyCalls[0].items).toEqual([expect.objectContaining({ rowId: 'row-4', colIndex: 0, value: 'ack' })])
   })
 
   it('collapses repeated version updates into one queue enqueue per frame', async () => {

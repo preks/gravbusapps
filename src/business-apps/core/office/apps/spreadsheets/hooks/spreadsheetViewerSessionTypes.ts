@@ -7,6 +7,7 @@ import type {
 export interface CommitLocalSheetDataOptions {
   persisted?: boolean
   syncGrid?: boolean
+  suppressAuthoritativeDataSyncToken?: boolean
   sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
   publishParent?: boolean
   peerAuthoritative?: boolean
