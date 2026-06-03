@@ -2521,7 +2521,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           {/* Formatting Toolbar -- sticky inside scroll area for frosted glass blur */}
           {editor && canEditNote && (
             <div className="gba:sticky gba:top-0 gba:z-[9] gba:bg-sidebar/70 gba:backdrop-blur-md gba:backdrop-saturate-125 gba:px-6 gba:py-1.5 gba:border-b gba:border-sidebar-border/10">
-              <div className="gba:max-w-3xl gba:lg:max-w-[48rem] gba:mx-auto gba:flex gba:items-center gba:gap-1 gba:flex-wrap">
+              <div className="gba:max-w-6xl gba:w-full gba:mx-auto gba:flex gba:items-center gba:justify-center gba:gap-1 gba:flex-wrap">
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -2807,7 +2807,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             </div>
           )}
 
-          <div className="gba:max-w-3xl gba:lg:max-w-[48rem] gba:mx-auto gba:px-6 gba:sm:px-8 gba:md:px-12 gba:py-8 gba:md:py-12">
+          <div className="gba:max-w-6xl gba:w-full gba:mx-auto gba:px-6 gba:sm:px-8 gba:md:px-10 gba:py-8 gba:md:py-12">
             {isNoteLocked && (
               <div
                 className="gba:mb-5 gba:flex gba:flex-col gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-muted/40 gba:px-4 gba:py-3 gba:text-sm gba:text-muted-foreground gba:sm:flex-row gba:sm:items-center gba:sm:justify-between"
@@ -3310,12 +3310,22 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           max-width: 100%;
           height: auto;
           border-radius: 0.75rem;
-          margin: 1.5em 0;
+          margin: 0;
+          vertical-align: bottom;
+        }
+
+        .note-editor-content .ProseMirror .editor-image {
+          margin: 0;
         }
 
         .note-editor-content .ProseMirror .editor-image-figure {
           max-width: 100%;
-          margin: 1.25em 0;
+          margin: 0;
+        }
+
+        .note-editor-content .ProseMirror [data-node-view-wrapper]:has(.editor-image-figure) {
+          display: block;
+          margin: 0 0 0.75em;
         }
 
         .note-editor-content .ProseMirror mark {

@@ -145,12 +145,22 @@
   max-width: 100%;
   height: auto;
   border-radius: 0.75rem;
-  margin: 1.5em 0;
+  margin: 0;
+  vertical-align: bottom;
+}
+
+.note-editor-content .tiptap .editor-image {
+  margin: 0;
 }
 
 .note-editor-content .tiptap .editor-image-figure {
   max-width: 100%;
-  margin: 1.25em 0;
+  margin: 0;
+}
+
+.note-editor-content .tiptap [data-node-view-wrapper]:has(.editor-image-figure) {
+  display: block;
+  margin: 0 0 0.75em;
 }
 
 /* Tables — visible borders on every cell, transparent background */

@@ -4,13 +4,17 @@
 
 import { useCallback, useRef, type RefObject } from 'react'
 import type { Editor } from '@tiptap/react'
-import type { CustomImageUploadHandler } from '@/components/tiptap-extensions/tiptap-custom-image'
+import type {
+  CustomImageAttributes,
+  CustomImageUploadHandler
+} from '@/components/tiptap-extensions/tiptap-custom-image'
 import { toast } from 'sonner'
 import {
   uploadNoteDriveImage,
   validateNoteImageFile,
   type UploadNoteDriveImageOptions
 } from '../services/noteDriveImageUpload'
+import { buildNoteInsertedImageAttrs } from '../utils/noteInsertedImageLayout'
 
 export interface UseNoteEditorImageUploadOptions {
   editorRef: RefObject<Editor | null>
@@ -19,6 +23,19 @@ export interface UseNoteEditorImageUploadOptions {
   canInsertImages: boolean
   driveUploadOptionsRef: RefObject<UploadNoteDriveImageOptions>
   translate: (key: string) => string
+}
+
+async function buildInsertAttrs(
+  editor: Editor,
+  file: File,
+  url: string,
+  insertPos: number
+): Promise<CustomImageAttributes> {
+  try {
+    return await buildNoteInsertedImageAttrs({ src: url, file, editor, insertPos })
+  } catch {
+    return { src: url }
+  }
 }
 
 export function useNoteEditorImageUpload({
@@ -78,23 +95,20 @@ export function useNoteEditorImageUpload({
     toast.error(tr('note-image-upload-failed'))
   }, [])
 
-  const insertAtCursor = useCallback(
-    (url: string) => {
+  const insertImage = useCallback(
+    async (file: File, url: string, insertPos?: number) => {
       const ed = editorRef.current
       if (!ed) return
-      ed.chain().focus().setImage({ src: url }).run()
-    },
-    [editorRef]
-  )
 
-  const insertAtPos = useCallback(
-    (pos: number, url: string) => {
-      const ed = editorRef.current
-      if (!ed) return
-      ed.chain()
-        .focus()
-        .insertContentAt(pos, { type: 'image', attrs: { src: url } })
-        .run()
+      const pos = insertPos ?? ed.state.selection.from
+      const attrs = await buildInsertAttrs(ed, file, url, pos)
+
+      if (insertPos != null) {
+        ed.chain().focus().insertContentAt(insertPos, { type: 'image', attrs }).run()
+        return
+      }
+
+      ed.chain().focus().setImage(attrs).run()
     },
     [editorRef]
   )
@@ -110,9 +124,7 @@ export function useNoteEditorImageUpload({
           if (file) {
             event.preventDefault()
             void uploadImage(file)
-              .then(({ url }) => {
-                insertAtCursor(url)
-              })
+              .then(({ url }) => insertImage(file, url))
               .catch(err => {
                 showUploadError(err)
               })
@@ -122,7 +134,7 @@ export function useNoteEditorImageUpload({
       }
       return false
     },
-    [canInsertImages, insertAtCursor, showUploadError, uploadImage]
+    [canInsertImages, insertImage, showUploadError, uploadImage]
   )
 
   const handleDrop = useCallback(
@@ -142,17 +154,14 @@ export function useNoteEditorImageUpload({
       const dropPos = coords?.pos ?? null
 
       void Promise.all(imageFiles.map(f => uploadImage(f)))
-        .then(results => {
-          const urls = results.map(r => r.url)
+        .then(async results => {
           const ed = editorRef.current
-          if (!ed || urls.length === 0) return
-          if (dropPos != null) {
-            insertAtPos(dropPos, urls[0]!)
-            for (let i = 1; i < urls.length; i += 1) {
-              ed.chain().focus().setImage({ src: urls[i]! }).run()
-            }
-          } else {
-            urls.forEach(url => ed.chain().focus().setImage({ src: url }).run())
+          if (!ed || results.length === 0) return
+
+          for (let i = 0; i < results.length; i += 1) {
+            const { url } = results[i]!
+            const file = imageFiles[i]!
+            await insertImage(file, url, i === 0 && dropPos != null ? dropPos : undefined)
           }
         })
         .catch(err => {
@@ -160,7 +169,7 @@ export function useNoteEditorImageUpload({
         })
       return true
     },
-    [canInsertImages, editorRef, insertAtPos, showUploadError, uploadImage]
+    [canInsertImages, editorRef, insertImage, showUploadError, uploadImage]
   )
 
   const insertImagesFromFileList = useCallback(
@@ -169,16 +178,17 @@ export function useNoteEditorImageUpload({
       const list = Array.from(files).filter(f => f.type.startsWith('image/'))
       if (list.length === 0) return
       void Promise.all(list.map(f => uploadImage(f)))
-        .then(results => {
-          results.forEach(({ url }) => {
-            insertAtCursor(url)
-          })
+        .then(async results => {
+          for (let i = 0; i < results.length; i += 1) {
+            const { url } = results[i]!
+            await insertImage(list[i]!, url)
+          }
         })
         .catch(err => {
           showUploadError(err)
         })
     },
-    [canInsertImages, insertAtCursor, showUploadError, uploadImage]
+    [canInsertImages, insertImage, showUploadError, uploadImage]
   )
 
   return { uploadImage, handlePaste, handleDrop, insertImagesFromFileList }

@@ -173,6 +173,8 @@ export interface BuildInitialInsertedImageAttrsInput {
   paginationConfig: PageLayoutPaginationConfig | null
   editor?: Editor | null
   insertPos?: number | null
+  /** When set, skips page-body clamping and uses this width directly (e.g. note editor). */
+  availableWidthPx?: number | null
 }
 
 /**
@@ -192,11 +194,15 @@ export async function buildInitialInsertedImageAttrs(
         : Promise.resolve(null)
     ])
 
-    const available = resolveEffectiveAvailableWidthPx({
-      paginationConfig: input.paginationConfig,
-      editor: input.editor ?? null,
-      insertPos: input.insertPos ?? null
-    })
+    const availableOverride = input.availableWidthPx
+    const available =
+      availableOverride != null && availableOverride > 0
+        ? availableOverride
+        : resolveEffectiveAvailableWidthPx({
+            paginationConfig: input.paginationConfig,
+            editor: input.editor ?? null,
+            insertPos: input.insertPos ?? null
+          })
 
     const { width: displayW, height: displayH } = computeInitialImageDisplayDimensions({
       naturalWidthPx: naturalW,
