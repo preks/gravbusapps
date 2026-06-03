@@ -1,17 +1,12 @@
 import React from 'react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useLocale } from '@newwork/nw-design-system'
-import { COMMUNICATION_CHANNEL } from '@/common/constants/commonCatalogs'
-import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
-import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
-import { getPhosphorIcon } from '@/common/utils/phosphorIconUtils'
-
-type CommunicationChannelOption = {
-  value: string
-  label: string
-  icon?: string
-}
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import { LinkIcon } from '@phosphor-icons/react'
+import { resolvePhosphorIconComponent } from '@/common/utils/phosphorIconUtils'
+import type { CommunicationChannelOption } from './useCommunicationChannelOptions'
 
 interface CommunicationChannelSelectProps {
+  options: CommunicationChannelOption[]
+  loading: boolean
   accessToken?: string
   value: string
   onValueChange: (value: string) => void
@@ -19,14 +14,6 @@ interface CommunicationChannelSelectProps {
   invalid?: boolean
   describedBy?: string
   'data-testid'?: string
-}
-
-const getLocalizedLabel = (entry: CatalogEntry, locale?: string): string => {
-  const translatedValue = locale
-    ? entry.translations?.find(translation => translation.localeCode === locale)?.value
-    : ''
-  if (translatedValue?.trim()) return translatedValue
-  return entry.value || entry.displayValue || entry.code || entry.id
 }
 
 const getFallbackLabel = (value: string): string => {
@@ -39,18 +26,22 @@ const getFallbackLabel = (value: string): string => {
     .join(' ')
 }
 
-const CommunicationChannelLabel: React.FC<{ label: string; icon?: string }> = ({ label, icon }) => {
-  const IconComponent = icon ? getPhosphorIcon(icon) : null
+const CommunicationChannelLabel = React.memo<{ label: string; iconName?: string }>(({ label, iconName }) => {
+  const IconComponent = resolvePhosphorIconComponent(iconName, LinkIcon)
 
   return (
     <span className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
-      {IconComponent ? <IconComponent className="gba:h-4 gba:w-4 gba:flex-none" aria-hidden="true" /> : null}
+      <IconComponent className="gba:h-4 gba:w-4 gba:flex-none" aria-hidden="true" />
       <span className="gba:min-w-0 gba:flex-1 gba:truncate">{label}</span>
     </span>
   )
-}
+})
+
+CommunicationChannelLabel.displayName = 'CommunicationChannelLabel'
 
 const CommunicationChannelSelect: React.FC<CommunicationChannelSelectProps> = ({
+  options,
+  loading,
   accessToken,
   value,
   onValueChange,
@@ -59,60 +50,7 @@ const CommunicationChannelSelect: React.FC<CommunicationChannelSelectProps> = ({
   describedBy,
   'data-testid': dataTestId
 }) => {
-  const { locale } = useLocale()
-  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: accessToken || '' })
-  const [options, setOptions] = React.useState<CommunicationChannelOption[]>([])
-  const [loading, setLoading] = React.useState(false)
-
-  React.useEffect(() => {
-    if (!accessToken) {
-      setOptions([])
-      return
-    }
-
-    let isMounted = true
-    const [catalogIdentifier, version = 'v1'] = COMMUNICATION_CHANNEL.split(':')
-
-    const loadCommunicationChannels = async () => {
-      setLoading(true)
-      try {
-        const { entries } = await fetchCatalogEntriesByIdentifier(catalogIdentifier, {
-          version,
-          limit: 100,
-          orderBy: [
-            { field: 'displayOrder', direction: 'ASC_NULLS_LAST' },
-            { field: 'value', direction: 'ASC' }
-          ]
-        })
-
-        if (!isMounted) return
-
-        setOptions(
-          entries.map(entry => ({
-            value: entry.id,
-            label: getLocalizedLabel(entry, locale),
-            icon: entry.additionalValue3 || undefined
-          }))
-        )
-      } catch (error) {
-        console.error(
-          'Failed to load communication channels:',
-          error instanceof Error ? error.message : 'Unknown error'
-        )
-        if (isMounted) setOptions([])
-      } finally {
-        if (isMounted) setLoading(false)
-      }
-    }
-
-    void loadCommunicationChannels()
-
-    return () => {
-      isMounted = false
-    }
-  }, [accessToken, fetchCatalogEntriesByIdentifier, locale])
-
-  const selectedOption = options.find(option => option.value === value)
+  const selectedOption = React.useMemo(() => options.find(option => option.value === value), [options, value])
   const selectedLabel = selectedOption?.label || (value ? getFallbackLabel(value) : '')
 
   return (
@@ -130,7 +68,7 @@ const CommunicationChannelSelect: React.FC<CommunicationChannelSelectProps> = ({
       >
         <SelectValue placeholder={loading ? 'Loading...' : 'Select...'} className="gba:min-w-0 gba:flex-1">
           {selectedLabel ? (
-            <CommunicationChannelLabel label={selectedLabel} icon={selectedOption?.icon} />
+            <CommunicationChannelLabel label={selectedLabel} iconName={selectedOption?.iconName} />
           ) : (
             <span className="gba:text-muted-foreground">Select...</span>
           )}
@@ -144,7 +82,7 @@ const CommunicationChannelSelect: React.FC<CommunicationChannelSelectProps> = ({
             data-testid={dataTestId ? `${dataTestId}-item-${option.value}` : undefined}
             title={option.label}
           >
-            <CommunicationChannelLabel label={option.label} icon={option.icon} />
+            <CommunicationChannelLabel label={option.label} iconName={option.iconName} />
           </SelectItem>
         ))}
       </SelectContent>
@@ -152,4 +90,4 @@ const CommunicationChannelSelect: React.FC<CommunicationChannelSelectProps> = ({
   )
 }
 
-export default CommunicationChannelSelect
+export default React.memo(CommunicationChannelSelect)

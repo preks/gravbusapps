@@ -1,9 +1,73 @@
 import React from 'react'
 import * as PhosphorIcons from '@phosphor-icons/react'
-import { InfoIcon } from '@phosphor-icons/react'
+import { InfoIcon, LinkIcon } from '@phosphor-icons/react'
 
 // Type for icon components
 export type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>
+
+const NON_COMPONENT_ICON_KEYS = new Set(['SSR', 'IconContext'])
+
+const phosphorIconKeySet: Set<string> = new Set(Object.keys(PhosphorIcons))
+const phosphorIconKeySetLower: Map<string, string> = new Map(
+  Object.keys(PhosphorIcons)
+    .filter(key => /^[A-Z]/.test(key) && !NON_COMPONENT_ICON_KEYS.has(key))
+    .map(key => [key.toLowerCase(), key])
+)
+
+const resolvePhosphorIconKey = (iconName: string): string | undefined => {
+  if (!iconName?.trim() || NON_COMPONENT_ICON_KEYS.has(iconName)) {
+    return undefined
+  }
+
+  if (phosphorIconKeySet.has(iconName) && !NON_COMPONENT_ICON_KEYS.has(iconName)) {
+    return iconName
+  }
+
+  const nameWithoutIcon = iconName.replace(/Icon$/, '')
+  if (phosphorIconKeySet.has(nameWithoutIcon) && !NON_COMPONENT_ICON_KEYS.has(nameWithoutIcon)) {
+    return nameWithoutIcon
+  }
+
+  return phosphorIconKeySetLower.get(iconName.toLowerCase())
+}
+
+const isRenderablePhosphorExport = (exportValue: unknown): exportValue is IconComponent => {
+  if (!exportValue) return false
+  if (typeof exportValue === 'function') return true
+  if (typeof exportValue === 'object' && '$$typeof' in exportValue) {
+    return String((exportValue as { $$typeof?: symbol }).$$typeof).includes('forward_ref')
+  }
+  return false
+}
+
+/**
+ * Returns true when iconName maps to a renderable Phosphor icon component.
+ */
+export const isValidPhosphorIconName = (iconName: string): boolean => {
+  const resolvedKey = resolvePhosphorIconKey(iconName)
+  if (!resolvedKey) return false
+  return isRenderablePhosphorExport((PhosphorIcons as Record<string, unknown>)[resolvedKey])
+}
+
+/**
+ * Resolves a catalog additionalValue3 icon name to a Phosphor component.
+ */
+export const resolvePhosphorIconComponent = (
+  iconName: string | undefined,
+  fallback: IconComponent = LinkIcon
+): IconComponent => {
+  const resolvedKey = iconName ? resolvePhosphorIconKey(iconName) : undefined
+  if (!resolvedKey) {
+    return fallback
+  }
+
+  const iconComponent = (PhosphorIcons as Record<string, unknown>)[resolvedKey]
+  if (isRenderablePhosphorExport(iconComponent)) {
+    return iconComponent
+  }
+
+  return fallback
+}
 
 /**
  * Get Phosphor icon component by name
@@ -17,35 +81,13 @@ export const getPhosphorIcon = (iconName: string): IconComponent => {
     return InfoIcon
   }
 
-  // Try exact match first
-  if ((PhosphorIcons as any)[iconName]) {
-    return (PhosphorIcons as any)[iconName]
+  if (isValidPhosphorIconName(iconName)) {
+    return resolvePhosphorIconComponent(iconName, InfoIcon)
   }
 
-  // Try without "Icon" suffix
-  const nameWithoutIcon = iconName.replace(/Icon$/, '')
-  if ((PhosphorIcons as any)[nameWithoutIcon]) {
-    return (PhosphorIcons as any)[nameWithoutIcon]
-  }
-
-  // Try case-insensitive match
-  const lowerName = iconName.toLowerCase()
-  const foundKey = Object.keys(PhosphorIcons).find(key => key.toLowerCase() === lowerName && /^[A-Z]/.test(key))
-
-  if (foundKey) {
-    return (PhosphorIcons as any)[foundKey]
-  }
-
-  // Log warning for missing icons in development
   if (process.env.NODE_ENV === 'development') {
-    console.warn(
-      `Phosphor icon not found: ${iconName}. Available icons include:`,
-      Object.keys(PhosphorIcons)
-        .filter(key => /^[A-Z]/.test(key) && key !== 'IconContext' && key !== 'SSR')
-        .slice(0, 10)
-    )
+    console.warn(`Phosphor icon not found: ${iconName}`)
   }
 
-  // Fallback to Info icon
   return InfoIcon
 }
