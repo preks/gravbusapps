@@ -124,5 +124,5 @@ Tasks (${sortedTasks.length} items): ${JSON.stringify(sortedTasks, null, 2)}`
     }
   }
 
-  return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, 'gpt-4.1')
+  return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, 'gpt-4o')
 }

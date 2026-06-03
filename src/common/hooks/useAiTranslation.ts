@@ -24,5 +24,5 @@ export function useAiTranslation(
     })
   }
 
-  return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, 'gpt-4.1-mini')
+  return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, 'gpt-4o-mini')
 }

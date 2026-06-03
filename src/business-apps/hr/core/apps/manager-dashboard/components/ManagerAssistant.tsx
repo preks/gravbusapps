@@ -92,7 +92,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
       const form = new FormData()
       form.append('session_id', sessionId) // use existing session or empty for new
       form.append('user_input_text', userMessage)
-      form.append('llm_model', 'gpt-4.1') // Use the correct model version
+      form.append('llm_model', 'gpt-4o') // Use the correct model version
       form.append('use_web_search_tool', 'false')
 
       // Add current page context - use correct structure for manager dashboard
