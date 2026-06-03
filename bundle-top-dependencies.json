@@ -37638,9 +37638,9 @@
     ]
   },
   "hr/absences/apps/personal-absences": {
-    "bitbucketBuildNumber": 12868,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
-    "chunkJsBytes": 683442,
+    "bitbucketBuildNumber": 12884,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12884/",
+    "chunkJsBytes": 683738,
     "top": [
       {
         "kind": "bucket",
@@ -37663,8 +37663,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 296302,
-        "gzip": 76576,
+        "rendered": 296836,
+        "gzip": 76707,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/components/AbsenceCalendar.tsx",
@@ -40928,15 +40928,15 @@
     ]
   },
   "hr/core/apps/employee-record": {
-    "bitbucketBuildNumber": 12868,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
-    "chunkJsBytes": 1492820,
+    "bitbucketBuildNumber": 12884,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12884/",
+    "chunkJsBytes": 1492651,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 1367960,
-        "gzip": 331238,
+        "rendered": 1366517,
+        "gzip": 331403,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/PerformanceTab.tsx",
@@ -42387,15 +42387,15 @@
     ]
   },
   "hr/core/apps/my-development": {
-    "bitbucketBuildNumber": 12868,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
-    "chunkJsBytes": 484621,
+    "bitbucketBuildNumber": 12884,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12884/",
+    "chunkJsBytes": 484452,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 457321,
-        "gzip": 107176,
+        "rendered": 455874,
+        "gzip": 107340,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/PerformanceTab.tsx",
@@ -42944,9 +42944,9 @@
     ]
   },
   "hr/core/apps/my-time": {
-    "bitbucketBuildNumber": 12868,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
-    "chunkJsBytes": 633643,
+    "bitbucketBuildNumber": 12884,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12884/",
+    "chunkJsBytes": 633939,
     "top": [
       {
         "kind": "bucket",
@@ -42969,8 +42969,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 268588,
-        "gzip": 67588,
+        "rendered": 269122,
+        "gzip": 67719,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/components/AbsenceCalendar.tsx",
@@ -44628,15 +44628,15 @@
     ]
   },
   "hr/core/forms/add-skill": {
-    "bitbucketBuildNumber": 12868,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
-    "chunkJsBytes": 345621,
+    "bitbucketBuildNumber": 12884,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12884/",
+    "chunkJsBytes": 373229,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 235664,
-        "gzip": 58631,
+        "rendered": 236425,
+        "gzip": 58807,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/ro-RO.ftl?raw",
@@ -44653,18 +44653,18 @@
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 125516,
-        "gzip": 40169,
+        "rendered": 165937,
+        "gzip": 51296,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
-            "rendered": 13412,
+            "rendered": 13396,
             "gzip": 3637
           },
           {
-            "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
-            "rendered": 8715,
-            "gzip": 2258
+            "name": "node_modules/@newwork/nw-design-system/dist/components/date-input/DateInput.js",
+            "rendered": 12644,
+            "gzip": 3300
           }
         ]
       },
@@ -44708,12 +44708,12 @@
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15733,
-        "gzip": 3725,
+        "gzip": 3724,
         "leaves": [
           {
             "name": "src/components/share-entity/ShareEntityDialog.tsx",
             "rendered": 15733,
-            "gzip": 3725
+            "gzip": 3724
           }
         ]
       },
@@ -44788,12 +44788,12 @@
         "kind": "bucket",
         "name": "(src)/components/debounced-input",
         "rendered": 1508,
-        "gzip": 620,
+        "gzip": 621,
         "leaves": [
           {
             "name": "src/components/debounced-input/DebouncedInput.tsx",
             "rendered": 1508,
-            "gzip": 620
+            "gzip": 621
           }
         ]
       },
@@ -88303,20 +88303,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12880,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12880/",
-    "chunkJsBytes": 1959765,
+    "bitbucketBuildNumber": 12884,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12884/",
+    "chunkJsBytes": 1959759,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1666416,
-        "gzip": 105555,
+        "rendered": 1666409,
+        "gzip": 105627,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1666416,
-            "gzip": 105555
+            "rendered": 1666409,
+            "gzip": 105627
           }
         ]
       },
@@ -109846,9 +109846,9 @@
     ]
   },
   "hr/core/apps/skill-management": {
-    "bitbucketBuildNumber": 12868,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
-    "chunkJsBytes": 594212,
+    "bitbucketBuildNumber": 12884,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12884/",
+    "chunkJsBytes": 594265,
     "top": [
       {
         "kind": "bucket",
@@ -109871,8 +109871,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 125940,
-        "gzip": 33084,
+        "rendered": 126018,
+        "gzip": 33111,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/skill-management/components/SkillDirectoryTab.tsx",
@@ -111683,9 +111683,9 @@
     ]
   },
   "crm/core/popups/contact-compliance-update-popup": {
-    "bitbucketBuildNumber": 12868,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
-    "chunkJsBytes": 268172,
+    "bitbucketBuildNumber": 12884,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12884/",
+    "chunkJsBytes": 268169,
     "top": [
       {
         "kind": "bucket",
@@ -111977,9 +111977,9 @@
     ]
   },
   "crm/core/popups/lead-compliance-update-popup": {
-    "bitbucketBuildNumber": 12868,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
-    "chunkJsBytes": 267775,
+    "bitbucketBuildNumber": 12884,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12884/",
+    "chunkJsBytes": 267772,
     "top": [
       {
         "kind": "bucket",
@@ -112271,10 +112271,28 @@
     ]
   },
   "core/use/apps/notifications": {
-    "bitbucketBuildNumber": 12868,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
-    "chunkJsBytes": 119743,
+    "bitbucketBuildNumber": 12884,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12884/",
+    "chunkJsBytes": 120206,
     "top": [
+      {
+        "kind": "bucket",
+        "name": "(src)/business-apps/core",
+        "rendered": 42459,
+        "gzip": 13111,
+        "leaves": [
+          {
+            "name": "src/business-apps/core/use/apps/notifications/hooks/useNotificationsList.ts",
+            "rendered": 9253,
+            "gzip": 2029
+          },
+          {
+            "name": "src/business-apps/core/use/apps/notifications/components/NotificationsPanel.tsx",
+            "rendered": 8449,
+            "gzip": 1712
+          }
+        ]
+      },
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
@@ -112308,24 +112326,6 @@
             "name": "src/common/dev-report/screenshot.ts",
             "rendered": 6973,
             "gzip": 2084
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/business-apps/core",
-        "rendered": 40854,
-        "gzip": 12796,
-        "leaves": [
-          {
-            "name": "src/business-apps/core/use/apps/notifications/components/NotificationsPanel.tsx",
-            "rendered": 8420,
-            "gzip": 1703
-          },
-          {
-            "name": "src/business-apps/core/use/apps/notifications/hooks/useNotificationsList.ts",
-            "rendered": 7936,
-            "gzip": 1778
           }
         ]
       },
@@ -112829,7 +112829,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-03T08:26:24.206Z",
+    "generatedAt": "2026-06-03T09:32:49.749Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
