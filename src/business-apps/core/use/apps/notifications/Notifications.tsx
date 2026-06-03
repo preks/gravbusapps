@@ -2,7 +2,7 @@ import React from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useNotificationClient } from '@/common/network/notification'
 import { NotificationsPanel } from './components'
-import { useFillNotificationsPages, useNotificationsList } from './hooks'
+import { useNotificationsList } from './hooks'
 import { NotificationsHost } from './NotificationsHost'
 import type { NotificationsAdditionalData } from './types'
 
@@ -26,6 +26,15 @@ function resolveEnableHost(additionalData: BusinessAppContextProps['additionalDa
   return data?.enableHost !== false
 }
 
+function resolveSeedUnreadCount(additionalData: BusinessAppContextProps['additionalData']): number | undefined {
+  const data = additionalData as NotificationsAdditionalData | undefined
+  const count = data?.seedUnreadCount
+  if (typeof count === 'number' && count >= 0) {
+    return count
+  }
+  return undefined
+}
+
 export const Notifications: React.FC<NotificationsProps> = ({
   className,
   accessToken,
@@ -35,6 +44,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
   const client = useNotificationClient(accessToken)
   const isOpen = resolveIsOpen(additionalData)
   const enableHost = resolveEnableHost(additionalData)
+  const seedUnreadCount = resolveSeedUnreadCount(additionalData)
 
   const {
     notifications,
@@ -50,21 +60,12 @@ export const Notifications: React.FC<NotificationsProps> = ({
     handleScrollCheck,
     handleMarkAllAsRead,
     handleToggleRead,
-    loadNextPage,
     retryList
   } = useNotificationsList({
     client,
     accessToken,
-    isOpen
-  })
-
-  useFillNotificationsPages({
     isOpen,
-    isLoadingList,
-    hasMore,
-    itemCount: notifications.length,
-    scrollContainerRef,
-    loadNextPage
+    seedUnreadCount
   })
 
   return (

@@ -54,7 +54,7 @@ export function NotificationsPanel({
   return (
     <div
       className={[
-        'gba:box-border gba:flex gba:w-full gba:min-w-full gba:max-w-full gba:flex-col gba:max-h-96 gba:bg-background',
+        'gba:box-border gba:flex gba:h-96 gba:w-full gba:min-w-full gba:max-w-full gba:flex-col gba:max-h-96 gba:overflow-hidden gba:bg-background',
         className
       ]
         .filter(Boolean)

@@ -72,11 +72,11 @@ export function useNotificationsHostState({ client, accessToken }: UseNotificati
   const attemptsRef = useRef(0)
   const connectingRef = useRef(false)
   const accessTokenRef = useRef<string | undefined>()
-  const loadUnreadCountRef = useRef<() => Promise<void>>()
+  const loadUnreadCountRef = useRef<(options?: { reloadList?: boolean }) => Promise<void>>()
 
   accessTokenRef.current = accessToken
 
-  loadUnreadCountRef.current = async () => {
+  loadUnreadCountRef.current = async (options?: { reloadList?: boolean }) => {
     if (!accessTokenRef.current) {
       setUnreadCount(0)
       return
@@ -84,7 +84,11 @@ export function useNotificationsHostState({ client, accessToken }: UseNotificati
     try {
       const count = await fetchUnreadNotificationCount(client)
       setUnreadCount(count)
-      notifyHostRefresh({ unreadCount: count, reloadList: true })
+      notifyHostRefresh({
+        unreadCount: count,
+        listError: null,
+        ...(options?.reloadList ? { reloadList: true } : {})
+      })
     } catch (error) {
       const message = formatNotificationErrorMessage(error, 'Unable to load notification count')
       notifyHostRefresh({ listError: message })
@@ -118,7 +122,7 @@ export function useNotificationsHostState({ client, accessToken }: UseNotificati
     let controller: AbortController | null = null
 
     const handleIncoming = () => {
-      loadUnreadCountRef.current?.()?.catch(() => undefined)
+      loadUnreadCountRef.current?.({ reloadList: true })?.catch(() => undefined)
       setRefreshKey(previous => previous + 1)
     }
 

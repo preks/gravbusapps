@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { getNotificationsRefreshDetailFromEvent } from '../utils'
+import { getCachedUnreadCount, getNotificationsRefreshDetailFromEvent } from '../utils'
 
 export function useNotificationsBadgeCount(): number {
-  const [unreadCount, setUnreadCount] = useState(0)
+  const [unreadCount, setUnreadCount] = useState(() => getCachedUnreadCount() ?? 0)
 
   useEffect(() => {
     const handleRefresh: EventListener = event => {
