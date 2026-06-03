@@ -334,7 +334,6 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
             {selectedItem && accessToken ? (
               <>
                 <ExpenseItemDetails
-                  translations={expenseRequestRecordTranslations}
                   selectedItem={
                     {
                       ...selectedItem,

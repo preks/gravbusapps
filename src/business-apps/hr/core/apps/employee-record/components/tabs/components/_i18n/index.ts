@@ -3,7 +3,7 @@ import deDE from './de-DE.flt?raw'
 import roRO from './ro-RO.flt?raw'
 
 export default {
-  enUS,
-  deDE,
-  roRO
+  'en-US': enUS,
+  'de-DE': deDE,
+  'ro-RO': roRO
 }

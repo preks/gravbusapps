@@ -16,12 +16,12 @@ import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePr
 import { TaskExpertTestPanel } from './TaskExpertTestPanel'
 import { createTaskExpertColumns } from '../config/taskExpertColumns'
 import type { PromptODM, WorkspaceODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../_i18n'
 
 // Extended type with id property for DataTable compatibility
 type TaskExpertRow = PromptODM & { id: string }
 
 interface TaskExpertsSpaceProps extends BusinessAppContextProps {
-  translations: { enUS: string; deDE: string; roRO: string }
   labelsReady?: boolean
   onViewPrompt: (id: string, name: string) => void
   onEditPrompt: (id: string, name: string) => void
@@ -40,7 +40,6 @@ const buildSortParam = (sorting: SortingState): string | null => {
 }
 
 export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
-  translations,
   labelsReady = false,
   onViewPrompt,
   onEditPrompt,

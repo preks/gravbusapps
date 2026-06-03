@@ -1,6 +1,7 @@
 # LocalizationProvider Implementation Summary
 
 ## Overview
+
 Implemented the new `LocalizationProvider` from `@newwork/nw-design-system` into the BusinessAppIDE with a complete example application.
 
 ## Changes Made
@@ -15,9 +16,7 @@ Implemented the new `LocalizationProvider` from `@newwork/nw-design-system` into
 
 ```tsx
 <ThemeProvider>
-  <LocalizationProvider locale="en-US">
-    {/* Application content */}
-  </LocalizationProvider>
+  <LocalizationProvider locale="en-US">{/* Application content */}</LocalizationProvider>
 </ThemeProvider>
 ```
 
@@ -41,9 +40,10 @@ declare module '*.ftl?raw' {
 Created a complete example demonstrating the LocalizationProvider:
 
 #### Structure
+
 ```
 localization-example/
-├── i18n/
+├── _i18n/
 │   ├── index.ts      ← Export all translations
 │   ├── en-US.ftl     ← English translations
 │   ├── de-DE.ftl     ← German translations
@@ -65,21 +65,29 @@ localization-example/
    - Multiple variables: `selected-date = Selected date: { $date }`
 
 3. **useTranslation Hook**
+
    ```tsx
    import { useTranslation } from '@newwork/nw-design-system'
-   import translations from './i18n'
-   
+   import translations from './_i18n'
+
    const { t } = useTranslation(translations)
-   
+
    // Usage
-   {t('welcome-title')}
-   {t('welcome-user', { name: userName })}
-   {t('items-count', { count: itemCount })}
+   {
+     t('welcome-title')
+   }
+   {
+     t('welcome-user', { name: userName })
+   }
+   {
+     t('items-count', { count: itemCount })
+   }
    ```
 
 #### Translation Files (.ftl)
 
 Each file contains:
+
 - Section comments (`# Welcome Section`)
 - Simple translations (`save-button = Save`)
 - Variable placeholders (`welcome-user = Welcome, { $name }!`)
@@ -105,21 +113,24 @@ Each file contains:
 
 ### Creating New Localized Components
 
-1. Create an `i18n/` folder in your component directory
+1. Create an `_i18n/` folder in your component directory
 2. Add `.ftl` files for each supported locale (en-US, de-DE, ro-RO)
 3. Create `index.ts` to export translations:
+
    ```ts
    import enUS from './en-US.ftl?raw'
    import deDE from './de-DE.ftl?raw'
    import roRO from './ro-RO.ftl?raw'
-   
-   export default { enUS, deDE, roRO }
+
+   export default { 'en-US': enUS, 'de-DE': deDE, 'ro-RO': roRO }
    ```
+
 4. Use translations in your component:
+
    ```tsx
    import { useTranslation } from '@newwork/nw-design-system'
-   import translations from './i18n'
-   
+   import translations from './_i18n'
+
    const { t } = useTranslation(translations)
    ```
 
@@ -140,6 +151,7 @@ Each file contains:
 ## Testing
 
 Navigate to the example app and:
+
 1. Switch locales using the LocaleSelect in the header
 2. Verify all text updates to the selected language
 3. Verify DateInput date formatting changes
@@ -151,5 +163,3 @@ Navigate to the example app and:
 - Apply this pattern to other business apps as needed
 - Add more locales if required
 - Create shared translation utilities for common patterns
-
-

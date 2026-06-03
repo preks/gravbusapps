@@ -8,4 +8,4 @@ export default {
   'en-US': commonTranslations['en-US'] + '\n' + enUS,
   'de-DE': commonTranslations['de-DE'] + '\n' + deDE,
   'ro-RO': commonTranslations['ro-RO'] + '\n' + roRO
-} as Record<'en-US' | 'de-DE' | 'ro-RO', string>
+} as Record<string, string>

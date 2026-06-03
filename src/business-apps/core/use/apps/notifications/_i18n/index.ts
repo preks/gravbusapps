@@ -5,7 +5,7 @@ import deDE from './de-DE.ftl?raw'
 import roRO from './ro-RO.ftl?raw'
 
 export default {
-  'en-US': translations.enUS + '\n' + enUS,
-  'de-DE': translations.deDE + '\n' + deDE,
-  'ro-RO': translations.roRO + '\n' + roRO
+  'en-US': translations['en-US'] + '\n' + enUS,
+  'de-DE': translations['de-DE'] + '\n' + deDE,
+  'ro-RO': translations['ro-RO'] + '\n' + roRO
 }

@@ -34,7 +34,7 @@ All translation keys are automatically prefixed based on their hierarchy level:
 
 ```typescript
 import { useTranslation } from '@newwork/nw-design-system';
-import translations from './i18n'; // Always colocated!
+import translations from './_i18n'; // Always colocated!
 
 export const MyComponent: React.FC = () => {
   const { t } = useTranslation(translations);
@@ -52,37 +52,38 @@ export const MyComponent: React.FC = () => {
 
 ### For a new app/form/window:
 
-1. Create an `i18n/` folder in your component directory
+1. Create an `_i18n/` folder in your component directory
 2. Add FTL files for each locale (`de-DE.ftl`, `en-US.ftl`, `ro-RO.ftl`)
 3. Create `index.ts` that merges parent + own translations
 
 ```typescript
-// src/business-apps/core/content/apps/my-app/i18n/index.ts
-import { mergeTranslations, createPrefixedTranslations } from '@/common/utils/localizationUtils'
-import contentTranslations from '../../i18n' // Parent
+// src/business-apps/core/content/apps/my-app/_i18n/index.ts
+import translations from '../../_i18n'
 
 import deDE from './de-DE.ftl?raw'
 import enUS from './en-US.ftl?raw'
 import roRO from './ro-RO.ftl?raw'
 
-const myAppTranslations = createPrefixedTranslations(deDE, enUS, roRO, 'core-content-my-app-')
-
-export default mergeTranslations(contentTranslations, myAppTranslations)
+export default {
+  'en-US': translations['en-US'] + '\n' + enUS,
+  'de-DE': translations['de-DE'] + '\n' + deDE,
+  'ro-RO': translations['ro-RO'] + '\n' + roRO
+}
 ```
 
 ### For container folders (without own translations):
 
-If your component uses translations from a parent level, create an `i18n/index.ts` that re-exports:
+If your component uses translations from a parent level, create an `_i18n/index.ts` that re-exports:
 
 ```typescript
-// src/business-apps/core/content/components/i18n/index.ts
-export { default } from '../../i18n'
+// src/business-apps/core/content/components/_i18n/index.ts
+export { default } from '../../_i18n'
 ```
 
 ## Important Rules
 
-1. **Every level needs an `i18n/` folder** - even if it only re-exports
-2. **Always import from `./i18n`** - keep translations colocated
+1. **Every level needs an `_i18n/` folder** - even if it only re-exports
+2. **Always import from `./_i18n`** - keep translations colocated
 3. **Follow naming conventions** - use kebab-case and clear prefixes
 4. **Comment your FTL files** - group related keys with `# Section Name`
 

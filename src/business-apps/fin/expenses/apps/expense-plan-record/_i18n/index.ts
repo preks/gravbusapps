@@ -6,4 +6,4 @@ export default {
   'en-US': enUS,
   'de-DE': deDE,
   'ro-RO': roRO
-} as Record<'en-US' | 'de-DE' | 'ro-RO', string>
+} as Record<string, string>

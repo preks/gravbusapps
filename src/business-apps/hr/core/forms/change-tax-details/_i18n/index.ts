@@ -3,7 +3,7 @@ import deDE from './de-DE.ftl?raw'
 import roRO from './ro-RO.ftl?raw'
 
 export default {
-  enUS,
-  deDE,
-  roRO
-} as { enUS: string; deDE: string; roRO: string }
+  'en-US': enUS,
+  'de-DE': deDE,
+  'ro-RO': roRO
+} as Record<string, string>

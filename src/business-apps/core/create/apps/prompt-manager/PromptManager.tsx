@@ -359,7 +359,6 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
             <TabsContent value="task-experts" data-testid="prompt-manager-tab-content-task-experts">
               <TaskExpertsSpace
                 {...context}
-                translations={translations}
                 labelsReady={labelsReady}
                 onViewPrompt={onViewPrompt}
                 onEditPrompt={onEditPrompt}

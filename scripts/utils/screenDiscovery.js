@@ -31,7 +31,7 @@ function normalizePath(value) {
 }
 
 /**
- * Folders named `_i18n` under `forms`/`apps`/etc. contain Fluent bundles (`export default { enUS, ... }`), not screens.
+ * Folders named `_i18n` under `forms`/`apps`/etc. contain Fluent bundles (`export default { 'en-US': enUS, ... }`), not screens.
  * A single path segment after `forms` (etc.) can be `_i18n`, so discovery picks up `forms/_i18n/index.ts` — exclude those paths.
  */
 function isI18nBundleIndexPath(normalizedFilePath) {
