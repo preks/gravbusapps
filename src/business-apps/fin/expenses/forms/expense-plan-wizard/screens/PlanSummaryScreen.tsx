@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Row, Col, Pagination, Alert } from 'antd'
 import { useTranslation } from '@newwork/nw-design-system'
+import { useExpenseRequestWizardTranslation } from '../../expense-request-wizard/useExpenseRequestWizardTranslation'
 import {
   getTranslationFromI18nKeyAndLabel,
   formatDate,
@@ -45,6 +46,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
   const { expensePlanData, employeeRuleId, currentTitle } = useExpensePlanWizardContext()
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
   const { t: tForms } = useTranslation(expenseFormsTranslations)
+  const { t: tWizard } = useExpenseRequestWizardTranslation()
   const graphqlClient = useGraphqlClient(accessToken)
   const planData = expensePlanData?.ExpensePlanByPk
   const planItemData = expensePlanData?.ExpensePlanItem
@@ -285,7 +287,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
                     <ExpenseItemRow
                       key={item.id}
                       id={item.id}
-                      leftPrimary={getDayName(item.expenseDate)}
+                      leftPrimary={getDayName(item.expenseDate, tWizard)}
                       leftSecondary={formatDate(item.expenseDate)}
                       rightSecondary={`${formatNumberFunction(item.totalAmount)} ${item.currency.code}`}
                     />
