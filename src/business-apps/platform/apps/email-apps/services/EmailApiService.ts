@@ -35,7 +35,8 @@ import type {
   EmailAssistantReplySuggestRequest,
   EmailAssistantResponse,
   EmailAssistantRewriteRequest,
-  EmailAssistantTemperatureCheckRequest
+  EmailAssistantTemperatureCheckRequest,
+  EmailSyncDiagnostics
 } from '../types'
 
 const API_URL = getDocumentServiceApiUrl()
@@ -115,6 +116,10 @@ export const EmailApiService = {
 
   async syncAccount(id: string): Promise<void> {
     await apiRequest(`/emails/accounts/${id}/sync`, { method: 'POST' })
+  },
+
+  async getSyncDiagnostics(id: string): Promise<EmailSyncDiagnostics> {
+    return apiRequest<EmailSyncDiagnostics>(`/emails/accounts/${id}/sync-diagnostics`)
   },
 
   async testConnection(data: CreateEmailAccountRequest): Promise<{ success: boolean; error?: string }> {

@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@newwork/nw-design-system'
-import { Mail, RefreshCw, Trash2, Plus, Calendar, MessageSquare, Forward } from 'lucide-react'
+import { Mail, RefreshCw, Trash2, Plus, Calendar, MessageSquare, Forward, Activity } from 'lucide-react'
 import { MicrosoftOAuthService } from '../services/MicrosoftOAuthService'
 import { GoogleOAuthService } from '../services/GoogleOAuthService'
 import { OAuthConfigError } from '../services/OAuthConfigError'
@@ -34,7 +34,7 @@ import { EmailProviderSettingsApi } from '../services/EmailProviderSettingsApi'
 import { SignatureEditor } from './SignatureEditor'
 import { AccountStatusBadge } from './AccountStatusBadge'
 import { formatRelativeTimeWithT } from '../utils/emailDisplayUtils'
-import type { EmailAccount } from '../types'
+import type { EmailAccount, EmailSyncDiagnostics } from '../types'
 
 interface AccountManagementDialogProps {
   open: boolean
@@ -67,6 +67,8 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null)
   const [reconnectingAccountId, setReconnectingAccountId] = useState<string | null>(null)
   const [forwardingSavingId, setForwardingSavingId] = useState<string | null>(null)
+  const [diagnosticsLoadingId, setDiagnosticsLoadingId] = useState<string | null>(null)
+  const [diagnosticsByAccountId, setDiagnosticsByAccountId] = useState<Record<string, EmailSyncDiagnostics>>({})
   // Optimistic per-account override so the switch flips instantly on click,
   // before the PATCH + refetch round-trip resolves. Keyed by account id.
   const [forwardingOverrides, setForwardingOverrides] = useState<Record<string, boolean>>({})
@@ -181,6 +183,18 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
     }
   }
 
+  const handleLoadDiagnostics = async (account: EmailAccount) => {
+    setDiagnosticsLoadingId(account.id)
+    try {
+      const diagnostics = await EmailApiService.getSyncDiagnostics(account.id)
+      setDiagnosticsByAccountId(prev => ({ ...prev, [account.id]: diagnostics }))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load diagnostics')
+    } finally {
+      setDiagnosticsLoadingId(null)
+    }
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -281,6 +295,18 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => void handleLoadDiagnostics(account)}
+                        disabled={diagnosticsLoadingId === account.id}
+                        data-testid={`${testId}-diagnostics-${account.id}`}
+                      >
+                        <Activity
+                          className={`gba:w-4 gba:h-4 gba:mr-2 ${diagnosticsLoadingId === account.id ? 'gba:animate-spin' : ''}`}
+                        />
+                        Diagnostics
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setDeletingAccountId(account.id)}
                         data-testid={`${testId}-delete-${account.id}`}
                       >
@@ -324,6 +350,28 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                         onCheckedChange={() => void handleToggleForwarding(account)}
                         data-testid={`${testId}-forwarding-${account.id}`}
                       />
+                    </div>
+                  )}
+
+                  {diagnosticsByAccountId[account.id] && (
+                    <div className="gba:mt-3 gba:pt-3 gba:border-t">
+                      <div className="gba:mb-2 gba:flex gba:items-center gba:justify-between">
+                        <span className="gba:text-sm gba:font-medium gba:text-foreground">Sync diagnostics</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            void navigator.clipboard?.writeText(
+                              JSON.stringify(diagnosticsByAccountId[account.id], null, 2)
+                            )
+                          }
+                        >
+                          Copy JSON
+                        </Button>
+                      </div>
+                      <pre className="gba:max-h-80 gba:overflow-auto gba:rounded gba:bg-muted gba:p-3 gba:text-xs gba:text-muted-foreground">
+                        {JSON.stringify(diagnosticsByAccountId[account.id], null, 2)}
+                      </pre>
                     </div>
                   )}
 
