@@ -129,6 +129,8 @@ export const buildOpportunityQuery = (
         }
         ${entityFields.ownerEmployeeId}
         ${entityFields.winningChance}
+        ${entityFields.aiOpportunityScore}
+        ${entityFields.aiOpportunityGrade}
         # Account relation (only for IRM - CRM uses opportunityAccounts junction table)
         ${
           entityFields.account
@@ -220,6 +222,8 @@ export const buildOpportunityByIdQuery = (
         }
         ${entityFields.ownerEmployeeId}
         ${entityFields.winningChance}
+        ${entityFields.aiOpportunityScore}
+        ${entityFields.aiOpportunityGrade}
         # Company relation (only for CRM - IRM does not have companyId)
         ${
           entityFields.companyId

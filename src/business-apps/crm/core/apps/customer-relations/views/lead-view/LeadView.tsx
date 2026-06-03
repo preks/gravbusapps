@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { AiButton, Button, useTranslation } from '@newwork/nw-design-system'
-import { FunnelSimpleIcon } from '@phosphor-icons/react'
 import { Plus } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -19,9 +18,9 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCustomerLeadStatistics } from '@/common/data/customer/hooks/useCustomerLeadStatistics'
 import { AppAction } from '@/components/app-action/AppAction'
-import leadScoringI18n from '@/business-apps/crm/core/features/lead-scoring/_i18n'
-import { LeadScoringSelectionDialog } from '@/business-apps/crm/core/features/lead-scoring/components/LeadScoringSelectionDialog'
-import { createLeadAiScoreColumn } from './leadAiScoreColumn'
+import icpScoringI18n from '@/common/components/icp-scoring/_i18n'
+import { IcpScoringSelectionDialog } from '@/business-apps/crm/core/features/icp-scoring'
+import { insertCustomerLeadColumnsAfter } from '@/common/components/customer/view-layouts/lead-layout/config/leadColumns'
 
 export type LeadViewProps = BusinessAppContextProps
 
@@ -89,7 +88,7 @@ const processSorting = (sorting: Array<{ id: string; desc: boolean }>, vars: Cus
 
 export const LeadView: React.FC<LeadViewProps> = context => {
   const { accessToken } = context
-  const { t } = useTranslation(leadScoringI18n)
+  const { t } = useTranslation(icpScoringI18n)
   const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
     useViewPreferencesStorage('crm:customer-lead-preferences:v1')
   const [isBulkScoringOpen, setIsBulkScoringOpen] = useState(false)
@@ -106,16 +105,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   const config: LeadViewConfig<CustomerLead, CustomerLeadQueryVariables> = useMemo(
     () => ({
       fetchLeads: fetchCustomerLeads,
-      createColumns: () => {
-        const baseColumns = commonLeadColumns() as ColumnDef<CustomerLead>[]
-        const scoreColumn = createLeadAiScoreColumn({
-          header: t('lead-scoring-table-column'),
-          notScoredLabel: t('lead-scoring-not-scored'),
-          notAvailableLabel: t('lead-scoring-not-available')
-        })
-
-        return [baseColumns[0], scoreColumn, ...baseColumns.slice(1)] as any
-      },
+      createColumns: () => insertCustomerLeadColumnsAfter(commonLeadColumns() as ColumnDef<CustomerLead>[], 'lead'),
       descriptors: CUSTOMER_LEAD_DESCRIPTORS,
       entityName: 'Lead',
       columnLabels: {
@@ -219,14 +209,14 @@ export const LeadView: React.FC<LeadViewProps> = context => {
               onClick={() => setIsBulkScoringOpen(true)}
               data-testid="customer-lead-view-open-bulk-scoring"
             >
-              <FunnelSimpleIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-              {t('lead-scoring-title')}
+              {t('icp-scoring-title')}
             </AiButton>
           </div>
         }
       />
 
-      <LeadScoringSelectionDialog
+      <IcpScoringSelectionDialog
+        entityType="lead"
         open={isBulkScoringOpen}
         onOpenChange={setIsBulkScoringOpen}
         accessToken={accessToken}

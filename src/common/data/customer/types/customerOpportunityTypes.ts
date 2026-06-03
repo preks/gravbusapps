@@ -30,6 +30,8 @@ import { mapRawCrmNoteGraphQLRow } from '../utils/crmNoteMap'
  * Extends Opportunity with CRM-specific fields
  */
 export interface CustomerOpportunity extends Opportunity {
+  aiOpportunityScore?: number | null
+  aiOpportunityGrade?: string | null
   // Customer-specific typed relationships
   addresses?: CustomerAddress[]
   communicationChannels?: CustomerCommunicationChannel[]
@@ -62,6 +64,8 @@ export interface CustomerOpportunityStageCondition extends OpportunityStageCondi
  */
 export const CustomerOpportunityFields = {
   ...OpportunityFields,
+  aiOpportunityScore: 'aiOpportunityScore',
+  aiOpportunityGrade: 'aiOpportunityGrade',
   // Override CRM-specific field names
   leads: 'lead', // CRM uses singular "lead"
   opportunityContacts: 'contacts', // CRM uses "contacts" not "opportunityContacts"
@@ -131,7 +135,19 @@ export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   // CRM-specific additional fields
   { key: 'salesCampaignIds', path: 'salesCampaignId', kind: 'inIds' },
   { key: 'contactIds', path: 'contacts.contact.id', kind: 'inIds' }, // CRM uses "contacts" not "opportunityContacts"
-  { key: 'accountIds', path: 'opportunityAccounts.accountId', kind: 'inIds' } // Junction table for many-to-many accounts
+  { key: 'accountIds', path: 'opportunityAccounts.accountId', kind: 'inIds' }, // Junction table for many-to-many accounts
+  {
+    key: 'aiOpportunityScore',
+    searchPaths: ['aiOpportunityScore'],
+    sortPath: 'aiOpportunityScore',
+    type: 'number'
+  },
+  {
+    key: 'aiOpportunityGrade',
+    searchPaths: ['aiOpportunityGrade'],
+    sortPath: 'aiOpportunityGrade',
+    type: 'text'
+  }
 ]
 
 /**

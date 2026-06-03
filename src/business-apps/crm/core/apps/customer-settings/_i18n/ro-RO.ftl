@@ -1,23 +1,20 @@
-# Customer settings — Profiluri clienți ideali (ICP)
+# Customer settings — Profiluri ICP
 
 # Settings hub card
-icp-settings-card-title = Profiluri clienți ideali
-icp-settings-card-description = Configurați criteriile ICP și ponderile pentru scorizarea ICP cu AI
+icp-settings-card-title = Profiluri ICP
+icp-settings-card-description = Definiți profiluri de client ideal cu criterii și ponderi pentru procesul de vânzări.
 icp-settings-card-entry = Gestionați profilurile
-lead-scoring-settings-card-title = Scorizare leaduri
-lead-scoring-settings-card-description = Scorizați leaduri individuale sau liste de leaduri folosind profilurile ICP
-lead-scoring-settings-card-entry = Deschideți Scorizarea leadurilor
 
 # Page
-icp-page-title = Profiluri clienți ideali
-icp-page-description = Definiți criteriile ICP și ponderile pentru scorizarea ICP cu AI.
+icp-page-title = Profiluri ICP
+icp-page-description = Definiți criteriile și ponderile pentru fiecare profil de client ideal.
 
 # Sidebar
 icp-profiles-heading = Profiluri
 icp-new-profile = Profil nou
 icp-search-placeholder = Căutați profiluri...
 icp-no-profiles-title = Nu există încă profiluri
-icp-no-profiles-hint = Creați un profil pentru a începe configurarea scorizării ICP.
+icp-no-profiles-hint = Creați un profil pentru a defini criterii și ponderi.
 icp-delete-profile-aria = Șterge profilul
 
 # Editor
@@ -30,7 +27,7 @@ icp-save-profile = Salvează profilul
 
 # Dialogs
 icp-dialog-new-profile-title = Profil nou
-icp-dialog-new-profile-description = Creează un nou profil pentru criterii ICP și scorizare.
+icp-dialog-new-profile-description = Creează un profil nou pentru criterii și ponderi ICP.
 icp-cancel = Anulare
 icp-create-profile = Creează
 icp-delete-confirm-message = „{ $name }” va fi eliminat definitiv.

@@ -31,7 +31,7 @@ import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view/DocumentView'
 import ComplianceSection from '@/common/components/common-relations/record-sections/compliance-section/ComplianceSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
-import { formatScoreValue, getGradeBadgeVariant } from '@/business-apps/crm/core/features/lead-scoring'
+import { AiScoreRecordBadge } from '@/common/components/ai-score/AiScoreRecordBadge'
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
   leadId: string
@@ -258,12 +258,12 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     <AiActions
       entityType="lead"
       entityId={leadId}
-      features={['summary', 'meeting-planner', 'lead-scoring']}
+      features={['summary', 'meeting-planner', 'ai-scoring']}
       hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
       accessToken={props.accessToken}
       userInfo={props.userInfo}
       additionalData={props.additionalData}
-      onLeadScored={fetchLeadData}
+      onIcpScored={fetchLeadData}
     />
   )
 
@@ -509,25 +509,18 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     )
   }
 
-  const hasAiScoreValue = leadData.aiLeadScore !== null && leadData.aiLeadScore !== undefined
-  const hasAiScoreBadge = hasAiScoreValue || Boolean(leadData.aiLeadGrade)
-  const aiScoreLabel = `${formatScoreValue(leadData.aiLeadScore)} · ${
-    leadData.aiLeadGrade || getTranslationFromI18nKeyAndLabel('crm.common.notAvailable', 'N/A')
-  }`
+  const gradeFallback = getTranslationFromI18nKeyAndLabel('crm.common.notAvailable', 'N/A')
 
   // Create header title with sensitive badge
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
       <span>{leadName}</span>
-      {hasAiScoreBadge && (
-        <Badge
-          data-testid="lead-ai-score-badge"
-          variant={getGradeBadgeVariant(leadData.aiLeadGrade)}
-          className="gba:text-sm"
-        >
-          {aiScoreLabel}
-        </Badge>
-      )}
+      <AiScoreRecordBadge
+        score={leadData.aiLeadScore}
+        grade={leadData.aiLeadGrade}
+        gradeFallback={gradeFallback}
+        dataTestId="lead-ai-score-badge"
+      />
       {leadData?.sensitive === true && (
         <TooltipProvider>
           <Tooltip>

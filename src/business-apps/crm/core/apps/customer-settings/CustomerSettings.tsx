@@ -11,7 +11,7 @@ import {
   BuildingsIcon,
   FileTextIcon,
   MegaphoneIcon,
-  FunnelSimpleIcon,
+  GaugeIcon,
   ShieldCheckIcon
 } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
@@ -25,7 +25,6 @@ import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPag
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import CampaignDataPage from './pages/campaign-data/CampaignDataPage'
 import IdealCustomerProfilesPage from './pages/ideal-customer-profiles/IdealCustomerProfilesPage'
-import { LeadScoringPage } from '@/business-apps/crm/core/features/lead-scoring'
 import MarketingComplianceDataPage from './pages/marketing-compliance-data/MarketingComplianceDataPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -34,8 +33,6 @@ export interface CustomerSettingsProps extends BusinessAppContextProps {
   className?: string
   prefixDataTestId?: string
 }
-
-// Removed unused DATA_TEST_ID
 
 const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDataTestId, ...context }) => {
   const { t } = useTranslation()
@@ -46,8 +43,12 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
   React.useEffect(() => {
     const parseUrlAndSetPage = () => {
       const urlParams = new URLSearchParams(globalThis.location.search)
-      const page = urlParams.get('page')
+      let page = urlParams.get('page')
       const tab = urlParams.get('tab')
+
+      if (page === 'icp-scoring') {
+        page = 'ideal-customer-profiles'
+      }
 
       if (page) {
         setInlinePage({ key: page, tab: tab || undefined })
@@ -218,18 +219,6 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       ]
     },
     {
-      title: tIcp('lead-scoring-settings-card-title'),
-      description: tIcp('lead-scoring-settings-card-description'),
-      icon: FunnelSimpleIcon,
-      iconSize: 'md' as const,
-      entries: [
-        {
-          label: tIcp('lead-scoring-settings-card-entry'),
-          onClick: () => handleInlinePageChange({ key: 'lead-scoring' })
-        }
-      ]
-    },
-    {
       title: t('crm.marketing_compliance', 'Marketing Compliance'),
       description: t('crm.marketing_compliance_description', 'Manage marketing opt-in sources and statuses'),
       icon: ShieldCheckIcon,
@@ -248,7 +237,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
     {
       title: tIcp('icp-settings-card-title'),
       description: tIcp('icp-settings-card-description'),
-      icon: FunnelSimpleIcon,
+      icon: GaugeIcon,
       iconSize: 'md' as const,
       entries: [
         {
@@ -363,18 +352,6 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerIcpSettings`}
         onBack={() => handleInlinePageChange(null)}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'lead-scoring') {
-    return (
-      <LeadScoringPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-CustomerLeadScoringSettings`}
-        onBack={() => handleInlinePageChange(null)}
-        mode="both"
-        variant="page"
       />
     )
   }

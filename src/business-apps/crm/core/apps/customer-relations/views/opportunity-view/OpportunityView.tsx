@@ -1,6 +1,12 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react'
+import { AiButton, Button, useTranslation } from '@newwork/nw-design-system'
+import { Plus } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { AppAction } from '@/components/app-action/AppAction'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import icpScoringI18n from '@/common/components/icp-scoring/_i18n'
+import { IcpScoringSelectionDialog } from '@/business-apps/crm/core/features/icp-scoring'
 import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
 import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
@@ -48,9 +54,13 @@ const CustomerOpportunityStatistics: React.FC<{
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
+  const { accessToken } = context
+  const { t } = useTranslation(icpScoringI18n)
   const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
     useViewPreferencesStorage('crm:customer-opportunity-preferences:v1')
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
+  const [isBulkScoringOpen, setIsBulkScoringOpen] = useState(false)
+  const [scoreRefreshKey, setScoreRefreshKey] = useState(0)
 
   // State to trigger statistics refresh (re-mounts CustomerOpportunityStatistics via key prop)
   const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0)
@@ -145,10 +155,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
     // CRM-specific: Override createColumns to add customer-specific columns
     return {
       ...baseConfig,
-      createColumns: () => {
-        const baseColumns = createOpportunityColumns() as ColumnDef<CustomerOpportunity>[]
-        return insertCustomerColumnsAfter(baseColumns, 'amount')
-      },
+      createColumns: () =>
+        insertCustomerColumnsAfter(createOpportunityColumns() as ColumnDef<CustomerOpportunity>[], 'amount'),
       createSortableColumns: (availableColumnIds?: string[]) => {
         const baseSortable = baseConfig.createSortableColumns(availableColumnIds)
         const additionalSortable = CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS.filter(
@@ -157,23 +165,62 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         return [...baseSortable, ...additionalSortable]
       }
     } as typeof baseConfig
-  }, [fetchCustomerOpportunities, opportunityStatisticsData])
+  }, [fetchCustomerOpportunities, opportunityStatisticsData, t])
+
+  const handleBulkScored = () => {
+    setScoreRefreshKey(previous => previous + 1)
+    refetchStatistics()
+  }
 
   return (
-    <OpportunityLayout
-      context={context}
-      config={config}
-      dataTestId="customer-opportunities-view"
-      extendVisibleColumns={CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS}
-      enableExport
-      exportFilenamePrefix="opportunities"
-      initialFilters={initialFilters}
-      onFilterChange={saveFilters}
-      initialSorting={initialSorting ?? undefined}
-      onSortingChange={saveSorting}
-      initialVisibleColumns={initialVisibleColumns ?? undefined}
-      onVisibleColumnsChange={saveVisibleColumns}
-    />
+    <>
+      <OpportunityLayout
+        key={scoreRefreshKey}
+        context={context}
+        config={config}
+        dataTestId="customer-opportunities-view"
+        extendVisibleColumns={CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS}
+        enableExport
+        exportFilenamePrefix="opportunities"
+        initialFilters={initialFilters}
+        onFilterChange={saveFilters}
+        initialSorting={initialSorting ?? undefined}
+        onSortingChange={saveSorting}
+        initialVisibleColumns={initialVisibleColumns ?? undefined}
+        onVisibleColumnsChange={saveVisibleColumns}
+        customPrimaryAction={
+          <div className="gba:flex gba:flex-wrap gba:gap-2">
+            <AppAction
+              contextsArray={[FlowContextName.customerOpportunityCreate]}
+              accessToken={accessToken}
+              data-testid="add-opportunity-action"
+              emptyStateBehavior="hide"
+            >
+              <Button size="sm" variant="default" data-testid="add-opportunity-button" type="button">
+                <Plus size={16} />
+                {getTranslationFromI18nKeyAndLabel('crm.opportunity.addOpportunity', 'Add Opportunity')}
+              </Button>
+            </AppAction>
+            <AiButton
+              size="sm"
+              type="button"
+              onClick={() => setIsBulkScoringOpen(true)}
+              data-testid="customer-opportunity-view-open-bulk-scoring"
+            >
+              {t('icp-scoring-opportunity-title')}
+            </AiButton>
+          </div>
+        }
+      />
+
+      <IcpScoringSelectionDialog
+        entityType="opportunity"
+        open={isBulkScoringOpen}
+        onOpenChange={setIsBulkScoringOpen}
+        accessToken={accessToken}
+        onScored={handleBulkScored}
+      />
+    </>
   )
 }
 

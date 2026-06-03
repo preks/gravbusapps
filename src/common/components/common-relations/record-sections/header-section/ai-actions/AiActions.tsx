@@ -10,33 +10,40 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-  Button
+  Button,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ChartBarIcon,
+  GaugeIcon,
   LightbulbIcon,
   ArrowClockwiseIcon,
   RobotIcon,
-  CalendarIcon,
-  FunnelSimpleIcon
+  CalendarIcon
 } from '@phosphor-icons/react'
 import { Bot } from 'lucide-react'
-import { AiActionsProps, AiAction, EnhancedAiActionsProps } from './AiActionsTypes'
+import { AiActionsProps, AiAction, AiSummaryHook, EnhancedAiActionsProps } from './AiActionsTypes'
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { buildAiSummaryPrompt } from '@/common/utils/buildAiSummaryPrompt'
 import { buildAiMeetingPlannerPrompt } from '@/common/utils/buildAiMeetingPlannerPrompt'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { LeadScoringPage } from '@/business-apps/crm/core/features/lead-scoring'
+import { IcpScoringPage } from '@/common/components/icp-scoring'
+import icpScoringI18n from '@/common/components/icp-scoring/_i18n'
+import aiActionsI18n from './_i18n'
+import {
+  getIcpScoringEntityConfig,
+  isIcpScoringEntityType
+} from '@/business-apps/crm/core/features/icp-scoring/getIcpScoringEntityConfig'
 
-const noopAiHook = {
+const noopAiHook: AiSummaryHook = {
   state: null,
   generateSummary: async () => {}
-} as any
+}
 
 /**
  * Helper to build actions from enhanced API features
  */
-function buildActionsFromFeatures(props: EnhancedAiActionsProps): AiAction[] {
+function buildActionsFromFeatures(props: EnhancedAiActionsProps, aiScoringLabel: string): AiAction[] {
   // Determine display name for entity type
   const getEntityDisplayName = (entityType: string): string => {
     const normalized = entityType.toLowerCase()
@@ -49,6 +56,7 @@ function buildActionsFromFeatures(props: EnhancedAiActionsProps): AiAction[] {
   }
 
   const displayName = getEntityDisplayName(props.entityType)
+  const aiScoringIcon = <GaugeIcon size={16} />
 
   const actionBuilders = {
     summary: () => ({
@@ -97,14 +105,13 @@ function buildActionsFromFeatures(props: EnhancedAiActionsProps): AiAction[] {
         )
       }
     }),
-    'lead-scoring': () => ({
-      key: 'ai-lead-scoring',
-      label: getTranslationFromI18nKeyAndLabel('crm.ai.leadScoring', 'Lead Scoring'),
-      icon: <FunnelSimpleIcon size={16} />,
+    'ai-scoring': () => ({
+      key: 'ai-scoring',
+      label: aiScoringLabel,
+      icon: aiScoringIcon,
       hook: noopAiHook,
       config: {
-        entityType: props.entityType,
-        requireAccessToken: true
+        entityType: props.entityType
       }
     })
   }
@@ -122,8 +129,12 @@ function buildActionsFromFeatures(props: EnhancedAiActionsProps): AiAction[] {
  * Supports both legacy (array-based) and enhanced (feature-based) APIs.
  */
 export const AiActions: React.FC<AiActionsProps> = props => {
+  const { t: icpScoringT } = useTranslation(icpScoringI18n)
+  const { t: aiActionsT } = useTranslation(aiActionsI18n)
+
   // Detect which API is being used
   const isEnhancedApi = 'entityType' in props && 'features' in props
+  const aiScoringLabel = aiActionsT('ai-scoring-action')
 
   // Build actions internally for enhanced API
   const actions = useMemo(() => {
@@ -132,10 +143,10 @@ export const AiActions: React.FC<AiActionsProps> = props => {
       if (props.requireAccessToken && !props.accessToken) {
         return []
       }
-      return buildActionsFromFeatures(props)
+      return buildActionsFromFeatures(props, aiScoringLabel)
     }
     return props.actions
-  }, [isEnhancedApi, props])
+  }, [isEnhancedApi, props, aiScoringLabel])
 
   // Auto-determine button text based on action count
   const buttonText =
@@ -171,7 +182,7 @@ export const AiActions: React.FC<AiActionsProps> = props => {
       return
     }
 
-    if (action.key === 'ai-lead-scoring') {
+    if (action.key === 'ai-scoring') {
       setActiveAction(action.key)
       setIsProgrammaticallyOpening(true)
       setIsPopoverOpen(true)
@@ -204,22 +215,30 @@ export const AiActions: React.FC<AiActionsProps> = props => {
 
   // Render popover content for a specific action
   const renderActionPopover = (action: AiAction) => {
-    if (action.key === 'ai-lead-scoring' && isEnhancedApi && props.entityType === 'lead') {
+    if (action.key === 'ai-scoring' && isEnhancedApi && isIcpScoringEntityType(props.entityType)) {
+      const entityConfig = getIcpScoringEntityConfig(props.entityType, icpScoringT)
+      if (!entityConfig) {
+        return null
+      }
+
+      const handleScored = () => {
+        closePopover()
+        props.onIcpScored?.()
+      }
+
       return (
-        <div className="gba:max-h-screen gba:overflow-y-auto gba:p-2" data-testid={`${dataTestId}-lead-scoring-panel`}>
-          <LeadScoringPage
+        <div className="gba:max-h-screen gba:overflow-y-auto gba:p-2" data-testid={`${dataTestId}-ai-scoring-panel`}>
+          <IcpScoringPage
             accessToken={props.accessToken || ''}
             userInfo={props.userInfo}
             additionalData={props.additionalData}
-            prefixDataTestId={`lead-ai-actions-${props.entityId}`}
+            entityConfig={entityConfig}
+            prefixDataTestId={`${props.entityType}-ai-actions-${props.entityId}`}
             mode="single"
             variant="embedded"
-            fixedLeadId={props.entityId}
-            hideLeadIdInput
-            onScored={() => {
-              closePopover()
-              props.onLeadScored?.()
-            }}
+            fixedEntityId={props.entityId}
+            hideEntityIdInput
+            onScored={handleScored}
           />
         </div>
       )
@@ -329,7 +348,7 @@ export const AiActions: React.FC<AiActionsProps> = props => {
   }
 
   const activeActionData = activeAction ? actions.find(a => a.key === activeAction) : null
-  const isLeadScoringPanel = activeAction === 'ai-lead-scoring'
+  const isScoringPanel = activeAction === 'ai-scoring'
 
   return (
     <Popover
@@ -365,15 +384,15 @@ export const AiActions: React.FC<AiActionsProps> = props => {
 
       {/* PopoverContent - shows content for the active action */}
       <PopoverContent
-        side={isLeadScoringPanel ? 'left' : 'bottom'}
-        align={isLeadScoringPanel ? 'start' : 'end'}
+        side={isScoringPanel ? 'left' : 'bottom'}
+        align={isScoringPanel ? 'start' : 'end'}
         className={
-          isLeadScoringPanel
+          isScoringPanel
             ? 'gba:z-50 gba:w-full gba:max-w-5xl gba:min-w-0 gba:p-0 gba:rounded-lg gba:shadow-xl gba:border gba:border-border gba:bg-card gba:max-h-screen gba:overflow-hidden'
             : 'gba:w-auto gba:max-w-none gba:min-w-0 gba:p-0 gba:rounded-lg gba:overflow-visible gba:shadow-xl gba:border-0 gba:bg-gradient-to-bl gba:from-[var(--nw-color-white)] gba:to-[var(--nw-color-blue-200)] gba:min-w-[300px] gba:max-w-[600px]'
         }
-        sideOffset={isLeadScoringPanel ? 4 : 8}
-        avoidCollisions={!isLeadScoringPanel}
+        sideOffset={isScoringPanel ? 4 : 8}
+        avoidCollisions={!isScoringPanel}
         collisionPadding={20}
       >
         {activeActionData ? renderActionPopover(activeActionData) : <div className="gba:p-4">No active action</div>}

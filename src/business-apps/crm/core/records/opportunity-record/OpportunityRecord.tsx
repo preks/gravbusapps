@@ -19,6 +19,7 @@ import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
 import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
+import { AiScoreRecordBadge } from '@/common/components/ai-score/AiScoreRecordBadge'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action'
@@ -412,8 +413,11 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     <AiActions
       entityType="opportunity"
       entityId={opportunityId}
-      features={['summary', 'meeting-planner']}
+      features={['summary', 'meeting-planner', 'ai-scoring']}
       hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+      accessToken={props.accessToken}
+      requireAccessToken
+      onIcpScored={refetch}
     />
   )
 
@@ -528,6 +532,22 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     )
   }
 
+  const gradeFallback = getTranslationFromI18nKeyAndLabel('crm.common.notAvailable', 'N/A')
+
+  const headerTitle = (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <span>
+        {opportunityData.name || getTranslationFromI18nKeyAndLabel('crm.opportunity.unnamed', 'Unnamed Opportunity')}
+      </span>
+      <AiScoreRecordBadge
+        score={opportunityData.aiOpportunityScore}
+        grade={opportunityData.aiOpportunityGrade}
+        gradeFallback={gradeFallback}
+        dataTestId="opportunity-ai-score-badge"
+      />
+    </div>
+  )
+
   const subViewsConfig = {
     defaultValue: activeTab,
     onValueChange: (val: string) => {
@@ -582,7 +602,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
       headerOverline="OPPORTUNITY"
       onBack={onBack}
-      headerTitle={opportunityData.name || 'Unnamed Opportunity'}
+      headerTitle={headerTitle}
       headerMeta={headerMeta}
       headerActions={headerActions}
       headerActionButton={headerActionButton}

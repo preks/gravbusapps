@@ -1,5 +1,5 @@
 import React from 'react'
-import { FunnelSimpleIcon } from '@phosphor-icons/react'
+import { GaugeIcon } from '@phosphor-icons/react'
 import { Alert, PageLayout, Spinner, useTranslation } from '@newwork/nw-design-system'
 import customerSettingsI18n from '../../_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -32,7 +32,7 @@ export const IdealCustomerProfilesPage: React.FC<IdealCustomerProfilesPageProps>
   const headerTitle = t('icp-page-title')
   const headerDescription = t('icp-page-description')
   const headerPhosphorIcon = {
-    icon: FunnelSimpleIcon,
+    icon: GaugeIcon,
     variant: 'info' as const,
     size: 'lg' as const,
     label: headerTitle

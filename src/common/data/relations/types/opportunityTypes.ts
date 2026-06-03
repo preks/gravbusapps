@@ -35,6 +35,8 @@ export interface Opportunity extends BaseEntity {
   rejectionReasons?: any[] // IRM | CRM
   tasks?: any[] // IRM | CRM
   winningChance?: number // IRM | CRM
+  aiOpportunityScore?: number | null // CRM
+  aiOpportunityGrade?: string | null // CRM
 }
 
 /**
@@ -76,6 +78,8 @@ export const OpportunityFields = {
   rejectionReasons: 'rejectionReasons',
   tasks: 'tasks',
   winningChance: 'winningChance',
+  aiOpportunityScore: 'aiOpportunityScore',
+  aiOpportunityGrade: 'aiOpportunityGrade',
   companyId: 'companyId', // CRM-only — override to undefined in IRM
   company: 'company' // CRM-only — override to undefined in IRM
 } as const
