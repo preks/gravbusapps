@@ -88,14 +88,18 @@ export function runDetectedCellMutationPersistPlanPhase(
   const createsNewRows = pendingNewRowCount > 0
 
   const mutatedCellCount = countCellMatrixEntries(cellValue)
-  const allowValueCarryingStylePayloads = !disableMixedValueStylePayloads && mutatedCellCount > 1
+  const allowValueCarryingStylePayloads = false
   const hasPersistableMutation = Object.values(cellValue).some(rowCells => {
     if (!rowCells || typeof rowCells !== 'object') return false
     return Object.values(rowCells).some(cell => isPersistableCellDataMutationValue(cell))
   })
   const replaceRangeStyleIntent =
     hadPasteFormattingIntentForSheet || isRegionReplaceStyleCollaborationCommand(commandId)
-  const pasteIntoNewRows = createsNewRows && hasPersistableMutation && source === 'sheet-value-changed'
+  const pasteIntoNewRows =
+    createsNewRows &&
+    hasPersistableMutation &&
+    source === 'sheet-value-changed' &&
+    (hadPasteIntentForSheet || hadPasteFormattingIntentForSheet)
   const autofillIntoNewRows =
     createsNewRows &&
     hasPersistableMutation &&
@@ -194,6 +198,7 @@ export function runDetectedCellMutationPersistPlanPhase(
     mergedCellValue: cellValue,
     workbookSnapshot: workbookSnapshotForPlanner,
     allowValueCarryingStylePayloads,
+    autofillApplyType,
     replaceRangeStyleIntent: replaceRangeStyleIntent || pasteIntoNewRows || autofillIntoNewRows,
     shouldSuppress,
     allowRecentlyLocalBlankClear: source !== 'deferred-replay' || preserveUndefinedAsNull,

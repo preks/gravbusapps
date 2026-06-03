@@ -21,6 +21,8 @@ export type AuthoritativeGridRegion = {
 /** Single bounded region or multiple disjoint regions for authoritative grid reapply. */
 export type AuthoritativeGridReapplyTarget = AuthoritativeGridRegion | AuthoritativeGridRegion[] | null
 
+export type PendingLocalFilterPolicy = 'protect_in_flight_local_edits' | 'server_authoritative_repair'
+
 export const normalizeAuthoritativeGridReapplyTarget = (
   target: AuthoritativeGridReapplyTarget | undefined
 ): AuthoritativeGridRegion[] | null => {
@@ -29,6 +31,17 @@ export const normalizeAuthoritativeGridReapplyTarget = (
     return target.length > 0 ? target : null
   }
   return [target]
+}
+
+export const estimateAuthoritativeGridReapplyTargetCellCount = (
+  target: AuthoritativeGridReapplyTarget | undefined
+): number => {
+  const regions = normalizeAuthoritativeGridReapplyTarget(target)
+  if (!regions) return 0
+  return regions.reduce(
+    (total, region) => total + (region.maxRow - region.minRow + 1) * (region.maxCol - region.minCol + 1),
+    0
+  )
 }
 
 /** Options for `forceAuthoritativeReapply` / `forceGridReapply` (bounded reapply vs full snapshot sync). */
@@ -44,6 +57,8 @@ export type ForceAuthoritativeGridReapplyOptions = {
   allowFullGridReapply?: boolean
   /** Diagnostic label for blocked or allowed full-grid reapplies. */
   reason?: string
+  /** How pending-local protection should be applied during bounded authoritative repair. */
+  pendingLocalFilterPolicy?: PendingLocalFilterPolicy
 }
 
 function resolveColumnDisplayName(columns: SpreadsheetColumn[], columnKey: string): string {
@@ -84,6 +99,89 @@ function expandRegion(region: AuthoritativeGridRegion | undefined, row: number, 
     minCol: Math.min(region.minCol, col),
     maxCol: Math.max(region.maxCol, col)
   }
+}
+
+function createRegion(row: number, col: number): AuthoritativeGridRegion {
+  return { minRow: row, maxRow: row, minCol: col, maxCol: col }
+}
+
+function createRowBoundedRegion(row: number, minCol: number, maxCol: number): AuthoritativeGridRegion {
+  return { minRow: row, maxRow: row, minCol, maxCol }
+}
+
+function mergeRegionsToBoundingBox(regions: readonly AuthoritativeGridRegion[]): AuthoritativeGridRegion | undefined {
+  let merged: AuthoritativeGridRegion | undefined
+  for (const region of regions) {
+    merged = merged
+      ? {
+          minRow: Math.min(merged.minRow, region.minRow),
+          maxRow: Math.max(merged.maxRow, region.maxRow),
+          minCol: Math.min(merged.minCol, region.minCol),
+          maxCol: Math.max(merged.maxCol, region.maxCol)
+        }
+      : { ...region }
+  }
+  return merged
+}
+
+function compactContiguousRegions(regions: readonly AuthoritativeGridRegion[]): AuthoritativeGridRegion[] {
+  if (regions.length <= 1) return regions.map(region => ({ ...region }))
+
+  const horizontalInput = [...regions].sort(
+    (left, right) =>
+      left.minRow - right.minRow ||
+      left.maxRow - right.maxRow ||
+      left.minCol - right.minCol ||
+      left.maxCol - right.maxCol
+  )
+  const horizontallyMerged: AuthoritativeGridRegion[] = []
+  for (const region of horizontalInput) {
+    const previous = horizontallyMerged[horizontallyMerged.length - 1]
+    if (
+      previous &&
+      previous.minRow === region.minRow &&
+      previous.maxRow === region.maxRow &&
+      region.minCol <= previous.maxCol + 1 &&
+      region.maxCol >= previous.minCol - 1
+    ) {
+      previous.minCol = Math.min(previous.minCol, region.minCol)
+      previous.maxCol = Math.max(previous.maxCol, region.maxCol)
+      continue
+    }
+    horizontallyMerged.push({ ...region })
+  }
+
+  const verticalInput = [...horizontallyMerged].sort(
+    (left, right) =>
+      left.minCol - right.minCol ||
+      left.maxCol - right.maxCol ||
+      left.minRow - right.minRow ||
+      left.maxRow - right.maxRow
+  )
+  const compacted: AuthoritativeGridRegion[] = []
+  for (const region of verticalInput) {
+    const previous = compacted[compacted.length - 1]
+    if (
+      previous &&
+      previous.minCol === region.minCol &&
+      previous.maxCol === region.maxCol &&
+      region.minRow <= previous.maxRow + 1 &&
+      region.maxRow >= previous.minRow - 1
+    ) {
+      previous.minRow = Math.min(previous.minRow, region.minRow)
+      previous.maxRow = Math.max(previous.maxRow, region.maxRow)
+      continue
+    }
+    compacted.push({ ...region })
+  }
+
+  return compacted.sort(
+    (left, right) =>
+      left.minRow - right.minRow ||
+      left.minCol - right.minCol ||
+      left.maxRow - right.maxRow ||
+      left.maxCol - right.maxCol
+  )
 }
 
 function rowHasMaterializedColumnKey(row: Record<string, unknown>, column: SpreadsheetColumn): boolean {
@@ -136,15 +234,106 @@ export function computeAuthoritativeRegionForMaterializedRows(params: {
 }
 
 /**
- * Best-effort bounding box of grid coordinates touched by HTTP replay deltas.
- * Used to narrow authoritative Univer re-sync after conflict recovery / delta catch-up.
+ * Computes narrow authoritative regions for existing visual rows, limited to columns that
+ * already carry non-blank materialized values on those rows.
  */
-export function tryComputeAuthoritativeRegionFromReplayDeltas(params: {
+export function computeAuthoritativeRegionsForVisualRows(params: {
+  rowIndices: readonly number[]
+  rows: Record<string, unknown>[]
+  columns: SpreadsheetColumn[]
+}): AuthoritativeGridRegion[] {
+  const { rowIndices, rows, columns } = params
+  const visibleColumns = columns.filter(column => column.isVisible !== false)
+  if (visibleColumns.length === 0 || rowIndices.length === 0) return []
+
+  const targetRowIndices = Array.from(new Set(rowIndices.filter(index => Number.isInteger(index) && index >= 0))).sort(
+    (left, right) => left - right
+  )
+  if (targetRowIndices.length === 0) return []
+
+  const rowsByVisualIndex = new Map<number, Record<string, unknown>>()
+  rows.forEach((row, index) => {
+    const visualIndex = getViewerRowVisualIndex(row, index)
+    if (!rowsByVisualIndex.has(visualIndex)) {
+      rowsByVisualIndex.set(visualIndex, row)
+    }
+  })
+
+  const regions: AuthoritativeGridRegion[] = []
+  for (const gridRowIndex of targetRowIndices) {
+    const row = rowsByVisualIndex.get(gridRowIndex)
+    if (!row) continue
+
+    let minCol = Number.POSITIVE_INFINITY
+    let maxCol = -1
+    for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
+      const column = visibleColumns[colIndex]
+      if (!rowHasNonBlankMaterializedCellValue(row, column)) continue
+      if (colIndex < minCol) minCol = colIndex
+      if (colIndex > maxCol) maxCol = colIndex
+    }
+
+    if (!Number.isFinite(minCol) || maxCol < 0) continue
+    regions.push(createRowBoundedRegion(gridRowIndex, minCol, maxCol))
+  }
+
+  return compactContiguousRegions(regions)
+}
+
+function resolveCreatedRowRegionsForReplayDeltaChange(params: {
+  change: SpreadsheetReplayDelta
+  columns: SpreadsheetColumn[]
+  rows: Record<string, unknown>[]
+}): AuthoritativeGridRegion[] {
+  const { change, columns, rows } = params
+  const payload =
+    change.payload && typeof change.payload === 'object' ? (change.payload as Record<string, unknown>) : {}
+  const wireRowsSource = Array.isArray(payload.rows)
+    ? (payload.rows as unknown[])
+    : Array.isArray(((change as Record<string, unknown>).result as Record<string, unknown> | undefined)?.rows)
+      ? (((change as Record<string, unknown>).result as Record<string, unknown>).rows as unknown[])
+      : []
+  if (wireRowsSource.length === 0) return []
+
+  const rowIndexByIdentity = buildViewerRowVisualIndexByIdentity(rows)
+  const visibleColumns = columns.filter(column => column.isVisible !== false)
+  if (visibleColumns.length === 0) return []
+
+  const regions: AuthoritativeGridRegion[] = []
+  for (const entry of wireRowsSource) {
+    if (!entry || typeof entry !== 'object') continue
+    const record = entry as Record<string, unknown>
+    const data = record.data && typeof record.data === 'object' ? (record.data as Record<string, unknown>) : record
+    const identityProbe: Record<string, unknown> = {
+      _id: record.id ?? data._id,
+      id: record.id ?? data.id,
+      _rowUuid: record._rowUuid ?? data._rowUuid,
+      _clientRowId: data._clientRowId
+    }
+    const rowIndex = lookupViewerRowVisualIndex(rowIndexByIdentity, identityProbe)
+    if (rowIndex == null || rowIndex < 0) continue
+
+    let minCol = Number.POSITIVE_INFINITY
+    let maxCol = -1
+    for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
+      const column = visibleColumns[colIndex]
+      if (!rowHasNonBlankMaterializedCellValue(data, column)) continue
+      if (colIndex < minCol) minCol = colIndex
+      if (colIndex > maxCol) maxCol = colIndex
+    }
+    if (!Number.isFinite(minCol) || maxCol < 0) continue
+    regions.push(createRowBoundedRegion(rowIndex, minCol, maxCol))
+  }
+
+  return regions
+}
+
+export function tryComputeAuthoritativeRegionsFromReplayDeltas(params: {
   changes: SpreadsheetReplayDelta[]
   columns: SpreadsheetColumn[]
   rows: Record<string, unknown>[]
-}): AuthoritativeGridRegion | undefined {
-  let region: AuthoritativeGridRegion | undefined
+}): AuthoritativeGridRegion[] | undefined {
+  const regions: AuthoritativeGridRegion[] = []
   const { changes, columns, rows } = params
 
   for (const change of changes) {
@@ -156,10 +345,10 @@ export function tryComputeAuthoritativeRegionFromReplayDeltas(params: {
       const rowId = String(payload.rowId ?? '')
       const columnKey = String(payload.columnName ?? payload.column ?? '')
       if (!rowId || !columnKey) continue
-      const r = resolveRowIndexForRemoteId(rowId, columns, rows)
-      const c = resolveColIndexForColumnKey(columns, rows, columnKey)
-      if (r == null || c == null || c < 0) continue
-      region = expandRegion(region, r, c)
+      const rowIndex = resolveRowIndexForRemoteId(rowId, columns, rows)
+      const colIndex = resolveColIndexForColumnKey(columns, rows, columnKey)
+      if (rowIndex == null || colIndex == null || colIndex < 0) continue
+      regions.push(createRegion(rowIndex, colIndex))
       continue
     }
 
@@ -168,66 +357,26 @@ export function tryComputeAuthoritativeRegionFromReplayDeltas(params: {
       if (!Array.isArray(cells)) continue
       for (const cell of cells) {
         if (!cell || typeof cell !== 'object') continue
-        const rec = cell as Record<string, unknown>
-        const rowId = String(rec.rowId ?? '')
-        const columnKey = String(rec.columnName ?? rec.column ?? '')
+        const record = cell as Record<string, unknown>
+        const rowId = String(record.rowId ?? '')
+        const columnKey = String(record.columnName ?? record.column ?? '')
         if (!rowId || !columnKey) continue
-        const r = resolveRowIndexForRemoteId(rowId, columns, rows)
-        const c = resolveColIndexForColumnKey(columns, rows, columnKey)
-        if (r == null || c == null || c < 0) continue
-        region = expandRegion(region, r, c)
+        const rowIndex = resolveRowIndexForRemoteId(rowId, columns, rows)
+        const colIndex = resolveColIndexForColumnKey(columns, rows, columnKey)
+        if (rowIndex == null || colIndex == null || colIndex < 0) continue
+        regions.push(createRegion(rowIndex, colIndex))
       }
       continue
     }
 
     if (op === 'add_rows' || op === 'insert_rows_at') {
-      // Created rows arrive either in `payload.rows` (current schema) or `change.result.rows`
-      // (post-persist hydration). Each entry exposes its identity through any of `_id`, `id`,
-      // `_rowUuid`, `_clientRowId`. We resolve those identities against the **post-replay** row
-      // set so the bounding box covers the new visual indices the manager just produced.
-      const wireRowsSource = Array.isArray(payload.rows)
-        ? (payload.rows as unknown[])
-        : Array.isArray(((change as Record<string, unknown>).result as Record<string, unknown> | undefined)?.rows)
-          ? (((change as Record<string, unknown>).result as Record<string, unknown>).rows as unknown[])
-          : []
-      if (wireRowsSource.length === 0) continue
-      const rowIndexByIdentity = buildViewerRowVisualIndexByIdentity(rows)
-      const visibleColumns = columns.filter(c => c.isVisible !== false)
-      if (visibleColumns.length === 0) continue
-      let minRow = Number.POSITIVE_INFINITY
-      let maxRow = -1
-      let minCol = Number.POSITIVE_INFINITY
-      let maxCol = -1
-      for (const entry of wireRowsSource) {
-        if (!entry || typeof entry !== 'object') continue
-        const record = entry as Record<string, unknown>
-        const data = record.data && typeof record.data === 'object' ? (record.data as Record<string, unknown>) : record
-        const identityProbe: Record<string, unknown> = {
-          _id: record.id ?? data._id,
-          id: record.id ?? data.id,
-          _rowUuid: record._rowUuid ?? data._rowUuid,
-          _clientRowId: data._clientRowId
-        }
-        const rowIndex = lookupViewerRowVisualIndex(rowIndexByIdentity, identityProbe)
-        if (rowIndex == null || rowIndex < 0) continue
-        if (rowIndex < minRow) minRow = rowIndex
-        if (rowIndex > maxRow) maxRow = rowIndex
-        for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
-          const column = visibleColumns[colIndex]
-          if (
-            !Object.prototype.hasOwnProperty.call(data, column.name) &&
-            !Object.prototype.hasOwnProperty.call(data, column.id)
-          ) {
-            continue
-          }
-          if (colIndex < minCol) minCol = colIndex
-          if (colIndex > maxCol) maxCol = colIndex
-        }
-      }
-      if (Number.isFinite(minRow) && maxRow >= 0 && Number.isFinite(minCol) && maxCol >= 0) {
-        region = expandRegion(region, minRow, minCol)
-        region = expandRegion(region, maxRow, maxCol)
-      }
+      regions.push(
+        ...resolveCreatedRowRegionsForReplayDeltaChange({
+          change,
+          columns,
+          rows
+        })
+      )
       continue
     }
 
@@ -236,21 +385,33 @@ export function tryComputeAuthoritativeRegionFromReplayDeltas(params: {
       if (!Array.isArray(cells)) continue
       for (const cell of cells) {
         if (!cell || typeof cell !== 'object') continue
-        const rec = cell as Record<string, unknown>
-        const row = typeof rec.row === 'number' ? rec.row : undefined
-        const col = typeof rec.col === 'number' ? rec.col : undefined
+        const record = cell as Record<string, unknown>
+        const row = typeof record.row === 'number' ? record.row : undefined
+        const col = typeof record.col === 'number' ? record.col : undefined
         if (row != null && col != null && row >= 0 && col >= 0) {
-          region = expandRegion(region, row, col)
+          regions.push(createRegion(row, col))
           continue
         }
-        const cellRef = typeof rec.cellRef === 'string' ? rec.cellRef.trim() : ''
-        if (cellRef) {
-          const a1 = parseA1Reference(cellRef)
-          if (a1) region = expandRegion(region, a1.row, a1.col)
-        }
+        const cellRef = typeof record.cellRef === 'string' ? record.cellRef.trim() : ''
+        if (!cellRef) continue
+        const a1 = parseA1Reference(cellRef)
+        if (a1) regions.push(createRegion(a1.row, a1.col))
       }
     }
   }
 
-  return region
+  if (regions.length === 0) return undefined
+  return compactContiguousRegions(regions)
+}
+
+/**
+ * Best-effort bounding box of grid coordinates touched by HTTP replay deltas.
+ * Used to narrow authoritative Univer re-sync after conflict recovery / delta catch-up.
+ */
+export function tryComputeAuthoritativeRegionFromReplayDeltas(params: {
+  changes: SpreadsheetReplayDelta[]
+  columns: SpreadsheetColumn[]
+  rows: Record<string, unknown>[]
+}): AuthoritativeGridRegion | undefined {
+  return mergeRegionsToBoundingBox(tryComputeAuthoritativeRegionsFromReplayDeltas(params) ?? [])
 }

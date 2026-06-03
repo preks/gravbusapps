@@ -21,6 +21,10 @@ export type UniverRemoteTransactionRunResult =
       detail: string
     }
 
+type SuccessfulUniverRemoteTransactionRunResult = Extract<UniverRemoteTransactionRunResult, { ok: true }> & {
+  deferredApply?: (() => UniverRemoteTransactionRunResult | null) | null
+}
+
 export interface UniverRemoteTransactionRunnerCallbacks {
   applyRemoteCellUpdate?: (
     rowIndex: number,
@@ -67,6 +71,13 @@ const RUNNER_DEFERRED_ROW_PERSISTENCE_OPS = new Set([
 const RUNNER_METADATA_ONLY_OPS = new Set(['column_update', 'set_col_width', 'set_row_height'])
 /** Applied via SpreadsheetCollaborationManager live feature hooks after the runner completes. */
 const RUNNER_DEFERRED_LIVE_FEATURE_OPS = new Set(['visibility_update', 'freeze_panes'])
+const RUNNER_POST_PERSISTED_VALUE_OPS = new Set([
+  'set_style',
+  'clear_all',
+  'clear_format',
+  'merge_ranges',
+  'unmerge_ranges'
+])
 
 const toNumberOrNull = (value: unknown): number | null => {
   const numeric = Number(value)
@@ -183,47 +194,47 @@ export class UniverRemoteTransactionRunner {
     let appliedCellCount = 0
     let appliedOperationCount = 0
     try {
-      const hasPersistedCellOps = batch.operations.some(operation =>
-        UniverRemoteTransactionRunner.PERSISTED_CELL_OP_TYPES.has(operation.type)
-      )
-      const deferredStyleOps = hasPersistedCellOps
-        ? batch.operations.filter(operation => operation.type === 'set_style')
-        : []
-      const immediateOps = hasPersistedCellOps
-        ? batch.operations.filter(operation => operation.type !== 'set_style')
-        : batch.operations
+      const deferredOps: SpreadsheetCommittedOperation[] = []
+      let hasEncounteredPersistedCellOp = false
 
-      const flushDeferredStyles = (): UniverRemoteTransactionRunResult | null => {
-        for (const styleOperation of deferredStyleOps) {
-          const styleResult = this.applyOperation(batch, styleOperation)
-          if (!styleResult.ok) return styleResult
-          appliedCellCount += styleResult.appliedCellCount
-          appliedOperationCount += 1
-        }
-        return null
-      }
-
-      const cellOps = immediateOps.filter(operation =>
-        UniverRemoteTransactionRunner.PERSISTED_CELL_OP_TYPES.has(operation.type)
-      )
-      let cellOpsApplied = 0
-
-      for (const operation of immediateOps) {
+      for (const operation of batch.operations) {
         const isPersistedCellOp = UniverRemoteTransactionRunner.PERSISTED_CELL_OP_TYPES.has(operation.type)
-        const isLastCellOpBeforeStyles =
-          deferredStyleOps.length > 0 && isPersistedCellOp && ++cellOpsApplied === cellOps.length
-        const result = this.applyOperation(batch, operation, isLastCellOpBeforeStyles ? flushDeferredStyles : undefined)
+        if (isPersistedCellOp) {
+          hasEncounteredPersistedCellOp = true
+        }
+        if (hasEncounteredPersistedCellOp && RUNNER_POST_PERSISTED_VALUE_OPS.has(operation.type)) {
+          deferredOps.push(operation)
+          appliedOperationCount += 1
+          continue
+        }
+        const result = this.applyOperation(batch, operation)
         if (!result.ok) return result
         appliedCellCount += result.appliedCellCount
         appliedOperationCount += 1
       }
 
-      if (deferredStyleOps.length > 0 && cellOps.length === 0) {
-        const styleOnlyResult = flushDeferredStyles()
-        if (styleOnlyResult) return styleOnlyResult
-      }
+      const deferredApply =
+        deferredOps.length === 0
+          ? null
+          : () => {
+              let deferredCellCount = 0
+              let deferredOperationCount = 0
+              for (const operation of deferredOps) {
+                const deferredResult = this.applyOperation(batch, operation)
+                if (!deferredResult.ok) return deferredResult
+                deferredCellCount += deferredResult.appliedCellCount
+                deferredOperationCount += 1
+              }
+              return { ok: true, appliedCellCount: deferredCellCount, appliedOperationCount: deferredOperationCount }
+            }
 
-      return { ok: true, appliedCellCount, appliedOperationCount }
+      const result: SuccessfulUniverRemoteTransactionRunResult = {
+        ok: true,
+        appliedCellCount,
+        appliedOperationCount,
+        ...(deferredApply ? { deferredApply } : {})
+      }
+      return result
     } catch (error) {
       return {
         ok: false,
@@ -235,34 +246,11 @@ export class UniverRemoteTransactionRunner {
 
   private applyOperation(
     batch: SpreadsheetCommittedBatchEnvelope,
-    operation: SpreadsheetCommittedOperation,
-    onPersistedCellBulkComplete?: () => UniverRemoteTransactionRunResult | null
+    operation: SpreadsheetCommittedOperation
   ): UniverRemoteTransactionRunResult {
     if (operation.type === 'set_cell' || operation.type === 'set_range' || operation.type === 'clear_cell') {
       const items = normalizeCellItems(batch, operation)
       if (items.length === 0) return { ok: true, appliedCellCount: 0, appliedOperationCount: 1 }
-      if (this.callbacks.applyRemoteCellUpdatesBulk) {
-        const meta = getMeta(batch, operation)
-        if (onPersistedCellBulkComplete) {
-          meta.onApplyComplete = () => {
-            const deferredResult = onPersistedCellBulkComplete()
-            if (deferredResult && !deferredResult.ok) {
-              throw new Error(`${deferredResult.reason}:${deferredResult.detail}`)
-            }
-          }
-        }
-        this.callbacks.applyRemoteCellUpdatesBulk(items, meta)
-      } else if (this.callbacks.applyRemoteCellUpdate) {
-        for (const item of items) {
-          this.callbacks.applyRemoteCellUpdate(item.rowIndex, item.colIndex, item.value, item.rowId, item.options)
-        }
-        if (onPersistedCellBulkComplete) {
-          const deferredResult = onPersistedCellBulkComplete()
-          if (deferredResult && !deferredResult.ok) return deferredResult
-        }
-      } else {
-        return { ok: false, reason: 'missing_runner_callback', detail: 'applyRemoteCellUpdate' }
-      }
       return { ok: true, appliedCellCount: items.length, appliedOperationCount: 1 }
     }
 

@@ -19,6 +19,7 @@ import {
 
 import { useSpreadsheetViewerState } from './hooks/useSpreadsheetViewerState'
 import { sortSpreadsheetRowsBySheetSettings } from './utils/spreadsheetSheetRowSort'
+import { attachSnapshotCoversVersions, mergeSnapshotCoversVersions } from './utils/spreadsheetSnapshotCoverage'
 import {
   useSpreadsheetBootstrapSnapshotPipeline,
   type BootstrapWorkbookReconcileIssuePhase
@@ -27,7 +28,17 @@ import { useSpreadsheetSessionBinding } from './hooks/useSpreadsheetSessionBindi
 import { useSpreadsheetSessionRowsRef } from './hooks/useSpreadsheetSessionRowsRef'
 import { useSpreadsheetMutationPipeline } from './hooks/useSpreadsheetMutationPipeline'
 import { resolveBackendDirtyRegionsToAuthoritativeRegions } from './utils/spreadsheetDirtyRegions'
-import { computeAuthoritativeRegionForMaterializedRows } from './utils/spreadsheetAuthoritativeRegion'
+import {
+  computeAuthoritativeRegionForMaterializedRows,
+  normalizeAuthoritativeGridReapplyTarget,
+  type AuthoritativeGridReapplyTarget,
+  type AuthoritativeGridRegion,
+  type ForceAuthoritativeGridReapplyOptions
+} from './utils/spreadsheetAuthoritativeRegion'
+import {
+  classifyBackendDirtyRegionReapply,
+  isServerAuthoritativeRepairReapply
+} from './utils/spreadsheetBackendRepairReapply'
 import { useSpreadsheetSheetWorkQueue } from './hooks/useSpreadsheetSheetWorkQueue'
 import { splitUnifiedOperationsByPersistKind } from './core/spreadsheetLocalPersistChunks'
 
@@ -95,6 +106,7 @@ const extractPendingLocalMutationCellKeysFromChunk = (
   }
   return Array.from(keys)
 }
+
 import { useSpreadsheetCheckpointOrchestration } from './hooks/useSpreadsheetCheckpointOrchestration'
 import { useSpreadsheetDiagnosticsTrace } from './hooks/useSpreadsheetDiagnosticsTrace'
 import { useSpreadsheetSheetVersionModel } from './hooks/useSpreadsheetSheetVersionModel'
@@ -222,6 +234,7 @@ import {
   spreadsheetPendingLocalMutationCoordinateCellKey,
   spreadsheetPendingLocalMutationSemanticCellKey
 } from './utils/spreadsheetPendingMaterializationCells'
+import { promoteSpreadsheetRowIdentities } from './utils/spreadsheetRowIdentityPromotion'
 import {
   SPREADSHEET_UNIFIED_MUTATION_SUBMIT_MAX_BYTES,
   summarizeUnifiedBatchOperationsForDiagnostics
@@ -491,6 +504,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const {
     sheetVersionRef,
     workbookSnapshotVersionRef,
+    workbookSnapshotCoversVersionsRef,
     knownSheetVersionsRef,
     rememberSheetVersion,
     resolveKnownSheetVersion,
@@ -584,6 +598,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     canonicalActiveSheetRowsSourceRef,
     authoritativeDataSyncToken,
     authoritativePaintCellsRef,
+    authoritativePaintMetaRef,
     setActiveSheetIdWithPeerCache,
     getKnownRowsForSheet,
     getActiveSessionVersion,
@@ -603,6 +618,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     rememberSheetVersion,
     updateActiveSheetVersion,
     resolveKnownSheetVersion,
+    resolveCanonicalSheetId: (sheetId: string) => resolveReconciledSheetId(sheetId, createdSheetIdAliasesRef.current),
     getActiveSessionRows,
     applyLocalAppUpdate,
     onDataChange,
@@ -614,6 +630,60 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setActiveSheetId,
     onRowsStateUpdated: syncRowSlotIdentityRegistry
   })
+  const coordinatedAuthoritativeRepairGenerationRef = useRef(0)
+
+  const scheduleCoordinatedAuthoritativeRepair = useCallback(
+    (
+      targetSheetId: string,
+      target: AuthoritativeGridReapplyTarget | undefined,
+      options?: ForceAuthoritativeGridReapplyOptions
+    ): AuthoritativeGridRegion[] | null => {
+      const regions = normalizeAuthoritativeGridReapplyTarget(target)
+      if (!regions) return null
+      if (!areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
+        return null
+      }
+
+      const scheduledRegions = regions.map(region => ({ ...region }))
+      const repairDescriptor = {
+        reason: options?.reason,
+        pendingLocalFilterPolicy: options?.pendingLocalFilterPolicy
+      }
+      const isRepairReapply = isServerAuthoritativeRepairReapply(repairDescriptor)
+
+      if (isRepairReapply) {
+        authoritativePaintCellsRef.current = null
+        authoritativePaintMetaRef.current = null
+        const generation = (coordinatedAuthoritativeRepairGenerationRef.current += 1)
+        debugLog('authoritative repair scheduled', {
+          sheetId: targetSheetId,
+          reason: repairDescriptor.reason,
+          generation,
+          regionCount: scheduledRegions.length
+        })
+      }
+
+      globalThis.setTimeout(() => {
+        if (!areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
+          return
+        }
+        spreadsheetGridRef.current?.forceAuthoritativeReapply?.(
+          scheduledRegions.length === 1 ? scheduledRegions[0] : scheduledRegions,
+          options
+        )
+      }, 0)
+
+      return scheduledRegions
+    },
+    [
+      activeSheetIdRef,
+      authoritativePaintCellsRef,
+      authoritativePaintMetaRef,
+      createdSheetIdAliasesRef,
+      debugLog,
+      spreadsheetGridRef
+    ]
+  )
 
   useEffect(() => {
     rowSlotIdentityRegistry.syncRows(activeSheetId, getSessionBackedRowsForSheet(activeSheetId), isUuidString)
@@ -665,6 +735,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     const latest = latestUniverDataRef.current
     return Boolean(latest?.sheetId === targetSheetId && latest.data.length > lastProcessedLengthRef.current)
   }, [])
+  const hasTransientLocalGridStateForSheet = useCallback(
+    (targetSheetId: string): boolean => {
+      if (!areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
+        return false
+      }
+      if (pendingLocalMutationCellsRef.current.size > 0) {
+        return true
+      }
+      return spreadsheetSession.getSheetState(targetSheetId)?.isDirty === true
+    },
+    [activeSheetIdRef, createdSheetIdAliasesRef, spreadsheetSession]
+  )
 
   /** Narrow signal for delta catch-up: queued cell batches only (not snapshot/style dim gaps). */
   const hasPendingCellPersistence = useCallback(
@@ -763,6 +845,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     preferUniverNativeSheetTabs,
     spreadsheetSession,
     workbookSnapshotVersionRef,
+    workbookSnapshotCoversVersionsRef,
     peerSheetDataCacheRef,
     authoritativePeerSheetDataCacheRef,
     seedActiveSheetState,
@@ -1023,6 +1106,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     try {
       const univerData = await SpreadsheetApiService.getUniverSnapshot(app.id)
       if (univerData?.snapshot && typeof univerData.snapshot === 'object') {
+        workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
+          workbookSnapshotCoversVersionsRef.current,
+          univerData.coversVersions
+        )
         const sheetListForNormalize = freshApp?.sheets?.length ? freshApp.sheets : app.sheets
         let snap = normalizeWorkbookSnapshotToAppSheets(
           univerData.snapshot as Record<string, unknown>,
@@ -1043,7 +1130,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           }
         }
         restoredUniverSnapshot = snap
-        writeUniverSnapshotCache(app.id, univerData.version, stripWorkbookSnapshotValuesPreservingFormatting(snap))
+        writeUniverSnapshotCache(
+          app.id,
+          univerData.version,
+          stripWorkbookSnapshotValuesPreservingFormatting(
+            attachSnapshotCoversVersions(snap, workbookSnapshotCoversVersionsRef.current) ?? snap
+          )
+        )
       }
     } catch (e) {
       console.warn('[SpreadsheetAppViewer] Could not fetch restored Univer snapshot:', e)
@@ -1204,6 +1297,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       activeSheetIdRef,
       appSheetsRef,
       workbookSnapshotVersionRef,
+      workbookSnapshotCoversVersionsRef,
       pendingCreatedSheetSelectionRef,
       createdSheetIdAliasesRef,
       collaborationManagerRef,
@@ -1223,6 +1317,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       getKnownRowsForSheet,
       hasPendingCellPersistence,
       hasPendingPersistenceForSheet,
+      hasTransientLocalGridStateForSheet,
       getActiveSessionVersion,
       sheetMetadataReloadEnabled: Boolean(onSheetUpdate),
       scheduleSheetVersionRefreshFromApiRef,
@@ -1247,6 +1342,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     getKnownRowsForSheet,
     hasPendingCellPersistence,
     hasPendingPersistenceForSheet,
+    hasTransientLocalGridStateForSheet,
     mutationFacadeRef,
     onSheetUpdate,
     pendingCreatedSheetSelectionRef,
@@ -1263,6 +1359,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     spreadsheetSession,
     syncSheetRowsIntoLocalState,
     updateActiveSheetVersion,
+    workbookSnapshotCoversVersionsRef,
     workbookSnapshotVersionRef
   ])
 
@@ -2106,10 +2203,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const raw = spreadsheetGridRef.current?.getWorkbookSnapshot?.()
       if (!raw || typeof raw !== 'object') return
       const version = Math.max(0, Math.trunc(Number(workbookSnapshotVersionRef.current ?? 0)))
+      const snapshotWithCoverage = attachSnapshotCoversVersions(
+        cloneSnapshot(raw) as Record<string, unknown>,
+        workbookSnapshotCoversVersionsRef.current
+      )
       writeUniverSnapshotCache(
         app.id,
         version,
-        stripWorkbookSnapshotValuesPreservingFormatting(cloneSnapshot(raw) as Record<string, unknown>)
+        stripWorkbookSnapshotValuesPreservingFormatting(
+          snapshotWithCoverage ?? (cloneSnapshot(raw) as Record<string, unknown>)
+        )
       )
     } catch (err) {
       console.warn('[SpreadsheetAppViewer] Emergency snapshot localStorage cache failed:', err)
@@ -2350,18 +2453,32 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         rows: getActiveSessionRows() as Record<string, unknown>[]
       })
       if (regions.length === 0) return
-      globalThis.setTimeout(() => {
-        if (!areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
-          return
-        }
-        spreadsheetGridRef.current?.forceAuthoritativeReapply?.(regions.length === 1 ? regions[0] : regions, {
-          clearAllSignatures: false,
-          preferBulk: true,
-          reason: 'dirty_regions_from_backend_used'
-        })
-      }, 0)
+      const activeRows = getActiveSessionRows() as Record<string, unknown>[]
+      const backendRepairClassification = classifyBackendDirtyRegionReapply({
+        sheetId: targetSheetId,
+        regions,
+        rows: activeRows,
+        isFreshMaterializedBackendRow: (sheetId, rowId) =>
+          isUuid(rowId) &&
+          rowMaterializationReadinessRef.current?.getMaterializedValuesByBackendRowId(sheetId, rowId) != null
+      })
+      scheduleCoordinatedAuthoritativeRepair(targetSheetId, regions.length === 1 ? regions[0] : regions, {
+        clearAllSignatures: false,
+        preferBulk: true,
+        reason: backendRepairClassification.reason,
+        pendingLocalFilterPolicy: backendRepairClassification.pendingLocalFilterPolicy
+      })
     },
-    [spreadsheetSession, spreadsheetColumnsForGrid, getActiveSessionRows, activeSheetIdRef, createdSheetIdAliasesRef]
+    [
+      spreadsheetSession,
+      spreadsheetColumnsForGrid,
+      getActiveSessionRows,
+      activeSheetIdRef,
+      createdSheetIdAliasesRef,
+      isUuid,
+      rowMaterializationReadinessRef,
+      scheduleCoordinatedAuthoritativeRepair
+    ]
   )
 
   const fetchSheetVersion = useCallback(
@@ -2389,7 +2506,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         operations: params.operations,
         response: params.response,
         intentJournal: spreadsheetIntentJournalRef.current,
-        versionCausalOwnership: versionCausalOwnershipRef.current
+        versionCausalOwnership: versionCausalOwnershipRef.current,
+        rowMaterializationReadiness,
+        rowSlotIdentityRegistry,
+        pendingLocalMutationCellsRef
       })
     },
     []
@@ -2671,6 +2791,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     snapshotCheckpointDrainPromiseRef,
     socketPersistChainRef,
     workbookSnapshotVersionRef,
+    workbookSnapshotCoversVersionsRef,
     snapshotSaveMetricsRef,
     spreadsheetGridRef,
     activeSheetIdRef,
@@ -2678,6 +2799,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     authoritativePeerSheetDataCacheRef,
     pendingLocalMutationCellsRef,
     pendingSnapshotClearCellsRef,
+    resolveKnownSheetVersion,
     pendingCellPersistTimeoutRef,
     unloadKeepAlivePersistRef,
     lastSuccessfulSnapshotCheckpointAtRef,
@@ -2762,7 +2884,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     persistPendingCellJournal,
     buildCreatedRowsFromBatch,
     onFlushDeferredCellEmits: () => collaborationManagerRef.current?.tryFlushDeferredCellEmits(),
-    onRowIdentityDiagnostics: logRowIdentityDiagnostics
+    onRowIdentityDiagnostics: logRowIdentityDiagnostics,
+    rowMaterializationReadiness
   })
 
   const {
@@ -2829,22 +2952,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
         if (region) {
           const regionCellEstimate = (region.maxRow - region.minRow + 1) * (region.maxCol - region.minCol + 1)
-          globalThis.setTimeout(() => {
-            if (!areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
-              return
-            }
-            collaborationCallbacks.forceGridReapply?.(targetSheetId, region, {
-              clearAllSignatures: false,
-              preferBulk: true,
-              reason: 'row_materialization'
-            })
+          const scheduledRegions = scheduleCoordinatedAuthoritativeRepair(targetSheetId, region, {
+            clearAllSignatures: false,
+            preferBulk: true,
+            reason: 'row_materialization',
+            pendingLocalFilterPolicy: 'server_authoritative_repair'
+          })
+          if (scheduledRegions) {
             logRowIdentityDiagnostics('row_materialization_bounded_authoritative_reapply_requested', {
               targetSheetId,
-              region,
+              region: scheduledRegions.length === 1 ? scheduledRegions[0] : scheduledRegions,
               regionCellEstimate,
               createdGridRowIndices: meta.createdGridRowIndices
             })
-          }, 0)
+          }
         }
       }
       logRowIdentityDiagnostics('row_materialization_context_synced', {
@@ -2861,6 +2982,29 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
       })
     },
+    requestBoundedAuthoritativeReapply: (targetSheetId, region, options) => {
+      const isActiveTarget = areCanonicalSheetIdsEqual(
+        targetSheetId,
+        activeSheetIdRef.current,
+        createdSheetIdAliasesRef.current
+      )
+      if (!isActiveTarget) return
+      const normalizedRegions = normalizeAuthoritativeGridReapplyTarget(region)
+      if (!normalizedRegions) return
+      const scheduledRegions = scheduleCoordinatedAuthoritativeRepair(targetSheetId, normalizedRegions, options)
+      if (!scheduledRegions) return
+      const regionCellEstimate = scheduledRegions.reduce(
+        (total, boundedRegion) =>
+          total + (boundedRegion.maxRow - boundedRegion.minRow + 1) * (boundedRegion.maxCol - boundedRegion.minCol + 1),
+        0
+      )
+      logRowIdentityDiagnostics('stale_active_snapshot_bounded_authoritative_reapply_requested', {
+        targetSheetId,
+        region: scheduledRegions.length === 1 ? scheduledRegions[0] : scheduledRegions,
+        regionCellEstimate,
+        reason: options?.reason ?? 'stale_active_snapshot_row_materialization'
+      })
+    },
     persistAddedRowsWithBatch,
     persistSingleAddedRow,
     recoverFromVersionConflict,
@@ -2874,7 +3018,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onRowIdentityDiagnostics: logRowIdentityDiagnostics,
     pendingCreatedSheetSelectionRef,
     createdSheetIdAliasesRef,
-    rowMaterializationReadiness
+    rowMaterializationReadiness,
+    rowSlotIdentityRegistry,
+    spreadsheetIntentJournalRef,
+    versionCausalOwnershipRef
   })
   isRowMaterializationInFlightRef.current = isRowMaterializationInFlightForSheet
   releaseRowMaterializationInFlightRef.current = releaseRowMaterializationInFlightForSheet
@@ -3373,9 +3520,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         const backendRowId = resolveBackendRowIdForViewerRow(row, isUuid)
         const clientRowId = getClientRowIdentity(row)
         if (!backendRowId || !clientRowId) return
-        rowMaterializationReadiness.resolve(targetSheetId, clientRowId, backendRowId)
-        spreadsheetIntentJournalRef.current.promoteLogicalRowHandle(clientRowId, backendRowId)
-        versionCausalOwnershipRef.current.promoteLogicalRowHandle(targetSheetId, clientRowId, backendRowId)
+        readinessResolvedRowIds.set(clientRowId, backendRowId)
+      })
+      promoteSpreadsheetRowIdentities({
+        sheetId: targetSheetId,
+        persistedIdByClientRowId: readinessResolvedRowIds,
+        deps: {
+          rowMaterializationReadiness,
+          rowSlotIdentityRegistry,
+          intentJournal: spreadsheetIntentJournalRef.current,
+          versionCausalOwnership: versionCausalOwnershipRef.current,
+          pendingLocalMutationCellsRef
+        }
       })
       affectedUiRowIds.forEach(clientRowId => {
         const backendRowId =
@@ -3718,6 +3874,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     mutationFacade: mutationFacade as any,
     rowSlotIdentityRegistry,
     rowMaterializationReadiness,
+    spreadsheetIntentJournalRef,
+    versionCausalOwnershipRef,
+    pendingLocalMutationCellsRef,
     flushPendingCellChangesRef,
     activeSheetColumns: activeSheet.columns as any,
     spreadsheetColumnsForGrid: spreadsheetColumnsForGrid as any,
@@ -3765,6 +3924,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     tableSnapshotSeed: tableSnapshotSeed as any,
     authoritativeDataSyncToken: authoritativeDataSyncToken as any,
     authoritativePaintCellsRef,
+    authoritativePaintMetaRef,
     workbookInstanceKey: tableWorkbookInstanceKey as any,
     pendingLocalMutationCellsRef,
     spreadsheetIntentJournalRef,

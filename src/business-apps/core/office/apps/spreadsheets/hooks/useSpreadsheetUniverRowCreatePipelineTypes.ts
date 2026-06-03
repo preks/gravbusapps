@@ -1,6 +1,13 @@
 import type { MutableRefObject } from 'react'
 
+import type { SpreadsheetIntentJournal } from '../core/spreadsheetIntentJournal'
+import type { SpreadsheetVersionCausalOwnershipRegistry } from '../core/spreadsheetVersionCausalOwnership'
 import type { SpreadsheetColumn } from '../types'
+import type {
+  AuthoritativeGridReapplyTarget,
+  ForceAuthoritativeGridReapplyOptions
+} from '../utils/spreadsheetAuthoritativeRegion'
+import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 import type { SpreadsheetRowMaterializationReadiness } from './spreadsheetRowMaterializationReadiness'
 
 interface SpreadsheetPersistenceIndicator {
@@ -71,6 +78,11 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
       sourceUniverRows: Record<string, unknown>[]
     }
   ) => void
+  requestBoundedAuthoritativeReapply?: (
+    sheetId: string,
+    region: AuthoritativeGridReapplyTarget,
+    options?: ForceAuthoritativeGridReapplyOptions
+  ) => void
   onRowIdentityDiagnostics?: (stage: string, payload: Record<string, unknown>) => void
   pendingCreatedSheetSelectionRef: MutableRefObject<{
     temporarySheetId: string
@@ -78,6 +90,9 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
   } | null>
   createdSheetIdAliasesRef: MutableRefObject<Map<string, string>>
   rowMaterializationReadiness?: SpreadsheetRowMaterializationReadiness
+  rowSlotIdentityRegistry?: SpreadsheetRowSlotIdentityRegistry
+  spreadsheetIntentJournalRef?: MutableRefObject<SpreadsheetIntentJournal | null>
+  versionCausalOwnershipRef?: MutableRefObject<SpreadsheetVersionCausalOwnershipRegistry | null>
 }
 
 export interface UseSpreadsheetUniverRowCreatePipelineResult {

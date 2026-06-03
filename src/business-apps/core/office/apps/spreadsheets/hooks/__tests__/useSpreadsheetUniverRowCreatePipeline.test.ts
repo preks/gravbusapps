@@ -1,9 +1,15 @@
 import { act, renderHook } from '@testing-library/react'
 
+import { SpreadsheetIntentJournal } from '../../core/spreadsheetIntentJournal'
+import { SpreadsheetVersionCausalOwnershipRegistry } from '../../core/spreadsheetVersionCausalOwnership'
 import { createSpreadsheetRowMaterializationReadiness } from '../spreadsheetRowMaterializationReadiness'
 import { useSpreadsheetUniverRowCreatePipeline } from '../useSpreadsheetUniverRowCreatePipeline'
 import type { SpreadsheetColumn } from '../../types'
-import { spreadsheetPendingLocalMutationCoordinateCellKey } from '../../utils/spreadsheetPendingMaterializationCells'
+import {
+  protectSpreadsheetPendingLocalMutationCells,
+  spreadsheetPendingLocalMutationCoordinateCellKey,
+  spreadsheetPendingLocalMutationSemanticCellKey
+} from '../../utils/spreadsheetPendingMaterializationCells'
 
 const column = (id: string, name: string): SpreadsheetColumn => ({
   id,
@@ -76,6 +82,11 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
         expect(
           pendingLocalMutationCellsRef.current.has(spreadsheetPendingLocalMutationCoordinateCellKey('sheet-2', 0, 0))
         ).toBe(true)
+        expect(
+          pendingLocalMutationCellsRef.current.has(
+            spreadsheetPendingLocalMutationSemanticCellKey('sheet-2', 'client-row-1', 'ColumnA')
+          )
+        ).toBe(true)
         updateLocalRowsAfterCreate({
           createdRows: [
             {
@@ -93,6 +104,28 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     const onRowsMaterializedContextSync = jest.fn()
     const onRowIdentityDiagnostics = jest.fn()
     const pendingLocalMutationCellsRef = { current: new Set<string>() }
+    const rowSlotIdentityRegistry = { bindBackendRowId: jest.fn() } as any
+    const spreadsheetIntentJournalRef = { current: new SpreadsheetIntentJournal() }
+    const versionCausalOwnershipRef = { current: new SpreadsheetVersionCausalOwnershipRegistry() }
+    spreadsheetIntentJournalRef.current.captureIntent({
+      sheetId: 'sheet-2',
+      logicalRowHandle: 'client-row-1',
+      columnName: 'ColumnA',
+      value: 'first user value',
+      baseVersion: 0
+    })
+    versionCausalOwnershipRef.current.registerIntent({
+      sheetId: 'sheet-2',
+      logicalRowHandle: 'client-row-1',
+      columnName: 'ColumnA',
+      baseVersion: 0
+    })
+    protectSpreadsheetPendingLocalMutationCells(pendingLocalMutationCellsRef, [
+      {
+        key: spreadsheetPendingLocalMutationSemanticCellKey('sheet-2', 'client-row-1', 'ColumnA'),
+        ownerId: 'plan:client-row-1:ColumnA'
+      }
+    ])
 
     const { result } = renderHook(() =>
       useSpreadsheetUniverRowCreatePipeline({
@@ -138,7 +171,10 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
         onRowsMaterializedContextSync,
         onRowIdentityDiagnostics,
         pendingCreatedSheetSelectionRef: { current: null },
-        createdSheetIdAliasesRef: { current: new Map<string, string>() }
+        createdSheetIdAliasesRef: { current: new Map<string, string>() },
+        rowSlotIdentityRegistry,
+        spreadsheetIntentJournalRef,
+        versionCausalOwnershipRef
       })
     )
 
@@ -149,7 +185,20 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
       [{ _clientRowId: 'client-row-1', _gridRowIndex: 0, ColumnA: 'first user value' }],
       expect.any(Function)
     )
-    expect(pendingLocalMutationCellsRef.current.size).toBe(0)
+    expect(
+      pendingLocalMutationCellsRef.current.has(
+        spreadsheetPendingLocalMutationSemanticCellKey('sheet-2', 'client-row-1', 'ColumnA')
+      )
+    ).toBe(false)
+    expect(
+      pendingLocalMutationCellsRef.current.has(
+        spreadsheetPendingLocalMutationSemanticCellKey('sheet-2', 'backend-row-1', 'ColumnA')
+      )
+    ).toBe(true)
+    expect(rowSlotIdentityRegistry.bindBackendRowId).toHaveBeenCalledWith('sheet-2', 'client-row-1', 'backend-row-1')
+    expect(spreadsheetIntentJournalRef.current.listIntents('sheet-2')).toEqual([
+      expect.objectContaining({ logicalRowHandle: 'backend-row-1' })
+    ])
     expect(commitRowsForSheet).toHaveBeenCalledWith(
       'sheet-2',
       [
@@ -210,15 +259,129 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     expect(pendingUniverRowsBySheetRef.current.has('sheet-2')).toBe(false)
   })
 
-  it('skips add_rows when the active-sheet Univer snapshot is older than the persisted session rows after an insert', async () => {
+  it('materializes submit-readiness temporary rows immediately instead of filtering them against source rows', async () => {
+    const activeSheetIdRef = { current: 'sheet-1' }
+    const latestUniverDataRef = {
+      current: {
+        sheetId: 'sheet-1',
+        data: [{ _id: 'client_row_1', _clientRowId: 'client_row_1', ColumnA: 'draft value' }]
+      }
+    }
+    const pendingUniverRowsBySheetRef = {
+      current: new Map<string, { data: Record<string, unknown>[]; persistedRows: Record<string, unknown>[] }>()
+    }
+    const persistAddedRowsWithBatch = jest.fn(
+      async (
+        _targetSheetId: string,
+        _rowPayloads: Record<string, unknown>[],
+        updateLocalRowsAfterCreate: (result: {
+          createdRows: Array<Record<string, unknown>>
+          persistedIdByClientRowId: Map<string, string>
+        }) => void
+      ) => {
+        updateLocalRowsAfterCreate({
+          createdRows: [
+            {
+              _id: 'backend-row-1',
+              _rowUuid: 'backend-row-1',
+              _clientRowId: 'client_row_1',
+              ColumnA: 'draft value',
+              _gridRowIndex: 0
+            }
+          ],
+          persistedIdByClientRowId: new Map([['client_row_1', 'backend-row-1']])
+        })
+      }
+    )
+
+    const { result } = renderHook(() =>
+      useSpreadsheetUniverRowCreatePipeline({
+        activeSheetId: 'sheet-1',
+        activeSheetIdRef,
+        activeSheetColumns: [column('col-a', 'ColumnA')],
+        getColumnsForSheet: () => [column('col-a', 'ColumnA')],
+        isUuid: value => value.startsWith('backend-'),
+        isOpsV2Enabled: true,
+        onRowAdd: undefined,
+        entityEnabledRef: { current: false },
+        canEditWithLockRef: { current: true },
+        latestUniverDataRef,
+        pendingUniverRowsBySheetRef,
+        lastProcessedLengthRef: { current: 0 },
+        operationQueueRef: { current: Promise.resolve() },
+        chainOnOperationQueue: async (_queueRef, fn) => fn(),
+        sheetPersist: {
+          beginPersist: jest.fn(),
+          endPersist: jest.fn(),
+          markDirty: jest.fn(),
+          recordSuccess: jest.fn(),
+          recordError: jest.fn()
+        },
+        markVersionAsChanged: jest.fn(),
+        markVersionAsSaved: jest.fn(),
+        onPersistRowsErrorMessage: 'failed',
+        getActiveSessionRows: () => [],
+        buildAddRowPayloadsFromUniverRows: rows =>
+          rows.map(row => ({
+            _clientRowId: row._clientRowId ?? row._id,
+            _gridRowIndex: row._gridRowIndex,
+            ColumnA: row.ColumnA
+          })),
+        persistAddedRowsWithBatch,
+        persistSingleAddedRow: jest.fn(),
+        recoverFromVersionConflict: jest.fn(async () => false),
+        summarizeRowsForDebug: rows => ({ count: rows?.length ?? 0 }),
+        getRowsForSheet: () => [],
+        multiSheetDebugLog: jest.fn(),
+        commitRowsForSheet: jest.fn(),
+        onRowsMaterializedContextSync: jest.fn(),
+        onRowIdentityDiagnostics: jest.fn(),
+        pendingCreatedSheetSelectionRef: { current: null },
+        createdSheetIdAliasesRef: { current: new Map<string, string>() },
+        rowMaterializationReadiness: createSpreadsheetRowMaterializationReadiness()
+      })
+    )
+
+    await act(async () => {
+      await result.current.materializeTemporaryRowsForSubmit('sheet-1', [
+        { _id: 'client_row_1', _clientRowId: 'client_row_1', ColumnA: 'draft value' }
+      ])
+    })
+
+    expect(persistAddedRowsWithBatch).toHaveBeenCalledWith(
+      'sheet-1',
+      [{ _clientRowId: 'client_row_1', _gridRowIndex: 0, ColumnA: 'draft value' }],
+      expect.any(Function)
+    )
+  })
+
+  it('treats backend-identified row-count divergence as catch-up lag instead of stale local materialization', async () => {
     const activeSheetIdRef = { current: 'sheet-1' }
     const latestUniverDataRef = {
       current: {
         sheetId: 'sheet-1',
         data: [
-          { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _clientRowId: 'client-row-1', ColumnA: 1 },
-          { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _clientRowId: 'client-row-2', ColumnA: 2 },
-          { _id: 'backend-row-3', _rowUuid: 'backend-row-3', _clientRowId: 'client-row-3', ColumnA: 3 }
+          {
+            _id: 'backend-row-1',
+            _rowUuid: 'backend-row-1',
+            _clientRowId: 'client-row-1',
+            ColumnA: 1,
+            _gridRowIndex: 0
+          },
+          {
+            _id: 'backend-row-2',
+            _rowUuid: 'backend-row-2',
+            _clientRowId: 'client-row-2',
+            ColumnA: 2,
+            _gridRowIndex: 2
+          },
+          {
+            _id: 'backend-row-3',
+            _rowUuid: 'backend-row-3',
+            _clientRowId: 'client-row-3',
+            ColumnA: 3,
+            _gridRowIndex: 3
+          }
         ]
       }
     }
@@ -236,6 +399,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     ]
     const persistAddedRowsWithBatch = jest.fn()
     const multiSheetDebugLog = jest.fn()
+    const requestBoundedAuthoritativeReapply = jest.fn()
 
     const { result } = renderHook(() =>
       useSpreadsheetUniverRowCreatePipeline({
@@ -271,6 +435,7 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
         summarizeRowsForDebug: rows => ({ count: rows?.length ?? 0 }),
         getRowsForSheet: () => persistedRows,
         multiSheetDebugLog,
+        requestBoundedAuthoritativeReapply,
         commitRowsForSheet: jest.fn(),
         onRowsMaterializedContextSync: jest.fn(),
         onRowIdentityDiagnostics: jest.fn(),
@@ -285,9 +450,232 @@ describe('useSpreadsheetUniverRowCreatePipeline', () => {
     })
 
     expect(persistAddedRowsWithBatch).not.toHaveBeenCalled()
+    expect(requestBoundedAuthoritativeReapply).not.toHaveBeenCalled()
+    expect(multiSheetDebugLog.mock.calls.map(call => call[0])).not.toContain(
+      'process_univer_data_change_stale_active_snapshot_decision'
+    )
+  })
+
+  it('does not schedule stale repair when the stale gap is fully covered by same-cycle materialization', async () => {
+    const activeSheetIdRef = { current: 'sheet-1' }
+    const latestUniverDataRef = {
+      current: {
+        sheetId: 'sheet-1',
+        data: [
+          { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _clientRowId: 'client-row-1', ColumnA: 1 },
+          { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _clientRowId: 'client-row-2', ColumnA: 2 },
+          { _id: 'backend-row-3', _rowUuid: 'backend-row-3', _clientRowId: 'client-row-3', ColumnA: 3 }
+        ]
+      }
+    }
+    const pendingUniverRowsBySheetRef = { current: new Map<string, never>() }
+    const persistedRows = [
+      { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _clientRowId: 'client-row-1', ColumnA: 1, _gridRowIndex: 0 },
+      { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _clientRowId: 'client-row-2', ColumnA: 2, _gridRowIndex: 1 },
+      { _id: 'backend-row-3', _rowUuid: 'backend-row-3', _clientRowId: 'client-row-3', ColumnA: 3, _gridRowIndex: 2 },
+      { _id: 'client-row-4', _clientRowId: 'client-row-4', ColumnA: 4, _gridRowIndex: 3 }
+    ]
+    const persistAddedRowsWithBatch = jest.fn(
+      async (
+        _targetSheetId: string,
+        _rowPayloads: Record<string, unknown>[],
+        updateLocalRowsAfterCreate: (result: {
+          createdRows: Array<Record<string, unknown>>
+          persistedIdByClientRowId: Map<string, string>
+        }) => void
+      ) => {
+        updateLocalRowsAfterCreate({
+          createdRows: [
+            {
+              _id: 'backend-row-4',
+              _rowUuid: 'backend-row-4',
+              _clientRowId: 'client-row-4',
+              ColumnA: 4,
+              _gridRowIndex: 3
+            }
+          ],
+          persistedIdByClientRowId: new Map([['client-row-4', 'backend-row-4']])
+        })
+      }
+    )
+    const multiSheetDebugLog = jest.fn()
+    const requestBoundedAuthoritativeReapply = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetUniverRowCreatePipeline({
+        activeSheetId: 'sheet-1',
+        activeSheetIdRef,
+        activeSheetColumns: [column('col-a', 'ColumnA')],
+        getColumnsForSheet: () => [column('col-a', 'ColumnA')],
+        isUuid: value => value.startsWith('backend-'),
+        isOpsV2Enabled: true,
+        onRowAdd: undefined,
+        entityEnabledRef: { current: false },
+        canEditWithLockRef: { current: true },
+        latestUniverDataRef,
+        pendingUniverRowsBySheetRef,
+        lastProcessedLengthRef: { current: persistedRows.length },
+        operationQueueRef: { current: Promise.resolve() },
+        chainOnOperationQueue: async (_queueRef, fn) => fn(),
+        sheetPersist: {
+          beginPersist: jest.fn(),
+          endPersist: jest.fn(),
+          markDirty: jest.fn(),
+          recordSuccess: jest.fn(),
+          recordError: jest.fn()
+        },
+        markVersionAsChanged: jest.fn(),
+        markVersionAsSaved: jest.fn(),
+        onPersistRowsErrorMessage: 'failed',
+        getActiveSessionRows: () => persistedRows,
+        buildAddRowPayloadsFromUniverRows: rows =>
+          rows.map(row => ({
+            _clientRowId: row._clientRowId ?? row._id,
+            ColumnA: row.ColumnA
+          })),
+        persistAddedRowsWithBatch,
+        persistSingleAddedRow: jest.fn(),
+        recoverFromVersionConflict: jest.fn(async () => false),
+        summarizeRowsForDebug: rows => ({ count: rows?.length ?? 0 }),
+        getRowsForSheet: () => persistedRows,
+        multiSheetDebugLog,
+        requestBoundedAuthoritativeReapply,
+        commitRowsForSheet: jest.fn(),
+        onRowsMaterializedContextSync: jest.fn(),
+        onRowIdentityDiagnostics: jest.fn(),
+        pendingCreatedSheetSelectionRef: { current: null },
+        createdSheetIdAliasesRef: { current: new Map<string, string>() },
+        rowMaterializationReadiness: createSpreadsheetRowMaterializationReadiness()
+      })
+    )
+
+    await act(async () => {
+      await runProcessUniverDataChange(result)
+    })
+
+    expect(persistAddedRowsWithBatch).toHaveBeenCalled()
+    expect(requestBoundedAuthoritativeReapply).not.toHaveBeenCalled()
     expect(multiSheetDebugLog).toHaveBeenCalledWith(
-      'process_univer_data_change_skip_stale_active_snapshot',
+      'process_univer_data_change_stale_active_snapshot_fully_covered',
       expect.any(Function)
+    )
+  })
+
+  it('schedules only the uncovered stale repair remainder after same-cycle materialization coverage is known', async () => {
+    const activeSheetIdRef = { current: 'sheet-1' }
+    const latestUniverDataRef = {
+      current: {
+        sheetId: 'sheet-1',
+        data: [
+          { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _clientRowId: 'client-row-1', ColumnA: 1 },
+          { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _clientRowId: 'client-row-2', ColumnA: 2 },
+          { _id: 'backend-row-3', _rowUuid: 'backend-row-3', _clientRowId: 'client-row-3', ColumnA: 3 }
+        ]
+      }
+    }
+    const pendingUniverRowsBySheetRef = { current: new Map<string, never>() }
+    const persistedRows = [
+      { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _clientRowId: 'client-row-1', ColumnA: 1, _gridRowIndex: 0 },
+      { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _clientRowId: 'client-row-2', ColumnA: 2, _gridRowIndex: 1 },
+      { _id: 'backend-row-3', _rowUuid: 'backend-row-3', _clientRowId: 'client-row-3', ColumnA: 3, _gridRowIndex: 2 },
+      { _id: 'client-row-4', _clientRowId: 'client-row-4', ColumnA: 4, _gridRowIndex: 3 },
+      { _id: 'client-row-5', _clientRowId: 'client-row-5', ColumnB: 'keep-local-b', _gridRowIndex: 4 }
+    ]
+    const persistAddedRowsWithBatch = jest.fn(
+      async (
+        _targetSheetId: string,
+        _rowPayloads: Record<string, unknown>[],
+        updateLocalRowsAfterCreate: (result: {
+          createdRows: Array<Record<string, unknown>>
+          persistedIdByClientRowId: Map<string, string>
+        }) => void
+      ) => {
+        updateLocalRowsAfterCreate({
+          createdRows: [
+            {
+              _id: 'backend-row-4',
+              _rowUuid: 'backend-row-4',
+              _clientRowId: 'client-row-4',
+              ColumnA: 4,
+              _gridRowIndex: 3
+            }
+          ],
+          persistedIdByClientRowId: new Map([['client-row-4', 'backend-row-4']])
+        })
+      }
+    )
+    const multiSheetDebugLog = jest.fn()
+    const requestBoundedAuthoritativeReapply = jest.fn()
+    const rowMaterializationReadiness = createSpreadsheetRowMaterializationReadiness()
+    rowMaterializationReadiness.resolve('sheet-1', 'client-row-5', 'backend-row-5')
+
+    const { result } = renderHook(() =>
+      useSpreadsheetUniverRowCreatePipeline({
+        activeSheetId: 'sheet-1',
+        activeSheetIdRef,
+        activeSheetColumns: [column('col-a', 'ColumnA'), column('col-b', 'ColumnB')],
+        getColumnsForSheet: () => [column('col-a', 'ColumnA'), column('col-b', 'ColumnB')],
+        isUuid: value => value.startsWith('backend-'),
+        isOpsV2Enabled: true,
+        onRowAdd: undefined,
+        entityEnabledRef: { current: false },
+        canEditWithLockRef: { current: true },
+        latestUniverDataRef,
+        pendingUniverRowsBySheetRef,
+        lastProcessedLengthRef: { current: persistedRows.length },
+        operationQueueRef: { current: Promise.resolve() },
+        chainOnOperationQueue: async (_queueRef, fn) => fn(),
+        sheetPersist: {
+          beginPersist: jest.fn(),
+          endPersist: jest.fn(),
+          markDirty: jest.fn(),
+          recordSuccess: jest.fn(),
+          recordError: jest.fn()
+        },
+        markVersionAsChanged: jest.fn(),
+        markVersionAsSaved: jest.fn(),
+        onPersistRowsErrorMessage: 'failed',
+        getActiveSessionRows: () => persistedRows,
+        buildAddRowPayloadsFromUniverRows: rows =>
+          rows.map(row => ({
+            _clientRowId: row._clientRowId ?? row._id,
+            ColumnA: row.ColumnA,
+            ColumnB: row.ColumnB
+          })),
+        persistAddedRowsWithBatch,
+        persistSingleAddedRow: jest.fn(),
+        recoverFromVersionConflict: jest.fn(async () => false),
+        summarizeRowsForDebug: rows => ({ count: rows?.length ?? 0 }),
+        getRowsForSheet: () => persistedRows,
+        multiSheetDebugLog,
+        requestBoundedAuthoritativeReapply,
+        commitRowsForSheet: jest.fn(),
+        onRowsMaterializedContextSync: jest.fn(),
+        onRowIdentityDiagnostics: jest.fn(),
+        pendingCreatedSheetSelectionRef: { current: null },
+        createdSheetIdAliasesRef: { current: new Map<string, string>() },
+        rowMaterializationReadiness
+      })
+    )
+
+    await act(async () => {
+      await runProcessUniverDataChange(result)
+    })
+
+    expect(persistAddedRowsWithBatch).toHaveBeenCalled()
+    expect(multiSheetDebugLog).toHaveBeenCalledWith(
+      'process_univer_data_change_stale_active_snapshot_partially_covered',
+      expect.any(Function)
+    )
+    expect(requestBoundedAuthoritativeReapply).toHaveBeenCalledWith(
+      'sheet-1',
+      { minRow: 4, maxRow: 4, minCol: 1, maxCol: 1 },
+      expect.objectContaining({
+        clearAllSignatures: false,
+        preferBulk: true,
+        reason: 'stale_active_snapshot_row_materialization',
+        pendingLocalFilterPolicy: 'protect_in_flight_local_edits'
+      })
     )
   })
 

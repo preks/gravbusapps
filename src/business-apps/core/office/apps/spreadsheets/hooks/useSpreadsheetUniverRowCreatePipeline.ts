@@ -13,7 +13,8 @@ import {
 import { getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
 import {
   protectSpreadsheetPendingLocalMutationCells,
-  spreadsheetPendingLocalMutationCoordinateCellKey
+  spreadsheetPendingLocalMutationCoordinateCellKey,
+  spreadsheetPendingLocalMutationSemanticCellKey
 } from '../utils/spreadsheetPendingMaterializationCells'
 import {
   buildRowIdentityDiagnostics,
@@ -24,12 +25,16 @@ import {
   type ViewerRow
 } from '../utils/spreadsheetRowIdentity'
 import { patchLatestUniverSnapshotRowBackendIdentities } from '../utils/spreadsheetUniverSnapshotIdentity'
+import { promoteSpreadsheetRowIdentities } from '../utils/spreadsheetRowIdentityPromotion'
 import {
+  buildNarrowAuthoritativeRegionsForPersistedRows,
   buildMaterializationRowsByVisualIndexMap,
   buildOccupiedSlotRowAdoptions,
   buildRowMaterializationInFlightKey,
   buildSpreadsheetRowMaterializationPlan,
+  classifyStaleActiveSnapshotRowGaps,
   filterMaterializationEntriesForPersistedSlots,
+  getPlannedMaterializationVisualIndices,
   getSpreadsheetRowMaterializationClientRowId,
   mergeCreatedRowsByVisualIndex,
   viewerRowMatchesPersistedRowAtSlot,
@@ -97,10 +102,14 @@ export function useSpreadsheetUniverRowCreatePipeline(
     multiSheetDebugLog,
     commitRowsForSheet,
     onRowsMaterializedContextSync,
+    requestBoundedAuthoritativeReapply,
     onRowIdentityDiagnostics,
     pendingCreatedSheetSelectionRef,
     createdSheetIdAliasesRef,
-    rowMaterializationReadiness
+    rowMaterializationReadiness,
+    rowSlotIdentityRegistry,
+    spreadsheetIntentJournalRef,
+    versionCausalOwnershipRef
   } = params
   const inFlightRowMaterializationKeysRef = useRef(new Set<string>())
   const materializationDebounceRef = useRef<MaterializationDebounceState>({
@@ -160,24 +169,24 @@ export function useSpreadsheetUniverRowCreatePipeline(
       const persistedRows = isActiveTarget
         ? getActiveSessionRows()
         : (pendingRows?.persistedRows ?? getRowsForSheet(canonicalTargetId))
+      const targetColumns = isActiveTarget ? activeSheetColumns : getColumnsForSheet(canonicalTargetId)
+      const staleGapAnalysis =
+        reason === 'univer_data_change' && isActiveTarget
+          ? classifyStaleActiveSnapshotRowGaps({
+              sourceRows,
+              persistedRows,
+              isUuid
+            })
+          : {
+              staleCandidateRowIndices: [],
+              backendLagRowIndices: [],
+              unclassifiedGapRowIndices: []
+            }
       const staleActiveSnapshotForRowMaterialization =
-        reason === 'univer_data_change' && isActiveTarget && sourceRows.length < persistedRows.length
-
-      if (staleActiveSnapshotForRowMaterialization) {
-        multiSheetDebugLog('process_univer_data_change_skip_stale_active_snapshot', () => ({
-          sheetId: targetSheetId,
-          canonicalTargetId,
-          reason,
-          sourceRowsLength: sourceRows.length,
-          persistedRowsLength: persistedRows.length,
-          sourceRows: summarizeRowsForDebug(sourceRows),
-          persistedRows: summarizeRowsForDebug(persistedRows)
-        }))
-        return
-      }
+        reason === 'univer_data_change' && isActiveTarget && staleGapAnalysis.staleCandidateRowIndices.length > 0
 
       const univerRowsForMaterialization =
-        reason === 'submit_readiness'
+        reason === 'submit_readiness' || staleActiveSnapshotForRowMaterialization
           ? resolveUniverRowsForSubmitReadinessMaterialization({
               sessionRows: persistedRows,
               latestUniverRows: sourceRows,
@@ -212,17 +221,54 @@ export function useSpreadsheetUniverRowCreatePipeline(
           rowMaterializationReadiness
         })
       }
+      const materializationFilterRows = staleActiveSnapshotForRowMaterialization ? sourceRows : persistedRows
       const filteredMaterializationPlan = filterMaterializationEntriesForPersistedSlots(
         materializationPlan,
-        persistedRows,
+        materializationFilterRows,
         isUuid
       )
       const lastProcessed = isActiveTarget ? lastProcessedLengthRef.current : persistedRows.length
-      const targetColumns = isActiveTarget ? activeSheetColumns : getColumnsForSheet(canonicalTargetId)
       const rowPayloads = buildAddRowPayloadsFromUniverRows(
         filteredMaterializationPlan.rowsToMaterialize,
         targetColumns
       ).sort((left, right) => Number(left._gridRowIndex) - Number(right._gridRowIndex))
+      const staleGapRowIndices = staleActiveSnapshotForRowMaterialization
+        ? staleGapAnalysis.staleCandidateRowIndices
+        : []
+      const futureCoveredStaleRowIndices = staleActiveSnapshotForRowMaterialization
+        ? Array.from(
+            new Set([
+              ...getPlannedMaterializationVisualIndices(filteredMaterializationPlan),
+              ...filteredMaterializationPlan.inFlightMissingGridRowIndices
+            ])
+          ).filter(rowIndex => staleGapRowIndices.includes(rowIndex))
+        : []
+      const staleRepairRowIndices = staleGapRowIndices.filter(
+        rowIndex => !futureCoveredStaleRowIndices.includes(rowIndex)
+      )
+      const staleRepairRegions =
+        staleRepairRowIndices.length > 0
+          ? buildNarrowAuthoritativeRegionsForPersistedRows({
+              rowIndices: staleRepairRowIndices,
+              rows: persistedRows,
+              columns: targetColumns
+            })
+          : []
+      const staleRepairTarget =
+        staleRepairRegions.length === 0
+          ? null
+          : staleRepairRegions.length === 1
+            ? staleRepairRegions[0]
+            : staleRepairRegions
+      const scheduleStaleRepairRemainder = (): void => {
+        if (!staleActiveSnapshotForRowMaterialization || !staleRepairTarget) return
+        requestBoundedAuthoritativeReapply?.(canonicalTargetId, staleRepairTarget, {
+          clearAllSignatures: false,
+          preferBulk: true,
+          reason: 'stale_active_snapshot_row_materialization',
+          pendingLocalFilterPolicy: 'protect_in_flight_local_edits'
+        })
+      }
       const buildMaterializationPlanDiagnostics = (
         plan: SpreadsheetRowMaterializationPlan,
         createdSparseGridRowIndices: number[] = []
@@ -241,7 +287,14 @@ export function useSpreadsheetUniverRowCreatePipeline(
         missingButInFlightCount: plan.missingButInFlightCount,
         missingAndWillCreateCount: plan.missingAndWillCreateCount,
         gridIndexCoordinateMode: plan.gridIndexCoordinateMode,
-        createdSparseGridRowIndices
+        createdSparseGridRowIndices,
+        staleActiveSnapshotForRowMaterialization,
+        backendLagStaleRowIndices: staleGapAnalysis.backendLagRowIndices,
+        unclassifiedStaleGapRowIndices: staleGapAnalysis.unclassifiedGapRowIndices,
+        staleGapRowIndices,
+        futureCoveredStaleRowIndices,
+        staleRepairRowIndices,
+        staleRepairRegions
       })
 
       multiSheetDebugLog('process_univer_data_change_start', () => ({
@@ -255,6 +308,38 @@ export function useSpreadsheetUniverRowCreatePipeline(
       multiSheetDebugLog('process_univer_data_change_materialization_plan', () =>
         buildMaterializationPlanDiagnostics(materializationPlan)
       )
+      if (staleActiveSnapshotForRowMaterialization) {
+        multiSheetDebugLog('process_univer_data_change_stale_active_snapshot_decision', () => ({
+          sheetId: targetSheetId,
+          canonicalTargetId,
+          reason,
+          sourceRowsLength: sourceRows.length,
+          persistedRowsLength: persistedRows.length,
+          backendLagStaleRowIndices: staleGapAnalysis.backendLagRowIndices,
+          unclassifiedStaleGapRowIndices: staleGapAnalysis.unclassifiedGapRowIndices,
+          staleGapRowIndices,
+          futureCoveredStaleRowIndices,
+          staleRepairRowIndices,
+          staleRepairRegions,
+          rowPayloadCount: rowPayloads.length,
+          inFlightMissingGridRowIndices: filteredMaterializationPlan.inFlightMissingGridRowIndices
+        }))
+        if (staleRepairRegions.length === 0) {
+          multiSheetDebugLog('process_univer_data_change_stale_active_snapshot_fully_covered', () => ({
+            sheetId: targetSheetId,
+            canonicalTargetId,
+            futureCoveredStaleRowIndices,
+            rowPayloadCount: rowPayloads.length
+          }))
+        } else if (futureCoveredStaleRowIndices.length > 0) {
+          multiSheetDebugLog('process_univer_data_change_stale_active_snapshot_partially_covered', () => ({
+            sheetId: targetSheetId,
+            canonicalTargetId,
+            staleRepairRegions,
+            staleRepairRowIndices
+          }))
+        }
+      }
 
       const syncLocalRowsWithBackendIdentities = ({
         createdRows,
@@ -310,6 +395,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
           createdRows,
           sourceUniverRows: sourceRows
         })
+        scheduleStaleRepairRemainder()
         onRowIdentityDiagnostics?.('row_session_snapshot_reconciled', {
           targetSheetId: canonicalTargetId,
           rowIdentities: buildRowIdentityDiagnostics({
@@ -506,6 +592,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
           visualIndexPlannerFoundMissingRows: materializationPlan.missingGridRowIndices.length > 0,
           inFlightMissingGridRowIndices: materializationPlan.inFlightMissingGridRowIndices
         }))
+        scheduleStaleRepairRemainder()
         return
       }
 
@@ -534,8 +621,18 @@ export function useSpreadsheetUniverRowCreatePipeline(
       })
 
       const resolveReadinessEntries = (persistedIdByClientRowId: Map<string, string>) => {
-        if (!rowMaterializationReadiness) return
-        rowMaterializationReadiness.resolveMany(canonicalTargetId, persistedIdByClientRowId)
+        if (persistedIdByClientRowId.size === 0) return
+        promoteSpreadsheetRowIdentities({
+          sheetId: canonicalTargetId,
+          persistedIdByClientRowId,
+          deps: {
+            rowMaterializationReadiness,
+            rowSlotIdentityRegistry,
+            intentJournal: spreadsheetIntentJournalRef?.current,
+            versionCausalOwnership: versionCausalOwnershipRef?.current,
+            pendingLocalMutationCellsRef
+          }
+        })
         persistedIdByClientRowId.forEach((backendRowId, clientRowId) => {
           const resolver = readinessPendingResolvers.get(clientRowId)
           if (!resolver) return
@@ -577,21 +674,36 @@ export function useSpreadsheetUniverRowCreatePipeline(
 
       const protectPendingMaterializationCells = (): (() => void) => {
         if (!pendingLocalMutationCellsRef) return () => undefined
-        const protectedEntries: Array<{ key: string; ownerId: string }> = []
+        const protectedEntries: Array<{
+          key: string
+          ownerId: string
+          kind: 'materialization_adoption'
+        }> = []
         const visibleColumns = targetColumns.filter(column => column.isVisible !== false)
         for (const rowPayload of rowPayloads) {
           const rowIndex = Number(rowPayload._gridRowIndex)
           if (!Number.isInteger(rowIndex) || rowIndex < 0) continue
+          const clientRowId = typeof rowPayload._clientRowId === 'string' ? rowPayload._clientRowId.trim() : ''
           visibleColumns.forEach((column, colIndex) => {
             const hasColumnValue =
               Object.prototype.hasOwnProperty.call(rowPayload, column.name) ||
               Object.prototype.hasOwnProperty.call(rowPayload, column.id)
             if (!hasColumnValue) return
             const key = spreadsheetPendingLocalMutationCoordinateCellKey(canonicalTargetId, rowIndex, colIndex)
-            protectedEntries.push({
-              key,
-              ownerId: `materialization:${canonicalTargetId}:${key}`
-            })
+            const ownerBase = `materialization:${canonicalTargetId}:${rowIndex}:${colIndex}:${column.name}`
+            protectedEntries.push({ key, ownerId: `${ownerBase}:${key}`, kind: 'materialization_adoption' })
+            if (clientRowId) {
+              const semanticKey = spreadsheetPendingLocalMutationSemanticCellKey(
+                canonicalTargetId,
+                clientRowId,
+                column.name
+              )
+              protectedEntries.push({
+                key: semanticKey,
+                ownerId: `${ownerBase}:${semanticKey}`,
+                kind: 'materialization_adoption'
+              })
+            }
           })
         }
         return protectSpreadsheetPendingLocalMutationCells(pendingLocalMutationCellsRef, protectedEntries, {
@@ -698,6 +810,7 @@ export function useSpreadsheetUniverRowCreatePipeline(
       onRowAdd,
       pendingLocalMutationCellsRef,
       rowMaterializationReadiness,
+      rowSlotIdentityRegistry,
       operationQueueRef,
       pendingUniverRowsBySheetRef,
       persistAddedRowsWithBatch,
@@ -709,7 +822,9 @@ export function useSpreadsheetUniverRowCreatePipeline(
       summarizeRowsForDebug,
       onRowIdentityDiagnostics,
       pendingCreatedSheetSelectionRef,
-      createdSheetIdAliasesRef
+      createdSheetIdAliasesRef,
+      spreadsheetIntentJournalRef,
+      versionCausalOwnershipRef
     ]
   )
 

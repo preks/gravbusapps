@@ -6,8 +6,10 @@ import {
   normalizeBatchOperationsWithRowRefs,
   remapBatchOperationsWithUiToBackendRowMap
 } from '../utils/spreadsheetBatchOperationRowRemap'
-import { dropSetRangeCellsRedundantAfterMaterialization } from '../utils/spreadsheetBatchOperationCellDedup'
-import { dropSetRangeCellsRedundantWithAddRows } from '../utils/spreadsheetBatchOperationCellDedup'
+import {
+  dropSetRangeCellsRedundantWithAddRows,
+  dropSetRangeCellsRedundantWithMaterializedValues
+} from '../utils/spreadsheetBatchOperationCellDedup'
 import { buildRowIdentityDiagnostics, isSpreadsheetTemporaryClientRowId } from '../utils/spreadsheetRowIdentity'
 import { resolveBackendRowUuidPredicateFromGridProps } from './univerBackendRowUuidPredicate'
 import { detectTemporaryRowIdsInKnownRowIdFields } from '../utils/spreadsheetUnifiedBatchSubmitUtils'
@@ -20,12 +22,108 @@ import {
   spreadsheetPendingLocalMutationCoordinateCellKey,
   spreadsheetPendingLocalMutationSemanticCellKey
 } from '../utils/spreadsheetPendingMaterializationCells'
-import { isSpreadsheetTemporaryClientRowId } from '../utils/spreadsheetRowIdentity'
 import { buildAddRowPayloadsFromUniverRows } from '../utils/spreadsheetViewerRows'
+import { cellValuesAreEquivalentForPersist } from '../utils/spreadsheetPendingCells'
 import type {
   PersistEmitInput,
   UniverMountHandleDetectedCellMutationDeps
 } from './univerMountHandleDetectedCellMutation.types'
+
+function emitHasPlannedValueWrites(emit: PersistEmitInput): boolean {
+  return emit.plannedCellsFiltered.some(cell => cell.valueAction === 'set' || cell.valueAction === 'clear')
+}
+
+function countPersistableValueOperations(operations: readonly SpreadsheetBatchOperation[]): number {
+  let count = 0
+  for (const operation of operations) {
+    if (operation.type === 'set_range' && Array.isArray(operation.data?.cells)) {
+      count += operation.data.cells.length
+      continue
+    }
+    if (operation.type === 'set_cell') {
+      count += 1
+      continue
+    }
+    if (operation.type === 'add_rows' && Array.isArray(operation.data?.rows)) {
+      for (const row of operation.data.rows as Array<Record<string, unknown>>) {
+        for (const key of Object.keys(row)) {
+          if (!key.startsWith('_') && row[key] !== undefined) {
+            count += 1
+          }
+        }
+      }
+    }
+  }
+  return count
+}
+
+function resolveBackendRowIdForPlannedCell(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  cell: PersistEmitInput['plannedCellsFiltered'][number],
+  isUuid: (value: string) => boolean
+): string {
+  if (typeof cell.rowId === 'string' && isUuid(cell.rowId)) {
+    return cell.rowId
+  }
+  const readiness = deps.propsRef.current.rowMaterializationReadinessRef?.current
+  if (readiness && typeof cell.rowId === 'string' && cell.rowId) {
+    return readiness.getResolvedBackendRowId(emit.targetSheetId, cell.rowId) ?? ''
+  }
+  return ''
+}
+
+function plannedValueWritesCoveredByMaterializedCache(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  materializedValuesByBackendRowId: Map<string, Record<string, unknown>>,
+  isUuid: (value: string) => boolean
+): boolean {
+  const valueCells = emit.plannedCellsFiltered.filter(
+    cell => cell.valueAction === 'set' || cell.valueAction === 'clear'
+  )
+  if (valueCells.length === 0) return false
+  for (const cell of valueCells) {
+    if (!cell.columnName) return false
+    const backendRowId = resolveBackendRowIdForPlannedCell(deps, emit, cell, isUuid)
+    if (!backendRowId) return false
+    const materializedValues = materializedValuesByBackendRowId.get(backendRowId)
+    if (!materializedValues || !Object.prototype.hasOwnProperty.call(materializedValues, cell.columnName)) {
+      return false
+    }
+    const expectedValue = cell.valueAction === 'clear' ? null : cell.value
+    if (!cellValuesAreEquivalentForPersist(materializedValues[cell.columnName], expectedValue)) {
+      return false
+    }
+  }
+  return true
+}
+
+function resolveOperationsAfterMaterializedValueDedup(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  preDedupOperations: SpreadsheetBatchOperation[],
+  dedupResult: ReturnType<typeof dropSetRangeCellsRedundantWithMaterializedValues>,
+  materializedValuesByBackendRowId: Map<string, Record<string, unknown>>,
+  isUuid: (value: string) => boolean
+): SpreadsheetBatchOperation[] {
+  const retainedValueOpCount = countPersistableValueOperations(dedupResult.operations)
+  const preDedupValueOpCount = countPersistableValueOperations(preDedupOperations)
+  if (retainedValueOpCount > 0 || preDedupValueOpCount === 0 || !emitHasPlannedValueWrites(emit)) {
+    return dedupResult.operations
+  }
+  if (plannedValueWritesCoveredByMaterializedCache(deps, emit, materializedValuesByBackendRowId, isUuid)) {
+    return dedupResult.operations
+  }
+  // When add_rows in the same batch already seeds the typed value, suppressing set_range is correct.
+  if (preDedupOperations.some(operation => operation.type === 'add_rows')) {
+    const afterAddRowsDedup = dropSetRangeCellsRedundantWithAddRows(preDedupOperations)
+    if (countPersistableValueOperations(afterAddRowsDedup.operations) > 0) {
+      return dedupResult.operations
+    }
+  }
+  return preDedupOperations
+}
 
 function getPersistRowsForRemap(
   deps: UniverMountHandleDetectedCellMutationDeps,
@@ -49,15 +147,43 @@ function getPersistColumnsForEmit(deps: UniverMountHandleDetectedCellMutationDep
   return pr.columns
 }
 
-function buildUnifiedOperationsForEmit(emit: PersistEmitInput): SpreadsheetBatchOperation[] {
+function buildUnifiedOperationsForEmit(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput
+): SpreadsheetBatchOperation[] {
   let localOperationSequence = 0
   return buildOperationsFromMutationPlan({
     plan: emit.localMutationPlan,
+    columns: getPersistColumnsForEmit(deps, emit.targetSheetId),
     createOperationId: (prefix: string) => {
       localOperationSequence += 1
       return `${prefix}_${localOperationSequence}`
     }
   })
+}
+
+function collectBackendRowIdsFromOperations(operations: SpreadsheetBatchOperation[]): string[] {
+  const backendRowIds = new Set<string>()
+  operations.forEach(operation => {
+    if (operation.type === 'set_range' && Array.isArray(operation.data?.cells)) {
+      operation.data.cells.forEach(cell => {
+        if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return
+        const rowId = (cell as { rowId?: unknown }).rowId
+        if (typeof rowId === 'string' && rowId) {
+          backendRowIds.add(rowId)
+        }
+      })
+      return
+    }
+
+    if (operation.type === 'set_cell' && operation.data && typeof operation.data === 'object') {
+      const rowId = (operation.data as { rowId?: unknown }).rowId
+      if (typeof rowId === 'string' && rowId) {
+        backendRowIds.add(rowId)
+      }
+    }
+  })
+  return Array.from(backendRowIds)
 }
 
 function needsRowMaterializationFlush(emit: PersistEmitInput, unifiedOperations: SpreadsheetBatchOperation[]): boolean {
@@ -183,7 +309,7 @@ export function runDetectedCellMutationPersistEmitSync(
     const onMutationBatchOp = propsRef.current.onMutationBatchOp
     if (onMutationBatchOp) {
       const unifiedOperations: SpreadsheetBatchOperation[] =
-        unifiedOpsOverride === undefined ? buildUnifiedOperationsForEmit(emit) : (unifiedOpsOverride ?? [])
+        unifiedOpsOverride === undefined ? buildUnifiedOperationsForEmit(deps, emit) : (unifiedOpsOverride ?? [])
 
       if (unifiedOperations.length > 0) {
         const operations: SpreadsheetUnifiedMutationBatchPayload['operations'] = []
@@ -261,7 +387,7 @@ export function runDetectedCellMutationPersistEmitDispatch(
     return runDetectedCellMutationPersistEmitSync(deps, emit, undefined)
   }
 
-  const unifiedOperations = buildUnifiedOperationsForEmit(emit)
+  const unifiedOperations = buildUnifiedOperationsForEmit(deps, emit)
   protectPlannedValueCellsFromAuthoritativeReapply(deps, emit)
   const temporaryRowIdMatches = detectTemporaryRowIdsInKnownRowIdFields(unifiedOperations)
   const affectedUiRowIds = Array.from(new Set(temporaryRowIdMatches.map(match => match.rowId)))
@@ -344,7 +470,8 @@ export function runDetectedCellMutationPersistEmitDispatch(
         }
       })
     }
-    return runDetectedCellMutationPersistEmitSync(deps, emit, dedupResult.operations)
+    const handled = runDetectedCellMutationPersistEmitSync(deps, emit, dedupResult.operations)
+    return handled
   }
 
   // 1a: Row materialization is required but the host did not wire a flush dependency. We must
@@ -487,23 +614,22 @@ export function runDetectedCellMutationPersistEmitDispatch(
           }
         }
 
-        // Suppress set_range cells that were already persisted by the preceding
-        // add_rows flush. Every cell typed into a new row would otherwise hit
-        // the wire twice: add_rows carries the cell value in the row payload,
-        // then set_range writes the same value again. We only consider rows
-        // that entered this dispatch as `client_*` temporary ids (Fix F scope
-        // — same-emit materialization, not column-default replay).
-        const rowsAfterFlush = getPersistRowsForRemap(deps, emit.targetSheetId)
-        const materializedBackendRowIds = new Set<string>()
-        for (const uiRowId of affectedUiRowIds) {
-          const backendRowId = uiToBackend.get(uiRowId)
-          if (backendRowId) materializedBackendRowIds.add(backendRowId)
+        const rowMaterializationReadiness = deps.propsRef.current.rowMaterializationReadinessRef?.current
+        const materializedValuesByBackendRowId = new Map<string, Record<string, unknown>>()
+        if (rowMaterializationReadiness) {
+          collectBackendRowIdsFromOperations(remapResult.operations).forEach(rowId => {
+            const materializedValues = rowMaterializationReadiness.getMaterializedValuesByBackendRowId(
+              emit.targetSheetId,
+              rowId
+            )
+            if (materializedValues) {
+              materializedValuesByBackendRowId.set(rowId, materializedValues)
+            }
+          })
         }
-        const dedupResult = dropSetRangeCellsRedundantAfterMaterialization(
+        const dedupResult = dropSetRangeCellsRedundantWithMaterializedValues(
           remapResult.operations,
-          rowsAfterFlush,
-          materializedBackendRowIds,
-          isUuid
+          materializedValuesByBackendRowId
         )
         if (
           dedupResult.droppedCellCount > 0 ||
@@ -512,7 +638,7 @@ export function runDetectedCellMutationPersistEmitDispatch(
         ) {
           deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
             source: 'client',
-            stage: 'spreadsheet.cell_emit.dedup_after_materialization',
+            stage: 'spreadsheet.cell_emit.dedup_with_materialized_values',
             traceId: emit.mutationTraceId,
             payload: {
               targetSheetId: emit.targetSheetId,
@@ -521,18 +647,26 @@ export function runDetectedCellMutationPersistEmitDispatch(
               droppedCellKeys: dedupResult.droppedCellKeys.slice(0, 20),
               retainedMismatchedCellCount: dedupResult.retainedMismatchedCellKeys.length,
               retainedMismatchedCellKeys: dedupResult.retainedMismatchedCellKeys.slice(0, 20),
-              materializedBackendRowIdCount: materializedBackendRowIds.size
+              materializedValueRowCount: materializedValuesByBackendRowId.size
             }
           })
         }
-
-        if (dedupResult.operations.length === 0) {
-          // All planned cells were already persisted by add_rows; nothing left to submit.
-          handled = true
-          return
+        const operationsToEmit = resolveOperationsAfterMaterializedValueDedup(
+          deps,
+          emit,
+          remapResult.operations,
+          dedupResult,
+          materializedValuesByBackendRowId,
+          isUuid
+        )
+        if (
+          operationsToEmit.length === 0 &&
+          countPersistableValueOperations(remapResult.operations) > 0 &&
+          materializedValuesByBackendRowId.size > 0
+        ) {
+          // All value writes were already covered by materialized row values.
         }
-
-        handled = runDetectedCellMutationPersistEmitSync(deps, emit, dedupResult.operations)
+        handled = runDetectedCellMutationPersistEmitSync(deps, emit, operationsToEmit)
         if (!handled && remapResult.unresolvedTemporaryRowIdMatches.length > 0) {
           console.warn('[SPREADSHEET_PERSIST] emit_dispatch: post_flush_persist_false', {
             targetSheetId: emit.targetSheetId,
@@ -557,5 +691,6 @@ export function runDetectedCellMutationPersistEmitDispatch(
     })()
   }
 
-  return runDetectedCellMutationPersistEmitSync(deps, emit, unifiedOperations)
+  const handled = runDetectedCellMutationPersistEmitSync(deps, emit, unifiedOperations)
+  return handled
 }

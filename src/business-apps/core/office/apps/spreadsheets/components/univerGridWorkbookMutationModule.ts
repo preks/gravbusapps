@@ -317,6 +317,19 @@ export function richCellPayloadHasValue(rich: Record<string, unknown>): boolean 
 }
 
 export function normalizeValueForGridWrite(value: unknown): unknown {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>
+    if (richCellPayloadHasValue(obj) || Object.prototype.hasOwnProperty.call(obj, 't')) {
+      if (typeof obj.f === 'string') {
+        const trimmed = obj.f.trim()
+        return {
+          ...obj,
+          f: trimmed.startsWith('=') ? trimmed : `=${trimmed}`
+        }
+      }
+      return value
+    }
+  }
   const normalized = normalizeValueForEchoSignature(value)
   if (normalized === undefined || normalized === null) return ''
   if (typeof normalized === 'object' && normalized && !Array.isArray(normalized)) {
@@ -1288,7 +1301,9 @@ export function detectCellMatrixCoordinateModeHint(
   ranges: SheetRangeShape[],
   value: SheetCellMatrix | undefined
 ): SheetCellMatrixCoordinateMode {
-  if (!value || ranges.length === 0) return 'auto'
+  if (ranges.length === 0) return 'auto'
+  // Worksheet-only reads (sheet-edit-ended, no payload matrix) are always absolute grid coords.
+  if (!value) return 'absolute'
   let sawAnyCell = false
   let fitsRelative = true
   let fitsAbsolute = true
@@ -1641,9 +1656,17 @@ export function writeRemoteCellIntoUniverWorksheetSync(params: {
   }
 
   const rich = options?.univerCell
+  const normalizedGridValue = normalizeValueForGridWrite(value)
+  const richValueFromCell = normalizedGridValue && typeof normalizedGridValue === 'object' ? normalizedGridValue : null
 
-  if (rich && typeof rich === 'object' && Object.keys(rich).length > 0) {
-    const richObj = rich as Record<string, unknown>
+  if (
+    (rich && typeof rich === 'object' && Object.keys(rich).length > 0) ||
+    (richValueFromCell && typeof richValueFromCell === 'object')
+  ) {
+    const richObj =
+      (rich && typeof rich === 'object' && Object.keys(rich).length > 0
+        ? (rich as Record<string, unknown>)
+        : (richValueFromCell as Record<string, unknown>)) ?? {}
     if (!richCellPayloadHasValue(richObj)) {
       try {
         const rawCurrent = (rQ.getCellData?.() as Record<string, unknown> | null | undefined) ?? {}
@@ -1668,12 +1691,13 @@ export function writeRemoteCellIntoUniverWorksheetSync(params: {
       rQ.setValue(richObj as any)
     }
   } else {
-    const scalar = normalizeValueForGridWrite(value)
+    const scalar = normalizedGridValue
     try {
       const current = rQ.getCellData?.() as Record<string, unknown> | null | undefined
       const keepStyle = current && typeof current === 'object' && 's' in current && current.s != null
       if (keepStyle) {
         const merged: Record<string, unknown> = { ...current }
+        const shouldClearTextFormat = typeof scalar === 'number' && Number.isFinite(scalar)
         if (typeof scalar === 'string' && scalar.startsWith('=')) {
           merged.f = scalar
           merged.v = null
@@ -1690,6 +1714,10 @@ export function writeRemoteCellIntoUniverWorksheetSync(params: {
           merged.f = null
           merged.p = null
           merged.si = null
+          if (shouldClearTextFormat) {
+            merged.ct = null
+            delete merged.t
+          }
         }
         rQ.setValue(merged as any)
       } else {

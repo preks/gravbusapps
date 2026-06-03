@@ -27,6 +27,7 @@ describe('saveSpreadsheetSnapshotWithRetry', () => {
       activeSheetId: 'sheet-1',
       baseSnapshot: { sheets: { 'sheet-1': { id: 'sheet-1' } } },
       workbookSnapshotVersionRef,
+      workbookSnapshotCoversVersionsRef: { current: { 'sheet-1': 2 } },
       snapshotSaveMetricsRef: { current: { attempts: 1, conflicts: 0, failures: 0, fallbackLoads: 0 } },
       recoverFromVersionConflict: jest.fn().mockResolvedValue(true),
       spreadsheetGridRef: { current: null },
@@ -37,13 +38,19 @@ describe('saveSpreadsheetSnapshotWithRetry', () => {
       'app-1',
       {
         version: 2,
-        snapshot: { sheets: { 'sheet-1': { id: 'sheet-1' } } }
+        snapshot: {
+          sheets: { 'sheet-1': { id: 'sheet-1' } },
+          __meta: { coversVersions: { 'sheet-1': 2 } }
+        }
       },
       undefined
     )
     expect(workbookSnapshotVersionRef.current).toBe(4)
     expect(result.cacheResult).toEqual({ stored: true, reason: null })
-    expect(mockWriteUniverSnapshotCache).toHaveBeenCalledWith('app-1', 4, { sheets: { 'sheet-1': { id: 'sheet-1' } } })
+    expect(mockWriteUniverSnapshotCache).toHaveBeenCalledWith('app-1', 4, {
+      sheets: { 'sheet-1': { id: 'sheet-1' } },
+      __meta: { coversVersions: { 'sheet-1': 2 } }
+    })
   })
 
   it('merges the local target worksheet into the refreshed remote snapshot after a 409', async () => {
@@ -56,10 +63,12 @@ describe('saveSpreadsheetSnapshotWithRetry', () => {
       snapshot: {
         sheets: { remote: { id: 'remote' } },
         styles: { remoteStyle: true }
-      }
+      },
+      coversVersions: { remote: 3, 'sheet-1': 6 }
     } as never)
 
     const workbookSnapshotVersionRef = { current: 1 }
+    const workbookSnapshotCoversVersionsRef = { current: { 'sheet-1': 4 } }
     const snapshotSaveMetricsRef = { current: { attempts: 1, conflicts: 0, failures: 0, fallbackLoads: 0 } }
     const baseSnapshot = {
       sheets: { 'sheet-1': { id: 'sheet-1', cellData: { 0: { 0: { v: 'local' } } } } },
@@ -71,6 +80,7 @@ describe('saveSpreadsheetSnapshotWithRetry', () => {
       activeSheetId: 'sheet-1',
       baseSnapshot,
       workbookSnapshotVersionRef,
+      workbookSnapshotCoversVersionsRef,
       snapshotSaveMetricsRef,
       recoverFromVersionConflict: jest.fn().mockResolvedValue(true),
       spreadsheetGridRef: { current: null },
@@ -89,12 +99,14 @@ describe('saveSpreadsheetSnapshotWithRetry', () => {
             'sheet-1': { id: 'sheet-1', cellData: { 0: { 0: { v: 'local' } } } }
           },
           styles: { remoteStyle: true, localStyle: true },
-          sheetOrder: ['sheet-1']
+          sheetOrder: ['sheet-1'],
+          __meta: { coversVersions: { remote: 3, 'sheet-1': 6 } }
         }
       },
       undefined
     )
     expect(workbookSnapshotVersionRef.current).toBe(7)
+    expect(workbookSnapshotCoversVersionsRef.current).toEqual({ 'sheet-1': 6, remote: 3 })
   })
 
   it('accepts the refreshed remote snapshot directly when keepalive mode is enabled', async () => {
@@ -103,7 +115,8 @@ describe('saveSpreadsheetSnapshotWithRetry', () => {
       .mockRejectedValueOnce(new SpreadsheetApiRequestError('conflict', 409, { currentVersion: 9 }))
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 10,
-      snapshot: { sheets: { 'sheet-1': { id: 'sheet-1', from: 'remote' } } }
+      snapshot: { sheets: { 'sheet-1': { id: 'sheet-1', from: 'remote' } } },
+      coversVersions: { 'sheet-1': 10 }
     } as never)
 
     const result = await saveSpreadsheetSnapshotWithRetry({
@@ -111,6 +124,7 @@ describe('saveSpreadsheetSnapshotWithRetry', () => {
       activeSheetId: 'sheet-1',
       baseSnapshot: { sheets: { 'sheet-1': { id: 'sheet-1', from: 'local' } } },
       workbookSnapshotVersionRef: { current: 3 },
+      workbookSnapshotCoversVersionsRef: { current: { 'sheet-1': 3 } },
       snapshotSaveMetricsRef: { current: { attempts: 1, conflicts: 0, failures: 0, fallbackLoads: 0 } },
       recoverFromVersionConflict: jest.fn().mockResolvedValue(true),
       spreadsheetGridRef: { current: null },
@@ -119,9 +133,13 @@ describe('saveSpreadsheetSnapshotWithRetry', () => {
     })
 
     expect(SpreadsheetApiService.saveUniverSnapshot).toHaveBeenCalledTimes(1)
-    expect(result.savedSnapshot).toEqual({ sheets: { 'sheet-1': { id: 'sheet-1', from: 'remote' } } })
+    expect(result.savedSnapshot).toEqual({
+      sheets: { 'sheet-1': { id: 'sheet-1', from: 'remote' } },
+      __meta: { coversVersions: { 'sheet-1': 10 } }
+    })
     expect(mockWriteUniverSnapshotCache).toHaveBeenCalledWith('app-1', 10, {
-      sheets: { 'sheet-1': { id: 'sheet-1', from: 'remote' } }
+      sheets: { 'sheet-1': { id: 'sheet-1', from: 'remote' } },
+      __meta: { coversVersions: { 'sheet-1': 10 } }
     })
   })
 
@@ -137,6 +155,7 @@ describe('saveSpreadsheetSnapshotWithRetry', () => {
         activeSheetId: 'sheet-1',
         baseSnapshot: { sheets: { 'sheet-1': { id: 'sheet-1' } } },
         workbookSnapshotVersionRef: { current: 2 },
+        workbookSnapshotCoversVersionsRef: { current: { 'sheet-1': 2 } },
         snapshotSaveMetricsRef,
         recoverFromVersionConflict: jest.fn().mockResolvedValue(false),
         spreadsheetGridRef: { current: null },

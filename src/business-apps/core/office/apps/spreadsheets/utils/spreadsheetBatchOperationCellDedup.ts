@@ -250,3 +250,86 @@ export const dropSetRangeCellsRedundantWithAddRows = (operations: SpreadsheetBat
     retainedMismatchedCellKeys
   }
 }
+
+export const dropSetRangeCellsRedundantWithMaterializedValues = (
+  operations: SpreadsheetBatchOperation[],
+  materializedValuesByBackendRowId: Map<string, Record<string, unknown>>
+): CellDedupResult => {
+  if (operations.length === 0 || materializedValuesByBackendRowId.size === 0) {
+    return {
+      operations,
+      droppedCellCount: 0,
+      droppedSetRangeOpCount: 0,
+      droppedCellKeys: [],
+      retainedMismatchedCellKeys: []
+    }
+  }
+
+  const nextOperations: SpreadsheetBatchOperation[] = []
+  const droppedCellKeys: string[] = []
+  const retainedMismatchedCellKeys: string[] = []
+  let droppedCellCount = 0
+  let droppedSetRangeOpCount = 0
+
+  const shouldKeepCell = (rowId: string, columnName: string, value: unknown): boolean => {
+    const materializedValues = materializedValuesByBackendRowId.get(rowId)
+    if (!materializedValues || !Object.prototype.hasOwnProperty.call(materializedValues, columnName)) {
+      return true
+    }
+    if (cellValuesAreEquivalentForPersist(materializedValues[columnName], value)) {
+      droppedCellCount += 1
+      droppedCellKeys.push(`${rowId}\u0000${columnName}`)
+      return false
+    }
+    retainedMismatchedCellKeys.push(`${rowId}\u0000${columnName}`)
+    return true
+  }
+
+  for (const operation of operations) {
+    if (operation.type === 'set_range' && Array.isArray(operation.data?.cells)) {
+      const keptCells = operation.data.cells.filter(cell => {
+        if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return true
+        const record = cell as Record<string, unknown>
+        const rowId = typeof record.rowId === 'string' ? record.rowId : ''
+        const columnName = typeof record.columnName === 'string' ? record.columnName : ''
+        if (!rowId || !columnName) return true
+        return shouldKeepCell(rowId, columnName, record.value)
+      })
+      if (keptCells.length === 0) {
+        droppedSetRangeOpCount += 1
+        continue
+      }
+      nextOperations.push(
+        keptCells.length === operation.data.cells.length
+          ? operation
+          : {
+              ...operation,
+              data: {
+                ...operation.data,
+                cells: keptCells
+              }
+            }
+      )
+      continue
+    }
+
+    if (operation.type === 'set_cell' && operation.data && typeof operation.data === 'object') {
+      const rowId = typeof operation.data.rowId === 'string' ? operation.data.rowId : ''
+      const columnName = typeof operation.data.columnName === 'string' ? operation.data.columnName : ''
+      if (!rowId || !columnName || shouldKeepCell(rowId, columnName, operation.data.value)) {
+        nextOperations.push(operation)
+      }
+      continue
+    }
+
+    nextOperations.push(operation)
+  }
+
+  return {
+    operations: nextOperations,
+    droppedCellCount,
+    droppedSetRangeOpCount,
+    droppedCellKeys,
+    retainedMismatchedCellKeys
+  }
+}

@@ -10,7 +10,7 @@ import {
 import { sanitizeUniverWorkbookSnapshotForBootstrap } from '../utils/sanitizeUniverWorkbookSnapshot'
 import { debugUniverInit } from './univerGridDebug'
 import { buildAuthoritativeCellSignatureMap, getAuthoritativeGridRowExtent } from './univerGridAuthoritativeHelpers'
-import { peekSpreadsheetAutofillIntent } from './univerAutofillIntent'
+import { consumeSpreadsheetAutofillIntent, peekSpreadsheetAutofillIntent } from './univerAutofillIntent'
 import {
   registerUniverMountSheetValueAndEditListeners,
   resolveEmitSerializationKey,
@@ -396,9 +396,13 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     scheduleSnapshotCheckpointRef
   })
   const peekAutofillApplyType = (
-    sheetId: string
+    sheetId: string,
+    ranges?: import('./cellMatrixUtils').SheetRangeShape[],
+    consume = false
   ): import('./univerAutofillIntent').SpreadsheetAutofillApplyType | null =>
-    peekSpreadsheetAutofillIntent(pendingAutofillIntentRef, sheetId)
+    consume
+      ? consumeSpreadsheetAutofillIntent(pendingAutofillIntentRef, sheetId, { ranges })
+      : peekSpreadsheetAutofillIntent(pendingAutofillIntentRef, sheetId, { ranges })
 
   const handleDetectedCellMutation = createUniverMountHandleDetectedCellMutation({
     univerAPIRef,
@@ -570,6 +574,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     callbacksRef,
     readOnlyRef,
     recentSheetMutationIdsRef,
+    pendingAutofillIntentRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
     markFormattingPasteIntent,

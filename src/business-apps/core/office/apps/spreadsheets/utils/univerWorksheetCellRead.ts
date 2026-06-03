@@ -24,8 +24,11 @@ export function readWorksheetCellValue(
       if (typeof liveFormula === 'string' && liveFormula.length > 0) {
         return liveCellData
       }
+      if (Object.prototype.hasOwnProperty.call(liveCellData, 'v')) {
+        return liveCellData.v
+      }
     }
-    return (cellRange as { getValue?: () => unknown })?.getValue?.() ?? liveCellData?.v
+    return (cellRange as { getValue?: () => unknown })?.getValue?.()
   } catch {
     return undefined
   }

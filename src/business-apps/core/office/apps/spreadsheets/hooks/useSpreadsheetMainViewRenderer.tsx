@@ -34,6 +34,7 @@ export interface UseSpreadsheetMainViewRendererParams {
   tableSnapshotSeed: number | string
   authoritativeDataSyncToken: number | string
   authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
+  authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
   workbookInstanceKey: string
   pendingLocalMutationCellsRef: MutableRefObject<Set<string>>
   spreadsheetIntentJournalRef?: MutableRefObject<import('../core/spreadsheetIntentJournal').SpreadsheetIntentJournal>
@@ -113,6 +114,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     tableSnapshotSeed,
     authoritativeDataSyncToken,
     authoritativePaintCellsRef,
+    authoritativePaintMetaRef,
     workbookInstanceKey,
     pendingLocalMutationCellsRef,
     spreadsheetIntentJournalRef,
@@ -199,6 +201,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           snapshotSeed={(preferUniverNativeSheetTabs ? tableSnapshotSeed : initialSnapshotSeed) as any}
           authoritativeDataSyncToken={authoritativeDataSyncToken as any}
           authoritativePaintCellsRef={authoritativePaintCellsRef}
+          authoritativePaintMetaRef={authoritativePaintMetaRef}
           workbookInstanceKey={workbookInstanceKey as any}
           pendingLocalMutationCellsRef={pendingLocalMutationCellsRef}
           spreadsheetIntentJournalRef={spreadsheetIntentJournalRef}

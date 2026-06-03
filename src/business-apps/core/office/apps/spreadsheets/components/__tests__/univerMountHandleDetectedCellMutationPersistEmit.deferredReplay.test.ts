@@ -208,6 +208,73 @@ describe('runDetectedCellMutationPersistEmitSync deferred-replay', () => {
     )
   })
 
+  it('coerces numeric deferred-replay values for numeric columns before emit', () => {
+    const onMutationBatchOp = jest.fn()
+    const cell: SpreadsheetMutationPlannedCell = {
+      rowId: 'backend-row-1',
+      columnName: 'amount',
+      rowIndex: 10,
+      colIndex: 0,
+      cellRef: 'A11',
+      valueAction: 'set',
+      value: { v: '42', t: 2 }
+    }
+    const plan: SpreadsheetMutationPlan = {
+      sheetId: 'sheet-1',
+      cells: [cell]
+    } as SpreadsheetMutationPlan
+    const emit: PersistEmitInput = {
+      source: 'deferred-replay',
+      targetSheetId: 'sheet-1',
+      mutationTraceId: 'trace_deferred_numeric',
+      localMutationPlan: plan,
+      plannedCellsFiltered: [cell],
+      emittedChangedCells: [],
+      planStyles: undefined,
+      hadPasteIntentForSheet: false,
+      hadPasteFormattingIntentForSheet: false,
+      autofillApplyType: null,
+      commandId: undefined,
+      materializeRowsBeforeEmit: false
+    }
+    const deps = {
+      propsRef: {
+        current: {
+          onMutationBatchOp,
+          columns: [{ id: 'amount', name: 'amount', label: 'Amount', type: 'number', isVisible: true, order: 0 }]
+        }
+      },
+      callbacksRef: { current: {} },
+      pendingFormattingPasteIntentRef: { current: null },
+      pendingAutofillIntentRef: { current: null }
+    } as unknown as UniverMountHandleDetectedCellMutationDeps
+
+    const handled = runDetectedCellMutationPersistEmitSync(deps, emit)
+
+    expect(handled).toBe(true)
+    expect(onMutationBatchOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operations: expect.arrayContaining([
+          expect.objectContaining({
+            type: 'set_range',
+            data: {
+              cells: [
+                {
+                  rowId: 'backend-row-1',
+                  columnName: 'amount',
+                  value: { v: 42, t: 2 },
+                  row: 10,
+                  col: 0,
+                  cellRef: 'A11'
+                }
+              ]
+            }
+          })
+        ])
+      })
+    )
+  })
+
   it('does not emit for deferred-reconcile (read-only)', () => {
     const onMutationBatchOp = jest.fn()
     const cell: SpreadsheetMutationPlannedCell = {

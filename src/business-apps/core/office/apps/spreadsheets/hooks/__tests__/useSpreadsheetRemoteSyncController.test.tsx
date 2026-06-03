@@ -54,7 +54,8 @@ describe('useSpreadsheetRemoteSyncController', () => {
           }
         }
       },
-      updatedAt: null
+      updatedAt: null,
+      coversVersions: { 'sheet-1': 3 }
     } as any)
 
     const requestGridRefresh = jest.fn()
@@ -88,6 +89,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
         activeSheetIdRef: { current: 'sheet-1' },
         appSheetsRef,
         workbookSnapshotVersionRef: { current: 0 },
+        workbookSnapshotCoversVersionsRef: { current: {} },
         pendingCreatedSheetSelectionRef: { current: null },
         createdSheetIdAliasesRef: { current: new Map() },
         collaborationManagerRef: { current: null },
@@ -140,7 +142,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
       [{ _id: 'row-1', A: 1, B: 2, C: 4 }],
       expect.objectContaining({
         persisted: true,
-        syncGrid: true,
+        syncGrid: false,
         recoveredSheetMeta: expect.objectContaining({
           columns: [
             expect.objectContaining({ id: 'col-a', order: 0 }),
@@ -168,7 +170,8 @@ describe('useSpreadsheetRemoteSyncController', () => {
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 3,
       snapshot: null,
-      updatedAt: null
+      updatedAt: null,
+      coversVersions: {}
     } as any)
 
     const requestGridRefresh = jest.fn()
@@ -193,6 +196,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
         activeSheetIdRef: { current: 'sheet-1' },
         appSheetsRef: { current: [activeSheet] },
         workbookSnapshotVersionRef: { current: 0 },
+        workbookSnapshotCoversVersionsRef: { current: {} },
         pendingCreatedSheetSelectionRef: { current: null },
         createdSheetIdAliasesRef: { current: new Map() },
         collaborationManagerRef: { current: null },
@@ -269,7 +273,8 @@ describe('useSpreadsheetRemoteSyncController', () => {
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 3,
       snapshot: null,
-      updatedAt: null
+      updatedAt: null,
+      coversVersions: {}
     } as any)
 
     const requestGridRefresh = jest.fn()
@@ -293,6 +298,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
         activeSheetIdRef: { current: 'sheet-1' },
         appSheetsRef: { current: [activeSheet] },
         workbookSnapshotVersionRef: { current: 0 },
+        workbookSnapshotCoversVersionsRef: { current: {} },
         pendingCreatedSheetSelectionRef: { current: null },
         createdSheetIdAliasesRef: { current: new Map() },
         collaborationManagerRef: { current: null },
@@ -356,6 +362,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
         activeSheetIdRef: { current: 'sheet-1' },
         appSheetsRef: { current: [activeSheet] },
         workbookSnapshotVersionRef: { current: 0 },
+        workbookSnapshotCoversVersionsRef: { current: {} },
         pendingCreatedSheetSelectionRef: { current: null },
         createdSheetIdAliasesRef: { current: new Map() },
         collaborationManagerRef: { current: null },
@@ -417,6 +424,32 @@ describe('useSpreadsheetRemoteSyncController', () => {
       )
     })
 
+    it('skips an active-sheet reload while transient local grid state still exists', async () => {
+      const getSheetSnapshot = jest.spyOn(SpreadsheetApiService, 'getSheetSnapshot')
+      const enqueueDiagnosticsTraceEvent = jest.fn()
+      const params = buildControllerParams({
+        enqueueDiagnosticsTraceEvent,
+        hasTransientLocalGridStateForSheet: jest.fn(() => true)
+      })
+
+      const { result } = renderHook(() => useSpreadsheetRemoteSyncController(params as any))
+
+      const reloaded = await result.current.reloadSheetFromCanonicalSnapshot('delta-catchup-version-gap', 'sheet-1')
+
+      expect(reloaded).toBe(false)
+      expect(getSheetSnapshot).not.toHaveBeenCalled()
+      expect(enqueueDiagnosticsTraceEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stage: 'client_snapshot_reload_skipped',
+          payload: expect.objectContaining({
+            reason: 'transient-local-grid-state',
+            hasTransientLocalGridState: true,
+            targetSheetId: 'sheet-1'
+          })
+        })
+      )
+    })
+
     it('still performs a cold-start reload even when pending persist is reported', async () => {
       jest.spyOn(SpreadsheetApiService, 'getSheetSnapshot').mockResolvedValue({
         sheet: {
@@ -434,7 +467,8 @@ describe('useSpreadsheetRemoteSyncController', () => {
       jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
         version: 3,
         snapshot: null,
-        updatedAt: null
+        updatedAt: null,
+        coversVersions: {}
       } as any)
 
       const params = buildControllerParams({

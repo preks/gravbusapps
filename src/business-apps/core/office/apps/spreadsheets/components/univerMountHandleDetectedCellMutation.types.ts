@@ -40,7 +40,11 @@ export type UniverMountHandleDetectedCellMutationDeps = Pick<
 > &
   Pick<UniverWorkbookBootstrapMountContext, 'getWorkbookSnapshotRef'> & {
     peekPasteFormattingReplaceIntent: (sheetId: string) => boolean
-    peekAutofillApplyType: (sheetId: string) => import('./univerAutofillIntent').SpreadsheetAutofillApplyType | null
+    peekAutofillApplyType: (
+      sheetId: string,
+      ranges?: SheetRangeShape[],
+      consume?: boolean
+    ) => import('./univerAutofillIntent').SpreadsheetAutofillApplyType | null
     /**
      * Ensures `add_rows` completes before unified cell/style HTTP batch when new rows use `client_*` ids.
      *

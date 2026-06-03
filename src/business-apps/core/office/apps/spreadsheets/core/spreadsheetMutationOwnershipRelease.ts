@@ -1,5 +1,6 @@
 import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
 import { getSpreadsheetRowRefIdentity, resolveSpreadsheetRowRef } from '../utils/spreadsheetRowIdentity'
+import { promoteSpreadsheetRowIdentities } from '../utils/spreadsheetRowIdentityPromotion'
 import { isSpreadsheetStoredCellClearValue } from './spreadsheetBatchBuilders'
 import type { SpreadsheetIntentJournal } from './spreadsheetIntentJournal'
 import type { SpreadsheetVersionCausalOwnershipRegistry } from './spreadsheetVersionCausalOwnership'
@@ -74,17 +75,42 @@ export function releaseSpreadsheetMutationOwnershipFromResponse(params: {
   response: SpreadsheetBatchOperationResponse
   intentJournal?: SpreadsheetIntentJournal | null
   versionCausalOwnership?: SpreadsheetVersionCausalOwnershipRegistry | null
+  rowMaterializationReadiness?: { resolveMany: (sheetId: string, mapping: Map<string, string>) => void } | null
+  rowSlotIdentityRegistry?: {
+    bindBackendRowId: (sheetId: string, clientRowId: string, backendRowId: string) => void
+  } | null
+  pendingLocalMutationCellsRef?: { current: Set<string> } | null
 }): void {
-  const { sheetId, operations, response, intentJournal, versionCausalOwnership } = params
+  const {
+    sheetId,
+    operations,
+    response,
+    intentJournal,
+    versionCausalOwnership,
+    rowMaterializationReadiness,
+    rowSlotIdentityRegistry,
+    pendingLocalMutationCellsRef
+  } = params
   const appliedVersion = Math.trunc(response.newVersion)
 
+  const persistedIdByClientRowId = new Map<string, string>()
   for (const mapping of response.rowMappings ?? []) {
     const clientRowId = String(mapping.clientRowId ?? '')
     const rowUuid = String(mapping.rowUuid ?? '')
     if (!clientRowId || !rowUuid) continue
-    intentJournal?.promoteLogicalRowHandle(clientRowId, rowUuid)
-    versionCausalOwnership?.promoteLogicalRowHandle(sheetId, clientRowId, rowUuid)
+    persistedIdByClientRowId.set(clientRowId, rowUuid)
   }
+  promoteSpreadsheetRowIdentities({
+    sheetId,
+    persistedIdByClientRowId,
+    deps: {
+      rowMaterializationReadiness,
+      rowSlotIdentityRegistry,
+      intentJournal,
+      versionCausalOwnership,
+      pendingLocalMutationCellsRef
+    }
+  })
 
   const operationTargets = indexOperationCellTargets(operations)
   const results = response.results

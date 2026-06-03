@@ -6,6 +6,19 @@ import {
   SPREADSHEET_MAX_SET_RANGE_CELLS_PER_OPERATION,
   SPREADSHEET_MAX_SET_STYLE_CELLS_PER_OPERATION
 } from '../spreadsheetBatchBuilders'
+import type { SpreadsheetColumn } from '../../types'
+
+const numericColumn: SpreadsheetColumn = {
+  id: 'amount',
+  name: 'amount',
+  label: 'Amount',
+  type: 'number',
+  isVisible: true,
+  isEditable: true,
+  isRequired: false,
+  isUnique: false,
+  order: 0
+}
 
 describe('spreadsheetBatchBuilders', () => {
   it('normalizes formula strings into batch persistence payloads', () => {
@@ -22,6 +35,44 @@ describe('spreadsheetBatchBuilders', () => {
   it('strips inline Univer formatting from row persistence payloads', () => {
     expect(normalizeUniverCellForRowPersistence({ v: 1, s: 'x', ff: 'Arial', fs: 12 })).toEqual({ v: 1 })
     expect(normalizeUniverCellForRowPersistence({ s: 'style-only' })).toBeUndefined()
+  })
+
+  it('preserves typed metadata and coerces numeric strings for numeric columns', () => {
+    expect(normalizeCellValueForBatchPersistence('42', numericColumn)).toBe(42)
+    expect(normalizeUniverCellForRowPersistence({ v: '42', t: 2, s: 'style-1' }, numericColumn)).toEqual({
+      v: 42,
+      t: 2
+    })
+  })
+
+  it('coerces numeric-column set_range payloads before persistence', () => {
+    const operations = buildOperationsFromMutationPlan({
+      plan: {
+        sheetId: 'sheet-1',
+        cells: [
+          {
+            rowId: 'row-1',
+            columnName: 'amount',
+            rowIndex: 0,
+            colIndex: 0,
+            valueAction: 'set',
+            value: { v: '42', t: 2 }
+          }
+        ]
+      },
+      columns: [numericColumn],
+      createOperationId: prefix => `${prefix}-1`
+    })
+
+    expect(operations).toEqual([
+      {
+        operationId: 'set_range-1',
+        type: 'set_range',
+        data: {
+          cells: [{ rowId: 'row-1', columnName: 'amount', value: { v: 42, t: 2 }, row: 0, col: 0 }]
+        }
+      }
+    ])
   })
 
   it('assigns distinct grid coordinates for multiple columns in the same row', () => {

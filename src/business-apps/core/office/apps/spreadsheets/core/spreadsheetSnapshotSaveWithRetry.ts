@@ -7,6 +7,11 @@ import {
 import type { UniverSheetGridHandle } from '../components/UniverSheetGrid.types'
 import { stripWorkbookSnapshotValuesPreservingFormatting } from '../utils/univerAdapter'
 import { writeUniverSnapshotCache } from '../utils/univerSnapshotCache'
+import {
+  attachSnapshotCoversVersions,
+  mergeSnapshotCoversVersions,
+  type SpreadsheetSnapshotCoversVersions
+} from '../utils/spreadsheetSnapshotCoverage'
 import { cloneSnapshot } from './spreadsheetSnapshotWorkbookUtils'
 
 const snapshotRecordMap = (value: unknown): Record<string, unknown> | null =>
@@ -51,6 +56,7 @@ export type SpreadsheetSaveWorkbookSnapshotWithRetryParams = {
   baseSnapshot: unknown
   prepareSnapshotForSave?: (snapshot: unknown) => unknown
   workbookSnapshotVersionRef: MutableRefObject<number>
+  workbookSnapshotCoversVersionsRef: MutableRefObject<SpreadsheetSnapshotCoversVersions>
   snapshotSaveMetricsRef: MutableRefObject<{
     attempts: number
     conflicts: number
@@ -73,6 +79,7 @@ export const saveSpreadsheetSnapshotWithRetry = async ({
   baseSnapshot,
   prepareSnapshotForSave,
   workbookSnapshotVersionRef,
+  workbookSnapshotCoversVersionsRef,
   snapshotSaveMetricsRef,
   recoverFromVersionConflict,
   spreadsheetGridRef,
@@ -95,9 +102,13 @@ export const saveSpreadsheetSnapshotWithRetry = async ({
       const preparedSnapshot = (
         prepareSnapshotForSave ? prepareSnapshotForSave(clonedSnapshot) : clonedSnapshot
       ) as Record<string, unknown> | null
-      snapshotToSave =
+      const snapshotWithCoverage =
         preparedSnapshot && typeof preparedSnapshot === 'object'
-          ? stripWorkbookSnapshotValuesPreservingFormatting(preparedSnapshot)
+          ? attachSnapshotCoversVersions(preparedSnapshot, workbookSnapshotCoversVersionsRef.current)
+          : preparedSnapshot
+      snapshotToSave =
+        snapshotWithCoverage && typeof snapshotWithCoverage === 'object'
+          ? stripWorkbookSnapshotValuesPreservingFormatting(snapshotWithCoverage)
           : preparedSnapshot
       const versionForSave = workbookSnapshotVersionRef.current
       const response = await SpreadsheetApiService.saveUniverSnapshot(
@@ -132,12 +143,24 @@ export const saveSpreadsheetSnapshotWithRetry = async ({
               latestWorkbookSnapshot.snapshot && typeof latestWorkbookSnapshot.snapshot === 'object'
                 ? latestWorkbookSnapshot.snapshot
                 : null
+            workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
+              workbookSnapshotCoversVersionsRef.current,
+              latestWorkbookSnapshot.coversVersions
+            )
             const latestVersion = Number(latestWorkbookSnapshot.version ?? serverVersion)
             if (Number.isFinite(latestVersion) && latestVersion >= 0) {
               workbookSnapshotVersionRef.current = latestVersion
             }
             if (latestSnapshot) {
-              const visualLatestSnapshot = stripWorkbookSnapshotValuesPreservingFormatting(latestSnapshot)
+              const visualLatestSnapshot = stripWorkbookSnapshotValuesPreservingFormatting(
+                attachSnapshotCoversVersions(
+                  latestSnapshot,
+                  mergeSnapshotCoversVersions(
+                    workbookSnapshotCoversVersionsRef.current,
+                    latestWorkbookSnapshot.coversVersions
+                  )
+                ) ?? latestSnapshot
+              )
               if (shouldAcceptRemoteWorkbookSnapshotAfterConflict(useKeepaliveHttp)) {
                 const cacheWrite = writeUniverSnapshotCache(appId, latestVersion, visualLatestSnapshot)
                 return {

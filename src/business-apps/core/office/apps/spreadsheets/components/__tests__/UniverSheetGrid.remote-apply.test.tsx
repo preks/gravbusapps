@@ -5,6 +5,7 @@ import type { UniverSheetGridHandle } from '../UniverSheetGrid.types'
 import {
   executeCommandMock,
   eventHandlers,
+  gridTestMockState,
   lastCancelFreezeMock,
   lastRangeSetValueMock,
   lastSetFreezeMock,
@@ -62,6 +63,37 @@ describe('UniverSheetGrid remote apply', () => {
       await Promise.resolve()
     })
     expect(lastRangeSetValueMock).toHaveBeenCalled()
+  })
+
+  it('applyRemoteCellUpdate clears stale text format metadata on numeric overwrite', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+    gridTestMockState.worksheetCellDataByCoord = new Map([['0:0', { v: 'old', s: 'style-1', ct: { fa: '@' }, t: 1 }]])
+    render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+    await waitFor(() => expect(ref.current?.applyRemoteCellUpdate).toBeDefined())
+    lastRangeSetValueMock?.mockClear()
+    await act(async () => {
+      ref.current?.applyRemoteCellUpdate?.(0, 0, 42)
+      await Promise.resolve()
+    })
+    expect(lastRangeSetValueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        v: 42,
+        s: 'style-1',
+        ct: null
+      })
+    )
+    const lastCall = lastRangeSetValueMock?.mock.calls.at(-1)?.[0] as Record<string, unknown>
+    expect(lastCall).not.toHaveProperty('t')
   })
 
   it('applyRemoteCellUpdatesBulk routes a single-cell batch through the deferred bulk path', async () => {

@@ -2,8 +2,10 @@ import { createUniverConversionContext, overlaySparseRowIndexMappings } from '..
 import { deriveCellMatrixFromPayloadCoordinates, deriveCellMatrixFromRanges } from '../utils/univerWorksheetCellRead'
 import {
   buildAbsoluteCellMatrixForRanges,
+  mapPayloadCellMatrixToAbsoluteCoordinates,
   mergeExplicitMutationCellsIntoDerived,
-  overlayExplicitMutationCellsOntoDerived
+  overlayExplicitMutationCellsOntoDerived,
+  resolveMergeCoordinateMode
 } from './cellMatrixUtils'
 import type { SheetCellMatrixCoordinateMode } from './cellMatrixUtils'
 import { cellMatrixHasCollabWireStylePayload } from './univerMutationPlanner'
@@ -319,11 +321,16 @@ export function resolveDetectedCellMutation(
   }
 
   const hasPasteFormattingIntentForSheet = peekPasteFormattingReplaceIntent(targetSheetId)
-  const autofillApplyType = peekAutofillApplyType(targetSheetId)
+  const shouldConsumeAutofillIntent =
+    source !== 'command-executed' && source !== 'selection-reconcile' && source !== 'deferred-reconcile'
+  const autofillApplyType = peekAutofillApplyType(targetSheetId, ranges, shouldConsumeAutofillIntent)
   const commandHasReplaceRangeStyleIntent = isRegionReplaceStyleCollaborationCommand(commandId)
   const commandHasStyleOnlyIntent = getCommandKind(commandId) === 'styleOnly'
   const shouldReadPostPasteCells = hasPasteFormattingIntentForSheet || commandHasReplaceRangeStyleIntent
-  const shouldReadLiveCellData = shouldReadPostPasteCells || commandHasStyleOnlyIntent || autofillApplyType != null
+  const shouldReadLiveCellData =
+    source !== 'selection-reconcile' &&
+    source !== 'deferred-reconcile' &&
+    (shouldReadPostPasteCells || commandHasStyleOnlyIntent || autofillApplyType != null)
 
   const isReadOnlyReconcileSourceEarly = source === 'selection-reconcile' || source === 'deferred-reconcile'
 
@@ -506,39 +513,54 @@ export function resolveDetectedCellMutation(
       preserveUndefinedAsNull,
       shouldReadLiveCellData
     )
-  if (shouldReadPostPasteCells && payloadCellValue && typeof payloadCellValue === 'object') {
-    worksheetCellValue = mergeExplicitMutationCellsIntoDerived(
-      worksheetCellValue,
-      payloadCellValue,
-      ranges,
-      payloadCoordinateModeHint
-    )
-  } else if (preserveUndefinedAsNull && payloadCellValue && typeof payloadCellValue === 'object') {
+  if (preserveUndefinedAsNull && payloadCellValue && typeof payloadCellValue === 'object') {
     worksheetCellValue = overlayExplicitMutationCellsOntoDerived(worksheetCellValue, payloadCellValue)
   }
-  const relativeCellValue = buildAbsoluteCellMatrixForRanges(
-    ranges,
-    worksheetCellValue,
-    payloadCellValueForValueMerge,
-    'relative'
-  )
-  const absoluteCellValue = buildAbsoluteCellMatrixForRanges(
-    ranges,
-    worksheetCellValue,
-    payloadCellValueForValueMerge,
-    'absolute'
-  )
+  const shouldMergeExplicitPayloadIntoWorksheet =
+    (shouldReadPostPasteCells || commandHasStyleOnlyIntent) && payloadCellValue && typeof payloadCellValue === 'object'
+  // SheetValueChanged carries the edit; workbook snapshot / worksheet reads can lag. Prefer the
+  // event payload for value merges, but still backfill blanks from worksheet/snapshot reads.
+  const preferEventPayloadOverWorksheetRead =
+    source === 'sheet-value-changed' &&
+    Boolean(payloadCellValueForValueMerge) &&
+    !shouldReadPostPasteCells &&
+    !commandHasStyleOnlyIntent
+  const buildMergedCellMatrixForRanges = (
+    fallbackCoordinateMode: 'relative' | 'absolute'
+  ): SheetCellMatrix | undefined => {
+    if (!preferEventPayloadOverWorksheetRead) {
+      return buildAbsoluteCellMatrixForRanges(
+        ranges,
+        worksheetCellValue,
+        payloadCellValueForValueMerge,
+        fallbackCoordinateMode
+      )
+    }
+    const payloadAbsolute = buildAbsoluteCellMatrixForRanges(
+      ranges,
+      undefined,
+      payloadCellValueForValueMerge,
+      fallbackCoordinateMode
+    )
+    return buildAbsoluteCellMatrixForRanges(ranges, payloadAbsolute, worksheetCellValue, 'absolute')
+  }
+  const relativeCellValue = buildMergedCellMatrixForRanges('relative')
+  const absoluteCellValue = buildMergedCellMatrixForRanges('absolute')
   let selectedPayloadCoordinateMode: SheetCellMatrixCoordinateMode =
     payloadCoordinateModeHint === 'absolute' || payloadCoordinateModeHint === 'relative'
       ? payloadCoordinateModeHint
-      : 'relative'
+      : payloadCellValueForValueMerge
+        ? 'relative'
+        : 'absolute'
   let relativeStatsDebug: { changed: number; destructiveBlankWrites: number } | null = null
   let absoluteStatsDebug: { changed: number; destructiveBlankWrites: number } | null = null
   let baseCellValue =
     selectedPayloadCoordinateMode === 'absolute'
       ? (absoluteCellValue ?? relativeCellValue)
       : (relativeCellValue ?? absoluteCellValue)
-  if (payloadCoordinateModeHint === 'auto' && relativeCellValue && absoluteCellValue) {
+  const coordinateStatsHaveValueWriteSignal = (stats: { changed: number; destructiveBlankWrites: number }): boolean =>
+    stats.changed > 0 || stats.destructiveBlankWrites > 0
+  if (payloadCoordinateModeHint === 'auto' && payloadCellValueForValueMerge) {
     const relativeStats = countCellMatrixWritesAgainstCurrentData({
       cellValue: relativeCellValue,
       currentData,
@@ -551,32 +573,70 @@ export function resolveDetectedCellMutation(
     })
     relativeStatsDebug = relativeStats
     absoluteStatsDebug = absoluteStats
-    /**
-     * 3b: `'auto'` coordinate-mode tie-breaker decision table.
-     *
-     * Primary metric: `destructiveBlankWrites` (fewer is better — they overwrite real data
-     * with blanks, the highest-risk corruption mode).
-     * Secondary metric: `changed` (fewer is better — smaller delta is less risky).
-     *
-     * | relative.destructiveBlankWrites | absolute.destructiveBlankWrites | relative.changed | absolute.changed | Winner    |
-     * |---------------------------------|---------------------------------|------------------|------------------|-----------|
-     * | x                               | < x                             | any              | any              | absolute  |
-     * | x                               | = x                             | y                | < y              | absolute  |
-     * | x                               | = x                             | y                | = y              | relative  |
-     * | x                               | = x                             | y                | > y              | relative  |
-     * | x                               | > x                             | any              | any              | relative  |
-     *
-     * Rule: absolute wins only on STRICT inequality in either dimension; relative wins all
-     * ties. This bias is intentional — relative is Univer's natural mode for SheetValueChanged
-     * events, so on a true tie we prefer the cheaper interpretation.
-     */
-    if (selectCoordinateModeAuto(relativeStats, absoluteStats) === 'absolute') {
-      selectedPayloadCoordinateMode = 'absolute'
-      baseCellValue = absoluteCellValue
+    const hasValueWriteSignal =
+      coordinateStatsHaveValueWriteSignal(relativeStats) || coordinateStatsHaveValueWriteSignal(absoluteStats)
+    if (!hasValueWriteSignal) {
+      const resolvedAutoMode = resolveMergeCoordinateMode(payloadCellValueForValueMerge, ranges, 'auto')
+      selectedPayloadCoordinateMode = resolvedAutoMode
+      baseCellValue =
+        resolvedAutoMode === 'absolute'
+          ? (absoluteCellValue ?? relativeCellValue)
+          : (relativeCellValue ?? absoluteCellValue)
+    } else if (relativeCellValue && absoluteCellValue) {
+      /**
+       * 3b: `'auto'` coordinate-mode tie-breaker decision table.
+       *
+       * Primary metric: `destructiveBlankWrites` (fewer is better — they overwrite real data
+       * with blanks, the highest-risk corruption mode).
+       * Secondary metric: `changed` (fewer is better — smaller delta is less risky).
+       *
+       * | relative.destructiveBlankWrites | absolute.destructiveBlankWrites | relative.changed | absolute.changed | Winner    |
+       * |---------------------------------|---------------------------------|------------------|------------------|-----------|
+       * | x                               | < x                             | any              | any              | absolute  |
+       * | x                               | = x                             | y                | < y              | absolute  |
+       * | x                               | = x                             | y                | = y              | relative  |
+       * | x                               | = x                             | y                | > y              | relative  |
+       * | x                               | > x                             | any              | any              | relative  |
+       *
+       * Rule: absolute wins only on STRICT inequality in either dimension; relative wins all
+       * ties. This bias is intentional — relative is Univer's natural mode for SheetValueChanged
+       * events, so on a true tie we prefer the cheaper interpretation.
+       */
+      if (selectCoordinateModeAuto(relativeStats, absoluteStats) === 'absolute') {
+        selectedPayloadCoordinateMode = 'absolute'
+        baseCellValue = absoluteCellValue ?? relativeCellValue
+      } else {
+        selectedPayloadCoordinateMode = 'relative'
+        baseCellValue = relativeCellValue ?? absoluteCellValue
+      }
     }
   }
+  if (shouldMergeExplicitPayloadIntoWorksheet) {
+    worksheetCellValue = mergeExplicitMutationCellsIntoDerived(
+      worksheetCellValue,
+      payloadCellValue,
+      ranges,
+      selectedPayloadCoordinateMode
+    )
+    const mergedRelativeCellValue = buildAbsoluteCellMatrixForRanges(
+      ranges,
+      worksheetCellValue,
+      payloadCellValueForValueMerge,
+      'relative'
+    )
+    const mergedAbsoluteCellValue = buildAbsoluteCellMatrixForRanges(
+      ranges,
+      worksheetCellValue,
+      payloadCellValueForValueMerge,
+      'absolute'
+    )
+    baseCellValue =
+      selectedPayloadCoordinateMode === 'absolute'
+        ? (mergedAbsoluteCellValue ?? mergedRelativeCellValue ?? baseCellValue)
+        : (mergedRelativeCellValue ?? mergedAbsoluteCellValue ?? baseCellValue)
+  }
   const explicitPayloadAbsoluteCellValue = payloadCellValueForValueMerge
-    ? buildAbsoluteCellMatrixForRanges(ranges, undefined, payloadCellValueForValueMerge, selectedPayloadCoordinateMode)
+    ? mapPayloadCellMatrixToAbsoluteCoordinates(payloadCellValueForValueMerge, ranges, selectedPayloadCoordinateMode)
     : undefined
   if (!baseCellValue) {
     return { status: 'return', value: false }

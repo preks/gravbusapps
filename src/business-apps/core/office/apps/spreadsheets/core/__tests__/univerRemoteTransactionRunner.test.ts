@@ -40,18 +40,7 @@ describe('UniverRemoteTransactionRunner', () => {
 
     expect(result).toEqual({ ok: true, appliedCellCount: 1, appliedOperationCount: 1 })
     expect(runWithRemoteApplyGuard).toHaveBeenCalledTimes(1)
-    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          rowIndex: 0,
-          colIndex: 1,
-          value: 'Remote',
-          rowId: 'row-1',
-          options: expect.objectContaining({ targetSheetId: 'sheet-1', diagnosticBatchId: 'batch-1' })
-        })
-      ],
-      expect.objectContaining({ batchId: 'batch-1', operationType: 'set_cell' })
-    )
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
   })
 
   it('applies style operations after registering style payloads in cell options', () => {
@@ -85,7 +74,7 @@ describe('UniverRemoteTransactionRunner', () => {
     )
   })
 
-  it('routes range and clear operations through existing remote apply callbacks', () => {
+  it('defers post-value range operations until the caller runs the deferred apply', () => {
     const applyRemoteCellUpdatesBulk = jest.fn()
     const applyRemoteClearAllRange = jest.fn()
     const applyRemoteClearFormatRange = jest.fn()
@@ -121,14 +110,13 @@ describe('UniverRemoteTransactionRunner', () => {
       ])
     )
 
-    expect(result).toEqual({ ok: true, appliedCellCount: 2, appliedOperationCount: 3 })
-    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'A' }),
-        expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'B' })
-      ],
-      expect.objectContaining({ operationType: 'set_range' })
-    )
+    expect(result).toEqual(expect.objectContaining({ ok: true, appliedCellCount: 2, appliedOperationCount: 3 }))
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    expect(applyRemoteClearAllRange).not.toHaveBeenCalled()
+    expect(applyRemoteClearFormatRange).not.toHaveBeenCalled()
+
+    const deferredResult = result.ok ? result.deferredApply?.() : null
+    expect(deferredResult).toEqual({ ok: true, appliedCellCount: 0, appliedOperationCount: 2 })
     expect(applyRemoteClearAllRange).toHaveBeenCalledWith(
       { sheetId: 'sheet-1', ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }] },
       expect.objectContaining({ operationType: 'clear_all' })
@@ -258,17 +246,9 @@ describe('UniverRemoteTransactionRunner', () => {
     ).toEqual({ ok: true, appliedCellCount: 0, appliedOperationCount: 1 })
   })
 
-  it('defers set_style until persisted cell bulk completes', () => {
+  it('defers set_style until the caller runs the deferred apply after persisted values commit', () => {
     const applyRemoteCellUpdatesBulk = jest.fn()
-    let completeValues: (() => void) | undefined
-    const runner = new UniverRemoteTransactionRunner({
-      applyRemoteCellUpdatesBulk: (items, meta) => {
-        if (meta?.operationType === 'set_range') {
-          completeValues = meta.onApplyComplete
-        }
-        applyRemoteCellUpdatesBulk(items, meta)
-      }
-    })
+    const runner = new UniverRemoteTransactionRunner({ applyRemoteCellUpdatesBulk })
 
     const result = runner.run(
       okPlan([
@@ -291,14 +271,12 @@ describe('UniverRemoteTransactionRunner', () => {
       ])
     )
 
-    expect(result).toEqual({ ok: true, appliedCellCount: 1, appliedOperationCount: 1 })
+    expect(result).toEqual(expect.objectContaining({ ok: true, appliedCellCount: 1, appliedOperationCount: 2 }))
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    const deferredResult = result.ok ? result.deferredApply?.() : null
+    expect(deferredResult).toEqual({ ok: true, appliedCellCount: 1, appliedOperationCount: 1 })
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1)
     expect(applyRemoteCellUpdatesBulk.mock.calls[0]?.[1]).toEqual(
-      expect.objectContaining({ operationType: 'set_range' })
-    )
-    completeValues?.()
-    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(2)
-    expect(applyRemoteCellUpdatesBulk.mock.calls[1]?.[1]).toEqual(
       expect.objectContaining({ operationType: 'set_style' })
     )
   })

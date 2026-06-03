@@ -73,6 +73,165 @@ export function overlayExplicitMutationCellsOntoDerived(
   return Object.keys(out).length > 0 ? out : derived
 }
 
+const cellFitsAbsoluteInRanges = (row: number, col: number, ranges: SheetRangeShape[]): boolean =>
+  ranges.some(
+    range => row >= range.startRow && row <= range.endRow && col >= range.startColumn && col <= range.endColumn
+  )
+
+const cellFitsRelativeInRanges = (row: number, col: number, ranges: SheetRangeShape[]): boolean =>
+  ranges.some(
+    range => row >= 0 && row <= range.endRow - range.startRow && col >= 0 && col <= range.endColumn - range.startColumn
+  )
+
+/**
+ * When SheetValueChanged carries a sparse `cellValue` but `ranges` is only the anchor
+ * cell, `detectCellMatrixCoordinateModeHint` returns `'auto'`. Resolve whether payload
+ * keys are relative to the range origin or already absolute before adding offsets.
+ */
+export function resolveMergeCoordinateMode(
+  explicit: SheetCellMatrix,
+  ranges: SheetRangeShape[],
+  coordinateMode: SheetCellMatrixCoordinateMode
+): 'relative' | 'absolute' {
+  if (coordinateMode === 'relative' || coordinateMode === 'absolute') {
+    return coordinateMode
+  }
+  if (ranges.length === 0) {
+    return 'absolute'
+  }
+
+  let sawCell = false
+  let allFitAbsolute = true
+  let allFitRelative = true
+  let minRow = Number.POSITIVE_INFINITY
+  let maxRow = Number.NEGATIVE_INFINITY
+  let minCol = Number.POSITIVE_INFINITY
+  let maxCol = Number.NEGATIVE_INFINITY
+
+  for (const rowKey of Object.keys(explicit)) {
+    const row = Number(rowKey)
+    if (!Number.isFinite(row)) continue
+    const rowCells = explicit[row]
+    if (!rowCells || typeof rowCells !== 'object') continue
+    for (const colKey of Object.keys(rowCells)) {
+      const col = Number(colKey)
+      if (!Number.isFinite(col)) continue
+      sawCell = true
+      minRow = Math.min(minRow, row)
+      maxRow = Math.max(maxRow, row)
+      minCol = Math.min(minCol, col)
+      maxCol = Math.max(maxCol, col)
+      if (!cellFitsAbsoluteInRanges(row, col, ranges)) {
+        allFitAbsolute = false
+      }
+      if (!cellFitsRelativeInRanges(row, col, ranges)) {
+        allFitRelative = false
+      }
+    }
+  }
+
+  if (!sawCell) {
+    return 'absolute'
+  }
+  if (allFitAbsolute && !allFitRelative) {
+    return 'absolute'
+  }
+  if (allFitRelative && !allFitAbsolute) {
+    return 'relative'
+  }
+
+  const unionRange = ranges.reduce<SheetRangeShape>(
+    (acc, range) => ({
+      startRow: Math.min(acc.startRow, range.startRow),
+      endRow: Math.max(acc.endRow, range.endRow),
+      startColumn: Math.min(acc.startColumn, range.startColumn),
+      endColumn: Math.max(acc.endColumn, range.endColumn)
+    }),
+    ranges[0]
+  )
+  const rangeHeight = unionRange.endRow - unionRange.startRow
+  const rangeWidth = unionRange.endColumn - unionRange.startColumn
+  if (minRow >= 0 && minCol >= 0 && maxRow <= rangeHeight && maxCol <= rangeWidth) {
+    return 'relative'
+  }
+
+  if (!allFitAbsolute && !allFitRelative) {
+    let offsetFitsAll = true
+    for (const rowKey of Object.keys(explicit)) {
+      const row = Number(rowKey)
+      if (!Number.isFinite(row)) continue
+      const rowCells = explicit[row]
+      if (!rowCells || typeof rowCells !== 'object') continue
+      for (const colKey of Object.keys(rowCells)) {
+        const col = Number(colKey)
+        if (!Number.isFinite(col)) continue
+        const offsetRow = unionRange.startRow + row
+        const offsetCol = unionRange.startColumn + col
+        if (!cellFitsAbsoluteInRanges(offsetRow, offsetCol, ranges)) {
+          offsetFitsAll = false
+          break
+        }
+      }
+      if (!offsetFitsAll) break
+    }
+    if (offsetFitsAll) {
+      return 'relative'
+    }
+  }
+
+  return 'absolute'
+}
+
+export function mapPayloadCellToAbsoluteCoordinates(
+  payloadRow: number,
+  payloadCol: number,
+  ranges: SheetRangeShape[],
+  coordinateMode: 'relative' | 'absolute'
+): { rowIndex: number; colIndex: number } {
+  if (coordinateMode === 'absolute') {
+    return { rowIndex: payloadRow, colIndex: payloadCol }
+  }
+  const range =
+    ranges.find(
+      candidate =>
+        payloadRow >= 0 &&
+        payloadRow <= candidate.endRow - candidate.startRow &&
+        payloadCol >= 0 &&
+        payloadCol <= candidate.endColumn - candidate.startColumn
+    ) ?? ranges[0]
+  if (!range) {
+    return { rowIndex: payloadRow, colIndex: payloadCol }
+  }
+  return {
+    rowIndex: range.startRow + payloadRow,
+    colIndex: range.startColumn + payloadCol
+  }
+}
+
+/** Map every sparse payload cell to sheet coordinates (not clamped to declared ranges). */
+export function mapPayloadCellMatrixToAbsoluteCoordinates(
+  payload: SheetCellMatrix,
+  ranges: SheetRangeShape[],
+  coordinateMode: SheetCellMatrixCoordinateMode = 'auto'
+): SheetCellMatrix {
+  const effectiveMode = resolveMergeCoordinateMode(payload, ranges, coordinateMode)
+  const out: SheetCellMatrix = {}
+  for (const rowKey of Object.keys(payload)) {
+    const payloadRow = Number(rowKey)
+    if (!Number.isFinite(payloadRow)) continue
+    const payloadRowCells = payload[rowKey]
+    if (!payloadRowCells || typeof payloadRowCells !== 'object') continue
+    for (const colKey of Object.keys(payloadRowCells)) {
+      const payloadCol = Number(colKey)
+      if (!Number.isFinite(payloadCol)) continue
+      const { rowIndex, colIndex } = mapPayloadCellToAbsoluteCoordinates(payloadRow, payloadCol, ranges, effectiveMode)
+      if (!out[rowIndex]) out[rowIndex] = {}
+      ;(out[rowIndex] as Record<number, unknown>)[colIndex] = (payloadRowCells as Record<number, unknown>)[payloadCol]
+    }
+  }
+  return out
+}
+
 export function mergeExplicitMutationCellsIntoDerived(
   derived: SheetCellMatrix | undefined,
   explicit: SheetCellMatrix | undefined,
@@ -81,8 +240,9 @@ export function mergeExplicitMutationCellsIntoDerived(
 ): SheetCellMatrix | undefined {
   if (!explicit || typeof explicit !== 'object') return derived
 
+  const effectiveCoordinateMode = resolveMergeCoordinateMode(explicit, ranges, coordinateMode)
+
   const out: SheetCellMatrix = {}
-  const firstRange = ranges[0]
   if (derived) {
     for (const rk of Object.keys(derived)) {
       const ri = Number(rk)
@@ -101,9 +261,12 @@ export function mergeExplicitMutationCellsIntoDerived(
     for (const ck of Object.keys(explicitRow)) {
       const payloadColIndex = Number(ck)
       if (!Number.isFinite(payloadColIndex)) continue
-      const ri = firstRange && coordinateMode !== 'absolute' ? firstRange.startRow + payloadRowIndex : payloadRowIndex
-      const ci =
-        firstRange && coordinateMode !== 'absolute' ? firstRange.startColumn + payloadColIndex : payloadColIndex
+      const { rowIndex: ri, colIndex: ci } = mapPayloadCellToAbsoluteCoordinates(
+        payloadRowIndex,
+        payloadColIndex,
+        ranges,
+        effectiveCoordinateMode
+      )
       const explicitCell = (explicitRow as Record<number, unknown>)[payloadColIndex]
       const derivedCell = out[ri]?.[ci]
       if (!out[ri]) out[ri] = {}

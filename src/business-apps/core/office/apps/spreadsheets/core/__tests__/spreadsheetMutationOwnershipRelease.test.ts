@@ -2,11 +2,18 @@ import { SpreadsheetIntentJournal } from '../spreadsheetIntentJournal'
 import { releaseSpreadsheetMutationOwnershipFromResponse } from '../spreadsheetMutationOwnershipRelease'
 import { SpreadsheetVersionCausalOwnershipRegistry } from '../spreadsheetVersionCausalOwnership'
 import type { SpreadsheetBatchOperation } from '../../services/SpreadsheetApiService'
+import {
+  protectSpreadsheetPendingLocalMutationCells,
+  spreadsheetPendingLocalMutationSemanticCellKey
+} from '../../utils/spreadsheetPendingMaterializationCells'
 
 describe('releaseSpreadsheetMutationOwnershipFromResponse', () => {
   it('acknowledges accepted cells and promotes row mappings', () => {
     const journal = new SpreadsheetIntentJournal()
     const ownership = new SpreadsheetVersionCausalOwnershipRegistry()
+    const rowMaterializationReadiness = { resolveMany: jest.fn() }
+    const rowSlotIdentityRegistry = { bindBackendRowId: jest.fn() }
+    const pendingLocalMutationCellsRef = { current: new Set<string>() }
     journal.captureIntent({
       sheetId: 'sheet-1',
       logicalRowHandle: 'client_row_1',
@@ -20,6 +27,13 @@ describe('releaseSpreadsheetMutationOwnershipFromResponse', () => {
       columnName: 'ColumnA',
       baseVersion: 4
     })
+    protectSpreadsheetPendingLocalMutationCells(pendingLocalMutationCellsRef, [
+      {
+        key: spreadsheetPendingLocalMutationSemanticCellKey('sheet-1', 'client_row_1', 'ColumnA'),
+        ownerId: 'plan:client_row_1:ColumnA',
+        expectedSignature: 's:local'
+      }
+    ])
 
     const operations = [
       {
@@ -38,11 +52,29 @@ describe('releaseSpreadsheetMutationOwnershipFromResponse', () => {
         rowMappings: [{ clientRowId: 'client_row_1', rowUuid: 'backend-row-1', gridRowIndex: 2 }]
       },
       intentJournal: journal,
-      versionCausalOwnership: ownership
+      versionCausalOwnership: ownership,
+      rowMaterializationReadiness,
+      rowSlotIdentityRegistry,
+      pendingLocalMutationCellsRef
     })
 
+    expect(rowMaterializationReadiness.resolveMany).toHaveBeenCalledWith(
+      'sheet-1',
+      new Map([['client_row_1', 'backend-row-1']])
+    )
+    expect(rowSlotIdentityRegistry.bindBackendRowId).toHaveBeenCalledWith('sheet-1', 'client_row_1', 'backend-row-1')
     expect(journal.listIntents('sheet-1')[0].state).toBe('acknowledged')
     expect(journal.listIntents('sheet-1')[0].logicalRowHandle).toBe('backend-row-1')
+    expect(
+      pendingLocalMutationCellsRef.current.has(
+        spreadsheetPendingLocalMutationSemanticCellKey('sheet-1', 'client_row_1', 'ColumnA')
+      )
+    ).toBe(false)
+    expect(
+      pendingLocalMutationCellsRef.current.has(
+        spreadsheetPendingLocalMutationSemanticCellKey('sheet-1', 'backend-row-1', 'ColumnA')
+      )
+    ).toBe(true)
     expect(
       ownership.shouldSuppressRemotePaint({
         sheetId: 'sheet-1',

@@ -4,6 +4,7 @@ import type { SpreadsheetSession } from '../core'
 import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
 import type { CollaborationOperation } from '../services/SpreadsheetCollaborationManager'
 import type { SpreadsheetSheet } from '../types'
+import type { SpreadsheetSnapshotCoversVersions } from '../utils/spreadsheetSnapshotCoverage'
 
 export interface UseSpreadsheetSheetVersionModelParams {
   appId: string
@@ -25,6 +26,7 @@ export interface UseSpreadsheetSheetVersionModelParams {
 export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersionModelParams) {
   const sheetVersionRef = useRef<number>(0)
   const workbookSnapshotVersionRef = useRef<number>(0)
+  const workbookSnapshotCoversVersionsRef = useRef<SpreadsheetSnapshotCoversVersions>({})
   const sheetVersionsRef = useRef<Map<string, number>>(new Map())
   const sheetVersionSyncSheetIdRef = useRef<string>('')
   const knownSheetVersionsRef = useRef<Map<string, { version: number; fetchedAt: number }>>(new Map())
@@ -251,6 +253,7 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
   return {
     sheetVersionRef,
     workbookSnapshotVersionRef,
+    workbookSnapshotCoversVersionsRef,
     knownSheetVersionsRef,
     rememberSheetVersion,
     resolveKnownSheetVersion,

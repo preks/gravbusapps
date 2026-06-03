@@ -4,12 +4,11 @@ import * as univerAdapter from '../univerAdapter'
 import * as univerSnapshotCache from '../univerSnapshotCache'
 import {
   chooseBootstrapWorkbookCandidate,
-  compareBootstrapSnapshotAuthority,
   compareSnapshotCandidatesByRecency,
   computeBootstrapSnapshotMergeOutcome,
   enrichBootstrapSnapshotFromOlderCacheFormatting,
   fetchBootstrapSnapshotRemoteComparedToBaseline,
-  isWorkbookSnapshotCanonicalCompatible,
+  getBootstrapSnapshotCoverageVersion,
   selectBootstrapWorksheetSnapshotForPipeline
 } from '../spreadsheetBootstrapSnapshotHelpers'
 
@@ -43,93 +42,84 @@ const minimalSheet = (): SpreadsheetSheet => ({
   }
 })
 
-describe('compareBootstrapSnapshotAuthority', () => {
-  it('prefers higher workbook snapshot version before timestamps', () => {
-    const remoteLike = { updatedAt: '2099-01-01T00:00:00.000Z', version: 500 }
-    const cacheLike = { updatedAt: '2024-01-01T00:00:00.000Z', version: 600 }
-    expect(compareBootstrapSnapshotAuthority(remoteLike, cacheLike)).toBeLessThan(0)
-    expect(compareBootstrapSnapshotAuthority(cacheLike, remoteLike)).toBeGreaterThan(0)
-  })
-
-  it('falls back to recency when versions tie', () => {
-    const newerTime = { updatedAt: '2025-01-01T00:00:00.000Z', version: 10 }
-    const olderTime = { updatedAt: '2024-01-01T00:00:00.000Z', version: 10 }
-    expect(compareBootstrapSnapshotAuthority(newerTime, olderTime)).toBeGreaterThan(0)
-  })
-})
-
-describe('isWorkbookSnapshotCanonicalCompatible', () => {
-  it('is true when workbook snapshot version is at or above canonical sheet minVersion', () => {
-    expect(isWorkbookSnapshotCanonicalCompatible(100, 100)).toBe(true)
-    expect(isWorkbookSnapshotCanonicalCompatible(101, 100)).toBe(true)
-    expect(isWorkbookSnapshotCanonicalCompatible(99, 100)).toBe(false)
+describe('getBootstrapSnapshotCoverageVersion', () => {
+  it('reads the requested sheet coverage watermark from the loader result', () => {
+    expect(getBootstrapSnapshotCoverageVersion({ coversVersions: { sh1: 100, sh2: 12 } } as any, 'sh1')).toBe(100)
+    expect(getBootstrapSnapshotCoverageVersion({ coversVersions: {} } as any, 'missing')).toBe(0)
   })
 })
 
 describe('chooseBootstrapWorkbookCandidate', () => {
-  const remoteCandidate = (version: number) => ({
+  const remoteCandidate = (version: number, coverageVersion: number) => ({
     snapshot: { remote: true } as Record<string, unknown>,
     seed: `remote-v${version}`,
     source: 'remote' as const,
     version,
-    updatedAt: null as string | null
+    updatedAt: null as string | null,
+    coversVersions: { sh1: coverageVersion }
   })
 
-  const cacheCandidate = (version: number) => ({
+  const cacheCandidate = (version: number, coverageVersion: number) => ({
     snapshot: { cache: true } as Record<string, unknown>,
     seed: `cache-v${version}`,
     source: 'cache' as const,
     version,
-    updatedAt: null as string | null
+    updatedAt: null as string | null,
+    coversVersions: { sh1: coverageVersion }
   })
 
-  it('when both compatible, prefers higher workbook snapshot authority (cache ahead)', () => {
+  it('when both compatible, prefers higher requested-sheet coverage (cache ahead)', () => {
     const picked = chooseBootstrapWorkbookCandidate({
+      activeSheetId: 'sh1',
       minVersion: 100,
-      baseline: cacheCandidate(120),
-      remoteResult: remoteCandidate(110)
+      baseline: cacheCandidate(120, 120),
+      remoteResult: remoteCandidate(110, 110)
     })
     expect(picked.source).toBe('cache')
     expect(picked.version).toBe(120)
   })
 
-  it('when both compatible, prefers higher workbook snapshot authority (remote ahead)', () => {
+  it('when both compatible, prefers higher requested-sheet coverage (remote ahead)', () => {
     const picked = chooseBootstrapWorkbookCandidate({
+      activeSheetId: 'sh1',
       minVersion: 100,
-      baseline: cacheCandidate(110),
-      remoteResult: remoteCandidate(120)
+      baseline: cacheCandidate(110, 110),
+      remoteResult: remoteCandidate(120, 120)
     })
     expect(picked.source).toBe('remote')
     expect(picked.version).toBe(120)
   })
 
-  it('when cache lags canonical sheet and remote is compatible, chooses remote', () => {
+  it('when cache lags the requested sheet coverage and remote is compatible, chooses remote', () => {
     const picked = chooseBootstrapWorkbookCandidate({
+      activeSheetId: 'sh1',
       minVersion: 527,
-      baseline: cacheCandidate(400),
-      remoteResult: remoteCandidate(527)
+      baseline: cacheCandidate(999, 400),
+      remoteResult: remoteCandidate(100, 527)
     })
     expect(picked.source).toBe('remote')
   })
 
-  it('when remote lags canonical sheet and cache is compatible, chooses cache', () => {
+  it('when remote lags the requested sheet coverage and cache is compatible, chooses cache', () => {
     const picked = chooseBootstrapWorkbookCandidate({
+      activeSheetId: 'sh1',
       minVersion: 527,
-      baseline: cacheCandidate(600),
-      remoteResult: remoteCandidate(400)
+      baseline: cacheCandidate(600, 600),
+      remoteResult: remoteCandidate(999, 400)
     })
     expect(picked.source).toBe('cache')
     expect(picked.version).toBe(600)
   })
 
-  it('when both lag canonical sheet, prefers remote workbook shell', () => {
+  it('when both lag the requested sheet coverage, prefers the higher-coverage checkpoint', () => {
     const picked = chooseBootstrapWorkbookCandidate({
+      activeSheetId: 'sh1',
       minVersion: 527,
-      baseline: cacheCandidate(500),
-      remoteResult: remoteCandidate(400)
+      baseline: cacheCandidate(500, 500),
+      remoteResult: remoteCandidate(400, 400)
     })
-    expect(picked.source).toBe('remote')
-    expect(picked.version).toBe(400)
+    expect(picked.source).toBe('cache')
+    expect(picked.version).toBe(500)
   })
 })
 
@@ -142,16 +132,18 @@ describe('fetchBootstrapSnapshotRemoteComparedToBaseline', () => {
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 527,
       snapshot: { wb: true },
-      updatedAt: '2020-01-01T00:00:00.000Z'
+      updatedAt: '2020-01-01T00:00:00.000Z',
+      coversVersions: { sh1: 527 }
     })
     const baseline = {
       snapshot: { cache: true },
       seed: 'cache-v999',
       source: 'cache' as const,
       version: 999,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      coversVersions: { sh1: 999 }
     }
-    const result = await fetchBootstrapSnapshotRemoteComparedToBaseline('app-1', 527, baseline)
+    const result = await fetchBootstrapSnapshotRemoteComparedToBaseline('app-1', 'sh1', 527, baseline)
     expect(result.source).toBe('cache')
     expect(result.version).toBe(999)
     expect(result.snapshot).toEqual(expect.objectContaining({ cache: true }))
@@ -161,37 +153,53 @@ describe('fetchBootstrapSnapshotRemoteComparedToBaseline', () => {
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 400,
       snapshot: { remote: true },
-      updatedAt: null
+      updatedAt: null,
+      coversVersions: { sh1: 400 }
     })
     const baseline = {
       snapshot: { cache: true },
       seed: 'cache-v600',
       source: 'cache' as const,
       version: 600,
-      updatedAt: null
+      updatedAt: null,
+      coversVersions: { sh1: 600 }
     }
-    const result = await fetchBootstrapSnapshotRemoteComparedToBaseline('app-1', 527, baseline)
+    const result = await fetchBootstrapSnapshotRemoteComparedToBaseline('app-1', 'sh1', 527, baseline)
     expect(result.source).toBe('cache')
     expect(result.version).toBe(600)
   })
 
-  it('when both remote and cache workbook lag minVersion, prefers remote', async () => {
+  it('when both remote and cache checkpoints lag minVersion, prefers the higher-coverage checkpoint', async () => {
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 400,
       snapshot: { remoteShell: true },
-      updatedAt: null
+      updatedAt: null,
+      coversVersions: { sh1: 400 }
     })
     const baseline = {
       snapshot: { cache: true },
       seed: 'cache-v500',
       source: 'cache' as const,
       version: 500,
-      updatedAt: null
+      updatedAt: null,
+      coversVersions: { sh1: 500 }
     }
-    const result = await fetchBootstrapSnapshotRemoteComparedToBaseline('app-1', 527, baseline)
-    expect(result.source).toBe('remote')
-    expect(result.version).toBe(400)
-    expect(result.snapshot).toEqual(expect.objectContaining({ remoteShell: true }))
+    const result = await fetchBootstrapSnapshotRemoteComparedToBaseline('app-1', 'sh1', 527, baseline)
+    expect(result.source).toBe('cache')
+    expect(result.version).toBe(500)
+  })
+
+  it('drops unsafe unwatermarked remote snapshots instead of trusting them', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
+      version: 400,
+      snapshot: { remoteShell: true },
+      updatedAt: null,
+      coversVersions: {}
+    })
+
+    const result = await fetchBootstrapSnapshotRemoteComparedToBaseline('app-1', 'sh1', 527, null)
+    expect(result.source).toBe('rows_fallback')
+    expect(result.snapshot).toBeNull()
   })
 })
 

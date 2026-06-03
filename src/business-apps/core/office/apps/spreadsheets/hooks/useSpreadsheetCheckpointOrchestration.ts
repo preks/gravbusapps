@@ -5,11 +5,13 @@ import { toast } from 'sonner'
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { SpreadsheetSheet } from '../types'
 import type { UniverSheetGridHandle } from '../components/UniverSheetGrid.types'
+import type { SpreadsheetSnapshotCoversVersions } from '../utils/spreadsheetSnapshotCoverage'
 
 import {
   bindSpreadsheetManualCheckpointWithFlush,
   type PersistSpreadsheetSnapshotCheckpointContext,
   type SpreadsheetManualCheckpointContext,
+  type SpreadsheetOperationQueueChainer,
   type SpreadsheetSnapshotCoordinator,
   type SpreadsheetSnapshotDebugInfo
 } from '../core'
@@ -20,7 +22,7 @@ export interface UseSpreadsheetCheckpointOrchestrationParams {
   sheets: SpreadsheetSheet[]
   entityEnabled: boolean
   activeSheetId: string
-  chainOnOperationQueue: (queueRef: MutableRefObject<Promise<void>>, fn: () => Promise<void>) => Promise<unknown>
+  chainOnOperationQueue: SpreadsheetOperationQueueChainer
   operationQueueRef: MutableRefObject<Promise<void>>
   sheetPersist: {
     beginPersist: () => void
@@ -48,6 +50,7 @@ export interface UseSpreadsheetCheckpointOrchestrationParams {
   snapshotCheckpointDrainPromiseRef: MutableRefObject<Promise<void> | null>
   socketPersistChainRef: MutableRefObject<Promise<unknown>>
   workbookSnapshotVersionRef: MutableRefObject<number>
+  workbookSnapshotCoversVersionsRef: MutableRefObject<SpreadsheetSnapshotCoversVersions>
   snapshotSaveMetricsRef: MutableRefObject<{
     attempts: number
     conflicts: number
@@ -60,6 +63,7 @@ export interface UseSpreadsheetCheckpointOrchestrationParams {
   authoritativePeerSheetDataCacheRef: MutableRefObject<Set<string>>
   pendingLocalMutationCellsRef: MutableRefObject<Set<string>>
   pendingSnapshotClearCellsRef: MutableRefObject<Map<string, Set<string>>>
+  resolveKnownSheetVersion: (sheetId: string) => number
   pendingCellPersistTimeoutRef: MutableRefObject<ReturnType<typeof setTimeout> | null>
   unloadKeepAlivePersistRef: MutableRefObject<boolean>
   lastSuccessfulSnapshotCheckpointAtRef: MutableRefObject<number>
@@ -105,6 +109,7 @@ export function useSpreadsheetCheckpointOrchestration(
     snapshotCheckpointDrainPromiseRef,
     socketPersistChainRef,
     workbookSnapshotVersionRef,
+    workbookSnapshotCoversVersionsRef,
     snapshotSaveMetricsRef,
     spreadsheetGridRef,
     activeSheetIdRef,
@@ -112,6 +117,7 @@ export function useSpreadsheetCheckpointOrchestration(
     authoritativePeerSheetDataCacheRef,
     pendingLocalMutationCellsRef,
     pendingSnapshotClearCellsRef,
+    resolveKnownSheetVersion,
     pendingCellPersistTimeoutRef,
     unloadKeepAlivePersistRef,
     lastSuccessfulSnapshotCheckpointAtRef,
@@ -125,6 +131,7 @@ export function useSpreadsheetCheckpointOrchestration(
       entityEnabled,
       socketPersistChainRef,
       workbookSnapshotVersionRef,
+      workbookSnapshotCoversVersionsRef,
       snapshotSaveMetricsRef,
       spreadsheetGridRef,
       activeSheetIdRef,
@@ -140,6 +147,7 @@ export function useSpreadsheetCheckpointOrchestration(
       activeTraceSessionRef,
       getActiveSessionRows,
       hasPendingCellPersistence,
+      resolveKnownSheetVersion,
       isSheetPersistenceBusy,
       isUuid,
       commitLocalSheetData,
@@ -170,10 +178,12 @@ export function useSpreadsheetCheckpointOrchestration(
       pendingCellPersistTimeoutRef,
       pendingSnapshotCheckpointBySheetRef,
       pendingSnapshotClearCellsRef,
+      resolveKnownSheetVersion,
       snapshotSaveMetricsRef,
       socketPersistChainRef,
       spreadsheetGridRef,
       unloadKeepAlivePersistRef,
+      workbookSnapshotCoversVersionsRef,
       workbookSnapshotVersionRef,
       activeSheetIdRef,
       sheetPersist,

@@ -52,8 +52,10 @@ export interface SpreadsheetRowMaterializationReadiness {
   resolve: (sheetId: string, clientRowId: string, backendRowId: string) => void
   resolveMany: (sheetId: string, resolved: Map<string, string>) => void
   reject: (sheetId: string, clientRowId: string, error: unknown) => void
+  recordMaterializedValues: (sheetId: string, clientRowId: string, values: Record<string, unknown>) => void
   getResolvedBackendRowId: (sheetId: string, clientRowId: string) => string | undefined
   getResolvedBackendRowIds: (sheetId: string, clientRowIds: string[]) => Map<string, string>
+  getMaterializedValuesByBackendRowId: (sheetId: string, backendRowId: string) => Record<string, unknown> | undefined
   isPendingForClientRow: (sheetId: string, clientRowId: string) => boolean
   awaitTemporaryRowsReadyForSubmit: (options: AwaitRowReadinessOptions) => Promise<RowReadinessResult>
   clear: () => void
@@ -64,6 +66,7 @@ const PENDING_ENTRY_MAX_AGE_MS = 5 * 60_000
 const DEFAULT_WAIT_TIMEOUT_MS = 2_000
 
 const toEntryKey = (sheetId: string, clientRowId: string): string => `${sheetId}:${clientRowId}`
+const cloneMaterializedValues = (values: Record<string, unknown>): Record<string, unknown> => ({ ...values })
 
 const describeUnknownError = (error: unknown): string => {
   if (error instanceof Error && error.message) return error.message
@@ -83,6 +86,8 @@ const createTimeoutResult = (
 
 export function createSpreadsheetRowMaterializationReadiness(): SpreadsheetRowMaterializationReadiness {
   const entries = new Map<string, ReadinessEntry>()
+  const materializedValuesByClientKey = new Map<string, { values: Record<string, unknown>; updatedAt: number }>()
+  const materializedValuesByBackendKey = new Map<string, { values: Record<string, unknown>; updatedAt: number }>()
 
   const prune = () => {
     const now = Date.now()
@@ -95,16 +100,44 @@ export function createSpreadsheetRowMaterializationReadiness(): SpreadsheetRowMa
         entries.delete(key)
       }
     }
+    for (const [key, entry] of materializedValuesByClientKey.entries()) {
+      if (now - entry.updatedAt > PENDING_ENTRY_MAX_AGE_MS) {
+        materializedValuesByClientKey.delete(key)
+      }
+    }
+    for (const [key, entry] of materializedValuesByBackendKey.entries()) {
+      if (now - entry.updatedAt > PENDING_ENTRY_MAX_AGE_MS) {
+        materializedValuesByBackendKey.delete(key)
+      }
+    }
+  }
+
+  const rememberMaterializedValuesForBackend = (
+    sheetId: string,
+    backendRowId: string,
+    values: Record<string, unknown>,
+    updatedAt: number
+  ) => {
+    if (!backendRowId || Object.keys(values).length === 0) return
+    materializedValuesByBackendKey.set(toEntryKey(sheetId, backendRowId), {
+      values: cloneMaterializedValues(values),
+      updatedAt
+    })
   }
 
   const resolve = (sheetId: string, clientRowId: string, backendRowId: string) => {
     if (!clientRowId || !backendRowId) return
     prune()
+    const updatedAt = Date.now()
     entries.set(toEntryKey(sheetId, clientRowId), {
       kind: 'resolved',
       backendRowId,
-      updatedAt: Date.now()
+      updatedAt
     })
+    const materialized = materializedValuesByClientKey.get(toEntryKey(sheetId, clientRowId))
+    if (materialized) {
+      rememberMaterializedValuesForBackend(sheetId, backendRowId, materialized.values, materialized.updatedAt)
+    }
   }
 
   const resolveMany = (sheetId: string, resolved: Map<string, string>) => {
@@ -121,6 +154,20 @@ export function createSpreadsheetRowMaterializationReadiness(): SpreadsheetRowMa
       reason: describeUnknownError(error),
       updatedAt: Date.now()
     })
+  }
+
+  const recordMaterializedValues = (sheetId: string, clientRowId: string, values: Record<string, unknown>) => {
+    if (!clientRowId || Object.keys(values).length === 0) return
+    prune()
+    const updatedAt = Date.now()
+    materializedValuesByClientKey.set(toEntryKey(sheetId, clientRowId), {
+      values: cloneMaterializedValues(values),
+      updatedAt
+    })
+    const resolvedBackendRowId = entries.get(toEntryKey(sheetId, clientRowId))
+    if (resolvedBackendRowId?.kind === 'resolved') {
+      rememberMaterializedValuesForBackend(sheetId, resolvedBackendRowId.backendRowId, values, updatedAt)
+    }
   }
 
   const registerPending = (sheetId: string, clientRowId: string, promise: Promise<string>) => {
@@ -165,6 +212,16 @@ export function createSpreadsheetRowMaterializationReadiness(): SpreadsheetRowMa
       }
     })
     return resolved
+  }
+
+  const getMaterializedValuesByBackendRowId = (
+    sheetId: string,
+    backendRowId: string
+  ): Record<string, unknown> | undefined => {
+    if (!backendRowId) return undefined
+    prune()
+    const entry = materializedValuesByBackendKey.get(toEntryKey(sheetId, backendRowId))
+    return entry ? cloneMaterializedValues(entry.values) : undefined
   }
 
   const isPendingForClientRow = (sheetId: string, clientRowId: string): boolean => {
@@ -411,12 +468,16 @@ export function createSpreadsheetRowMaterializationReadiness(): SpreadsheetRowMa
     resolve,
     resolveMany,
     reject,
+    recordMaterializedValues,
     getResolvedBackendRowId,
     getResolvedBackendRowIds,
+    getMaterializedValuesByBackendRowId,
     isPendingForClientRow,
     awaitTemporaryRowsReadyForSubmit,
     clear: () => {
       entries.clear()
+      materializedValuesByClientKey.clear()
+      materializedValuesByBackendKey.clear()
     }
   }
 }

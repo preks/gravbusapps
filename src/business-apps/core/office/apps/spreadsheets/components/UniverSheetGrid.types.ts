@@ -54,6 +54,7 @@ export interface UniverSheetGridProps {
   authoritativeDataSyncToken?: number
   /** One-shot explicit cells to paint after session apply (consumed by authoritative grid sync). */
   authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
+  authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
@@ -226,6 +227,8 @@ export type ApplyRemoteCellUpdateOptions = {
   useSenderA1Row?: boolean
   /** Target worksheet for multi-sheet workbook mode. Defaults to the active worksheet. */
   targetSheetId?: string
+  /** Skip remote-echo registration when repainting viewer state already present in the grid. */
+  skipRemoteEchoRegistration?: boolean
   /** Style patch for `set_style`: remove `unset`, then assign `set`. */
   stylePatch?: SpreadsheetStylePatch | null
   /** Full Univer cell payload (preferred over scalar `value` when present). */

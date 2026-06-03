@@ -73,6 +73,8 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     regions: AuthoritativeGridRegion[] | null
     preferBulk: boolean
     clearAllSignatures: boolean
+    reason?: string
+    pendingLocalFilterPolicy?: import('../utils/spreadsheetAuthoritativeRegion').PendingLocalFilterPolicy
   } | null>(null)
   const lastProcessedAuthoritativeReapplySeedRef = useRef(0)
   const skipNextAuthoritativeSyncAfterSnapshotInitRef = useRef(false)

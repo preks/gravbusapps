@@ -32,6 +32,7 @@ const UNIVER_INLINE_STYLE_KEYS = [
 const UNIVER_INLINE_STYLE_KEY_SET = new Set<string>(UNIVER_INLINE_STYLE_KEYS as readonly string[])
 const UNIVER_FORMATTING_KEYS = ['s', ...UNIVER_INLINE_STYLE_KEYS] as const
 const VALUE_KEYS = ['v', 'f', 'm', 'ct'] as const
+const PERSISTABLE_VALUE_KEYS = ['v', 'f', 'm', 'ct', 't'] as const
 
 export type SpreadsheetLocalMutationIntent =
   | 'edit'
@@ -103,7 +104,10 @@ export function stripIncidentalValueWritesFromStyleMutation(params: {
     return params.cells
   }
   const shouldStrip =
-    params.intent === 'formatOnly' || (params.mutatedCellCount > 1 && valueCells.every(cell => cell.stylePatch != null))
+    params.intent === 'formatOnly' ||
+    (params.mutatedCellCount > 1 &&
+      valueCells.every(cell => cell.stylePatch != null) &&
+      params.cells.some(cell => cell.valueAction === 'none' && cell.stylePatch != null))
   if (!shouldStrip) {
     return params.cells
   }
@@ -165,6 +169,7 @@ export interface BuildAuthoritativeMutationEnvelopeParams {
   mergedCellValue: SheetCellMatrix
   workbookSnapshot: Record<string, unknown> | null
   allowValueCarryingStylePayloads?: boolean
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
   replaceRangeStyleIntent?: boolean
   shouldSuppress?: (rowIndex: number, colIndex: number, value: unknown) => boolean
   resolveStableRowTarget?: (rowIndex: number) => SpreadsheetStableRowTarget | null
@@ -221,8 +226,12 @@ function shouldEmitValueWriteForPlanner(
   currentSignature: string,
   nextSignature: string,
   isRowPersistedAtGridIndex?: (globalRowIndex: number) => boolean,
-  getPersistedSignatureForCell?: (globalRowIndex: number, globalColIndex: number) => string | undefined
+  getPersistedSignatureForCell?: (globalRowIndex: number, globalColIndex: number) => string | undefined,
+  wasRecentlyLocallyMutated?: (globalRowIndex: number, globalColIndex: number) => boolean
 ): boolean {
+  if (nextSignature !== 'blank' && wasRecentlyLocallyMutated?.(globalRowIndex, globalColIndex)) {
+    return true
+  }
   const persistedSignature = getPersistedSignatureForCell?.(globalRowIndex, globalColIndex)
   if (typeof persistedSignature === 'string') {
     return persistedSignature !== nextSignature
@@ -260,6 +269,57 @@ function isClearLikeMutationCommandId(commandId: string | undefined): boolean {
     normalized.includes('cut-paste') ||
     normalized.includes('cutpaste')
   )
+}
+
+function isSparseNullLikePersistableCandidate(
+  candidateValue: unknown,
+  candidateObj: Record<string, unknown> | null
+): boolean {
+  if (candidateValue === null) return true
+  return candidateObj !== null && Object.prototype.hasOwnProperty.call(candidateObj, 'v') && candidateObj.v === null
+}
+
+function isAutofillLikeMutationIntent(
+  intent: SpreadsheetLocalMutationIntent,
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
+): boolean {
+  if (intent === 'autofill') return true
+  return (
+    autofillApplyType === 'COPY' ||
+    autofillApplyType === 'SERIES' ||
+    autofillApplyType === 'ONLY_FORMAT' ||
+    autofillApplyType === 'NO_FORMAT'
+  )
+}
+
+/**
+ * Univer drag-fill / autofill often emits sparse `{ v: null }` cells for coordinates that
+ * still hold values (especially when only formatting changed on part of the selection).
+ * Treat those as noise — not as user-initiated clears.
+ */
+function shouldSkipSparseNullOverNonBlankClear(params: {
+  ambiguousSparseNullNoiseGateActive: boolean
+  intent: SpreadsheetLocalMutationIntent
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
+  mutationCommandId?: string
+  candidateValue: unknown
+  candidateObj: Record<string, unknown> | null
+  nextSignature: string
+  currentSignature: string
+}): boolean {
+  if (params.nextSignature !== 'blank' || params.currentSignature === 'blank') {
+    return false
+  }
+  if (!isSparseNullLikePersistableCandidate(params.candidateValue, params.candidateObj)) {
+    return false
+  }
+  if (params.ambiguousSparseNullNoiseGateActive) {
+    return true
+  }
+  if (isAutofillLikeMutationIntent(params.intent, params.autofillApplyType)) {
+    return !isClearLikeMutationCommandId(params.mutationCommandId)
+  }
+  return false
 }
 
 function isPersistableCellDataMutationValue(value: unknown): boolean {
@@ -315,6 +375,65 @@ function normalizeValueForEchoSignature(value: unknown): unknown {
   }
   if (obj.v !== undefined) return typeof obj.v === 'number' && !Number.isFinite(obj.v) ? null : obj.v
   if (obj.m !== undefined) return typeof obj.m === 'number' && !Number.isFinite(obj.m) ? null : obj.m
+  return value
+}
+
+export function normalizeValueForPersistence(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.startsWith('=') ? { f: trimmed } : value
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+
+  const obj = value as Record<string, unknown>
+  if (typeof obj.f === 'string') {
+    let didNormalize = false
+    const normalized: Record<string, unknown> = {}
+    for (const key of PERSISTABLE_VALUE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        normalized[key] = obj[key]
+      }
+    }
+    const trimmed = obj.f.trim()
+    normalized.f = trimmed.startsWith('=') ? trimmed : `=${trimmed}`
+    didNormalize = didNormalize || normalized.f !== obj.f
+    if (Object.prototype.hasOwnProperty.call(obj, 'v') && typeof obj.v === 'number' && !Number.isFinite(obj.v)) {
+      normalized.v = null
+      didNormalize = true
+    }
+    if (Object.prototype.hasOwnProperty.call(obj, 'm') && typeof obj.m === 'number' && !Number.isFinite(obj.m)) {
+      normalized.m = null
+      didNormalize = true
+    }
+    return didNormalize ? normalized : normalized
+  }
+
+  if (Object.prototype.hasOwnProperty.call(obj, 't') || Object.prototype.hasOwnProperty.call(obj, 'ct')) {
+    const normalized: Record<string, unknown> = {}
+    for (const key of PERSISTABLE_VALUE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        normalized[key] = obj[key]
+      }
+    }
+    if (typeof normalized.v === 'number' && !Number.isFinite(normalized.v)) {
+      normalized.v = null
+    }
+    if (typeof normalized.m === 'number' && !Number.isFinite(normalized.m)) {
+      normalized.m = null
+    }
+    return normalized
+  }
+
+  if (Object.prototype.hasOwnProperty.call(obj, 'v')) {
+    return typeof obj.v === 'number' && !Number.isFinite(obj.v) ? null : obj.v
+  }
+  if (Object.prototype.hasOwnProperty.call(obj, 'm')) {
+    return typeof obj.m === 'number' && !Number.isFinite(obj.m) ? null : obj.m
+  }
+
   return value
 }
 
@@ -431,9 +550,17 @@ function resolveAllowStyleWithValuePayloads(params: {
   allowValueCarryingStylePayloads: boolean
   replaceRangeStyleIntent: boolean
   intent: SpreadsheetLocalMutationIntent
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
   mutationCommandId?: string
 }): boolean {
   if (params.allowValueCarryingStylePayloads || params.replaceRangeStyleIntent) {
+    return true
+  }
+  if (
+    params.autofillApplyType === 'COPY' ||
+    params.autofillApplyType === 'SERIES' ||
+    params.autofillApplyType === 'ONLY_FORMAT'
+  ) {
     return true
   }
   if (params.intent === 'pasteReplace') {
@@ -519,16 +646,18 @@ function buildTargetCells(params: {
   }
 
   if (out.size === 0) {
-    const source = worksheetCellValue ?? mergedCellValue
-    for (const rowKey of Object.keys(source)) {
-      const rowIndex = Number(rowKey)
-      if (Number.isNaN(rowIndex)) continue
-      const rowCells = source[rowIndex]
-      if (!rowCells || typeof rowCells !== 'object') continue
-      for (const colKey of Object.keys(rowCells)) {
-        const colIndex = Number(colKey)
-        if (Number.isNaN(colIndex)) continue
-        push(rowIndex, colIndex, false)
+    const source = mergedCellValue ?? worksheetCellValue
+    if (source) {
+      for (const rowKey of Object.keys(source)) {
+        const rowIndex = Number(rowKey)
+        if (Number.isNaN(rowIndex)) continue
+        const rowCells = source[rowIndex]
+        if (!rowCells || typeof rowCells !== 'object') continue
+        for (const colKey of Object.keys(rowCells)) {
+          const colIndex = Number(colKey)
+          if (Number.isNaN(colIndex)) continue
+          push(rowIndex, colIndex, false)
+        }
       }
     }
   }
@@ -669,6 +798,7 @@ function applyNonBlankWorksheetFallback(params: {
     shouldSuppress,
     resolveStableRowTarget,
     resolveStableColumnName,
+    wasRecentlyLocallyMutated,
     styleIntent,
     shouldPersistStylePayload,
     keepUnsetOnlyStylePatch,
@@ -736,7 +866,7 @@ function applyNonBlankWorksheetFallback(params: {
           continue
         }
 
-        const normalizedValue = normalizeValueForEchoSignature(candidateValue)
+        const normalizedValue = normalizeValueForPersistence(candidateValue)
         const nextSignature = normalizeBlankLikeEchoSignature(toEchoSignature(normalizedValue))
         if (nextSignature === 'blank') {
           continue
@@ -754,7 +884,8 @@ function applyNonBlankWorksheetFallback(params: {
             currentSignature,
             nextSignature,
             isRowPersistedAtGridIndex,
-            getPersistedSignatureForCell
+            getPersistedSignatureForCell,
+            wasRecentlyLocallyMutated
           )
         ) {
           continue
@@ -831,6 +962,7 @@ export function buildAuthoritativeMutationEnvelope(
     mergedCellValue,
     workbookSnapshot,
     allowValueCarryingStylePayloads = false,
+    autofillApplyType,
     replaceRangeStyleIntent = false,
     shouldSuppress,
     resolveStableRowTarget,
@@ -849,6 +981,7 @@ export function buildAuthoritativeMutationEnvelope(
     allowValueCarryingStylePayloads,
     replaceRangeStyleIntent,
     intent,
+    autofillApplyType,
     mutationCommandId
   })
 
@@ -926,7 +1059,7 @@ export function buildAuthoritativeMutationEnvelope(
       } as SpreadsheetMutationPlannedCell)
 
     if (!isMergeCoveredSlave && isPersistableCellDataMutationValue(candidateValue)) {
-      const normalizedValue = normalizeValueForEchoSignature(candidateValue)
+      const normalizedValue = normalizeValueForPersistence(candidateValue)
       const currentRow = getSpreadsheetRowAtUniverGridIndex(currentData, globalRowIndex)
       const currentColumn = visibleColumns[globalColIndex]
       const currentValue =
@@ -938,13 +1071,16 @@ export function buildAuthoritativeMutationEnvelope(
         candidateValue && typeof candidateValue === 'object' && !Array.isArray(candidateValue)
           ? (candidateValue as Record<string, unknown>)
           : null
-      const ambiguousSparseNullClear =
-        ambiguousSparseNullNoiseGateActive &&
-        candidateObj !== null &&
-        Object.prototype.hasOwnProperty.call(candidateObj, 'v') &&
-        candidateObj.v === null &&
-        nextSignature === 'blank' &&
-        currentSignature !== 'blank'
+      const sparseNullOverNonBlankClear = shouldSkipSparseNullOverNonBlankClear({
+        ambiguousSparseNullNoiseGateActive,
+        intent,
+        autofillApplyType,
+        mutationCommandId,
+        candidateValue,
+        candidateObj,
+        nextSignature,
+        currentSignature
+      })
 
       const wouldClear = nextSignature === 'blank' && currentSignature !== 'blank'
       const noClearWithoutLocalEditSkip = (() => {
@@ -960,7 +1096,7 @@ export function buildAuthoritativeMutationEnvelope(
         return authoritativeIsNonBlank
       })()
 
-      if (ambiguousSparseNullClear || noClearWithoutLocalEditSkip) {
+      if (sparseNullOverNonBlankClear || noClearWithoutLocalEditSkip) {
         // 1c: classify this key as intentionally skipped so the fallback cannot resurrect it.
         intentionallySkippedKeys.add(key)
       } else if (
@@ -970,7 +1106,8 @@ export function buildAuthoritativeMutationEnvelope(
           currentSignature,
           nextSignature,
           isRowPersistedAtGridIndex,
-          getPersistedSignatureForCell
+          getPersistedSignatureForCell,
+          wasRecentlyLocallyMutated
         )
       ) {
         existing.valueAction = nextSignature === 'blank' ? 'clear' : 'set'

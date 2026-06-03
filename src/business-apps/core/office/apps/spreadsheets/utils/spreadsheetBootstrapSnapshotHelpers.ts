@@ -13,13 +13,24 @@ import {
   readUniverSnapshotCacheForBootstrap,
   writeUniverSnapshotCache
 } from './univerSnapshotCache'
+import {
+  getSheetCoverageVersion,
+  hasSheetCoverageVersion,
+  normalizeSnapshotCoversVersions,
+  type SpreadsheetSnapshotCoversVersions
+} from './spreadsheetSnapshotCoverage'
 
 export const SNAPSHOT_FETCH_TIMEOUT_MS = 15000
 
 export const fetchUniverSnapshotWithTimeout = async (
   appId: string,
   timeoutMs: number
-): Promise<{ version?: number; snapshot?: unknown; updatedAt?: string | null }> => {
+): Promise<{
+  version?: number
+  snapshot?: unknown
+  updatedAt?: string | null
+  coversVersions?: SpreadsheetSnapshotCoversVersions
+}> => {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => reject(new Error('Snapshot fetch timed out')), timeoutMs)
   })
@@ -45,71 +56,61 @@ export const compareSnapshotCandidatesByRecency = (
   return toTime(a) - toTime(b)
 }
 
-/**
- * Prefer higher workbook snapshot version first; then recency (`updatedAt` / version tie-break).
- * Ensures backend checkpoints at >= canonical sheet `minVersion` win over fresher local cache timestamps.
- */
-export const compareBootstrapSnapshotAuthority = (
-  a: { updatedAt?: string | null; version?: number | null } | null | undefined,
-  b: { updatedAt?: string | null; version?: number | null } | null | undefined
-): number => {
-  const va = Number(a?.version ?? 0)
-  const vb = Number(b?.version ?? 0)
-  if (va !== vb) return va - vb
-  return compareSnapshotCandidatesByRecency(a, b)
-}
-
 export type BootstrapSnapshotLoaderResult = {
   snapshot: Record<string, unknown> | null
   seed: string
   source: 'cache' | 'remote' | 'rows_fallback'
   version: number
   updatedAt: string | null
+  coversVersions: SpreadsheetSnapshotCoversVersions
   cacheWrite?: ReturnType<typeof writeUniverSnapshotCache>
 }
 
-/** Workbook snapshot generation is at or ahead of canonical sheet `minVersion`. */
-export const isWorkbookSnapshotCanonicalCompatible = (workbookSnapshotVersion: number, minVersion: number): boolean =>
-  Number.isFinite(workbookSnapshotVersion) && Number.isFinite(minVersion) && workbookSnapshotVersion >= minVersion
+export const getBootstrapSnapshotCoverageVersion = (
+  result: Pick<BootstrapSnapshotLoaderResult, 'coversVersions'>,
+  sheetId: string
+): number => getSheetCoverageVersion(result.coversVersions, sheetId)
 
 /**
- * Decide cache vs remote workbook for bootstrap when both payloads exist.
- * Uses canonical sheet `minVersion` vs each candidate's workbook snapshot version.
+ * Decide cache vs remote workbook for bootstrap.
+ * The requested sheet's op-log coverage watermark is the source of truth; the blob version is only a tie-breaker.
  */
 export const chooseBootstrapWorkbookCandidate = (params: {
+  activeSheetId: string
   minVersion: number
   baseline: BootstrapSnapshotLoaderResult
   remoteResult: BootstrapSnapshotLoaderResult
 }): BootstrapSnapshotLoaderResult => {
-  const { minVersion, baseline, remoteResult } = params
-  const remoteCompatible = isWorkbookSnapshotCanonicalCompatible(remoteResult.version, minVersion)
-  const cacheCompatible = isWorkbookSnapshotCanonicalCompatible(baseline.version, minVersion)
+  const { activeSheetId, minVersion, baseline, remoteResult } = params
+  const remoteCoverage = getBootstrapSnapshotCoverageVersion(remoteResult, activeSheetId)
+  const cacheCoverage = getBootstrapSnapshotCoverageVersion(baseline, activeSheetId)
+  const remoteCompatible = remoteCoverage >= minVersion
+  const cacheCompatible = cacheCoverage >= minVersion
 
-  if (remoteCompatible && cacheCompatible) {
-    return compareBootstrapSnapshotAuthority(remoteResult, baseline) >= 0 ? remoteResult : baseline
+  if (remoteCompatible && !cacheCompatible) return remoteResult
+  if (!remoteCompatible && cacheCompatible) return baseline
+  if (remoteCoverage !== cacheCoverage) {
+    return remoteCoverage > cacheCoverage ? remoteResult : baseline
   }
-  if (remoteCompatible && !cacheCompatible) {
-    return remoteResult
-  }
-  if (!remoteCompatible && cacheCompatible) {
-    return baseline
-  }
-  return remoteResult
+  return compareSnapshotCandidatesByRecency(remoteResult, baseline) >= 0 ? remoteResult : baseline
 }
 
 export const tryLoadBootstrapSnapshotFromCache = (
   appId: string,
+  activeSheetId: string,
   minVersion: number
 ): BootstrapSnapshotLoaderResult | null => {
-  const cached = readUniverSnapshotCacheForBootstrap(appId, minVersion)
+  const cached = readUniverSnapshotCacheForBootstrap(appId, activeSheetId, minVersion)
   if (!cached?.snapshot || typeof cached.snapshot !== 'object') return null
   const cachedUpdatedAt = Number.isFinite(cached.savedAt) ? new Date(cached.savedAt).toISOString() : null
+  const coverageVersion = getSheetCoverageVersion(cached.coversVersions, activeSheetId)
   return {
     snapshot: stripWorkbookSnapshotValuesPreservingFormatting(cached.snapshot),
-    seed: `cache-v${cached.version}`,
+    seed: `cache-cov${coverageVersion}-blob${cached.version}`,
     source: 'cache',
     version: cached.version,
-    updatedAt: cachedUpdatedAt
+    updatedAt: cachedUpdatedAt,
+    coversVersions: cached.coversVersions
   }
 }
 
@@ -119,6 +120,7 @@ export const tryLoadBootstrapSnapshotFromCache = (
  */
 export const fetchBootstrapSnapshotRemoteComparedToBaseline = async (
   appId: string,
+  activeSheetId: string,
   minVersion: number,
   baseline: BootstrapSnapshotLoaderResult | null
 ): Promise<BootstrapSnapshotLoaderResult> => {
@@ -129,40 +131,56 @@ export const fetchBootstrapSnapshotRemoteComparedToBaseline = async (
 
   if (remote?.snapshot && typeof remote.snapshot === 'object') {
     const visualSnapshot = stripWorkbookSnapshotValuesPreservingFormatting(remote.snapshot as Record<string, unknown>)
+    const coversVersions = normalizeSnapshotCoversVersions(remote?.coversVersions)
+    const coverageVersion = getSheetCoverageVersion(coversVersions, activeSheetId)
+    const isCoverageSafe = hasSheetCoverageVersion(coversVersions, activeSheetId)
+    if (!isCoverageSafe) {
+      return (
+        baseline ?? {
+          snapshot: null,
+          seed: `rows-fallback-unsafe-remote-cov0-blob${remoteVersion}`,
+          source: 'rows_fallback',
+          version: remoteVersion,
+          updatedAt: remoteUpdatedAt,
+          coversVersions: {}
+        }
+      )
+    }
+
     const cacheWrite = writeUniverSnapshotCache(appId, remoteVersion, visualSnapshot)
     const remoteResult: BootstrapSnapshotLoaderResult = {
       snapshot: visualSnapshot,
-      seed:
-        remoteVersion >= minVersion
-          ? `remote-v${remoteVersion}`
-          : `remote-v${remoteVersion}-lagging-sheet-v${minVersion}`,
+      seed: `remote-cov${coverageVersion}-blob${remoteVersion}`,
       source: 'remote',
       version: remoteVersion,
       updatedAt: remoteUpdatedAt,
+      coversVersions,
       cacheWrite
     }
     if (!baseline) return remoteResult
-    return chooseBootstrapWorkbookCandidate({ minVersion, baseline, remoteResult })
+    return chooseBootstrapWorkbookCandidate({ activeSheetId, minVersion, baseline, remoteResult })
   }
 
-  const cacheOnly = baseline ?? tryLoadBootstrapSnapshotFromCache(appId, minVersion)
+  const cacheOnly = baseline ?? tryLoadBootstrapSnapshotFromCache(appId, activeSheetId, minVersion)
   if (cacheOnly) return cacheOnly
 
   return {
     snapshot: null,
-    seed: `rows-fallback-v${minVersion}`,
+    seed: `rows-fallback-cov${minVersion}`,
     source: 'rows_fallback',
     version: remoteVersion,
-    updatedAt: remoteUpdatedAt
+    updatedAt: remoteUpdatedAt,
+    coversVersions: {}
   }
 }
 
 export const loadBootstrapSnapshotData = async (
   appId: string,
+  activeSheetId: string,
   minVersion: number
 ): Promise<BootstrapSnapshotLoaderResult> => {
-  const cachedResult = tryLoadBootstrapSnapshotFromCache(appId, minVersion)
-  return fetchBootstrapSnapshotRemoteComparedToBaseline(appId, minVersion, cachedResult)
+  const cachedResult = tryLoadBootstrapSnapshotFromCache(appId, activeSheetId, minVersion)
+  return fetchBootstrapSnapshotRemoteComparedToBaseline(appId, activeSheetId, minVersion, cachedResult)
 }
 
 export const mergeBootstrapSnapshotWithCanonicalRows = (

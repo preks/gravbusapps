@@ -42,7 +42,8 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 0,
       snapshot: null,
-      updatedAt: null
+      updatedAt: null,
+      coversVersions: {}
     })
   })
 
@@ -71,6 +72,7 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
         preferUniverNativeSheetTabs: false,
         spreadsheetSession: spreadsheetSession as any,
         workbookSnapshotVersionRef: { current: 0 },
+        workbookSnapshotCoversVersionsRef: { current: {} },
         peerSheetDataCacheRef: { current: new Map() },
         authoritativePeerSheetDataCacheRef: { current: new Set() },
         seedActiveSheetState,

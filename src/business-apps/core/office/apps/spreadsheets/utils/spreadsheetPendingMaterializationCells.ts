@@ -1,3 +1,5 @@
+import type { PendingLocalFilterPolicy } from './spreadsheetAuthoritativeRegion'
+
 const PENDING_LOCAL_MUTATION_KEY_SEPARATOR = '\u0000'
 const DEFAULT_PENDING_LOCAL_MUTATION_PROTECTION_TTL_MS = 15_000
 
@@ -7,11 +9,15 @@ interface PendingLocalMutationCellProtectionEntry {
   key: string
   ownerId: string
   expectedSignature?: string
+  kind?: PendingLocalMutationProtectionKind
 }
+
+export type PendingLocalMutationProtectionKind = 'local_user_edit' | 'materialization_adoption'
 
 interface PendingLocalMutationCellProtectionOwner {
   expectedSignature?: string
   timeoutHandle?: ReturnType<typeof globalThis.setTimeout>
+  kind: PendingLocalMutationProtectionKind
 }
 
 const pendingLocalMutationProtectionStateBySet = new WeakMap<
@@ -50,14 +56,48 @@ const releasePendingLocalMutationProtectionOwner = (
   key: string,
   ownerId: string
 ): void => {
-  const owners = state.get(key)
-  const owner = owners?.get(ownerId)
+  let resolvedKey = key
+  let owners = state.get(resolvedKey)
+  let owner = owners?.get(ownerId)
+  if (!owners || !owner) {
+    for (const [candidateKey, candidateOwners] of state.entries()) {
+      const candidateOwner = candidateOwners.get(ownerId)
+      if (!candidateOwner) continue
+      resolvedKey = candidateKey
+      owners = candidateOwners
+      owner = candidateOwner
+      break
+    }
+  }
   if (!owners || !owner) return
   if (owner.timeoutHandle != null) {
     globalThis.clearTimeout(owner.timeoutHandle)
   }
   owners.delete(ownerId)
-  syncPendingLocalMutationProtectionKey(pendingCells, state, key)
+  syncPendingLocalMutationProtectionKey(pendingCells, state, resolvedKey)
+}
+
+const migratePendingLocalMutationProtectionOwners = (
+  pendingCells: Set<string>,
+  state: Map<string, Map<string, PendingLocalMutationCellProtectionOwner>>,
+  sourceKey: string,
+  targetKey: string
+): void => {
+  if (!sourceKey || !targetKey || sourceKey === targetKey) return
+  const sourceOwners = state.get(sourceKey)
+  if (!sourceOwners || sourceOwners.size === 0) return
+  const targetOwners = state.get(targetKey) ?? new Map<string, PendingLocalMutationCellProtectionOwner>()
+  for (const [ownerId, owner] of sourceOwners.entries()) {
+    const existingOwner = targetOwners.get(ownerId)
+    if (existingOwner?.timeoutHandle != null) {
+      globalThis.clearTimeout(existingOwner.timeoutHandle)
+    }
+    targetOwners.set(ownerId, owner)
+  }
+  state.set(targetKey, targetOwners)
+  state.delete(sourceKey)
+  syncPendingLocalMutationProtectionKey(pendingCells, state, sourceKey)
+  syncPendingLocalMutationProtectionKey(pendingCells, state, targetKey)
 }
 
 export function spreadsheetPendingLocalMutationCoordinateCellKey(
@@ -114,7 +154,8 @@ export function protectSpreadsheetPendingLocalMutationCells(
     }
     owners.set(entry.ownerId, {
       expectedSignature: entry.expectedSignature,
-      timeoutHandle
+      timeoutHandle,
+      kind: entry.kind ?? 'local_user_edit'
     })
     pendingCells.add(entry.key)
     registeredEntries.push(entry)
@@ -140,6 +181,29 @@ export function releaseSpreadsheetPendingLocalMutationCells(
   })
 }
 
+export function migratePendingLocalMutationProtectionRowHandle(
+  pendingLocalMutationCellsRef: PendingLocalMutationCellsRef | undefined,
+  sheetId: string,
+  clientRowId: string,
+  rowUuid: string
+): void {
+  if (!pendingLocalMutationCellsRef || !sheetId || !clientRowId || !rowUuid || clientRowId === rowUuid) return
+  const pendingCells = pendingLocalMutationCellsRef.current
+  const state = pendingLocalMutationProtectionStateBySet.get(pendingCells)
+  if (!state || state.size === 0) return
+  const semanticPrefix = ['semantic', sheetId, clientRowId].join(PENDING_LOCAL_MUTATION_KEY_SEPARATOR)
+  for (const key of [...state.keys()]) {
+    if (!key.startsWith(`${semanticPrefix}${PENDING_LOCAL_MUTATION_KEY_SEPARATOR}`)) continue
+    const columnName = key.slice(`${semanticPrefix}${PENDING_LOCAL_MUTATION_KEY_SEPARATOR}`.length)
+    migratePendingLocalMutationProtectionOwners(
+      pendingCells,
+      state,
+      key,
+      spreadsheetPendingLocalMutationSemanticCellKey(sheetId, rowUuid, columnName)
+    )
+  }
+}
+
 export function reconcileSpreadsheetPendingLocalMutationCellProtection(
   pendingLocalMutationCellsRef: PendingLocalMutationCellsRef | undefined,
   key: string,
@@ -150,6 +214,41 @@ export function reconcileSpreadsheetPendingLocalMutationCellProtection(
   const state = pendingLocalMutationProtectionStateBySet.get(pendingCells)
   const owners = state?.get(key)
   if (!state || !owners || owners.size === 0) return true
-  void authoritativeSignature
+  for (const [ownerId, owner] of [...owners.entries()]) {
+    if (owner.expectedSignature == null || owner.expectedSignature !== authoritativeSignature) {
+      continue
+    }
+    releasePendingLocalMutationProtectionOwner(pendingCells, state, key, ownerId)
+  }
   return true
+}
+
+export function shouldBlockSpreadsheetPendingLocalMutationCellProtection(
+  pendingLocalMutationCellsRef: PendingLocalMutationCellsRef | undefined,
+  key: string,
+  authoritativeSignature: string,
+  policy: PendingLocalFilterPolicy
+): boolean {
+  const pendingCells = pendingLocalMutationCellsRef?.current
+  if (!pendingCells?.has(key)) return false
+  const state = pendingLocalMutationProtectionStateBySet.get(pendingCells)
+  const owners = state?.get(key)
+  if (!state || !owners || owners.size === 0) {
+    return true
+  }
+
+  let shouldBlock = false
+  for (const [ownerId, owner] of [...owners.entries()]) {
+    if (owner.expectedSignature != null && owner.expectedSignature === authoritativeSignature) {
+      releasePendingLocalMutationProtectionOwner(pendingCells, state, key, ownerId)
+      continue
+    }
+    if (policy === 'server_authoritative_repair' && owner.kind === 'materialization_adoption') {
+      releasePendingLocalMutationProtectionOwner(pendingCells, state, key, ownerId)
+      continue
+    }
+    shouldBlock = true
+  }
+
+  return shouldBlock
 }

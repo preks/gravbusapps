@@ -1,5 +1,7 @@
 import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
 import type { SpreadsheetStylePatch } from './SpreadsheetCollaborationContract'
+import type { SpreadsheetColumn } from '../types'
+import { isNumericColumn } from '../utils/analyticsEngine'
 import type { SpreadsheetRowRef } from '../utils/spreadsheetRowIdentity'
 
 export const SPREADSHEET_MAX_SET_STYLE_CELLS_PER_OPERATION = 2000
@@ -81,10 +83,18 @@ export const flattenUpdatesToCells = (
     }))
   )
 
-export const normalizeCellValueForBatchPersistence = (value: unknown): unknown => {
+const coerceNumericValueForColumn = (value: unknown, column?: SpreadsheetColumn): unknown => {
+  if (!column || !isNumericColumn(column) || typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.startsWith('=')) return value
+  const numericValue = Number(trimmed)
+  return Number.isFinite(numericValue) ? numericValue : value
+}
+
+export const normalizeCellValueForBatchPersistence = (value: unknown, column?: SpreadsheetColumn): unknown => {
   if (typeof value === 'string') {
     const trimmed = value.trim()
-    return trimmed.startsWith('=') ? { f: trimmed } : value
+    return trimmed.startsWith('=') ? { f: trimmed } : coerceNumericValueForColumn(value, column)
   }
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value
   const obj = value as Record<string, unknown>
@@ -92,36 +102,44 @@ export const normalizeCellValueForBatchPersistence = (value: unknown): unknown =
     const trimmed = obj.f.trim()
     return { ...obj, f: trimmed.startsWith('=') ? trimmed : `=${trimmed}` }
   }
-  return value
+  if (!Object.prototype.hasOwnProperty.call(obj, 'v')) return value
+  const coercedValue = coerceNumericValueForColumn(obj.v, column)
+  if (coercedValue === obj.v) return value
+  return { ...obj, v: coercedValue }
 }
 
 /** Strip Univer inline formatting from row-model / add_rows payloads; keep value keys only. */
-export const normalizeUniverCellForRowPersistence = (cell: unknown): unknown | undefined => {
+export const normalizeUniverCellForRowPersistence = (
+  cell: unknown,
+  column?: SpreadsheetColumn
+): unknown | undefined => {
   if (cell === undefined) return undefined
   if (cell === null) return null
   if (typeof cell === 'string' || typeof cell === 'number' || typeof cell === 'boolean') {
-    return normalizeCellValueForBatchPersistence(cell)
+    return normalizeCellValueForBatchPersistence(cell, column)
   }
   if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return undefined
   const obj = cell as Record<string, unknown>
-  if (!('v' in obj || 'f' in obj || 'm' in obj || 'ct' in obj)) return undefined
+  if (!('v' in obj || 'f' in obj || 'm' in obj || 'ct' in obj || 't' in obj)) return undefined
   const picked: Record<string, unknown> = {}
-  for (const key of ['v', 'f', 'm', 'ct'] as const) {
+  for (const key of ['v', 'f', 'm', 'ct', 't'] as const) {
     if (key in obj) picked[key] = obj[key]
   }
-  return normalizeCellValueForBatchPersistence(picked)
+  return normalizeCellValueForBatchPersistence(picked, column)
 }
 
 export const buildCellPersistenceOperations = ({
   setUpdatesByIdentity,
   setUpdatesByBackendRowId,
   clearCells,
-  createOperationId
+  createOperationId,
+  columnsByName
 }: {
   setUpdatesByIdentity?: Map<string, { rowId: string; rowRef?: SpreadsheetRowRef; updates: Record<string, unknown> }>
   setUpdatesByBackendRowId?: Map<string, Record<string, unknown>>
   clearCells: SpreadsheetCellClear[]
   createOperationId: (prefix: string) => string
+  columnsByName?: Map<string, SpreadsheetColumn>
 }): SpreadsheetBatchOperation[] => {
   const normalizedUpdatesByIdentity =
     setUpdatesByIdentity ??
@@ -132,7 +150,7 @@ export const buildCellPersistenceOperations = ({
     const source = normalizedUpdatesByIdentity.get(buildSetUpdateIdentityKey(cell.rowId, cell.columnName, cell.rowRef))
     return {
       ...cell,
-      value: normalizeCellValueForBatchPersistence(cell.value),
+      value: normalizeCellValueForBatchPersistence(cell.value, columnsByName?.get(cell.columnName)),
       rowIndex: source?.rowIndex,
       colIndex: source?.colIndex,
       cellRef: source?.cellRef
@@ -196,12 +214,15 @@ const pickStylesForStyleCells = (
 
 export const buildOperationsFromMutationPlan = ({
   plan,
-  createOperationId
+  createOperationId,
+  columns
 }: {
   plan: SpreadsheetMutationPlan
   createOperationId: (prefix: string) => string
+  columns?: SpreadsheetColumn[]
 }): SpreadsheetBatchOperation[] => {
   const operations: SpreadsheetBatchOperation[] = []
+  const columnsByName = new Map((columns ?? []).map(column => [column.name, column] as const))
 
   if (plan.clearAllRanges && plan.clearAllRanges.length > 0) {
     operations.push({
@@ -249,7 +270,10 @@ export const buildOperationsFromMutationPlan = ({
         colIndex: cell.colIndex,
         cellRef: cell.cellRef
       }
-      entry.updates[cell.columnName] = normalizeCellValueForBatchPersistence(cell.value)
+      entry.updates[cell.columnName] = normalizeCellValueForBatchPersistence(
+        cell.value,
+        columnsByName.get(cell.columnName)
+      )
       setUpdatesByIdentity.set(identityKey, entry)
     } else if (cell.valueAction === 'clear') {
       clearCells.push({
@@ -275,7 +299,8 @@ export const buildOperationsFromMutationPlan = ({
     ...buildCellPersistenceOperations({
       setUpdatesByIdentity,
       clearCells,
-      createOperationId
+      createOperationId,
+      columnsByName
     })
   )
 

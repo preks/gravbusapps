@@ -12,6 +12,7 @@ describe('useSpreadsheetRemoteDeltaCatchUp', () => {
     activeTraceSessionRef: { current: null },
     rememberKnownSheetVersion: jest.fn(),
     resolveKnownSheetVersion: jest.fn(() => 0),
+    workbookSnapshotCoversVersionsRef: { current: {} },
     syncSheetRowsIntoLocalState: jest.fn(),
     getKnownRowsForSheet: jest.fn(() => []),
     hasPendingCellPersistence: jest.fn(() => false),
@@ -50,6 +51,33 @@ describe('useSpreadsheetRemoteDeltaCatchUp', () => {
     )
 
     await expect(result.current.requestSheetDeltaCatchUp('tmp', 'sheet_activation')).resolves.toBe(false)
+  })
+
+  it('uses checkpoint coverage as the default catch-up baseline for the requested sheet', async () => {
+    const fetchSheetChangesSince = jest.fn(async () => ({
+      currentVersion: 4,
+      changes: [{ operationType: 'set_style', appliedVersion: 4, payload: {} }],
+      requiresSnapshot: false
+    }))
+    const spreadsheetSession = {
+      applyDeltaChanges: jest.fn(),
+      getSheetState: jest.fn(() => ({ rows: [] }))
+    } as unknown as never
+    const { result } = renderHook(() =>
+      useSpreadsheetRemoteDeltaCatchUp({
+        ...baseParams(),
+        spreadsheetSession,
+        workbookSnapshotCoversVersionsRef: { current: { s1: 3 } },
+        mutationFacadeRef: {
+          current: {
+            fetchSheetChangesSince
+          } as unknown as SpreadsheetMutationFacade
+        }
+      })
+    )
+
+    await expect(result.current.requestSheetDeltaCatchUp('s1', 'sheet_activation')).resolves.toBe(true)
+    expect(fetchSheetChangesSince).toHaveBeenCalledWith('s1', 3)
   })
 
   it('replays only structural ops through the collab manager (cell-value ops painted by authoritative re-sync)', async () => {
@@ -190,7 +218,129 @@ describe('useSpreadsheetRemoteDeltaCatchUp', () => {
     )
   })
 
+  it('marks recovery sync to skip generic session diff when no bounded region can be computed', async () => {
+    const spreadsheetSession = {
+      applyDeltaChanges: jest.fn(),
+      getSheetState: jest.fn(() => ({ rows: [] }))
+    } as unknown as never
+    const syncSheetRowsIntoLocalState = jest.fn()
+    const fetchSheetChangesSince = jest.fn(async () => ({
+      currentVersion: 2,
+      changes: [{ operationType: 'set_style', appliedVersion: 2, payload: {} }],
+      requiresSnapshot: false
+    }))
+
+    const { result } = renderHook(() =>
+      useSpreadsheetRemoteDeltaCatchUp({
+        ...baseParams(),
+        spreadsheetSession,
+        syncSheetRowsIntoLocalState,
+        resolveKnownSheetVersion: jest.fn(() => 1),
+        appSheetsRef: {
+          current: [
+            {
+              id: 's1',
+              name: 'Sheet 1',
+              viewType: 'table',
+              columns: [],
+              views: [],
+              data: [],
+              settings: {}
+            } as never
+          ]
+        },
+        mutationFacadeRef: {
+          current: {
+            fetchSheetChangesSince
+          } as unknown as SpreadsheetMutationFacade
+        }
+      })
+    )
+
+    await expect(result.current.requestSheetDeltaCatchUp('s1', 'focus')).resolves.toBe(true)
+
+    expect(syncSheetRowsIntoLocalState).toHaveBeenCalledWith(
+      's1',
+      expect.any(Array),
+      expect.objectContaining({
+        persisted: true,
+        syncGrid: true,
+        sessionDiffProjectionMode: 'skip',
+        version: 2
+      })
+    )
+  })
+
+  it('passes multi-region repaint targets into syncSheetRowsIntoLocalState', async () => {
+    const syncSheetRowsIntoLocalState = jest.fn()
+    const rows = [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'A', column_c: 'C' }]
+    const fetchSheetChangesSince = jest.fn(async () => ({
+      currentVersion: 7,
+      changes: [
+        {
+          operationType: 'set_range',
+          appliedVersion: 7,
+          payload: {
+            cells: [
+              { rowId: 'row-1', columnName: 'column_a', value: 'left' },
+              { rowId: 'row-1', columnName: 'column_c', value: 'right' }
+            ]
+          }
+        }
+      ],
+      requiresSnapshot: false
+    }))
+    const spreadsheetSession = {
+      applyDeltaChanges: jest.fn(),
+      getSheetState: jest.fn(() => ({
+        rows
+      }))
+    } as unknown as never
+    const targetSheet = {
+      id: 's1',
+      name: 'Sheet 1',
+      columns: [
+        { id: 'col-a', name: 'column_a', isVisible: true },
+        { id: 'col-b', name: 'column_b', isVisible: true },
+        { id: 'col-c', name: 'column_c', isVisible: true }
+      ]
+    } as never
+
+    const { result } = renderHook(() =>
+      useSpreadsheetRemoteDeltaCatchUp({
+        ...baseParams(),
+        spreadsheetSession,
+        syncSheetRowsIntoLocalState,
+        getKnownRowsForSheet: jest.fn(() => rows),
+        resolveKnownSheetVersion: jest.fn(() => 6),
+        appSheetsRef: { current: [targetSheet] },
+        mutationFacadeRef: {
+          current: {
+            fetchSheetChangesSince
+          } as unknown as SpreadsheetMutationFacade
+        }
+      })
+    )
+
+    await expect(result.current.requestSheetDeltaCatchUp('s1', 'focus')).resolves.toBe(true)
+
+    expect(syncSheetRowsIntoLocalState).toHaveBeenCalledWith(
+      's1',
+      expect.any(Array),
+      expect.objectContaining({
+        persisted: true,
+        syncGrid: true,
+        version: 7,
+        authoritativeGridRegion: [
+          { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 },
+          { minRow: 0, maxRow: 0, minCol: 2, maxCol: 2 }
+        ]
+      })
+    )
+  })
+
   it('retries delta catch-up once after version refresh when gap does not require snapshot', async () => {
+    const reportStaleRecoveryLifecycle = jest.fn()
     const reloadSheetFromCanonicalSnapshot = jest.fn(async () => true)
     const enqueueDiagnosticsTraceEvent = jest.fn()
     const resolveKnownSheetVersion = jest.fn().mockReturnValueOnce(1).mockReturnValueOnce(4)
@@ -226,6 +376,9 @@ describe('useSpreadsheetRemoteDeltaCatchUp', () => {
             fetchSheetChangesSince
           } as unknown as SpreadsheetMutationFacade
         },
+        collaborationManagerRef: {
+          current: { reportStaleRecoveryLifecycle } as unknown as SpreadsheetCollaborationManager
+        },
         reloadSheetFromCanonicalSnapshot
       })
     )
@@ -253,6 +406,18 @@ describe('useSpreadsheetRemoteDeltaCatchUp', () => {
         })
       })
     )
+    expect(reportStaleRecoveryLifecycle).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        sheetId: 's1',
+        stage: 'catchup_started'
+      })
+    )
+    expect(reportStaleRecoveryLifecycle).toHaveBeenLastCalledWith({
+      sheetId: 's1',
+      stage: 'catchup_applied',
+      version: 6
+    })
   })
 
   it('skips snapshot fallback for unrecoverable gaps unless the server requires a snapshot', async () => {
@@ -299,6 +464,7 @@ describe('useSpreadsheetRemoteDeltaCatchUp', () => {
   })
 
   it('routes replay gaps through snapshot fallback telemetry', async () => {
+    const reportStaleRecoveryLifecycle = jest.fn()
     const reloadSheetFromCanonicalSnapshot = jest.fn(async () => true)
     const enqueueDiagnosticsTraceEvent = jest.fn()
     const fetchSheetChangesSince = jest.fn(async () => ({
@@ -315,6 +481,9 @@ describe('useSpreadsheetRemoteDeltaCatchUp', () => {
           current: {
             fetchSheetChangesSince
           } as unknown as SpreadsheetMutationFacade
+        },
+        collaborationManagerRef: {
+          current: { reportStaleRecoveryLifecycle } as unknown as SpreadsheetCollaborationManager
         },
         reloadSheetFromCanonicalSnapshot
       })
@@ -336,5 +505,17 @@ describe('useSpreadsheetRemoteDeltaCatchUp', () => {
         })
       })
     )
+    expect(reportStaleRecoveryLifecycle).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        sheetId: 's1',
+        stage: 'catchup_started'
+      })
+    )
+    expect(reportStaleRecoveryLifecycle).toHaveBeenNthCalledWith(2, {
+      sheetId: 's1',
+      stage: 'snapshot_fallback_scheduled',
+      version: 3
+    })
   })
 })

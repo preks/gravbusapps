@@ -175,6 +175,7 @@ describe('createSpreadsheetMutationFacade', () => {
       activeSheetId: 'sheet-1',
       baseSnapshot: {},
       workbookSnapshotVersionRef,
+      workbookSnapshotCoversVersionsRef: { current: { 'sheet-1': 1 } },
       snapshotSaveMetricsRef,
       recoverFromVersionConflict: jest.fn().mockResolvedValue(false),
       spreadsheetGridRef: { current: null },

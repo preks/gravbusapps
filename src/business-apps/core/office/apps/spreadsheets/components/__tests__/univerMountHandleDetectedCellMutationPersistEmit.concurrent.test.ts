@@ -17,6 +17,7 @@
  */
 
 import { runDetectedCellMutationPersistEmitDispatch } from '../univerMountHandleDetectedCellMutationPersistEmit'
+import { createSpreadsheetRowMaterializationReadiness } from '../../hooks/spreadsheetRowMaterializationReadiness'
 import type {
   PersistEmitInput,
   UniverMountHandleDetectedCellMutationDeps
@@ -209,6 +210,8 @@ const buildDeps = ({
 
   const propsRef = {
     current: {
+      columns: [{ id: 'col-a', name: 'column_a', isVisible: true, order: 0 }],
+      data: sessionRows,
       onMutationBatchOp: (data: {
         sheetId: string
         operations: Array<{ type: string; data: Record<string, unknown> }>
@@ -234,11 +237,12 @@ const buildDeps = ({
     // Pre-seed a still-temporary row INTO the snapshot so the dispatcher takes the inline
     // add_rows materialization path (the row is already known locally, so add_rows + set_range
     // are bundled atomically rather than awaiting a flush).
-    __seedTemporaryRow: (rowIndex: number) => {
+    __seedTemporaryRow: (rowIndex: number, values?: Record<string, unknown>) => {
       sessionRows.push({
         _id: `client_row_${rowIndex}`,
         _clientRowId: `client_row_${rowIndex}`,
-        _gridRowIndex: rowIndex
+        _gridRowIndex: rowIndex,
+        ...(values ?? {})
       })
     }
   } as unknown as UniverMountHandleDetectedCellMutationDeps
@@ -388,6 +392,33 @@ describe('runDetectedCellMutationPersistEmitDispatch (materialization barrier)',
     }
   })
 
+  it('drops a redundant new-row typing value op when add_rows already seeds the same cell value', async () => {
+    const recordedBatches: Array<{
+      sheetId: string
+      operations: Array<{ type: string; data: Record<string, unknown> }>
+    }> = []
+    const criticalSectionTrace: string[] = []
+    const ops = createFakeOpsQueue()
+    const deps = buildDeps({ flushLatencyMs: 5, recordedBatches, criticalSectionTrace, ops })
+    ;(
+      deps as unknown as { __seedTemporaryRow: (i: number, values?: Record<string, unknown>) => void }
+    ).__seedTemporaryRow(0, { column_a: 'value_0_edit' })
+
+    const handled = await runDetectedCellMutationPersistEmitDispatch(deps, makeEmit(0))
+    expect(handled).toBe(true)
+    expect(recordedBatches).toHaveLength(1)
+    expect(criticalSectionTrace).toHaveLength(0)
+    expect(recordedBatches[0]?.operations.map(operation => operation.type)).toEqual(['add_rows'])
+    const addRows = recordedBatches[0]?.operations[0]
+    const rows = (addRows?.data as { rows?: Array<Record<string, unknown>> } | undefined)?.rows ?? []
+    expect(rows).toEqual([
+      expect.objectContaining({
+        _clientRowId: 'client_row_0',
+        column_a: 'value_0_edit'
+      })
+    ])
+  })
+
   it('refuses to silently bypass the operation queue when flush dep is missing and leaves the journal pending', async () => {
     // 1a: row materialization is required but no flush dependency is wired and the rows are not in
     // the session (so no inline add_rows bundle is possible). The dispatcher must not run the
@@ -485,6 +516,51 @@ describe('runDetectedCellMutationPersistEmitDispatch (materialization barrier)',
           unresolvedCount: expect.any(Number)
         })
       )
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
+  it('drops a remapped set_range write after async row materialization when readiness proves add_rows carried the same value', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const recordedBatches: Array<{
+      sheetId: string
+      operations: Array<{ type: string; data: Record<string, unknown> }>
+    }> = []
+    const criticalSectionTrace: string[] = []
+    const ops = createFakeOpsQueue()
+    const rowIndex = 0
+    const emit = makeEmit(rowIndex)
+    const deps = buildDeps({
+      flushLatencyMs: 5,
+      recordedBatches,
+      criticalSectionTrace,
+      ops,
+      materializeOnFlush: [
+        {
+          clientRowId: `client_row_${rowIndex}`,
+          gridRowIndex: rowIndex,
+          values: { column_a: emit.plannedCellsFiltered[0]?.value }
+        }
+      ]
+    })
+    const rowMaterializationReadiness = createSpreadsheetRowMaterializationReadiness()
+    ;(
+      deps as unknown as { propsRef: { current: Record<string, unknown> } }
+    ).propsRef.current.rowMaterializationReadinessRef = {
+      current: rowMaterializationReadiness
+    }
+    rowMaterializationReadiness.recordMaterializedValues('sheet-1', 'client_row_0', {
+      column_a: emit.plannedCellsFiltered[0]?.value
+    })
+    rowMaterializationReadiness.resolve('sheet-1', 'client_row_0', makeBackendUuid(1))
+
+    try {
+      const handled = await runDetectedCellMutationPersistEmitDispatch(deps, emit)
+
+      expect(handled).toBe(false)
+      expect(recordedBatches).toHaveLength(0)
+      expect(warnSpy).not.toHaveBeenCalledWith('[SPREADSHEET_PERSIST] persist_emit_never_submitted', expect.anything())
     } finally {
       warnSpy.mockRestore()
     }

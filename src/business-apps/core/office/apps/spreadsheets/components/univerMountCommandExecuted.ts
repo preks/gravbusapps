@@ -5,15 +5,16 @@ import {
   normalizeCellMatrix,
   type SheetRangeShape
 } from './cellMatrixUtils'
+import {
+  markSpreadsheetAutofillIntent,
+  resolveAutofillApplyTypeFromCommandParams,
+  resolveAutofillCommandRangesFromParams,
+  UNIVER_AUTOFILL_COMMAND_ID,
+  UNIVER_REFILL_COMMAND_ID
+} from './univerAutofillIntent'
 import { resolveClearAllRanges } from './univerGridRangeSelection'
 import { UNIVER_COMMAND_TYPE_MUTATION } from './univerGridUniverConstants'
 import { handleCommandExecutedColumnInsertsAndFeatureOps } from './univerMountCommandExecutedColumnsAndFeatures'
-import {
-  UNIVER_AUTOFILL_COMMAND_ID,
-  UNIVER_REFILL_COMMAND_ID,
-  markSpreadsheetAutofillIntent,
-  resolveAutofillApplyTypeFromCommandParams
-} from './univerAutofillIntent'
 import { tryEmitGridClearRangeOpFromCommand } from './univerMountCommandTryEmitClearRangeOp'
 import {
   isClearLikeMutationCommand,
@@ -227,10 +228,12 @@ export function registerUniverMountCommandExecuted(
         (typeof params?.sheetId === 'string' && params.sheetId) ||
         getActiveWorksheetIdFromUniver() ||
         propsRef.current.sheet.id
+      const { sourceRanges, targetRanges } = resolveAutofillCommandRangesFromParams(params)
       markSpreadsheetAutofillIntent(
         pendingAutofillIntentRef,
         autofillSheetId,
-        resolveAutofillApplyTypeFromCommandParams(params)
+        resolveAutofillApplyTypeFromCommandParams(params),
+        { sourceRanges, targetRanges }
       )
     }
     if (commandId.includes('copy') && !commandId.includes('paste')) {

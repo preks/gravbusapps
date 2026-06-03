@@ -84,6 +84,48 @@ function makeDeps(overrides: Partial<any> = {}) {
 }
 
 describe('resolveDetectedCellMutation', () => {
+  it('consumes autofill intent on sheet-value-changed using the mutation ranges', () => {
+    const peekAutofillApplyType = jest.fn().mockReturnValue('COPY')
+    const deps = makeDeps({
+      propsData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', column_a: 'seed' }],
+      worksheetCellData: { v: 'filled', s: 'style-1' },
+      worksheetValue: 'filled',
+      deps: { peekAutofillApplyType }
+    })
+    const ranges = [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
+
+    resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: 'sheet.mutation.set-range-values',
+      ranges,
+      payloadCellValue: undefined,
+      worksheetId: 'sheet-1'
+    })
+
+    expect(peekAutofillApplyType).toHaveBeenCalledWith('sheet-1', ranges, true)
+  })
+
+  it('does not consume autofill intent on command-executed preflight reads', () => {
+    const peekAutofillApplyType = jest.fn().mockReturnValue('COPY')
+    const deps = makeDeps({
+      propsData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', column_a: 'seed' }],
+      worksheetCellData: { v: 'filled', s: 'style-1' },
+      worksheetValue: 'filled',
+      deps: { peekAutofillApplyType }
+    })
+    const ranges = [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
+
+    resolveDetectedCellMutation(deps, {
+      source: 'command-executed',
+      commandId: 'sheet.mutation.set-range-values',
+      ranges,
+      payloadCellValue: undefined,
+      worksheetId: 'sheet-1'
+    })
+
+    expect(peekAutofillApplyType).toHaveBeenCalledWith('sheet-1', ranges, false)
+  })
+
   it('reads live worksheet cell data for style-only SheetValueChanged commands so formatting can be persisted', () => {
     const deps = makeDeps({
       propsData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', column_a: 'Alice' }],
@@ -157,6 +199,46 @@ describe('resolveDetectedCellMutation', () => {
           v: 'Alice',
           bl: 1
         }
+      }
+    })
+  })
+
+  it('prefers sheet-value-changed payload values over stale workbook snapshot reads', () => {
+    const deps = makeDeps({
+      propsData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', column_a: 'Alice' }],
+      worksheetCellData: { v: 'Alice' },
+      worksheetValue: 'Alice',
+      deps: {
+        getWorkbookSnapshotRef: {
+          current: () => ({
+            styles: {},
+            sheets: {
+              'sheet-1': {
+                cellData: {
+                  0: {
+                    0: { v: 'Alice' }
+                  }
+                }
+              }
+            }
+          })
+        }
+      }
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: 'sheet.mutation.set-range-values',
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      payloadCellValue: { 0: { 0: { v: 'Allowed' } } },
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result.status).toBe('ready')
+    if (result.status !== 'ready') return
+    expect(result.ready.cellValue).toEqual({
+      0: {
+        0: { v: 'Allowed' }
       }
     })
   })
@@ -452,7 +534,7 @@ describe('resolveDetectedCellMutation', () => {
     )
   })
 
-  it('keeps pasted values and materializes rows when pasting into an empty grid slot with formatting', () => {
+  it('does not add a style patch when plain typing materializes a new row', () => {
     const resolvedRows = [
       { _id: 'backend-row-0', _rowUuid: 'backend-row-0', _gridRowIndex: 0, column_a: 'row 0' },
       { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 1, column_a: 'row 1' },
@@ -474,6 +556,53 @@ describe('resolveDetectedCellMutation', () => {
       source: 'sheet-value-changed',
       commandId: 'sheet.mutation.set-range-values',
       ranges: [{ startRow: 9, endRow: 9, startColumn: 0, endColumn: 0 }],
+      payloadCellValue: undefined,
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result.status).toBe('ready')
+    if (result.status !== 'ready') return
+    const planned = runDetectedCellMutationPersistPlanPhase(deps, result.ready)
+    expect(planned.kind).toBe('emit')
+    if (planned.kind !== 'emit') return
+    expect(planned.emit.plannedCellsFiltered).toEqual([
+      expect.objectContaining({
+        rowId: deps.newRowClientIdByIndexRef.current.get(9),
+        columnName: 'column_a',
+        rowIndex: 9,
+        colIndex: 0,
+        valueAction: 'set',
+        value: 'edited'
+      })
+    ])
+    expect(planned.emit.plannedCellsFiltered[0]?.stylePatch).toBeUndefined()
+  })
+
+  it('keeps pasted values and materializes rows when pasting into an empty grid slot with formatting', () => {
+    const resolvedRows = [
+      { _id: 'backend-row-0', _rowUuid: 'backend-row-0', _gridRowIndex: 0, column_a: 'row 0' },
+      { _id: 'backend-row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 1, column_a: 'row 1' },
+      { _id: 'backend-row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 2, column_a: 'row 2' },
+      { _id: 'backend-row-3', _rowUuid: 'backend-row-3', _gridRowIndex: 3, column_a: 'row 3' },
+      { _id: 'backend-row-4', _rowUuid: 'backend-row-4', _gridRowIndex: 4, column_a: 'row 4' },
+      { _id: 'backend-row-5', _rowUuid: 'backend-row-5', _gridRowIndex: 5, column_a: 'row 5' },
+      { _id: 'backend-row-6', _rowUuid: 'backend-row-6', _gridRowIndex: 6, column_a: 'row 6' },
+      { _id: 'backend-row-7', _rowUuid: 'backend-row-7', _gridRowIndex: 7, column_a: 'row 7' },
+      { _id: 'backend-row-8', _rowUuid: 'backend-row-8', _gridRowIndex: 8, column_a: 'row 8' },
+      { _id: 'backend-row-10', _rowUuid: 'backend-row-10', _gridRowIndex: 10, column_a: 'row 10' }
+    ]
+    const deps = makeDeps({
+      propsData: resolvedRows,
+      getSheetContext: () => ({ columns, data: resolvedRows }),
+      deps: {
+        peekPasteFormattingReplaceIntent: () => true
+      }
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: 'sheet.mutation.set-range-values',
+      ranges: [{ startRow: 9, endRow: 9, startColumn: 0, endColumn: 0 }],
       payloadCellValue: {
         9: {
           0: { v: 1, s: 'style-1', bl: 1 }
@@ -486,7 +615,7 @@ describe('resolveDetectedCellMutation', () => {
     if (result.status !== 'ready') return
     const clientRowId = deps.newRowClientIdByIndexRef.current.get(9)
     const pendingRow = result.ready.pendingNewRowsUpdate?.nextData.find(row => row._id === clientRowId)
-    expect(pendingRow?.column_a).toEqual('edited')
+    expect(pendingRow?.column_a).toEqual({ v: 1 })
     expect(pendingRow?.column_a).not.toEqual(expect.objectContaining({ ff: expect.anything() }))
     const planned = runDetectedCellMutationPersistPlanPhase(deps, result.ready)
     expect(planned.kind).toBe('emit')
@@ -496,7 +625,7 @@ describe('resolveDetectedCellMutation', () => {
         rowId: clientRowId,
         columnName: 'column_a',
         valueAction: 'set',
-        value: 'edited',
+        value: 1,
         stylePatch: expect.anything()
       })
     ])

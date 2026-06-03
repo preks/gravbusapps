@@ -1,6 +1,7 @@
 import {
   buildAuthoritativeMutationEnvelope,
   buildStylePatchFromUniverCell,
+  normalizeValueForPersistence,
   resolveSpreadsheetLocalMutationIntent,
   stripIncidentalValueWritesFromStyleMutation
 } from '../univerMutationPlanner'
@@ -26,6 +27,54 @@ describe('univerMutationPlanner', () => {
     columnIndexToName: new Map([[0, 'name']]),
     columnIndexToId: new Map([[0, 'col-name']])
   } as any
+
+  it('preserves typed univer envelopes for planned persisted values', () => {
+    const numericColumns = [
+      {
+        id: 'col-amount',
+        name: 'amount',
+        label: 'Amount',
+        type: 'number',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        order: 0
+      }
+    ] as any
+    const numericCtx = {
+      rowIndexToId: new Map([[0, 'row-1']]),
+      columnIndexToName: new Map([[0, 'amount']]),
+      columnIndexToId: new Map([[0, 'col-amount']])
+    } as any
+    const typedCell = { v: '42', t: 2 }
+
+    expect(normalizeValueForPersistence(typedCell)).toEqual(typedCell)
+
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-typed-number',
+      intent: 'edit',
+      currentData: [{ _id: 'row-1', amount: null }],
+      contextColumns: numericColumns,
+      ctx: numericCtx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: { 0: { 0: typedCell } },
+      worksheetCellValue: { 0: { 0: typedCell } },
+      mergedCellValue: { 0: { 0: typedCell } },
+      workbookSnapshot: null,
+      isRowPersistedAtGridIndex: () => true
+    })
+
+    expect(envelope.plan?.cells).toEqual([
+      expect.objectContaining({
+        rowId: 'row-1',
+        columnName: 'amount',
+        valueAction: 'set',
+        value: typedCell
+      })
+    ])
+  })
 
   it('REPRO autofill: plans value writes for every cell of a 12-cell fill over fresh blank rows', () => {
     const fillColumns = [
@@ -104,6 +153,210 @@ describe('univerMutationPlanner', () => {
       liveMergeRanges: undefined
     })
     expect(envelopeWithSelectionAsMerge.diagnostics.plannedValueSetCount).toBe(12)
+  })
+
+  it('keeps autofill COPY style emission consistent for single-cell and multi-cell fills', () => {
+    const twoRowCtx = {
+      rowIndexToId: new Map([
+        [0, 'row-1'],
+        [1, 'row-2']
+      ]),
+      columnIndexToName: new Map([[0, 'name']]),
+      columnIndexToId: new Map([[0, 'col-name']])
+    } as any
+    const currentData = [
+      { _id: 'row-1', name: 'seed-1' },
+      { _id: 'row-2', name: 'seed-2' }
+    ]
+    const workbookSnapshot = {
+      styles: {
+        'style-1': { bg: { rgb: '#00ff00' } }
+      }
+    }
+    const singleCell = {
+      0: {
+        0: { v: 'filled-1', s: 'style-1' }
+      }
+    }
+    const multiCell = {
+      0: {
+        0: { v: 'filled-1', s: 'style-1' }
+      },
+      1: {
+        0: { v: 'filled-2', s: 'style-1' }
+      }
+    }
+
+    const singleEnvelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-autofill-single',
+      intent: 'autofill',
+      currentData,
+      contextColumns: columns,
+      ctx: twoRowCtx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: singleCell as any,
+      worksheetCellValue: singleCell as any,
+      mergedCellValue: singleCell as any,
+      workbookSnapshot,
+      autofillApplyType: 'COPY'
+    })
+    const multiEnvelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-autofill-multi',
+      intent: 'autofill',
+      currentData,
+      contextColumns: columns,
+      ctx: twoRowCtx,
+      ranges: [{ startRow: 0, endRow: 1, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: multiCell as any,
+      worksheetCellValue: multiCell as any,
+      mergedCellValue: multiCell as any,
+      workbookSnapshot,
+      autofillApplyType: 'COPY'
+    })
+
+    expect(singleEnvelope.plan?.cells).toEqual([
+      expect.objectContaining({
+        rowId: 'row-1',
+        columnName: 'name',
+        valueAction: 'set',
+        stylePatch: expect.objectContaining({
+          set: expect.objectContaining({ s: 'style-1' })
+        })
+      })
+    ])
+    expect(multiEnvelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowId: 'row-1',
+          valueAction: 'set',
+          stylePatch: expect.objectContaining({ set: expect.objectContaining({ s: 'style-1' }) })
+        }),
+        expect.objectContaining({
+          rowId: 'row-2',
+          valueAction: 'set',
+          stylePatch: expect.objectContaining({ set: expect.objectContaining({ s: 'style-1' }) })
+        })
+      ])
+    )
+  })
+
+  it('does not emit style for NO_FORMAT autofill even when Univer carries style with the value', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-autofill-no-format',
+      intent: 'autofill',
+      currentData: [{ _id: 'row-1', name: 'seed-1' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: {
+        0: { 0: { v: 'filled-1', s: 'style-1' } }
+      },
+      worksheetCellValue: {
+        0: { 0: { v: 'filled-1', s: 'style-1' } }
+      },
+      mergedCellValue: {
+        0: { 0: { v: 'filled-1', s: 'style-1' } }
+      },
+      workbookSnapshot: {
+        styles: {
+          'style-1': { bg: { rgb: '#00ff00' } }
+        }
+      },
+      autofillApplyType: 'NO_FORMAT'
+    })
+
+    expect(envelope.plan?.cells).toEqual([
+      expect.objectContaining({
+        rowId: 'row-1',
+        valueAction: 'set',
+        value: 'filled-1'
+      })
+    ])
+    expect(envelope.plan?.cells?.[0]).not.toHaveProperty('stylePatch')
+  })
+
+  it('keeps style and strips incidental values for ONLY_FORMAT autofill', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-autofill-only-format',
+      intent: 'formatOnly',
+      currentData: [{ _id: 'row-1', name: 'Alice' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: {
+        0: { 0: { v: 'Alice', s: 'style-1' } }
+      },
+      worksheetCellValue: {
+        0: { 0: { v: 'Alice', s: 'style-1' } }
+      },
+      mergedCellValue: {
+        0: { 0: { v: 'Alice', s: 'style-1' } }
+      },
+      workbookSnapshot: {
+        styles: {
+          'style-1': { bg: { rgb: '#00ff00' } }
+        }
+      },
+      autofillApplyType: 'ONLY_FORMAT'
+    })
+
+    const plannedCells = stripIncidentalValueWritesFromStyleMutation({
+      cells: envelope.plan?.cells ?? [],
+      intent: 'formatOnly',
+      replaceRangeStyleIntent: false,
+      source: 'sheet-value-changed',
+      mutatedCellCount: 1,
+      autofillApplyType: 'ONLY_FORMAT'
+    })
+
+    expect(plannedCells).toEqual([
+      expect.objectContaining({
+        rowId: 'row-1',
+        valueAction: 'none',
+        stylePatch: expect.objectContaining({
+          set: expect.objectContaining({ s: 'style-1' })
+        })
+      })
+    ])
+  })
+
+  it('does not emit style noise for plain single-cell typing with carried style ids', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-plain-edit',
+      intent: 'edit',
+      currentData: [{ _id: 'row-1', name: '' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: {
+        0: { 0: { v: 'typed', s: 'style-1' } }
+      },
+      worksheetCellValue: {
+        0: { 0: { v: 'typed', s: 'style-1' } }
+      },
+      mergedCellValue: {
+        0: { 0: { v: 'typed', s: 'style-1' } }
+      },
+      workbookSnapshot: {
+        styles: {
+          'style-1': { bg: { rgb: '#00ff00' } }
+        }
+      }
+    })
+
+    expect(envelope.plan?.cells).toEqual([
+      expect.objectContaining({
+        rowId: 'row-1',
+        valueAction: 'set',
+        value: 'typed'
+      })
+    ])
+    expect(envelope.plan?.cells?.[0]).not.toHaveProperty('stylePatch')
   })
 
   it('keeps carried style ids out of plain value clears', () => {
@@ -315,6 +568,134 @@ describe('univerMutationPlanner', () => {
     expect(envelope.plan?.cells?.some(cell => cell.stylePatch != null)).toBe(false)
   })
 
+  it('does not create style patches for multi-cell autofill payloads that carry echoed style ids', () => {
+    const fillColumns = [
+      { id: 'col-name', name: 'name', label: 'Name', type: 'text', isVisible: true, order: 0 }
+    ] as any
+    const fillCtx = {
+      rowIndexToId: new Map([
+        [0, 'row-1'],
+        [1, 'row-2'],
+        [2, 'row-3']
+      ]),
+      columnIndexToName: new Map([[0, 'name']]),
+      columnIndexToId: new Map([[0, 'col-name']])
+    } as any
+
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-multicell-fill-style-noise',
+      intent: 'autofill',
+      currentData: [
+        { _id: 'row-1', name: '1' },
+        { _id: 'row-2', name: '2' },
+        { _id: 'row-3', name: '3' }
+      ],
+      contextColumns: fillColumns,
+      ctx: fillCtx,
+      ranges: [{ startRow: 0, endRow: 2, startColumn: 0, endColumn: 0 }],
+      mergedCellValue: {
+        0: { 0: { v: '10', s: 'style-1' } },
+        1: { 0: { v: '11', s: 'style-1' } },
+        2: { 0: { v: '12', s: 'style-1' } }
+      },
+      workbookSnapshot: {
+        styles: {
+          'style-1': { bg: { rgb: '#ff0000' } }
+        }
+      },
+      allowValueCarryingStylePayloads: false,
+      mutationCommandId: 'sheet.mutation.set-range-values'
+    })
+
+    expect(envelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ rowId: 'row-1', valueAction: 'set', value: '10' }),
+        expect.objectContaining({ rowId: 'row-2', valueAction: 'set', value: '11' }),
+        expect.objectContaining({ rowId: 'row-3', valueAction: 'set', value: '12' })
+      ])
+    )
+    expect(envelope.plan?.cells?.every(cell => cell.stylePatch == null)).toBe(true)
+  })
+
+  it('emits style patches for pure multi-cell style-only mutations', () => {
+    const fillColumns = [
+      { id: 'col-name', name: 'name', label: 'Name', type: 'text', isVisible: true, order: 0 }
+    ] as any
+    const fillCtx = {
+      rowIndexToId: new Map([
+        [0, 'row-1'],
+        [1, 'row-2'],
+        [2, 'row-3']
+      ]),
+      columnIndexToName: new Map([[0, 'name']]),
+      columnIndexToId: new Map([[0, 'col-name']])
+    } as any
+
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-multicell-style-only',
+      intent: 'formatOnly',
+      currentData: [
+        { _id: 'row-1', name: '1' },
+        { _id: 'row-2', name: '2' },
+        { _id: 'row-3', name: '3' }
+      ],
+      contextColumns: fillColumns,
+      ctx: fillCtx,
+      ranges: [{ startRow: 0, endRow: 2, startColumn: 0, endColumn: 0 }],
+      mergedCellValue: {
+        0: { 0: { bl: 1 } },
+        1: { 0: { bl: 1 } },
+        2: { 0: { bl: 1 } }
+      },
+      workbookSnapshot: null,
+      mutationCommandId: 'sheet.command.set-range-bold'
+    })
+
+    expect(envelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ rowId: 'row-1', valueAction: 'none', stylePatch: { set: { bl: 1 } } }),
+        expect.objectContaining({ rowId: 'row-2', valueAction: 'none', stylePatch: { set: { bl: 1 } } }),
+        expect.objectContaining({ rowId: 'row-3', valueAction: 'none', stylePatch: { set: { bl: 1 } } })
+      ])
+    )
+  })
+
+  it('does not emit style patches for single-cell value edits that carry an echoed style id', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-single-edit-style-noise',
+      intent: 'edit',
+      currentData: [{ _id: 'row-1', name: 'Alice' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      mergedCellValue: {
+        0: { 0: { v: 'Alice updated', s: 'style-1' } }
+      },
+      workbookSnapshot: {
+        styles: {
+          'style-1': { bg: { rgb: '#ff0000' } }
+        }
+      },
+      allowValueCarryingStylePayloads: false,
+      mutationCommandId: 'sheet.mutation.set-range-values'
+    })
+
+    expect(envelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowId: 'row-1',
+          columnName: 'name',
+          valueAction: 'set',
+          value: 'Alice updated'
+        })
+      ])
+    )
+    expect(envelope.plan?.cells?.[0]).not.toHaveProperty('stylePatch')
+  })
+
   it('drops style-only unset noise from plain text entry set-range mutations', () => {
     const envelope = buildAuthoritativeMutationEnvelope({
       sheetId: 'sheet-1',
@@ -403,6 +784,40 @@ describe('univerMutationPlanner', () => {
       })
     ])
     expect(envelope.plan?.cells?.some(cell => cell.stylePatch != null)).toBe(false)
+  })
+
+  it('keeps a single real value write when a noisy multi-cell mutation also carries style data', () => {
+    const cells = stripIncidentalValueWritesFromStyleMutation({
+      intent: 'edit',
+      replaceRangeStyleIntent: false,
+      source: 'sheet-value-changed',
+      mutatedCellCount: 16,
+      cells: [
+        {
+          rowId: 'row-1',
+          columnName: 'name',
+          rowIndex: 0,
+          colIndex: 0,
+          valueAction: 'set',
+          value: 'typed',
+          stylePatch: {
+            set: { s: 'style-1' }
+          }
+        }
+      ]
+    })
+
+    expect(cells).toEqual([
+      expect.objectContaining({
+        rowId: 'row-1',
+        columnName: 'name',
+        valueAction: 'set',
+        value: 'typed',
+        stylePatch: expect.objectContaining({
+          set: expect.objectContaining({ s: 'style-1' })
+        })
+      })
+    ])
   })
 
   it('prefers a stable column resolver over stale columnIndexToName mappings', () => {
@@ -889,6 +1304,21 @@ describe('univerMutationPlanner', () => {
         })
       ).toBe('edit')
     })
+
+    it('uses pasteReplace only when a new-row value write is explicitly classified as paste', () => {
+      expect(
+        resolveSpreadsheetLocalMutationIntent({
+          hasPersistableMutation: true,
+          allowValueCarryingStylePayloads: false,
+          commandId: 'sheet.mutation.set-range-values',
+          mergedCellValue: {
+            0: { 0: { v: 'hello', s: 'style-1' } }
+          },
+          replaceRangeStyleIntent: false,
+          pasteIntoNewRows: true
+        })
+      ).toBe('pasteReplace')
+    })
   })
 
   // 1d: liveMergeRanges from the worksheet facade must take precedence over a stale
@@ -1101,6 +1531,63 @@ describe('univerMutationPlanner', () => {
     expect(cells.find(cell => cell.columnName === 'name')).toEqual(
       expect.objectContaining({ valueAction: 'set', value: 'Alice updated' })
     )
+  })
+
+  it('does not clear existing values when autofill carries sparse v:null over a multi-row selection', () => {
+    const fillColumns = [{ id: 'col-j', name: 'column_j', label: 'J', type: 'text', isVisible: true, order: 9 }] as any
+    const fillCtx = {
+      rowIndexToId: new Map(Array.from({ length: 14 }, (_, index) => [index + 6, `row-${index + 6}`])),
+      columnIndexToName: new Map([[9, 'column_j']]),
+      columnIndexToId: new Map([[9, 'col-j']])
+    } as any
+    const currentData = Array.from({ length: 14 }, (_, index) => ({
+      _id: `row-${index + 6}`,
+      column_j: index + 6
+    }))
+    const sparseNullMatrix: Record<number, Record<number, { v: null }>> = {}
+    for (let row = 6; row <= 18; row += 1) {
+      sparseNullMatrix[row] = { 9: { v: null } }
+    }
+
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-autofill-sparse-null',
+      intent: 'autofill',
+      currentData,
+      contextColumns: fillColumns,
+      ctx: fillCtx,
+      ranges: [{ startRow: 6, endRow: 19, startColumn: 9, endColumn: 9 }],
+      explicitPayloadAbsoluteCellValue: {
+        ...sparseNullMatrix,
+        19: { 9: { v: 18, t: 2 } }
+      },
+      worksheetCellValue: {
+        ...sparseNullMatrix,
+        19: { 9: { v: 18, t: 2 } }
+      },
+      mergedCellValue: {
+        ...sparseNullMatrix,
+        19: { 9: { v: 18, t: 2 } }
+      },
+      workbookSnapshot: null,
+      mutationCommandId: 'sheet.mutation.set-range-values',
+      autofillApplyType: 'SERIES',
+      isRowPersistedAtGridIndex: () => true
+    })
+
+    const clears = envelope.plan?.cells.filter(cell => cell.valueAction === 'clear') ?? []
+    expect(clears).toEqual([])
+    expect(envelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowIndex: 19,
+          colIndex: 9,
+          valueAction: 'set',
+          value: { v: 18, t: 2 }
+        })
+      ])
+    )
+    expect(envelope.plan?.cells?.filter(cell => cell.rowIndex >= 6 && cell.rowIndex <= 18)).toEqual([])
   })
 
   it('strips incidental value writes from multi-cell style mutations', () => {
@@ -1373,6 +1860,42 @@ describe('univerMutationPlanner', () => {
     )
   })
 
+  it('emits value writes for recently locally mutated persisted rows even when the backend signature already matches', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-recent-local-persisted-cell',
+      intent: 'edit',
+      currentData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', name: '9' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: {
+        0: { 0: { v: '9' } }
+      },
+      worksheetCellValue: {
+        0: { 0: { v: '9' } }
+      },
+      mergedCellValue: {
+        0: { 0: { v: '9' } }
+      },
+      workbookSnapshot: null,
+      isRowPersistedAtGridIndex: () => true,
+      getPersistedSignatureForCell: () => 's:9',
+      wasRecentlyLocallyMutated: () => true
+    })
+
+    expect(envelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowIndex: 0,
+          colIndex: 0,
+          valueAction: 'set',
+          value: '9'
+        })
+      ])
+    )
+  })
+
   it('skips value writes for persisted rows when the backend-acknowledged cell already matches', () => {
     const envelope = buildAuthoritativeMutationEnvelope({
       sheetId: 'sheet-1',
@@ -1397,6 +1920,41 @@ describe('univerMutationPlanner', () => {
     })
 
     expect(envelope.plan?.cells ?? []).toEqual([])
+  })
+
+  it('still emits clear for recently locally mutated persisted rows', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-recent-local-persisted-clear',
+      intent: 'edit',
+      currentData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', name: '9' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: {
+        0: { 0: { v: null } }
+      },
+      worksheetCellValue: {
+        0: { 0: { v: null } }
+      },
+      mergedCellValue: {
+        0: { 0: { v: null } }
+      },
+      workbookSnapshot: null,
+      isRowPersistedAtGridIndex: () => true,
+      getPersistedSignatureForCell: () => 's:9',
+      wasRecentlyLocallyMutated: () => true
+    })
+
+    expect(envelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowIndex: 0,
+          colIndex: 0,
+          valueAction: 'clear'
+        })
+      ])
+    )
   })
 
   it('keeps value writes when the mutation creates new logical rows', () => {

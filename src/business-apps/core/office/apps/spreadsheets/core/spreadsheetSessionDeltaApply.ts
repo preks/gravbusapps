@@ -1,5 +1,5 @@
 import type { SpreadsheetColumn } from '../types'
-import { isSpreadsheetStoredCellClearValue } from './spreadsheetBatchBuilders'
+import { isSpreadsheetStoredCellClearValue, normalizeCellValueForBatchPersistence } from './spreadsheetBatchBuilders'
 import { applyMoveCellRangeWirePayloadToViewerRows } from '../utils/spreadsheetMoveCellRangeGrid'
 import { mergeInsertedRowsAtIndex } from '../utils/spreadsheetInsertRowsAt'
 import {
@@ -17,7 +17,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const resolveColumnAliasInfo = (
   columnKey: string,
   columns?: SpreadsheetColumn[]
-): { targetColumnName: string; normalizedAliases: Set<string> } => {
+): { targetColumnName: string; normalizedAliases: Set<string>; targetColumn?: SpreadsheetColumn } => {
   const targetColumn = columns?.find(
     column => column.id === columnKey || column.name === columnKey || column.label === columnKey
   )
@@ -27,7 +27,8 @@ const resolveColumnAliasInfo = (
     .map(value => value.toLowerCase())
   return {
     targetColumnName: targetColumn?.name ?? String(columnKey),
-    normalizedAliases: new Set(aliases)
+    normalizedAliases: new Set(aliases),
+    targetColumn
   }
 }
 
@@ -160,17 +161,18 @@ const applySetCellDelta = (
   if (isSpreadsheetStoredCellClearValue(value)) {
     return applyClearCellDelta(rows, payload, columns)
   }
+  const { targetColumnName, targetColumn } = resolveColumnAliasInfo(columnName, columns)
+  const normalizedValue = normalizeCellValueForBatchPersistence(value, targetColumn)
   let matched = false
   const nextRows = rows.map(row => {
     if (!rowMatchesRemoteId(row, rowId)) return row
     matched = true
-    const { nextRow, targetColumnName } = stripEquivalentColumnKeysFromRow(row, columnName, columns)
-    nextRow[targetColumnName] = value
+    const { nextRow } = stripEquivalentColumnKeysFromRow(row, columnName, columns)
+    nextRow[targetColumnName] = normalizedValue
     return nextRow
   })
   if (!rowId || !columnName || matched) return nextRows
-  const { targetColumnName } = resolveColumnAliasInfo(columnName, columns)
-  return [...nextRows, { _id: rowId, _rowUuid: rowId, [targetColumnName]: value }]
+  return [...nextRows, { _id: rowId, _rowUuid: rowId, [targetColumnName]: normalizedValue }]
 }
 
 const applySetRangeDelta = (

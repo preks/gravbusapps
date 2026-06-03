@@ -1,4 +1,4 @@
-import { useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react'
+import { useEffect, useRef, type MutableRefObject } from 'react'
 
 import { countLiveWorksheetSnapshotValues, getKnownCellValueCount } from '../core'
 import type { UniverSheetGridHandle } from '../components/UniverSheetGrid.types'
@@ -22,8 +22,12 @@ export interface UseSpreadsheetActiveSheetPeerRestoreParams {
   peerSheetDataCacheRef: MutableRefObject<Map<string, Record<string, unknown>[]>>
   authoritativePeerSheetDataCacheRef: MutableRefObject<Set<string>>
   resolveKnownSheetVersion: (sheetId: string) => number
+  resolveCanonicalSheetId: (sheetId: string) => string
+  buildFullAuthoritativeGridRegion: (
+    rows: readonly Record<string, unknown>[],
+    columns: readonly SpreadsheetSheet['columns']
+  ) => CommitLocalSheetDataOptions['authoritativeGridRegion']
   commitLocalSheetData: (next: Record<string, unknown>[], options?: CommitLocalSheetDataOptions) => void
-  setAuthoritativeDataSyncToken: Dispatch<SetStateAction<number>>
 }
 
 /**
@@ -37,7 +41,7 @@ export function useSpreadsheetActiveSheetPeerRestore(params: UseSpreadsheetActiv
     const prev = prevActiveSheetIdForPeerRestoreRef.current
     prevActiveSheetIdForPeerRestoreRef.current = params.activeSheetId
     if (!params.preferUniverNativeSheetTabs) return
-    if (prev === params.activeSheetId) return
+    if (params.resolveCanonicalSheetId(prev) === params.resolveCanonicalSheetId(params.activeSheetId)) return
 
     const cached = params.authoritativePeerSheetDataCacheRef.current.has(params.activeSheetId)
       ? params.peerSheetDataCacheRef.current.get(params.activeSheetId)
@@ -56,13 +60,6 @@ export function useSpreadsheetActiveSheetPeerRestore(params: UseSpreadsheetActiv
       activeSheetData: summarizeRowsForDebug(params.activeSheet.data ?? []),
       sourceRows: summarizeRowsForDebug(sourceRows)
     }))
-    params.commitLocalSheetData(sortedSourceRows, {
-      persisted: false,
-      syncGrid: false,
-      publishParent: false,
-      peerAuthoritative: true,
-      replaceSheetVersion: params.resolveKnownSheetVersion(params.activeSheetId)
-    })
     const sourceValueCount = sourceRows.reduce((total, row) => total + getKnownCellValueCount(row), 0)
     const liveSnapshotValueCount =
       liveSnapshot && typeof liveSnapshot === 'object'
@@ -80,6 +77,17 @@ export function useSpreadsheetActiveSheetPeerRestore(params: UseSpreadsheetActiv
       )
     const needsReapplyBecauseWorkbookSheetIsStale =
       (sourceValueCount > 0 && liveSnapshotValueCount < sourceValueCount) || Boolean(authoritativeCacheHasLiveMismatch)
+    const authoritativeGridRegion = needsReapplyBecauseWorkbookSheetIsStale
+      ? params.buildFullAuthoritativeGridRegion(sortedSourceRows, params.activeSheet.columns)
+      : null
+    params.commitLocalSheetData(sortedSourceRows, {
+      persisted: false,
+      syncGrid: needsReapplyBecauseWorkbookSheetIsStale,
+      publishParent: false,
+      peerAuthoritative: true,
+      replaceSheetVersion: params.resolveKnownSheetVersion(params.activeSheetId),
+      authoritativeGridRegion
+    })
     if (needsReapplyBecauseWorkbookSheetIsStale) {
       multiSheetDebugLog('active_sheet_token_reapply_after_restore', () => ({
         activeSheetId: params.activeSheetId,
@@ -90,15 +98,17 @@ export function useSpreadsheetActiveSheetPeerRestore(params: UseSpreadsheetActiv
         liveSnapshot: summarizeLiveWorksheetSnapshotForDebug(
           liveSnapshot as Record<string, unknown> | null,
           params.activeSheetId
-        )
+        ),
+        authoritativeGridRegion
       }))
-      params.setAuthoritativeDataSyncToken(prevToken => prevToken + 1)
     }
   }, [
     params.activeSheet,
     params.activeSheetId,
+    params.buildFullAuthoritativeGridRegion,
     params.commitLocalSheetData,
     params.preferUniverNativeSheetTabs,
+    params.resolveCanonicalSheetId,
     params.resolveKnownSheetVersion,
     params.spreadsheetGridRef
   ])

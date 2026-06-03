@@ -82,7 +82,14 @@ export interface BuildSpreadsheetCollaborationCallbacksParams {
   syncSheetRowsIntoLocalState: (
     targetSheetId: string,
     rows: ViewerRow[],
-    options?: { persisted?: boolean; syncGrid?: boolean; version?: number; recoveredSheetMeta?: SpreadsheetSheet }
+    options?: {
+      persisted?: boolean
+      syncGrid?: boolean
+      version?: number
+      recoveredSheetMeta?: SpreadsheetSheet
+      authoritativeGridRegion?: AuthoritativeGridReapplyTarget
+      authoritativeApplyMeta?: SpreadsheetBulkRemoteApplyMeta | null
+    }
   ) => void
   applyRemoteCellUpdateWithRetry: SpreadsheetCollaborationCallbacks['applyRemoteCellUpdate']
   activeSheetIdRef: React.MutableRefObject<string>

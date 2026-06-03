@@ -1,4 +1,9 @@
 import type { SpreadsheetRowMaterializationReadiness } from './spreadsheetRowMaterializationReadiness'
+import type { SpreadsheetColumn } from '../types/spreadsheet'
+import {
+  computeAuthoritativeRegionsForVisualRows,
+  type AuthoritativeGridRegion
+} from '../utils/spreadsheetAuthoritativeRegion'
 import { getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
 import {
   getClientRowIdentity,
@@ -33,6 +38,99 @@ export interface SpreadsheetRowsMergedByVisualIndex {
   affectedUiRowIds: string[]
   createdGridRowIndices: number[]
 }
+
+export const getPlannedMaterializationVisualIndices = (plan: SpreadsheetRowMaterializationPlan): number[] =>
+  plan.entries.map(entry => entry.visualIndex)
+
+export const buildAuthoritativeRowBandRegions = (params: {
+  rowIndices: readonly number[]
+  maxCol: number
+}): AuthoritativeGridRegion[] => {
+  const { rowIndices, maxCol } = params
+  if (rowIndices.length === 0 || maxCol < 0) return []
+  const sorted = Array.from(new Set(rowIndices.filter(index => Number.isInteger(index) && index >= 0))).sort(
+    (left, right) => left - right
+  )
+  if (sorted.length === 0) return []
+
+  const regions: AuthoritativeGridRegion[] = []
+  let bandStart = sorted[0]!
+  let bandEnd = bandStart
+  for (let index = 1; index < sorted.length; index += 1) {
+    const rowIndex = sorted[index]!
+    if (rowIndex === bandEnd + 1) {
+      bandEnd = rowIndex
+      continue
+    }
+    regions.push({ minRow: bandStart, maxRow: bandEnd, minCol: 0, maxCol })
+    bandStart = rowIndex
+    bandEnd = rowIndex
+  }
+  regions.push({ minRow: bandStart, maxRow: bandEnd, minCol: 0, maxCol })
+  return regions
+}
+
+export interface SpreadsheetStaleActiveSnapshotGapAnalysis {
+  staleCandidateRowIndices: number[]
+  backendLagRowIndices: number[]
+  unclassifiedGapRowIndices: number[]
+}
+
+export const classifyStaleActiveSnapshotRowGaps = ({
+  sourceRows,
+  persistedRows,
+  isUuid
+}: {
+  sourceRows: Array<Record<string, unknown>>
+  persistedRows: Array<Record<string, unknown>>
+  isUuid: (value: string) => boolean
+}): SpreadsheetStaleActiveSnapshotGapAnalysis => {
+  const sourceRowsByVisualIndex = buildRowsByVisualIndex(sourceRows, isUuid)
+  const persistedRowsByVisualIndex = buildRowsByVisualIndex(persistedRows, isUuid)
+  const staleCandidateRowIndices: number[] = []
+  const backendLagRowIndices: number[] = []
+  const unclassifiedGapRowIndices: number[] = []
+
+  Array.from(persistedRowsByVisualIndex.entries())
+    .sort(([leftIndex], [rightIndex]) => leftIndex - rightIndex)
+    .forEach(([visualIndex, persistedRow]) => {
+      const sourceRow = sourceRowsByVisualIndex.get(visualIndex)
+      if (sourceRow && viewerRowMatchesPersistedRowAtSlot(sourceRow, persistedRow, isUuid)) {
+        return
+      }
+
+      const persistedBackendRowId = resolveBackendRowIdForViewerRow(persistedRow, isUuid)
+      if (persistedBackendRowId) {
+        backendLagRowIndices.push(visualIndex)
+        return
+      }
+
+      const persistedClientRowId = getSpreadsheetRowMaterializationClientRowId(persistedRow)
+      if (persistedClientRowId) {
+        staleCandidateRowIndices.push(visualIndex)
+        return
+      }
+
+      unclassifiedGapRowIndices.push(visualIndex)
+    })
+
+  return {
+    staleCandidateRowIndices,
+    backendLagRowIndices,
+    unclassifiedGapRowIndices
+  }
+}
+
+export const buildNarrowAuthoritativeRegionsForPersistedRows = (params: {
+  rowIndices: readonly number[]
+  rows: Array<Record<string, unknown>>
+  columns: SpreadsheetColumn[]
+}): AuthoritativeGridRegion[] =>
+  computeAuthoritativeRegionsForVisualRows({
+    rowIndices: params.rowIndices,
+    rows: params.rows,
+    columns: params.columns
+  })
 
 export const getSpreadsheetRowMaterializationClientRowId = (row: Record<string, unknown>): string => {
   const explicit = row._clientRowId

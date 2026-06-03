@@ -1,8 +1,9 @@
 import type { MutableRefObject } from 'react'
 import type { SpreadsheetVersionCausalOwnershipRegistry } from '../core/spreadsheetVersionCausalOwnership'
 import type { SpreadsheetColumn } from '../types/spreadsheet'
-import { getCanonicalRowId, getClientRowIdentity } from './spreadsheetRowIdentity'
+import { getCanonicalRowId } from './spreadsheetRowIdentity'
 import {
+  protectSpreadsheetPendingLocalMutationCells,
   spreadsheetPendingLocalMutationCoordinateCellKey,
   spreadsheetPendingLocalMutationSemanticCellKey
 } from './spreadsheetPendingMaterializationCells'
@@ -74,7 +75,7 @@ export function isGridCellLocallyOwned(
     return true
   }
 
-  const logicalRowHandle = row ? getCanonicalRowId(row) || getClientRowIdentity(row) : undefined
+  const logicalRowHandle = row ? getCanonicalRowId(row) || undefined : undefined
   if (logicalRowHandle && columnName && pendingLocalMutationCells) {
     const semanticKey = spreadsheetPendingLocalMutationSemanticCellKey(context.sheetId, logicalRowHandle, columnName)
     if (pendingLocalMutationCells.has(semanticKey)) {
@@ -91,14 +92,21 @@ export function protectDeferredLocalUserMutationCells(
 ): void {
   const pendingRef = context.pendingLocalMutationCellsRef
   if (!pendingRef || cells.length === 0) return
-  const pendingCells = pendingRef.current
+  const protectionEntries: Array<{ key: string; ownerId: string }> = []
   for (const { globalRowIndex, globalColIndex } of cells) {
-    pendingCells.add(spreadsheetPendingLocalMutationCoordinateCellKey(context.sheetId, globalRowIndex, globalColIndex))
+    const coordinateKey = spreadsheetPendingLocalMutationCoordinateCellKey(
+      context.sheetId,
+      globalRowIndex,
+      globalColIndex
+    )
+    const ownerId = `deferred:${context.sheetId}:${globalRowIndex}:${globalColIndex}`
+    protectionEntries.push({ key: coordinateKey, ownerId: `${ownerId}:${coordinateKey}` })
     const row = getRowAtUniverGridIndex(context.rows, globalRowIndex)
     const columnName = resolveColumnNameAtIndex(context.columns, globalColIndex)
-    const logicalRowHandle = row ? getCanonicalRowId(row) || getClientRowIdentity(row) : undefined
+    const logicalRowHandle = row ? getCanonicalRowId(row) || undefined : undefined
     if (logicalRowHandle && columnName) {
-      pendingCells.add(spreadsheetPendingLocalMutationSemanticCellKey(context.sheetId, logicalRowHandle, columnName))
+      const semanticKey = spreadsheetPendingLocalMutationSemanticCellKey(context.sheetId, logicalRowHandle, columnName)
+      protectionEntries.push({ key: semanticKey, ownerId: `${ownerId}:${semanticKey}` })
       const baseVersion = Math.max(0, Math.trunc(context.resolveKnownSheetVersion?.(context.sheetId) ?? 0))
       context.versionCausalOwnership?.registerIntent({
         sheetId: context.sheetId,
@@ -108,6 +116,7 @@ export function protectDeferredLocalUserMutationCells(
       })
     }
   }
+  protectSpreadsheetPendingLocalMutationCells(pendingRef, protectionEntries)
 }
 
 export function resolveLogicalRowHandleAtGridIndex(
@@ -116,5 +125,5 @@ export function resolveLogicalRowHandleAtGridIndex(
 ): string | undefined {
   const row = getRowAtUniverGridIndex(rows, globalRowIndex)
   if (!row) return undefined
-  return getCanonicalRowId(row) || getClientRowIdentity(row) || undefined
+  return getCanonicalRowId(row) || undefined
 }

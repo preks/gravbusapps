@@ -346,6 +346,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         // the deferred-flush poll up to 8s later, or grid redraw under structural churn) that
         // reads the stale blank cell is still classified as a remote echo, not a user clear.
         const extendRemoteEchoSuppressionForGiveUp = (key: string, signatureCandidates: Set<string>) => {
+          if (options?.skipRemoteEchoRegistration) {
+            return
+          }
           const giveUpTtlMs = Math.max(REMOTE_ECHO_SUPPRESSION_TTL_MS, 10_000)
           const extendedExpiresAt = Date.now() + giveUpTtlMs
           signatureCandidates.add('blank')
@@ -437,17 +440,19 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             if (value === null || value === undefined || value === '') {
               signatureCandidates.add('blank')
             }
-            remoteEchoSuppressionRef.current.set(key, {
-              expiresAt,
-              signatures: signatureCandidates
-            })
-            globalThis.setTimeout(() => {
-              if (!gridMountedRef.current) return
-              const current = remoteEchoSuppressionRef.current.get(key)
-              if (current?.expiresAt === expiresAt) {
-                remoteEchoSuppressionRef.current.delete(key)
-              }
-            }, REMOTE_ECHO_SUPPRESSION_TTL_MS + 50)
+            if (!options?.skipRemoteEchoRegistration) {
+              remoteEchoSuppressionRef.current.set(key, {
+                expiresAt,
+                signatures: signatureCandidates
+              })
+              globalThis.setTimeout(() => {
+                if (!gridMountedRef.current) return
+                const current = remoteEchoSuppressionRef.current.get(key)
+                if (current?.expiresAt === expiresAt) {
+                  remoteEchoSuppressionRef.current.delete(key)
+                }
+              }, REMOTE_ECHO_SUPPRESSION_TTL_MS + 50)
+            }
             // Seed the authoritative signature for this cell before any retry/give-up paths so the
             // mutation planner's "no-clear-without-local-edit" guard knows the cell holds a remote
             // value even if the Univer grid paint fails (give_up) or is overwritten by structural
@@ -776,32 +781,34 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           : REMOTE_ECHO_SUPPRESSION_TTL_MS
         const bulkEchoSuppressionExpiresAt = seededEchoSuppressAt + bulkEchoSuppressionTtlMs
         const bulkEchoSuppressionKeys: string[] = []
-        for (const it of normalized) {
-          const resolvedRow = it.rowIndex
-          const colIndex = it.colIndex
-          const key = remoteEchoKey(resolvedRow, colIndex)
-          const echoSource =
-            it.options?.univerCell && typeof it.options.univerCell === 'object' ? it.options.univerCell : it.value
-          const signatureCandidates = new Set<string>()
-          signatureCandidates.add(normalizeBlankLikeEchoSignature(toEchoSignature(echoSource)))
-          if (it.value === null || it.value === undefined || it.value === '') {
-            signatureCandidates.add('blank')
-          }
-          remoteEchoSuppressionRef.current.set(key, {
-            expiresAt: bulkEchoSuppressionExpiresAt,
-            signatures: signatureCandidates
-          })
-          bulkEchoSuppressionKeys.push(key)
-        }
-        globalThis.setTimeout(() => {
-          if (!gridMountedRef.current) return
-          for (const key of bulkEchoSuppressionKeys) {
-            const current = remoteEchoSuppressionRef.current.get(key)
-            if (current?.expiresAt === bulkEchoSuppressionExpiresAt) {
-              remoteEchoSuppressionRef.current.delete(key)
+        if (!meta?.skipRemoteEchoRegistration) {
+          for (const it of normalized) {
+            const resolvedRow = it.rowIndex
+            const colIndex = it.colIndex
+            const key = remoteEchoKey(resolvedRow, colIndex)
+            const echoSource =
+              it.options?.univerCell && typeof it.options.univerCell === 'object' ? it.options.univerCell : it.value
+            const signatureCandidates = new Set<string>()
+            signatureCandidates.add(normalizeBlankLikeEchoSignature(toEchoSignature(echoSource)))
+            if (it.value === null || it.value === undefined || it.value === '') {
+              signatureCandidates.add('blank')
             }
+            remoteEchoSuppressionRef.current.set(key, {
+              expiresAt: bulkEchoSuppressionExpiresAt,
+              signatures: signatureCandidates
+            })
+            bulkEchoSuppressionKeys.push(key)
           }
-        }, bulkEchoSuppressionTtlMs + 50)
+          globalThis.setTimeout(() => {
+            if (!gridMountedRef.current) return
+            for (const key of bulkEchoSuppressionKeys) {
+              const current = remoteEchoSuppressionRef.current.get(key)
+              if (current?.expiresAt === bulkEchoSuppressionExpiresAt) {
+                remoteEchoSuppressionRef.current.delete(key)
+              }
+            }
+          }, bulkEchoSuppressionTtlMs + 50)
+        }
 
         queueMicrotask(() => {
           if (!gridMountedRef.current) {
@@ -915,7 +922,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               for (; serialOffset < end; serialOffset += 1) {
                 const it = normalized[serialOffset]
                 if (it) {
-                  applyRemoteCellUpdate(it.rowIndex, it.colIndex, it.value, it.rowId, it.options)
+                  applyRemoteCellUpdate(it.rowIndex, it.colIndex, it.value, it.rowId, {
+                    ...it.options,
+                    skipRemoteEchoRegistration:
+                      it.options?.skipRemoteEchoRegistration ?? meta?.skipRemoteEchoRegistration
+                  })
                 }
               }
               if (serialOffset < normalized.length) {
@@ -960,6 +971,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
 
           const noUniverCell = normalized.every(it => {
+            const normalizedValue = normalizeValueForGridWrite(it.value)
+            const hasRichValuePayload =
+              normalizedValue && typeof normalizedValue === 'object' && !Array.isArray(normalizedValue)
+            if (hasRichValuePayload) return false
             const uc = it.options?.univerCell
             const hasNonEmptyUniverCell =
               uc && typeof uc === 'object' && !Array.isArray(uc) && Object.keys(uc).length > 0
@@ -1425,7 +1440,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           pendingForcedAuthoritativeReapplyRef.current = {
             regions: isFullGrid ? null : regions,
             preferBulk,
-            clearAllSignatures
+            clearAllSignatures,
+            reason: options?.reason,
+            pendingLocalFilterPolicy: options?.pendingLocalFilterPolicy
           }
           if (regions && regions.length > 1) {
             debugRemoteApply('multi_region_authoritative_reapply', {
@@ -1843,6 +1860,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       collabBulkApplyIdleNonce,
       univerAPIRef,
       authoritativePaintCellsRef: props.authoritativePaintCellsRef,
+      authoritativePaintMetaRef: props.authoritativePaintMetaRef,
       lastSyncedGridRowCountRef,
       lastSyncedGridColumnCountRef,
       lastProcessedAuthoritativeDataSyncTokenRef,

@@ -6,6 +6,7 @@
  */
 
 import type { SpreadsheetSheet, SpreadsheetColumn, SpreadsheetMergeRange } from '../types/spreadsheet'
+import { isNumericColumn } from './analyticsEngine'
 import { getViewerRowVisualIndex } from './spreadsheetPeerRowHydration'
 import { isPlaceholderColumnTitle } from './trackingColumns'
 
@@ -274,6 +275,24 @@ function toImageCell(raw: string, column: SpreadsheetColumn, avatarColumn: boole
   return { f: `=IMAGE("${safeUrl}")` }
 }
 
+function coerceFiniteNumericString(value: unknown, column: SpreadsheetColumn): unknown {
+  if (!isNumericColumn(column) || typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.startsWith('=')) return value
+  const numericValue = Number(trimmed)
+  return Number.isFinite(numericValue) ? numericValue : value
+}
+
+function normalizeUniverCellForColumn(cell: UniverCellData, column: SpreadsheetColumn): UniverCellData {
+  if (!isNumericColumn(column) || typeof cell.v !== 'string') return cell
+  const coercedValue = coerceFiniteNumericString(cell.v, column)
+  if (coercedValue === cell.v) return cell
+  const next: UniverCellData = { ...cell, v: coercedValue as UniverCellPrimitiveValue }
+  delete next.ct
+  delete next.t
+  return next
+}
+
 function toUniverCellData(raw: unknown, column: SpreadsheetColumn): UniverCellData | null {
   if (raw === undefined || raw === null || raw === '') return null
   const avatarColumn = isAvatarColumn(column)
@@ -282,7 +301,7 @@ function toUniverCellData(raw: unknown, column: SpreadsheetColumn): UniverCellDa
   if (typeof raw === 'object') {
     const resolved = resolveObjectRaw(raw, column, avatarColumn, linkColumn)
     if (resolved.type === 'cell') {
-      return resolved.cell
+      return normalizeUniverCellForColumn(resolved.cell, column)
     }
     raw = resolved.raw
   }
@@ -301,7 +320,7 @@ function toUniverCellData(raw: unknown, column: SpreadsheetColumn): UniverCellDa
   }
 
   if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean') {
-    return { v: raw }
+    return normalizeUniverCellForColumn({ v: raw }, column)
   }
   return null
 }
@@ -350,6 +369,19 @@ function buildCellData(data: Record<string, unknown>[], visibleColumns: Spreadsh
     cellData[targetRowIndex] = rowCells
   }
   return cellData
+}
+
+function buildMergeCoveredCellKeySet(mergeData: SpreadsheetMergeRange[] | undefined): Set<string> {
+  const covered = new Set<string>()
+  for (const range of mergeData ?? []) {
+    for (let row = range.startRow; row <= range.endRow; row += 1) {
+      for (let col = range.startColumn; col <= range.endColumn; col += 1) {
+        if (row === range.startRow && col === range.startColumn) continue
+        covered.add(`${row}:${col}`)
+      }
+    }
+  }
+  return covered
 }
 
 function buildColumnWidths(visibleColumns: SpreadsheetColumn[]): Record<number, { w?: number }> {
@@ -406,7 +438,19 @@ export function buildWorkbookSnapshot(
     columnData: Object.keys(columnData).length > 0 ? columnData : undefined,
     rowData: Object.keys(rowData).length > 0 ? rowData : undefined,
     rowHeader: { width: UNIVER_ROW_HEADER_WIDTH },
-    columnHeader: { height: UNIVER_COLUMN_HEADER_HEIGHT }
+    columnHeader: { height: UNIVER_COLUMN_HEADER_HEIGHT },
+    ...(typeof sheet.hidden === 'boolean' ? { hidden: sheet.hidden ? 1 : 0 } : {})
+  }
+  const mergeCoveredKeys = buildMergeCoveredCellKeySet(mergeData)
+  for (const key of mergeCoveredKeys) {
+    const [rowKey, colKey] = key.split(':')
+    const rowIndex = Number(rowKey)
+    const colIndex = Number(colKey)
+    if (Number.isNaN(rowIndex) || Number.isNaN(colIndex)) continue
+    delete worksheet.cellData[rowIndex]?.[colIndex]
+    if (worksheet.cellData[rowIndex] && Object.keys(worksheet.cellData[rowIndex]!).length === 0) {
+      delete worksheet.cellData[rowIndex]
+    }
   }
 
   return {
@@ -528,21 +572,6 @@ const comparableUniverCellPayload = (cell: UniverCellData | undefined): string =
   return ''
 }
 
-const countComparableCellValues = (cellData: UniverSheetCellData | undefined): number => {
-  if (!cellData || typeof cellData !== 'object') return 0
-  let count = 0
-  for (const rowCells of Object.values(cellData)) {
-    if (!rowCells || typeof rowCells !== 'object') continue
-    for (const cell of Object.values(rowCells)) {
-      if (comparableUniverCellPayload(cell).length > 0) count += 1
-    }
-  }
-  return count
-}
-
-const countViewerRowCellValues = (rows: Record<string, unknown>[], visibleColumns: SpreadsheetColumn[]): number =>
-  countComparableCellValues(buildCellData(rows, visibleColumns))
-
 /**
  * Returns true when persisted Univer cellData disagrees with row-authoritative values
  * derived from viewer rows (same rules as {@link buildWorkbookSnapshot}).
@@ -585,7 +614,7 @@ function shouldClearSnapshotCellValue(cell: UniverCellData | undefined): boolean
   return comparableUniverCellPayload(cell) !== ''
 }
 
-const SNAPSHOT_CELL_VALUE_KEYS = new Set(['v', 'f', 'm', 'p', 'ct', 'si', 'custom'])
+const SNAPSHOT_CELL_VALUE_KEYS = new Set(['v', 'f', 'm', 'p', 'ct', 'si', 'custom', 't'])
 
 function clearSnapshotCellValuePreservingFormatting(cell: UniverCellData): UniverCellData | undefined {
   if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return undefined
@@ -656,11 +685,22 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
 
   let worksheet: Record<string, unknown> | undefined = sheets[sheetId] as Record<string, unknown> | undefined
   if (!worksheet) {
-    const order = cloned.sheetOrder as string[] | undefined
-    if (Array.isArray(order) && order[0] && sheets[order[0]]) {
-      worksheet = sheets[order[0]]
-    } else {
-      worksheet = Object.values(sheets)[0]
+    worksheet = {
+      id: sheetId,
+      name: sheetId,
+      cellData: {},
+      rowCount: getWorkbookRowCount(viewerRows),
+      columnCount: Math.max(columns.filter(c => c.isVisible !== false).length, 1),
+      defaultColumnWidth: UNIVER_DEFAULT_COL_WIDTH,
+      defaultRowHeight: UNIVER_DEFAULT_ROW_HEIGHT,
+      rowHeader: { width: UNIVER_ROW_HEADER_WIDTH },
+      columnHeader: { height: UNIVER_COLUMN_HEADER_HEIGHT }
+    }
+    sheets[sheetId] = worksheet
+    const order = Array.isArray(cloned.sheetOrder) ? [...cloned.sheetOrder] : []
+    if (!order.includes(sheetId)) {
+      order.push(sheetId)
+      cloned.sheetOrder = order
     }
   }
   if (!worksheet) return cloned
@@ -683,8 +723,9 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
       if (authCell) {
         const priorCell = mergedRow[colIndex]
         if (priorCell && typeof priorCell === 'object' && !Array.isArray(priorCell)) {
+          const formattingOnlyPrior = clearSnapshotCellValuePreservingFormatting(priorCell) ?? {}
           const merged = {
-            ...(priorCell as Record<string, unknown>),
+            ...(formattingOnlyPrior as Record<string, unknown>),
             ...(authCell as object as Record<string, unknown>)
           }
           const authRecord = authCell as Record<string, unknown>
@@ -709,6 +750,12 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
       }
     }
 
+    for (const existingColKey of Object.keys(mergedRow)) {
+      const existingColIndex = Number(existingColKey)
+      if (Number.isNaN(existingColIndex) || existingColIndex < visibleColumns.length) continue
+      delete mergedRow[existingColIndex]
+    }
+
     if (Object.keys(mergedRow).length > 0) {
       nextCellData[rowIndex] = mergedRow
     } else {
@@ -716,7 +763,30 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
     }
   }
 
+  const mergeCoveredKeys = buildMergeCoveredCellKeySet(
+    Array.isArray(worksheet.mergeData) ? (worksheet.mergeData as SpreadsheetMergeRange[]) : undefined
+  )
+  for (const key of mergeCoveredKeys) {
+    const [rowKey, colKey] = key.split(':')
+    const rowIndex = Number(rowKey)
+    const colIndex = Number(colKey)
+    if (Number.isNaN(rowIndex) || Number.isNaN(colIndex)) continue
+    const currentCell = nextCellData[rowIndex]?.[colIndex]
+    if (!currentCell) continue
+    const formattingOnly = clearSnapshotCellValuePreservingFormatting(currentCell)
+    if (formattingOnly) {
+      nextCellData[rowIndex]![colIndex] = formattingOnly
+    } else {
+      delete nextCellData[rowIndex]?.[colIndex]
+      if (nextCellData[rowIndex] && Object.keys(nextCellData[rowIndex]!).length === 0) {
+        delete nextCellData[rowIndex]
+      }
+    }
+  }
+
   worksheet.cellData = nextCellData
+  worksheet.columnCount = Math.max(visibleColumns.length, 1)
+  worksheet.rowCount = getWorkbookRowCount(viewerRows)
   return cloned
 }
 
@@ -787,16 +857,6 @@ function cloneUniverSnapshotSlice<T>(value: T): T {
     // Fall through to JSON clone.
   }
   return JSON.parse(JSON.stringify(value)) as T
-}
-
-function worksheetHasCellData(worksheet: UniverWorksheetData | null | undefined): boolean {
-  if (!worksheet || typeof worksheet !== 'object') return false
-  const cellData = worksheet.cellData
-  if (!cellData || typeof cellData !== 'object') return false
-  return Object.keys(cellData).some(rowKey => {
-    const row = cellData[Number(rowKey)] ?? cellData[rowKey as unknown as number]
-    return Boolean(row && typeof row === 'object' && Object.keys(row).length > 0)
-  })
 }
 
 export function normalizeWorkbookSnapshotToAppSheets(
@@ -949,28 +1009,23 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
     nextWorksheet.id = sheet.id
     nextWorksheet.name = sheet.name
     if (bootstrapWorksheet) {
-      // When canonical rows are still empty but the workbook snapshot has cellData,
-      // prefer the snapshot as a recovery fallback. This happens in the multi-sheet
-      // race where a non-active sheet's edits were checkpointed into the workbook
-      // blob before the per-sheet row model finished persisting.
-      const snapshotValueCount = countComparableCellValues(nextWorksheet.cellData)
-      const rowValueCount = countViewerRowCellValues(sheetRows, visibleColumns)
-      if (rowValueCount >= snapshotValueCount && !(sheetRows.length === 0 && worksheetHasCellData(nextWorksheet))) {
-        const mergedWorkbook = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
-          {
-            id: workbookId,
-            name: activeSheet?.name || sheet.name,
-            sheetOrder: [sheet.id],
-            sheets: { [sheet.id]: nextWorksheet }
-          },
-          sheet.id,
-          sheetRows,
-          sheet.columns
-        )
-        nextWorksheet = cloneUniverSnapshotSlice(
-          (mergedWorkbook as { sheets: Record<string, UniverWorksheetData> }).sheets[sheet.id]
-        )
-      }
+      const mergedWorkbook = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
+        {
+          id: workbookId,
+          name: activeSheet?.name || sheet.name,
+          sheetOrder: [sheet.id],
+          sheets: { [sheet.id]: nextWorksheet }
+        },
+        sheet.id,
+        sheetRows,
+        sheet.columns
+      )
+      nextWorksheet = cloneUniverSnapshotSlice(
+        (mergedWorkbook as { sheets: Record<string, UniverWorksheetData> }).sheets[sheet.id]
+      )
+    }
+    if (typeof sheet.hidden === 'boolean') {
+      nextWorksheet.hidden = sheet.hidden ? 1 : 0
     }
     transformAvatarFormulasInSnapshot(
       {

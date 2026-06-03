@@ -1278,9 +1278,10 @@ export const SpreadsheetApiService = {
     version: number
     updatedAt: string | null
     snapshot: Record<string, unknown> | null
+    coversVersions: Record<string, number>
   }> {
     if (supportsUniverSnapshotEndpoint === false) {
-      return { appId, version: 0, updatedAt: null, snapshot: null }
+      return { appId, version: 0, updatedAt: null, snapshot: null, coversVersions: {} }
     }
 
     try {
@@ -1289,14 +1290,22 @@ export const SpreadsheetApiService = {
         version: number
         updatedAt: string | null
         snapshot: Record<string, unknown> | null
+        coversVersions?: Record<string, number>
       }>(SPREADSHEET_CORE_API_URL, spreadsheetEndpoint(`/${appId}/univer-snapshot`))
       supportsUniverSnapshotEndpoint = true
-      return { appId, version: response.version, updatedAt: response.updatedAt, snapshot: response.snapshot }
+      return {
+        appId,
+        version: response.version,
+        updatedAt: response.updatedAt,
+        snapshot: response.snapshot,
+        coversVersions:
+          response.coversVersions && typeof response.coversVersions === 'object' ? response.coversVersions : {}
+      }
     } catch (error) {
       if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 501)) {
         supportsUniverSnapshotEndpoint = false
         console.warn('[SpreadsheetApiService] univer-snapshot endpoint unavailable; using row-data-only initialization')
-        return { appId, version: 0, updatedAt: null, snapshot: null }
+        return { appId, version: 0, updatedAt: null, snapshot: null, coversVersions: {} }
       }
       throw error
     }

@@ -3,6 +3,7 @@ import { useCallback, useRef, type MutableRefObject } from 'react'
 import type { SpreadsheetSheet } from '../types'
 import type { SpreadsheetCollaborationManager } from '../services/SpreadsheetCollaborationManager'
 import type { SpreadsheetMutationFacade } from '../core'
+import type { SpreadsheetSessionDiffProjectionMode } from '../core/SpreadsheetCollaborationContract'
 import {
   replayRemoteDeltaThroughCollaborationManager,
   applyRemoteFetchedSheetDelta,
@@ -15,10 +16,16 @@ import type { SpreadsheetTraceEventInput, SpreadsheetTraceSession } from '../ser
 
 import type { SheetDeltaCatchUpReason, SheetDeltaCatchUpOptions } from './spreadsheetRemoteSyncTypes'
 import {
-  tryComputeAuthoritativeRegionFromReplayDeltas,
-  type AuthoritativeGridRegion
+  estimateAuthoritativeGridReapplyTargetCellCount,
+  tryComputeAuthoritativeRegionsFromReplayDeltas,
+  type AuthoritativeGridReapplyTarget
 } from '../utils/spreadsheetAuthoritativeRegion'
 import { countReplayDeltaChangeKinds, partitionReplayDeltaChanges } from '../utils/spreadsheetReplayDeltaPartition'
+import {
+  getSheetCoverageVersion,
+  hasSheetCoverageVersion,
+  type SpreadsheetSnapshotCoversVersions
+} from '../utils/spreadsheetSnapshotCoverage'
 
 import type { SpreadsheetCellIntentRecord } from '../core/spreadsheetIntentJournal'
 
@@ -35,14 +42,16 @@ export interface UseSpreadsheetRemoteDeltaCatchUpParams {
   activeTraceSessionRef: MutableRefObject<SpreadsheetTraceSession | null>
   rememberKnownSheetVersion: (sheetId: string, version: number) => void
   resolveKnownSheetVersion: (sheetId: string) => number
+  workbookSnapshotCoversVersionsRef: MutableRefObject<SpreadsheetSnapshotCoversVersions>
   syncSheetRowsIntoLocalState: (
     sheetId: string,
     rows: Record<string, unknown>[],
     options?: {
       persisted?: boolean
       syncGrid?: boolean
+      sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
       version?: number
-      authoritativeGridRegion?: AuthoritativeGridRegion | null
+      authoritativeGridRegion?: AuthoritativeGridReapplyTarget
     }
   ) => void
   getKnownRowsForSheet: (sheetId: string) => Record<string, unknown>[]
@@ -71,6 +80,18 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
   const catchUpInFlightBySheetRef = useRef(new Map<string, Promise<boolean>>())
   const fallbackReloadsByKeyRef = useRef(new Map<string, Promise<boolean>>())
   const snapshotFallbackControllerRef = useRef<SpreadsheetSnapshotFallbackController | null>(null)
+  const reportStaleRecoveryLifecycle = useCallback(
+    (payload: { sheetId: string; stage: string; version?: number | null }) => {
+      const manager = params.collaborationManagerRef.current as {
+        reportStaleRecoveryLifecycle?: (args: typeof payload) => void
+      } | null
+      if (typeof manager?.reportStaleRecoveryLifecycle !== 'function') {
+        return
+      }
+      manager.reportStaleRecoveryLifecycle(payload)
+    },
+    [params.collaborationManagerRef]
+  )
 
   if (!snapshotFallbackControllerRef.current) {
     snapshotFallbackControllerRef.current = new SpreadsheetSnapshotFallbackController(request => {
@@ -197,10 +218,23 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
       if (existing) return existing
 
       const task = (async () => {
+        const checkpointCoverageVersion = hasSheetCoverageVersion(
+          params.workbookSnapshotCoversVersionsRef.current,
+          targetSheetId
+        )
+          ? getSheetCoverageVersion(params.workbookSnapshotCoversVersionsRef.current, targetSheetId)
+          : null
         const sinceVersion =
           typeof options?.sinceVersion === 'number' && Number.isFinite(options.sinceVersion)
             ? Math.max(0, Math.trunc(options.sinceVersion))
-            : Math.max(0, params.resolveKnownSheetVersion(targetSheetId))
+            : checkpointCoverageVersion != null
+              ? checkpointCoverageVersion
+              : Math.max(0, params.resolveKnownSheetVersion(targetSheetId))
+        reportStaleRecoveryLifecycle({
+          sheetId: targetSheetId,
+          stage: 'catchup_started',
+          version: options?.incomingVersion ?? sinceVersion
+        })
         params.enqueueDiagnosticsTraceEvent({
           source: 'client',
           stage: 'client_delta_catchup_started',
@@ -210,6 +244,7 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
             reason,
             targetSheetId,
             sinceVersion,
+            checkpointCoverageVersion,
             incomingVersion: options?.incomingVersion ?? null,
             versionStream: OPERATION_VERSION_STREAM
           }
@@ -222,6 +257,15 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
         ): Promise<boolean> => {
           const currentVersion = Number(delta.currentVersion || appliedSinceVersion)
           if (currentVersion <= appliedSinceVersion) {
+            reportStaleRecoveryLifecycle({
+              sheetId: targetSheetId,
+              stage: 'catchup_noop',
+              version: currentVersion
+            })
+            params.workbookSnapshotCoversVersionsRef.current = {
+              ...params.workbookSnapshotCoversVersionsRef.current,
+              [targetSheetId]: Math.max(appliedSinceVersion, currentVersion)
+            }
             params.enqueueDiagnosticsTraceEvent({
               source: 'client',
               stage: 'client_delta_catchup_noop',
@@ -264,12 +308,16 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
             targetSheet
           })
           params.rememberKnownSheetVersion(targetSheetId, currentVersion)
+          params.workbookSnapshotCoversVersionsRef.current = {
+            ...params.workbookSnapshotCoversVersionsRef.current,
+            [targetSheetId]: currentVersion
+          }
           const isActiveTarget = targetSheetId === params.activeSheetIdRef.current
           // Region is resolved against the **post-replay** row set so add_rows / insert_rows_at
           // contribute correct visual indices for their newly inserted rows.
           const authoritativeGridRegion =
             isActiveTarget && targetSheet
-              ? tryComputeAuthoritativeRegionFromReplayDeltas({
+              ? tryComputeAuthoritativeRegionsFromReplayDeltas({
                   changes: delta.changes,
                   columns: targetSheet.columns,
                   rows: nextRows
@@ -288,6 +336,8 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
           const replayPaintedAddRows = replayThroughManager && isActiveTarget && hasAddRowsStructural
           const skipSyncGrid = replayPaintedAddRows && changeKinds.cellChangeCount === 0
           const syncGrid = isActiveTarget && !skipSyncGrid
+          const sessionDiffProjectionMode: SpreadsheetSessionDiffProjectionMode | undefined =
+            syncGrid && !authoritativeGridRegion ? 'skip' : undefined
           const skipSyncGridReason = !isActiveTarget
             ? 'inactive_target'
             : skipSyncGrid
@@ -295,10 +345,8 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
               : authoritativeGridRegion
                 ? 'region_sync'
                 : 'full_token'
-          const authoritativeRegionCellEstimate = authoritativeGridRegion
-            ? (authoritativeGridRegion.maxRow - authoritativeGridRegion.minRow + 1) *
-              (authoritativeGridRegion.maxCol - authoritativeGridRegion.minCol + 1)
-            : 0
+          const authoritativeRegionCellEstimate =
+            estimateAuthoritativeGridReapplyTargetCellCount(authoritativeGridRegion)
           params.enqueueDiagnosticsTraceEvent({
             source: 'client',
             stage: 'client_catchup_paint_strategy',
@@ -321,6 +369,7 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
           params.syncSheetRowsIntoLocalState(targetSheetId, nextRows, {
             persisted: true,
             syncGrid,
+            sessionDiffProjectionMode,
             version: currentVersion,
             ...(authoritativeGridRegion ? { authoritativeGridRegion } : {})
           })
@@ -340,6 +389,11 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
               activeSheet: targetSheetId === params.activeSheetIdRef.current,
               replayedThroughManager: replayThroughManager
             }
+          })
+          reportStaleRecoveryLifecycle({
+            sheetId: targetSheetId,
+            stage: 'catchup_applied',
+            version: currentVersion
           })
           return true
         }
@@ -374,6 +428,11 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
 
           if (sheetDeltaRequiresFullSnapshot(sinceVersion, delta)) {
             const fallbackReason = resolveCatchUpFallbackReason(sinceVersion, delta)
+            reportStaleRecoveryLifecycle({
+              sheetId: targetSheetId,
+              stage: 'snapshot_fallback_scheduled',
+              version: Number(delta.currentVersion || sinceVersion)
+            })
             params.enqueueDiagnosticsTraceEvent({
               source: 'client',
               stage: 'client_delta_catchup_requires_snapshot',
@@ -404,6 +463,11 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
 
           return applyFetchedDeltaCatchUp(delta, sinceVersion, reason)
         } catch (error) {
+          reportStaleRecoveryLifecycle({
+            sheetId: targetSheetId,
+            stage: 'catchup_failed',
+            version: options?.incomingVersion ?? null
+          })
           params.enqueueDiagnosticsTraceEvent({
             source: 'client',
             stage: 'client_delta_catchup_failed',
@@ -437,6 +501,7 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
       params.getKnownRowsForSheet,
       params.resolveKnownSheetVersion,
       params.rememberKnownSheetVersion,
+      reportStaleRecoveryLifecycle,
       params.spreadsheetSession,
       params.syncSheetRowsIntoLocalState,
       params.reloadSheetFromCanonicalSnapshot,

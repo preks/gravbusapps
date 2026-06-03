@@ -1,19 +1,25 @@
-import { useEffect, type MutableRefObject } from 'react'
+import { useEffect, useRef, type MutableRefObject } from 'react'
+import { readSpreadsheetRowCellValue } from '../core'
 import type { SpreadsheetBulkRemoteApplyMeta, SpreadsheetBulkRemoteCellItem } from '../core'
 import type { ApplyRemoteCellUpdateOptions } from './UniverSheetGrid.types'
 import type { SpreadsheetColumn, SpreadsheetSheet } from '../types/spreadsheet'
 import { workbookSnapshotMismatchesViewerRows } from '../utils/univerAdapter'
-import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
+import type { AuthoritativeGridRegion, PendingLocalFilterPolicy } from '../utils/spreadsheetAuthoritativeRegion'
 import { SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH } from '../utils/spreadsheetBulkRemoteConstants'
 import { buildAuthoritativePaintCellsFromViewerRows } from '../utils/spreadsheetAuthoritativeProjector'
 import {
-  reconcileSpreadsheetPendingLocalMutationCellProtection,
+  shouldBlockSpreadsheetPendingLocalMutationCellProtection,
   spreadsheetPendingLocalMutationCoordinateCellKey,
   spreadsheetPendingLocalMutationSemanticCellKey
 } from '../utils/spreadsheetPendingMaterializationCells'
+import { isServerAuthoritativeRepairReapply } from '../utils/spreadsheetBackendRepairReapply'
 import { debugRemoteApply } from './univerGridDebug'
 import { normalizeBlankLikeEchoSignature } from './univerGridWorkbookMutationModule'
-import { getAuthoritativeGridRowExtent } from './univerGridAuthoritativeHelpers'
+import {
+  buildAuthoritativeRowsByGridIndex,
+  getAuthoritativeGridRowExtent,
+  toEchoSignature
+} from './univerGridAuthoritativeHelpers'
 import { getCanonicalRowId } from '../utils/spreadsheetRowIdentity'
 
 export interface UniverAuthoritativeGridSyncParams {
@@ -26,6 +32,8 @@ export interface UniverAuthoritativeGridSyncParams {
   univerAPIRef: MutableRefObject<unknown>
   /** Consumed once per sync: explicit cells the session applied (projector-only path). */
   authoritativePaintCellsRef?: MutableRefObject<SpreadsheetBulkRemoteCellItem[] | null>
+  /** Optional one-shot meta chained to the same session-derived paint wave. */
+  authoritativePaintMetaRef?: MutableRefObject<SpreadsheetBulkRemoteApplyMeta | null>
   lastSyncedGridRowCountRef: MutableRefObject<number>
   lastSyncedGridColumnCountRef: MutableRefObject<number>
   lastProcessedAuthoritativeDataSyncTokenRef: MutableRefObject<number>
@@ -38,6 +46,8 @@ export interface UniverAuthoritativeGridSyncParams {
     regions: AuthoritativeGridRegion[] | null
     preferBulk: boolean
     clearAllSignatures: boolean
+    reason?: string
+    pendingLocalFilterPolicy?: PendingLocalFilterPolicy
   } | null>
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
   applyRemoteCellUpdate: (
@@ -65,6 +75,7 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     collabBulkApplyIdleNonce,
     univerAPIRef,
     authoritativePaintCellsRef,
+    authoritativePaintMetaRef,
     lastSyncedGridRowCountRef,
     lastSyncedGridColumnCountRef,
     lastProcessedAuthoritativeDataSyncTokenRef,
@@ -78,6 +89,44 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     applyRemoteCellUpdate,
     applyRemoteCellUpdatesBulk
   } = params
+  const hasCompletedAuthoritativeSyncRef = useRef(false)
+
+  const buildForcedRegionFallbackCells = (
+    rows: Record<string, unknown>[],
+    sheetColumns: SpreadsheetColumn[],
+    regions: readonly AuthoritativeGridRegion[]
+  ): SpreadsheetBulkRemoteCellItem[] => {
+    const visibleColumns = sheetColumns.filter(column => column.isVisible !== false)
+    if (visibleColumns.length === 0 || regions.length === 0) return []
+    const rowsByGridIndex = buildAuthoritativeRowsByGridIndex([...rows])
+    const items: SpreadsheetBulkRemoteCellItem[] = []
+
+    for (const region of regions) {
+      for (
+        let rowIndex = Math.max(0, region.minRow);
+        rowIndex <= Math.max(region.minRow, region.maxRow);
+        rowIndex += 1
+      ) {
+        const row = rowsByGridIndex.get(rowIndex)
+        for (
+          let colIndex = Math.max(0, region.minCol);
+          colIndex <= Math.max(region.minCol, Math.min(region.maxCol, visibleColumns.length - 1));
+          colIndex += 1
+        ) {
+          const column = visibleColumns[colIndex]
+          if (!column) continue
+          items.push({
+            rowIndex,
+            colIndex,
+            value: row ? (readSpreadsheetRowCellValue(row, column) ?? '') : '',
+            rowId: row ? getCanonicalRowId(row) : undefined
+          })
+        }
+      }
+    }
+
+    return items
+  }
 
   useEffect(() => {
     lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(data)
@@ -107,6 +156,7 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       if (snapshotAlreadyMatchesRows) {
         lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
         lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
+        hasCompletedAuthoritativeSyncRef.current = true
         debugRemoteApply('skip_authoritative_reapply_after_snapshot_init', {
           rowCount: data.length,
           columnCount: visibleColumns.length,
@@ -123,6 +173,15 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     const prepareRegionOnly = !isForcedAuthoritativeReapply ? pendingAuthoritativeRegionRef.current : null
     pendingAuthoritativeRegionRef.current = null
 
+    const preferForcedRepairProjection =
+      isForcedAuthoritativeReapply &&
+      isServerAuthoritativeRepairReapply({
+        reason: forcedSpec?.reason,
+        pendingLocalFilterPolicy: forcedSpec?.pendingLocalFilterPolicy
+      })
+    const preferPreparedRegionProjection =
+      !isForcedAuthoritativeReapply && prepareRegionOnly != null && prepareRegionOnly.length > 0
+
     const scanRegions: AuthoritativeGridRegion[] = []
     if (isForcedAuthoritativeReapply && forcedSpec?.regions) {
       scanRegions.push(...forcedSpec.regions)
@@ -134,9 +193,16 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     if (authoritativePaintCellsRef) {
       authoritativePaintCellsRef.current = null
     }
+    const authoritativePaintMeta = authoritativePaintMetaRef?.current ?? null
+    if (authoritativePaintMetaRef) {
+      authoritativePaintMetaRef.current = null
+    }
 
     let authoritativeBulkBuffer: SpreadsheetBulkRemoteCellItem[] = []
-    if (sessionPaintCells && sessionPaintCells.length > 0) {
+    const shouldUseSessionPaintCells =
+      !preferForcedRepairProjection && !preferPreparedRegionProjection && Boolean(sessionPaintCells?.length)
+    const isViewerStateReprojection = !shouldUseSessionPaintCells
+    if (shouldUseSessionPaintCells && sessionPaintCells && sessionPaintCells.length > 0) {
       authoritativeBulkBuffer = sessionPaintCells
     } else if (scanRegions.length > 0) {
       authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns, { regions: scanRegions })
@@ -153,9 +219,17 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
           }))
         })
       }
-    } else {
+    } else if (!hasCompletedAuthoritativeSyncRef.current && nextToken === 0) {
       authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns)
+    } else {
+      debugRemoteApply('skip_authoritative_reapply_without_session_diff', {
+        sheetId: sheet.id,
+        token: nextToken,
+        forced: isForcedAuthoritativeReapply
+      })
     }
+
+    const pendingLocalFilterPolicy = forcedSpec?.pendingLocalFilterPolicy ?? ('protect_in_flight_local_edits' as const)
 
     const filterPendingLocalCells = (items: SpreadsheetBulkRemoteCellItem[]): SpreadsheetBulkRemoteCellItem[] => {
       const filtered: SpreadsheetBulkRemoteCellItem[] = []
@@ -176,58 +250,120 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
           row && column
             ? spreadsheetPendingLocalMutationSemanticCellKey(sheet.id, getCanonicalRowId(row), column.name)
             : null
-        const nextProtectionSignature = normalizeBlankLikeEchoSignature(String(item.value ?? ''))
+        const nextProtectionSignature = normalizeBlankLikeEchoSignature(toEchoSignature(item.value ?? ''))
         const isPendingLocalMutationCell =
-          reconcileSpreadsheetPendingLocalMutationCellProtection(
+          shouldBlockSpreadsheetPendingLocalMutationCellProtection(
             pendingLocalMutationCellsRef,
             coordinateProtectionKey,
-            nextProtectionSignature
+            nextProtectionSignature,
+            pendingLocalFilterPolicy
           ) ||
           (semanticProtectionKey
-            ? reconcileSpreadsheetPendingLocalMutationCellProtection(
+            ? shouldBlockSpreadsheetPendingLocalMutationCellProtection(
                 pendingLocalMutationCellsRef,
                 semanticProtectionKey,
-                nextProtectionSignature
+                nextProtectionSignature,
+                pendingLocalFilterPolicy
               )
-            : false) ||
-          pendingLocalMutationCellsRef?.current?.has(coordinateProtectionKey) ||
-          (semanticProtectionKey ? pendingLocalMutationCellsRef?.current?.has(semanticProtectionKey) : false)
+            : false)
         if (isPendingLocalMutationCell) continue
         filtered.push(item)
       }
       return filtered
     }
 
-    authoritativeBulkBuffer = filterPendingLocalCells(authoritativeBulkBuffer)
+    const projectedBufferBeforeFilter = authoritativeBulkBuffer
+    const filteredProjectedBuffer = filterPendingLocalCells(projectedBufferBeforeFilter)
+    const filterBypassApplied = false
+    let filterDropReason:
+      | 'none'
+      | 'projector_empty'
+      | 'primary_filtered_to_zero'
+      | 'fallback_filtered_to_zero'
+      | 'fallback_bypass_restored' = projectedBufferBeforeFilter.length === 0 ? 'projector_empty' : 'none'
+    authoritativeBulkBuffer = filteredProjectedBuffer
+    if (
+      authoritativeBulkBuffer.length === 0 &&
+      isForcedAuthoritativeReapply &&
+      scanRegions.length > 0 &&
+      !sessionPaintCells
+    ) {
+      if (projectedBufferBeforeFilter.length > 0) {
+        filterDropReason = 'primary_filtered_to_zero'
+      }
+      const fallbackBuffer = buildForcedRegionFallbackCells(data, columns, scanRegions)
+      const filteredFallbackBuffer = filterPendingLocalCells(fallbackBuffer)
+      authoritativeBulkBuffer = filteredFallbackBuffer
+      if (fallbackBuffer.length > 0 && filteredFallbackBuffer.length === 0) {
+        filterDropReason = 'fallback_filtered_to_zero'
+      }
+    }
 
     const allowAuthoritativeBulkFlush = !isForcedAuthoritativeReapply || !forcedSpec || forcedSpec.preferBulk !== false
+
+    debugRemoteApply('authoritative_reapply_filter_result', {
+      sheetId: sheet.id,
+      token: nextToken,
+      forced: isForcedAuthoritativeReapply,
+      reason: forcedSpec?.reason,
+      preferForcedRepairProjection,
+      preferPreparedRegionProjection,
+      projectedCellCount: projectedBufferBeforeFilter.length,
+      filteredProjectedCellCount: filteredProjectedBuffer.length,
+      finalCellCount: authoritativeBulkBuffer.length,
+      filterDropReason,
+      filterBypassApplied,
+      regionOnly: scanRegions.length > 0,
+      regionCount: scanRegions.length
+    })
 
     debugRemoteApply('authoritative_reapply_bulk_prepared', {
       sheetId: sheet.id,
       cellCount: authoritativeBulkBuffer.length,
       token: nextToken,
       forced: isForcedAuthoritativeReapply,
+      preferForcedRepairProjection,
+      preferPreparedRegionProjection,
       regionOnly: scanRegions.length > 0,
       regionCount: scanRegions.length,
-      sessionDerived: Boolean(sessionPaintCells?.length)
+      sessionDerived: Boolean(sessionPaintCells?.length),
+      filterDropReason,
+      filterBypassApplied
     })
 
-    if (allowAuthoritativeBulkFlush && authoritativeBulkBuffer.length >= SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH) {
-      applyRemoteCellUpdatesBulk(authoritativeBulkBuffer, { operationType: 'authoritative_reapply' })
+    const applyMeta: SpreadsheetBulkRemoteApplyMeta = {
+      ...(authoritativePaintMeta ?? {}),
+      operationType: authoritativePaintMeta?.operationType ?? 'authoritative_reapply',
+      skipRemoteEchoRegistration: authoritativePaintMeta?.skipRemoteEchoRegistration ?? isViewerStateReprojection
+    }
+
+    if (authoritativeBulkBuffer.length === 0) {
+      applyMeta.onApplyComplete?.()
+    } else if (
+      allowAuthoritativeBulkFlush &&
+      authoritativeBulkBuffer.length >= SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH
+    ) {
+      applyRemoteCellUpdatesBulk(authoritativeBulkBuffer, applyMeta)
     } else {
       for (const it of authoritativeBulkBuffer) {
-        applyRemoteCellUpdate(it.rowIndex, it.colIndex, it.value ?? '', it.rowId)
+        applyRemoteCellUpdate(it.rowIndex, it.colIndex, it.value ?? '', it.rowId, {
+          ...it.options,
+          skipRemoteEchoRegistration: it.options?.skipRemoteEchoRegistration ?? applyMeta.skipRemoteEchoRegistration
+        })
       }
+      applyMeta.onApplyComplete?.()
     }
 
     lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(data)
     lastSyncedGridColumnCountRef.current = visibleColumns.length
     lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
     lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
+    hasCompletedAuthoritativeSyncRef.current = true
   }, [
     applyRemoteCellUpdate,
     applyRemoteCellUpdatesBulk,
     authoritativePaintCellsRef,
+    authoritativePaintMetaRef,
     authoritativeReapplySeed,
     columns,
     data,

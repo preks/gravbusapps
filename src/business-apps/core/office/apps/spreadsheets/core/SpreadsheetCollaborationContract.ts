@@ -5,12 +5,18 @@ import type { SpreadsheetViewerRow } from './SpreadsheetSession'
 import type {
   AuthoritativeGridReapplyTarget,
   AuthoritativeGridRegion,
-  ForceAuthoritativeGridReapplyOptions
+  ForceAuthoritativeGridReapplyOptions,
+  PendingLocalFilterPolicy
 } from '../utils/spreadsheetAuthoritativeRegion'
 import type { SpreadsheetRemoteTransactionPlan } from './spreadsheetRemoteTransaction'
 import type { UniverRemoteTransactionRunResult } from './univerRemoteTransactionRunner'
 
-export type { AuthoritativeGridReapplyTarget, AuthoritativeGridRegion, ForceAuthoritativeGridReapplyOptions }
+export type {
+  AuthoritativeGridReapplyTarget,
+  AuthoritativeGridRegion,
+  ForceAuthoritativeGridReapplyOptions,
+  PendingLocalFilterPolicy
+}
 
 export interface SpreadsheetStylePatch {
   /** Style keys to set/overwrite on the receiver cell. */
@@ -147,6 +153,7 @@ export interface SpreadsheetRemoteDimensionsPayload {
 export interface SpreadsheetRemoteCellUpdateOptions {
   useSenderA1Row?: boolean
   targetSheetId?: string
+  skipRemoteEchoRegistration?: boolean
   stylePatch?: SpreadsheetStylePatch | null
   univerCell?: Record<string, unknown> | null
   univerStyles?: Record<string, unknown> | null
@@ -177,11 +184,18 @@ export interface SpreadsheetBulkRemoteApplyMeta {
   batchId?: string | null
   operationType?: string | null
   /**
+   * Skip registering remote-echo suppression for bulk paints that re-project
+   * viewer data already visible in the grid.
+   */
+  skipRemoteEchoRegistration?: boolean
+  /**
    * Invoked once after this bulk apply finishes (including serial fallback and early exits).
    * Used to chain dependent grid work (e.g. apply `set_style` after paste `set_range` values).
    */
   onApplyComplete?: () => void
 }
+
+export type SpreadsheetSessionDiffProjectionMode = 'allow' | 'skip'
 
 export interface SpreadsheetRemoteClearFormatRangePayload {
   sheetId: string
@@ -232,12 +246,25 @@ export interface SpreadsheetCollaborationCallbacks {
   getBackendRowIdForUiRowId: (uiRowId: string, univerRow?: number) => string | undefined
   commitLocalSheetData: (
     data: SpreadsheetViewerRow[],
-    options?: { persisted?: boolean; syncGrid?: boolean; publishParent?: boolean }
+    options?: {
+      persisted?: boolean
+      syncGrid?: boolean
+      sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
+      publishParent?: boolean
+      authoritativeGridRegion?: AuthoritativeGridReapplyTarget
+      authoritativeApplyMeta?: SpreadsheetBulkRemoteApplyMeta | null
+    }
   ) => void
   commitSheetData?: (
     sheetId: string,
     data: SpreadsheetViewerRow[],
-    options?: { persisted?: boolean; syncGrid?: boolean }
+    options?: {
+      persisted?: boolean
+      syncGrid?: boolean
+      sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
+      authoritativeGridRegion?: AuthoritativeGridReapplyTarget
+      authoritativeApplyMeta?: SpreadsheetBulkRemoteApplyMeta | null
+    }
   ) => void
   applyRemoteCellUpdate: (
     rowIndex: number,

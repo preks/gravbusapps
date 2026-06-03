@@ -471,10 +471,14 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     })
 
     expect(runRemoteTransaction).toHaveBeenCalledWith(expect.objectContaining({ ok: true }))
-    expect(commitSheetData).toHaveBeenCalledWith('sheet-1', [{ _id: 'row-1', _rowUuid: 'row-1', Name: 'New' }], {
-      persisted: true,
-      syncGrid: false
-    })
+    expect(commitSheetData).toHaveBeenCalledWith(
+      'sheet-1',
+      [{ _id: 'row-1', _rowUuid: 'row-1', Name: 'New' }],
+      expect.objectContaining({
+        persisted: true,
+        syncGrid: true
+      })
+    )
     expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(scheduleRemoteStructuralResync).not.toHaveBeenCalled()
     expect(onVersionUpdate).toHaveBeenCalledWith(2)
@@ -1313,9 +1317,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
 
     expect(commitLocalSheetData).toHaveBeenCalledWith(
       [{ _id: 'row-0', _rowUuid: 'backend-row-1', ColumnA: 'new', _updatedAt: expect.any(String) }],
-      { persisted: true, syncGrid: false }
+      expect.objectContaining({ persisted: true, syncGrid: true })
     )
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, 'new', 'backend-row-1')
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalledWith(0, 0, 'new', 'backend-row-1')
+    const commitOptions = commitLocalSheetData.mock.calls[0]?.[1]
+    commitOptions?.authoritativeApplyMeta?.onApplyComplete?.()
     expect(applyRemoteCellUpdate).toHaveBeenCalledWith(
       0,
       0,
@@ -1415,8 +1421,13 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       'sheet-1'
     )
 
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(10, 0, 'remote', 'backend-sparse')
-    expect(applyRemoteCellUpdate).not.toHaveBeenCalledWith(3, 0, expect.anything(), expect.anything())
+    expect(callbacks.commitLocalSheetData).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ _rowUuid: 'backend-sparse', ColumnA: 'remote', _gridRowIndex: 10 })
+      ]),
+      expect.objectContaining({ persisted: true, syncGrid: true })
+    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
   })
 
   it('replayDeltaChanges maps row identity through _gridRowIndex when cellRef is absent', () => {
@@ -1453,7 +1464,13 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       'sheet-1'
     )
 
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(10, 0, 'remote', 'backend-sparse')
+    expect(callbacks.commitLocalSheetData).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ _rowUuid: 'backend-sparse', ColumnA: 'remote', _gridRowIndex: 10 })
+      ]),
+      expect.objectContaining({ persisted: true, syncGrid: true })
+    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
   })
 
   it('replays inactive-sheet set_style deltas to the target worksheet and sheet version', () => {
@@ -1749,9 +1766,9 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
 
     expect(commitLocalSheetData).toHaveBeenCalledWith(
       [{ _id: 'row-b-1', ColumnA: 'new', _updatedAt: expect.any(String) }],
-      { persisted: true, syncGrid: false }
+      expect.objectContaining({ persisted: true, syncGrid: true })
     )
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, 'new', 'row-b-1')
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
   })
 
   it('applies inactive-sheet batch values to the target worksheet and marks materialization', () => {
@@ -1806,15 +1823,9 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(commitSheetData).toHaveBeenCalledWith(
       'sheet-2',
       [expect.objectContaining({ _id: 'row-b-1', ColumnA: 'new inactive value' })],
-      { persisted: true, syncGrid: false }
+      expect.objectContaining({ persisted: true, syncGrid: false })
     )
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(
-      0,
-      0,
-      'new inactive value',
-      'row-b-1',
-      expect.objectContaining({ targetSheetId: 'sheet-2' })
-    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(markSheetNeedsGridMaterialization).toHaveBeenCalledWith('sheet-2', expect.any(String))
   })
 
@@ -2098,9 +2109,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       timestamp: Date.now()
     })
 
-    expect(commitLocalSheetData).toHaveBeenCalled()
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, 'new-a', 'backend-row-1')
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 1, 42, 'backend-row-1')
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      [expect.objectContaining({ _rowUuid: 'backend-row-1', ColumnA: 'new-a', ColumnB: 42 })],
+      expect.objectContaining({ persisted: true, syncGrid: true })
+    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(5)
   })
 
@@ -2143,8 +2156,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       timestamp: Date.now()
     })
 
-    expect(commitLocalSheetData).toHaveBeenCalled()
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, 'first-edit', 'backend-row-1')
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      [expect.objectContaining({ _rowUuid: 'backend-row-1', ColumnA: 'first-edit' })],
+      expect.objectContaining({ persisted: true, syncGrid: true })
+    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(onDiagnosticsTraceEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({
         stage: 'client_collab_receive_skipped',
@@ -2192,8 +2208,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       timestamp: Date.now()
     })
 
-    expect(commitLocalSheetData).toHaveBeenCalled()
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, null, 'backend-row-1')
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      [expect.objectContaining({ _rowUuid: 'backend-row-1', ColumnA: null })],
+      expect.objectContaining({ persisted: true, syncGrid: true })
+    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(5)
   })
 
@@ -2370,9 +2389,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       timestamp: Date.now()
     })
 
-    expect(commitLocalSheetData).toHaveBeenCalled()
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, 'updated', 'backend-row-1')
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 1, 7, 'backend-row-1')
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      [expect.objectContaining({ _rowUuid: 'backend-row-1', ColumnA: 'updated', ColumnB: 7 })],
+      expect.objectContaining({ persisted: true, syncGrid: true })
+    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(6)
   })
 
@@ -2419,9 +2440,14 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       timestamp: Date.now()
     })
 
-    expect(commitLocalSheetData).toHaveBeenCalled()
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(1, 0, null, 'backend-row-29')
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(2, 0, null, 'backend-row-30')
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ _rowUuid: 'backend-row-29', ColumnE: null }),
+        expect.objectContaining({ _rowUuid: 'backend-row-30', ColumnE: null })
+      ]),
+      expect.objectContaining({ persisted: true, syncGrid: true })
+    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(7)
   })
 
@@ -2459,8 +2485,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       timestamp: Date.now()
     })
 
-    expect(commitLocalSheetData).toHaveBeenCalled()
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, 'after', 'backend-row-28')
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      [expect.objectContaining({ _rowUuid: 'backend-row-28', ColumnE: 'after' })],
+      expect.objectContaining({ persisted: true, syncGrid: true })
+    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
   })
 
   it('applies inactive-sheet authoritative batches into sheet cache state and version update', () => {
@@ -2501,7 +2530,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(commitSheetData).toHaveBeenCalledWith(
       'sheet-2',
       [{ _id: 'row-1', _rowUuid: 'backend-row-1', ColumnA: 'remote', _updatedAt: expect.any(String) }],
-      { persisted: true, syncGrid: false }
+      expect.objectContaining({ persisted: true, syncGrid: false })
     )
     expect(onSheetVersionUpdate).toHaveBeenCalledWith('sheet-2', 11)
     expect(callbacks.commitLocalSheetData).not.toHaveBeenCalled()
@@ -2984,7 +3013,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(commitLocalSheetData).toHaveBeenCalledWith(
       'sheet-1',
       [expect.objectContaining({ _id: 'row-new', ColumnA: 'remote value' })],
-      { persisted: true, syncGrid: true }
+      { persisted: true, syncGrid: true, sessionDiffProjectionMode: 'skip' }
     )
     expect(scheduleRemoteStructuralResync).not.toHaveBeenCalled()
     expect(requestSheetCatchUp).not.toHaveBeenCalled()
@@ -2995,7 +3024,8 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
         expect.objectContaining({
           clearAllSignatures: false,
           preferBulk: true,
-          reason: 'dirty_regions_from_backend_used'
+          reason: 'dirty_regions_from_backend_used',
+          pendingLocalFilterPolicy: 'server_authoritative_repair'
         })
       )
     })
@@ -3498,18 +3528,8 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       ],
       { persisted: true, syncGrid: true }
     )
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(
-      1,
-      0,
-      'plain value',
-      'backend-row-new',
-      expect.objectContaining({ useSenderA1Row: true })
-    )
-    expect(forceGridReapply).toHaveBeenCalledWith(
-      'sheet-1',
-      { minRow: 1, maxRow: 1, minCol: 0, maxCol: 0 },
-      expect.objectContaining({ clearAllSignatures: false, preferBulk: true })
-    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(forceGridReapply).not.toHaveBeenCalled()
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(15)
   })
 
@@ -3575,13 +3595,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       ],
       { persisted: true, syncGrid: true }
     )
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(
-      1,
-      0,
-      'plain value',
-      'backend-row-new',
-      expect.objectContaining({ useSenderA1Row: true })
-    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(forceGridReapply).toHaveBeenCalledWith(
       'sheet-1',
       { minRow: 1, maxRow: 2, minCol: 0, maxCol: 0 },
@@ -3671,7 +3685,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
         }),
         { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 1, ColumnA: 'existing bottom' }
       ],
-      { persisted: true, syncGrid: false }
+      expect.objectContaining({ persisted: true, syncGrid: true })
     )
   })
 
@@ -3737,13 +3751,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       ],
       { persisted: true, syncGrid: true }
     )
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(
-      1,
-      0,
-      'plain value',
-      'backend-row-new',
-      expect.objectContaining({ useSenderA1Row: true })
-    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(forceGridReapply).toHaveBeenCalledWith(
       'sheet-1',
       { minRow: 1, maxRow: 2, minCol: 0, maxCol: 0 },
@@ -3832,7 +3840,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
         }),
         { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 1, ColumnA: 'existing bottom' }
       ],
-      { persisted: true, syncGrid: false }
+      expect.objectContaining({ persisted: true, syncGrid: true })
     )
   })
 
@@ -3891,13 +3899,9 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       }
     )
     expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
-    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ rowIndex: 1, colIndex: 0 })]),
-      expect.objectContaining({ operationType: 'add_rows_replay' })
-    )
-    // Phase 1: `add_rows_replay` bulk already painted the created rows; the forced authoritative
-    // reapply must be skipped so we do not re-write the same cells (forced reapply ignores
-    // signature equality and was the main duplicate-work source on large auto-add deltas).
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    // The session commit now owns created-row values for plain add_rows, so the manager must not
+    // keep a second direct bulk-paint lane or a follow-up forced reapply for the same append.
     expect(forceGridReapply).not.toHaveBeenCalled()
   })
 
@@ -4091,6 +4095,198 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(callbacks.onVersionUpdate).not.toHaveBeenCalled()
   })
 
+  it('coalesces repeated stale data-op catch-up requests until the known version advances', () => {
+    const requestSheetCatchUp = jest.fn()
+    let knownSheetVersion = 13
+    const callbacks = makeCallbacks({
+      getSheetVersion: () => knownSheetVersion,
+      requestSheetCatchUp
+    })
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setLastKnownVersion(13)
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'set_cell',
+              data: { sheetId: 'sheet-1', rowId: 'backend-row-1', columnName: 'ColumnA', value: 'stale-11' }
+            }
+          ]
+        }
+      },
+      version: 11,
+      timestamp: Date.now()
+    })
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'set_cell',
+              data: { sheetId: 'sheet-1', rowId: 'backend-row-1', columnName: 'ColumnA', value: 'stale-12' }
+            }
+          ]
+        }
+      },
+      version: 12,
+      timestamp: Date.now()
+    })
+
+    expect(requestSheetCatchUp).toHaveBeenCalledTimes(1)
+    expect(requestSheetCatchUp).toHaveBeenCalledWith('sheet-1', 'stale_version_data_op', {
+      sinceVersion: 10,
+      incomingVersion: 11
+    })
+
+    knownSheetVersion = 15
+    manager.setLastKnownVersion(15)
+    manager.reportStaleRecoveryLifecycle({
+      sheetId: 'sheet-1',
+      stage: 'catchup_applied',
+      version: 13
+    })
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'set_cell',
+              data: { sheetId: 'sheet-1', rowId: 'backend-row-1', columnName: 'ColumnA', value: 'stale-14' }
+            }
+          ]
+        }
+      },
+      version: 14,
+      timestamp: Date.now()
+    })
+
+    expect(requestSheetCatchUp).toHaveBeenCalledTimes(2)
+    expect(requestSheetCatchUp).toHaveBeenLastCalledWith('sheet-1', 'stale_version_data_op', {
+      sinceVersion: 13,
+      incomingVersion: 14
+    })
+  })
+
+  it('suppresses repeated stale catch-up escalation while recovery is active and clears after recovery advances', () => {
+    const requestSheetCatchUp = jest.fn()
+    let knownSheetVersion = 13
+    const callbacks = makeCallbacks({
+      getSheetVersion: () => knownSheetVersion,
+      requestSheetCatchUp
+    })
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.setLastKnownVersion(13)
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'set_cell',
+              data: { sheetId: 'sheet-1', rowId: 'backend-row-1', columnName: 'ColumnA', value: 'stale-11' }
+            }
+          ]
+        }
+      },
+      version: 11,
+      timestamp: Date.now()
+    })
+
+    knownSheetVersion = 15
+    manager.setLastKnownVersion(15)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'set_cell',
+              data: { sheetId: 'sheet-1', rowId: 'backend-row-1', columnName: 'ColumnA', value: 'stale-14' }
+            }
+          ]
+        }
+      },
+      version: 14,
+      timestamp: Date.now()
+    })
+
+    expect(requestSheetCatchUp).toHaveBeenCalledTimes(1)
+
+    manager.reportStaleRecoveryLifecycle({
+      sheetId: 'sheet-1',
+      stage: 'catchup_applied',
+      version: 13
+    })
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'set_cell',
+              data: { sheetId: 'sheet-1', rowId: 'backend-row-1', columnName: 'ColumnA', value: 'covered-12' }
+            }
+          ]
+        }
+      },
+      version: 12,
+      timestamp: Date.now()
+    })
+
+    expect(requestSheetCatchUp).toHaveBeenCalledTimes(1)
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'set_cell',
+              data: { sheetId: 'sheet-1', rowId: 'backend-row-1', columnName: 'ColumnA', value: 'stale-14-again' }
+            }
+          ]
+        }
+      },
+      version: 14,
+      timestamp: Date.now()
+    })
+
+    expect(requestSheetCatchUp).toHaveBeenCalledTimes(2)
+    expect(requestSheetCatchUp).toHaveBeenLastCalledWith('sheet-1', 'stale_version_data_op', {
+      sinceVersion: 13,
+      incomingVersion: 14
+    })
+  })
+
   it('requests targeted catch-up for stale style-only batch_operations when a newer sheet version is already known', () => {
     const commitLocalSheetData = jest.fn()
     const applyRemoteCellUpdate = jest.fn()
@@ -4250,9 +4446,9 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
 
     expect(commitLocalSheetData).toHaveBeenCalledWith(
       [{ _id: 'row-1', _rowUuid: 'backend-row-1', ColumnE: null, _updatedAt: expect.any(String) }],
-      { persisted: true, syncGrid: false }
+      expect.objectContaining({ persisted: true, syncGrid: true })
     )
-    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(0, 0, null, 'backend-row-1')
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
   })
 
   it('applies very large persisted batch replays cell-by-cell without forcing a whole-grid sync', () => {
@@ -4293,10 +4489,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       timestamp: Date.now()
     })
 
-    expect(commitLocalSheetData).toHaveBeenCalledWith(expect.any(Array), { persisted: true, syncGrid: false })
-    expect(applyRemoteCellUpdate).toHaveBeenCalledTimes(600)
-    expect(applyRemoteCellUpdate).toHaveBeenNthCalledWith(1, 0, 0, null, 'backend-row-0')
-    expect(applyRemoteCellUpdate).toHaveBeenNthCalledWith(600, 599, 0, null, 'backend-row-599')
+    expect(commitLocalSheetData).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ persisted: true, syncGrid: true })
+    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
     expect(callbacks.onVersionUpdate).toHaveBeenCalledWith(8)
   })
 

@@ -3,11 +3,14 @@ import { useMemo, type MutableRefObject } from 'react'
 import { SpreadsheetApiRequestError } from '../services/SpreadsheetApiService'
 import { areCanonicalSheetIdsEqual, resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
 import { createIdentityRowProjectionModel } from '../utils/spreadsheetRowProjection'
+import { promoteSpreadsheetRowIdentities } from '../utils/spreadsheetRowIdentityPromotion'
 import { applyMoveCellRangeToViewerRows } from '../utils/spreadsheetMoveCellRangeGrid'
 import { patchLatestUniverSnapshotRowBackendIdentities } from '../utils/spreadsheetUniverSnapshotIdentity'
 import { applyCommittedGridRowPlacements } from '../utils/spreadsheetCommittedGridRowPlacements'
 import { buildPersistedRowIdMapFromInsertRowSlotsResult } from '../utils/spreadsheetViewerRows'
 import type { SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
+import type { SpreadsheetIntentJournal } from '../core/spreadsheetIntentJournal'
+import type { SpreadsheetVersionCausalOwnershipRegistry } from '../core/spreadsheetVersionCausalOwnership'
 import {
   applyDeleteRowSlotsTransform,
   applyInsertRowSlotsTransform,
@@ -57,6 +60,9 @@ interface StructuralMutationParams {
     resolveMany: (sheetId: string, mapping: Map<string, string>) => void
     reject: (sheetId: string, clientRowId: string, error: unknown) => void
   }
+  spreadsheetIntentJournalRef?: MutableRefObject<SpreadsheetIntentJournal | null>
+  versionCausalOwnershipRef?: MutableRefObject<SpreadsheetVersionCausalOwnershipRegistry | null>
+  pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
   flushPendingCellChangesRef?: MutableRefObject<() => Promise<void>>
   activeSheetColumns: any[]
   spreadsheetColumnsForGrid: any[]
@@ -274,9 +280,16 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
               rowMappings: response.rowMappings
             }
           )
-          params.rowMaterializationReadiness.resolveMany(targetSheetId, persistedIdByClientRowId)
-          persistedIdByClientRowId.forEach((backendRowId, clientRowId) => {
-            params.rowSlotIdentityRegistry.bindBackendRowId(targetSheetId, clientRowId, backendRowId)
+          promoteSpreadsheetRowIdentities({
+            sheetId: targetSheetId,
+            persistedIdByClientRowId,
+            deps: {
+              rowMaterializationReadiness: params.rowMaterializationReadiness,
+              rowSlotIdentityRegistry: params.rowSlotIdentityRegistry,
+              intentJournal: params.spreadsheetIntentJournalRef?.current,
+              versionCausalOwnership: params.versionCausalOwnershipRef?.current,
+              pendingLocalMutationCellsRef: params.pendingLocalMutationCellsRef
+            }
           })
           persistedIdByClientRowId.forEach((backendRowId, clientRowId) => {
             const resolver = readinessPendingResolvers.get(clientRowId)

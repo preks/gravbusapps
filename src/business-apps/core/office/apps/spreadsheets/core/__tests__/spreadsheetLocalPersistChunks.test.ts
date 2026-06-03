@@ -38,6 +38,21 @@ describe('spreadsheetLocalPersistChunks', () => {
     expect(chunks[1]?.operations.map(operation => operation.type)).toEqual(['set_style'])
   })
 
+  it('keeps add_rows-only batches structural and does not recreate a dropped value chunk before style', () => {
+    const chunks = splitUnifiedOperationsByPersistKind(
+      [
+        op('add_rows', { rows: [{ _clientRowId: 'client_row_1', A: 1 }] }),
+        op('set_style', { cells: [{ row: 0, col: 0, stylePatch: { unset: ['s'] } }] })
+      ],
+      100_000
+    )
+
+    expect(chunks).toHaveLength(2)
+    expect(chunks.map(chunk => chunk.kind)).toEqual(['structural', 'style'])
+    expect(chunks[0]?.operations.map(operation => operation.type)).toEqual(['add_rows'])
+    expect(chunks[1]?.operations.map(operation => operation.type)).toEqual(['set_style'])
+  })
+
   it('merges consecutive add_rows-only chunks into one structural group', () => {
     const chunks = splitUnifiedOperationsByPersistKind(
       [

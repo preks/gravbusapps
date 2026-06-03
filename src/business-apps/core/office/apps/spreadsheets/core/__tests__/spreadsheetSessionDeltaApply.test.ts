@@ -9,6 +9,9 @@ const columns: SpreadsheetColumn[] = [
   { id: 'col-a', name: 'ColumnA', type: 'text', isVisible: true, order: 0 },
   { id: 'col-b', name: 'ColumnB', type: 'text', isVisible: true, order: 1 }
 ]
+const numericColumns: SpreadsheetColumn[] = [
+  { id: 'col-amount', name: 'Amount', type: 'number', isVisible: true, order: 0 }
+]
 
 describe('applySpreadsheetSessionDeltaChangesToRows', () => {
   it('applies peer single-cell update over local stale row (incoming wins per field)', () => {
@@ -33,6 +36,33 @@ describe('applySpreadsheetSessionDeltaChangesToRows', () => {
       _rowUuid: 'row-1',
       ColumnA: 'peer-wins',
       ColumnB: 'local-only'
+    })
+  })
+
+  it('coerces numeric strings for numeric columns on set_cell and set_range deltas', () => {
+    const rows = [{ _id: 'row-1', _rowUuid: 'row-1', Amount: null }]
+
+    const nextRows = applySpreadsheetSessionDeltaChangesToRows(
+      rows,
+      [
+        {
+          operationType: 'set_cell',
+          payload: { rowId: 'row-1', columnName: 'Amount', value: '42' }
+        },
+        {
+          operationType: 'set_range',
+          payload: {
+            cells: [{ rowId: 'row-1', columnName: 'Amount', value: { v: '43', t: 2 } }]
+          }
+        }
+      ],
+      numericColumns
+    )
+
+    expect(nextRows[0]).toEqual({
+      _id: 'row-1',
+      _rowUuid: 'row-1',
+      Amount: { v: 43, t: 2 }
     })
   })
 })

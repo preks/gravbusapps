@@ -210,7 +210,7 @@ export const buildAddRowPayloadsFromUniverRows = (
     ;(columns ?? []).forEach(col => {
       const value = row[col.name]
       if (value === undefined) return
-      const normalized = normalizeUniverCellForRowPersistence(value)
+      const normalized = normalizeUniverCellForRowPersistence(value, col)
       if (normalized !== undefined) {
         payload[col.name] = normalized
         return

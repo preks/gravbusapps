@@ -24,6 +24,11 @@ const textCol = (id: string, name: string, order: number): SpreadsheetColumn => 
   order
 })
 
+const numberCol = (id: string, name: string, order: number): SpreadsheetColumn => ({
+  ...textCol(id, name, order),
+  type: 'number'
+})
+
 const makeSheet = (
   id: string,
   name: string,
@@ -159,6 +164,7 @@ describe('stripWorkbookSnapshotValuesPreservingFormatting', () => {
 describe('univerAdapter snapshot row overlay', () => {
   const sheetId = 'sheet-1'
   const columns: SpreadsheetColumn[] = [textCol('c0', 'alpha', 0), textCol('c1', 'beta', 1)]
+  const numericColumns: SpreadsheetColumn[] = [numberCol('c0', 'amount', 0)]
 
   it('workbookSnapshotMismatchesViewerRows detects null snapshot cell vs row value', () => {
     const viewerRows: Record<string, unknown>[] = Array.from({ length: 15 }, () => ({}))
@@ -230,6 +236,14 @@ describe('univerAdapter snapshot row overlay', () => {
     expect(ws.cellData[0]?.[0]).toEqual({ v: 'anchor' })
     expect(ws.cellData[0]?.[1]).toBeUndefined()
     expect(ws.cellData[1]).toBeUndefined()
+  })
+
+  it('buildWorkbookSnapshot coerces numeric-column strings into numeric cell values', () => {
+    const sheet = makeSheet(sheetId, 'Sheet 1', numericColumns, [{ amount: '42' }])
+
+    const snapshot = buildWorkbookSnapshot(sheet, sheet.data, numericColumns)
+
+    expect(snapshot.sheets[sheetId]?.cellData?.[0]?.[0]).toEqual({ v: 42 })
   })
 
   it('buildWorkbookSnapshot maps sheet tab hidden state into Univer worksheet metadata', () => {
@@ -361,6 +375,36 @@ describe('univerAdapter snapshot row overlay', () => {
     expect(ws?.cellData?.[12]?.[1]?.v).toBe('synced')
     expect(ws?.mergeData).toEqual([{ startRow: 0, startColumn: 0, endRow: 0, endColumn: 1 }])
     expect(workbookSnapshotMismatchesViewerRows(merged, sheetId, viewerRows, columns)).toBe(false)
+  })
+
+  it('mergeAuthoritativeViewerRowsIntoWorkbookSnapshot keeps style refs but drops stale text metadata for numeric cells', () => {
+    const viewerRows: Record<string, unknown>[] = [{ amount: '42' }]
+    const snapshot: Record<string, unknown> = {
+      id: 'wb',
+      name: 'W',
+      sheetOrder: [sheetId],
+      sheets: {
+        [sheetId]: {
+          id: sheetId,
+          name: 'S',
+          cellData: {
+            0: {
+              0: { v: 'old', s: 'style-num', ct: { fa: '@' }, t: 1 }
+            }
+          }
+        }
+      }
+    }
+
+    const merged = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(snapshot, sheetId, viewerRows, numericColumns)
+    const cell = (
+      merged.sheets as Record<
+        string,
+        { cellData?: Record<number, Record<number, { v?: unknown; s?: string; ct?: unknown; t?: unknown }>> }
+      >
+    )[sheetId]?.cellData?.[0]?.[0]
+
+    expect(cell).toEqual({ v: 42, s: 'style-num' })
   })
 
   it('clears stale snapshot-only values that are absent from authoritative rows', () => {

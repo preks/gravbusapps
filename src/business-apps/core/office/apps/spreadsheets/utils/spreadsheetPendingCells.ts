@@ -81,17 +81,30 @@ export const shouldSkipFreshRowCellReplay = (baselineValue: unknown, queuedValue
   return isBlankLikeCellValue(queuedValue) && !isBlankLikeCellValue(baselineValue)
 }
 
+export interface ReconcileQueuedDraftCellsForCreatedRowsResult<T extends PendingCellChangeLike> {
+  queuedCells: T[]
+  droppedCellKeys: string[]
+  retainedCellKeys: string[]
+}
+
 export const reconcileQueuedDraftCellsForCreatedRows = <T extends PendingCellChangeLike>(
   queuedCells: T[],
   // Kept for signature compatibility with existing callers; baseline lookup no longer used (Fix F).
   _createdRows: ViewerRow[],
-  persistedIdByClientRowId: Map<string, string>
-): T[] => {
+  persistedIdByClientRowId: Map<string, string>,
+  addRowsValuesByClientRowId: Map<string, Record<string, unknown>> = new Map()
+): ReconcileQueuedDraftCellsForCreatedRowsResult<T> => {
   if (queuedCells.length === 0 || persistedIdByClientRowId.size === 0) {
-    return queuedCells
+    return {
+      queuedCells,
+      droppedCellKeys: [],
+      retainedCellKeys: []
+    }
   }
 
   const nextQueuedCells: T[] = []
+  const droppedCellKeys: string[] = []
+  const retainedCellKeys: string[] = []
   for (const cell of queuedCells) {
     const clientRowId = String(cell.rowId)
     const persistedId = persistedIdByClientRowId.get(clientRowId)
@@ -100,16 +113,28 @@ export const reconcileQueuedDraftCellsForCreatedRows = <T extends PendingCellCha
       continue
     }
 
-    // Fix F: never drop a queued cell just because its value happens to match the freshly-created
-    // row's baseline. The user's queued write is intentional and must reach the server so audit /
-    // collaboration logs see the explicit edit. The baseline is just the column default; relying
-    // on equality silently swallows legitimate writes (e.g. typing "0" into a numeric column with
-    // default 0, or typing the same value into 20 new rows in the same column).
+    const addRowsValues = addRowsValuesByClientRowId.get(clientRowId)
+    if (
+      addRowsValues &&
+      Object.prototype.hasOwnProperty.call(addRowsValues, cell.columnName) &&
+      cellValuesAreEquivalentForPersist(addRowsValues[cell.columnName], cell.value)
+    ) {
+      droppedCellKeys.push(`${persistedId}\u0000${cell.columnName}`)
+      continue
+    }
+
+    // Fix F still applies for columns the row-create payload did NOT explicitly carry. We only
+    // suppress a queued cell when add_rows itself transmitted the same (row, column, value).
     nextQueuedCells.push({
       ...cell,
       rowId: persistedId
     })
+    retainedCellKeys.push(`${persistedId}\u0000${cell.columnName}`)
   }
 
-  return nextQueuedCells
+  return {
+    queuedCells: nextQueuedCells,
+    droppedCellKeys,
+    retainedCellKeys
+  }
 }

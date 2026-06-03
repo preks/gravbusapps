@@ -12,6 +12,12 @@ import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import { saveSpreadsheetSnapshotWithRetry } from './spreadsheetSnapshotSaveWithRetry'
 import {
+  attachSnapshotCoversVersions,
+  getSheetCoverageVersion,
+  mergeSnapshotCoversVersions,
+  type SpreadsheetSnapshotCoversVersions
+} from '../utils/spreadsheetSnapshotCoverage'
+import {
   clearPendingSnapshotClearCoordinates,
   clearSnapshotCellsByCoordinate,
   cloneSnapshot,
@@ -75,6 +81,7 @@ export interface PersistSpreadsheetSnapshotCheckpointContext {
   entityEnabled: boolean
   socketPersistChainRef: MutableRefObject<Promise<unknown>>
   workbookSnapshotVersionRef: MutableRefObject<number>
+  workbookSnapshotCoversVersionsRef: MutableRefObject<SpreadsheetSnapshotCoversVersions>
   snapshotSaveMetricsRef: MutableRefObject<{
     attempts: number
     conflicts: number
@@ -96,6 +103,7 @@ export interface PersistSpreadsheetSnapshotCheckpointContext {
 
   getActiveSessionRows: () => ViewerRow[]
   hasPendingCellPersistence: () => boolean
+  resolveKnownSheetVersion: (sheetId: string) => number
   isSheetPersistenceBusy?: (sheetId: string) => boolean
   isUuid: (value: string) => boolean
 
@@ -159,6 +167,10 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
     if (Number.isFinite(srv) && srv >= 0) {
       ctx.workbookSnapshotVersionRef.current = Math.max(ctx.workbookSnapshotVersionRef.current, srv)
     }
+    ctx.workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
+      ctx.workbookSnapshotCoversVersionsRef.current,
+      meta.coversVersions
+    )
   } catch {
     // Best-effort; save still recovers from 409.
   }
@@ -203,6 +215,10 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
   const targetSheetVersionRef = {
     current: ctx.workbookSnapshotVersionRef.current
   }
+  const targetSheetCoverageVersion = Math.max(
+    getSheetCoverageVersion(ctx.workbookSnapshotCoversVersionsRef.current, targetSheetId),
+    ctx.resolveKnownSheetVersion(targetSheetId)
+  )
   const isTargetActiveSheet = targetSheetId === ctx.activeSheetIdRef.current
   const targetSheetMeta = ctx.sheets.find(sheet => sheet.id === targetSheetId)
   if (!targetSheetMeta) {
@@ -328,9 +344,14 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
       rowsForAuthoritativeSnapshot,
       targetSheetMeta.columns
     )
-    const snapshotToPersist = normalizeWorkbookSnapshotToAppSheets(
-      clearSnapshotCellsByCoordinate(snapshotToPersistBase, targetSheetId, pendingSnapshotClearCells),
-      ctx.sheets
+    const snapshotToPersist = attachSnapshotCoversVersions(
+      normalizeWorkbookSnapshotToAppSheets(
+        clearSnapshotCellsByCoordinate(snapshotToPersistBase, targetSheetId, pendingSnapshotClearCells),
+        ctx.sheets
+      ),
+      mergeSnapshotCoversVersions(ctx.workbookSnapshotCoversVersionsRef.current, {
+        [targetSheetId]: targetSheetCoverageVersion
+      })
     )
     const visualSnapshotToPersist = stripWorkbookSnapshotValuesPreservingFormatting(snapshotToPersist)
     sizeBytesForSave = getSnapshotSizeBytes(visualSnapshotToPersist)
@@ -359,20 +380,26 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
       activeSheetId: targetSheetId,
       baseSnapshot: visualSnapshotToPersist,
       prepareSnapshotForSave: currentSnapshot =>
-        normalizeWorkbookSnapshotToAppSheets(
-          clearSnapshotCellsByCoordinate(
-            mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
-              currentSnapshot as Record<string, unknown>,
+        attachSnapshotCoversVersions(
+          normalizeWorkbookSnapshotToAppSheets(
+            clearSnapshotCellsByCoordinate(
+              mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
+                currentSnapshot as Record<string, unknown>,
+                targetSheetId,
+                rowsForAuthoritativeSnapshot,
+                targetSheetMeta.columns
+              ),
               targetSheetId,
-              rowsForAuthoritativeSnapshot,
-              targetSheetMeta.columns
+              getPendingSnapshotClearCoordinates(ctx.pendingSnapshotClearCellsRef.current, targetSheetId)
             ),
-            targetSheetId,
-            getPendingSnapshotClearCoordinates(ctx.pendingSnapshotClearCellsRef.current, targetSheetId)
+            ctx.sheets
           ),
-          ctx.sheets
+          mergeSnapshotCoversVersions(ctx.workbookSnapshotCoversVersionsRef.current, {
+            [targetSheetId]: targetSheetCoverageVersion
+          })
         ),
       workbookSnapshotVersionRef: targetSheetVersionRef,
+      workbookSnapshotCoversVersionsRef: ctx.workbookSnapshotCoversVersionsRef,
       snapshotSaveMetricsRef: ctx.snapshotSaveMetricsRef,
       recoverFromVersionConflict: recoverSnapshotConflict,
       spreadsheetGridRef: ctx.spreadsheetGridRef,
@@ -408,6 +435,10 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
     ctx.workbookSnapshotVersionRef.current = Math.max(
       ctx.workbookSnapshotVersionRef.current,
       targetSheetVersionRef.current
+    )
+    ctx.workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
+      ctx.workbookSnapshotCoversVersionsRef.current,
+      { [targetSheetId]: targetSheetCoverageVersion }
     )
     if (!isTargetActiveSheet) {
       ctx.peerSheetDataCacheRef.current.set(targetSheetId, [...rowsForAuthoritativeSnapshot])

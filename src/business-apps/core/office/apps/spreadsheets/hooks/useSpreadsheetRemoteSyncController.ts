@@ -18,12 +18,20 @@ import {
   stripWorkbookSnapshotValuesPreservingFormatting
 } from '../utils/univerAdapter'
 import { writeUniverSnapshotCache, clearUniverSnapshotCache } from '../utils/univerSnapshotCache'
+import {
+  hasSheetCoverageVersion,
+  mergeSnapshotCoversVersions,
+  normalizeSnapshotCoversVersions,
+  type SpreadsheetSnapshotCoversVersions
+} from '../utils/spreadsheetSnapshotCoverage'
 import { scheduleCoalescedTimeout } from '../utils/collaborationRepairScheduler'
 import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
 import {
-  tryComputeAuthoritativeRegionFromReplayDeltas,
-  type AuthoritativeGridRegion
+  estimateAuthoritativeGridReapplyTargetCellCount,
+  tryComputeAuthoritativeRegionsFromReplayDeltas,
+  type AuthoritativeGridReapplyTarget
 } from '../utils/spreadsheetAuthoritativeRegion'
+import type { SpreadsheetSessionDiffProjectionMode } from '../core/SpreadsheetCollaborationContract'
 import { countReplayDeltaChangeKinds, partitionReplayDeltaChanges } from '../utils/spreadsheetReplayDeltaPartition'
 import { resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
 import { mapSnapshotRowsToViewerRows, overlaySnapshotIfRowsMismatch } from '../utils/spreadsheetViewerRows'
@@ -53,6 +61,7 @@ export interface UseSpreadsheetRemoteSyncControllerParams {
   activeSheetIdRef: MutableRefObject<string>
   appSheetsRef: MutableRefObject<SpreadsheetSheet[]>
   workbookSnapshotVersionRef: MutableRefObject<number>
+  workbookSnapshotCoversVersionsRef: MutableRefObject<SpreadsheetSnapshotCoversVersions>
   pendingCreatedSheetSelectionRef: MutableRefObject<{
     temporarySheetId: string
     persistedSheetId: string | null
@@ -75,9 +84,10 @@ export interface UseSpreadsheetRemoteSyncControllerParams {
     options?: {
       persisted?: boolean
       syncGrid?: boolean
+      sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
       version?: number
       recoveredSheetMeta?: SpreadsheetSheet
-      authoritativeGridRegion?: AuthoritativeGridRegion | null
+      authoritativeGridRegion?: AuthoritativeGridReapplyTarget
     }
   ) => void
   setBootstrapSnapshot: (snapshot: Record<string, unknown> | null) => void
@@ -85,6 +95,7 @@ export interface UseSpreadsheetRemoteSyncControllerParams {
   getKnownRowsForSheet: (sheetId: string) => Record<string, unknown>[]
   hasPendingCellPersistence: () => boolean
   hasPendingPersistenceForSheet: (targetSheetId: string) => boolean
+  hasTransientLocalGridStateForSheet?: (targetSheetId: string) => boolean
   getActiveSessionVersion: () => number
   /** When true, reload pushes fetched columns through the mutation facade (matches viewer `onSheetUpdate` guard). */
   sheetMetadataReloadEnabled: boolean
@@ -218,16 +229,27 @@ export function useSpreadsheetRemoteSyncController(
           const isColdStart = isColdStartSnapshotReload(seedPrefix)
           const hasUnresolvedIntents = params.localWorkGuard?.hasUnresolvedLocalWorkForSheet(targetSheetId) ?? false
           const hasPendingQueuedPersist = params.hasPendingPersistenceForSheet(targetSheetId)
-          if (!isColdStart && (hasUnresolvedIntents || hasPendingQueuedPersist)) {
+          const hasTransientLocalGridState = params.hasTransientLocalGridStateForSheet?.(targetSheetId) ?? false
+          if (!isColdStart && (hasUnresolvedIntents || hasPendingQueuedPersist || hasTransientLocalGridState)) {
+            params.collaborationManagerRef.current?.reportStaleRecoveryLifecycle({
+              sheetId: targetSheetId,
+              stage: 'snapshot_reload_skipped',
+              version: params.resolveKnownSheetVersion(targetSheetId)
+            })
             params.enqueueDiagnosticsTraceEvent({
               source: 'client',
               stage: 'client_snapshot_reload_skipped',
               severity: 'warning',
               traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
               payload: {
-                reason: hasUnresolvedIntents ? 'unresolved-local-intents' : 'pending-local-persist',
+                reason: hasUnresolvedIntents
+                  ? 'unresolved-local-intents'
+                  : hasPendingQueuedPersist
+                    ? 'pending-local-persist'
+                    : 'transient-local-grid-state',
                 hasUnresolvedIntents,
                 hasPendingQueuedPersist,
+                hasTransientLocalGridState,
                 targetSheetId,
                 seedPrefix
               }
@@ -267,13 +289,18 @@ export function useSpreadsheetRemoteSyncController(
           try {
             const univerData = await SpreadsheetApiService.getUniverSnapshot(params.appId)
             const appSnapshotVersion = Number(univerData.version ?? 0)
+            const remoteCoversVersions = normalizeSnapshotCoversVersions(univerData.coversVersions)
             if (Number.isFinite(appSnapshotVersion) && appSnapshotVersion >= 0) {
               params.workbookSnapshotVersionRef.current = Math.max(
                 params.workbookSnapshotVersionRef.current,
                 appSnapshotVersion
               )
             }
-            if (univerData?.snapshot && typeof univerData.snapshot === 'object') {
+            if (
+              univerData?.snapshot &&
+              typeof univerData.snapshot === 'object' &&
+              hasSheetCoverageVersion(remoteCoversVersions, targetSheetId)
+            ) {
               let snap = normalizeWorkbookSnapshotToAppSheets(
                 univerData.snapshot as Record<string, unknown>,
                 appSheetsWithRecoveredMeta
@@ -295,17 +322,30 @@ export function useSpreadsheetRemoteSyncController(
                 }
               }
               restoredUniverSnapshot = snap
+              params.workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
+                params.workbookSnapshotCoversVersionsRef.current,
+                remoteCoversVersions
+              )
               writeUniverSnapshotCache(
                 params.appId,
                 univerData.version,
                 stripWorkbookSnapshotValuesPreservingFormatting(snap)
               )
+            } else {
+              const nextCoversVersions = { ...params.workbookSnapshotCoversVersionsRef.current }
+              delete nextCoversVersions[targetSheetId]
+              params.workbookSnapshotCoversVersionsRef.current = nextCoversVersions
             }
           } catch (e) {
             console.warn('[SpreadsheetAppViewer] Could not fetch Univer snapshot during sheet reload:', e)
           }
 
           const nextVersion = Number(snapshot.version || 0)
+          params.collaborationManagerRef.current?.reportStaleRecoveryLifecycle({
+            sheetId: targetSheetId,
+            stage: 'snapshot_reload_started',
+            version: nextVersion
+          })
           const localIntents = params.localWorkGuard?.listLocalIntentsForSheet(targetSheetId) ?? []
           const rowsWithLocalIntents =
             localIntents.length > 0
@@ -314,10 +354,12 @@ export function useSpreadsheetRemoteSyncController(
                   reloadedVersion: nextVersion
                 })
               : rows
+          await params.flushDeferredDirtyCellsRef?.current?.()
           params.rememberKnownSheetVersion(targetSheetId, nextVersion)
+          const syncGridFromReload = false
           params.syncSheetRowsIntoLocalState(targetSheetId, rowsWithLocalIntents, {
             persisted: true,
-            syncGrid: isTargetActiveSheet,
+            syncGrid: isTargetActiveSheet ? syncGridFromReload : false,
             version: nextVersion,
             recoveredSheetMeta: recoveredSheetMetaWithVisibility
           })
@@ -327,7 +369,6 @@ export function useSpreadsheetRemoteSyncController(
             })
           }
           if (restoredUniverSnapshot && isTargetActiveSheet) {
-            await params.flushDeferredDirtyCellsRef?.current?.()
             params.requestGridRefresh(restoredUniverSnapshot, `${seedPrefix}-${targetSheetId}-${Date.now()}`)
             const visibilityReplayOperations = buildColumnVisibilityReplayOperations(targetSheetId, mergedColumns)
             if (visibilityReplayOperations.length > 0) {
@@ -338,9 +379,13 @@ export function useSpreadsheetRemoteSyncController(
           } else if (restoredUniverSnapshot && params.preferUniverNativeSheetTabs) {
             params.sheetsNeedingGridMaterializationRef.current.set(targetSheetId, seedPrefix)
           } else if (isTargetActiveSheet) {
-            await params.flushDeferredDirtyCellsRef?.current?.()
             params.requestGridRefresh(null, `${seedPrefix}-${targetSheetId}-${Date.now()}`)
           }
+          params.collaborationManagerRef.current?.reportStaleRecoveryLifecycle({
+            sheetId: targetSheetId,
+            stage: 'snapshot_reload_succeeded',
+            version: nextVersion
+          })
           params.enqueueDiagnosticsTraceEvent({
             source: 'client',
             stage: 'client_snapshot_reload_succeeded',
@@ -356,6 +401,11 @@ export function useSpreadsheetRemoteSyncController(
           return true
         } catch (error) {
           console.error('[SpreadsheetAppViewer] Failed to reload sheet snapshot:', error)
+          params.collaborationManagerRef.current?.reportStaleRecoveryLifecycle({
+            sheetId: targetSheetId,
+            stage: 'snapshot_reload_failed',
+            version: params.resolveKnownSheetVersion(targetSheetId)
+          })
           params.enqueueDiagnosticsTraceEvent({
             source: 'client',
             stage: 'client_snapshot_reload_failed',
@@ -400,6 +450,7 @@ export function useSpreadsheetRemoteSyncController(
     activeTraceSessionRef: params.activeTraceSessionRef,
     rememberKnownSheetVersion: params.rememberKnownSheetVersion,
     resolveKnownSheetVersion: params.resolveKnownSheetVersion,
+    workbookSnapshotCoversVersionsRef: params.workbookSnapshotCoversVersionsRef,
     syncSheetRowsIntoLocalState: params.syncSheetRowsIntoLocalState,
     getKnownRowsForSheet: params.getKnownRowsForSheet,
     hasPendingCellPersistence: params.hasPendingCellPersistence,
@@ -485,7 +536,7 @@ export function useSpreadsheetRemoteSyncController(
           baseRows: params.getKnownRowsForSheet(params.activeSheetId),
           targetSheet: params.activeSheet
         })
-        const authoritativeGridRegion = tryComputeAuthoritativeRegionFromReplayDeltas({
+        const authoritativeGridRegion = tryComputeAuthoritativeRegionsFromReplayDeltas({
           changes: delta.changes,
           columns: params.activeSheet.columns,
           rows: nextRows
@@ -500,15 +551,14 @@ export function useSpreadsheetRemoteSyncController(
         // that would need an authoritative region paint.
         const skipSyncGrid = replayRan && hasAddRowsStructural && changeKinds.cellChangeCount === 0
         const syncGrid = !skipSyncGrid
+        const sessionDiffProjectionMode: SpreadsheetSessionDiffProjectionMode | undefined =
+          syncGrid && !authoritativeGridRegion ? 'skip' : undefined
         const skipSyncGridReason = skipSyncGrid
           ? 'structural_replay_painted'
           : authoritativeGridRegion
             ? 'region_sync'
             : 'full_token'
-        const authoritativeRegionCellEstimate = authoritativeGridRegion
-          ? (authoritativeGridRegion.maxRow - authoritativeGridRegion.minRow + 1) *
-            (authoritativeGridRegion.maxCol - authoritativeGridRegion.minCol + 1)
-          : 0
+        const authoritativeRegionCellEstimate = estimateAuthoritativeGridReapplyTargetCellCount(authoritativeGridRegion)
         params.enqueueDiagnosticsTraceEvent({
           source: 'client',
           stage: 'client_catchup_paint_strategy',
@@ -532,6 +582,7 @@ export function useSpreadsheetRemoteSyncController(
           // Skip the full-grid token bump after add_rows replay so we do not re-paint the rows
           // the manager just bulk-applied. Mixed deltas still sync via the merged region.
           syncGrid,
+          sessionDiffProjectionMode,
           version: resolvedVersion,
           authoritativeGridRegion
         })
