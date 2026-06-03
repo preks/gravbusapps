@@ -59,7 +59,8 @@ export interface StartNodeConfig {
   nodeType: 'start'
   triggerType: TriggerType
   form?: InputBlock[]
-  webhookConfig?: { url?: string; secret?: string }
+  /** Studio-only: plaintext until flow save creates/updates FS credential and sets secretRef. */
+  webhookConfig?: { webhookId?: string; secretRef?: string; pendingWebhookSecret?: string }
   emailConfig?: { filter?: EmailTriggerFilterConfig }
   eventConfig?: { eventType?: string; filter?: string }
   scheduleConfig?: { cron?: string; timezone?: string }
@@ -313,6 +314,8 @@ export interface FlowStudioState {
   templateVersion: number
   /** Whether there are unsaved changes */
   isDirty: boolean
+  /** Bumped after a successful save so webhook-config can refetch from CFE. */
+  webhookConfigRefreshKey: number
   /** Whether the store is loading */
   isLoading: boolean
   /** Pending destructive action confirmation */

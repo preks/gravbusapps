@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  FunctionsServiceClient,
   type FunctionCategory,
   type LatestFunctionItem,
   type ConnectorKind,
@@ -18,6 +17,7 @@ import type {
 } from '@/common/network/functions/FunctionsServiceClient'
 import { newConfigRowId, newEmptyConfigRow, type ConfigRow } from '../components/editor/SettingsEditor'
 import { getApplicableDraftUpdates, hasMeaningfulSchema } from '../utils/functionDraftGuards'
+import { useFunctionsServiceClient } from '@/common/network/functions/useFunctionsServiceClient'
 
 function safeJsonParseObject(value: string): Record<string, unknown> | undefined {
   const v = String(value || '').trim()
@@ -44,7 +44,7 @@ export interface UseFunctionEditorStateArgs {
 }
 
 export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionEditorStateArgs) {
-  const client = useMemo(() => new FunctionsServiceClient(accessToken), [accessToken])
+  const client = useFunctionsServiceClient(accessToken)
   const promptManagerClient = usePromptManagerClient(accessToken)
 
   // Core fields
@@ -96,10 +96,7 @@ export function useFunctionEditorState({ accessToken, mode, func }: UseFunctionE
 
   const [storedSecrets, setStoredSecrets] = useState<StoredSecretOption[]>([])
 
-  const credentialBindOptions = useMemo(
-    () => buildCredentialBindOptionsFromList(storedSecrets),
-    [storedSecrets]
-  )
+  const credentialBindOptions = useMemo(() => buildCredentialBindOptionsFromList(storedSecrets), [storedSecrets])
 
   const refreshSecrets = useCallback(async () => {
     try {

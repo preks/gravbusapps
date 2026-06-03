@@ -433,6 +433,28 @@ export class FlowTemplateClient extends RestClient {
   }
 
   /**
+   * Webhook trigger metadata for Flow Studio (no resolved secret plaintext).
+   */
+  async getWebhookConfig(id: string): Promise<{
+    webhookId: string
+    webhookPath: string
+    secretRef?: string
+    secretConfigured: boolean
+    inputSchema: Record<string, unknown>
+  }> {
+    const response = await this.get<
+      ApiResponse<{
+        webhookId: string
+        webhookPath: string
+        secretRef?: string
+        secretConfigured: boolean
+        inputSchema: Record<string, unknown>
+      }>
+    >(`/${encodeURIComponent(id)}/webhook-config`)
+    return response.data
+  }
+
+  /**
    * Get a specific flow template by ID
    */
   async getTemplate(id: string, version?: number): Promise<FlowTemplate> {

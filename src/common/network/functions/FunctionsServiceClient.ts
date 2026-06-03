@@ -1,4 +1,5 @@
 import { env } from '@/common/env/EnvUtils'
+import { normalizeBearerAccessToken, setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
 
 export type ConnectorKind = 'structured' | 'unstructured'
 
@@ -209,13 +210,17 @@ export class FunctionsServiceClient {
       const trimmed = functionsServiceUrl.endsWith('/') ? functionsServiceUrl.slice(0, -1) : functionsServiceUrl
       this.baseUrl = trimmed + '/api/v1'
     }
-    this.accessToken = accessToken
+    this.accessToken = normalizeBearerAccessToken(accessToken) ?? undefined
+  }
+
+  setAccessToken(accessToken: string) {
+    this.accessToken = normalizeBearerAccessToken(accessToken) ?? undefined
   }
 
   private getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {}
     if (this.accessToken) {
-      headers['Authorization'] = `Bearer ${this.accessToken}`
+      headers.Authorization = setAccessTokenToAuthorizationHeader(this.accessToken)
     }
     return headers
   }
@@ -441,15 +446,12 @@ export class FunctionsServiceClient {
     options: { profile: 'live' | 'preview'; merge?: boolean; removeFieldKeys?: string[] }
   ): Promise<{ version: number }> {
     const removeFieldKeys = options.removeFieldKeys?.filter(Boolean)
-    return await this.postJson<{ version: number }>(
-      `/credentials/${encodeURIComponent(credentialId)}/fields`,
-      {
-        profile: options.profile,
-        fields,
-        merge: options.merge === true,
-        ...(removeFieldKeys?.length ? { removeFieldKeys } : {})
-      }
-    )
+    return await this.postJson<{ version: number }>(`/credentials/${encodeURIComponent(credentialId)}/fields`, {
+      profile: options.profile,
+      fields,
+      merge: options.merge === true,
+      ...(removeFieldKeys?.length ? { removeFieldKeys } : {})
+    })
   }
 
   async deleteCredential(credentialId: string): Promise<void> {
@@ -522,8 +524,43 @@ export class FunctionsServiceClient {
     return { result, logs }
   }
 
-  async getFunction(functionId: string): Promise<{ metadata: FunctionMetadata; version?: { source?: string } }> {
-    return await this.get<{ metadata: FunctionMetadata; version?: { source?: string } }>(`/functions/${functionId}`)
+  async getFunction(functionId: string): Promise<{
+    metadata: FunctionMetadata
+    version?: FunctionVersionMeta & { source?: string }
+  }> {
+    return await this.get<{
+      metadata: FunctionMetadata
+      version?: FunctionVersionMeta & { source?: string }
+    }>(`/functions/${functionId}`)
+  }
+
+  /** Map GET /functions/:id (latest version) to the list row shape used by Function Manager. */
+  toLatestFunctionItem(detail: {
+    metadata: FunctionMetadata
+    version?: FunctionVersionMeta & { source?: string }
+  }): LatestFunctionItem | null {
+    const { metadata, version } = detail
+    if (!metadata?.id || !version?.version) return null
+    return {
+      id: metadata.id,
+      name: metadata.name,
+      description: metadata.description,
+      category: metadata.category,
+      subcategory: metadata.subcategory,
+      agentEnabled: metadata.agentEnabled,
+      workflowEnabled: metadata.workflowEnabled,
+      connectorEnabled: metadata.connectorEnabled,
+      connectorKind: metadata.connectorKind,
+      enabled: metadata.enabled,
+      config: metadata.config ?? {},
+      connectionBinding: metadata.connectionBinding,
+      latestVersion: {
+        version: version.version,
+        inputSchema: version.inputSchema,
+        outputSchema: version.outputSchema,
+        createdAt: version.createdAt
+      }
+    }
   }
 
   async functionAssistantDraft(data: FunctionAssistantDraftRequest): Promise<FunctionAssistantDraftResponse> {

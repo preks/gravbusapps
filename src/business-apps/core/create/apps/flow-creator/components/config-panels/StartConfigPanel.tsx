@@ -33,6 +33,7 @@ import { FlowContextExpressionEditor } from '../shared/FlowContextExpressionEdit
 import { useStudioExpressionSuggestions } from '../../hooks/useStudioExpressionSuggestions'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 import { EmailTriggerFilterEditor } from './EmailTriggerFilterEditor'
+import { WebhookStartConfigSection } from './WebhookStartConfigSection'
 
 const TRIGGER_ICONS: Record<TriggerType, React.ElementType> = {
   MANUAL_FORM: Play,
@@ -54,6 +55,7 @@ interface StartConfigPanelProps {
   nodeId: string
   config: StartNodeConfig
   mode: DesignerMode
+  accessToken: string
   studioData: FlowStudioData
   'data-testid'?: string
 }
@@ -62,6 +64,7 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
   nodeId,
   config,
   mode,
+  accessToken,
   studioData,
   'data-testid': testId = 'flow-studio-start-config'
 }) => {
@@ -191,35 +194,17 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
           )}
 
           {config.triggerType === 'WEBHOOK' && mode === 'advanced' && (
-            <div className="gba:flex gba:flex-col gba:gap-3">
-              <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label className="gba:text-xs gba:font-medium">Webhook URL</Label>
-                <Input
-                  value={config.webhookConfig?.url ?? ''}
-                  onChange={e =>
-                    updateNodeConfig(nodeId, {
-                      webhookConfig: { ...config.webhookConfig, url: e.target.value }
-                    })
-                  }
-                  placeholder="Auto-generated on publish"
-                  readOnly
-                  data-testid={`${testId}-webhook-url`}
-                />
-              </div>
-              <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label className="gba:text-xs gba:font-medium">Secret</Label>
-                <Input
-                  value={config.webhookConfig?.secret ?? ''}
-                  onChange={e =>
-                    updateNodeConfig(nodeId, {
-                      webhookConfig: { ...config.webhookConfig, secret: e.target.value }
-                    })
-                  }
-                  placeholder="Optional signing secret"
-                  data-testid={`${testId}-webhook-secret`}
-                />
-              </div>
-            </div>
+            <WebhookStartConfigSection
+              nodeId={nodeId}
+              config={config}
+              mode={mode}
+              accessToken={accessToken}
+              studioData={studioData}
+              testId={testId}
+              onFieldKeyRename={(args, options) =>
+                rewriteExpressionsForStartFieldRename(args.oldKey, args.newKey, options)
+              }
+            />
           )}
 
           {config.triggerType === 'EVENT' && mode === 'advanced' && (

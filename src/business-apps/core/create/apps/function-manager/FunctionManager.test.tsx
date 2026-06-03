@@ -94,7 +94,9 @@ describe('FunctionManager', () => {
       setPagination: jest.fn(),
       visibleColumns: [],
       setVisibleColumns: jest.fn(),
-      refetch: jest.fn()
+      refetch: jest.fn(),
+      resolvedFunctionItem: null,
+      deepLinkLoading: false
     })
 
     createFunctionsColumnsMock.mockReturnValue([])
