@@ -11,7 +11,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { postToPlatform } from '@/common/utils/postToPlatform'
-import { useEmailAccounts, useEmailFolders, useEmails, useEmailDirectory } from './hooks'
+import { useEmailAccounts, useEmailFolders, useEmails, useEmailRealtime, useEmailDirectory } from './hooks'
 import { EmailApiService } from './services/EmailApiService'
 import {
   EmailSidebar,
@@ -189,6 +189,10 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
   const { folders, inboxFolder } = useEmailFolders(accessToken, defaultAccount?.id)
 
+  // When realtime is connected, new mail is pushed instantly so we can fall
+  // back to a slower safety poll; otherwise keep the responsive 15s poll.
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false)
+
   const {
     messages,
     selectedMessage,
@@ -211,8 +215,24 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     search: searchQuery || undefined,
     labels: selectedLabels.length ? selectedLabels : undefined,
     starredOnly,
-    threadView: threadViewEnabled
+    threadView: threadViewEnabled,
+    autoRefreshInterval: isRealtimeConnected ? 60000 : 15000
   })
+
+  // Instant push updates: refresh the active list the moment new mail arrives,
+  // instead of waiting for the polling interval. Polling remains as a fallback.
+  const { isConnected: realtimeConnected } = useEmailRealtime({
+    accessToken,
+    accountId: defaultAccount?.id,
+    enabled: Boolean(defaultAccount?.id),
+    onNewEmail: useCallback(() => {
+      void refreshMessages(true)
+    }, [refreshMessages])
+  })
+
+  useEffect(() => {
+    setIsRealtimeConnected(realtimeConnected)
+  }, [realtimeConnected])
 
   // Directory hook for auto-suggest (org directory + provider contacts)
   const { searchContacts, addRecentRecipients, findDirectoryUserMatch } = useEmailDirectory(accessToken, accounts)

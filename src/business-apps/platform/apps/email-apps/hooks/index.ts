@@ -1,6 +1,7 @@
 export { useEmailAccounts } from './useEmailAccounts'
 export { useEmailFolders } from './useEmailFolders'
 export { useEmails } from './useEmails'
+export { useEmailRealtime } from './useEmailRealtime'
 export { useEmailDirectory } from './useEmailDirectory'
 export { useExternalCalendarEvents } from './useExternalCalendarEvents'
 export { useLabelSuggestions } from './useLabelSuggestions'

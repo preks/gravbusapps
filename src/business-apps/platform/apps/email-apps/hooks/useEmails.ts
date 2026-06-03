@@ -368,6 +368,6 @@ export function useEmails({
     moveToFolder,
     updateMessageLabels,
     loadMore,
-    refreshMessages: () => loadMessages(1, false)
+    refreshMessages: (silent = false) => loadMessages(1, silent)
   }
 }
