@@ -31,8 +31,6 @@ const DOCUMENT_REALTIME_EDIT_INTENT_PATTERN =
   /\b(edit|rewrite|revise|improve|fix|update|rephrase|shorten|expand|draft|polish|refine)\b/i
 const DOCUMENT_UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i
 
-export type WebSearchMode = 'off' | 'on'
-
 type PrechatCacheEntry = {
   suggestions: string[]
   createdAt: number
@@ -132,8 +130,65 @@ const HIDDEN_DOCUMENT_STREAM_OUTPUT_TYPES = new Set<OutputItem['type']>([
   'document_stream_complete'
 ])
 
+const FLOWBOT_DOCUMENT_STREAM_UPDATE_EVENT = 'flowbot:document-stream-update'
+const documentStreamHtmlByDocumentId = new Map<string, string>()
+
 function shouldHideDocumentStreamOutput(output: OutputItem): boolean {
   return HIDDEN_DOCUMENT_STREAM_OUTPUT_TYPES.has(output.type)
+}
+
+function resolveDocumentStreamDocumentId(documentId: string | null | undefined): string | null {
+  if (typeof documentId !== 'string') return null
+  const trimmed = documentId.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+/** Push streamed HTML to the open document editor (bypasses API/Yjs websocket). */
+function relayDocumentStreamOutputToEditor(output: OutputItem): void {
+  if (typeof window === 'undefined') return
+
+  if (output.type === 'document_stream_start') {
+    const documentId = resolveDocumentStreamDocumentId(output.document_id)
+    if (documentId) {
+      documentStreamHtmlByDocumentId.set(documentId, '')
+    }
+    return
+  }
+
+  if (output.type === 'document_stream_chunk') {
+    const documentId = resolveDocumentStreamDocumentId(output.document_id)
+    if (!documentId || !output.chunk) return
+    const accumulatedHtml = `${documentStreamHtmlByDocumentId.get(documentId) ?? ''}${output.chunk}`
+    documentStreamHtmlByDocumentId.set(documentId, accumulatedHtml)
+    window.dispatchEvent(
+      new CustomEvent(FLOWBOT_DOCUMENT_STREAM_UPDATE_EVENT, {
+        detail: {
+          documentId,
+          html: accumulatedHtml,
+          isFinal: Boolean(output.is_final)
+        }
+      })
+    )
+    return
+  }
+
+  if (output.type === 'document_stream_complete') {
+    const documentId = resolveDocumentStreamDocumentId(output.document_id)
+    if (!documentId) return
+    const accumulatedHtml = documentStreamHtmlByDocumentId.get(documentId) ?? ''
+    documentStreamHtmlByDocumentId.delete(documentId)
+    window.dispatchEvent(
+      new CustomEvent('flowbot:document-stream-complete', {
+        detail: {
+          documentId,
+          mode: output.mode,
+          changed: output.changed,
+          changeSummary: output.change_summary,
+          html: accumulatedHtml.length > 0 ? accumulatedHtml : undefined
+        }
+      })
+    )
+  }
 }
 
 function buildRealtimeDocumentProgressOutput(documentId: string): OutputItem {
@@ -142,7 +197,7 @@ function buildRealtimeDocumentProgressOutput(documentId: string): OutputItem {
     displayData: [
       {
         type: 'textBlock',
-        text: `I started updating document ${documentId} in real time. Keep the document tab open to see live changes.`
+        text: `I started updating document ${documentId}. Changes are saved to the document when the edit finishes — reopen or refresh the document to view them.`
       }
     ],
     nextStepProposals: []
@@ -322,7 +377,10 @@ function processSSEFrame(
   if (event === 'output-item') {
     try {
       const newOutput = JSON.parse(data) as OutputItem
-      if (shouldHideDocumentStreamOutput(newOutput)) return
+      if (shouldHideDocumentStreamOutput(newOutput)) {
+        relayDocumentStreamOutputToEditor(newOutput)
+        return
+      }
       appendOutputItemToLastAgentTurn(newOutput)
       setState(prevState => ({ ...prevState }))
     } catch (err) {
@@ -1345,7 +1403,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         nextStepProposals: [],
         __streaming: true,
         __runId: runId
-      }
+      } as StreamingAnswerOutput
     } else {
       if (!shouldDisplayBufferedStreamText(bufferedText)) {
         pendingTextDeltaBuffersRef.current[runKey] = bufferedText
@@ -1357,7 +1415,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           nextStepProposals: [],
           __streaming: true,
           __runId: runId
-        })
+        } as StreamingAnswerOutput)
       }
     }
 
@@ -1605,7 +1663,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       userInputText: string,
       files: File[],
       isThinking: boolean = false,
-      webSearchMode: WebSearchMode = 'off',
+      isSearching: boolean = false,
       additionInfo?: string,
       skills?: string[],
       mentions?: Array<{ id: string; type: string; display: string }>,
@@ -1663,9 +1721,8 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         form.append('session_id', effectiveSessionId || '')
         form.append('user_input_text', userInputText)
         form.append('model_kind', FLOWBOT_MODEL_KIND_DEFAULT)
-        form.append('use_web_search_tool', (webSearchMode === 'on').toString())
+        form.append('use_web_search_tool', (isSearching ?? false).toString())
         form.append('hands_free_mode', handsFreeMode.toString())
-        form.append('web_search_mode', webSearchMode)
         // Append when explicitly provided (including empty string) so callers can
         // force inclusion of the multipart field for document-edit flows.
         if (additionInfo !== undefined) {
@@ -1693,7 +1750,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           currentPagePayload: currentPagePayload as RealtimeDocumentContext,
           hasFiles: files.length > 0,
           isThinking,
-          isSearching: webSearchMode === 'on'
+          isSearching
         })
         const useRealtimeDocumentEdit = typeof realtimeDocumentId === 'string' && realtimeDocumentId.length > 0
         if (useRealtimeDocumentEdit) {
@@ -1763,24 +1820,12 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
             try {
               const newOutput = JSON.parse(data) as OutputItem
               const isHiddenDocumentStreamOutput = shouldHideDocumentStreamOutput(newOutput)
-              if (
-                newOutput.type === 'document_stream_complete' &&
-                typeof window !== 'undefined' &&
-                typeof newOutput.document_id === 'string' &&
-                newOutput.document_id
-              ) {
-                window.dispatchEvent(
-                  new CustomEvent('flowbot:document-stream-complete', {
-                    detail: {
-                      documentId: newOutput.document_id,
-                      mode: newOutput.mode,
-                      changed: newOutput.changed,
-                      changeSummary: newOutput.change_summary
-                    }
-                  })
-                )
-                appendOutputItemToLastAgentTurn(buildRealtimeDocumentCompleteOutput(newOutput))
-                pruneEphemeralOutputsFromLastAgentTurn()
+              if (isHiddenDocumentStreamOutput) {
+                relayDocumentStreamOutputToEditor(newOutput)
+                if (newOutput.type === 'document_stream_complete') {
+                  appendOutputItemToLastAgentTurn(buildRealtimeDocumentCompleteOutput(newOutput))
+                  pruneEphemeralOutputsFromLastAgentTurn()
+                }
               }
               if (!isHiddenDocumentStreamOutput) {
                 // New Cursor-style streaming events go through dedicated
@@ -2265,7 +2310,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       await new Promise(resolve => setTimeout(resolve, 0))
 
       // Add new message (resend)
-      await sendMessage(newText, [], false, 'off')
+      await sendMessage(newText, [], false, false)
     },
     [state.conversation.length, sendMessage]
   )

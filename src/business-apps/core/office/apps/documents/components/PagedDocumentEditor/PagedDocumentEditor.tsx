@@ -281,57 +281,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const pendingRemoteContentRef = useRef<string | null>(null)
     const pendingRemoteTitleRef = useRef<string | null>(null)
     const pendingRemoteApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const scheduleFlowbotRemoteHtmlApplyRef = useRef<(html: string) => void>(() => {})
     /** Latest Yjs sync flag for socket handlers defined before `useYjsDocumentSync`. */
     const isYjsSyncedRef = useRef(false)
 
     useEffect(() => {
       lastRemoteUpdateMsRef.current = parseIsoDateMs(document?.updatedAt)
     }, [document?.id, document?.updatedAt])
-
-    useEffect(() => {
-      if (!document?.id || isTrashedDocument) return
-
-      type FlowbotDocumentStreamCompleteDetail = {
-        documentId?: string
-        mode?: 'document' | 'selection'
-        changed?: boolean
-        changeSummary?: string
-      }
-
-      const handleFlowbotDocumentStreamComplete = async (evt: Event) => {
-        const customEvent = evt as CustomEvent<FlowbotDocumentStreamCompleteDetail>
-        const targetDocumentId = customEvent.detail?.documentId
-        if (!targetDocumentId || targetDocumentId !== document.id) return
-
-        try {
-          const latest = await getDocumentById(officeClient, document.id)
-          if (!latest || !editorRef.current) return
-
-          const nextTitle = latest.title || title
-          setTitle(nextTitle)
-
-          const latestHtml = sanitizeDocumentHtmlForEditor(latest.content || '<p></p>')
-          const currentHtml = editorRef.current.getHTML?.() || ''
-          if (!isYjsSyncedRef.current && latestHtml && latestHtml !== currentHtml) {
-            isApplyingRemoteContentRef.current = true
-            editorRef.current.commands?.setContent?.(latestHtml, false)
-            queueMicrotask(() => {
-              isApplyingRemoteContentRef.current = false
-            })
-          }
-
-          setLastSaved(new Date())
-          setHasUnsavedChanges(false)
-        } catch (error) {
-          console.error('[PagedDocumentEditor] Failed to refresh document after stream commit:', error)
-        }
-      }
-
-      globalThis.window.addEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
-      return () => {
-        globalThis.window.removeEventListener('flowbot:document-stream-complete', handleFlowbotDocumentStreamComplete)
-      }
-    }, [document?.id, isTrashedDocument, officeClient, title])
 
     const isHeaderFooterEditing = pagesEditorState.activeEditorType !== null
 
@@ -502,6 +458,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }
           pendingRemoteContentRef.current = null
           pendingRemoteTitleRef.current = null
+          scheduleFlowbotRemoteHtmlApplyRef.current(nextHtml)
           if (nextTitle) {
             setTitle(prev => (prev === nextTitle ? prev : nextTitle))
           }
@@ -1611,10 +1568,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       }, AUTO_SAVE_DELAY_MS)
     }
     const { measuredHeaderHeight, setHeaderChromeNode } = usePagedDocumentChromeMetrics(editorChromeRef)
-    const { handleRestoreVersion } = usePagedDocumentExternalContentSync({
+    const { handleRestoreVersion, scheduleFlowbotRemoteHtmlApply } = usePagedDocumentExternalContentSync({
       accessToken,
       editor,
       documentId: document?.id,
+      documentUpdatedAt: document?.updatedAt,
+      isYjsSynced,
       editorContainerRef,
       ydoc,
       suppressYjsSnapshotSaveRef,
@@ -1624,6 +1583,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       versioning,
       setShowVersionHistory
     })
+
+    useEffect(() => {
+      scheduleFlowbotRemoteHtmlApplyRef.current = scheduleFlowbotRemoteHtmlApply
+    }, [scheduleFlowbotRemoteHtmlApply])
 
     useDocumentEditorShortcuts({
       onSave: isReadOnly

@@ -34,10 +34,19 @@ export interface RestoreVersionContentParams {
   closeVersionHistory: () => void
 }
 
+function parseDocumentUpdatedAtMs(value?: string): number {
+  if (!value) return 0
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 export interface UsePagedDocumentExternalContentSyncParams {
   accessToken?: string
   editor: TiptapEditor | null
   documentId?: string
+  /** `updatedAt` from the page's last document fetch — used to detect chat/API edits. */
+  documentUpdatedAt?: string
+  isYjsSynced?: boolean
   editorContainerRef: MutableRefObject<HTMLDivElement | null>
   ydoc: YDoc
   suppressYjsSnapshotSaveRef: MutableRefObject<boolean>
@@ -48,8 +57,15 @@ export interface UsePagedDocumentExternalContentSyncParams {
   setShowVersionHistory: Dispatch<SetStateAction<boolean>>
 }
 
+const FLOWBOT_STREAM_COMPLETE_EVENT = 'flowbot:document-stream-complete'
+const FLOWBOT_STREAM_UPDATE_EVENT = 'flowbot:document-stream-update'
+const FLOWBOT_REMOTE_APPLY_DEBOUNCE_MS = 400
+
 export interface UsePagedDocumentExternalContentSyncResult {
   handleRestoreVersion: (versionNumber: number) => Promise<void>
+  applyFlowbotRemoteHtml: (html: string, updatedAt?: string) => Promise<boolean>
+  syncEditorFromLatestDocument: () => Promise<boolean>
+  scheduleFlowbotRemoteHtmlApply: (html: string, options?: { force?: boolean }) => void
 }
 
 interface PendingHydrationRefresh {
@@ -213,6 +229,8 @@ export function usePagedDocumentExternalContentSync({
   accessToken,
   editor,
   documentId,
+  documentUpdatedAt,
+  isYjsSynced = false,
   editorContainerRef,
   ydoc,
   suppressYjsSnapshotSaveRef,
@@ -224,6 +242,10 @@ export function usePagedDocumentExternalContentSync({
 }: UsePagedDocumentExternalContentSyncParams): UsePagedDocumentExternalContentSyncResult {
   const officeClient = useOfficeClient(accessToken)
   const everyAiFallbackPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const flowbotRemoteApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingFlowbotRemoteHtmlRef = useRef<string | null>(null)
+  const pendingFlowbotForceApplyRef = useRef(false)
+  const lastHydratedApiUpdatedAtMsRef = useRef(0)
 
   const applyLatestDocumentContentFromSource = useCallback(
     async (html: string, updatedAt?: string) => {
@@ -261,6 +283,104 @@ export function usePagedDocumentExternalContentSync({
       return false
     }
   }, [applyLatestDocumentContentFromSource, documentId, editor, officeClient])
+
+  const applyFlowbotRemoteHtml = useCallback(
+    async (html: string, updatedAt?: string, options?: { force?: boolean }): Promise<boolean> => {
+      if (!html.trim()) return false
+      if (!editor) {
+        pendingFlowbotRemoteHtmlRef.current = html
+        pendingFlowbotForceApplyRef.current = Boolean(options?.force)
+        return false
+      }
+
+      const normalizedHtml = sanitizeDocumentHtmlForEditor(html) || '<p></p>'
+      const currentHtml = sanitizePaginationRuntimeHtml(editor.getHTML())
+      if (!options?.force && areHtmlSemanticallyEquivalent(normalizedHtml, currentHtml)) {
+        return false
+      }
+      return applyLatestDocumentContentFromSource(normalizedHtml, updatedAt)
+    },
+    [applyLatestDocumentContentFromSource, editor]
+  )
+
+  const scheduleFlowbotRemoteHtmlApply = useCallback(
+    (html: string, options?: { force?: boolean }) => {
+      pendingFlowbotRemoteHtmlRef.current = html
+      pendingFlowbotForceApplyRef.current = Boolean(options?.force)
+      if (flowbotRemoteApplyTimeoutRef.current) {
+        clearTimeout(flowbotRemoteApplyTimeoutRef.current)
+      }
+      flowbotRemoteApplyTimeoutRef.current = setTimeout(() => {
+        flowbotRemoteApplyTimeoutRef.current = null
+        const pendingHtml = pendingFlowbotRemoteHtmlRef.current
+        const forceApply = pendingFlowbotForceApplyRef.current
+        pendingFlowbotRemoteHtmlRef.current = null
+        pendingFlowbotForceApplyRef.current = false
+        if (!pendingHtml) return
+        void applyFlowbotRemoteHtml(pendingHtml, undefined, { force: forceApply })
+      }, FLOWBOT_REMOTE_APPLY_DEBOUNCE_MS)
+    },
+    [applyFlowbotRemoteHtml]
+  )
+
+  useEffect(() => {
+    if (!editor || !pendingFlowbotRemoteHtmlRef.current) return
+    const pendingHtml = pendingFlowbotRemoteHtmlRef.current
+    const forceApply = pendingFlowbotForceApplyRef.current
+    pendingFlowbotRemoteHtmlRef.current = null
+    pendingFlowbotForceApplyRef.current = false
+    void applyFlowbotRemoteHtml(pendingHtml, undefined, { force: forceApply })
+  }, [applyFlowbotRemoteHtml, editor])
+
+  // When the editor opens later (or in another tab), pull durable API content if Flowbot/chat
+  // updated the document while this Yjs room still has stale collaborative state.
+  useEffect(() => {
+    if (!documentId || !editor || !isYjsSynced) return
+
+    let cancelled = false
+
+    const hydrateFromApiIfNewer = async () => {
+      try {
+        const latest = await getDocumentById(officeClient, documentId, { fresh: true })
+        if (cancelled || !latest?.content) return
+
+        const latestUpdatedAtMs = parseDocumentUpdatedAtMs(latest.updatedAt)
+        if (latestUpdatedAtMs <= lastHydratedApiUpdatedAtMsRef.current) return
+
+        const latestHtml = sanitizeDocumentHtmlForEditor(latest.content) || '<p></p>'
+        const currentHtml = sanitizePaginationRuntimeHtml(editor.getHTML())
+        const editorDiffersFromApi = !areHtmlSemanticallyEquivalent(latestHtml, currentHtml)
+
+        if (!editorDiffersFromApi) {
+          lastHydratedApiUpdatedAtMsRef.current = latestUpdatedAtMs
+          return
+        }
+
+        const applied = await applyLatestDocumentContentFromSource(latest.content, latest.updatedAt)
+        if (applied) {
+          lastHydratedApiUpdatedAtMsRef.current = latestUpdatedAtMs
+          const nextTitle = latest.title?.trim()
+          if (nextTitle) {
+            setTitle(prev => (prev === nextTitle ? prev : nextTitle))
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('[PagedDocumentEditor] Failed hydrating document from API after external edit', error)
+        }
+      }
+    }
+
+    void hydrateFromApiIfNewer()
+
+    return () => {
+      cancelled = true
+    }
+  }, [applyLatestDocumentContentFromSource, documentId, documentUpdatedAt, editor, isYjsSynced, officeClient, setTitle])
+
+  useEffect(() => {
+    lastHydratedApiUpdatedAtMsRef.current = 0
+  }, [documentId])
 
   const clearEveryAiFallbackPoll = useCallback(() => {
     if (everyAiFallbackPollRef.current) {
@@ -314,6 +434,75 @@ export function usePagedDocumentExternalContentSync({
 
   useEffect(() => () => clearEveryAiFallbackPoll(), [clearEveryAiFallbackPoll])
 
+  useEffect(() => {
+    if (!documentId) return
+
+    type FlowbotDocumentStreamUpdateDetail = {
+      documentId?: string
+      html?: string
+      isFinal?: boolean
+    }
+
+    type FlowbotDocumentStreamCompleteDetail = {
+      documentId?: string
+      changed?: boolean
+      html?: string
+    }
+
+    const handleFlowbotDocumentStreamUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<FlowbotDocumentStreamUpdateDetail>
+      const targetDocumentId = customEvent.detail?.documentId
+      const html = customEvent.detail?.html
+      if (!targetDocumentId || targetDocumentId !== documentId || !html) return
+
+      if (customEvent.detail?.isFinal) {
+        if (flowbotRemoteApplyTimeoutRef.current) {
+          clearTimeout(flowbotRemoteApplyTimeoutRef.current)
+          flowbotRemoteApplyTimeoutRef.current = null
+        }
+        pendingFlowbotRemoteHtmlRef.current = null
+        void applyFlowbotRemoteHtml(html, undefined, { force: true })
+        return
+      }
+
+      scheduleFlowbotRemoteHtmlApply(html)
+    }
+
+    const handleFlowbotDocumentStreamComplete = (event: Event) => {
+      const customEvent = event as CustomEvent<FlowbotDocumentStreamCompleteDetail>
+      const targetDocumentId = customEvent.detail?.documentId
+      if (!targetDocumentId || targetDocumentId !== documentId) return
+
+      if (flowbotRemoteApplyTimeoutRef.current) {
+        clearTimeout(flowbotRemoteApplyTimeoutRef.current)
+        flowbotRemoteApplyTimeoutRef.current = null
+      }
+
+      const streamedHtml = customEvent.detail?.html
+      if (streamedHtml && customEvent.detail?.changed !== false) {
+        pendingFlowbotRemoteHtmlRef.current = null
+        void applyFlowbotRemoteHtml(streamedHtml, undefined, { force: true })
+        return
+      }
+
+      if (customEvent.detail?.changed === false) return
+      void syncEditorFromLatestDocument()
+    }
+
+    globalThis.addEventListener(FLOWBOT_STREAM_UPDATE_EVENT, handleFlowbotDocumentStreamUpdate)
+    globalThis.addEventListener(FLOWBOT_STREAM_COMPLETE_EVENT, handleFlowbotDocumentStreamComplete)
+    return () => {
+      globalThis.removeEventListener(FLOWBOT_STREAM_UPDATE_EVENT, handleFlowbotDocumentStreamUpdate)
+      globalThis.removeEventListener(FLOWBOT_STREAM_COMPLETE_EVENT, handleFlowbotDocumentStreamComplete)
+      if (flowbotRemoteApplyTimeoutRef.current) {
+        clearTimeout(flowbotRemoteApplyTimeoutRef.current)
+        flowbotRemoteApplyTimeoutRef.current = null
+      }
+      pendingFlowbotRemoteHtmlRef.current = null
+      pendingFlowbotForceApplyRef.current = false
+    }
+  }, [applyFlowbotRemoteHtml, documentId, scheduleFlowbotRemoteHtmlApply, syncEditorFromLatestDocument])
+
   const handleRestoreVersion = useCallback(
     async (versionNumber: number) => {
       if (!documentId) return
@@ -334,6 +523,9 @@ export function usePagedDocumentExternalContentSync({
   )
 
   return {
-    handleRestoreVersion
+    handleRestoreVersion,
+    applyFlowbotRemoteHtml,
+    syncEditorFromLatestDocument,
+    scheduleFlowbotRemoteHtmlApply
   }
 }
