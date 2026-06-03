@@ -56,5 +56,5 @@ Tasks: ${JSON.stringify(sortedTasks)}`
     return inputData
   }
 
-  return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, 'gpt-4.1')
+  return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, 'gpt-4o')
 }

@@ -3,7 +3,7 @@ import { env } from '../env/EnvUtils'
 
 import { useCallback, useMemo, useState } from 'react'
 
-type AvailableLlmModels = 'gpt-4.1' | 'gpt-4.1-mini' | 'gpt-4o' | 'gpt-4o-mini'
+type AvailableLlmModels = 'gpt-4o' | 'gpt-4o-mini'
 
 export type InformationExtractionState<T> =
   | {
