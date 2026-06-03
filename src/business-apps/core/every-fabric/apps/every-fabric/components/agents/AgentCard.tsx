@@ -1,5 +1,6 @@
 // Agent card for the Every Fabric agents screen.
 
+import React from 'react'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
 import { PlayIcon, WrenchIcon, LightbulbIcon } from '@phosphor-icons/react'
 import { getSourceDisplay } from './agentSourceUtils'
@@ -57,6 +58,14 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               >
                 {sourceDisplay.label}
               </span>
+              {agent.isWorkforce && (
+                <span
+                  className="gba:shrink-0 gba:rounded-full gba:bg-indigo-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-indigo-700"
+                  data-testid={`agent-workforce-badge-${agent.id}`}
+                >
+                  Workforce
+                </span>
+              )}
               <span className="gba:ml-auto gba:shrink-0 gba:rounded-full gba:bg-emerald-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-emerald-700">
                 active
               </span>

@@ -1343,6 +1343,9 @@ export class PromptManagerClient extends RestClient {
     division?: string
     search?: string
     status?: string
+    // Product surface filter. Defaults server-side to 'enterprise', which
+    // excludes workforce-only agents. Use 'all' to include them.
+    surface?: 'enterprise' | 'workforce' | 'all'
     limit?: number
     offset?: number
   }): Promise<AgentRegistryEntry[]> {

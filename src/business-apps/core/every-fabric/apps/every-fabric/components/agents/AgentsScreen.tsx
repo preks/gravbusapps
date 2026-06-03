@@ -10,7 +10,7 @@ import {
   SpinnerGapIcon,
   WrenchIcon
 } from '@phosphor-icons/react'
-import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import React, { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import type { AgentRegistryEntry } from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentCard } from './AgentCard'
@@ -18,6 +18,7 @@ import { AgentConfigView } from './AgentConfigView'
 import { CreateAgentModal } from './CreateAgentModal'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
 import type { BuiltinSubagent, FabricAgent } from './agentTypes'
+import type { WorkforceAgent } from '../enterprise-workforce/workforceTypes'
 
 function mapRegistryEntryToFabricAgent(
   e: AgentRegistryEntry,
@@ -49,6 +50,40 @@ function mapRegistryEntryToFabricAgent(
     source: e.source ?? 'prompt_odm',
     status: e.status ?? statusFallback,
     created_at: e.created_at
+  }
+}
+
+// Workforce agents live in a different collection (AutonomousAgentODM) than
+// the registry (PromptODM-only), so the registry endpoint never returns them
+// regardless of the surface filter. Map them into a FabricAgent here so they
+// show in the same grid, flagged as workforce.
+function mapWorkforceAgentToFabricAgent(wf: WorkforceAgent, skillToolMap: Map<string, string[]>): FabricAgent {
+  const skillIds = wf.skill_ids ?? []
+  const skillToolsById: Record<string, string[]> = {}
+  for (const sid of skillIds) {
+    const tools = skillToolMap.get(sid)
+    if (tools && tools.length > 0) skillToolsById[sid] = tools
+  }
+  return {
+    id: wf.agent_id,
+    name: wf.name,
+    description: wf.description,
+    agent_type: null,
+    specialty: wf.workforce_profile?.role ?? null,
+    domain: wf.domain ?? null,
+    avatar: null,
+    color: null,
+    is_public: null,
+    tags: wf.tags ?? [],
+    tools_count: 0,
+    knowledge_sources_count: wf.workforce_profile?.knowledge_refs?.length ?? 0,
+    skill_ids: skillIds,
+    skills_count: skillIds.length,
+    skill_tools_by_id: skillToolsById,
+    source: 'autonomous_agent',
+    isWorkforce: true,
+    status: wf.status,
+    created_at: wf.created_at ?? null
   }
 }
 
@@ -130,6 +165,10 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
   const [archivedExpanded, setArchivedExpanded] = useState(false)
   const [showLegend, setShowLegend] = useState(false)
   const [configuringAgent, setConfiguringAgent] = useState<FabricAgent | null>(null)
+  // Ids of agents that also live on the Workforce surface (same
+  // AutonomousAgentODM record + a workforce_profile). Drives whether the
+  // per-agent config editor shows the workforce-only cards.
+  const [workforceAgentIds, setWorkforceAgentIds] = useState<Set<string>>(new Set())
   const [createOpen, setCreateOpen] = useState(false)
   const [archivingAgentId, setArchivingAgentId] = useState<string | null>(null)
   const [activatingAgentId, setActivatingAgentId] = useState<string | null>(null)
@@ -149,19 +188,37 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
     setIsLoading(true)
     setError(null)
     try {
-      const [entries, builtinEntries, archivedEntries, skillToolMap] = await Promise.all([
-        client.getAgentRegistry({ limit: 200 }),
+      // surface: 'all' so workforce-only agents (surfaces=["workforce"]) are
+      // included here too — the registry defaults to 'enterprise', which
+      // would otherwise exclude them and leave the workforce cards unreachable.
+      const [entries, builtinEntries, archivedEntries, skillToolMap, workforcePage] = await Promise.all([
+        client.getAgentRegistry({ limit: 200, surface: 'all' }),
         client.getBuiltinSubagents().catch(() => [] as BuiltinSubagent[]),
-        client.getAgentRegistry({ limit: 200, status: 'archived' }).catch(() => [] as AgentRegistryEntry[]),
-        loadSkillToolMap(client)
+        client
+          .getAgentRegistry({ limit: 200, status: 'archived', surface: 'all' })
+          .catch(() => [] as AgentRegistryEntry[]),
+        loadSkillToolMap(client),
+        client.listWorkforceAgents({ limit: 200 }).catch(() => ({ data: [], total: 0 }))
       ])
-      const mapped: FabricAgent[] = entries.map(e => mapRegistryEntryToFabricAgent(e, 'active', skillToolMap))
-      const mappedArchived: FabricAgent[] = archivedEntries.map(e =>
-        mapRegistryEntryToFabricAgent(e, 'archived', skillToolMap)
-      )
-      setAgents(mapped)
+      const workforceIds = new Set(workforcePage.data.map(a => a.agent_id))
+      const mapped: FabricAgent[] = entries.map(e => ({
+        ...mapRegistryEntryToFabricAgent(e, 'active', skillToolMap),
+        isWorkforce: workforceIds.has(e.id)
+      }))
+      // Workforce agents are not in the registry collection, so append the
+      // ones the registry did not already return (dedupe by id).
+      const registryIds = new Set(mapped.map(a => a.id))
+      const workforceOnly = workforcePage.data
+        .filter(wf => !registryIds.has(wf.agent_id))
+        .map(wf => mapWorkforceAgentToFabricAgent(wf, skillToolMap))
+      const mappedArchived: FabricAgent[] = archivedEntries.map(e => ({
+        ...mapRegistryEntryToFabricAgent(e, 'archived', skillToolMap),
+        isWorkforce: workforceIds.has(e.id)
+      }))
+      setAgents([...mapped, ...workforceOnly])
       setArchivedAgents(mappedArchived)
       setBuiltins(builtinEntries)
+      setWorkforceAgentIds(workforceIds)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load agents')
     } finally {
@@ -248,6 +305,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
       <AgentConfigView
         agent={configuringAgent}
         accessToken={accessToken}
+        isWorkforceEnabled={workforceAgentIds.has(configuringAgent.id)}
         onBack={() => setConfiguringAgent(null)}
         onSkillsSaved={handleSkillsSaved}
         onAgentUpdated={(agentId, updates) => {

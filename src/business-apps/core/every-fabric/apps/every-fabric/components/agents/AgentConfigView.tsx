@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
@@ -12,6 +12,7 @@ import {
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { getSourceDisplay } from './agentSourceUtils'
 import { AgentPoliciesEditor } from './AgentPoliciesEditor'
+import { WorkforceConfigSections } from './WorkforceConfigSections'
 import type { FabricAgent } from './agentTypes'
 
 interface SkillOption {
@@ -26,6 +27,10 @@ interface SkillOption {
 interface AgentConfigViewProps {
   agent: FabricAgent
   accessToken: string
+  /** When true the agent also lives on the Workforce surface, so the
+   *  workforce-only config cards (autonomy, triggers, escalation, budget,
+   *  knowledge, role/ownership) are shown below the shared cards. */
+  isWorkforceEnabled?: boolean
   onBack: () => void
   onSkillsSaved: (agentId: string, skillIds: string[]) => void
   onAgentUpdated?: (agentId: string, updates: { name: string; description: string; tags: string[] }) => void
@@ -36,6 +41,7 @@ const formatAgentName = (name: string) => name.replace(/_/g, ' ').replace(/\b\w/
 export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   agent,
   accessToken,
+  isWorkforceEnabled = false,
   onBack,
   onSkillsSaved,
   onAgentUpdated
@@ -124,14 +130,27 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
       setSkillsError(null)
       setDetailsLoading(true)
       setDetailsError(null)
-      const [skillsResult, detailResult] = await Promise.allSettled([
-        Promise.all([
-          client.getAgentSkills(agent.id),
-          client.get<SkillOption[]>('/admin/skills/').catch(() => [] as SkillOption[]),
-          client.get<Array<Omit<SkillOption, 'status' | 'is_active'>>>('/skills/manifest').catch(() => [])
-        ]),
-        client.getAgentDetail(agent.id)
+
+      const skillsPromise = Promise.all([
+        client.getAgentSkills(agent.id),
+        client.get<SkillOption[]>('/admin/skills/').catch(() => [] as SkillOption[]),
+        client.get<Array<Omit<SkillOption, 'status' | 'is_active'>>>('/skills/manifest').catch(() => [])
       ])
+
+      // The registry detail endpoint is PromptODM-only and 404s for workforce
+      // agents (they live in AutonomousAgentODM). Skip it for them and use the
+      // name/description/tags already passed in; tools are surfaced elsewhere.
+      if (isWorkforceEnabled) {
+        const [skillsResult] = await Promise.allSettled([skillsPromise])
+        if (cancelled) return
+        applySkillsResult(skillsResult)
+        setSkillsLoading(false)
+        setTools([])
+        setDetailsLoading(false)
+        return
+      }
+
+      const [skillsResult, detailResult] = await Promise.allSettled([skillsPromise, client.getAgentDetail(agent.id)])
       if (cancelled) return
       applySkillsResult(skillsResult)
       setSkillsLoading(false)
@@ -143,7 +162,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
     return () => {
       cancelled = true
     }
-  }, [client, agent.id])
+  }, [client, agent.id, isWorkforceEnabled])
 
   const assignedSkills = useMemo(
     () => availableSkills.filter(s => selectedSkillIds.has(s.skill_id)),
@@ -461,6 +480,11 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
               </div>
             )}
           </section>
+
+          {/* Workforce-only config (autonomy, triggers, escalation, budget,
+              knowledge, role/ownership). Shown only for agents that also live
+              on the Workforce surface; saves via the /workforce endpoints. */}
+          {isWorkforceEnabled && <WorkforceConfigSections agentId={agent.id} accessToken={accessToken} />}
         </div>
       </div>
     </div>

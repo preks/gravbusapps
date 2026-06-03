@@ -6,6 +6,8 @@
 
 import React, { useEffect, useState } from 'react'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
+import { RoleOwnershipFields } from './RoleOwnershipFields'
+import { roleOwnershipDirty, roleOwnershipFromAgent, roleOwnershipToPatch } from './roleOwnershipForm'
 import { SectionShell } from './SectionShell'
 
 interface IdentitySectionProps {
@@ -16,29 +18,25 @@ interface IdentitySectionProps {
 
 interface FormState {
   displayName: string
+  description: string
   role: string
   department: string
   ownerUserId: string
-  description: string
 }
 
 function fromAgent(agent: WorkforceAgent): FormState {
   return {
     displayName: agent.display_name,
-    role: agent.workforce_profile.role,
-    department: agent.workforce_profile.department ?? '',
-    ownerUserId: agent.workforce_profile.owner_user_id ?? '',
-    description: agent.description
+    description: agent.description,
+    ...roleOwnershipFromAgent(agent)
   }
 }
 
 function isDirty(form: FormState, baseline: FormState): boolean {
   return (
     form.displayName !== baseline.displayName ||
-    form.role !== baseline.role ||
-    form.department !== baseline.department ||
-    form.ownerUserId !== baseline.ownerUserId ||
-    form.description !== baseline.description
+    form.description !== baseline.description ||
+    roleOwnershipDirty(form, baseline)
   )
 }
 
@@ -46,7 +44,6 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({ agent, isSavin
   const baseline = fromAgent(agent)
   const [form, setForm] = useState<FormState>(baseline)
 
-  // Reset the local draft when the upstream agent changes (e.g. after a save).
   useEffect(() => {
     setForm(fromAgent(agent))
   }, [agent])
@@ -56,10 +53,8 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({ agent, isSavin
   const handleSave = async () => {
     await onSave({
       display_name: form.displayName.trim(),
-      role: form.role.trim(),
-      department: form.department.trim() || null,
-      owner_user_id: form.ownerUserId.trim() || null,
-      description: form.description.trim()
+      description: form.description.trim(),
+      ...roleOwnershipToPatch(form)
     })
   }
 
@@ -106,54 +101,16 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({ agent, isSavin
           />
         </div>
 
-        <div>
-          <label
-            htmlFor="ws-identity-role"
-            className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
-          >
-            Role
-          </label>
-          <input
-            id="ws-identity-role"
-            value={form.role}
-            onChange={e => setForm(prev => ({ ...prev, role: e.target.value }))}
-            className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
-            data-testid="workforce-identity-role"
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="ws-identity-department"
-            className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
-          >
-            Department
-          </label>
-          <input
-            id="ws-identity-department"
-            value={form.department}
-            onChange={e => setForm(prev => ({ ...prev, department: e.target.value }))}
-            className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
-            data-testid="workforce-identity-department"
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="ws-identity-owner"
-            className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
-          >
-            Owner user ID
-          </label>
-          <input
-            id="ws-identity-owner"
-            value={form.ownerUserId}
-            onChange={e => setForm(prev => ({ ...prev, ownerUserId: e.target.value }))}
-            placeholder="Person responsible for escalations"
-            className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
-            data-testid="workforce-identity-owner"
-          />
-        </div>
+        <RoleOwnershipFields
+          values={form}
+          onChange={patch => setForm(prev => ({ ...prev, ...patch }))}
+          fieldIds={{ role: 'ws-identity-role', department: 'ws-identity-department', owner: 'ws-identity-owner' }}
+          testIds={{
+            role: 'workforce-identity-role',
+            department: 'workforce-identity-department',
+            owner: 'workforce-identity-owner'
+          }}
+        />
 
         <div className="gba:sm:col-span-2">
           <label
