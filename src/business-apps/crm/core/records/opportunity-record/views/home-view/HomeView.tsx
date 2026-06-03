@@ -28,9 +28,12 @@ import {
   isCrmNoteNextStepType,
   isCrmNoteRegularType
 } from '@/common/data/customer/types/customerNoteTypes'
+import type { CustomerOpportunityAccount } from '@/common/data/customer/types/customerAccountAssociationTypes'
 import { getReferenceEntityType } from '@/common/data/customer/utils/referenceEntityUtils'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 interface HomeViewProps extends BusinessAppContextProps {
   opportunityId: string
@@ -77,6 +80,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   accessToken,
   ...props
 }) => {
+  const docuSignEnabled = useFeature<boolean>(Feature.CRM.DocuSign.Key) === true
   const { t } = useTranslation(noteSectionI18n)
   const regularOpportunityNotes = useMemo(() => (notes ?? []).filter(isCrmNoteRegularType), [notes])
   const nextStepOpportunityNotes = useMemo(() => (notes ?? []).filter(isCrmNoteNextStepType), [notes])
@@ -141,7 +145,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             accessToken,
             accounts:
               opportunityData?.opportunityAccounts
-                ?.map(junction => ({
+                ?.map((junction: CustomerOpportunityAccount) => ({
                   ...junction.account,
                   accountType: junction.accountType
                 }))
@@ -267,7 +271,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             priorityCatalog: TASK_PRIORITY,
             buildTaskPayload: buildCustomerTaskPayload,
             defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
-            preSubmit: taskPreSubmit
+            preSubmit: taskPreSubmit,
+            docuSignEnabled
           }
         },
         {
@@ -303,7 +308,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             isApprovalTaskSection: true,
             approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
             defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
-            preSubmit: taskPreSubmit
+            preSubmit: taskPreSubmit,
+            docuSignEnabled
           }
         }
       ]}

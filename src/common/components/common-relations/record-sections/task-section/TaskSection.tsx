@@ -164,6 +164,8 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   emptyStateTitle?: string
   /** Optional override for the empty-state description shown when no tasks exist. */
   emptyStateDescription?: string
+  /** When true, DocuSign signing UI is shown (set by CRM/IRM parents from FeatureHub). */
+  docuSignEnabled?: boolean
 }
 
 const TaskSection: React.FC<TaskSectionProps> = ({
@@ -188,13 +190,14 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   leadId,
   investmentId,
   emptyStateTitle,
-  emptyStateDescription
+  emptyStateDescription,
+  docuSignEnabled = false
 }) => {
   const { t } = useTranslation(translations)
   const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
 
   useEffect(() => {
-    if (!rawTasks || rawTasks.length === 0) {
+    if (!docuSignEnabled || !rawTasks || rawTasks.length === 0) {
       return
     }
     const envelopeIds = new Set<string>()
@@ -209,7 +212,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     envelopeIds.forEach(id => {
       ensureStatus(id)
     })
-  }, [rawTasks, ensureStatus])
+  }, [rawTasks, ensureStatus, docuSignEnabled])
 
   // Map raw tasks to TaskItem format
   const tasks = useMemo(() => {
@@ -804,7 +807,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                       </div>
                       <div className="gba:flex gba:items-center gba:gap-1">
                         {taskActions}
-                        {hasSignableDocs && (
+                        {docuSignEnabled && hasSignableDocs && (
                           <Button
                             size="sm"
                             onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
@@ -906,38 +909,40 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         currentUserId={userInfo?.id}
         businessAppContext={businessAppContext}
         flowContext={taskEntityActionProps?.contextsArray?.[0]}
+        docuSignEnabled={docuSignEnabled}
         onTaskCompleted={() => refetch?.()}
       />
 
-      {/* DocuSign Modal (from list actions) */}
-      <DocuSignSignatureModal
-        isOpen={isDocuSignOpen}
-        onClose={() => {
-          setIsDocuSignOpen(false)
-          setDocuSignFocusReferral(false)
-        }}
-        accessToken={accessToken}
-        assignedUserId={docuSignAssignedUserId}
-        emailOnly={!(docuSignAssignedUserId && userInfo?.id && docuSignAssignedUserId === (userInfo?.id as any))}
-        businessAppContext={businessAppContext}
-        taskContext={
-          docuSignTask && docuSignTaskFormData
-            ? {
-                taskId: docuSignTask.id,
-                taskFormData: docuSignTaskFormData
-              }
-            : undefined
-        }
-        documents={(docuSignDocs || []).map(d => ({
-          id: d.id,
-          name: d.name,
-          mimeType: d.mimeType,
-          version: d.version,
-          envelopeStatus: d.envelopeStatus,
-          fileInfo: d.fileInfo
-        }))}
-        focusReferral={docuSignFocusReferral}
-      />
+      {docuSignEnabled && (
+        <DocuSignSignatureModal
+          isOpen={isDocuSignOpen}
+          onClose={() => {
+            setIsDocuSignOpen(false)
+            setDocuSignFocusReferral(false)
+          }}
+          accessToken={accessToken}
+          assignedUserId={docuSignAssignedUserId}
+          emailOnly={!(docuSignAssignedUserId && userInfo?.id && docuSignAssignedUserId === (userInfo?.id as any))}
+          businessAppContext={businessAppContext}
+          taskContext={
+            docuSignTask && docuSignTaskFormData
+              ? {
+                  taskId: docuSignTask.id,
+                  taskFormData: docuSignTaskFormData
+                }
+              : undefined
+          }
+          documents={(docuSignDocs || []).map(d => ({
+            id: d.id,
+            name: d.name,
+            mimeType: d.mimeType,
+            version: d.version,
+            envelopeStatus: d.envelopeStatus,
+            fileInfo: d.fileInfo
+          }))}
+          focusReferral={docuSignFocusReferral}
+        />
+      )}
     </>
   )
 }

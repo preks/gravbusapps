@@ -29,6 +29,8 @@ import AccountSection from '@/common/components/common-relations/record-sections
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/customer/constants/customerCatalogs'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 interface HomeViewProps extends BusinessAppContextProps {
   contactId: string
@@ -78,6 +80,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   approvalActionProps,
   ...props
 }) => {
+  const docuSignEnabled = useFeature<boolean>(Feature.CRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -208,6 +211,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 buildTaskPayload: buildCustomerTaskPayload,
                 defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
                 preSubmit: taskPreSubmit,
+                docuSignEnabled,
                 'data-testid': 'contact-tasks-section'
               }
             },
@@ -237,6 +241,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
                 defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
                 preSubmit: taskPreSubmit,
+                docuSignEnabled,
                 'data-testid': 'contact-approvals-section'
               }
             }

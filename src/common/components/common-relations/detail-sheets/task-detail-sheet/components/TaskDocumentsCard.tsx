@@ -5,7 +5,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-de
 import { ArrowSquareOutIcon } from '@phosphor-icons/react'
 import { TaskDocument } from '../types'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
-import type { EnvelopeStatusRecord } from '../hooks/useDocuSignIntegration'
+import type { EnvelopeStatusRecord } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 
 export interface TaskDocumentsCardProps {
   documents: (TaskDocument & { envelopeId?: string; envelopeStatus?: string })[]
@@ -13,6 +13,7 @@ export interface TaskDocumentsCardProps {
   dataTestId?: string
   onDocumentClick: (doc: TaskDocument, e: React.MouseEvent) => void
   onCheckEnvelopeStatus: (envelopeId: string) => void
+  showDocuSignEnvelopeStatus?: boolean
 }
 
 /**
@@ -23,7 +24,8 @@ export const TaskDocumentsCard: React.FC<TaskDocumentsCardProps> = ({
   statusMap,
   dataTestId = 'TaskDetailSheet',
   onDocumentClick,
-  onCheckEnvelopeStatus
+  onCheckEnvelopeStatus,
+  showDocuSignEnvelopeStatus = true
 }) => {
   if (documents.length === 0) {
     return null
@@ -57,7 +59,7 @@ export const TaskDocumentsCard: React.FC<TaskDocumentsCardProps> = ({
                   {doc.mimeType && (
                     <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{doc.mimeType}</div>
                   )}
-                  {envelopeId ? (
+                  {showDocuSignEnvelopeStatus && envelopeId ? (
                     <div className="gba:mt-1 gba:flex gba:items-center gba:gap-2">
                       <span className="gba:text-xs gba:text-muted-foreground">DocuSign:</span>
                       <span className="gba:text-xs gba:font-medium">{displayStatus}</span>

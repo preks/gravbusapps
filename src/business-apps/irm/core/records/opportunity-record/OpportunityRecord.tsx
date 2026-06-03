@@ -53,6 +53,8 @@ import {
 import { getReferenceEntityType } from '@/common/data/investment/utils/referenceEntityUtils'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
 import { buildInvestmentActivityPayload } from '@/common/data/investment/types/investmentActivityTypes'
 import { buildInvestmentNotePayload } from '@/common/data/investment/types/investmentNoteTypes'
@@ -102,6 +104,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     refetch
   } = useInvestmentOpportunity(props.accessToken, opportunityId)
 
+  const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -1038,7 +1041,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       priorityCatalog: TASK_PRIORITY,
                       buildTaskPayload: buildInvestmentTaskPayload,
                       defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-                      preSubmit: taskPreSubmit
+                      preSubmit: taskPreSubmit,
+                      docuSignEnabled
                     }
                   },
                   {
@@ -1064,7 +1068,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       isApprovalTaskSection: true,
                       approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
                       defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-                      preSubmit: taskPreSubmit
+                      preSubmit: taskPreSubmit,
+                      docuSignEnabled
                     }
                   }
                 ]}
@@ -1081,7 +1086,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                 sections={[
                   {
                     id: 'activities-section',
-                    component: ActivitySection,
+                    component: ActivitySection as React.ComponentType<any>,
                     props: {
                       ...props,
                       opportunityId,
@@ -1106,7 +1111,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   },
                   {
                     id: 'notes-section',
-                    component: NoteSection,
+                    component: NoteSection as React.ComponentType<any>,
                     props: {
                       ...props,
                       opportunityId,

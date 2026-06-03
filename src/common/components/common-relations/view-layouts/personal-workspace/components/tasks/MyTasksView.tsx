@@ -78,6 +78,7 @@ export interface MyTasksViewProps<TTask extends Task = Task, TQueryVariables = a
   hideFilters?: boolean
   enableExport?: boolean
   exportFilenamePrefix?: string
+  docuSignEnabled?: boolean
 }
 
 /**
@@ -141,7 +142,8 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
     onVisibleColumnsChange,
     hideFilters = false,
     enableExport = false,
-    exportFilenamePrefix = 'my-tasks'
+    exportFilenamePrefix = 'my-tasks',
+    docuSignEnabled = false
   } = props
 
   // View State — initialized from props (localStorage)
@@ -430,6 +432,7 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
         assignedUserId={selectedTask?.taskAssignees?.[0]?.assignedUserId}
         currentUserId={userInfo?.id}
         flowContext={config.flowContexts.entityContext}
+        docuSignEnabled={docuSignEnabled}
         onTaskCompleted={() => loadTasks(false)}
       />
     </div>

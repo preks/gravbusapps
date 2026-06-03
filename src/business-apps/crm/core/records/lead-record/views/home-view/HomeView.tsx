@@ -25,6 +25,8 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildCustomerTaskPayload } from '@/common/data/customer/types/customerTaskTypes'
 import { buildCustomerActivityPayload } from '@/common/data/customer/types/customerActivityTypes'
 import { buildCustomerNotePayload } from '@/common/data/customer/types/customerNoteTypes'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 // Build reference URLs for CRM context
 const buildReferenceUrl = (reference: TaskReference): string => {
@@ -60,6 +62,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   userInfo,
   ...props
 }) => {
+  const docuSignEnabled = useFeature<boolean>(Feature.CRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken, userInfo })
   const taskPreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -168,6 +171,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 buildTaskPayload: buildCustomerTaskPayload,
                 defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
                 preSubmit: taskPreSubmit,
+                docuSignEnabled,
                 'data-testid': 'lead-tasks-section'
               }
             },
@@ -199,6 +203,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
                 defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
                 preSubmit: taskPreSubmit,
+                docuSignEnabled,
                 'data-testid': 'lead-approvals-section'
               }
             }

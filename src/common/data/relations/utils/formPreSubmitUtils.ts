@@ -26,7 +26,9 @@ export interface PreSubmitOptions {
   getReferenceEntityType: (data: any) => any
   /** Whether to set creator fields (true) or author fields (false) */
   useCreatorFields?: boolean
-  /** Additional entity ID fields to check (e.g., investmentId for IRM) */
+  /** Fallback entity ID for file uploads when form data has no relation id yet (e.g. record home quick-add). */
+  entityId?: string
+  /** Additional entity ID fields to check on form data (e.g. investmentId for IRM) */
   additionalEntityIdFields?: string[]
 }
 
@@ -46,6 +48,7 @@ export const createFormPreSubmitHandler = (options: PreSubmitOptions) => {
     getFileEntityFromType,
     getReferenceEntityType,
     useCreatorFields = true,
+    entityId,
     additionalEntityIdFields = []
   } = options
 
@@ -82,6 +85,7 @@ export const createFormPreSubmitHandler = (options: PreSubmitOptions) => {
         // Determine reference entity from form data
         // Check additional fields first (e.g., investmentId), then standard fields
         const findReferenceEntityId = (): string => {
+          if (entityId) return entityId
           const additionalId = additionalEntityIdFields.map(field => data[field]).find(Boolean)
           if (additionalId) return additionalId
           const rid = data.relatedEntityId

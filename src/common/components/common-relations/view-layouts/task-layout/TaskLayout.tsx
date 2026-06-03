@@ -10,6 +10,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskListLayout } from './components/TaskListLayout'
 import { SingleTaskStatistics } from './components/SingleTaskStatistics'
+import type { TaskStatisticsData } from './components/TaskStatisticsCard'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { Task, TaskReference } from '@/common/data/relations/types/taskTypes'
 import { TaskDetailSheet } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
@@ -19,15 +20,7 @@ import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from './utils/filterHelpers'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
-/**
- * Task Statistics Data (Single Set)
- */
-export interface TaskStatisticsData {
-  totalTasks: { value: number }
-  inProgress: { value: number }
-  completed: { value: number }
-  overdue: { value: number }
-}
+export type { TaskStatisticsData } from './components/TaskStatisticsCard'
 
 /**
  * Task View Configuration (Single-Tab Mode - Team Tasks Only)
@@ -97,6 +90,8 @@ export interface TaskLayoutProps<TTask extends Task = Task, TQueryVariables = an
   onSortingChange?: (sorting: Array<{ id: string; desc: boolean }>) => void
   initialVisibleColumns?: string[]
   onVisibleColumnsChange?: (columns: string[]) => void
+  /** When true, DocuSign signing UI is shown in the task detail sheet (set by CRM/IRM parents from FeatureHub). */
+  docuSignEnabled?: boolean
 }
 
 const getTaskExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
@@ -155,7 +150,8 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     initialSorting: initialSortingProp,
     onSortingChange: onSortingChangeProp,
     initialVisibleColumns: initialVisibleColumnsProp,
-    onVisibleColumnsChange: onVisibleColumnsChangeProp
+    onVisibleColumnsChange: onVisibleColumnsChangeProp,
+    docuSignEnabled = false
   } = props
   const { accessToken, userInfo } = context
 
@@ -471,7 +467,8 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         accessToken={accessToken}
         assignedUserId={selectedTask?.taskAssignees?.[0]?.assignedUserId}
         currentUserId={userInfo?.id}
-        flowContext={config.rowActionsContextArray?.[0]}
+        flowContext={config.flowContexts.entityContext}
+        docuSignEnabled={docuSignEnabled}
         onTaskCompleted={() => loadTasks(false)}
       />
     </div>

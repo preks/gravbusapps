@@ -28,6 +28,8 @@ import { buildCustomerNotePayload } from '@/common/data/customer/types/customerN
 import { getReferenceEntityType } from '@/common/data/customer/utils/referenceEntityUtils'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 interface HomeViewProps extends BusinessAppContextProps {
   accountId: string
@@ -35,6 +37,7 @@ interface HomeViewProps extends BusinessAppContextProps {
 }
 
 const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props }) => {
+  const docuSignEnabled = useFeature<boolean>(Feature.CRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -343,7 +346,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                 priorityCatalog: TASK_PRIORITY,
                 buildTaskPayload: buildCustomerTaskPayload,
                 defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
-                preSubmit: taskPreSubmit
+                preSubmit: taskPreSubmit,
+                docuSignEnabled
               }
             },
             {
@@ -363,7 +367,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                 isApprovalTaskSection: true,
                 approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
                 defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
-                preSubmit: taskPreSubmit
+                preSubmit: taskPreSubmit,
+                docuSignEnabled
               }
             }
           ]}
@@ -377,7 +382,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         sections={[
           {
             id: 'activities-section',
-            component: ActivitySection,
+            component: ActivitySection as React.ComponentType<any>,
             props: {
               ...props,
               accountId,
@@ -396,7 +401,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
           },
           {
             id: 'notes-section',
-            component: NoteSection,
+            component: NoteSection as React.ComponentType<any>,
             props: {
               ...props,
               accountId,

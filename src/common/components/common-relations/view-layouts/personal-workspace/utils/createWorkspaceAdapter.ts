@@ -60,7 +60,7 @@ export function createKpiAdapter<TVariables extends { employeeId: string }, TDat
       void loadData()
     }, [loadData])
 
-    return { data, loading, error }
+    return { data, loading, error, refetch: () => void loadData() }
   }
 }
 

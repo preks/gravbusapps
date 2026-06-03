@@ -51,6 +51,8 @@ import {
 import { getReferenceEntityType } from '@/common/data/investment/utils/referenceEntityUtils'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
 import { buildInvestmentActivityPayload } from '@/common/data/investment/types/investmentActivityTypes'
 import { buildInvestmentNotePayload } from '@/common/data/investment/types/investmentNoteTypes'
@@ -106,6 +108,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     await refetch()
   }, [refetch])
 
+  const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -621,7 +624,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     priorityCatalog: TASK_PRIORITY,
                     buildTaskPayload: buildInvestmentTaskPayload,
                     defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-                    preSubmit: taskPreSubmit
+                    preSubmit: taskPreSubmit,
+                    docuSignEnabled
                   }
                 },
                 {
@@ -656,7 +660,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     typeCatalog: TASK_TYPE,
                     priorityCatalog: TASK_PRIORITY,
                     buildTaskPayload: buildInvestmentTaskPayload,
-                    preSubmit: taskPreSubmit
+                    preSubmit: taskPreSubmit,
+                    docuSignEnabled
                   }
                 }
               ]}

@@ -27,6 +27,10 @@ import type { TaskReference } from '@/common/components/common-relations/detail-
 import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
 import { buildInvestmentActivityPayload } from '@/common/data/investment/types/investmentActivityTypes'
 import { buildInvestmentNotePayload } from '@/common/data/investment/types/investmentNoteTypes'
+import type { InvestmentInvestmentAccount } from '@/common/data/investment/types/investmentAccountAssociationTypes'
+import { getInvestmentAccountContactAssociations } from '@/common/data/investment/types/investmentAccountTypes'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 interface InvestmentHomeTabProps extends BusinessAppContextProps {
   investmentId: string
@@ -34,6 +38,7 @@ interface InvestmentHomeTabProps extends BusinessAppContextProps {
 }
 
 export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investmentId, investment, ...context }) => {
+  const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: context.accessToken, userInfo: context.userInfo })
   const taskPreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -204,7 +209,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                   // Transform junction table to include account type
                   accounts:
                     investment?.investmentAccounts
-                      ?.map(junction => ({
+                      ?.map((junction: InvestmentInvestmentAccount) => ({
                         ...junction.investmentAccount,
                         investmentAccountType: junction.investmentAccountType // Add catalog entry from junction table
                       }))
@@ -249,13 +254,9 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                   // GraphQL field: investmentAccountContact (singular), TypeScript: accountContacts (plural)
                   contacts:
                     investment?.investmentAccounts
-                      ?.flatMap(junction => {
-                        // Try both field names: accountContacts (mapped) or investmentAccountContact (raw GraphQL)
-                        const contactAssociations =
-                          junction.investmentAccount?.accountContacts ||
-                          junction.investmentAccount?.investmentAccountContact ||
-                          []
-                        return contactAssociations.map((iac: any) => ({
+                      ?.flatMap((junction: InvestmentInvestmentAccount) => {
+                        const contactAssociations = getInvestmentAccountContactAssociations(junction.investmentAccount)
+                        return contactAssociations.map(iac => ({
                           ...iac.contact,
                           contactType: iac.contactType, // From account-contact association
                           pictureThumbnail: iac.contact?.pictureThumbnail,
@@ -265,22 +266,16 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                       .filter(Boolean) || [],
                   contactId: (() => {
                     const firstContactAssoc = investment?.investmentAccounts
-                      ?.flatMap(
-                        junction =>
-                          junction.investmentAccount?.accountContacts ||
-                          junction.investmentAccount?.investmentAccountContact ||
-                          []
+                      ?.flatMap((junction: InvestmentInvestmentAccount) =>
+                        getInvestmentAccountContactAssociations(junction.investmentAccount)
                       )
                       .find(Boolean)
                     return firstContactAssoc?.contact?.id || null
                   })(),
                   recordUrl: (() => {
                     const firstContactAssoc = investment?.investmentAccounts
-                      ?.flatMap(
-                        junction =>
-                          junction.investmentAccount?.accountContacts ||
-                          junction.investmentAccount?.investmentAccountContact ||
-                          []
+                      ?.flatMap((junction: InvestmentInvestmentAccount) =>
+                        getInvestmentAccountContactAssociations(junction.investmentAccount)
                       )
                       .find(Boolean)
                     const firstContact = firstContactAssoc?.contact
@@ -294,11 +289,8 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                   })(),
                   actionButtonProps: (() => {
                     const firstContactAssoc = investment?.investmentAccounts
-                      ?.flatMap(
-                        junction =>
-                          junction.investmentAccount?.accountContacts ||
-                          junction.investmentAccount?.investmentAccountContact ||
-                          []
+                      ?.flatMap((junction: InvestmentInvestmentAccount) =>
+                        getInvestmentAccountContactAssociations(junction.investmentAccount)
                       )
                       .find(Boolean)
                     const firstContact = firstContactAssoc?.contact
@@ -347,7 +339,8 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                 priorityCatalog: TASK_PRIORITY,
                 buildTaskPayload: buildInvestmentTaskPayload,
                 defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-                preSubmit: taskPreSubmit
+                preSubmit: taskPreSubmit,
+                docuSignEnabled
               }
             },
             {
@@ -381,7 +374,8 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                 isApprovalTaskSection: true,
                 approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
                 defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-                preSubmit: taskPreSubmit
+                preSubmit: taskPreSubmit,
+                docuSignEnabled
               }
             }
           ]}
@@ -395,7 +389,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
         sections={[
           {
             id: 'activities-section',
-            component: ActivitySection,
+            component: ActivitySection as React.ComponentType<any>,
             props: {
               ...context,
               investmentId,
@@ -434,7 +428,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
           },
           {
             id: 'notes-section',
-            component: NoteSection,
+            component: NoteSection as React.ComponentType<any>,
             props: {
               ...context,
               investmentId,

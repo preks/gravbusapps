@@ -33,6 +33,8 @@ import { buildInvestmentNotePayload } from '@/common/data/investment/types/inves
 import { getReferenceEntityType } from '@/common/data/investment/utils/referenceEntityUtils'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 interface HomeViewProps extends BusinessAppContextProps {
   accountId: string
@@ -42,6 +44,7 @@ interface HomeViewProps extends BusinessAppContextProps {
 }
 
 const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments, investmentsLoading, ...props }) => {
+  const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -290,7 +293,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments
               priorityCatalog: TASK_PRIORITY,
               buildTaskPayload: buildInvestmentTaskPayload,
               defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-              preSubmit: taskPreSubmit
+              preSubmit: taskPreSubmit,
+              docuSignEnabled
             }
           },
           {
@@ -325,7 +329,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments
               approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
               defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
               buildTaskPayload: buildInvestmentTaskPayload,
-              preSubmit: taskPreSubmit
+              preSubmit: taskPreSubmit,
+              docuSignEnabled
             }
           }
         ]}
